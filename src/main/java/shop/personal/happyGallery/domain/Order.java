@@ -65,22 +65,4 @@ public class Order {
 			.mapToInt(OrderItem::getTotalPrice)
 			.sum();
 	}
-
-	public void cancelOrder() {
-		if (this.orderStatus == OrderStatus.IN_DELIVERY) {
-			throw new IllegalStateException("이미 배송 중인 주문은 취소할 수 없습니다.");
-		}
-
-		this.orderStatus = OrderStatus.CANCELED;
-
-		for (OrderItem item : this.orderItems) {
-			Product product = item.getProduct();
-			product.reduceStock(item.getQuantity());
-		}
-	}
-
-	public void setOrderStatus(OrderStatus orderStatus) {
-		this.orderStatus = orderStatus;
-	}
-
 }
