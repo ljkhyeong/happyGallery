@@ -1,2 +1,4 @@
-package shop.personal.happyGallery.controller;public class UserController {
+package shop.personal.happyGallery.controller;
+
+public class UserController {
 }

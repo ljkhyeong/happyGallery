@@ -1,2 +1,8 @@
-package shop.personal.happyGallery.service;public class UserService {
+package shop.personal.happyGallery.service;
+
+import org.springframework.stereotype.Service;
+
+@Service
+public class UserService {
+
 }
