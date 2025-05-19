@@ -11,30 +11,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Getter
 @Builder
-public class Product {
-
+public class CartItem {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-
-	private String name;
-	private int stock;
-	private int price;
-	private String description;
-
-	public void reduceStock(int quantity) {
-		if (this.stock < quantity) {
-			throw new IllegalArgumentException("재고가 주문수량보다 더 적습니다.");
-		}
-		this.stock -= quantity;
-	}
-
-	public void restoreStock(int quantity) {
-		this.stock += quantity;
-	}
-
 }

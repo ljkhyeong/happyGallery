@@ -4,6 +4,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,30 +13,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Getter
 @Builder
-public class Product {
-
+public class Cart {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	private String name;
-	private int stock;
-	private int price;
-	private String description;
+	@OneToOne
+	@JoinColumn(name = "user_id")
+	private User user;
 
-	public void reduceStock(int quantity) {
-		if (this.stock < quantity) {
-			throw new IllegalArgumentException("재고가 주문수량보다 더 적습니다.");
-		}
-		this.stock -= quantity;
-	}
-
-	public void restoreStock(int quantity) {
-		this.stock += quantity;
-	}
 
 }
