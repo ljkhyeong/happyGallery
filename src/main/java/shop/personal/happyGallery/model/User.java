@@ -37,5 +37,15 @@ public class User {
 	@OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
 	private List<Order> orders = new ArrayList<>();
 
+	public void changePassword(String password) {
+		this.password = password;
+	}
 
+	public void changeAddress(String address) {
+		this.address = address;
+	}
+
+	public void changePhoneNumber(String phoneNumber) {
+		this.phoneNumber = phoneNumber;
+	}
 }

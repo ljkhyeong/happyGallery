@@ -30,4 +30,10 @@ public class CartItem {
 	@ManyToOne
 	@JoinColumn(name = "product_id")
 	private Product product;
+
+	public void changeQuantity(int quantity) {
+		if (quantity <= 0)
+			throw new IllegalArgumentException("0개 이상 입력해주세요.");
+		this.quantity = quantity;
+	}
 }

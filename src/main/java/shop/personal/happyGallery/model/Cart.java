@@ -36,4 +36,39 @@ public class Cart {
 	@Builder.Default
 	private List<CartItem> items = new ArrayList<>();
 
+	public void addItem(Product product, int quantity) {
+		if (quantity <= 0)
+			throw new IllegalArgumentException("1개 이상 입력해주세요.");
+		for (CartItem item : items) {
+			if (item.getProduct().equals(product)) {
+				item.changeQuantity(item.getQuantity() + quantity);
+				return;
+			}
+		}
+		items.add(CartItem.builder()
+							.cart(this)
+							.product(product)
+							.quantity(quantity)
+							.build());
+	}
+
+	public void removeItem(Product product) {
+		items.removeIf(item -> item.getProduct().equals(product));
+	}
+
+	public void changeQuantity(Product product, int quantity) {
+		// TODO quantity를 정수 범위를 넘어서면 오버플로우가 발생할수도
+		if (quantity <= 0) {
+			removeItem(product);
+			return;
+		}
+
+		CartItem itemInCart = items.stream()
+			.filter(item -> item.getProduct().equals(product))
+			.findFirst()
+			.orElseThrow(() -> new IllegalArgumentException("해당하는 아이템이 카트에 존재하지 않습니다."));
+
+		itemInCart.changeQuantity(quantity);
+	}
+	
 }
