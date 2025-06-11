@@ -29,7 +29,7 @@ public class Product {
 
 	private String name;
 	private String description;
-	private long price;
+	private int price;
 	private long realPrice;
 	private int stock;
 

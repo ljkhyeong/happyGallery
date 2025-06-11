@@ -45,7 +45,4 @@ public class User {
 		this.address = address;
 	}
 
-	public void changePhoneNumber(String phoneNumber) {
-		this.phoneNumber = phoneNumber;
-	}
 }

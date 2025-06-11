@@ -30,6 +30,7 @@ public class Order {
 	private Long id;
 	@Enumerated(EnumType.STRING)
 	private OrderStatus orderStatus;
+	private int totalPrice;
 
 	@ManyToOne
 	@JoinColumn(name = "user_id")
@@ -39,7 +40,7 @@ public class Order {
 	@Builder.Default
 	private List<OrderItem> items = new ArrayList<>();
 
-	public Order fromCart(Cart cart) {
+	public static Order fromCart(Cart cart) {
 		if(cart.getItems().isEmpty())
 			throw new IllegalStateException("장바구니가 비어있습니다.");
 
@@ -53,11 +54,16 @@ public class Order {
 									.order(newOrder)
 									.product(item.getProduct())
 									.quantity(item.getQuantity())
+									.price(item.getProduct().getPrice())
 									.build());
 		}
 
+		newOrder.totalPrice = newOrder.items.stream().mapToInt(OrderItem::calculateTotalPrice).sum();
+
 		return newOrder;
 	}
+
+
 
 
 }

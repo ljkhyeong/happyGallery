@@ -70,5 +70,5 @@ public class Cart {
 
 		itemInCart.changeQuantity(quantity);
 	}
-	
+
 }

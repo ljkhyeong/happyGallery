@@ -42,4 +42,8 @@ public class Category {
 	@Builder.Default
 	private List<Product> products = new ArrayList<>();
 
+	private void addChildren(Category child) {
+		child.parent = this;
+		this.children.add(child);
+	}
 }
