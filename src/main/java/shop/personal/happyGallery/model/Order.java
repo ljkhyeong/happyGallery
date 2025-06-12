@@ -63,6 +63,12 @@ public class Order {
 		return newOrder;
 	}
 
+	public void prepareDelivering() { orderStatus = orderStatus.prepareDelivering(); }
+	public void deliver() { orderStatus = orderStatus.deliver(); }
+	public void delivered() { orderStatus = orderStatus.delivered(); }
+	public void complete() { orderStatus = orderStatus.complete(); }
+
+
 
 
 
