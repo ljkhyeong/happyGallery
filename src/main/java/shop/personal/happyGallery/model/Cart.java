@@ -52,10 +52,6 @@ public class Cart {
 							.build());
 	}
 
-	public void removeItem(Product product) {
-		items.removeIf(item -> item.getProduct().equals(product));
-	}
-
 	public void changeQuantity(Product product, int quantity) {
 		// TODO quantity를 정수 범위를 넘어서면 오버플로우가 발생할수도
 		if (quantity <= 0) {
@@ -69,6 +65,14 @@ public class Cart {
 			.orElseThrow(() -> new IllegalArgumentException("해당하는 아이템이 카트에 존재하지 않습니다."));
 
 		itemInCart.changeQuantity(quantity);
+	}
+
+	public void removeItem(Product product) {
+		items.removeIf(item -> item.getProduct().equals(product));
+	}
+
+	public void clear() {
+		items.clear();
 	}
 
 }

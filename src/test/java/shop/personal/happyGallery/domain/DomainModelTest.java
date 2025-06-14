@@ -170,7 +170,7 @@ class DomainModelTest {
 			cart.addItem(product, 2);
 
 			// when
-			cart.removeItem(product);
+			cart.changeQuantity(product, 0);
 
 			// then
 			assertThat(cart.getItems().size()).isEqualTo(0);
