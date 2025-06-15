@@ -1,12 +1,12 @@
 package shop.personal.happyGallery.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 
-@AllArgsConstructor
-@Getter
+@Data
 public class CartItemRequestDto {
-	private final Long userId;
-	private final Long productId;
-	private final int quantity;
+	private Long userId;
+	private Long productId;
+	private int quantity;
 }
