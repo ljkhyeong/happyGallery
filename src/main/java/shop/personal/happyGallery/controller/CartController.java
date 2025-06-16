@@ -30,12 +30,12 @@ public class CartController {
 	@PostMapping("/items")
 	public ResponseEntity<CartResponseDto> addItem(@RequestBody CartItemRequestDto requestDto) {
 		return ResponseEntity.ok()
-			.body(cartService.addItem(requestDto));
+			.body(cartService.addItem(requestDto.getUserId(), requestDto.getUserId(), requestDto.getQuantity()));
 	}
 	@PutMapping("/items")
 	public ResponseEntity<CartResponseDto> changeQuantity(@RequestBody CartItemRequestDto requestDto) {
 		return ResponseEntity.ok()
-			.body(cartService.changeQuantity(requestDto));
+			.body(cartService.changeQuantity(requestDto.getUserId(), requestDto.getProductId(), requestDto.getQuantity()));
 	}
 
 

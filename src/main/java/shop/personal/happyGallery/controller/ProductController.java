@@ -35,7 +35,7 @@ public class ProductController {
 
 	@PostMapping
 	public void registerProduct(@RequestBody ProductRequestDto requestDto) {
-		productService.registerProduct(requestDto);
+		productService.registerProduct(requestDto.toEntity());
 	}
 
 	@DeleteMapping("/{id}")

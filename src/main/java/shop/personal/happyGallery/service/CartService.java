@@ -30,31 +30,31 @@ public class CartService {
 	}
 
 	@Transactional
-	public CartResponseDto addItem(CartItemRequestDto requestDto) {
-		User user = userRepository.findById(requestDto.getUserId())
+	public CartResponseDto addItem(Long userId, Long ProductId, int quantity) {
+		User user = userRepository.findById(userId)
 			.orElseThrow(() -> new IllegalArgumentException("해당하는 유저 없음"));
 
 		Cart cart = user.getCart();
 
-		Product product = productRepository.findById(requestDto.getProductId())
+		Product product = productRepository.findById(ProductId)
 			.orElseThrow(() -> new IllegalArgumentException("해당하는 상품 없음"));
 
-		cart.addItem(product, requestDto.getQuantity());
+		cart.addItem(product, quantity);
 
 		return CartResponseDto.from(cart);
 	}
 
 	@Transactional
-	public CartResponseDto changeQuantity(CartItemRequestDto requestDto) {
-		User user = userRepository.findById(requestDto.getUserId())
+	public CartResponseDto changeQuantity(Long userId, Long productId, int quantity) {
+		User user = userRepository.findById(userId)
 			.orElseThrow(() -> new IllegalArgumentException("해당하는 유저 없음"));
 
 		Cart cart = user.getCart();
 
-		Product product = productRepository.findById(requestDto.getProductId())
+		Product product = productRepository.findById(productId)
 			.orElseThrow(() -> new IllegalArgumentException("해당하는 상품 없음"));
 
-		cart.changeQuantity(product, requestDto.getQuantity());
+		cart.changeQuantity(product, quantity);
 
 		return CartResponseDto.from(cart);
 	}

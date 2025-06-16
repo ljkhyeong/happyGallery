@@ -42,8 +42,7 @@ public class ProductService {
 	}
 
 	@Transactional
-	public void registerProduct(ProductRequestDto requestDto) {
-		Product product = requestDto.toEntity();
+	public void registerProduct(Product product) {
 		productRepository.save(product);
 	}
 
