@@ -23,18 +23,16 @@ public class CartService {
 
 	@Transactional(readOnly = true)
 	public CartResponseDto getCart(Long userId) {
-		User user = userRepository.findById(userId)
-			.orElseThrow(() -> new IllegalArgumentException("해당하는 유저 없음"));
+		Cart cart = cartRepository.findByUserId(userId)
+			.orElseThrow(() -> new IllegalArgumentException("해당하는 유저의 카트 없음"));
 
-		return CartResponseDto.from(user.getCart());
+		return CartResponseDto.from(cart);
 	}
 
 	@Transactional
 	public CartResponseDto addItem(Long userId, Long ProductId, int quantity) {
-		User user = userRepository.findById(userId)
-			.orElseThrow(() -> new IllegalArgumentException("해당하는 유저 없음"));
-
-		Cart cart = user.getCart();
+		Cart cart = cartRepository.findByUserId(userId)
+			.orElseThrow(() -> new IllegalArgumentException("해당하는 유저의 카트 없음"));
 
 		Product product = productRepository.findById(ProductId)
 			.orElseThrow(() -> new IllegalArgumentException("해당하는 상품 없음"));
@@ -46,10 +44,8 @@ public class CartService {
 
 	@Transactional
 	public CartResponseDto changeQuantity(Long userId, Long productId, int quantity) {
-		User user = userRepository.findById(userId)
-			.orElseThrow(() -> new IllegalArgumentException("해당하는 유저 없음"));
-
-		Cart cart = user.getCart();
+		Cart cart = cartRepository.findByUserId(userId)
+			.orElseThrow(() -> new IllegalArgumentException("해당하는 유저의 카트 없음"));
 
 		Product product = productRepository.findById(productId)
 			.orElseThrow(() -> new IllegalArgumentException("해당하는 상품 없음"));
@@ -61,10 +57,9 @@ public class CartService {
 
 	@Transactional
 	public void clearCart(Long userId) {
-		User user = userRepository.findById(userId)
-			.orElseThrow(() -> new IllegalArgumentException("해당하는 유저 없음"));
+		Cart cart = cartRepository.findByUserId(userId)
+			.orElseThrow(() -> new IllegalArgumentException("해당하는 유저의 카트 없음"));
 
-		Cart cart = user.getCart();
 		cart.clear();
 	}
 
