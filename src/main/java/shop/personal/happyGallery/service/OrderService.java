@@ -7,7 +7,10 @@ import lombok.RequiredArgsConstructor;
 import shop.personal.happyGallery.dto.OrderResponseDto;
 import shop.personal.happyGallery.model.Cart;
 import shop.personal.happyGallery.model.Order;
+import shop.personal.happyGallery.model.OrderItem;
+import shop.personal.happyGallery.model.Product;
 import shop.personal.happyGallery.model.User;
+import shop.personal.happyGallery.repository.CartRepository;
 import shop.personal.happyGallery.repository.OrderRepository;
 import shop.personal.happyGallery.repository.UserRepository;
 
@@ -16,6 +19,7 @@ import shop.personal.happyGallery.repository.UserRepository;
 public class OrderService {
 
 	private final UserRepository userRepository;
+	private final CartRepository cartRepository;
 	private final OrderRepository orderRepository;
 
 	@Transactional(readOnly = true)
@@ -27,11 +31,14 @@ public class OrderService {
 
 	@Transactional
 	public OrderResponseDto createOrderFromCart(Long userId) {
-		User user = userRepository.findById(userId)
-			.orElseThrow(() -> new IllegalArgumentException("해당하는 유저 없음"));
-		Cart cart = user.getCart();
+		Cart cart = cartRepository.findByUserId(userId)
+			.orElseThrow(() -> new IllegalArgumentException("해당하는 카트 없음"));
 
 		Order newOrder = Order.fromCart(cart);
+		for (OrderItem item : newOrder.getItems()) {
+			item.getProduct().decreaseStock(item.getQuantity());
+		}
+
 		orderRepository.save(newOrder);
 
 		return OrderResponseDto.from(newOrder);

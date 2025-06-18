@@ -31,9 +31,6 @@ public class ProductService {
 
 	@Transactional(readOnly = true)
 	public List<ProductResponseDto> getCategoryProducts(Long categoryId) {
-		Category category = categoryRepository.findById(categoryId)
-			.orElseThrow(() -> new IllegalArgumentException("해당하는 카테고리 없음"));
-
 		List<Product> products = productRepository.findByCategoryId(categoryId);
 
 		return products.stream()

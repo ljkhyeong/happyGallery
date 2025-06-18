@@ -304,6 +304,7 @@ class DomainModelTest {
 
 			// then
 			assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.PLACED);
+			assertThat(order.getUser()).isEqualTo(user);
 			assertThat(order.getTotalPrice()).isEqualTo(product.getPrice() * 2);
 		}
 
