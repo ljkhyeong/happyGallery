@@ -21,15 +21,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import shop.personal.happyGallery.model.embeded.BaseTime;
+import shop.personal.happyGallery.model.embeded.BaseTimeEntity;
 
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
 @Builder
-@EntityListeners(AuditingEntityListener.class)
-public class Category {
+public class Category extends BaseTimeEntity{
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,8 +39,6 @@ public class Category {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "parent_id")
 	private Category parent;
-	@Embedded
-	private BaseTime baseTime;
 
 	@OneToMany(mappedBy = "parent")
 	@Builder.Default

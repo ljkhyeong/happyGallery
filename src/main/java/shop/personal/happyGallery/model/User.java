@@ -1,22 +1,16 @@
 package shop.personal.happyGallery.model;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -25,7 +19,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import shop.personal.happyGallery.model.embeded.Address;
-import shop.personal.happyGallery.model.embeded.BaseTime;
+import shop.personal.happyGallery.model.embeded.BaseTimeEntity;
 import shop.personal.happyGallery.model.embeded.PhoneNumber;
 
 @Entity
@@ -34,8 +28,7 @@ import shop.personal.happyGallery.model.embeded.PhoneNumber;
 @Getter
 @Builder
 @Table(indexes = @Index(columnList = "email", unique = true))
-@EntityListeners(AuditingEntityListener.class)
-public class User {
+public class User extends BaseTimeEntity {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -50,8 +43,6 @@ public class User {
 	private Address address;
 	@Embedded
 	private PhoneNumber phoneNumber;
-	@Embedded
-	private BaseTime baseTime;
 
 	@OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
 	private Cart cart;
