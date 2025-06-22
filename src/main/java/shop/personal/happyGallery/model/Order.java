@@ -24,6 +24,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import shop.personal.happyGallery.model.embeded.BaseTimeEntity;
+import shop.personal.happyGallery.model.embeded.Money;
 
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -37,7 +38,7 @@ public class Order extends BaseTimeEntity{
 	private Long id;
 	@Enumerated(EnumType.STRING)
 	private OrderStatus orderStatus;
-	private int totalPrice;
+	private Money totalPrice;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id")

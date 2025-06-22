@@ -17,6 +17,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import shop.personal.happyGallery.model.embeded.BaseTimeEntity;
+import shop.personal.happyGallery.model.embeded.Money;
 
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -30,8 +31,8 @@ public class Product extends BaseTimeEntity{
 
 	private String name;
 	private String description;
-	private int price;
-	private int realPrice;
+	private Money price;
+	private Money realPrice;
 	private int stock;
 
 	@ManyToOne(fetch = FetchType.LAZY)
