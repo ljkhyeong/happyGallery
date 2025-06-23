@@ -7,23 +7,31 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import shop.personal.happyGallery.model.embeded.Money;
 
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
 @Builder
+@Table(
+	uniqueConstraints = {
+		@UniqueConstraint(columnNames = {"order_id", "product_id"})
+	}
+)
 public class OrderItem {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	private int quantity;
-	private int price;
+	private Money price;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "order_id")
@@ -33,7 +41,7 @@ public class OrderItem {
 	@JoinColumn(name = "product_id")
 	private Product product;
 
-	public int calculateTotalPrice() {
-		return quantity * price;
+	public Money calculateTotalPrice() {
+		return price.multiply(quantity);
 	}
 }
