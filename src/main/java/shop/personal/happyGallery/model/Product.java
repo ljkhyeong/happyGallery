@@ -11,11 +11,16 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import shop.personal.happyGallery.exception.ApplicationException;
+import shop.personal.happyGallery.exception.ErrorCode;
 import shop.personal.happyGallery.model.embeded.BaseTimeEntity;
 import shop.personal.happyGallery.model.embeded.Money;
 
@@ -24,10 +29,13 @@ import shop.personal.happyGallery.model.embeded.Money;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
 @Builder
-public class Product extends BaseTimeEntity{
+public class Product extends BaseTimeEntity {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
+
+	@Version
+	private int version;
 
 	private String name;
 	private String description;
@@ -69,5 +77,9 @@ public class Product extends BaseTimeEntity{
 	public void addCategory(Category category) {
 		this.category = category;
 		category.getProducts().add(this);
+	}
+
+	private void verifyVersion() {
+
 	}
 }
