@@ -23,8 +23,8 @@ public class Money {
 		return new Money(Currency.getInstance("KRW"), BigDecimal.valueOf(amount));
 	}
 
-	public Money add(long amount) {
-		return new Money(Currency.getInstance("KRW"), this.amount.add(BigDecimal.valueOf(amount)));
+	public Money add(Money money) {
+		return new Money(Currency.getInstance("KRW"), amount.add(money.getAmount()));
 	}
 
 	public Money multiply(int factor) {

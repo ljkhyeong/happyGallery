@@ -23,6 +23,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import shop.personal.happyGallery.exception.ApplicationException;
+import shop.personal.happyGallery.exception.ErrorCode;
 import shop.personal.happyGallery.model.embeded.BaseTimeEntity;
 import shop.personal.happyGallery.model.embeded.Money;
 
@@ -64,9 +66,13 @@ public class Order extends BaseTimeEntity{
 									.quantity(item.getQuantity())
 									.price(item.getProduct().getPrice())
 									.build());
+
+			item.getProduct().decreaseStock(item.getQuantity());
 		}
 
-		newOrder.totalPrice = newOrder.items.stream().mapToInt(OrderItem::calculateTotalPrice).sum();
+		newOrder.totalPrice = newOrder.items.stream()
+			.map(OrderItem::calculateTotalPrice)
+			.reduce(Money.of(0), Money::add);
 
 		return newOrder;
 	}
