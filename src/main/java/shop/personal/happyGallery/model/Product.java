@@ -40,24 +40,26 @@ public class Product extends BaseTimeEntity{
 	private Category category;
 
 	public void increaseStock(int quantity) {
-		if (quantity <= 0) {
-			throw new IllegalArgumentException("수량은 0개 이상 입력해주세요.");
-		}
+		verifyPositive(quantity);
 		if (quantity > 1000)
-			throw new IllegalArgumentException("추가할 수량은 1000개 이하로 입력해주세요.");
+			throw new ApplicationException(ErrorCode.INVALID_ARGUMENT);
 
 		stock += quantity;
 	}
 
 	public void decreaseStock(int quantity) {
-		if (quantity <= 0) {
-			throw new IllegalArgumentException("수량은 0개 이상 입력해주세요.");
-		}
+		verifyPositive(quantity);
 		if (!isInStock(quantity)) {
-			throw new IllegalArgumentException("감소할 수량이 재고보다 많습니다.");
+			throw new ApplicationException(ErrorCode.INVALID_ARGUMENT);
 		}
 
 		stock -= quantity;
+	}
+
+	private void verifyPositive(int quantity) {
+		if (quantity <= 0) {
+			throw new ApplicationException(ErrorCode.INVALID_ARGUMENT);
+		}
 	}
 
 	public boolean isInStock(int quantity) {

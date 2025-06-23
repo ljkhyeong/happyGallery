@@ -35,7 +35,7 @@ public class CartItem {
 
 	public void changeQuantity(int quantity) {
 		if (quantity <= 0)
-			throw new IllegalArgumentException("0개 이상 입력해주세요.");
+			throw new ApplicationException(ErrorCode.INVALID_ARGUMENT);
 		this.quantity = quantity;
 	}
 }

@@ -21,6 +21,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import shop.personal.happyGallery.exception.ApplicationException;
+import shop.personal.happyGallery.exception.ErrorCode;
 import shop.personal.happyGallery.model.embeded.BaseTimeEntity;
 
 @Entity
@@ -63,7 +65,9 @@ public class Cart extends BaseTimeEntity{
 	}
 
 	public void changeQuantity(Product product, int quantity) {
-		// TODO quantity를 정수 범위를 넘어서면 오버플로우가 발생할수도
+		if (quantity >= Integer.MAX_VALUE / product.getPrice().getAmount().intValue()) {
+			throw new ApplicationException(ErrorCode.INVALID_ARGUMENT);
+		}
 		if (quantity <= 0) {
 			removeItem(product);
 			return;
@@ -72,7 +76,7 @@ public class Cart extends BaseTimeEntity{
 		CartItem itemInCart = items.stream()
 			.filter(item -> item.getProduct().equals(product))
 			.findFirst()
-			.orElseThrow(() -> new IllegalArgumentException("해당하는 아이템이 카트에 존재하지 않습니다."));
+			.orElseThrow(() -> new ApplicationException(ErrorCode.INVALID_ARGUMENT));
 
 		itemInCart.changeQuantity(quantity);
 	}

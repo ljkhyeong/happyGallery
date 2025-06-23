@@ -50,7 +50,7 @@ public class Order extends BaseTimeEntity{
 
 	public static Order fromCart(Cart cart) {
 		if(cart.getItems().isEmpty())
-			throw new IllegalStateException("장바구니가 비어있습니다.");
+			throw new ApplicationException(ErrorCode.INVALID_ARGUMENT);
 
 		Order newOrder = Order.builder()
 							.user(cart.getUser())

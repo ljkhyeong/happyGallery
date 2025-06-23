@@ -44,7 +44,7 @@ public class Category extends BaseTimeEntity{
 	@Builder.Default
 	private List<Category> children = new ArrayList<>();
 
-	@OneToMany(mappedBy = "category", cascade = CascadeType.ALL)
+	@OneToMany(mappedBy = "category")
 	@Builder.Default
 	private List<Product> products = new ArrayList<>();
 

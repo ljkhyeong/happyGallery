@@ -3,6 +3,8 @@ package shop.personal.happyGallery.model;
 import javax.naming.OperationNotSupportedException;
 
 import lombok.Getter;
+import shop.personal.happyGallery.exception.ApplicationException;
+import shop.personal.happyGallery.exception.ErrorCode;
 
 public enum OrderStatus {
 	// TODO 배송준비중에서도 취소요청은 가능하도록
@@ -43,26 +45,29 @@ public enum OrderStatus {
 	}, REFUNDED, CANCELED;
 
 	public OrderStatus prepareDelivering() {
-		throw new UnsupportedOperationException("현재 배송상태에서는 불가능한 변경입니다.");
+		throw new ApplicationException(ErrorCode.INVALID_OPERATION);
 	}
 	public OrderStatus deliver() {
-		throw new UnsupportedOperationException("현재 배송상태에서는 불가능한 변경입니다.");
+		throw cannot();
 	}
 	public OrderStatus delivered() {
-		throw new UnsupportedOperationException("현재 배송상태에서는 불가능한 변경입니다.");
+		throw cannot();
 	}
 	public OrderStatus complete() {
-		throw new UnsupportedOperationException("현재 배송상태에서는 불가능한 변경입니다.");
+		throw cannot();
 	}
 	public OrderStatus refund() {
-		throw new UnsupportedOperationException("현재 배송상태에서는 불가능한 변경입니다.");
+		throw cannot();
 	}
 
 	public OrderStatus refunded() {
-		throw new UnsupportedOperationException("현재 배송상태에서는 불가능한 변경입니다.");
+		throw cannot();
 	}
 	public OrderStatus cancel() {
-		throw new UnsupportedOperationException("현재 배송상태에서는 불가능한 변경입니다.");
+		throw cannot();
 	}
 
+	private ApplicationException cannot() {
+		return new ApplicationException(ErrorCode.INVALID_OPERATION);
+	}
 }
