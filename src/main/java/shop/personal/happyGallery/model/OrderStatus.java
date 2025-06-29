@@ -45,7 +45,7 @@ public enum OrderStatus {
 	}, REFUNDED, CANCELED;
 
 	public OrderStatus prepareDelivering() {
-		throw new ApplicationException(ErrorCode.INVALID_OPERATION);
+		throw cannot();
 	}
 	public OrderStatus deliver() {
 		throw cannot();
@@ -68,6 +68,6 @@ public enum OrderStatus {
 	}
 
 	private ApplicationException cannot() {
-		return new ApplicationException(ErrorCode.INVALID_OPERATION);
+		return new ApplicationException(ErrorCode.INVALID_OPERATION_ORDERSTATUS);
 	}
 }

@@ -50,7 +50,7 @@ public class Cart extends BaseTimeEntity{
 
 	public void addItem(Product product, int quantity) {
 		if (quantity <= 0)
-			throw new IllegalArgumentException("1개 이상 입력해주세요.");
+			throw new ApplicationException(ErrorCode.NON_NEGATIVE_CARTITEM_QUANTITY);
 		for (CartItem item : items) {
 			if (item.getProduct().equals(product)) {
 				item.changeQuantity(item.getQuantity() + quantity);
@@ -65,8 +65,8 @@ public class Cart extends BaseTimeEntity{
 	}
 
 	public void changeQuantity(Product product, int quantity) {
-		if (quantity >= Integer.MAX_VALUE / product.getPrice().getAmount().intValue()) {
-			throw new ApplicationException(ErrorCode.INVALID_ARGUMENT);
+		if (quantity >= 1000) {
+			throw new ApplicationException(ErrorCode.NON_OVER_THOUSAND_CARTITEM_QUANTITY);
 		}
 		if (quantity <= 0) {
 			removeItem(product);
@@ -76,7 +76,7 @@ public class Cart extends BaseTimeEntity{
 		CartItem itemInCart = items.stream()
 			.filter(item -> item.getProduct().equals(product))
 			.findFirst()
-			.orElseThrow(() -> new ApplicationException(ErrorCode.INVALID_ARGUMENT));
+			.orElseThrow(() -> new ApplicationException(ErrorCode.NOT_EXISTS_ITEM_IN_CART));
 
 		itemInCart.changeQuantity(quantity);
 	}

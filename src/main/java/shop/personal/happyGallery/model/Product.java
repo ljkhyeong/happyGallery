@@ -50,7 +50,7 @@ public class Product extends BaseTimeEntity {
 	public void increaseStock(int quantity) {
 		verifyPositive(quantity);
 		if (quantity > 1000)
-			throw new ApplicationException(ErrorCode.INVALID_ARGUMENT);
+			throw new ApplicationException(ErrorCode.NOT_OVER_THOUSAND_STOCK);
 
 		stock += quantity;
 	}
@@ -58,7 +58,7 @@ public class Product extends BaseTimeEntity {
 	public void decreaseStock(int quantity) {
 		verifyPositive(quantity);
 		if (!isInStock(quantity)) {
-			throw new ApplicationException(ErrorCode.INVALID_ARGUMENT);
+			throw new ApplicationException(ErrorCode.NOT_DECREASE_OVER_STOCK);
 		}
 
 		stock -= quantity;
@@ -66,7 +66,7 @@ public class Product extends BaseTimeEntity {
 
 	private void verifyPositive(int quantity) {
 		if (quantity <= 0) {
-			throw new ApplicationException(ErrorCode.INVALID_ARGUMENT);
+			throw new ApplicationException(ErrorCode.NOT_NEGATIVE_STOCK);
 		}
 	}
 
@@ -79,7 +79,4 @@ public class Product extends BaseTimeEntity {
 		category.getProducts().add(this);
 	}
 
-	private void verifyVersion() {
-
-	}
 }
