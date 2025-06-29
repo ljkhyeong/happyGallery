@@ -1,7 +1,9 @@
 package shop.personal.happyGallery.model;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -48,11 +50,11 @@ public class Order extends BaseTimeEntity{
 
 	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
 	@Builder.Default
-	private List<OrderItem> items = new ArrayList<>();
+	private Set<OrderItem> items = new HashSet<>();
 
 	public static Order fromCart(Cart cart) {
 		if(cart.getItems().isEmpty())
-			throw new ApplicationException(ErrorCode.INVALID_ARGUMENT);
+			throw new ApplicationException(ErrorCode.EMPTY_CART);
 
 		Order newOrder = Order.builder()
 							.user(cart.getUser())

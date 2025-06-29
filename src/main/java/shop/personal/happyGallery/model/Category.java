@@ -52,4 +52,5 @@ public class Category extends BaseTimeEntity{
 		child.parent = this;
 		this.children.add(child);
 	}
+
 }

@@ -1,7 +1,9 @@
 package shop.personal.happyGallery.model;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -42,7 +44,7 @@ public class Cart extends BaseTimeEntity{
 
 	@OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
 	@Builder.Default
-	private List<CartItem> items = new ArrayList<>();
+	private Set<CartItem> items = new HashSet<>();
 
 	public void setUser(User user) {
 		this.user = user;
