@@ -12,6 +12,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import shop.personal.happyGallery.model.embeded.Money;
@@ -26,6 +27,7 @@ import shop.personal.happyGallery.model.embeded.Money;
 		@UniqueConstraint(columnNames = {"order_id", "product_id"})
 	}
 )
+@EqualsAndHashCode(of = {"order, product"})
 public class OrderItem {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

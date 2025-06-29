@@ -13,6 +13,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import shop.personal.happyGallery.exception.ApplicationException;
@@ -28,6 +29,7 @@ import shop.personal.happyGallery.exception.ErrorCode;
 		@UniqueConstraint(columnNames = {"cart_id", "product_id"})
 	}
 )
+@EqualsAndHashCode(of = {"cart", "product"})
 public class CartItem {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
