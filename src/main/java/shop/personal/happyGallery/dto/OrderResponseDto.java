@@ -21,14 +21,12 @@ import shop.personal.happyGallery.model.OrderStatus;
 import shop.personal.happyGallery.model.User;
 import shop.personal.happyGallery.model.embeded.Money;
 
-@AllArgsConstructor
-@Getter
-public class OrderResponseDto {
-	private Long id;
-	private Long userId;
-	private OrderStatus orderStatus;
-	private final List<OrderItemDto> items;
-	private Money totalPrice;
+public record OrderResponseDto(
+	Long id,
+	Long userId,
+	OrderStatus orderStatus,
+	List<OrderItemDto> items,
+	Money totalPrice) {
 
 	public static OrderResponseDto from(Order order) {
 		return new OrderResponseDto(order.getId(), order.getUser().getId(), order.getOrderStatus(),

@@ -8,12 +8,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import shop.personal.happyGallery.model.Cart;
 
-@AllArgsConstructor
-@Getter
-public class CartResponseDto {
-	private final Long id;
-	private final Long userId;
-	private final List<CartItemDto> items;
+public record CartResponseDto(
+	Long id,
+	Long userId,
+	List<CartItemDto> items
+) {
 
 	public static CartResponseDto from(Cart cart) {
 		return new CartResponseDto(cart.getId(),

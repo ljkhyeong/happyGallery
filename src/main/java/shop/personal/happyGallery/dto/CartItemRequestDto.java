@@ -4,9 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 
-@Data
-public class CartItemRequestDto {
-	private Long userId;
-	private Long productId;
-	private int quantity;
-}
+
+public record CartItemRequestDto(
+	Long userId,
+	Long productId,
+	int quantity
+) {}
