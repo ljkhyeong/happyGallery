@@ -110,7 +110,6 @@ class DomainModelTest {
 
 			// then
 			assertThat(cart.getItems().size()).isEqualTo(2);
-			assertThat(cart.getItems().equals(product2)).isTrue();
 		}
 		@Test
 		@DisplayName("같은 상품 추가 시 장바구니 내 같은 상품 수량 증가")
@@ -231,7 +230,7 @@ class DomainModelTest {
 			Product product2 = TestFixture.product()
 				.name("상품2").build();
 
-			cart.addItem(product, 2);
+			cart.addItem(product2, 2);
 
 			// when
 			// then

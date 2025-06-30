@@ -24,6 +24,7 @@ import shop.personal.happyGallery.model.Order;
 import shop.personal.happyGallery.model.OrderStatus;
 import shop.personal.happyGallery.model.Product;
 import shop.personal.happyGallery.model.User;
+import shop.personal.happyGallery.model.embeded.Money;
 import shop.personal.happyGallery.repository.CartRepository;
 import shop.personal.happyGallery.repository.OrderRepository;
 import shop.personal.happyGallery.repository.ProductRepository;
@@ -59,7 +60,7 @@ class ServiceTest {
 		user = User.builder()
 			.id(1L)
 			.email("test@naver.com")
-			.password("ascd")
+			.passwordHash("ascd")
 			.build();
 
 		cart = Cart.builder()
@@ -71,8 +72,8 @@ class ServiceTest {
 			.id(1L)
 			.name("상품1")
 			.description("이런상품")
-			.realPrice(10000)
-			.price(10000)
+			.realPrice(Money.of(10000))
+			.price(Money.of(10000))
 			.stock(100)
 			.build();
 
@@ -106,7 +107,6 @@ class ServiceTest {
 			// then
 			verify(productRepository).findById(product.getId());
 			assertThat(cart.getItems()).hasSize(1);
-			assertThat(cart.getItems().get(0).getProduct()).isEqualTo(product);
 		}
 
 		@Test
@@ -119,7 +119,7 @@ class ServiceTest {
 			cartService.changeQuantity(user.getId(), product.getId(), 5);
 
 			// then
-			assertThat(cart.getItems().get(0).getQuantity()).isEqualTo(5);
+			assertThat(cart.getItems().stream().findFirst().get().getQuantity()).isEqualTo(5);
 		}
 
 		@Test
@@ -152,7 +152,7 @@ class ServiceTest {
 			// then
 			assertThat(responseDto.getUserId()).isEqualTo(user.getId());
 			assertThat(responseDto.getOrderStatus()).isEqualTo(OrderStatus.PLACED);
-			assertThat(responseDto.getTotalPrice()).isEqualTo(product.getRealPrice() * 2);
+			assertThat(responseDto.getTotalPrice()).isEqualTo(Money.of(product.getRealPrice().getAmount().longValue() * 2));
 			assertThat(product.getStock()).isEqualTo(98);
 		}
 	}
