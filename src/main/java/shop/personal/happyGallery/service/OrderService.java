@@ -35,10 +35,6 @@ public class OrderService {
 			.orElseThrow(() -> new IllegalArgumentException("해당하는 카트 없음"));
 
 		Order newOrder = Order.fromCart(cart);
-		for (OrderItem item : newOrder.getItems()) {
-			item.getProduct().decreaseStock(item.getQuantity());
-		}
-
 		orderRepository.save(newOrder);
 
 		return OrderResponseDto.from(newOrder);

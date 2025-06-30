@@ -52,7 +52,7 @@ public class Cart extends BaseTimeEntity{
 
 	public void addItem(Product product, int quantity) {
 		if (quantity <= 0)
-			throw new ApplicationException(ErrorCode.NON_NEGATIVE_CARTITEM_QUANTITY);
+			throw new ApplicationException(ErrorCode.NOT_NEGATIVE_CARTITEM_QUANTITY);
 		for (CartItem item : items) {
 			if (item.getProduct().equals(product)) {
 				item.changeQuantity(item.getQuantity() + quantity);
@@ -68,7 +68,7 @@ public class Cart extends BaseTimeEntity{
 
 	public void changeQuantity(Product product, int quantity) {
 		if (quantity >= 1000) {
-			throw new ApplicationException(ErrorCode.NON_OVER_THOUSAND_CARTITEM_QUANTITY);
+			throw new ApplicationException(ErrorCode.NOT_OVER_THOUSAND_CARTITEM_QUANTITY);
 		}
 		if (quantity <= 0) {
 			removeItem(product);
