@@ -1,13 +1,19 @@
 package shop.personal.happyGallery.dto;
 
-import lombok.Data;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import shop.personal.happyGallery.model.Product;
 import shop.personal.happyGallery.model.embeded.Money;
 
-public record ProductRequestDto(
+public record ProductRegisterRequestDto(
+	@NotNull
 	String name,
 	String description,
+	@NotNull
 	Money price,
+	@Positive
+	@Max(1000)
 	int stock) {
 
 	public Product toEntity() {

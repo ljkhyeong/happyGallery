@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
-import shop.personal.happyGallery.dto.ProductRequestDto;
+import shop.personal.happyGallery.dto.ProductRegisterRequestDto;
 import shop.personal.happyGallery.dto.ProductResponseDto;
 import shop.personal.happyGallery.service.ProductService;
 
@@ -34,7 +34,7 @@ public class ProductController {
 	}
 
 	@PostMapping
-	public void registerProduct(@RequestBody ProductRequestDto requestDto) {
+	public void registerProduct(@RequestBody ProductRegisterRequestDto requestDto) {
 		productService.registerProduct(requestDto.toEntity());
 	}
 

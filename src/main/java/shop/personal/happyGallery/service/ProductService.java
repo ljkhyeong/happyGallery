@@ -5,12 +5,9 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.GetMapping;
 
 import lombok.RequiredArgsConstructor;
-import shop.personal.happyGallery.dto.ProductRequestDto;
 import shop.personal.happyGallery.dto.ProductResponseDto;
-import shop.personal.happyGallery.model.Category;
 import shop.personal.happyGallery.model.Product;
 import shop.personal.happyGallery.repository.CategoryRepository;
 import shop.personal.happyGallery.repository.ProductRepository;

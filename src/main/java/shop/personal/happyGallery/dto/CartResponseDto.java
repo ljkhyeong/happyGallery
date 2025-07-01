@@ -11,17 +11,17 @@ import shop.personal.happyGallery.model.Cart;
 public record CartResponseDto(
 	Long id,
 	Long userId,
-	List<CartItemDto> items
+	List<ItemDto> items
 ) {
 
 	public static CartResponseDto from(Cart cart) {
 		return new CartResponseDto(cart.getId(),
 			cart.getUser().getId(),
 			cart.getItems().stream()
-				.map(i -> new CartItemDto(i.getProduct().getId(),
+				.map(i -> new ItemDto(i.getProduct().getId(),
 					i.getProduct().getName(),
 					i.getProduct().getRealPrice(),
 					i.getQuantity()))
-				.collect(toList()));
+				.collect(toUnmodifiableList()));
 	}
 }

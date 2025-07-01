@@ -4,11 +4,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
-import shop.personal.happyGallery.dto.CartItemRequestDto;
 import shop.personal.happyGallery.dto.CartResponseDto;
 import shop.personal.happyGallery.model.Cart;
 import shop.personal.happyGallery.model.Product;
-import shop.personal.happyGallery.model.User;
 import shop.personal.happyGallery.repository.CartRepository;
 import shop.personal.happyGallery.repository.ProductRepository;
 import shop.personal.happyGallery.repository.UserRepository;

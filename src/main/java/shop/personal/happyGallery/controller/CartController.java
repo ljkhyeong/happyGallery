@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
-import shop.personal.happyGallery.dto.CartItemRequestDto;
+import shop.personal.happyGallery.dto.CartItemAddRequestDto;
+import shop.personal.happyGallery.dto.CartItemChangeRequestDto;
 import shop.personal.happyGallery.dto.CartResponseDto;
 import shop.personal.happyGallery.service.CartService;
 
@@ -28,14 +29,14 @@ public class CartController {
 	}
 
 	@PostMapping("/items")
-	public ResponseEntity<CartResponseDto> addItem(@RequestBody CartItemRequestDto requestDto) {
+	public ResponseEntity<CartResponseDto> addItem(@RequestBody CartItemAddRequestDto requestDto) {
 		return ResponseEntity.ok()
-			.body(cartService.addItem(requestDto.getUserId(), requestDto.getUserId(), requestDto.getQuantity()));
+			.body(cartService.addItem(requestDto.userId(), requestDto.userId(), requestDto.quantity()));
 	}
 	@PutMapping("/items")
-	public ResponseEntity<CartResponseDto> changeQuantity(@RequestBody CartItemRequestDto requestDto) {
+	public ResponseEntity<CartResponseDto> changeQuantity(@RequestBody CartItemChangeRequestDto requestDto) {
 		return ResponseEntity.ok()
-			.body(cartService.changeQuantity(requestDto.getUserId(), requestDto.getProductId(), requestDto.getQuantity()));
+			.body(cartService.changeQuantity(requestDto.userId(), requestDto.productId(), requestDto.quantity()));
 	}
 
 
