@@ -2,6 +2,7 @@ package shop.personal.happyGallery.model;
 
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -30,6 +31,9 @@ import shop.personal.happyGallery.model.embeded.Money;
 @Getter
 @Builder
 public class Product extends BaseTimeEntity {
+
+	private static final int MAX_STOCK = 1000;
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -37,10 +41,14 @@ public class Product extends BaseTimeEntity {
 	@Version
 	private int version;
 
+	@Column(nullable = false)
 	private String name;
 	private String description;
+	@Column(nullable = false)
 	private Money price;
+	@Column(nullable = false)
 	private Money realPrice;
+	@Column(nullable = false)
 	private int stock;
 
 	@ManyToOne(fetch = FetchType.LAZY)
@@ -49,7 +57,7 @@ public class Product extends BaseTimeEntity {
 
 	public void increaseStock(int quantity) {
 		verifyPositive(quantity);
-		if (quantity > 1000)
+		if (stock + quantity > MAX_STOCK)
 			throw new ApplicationException(ErrorCode.NOT_OVER_THOUSAND_STOCK);
 
 		stock += quantity;

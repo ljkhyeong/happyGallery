@@ -1,16 +1,11 @@
 package shop.personal.happyGallery.model;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.Embedded;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -29,6 +24,7 @@ import shop.personal.happyGallery.exception.ApplicationException;
 import shop.personal.happyGallery.exception.ErrorCode;
 import shop.personal.happyGallery.model.embeded.BaseTimeEntity;
 import shop.personal.happyGallery.model.embeded.Money;
+import shop.personal.happyGallery.model.enums.OrderStatus;
 
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -41,11 +37,13 @@ public class Order extends BaseTimeEntity{
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
 	private OrderStatus orderStatus;
+	@Column(nullable = false)
 	private Money totalPrice;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "user_id")
+	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
 
 	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -85,9 +83,5 @@ public class Order extends BaseTimeEntity{
 	public void deliver() { orderStatus = orderStatus.deliver(); }
 	public void delivered() { orderStatus = orderStatus.delivered(); }
 	public void complete() { orderStatus = orderStatus.complete(); }
-
-
-
-
 
 }
