@@ -5,16 +5,12 @@ import static org.mockito.Mockito.*;
 
 import java.math.BigDecimal;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import shop.personal.happyGallery.exception.ApplicationException;
@@ -23,7 +19,7 @@ import shop.personal.happyGallery.model.Cart;
 import shop.personal.happyGallery.model.CartItem;
 import shop.personal.happyGallery.model.Category;
 import shop.personal.happyGallery.model.Order;
-import shop.personal.happyGallery.model.OrderStatus;
+import shop.personal.happyGallery.model.enums.OrderStatus;
 import shop.personal.happyGallery.model.Product;
 import shop.personal.happyGallery.model.User;
 import shop.personal.happyGallery.model.embeded.Address;
@@ -46,7 +42,7 @@ class DomainModelTest {
 				.description("테스트용")
 				.price(Money.of(10000))
 				.realPrice(Money.of(10000))
-				.stock(1000);
+				.stock(100);
 		}
 	}
 

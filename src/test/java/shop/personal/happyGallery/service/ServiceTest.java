@@ -3,11 +3,9 @@ package shop.personal.happyGallery.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,8 +18,7 @@ import shop.personal.happyGallery.dto.OrderResponseDto;
 import shop.personal.happyGallery.dto.ProductResponseDto;
 import shop.personal.happyGallery.model.Cart;
 import shop.personal.happyGallery.model.Category;
-import shop.personal.happyGallery.model.Order;
-import shop.personal.happyGallery.model.OrderStatus;
+import shop.personal.happyGallery.model.enums.OrderStatus;
 import shop.personal.happyGallery.model.Product;
 import shop.personal.happyGallery.model.User;
 import shop.personal.happyGallery.model.embeded.Money;
@@ -150,9 +147,9 @@ class ServiceTest {
 			OrderResponseDto responseDto = orderService.createOrderFromCart(user.getId());
 
 			// then
-			assertThat(responseDto.getUserId()).isEqualTo(user.getId());
-			assertThat(responseDto.getOrderStatus()).isEqualTo(OrderStatus.PLACED);
-			assertThat(responseDto.getTotalPrice()).isEqualTo(Money.of(product.getRealPrice().getAmount().longValue() * 2));
+			assertThat(responseDto.userId()).isEqualTo(user.getId());
+			assertThat(responseDto.orderStatus()).isEqualTo(OrderStatus.PLACED);
+			assertThat(responseDto.totalPrice()).isEqualTo(Money.of(product.getRealPrice().getAmount().longValue() * 2));
 			assertThat(product.getStock()).isEqualTo(98);
 		}
 	}
@@ -169,8 +166,8 @@ class ServiceTest {
 			List<ProductResponseDto> categoryProducts = productService.getCategoryProducts(category.getId());
 
 			// then
-			assertThat(categoryProducts.get(0).getId()).isEqualTo(1L);
-			assertThat(categoryProducts.get(0).getName()).isEqualTo("상품1");
+			assertThat(categoryProducts.get(0).id()).isEqualTo(1L);
+			assertThat(categoryProducts.get(0).name()).isEqualTo("상품1");
 		}
 	}
 

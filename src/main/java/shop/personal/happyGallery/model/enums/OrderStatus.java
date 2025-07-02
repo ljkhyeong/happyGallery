@@ -1,8 +1,5 @@
-package shop.personal.happyGallery.model;
+package shop.personal.happyGallery.model.enums;
 
-import javax.naming.OperationNotSupportedException;
-
-import lombok.Getter;
 import shop.personal.happyGallery.exception.ApplicationException;
 import shop.personal.happyGallery.exception.ErrorCode;
 

@@ -1,16 +1,10 @@
 package shop.personal.happyGallery.model;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -34,12 +28,14 @@ import shop.personal.happyGallery.model.embeded.BaseTimeEntity;
 @Builder
 public class Cart extends BaseTimeEntity{
 
+	private static final int MAX_QUANTITY = 1000;
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
 	@OneToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "user_id")
+	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
 
 	@OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -67,7 +63,7 @@ public class Cart extends BaseTimeEntity{
 	}
 
 	public void changeQuantity(Product product, int quantity) {
-		if (quantity >= 1000) {
+		if (quantity >= MAX_QUANTITY) {
 			throw new ApplicationException(ErrorCode.NOT_OVER_THOUSAND_CARTITEM_QUANTITY);
 		}
 		if (quantity <= 0) {

@@ -1,5 +1,6 @@
 package shop.personal.happyGallery.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -27,7 +28,7 @@ import shop.personal.happyGallery.model.embeded.Money;
 		@UniqueConstraint(columnNames = {"order_id", "product_id"})
 	}
 )
-@EqualsAndHashCode(of = {"order, product"})
+@EqualsAndHashCode(of = {"order", "product"})
 public class OrderItem {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,11 +37,11 @@ public class OrderItem {
 	private Money price;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "order_id")
+	@JoinColumn(name = "order_id", nullable = false)
 	private Order order;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "product_id")
+	@JoinColumn(name = "product_id", nullable = false)
 	private Product product;
 
 	public Money calculateTotalPrice() {

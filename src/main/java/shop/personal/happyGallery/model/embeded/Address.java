@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Getter
 public class Address {
-	private String City;
+	private String city;
 	private String zipCode;
 	private String street;
 	@Column(name = "address_etc")

@@ -5,7 +5,7 @@ import static java.util.stream.Collectors.*;
 import java.util.List;
 
 import shop.personal.happyGallery.model.Order;
-import shop.personal.happyGallery.model.OrderStatus;
+import shop.personal.happyGallery.model.enums.OrderStatus;
 import shop.personal.happyGallery.model.embeded.Money;
 
 public record OrderResponseDto(
