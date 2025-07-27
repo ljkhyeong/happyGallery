@@ -1,4 +1,4 @@
-package shop.personal.happyGallery.domain;
+package shop.personal.happyGallery.domain.model;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;

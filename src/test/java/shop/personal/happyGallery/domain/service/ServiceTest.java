@@ -1,4 +1,4 @@
-package shop.personal.happyGallery.service;
+package shop.personal.happyGallery.domain.service;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -26,6 +26,10 @@ import shop.personal.happyGallery.repository.CartRepository;
 import shop.personal.happyGallery.repository.OrderRepository;
 import shop.personal.happyGallery.repository.ProductRepository;
 import shop.personal.happyGallery.repository.UserRepository;
+import shop.personal.happyGallery.service.CartService;
+import shop.personal.happyGallery.service.OrderService;
+import shop.personal.happyGallery.service.ProductService;
+import shop.personal.happyGallery.service.UserService;
 
 class ServiceTest {
 
@@ -163,11 +167,12 @@ class ServiceTest {
 			product.addCategory(category);
 
 			// when
-			List<ProductResponseDto> categoryProducts = productService.getCategoryProducts(category.getId());
+			List<ProductResponseDto> categoryProducts = productService.getProductsByCategory(category.getId());
 
 			// then
-			assertThat(categoryProducts.get(0).id()).isEqualTo(1L);
+			assertThat(categoryProducts.get(0).productId()).isEqualTo(1L);
 			assertThat(categoryProducts.get(0).name()).isEqualTo("상품1");
+
 		}
 	}
 
