@@ -1,0 +1,26 @@
+package com.personal.happygallery.domain.order;
+
+public enum OrderStatus {
+	// 결제 및 승인
+	PAID_APPROVAL_PENDING,
+	APPROVED_FULFILLMENT_PENDING,
+	REJECTED_REFUNDED,
+	AUTO_REFUNDED_TIMEOUT,
+
+	// 제작 및 지연
+	IN_PRODUCTION,
+	DELAY_REQUESTED,
+
+	// 이행: 배송
+	SHIPPING_PREPARING,
+	SHIPPED,
+	DELIVERED,
+
+	// 이행: 픽업
+	PICKUP_READY,
+	PICKED_UP,
+	PICKUP_EXPIRED_REFUNDED,
+
+	// 최종 상태
+	COMPLETED
+}
