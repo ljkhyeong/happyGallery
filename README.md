@@ -1,0 +1,4 @@
+- MySQL 올리기: `docker run --name happygallery-mysql -e MYSQL_ROOT_PASSWORD= -e MYSQL_DATABASE=happygallery -p 3306:3306 -d mysql:8`
+- 앱 실행: `./gradlew :app:bootRun`
+- Health 확인: `http://localhost:8080/actuator/health`
+- DB 초기화(개발용): `docker compose down -v && docker compose up -d`
