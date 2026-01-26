@@ -23,6 +23,13 @@ subprojects {
 		}
 	}
 
+	// 스프링 부트 족보 가져오기
+	dependencyManagement {
+		imports {
+			mavenBom "org.springframework.boot:spring-boot-dependencies:4.0.2"
+		}
+	}
+
 	configurations {
 		compileOnly {
 			extendsFrom annotationProcessor
