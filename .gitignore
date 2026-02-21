@@ -27,6 +27,9 @@ Thumbs.db
 
 ## Environment
 .env
+.env.*
 
 ## AI
 .claude/
+CLAUDE.md
+PLAN.md
