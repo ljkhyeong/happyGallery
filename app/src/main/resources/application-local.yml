@@ -3,7 +3,7 @@ spring:
     activate:
       on-profile: local
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/happygallery?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
-    username: ${DB_USERNAME:root}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/happygallery?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:happygallery}
     password: ${DB_PASSWORD:password}
     driver-class-name: com.mysql.cj.jdbc.Driver
