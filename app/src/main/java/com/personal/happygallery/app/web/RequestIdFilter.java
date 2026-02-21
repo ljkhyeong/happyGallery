@@ -7,6 +7,8 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -17,6 +19,7 @@ import java.util.UUID;
 @Component
 public class RequestIdFilter implements Filter {
 
+    private static final Logger log = LoggerFactory.getLogger(RequestIdFilter.class);
     private static final String REQUEST_ID_HEADER = "X-Request-Id";
 
     @Override
@@ -32,6 +35,7 @@ public class RequestIdFilter implements Filter {
 
         MDC.put("requestId", requestId);
         httpServletResponse.setHeader(REQUEST_ID_HEADER, requestId);
+        log.info("{} {}", httpServletRequest.getMethod(), httpServletRequest.getRequestURI());
 
         try {
             chain.doFilter(request, response);
