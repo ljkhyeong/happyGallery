@@ -299,4 +299,38 @@
     - 관리자 기능은 권한 분리(단일 운영자라도 경로는 분리)
 
 ---
+
+## 12. API 에러 코드 체계
+
+### 12.1 에러 응답 포맷
+
+```json
+{
+  "code":    "ALREADY_REFUNDED",
+  "message": "이미 환불된 건입니다."
+}
+```
+
+### 12.2 HTTP 상태코드 × 에러 코드 목록
+
+| HTTP | 에러 코드 | 발생 상황 |
+|------|----------|----------|
+| 400 | `INVALID_INPUT` | 요청 바디/파라미터 검증 실패 |
+| 404 | `NOT_FOUND` | 주문·예약·이용권·상품 미존재 |
+| 409 | `ALREADY_REFUNDED` | 이미 자동환불된 주문에 승인 시도 (§3.1) |
+| 409 | `INVENTORY_NOT_ENOUGH` | 재고 차감 시 수량 부족 |
+| 409 | `CAPACITY_EXCEEDED` | 슬롯 정원(8명) 초과 예약 시도 (§4.1) |
+| 422 | `REFUND_NOT_ALLOWED` | D-1 00:00 이후 환불 요청 (§4.2) |
+| 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 (§4.2) |
+| 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 시도 (§5.1) |
+
+### 12.3 구현 위치
+
+- `ErrorCode` enum — `common/error/ErrorCode.java`
+- `HappyGalleryException` — `common/error/HappyGalleryException.java`
+- `ErrorResponse` record — `common/error/ErrorResponse.java`
+- 개별 예외 클래스 — `common/error/` (각 에러 코드별 1:1 대응)
+- `GlobalExceptionHandler` — `app/web/GlobalExceptionHandler.java`
+
+---
 문서 끝.
