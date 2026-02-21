@@ -2,6 +2,26 @@ plugins {
 	id 'org.springframework.boot'
 }
 
+// 테스트 목적별 실행 태스크
+// - useCaseTest  : @Tag("usecase") — 유스케이스 통합 테스트
+// - policyTest   : @Tag("policy")  — 도메인 경계/정책 테스트 (Spring 컨텍스트 불필요)
+// - test (기본)  : 전체 실행
+tasks.register('useCaseTest', Test) {
+	group = 'verification'
+	description = '유스케이스 통합 테스트 (@UseCaseIT)'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform { includeTags 'usecase' }
+}
+
+tasks.register('policyTest', Test) {
+	group = 'verification'
+	description = '도메인 정책 단위 테스트 (@Tag("policy"))'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform { includeTags 'policy' }
+}
+
 dependencies {
 	implementation project(":common")
 	implementation project(":domain")

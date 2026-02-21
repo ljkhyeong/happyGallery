@@ -1,9 +1,9 @@
 package com.personal.happygallery;
 
+import com.personal.happygallery.support.UseCaseIT;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+@UseCaseIT
 class HappygalleryApplicationTests {
 
 	@Test
