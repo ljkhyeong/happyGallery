@@ -7,6 +7,13 @@ services:
     environment:
       MYSQL_DATABASE: happygallery
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+00:00
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
