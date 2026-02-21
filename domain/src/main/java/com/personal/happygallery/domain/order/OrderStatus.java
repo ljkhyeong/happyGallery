@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.order;
 
+import com.personal.happygallery.common.error.AlreadyRefundedException;
+
 public enum OrderStatus {
 	// 결제 및 승인
 	PAID_APPROVAL_PENDING,
@@ -22,5 +24,14 @@ public enum OrderStatus {
 	PICKUP_EXPIRED_REFUNDED,
 
 	// 최종 상태
-	COMPLETED
+	COMPLETED;
+
+	/** 승인 가능한 상태인지 확인한다. 이미 환불된 경우 {@link AlreadyRefundedException}을 던진다. */
+	public void requireApprovable() {
+		if (this == REJECTED_REFUNDED
+				|| this == AUTO_REFUNDED_TIMEOUT
+				|| this == PICKUP_EXPIRED_REFUNDED) {
+			throw new AlreadyRefundedException();
+		}
+	}
 }
