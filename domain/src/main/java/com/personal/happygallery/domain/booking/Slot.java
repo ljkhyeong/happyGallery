@@ -64,6 +64,18 @@ public class Slot {
         this.bookedCount++;
     }
 
+    /**
+     * 예약을 1건 반납한다(변경/취소 시).
+     * booked_count가 0이면 IllegalStateException을 던진다.
+     * 호출 전 반드시 비관적 락(SELECT FOR UPDATE)으로 row를 잠가야 한다.
+     */
+    public void decrementBookedCount() {
+        if (this.bookedCount <= 0) {
+            throw new IllegalStateException("booked_count는 0 이하로 감소할 수 없습니다.");
+        }
+        this.bookedCount--;
+    }
+
     public Long getId() { return id; }
     public BookingClass getBookingClass() { return bookingClass; }
     public LocalDateTime getStartAt() { return startAt; }

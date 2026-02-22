@@ -89,6 +89,14 @@ public class Booking {
         this.accessToken = accessToken;
     }
 
+    /**
+     * 예약 슬롯을 변경한다. 상태는 BOOKED를 유지한다.
+     * 호출 후 저장 시 {@code @Version}으로 낙관적 락 충돌을 감지한다.
+     */
+    public void reschedule(Slot newSlot) {
+        this.slot = newSlot;
+    }
+
     public Long getId() { return id; }
     public Guest getGuest() { return guest; }
     public BookingClass getBookingClass() { return bookingClass; }
