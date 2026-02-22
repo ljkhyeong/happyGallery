@@ -417,6 +417,45 @@ GET /bookings/{bookingId}?token={accessToken}
 
 ---
 
+## 11-C. 예약 변경 API (§5.3)
+
+### 11-C.1 예약 변경 (비회원)
+
+```
+PATCH /bookings/{bookingId}/reschedule
+{
+  "newSlotId": 43,
+  "token": "access_token"
+}
+
+→ 200 OK
+{
+  "bookingId": 1,
+  "bookingNumber": "BK-00000001",
+  "slotId": 43,
+  "startAt": "2026-03-01T14:00:00",
+  "endAt":   "2026-03-01T16:00:00",
+  "className": "향수 클래스",
+  "status": "BOOKED"
+}
+```
+
+에러:
+- `400 INVALID_INPUT` — 동일 슬롯으로 변경 시도
+- `404 NOT_FOUND` — 예약 미존재 또는 token 불일치
+- `409 CAPACITY_EXCEEDED` — 새 슬롯 정원 초과
+- `409 DUPLICATE_BOOKING` — 동일 전화번호 + 새 슬롯 이미 예약
+- `409 SLOT_NOT_AVAILABLE` — 새 슬롯 비활성
+- `409 BOOKING_CONFLICT` — 낙관적 락 충돌 (동시 변경)
+- `422 CHANGE_NOT_ALLOWED` — 현재 슬롯 시작 1시간 이내
+
+변경 정책:
+- 현재 슬롯 시작 1시간 전까지 횟수 제한 없이 변경 가능
+- 변경마다 `booking_history`에 `RESCHEDULED` 이력 누적 (append-only)
+- `bookings` 행은 항상 1건 유지 (in-place 업데이트)
+
+---
+
 ## 12. 비기능 요구사항(초안)
 - 타임존: Asia/Seoul 고정
 - 감사 로그:
