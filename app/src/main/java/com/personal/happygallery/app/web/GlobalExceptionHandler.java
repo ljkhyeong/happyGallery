@@ -3,6 +3,7 @@ package com.personal.happygallery.app.web;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.ErrorResponse;
 import com.personal.happygallery.common.error.HappyGalleryException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -29,5 +30,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(400)
                 .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, message));
+    }
+
+    /**
+     * DB 유니크 제약 위반 — TOCTOU 경쟁 조건에서 발생할 수 있는 최후 방어선.
+     * 예: (slot_id, guest_id) 동시 삽입 충돌 (ADR-0004 참고)
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        return ResponseEntity
+                .status(409)
+                .body(ErrorResponse.of(ErrorCode.DUPLICATE_BOOKING));
     }
 }
