@@ -3,6 +3,7 @@ package com.personal.happygallery.app.booking;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.common.error.SlotNotAvailableException;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotBufferPolicy;
@@ -60,6 +61,10 @@ public class SlotManagementService {
         Slot slot = slotRepository.findByIdWithLock(slotId)
                 .orElseThrow(() -> new NotFoundException("슬롯"));
 
+        // 락 획득 후 isActive 재확인 — TOCTOU 방어: 락 없이 체크한 후 다른 트랜잭션이 deactivate했을 수 있음
+        if (!slot.isActive()) {
+            throw new SlotNotAvailableException();
+        }
         slot.incrementBookedCount();
         slotRepository.save(slot);
 
