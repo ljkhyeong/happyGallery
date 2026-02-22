@@ -4,6 +4,7 @@ import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.ErrorResponse;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -41,5 +42,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(409)
                 .body(ErrorResponse.of(ErrorCode.DUPLICATE_BOOKING));
+    }
+
+    /**
+     * 낙관적 락 충돌 — 동시 변경 시 @Version 불일치.
+     * 예: 두 기기에서 동시에 같은 예약을 변경할 때 (ADR-0006 참고)
+     */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(OptimisticLockingFailureException e) {
+        return ResponseEntity
+                .status(409)
+                .body(ErrorResponse.of(ErrorCode.BOOKING_CONFLICT));
     }
 }
