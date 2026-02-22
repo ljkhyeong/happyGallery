@@ -1,10 +1,13 @@
 package com.personal.happygallery.app.web.booking;
 
 import com.personal.happygallery.app.booking.BookingQueryService;
+import com.personal.happygallery.app.booking.BookingRescheduleService;
 import com.personal.happygallery.app.booking.GuestBookingService;
 import com.personal.happygallery.app.web.booking.dto.BookingDetailResponse;
 import com.personal.happygallery.app.web.booking.dto.BookingResponse;
 import com.personal.happygallery.app.web.booking.dto.CreateGuestBookingRequest;
+import com.personal.happygallery.app.web.booking.dto.RescheduleRequest;
+import com.personal.happygallery.app.web.booking.dto.RescheduleResponse;
 import com.personal.happygallery.app.web.booking.dto.SendVerificationRequest;
 import com.personal.happygallery.app.web.booking.dto.SendVerificationResponse;
 import com.personal.happygallery.domain.booking.Booking;
@@ -12,6 +15,7 @@ import com.personal.happygallery.domain.booking.PhoneVerification;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,11 +30,14 @@ public class BookingController {
 
     private final GuestBookingService guestBookingService;
     private final BookingQueryService bookingQueryService;
+    private final BookingRescheduleService bookingRescheduleService;
 
     public BookingController(GuestBookingService guestBookingService,
-                             BookingQueryService bookingQueryService) {
+                             BookingQueryService bookingQueryService,
+                             BookingRescheduleService bookingRescheduleService) {
         this.guestBookingService = guestBookingService;
         this.bookingQueryService = bookingQueryService;
+        this.bookingRescheduleService = bookingRescheduleService;
     }
 
     /** 휴대폰 인증 코드 발송 (MVP: 응답에 code 포함) */
@@ -62,5 +69,15 @@ public class BookingController {
             @RequestParam String token) {
         Booking booking = bookingQueryService.getBookingByToken(bookingId, token);
         return BookingDetailResponse.from(booking);
+    }
+
+    /** 비회원 예약 변경 — 슬롯 교체, 이력 누적 */
+    @PatchMapping("/{bookingId}/reschedule")
+    public RescheduleResponse reschedule(
+            @PathVariable Long bookingId,
+            @RequestBody @Valid RescheduleRequest request) {
+        Booking booking = bookingRescheduleService.rescheduleBooking(
+                bookingId, request.token(), request.newSlotId());
+        return RescheduleResponse.from(booking);
     }
 }

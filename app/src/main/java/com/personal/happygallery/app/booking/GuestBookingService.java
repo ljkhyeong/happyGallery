@@ -5,9 +5,12 @@ import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.error.SlotNotAvailableException;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingHistory;
+import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.GuestRepository;
 import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
@@ -30,6 +33,7 @@ public class GuestBookingService {
     private final GuestRepository guestRepository;
     private final SlotRepository slotRepository;
     private final BookingRepository bookingRepository;
+    private final BookingHistoryRepository bookingHistoryRepository;
     private final SlotManagementService slotManagementService;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
@@ -38,12 +42,14 @@ public class GuestBookingService {
                                GuestRepository guestRepository,
                                SlotRepository slotRepository,
                                BookingRepository bookingRepository,
+                               BookingHistoryRepository bookingHistoryRepository,
                                SlotManagementService slotManagementService,
                                Clock clock) {
         this.phoneVerificationRepository = phoneVerificationRepository;
         this.guestRepository = guestRepository;
         this.slotRepository = slotRepository;
         this.bookingRepository = bookingRepository;
+        this.bookingHistoryRepository = bookingHistoryRepository;
         this.slotManagementService = slotManagementService;
         this.clock = clock;
     }
@@ -107,6 +113,12 @@ public class GuestBookingService {
         long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
         String accessToken = UUID.randomUUID().toString().replace("-", "");
         Booking booking = new Booking(guest, slot, depositAmount, balanceAmount, accessToken);
-        return bookingRepository.save(booking);
+        booking = bookingRepository.save(booking);
+
+        // 7. 초기 이력 저장 (BOOKED)
+        bookingHistoryRepository.save(
+                new BookingHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null));
+
+        return booking;
     }
 }
