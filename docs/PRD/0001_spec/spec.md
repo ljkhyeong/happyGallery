@@ -340,6 +340,83 @@ PATCH /admin/slots/{id}/deactivate
 
 ---
 
+## 11-B. 예약 API — 게스트 예약 생성/조회 (§5.2)
+
+### 11-B.1 휴대폰 인증 코드 발송
+
+```
+POST /bookings/phone-verifications
+{ "phone": "01012345678" }
+
+→ 200 OK
+{
+  "verificationId": 1,
+  "phone": "01012345678",
+  "code": "483921"   // MVP only — SMS 발송 구현 시 제거
+}
+```
+
+에러:
+- `400 INVALID_INPUT` — 전화번호 형식 불일치 (`^01[0-9]{8,9}$`)
+
+### 11-B.2 게스트 예약 생성
+
+```
+POST /bookings/guest
+{
+  "phone": "01012345678",
+  "verificationCode": "483921",
+  "name": "홍길동",
+  "slotId": 42,
+  "depositAmount": 5000
+}
+
+→ 201 Created
+{
+  "bookingId": 1,
+  "bookingNumber": "BK-00000001",
+  "accessToken": "abc123...",
+  "slotId": 42,
+  "status": "BOOKED",
+  "depositAmount": 5000,
+  "balanceAmount": 45000,
+  "className": "향수 클래스"
+}
+```
+
+에러:
+- `400 PHONE_VERIFICATION_FAILED` — 코드 불일치 또는 만료(5분)
+- `404 NOT_FOUND` — slotId 미존재
+- `409 CAPACITY_EXCEEDED` — 슬롯 정원(8명) 초과
+- `409 DUPLICATE_BOOKING` — 동일 전화번호 + 동일 슬롯 중복
+- `409 SLOT_NOT_AVAILABLE` — 비활성 슬롯 예약 시도
+
+### 11-B.3 비회원 예약 조회
+
+```
+GET /bookings/{bookingId}?token={accessToken}
+
+→ 200 OK
+{
+  "bookingId": 1,
+  "bookingNumber": "BK-00000001",
+  "slotId": 42,
+  "startAt": "2026-03-01T10:00:00",
+  "endAt": "2026-03-01T12:00:00",
+  "className": "향수 클래스",
+  "status": "BOOKED",
+  "depositAmount": 5000,
+  "balanceAmount": 45000,
+  "guestName": "홍길동",
+  "guestPhone": "010****5678"
+}
+```
+
+에러:
+- `404 NOT_FOUND` — bookingId 미존재 또는 token 불일치
+
+---
+
 ## 12. 비기능 요구사항(초안)
 - 타임존: Asia/Seoul 고정
 - 감사 로그:
