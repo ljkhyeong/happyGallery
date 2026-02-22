@@ -71,9 +71,13 @@
 - 클래스별 소요 시간은 다를 수 있음
 - 버퍼(정리/준비):
     - 공통 규칙, **뒤쪽 버퍼만 적용**
-    - 단위는 **30분**
+    - 단위는 **30분** (`classes.buffer_min = 30`)
     - 예약이 잡힌 경우에만 다음 시작 슬롯을 자동 비활성화(버퍼만큼)
     - 이미 예약된 슬롯이 있으면 기존 예약은 유지하고 “다음부터” 적용
+    - **비활성화 대상 범위**: `[슬롯 종료 시각, 슬롯 종료 시각 + buffer_min)` — 시작 포함(inclusive), 끝 미포함(exclusive)
+      - 예: 슬롯 10:00~12:00, buffer_min=30 → `start_at ∈ [12:00, 12:30)` 인 슬롯 비활성화
+      - 12:30에 시작하는 슬롯은 **비활성화 대상 아님**
+- **동시성**: 예약 확정 시 `slots` row를 `SELECT FOR UPDATE`로 잠근 뒤 `booked_count`를 증가한다 (ADR-0003)
 
 ### 4.2 예약금/환불/변경
 - 예약금: 클래스 가격의 **10%**
@@ -288,7 +292,55 @@
 
 ---
 
-## 11. 비기능 요구사항(초안)
+## 11. Admin API — 슬롯 관리
+
+### 11.1 슬롯 생성
+
+```
+POST /admin/slots
+Content-Type: application/json
+
+{
+  "classId": 1,
+  "startAt": "2026-03-01T10:00:00",
+  "endAt":   "2026-03-01T12:00:00"
+}
+
+→ 201 Created
+{
+  "id": 42,
+  "classId": 1,
+  "startAt": "2026-03-01T10:00:00",
+  "endAt":   "2026-03-01T12:00:00",
+  "capacity": 8,
+  "bookedCount": 0,
+  "isActive": true
+}
+```
+
+에러:
+- `404 NOT_FOUND` — classId에 해당하는 클래스 없음
+- `400 INVALID_INPUT` — 동일 classId + startAt 슬롯 이미 존재
+
+### 11.2 슬롯 비활성화
+
+```
+PATCH /admin/slots/{id}/deactivate
+
+→ 200 OK
+{
+  "id": 42,
+  ...,
+  "isActive": false
+}
+```
+
+에러:
+- `404 NOT_FOUND` — slotId에 해당하는 슬롯 없음
+
+---
+
+## 12. 비기능 요구사항(초안)
 - 타임존: Asia/Seoul 고정
 - 감사 로그:
     - 승인/거절/지연, 환불 실패/재시도, 예약 변경 이력은 반드시 남긴다
@@ -297,12 +349,14 @@
 - 보안:
     - 비회원 예약은 휴대폰 인증 기반
     - 관리자 기능은 권한 분리(단일 운영자라도 경로는 분리)
+    - **Admin API(`/admin/**`)는 인증/인가 필수** — 현재 MVP 구현에서는 미적용 상태. §11 관리자 화면 구현 시 Spring Security 또는 API Key 방식으로 보호해야 한다.
+    - 미적용 기간 동안 `/admin/**` 엔드포인트는 내부망 또는 개발 환경에서만 노출할 것
 
 ---
 
-## 12. API 에러 코드 체계
+## 13. API 에러 코드 체계
 
-### 12.1 에러 응답 포맷
+### 13.1 에러 응답 포맷
 
 ```json
 {
@@ -311,7 +365,7 @@
 }
 ```
 
-### 12.2 HTTP 상태코드 × 에러 코드 목록
+### 13.2 HTTP 상태코드 × 에러 코드 목록
 
 | HTTP | 에러 코드 | 발생 상황 |
 |------|----------|----------|
@@ -324,7 +378,7 @@
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 (§4.2) |
 | 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 시도 (§5.1) |
 
-### 12.3 구현 위치
+### 13.3 구현 위치
 
 - `ErrorCode` enum — `common/error/ErrorCode.java`
 - `HappyGalleryException` — `common/error/HappyGalleryException.java`

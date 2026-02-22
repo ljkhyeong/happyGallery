@@ -73,7 +73,7 @@ spec.md 기반으로 MVP를 구현하기 위한 최초 DB 스키마가 필요했
 **부정 / 후속 작업**
 - `refunds`의 "둘 중 하나 non-null" 규칙이 DB 제약이 아닌 애플리케이션 로직에만 의존.
 - `made_to_order_spec`, 비회원 인증 토큰 테이블 등은 별도 마이그레이션으로 추가 예정.
-- 2.2 단계(인덱스/동시성 전략 확정) 이후 `slots.booked_count` 갱신 경로를 트랜잭션 범위 내로 명시 필요.
+- `slots.booked_count` 갱신 경로: `confirmBooking()` 단일 트랜잭션 안에서 `SELECT FOR UPDATE` → `incrementBookedCount()` → save 순서로 확정 (→ ADR-0003).
 
 ---
 
