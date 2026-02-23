@@ -3,6 +3,7 @@ package com.personal.happygallery.app.booking;
 import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.ClassRepository;
 import com.personal.happygallery.infra.booking.GuestRepository;
@@ -31,6 +32,7 @@ class GuestBookingUseCaseIT {
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingRepository bookingRepository;
+    @Autowired BookingHistoryRepository bookingHistoryRepository;
     @Autowired GuestRepository guestRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
 
@@ -41,6 +43,7 @@ class GuestBookingUseCaseIT {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+        bookingHistoryRepository.deleteAll();
         bookingRepository.deleteAll();
         phoneVerificationRepository.deleteAll();
         guestRepository.deleteAll();

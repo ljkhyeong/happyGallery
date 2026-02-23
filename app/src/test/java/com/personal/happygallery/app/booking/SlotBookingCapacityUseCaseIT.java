@@ -4,6 +4,8 @@ import com.personal.happygallery.common.error.CapacityExceededException;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotCapacity;
+import com.personal.happygallery.infra.booking.BookingHistoryRepository;
+import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.ClassRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.support.UseCaseIT;
@@ -26,6 +28,8 @@ class SlotBookingCapacityUseCaseIT {
     @Autowired SlotManagementService slotManagementService;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
+    @Autowired BookingHistoryRepository bookingHistoryRepository;
+    @Autowired BookingRepository bookingRepository;
 
     BookingClass bookingClass;
     Slot mainSlot;
@@ -42,6 +46,8 @@ class SlotBookingCapacityUseCaseIT {
 
     @BeforeEach
     void setUp() {
+        bookingHistoryRepository.deleteAll();
+        bookingRepository.deleteAll();
         slotRepository.deleteAll();
         classRepository.deleteAll();
         bookingClass = classRepository.save(

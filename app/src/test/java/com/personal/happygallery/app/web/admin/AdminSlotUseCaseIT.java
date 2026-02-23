@@ -1,6 +1,8 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.infra.booking.BookingHistoryRepository;
+import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.ClassRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.support.UseCaseIT;
@@ -24,6 +26,8 @@ class AdminSlotUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
+    @Autowired BookingHistoryRepository bookingHistoryRepository;
+    @Autowired BookingRepository bookingRepository;
 
     MockMvc mockMvc;
     Long classId;
@@ -31,6 +35,8 @@ class AdminSlotUseCaseIT {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+        bookingHistoryRepository.deleteAll();
+        bookingRepository.deleteAll();
         slotRepository.deleteAll();
         classRepository.deleteAll();
         BookingClass cls = classRepository.save(
