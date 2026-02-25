@@ -55,6 +55,18 @@ public class Refund {
         this.status = RefundStatus.REQUESTED;
     }
 
+    /** PG 환불 성공 처리 */
+    public void markSucceeded(String pgRef) {
+        this.status = RefundStatus.SUCCEEDED;
+        this.pgRef = pgRef;
+    }
+
+    /** PG 환불 실패 처리 — 레코드는 삭제하지 않고 FAILED 로 유지 (운영자 재시도 대상) */
+    public void markFailed(String reason) {
+        this.status = RefundStatus.FAILED;
+        this.failReason = reason;
+    }
+
     public Long getId() { return id; }
     public Booking getBooking() { return booking; }
     public Long getOrderId() { return orderId; }

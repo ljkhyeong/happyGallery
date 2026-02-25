@@ -10,6 +10,8 @@ import com.personal.happygallery.infra.booking.GuestRepository;
 import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
+import com.personal.happygallery.infra.payment.PaymentProvider;
+import com.personal.happygallery.infra.payment.RefundResult;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -17,11 +19,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -38,6 +44,7 @@ class BookingCancelUseCaseIT {
     @Autowired GuestRepository guestRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
     @Autowired RefundRepository refundRepository;
+    @MockitoBean PaymentProvider paymentProvider;
 
     MockMvc mockMvc;
     BookingClass cls;
@@ -48,6 +55,9 @@ class BookingCancelUseCaseIT {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+        // 기본: PaymentProvider 성공
+        when(paymentProvider.refund(any(), anyLong()))
+                .thenReturn(RefundResult.success("FAKE-TEST-REF"));
         // FK 순서에 맞게 삭제
         refundRepository.deleteAll();
         bookingHistoryRepository.deleteAll();
@@ -90,13 +100,43 @@ class BookingCancelUseCaseIT {
         // Proof: booking_history 2건 (BOOKED + CANCELED)
         assertThat(bookingHistoryRepository.countByBookingId(bookingId)).isEqualTo(2L);
 
-        // Proof: refund 1건 (REQUESTED)
+        // Proof: refund 1건 (FakePaymentProvider 성공 → SUCCEEDED)
         assertThat(refundRepository.count()).isEqualTo(1L);
-        assertThat(refundRepository.findAll().get(0).getStatus().name()).isEqualTo("REQUESTED");
+        assertThat(refundRepository.findAll().get(0).getStatus().name()).isEqualTo("SUCCEEDED");
 
         // Proof: 슬롯 booked_count = 0 (반납 완료)
         assertThat(slotRepository.findById(slot.getId()))
                 .hasValueSatisfying(s -> assertThat(s.getBookedCount()).isEqualTo(0));
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: PG 환불 실패 → refund FAILED 로 저장됨 (사라지지 않음)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void cancel_refundFailure_refundSavedAsFailed() throws Exception {
+        when(paymentProvider.refund(any(), anyLong()))
+                .thenReturn(RefundResult.failure("PG 타임아웃"));
+
+        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+
+        String code = sendVerificationAndGetCode("01055550005");
+        String createResp = createBooking("01055550005", code, slot.getId(), 5_000L);
+        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
+        String token = JsonPath.read(createResp, "$.accessToken");
+
+        // 취소 — 환불 가능 구간이지만 PG 실패
+        mockMvc.perform(delete("/bookings/{id}", bookingId)
+                        .param("token", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELED"))
+                .andExpect(jsonPath("$.refundable").value(true));
+
+        // Proof: 환불 실패여도 refunds 테이블에 FAILED 로 남아 있음
+        assertThat(refundRepository.count()).isEqualTo(1L);
+        var refund = refundRepository.findAll().get(0);
+        assertThat(refund.getStatus().name()).isEqualTo("FAILED");
+        assertThat(refund.getFailReason()).isEqualTo("PG 타임아웃");
     }
 
     // -----------------------------------------------------------------------

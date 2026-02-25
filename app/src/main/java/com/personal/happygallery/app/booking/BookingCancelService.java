@@ -15,7 +15,11 @@ import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
+import com.personal.happygallery.infra.payment.PaymentProvider;
+import com.personal.happygallery.infra.payment.RefundResult;
 import java.time.Clock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,21 +27,26 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class BookingCancelService {
 
+    private static final Logger log = LoggerFactory.getLogger(BookingCancelService.class);
+
     private final BookingRepository bookingRepository;
     private final BookingHistoryRepository bookingHistoryRepository;
     private final SlotRepository slotRepository;
     private final RefundRepository refundRepository;
+    private final PaymentProvider paymentProvider;
     private final Clock clock;
 
     public BookingCancelService(BookingRepository bookingRepository,
                                 BookingHistoryRepository bookingHistoryRepository,
                                 SlotRepository slotRepository,
                                 RefundRepository refundRepository,
+                                PaymentProvider paymentProvider,
                                 Clock clock) {
         this.bookingRepository = bookingRepository;
         this.bookingHistoryRepository = bookingHistoryRepository;
         this.slotRepository = slotRepository;
         this.refundRepository = refundRepository;
+        this.paymentProvider = paymentProvider;
         this.clock = clock;
     }
 
@@ -82,7 +91,20 @@ public class BookingCancelService {
                 slot.getStartAt().toLocalDate(), clock);
 
         if (refundable) {
-            refundRepository.save(new Refund(booking, booking.getDepositAmount()));
+            Refund refund = refundRepository.save(new Refund(booking, booking.getDepositAmount()));
+            try {
+                RefundResult result = paymentProvider.refund(refund.getPgRef(), refund.getAmount());
+                if (result.success()) {
+                    refund.markSucceeded(result.pgRef());
+                } else {
+                    log.warn("환불 실패 [refundId={}] reason={}", refund.getId(), result.failReason());
+                    refund.markFailed(result.failReason());
+                }
+            } catch (Exception e) {
+                log.error("환불 호출 예외 [refundId={}]", refund.getId(), e);
+                refund.markFailed(e.getMessage());
+            }
+            refundRepository.save(refund);
         }
 
         // 6. 예약 취소 처리
