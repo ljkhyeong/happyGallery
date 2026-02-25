@@ -1,10 +1,12 @@
 package com.personal.happygallery.app.web.booking;
 
+import com.personal.happygallery.app.booking.BookingCancelService;
 import com.personal.happygallery.app.booking.BookingQueryService;
 import com.personal.happygallery.app.booking.BookingRescheduleService;
 import com.personal.happygallery.app.booking.GuestBookingService;
 import com.personal.happygallery.app.web.booking.dto.BookingDetailResponse;
 import com.personal.happygallery.app.web.booking.dto.BookingResponse;
+import com.personal.happygallery.app.web.booking.dto.CancelResponse;
 import com.personal.happygallery.app.web.booking.dto.CreateGuestBookingRequest;
 import com.personal.happygallery.app.web.booking.dto.RescheduleRequest;
 import com.personal.happygallery.app.web.booking.dto.RescheduleResponse;
@@ -14,6 +16,7 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,13 +34,16 @@ public class BookingController {
     private final GuestBookingService guestBookingService;
     private final BookingQueryService bookingQueryService;
     private final BookingRescheduleService bookingRescheduleService;
+    private final BookingCancelService bookingCancelService;
 
     public BookingController(GuestBookingService guestBookingService,
                              BookingQueryService bookingQueryService,
-                             BookingRescheduleService bookingRescheduleService) {
+                             BookingRescheduleService bookingRescheduleService,
+                             BookingCancelService bookingCancelService) {
         this.guestBookingService = guestBookingService;
         this.bookingQueryService = bookingQueryService;
         this.bookingRescheduleService = bookingRescheduleService;
+        this.bookingCancelService = bookingCancelService;
     }
 
     /** 휴대폰 인증 코드 발송 (MVP: 응답에 code 포함) */
@@ -79,5 +85,15 @@ public class BookingController {
         Booking booking = bookingRescheduleService.rescheduleBooking(
                 bookingId, request.token(), request.newSlotId());
         return RescheduleResponse.from(booking);
+    }
+
+    /** 비회원 예약 취소 — CANCELED 전이, D-1 이전이면 환불 요청 기록 */
+    @DeleteMapping("/{bookingId}")
+    public CancelResponse cancelBooking(
+            @PathVariable Long bookingId,
+            @RequestParam String token) {
+        BookingCancelService.CancelResult result =
+                bookingCancelService.cancelBooking(bookingId, token);
+        return CancelResponse.of(result.booking(), result.refundable());
     }
 }

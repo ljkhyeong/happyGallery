@@ -52,7 +52,7 @@ class TimeBoundaryPolicyTest {
 
         Clock clock = Clock.fixed(slotStart.minusMinutes(61).toInstant(), Clocks.SEOUL);
 
-        assertThat(angeable(slotStart, clock)).isTrue();
+        assertThat(TimeBoundary.isChangeable(slotStart, clock)).isTrue();
     }
 
     @Test
