@@ -2,11 +2,13 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.common.error.DuplicateBookingException;
 import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.common.error.PaymentMethodNotAllowedException;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.error.SlotNotAvailableException;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
@@ -81,7 +83,13 @@ public class GuestBookingService {
      * </ol>
      */
     public Booking createGuestBooking(String phone, String code, String name,
-                                      Long slotId, long depositAmount) {
+                                      Long slotId, long depositAmount,
+                                      DepositPaymentMethod paymentMethod) {
+        // 0. 결제 수단 정책 검증 — 계좌이체 차단
+        if (paymentMethod == DepositPaymentMethod.BANK_TRANSFER) {
+            throw new PaymentMethodNotAllowedException();
+        }
+
         // 1. 인증 코드 검증 + 소모
         PhoneVerification pv = phoneVerificationRepository
                 .findByPhoneAndCodeAndVerifiedFalseAndExpiresAtAfter(
@@ -112,7 +120,7 @@ public class GuestBookingService {
         // 6. Booking 생성
         long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
         String accessToken = UUID.randomUUID().toString().replace("-", "");
-        Booking booking = new Booking(guest, slot, depositAmount, balanceAmount, accessToken);
+        Booking booking = new Booking(guest, slot, depositAmount, balanceAmount, paymentMethod, accessToken);
         booking = bookingRepository.save(booking);
 
         // 7. 초기 이력 저장 (BOOKED)

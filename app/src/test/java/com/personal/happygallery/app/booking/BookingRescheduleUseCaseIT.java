@@ -82,7 +82,8 @@ class BookingRescheduleUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(code, slots[0].getId())))
                 .andExpect(status().isCreated())
@@ -107,12 +108,13 @@ class BookingRescheduleUseCaseIT {
                     .andExpect(jsonPath("$.status").value("BOOKED"));
         }
 
-        // Proof: bookings 1건 유지
+        // Proof: bookings 1건 유지 + 예약금 그대로 (재결제 없음)
         assertThat(bookingRepository.findById(bookingId))
                 .isPresent()
                 .hasValueSatisfying(b -> {
                     assertThat(b.getSlot().getId()).isEqualTo(slots[5].getId());
                     assertThat(b.getStatus().name()).isEqualTo("BOOKED");
+                    assertThat(b.getDepositAmount()).isEqualTo(5000L);
                 });
         assertThat(bookingRepository.count()).isEqualTo(1L);
 
@@ -149,7 +151,8 @@ class BookingRescheduleUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(code, nearSlot.getId())))
                 .andExpect(status().isCreated())
@@ -187,7 +190,8 @@ class BookingRescheduleUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(code, slot.getId())))
                 .andExpect(status().isCreated())
@@ -227,7 +231,8 @@ class BookingRescheduleUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(code, fromSlot.getId())))
                 .andExpect(status().isCreated())
@@ -271,7 +276,8 @@ class BookingRescheduleUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(code, fromSlot.getId())))
                 .andExpect(status().isCreated())
@@ -310,7 +316,8 @@ class BookingRescheduleUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(code, fromSlot.getId())))
                 .andExpect(status().isCreated())

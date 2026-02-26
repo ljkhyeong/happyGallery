@@ -102,7 +102,8 @@ class GuestBookingUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(PHONE, code, slotId)))
                 .andExpect(status().isCreated())
@@ -120,6 +121,30 @@ class GuestBookingUseCaseIT {
         assertThat(bookingRepository.findById(bookingId)).isPresent();
     }
 
+    // Proof: 계좌이체로 예약금 결제 시도 → 422 차단
+    @Test
+    void createGuestBooking_bankTransfer_returns422() throws Exception {
+        String code = sendVerificationAndGetCode(PHONE);
+
+        mockMvc.perform(post("/bookings/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "phone": "%s",
+                                  "verificationCode": "%s",
+                                  "name": "홍길동",
+                                  "slotId": %d,
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "BANK_TRANSFER"
+                                }
+                                """.formatted(PHONE, code, slotId)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("PAYMENT_METHOD_NOT_ALLOWED"));
+
+        // Proof: 예약 레코드 미생성
+        assertThat(bookingRepository.count()).isEqualTo(0L);
+    }
+
     @Test
     void createGuestBooking_duplicateBooking_returns409() throws Exception {
         // 첫 번째 예약 성공
@@ -132,7 +157,8 @@ class GuestBookingUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(PHONE, code1, slotId)))
                 .andExpect(status().isCreated());
@@ -147,7 +173,8 @@ class GuestBookingUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(PHONE, code2, slotId)))
                 .andExpect(status().isConflict())
@@ -166,7 +193,8 @@ class GuestBookingUseCaseIT {
                                   "verificationCode": "000000",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(PHONE, slotId)))
                 .andExpect(status().isBadRequest())
@@ -187,7 +215,8 @@ class GuestBookingUseCaseIT {
                                       "verificationCode": "%s",
                                       "name": "예약자%d",
                                       "slotId": %d,
-                                      "depositAmount": 5000
+                                      "depositAmount": 5000,
+                                      "paymentMethod": "CARD"
                                     }
                                     """.formatted(phone, code, i, slotId)))
                     .andExpect(status().isCreated());
@@ -204,7 +233,8 @@ class GuestBookingUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "초과예약자",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(phone, code, slotId)))
                 .andExpect(status().isConflict())
@@ -226,7 +256,8 @@ class GuestBookingUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(PHONE, code, slotId)))
                 .andExpect(status().isCreated())
@@ -257,7 +288,8 @@ class GuestBookingUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": 5000
+                                  "depositAmount": 5000,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(PHONE, code, slotId)))
                 .andExpect(status().isCreated())

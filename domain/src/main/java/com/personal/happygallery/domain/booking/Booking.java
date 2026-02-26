@@ -59,6 +59,11 @@ public class Booking {
     @Column(nullable = false)
     private long version;
 
+    /** 예약금 결제 수단 (V4에서 추가). BANK_TRANSFER는 생성 시점에서 차단됨. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", length = 15)
+    private DepositPaymentMethod paymentMethod;
+
     /** 비회원 예약 조회용 토큰 (V3에서 추가) */
     @Column(name = "access_token", length = 64)
     private String accessToken;
@@ -77,7 +82,8 @@ public class Booking {
      * @param balanceAmount 잔금 (원) = 클래스 가격 - 예약금
      * @param accessToken   비회원 조회용 토큰 (UUID 기반 32자)
      */
-    public Booking(Guest guest, Slot slot, long depositAmount, long balanceAmount, String accessToken) {
+    public Booking(Guest guest, Slot slot, long depositAmount, long balanceAmount,
+                   DepositPaymentMethod paymentMethod, String accessToken) {
         this.guest = guest;
         this.bookingClass = slot.getBookingClass();
         this.slot = slot;
@@ -86,6 +92,7 @@ public class Booking {
         this.balanceAmount = balanceAmount;
         this.balanceStatus = BalanceStatus.UNPAID;
         this.arrearsFlag = false;
+        this.paymentMethod = paymentMethod;
         this.accessToken = accessToken;
     }
 
@@ -116,6 +123,7 @@ public class Booking {
     public BalanceStatus getBalanceStatus() { return balanceStatus; }
     public boolean isArrearsFlag() { return arrearsFlag; }
     public long getVersion() { return version; }
+    public DepositPaymentMethod getPaymentMethod() { return paymentMethod; }
     public String getAccessToken() { return accessToken; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

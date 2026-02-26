@@ -236,7 +236,8 @@ class BookingCancelUseCaseIT {
                                   "verificationCode": "%s",
                                   "name": "홍길동",
                                   "slotId": %d,
-                                  "depositAmount": %d
+                                  "depositAmount": %d,
+                                  "paymentMethod": "CARD"
                                 }
                                 """.formatted(phone, code, slotId, deposit)))
                 .andExpect(status().isCreated())

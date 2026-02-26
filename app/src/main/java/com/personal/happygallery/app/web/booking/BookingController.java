@@ -64,7 +64,8 @@ public class BookingController {
                 request.verificationCode(),
                 request.name(),
                 request.slotId(),
-                request.depositAmount());
+                request.depositAmount(),
+                request.paymentMethod());
         return BookingResponse.from(booking);
     }
 
