@@ -368,7 +368,13 @@ POST /bookings/guest
   "verificationCode": "483921",
   "name": "홍길동",
   "slotId": 42,
-  "depositAmount": 5000
+
+  // 예약금 결제 시 (passId 없을 때 필수)
+  "depositAmount": 5000,
+  "paymentMethod": "CARD",        // CARD | EASY_PAY (BANK_TRANSFER 차단)
+
+  // 8회권 결제 시 (passId 있으면 depositAmount/paymentMethod 무시)
+  "passId": 7
 }
 
 → 201 Created
@@ -387,9 +393,13 @@ POST /bookings/guest
 에러:
 - `400 PHONE_VERIFICATION_FAILED` — 코드 불일치 또는 만료(5분)
 - `404 NOT_FOUND` — slotId 미존재
+- `404 NOT_FOUND` — passId 미존재 (8회권 결제 경로)
 - `409 CAPACITY_EXCEEDED` — 슬롯 정원(8명) 초과
 - `409 DUPLICATE_BOOKING` — 동일 전화번호 + 동일 슬롯 중복
 - `409 SLOT_NOT_AVAILABLE` — 비활성 슬롯 예약 시도
+- `422 PASS_EXPIRED` — 만료된 8회권
+- `422 PASS_CREDIT_INSUFFICIENT` — 잔여 크레딧 0
+- `422 PAYMENT_METHOD_NOT_ALLOWED` — BANK_TRANSFER 사용 시도
 
 ### 11-B.3 비회원 예약 조회
 
@@ -456,6 +466,117 @@ PATCH /bookings/{bookingId}/reschedule
 
 ---
 
+## 11-D. 예약 취소 API (§5.4)
+
+### 11-D.1 비회원 예약 취소
+
+```
+DELETE /bookings/{bookingId}?token={accessToken}
+
+→ 200 OK
+{
+  "bookingId": 1,
+  "status": "CANCELED",
+  "refundable": true      // D-1 00:00 이전이면 true
+}
+```
+
+에러:
+- `404 NOT_FOUND` — bookingId 미존재 또는 token 불일치
+- `400 INVALID_INPUT` — BOOKED 상태가 아닌 예약 취소 시도
+
+환불 정책:
+- 예약금 결제: `refundable=true`이면 PG 환불 요청(Refund REQUESTED 기록). 실패 시 FAILED 상태 유지.
+- 8회권 결제: `refundable=true`이면 REFUND ledger(+1) + remaining_credits 복구. `refundable=false`이면 크레딧 소멸 유지.
+
+---
+
+## 11-E. 8회권 구매 API (§7.1)
+
+### 11-E.1 게스트 8회권 구매
+
+```
+POST /passes/guest
+{
+  "guestId": 1,
+  "totalPrice": 320000    // 생략 시 0 처리 (MVP — 실제 PG 연동 전 임시)
+}
+
+→ 201 Created
+{
+  "passId": 7,
+  "guestId": 1,
+  "expiresAt": "2026-05-28T23:59:59",
+  "totalCredits": 8,
+  "remainingCredits": 8,
+  "totalPrice": 320000
+}
+```
+
+에러:
+- `404 NOT_FOUND` — guestId 미존재
+
+구매 정책:
+- 만료일 = 구매일 기준 90일 후 Asia/Seoul 자정
+- EARN ledger(+8) 자동 기록
+
+---
+
+## 11-F. 8회권 사용/소모/환불 Admin API (§7.2)
+
+### 11-F.1 결석 처리
+
+```
+POST /admin/bookings/{bookingId}/no-show
+
+→ 200 OK
+{
+  "bookingId": 1,
+  "status": "NO_SHOW"
+}
+```
+
+에러:
+- `404 NOT_FOUND` — bookingId 미존재
+- `400 INVALID_INPUT` — BOOKED 상태가 아닌 예약
+
+정책: 크레딧은 예약 시 USE ledger로 이미 소모 → 추가 크레딧 변동 없음.
+
+### 11-F.2 8회권 전체 환불
+
+```
+POST /admin/passes/{passId}/refund
+
+→ 200 OK
+{
+  "canceledBookings": 2,    // 자동 취소된 미래 예약 수
+  "refundCredits": 6,       // 환불된 크레딧 수 (잔여 전체)
+  "refundAmount": 240000    // 환불 계산값 (KRW) — 관리자가 PG에서 수동 처리
+}
+```
+
+에러:
+- `404 NOT_FOUND` — passId 미존재
+
+환불 정책:
+- 미래 BOOKED 예약 자동 취소 (슬롯 booked_count 복구, CANCELED 이력 기록)
+- REFUND ledger(잔여 크레딧 전체) 기록 후 remaining_credits = 0
+- 실제 PG 환불은 `refundAmount`를 참고해 관리자가 수동 처리
+- 단가 = totalPrice / totalCredits (8)
+
+### 11-F.3 만료 배치 수동 트리거
+
+```
+POST /admin/passes/expire
+
+→ 200 OK
+{ "expiredCount": 3 }
+```
+
+정책: 만료된 pass의 remaining_credits = 0, EXPIRE ledger 기록.
+
+---
+
 ## 12. 비기능 요구사항(초안)
 - 타임존: Asia/Seoul 고정
 - 감사 로그:
@@ -486,13 +607,19 @@ PATCH /bookings/{bookingId}/reschedule
 | HTTP | 에러 코드 | 발생 상황 |
 |------|----------|----------|
 | 400 | `INVALID_INPUT` | 요청 바디/파라미터 검증 실패 |
+| 400 | `PHONE_VERIFICATION_FAILED` | 인증 코드 불일치 또는 만료 (§5.2) |
 | 404 | `NOT_FOUND` | 주문·예약·이용권·상품 미존재 |
 | 409 | `ALREADY_REFUNDED` | 이미 자동환불된 주문에 승인 시도 (§3.1) |
 | 409 | `INVENTORY_NOT_ENOUGH` | 재고 차감 시 수량 부족 |
 | 409 | `CAPACITY_EXCEEDED` | 슬롯 정원(8명) 초과 예약 시도 (§4.1) |
+| 409 | `DUPLICATE_BOOKING` | 동일 전화번호 + 동일 슬롯 중복 예약 (§5.2) |
+| 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 (§5.2) |
+| 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌 — 동시 변경 요청 (§5.3) |
 | 422 | `REFUND_NOT_ALLOWED` | D-1 00:00 이후 환불 요청 (§4.2) |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 (§4.2) |
-| 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 시도 (§5.1) |
+| 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 시도 (§7.1) |
+| 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 크레딧 0인 8회권으로 예약 시도 (§7.2) |
+| 422 | `PAYMENT_METHOD_NOT_ALLOWED` | 계좌이체(BANK_TRANSFER)로 예약금 결제 시도 (§6.2) |
 
 ### 13.3 구현 위치
 

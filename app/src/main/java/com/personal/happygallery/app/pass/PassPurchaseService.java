@@ -45,14 +45,26 @@ public class PassPurchaseService {
      *   <li>EARN ledger 기록 (amount = 8)</li>
      * </ol>
      */
-    public PassPurchase purchaseForGuest(Long guestId) {
+    /**
+     * 게스트 8회권 구매.
+     *
+     * <ol>
+     *   <li>Guest 조회</li>
+     *   <li>expires_at = now + 90일</li>
+     *   <li>PassPurchase 저장 (totalPrice 기록)</li>
+     *   <li>EARN ledger 기록 (amount = 8)</li>
+     * </ol>
+     *
+     * @param totalPrice 8회권 총 결제금액 (KRW) — 정산 환불 계산 기준
+     */
+    public PassPurchase purchaseForGuest(Long guestId, long totalPrice) {
         Guest guest = guestRepository.findById(guestId)
                 .orElseThrow(() -> new NotFoundException("게스트"));
 
         ZonedDateTime now = ZonedDateTime.now(clock);
         LocalDateTime expiresAt = TimeBoundary.passExpiresAt(now).toLocalDateTime();
 
-        PassPurchase purchase = passPurchaseRepository.save(new PassPurchase(guest, expiresAt));
+        PassPurchase purchase = passPurchaseRepository.save(new PassPurchase(guest, expiresAt, totalPrice));
         passLedgerRepository.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));
 
         return purchase;

@@ -28,6 +28,7 @@ public enum ErrorCode {
     REFUND_NOT_ALLOWED(422, "환불 가능 기간이 지났습니다."),
     CHANGE_NOT_ALLOWED(422, "변경 가능 시간이 지났습니다."),
     PASS_EXPIRED(422, "이용권이 만료되었습니다."),
+    PASS_CREDIT_INSUFFICIENT(422, "이용권 잔여 횟수가 부족합니다."),
     PAYMENT_METHOD_NOT_ALLOWED(422, "예약금은 카드 또는 간편결제만 허용됩니다. 계좌이체는 사용할 수 없습니다.");
 
     public final int httpStatus;

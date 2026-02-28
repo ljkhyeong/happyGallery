@@ -3,7 +3,6 @@ package com.personal.happygallery.app.booking;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.error.NotFoundException;
-import com.personal.happygallery.common.time.Clocks;
 import com.personal.happygallery.common.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistory;
@@ -11,10 +10,15 @@ import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.pass.PassLedger;
+import com.personal.happygallery.domain.pass.PassLedgerType;
+import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
+import com.personal.happygallery.infra.pass.PassLedgerRepository;
+import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;
 import com.personal.happygallery.infra.payment.RefundResult;
 import java.time.Clock;
@@ -33,6 +37,8 @@ public class BookingCancelService {
     private final BookingHistoryRepository bookingHistoryRepository;
     private final SlotRepository slotRepository;
     private final RefundRepository refundRepository;
+    private final PassPurchaseRepository passPurchaseRepository;
+    private final PassLedgerRepository passLedgerRepository;
     private final PaymentProvider paymentProvider;
     private final Clock clock;
 
@@ -40,25 +46,30 @@ public class BookingCancelService {
                                 BookingHistoryRepository bookingHistoryRepository,
                                 SlotRepository slotRepository,
                                 RefundRepository refundRepository,
+                                PassPurchaseRepository passPurchaseRepository,
+                                PassLedgerRepository passLedgerRepository,
                                 PaymentProvider paymentProvider,
                                 Clock clock) {
         this.bookingRepository = bookingRepository;
         this.bookingHistoryRepository = bookingHistoryRepository;
         this.slotRepository = slotRepository;
         this.refundRepository = refundRepository;
+        this.passPurchaseRepository = passPurchaseRepository;
+        this.passLedgerRepository = passLedgerRepository;
         this.paymentProvider = paymentProvider;
         this.clock = clock;
     }
 
     /**
-     * 비회원 예약을 취소한다.
+     * 비회원 예약을 취소한다. 8회권/예약금 결제 경로를 분기 처리한다.
      *
      * <ol>
      *   <li>access_token으로 예약 조회 및 검증</li>
      *   <li>BOOKED 상태 확인</li>
      *   <li>슬롯 반납: 비관적 락 + booked_count--</li>
      *   <li>CANCELED 이력 저장</li>
-     *   <li>D-1 00:00 이전이면 환불 요청(Refund REQUESTED) 기록</li>
+     *   <li>8회권: D-1 이전이면 REFUND ledger(+1) + refundCredit(). 이후면 크레딧 소멸.</li>
+     *   <li>예약금: D-1 이전이면 PG 환불 요청(Refund REQUESTED).</li>
      *   <li>booking.cancel() + save</li>
      * </ol>
      *
@@ -87,24 +98,35 @@ public class BookingCancelService {
                         slot, null, "CUSTOMER", null));
 
         // 5. 환불 가능 여부 판단 (D-1 00:00 Asia/Seoul 기준)
-        boolean refundable = TimeBoundary.isRefundable(
-                slot.getStartAt().toLocalDate(), clock);
+        boolean refundable = TimeBoundary.isRefundable(slot.getStartAt().toLocalDate(), clock);
 
-        if (refundable) {
-            Refund refund = refundRepository.save(new Refund(booking, booking.getDepositAmount()));
-            try {
-                RefundResult result = paymentProvider.refund(refund.getPgRef(), refund.getAmount());
-                if (result.success()) {
-                    refund.markSucceeded(result.pgRef());
-                } else {
-                    log.warn("환불 실패 [refundId={}] reason={}", refund.getId(), result.failReason());
-                    refund.markFailed(result.failReason());
-                }
-            } catch (Exception e) {
-                log.error("환불 호출 예외 [refundId={}]", refund.getId(), e);
-                refund.markFailed(e.getMessage());
+        if (booking.isPassBooking()) {
+            // 5a. 8회권 결제 취소 — D-1 이전이면 크레딧 복구, 이후면 소멸 유지
+            if (refundable) {
+                PassPurchase pass = booking.getPassPurchase();
+                passLedgerRepository.save(
+                        new PassLedger(pass, PassLedgerType.REFUND, 1, booking.getId()));
+                pass.refundCredit();
+                passPurchaseRepository.save(pass);
             }
-            refundRepository.save(refund);
+        } else {
+            // 5b. 예약금 결제 취소 — D-1 이전이면 PG 환불 요청
+            if (refundable) {
+                Refund refund = refundRepository.save(new Refund(booking, booking.getDepositAmount()));
+                try {
+                    RefundResult result = paymentProvider.refund(refund.getPgRef(), refund.getAmount());
+                    if (result.success()) {
+                        refund.markSucceeded(result.pgRef());
+                    } else {
+                        log.warn("환불 실패 [refundId={}] reason={}", refund.getId(), result.failReason());
+                        refund.markFailed(result.failReason());
+                    }
+                } catch (Exception e) {
+                    log.error("환불 호출 예외 [refundId={}]", refund.getId(), e);
+                    refund.markFailed(e.getMessage());
+                }
+                refundRepository.save(refund);
+            }
         }
 
         // 6. 예약 취소 처리

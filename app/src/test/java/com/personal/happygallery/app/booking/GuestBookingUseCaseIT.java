@@ -9,6 +9,8 @@ import com.personal.happygallery.infra.booking.ClassRepository;
 import com.personal.happygallery.infra.booking.GuestRepository;
 import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
+import com.personal.happygallery.infra.pass.PassLedgerRepository;
+import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +37,8 @@ class GuestBookingUseCaseIT {
     @Autowired BookingHistoryRepository bookingHistoryRepository;
     @Autowired GuestRepository guestRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
+    @Autowired PassLedgerRepository passLedgerRepository;
+    @Autowired PassPurchaseRepository passPurchaseRepository;
 
     MockMvc mockMvc;
     Long slotId;
@@ -43,8 +47,10 @@ class GuestBookingUseCaseIT {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+        passLedgerRepository.deleteAll();
         bookingHistoryRepository.deleteAll();
         bookingRepository.deleteAll();
+        passPurchaseRepository.deleteAll();
         phoneVerificationRepository.deleteAll();
         guestRepository.deleteAll();
         slotRepository.deleteAll();

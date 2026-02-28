@@ -10,6 +10,8 @@ import com.personal.happygallery.infra.booking.GuestRepository;
 import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
+import com.personal.happygallery.infra.pass.PassLedgerRepository;
+import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;
 import com.personal.happygallery.infra.payment.RefundResult;
 import com.personal.happygallery.support.UseCaseIT;
@@ -44,6 +46,8 @@ class BookingCancelUseCaseIT {
     @Autowired GuestRepository guestRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
     @Autowired RefundRepository refundRepository;
+    @Autowired PassLedgerRepository passLedgerRepository;
+    @Autowired PassPurchaseRepository passPurchaseRepository;
     @MockitoBean PaymentProvider paymentProvider;
 
     MockMvc mockMvc;
@@ -58,10 +62,13 @@ class BookingCancelUseCaseIT {
         // 기본: PaymentProvider 성공
         when(paymentProvider.refund(any(), anyLong()))
                 .thenReturn(RefundResult.success("FAKE-TEST-REF"));
-        // FK 순서에 맞게 삭제
+        // FK 순서: passLedger → refund → bookingHistory → booking → passPurchase
+        //         → phoneVerification → guest → slot → class
+        passLedgerRepository.deleteAll();
         refundRepository.deleteAll();
         bookingHistoryRepository.deleteAll();
         bookingRepository.deleteAll();
+        passPurchaseRepository.deleteAll();
         phoneVerificationRepository.deleteAll();
         guestRepository.deleteAll();
         slotRepository.deleteAll();

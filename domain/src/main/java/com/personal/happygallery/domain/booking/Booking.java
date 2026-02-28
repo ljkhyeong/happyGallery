@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.booking;
 
+import com.personal.happygallery.domain.pass.PassPurchase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -68,6 +69,11 @@ public class Booking {
     @Column(name = "access_token", length = 64)
     private String accessToken;
 
+    /** 8회권 결제 연결 (V5에서 추가). null이면 예약금 결제. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pass_purchase_id")
+    private PassPurchase passPurchase;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -97,6 +103,24 @@ public class Booking {
     }
 
     /**
+     * 8회권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null.
+     *
+     * @param passPurchase 연결된 8회권 (크레딧 차감은 서비스 레이어에서 선행)
+     */
+    public Booking(Guest guest, Slot slot, PassPurchase passPurchase, String accessToken) {
+        this.guest = guest;
+        this.bookingClass = slot.getBookingClass();
+        this.slot = slot;
+        this.status = BookingStatus.BOOKED;
+        this.depositAmount = 0;
+        this.balanceAmount = 0;
+        this.balanceStatus = BalanceStatus.UNPAID;
+        this.arrearsFlag = false;
+        this.passPurchase = passPurchase;
+        this.accessToken = accessToken;
+    }
+
+    /**
      * 예약 슬롯을 변경한다. 상태는 BOOKED를 유지한다.
      * 호출 후 저장 시 {@code @Version}으로 낙관적 락 충돌을 감지한다.
      */
@@ -112,6 +136,16 @@ public class Booking {
         this.status = BookingStatus.CANCELED;
     }
 
+    /** 결석 처리. 크레딧은 예약 시 이미 소모되었으므로 상태만 변경. */
+    public void markNoShow() {
+        this.status = BookingStatus.NO_SHOW;
+    }
+
+    /** 8회권으로 결제된 예약인지 여부. */
+    public boolean isPassBooking() {
+        return passPurchase != null;
+    }
+
     public Long getId() { return id; }
     public Guest getGuest() { return guest; }
     public BookingClass getBookingClass() { return bookingClass; }
@@ -125,5 +159,6 @@ public class Booking {
     public long getVersion() { return version; }
     public DepositPaymentMethod getPaymentMethod() { return paymentMethod; }
     public String getAccessToken() { return accessToken; }
+    public PassPurchase getPassPurchase() { return passPurchase; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

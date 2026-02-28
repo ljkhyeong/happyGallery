@@ -37,19 +37,40 @@ public class PassPurchase {
     @Column(name = "remaining_credits", nullable = false)
     private int remainingCredits;
 
+    @Column(name = "total_price", nullable = false)
+    private long totalPrice;
+
     protected PassPurchase() {}
 
     /**
      * 게스트 8회권 구매 생성.
      *
-     * @param guest     구매자 (비회원)
-     * @param expiresAt 만료 시점 = purchased_at + 90일
+     * @param guest      구매자 (비회원)
+     * @param expiresAt  만료 시점 = purchased_at + 90일
+     * @param totalPrice 총 결제금액 (KRW) — 정산 환불 계산 기준
      */
-    public PassPurchase(Guest guest, LocalDateTime expiresAt) {
+    public PassPurchase(Guest guest, LocalDateTime expiresAt, long totalPrice) {
         this.guest = guest;
         this.expiresAt = expiresAt;
         this.totalCredits = 8;
         this.remainingCredits = 8;
+        this.totalPrice = totalPrice;
+    }
+
+    /**
+     * 예약 시 1크레딧 소모.
+     * 호출 전 USE ledger를 먼저 기록해야 한다.
+     */
+    public void useCredit() {
+        this.remainingCredits--;
+    }
+
+    /**
+     * 예약 취소(D-1 이전) 시 1크레딧 복구.
+     * 호출 전 REFUND ledger를 먼저 기록해야 한다.
+     */
+    public void refundCredit() {
+        this.remainingCredits++;
     }
 
     /**
@@ -60,10 +81,16 @@ public class PassPurchase {
         this.remainingCredits = 0;
     }
 
+    /** 크레딧 단가 = total_price / total_credits */
+    public long unitPrice() {
+        return totalCredits == 0 ? 0 : totalPrice / totalCredits;
+    }
+
     public Long getId() { return id; }
     public Guest getGuest() { return guest; }
     public LocalDateTime getPurchasedAt() { return purchasedAt; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public int getTotalCredits() { return totalCredits; }
     public int getRemainingCredits() { return remainingCredits; }
+    public long getTotalPrice() { return totalPrice; }
 }

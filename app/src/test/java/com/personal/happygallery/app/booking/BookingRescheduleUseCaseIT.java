@@ -9,6 +9,8 @@ import com.personal.happygallery.infra.booking.ClassRepository;
 import com.personal.happygallery.infra.booking.GuestRepository;
 import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
+import com.personal.happygallery.infra.pass.PassLedgerRepository;
+import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -37,6 +39,8 @@ class BookingRescheduleUseCaseIT {
     @Autowired GuestRepository guestRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
     @Autowired SlotManagementService slotManagementService;
+    @Autowired PassLedgerRepository passLedgerRepository;
+    @Autowired PassPurchaseRepository passPurchaseRepository;
 
     MockMvc mockMvc;
     BookingClass cls;
@@ -48,8 +52,10 @@ class BookingRescheduleUseCaseIT {
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
         // FK 순서에 맞게 삭제
+        passLedgerRepository.deleteAll();
         bookingHistoryRepository.deleteAll();
         bookingRepository.deleteAll();
+        passPurchaseRepository.deleteAll();
         phoneVerificationRepository.deleteAll();
         guestRepository.deleteAll();
         slotRepository.deleteAll();

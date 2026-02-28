@@ -8,7 +8,8 @@ public record PurchasePassResponse(
         Long guestId,
         LocalDateTime expiresAt,
         int totalCredits,
-        int remainingCredits
+        int remainingCredits,
+        long totalPrice
 ) {
     public static PurchasePassResponse from(PassPurchase p) {
         return new PurchasePassResponse(
@@ -16,7 +17,8 @@ public record PurchasePassResponse(
                 p.getGuest().getId(),
                 p.getExpiresAt(),
                 p.getTotalCredits(),
-                p.getRemainingCredits()
+                p.getRemainingCredits(),
+                p.getTotalPrice()
         );
     }
 }

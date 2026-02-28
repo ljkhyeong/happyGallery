@@ -26,7 +26,8 @@ public class PassController {
     @PostMapping("/guest")
     @ResponseStatus(HttpStatus.CREATED)
     public PurchasePassResponse purchaseForGuest(@RequestBody @Valid PurchasePassRequest request) {
-        PassPurchase purchase = passPurchaseService.purchaseForGuest(request.guestId());
+        PassPurchase purchase = passPurchaseService.purchaseForGuest(
+                request.guestId(), request.totalPrice() != null ? request.totalPrice() : 0L);
         return PurchasePassResponse.from(purchase);
     }
 }
