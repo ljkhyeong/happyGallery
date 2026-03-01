@@ -1,0 +1,150 @@
+package com.personal.happygallery.app.product;
+
+import com.jayway.jsonpath.JsonPath;
+import com.personal.happygallery.common.error.InventoryNotEnoughException;
+import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.infra.product.InventoryRepository;
+import com.personal.happygallery.infra.product.ProductRepository;
+import com.personal.happygallery.support.UseCaseIT;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * [UseCaseIT] 상품 등록 + 재고 차감 + 동시성 방지 검증.
+ *
+ * <p>Proof (PLAN.md §8.1): 단일 작품(quantity=1) 재고를 순차 차감 시
+ * 첫 번째 차감은 성공하고 두 번째는 {@link InventoryNotEnoughException}으로 실패한다.
+ */
+@UseCaseIT
+class ProductInventoryUseCaseIT {
+
+    @Autowired WebApplicationContext context;
+    @Autowired ProductRepository productRepository;
+    @Autowired InventoryRepository inventoryRepository;
+    @Autowired InventoryService inventoryService;
+
+    MockMvc mockMvc;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+
+        // FK 순서: inventory → products
+        inventoryRepository.deleteAll();
+        productRepository.deleteAll();
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: 상품 등록 → 201, DB에 inventory row 생성
+    // -----------------------------------------------------------------------
+
+    @Test
+    void registerProduct_success_createsInventory() throws Exception {
+        String resp = mockMvc.perform(post("/admin/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "나무 수납함",
+                                  "type": "READY_STOCK",
+                                  "price": 35000,
+                                  "quantity": 1
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.name").value("나무 수납함"))
+                .andExpect(jsonPath("$.type").value("READY_STOCK"))
+                .andExpect(jsonPath("$.price").value(35000))
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.available").value(true))
+                .andExpect(jsonPath("$.quantity").value(1))
+                .andReturn().getResponse().getContentAsString();
+
+        Long productId = ((Number) JsonPath.read(resp, "$.id")).longValue();
+
+        // Proof: DB에 inventory row 생성 확인
+        Inventory inventory = inventoryRepository.findByProductId(productId).orElseThrow();
+        assertThat(inventory.getQuantity()).isEqualTo(1);
+        assertThat(inventory.isAvailable()).isTrue();
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: GET /products/{id} → available 필드 포함
+    // -----------------------------------------------------------------------
+
+    @Test
+    void getProduct_showsAvailability() throws Exception {
+        Product product = productRepository.save(new Product("향수 키트", ProductType.READY_STOCK, 48000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        mockMvc.perform(get("/products/{id}", product.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(product.getId()))
+                .andExpect(jsonPath("$.name").value("향수 키트"))
+                .andExpect(jsonPath("$.available").value(true));
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: 재고 차감 후 quantity=0, isAvailable=false
+    // -----------------------------------------------------------------------
+
+    @Test
+    void deductInventory_once_quantityBecomesZero() {
+        Product product = productRepository.save(new Product("단일 작품", ProductType.READY_STOCK, 50000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        inventoryService.deduct(product.getId(), 1);
+
+        Inventory updated = inventoryRepository.findByProductId(product.getId()).orElseThrow();
+        assertThat(updated.getQuantity()).isEqualTo(0);
+        assertThat(updated.isAvailable()).isFalse();
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: 재고 없을 때 차감 → InventoryNotEnoughException (409)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void deductInventory_whenOutOfStock_throwsException() {
+        Product product = productRepository.save(new Product("품절 작품", ProductType.READY_STOCK, 50000L));
+        inventoryRepository.save(new Inventory(product, 0));
+
+        assertThatThrownBy(() -> inventoryService.deduct(product.getId(), 1))
+                .isInstanceOf(InventoryNotEnoughException.class);
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof (DoD §8.1): 단일 작품 순차 중복 차감 — 1번만 성공, 2번째는 실패
+    // -----------------------------------------------------------------------
+
+    @Test
+    void deductInventory_sequential_secondCallFails() {
+        Product product = productRepository.save(new Product("단일 작품(동시성)", ProductType.READY_STOCK, 60000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        // 첫 번째 차감 성공
+        inventoryService.deduct(product.getId(), 1);
+
+        // 두 번째 차감 실패 — 재고 없음
+        assertThatThrownBy(() -> inventoryService.deduct(product.getId(), 1))
+                .isInstanceOf(InventoryNotEnoughException.class);
+
+        // 재고가 0으로 유지됨 (음수로 내려가지 않음)
+        Inventory inv = inventoryRepository.findByProductId(product.getId()).orElseThrow();
+        assertThat(inv.getQuantity()).isEqualTo(0);
+    }
+}
