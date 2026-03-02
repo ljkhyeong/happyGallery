@@ -1,0 +1,68 @@
+package com.personal.happygallery.app.order;
+
+import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.infra.order.OrderItemRepository;
+import com.personal.happygallery.infra.order.OrderRepository;
+import com.personal.happygallery.app.product.InventoryService;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.List;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * 주문 생성 서비스.
+ *
+ * <p>결제 완료 시 호출. 재고를 차감하고 주문을 {@link com.personal.happygallery.domain.order.OrderStatus#PAID_APPROVAL_PENDING}
+ * 상태로 생성한다. 승인 마감은 결제 시각 + 24시간.
+ */
+@Service
+@Transactional
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final InventoryService inventoryService;
+    private final Clock clock;
+
+    public OrderService(OrderRepository orderRepository,
+                        OrderItemRepository orderItemRepository,
+                        InventoryService inventoryService,
+                        Clock clock) {
+        this.orderRepository = orderRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.inventoryService = inventoryService;
+        this.clock = clock;
+    }
+
+    /**
+     * 결제 완료 주문을 생성한다.
+     *
+     * <ol>
+     *   <li>각 상품의 재고를 차감한다 (재고 부족 시 {@link com.personal.happygallery.common.error.InventoryNotEnoughException}).</li>
+     *   <li>주문을 {@link com.personal.happygallery.domain.order.OrderStatus#PAID_APPROVAL_PENDING}으로 저장한다.</li>
+     *   <li>승인 마감({@code approvalDeadlineAt})을 결제 시각 + 24시간으로 설정한다.</li>
+     * </ol>
+     *
+     * @param guestId 비회원 ID (회원 주문은 null)
+     * @param items   주문 상품 목록
+     * @return 생성된 주문
+     */
+    public Order createPaidOrder(Long guestId, List<OrderItemRequest> items) {
+        LocalDateTime paidAt = LocalDateTime.now(clock);
+        long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
+
+        Order order = orderRepository.save(
+                new Order(guestId, totalAmount, paidAt, paidAt.plusHours(24)));
+
+        for (OrderItemRequest item : items) {
+            orderItemRepository.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
+            inventoryService.deduct(item.productId(), item.qty());
+        }
+
+        return order;
+    }
+
+    public record OrderItemRequest(Long productId, int qty, long unitPrice) {}
+}

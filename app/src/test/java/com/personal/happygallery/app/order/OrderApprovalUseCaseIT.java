@@ -1,0 +1,202 @@
+package com.personal.happygallery.app.order;
+
+import com.personal.happygallery.common.error.AlreadyRefundedException;
+import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.infra.booking.RefundRepository;
+import com.personal.happygallery.infra.order.OrderItemRepository;
+import com.personal.happygallery.infra.order.OrderRepository;
+import com.personal.happygallery.infra.product.InventoryRepository;
+import com.personal.happygallery.infra.product.ProductRepository;
+import com.personal.happygallery.support.UseCaseIT;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * [UseCaseIT] §8.2 주문 승인 모델 검증.
+ *
+ * <p>Proof (PLAN.md §8.2): 24h 경과 케이스에서 자동환불되고 승인 시도는 409.
+ */
+@UseCaseIT
+class OrderApprovalUseCaseIT {
+
+    @Autowired WebApplicationContext context;
+    @Autowired OrderRepository orderRepository;
+    @Autowired OrderItemRepository orderItemRepository;
+    @Autowired RefundRepository refundRepository;
+    @Autowired ProductRepository productRepository;
+    @Autowired InventoryRepository inventoryRepository;
+    @Autowired OrderApprovalService orderApprovalService;
+    @Autowired OrderAutoRefundBatchService orderAutoRefundBatchService;
+    @Autowired OrderService orderService;
+    @Autowired Clock clock;
+
+    MockMvc mockMvc;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+        cleanup();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanup();
+    }
+
+    private void cleanup() {
+        // FK 삭제 순서: refunds(order_id) → order_items → orders → inventory → products
+        refundRepository.deleteAll();
+        orderItemRepository.deleteAll();
+        orderRepository.deleteAll();
+        inventoryRepository.deleteAll();
+        productRepository.deleteAll();
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: 승인 → APPROVED_FULFILLMENT_PENDING
+    // -----------------------------------------------------------------------
+
+    @Test
+    void approve_transitionsToApprovedFulfillmentPending() throws Exception {
+        Product product = productRepository.save(new Product("테스트 상품", ProductType.READY_STOCK, 50000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 50000L)));
+
+        mockMvc.perform(post("/admin/orders/{id}/approve", order.getId()))
+                .andExpect(status().isOk());
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: 거절 → REJECTED_REFUNDED + 재고 복구 + 환불 기록
+    // -----------------------------------------------------------------------
+
+    @Test
+    void reject_refundsAndRestoresInventory() throws Exception {
+        Product product = productRepository.save(new Product("거절 테스트 상품", ProductType.READY_STOCK, 30000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 30000L)));
+
+        // 재고 차감 확인
+        assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(0);
+
+        mockMvc.perform(post("/admin/orders/{id}/reject", order.getId()))
+                .andExpect(status().isOk());
+
+        // 주문 상태 확인
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED_REFUNDED);
+
+        // 재고 복구 확인
+        assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(1);
+
+        // 환불 기록 확인
+        assertThat(refundRepository.findAll()).hasSize(1);
+        assertThat(refundRepository.findAll().get(0).getOrderId()).isEqualTo(order.getId());
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof (DoD §8.2): 24h 경과 → 자동환불 → AUTO_REFUNDED_TIMEOUT + 재고 복구
+    // -----------------------------------------------------------------------
+
+    @Test
+    void autoRefund_expiredOrder_transitionsAndRestoresInventory() {
+        Product product = productRepository.save(new Product("자동환불 상품", ProductType.READY_STOCK, 40000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        // 마감이 이미 지난 주문을 직접 생성 (Clock 조작 없이 과거 시각 설정)
+        LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
+        Order order = orderRepository.save(new Order(null, 40000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(order, product.getId(), 1, 40000L));
+        inventoryRepository.findByProductId(product.getId()).ifPresent(inv -> {
+            inv.deduct(1);
+            inventoryRepository.save(inv);
+        });
+
+        // 배치 실행
+        int count = orderAutoRefundBatchService.autoRefundExpired();
+        assertThat(count).isEqualTo(1);
+
+        // 상태 확인
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+
+        // 재고 복구 확인
+        assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(1);
+
+        // 환불 기록 확인
+        assertThat(refundRepository.findAll()).hasSize(1);
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof (DoD §8.2): 자동환불 이후 승인 시도 → 409
+    // -----------------------------------------------------------------------
+
+    @Test
+    void approve_afterAutoRefund_throws409() throws Exception {
+        Product product = productRepository.save(new Product("409 테스트 상품", ProductType.READY_STOCK, 60000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        // 마감이 지난 주문 직접 생성
+        LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
+        Order order = orderRepository.save(new Order(null, 60000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(order, product.getId(), 1, 60000L));
+        inventoryRepository.findByProductId(product.getId()).ifPresent(inv -> {
+            inv.deduct(1);
+            inventoryRepository.save(inv);
+        });
+
+        // 배치 실행 → AUTO_REFUNDED_TIMEOUT
+        orderAutoRefundBatchService.autoRefundExpired();
+
+        // 승인 시도 → AlreadyRefundedException (409)
+        assertThatThrownBy(() -> orderApprovalService.approve(order.getId()))
+                .isInstanceOf(AlreadyRefundedException.class);
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: 자동환불 이후 승인 HTTP 요청 → 409 응답
+    // -----------------------------------------------------------------------
+
+    @Test
+    void approve_afterAutoRefund_returns409() throws Exception {
+        Product product = productRepository.save(new Product("HTTP 409 상품", ProductType.READY_STOCK, 70000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
+        Order order = orderRepository.save(new Order(null, 70000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(order, product.getId(), 1, 70000L));
+        inventoryRepository.findByProductId(product.getId()).ifPresent(inv -> {
+            inv.deduct(1);
+            inventoryRepository.save(inv);
+        });
+
+        orderAutoRefundBatchService.autoRefundExpired();
+
+        mockMvc.perform(post("/admin/orders/{id}/approve", order.getId()))
+                .andExpect(status().isConflict());
+    }
+}

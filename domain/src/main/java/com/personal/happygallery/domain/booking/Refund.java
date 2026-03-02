@@ -55,6 +55,13 @@ public class Refund {
         this.status = RefundStatus.REQUESTED;
     }
 
+    /** 주문 환불 요청 생성 (주문 거절/자동환불 시). booking은 null. */
+    public Refund(Long orderId, long amount) {
+        this.orderId = orderId;
+        this.amount = amount;
+        this.status = RefundStatus.REQUESTED;
+    }
+
     /** PG 환불 성공 처리 */
     public void markSucceeded(String pgRef) {
         this.status = RefundStatus.SUCCEEDED;
