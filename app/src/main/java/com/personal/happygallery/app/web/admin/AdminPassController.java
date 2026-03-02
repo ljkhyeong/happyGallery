@@ -2,6 +2,7 @@ package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.pass.PassExpiryBatchService;
 import com.personal.happygallery.app.pass.PassRefundService;
+import com.personal.happygallery.app.web.admin.dto.PassRefundResponse;
 import java.util.Map;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,12 +34,7 @@ public class AdminPassController {
      * 실제 PG 환불은 refundAmount를 참고해 관리자가 수동 처리.
      */
     @PostMapping("/{passId}/refund")
-    public Map<String, Object> refundPass(@PathVariable Long passId) {
-        PassRefundService.PassRefundResult result = passRefundService.refundPass(passId);
-        return Map.of(
-                "canceledBookings", result.canceledBookings(),
-                "refundCredits", result.refundCredits(),
-                "refundAmount", result.refundAmount()
-        );
+    public PassRefundResponse refundPass(@PathVariable Long passId) {
+        return PassRefundResponse.from(passRefundService.refundPass(passId));
     }
 }
