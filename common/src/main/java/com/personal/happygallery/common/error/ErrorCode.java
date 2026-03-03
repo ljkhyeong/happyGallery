@@ -10,6 +10,9 @@ public enum ErrorCode {
     // 400 Bad Request — 입력 검증 실패
     INVALID_INPUT(400, "잘못된 입력값입니다."),
 
+    // 401 Unauthorized — 인증 실패
+    UNAUTHORIZED(401, "관리자 인증이 필요합니다."),
+
     // 404 Not Found — 리소스 미존재
     NOT_FOUND(404, "요청한 리소스를 찾을 수 없습니다."),
 

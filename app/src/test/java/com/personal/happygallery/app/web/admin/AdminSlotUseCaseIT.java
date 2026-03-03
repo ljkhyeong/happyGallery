@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.web.admin;
 
+import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
@@ -23,7 +24,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class AdminSlotUseCaseIT {
 
+    private static final String ADMIN_KEY = "dev-admin-key";
+
     @Autowired WebApplicationContext context;
+    @Autowired AdminAuthFilter adminAuthFilter;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
@@ -34,7 +38,9 @@ class AdminSlotUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(adminAuthFilter)
+                .build();
         bookingHistoryRepository.deleteAll();
         bookingRepository.deleteAll();
         slotRepository.deleteAll();
@@ -47,6 +53,7 @@ class AdminSlotUseCaseIT {
     @Test
     void createSlot_success() throws Exception {
         mockMvc.perform(post("/admin/slots")
+                        .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -65,6 +72,7 @@ class AdminSlotUseCaseIT {
     void deactivateSlot_success() throws Exception {
         // given — 슬롯 생성
         String response = mockMvc.perform(post("/admin/slots")
+                        .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -79,7 +87,8 @@ class AdminSlotUseCaseIT {
         long slotId = ((Number) com.jayway.jsonpath.JsonPath.read(response, "$.id")).longValue();
 
         // when — 비활성화
-        mockMvc.perform(patch("/admin/slots/{id}/deactivate", slotId))
+        mockMvc.perform(patch("/admin/slots/{id}/deactivate", slotId)
+                        .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.isActive").value(false));
 
@@ -92,6 +101,7 @@ class AdminSlotUseCaseIT {
     @Test
     void createSlot_notFoundClass() throws Exception {
         mockMvc.perform(post("/admin/slots")
+                        .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -116,15 +126,48 @@ class AdminSlotUseCaseIT {
 
         // 첫 번째 생성 — 성공
         mockMvc.perform(post("/admin/slots")
+                        .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated());
 
         // 두 번째 동일 시간 — 실패
         mockMvc.perform(post("/admin/slots")
+                        .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void callAdminWithoutKey_returns401() throws Exception {
+        mockMvc.perform(post("/admin/slots")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "classId": %d,
+                                  "startAt": "2026-03-10T10:00:00",
+                                  "endAt":   "2026-03-10T12:00:00"
+                                }
+                                """.formatted(classId)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void callAdminWithWrongKey_returns401() throws Exception {
+        mockMvc.perform(post("/admin/slots")
+                        .header("X-Admin-Key", "wrong-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "classId": %d,
+                                  "startAt": "2026-03-11T10:00:00",
+                                  "endAt":   "2026-03-11T12:00:00"
+                                }
+                                """.formatted(classId)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
 }
