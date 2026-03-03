@@ -1,0 +1,67 @@
+package com.personal.happygallery.app.order;
+
+import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.infra.order.FulfillmentRepository;
+import com.personal.happygallery.infra.order.OrderRepository;
+import java.time.LocalDate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * 예약 제작 주문 관리 서비스 (§8.3).
+ *
+ * <ul>
+ *   <li>{@link #setExpectedShipDate(Long, LocalDate)} — 예상 출고일 설정/갱신</li>
+ *   <li>{@link #requestDelay(Long)} — 고객 동의 후 {@link com.personal.happygallery.domain.order.OrderStatus#DELAY_REQUESTED}으로 전환</li>
+ * </ul>
+ */
+@Service
+@Transactional
+public class OrderProductionService {
+
+    private final OrderRepository orderRepository;
+    private final FulfillmentRepository fulfillmentRepository;
+
+    public OrderProductionService(OrderRepository orderRepository,
+                                  FulfillmentRepository fulfillmentRepository) {
+        this.orderRepository = orderRepository;
+        this.fulfillmentRepository = fulfillmentRepository;
+    }
+
+    /**
+     * 예상 출고일을 설정·갱신한다.
+     *
+     * @param orderId          주문 ID
+     * @param expectedShipDate 예상 출고일
+     * @return 갱신된 Fulfillment
+     */
+    public Fulfillment setExpectedShipDate(Long orderId, LocalDate expectedShipDate) {
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new NotFoundException("이행 정보"));
+        fulfillment.setExpectedShipDate(expectedShipDate);
+        return fulfillmentRepository.save(fulfillment);
+    }
+
+    /**
+     * 고객 동의 후 배송 지연 상태({@link com.personal.happygallery.domain.order.OrderStatus#DELAY_REQUESTED})로 전환한다.
+     * {@link com.personal.happygallery.domain.order.OrderStatus#IN_PRODUCTION} 상태가 아니면 400을 던진다.
+     *
+     * @param orderId 주문 ID
+     * @return 상태 전이된 주문
+     */
+    public Order requestDelay(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("주문"));
+        order.requestDelay();
+
+        fulfillmentRepository.findByOrderId(orderId)
+                .ifPresent(f -> {
+                    f.syncStatus(order.getStatus());
+                    fulfillmentRepository.save(f);
+                });
+
+        return orderRepository.save(order);
+    }
+}

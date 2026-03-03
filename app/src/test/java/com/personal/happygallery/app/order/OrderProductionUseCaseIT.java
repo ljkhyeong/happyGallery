@@ -1,0 +1,179 @@
+package com.personal.happygallery.app.order;
+
+import com.personal.happygallery.common.error.ProductionRefundNotAllowedException;
+import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.infra.booking.RefundRepository;
+import com.personal.happygallery.infra.order.FulfillmentRepository;
+import com.personal.happygallery.infra.order.OrderItemRepository;
+import com.personal.happygallery.infra.order.OrderRepository;
+import com.personal.happygallery.infra.product.InventoryRepository;
+import com.personal.happygallery.infra.product.ProductRepository;
+import com.personal.happygallery.support.UseCaseIT;
+import java.time.LocalDate;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * [UseCaseIT] §8.3 예약 제작 주문 검증.
+ *
+ * <p>Proof (PLAN.md §8.3): 제작 시작 상태에서 취소 요청 시 "환불 불가"로 처리됨.
+ */
+@UseCaseIT
+class OrderProductionUseCaseIT {
+
+    @Autowired WebApplicationContext context;
+    @Autowired OrderRepository orderRepository;
+    @Autowired OrderItemRepository orderItemRepository;
+    @Autowired FulfillmentRepository fulfillmentRepository;
+    @Autowired RefundRepository refundRepository;
+    @Autowired ProductRepository productRepository;
+    @Autowired InventoryRepository inventoryRepository;
+    @Autowired OrderApprovalService orderApprovalService;
+    @Autowired OrderProductionService orderProductionService;
+    @Autowired OrderService orderService;
+
+    MockMvc mockMvc;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+        cleanup();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanup();
+    }
+
+    private void cleanup() {
+        refundRepository.deleteAll();
+        fulfillmentRepository.deleteAll();
+        orderItemRepository.deleteAll();
+        orderRepository.deleteAll();
+        inventoryRepository.deleteAll();
+        productRepository.deleteAll();
+    }
+
+    // -----------------------------------------------------------------------
+    // MADE_TO_ORDER 승인 → IN_PRODUCTION + Fulfillment 생성
+    // -----------------------------------------------------------------------
+
+    @Test
+    void approve_madeToOrder_transitionsToInProductionAndCreatesFulfillment() {
+        Product product = productRepository.save(
+                new Product("예약 제작 상품", ProductType.MADE_TO_ORDER, 200000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 200000L)));
+
+        orderApprovalService.approve(order.getId());
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+
+        // Fulfillment 자동 생성 확인
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
+        assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+    }
+
+    // -----------------------------------------------------------------------
+    // READY_STOCK 승인 → 기존 흐름 유지 (Fulfillment 미생성)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void approve_readyStock_remainsApprovedFulfillmentPending() {
+        Product product = productRepository.save(
+                new Product("기성품", ProductType.READY_STOCK, 50000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 50000L)));
+
+        orderApprovalService.approve(order.getId());
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+        assertThat(fulfillmentRepository.findByOrderId(order.getId())).isEmpty();
+    }
+
+    // -----------------------------------------------------------------------
+    // 예상 출고일 설정
+    // -----------------------------------------------------------------------
+
+    @Test
+    void setExpectedShipDate_updatesShipDateOnFulfillment() {
+        Product product = productRepository.save(
+                new Product("출고일 설정 상품", ProductType.MADE_TO_ORDER, 150000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 150000L)));
+        orderApprovalService.approve(order.getId());
+
+        LocalDate shipDate = LocalDate.of(2026, 4, 15);
+        orderProductionService.setExpectedShipDate(order.getId(), shipDate);
+
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
+        assertThat(fulfillment.getExpectedShipDate()).isEqualTo(shipDate);
+    }
+
+    // -----------------------------------------------------------------------
+    // DELAY_REQUESTED 전환 (고객 동의)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void requestDelay_transitionsToDelayRequested() {
+        Product product = productRepository.save(
+                new Product("지연 상품", ProductType.MADE_TO_ORDER, 180000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 180000L)));
+        orderApprovalService.approve(order.getId());
+
+        orderProductionService.requestDelay(order.getId());
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
+
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
+        assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof (DoD §8.3): IN_PRODUCTION 상태에서 reject → 422 (환불 불가)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void reject_inProduction_throwsProductionRefundNotAllowed() {
+        Product product = productRepository.save(
+                new Product("제작 취소 불가 상품", ProductType.MADE_TO_ORDER, 250000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 250000L)));
+        orderApprovalService.approve(order.getId());
+
+        // IN_PRODUCTION 상태에서 reject → ProductionRefundNotAllowedException
+        assertThatThrownBy(() -> orderApprovalService.reject(order.getId()))
+                .isInstanceOf(ProductionRefundNotAllowedException.class);
+
+        // 상태 변경 없음 확인
+        Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+    }
+}

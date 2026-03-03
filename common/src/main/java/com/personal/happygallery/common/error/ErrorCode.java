@@ -26,6 +26,7 @@ public enum ErrorCode {
 
     // 422 Unprocessable — 비즈니스 규칙 위반
     REFUND_NOT_ALLOWED(422, "환불 가능 기간이 지났습니다."),
+    PRODUCTION_REFUND_NOT_ALLOWED(422, "제작이 시작된 주문은 환불할 수 없습니다."),
     CHANGE_NOT_ALLOWED(422, "변경 가능 시간이 지났습니다."),
     PASS_EXPIRED(422, "이용권이 만료되었습니다."),
     PASS_CREDIT_INSUFFICIENT(422, "이용권 잔여 횟수가 부족합니다."),

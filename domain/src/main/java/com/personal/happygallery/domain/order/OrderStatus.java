@@ -1,6 +1,7 @@
 package com.personal.happygallery.domain.order;
 
 import com.personal.happygallery.common.error.AlreadyRefundedException;
+import com.personal.happygallery.common.error.ProductionRefundNotAllowedException;
 
 public enum OrderStatus {
 	// 결제 및 승인
@@ -32,6 +33,17 @@ public enum OrderStatus {
 				|| this == AUTO_REFUNDED_TIMEOUT
 				|| this == PICKUP_EXPIRED_REFUNDED) {
 			throw new AlreadyRefundedException();
+		}
+	}
+
+	/**
+	 * 환불/취소 가능한 상태인지 확인한다.
+	 * 제작 중({@link #IN_PRODUCTION}) 또는 지연 요청({@link #DELAY_REQUESTED}) 상태는
+	 * {@link ProductionRefundNotAllowedException}(422)을 던진다.
+	 */
+	public void requireCancellable() {
+		if (this == IN_PRODUCTION || this == DELAY_REQUESTED) {
+			throw new ProductionRefundNotAllowedException();
 		}
 	}
 }

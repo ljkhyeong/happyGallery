@@ -9,6 +9,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import com.personal.happygallery.common.error.ErrorCode;
+import com.personal.happygallery.common.error.HappyGalleryException;
 
 /**
  * 상품 주문 — orders 테이블.
@@ -75,10 +77,33 @@ public class Order {
     /**
      * 관리자 거절 처리. 환불·재고 복구는 서비스 레이어에서 선행한다.
      * 이미 환불된 주문에 대한 호출은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}을 던진다.
+     * 제작 중인 주문({@link OrderStatus#IN_PRODUCTION}, {@link OrderStatus#DELAY_REQUESTED})은
+     * {@link com.personal.happygallery.common.error.ProductionRefundNotAllowedException}을 던진다.
      */
     public void reject() {
         this.status.requireApprovable();
+        this.status.requireCancellable();
         this.status = OrderStatus.REJECTED_REFUNDED;
+    }
+
+    /**
+     * 예약 제작 승인. MADE_TO_ORDER 상품 주문에서 호출한다.
+     * 이미 환불된 주문에 대한 호출은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}을 던진다.
+     */
+    public void approveAsProduction() {
+        this.status.requireApprovable();
+        this.status = OrderStatus.IN_PRODUCTION;
+    }
+
+    /**
+     * 고객 동의 하에 배송 지연 상태로 전환한다.
+     * {@link OrderStatus#IN_PRODUCTION} 상태가 아니면 {@code 400 INVALID_INPUT}을 던진다.
+     */
+    public void requestDelay() {
+        if (this.status != OrderStatus.IN_PRODUCTION) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT);
+        }
+        this.status = OrderStatus.DELAY_REQUESTED;
     }
 
     /**

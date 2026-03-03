@@ -1,9 +1,16 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.order.OrderApprovalService;
+import com.personal.happygallery.app.order.OrderProductionService;
+import com.personal.happygallery.app.web.admin.dto.OrderProductionResponse;
+import com.personal.happygallery.app.web.admin.dto.SetExpectedShipDateRequest;
+import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.order.Order;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,22 +20,43 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminOrderController {
 
     private final OrderApprovalService orderApprovalService;
+    private final OrderProductionService orderProductionService;
 
-    public AdminOrderController(OrderApprovalService orderApprovalService) {
+    public AdminOrderController(OrderApprovalService orderApprovalService,
+                                OrderProductionService orderProductionService) {
         this.orderApprovalService = orderApprovalService;
+        this.orderProductionService = orderProductionService;
     }
 
-    /** POST /admin/orders/{id}/approve — 주문 승인 */
+    /** POST /admin/orders/{id}/approve — 주문 승인 (MADE_TO_ORDER는 IN_PRODUCTION으로 전이) */
     @PostMapping("/{id}/approve")
     @ResponseStatus(HttpStatus.OK)
     public void approve(@PathVariable Long id) {
         orderApprovalService.approve(id);
     }
 
-    /** POST /admin/orders/{id}/reject — 주문 거절 (환불 + 재고 복구 포함) */
+    /** POST /admin/orders/{id}/reject — 주문 거절 (환불 + 재고 복구 포함, 제작 중은 거절 불가) */
     @PostMapping("/{id}/reject")
     @ResponseStatus(HttpStatus.OK)
     public void reject(@PathVariable Long id) {
         orderApprovalService.reject(id);
+    }
+
+    /** PATCH /admin/orders/{id}/expected-ship-date — 예상 출고일 설정/갱신 */
+    @PatchMapping("/{id}/expected-ship-date")
+    @ResponseStatus(HttpStatus.OK)
+    public OrderProductionResponse setExpectedShipDate(@PathVariable Long id,
+                                                       @RequestBody SetExpectedShipDateRequest request) {
+        Fulfillment fulfillment = orderProductionService.setExpectedShipDate(id, request.expectedShipDate());
+        Order order = orderApprovalService.findById(id);
+        return OrderProductionResponse.of(order, fulfillment.getExpectedShipDate());
+    }
+
+    /** POST /admin/orders/{id}/delay — 고객 동의 후 배송 지연 상태로 전환 */
+    @PostMapping("/{id}/delay")
+    @ResponseStatus(HttpStatus.OK)
+    public OrderProductionResponse requestDelay(@PathVariable Long id) {
+        Order order = orderProductionService.requestDelay(id);
+        return OrderProductionResponse.of(order);
     }
 }

@@ -1,6 +1,7 @@
 package com.personal.happygallery.policy;
 
 import com.personal.happygallery.common.error.AlreadyRefundedException;
+import com.personal.happygallery.common.error.ProductionRefundNotAllowedException;
 import com.personal.happygallery.domain.order.OrderStatus;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -39,5 +40,33 @@ class OrderStatusTransitionPolicyTest {
     void requireApprovable_whenPickupExpiredRefunded_throws() {
         assertThatThrownBy(() -> OrderStatus.PICKUP_EXPIRED_REFUNDED.requireApprovable())
                 .isInstanceOf(AlreadyRefundedException.class);
+    }
+
+    // -----------------------------------------------------------------------
+    // requireCancellable() — 제작 중 취소 불가 (§8.3)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void requireCancellable_whenInProduction_throws() {
+        assertThatThrownBy(() -> OrderStatus.IN_PRODUCTION.requireCancellable())
+                .isInstanceOf(ProductionRefundNotAllowedException.class);
+    }
+
+    @Test
+    void requireCancellable_whenDelayRequested_throws() {
+        assertThatThrownBy(() -> OrderStatus.DELAY_REQUESTED.requireCancellable())
+                .isInstanceOf(ProductionRefundNotAllowedException.class);
+    }
+
+    @Test
+    void requireCancellable_whenPaidPending_noException() {
+        assertThatCode(() -> OrderStatus.PAID_APPROVAL_PENDING.requireCancellable())
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void requireCancellable_whenApprovedFulfillmentPending_noException() {
+        assertThatCode(() -> OrderStatus.APPROVED_FULFILLMENT_PENDING.requireCancellable())
+                .doesNotThrowAnyException();
     }
 }

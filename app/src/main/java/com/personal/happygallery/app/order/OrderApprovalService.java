@@ -3,13 +3,20 @@ package com.personal.happygallery.app.order;
 import com.personal.happygallery.app.product.InventoryService;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Refund;
+import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.booking.RefundRepository;
+import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;
 import com.personal.happygallery.infra.payment.RefundResult;
+import com.personal.happygallery.infra.product.ProductRepository;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,21 +45,31 @@ public class OrderApprovalService {
     private final InventoryService inventoryService;
     private final RefundRepository refundRepository;
     private final PaymentProvider paymentProvider;
+    private final ProductRepository productRepository;
+    private final FulfillmentRepository fulfillmentRepository;
 
     public OrderApprovalService(OrderRepository orderRepository,
                                 OrderItemRepository orderItemRepository,
                                 InventoryService inventoryService,
                                 RefundRepository refundRepository,
-                                PaymentProvider paymentProvider) {
+                                PaymentProvider paymentProvider,
+                                ProductRepository productRepository,
+                                FulfillmentRepository fulfillmentRepository) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.inventoryService = inventoryService;
         this.refundRepository = refundRepository;
         this.paymentProvider = paymentProvider;
+        this.productRepository = productRepository;
+        this.fulfillmentRepository = fulfillmentRepository;
     }
 
     /**
      * 주문을 승인한다. 이미 환불된 주문은 409.
+     *
+     * <p>주문 내 상품 중 {@link ProductType#MADE_TO_ORDER}가 하나라도 있으면
+     * {@link Order#approveAsProduction()}을 호출하여 {@link OrderStatus#IN_PRODUCTION}으로 전이하고
+     * Fulfillment 레코드를 생성한다. 그 외에는 {@link OrderStatus#APPROVED_FULFILLMENT_PENDING}으로 전이한다.
      *
      * @param orderId 주문 ID
      * @return 승인된 주문
@@ -60,8 +77,28 @@ public class OrderApprovalService {
     public Order approve(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
-        order.approve();
+
+        boolean isMadeToOrder = isMadeToOrderOrder(order);
+        if (isMadeToOrder) {
+            order.approveAsProduction();
+            fulfillmentRepository.save(
+                    new Fulfillment(order.getId(), FulfillmentType.SHIPPING, OrderStatus.IN_PRODUCTION));
+        } else {
+            order.approve();
+        }
         return orderRepository.save(order);
+    }
+
+    private boolean isMadeToOrderOrder(Order order) {
+        List<OrderItem> items = orderItemRepository.findByOrder(order);
+        for (OrderItem item : items) {
+            Product product = productRepository.findById(item.getProductId())
+                    .orElseThrow(() -> new NotFoundException("상품"));
+            if (product.getType() == ProductType.MADE_TO_ORDER) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -85,6 +122,12 @@ public class OrderApprovalService {
         processRefund(order);
 
         return orderRepository.save(order);
+    }
+
+    /** 주문 조회 — 컨트롤러 등에서 Order 참조가 필요할 때 사용. */
+    public Order findById(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("주문"));
     }
 
     void restoreInventory(Order order) {
