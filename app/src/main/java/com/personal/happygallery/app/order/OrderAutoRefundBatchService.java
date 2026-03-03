@@ -1,5 +1,7 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.order.OrderRepository;
@@ -28,13 +30,16 @@ public class OrderAutoRefundBatchService {
 
     private final OrderRepository orderRepository;
     private final OrderApprovalService orderApprovalService;
+    private final NotificationService notificationService;
     private final Clock clock;
 
     public OrderAutoRefundBatchService(OrderRepository orderRepository,
                                        OrderApprovalService orderApprovalService,
+                                       NotificationService notificationService,
                                        Clock clock) {
         this.orderRepository = orderRepository;
         this.orderApprovalService = orderApprovalService;
+        this.notificationService = notificationService;
         this.clock = clock;
     }
 
@@ -58,6 +63,7 @@ public class OrderAutoRefundBatchService {
             orderApprovalService.processRefund(order);
             order.markAutoRefunded();
             orderRepository.save(order);
+            notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
             log.info("주문 자동환불 처리 [orderId={}]", order.getId());
         }
 

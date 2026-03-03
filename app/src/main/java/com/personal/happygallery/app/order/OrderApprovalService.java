@@ -1,7 +1,9 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.product.InventoryService;
 import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
@@ -47,6 +49,7 @@ public class OrderApprovalService {
     private final PaymentProvider paymentProvider;
     private final ProductRepository productRepository;
     private final FulfillmentRepository fulfillmentRepository;
+    private final NotificationService notificationService;
 
     public OrderApprovalService(OrderRepository orderRepository,
                                 OrderItemRepository orderItemRepository,
@@ -54,7 +57,8 @@ public class OrderApprovalService {
                                 RefundRepository refundRepository,
                                 PaymentProvider paymentProvider,
                                 ProductRepository productRepository,
-                                FulfillmentRepository fulfillmentRepository) {
+                                FulfillmentRepository fulfillmentRepository,
+                                NotificationService notificationService) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.inventoryService = inventoryService;
@@ -62,6 +66,7 @@ public class OrderApprovalService {
         this.paymentProvider = paymentProvider;
         this.productRepository = productRepository;
         this.fulfillmentRepository = fulfillmentRepository;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -120,6 +125,7 @@ public class OrderApprovalService {
 
         restoreInventory(order);
         processRefund(order);
+        notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
 
         return orderRepository.save(order);
     }

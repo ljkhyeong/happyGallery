@@ -17,6 +17,8 @@ import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
+import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;
@@ -40,6 +42,7 @@ public class BookingCancelService {
     private final PassPurchaseRepository passPurchaseRepository;
     private final PassLedgerRepository passLedgerRepository;
     private final PaymentProvider paymentProvider;
+    private final NotificationService notificationService;
     private final Clock clock;
 
     public BookingCancelService(BookingRepository bookingRepository,
@@ -49,6 +52,7 @@ public class BookingCancelService {
                                 PassPurchaseRepository passPurchaseRepository,
                                 PassLedgerRepository passLedgerRepository,
                                 PaymentProvider paymentProvider,
+                                NotificationService notificationService,
                                 Clock clock) {
         this.bookingRepository = bookingRepository;
         this.bookingHistoryRepository = bookingHistoryRepository;
@@ -57,6 +61,7 @@ public class BookingCancelService {
         this.passPurchaseRepository = passPurchaseRepository;
         this.passLedgerRepository = passLedgerRepository;
         this.paymentProvider = paymentProvider;
+        this.notificationService = notificationService;
         this.clock = clock;
     }
 
@@ -132,6 +137,17 @@ public class BookingCancelService {
         // 6. 예약 취소 처리
         booking.cancel();
         bookingRepository.save(booking);
+
+        // 7. 취소 알림 (+ 예약금 환불 시 환불 알림)
+        if (booking.getGuest() != null) {
+            String phone = booking.getGuest().getPhone();
+            String name  = booking.getGuest().getName();
+            Long guestId = booking.getGuest().getId();
+            notificationService.notifyGuest(guestId, phone, name, NotificationEventType.BOOKING_CANCELED);
+            if (refundable && !booking.isPassBooking()) {
+                notificationService.notifyGuest(guestId, phone, name, NotificationEventType.DEPOSIT_REFUNDED);
+            }
+        }
 
         return new CancelResult(booking, refundable);
     }

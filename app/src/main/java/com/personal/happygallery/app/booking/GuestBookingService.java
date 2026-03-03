@@ -24,6 +24,8 @@ import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
+import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -46,6 +48,7 @@ public class GuestBookingService {
     private final SlotManagementService slotManagementService;
     private final PassPurchaseRepository passPurchaseRepository;
     private final PassLedgerRepository passLedgerRepository;
+    private final NotificationService notificationService;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
@@ -57,6 +60,7 @@ public class GuestBookingService {
                                SlotManagementService slotManagementService,
                                PassPurchaseRepository passPurchaseRepository,
                                PassLedgerRepository passLedgerRepository,
+                               NotificationService notificationService,
                                Clock clock) {
         this.phoneVerificationRepository = phoneVerificationRepository;
         this.guestRepository = guestRepository;
@@ -66,6 +70,7 @@ public class GuestBookingService {
         this.slotManagementService = slotManagementService;
         this.passPurchaseRepository = passPurchaseRepository;
         this.passLedgerRepository = passLedgerRepository;
+        this.notificationService = notificationService;
         this.clock = clock;
     }
 
@@ -165,6 +170,11 @@ public class GuestBookingService {
         // 7. 초기 이력 저장 (BOOKED)
         bookingHistoryRepository.save(
                 new BookingHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null));
+
+        // 8. 예약 완료 알림
+        notificationService.notifyGuest(
+                guest.getId(), guest.getPhone(), guest.getName(),
+                NotificationEventType.BOOKING_CONFIRMED);
 
         return booking;
     }

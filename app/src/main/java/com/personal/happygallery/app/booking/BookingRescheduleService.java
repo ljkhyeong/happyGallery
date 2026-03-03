@@ -13,6 +13,8 @@ import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
@@ -29,17 +31,20 @@ public class BookingRescheduleService {
     private final BookingHistoryRepository bookingHistoryRepository;
     private final SlotRepository slotRepository;
     private final SlotManagementService slotManagementService;
+    private final NotificationService notificationService;
     private final Clock clock;
 
     public BookingRescheduleService(BookingRepository bookingRepository,
                                     BookingHistoryRepository bookingHistoryRepository,
                                     SlotRepository slotRepository,
                                     SlotManagementService slotManagementService,
+                                    NotificationService notificationService,
                                     Clock clock) {
         this.bookingRepository = bookingRepository;
         this.bookingHistoryRepository = bookingHistoryRepository;
         this.slotRepository = slotRepository;
         this.slotManagementService = slotManagementService;
+        this.notificationService = notificationService;
         this.clock = clock;
     }
 
@@ -110,6 +115,15 @@ public class BookingRescheduleService {
 
         // 10. 예약 업데이트 — @Version 충돌 시 OptimisticLockingFailureException → 409 BOOKING_CONFLICT
         booking.reschedule(newSlot);
-        return bookingRepository.save(booking);
+        Booking saved = bookingRepository.save(booking);
+
+        // 11. 예약 변경 알림
+        if (booking.getGuest() != null) {
+            notificationService.notifyGuest(
+                    booking.getGuest().getId(), booking.getGuest().getPhone(),
+                    booking.getGuest().getName(), NotificationEventType.BOOKING_RESCHEDULED);
+        }
+
+        return saved;
     }
 }

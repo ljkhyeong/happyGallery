@@ -1,5 +1,7 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.infra.order.OrderItemRepository;
@@ -24,15 +26,18 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final InventoryService inventoryService;
+    private final NotificationService notificationService;
     private final Clock clock;
 
     public OrderService(OrderRepository orderRepository,
                         OrderItemRepository orderItemRepository,
                         InventoryService inventoryService,
+                        NotificationService notificationService,
                         Clock clock) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.inventoryService = inventoryService;
+        this.notificationService = notificationService;
         this.clock = clock;
     }
 
@@ -60,6 +65,8 @@ public class OrderService {
             orderItemRepository.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
             inventoryService.deduct(item.productId(), item.qty());
         }
+
+        notificationService.notifyByGuestId(guestId, NotificationEventType.ORDER_PAID);
 
         return order;
     }
