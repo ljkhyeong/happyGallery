@@ -124,12 +124,6 @@ public class OrderApprovalService {
         return orderRepository.save(order);
     }
 
-    /** 주문 조회 — 컨트롤러 등에서 Order 참조가 필요할 때 사용. */
-    public Order findById(Long orderId) {
-        return orderRepository.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("주문"));
-    }
-
     void restoreInventory(Order order) {
         List<OrderItem> items = orderItemRepository.findByOrder(order);
         for (OrderItem item : items) {

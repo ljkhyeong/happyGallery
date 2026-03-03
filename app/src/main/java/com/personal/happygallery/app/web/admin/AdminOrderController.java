@@ -2,10 +2,9 @@ package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.order.OrderApprovalService;
 import com.personal.happygallery.app.order.OrderProductionService;
+import com.personal.happygallery.app.order.OrderProductionService.ProductionResult;
 import com.personal.happygallery.app.web.admin.dto.OrderProductionResponse;
 import com.personal.happygallery.app.web.admin.dto.SetExpectedShipDateRequest;
-import com.personal.happygallery.domain.order.Fulfillment;
-import com.personal.happygallery.domain.order.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,16 +46,15 @@ public class AdminOrderController {
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse setExpectedShipDate(@PathVariable Long id,
                                                        @RequestBody SetExpectedShipDateRequest request) {
-        Fulfillment fulfillment = orderProductionService.setExpectedShipDate(id, request.expectedShipDate());
-        Order order = orderApprovalService.findById(id);
-        return OrderProductionResponse.of(order, fulfillment.getExpectedShipDate());
+        ProductionResult result = orderProductionService.setExpectedShipDate(id, request.expectedShipDate());
+        return new OrderProductionResponse(result.orderId(), result.status(), result.expectedShipDate());
     }
 
     /** POST /admin/orders/{id}/delay — 고객 동의 후 배송 지연 상태로 전환 */
     @PostMapping("/{id}/delay")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse requestDelay(@PathVariable Long id) {
-        Order order = orderProductionService.requestDelay(id);
-        return OrderProductionResponse.of(order);
+        ProductionResult result = orderProductionService.requestDelay(id);
+        return new OrderProductionResponse(result.orderId(), result.status(), result.expectedShipDate());
     }
 }

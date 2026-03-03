@@ -3,6 +3,7 @@ package com.personal.happygallery.app.order;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.LocalDate;
@@ -14,8 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>{@link #setExpectedShipDate(Long, LocalDate)} — 예상 출고일 설정/갱신</li>
- *   <li>{@link #requestDelay(Long)} — 고객 동의 후 {@link com.personal.happygallery.domain.order.OrderStatus#DELAY_REQUESTED}으로 전환</li>
+ *   <li>{@link #requestDelay(Long)} — 고객 동의 후 {@link OrderStatus#DELAY_REQUESTED}으로 전환</li>
  * </ul>
+ *
+ * <p>두 메서드 모두 컨트롤러가 추가 조회 없이 응답을 구성할 수 있도록
+ * {@link ProductionResult}를 반환한다.
  */
 @Service
 @Transactional
@@ -35,33 +39,41 @@ public class OrderProductionService {
      *
      * @param orderId          주문 ID
      * @param expectedShipDate 예상 출고일
-     * @return 갱신된 Fulfillment
+     * @return 주문 상태 + 갱신된 출고일
      */
-    public Fulfillment setExpectedShipDate(Long orderId, LocalDate expectedShipDate) {
+    public ProductionResult setExpectedShipDate(Long orderId, LocalDate expectedShipDate) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("주문"));
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
+
         fulfillment.setExpectedShipDate(expectedShipDate);
-        return fulfillmentRepository.save(fulfillment);
+        fulfillmentRepository.save(fulfillment);
+
+        return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }
 
     /**
-     * 고객 동의 후 배송 지연 상태({@link com.personal.happygallery.domain.order.OrderStatus#DELAY_REQUESTED})로 전환한다.
-     * {@link com.personal.happygallery.domain.order.OrderStatus#IN_PRODUCTION} 상태가 아니면 400을 던진다.
+     * 고객 동의 후 배송 지연 상태({@link OrderStatus#DELAY_REQUESTED})로 전환한다.
+     * {@link OrderStatus#IN_PRODUCTION} 상태가 아니면 400을 던진다.
      *
      * @param orderId 주문 ID
-     * @return 상태 전이된 주문
+     * @return 전이된 주문 상태 + 출고일
      */
-    public Order requestDelay(Long orderId) {
+    public ProductionResult requestDelay(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.requestDelay();
 
-        fulfillmentRepository.findByOrderId(orderId)
-                .ifPresent(f -> {
-                    f.syncStatus(order.getStatus());
-                    fulfillmentRepository.save(f);
-                });
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new NotFoundException("이행 정보"));
+        fulfillment.syncStatus(order.getStatus());
+        fulfillmentRepository.save(fulfillment);
 
-        return orderRepository.save(order);
+        orderRepository.save(order);
+        return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }
+
+    /** 제작 관련 서비스 작업의 결과를 컨트롤러에 전달하는 내부 DTO. */
+    public record ProductionResult(Long orderId, OrderStatus status, LocalDate expectedShipDate) {}
 }
