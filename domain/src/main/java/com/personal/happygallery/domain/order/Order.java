@@ -115,6 +115,36 @@ public class Order {
         this.status = OrderStatus.AUTO_REFUNDED_TIMEOUT;
     }
 
+    /**
+     * 픽업 준비 완료. {@link OrderStatus#APPROVED_FULFILLMENT_PENDING} 상태가 아니면 400을 던진다.
+     */
+    public void markPickupReady() {
+        if (this.status != OrderStatus.APPROVED_FULFILLMENT_PENDING) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT);
+        }
+        this.status = OrderStatus.PICKUP_READY;
+    }
+
+    /**
+     * 픽업 완료. {@link OrderStatus#PICKUP_READY} 상태가 아니면 400을 던진다.
+     */
+    public void confirmPickup() {
+        if (this.status != OrderStatus.PICKUP_READY) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT);
+        }
+        this.status = OrderStatus.PICKED_UP;
+    }
+
+    /**
+     * 픽업 마감 초과 자동환불. {@link OrderStatus#PICKUP_READY} 상태가 아니면 400을 던진다.
+     */
+    public void markPickupExpired() {
+        if (this.status != OrderStatus.PICKUP_READY) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT);
+        }
+        this.status = OrderStatus.PICKUP_EXPIRED_REFUNDED;
+    }
+
     public Long getId() { return id; }
     public Long getGuestId() { return guestId; }
     public OrderStatus getStatus() { return status; }

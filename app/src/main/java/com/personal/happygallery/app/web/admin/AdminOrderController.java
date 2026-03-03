@@ -1,10 +1,16 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.order.OrderApprovalService;
+import com.personal.happygallery.app.order.OrderPickupService;
+import com.personal.happygallery.app.order.OrderPickupService.PickupResult;
 import com.personal.happygallery.app.order.OrderProductionService;
 import com.personal.happygallery.app.order.OrderProductionService.ProductionResult;
+import com.personal.happygallery.app.order.PickupExpireBatchService;
+import com.personal.happygallery.app.web.admin.dto.MarkPickupReadyRequest;
 import com.personal.happygallery.app.web.admin.dto.OrderProductionResponse;
+import com.personal.happygallery.app.web.admin.dto.PickupResponse;
 import com.personal.happygallery.app.web.admin.dto.SetExpectedShipDateRequest;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,11 +26,17 @@ public class AdminOrderController {
 
     private final OrderApprovalService orderApprovalService;
     private final OrderProductionService orderProductionService;
+    private final OrderPickupService orderPickupService;
+    private final PickupExpireBatchService pickupExpireBatchService;
 
     public AdminOrderController(OrderApprovalService orderApprovalService,
-                                OrderProductionService orderProductionService) {
+                                OrderProductionService orderProductionService,
+                                OrderPickupService orderPickupService,
+                                PickupExpireBatchService pickupExpireBatchService) {
         this.orderApprovalService = orderApprovalService;
         this.orderProductionService = orderProductionService;
+        this.orderPickupService = orderPickupService;
+        this.pickupExpireBatchService = pickupExpireBatchService;
     }
 
     /** POST /admin/orders/{id}/approve — 주문 승인 (MADE_TO_ORDER는 IN_PRODUCTION으로 전이) */
@@ -56,5 +68,30 @@ public class AdminOrderController {
     public OrderProductionResponse requestDelay(@PathVariable Long id) {
         ProductionResult result = orderProductionService.requestDelay(id);
         return new OrderProductionResponse(result.orderId(), result.status(), result.expectedShipDate());
+    }
+
+    /** POST /admin/orders/{id}/pickup-ready — 픽업 준비 완료 (APPROVED_FULFILLMENT_PENDING → PICKUP_READY) */
+    @PostMapping("/{id}/pickup-ready")
+    @ResponseStatus(HttpStatus.OK)
+    public PickupResponse markPickupReady(@PathVariable Long id,
+                                         @RequestBody MarkPickupReadyRequest request) {
+        PickupResult result = orderPickupService.markPickupReady(id, request.pickupDeadlineAt());
+        return new PickupResponse(result.orderId(), result.status(), result.pickupDeadlineAt());
+    }
+
+    /** POST /admin/orders/{id}/pickup-confirm — 픽업 완료 (PICKUP_READY → PICKED_UP) */
+    @PostMapping("/{id}/pickup-confirm")
+    @ResponseStatus(HttpStatus.OK)
+    public PickupResponse confirmPickup(@PathVariable Long id) {
+        PickupResult result = orderPickupService.confirmPickup(id);
+        return new PickupResponse(result.orderId(), result.status(), result.pickupDeadlineAt());
+    }
+
+    /** POST /admin/orders/expire-pickups — 픽업 마감 초과 자동환불 배치 */
+    @PostMapping("/expire-pickups")
+    @ResponseStatus(HttpStatus.OK)
+    public Map<String, Integer> expirePickups() {
+        int count = pickupExpireBatchService.expirePickups();
+        return Map.of("expiredCount", count);
     }
 }
