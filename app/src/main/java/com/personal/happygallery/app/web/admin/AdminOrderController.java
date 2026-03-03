@@ -70,8 +70,8 @@ public class AdminOrderController {
         return new OrderProductionResponse(result.orderId(), result.status(), result.expectedShipDate());
     }
 
-    /** POST /admin/orders/{id}/pickup-ready — 픽업 준비 완료 (APPROVED_FULFILLMENT_PENDING → PICKUP_READY) */
-    @PostMapping("/{id}/pickup-ready")
+    /** POST /admin/orders/{id}/prepare-pickup — 픽업 준비 완료 (APPROVED_FULFILLMENT_PENDING → PICKUP_READY) */
+    @PostMapping("/{id}/prepare-pickup")
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse markPickupReady(@PathVariable Long id,
                                          @RequestBody MarkPickupReadyRequest request) {
@@ -79,8 +79,8 @@ public class AdminOrderController {
         return new PickupResponse(result.orderId(), result.status(), result.pickupDeadlineAt());
     }
 
-    /** POST /admin/orders/{id}/pickup-confirm — 픽업 완료 (PICKUP_READY → PICKED_UP) */
-    @PostMapping("/{id}/pickup-confirm")
+    /** POST /admin/orders/{id}/complete-pickup — 픽업 완료 (PICKUP_READY → PICKED_UP) */
+    @PostMapping("/{id}/complete-pickup")
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse confirmPickup(@PathVariable Long id) {
         PickupResult result = orderPickupService.confirmPickup(id);
