@@ -1,0 +1,79 @@
+package com.personal.happygallery.app.booking;
+
+import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingStatus;
+import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.infra.booking.BookingRepository;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+/**
+ * 예약 리마인드 배치 서비스 (§10.2).
+ *
+ * <p>D-1(전날 자정)과 당일(당일 07:00) 두 번 발송한다.
+ * BookingRepository.findBookingsInRange()가 JOIN FETCH guest 를 수행하므로
+ * 트랜잭션 종료 후에도 guest.id 접근이 안전하다.
+ */
+@Service
+public class BookingReminderBatchService {
+
+    private static final Logger log = LoggerFactory.getLogger(BookingReminderBatchService.class);
+
+    private final BookingRepository bookingRepository;
+    private final NotificationService notificationService;
+    private final Clock clock;
+
+    public BookingReminderBatchService(BookingRepository bookingRepository,
+                                       NotificationService notificationService,
+                                       Clock clock) {
+        this.bookingRepository = bookingRepository;
+        this.notificationService = notificationService;
+        this.clock = clock;
+    }
+
+    /**
+     * D-1 리마인드 — 내일 시작하는 BOOKED 예약 대상.
+     *
+     * @return 발송 건수
+     */
+    public int sendD1Reminders() {
+        LocalDate tomorrow = LocalDate.now(clock).plusDays(1);
+        LocalDateTime start = tomorrow.atStartOfDay();
+        LocalDateTime end = start.plusDays(1);
+
+        List<Booking> bookings = bookingRepository.findBookingsInRange(BookingStatus.BOOKED, start, end);
+        for (Booking booking : bookings) {
+            notificationService.notifyByGuestId(booking.getGuest().getId(), NotificationEventType.REMINDER_D1);
+            log.info("D-1 리마인드 발송 [bookingId={}, guestId={}]", booking.getId(), booking.getGuest().getId());
+        }
+
+        log.info("D-1 리마인드 배치 완료: {}건", bookings.size());
+        return bookings.size();
+    }
+
+    /**
+     * 당일 리마인드 — 오늘 시작하는 BOOKED 예약 대상.
+     *
+     * @return 발송 건수
+     */
+    public int sendSameDayReminders() {
+        LocalDate today = LocalDate.now(clock);
+        LocalDateTime start = today.atStartOfDay();
+        LocalDateTime end = start.plusDays(1);
+
+        List<Booking> bookings = bookingRepository.findBookingsInRange(BookingStatus.BOOKED, start, end);
+        for (Booking booking : bookings) {
+            notificationService.notifyByGuestId(booking.getGuest().getId(), NotificationEventType.REMINDER_SAME_DAY);
+            log.info("당일 리마인드 발송 [bookingId={}, guestId={}]", booking.getId(), booking.getGuest().getId());
+        }
+
+        log.info("당일 리마인드 배치 완료: {}건", bookings.size());
+        return bookings.size();
+    }
+}

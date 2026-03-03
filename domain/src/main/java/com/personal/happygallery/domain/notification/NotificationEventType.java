@@ -17,5 +17,7 @@ public enum NotificationEventType {
     /** D-1 리마인드 (배치) */
     REMINDER_D1,
     /** 당일 아침 리마인드 (배치) */
-    REMINDER_SAME_DAY
+    REMINDER_SAME_DAY,
+    /** 8회권 만료 7일 전 알림 (배치) */
+    PASS_EXPIRY_SOON
 }

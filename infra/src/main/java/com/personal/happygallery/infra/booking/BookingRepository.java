@@ -25,4 +25,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findFuturePassBookings(@Param("passId") Long passId,
                                          @Param("status") BookingStatus status,
                                          @Param("now") LocalDateTime now);
+
+    /** D-1 / 당일 리마인드 공용 — JOIN FETCH guest (detached 후 LAZY 로딩 방지) */
+    @Query("SELECT b FROM Booking b JOIN FETCH b.guest WHERE b.status = :status AND b.slot.startAt >= :start AND b.slot.startAt < :end")
+    List<Booking> findBookingsInRange(@Param("status") BookingStatus status,
+                                      @Param("start") LocalDateTime start,
+                                      @Param("end") LocalDateTime end);
 }

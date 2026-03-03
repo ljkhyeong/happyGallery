@@ -1,5 +1,7 @@
 package com.personal.happygallery.app.pass;
 
+import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -21,13 +23,16 @@ public class PassExpiryBatchService {
 
     private final PassPurchaseRepository passPurchaseRepository;
     private final PassLedgerRepository passLedgerRepository;
+    private final NotificationService notificationService;
     private final Clock clock;
 
     public PassExpiryBatchService(PassPurchaseRepository passPurchaseRepository,
                                   PassLedgerRepository passLedgerRepository,
+                                  NotificationService notificationService,
                                   Clock clock) {
         this.passPurchaseRepository = passPurchaseRepository;
         this.passLedgerRepository = passLedgerRepository;
+        this.notificationService = notificationService;
         this.clock = clock;
     }
 
@@ -68,5 +73,26 @@ public class PassExpiryBatchService {
         LocalDateTime in7Days = now.plusDays(7);
         return passPurchaseRepository
                 .findByExpiresAtBetweenAndRemainingCreditsGreaterThan(now, in7Days, 0);
+    }
+
+    /**
+     * 만료 7일 전 PASS_EXPIRY_SOON 알림 발송 배치.
+     *
+     * <p>JOIN FETCH guest 쿼리로 조회하여 detached 상태에서도 guest.id 접근이 안전하다.
+     *
+     * @return 발송 건수
+     */
+    public int sendExpiryNotifications() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime in7Days = now.plusDays(7);
+        List<PassPurchase> expiring = passPurchaseRepository.findExpiringWithGuestBetween(now, in7Days);
+
+        for (PassPurchase pass : expiring) {
+            notificationService.notifyByGuestId(pass.getGuest().getId(), NotificationEventType.PASS_EXPIRY_SOON);
+            log.info("8회권 만료 7일 전 알림 발송 [passId={}, guestId={}]", pass.getId(), pass.getGuest().getId());
+        }
+
+        log.info("8회권 만료 7일 전 알림 배치 완료: {}건", expiring.size());
+        return expiring.size();
     }
 }
