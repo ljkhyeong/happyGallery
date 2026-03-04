@@ -40,7 +40,7 @@ public class OrderPickupService {
      * @return 픽업 결과 (주문 ID, 상태, 마감 시각)
      */
     public PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdWithLock(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.markPickupReady();
 
@@ -58,11 +58,11 @@ public class OrderPickupService {
      * @return 픽업 결과 (주문 ID, 상태, 마감 시각)
      */
     public PickupResult confirmPickup(Long orderId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdWithLock(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.confirmPickup();
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderIdWithLock(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
         fulfillment.syncStatus(order.getStatus());
         fulfillmentRepository.save(fulfillment);

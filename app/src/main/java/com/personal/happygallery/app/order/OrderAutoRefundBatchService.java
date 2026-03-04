@@ -57,17 +57,27 @@ public class OrderAutoRefundBatchService {
         LocalDateTime now = LocalDateTime.now(clock);
         List<Order> expired = orderRepository.findByStatusAndApprovalDeadlineAtBefore(
                 OrderStatus.PAID_APPROVAL_PENDING, now);
+        int processed = 0;
 
-        for (Order order : expired) {
+        for (Order candidate : expired) {
+            Order order = orderRepository.findByIdWithLock(candidate.getId())
+                    .orElseThrow(() -> new IllegalStateException("주문이 사라졌습니다. id=" + candidate.getId()));
+            if (order.getStatus() != OrderStatus.PAID_APPROVAL_PENDING) {
+                continue;
+            }
+            if (order.getApprovalDeadlineAt() == null || !order.getApprovalDeadlineAt().isBefore(now)) {
+                continue;
+            }
             orderApprovalService.restoreInventory(order);
             orderApprovalService.processRefund(order);
             order.markAutoRefunded();
             orderRepository.save(order);
             notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
             log.info("주문 자동환불 처리 [orderId={}]", order.getId());
+            processed++;
         }
 
-        log.info("자동환불 배치 완료: {}건 처리", expired.size());
-        return expired.size();
+        log.info("자동환불 배치 완료: {}건 처리", processed);
+        return processed;
     }
 }

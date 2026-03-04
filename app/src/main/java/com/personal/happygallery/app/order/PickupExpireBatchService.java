@@ -58,10 +58,23 @@ public class PickupExpireBatchService {
         LocalDateTime now = LocalDateTime.now(clock);
         List<Fulfillment> expired = fulfillmentRepository
                 .findByStatusAndPickupDeadlineAtBefore(OrderStatus.PICKUP_READY, now);
+        int processed = 0;
 
-        for (Fulfillment fulfillment : expired) {
-            Order order = orderRepository.findById(fulfillment.getOrderId())
+        for (Fulfillment candidate : expired) {
+            Fulfillment fulfillment = fulfillmentRepository.findByOrderIdWithLock(candidate.getOrderId())
+                    .orElseThrow(() -> new NotFoundException("이행 정보"));
+            if (fulfillment.getStatus() != OrderStatus.PICKUP_READY) {
+                continue;
+            }
+            if (fulfillment.getPickupDeadlineAt() == null || !fulfillment.getPickupDeadlineAt().isBefore(now)) {
+                continue;
+            }
+
+            Order order = orderRepository.findByIdWithLock(fulfillment.getOrderId())
                     .orElseThrow(() -> new NotFoundException("주문"));
+            if (order.getStatus() != OrderStatus.PICKUP_READY) {
+                continue;
+            }
 
             orderApprovalService.restoreInventory(order);
             orderApprovalService.processRefund(order);
@@ -71,9 +84,10 @@ public class PickupExpireBatchService {
             orderRepository.save(order);
             fulfillmentRepository.save(fulfillment);
             log.info("픽업 만료 처리 [orderId={}, fulfillmentId={}]", order.getId(), fulfillment.getId());
+            processed++;
         }
 
-        log.info("픽업 만료 배치 완료: {}건 처리", expired.size());
-        return expired.size();
+        log.info("픽업 만료 배치 완료: {}건 처리", processed);
+        return processed;
     }
 }
