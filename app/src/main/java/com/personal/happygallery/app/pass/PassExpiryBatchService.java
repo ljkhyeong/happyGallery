@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.infra.notification.NotificationLogRepository;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import java.time.Clock;
@@ -23,15 +24,18 @@ public class PassExpiryBatchService {
 
     private final PassPurchaseRepository passPurchaseRepository;
     private final PassLedgerRepository passLedgerRepository;
+    private final NotificationLogRepository notificationLogRepository;
     private final NotificationService notificationService;
     private final Clock clock;
 
     public PassExpiryBatchService(PassPurchaseRepository passPurchaseRepository,
                                   PassLedgerRepository passLedgerRepository,
+                                  NotificationLogRepository notificationLogRepository,
                                   NotificationService notificationService,
                                   Clock clock) {
         this.passPurchaseRepository = passPurchaseRepository;
         this.passLedgerRepository = passLedgerRepository;
+        this.notificationLogRepository = notificationLogRepository;
         this.notificationService = notificationService;
         this.clock = clock;
     }
@@ -70,9 +74,10 @@ public class PassExpiryBatchService {
     @Transactional(readOnly = true)
     public List<PassPurchase> findExpiringWithin7Days() {
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime in7Days = now.plusDays(7);
+        LocalDateTime targetStart = now.plusDays(7).toLocalDate().atStartOfDay();
+        LocalDateTime targetEnd = targetStart.plusDays(1);
         return passPurchaseRepository
-                .findByExpiresAtBetweenAndRemainingCreditsGreaterThan(now, in7Days, 0);
+                .findByExpiresAtBetweenAndRemainingCreditsGreaterThan(targetStart, targetEnd, 0);
     }
 
     /**
@@ -84,15 +89,28 @@ public class PassExpiryBatchService {
      */
     public int sendExpiryNotifications() {
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime in7Days = now.plusDays(7);
-        List<PassPurchase> expiring = passPurchaseRepository.findExpiringWithGuestBetween(now, in7Days);
+        LocalDateTime targetStart = now.plusDays(7).toLocalDate().atStartOfDay();
+        LocalDateTime targetEnd = targetStart.plusDays(1);
+        LocalDateTime sentStart = now.toLocalDate().atStartOfDay();
+        LocalDateTime sentEnd = sentStart.plusDays(1);
+        List<PassPurchase> expiring = passPurchaseRepository.findExpiringWithGuestBetween(targetStart, targetEnd);
+        int notified = 0;
 
         for (PassPurchase pass : expiring) {
+            if (notificationLogRepository.existsByGuestIdAndEventTypeAndStatusAndSentAtBetween(
+                    pass.getGuest().getId(),
+                    NotificationEventType.PASS_EXPIRY_SOON,
+                    "SUCCESS",
+                    sentStart,
+                    sentEnd)) {
+                continue;
+            }
             notificationService.notifyByGuestId(pass.getGuest().getId(), NotificationEventType.PASS_EXPIRY_SOON);
             log.info("8회권 만료 7일 전 알림 발송 [passId={}, guestId={}]", pass.getId(), pass.getGuest().getId());
+            notified++;
         }
 
-        log.info("8회권 만료 7일 전 알림 배치 완료: {}건", expiring.size());
-        return expiring.size();
+        log.info("8회권 만료 7일 전 알림 배치 완료: {}건", notified);
+        return notified;
     }
 }
