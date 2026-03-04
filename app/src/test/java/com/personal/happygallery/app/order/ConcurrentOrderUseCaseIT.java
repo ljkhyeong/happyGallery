@@ -7,6 +7,7 @@ import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
+import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
@@ -36,6 +37,7 @@ class ConcurrentOrderUseCaseIT {
     @Autowired OrderService orderService;
     @Autowired OrderRepository orderRepository;
     @Autowired OrderItemRepository orderItemRepository;
+    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
     @Autowired FulfillmentRepository fulfillmentRepository;
     @Autowired RefundRepository refundRepository;
     @Autowired ProductRepository productRepository;
@@ -54,6 +56,7 @@ class ConcurrentOrderUseCaseIT {
     private void cleanup() {
         refundRepository.deleteAll();
         fulfillmentRepository.deleteAll();
+        orderApprovalHistoryRepository.deleteAll();
         orderItemRepository.deleteAll();
         orderRepository.deleteAll();
         inventoryRepository.deleteAll();

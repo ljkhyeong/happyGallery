@@ -1,16 +1,17 @@
 package com.personal.happygallery.app.web.admin;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.order.OrderApprovalService;
 import com.personal.happygallery.app.order.OrderPickupService;
 import com.personal.happygallery.app.order.OrderPickupService.PickupResult;
 import com.personal.happygallery.app.order.OrderProductionService;
 import com.personal.happygallery.app.order.OrderProductionService.ProductionResult;
 import com.personal.happygallery.app.order.PickupExpireBatchService;
+import com.personal.happygallery.app.web.admin.dto.BatchResponse;
 import com.personal.happygallery.app.web.admin.dto.MarkPickupReadyRequest;
 import com.personal.happygallery.app.web.admin.dto.OrderProductionResponse;
 import com.personal.happygallery.app.web.admin.dto.PickupResponse;
 import com.personal.happygallery.app.web.admin.dto.SetExpectedShipDateRequest;
-import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -90,8 +91,8 @@ public class AdminOrderController {
     /** POST /admin/orders/expire-pickups — 픽업 마감 초과 자동환불 배치 */
     @PostMapping("/expire-pickups")
     @ResponseStatus(HttpStatus.OK)
-    public Map<String, Integer> expirePickups() {
-        int count = pickupExpireBatchService.expirePickups();
-        return Map.of("expiredCount", count);
+    public BatchResponse expirePickups() {
+        BatchResult result = pickupExpireBatchService.expirePickups();
+        return BatchResponse.from(result);
     }
 }

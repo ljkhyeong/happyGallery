@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
@@ -10,6 +11,7 @@ import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
+import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
@@ -37,6 +39,7 @@ class PickupExpireBatchUseCaseIT {
     @Autowired OrderService orderService;
     @Autowired OrderRepository orderRepository;
     @Autowired OrderItemRepository orderItemRepository;
+    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
     @Autowired FulfillmentRepository fulfillmentRepository;
     @Autowired RefundRepository refundRepository;
     @Autowired ProductRepository productRepository;
@@ -57,6 +60,7 @@ class PickupExpireBatchUseCaseIT {
         // FK 삭제 순서: refunds → fulfillments → order_items → orders → inventory → products
         refundRepository.deleteAll();
         fulfillmentRepository.deleteAll();
+        orderApprovalHistoryRepository.deleteAll();
         orderItemRepository.deleteAll();
         orderRepository.deleteAll();
         inventoryRepository.deleteAll();
@@ -88,8 +92,9 @@ class PickupExpireBatchUseCaseIT {
         assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
 
         // 배치 실행
-        int count = pickupExpireBatchService.expirePickups();
-        assertThat(count).isEqualTo(1);
+        BatchResult result = pickupExpireBatchService.expirePickups();
+        assertThat(result.successCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isZero();
 
         // 상태 확인
         Order expired = orderRepository.findById(order.getId()).orElseThrow();
@@ -126,8 +131,9 @@ class PickupExpireBatchUseCaseIT {
         orderPickupService.markPickupReady(order.getId(), futureDeadline);
 
         // 배치 실행 → 0건 처리
-        int count = pickupExpireBatchService.expirePickups();
-        assertThat(count).isEqualTo(0);
+        BatchResult result = pickupExpireBatchService.expirePickups();
+        assertThat(result.successCount()).isEqualTo(0);
+        assertThat(result.failureCount()).isZero();
 
         // 상태 유지 확인
         Order unchanged = orderRepository.findById(order.getId()).orElseThrow();

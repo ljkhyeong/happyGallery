@@ -5,6 +5,8 @@ import com.personal.happygallery.app.product.InventoryService;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.booking.Refund;
+import com.personal.happygallery.domain.order.OrderApprovalDecision;
+import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
@@ -14,6 +16,7 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
+import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;
@@ -22,6 +25,9 @@ import com.personal.happygallery.infra.product.ProductRepository;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +55,7 @@ public class OrderApprovalService {
     private final PaymentProvider paymentProvider;
     private final ProductRepository productRepository;
     private final FulfillmentRepository fulfillmentRepository;
+    private final OrderApprovalHistoryRepository orderApprovalHistoryRepository;
     private final NotificationService notificationService;
 
     public OrderApprovalService(OrderRepository orderRepository,
@@ -58,6 +65,7 @@ public class OrderApprovalService {
                                 PaymentProvider paymentProvider,
                                 ProductRepository productRepository,
                                 FulfillmentRepository fulfillmentRepository,
+                                OrderApprovalHistoryRepository orderApprovalHistoryRepository,
                                 NotificationService notificationService) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
@@ -66,6 +74,7 @@ public class OrderApprovalService {
         this.paymentProvider = paymentProvider;
         this.productRepository = productRepository;
         this.fulfillmentRepository = fulfillmentRepository;
+        this.orderApprovalHistoryRepository = orderApprovalHistoryRepository;
         this.notificationService = notificationService;
     }
 
@@ -79,6 +88,10 @@ public class OrderApprovalService {
      * @param orderId 주문 ID
      * @return 승인된 주문
      */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public Order approve(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -91,6 +104,7 @@ public class OrderApprovalService {
         } else {
             order.approve();
         }
+        orderApprovalHistoryRepository.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.APPROVE));
         return orderRepository.save(order);
     }
 
@@ -118,6 +132,10 @@ public class OrderApprovalService {
      * @param orderId 주문 ID
      * @return 거절된 주문
      */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public Order reject(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -125,6 +143,7 @@ public class OrderApprovalService {
 
         restoreInventory(order);
         processRefund(order);
+        orderApprovalHistoryRepository.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT));
         notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
 
         return orderRepository.save(order);

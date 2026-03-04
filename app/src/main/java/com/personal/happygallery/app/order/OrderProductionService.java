@@ -1,13 +1,19 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.order.OrderApprovalDecision;
+import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.LocalDate;
 import org.springframework.stereotype.Service;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -27,11 +33,14 @@ public class OrderProductionService {
 
     private final OrderRepository orderRepository;
     private final FulfillmentRepository fulfillmentRepository;
+    private final OrderApprovalHistoryRepository orderApprovalHistoryRepository;
 
     public OrderProductionService(OrderRepository orderRepository,
-                                  FulfillmentRepository fulfillmentRepository) {
+                                  FulfillmentRepository fulfillmentRepository,
+                                  OrderApprovalHistoryRepository orderApprovalHistoryRepository) {
         this.orderRepository = orderRepository;
         this.fulfillmentRepository = fulfillmentRepository;
+        this.orderApprovalHistoryRepository = orderApprovalHistoryRepository;
     }
 
     /**
@@ -41,6 +50,10 @@ public class OrderProductionService {
      * @param expectedShipDate 예상 출고일
      * @return 주문 상태 + 갱신된 출고일
      */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public ProductionResult setExpectedShipDate(Long orderId, LocalDate expectedShipDate) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -60,6 +73,10 @@ public class OrderProductionService {
      * @param orderId 주문 ID
      * @return 전이된 주문 상태 + 출고일
      */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public ProductionResult requestDelay(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -70,6 +87,7 @@ public class OrderProductionService {
         fulfillment.syncStatus(order.getStatus());
         fulfillmentRepository.save(fulfillment);
 
+        orderApprovalHistoryRepository.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELAY));
         orderRepository.save(order);
         return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }

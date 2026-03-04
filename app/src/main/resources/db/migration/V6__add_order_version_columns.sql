@@ -1,0 +1,5 @@
+ALTER TABLE orders
+    ADD COLUMN version BIGINT NOT NULL DEFAULT 0 COMMENT '낙관적 락 버전';
+
+ALTER TABLE fulfillments
+    ADD COLUMN version BIGINT NOT NULL DEFAULT 0 COMMENT '낙관적 락 버전';

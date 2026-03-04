@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -42,6 +43,10 @@ public class Fulfillment {
 
     @Column(name = "pickup_deadline_at")
     private LocalDateTime pickupDeadlineAt;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     protected Fulfillment() {}
 
@@ -88,4 +93,5 @@ public class Fulfillment {
     public OrderStatus getStatus() { return status; }
     public LocalDate getExpectedShipDate() { return expectedShipDate; }
     public LocalDateTime getPickupDeadlineAt() { return pickupDeadlineAt; }
+    public long getVersion() { return version; }
 }
