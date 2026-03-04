@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -7,7 +8,9 @@ import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -49,11 +52,12 @@ public class PickupExpireBatchService {
      *
      * @return 처리된 건수
      */
-    public int expirePickups() {
+    public BatchResult expirePickups() {
         LocalDateTime now = LocalDateTime.now(clock);
         List<Fulfillment> expired = fulfillmentRepository
                 .findByStatusAndPickupDeadlineAtBefore(OrderStatus.PICKUP_READY, now);
         int processed = 0;
+        Map<String, Integer> failureReasons = new LinkedHashMap<>();
 
         for (Fulfillment candidate : expired) {
             try {
@@ -63,10 +67,10 @@ public class PickupExpireBatchService {
                 }
             } catch (ObjectOptimisticLockingFailureException e) {
                 log.info("픽업 만료 충돌로 스킵 [orderId={}]", candidate.getOrderId());
+                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
             }
         }
 
-        log.info("픽업 만료 배치 완료: {}건 처리", processed);
-        return processed;
+        return BatchResult.of(processed, failureReasons);
     }
 }

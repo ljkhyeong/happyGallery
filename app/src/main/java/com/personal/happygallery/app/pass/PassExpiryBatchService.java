@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.pass;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedger;
@@ -50,7 +51,7 @@ public class PassExpiryBatchService {
      *
      * @return 처리된 건수
      */
-    public int expireAll() {
+    public BatchResult expireAll() {
         LocalDateTime now = LocalDateTime.now(clock);
         List<PassPurchase> expired = passPurchaseRepository
                 .findByExpiresAtBeforeAndRemainingCreditsGreaterThan(now, 0);
@@ -63,8 +64,7 @@ public class PassExpiryBatchService {
             log.info("Pass expired [passId={}] credits소멸={}", pass.getId(), creditsToExpire);
         }
 
-        log.info("Pass expiry batch 완료: {}건 처리", expired.size());
-        return expired.size();
+        return BatchResult.successOnly(expired.size());
     }
 
     /**
@@ -87,7 +87,7 @@ public class PassExpiryBatchService {
      *
      * @return 발송 건수
      */
-    public int sendExpiryNotifications() {
+    public BatchResult sendExpiryNotifications() {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime targetStart = now.plusDays(7).toLocalDate().atStartOfDay();
         LocalDateTime targetEnd = targetStart.plusDays(1);
@@ -110,7 +110,6 @@ public class PassExpiryBatchService {
             notified++;
         }
 
-        log.info("8회권 만료 7일 전 알림 배치 완료: {}건", notified);
-        return notified;
+        return BatchResult.successOnly(notified);
     }
 }

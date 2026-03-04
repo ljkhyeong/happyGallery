@@ -24,7 +24,21 @@ public class BatchLoggingAspect {
             Object result = joinPoint.proceed();
             long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
 
-            if (result instanceof Number count) {
+            if (result instanceof BatchResult batchResult) {
+                if (batchResult.failureCount() > 0) {
+                    log.warn("[배치] {} 완료: 성공 {}건, 실패 {}건, 사유 {} ({}ms)",
+                            jobName,
+                            batchResult.successCount(),
+                            batchResult.failureCount(),
+                            batchResult.failureReasons(),
+                            durationMs);
+                } else {
+                    log.info("[배치] {} 완료: 성공 {}건, 실패 0건 ({}ms)",
+                            jobName,
+                            batchResult.successCount(),
+                            durationMs);
+                }
+            } else if (result instanceof Number count) {
                 log.info("[배치] {} 완료: {}건 ({}ms)", jobName, count.intValue(), durationMs);
             } else {
                 log.info("[배치] {} 완료 ({}ms)", jobName, durationMs);

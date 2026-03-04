@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.web.admin;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.order.OrderApprovalService;
 import com.personal.happygallery.app.order.OrderPickupService;
 import com.personal.happygallery.app.order.OrderPickupService.PickupResult;
@@ -91,7 +92,7 @@ public class AdminOrderController {
     @PostMapping("/expire-pickups")
     @ResponseStatus(HttpStatus.OK)
     public Map<String, Integer> expirePickups() {
-        int count = pickupExpireBatchService.expirePickups();
-        return Map.of("expiredCount", count);
+        BatchResult result = pickupExpireBatchService.expirePickups();
+        return Map.of("expiredCount", result.successCount(), "failedCount", result.failureCount());
     }
 }

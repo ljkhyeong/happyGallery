@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
@@ -91,8 +92,9 @@ class PickupExpireBatchUseCaseIT {
         assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
 
         // 배치 실행
-        int count = pickupExpireBatchService.expirePickups();
-        assertThat(count).isEqualTo(1);
+        BatchResult result = pickupExpireBatchService.expirePickups();
+        assertThat(result.successCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isZero();
 
         // 상태 확인
         Order expired = orderRepository.findById(order.getId()).orElseThrow();
@@ -129,8 +131,9 @@ class PickupExpireBatchUseCaseIT {
         orderPickupService.markPickupReady(order.getId(), futureDeadline);
 
         // 배치 실행 → 0건 처리
-        int count = pickupExpireBatchService.expirePickups();
-        assertThat(count).isEqualTo(0);
+        BatchResult result = pickupExpireBatchService.expirePickups();
+        assertThat(result.successCount()).isEqualTo(0);
+        assertThat(result.failureCount()).isZero();
 
         // 상태 유지 확인
         Order unchanged = orderRepository.findById(order.getId()).orElseThrow();

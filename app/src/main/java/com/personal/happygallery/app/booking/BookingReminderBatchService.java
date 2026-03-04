@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
@@ -42,7 +43,7 @@ public class BookingReminderBatchService {
      *
      * @return 발송 건수
      */
-    public int sendD1Reminders() {
+    public BatchResult sendD1Reminders() {
         LocalDate tomorrow = LocalDate.now(clock).plusDays(1);
         LocalDateTime start = tomorrow.atStartOfDay();
         LocalDateTime end = start.plusDays(1);
@@ -53,8 +54,7 @@ public class BookingReminderBatchService {
             log.info("D-1 리마인드 발송 [bookingId={}, guestId={}]", booking.getId(), booking.getGuest().getId());
         }
 
-        log.info("D-1 리마인드 배치 완료: {}건", bookings.size());
-        return bookings.size();
+        return BatchResult.successOnly(bookings.size());
     }
 
     /**
@@ -62,7 +62,7 @@ public class BookingReminderBatchService {
      *
      * @return 발송 건수
      */
-    public int sendSameDayReminders() {
+    public BatchResult sendSameDayReminders() {
         LocalDate today = LocalDate.now(clock);
         LocalDateTime start = today.atStartOfDay();
         LocalDateTime end = start.plusDays(1);
@@ -73,7 +73,6 @@ public class BookingReminderBatchService {
             log.info("당일 리마인드 발송 [bookingId={}, guestId={}]", booking.getId(), booking.getGuest().getId());
         }
 
-        log.info("당일 리마인드 배치 완료: {}건", bookings.size());
-        return bookings.size();
+        return BatchResult.successOnly(bookings.size());
     }
 }

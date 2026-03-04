@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.pass;
 
 import com.jayway.jsonpath.JsonPath;
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -102,9 +103,10 @@ class PassPurchaseUseCaseIT {
         PassPurchase expiredPass = passPurchaseRepository.save(
                 new PassPurchase(guest, LocalDateTime.now().minusDays(1), 0L));
 
-        int processed = passExpiryBatchService.expireAll();
+        BatchResult result = passExpiryBatchService.expireAll();
 
-        assertThat(processed).isEqualTo(1);
+        assertThat(result.successCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isZero();
 
         // Proof: remaining_credits = 0
         PassPurchase reloaded = passPurchaseRepository.findById(expiredPass.getId()).orElseThrow();
@@ -126,9 +128,10 @@ class PassPurchaseUseCaseIT {
         // 미래 만료 pass
         passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().plusDays(30), 0L));
 
-        int processed = passExpiryBatchService.expireAll();
+        BatchResult result = passExpiryBatchService.expireAll();
 
-        assertThat(processed).isEqualTo(0);
+        assertThat(result.successCount()).isEqualTo(0);
+        assertThat(result.failureCount()).isZero();
         assertThat(passLedgerRepository.count()).isEqualTo(0);
     }
 

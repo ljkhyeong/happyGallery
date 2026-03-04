@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.pass;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
@@ -87,9 +88,10 @@ class PassExpiryNotificationUseCaseIT {
         passPurchaseRepository.save(new PassPurchase(guest1, soon, 0L));
         passPurchaseRepository.save(new PassPurchase(guest2, soon, 0L));
 
-        int count = passExpiryBatchService.sendExpiryNotifications();
+        BatchResult result = passExpiryBatchService.sendExpiryNotifications();
 
-        assertThat(count).isEqualTo(2);
+        assertThat(result.successCount()).isEqualTo(2);
+        assertThat(result.failureCount()).isZero();
 
         List<NotificationLog> logs = notificationLogRepository.findAll();
         assertThat(logs).hasSize(2);
@@ -108,9 +110,10 @@ class PassExpiryNotificationUseCaseIT {
         LocalDateTime later = LocalDateTime.now(clock).plusDays(30);
         passPurchaseRepository.save(new PassPurchase(guest, later, 0L));
 
-        int count = passExpiryBatchService.sendExpiryNotifications();
+        BatchResult result = passExpiryBatchService.sendExpiryNotifications();
 
-        assertThat(count).isEqualTo(0);
+        assertThat(result.successCount()).isEqualTo(0);
+        assertThat(result.failureCount()).isZero();
         assertThat(notificationLogRepository.findAll()).isEmpty();
     }
 
@@ -120,11 +123,13 @@ class PassExpiryNotificationUseCaseIT {
         LocalDateTime target = LocalDateTime.now(clock).plusDays(7);
         passPurchaseRepository.save(new PassPurchase(guest, target, 0L));
 
-        int first = passExpiryBatchService.sendExpiryNotifications();
-        int second = passExpiryBatchService.sendExpiryNotifications();
+        BatchResult first = passExpiryBatchService.sendExpiryNotifications();
+        BatchResult second = passExpiryBatchService.sendExpiryNotifications();
 
-        assertThat(first).isEqualTo(1);
-        assertThat(second).isEqualTo(0);
+        assertThat(first.successCount()).isEqualTo(1);
+        assertThat(first.failureCount()).isZero();
+        assertThat(second.successCount()).isEqualTo(0);
+        assertThat(second.failureCount()).isZero();
         assertThat(notificationLogRepository.findAll()).hasSize(1);
     }
 }

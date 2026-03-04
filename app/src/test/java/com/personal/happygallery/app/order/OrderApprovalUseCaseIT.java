@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.common.error.AlreadyRefundedException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
@@ -147,8 +148,9 @@ class OrderApprovalUseCaseIT {
         });
 
         // 배치 실행
-        int count = orderAutoRefundBatchService.autoRefundExpired();
-        assertThat(count).isEqualTo(1);
+        BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
+        assertThat(result.successCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isZero();
 
         // 상태 확인
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
