@@ -3,8 +3,8 @@ package com.personal.happygallery.app.web.admin;
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.pass.PassExpiryBatchService;
 import com.personal.happygallery.app.pass.PassRefundService;
+import com.personal.happygallery.app.web.admin.dto.BatchResponse;
 import com.personal.happygallery.app.web.admin.dto.PassRefundResponse;
-import java.util.Map;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,9 +25,9 @@ public class AdminPassController {
 
     /** 만료 배치 수동 트리거 — 스케줄러 미구현 시 운영자가 직접 호출 */
     @PostMapping("/expire")
-    public Map<String, Integer> triggerExpiry() {
+    public BatchResponse triggerExpiry() {
         BatchResult result = passExpiryBatchService.expireAll();
-        return Map.of("expiredCount", result.successCount(), "failedCount", result.failureCount());
+        return BatchResponse.from(result);
     }
 
     /**

@@ -1,9 +1,8 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.booking.RefundRetryService;
-import com.personal.happygallery.domain.booking.Refund;
+import com.personal.happygallery.app.web.admin.dto.FailedRefundResponse;
 import java.util.List;
-import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,14 +22,9 @@ public class AdminRefundController {
 
     /** FAILED 환불 목록 조회 */
     @GetMapping("/failed")
-    public List<Map<String, Object>> listFailed() {
+    public List<FailedRefundResponse> listFailed() {
         return refundRetryService.listFailed().stream()
-                .map(r -> Map.<String, Object>of(
-                        "refundId", r.getId(),
-                        "bookingId", r.getBooking().getId(),
-                        "amount", r.getAmount(),
-                        "failReason", r.getFailReason() != null ? r.getFailReason() : "",
-                        "createdAt", r.getCreatedAt()))
+                .map(FailedRefundResponse::from)
                 .toList();
     }
 

@@ -571,7 +571,11 @@ POST /admin/passes/{passId}/refund
 POST /admin/passes/expire
 
 → 200 OK
-{ "expiredCount": 3 }
+{
+  "successCount": 3,
+  "failureCount": 0,
+  "failureReasons": {}
+}
 ```
 
 정책: 만료된 pass의 remaining_credits = 0, EXPIRE ledger 기록.
