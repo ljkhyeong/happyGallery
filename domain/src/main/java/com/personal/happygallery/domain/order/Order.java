@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
@@ -43,6 +44,10 @@ public class Order {
     @Column(name = "approval_deadline_at")
     private LocalDateTime approvalDeadlineAt;
 
+    @Version
+    @Column(nullable = false)
+    private long version;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -68,20 +73,22 @@ public class Order {
      * 관리자 승인 처리.
      * 이미 환불된 주문({@link OrderStatus#REJECTED_REFUNDED}, {@link OrderStatus#AUTO_REFUNDED_TIMEOUT})에
      * 대한 호출은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}을 던진다.
+     * 승인 대기 상태({@link OrderStatus#PAID_APPROVAL_PENDING})가 아니면 400을 던진다.
      */
     public void approve() {
-        this.status.requireApprovable();
+        this.status.requireApprovalPending();
         this.status = OrderStatus.APPROVED_FULFILLMENT_PENDING;
     }
 
     /**
      * 관리자 거절 처리. 환불·재고 복구는 서비스 레이어에서 선행한다.
      * 이미 환불된 주문에 대한 호출은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}을 던진다.
+     * 승인 대기 상태({@link OrderStatus#PAID_APPROVAL_PENDING})가 아니면 400을 던진다.
      * 제작 중인 주문({@link OrderStatus#IN_PRODUCTION}, {@link OrderStatus#DELAY_REQUESTED})은
      * {@link com.personal.happygallery.common.error.ProductionRefundNotAllowedException}을 던진다.
      */
     public void reject() {
-        this.status.requireApprovable();
+        this.status.requireApprovalPending();
         this.status.requireCancellable();
         this.status = OrderStatus.REJECTED_REFUNDED;
     }
@@ -91,7 +98,7 @@ public class Order {
      * 이미 환불된 주문에 대한 호출은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}을 던진다.
      */
     public void approveAsProduction() {
-        this.status.requireApprovable();
+        this.status.requireApprovalPending();
         this.status = OrderStatus.IN_PRODUCTION;
     }
 
@@ -151,5 +158,6 @@ public class Order {
     public long getTotalAmount() { return totalAmount; }
     public LocalDateTime getPaidAt() { return paidAt; }
     public LocalDateTime getApprovalDeadlineAt() { return approvalDeadlineAt; }
+    public long getVersion() { return version; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

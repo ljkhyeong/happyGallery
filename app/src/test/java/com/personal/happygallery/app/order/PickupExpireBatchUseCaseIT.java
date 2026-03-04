@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
@@ -10,6 +11,7 @@ import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
+import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
@@ -20,8 +22,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * [UseCaseIT] §8.4 픽업 만료 배치 검증.
@@ -31,12 +37,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 @UseCaseIT
 class PickupExpireBatchUseCaseIT {
 
+    @Autowired MockMvc mockMvc;
     @Autowired PickupExpireBatchService pickupExpireBatchService;
     @Autowired OrderPickupService orderPickupService;
     @Autowired OrderApprovalService orderApprovalService;
     @Autowired OrderService orderService;
     @Autowired OrderRepository orderRepository;
     @Autowired OrderItemRepository orderItemRepository;
+    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
     @Autowired FulfillmentRepository fulfillmentRepository;
     @Autowired RefundRepository refundRepository;
     @Autowired ProductRepository productRepository;
@@ -57,6 +65,7 @@ class PickupExpireBatchUseCaseIT {
         // FK 삭제 순서: refunds → fulfillments → order_items → orders → inventory → products
         refundRepository.deleteAll();
         fulfillmentRepository.deleteAll();
+        orderApprovalHistoryRepository.deleteAll();
         orderItemRepository.deleteAll();
         orderRepository.deleteAll();
         inventoryRepository.deleteAll();
@@ -88,8 +97,9 @@ class PickupExpireBatchUseCaseIT {
         assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
 
         // 배치 실행
-        int count = pickupExpireBatchService.expirePickups();
-        assertThat(count).isEqualTo(1);
+        BatchResult result = pickupExpireBatchService.expirePickups();
+        assertThat(result.successCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isZero();
 
         // 상태 확인
         Order expired = orderRepository.findById(order.getId()).orElseThrow();
@@ -126,11 +136,32 @@ class PickupExpireBatchUseCaseIT {
         orderPickupService.markPickupReady(order.getId(), futureDeadline);
 
         // 배치 실행 → 0건 처리
-        int count = pickupExpireBatchService.expirePickups();
-        assertThat(count).isEqualTo(0);
+        BatchResult result = pickupExpireBatchService.expirePickups();
+        assertThat(result.successCount()).isEqualTo(0);
+        assertThat(result.failureCount()).isZero();
 
         // 상태 유지 확인
         Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+    }
+
+    @Test
+    void expirePickups_adminApi_returnsBatchResponse() throws Exception {
+        Product product = productRepository.save(new Product("픽업 API 테스트 상품", ProductType.READY_STOCK, 45000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 45000L)));
+        orderApprovalService.approve(order.getId());
+        orderPickupService.markPickupReady(order.getId(), LocalDateTime.now(clock).minusMinutes(30));
+
+        mockMvc.perform(post("/admin/orders/expire-pickups"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successCount").value(1))
+                .andExpect(jsonPath("$.failureCount").value(0))
+                .andExpect(jsonPath("$.failureReasons").isMap());
+
+        Order expired = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
     }
 }

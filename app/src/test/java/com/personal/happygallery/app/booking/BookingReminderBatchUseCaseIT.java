@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
@@ -80,9 +81,10 @@ class BookingReminderBatchUseCaseIT {
 
         Booking booking = createBooking(slotStart);
 
-        int count = bookingReminderBatchService.sendD1Reminders();
+        BatchResult result = bookingReminderBatchService.sendD1Reminders();
 
-        assertThat(count).isEqualTo(1);
+        assertThat(result.successCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isZero();
         List<NotificationLog> logs = notificationLogRepository.findAll();
         assertThat(logs).hasSize(1);
         assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
@@ -99,9 +101,10 @@ class BookingReminderBatchUseCaseIT {
 
         createBooking(slotStart);
 
-        int count = bookingReminderBatchService.sendD1Reminders();
+        BatchResult result = bookingReminderBatchService.sendD1Reminders();
 
-        assertThat(count).isEqualTo(0);
+        assertThat(result.successCount()).isEqualTo(0);
+        assertThat(result.failureCount()).isZero();
         assertThat(notificationLogRepository.findAll()).isEmpty();
     }
 
@@ -115,9 +118,10 @@ class BookingReminderBatchUseCaseIT {
 
         Booking booking = createBooking(slotStart);
 
-        int count = bookingReminderBatchService.sendSameDayReminders();
+        BatchResult result = bookingReminderBatchService.sendSameDayReminders();
 
-        assertThat(count).isEqualTo(1);
+        assertThat(result.successCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isZero();
         List<NotificationLog> logs = notificationLogRepository.findAll();
         assertThat(logs).hasSize(1);
         assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_SAME_DAY);
@@ -135,9 +139,10 @@ class BookingReminderBatchUseCaseIT {
 
         createBooking(slotStart);
 
-        int count = bookingReminderBatchService.sendSameDayReminders();
+        BatchResult result = bookingReminderBatchService.sendSameDayReminders();
 
-        assertThat(count).isEqualTo(0);
+        assertThat(result.successCount()).isEqualTo(0);
+        assertThat(result.failureCount()).isZero();
         assertThat(notificationLogRepository.findAll()).isEmpty();
     }
 

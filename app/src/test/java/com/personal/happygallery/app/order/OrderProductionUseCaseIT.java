@@ -3,6 +3,7 @@ package com.personal.happygallery.app.order;
 import com.personal.happygallery.common.error.ProductionRefundNotAllowedException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
@@ -10,6 +11,7 @@ import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
+import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
@@ -20,8 +22,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -34,9 +34,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @UseCaseIT
 class OrderProductionUseCaseIT {
 
-    @Autowired WebApplicationContext context;
+    @Autowired MockMvc mockMvc;
     @Autowired OrderRepository orderRepository;
     @Autowired OrderItemRepository orderItemRepository;
+    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
     @Autowired FulfillmentRepository fulfillmentRepository;
     @Autowired RefundRepository refundRepository;
     @Autowired ProductRepository productRepository;
@@ -45,11 +46,8 @@ class OrderProductionUseCaseIT {
     @Autowired OrderProductionService orderProductionService;
     @Autowired OrderService orderService;
 
-    MockMvc mockMvc;
-
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
         cleanup();
     }
 
@@ -61,6 +59,7 @@ class OrderProductionUseCaseIT {
     private void cleanup() {
         refundRepository.deleteAll();
         fulfillmentRepository.deleteAll();
+        orderApprovalHistoryRepository.deleteAll();
         orderItemRepository.deleteAll();
         orderRepository.deleteAll();
         inventoryRepository.deleteAll();
@@ -152,6 +151,9 @@ class OrderProductionUseCaseIT {
 
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
         assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
+        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                .extracting("decision")
+                .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY);
     }
 
     // -----------------------------------------------------------------------

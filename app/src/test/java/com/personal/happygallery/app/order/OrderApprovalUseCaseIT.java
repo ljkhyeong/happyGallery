@@ -1,7 +1,10 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.common.error.AlreadyRefundedException;
+import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.product.Inventory;
@@ -9,6 +12,7 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
+import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
@@ -20,8 +24,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,9 +38,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class OrderApprovalUseCaseIT {
 
-    @Autowired WebApplicationContext context;
+    @Autowired MockMvc mockMvc;
     @Autowired OrderRepository orderRepository;
     @Autowired OrderItemRepository orderItemRepository;
+    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
     @Autowired RefundRepository refundRepository;
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
@@ -47,11 +50,8 @@ class OrderApprovalUseCaseIT {
     @Autowired OrderService orderService;
     @Autowired Clock clock;
 
-    MockMvc mockMvc;
-
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
         cleanup();
     }
 
@@ -63,6 +63,7 @@ class OrderApprovalUseCaseIT {
     private void cleanup() {
         // FK 삭제 순서: refunds(order_id) → order_items → orders → inventory → products
         refundRepository.deleteAll();
+        orderApprovalHistoryRepository.deleteAll();
         orderItemRepository.deleteAll();
         orderRepository.deleteAll();
         inventoryRepository.deleteAll();
@@ -86,6 +87,9 @@ class OrderApprovalUseCaseIT {
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                .extracting("decision")
+                .containsExactly(OrderApprovalDecision.APPROVE);
     }
 
     // -----------------------------------------------------------------------
@@ -109,6 +113,9 @@ class OrderApprovalUseCaseIT {
         // 주문 상태 확인
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED_REFUNDED);
+        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                .extracting("decision")
+                .containsExactly(OrderApprovalDecision.REJECT);
 
         // 재고 복구 확인
         assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(1);
@@ -116,6 +123,71 @@ class OrderApprovalUseCaseIT {
         // 환불 기록 확인
         assertThat(refundRepository.findAll()).hasSize(1);
         assertThat(refundRepository.findAll().get(0).getOrderId()).isEqualTo(order.getId());
+    }
+
+    @Test
+    void approve_twice_keepsSingleTransitionAndHistory() {
+        Product product = productRepository.save(new Product("중복 승인 테스트 상품", ProductType.READY_STOCK, 50000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 50000L)));
+
+        orderApprovalService.approve(order.getId());
+
+        assertThatThrownBy(() -> orderApprovalService.approve(order.getId()))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("승인 대기 상태의 주문만 처리할 수 있습니다.");
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                .extracting("decision")
+                .containsExactly(OrderApprovalDecision.APPROVE);
+    }
+
+    @Test
+    void reject_twice_keepsSingleTransitionAndHistory() {
+        Product product = productRepository.save(new Product("중복 거절 테스트 상품", ProductType.READY_STOCK, 30000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 30000L)));
+
+        orderApprovalService.reject(order.getId());
+
+        assertThatThrownBy(() -> orderApprovalService.reject(order.getId()))
+                .isInstanceOf(AlreadyRefundedException.class);
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED_REFUNDED);
+        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                .extracting("decision")
+                .containsExactly(OrderApprovalDecision.REJECT);
+        assertThat(refundRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    void reject_afterApprove_returns400AndDoesNotRefund() {
+        Product product = productRepository.save(new Product("승인 후 거절 테스트 상품", ProductType.READY_STOCK, 40000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 40000L)));
+
+        orderApprovalService.approve(order.getId());
+
+        assertThatThrownBy(() -> orderApprovalService.reject(order.getId()))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("승인 대기 상태의 주문만 처리할 수 있습니다.");
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                .extracting("decision")
+                .containsExactly(OrderApprovalDecision.APPROVE);
+        assertThat(refundRepository.findAll()).isEmpty();
+        assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(0);
     }
 
     // -----------------------------------------------------------------------
@@ -137,8 +209,9 @@ class OrderApprovalUseCaseIT {
         });
 
         // 배치 실행
-        int count = orderAutoRefundBatchService.autoRefundExpired();
-        assertThat(count).isEqualTo(1);
+        BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
+        assertThat(result.successCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isZero();
 
         // 상태 확인
         Order updated = orderRepository.findById(order.getId()).orElseThrow();

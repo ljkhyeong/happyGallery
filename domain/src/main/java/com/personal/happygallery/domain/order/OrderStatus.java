@@ -1,6 +1,8 @@
 package com.personal.happygallery.domain.order;
 
 import com.personal.happygallery.common.error.AlreadyRefundedException;
+import com.personal.happygallery.common.error.ErrorCode;
+import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.error.ProductionRefundNotAllowedException;
 
 public enum OrderStatus {
@@ -33,6 +35,18 @@ public enum OrderStatus {
 				|| this == AUTO_REFUNDED_TIMEOUT
 				|| this == PICKUP_EXPIRED_REFUNDED) {
 			throw new AlreadyRefundedException();
+		}
+	}
+
+	/**
+	 * 관리자 승인/거절이 가능한 승인 대기 상태인지 확인한다.
+	 * 이미 환불된 주문은 {@link AlreadyRefundedException}을 던지고,
+	 * 그 외 승인 대기 외 상태는 {@code 400 INVALID_INPUT}을 던진다.
+	 */
+	public void requireApprovalPending() {
+		requireApprovable();
+		if (this != PAID_APPROVAL_PENDING) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "승인 대기 상태의 주문만 처리할 수 있습니다.");
 		}
 	}
 

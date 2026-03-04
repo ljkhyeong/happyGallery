@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.pass;
 
+import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
@@ -82,14 +83,15 @@ class PassExpiryNotificationUseCaseIT {
         Guest guest1 = guestRepository.save(new Guest("이알림", "01011112222"));
         Guest guest2 = guestRepository.save(new Guest("김알림", "01033334444"));
 
-        // 3일 후 만료 — 7일 내 윈도우 안
-        LocalDateTime soon = LocalDateTime.now(clock).plusDays(3);
+        // 정확히 7일 후 만료 — 알림 대상
+        LocalDateTime soon = LocalDateTime.now(clock).plusDays(7);
         passPurchaseRepository.save(new PassPurchase(guest1, soon, 0L));
         passPurchaseRepository.save(new PassPurchase(guest2, soon, 0L));
 
-        int count = passExpiryBatchService.sendExpiryNotifications();
+        BatchResult result = passExpiryBatchService.sendExpiryNotifications();
 
-        assertThat(count).isEqualTo(2);
+        assertThat(result.successCount()).isEqualTo(2);
+        assertThat(result.failureCount()).isZero();
 
         List<NotificationLog> logs = notificationLogRepository.findAll();
         assertThat(logs).hasSize(2);
@@ -108,9 +110,26 @@ class PassExpiryNotificationUseCaseIT {
         LocalDateTime later = LocalDateTime.now(clock).plusDays(30);
         passPurchaseRepository.save(new PassPurchase(guest, later, 0L));
 
-        int count = passExpiryBatchService.sendExpiryNotifications();
+        BatchResult result = passExpiryBatchService.sendExpiryNotifications();
 
-        assertThat(count).isEqualTo(0);
+        assertThat(result.successCount()).isEqualTo(0);
+        assertThat(result.failureCount()).isZero();
         assertThat(notificationLogRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void sendExpiryNotifications_sameDaySecondRun_skipsDuplicates() {
+        Guest guest = guestRepository.save(new Guest("중복방지", "01077778888"));
+        LocalDateTime target = LocalDateTime.now(clock).plusDays(7);
+        passPurchaseRepository.save(new PassPurchase(guest, target, 0L));
+
+        BatchResult first = passExpiryBatchService.sendExpiryNotifications();
+        BatchResult second = passExpiryBatchService.sendExpiryNotifications();
+
+        assertThat(first.successCount()).isEqualTo(1);
+        assertThat(first.failureCount()).isZero();
+        assertThat(second.successCount()).isEqualTo(0);
+        assertThat(second.failureCount()).isZero();
+        assertThat(notificationLogRepository.findAll()).hasSize(1);
     }
 }

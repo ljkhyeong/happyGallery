@@ -161,6 +161,7 @@
 권장 락:
 - 단일 재고 작품: 재고 row에 대한 `SELECT ... FOR UPDATE` 또는 버전 기반 낙관적 락
 - 슬롯 정원: slot row를 `FOR UPDATE`로 잠그고 예약 카운트를 원자적으로 증가/검증
+- 주문 승인/자동환불/픽업 만료 같은 **운영 액션 충돌 가능 구간**은 `orders.version`, `fulfillments.version` 기반 낙관적 락을 사용하고, 충돌 시 제한된 재시도로 흡수한다
 
 ### 8.3 상태 머신(핵심)
 - 주문: 결제와 승인을 분리한 상태
@@ -202,13 +203,13 @@
 ### 9.3 주문/승인/환불/이행
 - `orders`
     - id, user_id nullable, guest_id nullable
-    - status, total_amount, paid_at, approval_deadline_at, bundle_id nullable
+    - status, total_amount, paid_at, approval_deadline_at, bundle_id nullable, version
 - `order_items`
     - id, order_id, product_id, qty, unit_price
 - `order_approvals`
     - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY), reason, decided_at
 - `fulfillments`
-    - id, order_id, type(SHIPPING|PICKUP), status, address/pickup_store, expected_ship_date, pickup_deadline_at
+    - id, order_id, type(SHIPPING|PICKUP), status, address/pickup_store, expected_ship_date, pickup_deadline_at, version
 - `refunds`
     - id, order_id, amount, status(REQUESTED|SUCCEEDED|FAILED), pg_ref, fail_reason, created_at
 
@@ -570,7 +571,11 @@ POST /admin/passes/{passId}/refund
 POST /admin/passes/expire
 
 → 200 OK
-{ "expiredCount": 3 }
+{
+  "successCount": 3,
+  "failureCount": 0,
+  "failureReasons": {}
+}
 ```
 
 정책: 만료된 pass의 remaining_credits = 0, EXPIRE ledger 기록.

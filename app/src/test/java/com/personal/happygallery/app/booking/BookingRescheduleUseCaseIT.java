@@ -19,8 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -31,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class BookingRescheduleUseCaseIT {
 
-    @Autowired WebApplicationContext context;
+    @Autowired MockMvc mockMvc;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingRepository bookingRepository;
@@ -42,7 +40,6 @@ class BookingRescheduleUseCaseIT {
     @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired PassPurchaseRepository passPurchaseRepository;
 
-    MockMvc mockMvc;
     BookingClass cls;
 
     /** 충분히 먼 미래 슬롯 시작 시각 — isChangeable() 항상 통과 */
@@ -50,7 +47,6 @@ class BookingRescheduleUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
         // FK 순서에 맞게 삭제
         passLedgerRepository.deleteAll();
         bookingHistoryRepository.deleteAll();
