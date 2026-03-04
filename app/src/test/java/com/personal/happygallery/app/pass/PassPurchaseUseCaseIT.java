@@ -135,6 +135,17 @@ class PassPurchaseUseCaseIT {
         assertThat(passLedgerRepository.count()).isEqualTo(0);
     }
 
+    @Test
+    void expiry_batch_adminApi_returnsBatchResponse() throws Exception {
+        passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().minusDays(1), 0L));
+
+        mockMvc.perform(post("/admin/passes/expire"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successCount").value(1))
+                .andExpect(jsonPath("$.failureCount").value(0))
+                .andExpect(jsonPath("$.failureReasons").isMap());
+    }
+
     // -----------------------------------------------------------------------
     // Proof: 만료 7일 전 알림 대상 조회 — 6일 후 만료 pass 포함, 30일 후는 제외
     // -----------------------------------------------------------------------

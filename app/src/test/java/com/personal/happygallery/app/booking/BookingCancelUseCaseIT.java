@@ -1,7 +1,11 @@
 package com.personal.happygallery.app.booking;
 
 import com.jayway.jsonpath.JsonPath;
+import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.booking.Guest;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
@@ -30,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -144,6 +149,26 @@ class BookingCancelUseCaseIT {
         var refund = refundRepository.findAll().get(0);
         assertThat(refund.getStatus().name()).isEqualTo("FAILED");
         assertThat(refund.getFailReason()).isEqualTo("PG 타임아웃");
+    }
+
+    @Test
+    void list_failed_refunds_adminApi_returnsDtoResponse() throws Exception {
+        Guest guest = guestRepository.save(new Guest("환불실패", "01077770007"));
+        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Booking booking = bookingRepository.save(new Booking(
+                guest, slot, 5_000L, 45_000L, DepositPaymentMethod.CARD, "refund-token"));
+
+        Refund refund = new Refund(booking, 5_000L);
+        refund.markFailed(null);
+        refundRepository.save(refund);
+
+        mockMvc.perform(get("/admin/refunds/failed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].refundId").value(refund.getId()))
+                .andExpect(jsonPath("$[0].bookingId").value(booking.getId()))
+                .andExpect(jsonPath("$[0].amount").value(5000))
+                .andExpect(jsonPath("$[0].failReason").value(""))
+                .andExpect(jsonPath("$[0].createdAt").isNotEmpty());
     }
 
     // -----------------------------------------------------------------------

@@ -22,8 +22,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * [UseCaseIT] §8.4 픽업 만료 배치 검증.
@@ -33,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @UseCaseIT
 class PickupExpireBatchUseCaseIT {
 
+    @Autowired WebApplicationContext context;
     @Autowired PickupExpireBatchService pickupExpireBatchService;
     @Autowired OrderPickupService orderPickupService;
     @Autowired OrderApprovalService orderApprovalService;
@@ -46,8 +53,11 @@ class PickupExpireBatchUseCaseIT {
     @Autowired InventoryRepository inventoryRepository;
     @Autowired Clock clock;
 
+    MockMvc mockMvc;
+
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
         cleanup();
     }
 
@@ -138,5 +148,25 @@ class PickupExpireBatchUseCaseIT {
         // 상태 유지 확인
         Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+    }
+
+    @Test
+    void expirePickups_adminApi_returnsBatchResponse() throws Exception {
+        Product product = productRepository.save(new Product("픽업 API 테스트 상품", ProductType.READY_STOCK, 45000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 45000L)));
+        orderApprovalService.approve(order.getId());
+        orderPickupService.markPickupReady(order.getId(), LocalDateTime.now(clock).minusMinutes(30));
+
+        mockMvc.perform(post("/admin/orders/expire-pickups"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successCount").value(1))
+                .andExpect(jsonPath("$.failureCount").value(0))
+                .andExpect(jsonPath("$.failureReasons").isMap());
+
+        Order expired = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
     }
 }
