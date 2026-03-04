@@ -29,8 +29,12 @@ Thumbs.db
 .env
 .env.*
 
-## AI
+## CLAUDE
 .claude/
 CLAUDE.md
 PLAN.md
 HANDOFF.md
+
+## CODEX
+memory/
+AGENTS.md
