@@ -22,8 +22,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @UseCaseIT
 class OrderProductionUseCaseIT {
 
-    @Autowired WebApplicationContext context;
+    @Autowired MockMvc mockMvc;
     @Autowired OrderRepository orderRepository;
     @Autowired OrderItemRepository orderItemRepository;
     @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
@@ -48,11 +46,8 @@ class OrderProductionUseCaseIT {
     @Autowired OrderProductionService orderProductionService;
     @Autowired OrderService orderService;
 
-    MockMvc mockMvc;
-
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
         cleanup();
     }
 

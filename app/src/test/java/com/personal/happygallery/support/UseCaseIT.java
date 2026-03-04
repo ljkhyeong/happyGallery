@@ -2,6 +2,7 @@ package com.personal.happygallery.support;
 
 import org.junit.jupiter.api.Tag;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.ElementType;
@@ -21,6 +22,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Tag("usecase")
 @SpringBootTest
+@AutoConfigureMockMvc(addFilters = false)
 @Import(TestcontainersConfig.class)
 public @interface UseCaseIT {
 }

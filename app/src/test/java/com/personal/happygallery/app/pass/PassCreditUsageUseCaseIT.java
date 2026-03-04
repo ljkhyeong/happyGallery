@@ -24,8 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -36,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class PassCreditUsageUseCaseIT {
 
-    @Autowired WebApplicationContext context;
+    @Autowired MockMvc mockMvc;
     @Autowired PassPurchaseRepository passPurchaseRepository;
     @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired BookingRepository bookingRepository;
@@ -47,7 +45,6 @@ class PassCreditUsageUseCaseIT {
     @Autowired SlotRepository slotRepository;
     @Autowired ClassRepository classRepository;
 
-    MockMvc mockMvc;
     BookingClass cls;
     Guest guest;
     PassPurchase pass;
@@ -56,8 +53,6 @@ class PassCreditUsageUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
-
         // FK 순서: passLedger → refund → bookingHistory → booking(→ pass_purchases FK)
         //         → passPurchase → phoneVerification → guest → slot → class
         passLedgerRepository.deleteAll();

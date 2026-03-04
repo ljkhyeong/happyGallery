@@ -27,8 +27,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class BookingCancelUseCaseIT {
 
-    @Autowired WebApplicationContext context;
+    @Autowired MockMvc mockMvc;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingRepository bookingRepository;
@@ -55,7 +53,6 @@ class BookingCancelUseCaseIT {
     @Autowired PassPurchaseRepository passPurchaseRepository;
     @MockitoBean PaymentProvider paymentProvider;
 
-    MockMvc mockMvc;
     BookingClass cls;
 
     /** 충분히 먼 미래 슬롯 — isRefundable() 항상 true */
@@ -63,7 +60,6 @@ class BookingCancelUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
         // 기본: PaymentProvider 성공
         when(paymentProvider.refund(any(), anyLong()))
                 .thenReturn(RefundResult.success("FAKE-TEST-REF"));

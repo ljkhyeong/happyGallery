@@ -1,6 +1,5 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
@@ -11,9 +10,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -22,25 +20,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @UseCaseIT
+@AutoConfigureMockMvc(addFilters = true)
 class AdminSlotUseCaseIT {
 
     private static final String ADMIN_KEY = "dev-admin-key";
 
-    @Autowired WebApplicationContext context;
-    @Autowired AdminAuthFilter adminAuthFilter;
+    @Autowired MockMvc mockMvc;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
     @Autowired BookingRepository bookingRepository;
 
-    MockMvc mockMvc;
     Long classId;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(adminAuthFilter)
-                .build();
         bookingHistoryRepository.deleteAll();
         bookingRepository.deleteAll();
         slotRepository.deleteAll();
