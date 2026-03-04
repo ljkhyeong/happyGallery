@@ -82,8 +82,8 @@ class PassExpiryNotificationUseCaseIT {
         Guest guest1 = guestRepository.save(new Guest("이알림", "01011112222"));
         Guest guest2 = guestRepository.save(new Guest("김알림", "01033334444"));
 
-        // 3일 후 만료 — 7일 내 윈도우 안
-        LocalDateTime soon = LocalDateTime.now(clock).plusDays(3);
+        // 정확히 7일 후 만료 — 알림 대상
+        LocalDateTime soon = LocalDateTime.now(clock).plusDays(7);
         passPurchaseRepository.save(new PassPurchase(guest1, soon, 0L));
         passPurchaseRepository.save(new PassPurchase(guest2, soon, 0L));
 
@@ -112,5 +112,19 @@ class PassExpiryNotificationUseCaseIT {
 
         assertThat(count).isEqualTo(0);
         assertThat(notificationLogRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void sendExpiryNotifications_sameDaySecondRun_skipsDuplicates() {
+        Guest guest = guestRepository.save(new Guest("중복방지", "01077778888"));
+        LocalDateTime target = LocalDateTime.now(clock).plusDays(7);
+        passPurchaseRepository.save(new PassPurchase(guest, target, 0L));
+
+        int first = passExpiryBatchService.sendExpiryNotifications();
+        int second = passExpiryBatchService.sendExpiryNotifications();
+
+        assertThat(first).isEqualTo(1);
+        assertThat(second).isEqualTo(0);
+        assertThat(notificationLogRepository.findAll()).hasSize(1);
     }
 }

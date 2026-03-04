@@ -2,6 +2,7 @@ package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.common.error.AlreadyRefundedException;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.product.Inventory;
@@ -9,6 +10,7 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
+import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
@@ -39,6 +41,7 @@ class OrderApprovalUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired OrderRepository orderRepository;
     @Autowired OrderItemRepository orderItemRepository;
+    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
     @Autowired RefundRepository refundRepository;
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
@@ -63,6 +66,7 @@ class OrderApprovalUseCaseIT {
     private void cleanup() {
         // FK 삭제 순서: refunds(order_id) → order_items → orders → inventory → products
         refundRepository.deleteAll();
+        orderApprovalHistoryRepository.deleteAll();
         orderItemRepository.deleteAll();
         orderRepository.deleteAll();
         inventoryRepository.deleteAll();
@@ -86,6 +90,9 @@ class OrderApprovalUseCaseIT {
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                .extracting("decision")
+                .containsExactly(OrderApprovalDecision.APPROVE);
     }
 
     // -----------------------------------------------------------------------
@@ -109,6 +116,9 @@ class OrderApprovalUseCaseIT {
         // 주문 상태 확인
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED_REFUNDED);
+        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                .extracting("decision")
+                .containsExactly(OrderApprovalDecision.REJECT);
 
         // 재고 복구 확인
         assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(1);

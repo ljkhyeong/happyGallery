@@ -138,9 +138,9 @@ class PassPurchaseUseCaseIT {
 
     @Test
     void notification_query_returnsPassesExpiringWithin7Days() {
-        // 6일 후 만료 → 알림 대상
+        // 정확히 7일 후 만료 → 알림 대상
         Guest guest2 = guestRepository.save(new Guest("이알림", "01088880002"));
-        passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().plusDays(6), 0L));
+        passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().plusDays(7), 0L));
 
         // 30일 후 만료 → 알림 대상 아님
         passPurchaseRepository.save(new PassPurchase(guest2, LocalDateTime.now().plusDays(30), 0L));
