@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.batch;
 
+import java.util.concurrent.TimeUnit;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -15,13 +16,13 @@ public class BatchLoggingAspect {
 
     @Around("@annotation(batchJob)")
     public Object logBatchExecution(ProceedingJoinPoint joinPoint, BatchJob batchJob) throws Throwable {
-        long startedAt = System.currentTimeMillis();
+        long startedAt = System.nanoTime();
         String jobName = batchJob.value();
         log.info("[배치] {} 시작", jobName);
 
         try {
             Object result = joinPoint.proceed();
-            long durationMs = System.currentTimeMillis() - startedAt;
+            long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
 
             if (result instanceof Number count) {
                 log.info("[배치] {} 완료: {}건 ({}ms)", jobName, count.intValue(), durationMs);
@@ -30,7 +31,7 @@ public class BatchLoggingAspect {
             }
             return result;
         } catch (Throwable t) {
-            long durationMs = System.currentTimeMillis() - startedAt;
+            long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
             log.error("[배치] {} 실패 ({}ms)", jobName, durationMs, t);
             throw t;
         }
