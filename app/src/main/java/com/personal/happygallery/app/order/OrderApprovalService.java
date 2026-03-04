@@ -25,6 +25,9 @@ import com.personal.happygallery.infra.product.ProductRepository;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -85,8 +88,12 @@ public class OrderApprovalService {
      * @param orderId 주문 ID
      * @return 승인된 주문
      */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public Order approve(Long orderId) {
-        Order order = orderRepository.findByIdWithLock(orderId)
+        Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
 
         boolean isMadeToOrder = isMadeToOrderOrder(order);
@@ -125,8 +132,12 @@ public class OrderApprovalService {
      * @param orderId 주문 ID
      * @return 거절된 주문
      */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public Order reject(Long orderId) {
-        Order order = orderRepository.findByIdWithLock(orderId)
+        Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.reject();
 

@@ -1,7 +1,6 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.notification.NotificationService;
-import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.order.OrderRepository;
@@ -11,7 +10,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 /**
  * 24시간 초과 자동환불 배치 서비스.
@@ -23,23 +22,19 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>{@code @Scheduled} 연결은 §10에서 수행한다. 현재는 서비스만 구현됨.
  */
 @Service
-@Transactional
 public class OrderAutoRefundBatchService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderAutoRefundBatchService.class);
 
     private final OrderRepository orderRepository;
-    private final OrderApprovalService orderApprovalService;
-    private final NotificationService notificationService;
+    private final OrderAutoRefundProcessor orderAutoRefundProcessor;
     private final Clock clock;
 
     public OrderAutoRefundBatchService(OrderRepository orderRepository,
-                                       OrderApprovalService orderApprovalService,
-                                       NotificationService notificationService,
+                                       OrderAutoRefundProcessor orderAutoRefundProcessor,
                                        Clock clock) {
         this.orderRepository = orderRepository;
-        this.orderApprovalService = orderApprovalService;
-        this.notificationService = notificationService;
+        this.orderAutoRefundProcessor = orderAutoRefundProcessor;
         this.clock = clock;
     }
 
@@ -60,21 +55,14 @@ public class OrderAutoRefundBatchService {
         int processed = 0;
 
         for (Order candidate : expired) {
-            Order order = orderRepository.findByIdWithLock(candidate.getId())
-                    .orElseThrow(() -> new IllegalStateException("주문이 사라졌습니다. id=" + candidate.getId()));
-            if (order.getStatus() != OrderStatus.PAID_APPROVAL_PENDING) {
-                continue;
+            try {
+                if (orderAutoRefundProcessor.process(candidate.getId(), now)) {
+                    log.info("주문 자동환불 처리 [orderId={}]", candidate.getId());
+                    processed++;
+                }
+            } catch (ObjectOptimisticLockingFailureException e) {
+                log.info("주문 자동환불 충돌로 스킵 [orderId={}]", candidate.getId());
             }
-            if (order.getApprovalDeadlineAt() == null || !order.getApprovalDeadlineAt().isBefore(now)) {
-                continue;
-            }
-            orderApprovalService.restoreInventory(order);
-            orderApprovalService.processRefund(order);
-            order.markAutoRefunded();
-            orderRepository.save(order);
-            notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
-            log.info("주문 자동환불 처리 [orderId={}]", order.getId());
-            processed++;
         }
 
         log.info("자동환불 배치 완료: {}건 처리", processed);

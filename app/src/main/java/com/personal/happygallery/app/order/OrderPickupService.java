@@ -8,6 +8,9 @@ import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -39,8 +42,12 @@ public class OrderPickupService {
      * @param pickupDeadlineAt 픽업 마감 시각
      * @return 픽업 결과 (주문 ID, 상태, 마감 시각)
      */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt) {
-        Order order = orderRepository.findByIdWithLock(orderId)
+        Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.markPickupReady();
 
@@ -57,12 +64,16 @@ public class OrderPickupService {
      * @param orderId 주문 ID
      * @return 픽업 결과 (주문 ID, 상태, 마감 시각)
      */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public PickupResult confirmPickup(Long orderId) {
-        Order order = orderRepository.findByIdWithLock(orderId)
+        Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.confirmPickup();
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderIdWithLock(orderId)
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
         fulfillment.syncStatus(order.getStatus());
         fulfillmentRepository.save(fulfillment);

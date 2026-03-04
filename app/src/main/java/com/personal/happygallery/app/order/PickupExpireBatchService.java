@@ -2,7 +2,6 @@ package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
-import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
@@ -12,7 +11,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 /**
  * 픽업 마감 초과 자동환불 배치 서비스 (§8.4).
@@ -24,23 +23,19 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>{@code @Scheduled} 연결은 §10에서 수행한다. 현재는 서비스만 구현됨.
  */
 @Service
-@Transactional
 public class PickupExpireBatchService {
 
     private static final Logger log = LoggerFactory.getLogger(PickupExpireBatchService.class);
 
     private final FulfillmentRepository fulfillmentRepository;
-    private final OrderRepository orderRepository;
-    private final OrderApprovalService orderApprovalService;
+    private final PickupExpireProcessor pickupExpireProcessor;
     private final Clock clock;
 
     public PickupExpireBatchService(FulfillmentRepository fulfillmentRepository,
-                                    OrderRepository orderRepository,
-                                    OrderApprovalService orderApprovalService,
+                                    PickupExpireProcessor pickupExpireProcessor,
                                     Clock clock) {
         this.fulfillmentRepository = fulfillmentRepository;
-        this.orderRepository = orderRepository;
-        this.orderApprovalService = orderApprovalService;
+        this.pickupExpireProcessor = pickupExpireProcessor;
         this.clock = clock;
     }
 
@@ -61,30 +56,14 @@ public class PickupExpireBatchService {
         int processed = 0;
 
         for (Fulfillment candidate : expired) {
-            Fulfillment fulfillment = fulfillmentRepository.findByOrderIdWithLock(candidate.getOrderId())
-                    .orElseThrow(() -> new NotFoundException("이행 정보"));
-            if (fulfillment.getStatus() != OrderStatus.PICKUP_READY) {
-                continue;
+            try {
+                if (pickupExpireProcessor.process(candidate.getOrderId(), now)) {
+                    log.info("픽업 만료 처리 [orderId={}, fulfillmentId={}]", candidate.getOrderId(), candidate.getId());
+                    processed++;
+                }
+            } catch (ObjectOptimisticLockingFailureException e) {
+                log.info("픽업 만료 충돌로 스킵 [orderId={}]", candidate.getOrderId());
             }
-            if (fulfillment.getPickupDeadlineAt() == null || !fulfillment.getPickupDeadlineAt().isBefore(now)) {
-                continue;
-            }
-
-            Order order = orderRepository.findByIdWithLock(fulfillment.getOrderId())
-                    .orElseThrow(() -> new NotFoundException("주문"));
-            if (order.getStatus() != OrderStatus.PICKUP_READY) {
-                continue;
-            }
-
-            orderApprovalService.restoreInventory(order);
-            orderApprovalService.processRefund(order);
-            order.markPickupExpired();
-            fulfillment.syncStatus(order.getStatus());
-
-            orderRepository.save(order);
-            fulfillmentRepository.save(fulfillment);
-            log.info("픽업 만료 처리 [orderId={}, fulfillmentId={}]", order.getId(), fulfillment.getId());
-            processed++;
         }
 
         log.info("픽업 만료 배치 완료: {}건 처리", processed);

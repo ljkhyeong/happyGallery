@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
@@ -42,6 +43,10 @@ public class Order {
 
     @Column(name = "approval_deadline_at")
     private LocalDateTime approvalDeadlineAt;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -151,5 +156,6 @@ public class Order {
     public long getTotalAmount() { return totalAmount; }
     public LocalDateTime getPaidAt() { return paidAt; }
     public LocalDateTime getApprovalDeadlineAt() { return approvalDeadlineAt; }
+    public long getVersion() { return version; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }
