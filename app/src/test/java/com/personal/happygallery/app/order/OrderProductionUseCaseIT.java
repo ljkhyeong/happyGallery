@@ -184,4 +184,85 @@ class OrderProductionUseCaseIT {
         Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
     }
+
+    // -----------------------------------------------------------------------
+    // 제작 완료 → APPROVED_FULFILLMENT_PENDING → PICKUP_READY 전체 흐름
+    // -----------------------------------------------------------------------
+
+    @Test
+    void completeProduction_transitionsToApprovedFulfillmentPending() {
+        Product product = productRepository.save(
+                new Product("제작완료 상품", ProductType.MADE_TO_ORDER, 200000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 200000L)));
+        orderApprovalService.approve(order.getId());
+
+        // IN_PRODUCTION → completeProduction → APPROVED_FULFILLMENT_PENDING
+        orderProductionService.completeProduction(order.getId(), 1L);
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
+        assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+
+        // 이력: APPROVE + PRODUCTION_COMPLETE
+        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                .extracting("decision")
+                .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.PRODUCTION_COMPLETE);
+
+        // adminId 기록 확인
+        var histories = orderApprovalHistoryRepository.findByOrderId(order.getId());
+        assertThat(histories.get(1).getDecidedByAdminId()).isEqualTo(1L);
+    }
+
+    @Test
+    void completeProduction_fromDelayRequested_alsoWorks() {
+        Product product = productRepository.save(
+                new Product("지연 후 제작완료 상품", ProductType.MADE_TO_ORDER, 180000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 180000L)));
+        orderApprovalService.approve(order.getId());
+        orderProductionService.requestDelay(order.getId());
+
+        // DELAY_REQUESTED → completeProduction → APPROVED_FULFILLMENT_PENDING
+        orderProductionService.completeProduction(order.getId(), null);
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+    }
+
+    @Test
+    void completeProduction_thenPickupReady_fullFlow() throws Exception {
+        Product product = productRepository.save(
+                new Product("제작→픽업 전체 흐름 상품", ProductType.MADE_TO_ORDER, 250000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 250000L)));
+
+        // 승인 → IN_PRODUCTION
+        orderApprovalService.approve(order.getId());
+        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+                .isEqualTo(OrderStatus.IN_PRODUCTION);
+
+        // 제작 완료 → APPROVED_FULFILLMENT_PENDING
+        orderProductionService.completeProduction(order.getId(), 1L);
+        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+                .isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+
+        // 픽업 준비 → PICKUP_READY (기존 흐름과 연결 확인)
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/admin/orders/{id}/prepare-pickup", order.getId())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"pickupDeadlineAt\":\"2026-04-01T18:00:00\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+
+        Order final_ = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(final_.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+    }
 }

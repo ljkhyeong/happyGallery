@@ -171,7 +171,7 @@
     - `REJECTED_REFUNDED`
     - `AUTO_REFUNDED_TIMEOUT`
     - 픽업: `PICKUP_READY` → `PICKED_UP` / `PICKUP_EXPIRED_REFUNDED`
-    - 제작: `IN_PRODUCTION`(환불 불가 시작점) 등
+    - 제작: `IN_PRODUCTION` → (선택) `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`(제작 완료) → 픽업/배송 흐름 합류
 - 예약: `BOOKED` / `CANCELED` / `NO_SHOW` / `COMPLETED`
     - 결제/미수금은 별도 필드로 분리
 
@@ -207,7 +207,7 @@
 - `order_items`
     - id, order_id, product_id, qty, unit_price
 - `order_approvals`
-    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND), reason, decided_at
+    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND|PRODUCTION_COMPLETE), reason, decided_at
     - `AUTO_REFUND`는 배치 결정 이력이며 `decided_by_admin_id`는 null일 수 있음
 - `fulfillments`
     - id, order_id, type(SHIPPING|PICKUP), status, address/pickup_store, expected_ship_date, pickup_deadline_at, version
@@ -601,6 +601,30 @@ POST /admin/orders/expire-pickups
 정책:
 - `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
 - 성공 건은 `PICKUP_EXPIRED_REFUNDED`로 전이하고 환불/재고 복구를 수행한다.
+
+### 11-G.2 제작 완료 (§8.3)
+
+```
+POST /admin/orders/{id}/complete-production
+Header: X-Admin-Id: {adminId}  (선택)
+
+→ 200 OK
+{
+  "orderId": 5,
+  "status": "APPROVED_FULFILLMENT_PENDING",
+  "expectedShipDate": "2026-04-15"
+}
+```
+
+에러:
+- `404 NOT_FOUND` — orderId 미존재
+- `400 INVALID_INPUT` — IN_PRODUCTION 또는 DELAY_REQUESTED 상태가 아닌 주문
+
+정책:
+- `IN_PRODUCTION` 또는 `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`으로 전이한다.
+- Fulfillment 상태도 동기화한다.
+- 이력에 `PRODUCTION_COMPLETE` + adminId를 기록한다.
+- 이후 `prepare-pickup` 또는 배송 흐름으로 이어진다.
 
 ---
 

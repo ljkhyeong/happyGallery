@@ -114,6 +114,17 @@ public class Order {
     }
 
     /**
+     * 제작 완료 처리. {@link OrderStatus#IN_PRODUCTION} 또는 {@link OrderStatus#DELAY_REQUESTED}
+     * 상태에서만 호출 가능하며, {@link OrderStatus#APPROVED_FULFILLMENT_PENDING}으로 전이한다.
+     */
+    public void completeProduction() {
+        if (this.status != OrderStatus.IN_PRODUCTION && this.status != OrderStatus.DELAY_REQUESTED) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT);
+        }
+        this.status = OrderStatus.APPROVED_FULFILLMENT_PENDING;
+    }
+
+    /**
      * 24시간 초과 자동환불 처리.
      * 이미 환불된 주문에 대한 호출은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}을 던진다.
      */

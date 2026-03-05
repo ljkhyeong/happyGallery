@@ -89,6 +89,10 @@ public class OrderApprovalService {
      * @param orderId 주문 ID
      * @return 승인된 주문
      */
+    public Order approve(Long orderId) {
+        return approve(orderId, null);
+    }
+
     @Retryable(
             retryFor = ObjectOptimisticLockingFailureException.class,
             maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
@@ -96,7 +100,7 @@ public class OrderApprovalService {
                     delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
-    public Order approve(Long orderId) {
+    public Order approve(Long orderId, Long adminId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
 
@@ -108,7 +112,8 @@ public class OrderApprovalService {
         } else {
             order.approve();
         }
-        orderApprovalHistoryRepository.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.APPROVE));
+        orderApprovalHistoryRepository.save(
+                new OrderApprovalHistory(order.getId(), OrderApprovalDecision.APPROVE, adminId, null));
         return orderRepository.save(order);
     }
 
@@ -136,6 +141,10 @@ public class OrderApprovalService {
      * @param orderId 주문 ID
      * @return 거절된 주문
      */
+    public Order reject(Long orderId) {
+        return reject(orderId, null);
+    }
+
     @Retryable(
             retryFor = ObjectOptimisticLockingFailureException.class,
             maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
@@ -143,14 +152,15 @@ public class OrderApprovalService {
                     delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
-    public Order reject(Long orderId) {
+    public Order reject(Long orderId, Long adminId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.reject();
 
         restoreInventory(order);
         processRefund(order);
-        orderApprovalHistoryRepository.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT));
+        orderApprovalHistoryRepository.save(
+                new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT, adminId, null));
         notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
 
         return orderRepository.save(order);

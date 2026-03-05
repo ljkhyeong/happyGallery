@@ -99,6 +99,34 @@ public class OrderProductionService {
         return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }
 
+    /**
+     * 제작 완료 처리. {@link OrderStatus#IN_PRODUCTION} 또는 {@link OrderStatus#DELAY_REQUESTED}에서
+     * {@link OrderStatus#APPROVED_FULFILLMENT_PENDING}으로 전이한다.
+     * 이후 픽업 준비({@code markPickupReady}) 또는 배송 흐름으로 이어진다.
+     */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
+            backoff = @Backoff(
+                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
+                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
+                    random = true))
+    public ProductionResult completeProduction(Long orderId, Long adminId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("주문"));
+        order.completeProduction();
+
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new NotFoundException("이행 정보"));
+        fulfillment.syncStatus(order.getStatus());
+        fulfillmentRepository.save(fulfillment);
+
+        orderApprovalHistoryRepository.save(
+                new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PRODUCTION_COMPLETE, adminId, null));
+        orderRepository.save(order);
+        return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
+    }
+
     /** 제작 관련 서비스 작업의 결과를 컨트롤러에 전달하는 내부 DTO. */
     public record ProductionResult(Long orderId, OrderStatus status, LocalDate expectedShipDate) {}
 }
