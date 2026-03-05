@@ -171,7 +171,7 @@
     - `REJECTED_REFUNDED`
     - `AUTO_REFUNDED_TIMEOUT`
     - 픽업: `PICKUP_READY` → `PICKED_UP` / `PICKUP_EXPIRED_REFUNDED`
-    - 제작: `IN_PRODUCTION`(환불 불가 시작점) 등
+    - 제작: `IN_PRODUCTION` → (선택) `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`(제작 완료) → 픽업/배송 흐름 합류
 - 예약: `BOOKED` / `CANCELED` / `NO_SHOW` / `COMPLETED`
     - 결제/미수금은 별도 필드로 분리
 
@@ -207,12 +207,12 @@
 - `order_items`
     - id, order_id, product_id, qty, unit_price
 - `order_approvals`
-    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND), reason, decided_at
+    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND|PRODUCTION_COMPLETE), reason, decided_at
     - `AUTO_REFUND`는 배치 결정 이력이며 `decided_by_admin_id`는 null일 수 있음
 - `fulfillments`
     - id, order_id, type(SHIPPING|PICKUP), status, address/pickup_store, expected_ship_date, pickup_deadline_at, version
 - `refunds`
-    - id, order_id, amount, status(REQUESTED|SUCCEEDED|FAILED), pg_ref, fail_reason, created_at
+    - id, order_id nullable, booking_id nullable, amount, status(REQUESTED|SUCCEEDED|FAILED), pg_ref, fail_reason, created_at
 
 중요 인덱스:
 - `orders(status, approval_deadline_at)`
@@ -593,7 +593,7 @@ POST /admin/orders/expire-pickups
   "successCount": 2,
   "failureCount": 1,
   "failureReasons": {
-    "NotFoundException": 1
+    "NOT_FOUND": 1
   }
 }
 ```
@@ -601,6 +601,66 @@ POST /admin/orders/expire-pickups
 정책:
 - `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
 - 성공 건은 `PICKUP_EXPIRED_REFUNDED`로 전이하고 환불/재고 복구를 수행한다.
+
+### 11-G.2 제작 완료 (§8.3)
+
+```
+POST /admin/orders/{id}/complete-production
+Header: X-Admin-Id: {adminId}  (선택)
+
+→ 200 OK
+{
+  "orderId": 5,
+  "status": "APPROVED_FULFILLMENT_PENDING",
+  "expectedShipDate": "2026-04-15"
+}
+```
+
+에러:
+- `404 NOT_FOUND` — orderId 미존재
+- `400 INVALID_INPUT` — IN_PRODUCTION 또는 DELAY_REQUESTED 상태가 아닌 주문
+
+정책:
+- `IN_PRODUCTION` 또는 `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`으로 전이한다.
+- Fulfillment 상태도 동기화한다.
+- 이력에 `PRODUCTION_COMPLETE` + adminId를 기록한다.
+- 이후 `prepare-pickup` 또는 배송 흐름으로 이어진다.
+
+---
+
+## 11-H. 환불 실패 관리 Admin API (§12 감사 로그)
+
+### 11-H.1 환불 실패 목록 조회
+
+```
+GET /admin/refunds/failed
+
+→ 200 OK
+[
+  {
+    "refundId": 42,
+    "bookingId": 15,       // 예약금 환불이면 bookingId, 주문 환불이면 null
+    "orderId": null,        // 주문 환불이면 orderId, 예약금 환불이면 null
+    "amount": 5000,
+    "failReason": "PG 타임아웃",
+    "createdAt": "2026-03-01T14:30:00"
+  }
+]
+```
+
+### 11-H.2 환불 재시도
+
+```
+POST /admin/refunds/{refundId}/retry
+
+→ 200 OK (본문 없음)
+```
+
+에러:
+- `404 NOT_FOUND` — refundId 미존재
+- `400 INVALID_INPUT` — FAILED 상태가 아닌 환불 재시도 시도
+
+정책: FAILED 상태 환불만 재시도 가능. 성공 시 SUCCEEDED, 재실패 시 FAILED 유지.
 
 ---
 

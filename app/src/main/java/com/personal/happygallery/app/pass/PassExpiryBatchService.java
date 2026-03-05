@@ -99,21 +99,27 @@ public class PassExpiryBatchService {
         LocalDateTime sentEnd = sentStart.plusDays(1);
         List<PassPurchase> expiring = passPurchaseRepository.findExpiringWithGuestBetween(targetStart, targetEnd);
         int notified = 0;
+        Map<String, Integer> failureReasons = new LinkedHashMap<>();
 
         for (PassPurchase pass : expiring) {
-            if (notificationLogRepository.existsByGuestIdAndEventTypeAndStatusAndSentAtBetween(
-                    pass.getGuest().getId(),
-                    NotificationEventType.PASS_EXPIRY_SOON,
-                    "SUCCESS",
-                    sentStart,
-                    sentEnd)) {
-                continue;
+            try {
+                if (notificationLogRepository.existsByGuestIdAndEventTypeAndStatusAndSentAtBetween(
+                        pass.getGuest().getId(),
+                        NotificationEventType.PASS_EXPIRY_SOON,
+                        "SUCCESS",
+                        sentStart,
+                        sentEnd)) {
+                    continue;
+                }
+                notificationService.notifyByGuestId(pass.getGuest().getId(), NotificationEventType.PASS_EXPIRY_SOON);
+                log.info("8회권 만료 7일 전 알림 발송 [passId={}, guestId={}]", pass.getId(), pass.getGuest().getId());
+                notified++;
+            } catch (Exception e) {
+                log.warn("8회권 만료 알림 실패 [passId={}, guestId={}]", pass.getId(), pass.getGuest().getId(), e);
+                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
             }
-            notificationService.notifyByGuestId(pass.getGuest().getId(), NotificationEventType.PASS_EXPIRY_SOON);
-            log.info("8회권 만료 7일 전 알림 발송 [passId={}, guestId={}]", pass.getId(), pass.getGuest().getId());
-            notified++;
         }
 
-        return BatchResult.successOnly(notified);
+        return BatchResult.of(notified, failureReasons);
     }
 }

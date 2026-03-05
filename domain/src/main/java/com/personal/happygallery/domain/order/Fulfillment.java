@@ -82,8 +82,11 @@ public class Fulfillment {
         this.expectedShipDate = expectedShipDate;
     }
 
-    /** 주문 상태와 동기화한다. */
+    /** 주문 상태와 동기화한다. null이면 무시한다. */
     public void syncStatus(OrderStatus status) {
+        if (status == null) {
+            return;
+        }
         this.status = status;
     }
 

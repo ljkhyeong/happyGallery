@@ -30,6 +30,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
@@ -166,6 +167,7 @@ class BookingCancelUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].refundId").value(refund.getId()))
                 .andExpect(jsonPath("$[0].bookingId").value(booking.getId()))
+                .andExpect(jsonPath("$[0].orderId", nullValue()))
                 .andExpect(jsonPath("$[0].amount").value(5000))
                 .andExpect(jsonPath("$[0].failReason").value(""))
                 .andExpect(jsonPath("$[0].createdAt").isNotEmpty());
