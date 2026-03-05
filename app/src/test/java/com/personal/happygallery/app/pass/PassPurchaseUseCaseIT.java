@@ -16,6 +16,7 @@ import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,6 +66,7 @@ class PassPurchaseUseCaseIT {
     // Proof: 구매 성공 → remaining=8, EARN ledger 1건 생성
     // -----------------------------------------------------------------------
 
+    @DisplayName("8회권 구매 성공 시 잔여 크레딧 8과 EARN 원장이 생성된다")
     @Test
     void purchase_success_remainingCredits8_earnLedgerCreated() throws Exception {
         String resp = mockMvc.perform(post("/passes/guest")
@@ -92,6 +94,7 @@ class PassPurchaseUseCaseIT {
     // Proof: 만료 배치 — remaining_credits=0, EXPIRE ledger 기록
     // -----------------------------------------------------------------------
 
+    @DisplayName("만료된 8회권은 잔여 크레딧이 0이 되고 EXPIRE 원장이 생성된다")
     @Test
     void expiry_batch_expiredPass_remainingZero_expireLedgerCreated() {
         // 이미 만료된 pass 직접 생성 (expiresAt = 과거)
@@ -118,6 +121,7 @@ class PassPurchaseUseCaseIT {
     // Proof: 만료 배치 — 아직 유효한 pass는 스킵
     // -----------------------------------------------------------------------
 
+    @DisplayName("유효한 8회권은 만료 배치에서 변경되지 않는다")
     @Test
     void expiry_batch_activePass_notTouched() {
         // 미래 만료 pass
@@ -130,6 +134,7 @@ class PassPurchaseUseCaseIT {
         assertThat(passLedgerRepository.count()).isEqualTo(0);
     }
 
+    @DisplayName("8회권 만료 배치 관리자 API는 배치 결과를 반환한다")
     @Test
     void expiry_batch_adminApi_returnsBatchResponse() throws Exception {
         passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().minusDays(1), 0L));
@@ -145,6 +150,7 @@ class PassPurchaseUseCaseIT {
     // Proof: 만료 7일 전 알림 대상 조회 — 6일 후 만료 pass 포함, 30일 후는 제외
     // -----------------------------------------------------------------------
 
+    @DisplayName("만료 알림 조회는 7일 이내 만료되는 8회권만 반환한다")
     @Test
     void notification_query_returnsPassesExpiringWithin7Days() {
         // 정확히 7일 후 만료 → 알림 대상
@@ -164,6 +170,7 @@ class PassPurchaseUseCaseIT {
     // Proof: 존재하지 않는 guestId → 404
     // -----------------------------------------------------------------------
 
+    @DisplayName("존재하지 않는 게스트가 8회권 구매를 요청하면 404를 반환한다")
     @Test
     void purchase_unknownGuest_returns404() throws Exception {
         mockMvc.perform(post("/passes/guest")

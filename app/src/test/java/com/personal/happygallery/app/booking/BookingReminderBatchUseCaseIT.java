@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,7 @@ class BookingReminderBatchUseCaseIT {
     // D-1 리마인드: 내일 슬롯 예약 → 알림 발송
     // -----------------------------------------------------------------------
 
+    @DisplayName("D-1 리마인드 배치는 내일 슬롯에 알림을 발송한다")
     @Test
     void sendD1Reminders_tomorrowSlot_sendsNotification() {
         LocalDate tomorrow = LocalDate.now(clock).plusDays(1);
@@ -95,6 +97,7 @@ class BookingReminderBatchUseCaseIT {
     // D-1 리마인드: 오늘 슬롯 예약 → 스킵
     // -----------------------------------------------------------------------
 
+    @DisplayName("D-1 리마인드 배치는 당일 슬롯을 건너뛴다")
     @Test
     void sendD1Reminders_todaySlot_skips() {
         LocalDateTime slotStart = LocalDate.now(clock).atTime(10, 0);
@@ -112,6 +115,7 @@ class BookingReminderBatchUseCaseIT {
     // 당일 리마인드: 오늘 슬롯 예약 → 알림 발송
     // -----------------------------------------------------------------------
 
+    @DisplayName("당일 리마인드 배치는 당일 슬롯에 알림을 발송한다")
     @Test
     void sendSameDayReminders_todaySlot_sendsNotification() {
         LocalDateTime slotStart = LocalDate.now(clock).atTime(14, 0);
@@ -132,6 +136,7 @@ class BookingReminderBatchUseCaseIT {
     // 당일 리마인드: 내일 슬롯 예약 → 스킵
     // -----------------------------------------------------------------------
 
+    @DisplayName("당일 리마인드 배치는 내일 슬롯을 건너뛴다")
     @Test
     void sendSameDayReminders_tomorrowSlot_skips() {
         LocalDate tomorrow = LocalDate.now(clock).plusDays(1);

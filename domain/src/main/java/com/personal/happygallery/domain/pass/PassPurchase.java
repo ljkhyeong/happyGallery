@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 
 /** 8회권 구매 — pass_purchases 테이블 */
@@ -39,6 +40,10 @@ public class PassPurchase {
 
     @Column(name = "total_price", nullable = false)
     private long totalPrice;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     protected PassPurchase() {}
 
@@ -93,4 +98,5 @@ public class PassPurchase {
     public int getTotalCredits() { return totalCredits; }
     public int getRemainingCredits() { return remainingCredits; }
     public long getTotalPrice() { return totalPrice; }
+    public long getVersion() { return version; }
 }

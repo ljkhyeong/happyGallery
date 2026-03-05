@@ -1,10 +1,11 @@
 package com.personal.happygallery.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 import org.springframework.retry.annotation.EnableRetry;
 
 @Configuration
-@EnableRetry
+@EnableRetry(order = Ordered.LOWEST_PRECEDENCE - 1)
 public class RetryConfig {
 
     public static final int OPTIMISTIC_LOCK_MAX_ATTEMPTS = 3;
