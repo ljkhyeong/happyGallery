@@ -280,28 +280,29 @@ class OrderApprovalUseCaseIT {
     }
 
     @Test
-    void autoRefund_whenOneOrderFails_continuesNextOrderAndCountsFailure() {
-        Product failedProduct = productRepository.save(new Product("자동환불 실패 상품", ProductType.READY_STOCK, 45000L));
-        Product successProduct = productRepository.save(new Product("자동환불 성공 상품", ProductType.READY_STOCK, 55000L));
-        inventoryRepository.save(new Inventory(failedProduct, 1));
-        inventoryRepository.save(new Inventory(successProduct, 1));
+    void autoRefund_notificationFailure_doesNotRollbackRefund() {
+        Product product1 = productRepository.save(new Product("알림실패 상품1", ProductType.READY_STOCK, 45000L));
+        Product product2 = productRepository.save(new Product("알림실패 상품2", ProductType.READY_STOCK, 55000L));
+        inventoryRepository.save(new Inventory(product1, 1));
+        inventoryRepository.save(new Inventory(product2, 1));
 
         LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
 
-        Order failedOrder = orderRepository.save(new Order(null, 45000L, paidAt, paidAt.plusHours(24)));
-        orderItemRepository.save(new OrderItem(failedOrder, failedProduct.getId(), 1, 45000L));
-        inventoryRepository.findByProductId(failedProduct.getId()).ifPresent(inv -> {
+        Order order1 = orderRepository.save(new Order(null, 45000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(order1, product1.getId(), 1, 45000L));
+        inventoryRepository.findByProductId(product1.getId()).ifPresent(inv -> {
             inv.deduct(1);
             inventoryRepository.save(inv);
         });
 
-        Order successOrder = orderRepository.save(new Order(null, 55000L, paidAt, paidAt.plusHours(24)));
-        orderItemRepository.save(new OrderItem(successOrder, successProduct.getId(), 1, 55000L));
-        inventoryRepository.findByProductId(successProduct.getId()).ifPresent(inv -> {
+        Order order2 = orderRepository.save(new Order(null, 55000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(order2, product2.getId(), 1, 55000L));
+        inventoryRepository.findByProductId(product2.getId()).ifPresent(inv -> {
             inv.deduct(1);
             inventoryRepository.save(inv);
         });
 
+        // 첫 번째 주문의 알림만 실패
         doThrow(new RuntimeException("알림 전송 실패"))
                 .doNothing()
                 .when(notificationService)
@@ -309,14 +310,14 @@ class OrderApprovalUseCaseIT {
 
         BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
 
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isEqualTo(1);
-        assertThat(result.failureReasons()).containsEntry("RuntimeException", 1);
+        // 알림 실패와 무관하게 두 건 모두 환불 성공
+        assertThat(result.successCount()).isEqualTo(2);
+        assertThat(result.failureCount()).isZero();
 
-        Order failedUpdated = orderRepository.findById(failedOrder.getId()).orElseThrow();
-        Order successUpdated = orderRepository.findById(successOrder.getId()).orElseThrow();
+        Order updated1 = orderRepository.findById(order1.getId()).orElseThrow();
+        Order updated2 = orderRepository.findById(order2.getId()).orElseThrow();
 
-        assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PAID_APPROVAL_PENDING);
-        assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+        assertThat(updated1.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+        assertThat(updated2.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
     }
 }
