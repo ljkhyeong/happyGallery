@@ -89,6 +89,10 @@ public class OrderApprovalService {
      * @param orderId 주문 ID
      * @return 승인된 주문
      */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public Order approve(Long orderId) {
         return approve(orderId, null);
     }
@@ -141,6 +145,10 @@ public class OrderApprovalService {
      * @param orderId 주문 ID
      * @return 거절된 주문
      */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public Order reject(Long orderId) {
         return reject(orderId, null);
     }
