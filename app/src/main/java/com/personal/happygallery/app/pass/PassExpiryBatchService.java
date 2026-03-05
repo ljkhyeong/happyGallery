@@ -3,15 +3,14 @@ package com.personal.happygallery.app.pass;
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.domain.pass.PassLedger;
-import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.infra.notification.NotificationLogRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,18 +23,18 @@ public class PassExpiryBatchService {
     private static final Logger log = LoggerFactory.getLogger(PassExpiryBatchService.class);
 
     private final PassPurchaseRepository passPurchaseRepository;
-    private final PassLedgerRepository passLedgerRepository;
+    private final PassExpireProcessor passExpireProcessor;
     private final NotificationLogRepository notificationLogRepository;
     private final NotificationService notificationService;
     private final Clock clock;
 
     public PassExpiryBatchService(PassPurchaseRepository passPurchaseRepository,
-                                  PassLedgerRepository passLedgerRepository,
+                                  PassExpireProcessor passExpireProcessor,
                                   NotificationLogRepository notificationLogRepository,
                                   NotificationService notificationService,
                                   Clock clock) {
         this.passPurchaseRepository = passPurchaseRepository;
-        this.passLedgerRepository = passLedgerRepository;
+        this.passExpireProcessor = passExpireProcessor;
         this.notificationLogRepository = notificationLogRepository;
         this.notificationService = notificationService;
         this.clock = clock;
@@ -55,16 +54,21 @@ public class PassExpiryBatchService {
         LocalDateTime now = LocalDateTime.now(clock);
         List<PassPurchase> expired = passPurchaseRepository
                 .findByExpiresAtBeforeAndRemainingCreditsGreaterThan(now, 0);
+        int processed = 0;
+        Map<String, Integer> failureReasons = new LinkedHashMap<>();
 
         for (PassPurchase pass : expired) {
-            int creditsToExpire = pass.getRemainingCredits();
-            passLedgerRepository.save(new PassLedger(pass, PassLedgerType.EXPIRE, creditsToExpire));
-            pass.expire();
-            passPurchaseRepository.save(pass);
-            log.info("Pass expired [passId={}] credits소멸={}", pass.getId(), creditsToExpire);
+            try {
+                if (passExpireProcessor.process(pass.getId())) {
+                    processed++;
+                }
+            } catch (Exception e) {
+                log.warn("8회권 만료 처리 실패 [passId={}]", pass.getId(), e);
+                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
+            }
         }
 
-        return BatchResult.successOnly(expired.size());
+        return BatchResult.of(processed, failureReasons);
     }
 
     /**
@@ -95,21 +99,27 @@ public class PassExpiryBatchService {
         LocalDateTime sentEnd = sentStart.plusDays(1);
         List<PassPurchase> expiring = passPurchaseRepository.findExpiringWithGuestBetween(targetStart, targetEnd);
         int notified = 0;
+        Map<String, Integer> failureReasons = new LinkedHashMap<>();
 
         for (PassPurchase pass : expiring) {
-            if (notificationLogRepository.existsByGuestIdAndEventTypeAndStatusAndSentAtBetween(
-                    pass.getGuest().getId(),
-                    NotificationEventType.PASS_EXPIRY_SOON,
-                    "SUCCESS",
-                    sentStart,
-                    sentEnd)) {
-                continue;
+            try {
+                if (notificationLogRepository.existsByGuestIdAndEventTypeAndStatusAndSentAtBetween(
+                        pass.getGuest().getId(),
+                        NotificationEventType.PASS_EXPIRY_SOON,
+                        "SUCCESS",
+                        sentStart,
+                        sentEnd)) {
+                    continue;
+                }
+                notificationService.notifyByGuestId(pass.getGuest().getId(), NotificationEventType.PASS_EXPIRY_SOON);
+                log.info("8회권 만료 7일 전 알림 발송 [passId={}, guestId={}]", pass.getId(), pass.getGuest().getId());
+                notified++;
+            } catch (Exception e) {
+                log.warn("8회권 만료 알림 실패 [passId={}, guestId={}]", pass.getId(), pass.getGuest().getId(), e);
+                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
             }
-            notificationService.notifyByGuestId(pass.getGuest().getId(), NotificationEventType.PASS_EXPIRY_SOON);
-            log.info("8회권 만료 7일 전 알림 발송 [passId={}, guestId={}]", pass.getId(), pass.getGuest().getId());
-            notified++;
         }
 
-        return BatchResult.successOnly(notified);
+        return BatchResult.of(notified, failureReasons);
     }
 }

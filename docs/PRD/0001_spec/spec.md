@@ -161,7 +161,7 @@
 권장 락:
 - 단일 재고 작품: 재고 row에 대한 `SELECT ... FOR UPDATE` 또는 버전 기반 낙관적 락
 - 슬롯 정원: slot row를 `FOR UPDATE`로 잠그고 예약 카운트를 원자적으로 증가/검증
-- 주문 승인/자동환불/픽업 만료 같은 **운영 액션 충돌 가능 구간**은 `orders.version`, `fulfillments.version` 기반 낙관적 락을 사용하고, 충돌 시 제한된 재시도로 흡수한다
+- 주문 승인/자동환불/픽업 만료, 8회권 만료/환불 같은 **운영 액션 충돌 가능 구간**은 `orders.version`, `fulfillments.version`, `pass_purchases.version` 기반 낙관적 락을 사용하고, 충돌 시 제한된 재시도로 흡수한다
 
 ### 8.3 상태 머신(핵심)
 - 주문: 결제와 승인을 분리한 상태
@@ -171,7 +171,7 @@
     - `REJECTED_REFUNDED`
     - `AUTO_REFUNDED_TIMEOUT`
     - 픽업: `PICKUP_READY` → `PICKED_UP` / `PICKUP_EXPIRED_REFUNDED`
-    - 제작: `IN_PRODUCTION`(환불 불가 시작점) 등
+    - 제작: `IN_PRODUCTION` → (선택) `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`(제작 완료) → 픽업/배송 흐름 합류
 - 예약: `BOOKED` / `CANCELED` / `NO_SHOW` / `COMPLETED`
     - 결제/미수금은 별도 필드로 분리
 
@@ -207,11 +207,12 @@
 - `order_items`
     - id, order_id, product_id, qty, unit_price
 - `order_approvals`
-    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY), reason, decided_at
+    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND|PRODUCTION_COMPLETE), reason, decided_at
+    - `AUTO_REFUND`는 배치 결정 이력이며 `decided_by_admin_id`는 null일 수 있음
 - `fulfillments`
     - id, order_id, type(SHIPPING|PICKUP), status, address/pickup_store, expected_ship_date, pickup_deadline_at, version
 - `refunds`
-    - id, order_id, amount, status(REQUESTED|SUCCEEDED|FAILED), pg_ref, fail_reason, created_at
+    - id, order_id nullable, booking_id nullable, amount, status(REQUESTED|SUCCEEDED|FAILED), pg_ref, fail_reason, created_at
 
 중요 인덱스:
 - `orders(status, approval_deadline_at)`
@@ -241,7 +242,7 @@
 
 ### 9.5 8회권(크레딧)
 - `pass_purchases`
-    - id, user_id/guest_id, purchased_at, expires_at(=purchased_at+90d), total_credits=8, remaining_credits
+    - id, user_id/guest_id, purchased_at, expires_at(=purchased_at+90d), total_credits=8, remaining_credits, version
 - `pass_ledger`
     - id, pass_purchase_id
     - type(EARN|USE|REFUND|EXPIRE)
@@ -580,6 +581,87 @@ POST /admin/passes/expire
 
 정책: 만료된 pass의 remaining_credits = 0, EXPIRE ledger 기록.
 
+## 11-G. 주문 배치 Admin API (§3.3)
+
+### 11-G.1 픽업 만료 배치 수동 트리거
+
+```
+POST /admin/orders/expire-pickups
+
+→ 200 OK
+{
+  "successCount": 2,
+  "failureCount": 1,
+  "failureReasons": {
+    "NOT_FOUND": 1
+  }
+}
+```
+
+정책:
+- `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
+- 성공 건은 `PICKUP_EXPIRED_REFUNDED`로 전이하고 환불/재고 복구를 수행한다.
+
+### 11-G.2 제작 완료 (§8.3)
+
+```
+POST /admin/orders/{id}/complete-production
+Header: X-Admin-Id: {adminId}  (선택)
+
+→ 200 OK
+{
+  "orderId": 5,
+  "status": "APPROVED_FULFILLMENT_PENDING",
+  "expectedShipDate": "2026-04-15"
+}
+```
+
+에러:
+- `404 NOT_FOUND` — orderId 미존재
+- `400 INVALID_INPUT` — IN_PRODUCTION 또는 DELAY_REQUESTED 상태가 아닌 주문
+
+정책:
+- `IN_PRODUCTION` 또는 `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`으로 전이한다.
+- Fulfillment 상태도 동기화한다.
+- 이력에 `PRODUCTION_COMPLETE` + adminId를 기록한다.
+- 이후 `prepare-pickup` 또는 배송 흐름으로 이어진다.
+
+---
+
+## 11-H. 환불 실패 관리 Admin API (§12 감사 로그)
+
+### 11-H.1 환불 실패 목록 조회
+
+```
+GET /admin/refunds/failed
+
+→ 200 OK
+[
+  {
+    "refundId": 42,
+    "bookingId": 15,       // 예약금 환불이면 bookingId, 주문 환불이면 null
+    "orderId": null,        // 주문 환불이면 orderId, 예약금 환불이면 null
+    "amount": 5000,
+    "failReason": "PG 타임아웃",
+    "createdAt": "2026-03-01T14:30:00"
+  }
+]
+```
+
+### 11-H.2 환불 재시도
+
+```
+POST /admin/refunds/{refundId}/retry
+
+→ 200 OK (본문 없음)
+```
+
+에러:
+- `404 NOT_FOUND` — refundId 미존재
+- `400 INVALID_INPUT` — FAILED 상태가 아닌 환불 재시도 시도
+
+정책: FAILED 상태 환불만 재시도 가능. 성공 시 SUCCEEDED, 재실패 시 FAILED 유지.
+
 ---
 
 ## 12. 비기능 요구사항(초안)
@@ -621,6 +703,7 @@ POST /admin/passes/expire
 | 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 (§5.2) |
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌 — 동시 변경 요청 (§5.3) |
 | 422 | `REFUND_NOT_ALLOWED` | D-1 00:00 이후 환불 요청 (§4.2) |
+| 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/환불 시도 (§3.2) |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 (§4.2) |
 | 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 시도 (§7.1) |
 | 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 크레딧 0인 8회권으로 예약 시도 (§7.2) |

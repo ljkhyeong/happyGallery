@@ -2,6 +2,7 @@ package com.personal.happygallery.policy;
 
 import com.personal.happygallery.common.time.Clocks;
 import com.personal.happygallery.common.time.TimeBoundary;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +25,7 @@ class TimeBoundaryPolicyTest {
 
     // ── D-1 환불 경계 ─────────────────────────────────────────────────────────
 
+    @DisplayName("체험일 자정 1분 전까지는 환불이 가능하다")
     @Test
     void refund_oneMinuteBefore_allowed() {
         LocalDate experienceDate = LocalDate.of(2026, 3, 1);
@@ -34,6 +36,7 @@ class TimeBoundaryPolicyTest {
         assertThat(TimeBoundary.isRefundable(experienceDate, clock)).isTrue();
     }
 
+    @DisplayName("체험일 자정부터는 환불이 불가능하다")
     @Test
     void refund_atMidnight_notAllowed() {
         LocalDate experienceDate = LocalDate.of(2026, 3, 1);
@@ -46,6 +49,7 @@ class TimeBoundaryPolicyTest {
 
     // ── 당일 변경 경계 ────────────────────────────────────────────────────────
 
+    @DisplayName("체험 61분 전에는 예약 변경이 가능하다")
     @Test
     void change_61MinutesBefore_allowed() {
         ZonedDateTime slotStart = ZonedDateTime.of(2026, 3, 1, 14, 0, 0, 0, Clocks.SEOUL);
@@ -55,6 +59,7 @@ class TimeBoundaryPolicyTest {
         assertThat(TimeBoundary.isChangeable(slotStart, clock)).isTrue();
     }
 
+    @DisplayName("체험 1시간 전 시점에는 예약 변경이 불가능하다")
     @Test
     void change_atOneHourBefore_notAllowed() {
         ZonedDateTime slotStart = ZonedDateTime.of(2026, 3, 1, 14, 0, 0, 0, Clocks.SEOUL);
@@ -67,6 +72,7 @@ class TimeBoundaryPolicyTest {
 
     // ── 8회권 90일 만료 ───────────────────────────────────────────────────────
 
+    @DisplayName("8회권 만료 시각은 구매 시각으로부터 90일 후다")
     @Test
     void pass_expiresAt_90DaysAfterPurchase() {
         ZonedDateTime purchasedAt = ZonedDateTime.of(2026, 1, 1, 12, 0, 0, 0, Clocks.SEOUL);
@@ -77,6 +83,7 @@ class TimeBoundaryPolicyTest {
 
     // ── 만료 7일 전 알림 ──────────────────────────────────────────────────────
 
+    @DisplayName("8회권 만료 알림 시각은 만료 7일 전이다")
     @Test
     void pass_notificationAt_7DaysBeforeExpiry() {
         ZonedDateTime expiresAt = ZonedDateTime.of(2026, 4, 1, 12, 0, 0, 0, Clocks.SEOUL);

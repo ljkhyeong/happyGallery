@@ -2,6 +2,7 @@ package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.product.InventoryService;
+import com.personal.happygallery.config.RetryConfig;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.booking.Refund;
@@ -93,6 +94,17 @@ public class OrderApprovalService {
             maxAttempts = 3,
             backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public Order approve(Long orderId) {
+        return approve(orderId, null);
+    }
+
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
+            backoff = @Backoff(
+                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
+                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
+                    random = true))
+    public Order approve(Long orderId, Long adminId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
 
@@ -104,7 +116,8 @@ public class OrderApprovalService {
         } else {
             order.approve();
         }
-        orderApprovalHistoryRepository.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.APPROVE));
+        orderApprovalHistoryRepository.save(
+                new OrderApprovalHistory(order.getId(), OrderApprovalDecision.APPROVE, adminId, null));
         return orderRepository.save(order);
     }
 
@@ -137,13 +150,25 @@ public class OrderApprovalService {
             maxAttempts = 3,
             backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
     public Order reject(Long orderId) {
+        return reject(orderId, null);
+    }
+
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
+            backoff = @Backoff(
+                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
+                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
+                    random = true))
+    public Order reject(Long orderId, Long adminId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.reject();
 
         restoreInventory(order);
         processRefund(order);
-        orderApprovalHistoryRepository.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT));
+        orderApprovalHistoryRepository.save(
+                new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT, adminId, null));
         notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
 
         return orderRepository.save(order);

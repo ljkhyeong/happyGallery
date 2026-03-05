@@ -1,11 +1,9 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.batch.BatchResult;
-import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -67,6 +65,9 @@ public class PickupExpireBatchService {
                 }
             } catch (ObjectOptimisticLockingFailureException e) {
                 log.info("픽업 만료 충돌로 스킵 [orderId={}]", candidate.getOrderId());
+                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
+            } catch (Exception e) {
+                log.warn("픽업 만료 처리 실패 [orderId={}]", candidate.getOrderId(), e);
                 failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
             }
         }
