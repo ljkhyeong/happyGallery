@@ -2,6 +2,7 @@ package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.product.InventoryService;
+import com.personal.happygallery.config.RetryConfig;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.booking.Refund;
@@ -90,8 +91,11 @@ public class OrderApprovalService {
      */
     @Retryable(
             retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
+            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
+            backoff = @Backoff(
+                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
+                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
+                    random = true))
     public Order approve(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -134,8 +138,11 @@ public class OrderApprovalService {
      */
     @Retryable(
             retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
+            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
+            backoff = @Backoff(
+                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
+                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
+                    random = true))
     public Order reject(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
