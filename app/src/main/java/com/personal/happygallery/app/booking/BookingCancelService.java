@@ -94,7 +94,7 @@ public class BookingCancelService {
         bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null);
 
         // 5. 환불 가능 여부 판단 (D-1 00:00 Asia/Seoul 기준)
-        boolean refundable = TimeBoundary.isRefundable(slot.getStartAt().toLocalDate(), clock);
+        boolean refundable = TimeBoundary.isRefundable(slot.getStartAt(), clock);
 
         if (booking.isPassBooking()) {
             // 5a. 8회권 결제 취소 — D-1 이전이면 크레딧 복구, 이후면 소멸 유지

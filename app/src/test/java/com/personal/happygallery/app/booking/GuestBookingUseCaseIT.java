@@ -1,6 +1,5 @@
 package com.personal.happygallery.app.booking;
 
-import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
@@ -11,6 +10,7 @@ import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
+import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +20,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
+import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -41,9 +43,11 @@ class GuestBookingUseCaseIT {
 
     Long slotId;
     static final String PHONE = "01012345678";
+    BookingTestHelper helper;
 
     @BeforeEach
     void setUp() {
+        helper = new BookingTestHelper(mockMvc);
         passLedgerRepository.deleteAll();
         bookingHistoryRepository.deleteAll();
         bookingRepository.deleteAll();
@@ -98,7 +102,7 @@ class GuestBookingUseCaseIT {
     @DisplayName("게스트 예약 생성이 성공한다")
     @Test
     void createGuestBooking_success() throws Exception {
-        String code = sendVerificationAndGetCode(PHONE);
+        String code = helper.sendVerificationAndGetCode(PHONE);
 
         String response = mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -123,7 +127,7 @@ class GuestBookingUseCaseIT {
                 .andReturn().getResponse().getContentAsString();
 
         // DB 저장 확인
-        Long bookingId = ((Number) JsonPath.read(response, "$.bookingId")).longValue();
+        Long bookingId = extractBookingId(response);
         assertThat(bookingRepository.findById(bookingId)).isPresent();
     }
 
@@ -131,7 +135,7 @@ class GuestBookingUseCaseIT {
     @DisplayName("게스트 예약에서 계좌이체 결제를 요청하면 422를 반환한다")
     @Test
     void createGuestBooking_bankTransfer_returns422() throws Exception {
-        String code = sendVerificationAndGetCode(PHONE);
+        String code = helper.sendVerificationAndGetCode(PHONE);
 
         mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -156,7 +160,7 @@ class GuestBookingUseCaseIT {
     @Test
     void createGuestBooking_duplicateBooking_returns409() throws Exception {
         // 첫 번째 예약 성공
-        String code1 = sendVerificationAndGetCode(PHONE);
+        String code1 = helper.sendVerificationAndGetCode(PHONE);
         mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -172,7 +176,7 @@ class GuestBookingUseCaseIT {
                 .andExpect(status().isCreated());
 
         // 동일 전화번호 + 동일 슬롯 재예약 → 409
-        String code2 = sendVerificationAndGetCode(PHONE);
+        String code2 = helper.sendVerificationAndGetCode(PHONE);
         mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -192,7 +196,7 @@ class GuestBookingUseCaseIT {
     @DisplayName("게스트 예약 시 인증코드가 틀리면 400을 반환한다")
     @Test
     void createGuestBooking_wrongCode_returns400() throws Exception {
-        sendVerificationAndGetCode(PHONE); // 코드 발급 (소모 안 함)
+        helper.sendVerificationAndGetCode(PHONE); // 코드 발급 (소모 안 함)
 
         mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -216,7 +220,7 @@ class GuestBookingUseCaseIT {
         // 8명 예약으로 정원 만석 만들기
         for (int i = 0; i < 8; i++) {
             String phone = "0101234567" + i;
-            String code = sendVerificationAndGetCode(phone);
+            String code = helper.sendVerificationAndGetCode(phone);
             mockMvc.perform(post("/bookings/guest")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
@@ -234,7 +238,7 @@ class GuestBookingUseCaseIT {
 
         // 9번째 예약 → 정원 초과
         String phone = "01099999999";
-        String code = sendVerificationAndGetCode(phone);
+        String code = helper.sendVerificationAndGetCode(phone);
         mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -258,7 +262,7 @@ class GuestBookingUseCaseIT {
     @DisplayName("토큰으로 예약 조회가 성공한다")
     @Test
     void getBooking_success() throws Exception {
-        String code = sendVerificationAndGetCode(PHONE);
+        String code = helper.sendVerificationAndGetCode(PHONE);
         String createResponse = mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -274,8 +278,8 @@ class GuestBookingUseCaseIT {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Long bookingId = ((Number) JsonPath.read(createResponse, "$.bookingId")).longValue();
-        String accessToken = JsonPath.read(createResponse, "$.accessToken");
+        Long bookingId = extractBookingId(createResponse);
+        String accessToken = extractAccessToken(createResponse);
 
         mockMvc.perform(get("/bookings/{id}", bookingId)
                         .param("token", accessToken))
@@ -291,7 +295,7 @@ class GuestBookingUseCaseIT {
     @DisplayName("잘못된 토큰으로 예약 조회 시 404를 반환한다")
     @Test
     void getBooking_wrongToken_returns404() throws Exception {
-        String code = sendVerificationAndGetCode(PHONE);
+        String code = helper.sendVerificationAndGetCode(PHONE);
         String createResponse = mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -307,7 +311,7 @@ class GuestBookingUseCaseIT {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Long bookingId = ((Number) JsonPath.read(createResponse, "$.bookingId")).longValue();
+        Long bookingId = extractBookingId(createResponse);
 
         mockMvc.perform(get("/bookings/{id}", bookingId)
                         .param("token", "invalid-token"))
@@ -319,14 +323,4 @@ class GuestBookingUseCaseIT {
     // helper
     // -----------------------------------------------------------------------
 
-    private String sendVerificationAndGetCode(String phone) throws Exception {
-        String response = mockMvc.perform(post("/bookings/phone-verifications")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "phone": "%s" }
-                                """.formatted(phone)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        return JsonPath.read(response, "$.code");
-    }
 }

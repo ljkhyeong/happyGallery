@@ -1,6 +1,5 @@
 package com.personal.happygallery.app.booking;
 
-import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
@@ -18,17 +17,21 @@ import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;
 import com.personal.happygallery.infra.payment.RefundResult;
+import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
+import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
+import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,7 +39,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -56,12 +58,11 @@ class BookingCancelUseCaseIT {
     @MockitoBean PaymentProvider paymentProvider;
 
     BookingClass cls;
-
-    /** 충분히 먼 미래 슬롯 — isRefundable() 항상 true */
-    private static final LocalDateTime FUTURE = LocalDateTime.of(2030, 1, 1, 10, 0);
+    BookingTestHelper helper;
 
     @BeforeEach
     void setUp() {
+        helper = new BookingTestHelper(mockMvc);
         // 기본: PaymentProvider 성공
         when(paymentProvider.refund(any(), anyLong()))
                 .thenReturn(RefundResult.success("FAKE-TEST-REF"));
@@ -89,11 +90,11 @@ class BookingCancelUseCaseIT {
     void cancel_refundable_success() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = sendVerificationAndGetCode("01011110001");
-        String createResp = createBooking("01011110001", code, slot.getId(), 5_000L);
+        String code = helper.sendVerificationAndGetCode("01011110001");
+        String createResp = helper.createBooking("01011110001", code, slot.getId(), 5_000L);
 
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
-        String token = JsonPath.read(createResp, "$.accessToken");
+        Long bookingId = extractBookingId(createResp);
+        String token = extractAccessToken(createResp);
 
         // 취소 — D-1 이전 슬롯이므로 환불 가능
         mockMvc.perform(delete("/bookings/{id}", bookingId)
@@ -132,10 +133,10 @@ class BookingCancelUseCaseIT {
 
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = sendVerificationAndGetCode("01055550005");
-        String createResp = createBooking("01055550005", code, slot.getId(), 5_000L);
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
-        String token = JsonPath.read(createResp, "$.accessToken");
+        String code = helper.sendVerificationAndGetCode("01055550005");
+        String createResp = helper.createBooking("01055550005", code, slot.getId(), 5_000L);
+        Long bookingId = extractBookingId(createResp);
+        String token = extractAccessToken(createResp);
 
         // 취소 — 환불 가능 구간이지만 PG 실패
         mockMvc.perform(delete("/bookings/{id}", bookingId)
@@ -184,11 +185,11 @@ class BookingCancelUseCaseIT {
         LocalDateTime today14 = LocalDateTime.now(ZoneId.of("Asia/Seoul")).withHour(14).withMinute(0).withSecond(0).withNano(0);
         Slot slot = slotRepository.save(new Slot(cls, today14, today14.plusHours(2)));
 
-        String code = sendVerificationAndGetCode("01022220002");
-        String createResp = createBooking("01022220002", code, slot.getId(), 5_000L);
+        String code = helper.sendVerificationAndGetCode("01022220002");
+        String createResp = helper.createBooking("01022220002", code, slot.getId(), 5_000L);
 
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
-        String token = JsonPath.read(createResp, "$.accessToken");
+        Long bookingId = extractBookingId(createResp);
+        String token = extractAccessToken(createResp);
 
         mockMvc.perform(delete("/bookings/{id}", bookingId)
                         .param("token", token))
@@ -213,9 +214,9 @@ class BookingCancelUseCaseIT {
     void cancel_wrongToken_returns404() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = sendVerificationAndGetCode("01033330003");
-        String createResp = createBooking("01033330003", code, slot.getId(), 5_000L);
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
+        String code = helper.sendVerificationAndGetCode("01033330003");
+        String createResp = helper.createBooking("01033330003", code, slot.getId(), 5_000L);
+        Long bookingId = extractBookingId(createResp);
 
         mockMvc.perform(delete("/bookings/{id}", bookingId)
                         .param("token", "invalid-token"))
@@ -232,10 +233,10 @@ class BookingCancelUseCaseIT {
     void cancel_alreadyCanceled_returns400() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = sendVerificationAndGetCode("01044440004");
-        String createResp = createBooking("01044440004", code, slot.getId(), 5_000L);
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
-        String token = JsonPath.read(createResp, "$.accessToken");
+        String code = helper.sendVerificationAndGetCode("01044440004");
+        String createResp = helper.createBooking("01044440004", code, slot.getId(), 5_000L);
+        Long bookingId = extractBookingId(createResp);
+        String token = extractAccessToken(createResp);
 
         // 첫 번째 취소 — 성공
         mockMvc.perform(delete("/bookings/{id}", bookingId)
@@ -249,35 +250,4 @@ class BookingCancelUseCaseIT {
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
-    // -----------------------------------------------------------------------
-    // helper
-    // -----------------------------------------------------------------------
-
-    private String sendVerificationAndGetCode(String phone) throws Exception {
-        String resp = mockMvc.perform(post("/bookings/phone-verifications")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "phone": "%s" }
-                                """.formatted(phone)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        return JsonPath.read(resp, "$.code");
-    }
-
-    private String createBooking(String phone, String code, Long slotId, long deposit) throws Exception {
-        return mockMvc.perform(post("/bookings/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "phone": "%s",
-                                  "verificationCode": "%s",
-                                  "name": "홍길동",
-                                  "slotId": %d,
-                                  "depositAmount": %d,
-                                  "paymentMethod": "CARD"
-                                }
-                                """.formatted(phone, code, slotId, deposit)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-    }
 }
