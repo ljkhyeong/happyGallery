@@ -88,8 +88,8 @@ public class Order {
      * {@link com.personal.happygallery.common.error.ProductionRefundNotAllowedException}을 던진다.
      */
     public void reject() {
-        this.status.requireApprovalPending();
         this.status.requireCancellable();
+        this.status.requireApprovalPending();
         this.status = OrderStatus.REJECTED_REFUNDED;
     }
 
