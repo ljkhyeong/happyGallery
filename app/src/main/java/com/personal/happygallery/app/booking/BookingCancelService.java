@@ -5,20 +5,17 @@ import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.app.notification.NotificationService;
-import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;
@@ -36,32 +33,29 @@ public class BookingCancelService {
     private static final Logger log = LoggerFactory.getLogger(BookingCancelService.class);
 
     private final BookingRepository bookingRepository;
-    private final BookingHistoryRepository bookingHistoryRepository;
     private final SlotRepository slotRepository;
     private final RefundRepository refundRepository;
     private final PassPurchaseRepository passPurchaseRepository;
     private final PassLedgerRepository passLedgerRepository;
     private final PaymentProvider paymentProvider;
-    private final NotificationService notificationService;
+    private final BookingSupport bookingSupport;
     private final Clock clock;
 
     public BookingCancelService(BookingRepository bookingRepository,
-                                BookingHistoryRepository bookingHistoryRepository,
                                 SlotRepository slotRepository,
                                 RefundRepository refundRepository,
                                 PassPurchaseRepository passPurchaseRepository,
                                 PassLedgerRepository passLedgerRepository,
                                 PaymentProvider paymentProvider,
-                                NotificationService notificationService,
+                                BookingSupport bookingSupport,
                                 Clock clock) {
         this.bookingRepository = bookingRepository;
-        this.bookingHistoryRepository = bookingHistoryRepository;
         this.slotRepository = slotRepository;
         this.refundRepository = refundRepository;
         this.passPurchaseRepository = passPurchaseRepository;
         this.passLedgerRepository = passLedgerRepository;
         this.paymentProvider = paymentProvider;
-        this.notificationService = notificationService;
+        this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
 
@@ -83,8 +77,7 @@ public class BookingCancelService {
     public CancelResult cancelBooking(Long bookingId, String accessToken) {
 
         // 1. 예약 로드 (accessToken 검증)
-        Booking booking = bookingRepository.findByIdAndAccessToken(bookingId, accessToken)
-                .orElseThrow(() -> new NotFoundException("예약"));
+        Booking booking = bookingSupport.findByToken(bookingId, accessToken);
 
         // 2. 상태 체크 — BOOKED 상태만 취소 가능
         if (booking.getStatus() != BookingStatus.BOOKED) {
@@ -98,9 +91,7 @@ public class BookingCancelService {
         slotRepository.save(slot);
 
         // 4. CANCELED 이력 저장 (append-only)
-        bookingHistoryRepository.save(
-                new BookingHistory(booking, BookingHistoryAction.CANCELED,
-                        slot, null, "CUSTOMER", null));
+        bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null);
 
         // 5. 환불 가능 여부 판단 (D-1 00:00 Asia/Seoul 기준)
         boolean refundable = TimeBoundary.isRefundable(slot.getStartAt().toLocalDate(), clock);
@@ -139,14 +130,9 @@ public class BookingCancelService {
         bookingRepository.save(booking);
 
         // 7. 취소 알림 (+ 예약금 환불 시 환불 알림)
-        if (booking.getGuest() != null) {
-            String phone = booking.getGuest().getPhone();
-            String name  = booking.getGuest().getName();
-            Long guestId = booking.getGuest().getId();
-            notificationService.notifyGuest(guestId, phone, name, NotificationEventType.BOOKING_CANCELED);
-            if (refundable && !booking.isPassBooking()) {
-                notificationService.notifyGuest(guestId, phone, name, NotificationEventType.DEPOSIT_REFUNDED);
-            }
+        bookingSupport.notifyBookingGuest(booking, NotificationEventType.BOOKING_CANCELED);
+        if (refundable && !booking.isPassBooking()) {
+            bookingSupport.notifyBookingGuest(booking, NotificationEventType.DEPOSIT_REFUNDED);
         }
 
         return new CancelResult(booking, refundable);
