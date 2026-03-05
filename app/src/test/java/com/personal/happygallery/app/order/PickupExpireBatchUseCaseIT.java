@@ -18,6 +18,11 @@ import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +44,7 @@ class PickupExpireBatchUseCaseIT {
 
     @Autowired MockMvc mockMvc;
     @Autowired PickupExpireBatchService pickupExpireBatchService;
+    @Autowired PickupExpireProcessor pickupExpireProcessor;
     @Autowired OrderPickupService orderPickupService;
     @Autowired OrderApprovalService orderApprovalService;
     @Autowired OrderService orderService;
@@ -197,5 +203,67 @@ class PickupExpireBatchUseCaseIT {
         Order successUpdated = orderRepository.findById(successOrder.getId()).orElseThrow();
         assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
         assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+    }
+
+    @Test
+    void pickupComplete_and_expireProcess_race_keepsSingleTerminalState() throws InterruptedException {
+        Product product = productRepository.save(new Product("픽업 경합 테스트 상품", ProductType.READY_STOCK, 53000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 53000L)));
+        orderApprovalService.approve(order.getId());
+        LocalDateTime pastDeadline = LocalDateTime.now(clock).minusMinutes(1);
+        orderPickupService.markPickupReady(order.getId(), pastDeadline);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        AtomicReference<Throwable> pickupError = new AtomicReference<>();
+        AtomicReference<Throwable> expireError = new AtomicReference<>();
+
+        try {
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    orderPickupService.confirmPickup(order.getId());
+                } catch (Throwable t) {
+                    pickupError.set(t);
+                }
+            });
+
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    pickupExpireProcessor.process(order.getId(), LocalDateTime.now(clock));
+                } catch (Throwable t) {
+                    expireError.set(t);
+                }
+            });
+
+            startLatch.countDown();
+        } finally {
+            executor.shutdown();
+            executor.awaitTermination(10, TimeUnit.SECONDS);
+        }
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
+        assertThat(fulfillment.getStatus()).isEqualTo(updated.getStatus());
+
+        if (updated.getStatus() == OrderStatus.PICKED_UP) {
+            assertThat(refundRepository.count()).isEqualTo(0L);
+            assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(0);
+        } else {
+            assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+            assertThat(refundRepository.count()).isEqualTo(1L);
+            assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(1);
+        }
+
+        if (pickupError.get() != null) {
+            assertThat(pickupError.get()).isInstanceOf(RuntimeException.class);
+        }
+        if (expireError.get() != null) {
+            assertThat(expireError.get()).isInstanceOf(RuntimeException.class);
+        }
     }
 }
