@@ -18,6 +18,11 @@ import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +44,7 @@ class PickupExpireBatchUseCaseIT {
 
     @Autowired MockMvc mockMvc;
     @Autowired PickupExpireBatchService pickupExpireBatchService;
+    @Autowired PickupExpireProcessor pickupExpireProcessor;
     @Autowired OrderPickupService orderPickupService;
     @Autowired OrderApprovalService orderApprovalService;
     @Autowired OrderService orderService;
@@ -163,5 +169,101 @@ class PickupExpireBatchUseCaseIT {
 
         Order expired = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+    }
+
+    @Test
+    void expirePickups_whenOneOrderFails_continuesNextOrderAndCountsFailure() {
+        Product failedProduct = productRepository.save(new Product("픽업 만료 실패 상품", ProductType.READY_STOCK, 41000L));
+        Product successProduct = productRepository.save(new Product("픽업 만료 성공 상품", ProductType.READY_STOCK, 42000L));
+        inventoryRepository.save(new Inventory(failedProduct, 1));
+        inventoryRepository.save(new Inventory(successProduct, 1));
+
+        Order failedOrder = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(failedProduct.getId(), 1, 41000L)));
+        Order successOrder = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(successProduct.getId(), 1, 42000L)));
+
+        orderApprovalService.approve(failedOrder.getId());
+        orderApprovalService.approve(successOrder.getId());
+
+        LocalDateTime pastDeadline = LocalDateTime.now(clock).minusHours(1);
+        orderPickupService.markPickupReady(failedOrder.getId(), pastDeadline);
+        orderPickupService.markPickupReady(successOrder.getId(), pastDeadline);
+
+        // 실패 케이스 유도: 재고 레코드가 사라진 상태에서 복구 시도하면 NotFoundException 발생
+        inventoryRepository.deleteById(failedProduct.getId());
+
+        BatchResult result = pickupExpireBatchService.expirePickups();
+
+        assertThat(result.successCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isEqualTo(1);
+        assertThat(result.failureReasons()).containsEntry("NotFoundException", 1);
+
+        Order failedUpdated = orderRepository.findById(failedOrder.getId()).orElseThrow();
+        Order successUpdated = orderRepository.findById(successOrder.getId()).orElseThrow();
+        assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+        assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+    }
+
+    @Test
+    void pickupComplete_and_expireProcess_race_keepsSingleTerminalState() throws InterruptedException {
+        Product product = productRepository.save(new Product("픽업 경합 테스트 상품", ProductType.READY_STOCK, 53000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 53000L)));
+        orderApprovalService.approve(order.getId());
+        LocalDateTime pastDeadline = LocalDateTime.now(clock).minusMinutes(1);
+        orderPickupService.markPickupReady(order.getId(), pastDeadline);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        AtomicReference<Throwable> pickupError = new AtomicReference<>();
+        AtomicReference<Throwable> expireError = new AtomicReference<>();
+
+        try {
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    orderPickupService.confirmPickup(order.getId());
+                } catch (Throwable t) {
+                    pickupError.set(t);
+                }
+            });
+
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    pickupExpireProcessor.process(order.getId(), LocalDateTime.now(clock));
+                } catch (Throwable t) {
+                    expireError.set(t);
+                }
+            });
+
+            startLatch.countDown();
+        } finally {
+            executor.shutdown();
+            executor.awaitTermination(10, TimeUnit.SECONDS);
+        }
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
+        assertThat(fulfillment.getStatus()).isEqualTo(updated.getStatus());
+
+        if (updated.getStatus() == OrderStatus.PICKED_UP) {
+            assertThat(refundRepository.count()).isEqualTo(0L);
+            assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(0);
+        } else {
+            assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+            assertThat(refundRepository.count()).isEqualTo(1L);
+            assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(1);
+        }
+
+        if (pickupError.get() != null) {
+            assertThat(pickupError.get()).isInstanceOf(RuntimeException.class);
+        }
+        if (expireError.get() != null) {
+            assertThat(expireError.get()).isInstanceOf(RuntimeException.class);
+        }
     }
 }

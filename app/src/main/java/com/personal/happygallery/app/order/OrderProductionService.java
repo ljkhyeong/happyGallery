@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.config.RetryConfig;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
@@ -52,8 +53,11 @@ public class OrderProductionService {
      */
     @Retryable(
             retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
+            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
+            backoff = @Backoff(
+                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
+                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
+                    random = true))
     public ProductionResult setExpectedShipDate(Long orderId, LocalDate expectedShipDate) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -75,8 +79,11 @@ public class OrderProductionService {
      */
     @Retryable(
             retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
+            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
+            backoff = @Backoff(
+                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
+                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
+                    random = true))
     public ProductionResult requestDelay(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
