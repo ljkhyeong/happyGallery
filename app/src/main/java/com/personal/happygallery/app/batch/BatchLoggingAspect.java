@@ -17,7 +17,7 @@ public class BatchLoggingAspect {
     @Around("@annotation(batchJob)")
     public Object logBatchExecution(ProceedingJoinPoint joinPoint, BatchJob batchJob) throws Throwable {
         long startedAt = System.nanoTime();
-        String jobName = batchJob.value();
+        String jobName = resolveJobName(joinPoint, batchJob);
         log.info("[배치] {} 시작", jobName);
 
         try {
@@ -49,5 +49,13 @@ public class BatchLoggingAspect {
             log.error("[배치] {} 실패 ({}ms)", jobName, durationMs, t);
             throw t;
         }
+    }
+
+    private String resolveJobName(ProceedingJoinPoint joinPoint, BatchJob batchJob) {
+        String configuredName = batchJob.value();
+        if (configuredName != null && !configuredName.isBlank()) {
+            return configuredName;
+        }
+        return joinPoint.getSignature().toShortString();
     }
 }
