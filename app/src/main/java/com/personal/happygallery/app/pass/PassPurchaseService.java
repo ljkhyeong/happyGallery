@@ -62,7 +62,7 @@ public class PassPurchaseService {
                 .orElseThrow(() -> new NotFoundException("게스트"));
 
         ZonedDateTime now = ZonedDateTime.now(clock);
-        LocalDateTime expiresAt = TimeBoundary.passExpiresAt(now).toLocalDateTime();
+        LocalDateTime expiresAt = TimeBoundary.passExpiresAtLocal(now);
 
         PassPurchase purchase = passPurchaseRepository.save(new PassPurchase(guest, expiresAt, totalPrice));
         passLedgerRepository.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));

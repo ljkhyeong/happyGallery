@@ -6,7 +6,6 @@ import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.SlotNotAvailableException;
-import com.personal.happygallery.common.time.Clocks;
 import com.personal.happygallery.common.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
@@ -16,7 +15,6 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import java.time.Clock;
-import java.time.ZonedDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,8 +69,7 @@ public class BookingRescheduleService {
         }
 
         // 4. 시간 경계 정책 — 슬롯 시작 1시간 전까지만 변경 가능
-        ZonedDateTime currentSlotStart = booking.getSlot().getStartAt().atZone(Clocks.SEOUL);
-        if (!TimeBoundary.isChangeable(currentSlotStart, clock)) {
+        if (!TimeBoundary.isChangeable(booking.getSlot().getStartAt(), clock)) {
             throw new ChangeNotAllowedException();
         }
 

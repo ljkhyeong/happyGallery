@@ -1,6 +1,5 @@
 package com.personal.happygallery.app.pass;
 
-import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Guest;
@@ -16,6 +15,7 @@ import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
+import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -26,6 +26,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
+import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
+import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -49,11 +52,11 @@ class PassCreditUsageUseCaseIT {
     BookingClass cls;
     Guest guest;
     PassPurchase pass;
-
-    private static final LocalDateTime FUTURE = LocalDateTime.of(2030, 1, 1, 10, 0);
+    BookingTestHelper helper;
 
     @BeforeEach
     void setUp() {
+        helper = new BookingTestHelper(mockMvc);
         // FK 순서: passLedger → refund → bookingHistory → booking(→ pass_purchases FK)
         //         → passPurchase → phoneVerification → guest → slot → class
         passLedgerRepository.deleteAll();
@@ -81,7 +84,7 @@ class PassCreditUsageUseCaseIT {
     void book_with_pass_consumes_credit() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = sendVerificationCode("01099990001");
+        String code = helper.sendVerificationAndGetCode("01099990001");
         mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -121,10 +124,10 @@ class PassCreditUsageUseCaseIT {
     void cancel_pass_booking_timely_refunds_credit() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = sendVerificationCode("01099990001");
-        String createResp = bookWithPass("01099990001", code, slot.getId(), pass.getId());
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
-        String token = JsonPath.read(createResp, "$.accessToken");
+        String code = helper.sendVerificationAndGetCode("01099990001");
+        String createResp = helper.bookWithPass("01099990001", code, slot.getId(), pass.getId());
+        Long bookingId = extractBookingId(createResp);
+        String token = extractAccessToken(createResp);
 
         // 취소 (FUTURE = 2030년 → D-1 이전이므로 환불 가능)
         mockMvc.perform(delete("/bookings/{id}", bookingId)
@@ -158,10 +161,10 @@ class PassCreditUsageUseCaseIT {
                 .withHour(14).withMinute(0).withSecond(0).withNano(0);
         Slot slot = slotRepository.save(new Slot(cls, today14, today14.plusHours(2)));
 
-        String code = sendVerificationCode("01099990001");
-        String createResp = bookWithPass("01099990001", code, slot.getId(), pass.getId());
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
-        String token = JsonPath.read(createResp, "$.accessToken");
+        String code = helper.sendVerificationAndGetCode("01099990001");
+        String createResp = helper.bookWithPass("01099990001", code, slot.getId(), pass.getId());
+        Long bookingId = extractBookingId(createResp);
+        String token = extractAccessToken(createResp);
 
         mockMvc.perform(delete("/bookings/{id}", bookingId)
                         .param("token", token))
@@ -188,9 +191,9 @@ class PassCreditUsageUseCaseIT {
     void mark_no_show_status_only_no_credit_change() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = sendVerificationCode("01099990001");
-        String createResp = bookWithPass("01099990001", code, slot.getId(), pass.getId());
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
+        String code = helper.sendVerificationAndGetCode("01099990001");
+        String createResp = helper.bookWithPass("01099990001", code, slot.getId(), pass.getId());
+        Long bookingId = extractBookingId(createResp);
 
         mockMvc.perform(post("/admin/bookings/{id}/no-show", bookingId))
                 .andExpect(status().isOk())
@@ -221,12 +224,12 @@ class PassCreditUsageUseCaseIT {
         Slot slot2 = slotRepository.save(new Slot(cls, FUTURE.plusDays(1), FUTURE.plusDays(1).plusHours(2)));
 
         // 2회 예약 (remaining: 8 → 6)
-        String code1 = sendVerificationCode("01099990001");
-        bookWithPass("01099990001", code1, slot1.getId(), pass.getId());
+        String code1 = helper.sendVerificationAndGetCode("01099990001");
+        helper.bookWithPass("01099990001", code1, slot1.getId(), pass.getId());
 
         phoneVerificationRepository.deleteAll(); // 인증코드 재사용 방지
-        String code2 = sendVerificationCode("01099990001");
-        bookWithPass("01099990001", code2, slot2.getId(), pass.getId());
+        String code2 = helper.sendVerificationAndGetCode("01099990001");
+        helper.bookWithPass("01099990001", code2, slot2.getId(), pass.getId());
 
         // 전체 환불
         mockMvc.perform(post("/admin/passes/{passId}/refund", pass.getId()))
@@ -263,7 +266,7 @@ class PassCreditUsageUseCaseIT {
         passPurchaseRepository.save(pass);
 
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
-        String code = sendVerificationCode("01099990001");
+        String code = helper.sendVerificationAndGetCode("01099990001");
 
         mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -280,34 +283,4 @@ class PassCreditUsageUseCaseIT {
                 .andExpect(jsonPath("$.code").value("PASS_CREDIT_INSUFFICIENT"));
     }
 
-    // -----------------------------------------------------------------------
-    // helper
-    // -----------------------------------------------------------------------
-
-    private String sendVerificationCode(String phone) throws Exception {
-        String resp = mockMvc.perform(post("/bookings/phone-verifications")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "phone": "%s" }
-                                """.formatted(phone)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        return JsonPath.read(resp, "$.code");
-    }
-
-    private String bookWithPass(String phone, String code, Long slotId, Long passId) throws Exception {
-        return mockMvc.perform(post("/bookings/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "phone": "%s",
-                                  "verificationCode": "%s",
-                                  "name": "김테스트",
-                                  "slotId": %d,
-                                  "passId": %d
-                                }
-                                """.formatted(phone, code, slotId, passId)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-    }
 }
