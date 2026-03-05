@@ -1,15 +1,11 @@
 package com.personal.happygallery.app.notification;
 
-import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.infra.booking.GuestRepository;
 import com.personal.happygallery.infra.notification.NotificationLogRepository;
 import com.personal.happygallery.infra.notification.NotificationSender;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -17,8 +13,11 @@ import org.springframework.stereotype.Service;
 /**
  * 알림 발송 서비스.
  *
- * <p>채널 우선순위: 카카오 → 실패 시 SMS (fallback).
- * 각 발송 결과는 {@code notification_log}에 기록된다.
+ * <p>주입된 {@link NotificationSender} 목록을 {@code @Order} 우선순위 순으로 시도한다.
+ * 한 채널이 성공하면 이후 채널은 시도하지 않는다 (fallback 전략).
+ *
+ * <p>채널 추가 시 {@link NotificationSender} 구현체를 {@code @Order(n)}과 함께 등록하면
+ * 이 서비스를 수정할 필요 없이 fallback 체인에 자동 포함된다.
  *
  * <p>알림 실패는 주문/예약 흐름을 중단시키지 않는다.
  * 호출자는 {@code notifyGuest()} 혹은 {@code notifyByGuestId()} 를 try-catch 없이 호출해도 된다.
@@ -28,19 +27,14 @@ public class NotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
-    /** fallback 순서 고정 */
-    private static final List<NotificationChannel> FALLBACK_ORDER =
-            List.of(NotificationChannel.KAKAO, NotificationChannel.SMS);
-
-    private final Map<NotificationChannel, NotificationSender> senders;
+    private final List<NotificationSender> senders;
     private final NotificationLogRepository notificationLogRepository;
     private final GuestRepository guestRepository;
 
     public NotificationService(List<NotificationSender> senders,
                                NotificationLogRepository notificationLogRepository,
                                GuestRepository guestRepository) {
-        this.senders = senders.stream()
-                .collect(Collectors.toMap(NotificationSender::channel, Function.identity()));
+        this.senders = senders;
         this.notificationLogRepository = notificationLogRepository;
         this.guestRepository = guestRepository;
     }
@@ -48,26 +42,22 @@ public class NotificationService {
     /**
      * 게스트에게 알림을 발송한다. phone / name 을 이미 알고 있을 때 사용한다.
      *
-     * <p>카카오 → SMS 순으로 시도한다. 한 채널이 성공하면 이후 채널은 시도하지 않는다.
+     * <p>{@code @Order} 우선순위 순으로 시도한다. 한 채널이 성공하면 이후 채널은 시도하지 않는다.
      * 모든 채널 실패 시에도 예외를 던지지 않고 로그만 기록한다.
      */
     public void notifyGuest(Long guestId, String phone, String name,
                             NotificationEventType eventType) {
-        for (NotificationChannel channel : FALLBACK_ORDER) {
-            NotificationSender sender = senders.get(channel);
-            if (sender == null) {
-                continue;
-            }
+        for (NotificationSender sender : senders) {
             try {
                 boolean success = sender.send(phone, name, eventType);
                 if (success) {
-                    save(NotificationLog.success(guestId, null, channel, eventType));
+                    save(NotificationLog.success(guestId, null, sender.channel(), eventType));
                     return;
                 }
-                save(NotificationLog.failed(guestId, null, channel, eventType, "발송 실패"));
+                save(NotificationLog.failed(guestId, null, sender.channel(), eventType, "발송 실패"));
             } catch (Exception e) {
-                log.warn("[알림] {} 발송 예외 [guestId={} event={}]", channel, guestId, eventType, e);
-                save(NotificationLog.failed(guestId, null, channel, eventType, e.getMessage()));
+                log.warn("[알림] {} 발송 예외 [guestId={} event={}]", sender.channel(), guestId, eventType, e);
+                save(NotificationLog.failed(guestId, null, sender.channel(), eventType, e.getMessage()));
             }
         }
         log.error("[알림] 모든 채널 실패 [guestId={} event={}]", guestId, eventType);

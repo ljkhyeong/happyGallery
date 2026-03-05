@@ -3,6 +3,8 @@ package com.personal.happygallery.app.web;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.ErrorResponse;
 import com.personal.happygallery.common.error.HappyGalleryException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +16,8 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(HappyGalleryException.class)
     public ResponseEntity<ErrorResponse> handleHappyGalleryException(HappyGalleryException e) {
@@ -39,6 +43,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        log.warn("DB 제약 위반: {}", e.getMessage());
         return ResponseEntity
                 .status(409)
                 .body(ErrorResponse.of(ErrorCode.DUPLICATE_BOOKING));
@@ -50,8 +55,17 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(OptimisticLockingFailureException e) {
+        log.warn("낙관적 락 충돌: {}", e.getMessage());
         return ResponseEntity
                 .status(409)
                 .body(ErrorResponse.of(ErrorCode.BOOKING_CONFLICT));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception e) {
+        log.error("처리되지 않은 예외", e);
+        return ResponseEntity
+                .status(500)
+                .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
     }
 }

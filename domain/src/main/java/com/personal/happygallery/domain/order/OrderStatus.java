@@ -60,4 +60,32 @@ public enum OrderStatus {
 			throw new ProductionRefundNotAllowedException();
 		}
 	}
+
+	/** {@link #IN_PRODUCTION} 상태인지 확인한다. */
+	public void requireInProduction() {
+		if (this != IN_PRODUCTION) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "제작 중 상태에서만 가능합니다.");
+		}
+	}
+
+	/** {@link #IN_PRODUCTION} 또는 {@link #DELAY_REQUESTED} 상태인지 확인한다. */
+	public void requireProductionCompletable() {
+		if (this != IN_PRODUCTION && this != DELAY_REQUESTED) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "제작 중이거나 지연 요청 상태에서만 완료할 수 있습니다.");
+		}
+	}
+
+	/** {@link #APPROVED_FULFILLMENT_PENDING} 상태인지 확인한다. */
+	public void requireFulfillmentPending() {
+		if (this != APPROVED_FULFILLMENT_PENDING) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이행 대기 상태에서만 가능합니다.");
+		}
+	}
+
+	/** {@link #PICKUP_READY} 상태인지 확인한다. */
+	public void requirePickupReady() {
+		if (this != PICKUP_READY) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "픽업 준비 상태에서만 가능합니다.");
+		}
+	}
 }

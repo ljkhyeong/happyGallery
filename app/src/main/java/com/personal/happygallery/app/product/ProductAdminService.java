@@ -3,7 +3,6 @@ package com.personal.happygallery.app.product;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
-import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,12 +12,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProductAdminService {
 
     private final ProductRepository productRepository;
-    private final InventoryRepository inventoryRepository;
+    private final InventoryService inventoryService;
 
     public ProductAdminService(ProductRepository productRepository,
-                               InventoryRepository inventoryRepository) {
+                               InventoryService inventoryService) {
         this.productRepository = productRepository;
-        this.inventoryRepository = inventoryRepository;
+        this.inventoryService = inventoryService;
     }
 
     /**
@@ -36,7 +35,7 @@ public class ProductAdminService {
      */
     public RegisterResult register(String name, ProductType type, long price, int quantity) {
         Product product = productRepository.save(new Product(name, type, price));
-        Inventory inventory = inventoryRepository.save(new Inventory(product, quantity));
+        Inventory inventory = inventoryService.create(product, quantity);
         return new RegisterResult(product, inventory);
     }
 

@@ -1,6 +1,5 @@
 package com.personal.happygallery.app.booking;
 
-import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
@@ -11,6 +10,7 @@ import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
+import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -21,9 +21,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
+import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
+import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -42,12 +44,11 @@ class BookingRescheduleUseCaseIT {
     @Autowired PassPurchaseRepository passPurchaseRepository;
 
     BookingClass cls;
-
-    /** 충분히 먼 미래 슬롯 시작 시각 — isChangeable() 항상 통과 */
-    private static final LocalDateTime FUTURE = LocalDateTime.of(2030, 1, 1, 10, 0);
+    BookingTestHelper helper;
 
     @BeforeEach
     void setUp() {
+        helper = new BookingTestHelper(mockMvc);
         // FK 순서에 맞게 삭제
         passLedgerRepository.deleteAll();
         bookingHistoryRepository.deleteAll();
@@ -77,24 +78,11 @@ class BookingRescheduleUseCaseIT {
         }
 
         // 초기 예약 생성 (slots[0])
-        String code = sendVerificationAndGetCode("01011110000");
-        String createResp = mockMvc.perform(post("/bookings/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "phone": "01011110000",
-                                  "verificationCode": "%s",
-                                  "name": "홍길동",
-                                  "slotId": %d,
-                                  "depositAmount": 5000,
-                                  "paymentMethod": "CARD"
-                                }
-                                """.formatted(code, slots[0].getId())))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        String code = helper.sendVerificationAndGetCode("01011110000");
+        String createResp = helper.createBooking("01011110000", code, slots[0].getId(), 5000L);
 
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
-        String token = JsonPath.read(createResp, "$.accessToken");
+        Long bookingId = extractBookingId(createResp);
+        String token = extractAccessToken(createResp);
 
         // 5번 연속 변경 (slots[1] → slots[2] → ... → slots[5])
         for (int i = 1; i <= 5; i++) {
@@ -147,24 +135,11 @@ class BookingRescheduleUseCaseIT {
         Slot nearSlot = slotRepository.save(new Slot(cls, soonStart, soonStart.plusHours(2)));
         Slot targetSlot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = sendVerificationAndGetCode("01022220001");
-        String createResp = mockMvc.perform(post("/bookings/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "phone": "01022220001",
-                                  "verificationCode": "%s",
-                                  "name": "홍길동",
-                                  "slotId": %d,
-                                  "depositAmount": 5000,
-                                  "paymentMethod": "CARD"
-                                }
-                                """.formatted(code, nearSlot.getId())))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        String code = helper.sendVerificationAndGetCode("01022220001");
+        String createResp = helper.createBooking("01022220001", code, nearSlot.getId(), 5000L);
 
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
-        String token = JsonPath.read(createResp, "$.accessToken");
+        Long bookingId = extractBookingId(createResp);
+        String token = extractAccessToken(createResp);
 
         mockMvc.perform(patch("/bookings/{id}/reschedule", bookingId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -187,24 +162,11 @@ class BookingRescheduleUseCaseIT {
     void reschedule_sameSlot_returns400() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = sendVerificationAndGetCode("01033330001");
-        String createResp = mockMvc.perform(post("/bookings/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "phone": "01033330001",
-                                  "verificationCode": "%s",
-                                  "name": "홍길동",
-                                  "slotId": %d,
-                                  "depositAmount": 5000,
-                                  "paymentMethod": "CARD"
-                                }
-                                """.formatted(code, slot.getId())))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        String code = helper.sendVerificationAndGetCode("01033330001");
+        String createResp = helper.createBooking("01033330001", code, slot.getId(), 5000L);
 
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
-        String token = JsonPath.read(createResp, "$.accessToken");
+        Long bookingId = extractBookingId(createResp);
+        String token = extractAccessToken(createResp);
 
         mockMvc.perform(patch("/bookings/{id}/reschedule", bookingId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -229,24 +191,11 @@ class BookingRescheduleUseCaseIT {
         Slot inactiveSlot = slotRepository.save(new Slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
         slotManagementService.deactivateSlot(inactiveSlot.getId());
 
-        String code = sendVerificationAndGetCode("01044440001");
-        String createResp = mockMvc.perform(post("/bookings/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "phone": "01044440001",
-                                  "verificationCode": "%s",
-                                  "name": "홍길동",
-                                  "slotId": %d,
-                                  "depositAmount": 5000,
-                                  "paymentMethod": "CARD"
-                                }
-                                """.formatted(code, fromSlot.getId())))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        String code = helper.sendVerificationAndGetCode("01044440001");
+        String createResp = helper.createBooking("01044440001", code, fromSlot.getId(), 5000L);
 
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
-        String token = JsonPath.read(createResp, "$.accessToken");
+        Long bookingId = extractBookingId(createResp);
+        String token = extractAccessToken(createResp);
 
         mockMvc.perform(patch("/bookings/{id}/reschedule", bookingId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -275,24 +224,11 @@ class BookingRescheduleUseCaseIT {
             slotManagementService.confirmBooking(fullSlot.getId());
         }
 
-        String code = sendVerificationAndGetCode("01055550001");
-        String createResp = mockMvc.perform(post("/bookings/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "phone": "01055550001",
-                                  "verificationCode": "%s",
-                                  "name": "홍길동",
-                                  "slotId": %d,
-                                  "depositAmount": 5000,
-                                  "paymentMethod": "CARD"
-                                }
-                                """.formatted(code, fromSlot.getId())))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        String code = helper.sendVerificationAndGetCode("01055550001");
+        String createResp = helper.createBooking("01055550001", code, fromSlot.getId(), 5000L);
 
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
-        String token = JsonPath.read(createResp, "$.accessToken");
+        Long bookingId = extractBookingId(createResp);
+        String token = extractAccessToken(createResp);
 
         mockMvc.perform(patch("/bookings/{id}/reschedule", bookingId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -316,23 +252,10 @@ class BookingRescheduleUseCaseIT {
         Slot fromSlot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
         Slot toSlot   = slotRepository.save(new Slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
 
-        String code = sendVerificationAndGetCode("01066660001");
-        String createResp = mockMvc.perform(post("/bookings/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "phone": "01066660001",
-                                  "verificationCode": "%s",
-                                  "name": "홍길동",
-                                  "slotId": %d,
-                                  "depositAmount": 5000,
-                                  "paymentMethod": "CARD"
-                                }
-                                """.formatted(code, fromSlot.getId())))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        String code = helper.sendVerificationAndGetCode("01066660001");
+        String createResp = helper.createBooking("01066660001", code, fromSlot.getId(), 5000L);
 
-        Long bookingId = ((Number) JsonPath.read(createResp, "$.bookingId")).longValue();
+        Long bookingId = extractBookingId(createResp);
 
         mockMvc.perform(patch("/bookings/{id}/reschedule", bookingId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -346,18 +269,4 @@ class BookingRescheduleUseCaseIT {
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
 
-    // -----------------------------------------------------------------------
-    // helper
-    // -----------------------------------------------------------------------
-
-    private String sendVerificationAndGetCode(String phone) throws Exception {
-        String resp = mockMvc.perform(post("/bookings/phone-verifications")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "phone": "%s" }
-                                """.formatted(phone)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        return JsonPath.read(resp, "$.code");
-    }
 }

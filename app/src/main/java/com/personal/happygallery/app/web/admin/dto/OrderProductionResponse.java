@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.admin.dto;
 
-import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.app.order.OrderProductionService.ProductionResult;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDate;
 
@@ -10,11 +10,7 @@ public record OrderProductionResponse(
         OrderStatus status,
         LocalDate expectedShipDate
 ) {
-    public static OrderProductionResponse of(Order order, LocalDate expectedShipDate) {
-        return new OrderProductionResponse(order.getId(), order.getStatus(), expectedShipDate);
-    }
-
-    public static OrderProductionResponse of(Order order) {
-        return new OrderProductionResponse(order.getId(), order.getStatus(), null);
+    public static OrderProductionResponse from(ProductionResult result) {
+        return new OrderProductionResponse(result.orderId(), result.status(), result.expectedShipDate());
     }
 }

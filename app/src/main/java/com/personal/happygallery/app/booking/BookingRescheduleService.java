@@ -6,20 +6,15 @@ import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.SlotNotAvailableException;
-import com.personal.happygallery.common.time.Clocks;
 import com.personal.happygallery.common.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import java.time.Clock;
-import java.time.ZonedDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,23 +23,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class BookingRescheduleService {
 
     private final BookingRepository bookingRepository;
-    private final BookingHistoryRepository bookingHistoryRepository;
     private final SlotRepository slotRepository;
     private final SlotManagementService slotManagementService;
-    private final NotificationService notificationService;
+    private final BookingSupport bookingSupport;
     private final Clock clock;
 
     public BookingRescheduleService(BookingRepository bookingRepository,
-                                    BookingHistoryRepository bookingHistoryRepository,
                                     SlotRepository slotRepository,
                                     SlotManagementService slotManagementService,
-                                    NotificationService notificationService,
+                                    BookingSupport bookingSupport,
                                     Clock clock) {
         this.bookingRepository = bookingRepository;
-        this.bookingHistoryRepository = bookingHistoryRepository;
         this.slotRepository = slotRepository;
         this.slotManagementService = slotManagementService;
-        this.notificationService = notificationService;
+        this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
 
@@ -64,8 +56,7 @@ public class BookingRescheduleService {
     public Booking rescheduleBooking(Long bookingId, String accessToken, Long newSlotId) {
 
         // 1. 예약 로드 (accessToken 검증)
-        Booking booking = bookingRepository.findByIdAndAccessToken(bookingId, accessToken)
-                .orElseThrow(() -> new NotFoundException("예약"));
+        Booking booking = bookingSupport.findByToken(bookingId, accessToken);
 
         // 2. 상태 체크 — BOOKED 상태만 변경 가능
         if (booking.getStatus() != BookingStatus.BOOKED) {
@@ -78,8 +69,7 @@ public class BookingRescheduleService {
         }
 
         // 4. 시간 경계 정책 — 슬롯 시작 1시간 전까지만 변경 가능
-        ZonedDateTime currentSlotStart = booking.getSlot().getStartAt().atZone(Clocks.SEOUL);
-        if (!TimeBoundary.isChangeable(currentSlotStart, clock)) {
+        if (!TimeBoundary.isChangeable(booking.getSlot().getStartAt(), clock)) {
             throw new ChangeNotAllowedException();
         }
 
@@ -109,20 +99,15 @@ public class BookingRescheduleService {
         slotRepository.save(oldSlot);
 
         // 9. 이력 저장 (append-only)
-        bookingHistoryRepository.save(
-                new BookingHistory(booking, BookingHistoryAction.RESCHEDULED,
-                        oldSlot, newSlot, "CUSTOMER", null));
+        bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
+                oldSlot, newSlot, "CUSTOMER", null);
 
         // 10. 예약 업데이트 — @Version 충돌 시 OptimisticLockingFailureException → 409 BOOKING_CONFLICT
         booking.reschedule(newSlot);
         Booking saved = bookingRepository.save(booking);
 
         // 11. 예약 변경 알림
-        if (booking.getGuest() != null) {
-            notificationService.notifyGuest(
-                    booking.getGuest().getId(), booking.getGuest().getPhone(),
-                    booking.getGuest().getName(), NotificationEventType.BOOKING_RESCHEDULED);
-        }
+        bookingSupport.notifyBookingGuest(booking, NotificationEventType.BOOKING_RESCHEDULED);
 
         return saved;
     }
