@@ -10,8 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
-import com.personal.happygallery.common.error.ErrorCode;
-import com.personal.happygallery.common.error.HappyGalleryException;
 
 /**
  * 상품 주문 — orders 테이블.
@@ -107,9 +105,7 @@ public class Order {
      * {@link OrderStatus#IN_PRODUCTION} 상태가 아니면 {@code 400 INVALID_INPUT}을 던진다.
      */
     public void requestDelay() {
-        if (this.status != OrderStatus.IN_PRODUCTION) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT);
-        }
+        this.status.requireInProduction();
         this.status = OrderStatus.DELAY_REQUESTED;
     }
 
@@ -118,9 +114,7 @@ public class Order {
      * 상태에서만 호출 가능하며, {@link OrderStatus#APPROVED_FULFILLMENT_PENDING}으로 전이한다.
      */
     public void completeProduction() {
-        if (this.status != OrderStatus.IN_PRODUCTION && this.status != OrderStatus.DELAY_REQUESTED) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT);
-        }
+        this.status.requireProductionCompletable();
         this.status = OrderStatus.APPROVED_FULFILLMENT_PENDING;
     }
 
@@ -137,9 +131,7 @@ public class Order {
      * 픽업 준비 완료. {@link OrderStatus#APPROVED_FULFILLMENT_PENDING} 상태가 아니면 400을 던진다.
      */
     public void markPickupReady() {
-        if (this.status != OrderStatus.APPROVED_FULFILLMENT_PENDING) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT);
-        }
+        this.status.requireFulfillmentPending();
         this.status = OrderStatus.PICKUP_READY;
     }
 
@@ -147,9 +139,7 @@ public class Order {
      * 픽업 완료. {@link OrderStatus#PICKUP_READY} 상태가 아니면 400을 던진다.
      */
     public void confirmPickup() {
-        if (this.status != OrderStatus.PICKUP_READY) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT);
-        }
+        this.status.requirePickupReady();
         this.status = OrderStatus.PICKED_UP;
     }
 
@@ -157,9 +147,7 @@ public class Order {
      * 픽업 마감 초과 자동환불. {@link OrderStatus#PICKUP_READY} 상태가 아니면 400을 던진다.
      */
     public void markPickupExpired() {
-        if (this.status != OrderStatus.PICKUP_READY) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT);
-        }
+        this.status.requirePickupReady();
         this.status = OrderStatus.PICKUP_EXPIRED_REFUNDED;
     }
 
