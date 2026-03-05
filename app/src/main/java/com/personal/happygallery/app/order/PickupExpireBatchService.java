@@ -1,18 +1,14 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.batch.BatchExecutor;
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 /**
  * 픽업 마감 초과 자동환불 배치 서비스 (§8.4).
@@ -25,8 +21,6 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
  */
 @Service
 public class PickupExpireBatchService {
-
-    private static final Logger log = LoggerFactory.getLogger(PickupExpireBatchService.class);
 
     private final FulfillmentRepository fulfillmentRepository;
     private final PickupExpireProcessor pickupExpireProcessor;
@@ -54,24 +48,10 @@ public class PickupExpireBatchService {
         LocalDateTime now = LocalDateTime.now(clock);
         List<Fulfillment> expired = fulfillmentRepository
                 .findByStatusAndPickupDeadlineAtBefore(OrderStatus.PICKUP_READY, now);
-        int processed = 0;
-        Map<String, Integer> failureReasons = new LinkedHashMap<>();
 
-        for (Fulfillment candidate : expired) {
-            try {
-                if (pickupExpireProcessor.process(candidate.getOrderId(), now)) {
-                    log.info("픽업 만료 처리 [orderId={}, fulfillmentId={}]", candidate.getOrderId(), candidate.getId());
-                    processed++;
-                }
-            } catch (ObjectOptimisticLockingFailureException e) {
-                log.info("픽업 만료 충돌로 스킵 [orderId={}]", candidate.getOrderId());
-                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
-            } catch (Exception e) {
-                log.warn("픽업 만료 처리 실패 [orderId={}]", candidate.getOrderId(), e);
-                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
-            }
-        }
-
-        return BatchResult.of(processed, failureReasons);
+        return BatchExecutor.execute(expired,
+                Fulfillment::getOrderId,
+                f -> pickupExpireProcessor.process(f.getOrderId(), now),
+                "픽업 만료");
     }
 }

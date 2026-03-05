@@ -3,9 +3,7 @@ package com.personal.happygallery.app.web.admin;
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.order.OrderApprovalService;
 import com.personal.happygallery.app.order.OrderPickupService;
-import com.personal.happygallery.app.order.OrderPickupService.PickupResult;
 import com.personal.happygallery.app.order.OrderProductionService;
-import com.personal.happygallery.app.order.OrderProductionService.ProductionResult;
 import com.personal.happygallery.app.order.PickupExpireBatchService;
 import com.personal.happygallery.app.web.admin.dto.BatchResponse;
 import com.personal.happygallery.app.web.admin.dto.MarkPickupReadyRequest;
@@ -65,8 +63,7 @@ public class AdminOrderController {
     public OrderProductionResponse completeProduction(
             @PathVariable Long id,
             @RequestHeader(value = ADMIN_ID_HEADER, required = false) Long adminId) {
-        ProductionResult result = orderProductionService.completeProduction(id, adminId);
-        return new OrderProductionResponse(result.orderId(), result.status(), result.expectedShipDate());
+        return OrderProductionResponse.from(orderProductionService.completeProduction(id, adminId));
     }
 
     /** PATCH /admin/orders/{id}/expected-ship-date — 예상 출고일 설정/갱신 */
@@ -74,16 +71,14 @@ public class AdminOrderController {
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse setExpectedShipDate(@PathVariable Long id,
                                                        @RequestBody SetExpectedShipDateRequest request) {
-        ProductionResult result = orderProductionService.setExpectedShipDate(id, request.expectedShipDate());
-        return new OrderProductionResponse(result.orderId(), result.status(), result.expectedShipDate());
+        return OrderProductionResponse.from(orderProductionService.setExpectedShipDate(id, request.expectedShipDate()));
     }
 
     /** POST /admin/orders/{id}/delay — 고객 동의 후 배송 지연 상태로 전환 */
     @PostMapping("/{id}/delay")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse requestDelay(@PathVariable Long id) {
-        ProductionResult result = orderProductionService.requestDelay(id);
-        return new OrderProductionResponse(result.orderId(), result.status(), result.expectedShipDate());
+        return OrderProductionResponse.from(orderProductionService.requestDelay(id));
     }
 
     /** POST /admin/orders/{id}/prepare-pickup — 픽업 준비 완료 (APPROVED_FULFILLMENT_PENDING → PICKUP_READY) */
@@ -91,16 +86,14 @@ public class AdminOrderController {
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse markPickupReady(@PathVariable Long id,
                                          @RequestBody MarkPickupReadyRequest request) {
-        PickupResult result = orderPickupService.markPickupReady(id, request.pickupDeadlineAt());
-        return new PickupResponse(result.orderId(), result.status(), result.pickupDeadlineAt());
+        return PickupResponse.from(orderPickupService.markPickupReady(id, request.pickupDeadlineAt()));
     }
 
     /** POST /admin/orders/{id}/complete-pickup — 픽업 완료 (PICKUP_READY → PICKED_UP) */
     @PostMapping("/{id}/complete-pickup")
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse confirmPickup(@PathVariable Long id) {
-        PickupResult result = orderPickupService.confirmPickup(id);
-        return new PickupResponse(result.orderId(), result.status(), result.pickupDeadlineAt());
+        return PickupResponse.from(orderPickupService.confirmPickup(id));
     }
 
     /** POST /admin/orders/expire-pickups — 픽업 마감 초과 자동환불 배치 */

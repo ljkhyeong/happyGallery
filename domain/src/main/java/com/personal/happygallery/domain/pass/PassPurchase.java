@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.pass;
 
+import com.personal.happygallery.common.error.PassCreditInsufficientException;
+import com.personal.happygallery.common.error.PassExpiredException;
 import com.personal.happygallery.domain.booking.Guest;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -63,10 +65,36 @@ public class PassPurchase {
     }
 
     /**
+     * 만료/잔여 크레딧 검증. 사용 전 호출한다.
+     *
+     * @param now 현재 시각
+     * @throws PassExpiredException          만료된 이용권
+     * @throws PassCreditInsufficientException 잔여 크레딧 없음
+     */
+    public void requireUsable(LocalDateTime now) {
+        if (expiresAt.isBefore(now)) {
+            throw new PassExpiredException();
+        }
+        if (remainingCredits <= 0) {
+            throw new PassCreditInsufficientException();
+        }
+    }
+
+    /** 잔여 크레딧이 남아 있는지 확인한다. */
+    public boolean hasRemainingCredits() {
+        return remainingCredits > 0;
+    }
+
+    /**
      * 예약 시 1크레딧 소모.
      * 호출 전 USE ledger를 먼저 기록해야 한다.
+     *
+     * @throws PassCreditInsufficientException 잔여 크레딧이 0일 때
      */
     public void useCredit() {
+        if (remainingCredits <= 0) {
+            throw new PassCreditInsufficientException();
+        }
         this.remainingCredits--;
     }
 
@@ -89,6 +117,11 @@ public class PassPurchase {
     /** 크레딧 단가 = total_price / total_credits */
     public long unitPrice() {
         return totalCredits == 0 ? 0 : totalPrice / totalCredits;
+    }
+
+    /** 잔여 크레딧 기반 환불 금액 계산 = remaining_credits * unit_price */
+    public long calculateRefundAmount() {
+        return (long) remainingCredits * unitPrice();
     }
 
     public Long getId() { return id; }

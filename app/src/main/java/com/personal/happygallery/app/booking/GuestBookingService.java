@@ -2,30 +2,25 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.common.error.DuplicateBookingException;
 import com.personal.happygallery.common.error.NotFoundException;
-import com.personal.happygallery.common.error.PassCreditInsufficientException;
-import com.personal.happygallery.common.error.PassExpiredException;
 import com.personal.happygallery.common.error.PaymentMethodNotAllowedException;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.error.SlotNotAvailableException;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.GuestRepository;
 import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
-import com.personal.happygallery.app.notification.NotificationService;
-import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -44,11 +39,10 @@ public class GuestBookingService {
     private final GuestRepository guestRepository;
     private final SlotRepository slotRepository;
     private final BookingRepository bookingRepository;
-    private final BookingHistoryRepository bookingHistoryRepository;
     private final SlotManagementService slotManagementService;
     private final PassPurchaseRepository passPurchaseRepository;
     private final PassLedgerRepository passLedgerRepository;
-    private final NotificationService notificationService;
+    private final BookingSupport bookingSupport;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
@@ -56,21 +50,19 @@ public class GuestBookingService {
                                GuestRepository guestRepository,
                                SlotRepository slotRepository,
                                BookingRepository bookingRepository,
-                               BookingHistoryRepository bookingHistoryRepository,
                                SlotManagementService slotManagementService,
                                PassPurchaseRepository passPurchaseRepository,
                                PassLedgerRepository passLedgerRepository,
-                               NotificationService notificationService,
+                               BookingSupport bookingSupport,
                                Clock clock) {
         this.phoneVerificationRepository = phoneVerificationRepository;
         this.guestRepository = guestRepository;
         this.slotRepository = slotRepository;
         this.bookingRepository = bookingRepository;
-        this.bookingHistoryRepository = bookingHistoryRepository;
         this.slotManagementService = slotManagementService;
         this.passPurchaseRepository = passPurchaseRepository;
         this.passLedgerRepository = passLedgerRepository;
-        this.notificationService = notificationService;
+        this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
 
@@ -142,13 +134,7 @@ public class GuestBookingService {
             // 6a. 8회권 결제 경로
             PassPurchase pass = passPurchaseRepository.findById(passId)
                     .orElseThrow(() -> new NotFoundException("8회권"));
-
-            if (pass.getExpiresAt().isBefore(LocalDateTime.now(clock))) {
-                throw new PassExpiredException();
-            }
-            if (pass.getRemainingCredits() <= 0) {
-                throw new PassCreditInsufficientException();
-            }
+            pass.requireUsable(LocalDateTime.now(clock));
 
             // USE ledger 선행 기록 → 크레딧 차감 ("크레딧이 돈이다")
             passLedgerRepository.save(new PassLedger(pass, PassLedgerType.USE, 1));
@@ -168,13 +154,10 @@ public class GuestBookingService {
         booking = bookingRepository.save(booking);
 
         // 7. 초기 이력 저장 (BOOKED)
-        bookingHistoryRepository.save(
-                new BookingHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null));
+        bookingSupport.recordHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null);
 
         // 8. 예약 완료 알림
-        notificationService.notifyGuest(
-                guest.getId(), guest.getPhone(), guest.getName(),
-                NotificationEventType.BOOKING_CONFIRMED);
+        bookingSupport.notifyBookingGuest(booking, NotificationEventType.BOOKING_CONFIRMED);
 
         return booking;
     }
