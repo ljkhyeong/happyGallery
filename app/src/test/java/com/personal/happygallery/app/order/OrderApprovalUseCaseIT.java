@@ -12,6 +12,7 @@ import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.booking.RefundRepository;
+import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
 import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
@@ -20,6 +21,7 @@ import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,7 @@ class OrderApprovalUseCaseIT {
     @Autowired OrderRepository orderRepository;
     @Autowired OrderItemRepository orderItemRepository;
     @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
+    @Autowired FulfillmentRepository fulfillmentRepository;
     @Autowired RefundRepository refundRepository;
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
@@ -69,6 +72,7 @@ class OrderApprovalUseCaseIT {
     private void cleanup() {
         // FK 삭제 순서: refunds(order_id) → order_items → orders → inventory → products
         refundRepository.deleteAll();
+        fulfillmentRepository.deleteAll();
         orderApprovalHistoryRepository.deleteAll();
         orderItemRepository.deleteAll();
         orderRepository.deleteAll();
@@ -80,6 +84,7 @@ class OrderApprovalUseCaseIT {
     // Proof: 승인 → APPROVED_FULFILLMENT_PENDING
     // -----------------------------------------------------------------------
 
+    @DisplayName("주문 승인 시 APPROVED_FULFILLMENT_PENDING 상태로 전이된다")
     @Test
     void approve_transitionsToApprovedFulfillmentPending() throws Exception {
         Product product = productRepository.save(new Product("테스트 상품", ProductType.READY_STOCK, 50000L));
@@ -102,6 +107,7 @@ class OrderApprovalUseCaseIT {
     // Proof: 거절 → REJECTED_REFUNDED + 재고 복구 + 환불 기록
     // -----------------------------------------------------------------------
 
+    @DisplayName("주문 거절 시 환불 처리와 재고 복구가 수행된다")
     @Test
     void reject_refundsAndRestoresInventory() throws Exception {
         Product product = productRepository.save(new Product("거절 테스트 상품", ProductType.READY_STOCK, 30000L));
@@ -131,6 +137,7 @@ class OrderApprovalUseCaseIT {
         assertThat(refundRepository.findAll().get(0).getOrderId()).isEqualTo(order.getId());
     }
 
+    @DisplayName("주문을 두 번 승인해도 상태 전이와 이력은 한 번만 기록된다")
     @Test
     void approve_twice_keepsSingleTransitionAndHistory() {
         Product product = productRepository.save(new Product("중복 승인 테스트 상품", ProductType.READY_STOCK, 50000L));
@@ -152,6 +159,7 @@ class OrderApprovalUseCaseIT {
                 .containsExactly(OrderApprovalDecision.APPROVE);
     }
 
+    @DisplayName("주문을 두 번 거절해도 상태 전이와 이력은 한 번만 기록된다")
     @Test
     void reject_twice_keepsSingleTransitionAndHistory() {
         Product product = productRepository.save(new Product("중복 거절 테스트 상품", ProductType.READY_STOCK, 30000L));
@@ -173,6 +181,7 @@ class OrderApprovalUseCaseIT {
         assertThat(refundRepository.findAll()).hasSize(1);
     }
 
+    @DisplayName("승인 후 거절을 시도하면 400을 반환하고 환불되지 않는다")
     @Test
     void reject_afterApprove_returns400AndDoesNotRefund() {
         Product product = productRepository.save(new Product("승인 후 거절 테스트 상품", ProductType.READY_STOCK, 40000L));
@@ -200,6 +209,7 @@ class OrderApprovalUseCaseIT {
     // Proof (DoD §8.2): 24h 경과 → 자동환불 → AUTO_REFUNDED_TIMEOUT + 재고 복구
     // -----------------------------------------------------------------------
 
+    @DisplayName("24시간 초과 주문 자동환불 시 상태 전이와 재고 복구가 수행된다")
     @Test
     void autoRefund_expiredOrder_transitionsAndRestoresInventory() {
         Product product = productRepository.save(new Product("자동환불 상품", ProductType.READY_STOCK, 40000L));
@@ -234,6 +244,7 @@ class OrderApprovalUseCaseIT {
     // Proof (DoD §8.2): 자동환불 이후 승인 시도 → 409
     // -----------------------------------------------------------------------
 
+    @DisplayName("자동환불된 주문을 승인하면 409 예외가 발생한다")
     @Test
     void approve_afterAutoRefund_throws409() throws Exception {
         Product product = productRepository.save(new Product("409 테스트 상품", ProductType.READY_STOCK, 60000L));
@@ -260,6 +271,7 @@ class OrderApprovalUseCaseIT {
     // Proof: 자동환불 이후 승인 HTTP 요청 → 409 응답
     // -----------------------------------------------------------------------
 
+    @DisplayName("자동환불된 주문을 승인하면 409를 반환한다")
     @Test
     void approve_afterAutoRefund_returns409() throws Exception {
         Product product = productRepository.save(new Product("HTTP 409 상품", ProductType.READY_STOCK, 70000L));
@@ -279,29 +291,86 @@ class OrderApprovalUseCaseIT {
                 .andExpect(status().isConflict());
     }
 
+    // -----------------------------------------------------------------------
+    // Proof: MADE_TO_ORDER 승인 후(IN_PRODUCTION)는 24h 자동환불 배치 대상이 아니다.
+    // -----------------------------------------------------------------------
+
+    @DisplayName("IN_PRODUCTION 상태의 주문제작 주문은 자동환불 배치에서 제외된다")
     @Test
-    void autoRefund_whenOneOrderFails_continuesNextOrderAndCountsFailure() {
-        Product failedProduct = productRepository.save(new Product("자동환불 실패 상품", ProductType.READY_STOCK, 45000L));
-        Product successProduct = productRepository.save(new Product("자동환불 성공 상품", ProductType.READY_STOCK, 55000L));
-        inventoryRepository.save(new Inventory(failedProduct, 1));
-        inventoryRepository.save(new Inventory(successProduct, 1));
+    void autoRefund_inProductionMadeToOrder_notProcessed() {
+        Product product = productRepository.save(new Product("제작중 자동환불 제외 상품", ProductType.MADE_TO_ORDER, 80000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
+        Order order = orderRepository.save(new Order(null, 80000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(order, product.getId(), 1, 80000L));
+        inventoryRepository.findByProductId(product.getId()).ifPresent(inv -> {
+            inv.deduct(1);
+            inventoryRepository.save(inv);
+        });
+
+        // MADE_TO_ORDER 승인 → IN_PRODUCTION
+        orderApprovalService.approve(order.getId());
+
+        BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
+
+        assertThat(result.successCount()).isZero();
+        assertThat(result.failureCount()).isZero();
+
+        Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+        assertThat(refundRepository.findAll()).isEmpty();
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: 자동환불 이후 거절 시도 HTTP 요청 → 409 응답
+    // -----------------------------------------------------------------------
+
+    @DisplayName("자동환불된 주문을 거절하면 409를 반환한다")
+    @Test
+    void reject_afterAutoRefund_returns409() throws Exception {
+        Product product = productRepository.save(new Product("자동환불 후 거절 409 상품", ProductType.READY_STOCK, 72000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
+        Order order = orderRepository.save(new Order(null, 72000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(order, product.getId(), 1, 72000L));
+        inventoryRepository.findByProductId(product.getId()).ifPresent(inv -> {
+            inv.deduct(1);
+            inventoryRepository.save(inv);
+        });
+
+        orderAutoRefundBatchService.autoRefundExpired();
+
+        mockMvc.perform(post("/admin/orders/{id}/reject", order.getId()))
+                .andExpect(status().isConflict());
+    }
+
+    @DisplayName("자동환불 알림이 실패해도 환불 처리는 롤백되지 않는다")
+    @Test
+    void autoRefund_notificationFailure_doesNotRollbackRefund() {
+        Product product1 = productRepository.save(new Product("알림실패 상품1", ProductType.READY_STOCK, 45000L));
+        Product product2 = productRepository.save(new Product("알림실패 상품2", ProductType.READY_STOCK, 55000L));
+        inventoryRepository.save(new Inventory(product1, 1));
+        inventoryRepository.save(new Inventory(product2, 1));
 
         LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
 
-        Order failedOrder = orderRepository.save(new Order(null, 45000L, paidAt, paidAt.plusHours(24)));
-        orderItemRepository.save(new OrderItem(failedOrder, failedProduct.getId(), 1, 45000L));
-        inventoryRepository.findByProductId(failedProduct.getId()).ifPresent(inv -> {
+        Order order1 = orderRepository.save(new Order(null, 45000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(order1, product1.getId(), 1, 45000L));
+        inventoryRepository.findByProductId(product1.getId()).ifPresent(inv -> {
             inv.deduct(1);
             inventoryRepository.save(inv);
         });
 
-        Order successOrder = orderRepository.save(new Order(null, 55000L, paidAt, paidAt.plusHours(24)));
-        orderItemRepository.save(new OrderItem(successOrder, successProduct.getId(), 1, 55000L));
-        inventoryRepository.findByProductId(successProduct.getId()).ifPresent(inv -> {
+        Order order2 = orderRepository.save(new Order(null, 55000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(order2, product2.getId(), 1, 55000L));
+        inventoryRepository.findByProductId(product2.getId()).ifPresent(inv -> {
             inv.deduct(1);
             inventoryRepository.save(inv);
         });
 
+        // 첫 번째 주문의 알림만 실패
         doThrow(new RuntimeException("알림 전송 실패"))
                 .doNothing()
                 .when(notificationService)
@@ -309,14 +378,14 @@ class OrderApprovalUseCaseIT {
 
         BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
 
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isEqualTo(1);
-        assertThat(result.failureReasons()).containsEntry("RuntimeException", 1);
+        // 알림 실패와 무관하게 두 건 모두 환불 성공
+        assertThat(result.successCount()).isEqualTo(2);
+        assertThat(result.failureCount()).isZero();
 
-        Order failedUpdated = orderRepository.findById(failedOrder.getId()).orElseThrow();
-        Order successUpdated = orderRepository.findById(successOrder.getId()).orElseThrow();
+        Order updated1 = orderRepository.findById(order1.getId()).orElseThrow();
+        Order updated2 = orderRepository.findById(order2.getId()).orElseThrow();
 
-        assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PAID_APPROVAL_PENDING);
-        assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+        assertThat(updated1.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+        assertThat(updated2.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
     }
 }

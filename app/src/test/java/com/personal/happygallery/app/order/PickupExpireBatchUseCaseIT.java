@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -82,6 +83,7 @@ class PickupExpireBatchUseCaseIT {
     // Proof (DoD §8.4): 픽업 마감 초과 → 자동환불 + 재고 복구
     // -----------------------------------------------------------------------
 
+    @DisplayName("픽업 기한이 지난 주문은 환불되고 재고가 복구된다")
     @Test
     void expirePickups_expiredDeadline_refundsAndRestoresInventory() {
         Product product = productRepository.save(new Product("픽업 테스트 상품", ProductType.READY_STOCK, 50000L));
@@ -127,6 +129,7 @@ class PickupExpireBatchUseCaseIT {
     // 마감 미경과 → 배치가 처리하지 않음
     // -----------------------------------------------------------------------
 
+    @DisplayName("픽업 기한이 남은 주문은 만료 처리되지 않는다")
     @Test
     void expirePickups_futureDeadline_notExpired() {
         Product product = productRepository.save(new Product("미만료 픽업 상품", ProductType.READY_STOCK, 30000L));
@@ -151,6 +154,7 @@ class PickupExpireBatchUseCaseIT {
         assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
     }
 
+    @DisplayName("픽업 만료 배치 관리자 API는 배치 결과를 반환한다")
     @Test
     void expirePickups_adminApi_returnsBatchResponse() throws Exception {
         Product product = productRepository.save(new Product("픽업 API 테스트 상품", ProductType.READY_STOCK, 45000L));
@@ -171,6 +175,7 @@ class PickupExpireBatchUseCaseIT {
         assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
     }
 
+    @DisplayName("픽업 만료 배치에서 한 건이 실패해도 다음 주문을 계속 처리하고 실패를 집계한다")
     @Test
     void expirePickups_whenOneOrderFails_continuesNextOrderAndCountsFailure() {
         Product failedProduct = productRepository.save(new Product("픽업 만료 실패 상품", ProductType.READY_STOCK, 41000L));
@@ -205,6 +210,7 @@ class PickupExpireBatchUseCaseIT {
         assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
     }
 
+    @DisplayName("픽업 완료와 만료 처리 경합 시 최종 상태는 단일하게 유지된다")
     @Test
     void pickupComplete_and_expireProcess_race_keepsSingleTerminalState() throws InterruptedException {
         Product product = productRepository.save(new Product("픽업 경합 테스트 상품", ProductType.READY_STOCK, 53000L));

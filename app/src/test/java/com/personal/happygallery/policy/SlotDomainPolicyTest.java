@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotCapacity;
 import java.time.LocalDateTime;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -29,11 +30,13 @@ class SlotDomainPolicyTest {
         return new Slot(cls, START, END);
     }
 
+    @DisplayName("새 슬롯은 기본값으로 활성 상태다")
     @Test
     void newSlot_isActive_byDefault() {
         assertThat(newSlot().isActive()).isTrue();
     }
 
+    @DisplayName("슬롯 비활성화 시 isActive가 false가 된다")
     @Test
     void deactivate_setsIsActiveFalse() {
         Slot slot = newSlot();
@@ -41,6 +44,7 @@ class SlotDomainPolicyTest {
         assertThat(slot.isActive()).isFalse();
     }
 
+    @DisplayName("슬롯 비활성화는 멱등하게 동작한다")
     @Test
     void deactivate_isIdempotent() {
         Slot slot = newSlot();
@@ -51,6 +55,7 @@ class SlotDomainPolicyTest {
 
     // --- incrementBookedCount ---
 
+    @DisplayName("슬롯 예약 인원 증가는 정원 미만에서 성공한다")
     @Test
     void incrementBookedCount_underCapacity_succeeds() {
         Slot slot = newSlot();
@@ -62,6 +67,7 @@ class SlotDomainPolicyTest {
         assertThat(slot.getBookedCount()).isEqualTo(SlotCapacity.MAX);
     }
 
+    @DisplayName("슬롯 예약 인원 증가 시 정원에 도달하면 예외가 발생한다")
     @Test
     void incrementBookedCount_atCapacity_throws() {
         Slot slot = newSlot();

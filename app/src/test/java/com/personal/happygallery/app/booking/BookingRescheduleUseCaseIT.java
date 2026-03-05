@@ -14,6 +14,7 @@ import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +65,7 @@ class BookingRescheduleUseCaseIT {
     // Proof 테스트: 5번 변경 후 bookings 1건 + booking_history 6건(BOOKED×1 + RESCHEDULED×5)
     // -----------------------------------------------------------------------
 
+    @DisplayName("예약 변경 성공 시 상태와 이력이 5회 반복 검증에서도 일관된다")
     @Test
     void reschedule_success_and_5times_proofTest() throws Exception {
         // 슬롯 6개 생성 (간격을 충분히 벌려 버퍼 간섭 방지)
@@ -137,6 +139,7 @@ class BookingRescheduleUseCaseIT {
     // 422 — 시간 경계 정책 위반
     // -----------------------------------------------------------------------
 
+    @DisplayName("변경 가능 시간이 지난 예약을 변경하면 422를 반환한다")
     @Test
     void reschedule_changeNotAllowed_returns422() throws Exception {
         // 현재 시각 기준 30분 후 시작하는 슬롯 (1시간 이내 → 변경 불가)
@@ -179,6 +182,7 @@ class BookingRescheduleUseCaseIT {
     // 400 — 동일 슬롯으로 변경 시도
     // -----------------------------------------------------------------------
 
+    @DisplayName("동일 슬롯으로 예약 변경을 요청하면 400을 반환한다")
     @Test
     void reschedule_sameSlot_returns400() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -218,6 +222,7 @@ class BookingRescheduleUseCaseIT {
     // 409 — 비활성 슬롯으로 변경 시도
     // -----------------------------------------------------------------------
 
+    @DisplayName("비활성 슬롯으로 예약 변경을 요청하면 409를 반환한다")
     @Test
     void reschedule_slotNotAvailable_returns409() throws Exception {
         Slot fromSlot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -259,6 +264,7 @@ class BookingRescheduleUseCaseIT {
     // 409 — 정원 초과 슬롯으로 변경 시도
     // -----------------------------------------------------------------------
 
+    @DisplayName("예약 변경 시 정원 초과 슬롯을 선택하면 409를 반환한다")
     @Test
     void reschedule_capacityExceeded_returns409() throws Exception {
         Slot fromSlot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -304,6 +310,7 @@ class BookingRescheduleUseCaseIT {
     // 404 — 잘못된 access_token
     // -----------------------------------------------------------------------
 
+    @DisplayName("잘못된 토큰으로 예약 변경을 요청하면 404를 반환한다")
     @Test
     void reschedule_wrongToken_returns404() throws Exception {
         Slot fromSlot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
