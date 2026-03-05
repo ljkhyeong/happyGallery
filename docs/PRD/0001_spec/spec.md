@@ -212,7 +212,7 @@
 - `fulfillments`
     - id, order_id, type(SHIPPING|PICKUP), status, address/pickup_store, expected_ship_date, pickup_deadline_at, version
 - `refunds`
-    - id, order_id, amount, status(REQUESTED|SUCCEEDED|FAILED), pg_ref, fail_reason, created_at
+    - id, order_id nullable, booking_id nullable, amount, status(REQUESTED|SUCCEEDED|FAILED), pg_ref, fail_reason, created_at
 
 중요 인덱스:
 - `orders(status, approval_deadline_at)`
@@ -593,7 +593,7 @@ POST /admin/orders/expire-pickups
   "successCount": 2,
   "failureCount": 1,
   "failureReasons": {
-    "NotFoundException": 1
+    "NOT_FOUND": 1
   }
 }
 ```
@@ -601,6 +601,42 @@ POST /admin/orders/expire-pickups
 정책:
 - `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
 - 성공 건은 `PICKUP_EXPIRED_REFUNDED`로 전이하고 환불/재고 복구를 수행한다.
+
+---
+
+## 11-H. 환불 실패 관리 Admin API (§12 감사 로그)
+
+### 11-H.1 환불 실패 목록 조회
+
+```
+GET /admin/refunds/failed
+
+→ 200 OK
+[
+  {
+    "refundId": 42,
+    "bookingId": 15,       // 예약금 환불이면 bookingId, 주문 환불이면 null
+    "orderId": null,        // 주문 환불이면 orderId, 예약금 환불이면 null
+    "amount": 5000,
+    "failReason": "PG 타임아웃",
+    "createdAt": "2026-03-01T14:30:00"
+  }
+]
+```
+
+### 11-H.2 환불 재시도
+
+```
+POST /admin/refunds/{refundId}/retry
+
+→ 200 OK (본문 없음)
+```
+
+에러:
+- `404 NOT_FOUND` — refundId 미존재
+- `400 INVALID_INPUT` — FAILED 상태가 아닌 환불 재시도 시도
+
+정책: FAILED 상태 환불만 재시도 가능. 성공 시 SUCCEEDED, 재실패 시 FAILED 유지.
 
 ---
 
