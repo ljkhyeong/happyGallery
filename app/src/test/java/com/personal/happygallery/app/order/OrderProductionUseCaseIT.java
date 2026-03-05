@@ -17,7 +17,6 @@ import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDate;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -71,7 +70,6 @@ class OrderProductionUseCaseIT {
     // MADE_TO_ORDER 승인 → IN_PRODUCTION + Fulfillment 생성
     // -----------------------------------------------------------------------
 
-    @DisplayName("주문제작 상품 주문 승인 시 IN_PRODUCTION으로 전이되고 Fulfillment가 생성된다")
     @Test
     void approve_madeToOrder_transitionsToInProductionAndCreatesFulfillment() {
         Product product = productRepository.save(
@@ -95,7 +93,6 @@ class OrderProductionUseCaseIT {
     // READY_STOCK 승인 → 기존 흐름 유지 (Fulfillment 미생성)
     // -----------------------------------------------------------------------
 
-    @DisplayName("기성품 주문 승인 시 APPROVED_FULFILLMENT_PENDING 상태를 유지한다")
     @Test
     void approve_readyStock_remainsApprovedFulfillmentPending() {
         Product product = productRepository.save(
@@ -116,7 +113,6 @@ class OrderProductionUseCaseIT {
     // 예상 출고일 설정
     // -----------------------------------------------------------------------
 
-    @DisplayName("예상 출고일 설정 시 Fulfillment의 출고일이 갱신된다")
     @Test
     void setExpectedShipDate_updatesShipDateOnFulfillment() {
         Product product = productRepository.save(
@@ -138,7 +134,6 @@ class OrderProductionUseCaseIT {
     // DELAY_REQUESTED 전환 (고객 동의)
     // -----------------------------------------------------------------------
 
-    @DisplayName("배송 지연 요청 시 주문 상태가 DELAY_REQUESTED로 전이된다")
     @Test
     void requestDelay_transitionsToDelayRequested() {
         Product product = productRepository.save(
@@ -165,7 +160,6 @@ class OrderProductionUseCaseIT {
     // Proof (DoD §8.3): IN_PRODUCTION 상태에서 reject → 422 (환불 불가)
     // -----------------------------------------------------------------------
 
-    @DisplayName("IN_PRODUCTION 상태에서 거절하면 제작 환불 불가 예외가 발생한다")
     @Test
     void reject_inProduction_throwsProductionRefundNotAllowed() {
         Product product = productRepository.save(

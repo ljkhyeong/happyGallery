@@ -25,7 +25,7 @@ public class OrderApprovalHistory {
     private Long decidedByAdminId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 10)
     private OrderApprovalDecision decision;
 
     @Column(length = 500)

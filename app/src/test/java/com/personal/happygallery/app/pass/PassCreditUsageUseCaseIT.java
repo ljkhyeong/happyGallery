@@ -19,7 +19,6 @@ import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,7 +75,6 @@ class PassCreditUsageUseCaseIT {
     // Proof 1: 8회권 예약 시 USE ledger(-1), remaining=7
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권으로 예약하면 크레딧이 차감된다")
     @Test
     void book_with_pass_consumes_credit() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -116,7 +114,6 @@ class PassCreditUsageUseCaseIT {
     // Proof 2: D-1 이전 취소 → REFUND ledger(+1), remaining=8 복구
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권 예약을 기한 내 취소하면 크레딧이 환불된다")
     @Test
     void cancel_pass_booking_timely_refunds_credit() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -150,7 +147,6 @@ class PassCreditUsageUseCaseIT {
     // Proof 3: D-1 이후 취소 → 크레딧 소멸 유지 (remaining=7)
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권 예약을 늦게 취소하면 크레딧이 소멸된다")
     @Test
     void cancel_pass_booking_late_loses_credit() throws Exception {
         // 오늘 14:00 시작 슬롯 — D-1 deadline(오늘 00:00) 이미 지남
@@ -183,7 +179,6 @@ class PassCreditUsageUseCaseIT {
     // Proof 4: 결석 처리 → status=NO_SHOW, 크레딧 변동 없음
     // -----------------------------------------------------------------------
 
-    @DisplayName("노쇼 처리 시 상태만 변경되고 크레딧은 변하지 않는다")
     @Test
     void mark_no_show_status_only_no_credit_change() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -214,7 +209,6 @@ class PassCreditUsageUseCaseIT {
     // Proof 5: 전체 환불 → 미래 예약 자동 취소 + REFUND ledger + remaining=0
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권 전체 환불 시 미래 예약이 취소되고 잔여 크레딧이 소멸된다")
     @Test
     void refund_pass_cancels_future_bookings_and_empties_credits() throws Exception {
         Slot slot1 = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -255,7 +249,6 @@ class PassCreditUsageUseCaseIT {
     // Proof 6: 잔여 크레딧 0 → 예약 시도 422
     // -----------------------------------------------------------------------
 
-    @DisplayName("잔여 크레딧이 없으면 8회권 예약 시 422를 반환한다")
     @Test
     void book_with_pass_no_credits_returns_422() throws Exception {
         // remaining을 0으로 강제 소멸

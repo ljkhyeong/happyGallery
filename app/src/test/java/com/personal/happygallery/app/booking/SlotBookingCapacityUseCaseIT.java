@@ -10,7 +10,6 @@ import com.personal.happygallery.infra.booking.ClassRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,7 +55,6 @@ class SlotBookingCapacityUseCaseIT {
         mainSlot = slotRepository.save(new Slot(bookingClass, MAIN_START, MAIN_END));
     }
 
-    @DisplayName("슬롯 정원 8명까지 예약 확정은 모두 성공한다")
     @Test
     void confirmBooking_8times_allSucceed() {
         for (int i = 0; i < SlotCapacity.MAX; i++) {
@@ -66,7 +64,6 @@ class SlotBookingCapacityUseCaseIT {
         assertThat(updated.getBookedCount()).isEqualTo(SlotCapacity.MAX);
     }
 
-    @DisplayName("9번째 예약 확정 시 정원 초과 예외가 발생한다")
     @Test
     void confirmBooking_9th_throwsCapacityExceeded() {
         for (int i = 0; i < SlotCapacity.MAX; i++) {
@@ -81,7 +78,6 @@ class SlotBookingCapacityUseCaseIT {
         assertThat(updated.getBookedCount()).isEqualTo(SlotCapacity.MAX);
     }
 
-    @DisplayName("예약 확정 시 버퍼 구간 슬롯이 비활성화된다")
     @Test
     void confirmBooking_deactivatesBufferSlots() {
         Slot bufferSlot1 = slotRepository.save(
@@ -95,7 +91,6 @@ class SlotBookingCapacityUseCaseIT {
         assertThat(slotRepository.findById(bufferSlot2.getId()).orElseThrow().isActive()).isFalse();
     }
 
-    @DisplayName("예약 확정 시 버퍼 외 슬롯은 비활성화되지 않는다")
     @Test
     void confirmBooking_doesNotDeactivateSlotOutsideBuffer() {
         Slot outsideSlot = slotRepository.save(

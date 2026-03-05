@@ -19,7 +19,6 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -79,7 +78,6 @@ class PassExpiryNotificationUseCaseIT {
     // Proof: 7일 내 만료 2건 → PASS_EXPIRY_SOON 알림 2건 + notification_log 기록
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권 만료 알림 배치는 대상 기간 내 8회권에 알림을 발송하고 로그를 남긴다")
     @Test
     void sendExpiryNotifications_withinWindow_sendsAndLogsNotifications() {
         Guest guest1 = guestRepository.save(new Guest("이알림", "01011112222"));
@@ -104,7 +102,6 @@ class PassExpiryNotificationUseCaseIT {
     // Proof: 30일 후 만료 → 알림 없음
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권 만료 알림 배치는 대상 기간 밖의 8회권을 건너뛴다")
     @Test
     void sendExpiryNotifications_outsideWindow_skips() {
         Guest guest = guestRepository.save(new Guest("박스킵", "01055556666"));
@@ -120,7 +117,6 @@ class PassExpiryNotificationUseCaseIT {
         assertThat(notificationLogRepository.findAll()).isEmpty();
     }
 
-    @DisplayName("8회권 만료 알림 배치를 같은 날 두 번 실행하면 중복 발송을 건너뛴다")
     @Test
     void sendExpiryNotifications_sameDaySecondRun_skipsDuplicates() {
         Guest guest = guestRepository.save(new Guest("중복방지", "01077778888"));

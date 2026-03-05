@@ -8,7 +8,6 @@ import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.UseCaseIT;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +46,6 @@ class ProductInventoryUseCaseIT {
     // Proof: 상품 등록 → 201, DB에 inventory row 생성
     // -----------------------------------------------------------------------
 
-    @DisplayName("상품 등록 성공 시 재고 레코드가 함께 생성된다")
     @Test
     void registerProduct_success_createsInventory() throws Exception {
         String resp = mockMvc.perform(post("/admin/products")
@@ -82,7 +80,6 @@ class ProductInventoryUseCaseIT {
     // Proof: GET /products/{id} → available 필드 포함
     // -----------------------------------------------------------------------
 
-    @DisplayName("상품 조회 시 재고 가용 여부가 표시된다")
     @Test
     void getProduct_showsAvailability() throws Exception {
         Product product = productRepository.save(new Product("향수 키트", ProductType.READY_STOCK, 48000L));
@@ -99,7 +96,6 @@ class ProductInventoryUseCaseIT {
     // Proof: 재고 차감 후 quantity=0, isAvailable=false
     // -----------------------------------------------------------------------
 
-    @DisplayName("재고 1개를 차감하면 수량이 0이 된다")
     @Test
     void deductInventory_once_quantityBecomesZero() {
         Product product = productRepository.save(new Product("단일 작품", ProductType.READY_STOCK, 50000L));
@@ -116,7 +112,6 @@ class ProductInventoryUseCaseIT {
     // Proof: 재고 없을 때 차감 → InventoryNotEnoughException (409)
     // -----------------------------------------------------------------------
 
-    @DisplayName("품절 상태에서 재고 차감 시 예외가 발생한다")
     @Test
     void deductInventory_whenOutOfStock_throwsException() {
         Product product = productRepository.save(new Product("품절 작품", ProductType.READY_STOCK, 50000L));
@@ -130,7 +125,6 @@ class ProductInventoryUseCaseIT {
     // Proof (DoD §8.1): 단일 작품 순차 중복 차감 — 1번만 성공, 2번째는 실패
     // -----------------------------------------------------------------------
 
-    @DisplayName("재고 연속 차감 시 두 번째 호출은 실패한다")
     @Test
     void deductInventory_sequential_secondCallFails() {
         Product product = productRepository.save(new Product("단일 작품(동시성)", ProductType.READY_STOCK, 60000L));

@@ -21,7 +21,6 @@ import com.personal.happygallery.infra.payment.RefundResult;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,7 +82,6 @@ class BookingCancelUseCaseIT {
     // Proof: 취소 후 CANCELED 상태 + CANCELED 이력 + Refund REQUESTED 기록
     // -----------------------------------------------------------------------
 
-    @DisplayName("환불 가능한 예약 취소 시 취소와 환불이 정상 처리된다")
     @Test
     void cancel_refundable_success() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -123,7 +121,6 @@ class BookingCancelUseCaseIT {
     // Proof: PG 환불 실패 → refund FAILED 로 저장됨 (사라지지 않음)
     // -----------------------------------------------------------------------
 
-    @DisplayName("PG 환불 실패 시 환불 이력이 FAILED로 저장된다")
     @Test
     void cancel_refundFailure_refundSavedAsFailed() throws Exception {
         when(paymentProvider.refund(any(), anyLong()))
@@ -150,7 +147,6 @@ class BookingCancelUseCaseIT {
         assertThat(refund.getFailReason()).isEqualTo("PG 타임아웃");
     }
 
-    @DisplayName("환불 실패 목록 관리자 API는 DTO 응답을 반환한다")
     @Test
     void list_failed_refunds_adminApi_returnsDtoResponse() throws Exception {
         Guest guest = guestRepository.save(new Guest("환불실패", "01077770007"));
@@ -175,7 +171,6 @@ class BookingCancelUseCaseIT {
     // D-1 이후 취소 — 환불 불가, refund 미생성
     // -----------------------------------------------------------------------
 
-    @DisplayName("환불 불가 구간에서 예약을 취소하면 환불이 생성되지 않는다")
     @Test
     void cancel_notRefundable_noRefundCreated() throws Exception {
         // 오늘 14:00 시작하는 슬롯 — 체험일(오늘)의 D-1 deadline(오늘 00:00)이 이미 지남 → 환불 불가
@@ -206,7 +201,6 @@ class BookingCancelUseCaseIT {
     // 404 — 잘못된 access_token
     // -----------------------------------------------------------------------
 
-    @DisplayName("잘못된 토큰으로 예약 취소를 요청하면 404를 반환한다")
     @Test
     void cancel_wrongToken_returns404() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -225,7 +219,6 @@ class BookingCancelUseCaseIT {
     // 400 — 이미 취소된 예약 재취소 시도
     // -----------------------------------------------------------------------
 
-    @DisplayName("이미 취소된 예약을 다시 취소하면 400을 반환한다")
     @Test
     void cancel_alreadyCanceled_returns400() throws Exception {
         Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));

@@ -18,7 +18,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,7 +67,6 @@ class ConcurrentOrderUseCaseIT {
     // Proof (§12.1 ★★★): quantity=1 → 동시 5건 중 1건만 성공
     // -----------------------------------------------------------------------
 
-    @DisplayName("수량 1 재고에서 동시 주문을 시도하면 1건만 성공한다")
     @Test
     void concurrentOrder_quantity1_onlyOneSucceeds() throws InterruptedException {
         Product product = productRepository.save(new Product("단일 작품(동시성)", ProductType.READY_STOCK, 50000L));

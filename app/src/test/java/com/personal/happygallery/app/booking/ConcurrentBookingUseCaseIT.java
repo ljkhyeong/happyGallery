@@ -15,7 +15,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,7 +61,6 @@ class ConcurrentBookingUseCaseIT {
     // Proof (§12.1 ★★★): 여석 1명 → 동시 3건 중 1건만 성공
     // -----------------------------------------------------------------------
 
-    @DisplayName("남은 자리 1개에서 동시 예약을 시도하면 1건만 성공한다")
     @Test
     void concurrentBooking_oneSpotLeft_onlyOneSucceeds() throws InterruptedException {
         BookingClass cls = classRepository.save(
