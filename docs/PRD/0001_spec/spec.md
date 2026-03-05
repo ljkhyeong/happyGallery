@@ -161,7 +161,7 @@
 권장 락:
 - 단일 재고 작품: 재고 row에 대한 `SELECT ... FOR UPDATE` 또는 버전 기반 낙관적 락
 - 슬롯 정원: slot row를 `FOR UPDATE`로 잠그고 예약 카운트를 원자적으로 증가/검증
-- 주문 승인/자동환불/픽업 만료 같은 **운영 액션 충돌 가능 구간**은 `orders.version`, `fulfillments.version` 기반 낙관적 락을 사용하고, 충돌 시 제한된 재시도로 흡수한다
+- 주문 승인/자동환불/픽업 만료, 8회권 만료/환불 같은 **운영 액션 충돌 가능 구간**은 `orders.version`, `fulfillments.version`, `pass_purchases.version` 기반 낙관적 락을 사용하고, 충돌 시 제한된 재시도로 흡수한다
 
 ### 8.3 상태 머신(핵심)
 - 주문: 결제와 승인을 분리한 상태
@@ -207,7 +207,8 @@
 - `order_items`
     - id, order_id, product_id, qty, unit_price
 - `order_approvals`
-    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY), reason, decided_at
+    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND), reason, decided_at
+    - `AUTO_REFUND`는 배치 결정 이력이며 `decided_by_admin_id`는 null일 수 있음
 - `fulfillments`
     - id, order_id, type(SHIPPING|PICKUP), status, address/pickup_store, expected_ship_date, pickup_deadline_at, version
 - `refunds`
@@ -241,7 +242,7 @@
 
 ### 9.5 8회권(크레딧)
 - `pass_purchases`
-    - id, user_id/guest_id, purchased_at, expires_at(=purchased_at+90d), total_credits=8, remaining_credits
+    - id, user_id/guest_id, purchased_at, expires_at(=purchased_at+90d), total_credits=8, remaining_credits, version
 - `pass_ledger`
     - id, pass_purchase_id
     - type(EARN|USE|REFUND|EXPIRE)

@@ -6,6 +6,7 @@ import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.ClassRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.support.UseCaseIT;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,7 @@ class AdminSlotUseCaseIT {
         classId = cls.getId();
     }
 
+    @DisplayName("관리자 슬롯 생성이 성공한다")
     @Test
     void createSlot_success() throws Exception {
         mockMvc.perform(post("/admin/slots")
@@ -62,6 +64,7 @@ class AdminSlotUseCaseIT {
                 .andExpect(jsonPath("$.isActive").value(true));
     }
 
+    @DisplayName("관리자 슬롯 비활성화가 성공한다")
     @Test
     void deactivateSlot_success() throws Exception {
         // given — 슬롯 생성
@@ -92,6 +95,7 @@ class AdminSlotUseCaseIT {
                 .hasValueSatisfying(s -> assertThat(s.isActive()).isFalse());
     }
 
+    @DisplayName("존재하지 않는 클래스로 슬롯을 생성하면 실패한다")
     @Test
     void createSlot_notFoundClass() throws Exception {
         mockMvc.perform(post("/admin/slots")
@@ -108,6 +112,7 @@ class AdminSlotUseCaseIT {
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
 
+    @DisplayName("동일 클래스에 같은 시작 시각 슬롯을 생성하면 실패한다")
     @Test
     void createSlot_duplicateStartAt() throws Exception {
         String body = """
@@ -134,6 +139,7 @@ class AdminSlotUseCaseIT {
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
+    @DisplayName("관리자 키 없이 관리자 API를 호출하면 401을 반환한다")
     @Test
     void callAdminWithoutKey_returns401() throws Exception {
         mockMvc.perform(post("/admin/slots")
@@ -149,6 +155,7 @@ class AdminSlotUseCaseIT {
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
 
+    @DisplayName("잘못된 관리자 키로 관리자 API를 호출하면 401을 반환한다")
     @Test
     void callAdminWithWrongKey_returns401() throws Exception {
         mockMvc.perform(post("/admin/slots")
