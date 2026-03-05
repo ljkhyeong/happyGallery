@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.common.error.AlreadyRefundedException;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.Order;
@@ -22,11 +23,15 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -49,6 +54,7 @@ class OrderApprovalUseCaseIT {
     @Autowired OrderAutoRefundBatchService orderAutoRefundBatchService;
     @Autowired OrderService orderService;
     @Autowired Clock clock;
+    @MockitoBean NotificationService notificationService;
 
     @BeforeEach
     void setUp() {
@@ -271,5 +277,46 @@ class OrderApprovalUseCaseIT {
 
         mockMvc.perform(post("/admin/orders/{id}/approve", order.getId()))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void autoRefund_whenOneOrderFails_continuesNextOrderAndCountsFailure() {
+        Product failedProduct = productRepository.save(new Product("자동환불 실패 상품", ProductType.READY_STOCK, 45000L));
+        Product successProduct = productRepository.save(new Product("자동환불 성공 상품", ProductType.READY_STOCK, 55000L));
+        inventoryRepository.save(new Inventory(failedProduct, 1));
+        inventoryRepository.save(new Inventory(successProduct, 1));
+
+        LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
+
+        Order failedOrder = orderRepository.save(new Order(null, 45000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(failedOrder, failedProduct.getId(), 1, 45000L));
+        inventoryRepository.findByProductId(failedProduct.getId()).ifPresent(inv -> {
+            inv.deduct(1);
+            inventoryRepository.save(inv);
+        });
+
+        Order successOrder = orderRepository.save(new Order(null, 55000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(successOrder, successProduct.getId(), 1, 55000L));
+        inventoryRepository.findByProductId(successProduct.getId()).ifPresent(inv -> {
+            inv.deduct(1);
+            inventoryRepository.save(inv);
+        });
+
+        doThrow(new RuntimeException("알림 전송 실패"))
+                .doNothing()
+                .when(notificationService)
+                .notifyByGuestId(any(), any());
+
+        BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
+
+        assertThat(result.successCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isEqualTo(1);
+        assertThat(result.failureReasons()).containsEntry("RuntimeException", 1);
+
+        Order failedUpdated = orderRepository.findById(failedOrder.getId()).orElseThrow();
+        Order successUpdated = orderRepository.findById(successOrder.getId()).orElseThrow();
+
+        assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PAID_APPROVAL_PENDING);
+        assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
     }
 }

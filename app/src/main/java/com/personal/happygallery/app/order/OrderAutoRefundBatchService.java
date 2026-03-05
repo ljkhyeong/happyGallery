@@ -66,6 +66,9 @@ public class OrderAutoRefundBatchService {
             } catch (ObjectOptimisticLockingFailureException e) {
                 log.info("주문 자동환불 충돌로 스킵 [orderId={}]", candidate.getId());
                 failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
+            } catch (Exception e) {
+                log.warn("주문 자동환불 실패 [orderId={}]", candidate.getId(), e);
+                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
             }
         }
 
