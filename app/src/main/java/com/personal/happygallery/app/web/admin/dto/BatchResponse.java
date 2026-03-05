@@ -10,10 +10,12 @@ public record BatchResponse(
         Map<String, Integer> failureReasons
 ) {
 
-    private static final Map<String, String> REASON_LABELS = Map.of(
-            "ObjectOptimisticLockingFailureException", "CONFLICT",
-            "OptimisticLockingFailureException", "CONFLICT",
-            "NotFoundException", "NOT_FOUND"
+    private static final Map<String, String> REASON_LABELS = Map.ofEntries(
+            Map.entry("ObjectOptimisticLockingFailureException", "CONFLICT"),
+            Map.entry("OptimisticLockingFailureException", "CONFLICT"),
+            Map.entry("NotFoundException", "NOT_FOUND"),
+            Map.entry("AlreadyRefundedException", "ALREADY_PROCESSED"),
+            Map.entry("HappyGalleryException", "BUSINESS_ERROR")
     );
 
     public static BatchResponse from(BatchResult result) {

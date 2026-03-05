@@ -34,7 +34,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -387,5 +390,32 @@ class OrderApprovalUseCaseIT {
 
         assertThat(updated1.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
         assertThat(updated2.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: 주문 환불 FAILED 건이 admin API에서 orderId와 함께 조회된다
+    // -----------------------------------------------------------------------
+
+    @DisplayName("주문 환불 실패 건이 admin 환불 실패 목록에서 orderId와 함께 조회된다")
+    @Test
+    void listFailedRefunds_orderRefund_returnsOrderIdWithoutNpe() throws Exception {
+        Product product = productRepository.save(new Product("주문환불실패 상품", ProductType.READY_STOCK, 90000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        Order order = orderService.createPaidOrder(null,
+                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 90000L)));
+
+        // 주문 환불 FAILED 직접 생성 (booking 없는 refund)
+        var refund = new com.personal.happygallery.domain.booking.Refund(order.getId(), 90000L);
+        refund.markFailed("PG 점검중");
+        refundRepository.save(refund);
+
+        mockMvc.perform(get("/admin/refunds/failed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].refundId").value(refund.getId()))
+                .andExpect(jsonPath("$[0].bookingId", nullValue()))
+                .andExpect(jsonPath("$[0].orderId").value(order.getId()))
+                .andExpect(jsonPath("$[0].amount").value(90000))
+                .andExpect(jsonPath("$[0].failReason").value("PG 점검중"));
     }
 }
