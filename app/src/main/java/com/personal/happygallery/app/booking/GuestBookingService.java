@@ -2,8 +2,6 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.common.error.DuplicateBookingException;
 import com.personal.happygallery.common.error.NotFoundException;
-import com.personal.happygallery.common.error.PassCreditInsufficientException;
-import com.personal.happygallery.common.error.PassExpiredException;
 import com.personal.happygallery.common.error.PaymentMethodNotAllowedException;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.error.SlotNotAvailableException;
@@ -136,13 +134,7 @@ public class GuestBookingService {
             // 6a. 8회권 결제 경로
             PassPurchase pass = passPurchaseRepository.findById(passId)
                     .orElseThrow(() -> new NotFoundException("8회권"));
-
-            if (pass.getExpiresAt().isBefore(LocalDateTime.now(clock))) {
-                throw new PassExpiredException();
-            }
-            if (pass.getRemainingCredits() <= 0) {
-                throw new PassCreditInsufficientException();
-            }
+            pass.requireUsable(LocalDateTime.now(clock));
 
             // USE ledger 선행 기록 → 크레딧 차감 ("크레딧이 돈이다")
             passLedgerRepository.save(new PassLedger(pass, PassLedgerType.USE, 1));

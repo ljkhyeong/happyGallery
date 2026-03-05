@@ -30,7 +30,7 @@ public class PassExpireProcessor {
     public boolean process(Long passId) {
         PassPurchase pass = passPurchaseRepository.findById(passId)
                 .orElseThrow(() -> new NotFoundException("8회권"));
-        if (pass.getRemainingCredits() <= 0) {
+        if (!pass.hasRemainingCredits()) {
             return false;
         }
 

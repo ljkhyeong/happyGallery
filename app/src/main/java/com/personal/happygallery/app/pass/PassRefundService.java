@@ -86,7 +86,7 @@ public class PassRefundService {
 
         // 2. REFUND ledger 기록 (잔여 크레딧 전체)
         int refundCredits = pass.getRemainingCredits();
-        long refundAmount = refundCredits * pass.unitPrice();
+        long refundAmount = pass.calculateRefundAmount();
 
         if (refundCredits > 0) {
             passLedgerRepository.save(new PassLedger(pass, PassLedgerType.REFUND, refundCredits));
