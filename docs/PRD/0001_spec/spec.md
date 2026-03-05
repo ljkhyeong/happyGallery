@@ -207,7 +207,8 @@
 - `order_items`
     - id, order_id, product_id, qty, unit_price
 - `order_approvals`
-    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY), reason, decided_at
+    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND), reason, decided_at
+    - `AUTO_REFUND`는 배치 결정 이력이며 `decided_by_admin_id`는 null일 수 있음
 - `fulfillments`
     - id, order_id, type(SHIPPING|PICKUP), status, address/pickup_store, expected_ship_date, pickup_deadline_at, version
 - `refunds`
