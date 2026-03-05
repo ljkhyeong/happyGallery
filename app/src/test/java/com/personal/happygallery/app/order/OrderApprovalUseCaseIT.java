@@ -12,6 +12,7 @@ import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.booking.RefundRepository;
+import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
 import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
@@ -47,6 +48,7 @@ class OrderApprovalUseCaseIT {
     @Autowired OrderRepository orderRepository;
     @Autowired OrderItemRepository orderItemRepository;
     @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
+    @Autowired FulfillmentRepository fulfillmentRepository;
     @Autowired RefundRepository refundRepository;
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
@@ -69,6 +71,7 @@ class OrderApprovalUseCaseIT {
     private void cleanup() {
         // FK 삭제 순서: refunds(order_id) → order_items → orders → inventory → products
         refundRepository.deleteAll();
+        fulfillmentRepository.deleteAll();
         orderApprovalHistoryRepository.deleteAll();
         orderItemRepository.deleteAll();
         orderRepository.deleteAll();
@@ -276,6 +279,59 @@ class OrderApprovalUseCaseIT {
         orderAutoRefundBatchService.autoRefundExpired();
 
         mockMvc.perform(post("/admin/orders/{id}/approve", order.getId()))
+                .andExpect(status().isConflict());
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: MADE_TO_ORDER 승인 후(IN_PRODUCTION)는 24h 자동환불 배치 대상이 아니다.
+    // -----------------------------------------------------------------------
+
+    @Test
+    void autoRefund_inProductionMadeToOrder_notProcessed() {
+        Product product = productRepository.save(new Product("제작중 자동환불 제외 상품", ProductType.MADE_TO_ORDER, 80000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
+        Order order = orderRepository.save(new Order(null, 80000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(order, product.getId(), 1, 80000L));
+        inventoryRepository.findByProductId(product.getId()).ifPresent(inv -> {
+            inv.deduct(1);
+            inventoryRepository.save(inv);
+        });
+
+        // MADE_TO_ORDER 승인 → IN_PRODUCTION
+        orderApprovalService.approve(order.getId());
+
+        BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
+
+        assertThat(result.successCount()).isZero();
+        assertThat(result.failureCount()).isZero();
+
+        Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+        assertThat(refundRepository.findAll()).isEmpty();
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof: 자동환불 이후 거절 시도 HTTP 요청 → 409 응답
+    // -----------------------------------------------------------------------
+
+    @Test
+    void reject_afterAutoRefund_returns409() throws Exception {
+        Product product = productRepository.save(new Product("자동환불 후 거절 409 상품", ProductType.READY_STOCK, 72000L));
+        inventoryRepository.save(new Inventory(product, 1));
+
+        LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
+        Order order = orderRepository.save(new Order(null, 72000L, paidAt, paidAt.plusHours(24)));
+        orderItemRepository.save(new OrderItem(order, product.getId(), 1, 72000L));
+        inventoryRepository.findByProductId(product.getId()).ifPresent(inv -> {
+            inv.deduct(1);
+            inventoryRepository.save(inv);
+        });
+
+        orderAutoRefundBatchService.autoRefundExpired();
+
+        mockMvc.perform(post("/admin/orders/{id}/reject", order.getId()))
                 .andExpect(status().isConflict());
     }
 
