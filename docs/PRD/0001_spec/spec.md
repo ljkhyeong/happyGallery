@@ -580,6 +580,27 @@ POST /admin/passes/expire
 
 정책: 만료된 pass의 remaining_credits = 0, EXPIRE ledger 기록.
 
+## 11-G. 주문 배치 Admin API (§3.3)
+
+### 11-G.1 픽업 만료 배치 수동 트리거
+
+```
+POST /admin/orders/expire-pickups
+
+→ 200 OK
+{
+  "successCount": 2,
+  "failureCount": 1,
+  "failureReasons": {
+    "NotFoundException": 1
+  }
+}
+```
+
+정책:
+- `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
+- 성공 건은 `PICKUP_EXPIRED_REFUNDED`로 전이하고 환불/재고 복구를 수행한다.
+
 ---
 
 ## 12. 비기능 요구사항(초안)
@@ -621,6 +642,7 @@ POST /admin/passes/expire
 | 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 (§5.2) |
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌 — 동시 변경 요청 (§5.3) |
 | 422 | `REFUND_NOT_ALLOWED` | D-1 00:00 이후 환불 요청 (§4.2) |
+| 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/환불 시도 (§3.2) |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 (§4.2) |
 | 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 시도 (§7.1) |
 | 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 크레딧 0인 8회권으로 예약 시도 (§7.2) |
