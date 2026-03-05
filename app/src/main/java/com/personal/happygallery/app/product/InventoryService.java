@@ -2,6 +2,7 @@ package com.personal.happygallery.app.product;
 
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,17 @@ public class InventoryService {
 
     public InventoryService(InventoryRepository inventoryRepository) {
         this.inventoryRepository = inventoryRepository;
+    }
+
+    /**
+     * 재고 레코드를 생성한다. 상품 등록 시 호출한다.
+     *
+     * @param product  연결 상품
+     * @param quantity 초기 수량
+     * @return 생성된 재고
+     */
+    public Inventory create(Product product, int quantity) {
+        return inventoryRepository.save(new Inventory(product, quantity));
     }
 
     /**

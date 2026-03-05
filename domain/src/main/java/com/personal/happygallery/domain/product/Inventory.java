@@ -62,7 +62,9 @@ public class Inventory {
      * @param qty 차감 수량
      */
     public void deduct(int qty) {
-        InventoryPolicy.checkSufficient(this.quantity, qty);
+        if (this.quantity < qty) {
+            throw new com.personal.happygallery.common.error.InventoryNotEnoughException();
+        }
         this.quantity -= qty;
     }
 
