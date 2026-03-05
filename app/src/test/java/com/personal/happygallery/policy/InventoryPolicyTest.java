@@ -2,6 +2,7 @@ package com.personal.happygallery.policy;
 
 import com.personal.happygallery.common.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.InventoryPolicy;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -17,18 +18,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Tag("policy")
 class InventoryPolicyTest {
 
+    @DisplayName("재고가 충분하면 재고 검증에서 예외가 발생하지 않는다")
     @Test
     void checkSufficient_whenAvailable_noException() {
         assertThatCode(() -> InventoryPolicy.checkSufficient(1, 1))
                 .doesNotThrowAnyException();
     }
 
+    @DisplayName("재고가 없으면 재고 검증에서 예외가 발생한다")
     @Test
     void checkSufficient_whenOutOfStock_throws() {
         assertThatThrownBy(() -> InventoryPolicy.checkSufficient(0, 1))
                 .isInstanceOf(InventoryNotEnoughException.class);
     }
 
+    @DisplayName("요청 수량이 가용 재고를 초과하면 예외가 발생한다")
     @Test
     void checkSufficient_whenRequestExceedsAvailable_throws() {
         assertThatThrownBy(() -> InventoryPolicy.checkSufficient(1, 2))

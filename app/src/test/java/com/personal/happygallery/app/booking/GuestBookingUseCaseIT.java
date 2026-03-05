@@ -13,6 +13,7 @@ import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +65,7 @@ class GuestBookingUseCaseIT {
     // 1. 인증 코드 발송
     // -----------------------------------------------------------------------
 
+    @DisplayName("전화번호 인증코드 발송이 성공한다")
     @Test
     void sendVerification_success() throws Exception {
         mockMvc.perform(post("/bookings/phone-verifications")
@@ -77,6 +79,7 @@ class GuestBookingUseCaseIT {
                 .andExpect(jsonPath("$.code").isString());
     }
 
+    @DisplayName("유효하지 않은 전화번호로 인증코드를 요청하면 400을 반환한다")
     @Test
     void sendVerification_invalidPhone_returns400() throws Exception {
         mockMvc.perform(post("/bookings/phone-verifications")
@@ -92,6 +95,7 @@ class GuestBookingUseCaseIT {
     // 2. 게스트 예약 생성
     // -----------------------------------------------------------------------
 
+    @DisplayName("게스트 예약 생성이 성공한다")
     @Test
     void createGuestBooking_success() throws Exception {
         String code = sendVerificationAndGetCode(PHONE);
@@ -124,6 +128,7 @@ class GuestBookingUseCaseIT {
     }
 
     // Proof: 계좌이체로 예약금 결제 시도 → 422 차단
+    @DisplayName("게스트 예약에서 계좌이체 결제를 요청하면 422를 반환한다")
     @Test
     void createGuestBooking_bankTransfer_returns422() throws Exception {
         String code = sendVerificationAndGetCode(PHONE);
@@ -147,6 +152,7 @@ class GuestBookingUseCaseIT {
         assertThat(bookingRepository.count()).isEqualTo(0L);
     }
 
+    @DisplayName("게스트가 중복 예약을 시도하면 409를 반환한다")
     @Test
     void createGuestBooking_duplicateBooking_returns409() throws Exception {
         // 첫 번째 예약 성공
@@ -183,6 +189,7 @@ class GuestBookingUseCaseIT {
                 .andExpect(jsonPath("$.code").value("DUPLICATE_BOOKING"));
     }
 
+    @DisplayName("게스트 예약 시 인증코드가 틀리면 400을 반환한다")
     @Test
     void createGuestBooking_wrongCode_returns400() throws Exception {
         sendVerificationAndGetCode(PHONE); // 코드 발급 (소모 안 함)
@@ -203,6 +210,7 @@ class GuestBookingUseCaseIT {
                 .andExpect(jsonPath("$.code").value("PHONE_VERIFICATION_FAILED"));
     }
 
+    @DisplayName("게스트 예약 시 슬롯 정원 초과면 409를 반환한다")
     @Test
     void createGuestBooking_capacityExceeded_returns409() throws Exception {
         // 8명 예약으로 정원 만석 만들기
@@ -247,6 +255,7 @@ class GuestBookingUseCaseIT {
     // 3. 예약 조회
     // -----------------------------------------------------------------------
 
+    @DisplayName("토큰으로 예약 조회가 성공한다")
     @Test
     void getBooking_success() throws Exception {
         String code = sendVerificationAndGetCode(PHONE);
@@ -279,6 +288,7 @@ class GuestBookingUseCaseIT {
                 .andExpect(jsonPath("$.className").value("향수 클래스"));
     }
 
+    @DisplayName("잘못된 토큰으로 예약 조회 시 404를 반환한다")
     @Test
     void getBooking_wrongToken_returns404() throws Exception {
         String code = sendVerificationAndGetCode(PHONE);
