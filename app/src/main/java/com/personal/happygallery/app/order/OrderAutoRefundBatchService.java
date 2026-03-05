@@ -1,18 +1,14 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.batch.BatchExecutor;
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 /**
  * 24시간 초과 자동환불 배치 서비스.
@@ -25,8 +21,6 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
  */
 @Service
 public class OrderAutoRefundBatchService {
-
-    private static final Logger log = LoggerFactory.getLogger(OrderAutoRefundBatchService.class);
 
     private final OrderRepository orderRepository;
     private final OrderAutoRefundProcessor orderAutoRefundProcessor;
@@ -54,24 +48,10 @@ public class OrderAutoRefundBatchService {
         LocalDateTime now = LocalDateTime.now(clock);
         List<Order> expired = orderRepository.findByStatusAndApprovalDeadlineAtBefore(
                 OrderStatus.PAID_APPROVAL_PENDING, now);
-        int processed = 0;
-        Map<String, Integer> failureReasons = new LinkedHashMap<>();
 
-        for (Order candidate : expired) {
-            try {
-                if (orderAutoRefundProcessor.process(candidate.getId(), now)) {
-                    log.info("주문 자동환불 처리 [orderId={}]", candidate.getId());
-                    processed++;
-                }
-            } catch (ObjectOptimisticLockingFailureException e) {
-                log.info("주문 자동환불 충돌로 스킵 [orderId={}]", candidate.getId());
-                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
-            } catch (Exception e) {
-                log.warn("주문 자동환불 실패 [orderId={}]", candidate.getId(), e);
-                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
-            }
-        }
-
-        return BatchResult.of(processed, failureReasons);
+        return BatchExecutor.execute(expired,
+                Order::getId,
+                order -> orderAutoRefundProcessor.process(order.getId(), now),
+                "주문 자동환불");
     }
 }
