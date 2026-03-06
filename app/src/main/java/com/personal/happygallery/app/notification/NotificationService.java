@@ -8,6 +8,7 @@ import com.personal.happygallery.infra.notification.NotificationSender;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 /**
@@ -44,7 +45,10 @@ public class NotificationService {
      *
      * <p>{@code @Order} 우선순위 순으로 시도한다. 한 채널이 성공하면 이후 채널은 시도하지 않는다.
      * 모든 채널 실패 시에도 예외를 던지지 않고 로그만 기록한다.
+     *
+     * <p>비동기로 실행되므로 호출자의 트랜잭션과 독립적이다.
      */
+    @Async("notificationExecutor")
     public void notifyGuest(Long guestId, String phone, String name,
                             NotificationEventType eventType) {
         for (NotificationSender sender : senders) {
@@ -66,7 +70,10 @@ public class NotificationService {
     /**
      * guestId 만으로 게스트에게 알림을 발송한다.
      * 게스트가 존재하지 않으면 경고 로그를 남기고 무시한다.
+     *
+     * <p>비동기로 실행되므로 호출자의 트랜잭션과 독립적이다.
      */
+    @Async("notificationExecutor")
     public void notifyByGuestId(Long guestId, NotificationEventType eventType) {
         if (guestId == null) {
             return;
