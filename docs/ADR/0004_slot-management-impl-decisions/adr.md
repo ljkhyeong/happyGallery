@@ -38,23 +38,31 @@ Gradle `implementation`은 소비자(app)에게 전이되지 않는다.
 
 ---
 
-## Decision 2: `SlotResponse.from(slot)` — LAZY 로딩, OSIV 의존
+## Decision 2: `SlotResponse.from(slot)` — OSIV 비활성화(`open-in-view=false`) 기준 유지
 
 ### 배경
-`BookingClass`는 `Slot`에 `FetchType.LAZY`로 연관. `SlotResponse`에서 `slot.getBookingClass().getId()`를 호출해야 classId를 포함할 수 있다.
+현재 애플리케이션은 `spring.jpa.open-in-view=false`를 기본으로 사용한다.
+`BookingClass`는 `Slot`에 `FetchType.LAZY`로 연관되어 있고,
+`SlotResponse`에는 `classId` 노출을 위해 `slot.getBookingClass().getId()`가 필요하다.
 
 ### 결정
-컨트롤러에서 `SlotResponse.from(slot)`을 호출하고, Spring Boot 기본값인 OSIV(Open-Session-In-View)가 세션을 열어두는 것에 의존한다.
+컨트롤러에서 `SlotResponse.from(slot)` 호출 방식은 유지하되,
+OSIV에 의존하지 않는 것을 전제로 한다.
+
+현재 DTO가 `BookingClass` 전체가 아닌 식별자(`id`)만 참조하므로
+현 구현 범위에서는 동작한다.
 
 ### 대안
-- 서비스 레이어에서 DTO 변환 → OSIV 의존 없음, 더 안전. 그러나 서비스가 HTTP 응답 포맷에 의존하게 됨
+- 서비스 레이어에서 DTO 변환 → Lazy 프록시 접근 위험 최소화. 대신 서비스가 HTTP 응답 포맷에 의존
 - `FetchType.EAGER`로 변경 → 모든 Slot 조회에서 BookingClass도 함께 로딩. 불필요한 조인 발생
 - `@EntityGraph` 사용 → 특정 쿼리에서만 eager 로딩. 구현 추가 필요
 
 ### 트레이드오프 / 위험
-- `spring.jpa.open-in-view=false` 설정 시 컨트롤러에서 lazy 접근 → `LazyInitializationException`.
-- OSIV는 성능상 커넥션을 오래 점유. 트래픽이 많아지면 비활성화 검토 필요.
-- **비활성화 시 조치**: 서비스 레이어에서 `SlotResponse`를 직접 생성하도록 변경.
+- `SlotResponse`에 `BookingClass`의 추가 필드(예: name/category)를 노출하기 시작하면
+  컨트롤러 변환 시 `LazyInitializationException` 위험이 생긴다.
+- 이 경우 서비스 레이어에서 DTO를 조립하거나,
+  조회 쿼리에 `fetch join`/`@EntityGraph`를 적용해야 한다.
+- OSIV 비활성화는 커넥션 장기 점유를 줄이는 대신, 조회 경계 설계를 더 엄격히 요구한다.
 
 ---
 
@@ -109,7 +117,7 @@ void deactivateInBufferWindow(...);
 
 | 위험 | 트리거 조건 | 조치 |
 |------|------------|------|
-| LazyInitializationException | OSIV 비활성화 | 서비스에서 DTO 변환으로 이동 |
+| LazyInitializationException | DTO가 LAZY 연관 필드를 추가로 참조 | 서비스 DTO 조립 또는 fetch join/@EntityGraph 적용 |
 | createSlot TOCTOU 500 | 동시 슬롯 생성 | GlobalExceptionHandler에 DataIntegrityViolationException 핸들러 추가 |
 | 버퍼 N+1 | 고밀도 슬롯 배치 | @Modifying 일괄 UPDATE로 교체 |
 
