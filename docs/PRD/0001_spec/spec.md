@@ -580,6 +580,8 @@ POST /admin/passes/expire
 ```
 
 정책: 만료된 pass의 remaining_credits = 0, EXPIRE ledger 기록.
+- `failureReasons` 키는 내부 예외명을 그대로 노출하지 않고 아래 운영용 코드로 정규화한다.
+  - `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`
 
 ## 11-G. 주문 배치 Admin API (§3.3)
 
@@ -601,6 +603,8 @@ POST /admin/orders/expire-pickups
 정책:
 - `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
 - 성공 건은 `PICKUP_EXPIRED_REFUNDED`로 전이하고 환불/재고 복구를 수행한다.
+- `failureReasons` 키는 내부 예외명을 그대로 노출하지 않고 아래 운영용 코드로 정규화한다.
+  - `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`
 
 ### 11-G.2 제작 완료 (§8.3)
 

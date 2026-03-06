@@ -25,6 +25,7 @@ Java 21과 Gradle toolchain 설정을 따른다. 패키지는 `com.personal.happ
 
 ## 테스트 작성 기준
 테스트 프레임워크는 JUnit 5다. 정책이나 경계 조건 검증은 `*PolicyTest`로 작성하고 `policy` 태그를 사용한다. Spring Boot 컨텍스트, Flyway, Testcontainers(MySQL)를 함께 검증하는 흐름은 `@UseCaseIT`와 `*UseCaseIT` 형식으로 작성한다. 동작을 바꾸면 관련 테스트를 같이 수정하는 것을 기본으로 한다. 빠른 규칙 검증은 정책 테스트에, 트랜잭션·연동·동시성 검증은 통합 테스트에 둔다.
+모든 테스트 메서드에는 `@DisplayName`을 붙이고, 테스트 의도를 드러내는 한글 문장으로 작성한다.
 
 코드를 수정한 뒤에는 관련 테스트를 반드시 실행한다. 실패하면 원인을 수정한 뒤 성공할 때까지 다시 검증한다. 테스트는 항상 변경 범위에 맞는 최소 단위부터 선택한다. 정책이나 도메인 규칙만 바뀌면 `./gradlew :app:policyTest`를 우선 실행하고, 유스케이스 흐름이나 DB·외부 연동 영향이 있으면 `./gradlew :app:useCaseTest`까지 실행한다. 전체 안정성 확인이 필요한 큰 변경에서만 `./gradlew test` 또는 `./gradlew build`를 사용한다.
 Testcontainers 기반 검증은 위 원칙과 별개로 `--no-daemon`을 유지한다.

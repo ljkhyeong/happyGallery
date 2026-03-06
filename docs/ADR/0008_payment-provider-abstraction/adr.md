@@ -49,6 +49,20 @@
 
 ---
 
+## 결정 5 — 환불 실패 목록 응답은 `bookingId`/`orderId`를 함께 제공
+
+**선택**: `GET /admin/refunds/failed` 응답에 `bookingId`, `orderId`를 모두 포함하고,
+유형에 따라 사용하지 않는 값은 `null`로 반환한다.
+
+**이유**: 예약 취소 환불과 주문 환불이 동일 `refunds` 테이블을 공유하므로,
+운영자가 실패 건의 원천 엔터티를 즉시 식별할 수 있어야 한다.
+
+**구현 포인트**:
+- 조회 쿼리는 `booking` 연관이 없는 주문 환불도 누락되지 않도록 `LEFT JOIN FETCH`를 사용한다.
+- named parameter 쿼리는 `@Param`으로 바인딩을 명시해 런타임 바인딩 오류를 방지한다.
+
+---
+
 ## 결과
 
 | 파일 | 역할 |
@@ -60,3 +74,4 @@
 | `app/booking/BookingCancelService.java` | Provider 호출, 실패 시 FAILED 저장 |
 | `app/booking/RefundRetryService.java` | FAILED 재시도 서비스 |
 | `app/web/admin/AdminRefundController.java` | `GET /admin/refunds/failed`, `POST /admin/refunds/{id}/retry` |
+| `app/web/admin/dto/FailedRefundResponse.java` | `bookingId`/`orderId` nullable 응답 모델 |
