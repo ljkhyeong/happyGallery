@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -74,14 +75,14 @@ class OrderApprovalUseCaseIT {
     }
 
     private void cleanup() {
-        // FK 삭제 순서: refunds(order_id) → order_items → orders → inventory → products
-        refundRepository.deleteAllInBatch();
-        fulfillmentRepository.deleteAllInBatch();
-        orderApprovalHistoryRepository.deleteAllInBatch();
-        orderItemRepository.deleteAllInBatch();
-        orderRepository.deleteAllInBatch();
-        inventoryRepository.deleteAllInBatch();
-        productRepository.deleteAllInBatch();
+        clearOrderData(
+                refundRepository,
+                fulfillmentRepository,
+                orderApprovalHistoryRepository,
+                orderItemRepository,
+                orderRepository,
+                inventoryRepository,
+                productRepository);
     }
 
     // -----------------------------------------------------------------------

@@ -24,6 +24,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
+import static com.personal.happygallery.support.TestFixtures.inventory;
+import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -55,13 +58,14 @@ class ConcurrentOrderUseCaseIT {
     }
 
     private void cleanup() {
-        refundRepository.deleteAllInBatch();
-        fulfillmentRepository.deleteAllInBatch();
-        orderApprovalHistoryRepository.deleteAllInBatch();
-        orderItemRepository.deleteAllInBatch();
-        orderRepository.deleteAllInBatch();
-        inventoryRepository.deleteAllInBatch();
-        productRepository.deleteAllInBatch();
+        clearOrderData(
+                refundRepository,
+                fulfillmentRepository,
+                orderApprovalHistoryRepository,
+                orderItemRepository,
+                orderRepository,
+                inventoryRepository,
+                productRepository);
     }
 
     // -----------------------------------------------------------------------
@@ -71,8 +75,8 @@ class ConcurrentOrderUseCaseIT {
     @DisplayName("수량 1 재고에서 동시 주문을 시도하면 1건만 성공한다")
     @Test
     void concurrentOrder_quantity1_onlyOneSucceeds() throws InterruptedException {
-        Product product = productRepository.save(new Product("단일 작품(동시성)", ProductType.READY_STOCK, 50000L));
-        inventoryRepository.save(new Inventory(product, 1));
+        Product product = productRepository.save(readyStockProduct("단일 작품(동시성)", 50000L));
+        inventoryRepository.save(inventory(product, 1));
 
         int threadCount = 5;
         ExecutorService exec = Executors.newFixedThreadPool(threadCount);

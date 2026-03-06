@@ -25,6 +25,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static com.personal.happygallery.support.TestDataCleaner.clearPassNotificationData;
+import static com.personal.happygallery.support.TestFixtures.guest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -61,19 +63,17 @@ class PassExpiryNotificationUseCaseIT {
     }
 
     private void cleanup() {
-        // FK 삭제 순서: passLedger → refund → bookingHistory → booking → passPurchase
-        //              → phoneVerification → guest → slot → class
-        // notification_log FK 없음 → 순서 무관
-        passLedgerRepository.deleteAllInBatch();
-        refundRepository.deleteAllInBatch();
-        bookingHistoryRepository.deleteAllInBatch();
-        bookingRepository.deleteAllInBatch();
-        passPurchaseRepository.deleteAllInBatch();
-        phoneVerificationRepository.deleteAllInBatch();
-        notificationLogRepository.deleteAllInBatch();
-        guestRepository.deleteAllInBatch();
-        slotRepository.deleteAllInBatch();
-        classRepository.deleteAllInBatch();
+        clearPassNotificationData(
+                passLedgerRepository,
+                refundRepository,
+                bookingHistoryRepository,
+                bookingRepository,
+                passPurchaseRepository,
+                phoneVerificationRepository,
+                notificationLogRepository,
+                guestRepository,
+                slotRepository,
+                classRepository);
     }
 
     // -----------------------------------------------------------------------
@@ -83,8 +83,8 @@ class PassExpiryNotificationUseCaseIT {
     @DisplayName("8회권 만료 알림 배치는 대상 기간 내 8회권에 알림을 발송하고 로그를 남긴다")
     @Test
     void sendExpiryNotifications_withinWindow_sendsAndLogsNotifications() {
-        Guest guest1 = guestRepository.save(new Guest("이알림", "01011112222"));
-        Guest guest2 = guestRepository.save(new Guest("김알림", "01033334444"));
+        Guest guest1 = guestRepository.save(guest("이알림", "01011112222"));
+        Guest guest2 = guestRepository.save(guest("김알림", "01033334444"));
 
         // 정확히 7일 후 만료 — 알림 대상
         LocalDateTime soon = LocalDateTime.now(clock).plusDays(7);
@@ -109,7 +109,7 @@ class PassExpiryNotificationUseCaseIT {
     @DisplayName("8회권 만료 알림 배치는 대상 기간 밖의 8회권을 건너뛴다")
     @Test
     void sendExpiryNotifications_outsideWindow_skips() {
-        Guest guest = guestRepository.save(new Guest("박스킵", "01055556666"));
+        Guest guest = guestRepository.save(guest("박스킵", "01055556666"));
 
         // 30일 후 만료 — 7일 윈도우 밖
         LocalDateTime later = LocalDateTime.now(clock).plusDays(30);
@@ -125,7 +125,7 @@ class PassExpiryNotificationUseCaseIT {
     @DisplayName("8회권 만료 알림 배치를 같은 날 두 번 실행하면 중복 발송을 건너뛴다")
     @Test
     void sendExpiryNotifications_sameDaySecondRun_skipsDuplicates() {
-        Guest guest = guestRepository.save(new Guest("중복방지", "01077778888"));
+        Guest guest = guestRepository.save(guest("중복방지", "01077778888"));
         LocalDateTime target = LocalDateTime.now(clock).plusDays(7);
         passPurchaseRepository.save(new PassPurchase(guest, target, 0L));
 

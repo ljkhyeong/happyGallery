@@ -29,6 +29,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
 import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
+import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassAndRefundData;
+import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
+import static com.personal.happygallery.support.TestFixtures.guest;
+import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -58,20 +62,19 @@ class PassCreditUsageUseCaseIT {
     @BeforeEach
     void setUp() {
         helper = new BookingTestHelper(mockMvc);
-        // FK 순서: passLedger → refund → bookingHistory → booking(→ pass_purchases FK)
-        //         → passPurchase → phoneVerification → guest → slot → class
-        passLedgerRepository.deleteAllInBatch();
-        refundRepository.deleteAllInBatch();
-        bookingHistoryRepository.deleteAllInBatch();
-        bookingRepository.deleteAllInBatch();
-        passPurchaseRepository.deleteAllInBatch();
-        phoneVerificationRepository.deleteAllInBatch();
-        guestRepository.deleteAllInBatch();
-        slotRepository.deleteAllInBatch();
-        classRepository.deleteAllInBatch();
+        clearBookingWithPassAndRefundData(
+                passLedgerRepository,
+                refundRepository,
+                bookingHistoryRepository,
+                bookingRepository,
+                passPurchaseRepository,
+                phoneVerificationRepository,
+                guestRepository,
+                slotRepository,
+                classRepository);
 
-        cls = classRepository.save(new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30));
-        guest = guestRepository.save(new Guest("김테스트", "01099990001"));
+        cls = classRepository.save(defaultBookingClass());
+        guest = guestRepository.save(guest("김테스트", "01099990001"));
         pass = passPurchaseRepository.save(new PassPurchase(guest, FUTURE.plusDays(90), 320_000L));
         // EARN ledger 없이 직접 생성 — 크레딧 잔여 8
     }
@@ -83,7 +86,7 @@ class PassCreditUsageUseCaseIT {
     @DisplayName("8회권으로 예약하면 크레딧이 차감된다")
     @Test
     void book_with_pass_consumes_credit() throws Exception {
-        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         String code = helper.sendVerificationAndGetCode("01099990001");
         mockMvc.perform(post("/bookings/guest")
@@ -125,7 +128,7 @@ class PassCreditUsageUseCaseIT {
     @DisplayName("8회권 예약을 기한 내 취소하면 크레딧이 환불된다")
     @Test
     void cancel_pass_booking_timely_refunds_credit() throws Exception {
-        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         String code = helper.sendVerificationAndGetCode("01099990001");
         String createResp = helper.bookWithPass("01099990001", code, slot.getId(), pass.getId());
@@ -160,7 +163,7 @@ class PassCreditUsageUseCaseIT {
         // 오늘 14:00 시작 슬롯 — D-1 deadline(오늘 00:00) 이미 지남
         LocalDateTime today14 = LocalDateTime.now(ZoneId.of("Asia/Seoul"))
                 .withHour(14).withMinute(0).withSecond(0).withNano(0);
-        Slot slot = slotRepository.save(new Slot(cls, today14, today14.plusHours(2)));
+        Slot slot = slotRepository.save(slot(cls, today14, today14.plusHours(2)));
 
         String code = helper.sendVerificationAndGetCode("01099990001");
         String createResp = helper.bookWithPass("01099990001", code, slot.getId(), pass.getId());
@@ -190,7 +193,7 @@ class PassCreditUsageUseCaseIT {
     @DisplayName("노쇼 처리 시 상태만 변경되고 크레딧은 변하지 않는다")
     @Test
     void mark_no_show_status_only_no_credit_change() throws Exception {
-        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         String code = helper.sendVerificationAndGetCode("01099990001");
         String createResp = helper.bookWithPass("01099990001", code, slot.getId(), pass.getId());
@@ -221,8 +224,8 @@ class PassCreditUsageUseCaseIT {
     @DisplayName("8회권 전체 환불 시 미래 예약이 취소되고 잔여 크레딧이 소멸된다")
     @Test
     void refund_pass_cancels_future_bookings_and_empties_credits() throws Exception {
-        Slot slot1 = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
-        Slot slot2 = slotRepository.save(new Slot(cls, FUTURE.plusDays(1), FUTURE.plusDays(1).plusHours(2)));
+        Slot slot1 = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot slot2 = slotRepository.save(slot(cls, FUTURE.plusDays(1), FUTURE.plusDays(1).plusHours(2)));
 
         // 2회 예약 (remaining: 8 → 6)
         String code1 = helper.sendVerificationAndGetCode("01099990001");
@@ -266,7 +269,7 @@ class PassCreditUsageUseCaseIT {
         pass.expire();
         passPurchaseRepository.save(pass);
 
-        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
         String code = helper.sendVerificationAndGetCode("01099990001");
 
         mockMvc.perform(post("/bookings/guest")

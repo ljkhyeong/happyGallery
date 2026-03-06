@@ -4,7 +4,6 @@ import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.common.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.UseCaseIT;
@@ -17,6 +16,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static com.personal.happygallery.support.TestDataCleaner.clearProductData;
+import static com.personal.happygallery.support.TestFixtures.inventory;
+import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -38,9 +40,7 @@ class ProductInventoryUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        // FK 순서: inventory → products
-        inventoryRepository.deleteAllInBatch();
-        productRepository.deleteAllInBatch();
+        clearProductData(inventoryRepository, productRepository);
     }
 
     // -----------------------------------------------------------------------
@@ -85,8 +85,8 @@ class ProductInventoryUseCaseIT {
     @DisplayName("상품 조회 시 재고 가용 여부가 표시된다")
     @Test
     void getProduct_showsAvailability() throws Exception {
-        Product product = productRepository.save(new Product("향수 키트", ProductType.READY_STOCK, 48000L));
-        inventoryRepository.save(new Inventory(product, 1));
+        Product product = productRepository.save(readyStockProduct("향수 키트", 48000L));
+        inventoryRepository.save(inventory(product, 1));
 
         mockMvc.perform(get("/products/{id}", product.getId()))
                 .andExpect(status().isOk())
@@ -102,8 +102,8 @@ class ProductInventoryUseCaseIT {
     @DisplayName("재고 1개를 차감하면 수량이 0이 된다")
     @Test
     void deductInventory_once_quantityBecomesZero() {
-        Product product = productRepository.save(new Product("단일 작품", ProductType.READY_STOCK, 50000L));
-        inventoryRepository.save(new Inventory(product, 1));
+        Product product = productRepository.save(readyStockProduct("단일 작품", 50000L));
+        inventoryRepository.save(inventory(product, 1));
 
         inventoryService.deduct(product.getId(), 1);
 
@@ -119,8 +119,8 @@ class ProductInventoryUseCaseIT {
     @DisplayName("품절 상태에서 재고 차감 시 예외가 발생한다")
     @Test
     void deductInventory_whenOutOfStock_throwsException() {
-        Product product = productRepository.save(new Product("품절 작품", ProductType.READY_STOCK, 50000L));
-        inventoryRepository.save(new Inventory(product, 0));
+        Product product = productRepository.save(readyStockProduct("품절 작품", 50000L));
+        inventoryRepository.save(inventory(product, 0));
 
         assertThatThrownBy(() -> inventoryService.deduct(product.getId(), 1))
                 .isInstanceOf(InventoryNotEnoughException.class);
@@ -133,8 +133,8 @@ class ProductInventoryUseCaseIT {
     @DisplayName("재고 연속 차감 시 두 번째 호출은 실패한다")
     @Test
     void deductInventory_sequential_secondCallFails() {
-        Product product = productRepository.save(new Product("단일 작품(동시성)", ProductType.READY_STOCK, 60000L));
-        inventoryRepository.save(new Inventory(product, 1));
+        Product product = productRepository.save(readyStockProduct("단일 작품(동시성)", 60000L));
+        inventoryRepository.save(inventory(product, 1));
 
         // 첫 번째 차감 성공
         inventoryService.deduct(product.getId(), 1);

@@ -23,6 +23,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassAndRefundData;
+import static com.personal.happygallery.support.TestFixtures.guest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -47,19 +49,18 @@ class PassPurchaseUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        // FK 순서: passLedger → refund → bookingHistory → booking(→ pass_purchases FK)
-        //         → passPurchase → phoneVerification → guest → slot → class
-        passLedgerRepository.deleteAllInBatch();
-        refundRepository.deleteAllInBatch();
-        bookingHistoryRepository.deleteAllInBatch();
-        bookingRepository.deleteAllInBatch();
-        passPurchaseRepository.deleteAllInBatch();
-        phoneVerificationRepository.deleteAllInBatch();
-        guestRepository.deleteAllInBatch();
-        slotRepository.deleteAllInBatch();
-        classRepository.deleteAllInBatch();
+        clearBookingWithPassAndRefundData(
+                passLedgerRepository,
+                refundRepository,
+                bookingHistoryRepository,
+                bookingRepository,
+                passPurchaseRepository,
+                phoneVerificationRepository,
+                guestRepository,
+                slotRepository,
+                classRepository);
 
-        guest = guestRepository.save(new Guest("김테스트", "01099990001"));
+        guest = guestRepository.save(guest("김테스트", "01099990001"));
     }
 
     // -----------------------------------------------------------------------
@@ -154,7 +155,7 @@ class PassPurchaseUseCaseIT {
     @Test
     void notification_query_returnsPassesExpiringWithin7Days() {
         // 정확히 7일 후 만료 → 알림 대상
-        Guest guest2 = guestRepository.save(new Guest("이알림", "01088880002"));
+        Guest guest2 = guestRepository.save(guest("이알림", "01088880002"));
         passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().plusDays(7), 0L));
 
         // 30일 후 만료 → 알림 대상 아님
