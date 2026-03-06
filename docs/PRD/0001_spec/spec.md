@@ -188,6 +188,10 @@
 ### 9.1 사용자/게스트
 - `users`
     - id, email, password_hash, name, phone, created_at
+    - `password_hash` 저장 정책:
+      - 단순 해시(SHA-256, MD5) 저장 금지
+      - Salt + Key Stretching이 포함된 알고리즘만 허용 (BCrypt/Argon2id/Scrypt)
+      - Spring Security `PasswordEncoder` 사용을 원칙으로 하며, 기본 권장값은 `BCryptPasswordEncoder`
 - `guests`
     - id, name, phone, phone_verified(boolean), created_at
 
@@ -677,6 +681,8 @@ POST /api/v1/admin/refunds/{refundId}/retry
 - `400 INVALID_INPUT` — FAILED 상태가 아닌 환불 재시도 시도
 
 정책: FAILED 상태 환불만 재시도 가능. 성공 시 SUCCEEDED, 재실패 시 FAILED 유지.
+- 환불 실행/실패 이력 저장은 부모 주문/예약 트랜잭션과 분리된 `REQUIRES_NEW` 트랜잭션으로 처리한다.
+  - 목적: 부모 트랜잭션 롤백과 무관하게 `FAILED` 환불 이력을 운영자가 조회/재시도할 수 있게 보존
 
 ---
 
@@ -687,8 +693,16 @@ POST /api/v1/admin/refunds/{refundId}/retry
 - 운영 관측성:
     - `prod` 프로필 로그는 JSON 구조화 포맷으로 출력한다
     - 요청 단위 추적을 위해 `requestId`를 로그 필드로 포함한다
+    - 로그 레벨 전략:
+      - `TRACE`/`DEBUG`: `local` 개발 환경에서만 사용 (SQL 파라미터, 상세 흐름 추적)
+      - `INFO`: 운영 기본값. 시작/종료, 배치 결과, 결제 완료 등 핵심 이벤트만 기록
+      - `WARN`: 장애 전 단계의 잠재 위험 상황 기록 (예: 파싱 실패 후 기본값 처리)
+      - `ERROR`: 운영자 즉시 대응이 필요한 장애만 기록
 - 장애 대비:
     - 환불/알림은 실패 시 재시도 가능하게 `FAILED` 상태를 남기고 운영자가 확인 가능
+    - 외부 결제(PG) 호출은 `CircuitBreaker + Timeout`으로 보호한다
+      - 기본 타임아웃: 3초
+      - 실패율 임계치 초과 시 fast-fail로 내부 자원 고갈을 방지한다
     - 필터 기반 처리율 제한을 적용한다 (`/api/v1/**` 기준)
       - 기본 정책: 인증코드 발송 10 req/sec/IP, 게스트 예약 생성 30 req/min/IP, 이용권 구매 20 req/min/IP, Admin API 120 req/min/IP
       - 초과 시 `429 TOO_MANY_REQUESTS`와 `Retry-After` 헤더를 반환한다
@@ -697,6 +711,12 @@ POST /api/v1/admin/refunds/{refundId}/retry
     - 관리자 기능은 권한 분리(단일 운영자라도 경로는 분리)
     - **Admin API(`/api/v1/admin/**`)는 인증/인가 필수** — 현재 MVP 구현에서는 미적용 상태. §11 관리자 화면 구현 시 Spring Security 또는 API Key 방식으로 보호해야 한다.
     - 미적용 기간 동안 `/api/v1/admin/**` 및 레거시 `/admin/**` 엔드포인트는 내부망 또는 개발 환경에서만 노출할 것
+    - 사용자 비밀번호 저장 정책:
+      - DB에는 평문 비밀번호를 저장하지 않는다.
+      - 단순 해시(SHA-256/MD5) 단독 사용을 금지한다.
+      - Salt + Key Stretching이 포함된 해시만 허용한다(BCrypt/Argon2id/Scrypt).
+      - 기본 구현은 Spring Security `PasswordEncoder`(권장: `BCryptPasswordEncoder`)를 사용한다.
+      - 운영 로그에 비밀번호/해시 원문을 출력하지 않는다.
 
 ---
 
