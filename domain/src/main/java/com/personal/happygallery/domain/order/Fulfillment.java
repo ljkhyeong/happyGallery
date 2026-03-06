@@ -82,6 +82,16 @@ public class Fulfillment {
         this.expectedShipDate = expectedShipDate;
     }
 
+    /**
+     * 배치에서 픽업 만료 대상인지 판단한다.
+     * 픽업 준비 상태이고, 픽업 마감 시각이 {@code now} 이전이면 {@code true}.
+     */
+    public boolean canExpirePickup(LocalDateTime now) {
+        return this.status == OrderStatus.PICKUP_READY
+                && this.pickupDeadlineAt != null
+                && this.pickupDeadlineAt.isBefore(now);
+    }
+
     /** 주문 상태와 동기화한다. null이면 무시한다. */
     public void syncStatus(OrderStatus status) {
         if (status == null) {

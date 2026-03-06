@@ -9,7 +9,6 @@ import com.personal.happygallery.infra.notification.NotificationLogRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,8 +49,6 @@ public class PassExpiryBatchService {
         LocalDateTime now = LocalDateTime.now(clock);
         List<PassPurchase> expired = passPurchaseRepository
                 .findByExpiresAtBeforeAndRemainingCreditsGreaterThan(now, 0);
-        int processed = 0;
-        Map<String, Integer> failureReasons = new LinkedHashMap<>();
 
         return BatchExecutor.execute(expired,
                 PassPurchase::getId,

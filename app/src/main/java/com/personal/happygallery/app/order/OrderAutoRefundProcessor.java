@@ -7,7 +7,6 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
-import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.LocalDateTime;
@@ -51,10 +50,7 @@ public class OrderAutoRefundProcessor {
     public boolean process(Long orderId, LocalDateTime now) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
-        if (order.getStatus() != OrderStatus.PAID_APPROVAL_PENDING) {
-            return false;
-        }
-        if (order.getApprovalDeadlineAt() == null || !order.getApprovalDeadlineAt().isBefore(now)) {
+        if (!order.canAutoRefund(now)) {
             return false;
         }
 
