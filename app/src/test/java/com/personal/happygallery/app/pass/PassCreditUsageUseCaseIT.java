@@ -30,6 +30,7 @@ import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
 import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -59,15 +60,15 @@ class PassCreditUsageUseCaseIT {
         helper = new BookingTestHelper(mockMvc);
         // FK 순서: passLedger → refund → bookingHistory → booking(→ pass_purchases FK)
         //         → passPurchase → phoneVerification → guest → slot → class
-        passLedgerRepository.deleteAll();
-        refundRepository.deleteAll();
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        passPurchaseRepository.deleteAll();
-        phoneVerificationRepository.deleteAll();
-        guestRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
+        passLedgerRepository.deleteAllInBatch();
+        refundRepository.deleteAllInBatch();
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        passPurchaseRepository.deleteAllInBatch();
+        phoneVerificationRepository.deleteAllInBatch();
+        guestRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
 
         cls = classRepository.save(new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30));
         guest = guestRepository.save(new Guest("김테스트", "01099990001"));
@@ -101,18 +102,20 @@ class PassCreditUsageUseCaseIT {
 
         // Proof: USE ledger 1건, amount=1
         var ledgers = passLedgerRepository.findByPassPurchaseId(pass.getId());
-        assertThat(ledgers).hasSize(1);
-        assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
-        assertThat(ledgers.get(0).getAmount()).isEqualTo(1);
-
-        // Proof: remaining_credits = 7
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
-        assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
-
-        // Proof: booking linked to pass
         var bookings = bookingRepository.findAll();
-        assertThat(bookings).hasSize(1);
-        assertThat(bookings.get(0).isPassBooking()).isTrue();
+        assertSoftly(softly -> {
+            softly.assertThat(ledgers).hasSize(1);
+            if (!ledgers.isEmpty()) {
+                softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
+                softly.assertThat(ledgers.get(0).getAmount()).isEqualTo(1);
+            }
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
+            softly.assertThat(bookings).hasSize(1);
+            if (!bookings.isEmpty()) {
+                softly.assertThat(bookings.get(0).isPassBooking()).isTrue();
+            }
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -138,15 +141,13 @@ class PassCreditUsageUseCaseIT {
 
         // Proof: REFUND ledger 추가
         var ledgers = passLedgerRepository.findByPassPurchaseId(pass.getId());
-        assertThat(ledgers).hasSize(2); // USE + REFUND
-        assertThat(ledgers.stream().filter(l -> l.getType() == PassLedgerType.REFUND).count()).isEqualTo(1);
-
-        // Proof: remaining_credits = 8 (복구)
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
-        assertThat(reloaded.getRemainingCredits()).isEqualTo(8);
-
-        // Proof: PG refund 미생성 (pass 결제는 PG refund 없음)
-        assertThat(refundRepository.count()).isEqualTo(0);
+        assertSoftly(softly -> {
+            softly.assertThat(ledgers).hasSize(2); // USE + REFUND
+            softly.assertThat(ledgers.stream().filter(l -> l.getType() == PassLedgerType.REFUND).count()).isEqualTo(1);
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(8);
+            softly.assertThat(refundRepository.count()).isEqualTo(0);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -227,7 +228,7 @@ class PassCreditUsageUseCaseIT {
         String code1 = helper.sendVerificationAndGetCode("01099990001");
         helper.bookWithPass("01099990001", code1, slot1.getId(), pass.getId());
 
-        phoneVerificationRepository.deleteAll(); // 인증코드 재사용 방지
+        phoneVerificationRepository.deleteAllInBatch(); // 인증코드 재사용 방지
         String code2 = helper.sendVerificationAndGetCode("01099990001");
         helper.bookWithPass("01099990001", code2, slot2.getId(), pass.getId());
 

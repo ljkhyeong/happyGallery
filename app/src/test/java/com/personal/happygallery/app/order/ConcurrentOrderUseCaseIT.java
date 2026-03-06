@@ -55,13 +55,13 @@ class ConcurrentOrderUseCaseIT {
     }
 
     private void cleanup() {
-        refundRepository.deleteAll();
-        fulfillmentRepository.deleteAll();
-        orderApprovalHistoryRepository.deleteAll();
-        orderItemRepository.deleteAll();
-        orderRepository.deleteAll();
-        inventoryRepository.deleteAll();
-        productRepository.deleteAll();
+        refundRepository.deleteAllInBatch();
+        fulfillmentRepository.deleteAllInBatch();
+        orderApprovalHistoryRepository.deleteAllInBatch();
+        orderItemRepository.deleteAllInBatch();
+        orderRepository.deleteAllInBatch();
+        inventoryRepository.deleteAllInBatch();
+        productRepository.deleteAllInBatch();
     }
 
     // -----------------------------------------------------------------------

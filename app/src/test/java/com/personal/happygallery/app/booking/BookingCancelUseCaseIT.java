@@ -33,6 +33,7 @@ import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
 import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -68,15 +69,15 @@ class BookingCancelUseCaseIT {
                 .thenReturn(RefundResult.success("FAKE-TEST-REF"));
         // FK 순서: passLedger → refund → bookingHistory → booking → passPurchase
         //         → phoneVerification → guest → slot → class
-        passLedgerRepository.deleteAll();
-        refundRepository.deleteAll();
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        passPurchaseRepository.deleteAll();
-        phoneVerificationRepository.deleteAll();
-        guestRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
+        passLedgerRepository.deleteAllInBatch();
+        refundRepository.deleteAllInBatch();
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        passPurchaseRepository.deleteAllInBatch();
+        phoneVerificationRepository.deleteAllInBatch();
+        guestRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
 
         cls = classRepository.save(new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30));
     }
@@ -105,20 +106,19 @@ class BookingCancelUseCaseIT {
                 .andExpect(jsonPath("$.refundable").value(true))
                 .andExpect(jsonPath("$.refundAmount").value(5000));
 
-        // Proof: booking 상태 CANCELED
-        assertThat(bookingRepository.findById(bookingId))
-                .hasValueSatisfying(b -> assertThat(b.getStatus().name()).isEqualTo("CANCELED"));
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow();
+        var refunds = refundRepository.findAll();
+        Slot updatedSlot = slotRepository.findById(slot.getId()).orElseThrow();
 
-        // Proof: booking_history 2건 (BOOKED + CANCELED)
-        assertThat(bookingHistoryRepository.countByBookingId(bookingId)).isEqualTo(2L);
-
-        // Proof: refund 1건 (FakePaymentProvider 성공 → SUCCEEDED)
-        assertThat(refundRepository.count()).isEqualTo(1L);
-        assertThat(refundRepository.findAll().get(0).getStatus().name()).isEqualTo("SUCCEEDED");
-
-        // Proof: 슬롯 booked_count = 0 (반납 완료)
-        assertThat(slotRepository.findById(slot.getId()))
-                .hasValueSatisfying(s -> assertThat(s.getBookedCount()).isEqualTo(0));
+        assertSoftly(softly -> {
+            softly.assertThat(booking.getStatus().name()).isEqualTo("CANCELED");
+            softly.assertThat(bookingHistoryRepository.countByBookingId(bookingId)).isEqualTo(2L);
+            softly.assertThat(refunds).hasSize(1);
+            if (!refunds.isEmpty()) {
+                softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("SUCCEEDED");
+            }
+            softly.assertThat(updatedSlot.getBookedCount()).isEqualTo(0);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -145,11 +145,14 @@ class BookingCancelUseCaseIT {
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(true));
 
-        // Proof: 환불 실패여도 refunds 테이블에 FAILED 로 남아 있음
-        assertThat(refundRepository.count()).isEqualTo(1L);
-        var refund = refundRepository.findAll().get(0);
-        assertThat(refund.getStatus().name()).isEqualTo("FAILED");
-        assertThat(refund.getFailReason()).isEqualTo("PG 타임아웃");
+        var refunds = refundRepository.findAll();
+        assertSoftly(softly -> {
+            softly.assertThat(refunds).hasSize(1);
+            if (!refunds.isEmpty()) {
+                softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("FAILED");
+                softly.assertThat(refunds.get(0).getFailReason()).isEqualTo("PG 타임아웃");
+            }
+        });
     }
 
     @DisplayName("환불 실패 목록 관리자 API는 DTO 응답을 반환한다")

@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
  * [UseCaseIT] §12.1 8회권 만료 7일 전 알림 발송 검증.
@@ -63,16 +64,16 @@ class PassExpiryNotificationUseCaseIT {
         // FK 삭제 순서: passLedger → refund → bookingHistory → booking → passPurchase
         //              → phoneVerification → guest → slot → class
         // notification_log FK 없음 → 순서 무관
-        passLedgerRepository.deleteAll();
-        refundRepository.deleteAll();
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        passPurchaseRepository.deleteAll();
-        phoneVerificationRepository.deleteAll();
-        notificationLogRepository.deleteAll();
-        guestRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
+        passLedgerRepository.deleteAllInBatch();
+        refundRepository.deleteAllInBatch();
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        passPurchaseRepository.deleteAllInBatch();
+        phoneVerificationRepository.deleteAllInBatch();
+        notificationLogRepository.deleteAllInBatch();
+        guestRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
     }
 
     // -----------------------------------------------------------------------
@@ -91,13 +92,14 @@ class PassExpiryNotificationUseCaseIT {
         passPurchaseRepository.save(new PassPurchase(guest2, soon, 0L));
 
         BatchResult result = passExpiryBatchService.sendExpiryNotifications();
-
-        assertThat(result.successCount()).isEqualTo(2);
-        assertThat(result.failureCount()).isZero();
-
         List<NotificationLog> logs = notificationLogRepository.findAll();
-        assertThat(logs).hasSize(2);
-        assertThat(logs).allMatch(log -> log.getEventType() == NotificationEventType.PASS_EXPIRY_SOON);
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(2);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(logs).hasSize(2);
+            softly.assertThat(logs).allMatch(log -> log.getEventType() == NotificationEventType.PASS_EXPIRY_SOON);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -130,10 +132,12 @@ class PassExpiryNotificationUseCaseIT {
         BatchResult first = passExpiryBatchService.sendExpiryNotifications();
         BatchResult second = passExpiryBatchService.sendExpiryNotifications();
 
-        assertThat(first.successCount()).isEqualTo(1);
-        assertThat(first.failureCount()).isZero();
-        assertThat(second.successCount()).isEqualTo(0);
-        assertThat(second.failureCount()).isZero();
-        assertThat(notificationLogRepository.findAll()).hasSize(1);
+        assertSoftly(softly -> {
+            softly.assertThat(first.successCount()).isEqualTo(1);
+            softly.assertThat(first.failureCount()).isZero();
+            softly.assertThat(second.successCount()).isEqualTo(0);
+            softly.assertThat(second.failureCount()).isZero();
+            softly.assertThat(notificationLogRepository.findAll()).hasSize(1);
+        });
     }
 }

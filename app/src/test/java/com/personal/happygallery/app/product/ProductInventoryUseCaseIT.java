@@ -39,8 +39,8 @@ class ProductInventoryUseCaseIT {
     @BeforeEach
     void setUp() {
         // FK 순서: inventory → products
-        inventoryRepository.deleteAll();
-        productRepository.deleteAll();
+        inventoryRepository.deleteAllInBatch();
+        productRepository.deleteAllInBatch();
     }
 
     // -----------------------------------------------------------------------

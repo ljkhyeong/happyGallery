@@ -52,10 +52,10 @@ class ConcurrentBookingUseCaseIT {
     }
 
     private void cleanup() {
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
     }
 
     // -----------------------------------------------------------------------

@@ -70,13 +70,13 @@ class PickupExpireBatchUseCaseIT {
 
     private void cleanup() {
         // FK 삭제 순서: refunds → fulfillments → order_items → orders → inventory → products
-        refundRepository.deleteAll();
-        fulfillmentRepository.deleteAll();
-        orderApprovalHistoryRepository.deleteAll();
-        orderItemRepository.deleteAll();
-        orderRepository.deleteAll();
-        inventoryRepository.deleteAll();
-        productRepository.deleteAll();
+        refundRepository.deleteAllInBatch();
+        fulfillmentRepository.deleteAllInBatch();
+        orderApprovalHistoryRepository.deleteAllInBatch();
+        orderItemRepository.deleteAllInBatch();
+        orderRepository.deleteAllInBatch();
+        inventoryRepository.deleteAllInBatch();
+        productRepository.deleteAllInBatch();
     }
 
     // -----------------------------------------------------------------------

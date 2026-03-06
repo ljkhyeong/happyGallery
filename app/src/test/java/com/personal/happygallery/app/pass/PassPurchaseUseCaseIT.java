@@ -49,15 +49,15 @@ class PassPurchaseUseCaseIT {
     void setUp() {
         // FK 순서: passLedger → refund → bookingHistory → booking(→ pass_purchases FK)
         //         → passPurchase → phoneVerification → guest → slot → class
-        passLedgerRepository.deleteAll();
-        refundRepository.deleteAll();
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        passPurchaseRepository.deleteAll();
-        phoneVerificationRepository.deleteAll();
-        guestRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
+        passLedgerRepository.deleteAllInBatch();
+        refundRepository.deleteAllInBatch();
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        passPurchaseRepository.deleteAllInBatch();
+        phoneVerificationRepository.deleteAllInBatch();
+        guestRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
 
         guest = guestRepository.save(new Guest("김테스트", "01099990001"));
     }

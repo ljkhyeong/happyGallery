@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
  * [UseCaseIT] §10.2 예약 리마인드 배치 검증.
@@ -61,14 +62,14 @@ class BookingReminderBatchUseCaseIT {
 
     private void cleanup() {
         // FK 삭제 순서: passLedger → passPurchase → bookingHistory → booking → guest → slot → class
-        passLedgerRepository.deleteAll();
-        passPurchaseRepository.deleteAll();
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        guestRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
-        notificationLogRepository.deleteAll();
+        passLedgerRepository.deleteAllInBatch();
+        passPurchaseRepository.deleteAllInBatch();
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        guestRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
+        notificationLogRepository.deleteAllInBatch();
     }
 
     // -----------------------------------------------------------------------
@@ -84,13 +85,17 @@ class BookingReminderBatchUseCaseIT {
         Booking booking = createBooking(slotStart);
 
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
-
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isZero();
         List<NotificationLog> logs = notificationLogRepository.findAll();
-        assertThat(logs).hasSize(1);
-        assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
-        assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(logs).hasSize(1);
+            if (!logs.isEmpty()) {
+                softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
+                softly.assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
+            }
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -123,13 +128,17 @@ class BookingReminderBatchUseCaseIT {
         Booking booking = createBooking(slotStart);
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
-
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isZero();
         List<NotificationLog> logs = notificationLogRepository.findAll();
-        assertThat(logs).hasSize(1);
-        assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_SAME_DAY);
-        assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(logs).hasSize(1);
+            if (!logs.isEmpty()) {
+                softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_SAME_DAY);
+                softly.assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
+            }
+        });
     }
 
     // -----------------------------------------------------------------------

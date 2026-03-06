@@ -47,10 +47,10 @@ class SlotBookingCapacityUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
         bookingClass = classRepository.save(
                 new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30));
         mainSlot = slotRepository.save(new Slot(bookingClass, MAIN_START, MAIN_END));

@@ -36,10 +36,10 @@ class AdminSlotUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
         BookingClass cls = classRepository.save(
                 new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30));
         classId = cls.getId();

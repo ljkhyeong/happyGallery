@@ -48,14 +48,14 @@ class GuestBookingUseCaseIT {
     @BeforeEach
     void setUp() {
         helper = new BookingTestHelper(mockMvc);
-        passLedgerRepository.deleteAll();
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        passPurchaseRepository.deleteAll();
-        phoneVerificationRepository.deleteAll();
-        guestRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
+        passLedgerRepository.deleteAllInBatch();
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        passPurchaseRepository.deleteAllInBatch();
+        phoneVerificationRepository.deleteAllInBatch();
+        guestRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
 
         BookingClass cls = classRepository.save(
                 new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30));
