@@ -294,12 +294,24 @@
 
 ---
 
+## 11-A. API 버전 정책
+
+- 기본 전략: `URI Versioning`
+  - 표준 경로: `/api/v1/**`
+  - 예시: `/api/v1/bookings`, `/api/v1/admin/orders`
+- 호환 정책:
+  - 기존 무버전 경로(`/bookings`, `/passes`, `/products`, `/admin/**`)는 구버전 클라이언트 호환을 위해 한시 유지한다.
+  - 신규 기능 추가/문서/테스트는 `/api/v1/**`를 기준으로 작성한다.
+  - 브레이킹 변경은 `/api/v2/**`로 분리하고, `/api/v1/**`는 공지된 deprecate 기간 이후 제거한다.
+
+---
+
 ## 11. Admin API — 슬롯 관리
 
 ### 11.1 슬롯 생성
 
 ```
-POST /admin/slots
+POST /api/v1/admin/slots
 Content-Type: application/json
 
 {
@@ -327,7 +339,7 @@ Content-Type: application/json
 ### 11.2 슬롯 비활성화
 
 ```
-PATCH /admin/slots/{id}/deactivate
+PATCH /api/v1/admin/slots/{id}/deactivate
 
 → 200 OK
 {
@@ -347,7 +359,7 @@ PATCH /admin/slots/{id}/deactivate
 ### 11-B.1 휴대폰 인증 코드 발송
 
 ```
-POST /bookings/phone-verifications
+POST /api/v1/bookings/phone-verifications
 { "phone": "01012345678" }
 
 → 200 OK
@@ -364,7 +376,7 @@ POST /bookings/phone-verifications
 ### 11-B.2 게스트 예약 생성
 
 ```
-POST /bookings/guest
+POST /api/v1/bookings/guest
 {
   "phone": "01012345678",
   "verificationCode": "483921",
@@ -406,7 +418,7 @@ POST /bookings/guest
 ### 11-B.3 비회원 예약 조회
 
 ```
-GET /bookings/{bookingId}?token={accessToken}
+GET /api/v1/bookings/{bookingId}?token={accessToken}
 
 → 200 OK
 {
@@ -434,7 +446,7 @@ GET /bookings/{bookingId}?token={accessToken}
 ### 11-C.1 예약 변경 (비회원)
 
 ```
-PATCH /bookings/{bookingId}/reschedule
+PATCH /api/v1/bookings/{bookingId}/reschedule
 {
   "newSlotId": 43,
   "token": "access_token"
@@ -473,7 +485,7 @@ PATCH /bookings/{bookingId}/reschedule
 ### 11-D.1 비회원 예약 취소
 
 ```
-DELETE /bookings/{bookingId}?token={accessToken}
+DELETE /api/v1/bookings/{bookingId}?token={accessToken}
 
 → 200 OK
 {
@@ -498,7 +510,7 @@ DELETE /bookings/{bookingId}?token={accessToken}
 ### 11-E.1 게스트 8회권 구매
 
 ```
-POST /passes/guest
+POST /api/v1/passes/guest
 {
   "guestId": 1,
   "totalPrice": 320000    // 생략 시 0 처리 (MVP — 실제 PG 연동 전 임시)
@@ -529,7 +541,7 @@ POST /passes/guest
 ### 11-F.1 결석 처리
 
 ```
-POST /admin/bookings/{bookingId}/no-show
+POST /api/v1/admin/bookings/{bookingId}/no-show
 
 → 200 OK
 {
@@ -547,7 +559,7 @@ POST /admin/bookings/{bookingId}/no-show
 ### 11-F.2 8회권 전체 환불
 
 ```
-POST /admin/passes/{passId}/refund
+POST /api/v1/admin/passes/{passId}/refund
 
 → 200 OK
 {
@@ -569,7 +581,7 @@ POST /admin/passes/{passId}/refund
 ### 11-F.3 만료 배치 수동 트리거
 
 ```
-POST /admin/passes/expire
+POST /api/v1/admin/passes/expire
 
 → 200 OK
 {
@@ -588,7 +600,7 @@ POST /admin/passes/expire
 ### 11-G.1 픽업 만료 배치 수동 트리거
 
 ```
-POST /admin/orders/expire-pickups
+POST /api/v1/admin/orders/expire-pickups
 
 → 200 OK
 {
@@ -609,7 +621,7 @@ POST /admin/orders/expire-pickups
 ### 11-G.2 제작 완료 (§8.3)
 
 ```
-POST /admin/orders/{id}/complete-production
+POST /api/v1/admin/orders/{id}/complete-production
 Header: X-Admin-Id: {adminId}  (선택)
 
 → 200 OK
@@ -637,7 +649,7 @@ Header: X-Admin-Id: {adminId}  (선택)
 ### 11-H.1 환불 실패 목록 조회
 
 ```
-GET /admin/refunds/failed
+GET /api/v1/admin/refunds/failed
 
 → 200 OK
 [
@@ -655,7 +667,7 @@ GET /admin/refunds/failed
 ### 11-H.2 환불 재시도
 
 ```
-POST /admin/refunds/{refundId}/retry
+POST /api/v1/admin/refunds/{refundId}/retry
 
 → 200 OK (본문 없음)
 ```
@@ -680,8 +692,8 @@ POST /admin/refunds/{refundId}/retry
 - 보안:
     - 비회원 예약은 휴대폰 인증 기반
     - 관리자 기능은 권한 분리(단일 운영자라도 경로는 분리)
-    - **Admin API(`/admin/**`)는 인증/인가 필수** — 현재 MVP 구현에서는 미적용 상태. §11 관리자 화면 구현 시 Spring Security 또는 API Key 방식으로 보호해야 한다.
-    - 미적용 기간 동안 `/admin/**` 엔드포인트는 내부망 또는 개발 환경에서만 노출할 것
+    - **Admin API(`/api/v1/admin/**`)는 인증/인가 필수** — 현재 MVP 구현에서는 미적용 상태. §11 관리자 화면 구현 시 Spring Security 또는 API Key 방식으로 보호해야 한다.
+    - 미적용 기간 동안 `/api/v1/admin/**` 및 레거시 `/admin/**` 엔드포인트는 내부망 또는 개발 환경에서만 노출할 것
 
 ---
 
