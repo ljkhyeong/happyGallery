@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/passes")
+@RequestMapping({"/api/v1/passes", "/passes"})
 public class PassController {
 
     private final PassPurchaseService passPurchaseService;

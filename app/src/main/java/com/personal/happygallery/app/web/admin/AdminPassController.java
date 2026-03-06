@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/admin/passes")
+@RequestMapping({"/api/v1/admin/passes", "/admin/passes"})
 public class AdminPassController {
 
     private final PassExpiryBatchService passExpiryBatchService;
