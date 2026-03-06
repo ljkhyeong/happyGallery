@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="happygallery"/>
+
+    <springProfile name="prod">
+        <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"service":"${APP_NAME}"}</customFields>
+                <timeZone>Asia/Seoul</timeZone>
+                <includeMdc>true</includeMdc>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_JSON"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!prod">
+        <appender name="CONSOLE_TEXT" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %5p [%X{requestId:-}] %logger{36} - %msg%n%ex</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_TEXT"/>
+        </root>
+    </springProfile>
+</configuration>

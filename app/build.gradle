@@ -34,6 +34,7 @@ dependencies {
 	implementation 'org.springframework:spring-aop'
 	runtimeOnly 'org.aspectj:aspectjweaver'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	runtimeOnly 'net.logstash.logback:logstash-logback-encoder:8.1'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	annotationProcessor 'org.projectlombok:lombok'
