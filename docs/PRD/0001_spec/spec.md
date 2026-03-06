@@ -689,6 +689,9 @@ POST /api/v1/admin/refunds/{refundId}/retry
     - 요청 단위 추적을 위해 `requestId`를 로그 필드로 포함한다
 - 장애 대비:
     - 환불/알림은 실패 시 재시도 가능하게 `FAILED` 상태를 남기고 운영자가 확인 가능
+    - 필터 기반 처리율 제한을 적용한다 (`/api/v1/**` 기준)
+      - 기본 정책: 인증코드 발송 10 req/sec/IP, 게스트 예약 생성 30 req/min/IP, 이용권 구매 20 req/min/IP, Admin API 120 req/min/IP
+      - 초과 시 `429 TOO_MANY_REQUESTS`와 `Retry-After` 헤더를 반환한다
 - 보안:
     - 비회원 예약은 휴대폰 인증 기반
     - 관리자 기능은 권한 분리(단일 운영자라도 경로는 분리)
@@ -721,6 +724,7 @@ POST /api/v1/admin/refunds/{refundId}/retry
 | 409 | `DUPLICATE_BOOKING` | 동일 전화번호 + 동일 슬롯 중복 예약 (§5.2) |
 | 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 (§5.2) |
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌 — 동시 변경 요청 (§5.3) |
+| 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 (API 보호) |
 | 422 | `REFUND_NOT_ALLOWED` | D-1 00:00 이후 환불 요청 (§4.2) |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/환불 시도 (§3.2) |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 (§4.2) |
