@@ -5,12 +5,11 @@ public class HappyGalleryException extends RuntimeException {
     private final ErrorCode errorCode;
 
     public HappyGalleryException(ErrorCode errorCode) {
-        super(errorCode.message);
-        this.errorCode = errorCode;
+        this(errorCode, errorCode.message);
     }
 
     public HappyGalleryException(ErrorCode errorCode, String message) {
-        super(message);
+        super(message, null, false, false);
         this.errorCode = errorCode;
     }
 

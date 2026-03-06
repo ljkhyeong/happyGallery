@@ -7,22 +7,16 @@ import com.personal.happygallery.common.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingStatus;
-import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
-import com.personal.happygallery.infra.payment.PaymentProvider;
-import com.personal.happygallery.infra.payment.RefundResult;
 import java.time.Clock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,31 +24,26 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class BookingCancelService {
 
-    private static final Logger log = LoggerFactory.getLogger(BookingCancelService.class);
-
     private final BookingRepository bookingRepository;
     private final SlotRepository slotRepository;
-    private final RefundRepository refundRepository;
+    private final RefundExecutionService refundExecutionService;
     private final PassPurchaseRepository passPurchaseRepository;
     private final PassLedgerRepository passLedgerRepository;
-    private final PaymentProvider paymentProvider;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     public BookingCancelService(BookingRepository bookingRepository,
                                 SlotRepository slotRepository,
-                                RefundRepository refundRepository,
+                                RefundExecutionService refundExecutionService,
                                 PassPurchaseRepository passPurchaseRepository,
                                 PassLedgerRepository passLedgerRepository,
-                                PaymentProvider paymentProvider,
                                 BookingSupport bookingSupport,
                                 Clock clock) {
         this.bookingRepository = bookingRepository;
         this.slotRepository = slotRepository;
-        this.refundRepository = refundRepository;
+        this.refundExecutionService = refundExecutionService;
         this.passPurchaseRepository = passPurchaseRepository;
         this.passLedgerRepository = passLedgerRepository;
-        this.paymentProvider = paymentProvider;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
@@ -108,20 +97,7 @@ public class BookingCancelService {
         } else {
             // 5b. 예약금 결제 취소 — D-1 이전이면 PG 환불 요청
             if (refundable) {
-                Refund refund = refundRepository.save(new Refund(booking, booking.getDepositAmount()));
-                try {
-                    RefundResult result = paymentProvider.refund(refund.getPgRef(), refund.getAmount());
-                    if (result.success()) {
-                        refund.markSucceeded(result.pgRef());
-                    } else {
-                        log.warn("환불 실패 [refundId={}] reason={}", refund.getId(), result.failReason());
-                        refund.markFailed(result.failReason());
-                    }
-                } catch (Exception e) {
-                    log.error("환불 호출 예외 [refundId={}]", refund.getId(), e);
-                    refund.markFailed(e.getMessage());
-                }
-                refundRepository.save(refund);
+                refundExecutionService.processBookingRefund(booking.getId(), booking.getDepositAmount());
             }
         }
 

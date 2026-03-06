@@ -21,6 +21,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static com.personal.happygallery.support.TestDataCleaner.clearBookingData;
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -52,10 +55,7 @@ class ConcurrentBookingUseCaseIT {
     }
 
     private void cleanup() {
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
+        clearBookingData(bookingHistoryRepository, bookingRepository, slotRepository, classRepository);
     }
 
     // -----------------------------------------------------------------------
@@ -66,8 +66,8 @@ class ConcurrentBookingUseCaseIT {
     @Test
     void concurrentBooking_oneSpotLeft_onlyOneSucceeds() throws InterruptedException {
         BookingClass cls = classRepository.save(
-                new BookingClass("동시성 테스트 클래스", "CONCURRENCY", 120, 50_000L, 0));
-        Slot slot = slotRepository.save(new Slot(cls, SLOT_START, SLOT_END));
+                bookingClass("동시성 테스트 클래스", "CONCURRENCY", 120, 50_000L, 0));
+        Slot slot = slotRepository.save(slot(cls, SLOT_START, SLOT_END));
 
         // 슬롯을 MAX-1 상태로 채움
         for (int i = 0; i < SlotCapacity.MAX - 1; i++) {

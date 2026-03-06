@@ -7,3 +7,10 @@ spring:
     username: ${DB_USERNAME:happygallery}
     password: ${DB_PASSWORD:password}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+logging:
+  level:
+    root: DEBUG
+    com.personal.happygallery: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE

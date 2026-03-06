@@ -15,6 +15,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static com.personal.happygallery.support.TestDataCleaner.clearBookingData;
+import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
+import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -47,13 +50,9 @@ class SlotBookingCapacityUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
-        bookingClass = classRepository.save(
-                new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30));
-        mainSlot = slotRepository.save(new Slot(bookingClass, MAIN_START, MAIN_END));
+        clearBookingData(bookingHistoryRepository, bookingRepository, slotRepository, classRepository);
+        bookingClass = classRepository.save(defaultBookingClass());
+        mainSlot = slotRepository.save(slot(bookingClass, MAIN_START, MAIN_END));
     }
 
     @DisplayName("슬롯 정원 8명까지 예약 확정은 모두 성공한다")
@@ -85,9 +84,9 @@ class SlotBookingCapacityUseCaseIT {
     @Test
     void confirmBooking_deactivatesBufferSlots() {
         Slot bufferSlot1 = slotRepository.save(
-                new Slot(bookingClass, BUFFER_IN, BUFFER_IN.plusHours(2)));
+                slot(bookingClass, BUFFER_IN, BUFFER_IN.plusHours(2)));
         Slot bufferSlot2 = slotRepository.save(
-                new Slot(bookingClass, BUFFER_IN2, BUFFER_IN2.plusHours(2)));
+                slot(bookingClass, BUFFER_IN2, BUFFER_IN2.plusHours(2)));
 
         slotManagementService.confirmBooking(mainSlot.getId());
 
@@ -99,7 +98,7 @@ class SlotBookingCapacityUseCaseIT {
     @Test
     void confirmBooking_doesNotDeactivateSlotOutsideBuffer() {
         Slot outsideSlot = slotRepository.save(
-                new Slot(bookingClass, BUFFER_OUT, BUFFER_OUT.plusHours(2)));
+                slot(bookingClass, BUFFER_OUT, BUFFER_OUT.plusHours(2)));
 
         slotManagementService.confirmBooking(mainSlot.getId());
 

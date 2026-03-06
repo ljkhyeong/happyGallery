@@ -32,7 +32,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
 import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
+import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassAndRefundData;
+import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
+import static com.personal.happygallery.support.TestFixtures.guest;
+import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -66,19 +71,18 @@ class BookingCancelUseCaseIT {
         // 기본: PaymentProvider 성공
         when(paymentProvider.refund(any(), anyLong()))
                 .thenReturn(RefundResult.success("FAKE-TEST-REF"));
-        // FK 순서: passLedger → refund → bookingHistory → booking → passPurchase
-        //         → phoneVerification → guest → slot → class
-        passLedgerRepository.deleteAll();
-        refundRepository.deleteAll();
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        passPurchaseRepository.deleteAll();
-        phoneVerificationRepository.deleteAll();
-        guestRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
+        clearBookingWithPassAndRefundData(
+                passLedgerRepository,
+                refundRepository,
+                bookingHistoryRepository,
+                bookingRepository,
+                passPurchaseRepository,
+                phoneVerificationRepository,
+                guestRepository,
+                slotRepository,
+                classRepository);
 
-        cls = classRepository.save(new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30));
+        cls = classRepository.save(defaultBookingClass());
     }
 
     // -----------------------------------------------------------------------
@@ -88,7 +92,7 @@ class BookingCancelUseCaseIT {
     @DisplayName("환불 가능한 예약 취소 시 취소와 환불이 정상 처리된다")
     @Test
     void cancel_refundable_success() throws Exception {
-        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         String code = helper.sendVerificationAndGetCode("01011110001");
         String createResp = helper.createBooking("01011110001", code, slot.getId(), 5_000L);
@@ -105,20 +109,19 @@ class BookingCancelUseCaseIT {
                 .andExpect(jsonPath("$.refundable").value(true))
                 .andExpect(jsonPath("$.refundAmount").value(5000));
 
-        // Proof: booking 상태 CANCELED
-        assertThat(bookingRepository.findById(bookingId))
-                .hasValueSatisfying(b -> assertThat(b.getStatus().name()).isEqualTo("CANCELED"));
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow();
+        var refunds = refundRepository.findAll();
+        Slot updatedSlot = slotRepository.findById(slot.getId()).orElseThrow();
 
-        // Proof: booking_history 2건 (BOOKED + CANCELED)
-        assertThat(bookingHistoryRepository.countByBookingId(bookingId)).isEqualTo(2L);
-
-        // Proof: refund 1건 (FakePaymentProvider 성공 → SUCCEEDED)
-        assertThat(refundRepository.count()).isEqualTo(1L);
-        assertThat(refundRepository.findAll().get(0).getStatus().name()).isEqualTo("SUCCEEDED");
-
-        // Proof: 슬롯 booked_count = 0 (반납 완료)
-        assertThat(slotRepository.findById(slot.getId()))
-                .hasValueSatisfying(s -> assertThat(s.getBookedCount()).isEqualTo(0));
+        assertSoftly(softly -> {
+            softly.assertThat(booking.getStatus().name()).isEqualTo("CANCELED");
+            softly.assertThat(bookingHistoryRepository.countByBookingId(bookingId)).isEqualTo(2L);
+            softly.assertThat(refunds).hasSize(1);
+            if (!refunds.isEmpty()) {
+                softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("SUCCEEDED");
+            }
+            softly.assertThat(updatedSlot.getBookedCount()).isEqualTo(0);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -131,7 +134,7 @@ class BookingCancelUseCaseIT {
         when(paymentProvider.refund(any(), anyLong()))
                 .thenReturn(RefundResult.failure("PG 타임아웃"));
 
-        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         String code = helper.sendVerificationAndGetCode("01055550005");
         String createResp = helper.createBooking("01055550005", code, slot.getId(), 5_000L);
@@ -145,18 +148,21 @@ class BookingCancelUseCaseIT {
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(true));
 
-        // Proof: 환불 실패여도 refunds 테이블에 FAILED 로 남아 있음
-        assertThat(refundRepository.count()).isEqualTo(1L);
-        var refund = refundRepository.findAll().get(0);
-        assertThat(refund.getStatus().name()).isEqualTo("FAILED");
-        assertThat(refund.getFailReason()).isEqualTo("PG 타임아웃");
+        var refunds = refundRepository.findAll();
+        assertSoftly(softly -> {
+            softly.assertThat(refunds).hasSize(1);
+            if (!refunds.isEmpty()) {
+                softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("FAILED");
+                softly.assertThat(refunds.get(0).getFailReason()).isEqualTo("PG 타임아웃");
+            }
+        });
     }
 
     @DisplayName("환불 실패 목록 관리자 API는 DTO 응답을 반환한다")
     @Test
     void list_failed_refunds_adminApi_returnsDtoResponse() throws Exception {
-        Guest guest = guestRepository.save(new Guest("환불실패", "01077770007"));
-        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Guest guest = guestRepository.save(guest("환불실패", "01077770007"));
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
         Booking booking = bookingRepository.save(new Booking(
                 guest, slot, 5_000L, 45_000L, DepositPaymentMethod.CARD, "refund-token"));
 
@@ -183,7 +189,7 @@ class BookingCancelUseCaseIT {
     void cancel_notRefundable_noRefundCreated() throws Exception {
         // 오늘 14:00 시작하는 슬롯 — 체험일(오늘)의 D-1 deadline(오늘 00:00)이 이미 지남 → 환불 불가
         LocalDateTime today14 = LocalDateTime.now(ZoneId.of("Asia/Seoul")).withHour(14).withMinute(0).withSecond(0).withNano(0);
-        Slot slot = slotRepository.save(new Slot(cls, today14, today14.plusHours(2)));
+        Slot slot = slotRepository.save(slot(cls, today14, today14.plusHours(2)));
 
         String code = helper.sendVerificationAndGetCode("01022220002");
         String createResp = helper.createBooking("01022220002", code, slot.getId(), 5_000L);
@@ -212,7 +218,7 @@ class BookingCancelUseCaseIT {
     @DisplayName("잘못된 토큰으로 예약 취소를 요청하면 404를 반환한다")
     @Test
     void cancel_wrongToken_returns404() throws Exception {
-        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         String code = helper.sendVerificationAndGetCode("01033330003");
         String createResp = helper.createBooking("01033330003", code, slot.getId(), 5_000L);
@@ -231,7 +237,7 @@ class BookingCancelUseCaseIT {
     @DisplayName("이미 취소된 예약을 다시 취소하면 400을 반환한다")
     @Test
     void cancel_alreadyCanceled_returns400() throws Exception {
-        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         String code = helper.sendVerificationAndGetCode("01044440004");
         String createResp = helper.createBooking("01044440004", code, slot.getId(), 5_000L);

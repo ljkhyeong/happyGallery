@@ -14,6 +14,9 @@ public enum ErrorCode {
     // 401 Unauthorized — 인증 실패
     UNAUTHORIZED(401, "관리자 인증이 필요합니다."),
 
+    // 429 Too Many Requests — 처리율 제한 초과
+    TOO_MANY_REQUESTS(429, "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
+
     // 404 Not Found — 리소스 미존재
     NOT_FOUND(404, "요청한 리소스를 찾을 수 없습니다."),
 

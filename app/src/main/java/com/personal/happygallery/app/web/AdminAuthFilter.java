@@ -8,15 +8,19 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 20)
 public class AdminAuthFilter implements Filter {
 
     private static final String ADMIN_KEY_HEADER = "X-Admin-Key";
-    private static final String ADMIN_PATH_PREFIX = "/admin/";
+    private static final String LEGACY_ADMIN_PATH_PREFIX = "/admin/";
+    private static final String VERSIONED_ADMIN_PATH_PREFIX = "/api/v1/admin/";
 
     @Value("${app.admin.api-key}")
     private String adminApiKey;
@@ -28,7 +32,7 @@ public class AdminAuthFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
         String uri = httpRequest.getRequestURI();
-        if (uri.startsWith(ADMIN_PATH_PREFIX)) {
+        if (isAdminPath(uri)) {
             String key = httpRequest.getHeader(ADMIN_KEY_HEADER);
             if (!adminApiKey.equals(key)) {
                 httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -39,5 +43,9 @@ public class AdminAuthFilter implements Filter {
         }
 
         chain.doFilter(request, response);
+    }
+
+    private boolean isAdminPath(String uri) {
+        return uri.startsWith(LEGACY_ADMIN_PATH_PREFIX) || uri.startsWith(VERSIONED_ADMIN_PATH_PREFIX);
     }
 }
