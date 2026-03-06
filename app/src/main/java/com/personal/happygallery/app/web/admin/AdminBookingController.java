@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/admin/bookings")
+@RequestMapping({"/api/v1/admin/bookings", "/admin/bookings"})
 public class AdminBookingController {
 
     private final PassNoShowService passNoShowService;

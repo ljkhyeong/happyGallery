@@ -24,6 +24,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
 import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
+import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassData;
+import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
+import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -49,17 +52,17 @@ class BookingRescheduleUseCaseIT {
     @BeforeEach
     void setUp() {
         helper = new BookingTestHelper(mockMvc);
-        // FK 순서에 맞게 삭제
-        passLedgerRepository.deleteAll();
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        passPurchaseRepository.deleteAll();
-        phoneVerificationRepository.deleteAll();
-        guestRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
+        clearBookingWithPassData(
+                passLedgerRepository,
+                bookingHistoryRepository,
+                bookingRepository,
+                passPurchaseRepository,
+                phoneVerificationRepository,
+                guestRepository,
+                slotRepository,
+                classRepository);
 
-        cls = classRepository.save(new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30));
+        cls = classRepository.save(defaultBookingClass());
     }
 
     // -----------------------------------------------------------------------
@@ -72,7 +75,7 @@ class BookingRescheduleUseCaseIT {
         // 슬롯 6개 생성 (간격을 충분히 벌려 버퍼 간섭 방지)
         Slot[] slots = new Slot[6];
         for (int i = 0; i < 6; i++) {
-            slots[i] = slotRepository.save(new Slot(cls,
+            slots[i] = slotRepository.save(slot(cls,
                     FUTURE.plusHours(i * 3L),
                     FUTURE.plusHours(i * 3L + 2)));
         }
@@ -132,8 +135,8 @@ class BookingRescheduleUseCaseIT {
     void reschedule_changeNotAllowed_returns422() throws Exception {
         // 현재 시각 기준 30분 후 시작하는 슬롯 (1시간 이내 → 변경 불가)
         LocalDateTime soonStart = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusMinutes(30);
-        Slot nearSlot = slotRepository.save(new Slot(cls, soonStart, soonStart.plusHours(2)));
-        Slot targetSlot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot nearSlot = slotRepository.save(slot(cls, soonStart, soonStart.plusHours(2)));
+        Slot targetSlot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         String code = helper.sendVerificationAndGetCode("01022220001");
         String createResp = helper.createBooking("01022220001", code, nearSlot.getId(), 5000L);
@@ -160,7 +163,7 @@ class BookingRescheduleUseCaseIT {
     @DisplayName("동일 슬롯으로 예약 변경을 요청하면 400을 반환한다")
     @Test
     void reschedule_sameSlot_returns400() throws Exception {
-        Slot slot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         String code = helper.sendVerificationAndGetCode("01033330001");
         String createResp = helper.createBooking("01033330001", code, slot.getId(), 5000L);
@@ -187,8 +190,8 @@ class BookingRescheduleUseCaseIT {
     @DisplayName("비활성 슬롯으로 예약 변경을 요청하면 409를 반환한다")
     @Test
     void reschedule_slotNotAvailable_returns409() throws Exception {
-        Slot fromSlot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
-        Slot inactiveSlot = slotRepository.save(new Slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
+        Slot fromSlot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot inactiveSlot = slotRepository.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
         slotManagementService.deactivateSlot(inactiveSlot.getId());
 
         String code = helper.sendVerificationAndGetCode("01044440001");
@@ -216,8 +219,8 @@ class BookingRescheduleUseCaseIT {
     @DisplayName("예약 변경 시 정원 초과 슬롯을 선택하면 409를 반환한다")
     @Test
     void reschedule_capacityExceeded_returns409() throws Exception {
-        Slot fromSlot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
-        Slot fullSlot = slotRepository.save(new Slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
+        Slot fromSlot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot fullSlot = slotRepository.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
 
         // fullSlot을 8명으로 채운다 (서비스 직접 호출)
         for (int i = 0; i < 8; i++) {
@@ -249,8 +252,8 @@ class BookingRescheduleUseCaseIT {
     @DisplayName("잘못된 토큰으로 예약 변경을 요청하면 404를 반환한다")
     @Test
     void reschedule_wrongToken_returns404() throws Exception {
-        Slot fromSlot = slotRepository.save(new Slot(cls, FUTURE, FUTURE.plusHours(2)));
-        Slot toSlot   = slotRepository.save(new Slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
+        Slot fromSlot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot toSlot = slotRepository.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
 
         String code = helper.sendVerificationAndGetCode("01066660001");
         String createResp = helper.createBooking("01066660001", code, fromSlot.getId(), 5000L);

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
  * [PolicyTest] 에러 응답 포맷 고정 검증.
@@ -32,9 +33,11 @@ class ErrorResponseFormatTest {
 
         JsonNode node = objectMapper.valueToTree(response);
 
-        assertThat(node.size()).isEqualTo(2);
-        assertThat(node.has("code")).isTrue();
-        assertThat(node.has("message")).isTrue();
+        assertSoftly(softly -> {
+            softly.assertThat(node.size()).isEqualTo(2);
+            softly.assertThat(node.has("code")).isTrue();
+            softly.assertThat(node.has("message")).isTrue();
+        });
     }
 
     @DisplayName("에러 응답의 code 값은 ErrorCode 이름과 일치한다")
@@ -44,8 +47,10 @@ class ErrorResponseFormatTest {
 
         JsonNode node = objectMapper.valueToTree(response);
 
-        assertThat(node.get("code").asText()).isEqualTo("ALREADY_REFUNDED");
-        assertThat(node.get("message").asText()).isEqualTo(ErrorCode.ALREADY_REFUNDED.message);
+        assertSoftly(softly -> {
+            softly.assertThat(node.get("code").asText()).isEqualTo("ALREADY_REFUNDED");
+            softly.assertThat(node.get("message").asText()).isEqualTo(ErrorCode.ALREADY_REFUNDED.message);
+        });
     }
 
     @DisplayName("에러 응답에 사용자 메시지를 지정하면 기본 메시지를 대체한다")
@@ -55,7 +60,9 @@ class ErrorResponseFormatTest {
 
         JsonNode node = objectMapper.valueToTree(response);
 
-        assertThat(node.get("code").asText()).isEqualTo("NOT_FOUND");
-        assertThat(node.get("message").asText()).isEqualTo("주문을 찾을 수 없습니다.");
+        assertSoftly(softly -> {
+            softly.assertThat(node.get("code").asText()).isEqualTo("NOT_FOUND");
+            softly.assertThat(node.get("message").asText()).isEqualTo("주문을 찾을 수 없습니다.");
+        });
     }
 }

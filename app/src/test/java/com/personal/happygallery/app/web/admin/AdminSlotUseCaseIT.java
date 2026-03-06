@@ -14,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static com.personal.happygallery.support.TestDataCleaner.clearBookingData;
+import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,12 +38,8 @@ class AdminSlotUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
-        BookingClass cls = classRepository.save(
-                new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30));
+        clearBookingData(bookingHistoryRepository, bookingRepository, slotRepository, classRepository);
+        BookingClass cls = classRepository.save(defaultBookingClass());
         classId = cls.getId();
     }
 

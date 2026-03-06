@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/bookings")
+@RequestMapping({"/api/v1/bookings", "/bookings"})
 public class BookingController {
 
     private final GuestBookingService guestBookingService;

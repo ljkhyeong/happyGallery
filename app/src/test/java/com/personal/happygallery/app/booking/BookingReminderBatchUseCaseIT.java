@@ -28,7 +28,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static com.personal.happygallery.support.TestDataCleaner.clearBookingReminderData;
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.guest;
+import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
  * [UseCaseIT] §10.2 예약 리마인드 배치 검증.
@@ -60,15 +65,15 @@ class BookingReminderBatchUseCaseIT {
     }
 
     private void cleanup() {
-        // FK 삭제 순서: passLedger → passPurchase → bookingHistory → booking → guest → slot → class
-        passLedgerRepository.deleteAll();
-        passPurchaseRepository.deleteAll();
-        bookingHistoryRepository.deleteAll();
-        bookingRepository.deleteAll();
-        guestRepository.deleteAll();
-        slotRepository.deleteAll();
-        classRepository.deleteAll();
-        notificationLogRepository.deleteAll();
+        clearBookingReminderData(
+                passLedgerRepository,
+                passPurchaseRepository,
+                bookingHistoryRepository,
+                bookingRepository,
+                guestRepository,
+                slotRepository,
+                classRepository,
+                notificationLogRepository);
     }
 
     // -----------------------------------------------------------------------
@@ -84,13 +89,17 @@ class BookingReminderBatchUseCaseIT {
         Booking booking = createBooking(slotStart);
 
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
-
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isZero();
         List<NotificationLog> logs = notificationLogRepository.findAll();
-        assertThat(logs).hasSize(1);
-        assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
-        assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(logs).hasSize(1);
+            if (!logs.isEmpty()) {
+                softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
+                softly.assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
+            }
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -123,13 +132,17 @@ class BookingReminderBatchUseCaseIT {
         Booking booking = createBooking(slotStart);
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
-
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isZero();
         List<NotificationLog> logs = notificationLogRepository.findAll();
-        assertThat(logs).hasSize(1);
-        assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_SAME_DAY);
-        assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(logs).hasSize(1);
+            if (!logs.isEmpty()) {
+                softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_SAME_DAY);
+                softly.assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
+            }
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -157,10 +170,10 @@ class BookingReminderBatchUseCaseIT {
 
     private Booking createBooking(LocalDateTime slotStart) {
         BookingClass cls = classRepository.save(
-                new BookingClass("테스트 클래스", "TEST", 60, 30_000L, 30));
+                bookingClass("테스트 클래스", "TEST", 60, 30_000L, 30));
         Slot slot = slotRepository.save(
-                new Slot(cls, slotStart, slotStart.plusHours(1)));
-        Guest guest = guestRepository.save(new Guest("홍길동", "01099998888"));
+                slot(cls, slotStart, slotStart.plusHours(1)));
+        Guest guest = guestRepository.save(guest("홍길동", "01099998888"));
         Booking booking = bookingRepository.save(
                 new Booking(guest, slot, 10_000L, 20_000L,
                         DepositPaymentMethod.CARD, UUID.randomUUID().toString().replace("-", "")));

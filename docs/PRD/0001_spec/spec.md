@@ -188,6 +188,10 @@
 ### 9.1 사용자/게스트
 - `users`
     - id, email, password_hash, name, phone, created_at
+    - `password_hash` 저장 정책:
+      - 단순 해시(SHA-256, MD5) 저장 금지
+      - Salt + Key Stretching이 포함된 알고리즘만 허용 (BCrypt/Argon2id/Scrypt)
+      - Spring Security `PasswordEncoder` 사용을 원칙으로 하며, 기본 권장값은 `BCryptPasswordEncoder`
 - `guests`
     - id, name, phone, phone_verified(boolean), created_at
 
@@ -294,12 +298,24 @@
 
 ---
 
+## 11-A. API 버전 정책
+
+- 기본 전략: `URI Versioning`
+  - 표준 경로: `/api/v1/**`
+  - 예시: `/api/v1/bookings`, `/api/v1/admin/orders`
+- 호환 정책:
+  - 기존 무버전 경로(`/bookings`, `/passes`, `/products`, `/admin/**`)는 구버전 클라이언트 호환을 위해 한시 유지한다.
+  - 신규 기능 추가/문서/테스트는 `/api/v1/**`를 기준으로 작성한다.
+  - 브레이킹 변경은 `/api/v2/**`로 분리하고, `/api/v1/**`는 공지된 deprecate 기간 이후 제거한다.
+
+---
+
 ## 11. Admin API — 슬롯 관리
 
 ### 11.1 슬롯 생성
 
 ```
-POST /admin/slots
+POST /api/v1/admin/slots
 Content-Type: application/json
 
 {
@@ -327,7 +343,7 @@ Content-Type: application/json
 ### 11.2 슬롯 비활성화
 
 ```
-PATCH /admin/slots/{id}/deactivate
+PATCH /api/v1/admin/slots/{id}/deactivate
 
 → 200 OK
 {
@@ -347,7 +363,7 @@ PATCH /admin/slots/{id}/deactivate
 ### 11-B.1 휴대폰 인증 코드 발송
 
 ```
-POST /bookings/phone-verifications
+POST /api/v1/bookings/phone-verifications
 { "phone": "01012345678" }
 
 → 200 OK
@@ -364,7 +380,7 @@ POST /bookings/phone-verifications
 ### 11-B.2 게스트 예약 생성
 
 ```
-POST /bookings/guest
+POST /api/v1/bookings/guest
 {
   "phone": "01012345678",
   "verificationCode": "483921",
@@ -406,7 +422,7 @@ POST /bookings/guest
 ### 11-B.3 비회원 예약 조회
 
 ```
-GET /bookings/{bookingId}?token={accessToken}
+GET /api/v1/bookings/{bookingId}?token={accessToken}
 
 → 200 OK
 {
@@ -434,7 +450,7 @@ GET /bookings/{bookingId}?token={accessToken}
 ### 11-C.1 예약 변경 (비회원)
 
 ```
-PATCH /bookings/{bookingId}/reschedule
+PATCH /api/v1/bookings/{bookingId}/reschedule
 {
   "newSlotId": 43,
   "token": "access_token"
@@ -473,7 +489,7 @@ PATCH /bookings/{bookingId}/reschedule
 ### 11-D.1 비회원 예약 취소
 
 ```
-DELETE /bookings/{bookingId}?token={accessToken}
+DELETE /api/v1/bookings/{bookingId}?token={accessToken}
 
 → 200 OK
 {
@@ -498,7 +514,7 @@ DELETE /bookings/{bookingId}?token={accessToken}
 ### 11-E.1 게스트 8회권 구매
 
 ```
-POST /passes/guest
+POST /api/v1/passes/guest
 {
   "guestId": 1,
   "totalPrice": 320000    // 생략 시 0 처리 (MVP — 실제 PG 연동 전 임시)
@@ -529,7 +545,7 @@ POST /passes/guest
 ### 11-F.1 결석 처리
 
 ```
-POST /admin/bookings/{bookingId}/no-show
+POST /api/v1/admin/bookings/{bookingId}/no-show
 
 → 200 OK
 {
@@ -547,7 +563,7 @@ POST /admin/bookings/{bookingId}/no-show
 ### 11-F.2 8회권 전체 환불
 
 ```
-POST /admin/passes/{passId}/refund
+POST /api/v1/admin/passes/{passId}/refund
 
 → 200 OK
 {
@@ -569,7 +585,7 @@ POST /admin/passes/{passId}/refund
 ### 11-F.3 만료 배치 수동 트리거
 
 ```
-POST /admin/passes/expire
+POST /api/v1/admin/passes/expire
 
 → 200 OK
 {
@@ -580,13 +596,15 @@ POST /admin/passes/expire
 ```
 
 정책: 만료된 pass의 remaining_credits = 0, EXPIRE ledger 기록.
+- `failureReasons` 키는 내부 예외명을 그대로 노출하지 않고 아래 운영용 코드로 정규화한다.
+  - `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`
 
 ## 11-G. 주문 배치 Admin API (§3.3)
 
 ### 11-G.1 픽업 만료 배치 수동 트리거
 
 ```
-POST /admin/orders/expire-pickups
+POST /api/v1/admin/orders/expire-pickups
 
 → 200 OK
 {
@@ -601,11 +619,13 @@ POST /admin/orders/expire-pickups
 정책:
 - `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
 - 성공 건은 `PICKUP_EXPIRED_REFUNDED`로 전이하고 환불/재고 복구를 수행한다.
+- `failureReasons` 키는 내부 예외명을 그대로 노출하지 않고 아래 운영용 코드로 정규화한다.
+  - `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`
 
 ### 11-G.2 제작 완료 (§8.3)
 
 ```
-POST /admin/orders/{id}/complete-production
+POST /api/v1/admin/orders/{id}/complete-production
 Header: X-Admin-Id: {adminId}  (선택)
 
 → 200 OK
@@ -633,7 +653,7 @@ Header: X-Admin-Id: {adminId}  (선택)
 ### 11-H.1 환불 실패 목록 조회
 
 ```
-GET /admin/refunds/failed
+GET /api/v1/admin/refunds/failed
 
 → 200 OK
 [
@@ -651,7 +671,7 @@ GET /admin/refunds/failed
 ### 11-H.2 환불 재시도
 
 ```
-POST /admin/refunds/{refundId}/retry
+POST /api/v1/admin/refunds/{refundId}/retry
 
 → 200 OK (본문 없음)
 ```
@@ -661,6 +681,8 @@ POST /admin/refunds/{refundId}/retry
 - `400 INVALID_INPUT` — FAILED 상태가 아닌 환불 재시도 시도
 
 정책: FAILED 상태 환불만 재시도 가능. 성공 시 SUCCEEDED, 재실패 시 FAILED 유지.
+- 환불 실행/실패 이력 저장은 부모 주문/예약 트랜잭션과 분리된 `REQUIRES_NEW` 트랜잭션으로 처리한다.
+  - 목적: 부모 트랜잭션 롤백과 무관하게 `FAILED` 환불 이력을 운영자가 조회/재시도할 수 있게 보존
 
 ---
 
@@ -668,13 +690,33 @@ POST /admin/refunds/{refundId}/retry
 - 타임존: Asia/Seoul 고정
 - 감사 로그:
     - 승인/거절/지연, 환불 실패/재시도, 예약 변경 이력은 반드시 남긴다
+- 운영 관측성:
+    - `prod` 프로필 로그는 JSON 구조화 포맷으로 출력한다
+    - 요청 단위 추적을 위해 `requestId`를 로그 필드로 포함한다
+    - 로그 레벨 전략:
+      - `TRACE`/`DEBUG`: `local` 개발 환경에서만 사용 (SQL 파라미터, 상세 흐름 추적)
+      - `INFO`: 운영 기본값. 시작/종료, 배치 결과, 결제 완료 등 핵심 이벤트만 기록
+      - `WARN`: 장애 전 단계의 잠재 위험 상황 기록 (예: 파싱 실패 후 기본값 처리)
+      - `ERROR`: 운영자 즉시 대응이 필요한 장애만 기록
 - 장애 대비:
     - 환불/알림은 실패 시 재시도 가능하게 `FAILED` 상태를 남기고 운영자가 확인 가능
+    - 외부 결제(PG) 호출은 `CircuitBreaker + Timeout`으로 보호한다
+      - 기본 타임아웃: 3초
+      - 실패율 임계치 초과 시 fast-fail로 내부 자원 고갈을 방지한다
+    - 필터 기반 처리율 제한을 적용한다 (`/api/v1/**` 기준)
+      - 기본 정책: 인증코드 발송 10 req/sec/IP, 게스트 예약 생성 30 req/min/IP, 이용권 구매 20 req/min/IP, Admin API 120 req/min/IP
+      - 초과 시 `429 TOO_MANY_REQUESTS`와 `Retry-After` 헤더를 반환한다
 - 보안:
     - 비회원 예약은 휴대폰 인증 기반
     - 관리자 기능은 권한 분리(단일 운영자라도 경로는 분리)
-    - **Admin API(`/admin/**`)는 인증/인가 필수** — 현재 MVP 구현에서는 미적용 상태. §11 관리자 화면 구현 시 Spring Security 또는 API Key 방식으로 보호해야 한다.
-    - 미적용 기간 동안 `/admin/**` 엔드포인트는 내부망 또는 개발 환경에서만 노출할 것
+    - **Admin API(`/api/v1/admin/**`)는 인증/인가 필수** — 현재 MVP 구현에서는 미적용 상태. §11 관리자 화면 구현 시 Spring Security 또는 API Key 방식으로 보호해야 한다.
+    - 미적용 기간 동안 `/api/v1/admin/**` 및 레거시 `/admin/**` 엔드포인트는 내부망 또는 개발 환경에서만 노출할 것
+    - 사용자 비밀번호 저장 정책:
+      - DB에는 평문 비밀번호를 저장하지 않는다.
+      - 단순 해시(SHA-256/MD5) 단독 사용을 금지한다.
+      - Salt + Key Stretching이 포함된 해시만 허용한다(BCrypt/Argon2id/Scrypt).
+      - 기본 구현은 Spring Security `PasswordEncoder`(권장: `BCryptPasswordEncoder`)를 사용한다.
+      - 운영 로그에 비밀번호/해시 원문을 출력하지 않는다.
 
 ---
 
@@ -702,6 +744,7 @@ POST /admin/refunds/{refundId}/retry
 | 409 | `DUPLICATE_BOOKING` | 동일 전화번호 + 동일 슬롯 중복 예약 (§5.2) |
 | 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 (§5.2) |
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌 — 동시 변경 요청 (§5.3) |
+| 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 (API 보호) |
 | 422 | `REFUND_NOT_ALLOWED` | D-1 00:00 이후 환불 요청 (§4.2) |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/환불 시도 (§3.2) |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 (§4.2) |

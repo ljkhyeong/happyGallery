@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/admin/orders")
+@RequestMapping({"/api/v1/admin/orders", "/admin/orders"})
 public class AdminOrderController {
 
     private static final String ADMIN_ID_HEADER = "X-Admin-Id";

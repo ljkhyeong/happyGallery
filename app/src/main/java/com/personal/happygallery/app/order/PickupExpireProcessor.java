@@ -6,7 +6,6 @@ import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
-import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.LocalDateTime;
@@ -50,18 +49,12 @@ public class PickupExpireProcessor {
     public boolean process(Long orderId, LocalDateTime now) {
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
-        if (fulfillment.getStatus() != OrderStatus.PICKUP_READY) {
-            return false;
-        }
-        if (fulfillment.getPickupDeadlineAt() == null || !fulfillment.getPickupDeadlineAt().isBefore(now)) {
+        if (!fulfillment.canExpirePickup(now)) {
             return false;
         }
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
-        if (order.getStatus() != OrderStatus.PICKUP_READY) {
-            return false;
-        }
 
         orderApprovalService.restoreInventory(order);
         orderApprovalService.processRefund(order);

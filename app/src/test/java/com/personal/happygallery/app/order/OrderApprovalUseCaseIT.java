@@ -31,6 +31,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -73,14 +75,14 @@ class OrderApprovalUseCaseIT {
     }
 
     private void cleanup() {
-        // FK 삭제 순서: refunds(order_id) → order_items → orders → inventory → products
-        refundRepository.deleteAll();
-        fulfillmentRepository.deleteAll();
-        orderApprovalHistoryRepository.deleteAll();
-        orderItemRepository.deleteAll();
-        orderRepository.deleteAll();
-        inventoryRepository.deleteAll();
-        productRepository.deleteAll();
+        clearOrderData(
+                refundRepository,
+                fulfillmentRepository,
+                orderApprovalHistoryRepository,
+                orderItemRepository,
+                orderRepository,
+                inventoryRepository,
+                productRepository);
     }
 
     // -----------------------------------------------------------------------
@@ -227,20 +229,15 @@ class OrderApprovalUseCaseIT {
             inventoryRepository.save(inv);
         });
 
-        // 배치 실행
         BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isZero();
-
-        // 상태 확인
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
-
-        // 재고 복구 확인
-        assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(1);
-
-        // 환불 기록 확인
-        assertThat(refundRepository.findAll()).hasSize(1);
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+            softly.assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(1);
+            softly.assertThat(refundRepository.findAll()).hasSize(1);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -381,15 +378,14 @@ class OrderApprovalUseCaseIT {
 
         BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
 
-        // 알림 실패와 무관하게 두 건 모두 환불 성공
-        assertThat(result.successCount()).isEqualTo(2);
-        assertThat(result.failureCount()).isZero();
-
         Order updated1 = orderRepository.findById(order1.getId()).orElseThrow();
         Order updated2 = orderRepository.findById(order2.getId()).orElseThrow();
-
-        assertThat(updated1.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
-        assertThat(updated2.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(2);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(updated1.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+            softly.assertThat(updated2.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+        });
     }
 
     // -----------------------------------------------------------------------

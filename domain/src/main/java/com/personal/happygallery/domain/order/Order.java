@@ -120,11 +120,22 @@ public class Order {
 
     /**
      * 24시간 초과 자동환불 처리.
-     * 이미 환불된 주문에 대한 호출은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}을 던진다.
+     * 승인 대기 상태({@link OrderStatus#PAID_APPROVAL_PENDING})가 아니면 예외를 던진다.
+     * 이미 환불된 주문은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}(409).
      */
     public void markAutoRefunded() {
-        this.status.requireApprovable();
+        this.status.requireApprovalPending();
         this.status = OrderStatus.AUTO_REFUNDED_TIMEOUT;
+    }
+
+    /**
+     * 배치에서 자동환불 대상인지 판단한다.
+     * 승인 대기 상태이고, 승인 마감 시각이 {@code now} 이전이면 {@code true}.
+     */
+    public boolean canAutoRefund(LocalDateTime now) {
+        return this.status == OrderStatus.PAID_APPROVAL_PENDING
+                && this.approvalDeadlineAt != null
+                && this.approvalDeadlineAt.isBefore(now);
     }
 
     /**

@@ -75,7 +75,7 @@ public class PassPurchase {
         if (expiresAt.isBefore(now)) {
             throw new PassExpiredException();
         }
-        if (remainingCredits <= 0) {
+        if (!hasRemainingCredits()) {
             throw new PassCreditInsufficientException();
         }
     }
@@ -92,7 +92,7 @@ public class PassPurchase {
      * @throws PassCreditInsufficientException 잔여 크레딧이 0일 때
      */
     public void useCredit() {
-        if (remainingCredits <= 0) {
+        if (!hasRemainingCredits()) {
             throw new PassCreditInsufficientException();
         }
         this.remainingCredits--;
