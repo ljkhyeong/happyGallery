@@ -1,11 +1,11 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.app.booking.RefundExecutionService;
 import com.personal.happygallery.app.product.InventoryService;
 import com.personal.happygallery.config.RetryConfig;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -15,13 +15,10 @@ import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
-import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
-import com.personal.happygallery.infra.payment.PaymentProvider;
-import com.personal.happygallery.infra.payment.RefundResult;
 import com.personal.happygallery.infra.product.ProductRepository;
 import java.util.List;
 import org.slf4j.Logger;
@@ -46,14 +43,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class OrderApprovalService {
-
     private static final Logger log = LoggerFactory.getLogger(OrderApprovalService.class);
+
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final InventoryService inventoryService;
-    private final RefundRepository refundRepository;
-    private final PaymentProvider paymentProvider;
+    private final RefundExecutionService refundExecutionService;
     private final ProductRepository productRepository;
     private final FulfillmentRepository fulfillmentRepository;
     private final OrderApprovalHistoryRepository orderApprovalHistoryRepository;
@@ -62,8 +58,7 @@ public class OrderApprovalService {
     public OrderApprovalService(OrderRepository orderRepository,
                                 OrderItemRepository orderItemRepository,
                                 InventoryService inventoryService,
-                                RefundRepository refundRepository,
-                                PaymentProvider paymentProvider,
+                                RefundExecutionService refundExecutionService,
                                 ProductRepository productRepository,
                                 FulfillmentRepository fulfillmentRepository,
                                 OrderApprovalHistoryRepository orderApprovalHistoryRepository,
@@ -71,8 +66,7 @@ public class OrderApprovalService {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.inventoryService = inventoryService;
-        this.refundRepository = refundRepository;
-        this.paymentProvider = paymentProvider;
+        this.refundExecutionService = refundExecutionService;
         this.productRepository = productRepository;
         this.fulfillmentRepository = fulfillmentRepository;
         this.orderApprovalHistoryRepository = orderApprovalHistoryRepository;
@@ -169,7 +163,11 @@ public class OrderApprovalService {
         processRefund(order);
         orderApprovalHistoryRepository.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT, adminId, null));
-        notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+        try {
+            notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+        } catch (Exception e) {
+            log.warn("주문 거절 알림 실패 [orderId={}] — 환불은 정상 처리됨", orderId, e);
+        }
 
         return orderRepository.save(order);
     }
@@ -182,20 +180,6 @@ public class OrderApprovalService {
     }
 
     void processRefund(Order order) {
-        Refund refund = refundRepository.save(new Refund(order.getId(), order.getTotalAmount()));
-        try {
-            RefundResult result = paymentProvider.refund(null, order.getTotalAmount());
-            if (result.success()) {
-                refund.markSucceeded(result.pgRef());
-            } else {
-                log.warn("환불 실패 [orderId={}, refundId={}] reason={}",
-                        order.getId(), refund.getId(), result.failReason());
-                refund.markFailed(result.failReason());
-            }
-        } catch (Exception e) {
-            log.error("환불 호출 예외 [orderId={}, refundId={}]", order.getId(), refund.getId(), e);
-            refund.markFailed(e.getMessage());
-        }
-        refundRepository.save(refund);
+        refundExecutionService.processOrderRefund(order.getId(), order.getTotalAmount());
     }
 }

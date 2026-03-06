@@ -61,7 +61,11 @@ public class OrderAutoRefundProcessor {
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.AUTO_REFUND));
         orderRepository.saveAndFlush(order);
 
-        notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+        try {
+            notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+        } catch (Exception e) {
+            log.warn("자동환불 알림 실패 [orderId={}] — 환불은 정상 처리됨", orderId, e);
+        }
         return true;
     }
 }

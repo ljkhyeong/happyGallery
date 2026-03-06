@@ -64,7 +64,11 @@ public class PickupExpireProcessor {
         orderRepository.save(order);
         fulfillmentRepository.saveAndFlush(fulfillment);
 
-        notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+        try {
+            notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+        } catch (Exception e) {
+            log.warn("픽업 만료 알림 실패 [orderId={}] — 환불은 정상 처리됨", orderId, e);
+        }
         return true;
     }
 }
