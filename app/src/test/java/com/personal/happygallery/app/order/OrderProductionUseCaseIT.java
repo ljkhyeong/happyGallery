@@ -29,7 +29,7 @@ import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 /**
  * [UseCaseIT] §8.3 예약 제작 주문 검증.
  *
- * <p>Proof (PLAN.md §8.3): 제작 시작 상태에서 취소 요청 시 "환불 불가"로 처리됨.
+ * <p>Proof (docs/1Pager/0000_project_plan/plan.md §8.3): 제작 시작 상태에서 취소 요청 시 "환불 불가"로 처리됨.
  */
 @UseCaseIT
 class OrderProductionUseCaseIT {
