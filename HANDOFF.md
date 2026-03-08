@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 Claude 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-06 (리팩토링 R1–R9 완료, R10 남음)
+> 작성 시점: 2026-03-08 (frontend plan B1 완료, F0 스캐폴딩 추가)
 
 ---
 
@@ -17,9 +17,31 @@
 
 ---
 
-## 미커밋 상태
+## 현재 브랜치 / 워크트리 상태
 
-리팩토링 R1–R9 변경분이 커밋되지 않았음. `./gradlew test` 전체 통과 상태.
+- 작업 브랜치: `ljkhyeong/frontend-setup`
+- 최근 작업: `docs/1Pager/0003_frontend_plan/api-gap-analysis.md` 추가, `frontend/` Vite + React + TypeScript 스캐폴딩 추가
+- 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
+- 검증: `cd frontend && npm run build`
+
+---
+
+## 프론트 진행 상황
+
+프론트 플랜: `docs/1Pager/0003_frontend_plan/plan.md`
+
+### 완료
+
+| 단위 | 내용 | 주요 변경 파일 |
+|------|------|----------------|
+| **B1** | 프론트 선행 API 갭 분석 문서화 | `docs/1Pager/0003_frontend_plan/api-gap-analysis.md` — 공개/관리자 API 현황, GAP-1~5, 프론트 선행 관계 정리 |
+| **F0** | 프론트 워크스페이스 스캐폴딩 | `frontend/package.json`, `frontend/vite.config.ts`, `frontend/src/**/*` — Vite + React + TypeScript, 라우팅, `@` alias, `/api -> :8080` proxy |
+
+### 다음 우선순위
+
+- `F1`: 공통 API 클라이언트와 에러 처리 계층
+- `F2`: 앱 셸, 테마, 공통 UI 기반
+- `B2`: 공개 상품/클래스/슬롯 조회 API 추가
 
 ---
 
@@ -101,7 +123,7 @@
 ### 리팩토링 원칙
 - 기능 변경 없이 구조만 정리 — HTTP 계약/상태 결과 변화 없음
 - 각 단위 완료 시 `./gradlew test` 전체 통과 확인됨
-- 커밋은 아직 안 됨 — 다음 에이전트가 R10 완료 후 일괄 커밋 또는 단위별 커밋 선택
+- R10은 미완료이며, 필요 시 `./gradlew --no-daemon :app:useCaseTest` 기준으로 이어서 진행
 
 ### Spring Boot 4.0 특이사항
 - `@AutoConfigureMockMvc` 제거됨 → `MockMvcBuilders.webAppContextSetup(context).addFilters(filter).build()` 패턴
