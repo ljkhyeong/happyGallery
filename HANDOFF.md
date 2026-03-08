@@ -126,7 +126,7 @@
 - 기능 변경 없이 구조만 정리 — HTTP 계약/상태 결과 변화 없음
 - R10 중 예약 조회 테스트에서 드러난 LAZY 초기화 예외는 `BookingRepository.findDetailByIdAndAccessToken()` fetch join 추가로 보정함
 - 각 단위 완료 시 관련 Gradle 검증 통과 확인
-- R10 정리분은 PR #24로 `codexReview`에 반영됨. R2 재검토 보강은 후속 PR에서 합류 예정
+- R10 정리분은 PR #24로, R2 재검토 보강은 PR #25로 `codexReview`에 반영됨
 
 ### Spring Boot 4.0 특이사항
 
