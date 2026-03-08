@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(./gradlew :app:test:*)",
+      "Bash(jar tf:*)",
+      "Bash(./gradlew :app:dependencies:*)",
+      "Bash(./gradlew :domain:build:*)",
+      "Bash(./gradlew :infra:build:*)",
+      "Bash(./gradlew :app:compileJava:*)",
+      "Bash(./gradlew :app:policyTest:*)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(head:*)",
+      "Bash(done)",
+      "Bash(find /Users/lim/Desktop/devProject/personal/happyGallery/app/build/test-results -name \"TEST-*ProductInventory*.xml\" 2>/dev/null | xargs cat 2>/dev/null)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git:*)",
+      "Bash(./gradlew:*)",
+      "Bash(mkdir:*)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  }
+}
