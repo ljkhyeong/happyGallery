@@ -1,8 +1,11 @@
 package com.personal.happygallery.support;
 
+import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
@@ -30,6 +33,19 @@ public final class TestFixtures {
 
     public static Guest guest(String name, String phone) {
         return new Guest(name, phone);
+    }
+
+    public static Booking booking(Guest guest,
+                                  Slot slot,
+                                  long depositAmount,
+                                  long balanceAmount,
+                                  DepositPaymentMethod paymentMethod,
+                                  String accessToken) {
+        return new Booking(guest, slot, depositAmount, balanceAmount, paymentMethod, accessToken);
+    }
+
+    public static PassPurchase passPurchase(Guest guest, LocalDateTime expiresAt, long totalPrice) {
+        return new PassPurchase(guest, expiresAt, totalPrice);
     }
 
     public static Product readyStockProduct(String name, long price) {

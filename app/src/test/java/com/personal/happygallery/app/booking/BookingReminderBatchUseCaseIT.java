@@ -29,6 +29,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingReminderData;
+import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
+import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.guest;
 import static com.personal.happygallery.support.TestFixtures.slot;
@@ -89,7 +91,7 @@ class BookingReminderBatchUseCaseIT {
         Booking booking = createBooking(slotStart);
 
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
-        List<NotificationLog> logs = notificationLogRepository.findAll();
+        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 1);
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
@@ -132,7 +134,7 @@ class BookingReminderBatchUseCaseIT {
         Booking booking = createBooking(slotStart);
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
-        List<NotificationLog> logs = notificationLogRepository.findAll();
+        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 1);
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
@@ -174,9 +176,13 @@ class BookingReminderBatchUseCaseIT {
         Slot slot = slotRepository.save(
                 slot(cls, slotStart, slotStart.plusHours(1)));
         Guest guest = guestRepository.save(guest("홍길동", "01099998888"));
-        Booking booking = bookingRepository.save(
-                new Booking(guest, slot, 10_000L, 20_000L,
-                        DepositPaymentMethod.CARD, UUID.randomUUID().toString().replace("-", "")));
+        Booking booking = bookingRepository.save(booking(
+                guest,
+                slot,
+                10_000L,
+                20_000L,
+                DepositPaymentMethod.CARD,
+                UUID.randomUUID().toString().replace("-", "")));
         return booking;
     }
 }
