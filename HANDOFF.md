@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, frontend plan B4 주문 API 추가)
+> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, frontend plan F8/F9 주문 화면 추가)
 
 ---
 
@@ -29,6 +29,8 @@
   - F5 공개 상품 카탈로그 화면 추가
   - F6 예약 생성 화면 추가
   - F7 8회권 구매 화면 추가
+  - F8 관리자 운영 확장 컴포넌트 추가
+  - F9 사용자 주문 화면 컴포넌트 추가
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `./gradlew :app:policyTest` 통과
@@ -62,12 +64,15 @@
 |------|------|----------------|
 | **F2** | 앱 셸/테마 기초 | `frontend/src/shared/ui/**/*`, `frontend/src/styles/**/*`, `frontend/src/pages/NotFoundPage.tsx` |
 | **F3** | 관리자 상품/슬롯 화면 MVP | `frontend/src/features/admin-product/**/*`, `frontend/src/features/admin-slot/**/*`, `frontend/src/pages/admin/AdminPage.tsx` |
+| **F8** | 관리자 운영 확장 화면 | `frontend/src/features/admin-order/**/*`, `frontend/src/features/admin-pass/**/*`, `frontend/src/features/admin-refund/**/*`, `frontend/src/pages/admin/AdminPage.tsx` |
+| **F9** | 사용자 주문 화면 | `frontend/src/features/order/**/*`, `frontend/src/pages/OrderCreatePage.tsx`, `frontend/src/pages/OrderDetailPage.tsx`, `frontend/src/app/App.tsx` |
 
 ### 다음 우선순위
 
 - `F2`: 로딩/에러/empty 상태와 공통 셸 마무리
 - `F3`: 관리자 상품/슬롯 화면 검증 후 세부 UX 보완
-- `F8`, `F9`: 관리자 운영 확장 / 사용자 주문 화면 착수
+- `F8`: 관리자 운영 화면 실제 검증 및 UX 보완
+- `F9`: 주문 생성/조회 UX 보완 및 최종 연결 점검
 
 ---
 
