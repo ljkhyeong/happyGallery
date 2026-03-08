@@ -1,18 +1,142 @@
-## 문서 관리
+# happyGallery
 
-docs 폴더 아래에 문서 성격별 카테고리와 주제 단위 폴더를 고정해 관리한다.
+happyGallery는 오프라인 공방의 온라인 쇼핑몰 + 체험 예약 시스템이다.
 
-*   카테고리:
-    *   `docs/Idea` - 아이디어 스케치, 문제 정의, 대략적인 방향
-    *   `docs/1Pager` - 이해관계자용 한 장 요약 (목적/대상/핵심 기능/일정/리스크)
-    *   `docs/PRD` - 제품 요구사항 상세 스펙 (기능/요구사항/API·화면·정책/비기능)
-    *   `docs/POC` - 실험/검증 기록 (가설/방법/결과/결론)
-    *   `docs/ADR` - 의사결정 기록 (왜 이 선택을 했는지)
-*   주제 폴더 규칙: `docs/<Category>/0001_<topic>` 형태로 번호를 올리며 관리
+- 백엔드: Spring Boot 4.0.2, Java 21, MySQL 8
+- 프론트: Vite, React 19, TypeScript, Bootstrap
+- 저장소 형태: Gradle 멀티 모듈 백엔드 + 별도 `frontend/` 워크스페이스
 
-## 빌드 및 실행
+## 빠른 길잡이
 
-*   빌드: `./gradlew build`
-*   실행: `./gradlew :app:bootRun`
-*   Health 체크: `http://localhost:8080/actuator/health`
-*   DB/환경 설정: `docker compose up -d`
+- 현재 세션 인수인계: `HANDOFF.md`
+- 기준 스펙: `docs/PRD/0001_spec/spec.md`
+- 전체 계획/백로그: `PLAN.md`
+- 프론트 계획: `docs/1Pager/0003_frontend_plan/plan.md`
+- 설계 결정: `docs/ADR/`
+
+## 현재 제공 기능
+
+- 공개 사용자 흐름
+  - 상품 목록/상세
+  - 예약 생성
+  - 예약 조회/변경/취소
+  - 8회권 구매
+  - 주문 생성/조회
+- 관리자 흐름
+  - 상품 등록/조회
+  - 슬롯 생성/비활성화
+  - 주문 승인/거절/제작 완료/지연/픽업 관리
+  - 8회권 만료/환불
+  - 환불 실패 조회/재시도
+
+프론트 주요 경로:
+
+- `/products`
+- `/products/:id`
+- `/bookings/new`
+- `/bookings/manage`
+- `/passes/purchase`
+- `/orders/new`
+- `/orders/detail`
+- `/admin`
+
+## 저장소 구조
+
+- `app/`
+  - Spring Boot 진입점, 컨트롤러, 애플리케이션 서비스, 배치, 통합 테스트
+- `domain/`
+  - 엔티티, 상태 전이, 정책 등 핵심 비즈니스 규칙
+- `infra/`
+  - JPA 리포지토리, 결제/알림 등 외부 연동 구현
+- `common/`
+  - 공통 예외, 시간 유틸, 공용 타입
+- `frontend/`
+  - Vite + React + TypeScript 프론트엔드
+
+## 로컬 실행
+
+### 1. 요구사항
+
+- Java 21
+- Node.js 20+
+- Docker / Docker Compose
+
+### 2. 주요 환경 변수
+
+- `DB_URL`
+- `DB_USERNAME`
+- `DB_PASSWORD`
+- `ADMIN_API_KEY`
+- `MYSQL_ROOT_PASSWORD`
+- `MYSQL_USER`
+- `MYSQL_PASSWORD`
+
+기본 프로필은 `local`이다.
+
+### 3. 백엔드 실행 방식
+
+MySQL만 Docker로 띄우고 앱은 로컬에서 실행:
+
+```bash
+docker compose up -d mysql
+./gradlew :app:bootRun
+```
+
+MySQL + 앱 컨테이너를 함께 실행:
+
+```bash
+docker compose up -d --build
+```
+
+백엔드 헬스 체크:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+### 4. 프론트 실행
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- 프론트 개발 서버: `http://localhost:3000`
+- `/api` 요청은 Vite proxy로 `http://localhost:8080`에 연결된다.
+
+## 빌드와 검증
+
+### 백엔드
+
+- 전체 빌드: `./gradlew build`
+- 전체 테스트: `./gradlew test`
+- 정책 테스트: `./gradlew :app:policyTest`
+- 유스케이스 통합 테스트: `./gradlew --no-daemon :app:useCaseTest`
+- 단일 테스트 예시:
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.OrderApprovalUseCaseIT`
+
+### 프론트
+
+- 프로덕션 빌드: `cd frontend && npm run build`
+
+## API/운영 메모
+
+- 표준 API 경로는 `/api/v1/**`다.
+- 레거시 무버전 경로도 일부 유지하지만, 신규 문서와 테스트는 `/api/v1/**`를 기준으로 한다.
+- 관리자 API와 관리자 화면은 `X-Admin-Key`가 필요하다.
+- 예약/주문 조회는 토큰 기반(`bookingId + token`, `orderId + token`)으로 동작한다.
+
+## 문서 우선순위
+
+1. `HANDOFF.md`
+2. `docs/PRD/0001_spec/spec.md`
+3. 관련 `docs/ADR/*`
+4. 도메인별 `docs/1Pager/*`
+
+## 브랜치 흐름
+
+- 작업 브랜치에서 변경 수행
+- 먼저 `codexReview`로 반영해 통합 확인
+- 이후 `codexReview -> main` PR 생성 및 머지
+- 구현 변경 시 관련 문서도 함께 갱신

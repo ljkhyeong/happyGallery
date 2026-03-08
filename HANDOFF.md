@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, 로컬 Docker 실행 추가)
+> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, 프론트/API/README 동기화)
 
 ---
 
@@ -8,6 +8,7 @@
 
 **happyGallery** — 오프라인 공방의 온라인 쇼핑몰 + 체험 예약 시스템 (Spring Boot 4.0.2 / Java 21 / MySQL 8)
 
+- 빠른 진입 문서: `README.md`
 - 핵심 스펙: `docs/PRD/0001_spec/spec.md`
 - 전체 구현 계획: `PLAN.md`
 - 의사결정 기록: `docs/ADR/`
@@ -19,7 +20,7 @@
 
 ## 현재 브랜치 / 워크트리 상태
 
-- 작업 브랜치: `codex/work-r2-review-fix`
+- 통합 기준 브랜치: `codexReview` (`main`에 올리기 전 누적 브랜치)
 - 최근 작업:
   - `codexReview`의 R10 테스트 픽스처 정리 반영
   - B2 공개 상품/클래스/슬롯 조회 API 추가
@@ -32,6 +33,7 @@
   - F8 관리자 운영 확장 컴포넌트 추가
   - F9 사용자 주문 화면 컴포넌트 추가
   - `docker-compose.yml`, `Dockerfile`, `.dockerignore`로 로컬 컨테이너 실행 경로 추가
+  - `README.md` 전면 정리 및 문서 최신화
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `./gradlew :app:policyTest` 통과
@@ -69,6 +71,17 @@
 | **F3** | 관리자 상품/슬롯 화면 MVP | `frontend/src/features/admin-product/**/*`, `frontend/src/features/admin-slot/**/*`, `frontend/src/pages/admin/AdminPage.tsx` |
 | **F8** | 관리자 운영 확장 화면 | `frontend/src/features/admin-order/**/*`, `frontend/src/features/admin-pass/**/*`, `frontend/src/features/admin-refund/**/*`, `frontend/src/pages/admin/AdminPage.tsx` |
 | **F9** | 사용자 주문 화면 | `frontend/src/features/order/**/*`, `frontend/src/pages/OrderCreatePage.tsx`, `frontend/src/pages/OrderDetailPage.tsx`, `frontend/src/app/App.tsx` |
+
+### 현재 프론트 진입 경로
+
+- `/products`
+- `/products/:id`
+- `/bookings/new`
+- `/bookings/manage`
+- `/passes/purchase`
+- `/orders/new`
+- `/orders/detail`
+- `/admin`
 
 ### 다음 우선순위
 
@@ -142,7 +155,7 @@
 
 ### Spring Boot 4.0 특이사항
 
-- `@AutoConfigureMockMvc` 제거됨 → `MockMvcBuilders.webAppContextSetup(context).addFilters(filter).build()` 패턴
+- `@UseCaseIT`는 현재 `@AutoConfigureMockMvc(addFilters = false)` 기반으로 유지 중
 - `@SpringBootTest` 컨텍스트에서 `ObjectMapper` autowire 불가 → JSON 문자열 직접 구성
 
 ### 테스트 실행
@@ -157,7 +170,6 @@ cd frontend && npm run build
 
 ### 미해결 과제
 
-- `BatchScheduler` cron — 시스템 TZ 기준. 운영 서버 `Asia/Seoul` 설정 여부 확인 필요
 - PG 환불 패턴 중복 → 실 PG 연동 시 RefundExecutor로 통합 예정
 - `DELAY_REQUESTED` → 재개 경로 없음 (ADR-0014)
 - Fulfillment.status와 Order.status 이중 관리 → 불일치 위험 (ADR-0014)

@@ -1,19 +1,22 @@
-# B1. 프론트 선행 API 갭 분석
+# B1. 프론트 선행 API 갭 분석 및 해소 현황
 
 ## 1) 현재 공개 API 목록
 
 | # | Method | Path | 용도 |
 |---|--------|------|------|
-| 1 | GET | `/api/v1/products/{id}` | 상품 상세 조회 |
-| 2 | POST | `/api/v1/bookings/phone-verifications` | 휴대폰 인증코드 발송 |
-| 3 | POST | `/api/v1/bookings/guest` | 게스트 예약 생성 |
-| 4 | GET | `/api/v1/bookings/{bookingId}?token=` | 비회원 예약 조회 |
-| 5 | PATCH | `/api/v1/bookings/{bookingId}/reschedule` | 예약 변경 |
-| 6 | DELETE | `/api/v1/bookings/{bookingId}?token=` | 예약 취소 |
-| 7 | POST | `/api/v1/passes/guest` | 게스트 8회권 구매 (guestId 직접 지정) |
-| 8 | POST | `/api/v1/passes/purchase` | 휴대폰 인증 기반 8회권 구매 |
-| 9 | POST | `/api/v1/orders` | 사용자 주문 생성 |
-| 10 | GET | `/api/v1/orders/{id}?token=` | 사용자 주문 상세 조회 |
+| 1 | GET | `/api/v1/products` | 공개 상품 목록 조회 |
+| 2 | GET | `/api/v1/products/{id}` | 공개 상품 상세 조회 |
+| 3 | GET | `/api/v1/classes` | 공개 클래스 목록 조회 |
+| 4 | GET | `/api/v1/slots?classId=&date=` | 공개 예약 가능 슬롯 조회 |
+| 5 | POST | `/api/v1/bookings/phone-verifications` | 휴대폰 인증코드 발송 |
+| 6 | POST | `/api/v1/bookings/guest` | 게스트 예약 생성 |
+| 7 | GET | `/api/v1/bookings/{bookingId}?token=` | 비회원 예약 조회 |
+| 8 | PATCH | `/api/v1/bookings/{bookingId}/reschedule` | 예약 변경 |
+| 9 | DELETE | `/api/v1/bookings/{bookingId}?token=` | 예약 취소 |
+| 10 | POST | `/api/v1/passes/guest` | 게스트 8회권 구매 (legacy) |
+| 11 | POST | `/api/v1/passes/purchase` | 휴대폰 인증 기반 8회권 구매 |
+| 12 | POST | `/api/v1/orders` | 사용자 주문 생성 |
+| 13 | GET | `/api/v1/orders/{id}?token=` | 사용자 주문 상세 조회 |
 
 ## 2) 현재 관리자 API 목록
 
@@ -37,88 +40,44 @@
 | 16 | GET | `/api/v1/admin/refunds/failed` | 환불 실패 목록 |
 | 17 | POST | `/api/v1/admin/refunds/{refundId}/retry` | 환불 재시도 |
 
----
+## 3) 프론트 단위별 API 준비 상태
 
-## 3) 프론트 단위별 API 매핑
+### API 기준으로 완료 또는 착수 가능
 
-### 바로 구현 가능 (기존 API로 충분)
+| 단위 | 상태 | 근거 |
+|------|------|------|
+| **F0** | 완료 | 워크스페이스와 Vite 설정 존재 |
+| **F1** | 완료 | 공통 API 클라이언트/타입 계층 존재 |
+| **F2** | 진행 중 | API 의존 없음, 공통 셸/상태 UI 보강 단계 |
+| **F3** | 진행 중 | 관리자 상품/슬롯 API 이미 존재 |
+| **F4** | 완료 | 예약 조회/변경/취소 API 존재 |
+| **F5** | 완료 | 공개 상품 목록/상세 API 존재 |
+| **F6** | 완료 | 공개 클래스/슬롯 조회 + 예약 생성 API 존재 |
+| **F7** | 완료 | 휴대폰 인증 기반 8회권 구매 API 존재 |
+| **F8** | 진행 중 | 관리자 주문/패스/환불 API 이미 존재 |
+| **F9** | 진행 중 | 사용자 주문 생성/조회 API 존재 |
 
-| 단위 | 화면 | 사용하는 API | 비고 |
-|------|------|-------------|------|
-| **F0** | 스캐폴딩 | 없음 | 프로젝트 초기 설정 |
-| **F1** | API 클라이언트 | 없음 | 공통 인프라 |
-| **F2** | 앱 셸/테마 | 없음 | 공통 UI |
-| **F3** | 관리자 상품/슬롯 | Admin #1~4 | 전부 존재 |
-| **F4** | 예약 조회/변경/취소 | 공개 #4~6 | 전부 존재 |
-| **F8** | 관리자 운영 확장 | Admin #5~17 | 전부 존재 |
+## 4) 초기 API 갭 해소 현황
 
-### 백엔드 선행 작업 필요
+| GAP | 초기 문제 | 현재 상태 | 해소 계약 |
+|-----|-----------|-----------|-----------|
+| GAP-1 | 공개 상품 목록 API 부재 | 해소됨 | `GET /api/v1/products` |
+| GAP-2 | 공개 클래스 목록 API 부재 | 해소됨 | `GET /api/v1/classes` |
+| GAP-3 | 공개 슬롯 조회 API 부재 | 해소됨 | `GET /api/v1/slots?classId=&date=` |
+| GAP-4 | `guestId` 획득 흐름 부재 | 해소됨 | `POST /api/v1/passes/purchase` |
+| GAP-5 | 사용자 주문 생성/조회 API 부재 | 해소됨 | `POST /api/v1/orders`, `GET /api/v1/orders/{id}?token=` |
 
-| 단위 | 화면 | 부족한 API | 선행 단위 |
-|------|------|-----------|----------|
-| **F5** | 공개 상품 카탈로그 | 공개 상품 **목록** 조회 | B2 |
-| **F6** | 예약 생성 | 공개 **클래스 목록** 조회, 공개 **슬롯 목록** 조회 (날짜/클래스 기준, 잔여 정원 포함) | B2 |
-| **F7** | 8회권 구매 | `guestId` 획득 흐름 없음 (현재 API는 guestId를 직접 요구) | B3 |
-| **F9** | 주문 생성/조회 | 사용자용 주문 생성/조회 API 전체 부재 | B4 |
+## 5) 현재 남은 프론트 관점 이슈
 
----
-
-## 4) API 갭 상세
-
-### GAP-1: 공개 상품 목록 API 부재
-- **현재**: `GET /api/v1/products/{id}` (상세만)
-- **필요**: ACTIVE 상품 전체를 공개 목록으로 조회
-- **관리자 API에는 존재**: `GET /api/v1/admin/products` — 그러나 `X-Admin-Key` 필요
-- **해소 방향**: 공개 경로로 `GET /api/v1/products` 추가 (ACTIVE 필터, 페이징 선택)
-- **영향 단위**: F5
-
-### GAP-2: 공개 클래스 목록 API 부재
-- **현재**: 클래스 관련 공개 API 없음
-- **필요**: 예약 생성 화면에서 "어떤 클래스를 선택할 수 있는지" 조회
-- **해소 방향**: `GET /api/v1/classes` 추가 (id, name, category, durationMin, price)
-- **영향 단위**: F6
-
-### GAP-3: 공개 슬롯 조회 API 부재
-- **현재**: 슬롯 관련 공개 API 없음 (생성/비활성화는 관리자 전용)
-- **필요**: 날짜/클래스 기준으로 예약 가능한 슬롯 목록 + 잔여 정원 조회
-- **해소 방향**: `GET /api/v1/slots?classId={}&date={}` 추가 (active & 잔여 정원 > 0인 슬롯)
-- **영향 단위**: F6
-
-### GAP-4: guestId 획득 흐름 부재
-- **상태**: 해소됨
-- **현재**: `POST /api/v1/passes/purchase`로 phone + verificationCode + name 기반 구매 가능
-- **보완 내용**: 백엔드가 전화번호 기준 Guest를 조회/생성하므로 브라우저가 내부 guestId를 알 필요 없음
-- **영향 단위**: B3 완료, F7 착수 가능
-
-### GAP-5: 사용자 주문 생성/조회 API 전체 부재
-- **상태**: 해소됨
-- **현재**: `POST /api/v1/orders`, `GET /api/v1/orders/{id}?token=` 제공
-- **보완 내용**: 휴대폰 인증 기반 주문 생성과 access token 기반 상세 조회 가능
-- **영향 단위**: B4 완료, F9 착수 가능
-
----
-
-## 5) 선행 작업 → 프론트 단위 의존 그래프
-
-```
-B1 (이 문서) ─── 완료
- │
- ├─ F0 → F1 → F2 ─── API 불필요, 즉시 착수 가능
- │                │
- │                ├─ F3 ─── 관리자 API 전부 존재, 즉시 착수 가능
- │                └─ F4 ─── 공개 예약 API 전부 존재, 즉시 착수 가능
- │
- ├─ B2 (GAP-1,2,3 해소) → F5, F6
- ├─ B3 (GAP-4 해소) ─── 완료 → F7
- └─ B4 (GAP-5 해소) ─── 완료 → F8(관리자 운영 API 이미 존재), F9
-```
-
----
+- API 공백보다는 화면 완성도 이슈가 남아 있다.
+- 우선순위:
+  - `F2` 공통 셸, 로딩/에러/empty 상태 보강
+  - `F3` 관리자 상품/슬롯 UX 보강
+  - `F8` 관리자 운영 화면 검증과 UX 보강
+  - `F9` 사용자 주문 생성/조회 UX 보강
 
 ## 6) 결론
 
-- **지금 바로 프론트 착수 가능**: F0, F1, F2, F3, F4
-- **B2 완료 후 착수**: F5, F6
-- **지금 바로 프론트 착수 가능**: F0, F1, F2, F3, F4, F7
-- **지금 바로 프론트 착수 가능**: F0, F1, F2, F3, F4, F7, F9
-- **F8은 관리자 API가 전부 존재**하므로 F2 이후 언제든 착수 가능
+- B1에서 정리했던 프론트 선행 API 갭은 현재 모두 해소됐다.
+- 현재 프론트 작업의 병목은 백엔드 계약 부족이 아니라 UI 완성도와 흐름 연결 마무리다.
+- 최신 상태 판단은 이 문서와 `docs/1Pager/0003_frontend_plan/plan.md`, `HANDOFF.md`를 함께 기준으로 본다.
