@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 Claude 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-06 (리팩토링 R1–R9 완료, R10 남음)
+> 작성 시점: 2026-03-08 (codexReview -> main 머지 반영, R10 부분 진행 상태 동기화)
 
 ---
 
@@ -17,9 +17,11 @@
 
 ---
 
-## 미커밋 상태
+## 현재 저장소 상태
 
-리팩토링 R1–R9 변경분이 커밋되지 않았음. `./gradlew test` 전체 통과 상태.
+- `main`에는 `codexReview` 변경이 이미 머지됨 (`a22a000`, 2026-03-08).
+- 이전 HANDOFF에 남아 있던 “R1–R9 미커밋” 상태는 더 이상 유효하지 않음.
+- 현재 리팩토링 진행 판단은 이 문서와 `docs/1Pager/0002_refactoring_plan/plan.md`를 함께 기준으로 본다.
 
 ---
 
@@ -41,7 +43,7 @@
 | **R8** | Product/Inventory 경계 정리 | `InventoryPolicy.java` 삭제 → `Inventory.deduct()` 인라인. `InventoryService.create()` 추가. `ProductAdminService` → `InventoryService` 위임으로 쓰기 경로 통일 |
 | **R9** | 시간 경계 계산 호출부 정리 | `TimeBoundary.java` — `LocalDateTime` 오버로드 3개 추가. 호출부(`BookingCancelService`, `BookingRescheduleService`, `PassPurchaseService`)에서 타입 변환 코드 제거 |
 
-### 미완료: R10 — 테스트 픽스처/중복 유틸 정리
+### 부분 진행: R10 — 테스트 픽스처/중복 유틸 정리
 
 **범위:**
 - `app/src/test/java/com/personal/happygallery/app/order/*`
@@ -52,6 +54,11 @@
 **작업 목표:**
 - 테스트 데이터 생성/공통 assertion 중복을 지원 클래스로 정리
 - 시나리오 가독성을 유지하면서 보일러플레이트 축소
+
+**현재 반영된 지원 코드:**
+- `app/src/test/java/com/personal/happygallery/support/TestFixtures.java`
+- `app/src/test/java/com/personal/happygallery/support/BookingTestHelper.java`
+- `app/src/test/java/com/personal/happygallery/support/TestDataCleaner.java`
 
 **완료 조건:**
 - 테스트 중복 코드 감소, 읽기 난도 낮아짐
@@ -70,6 +77,7 @@
 **주의사항:**
 - R7에서 `InventoryPolicyTest` 내용이 `Inventory.deduct()` 테스트로 변경됨 — R10에서 파일명/패키지 조정 가능
 - R3에서 `BookingSupport`가 package-private으로 생성됨 — 테스트에서 직접 접근 불필요 (서비스 통합 테스트로 검증)
+- 일부 booking/pass/order 테스트는 이미 지원 클래스를 사용 중이므로 “미착수”가 아니라 “남은 중복 정리 단계”로 보는 편이 정확함
 - 충돌 위험: `R7 -> R10` 순차 권장 (완료됨)
 
 ---
@@ -101,10 +109,10 @@
 ### 리팩토링 원칙
 - 기능 변경 없이 구조만 정리 — HTTP 계약/상태 결과 변화 없음
 - 각 단위 완료 시 `./gradlew test` 전체 통과 확인됨
-- 커밋은 아직 안 됨 — 다음 에이전트가 R10 완료 후 일괄 커밋 또는 단위별 커밋 선택
+- R1–R9는 `main` 머지 완료 상태이며, R10만 남은 테스트 품질 정리 성격으로 추적 중
 
 ### Spring Boot 4.0 특이사항
-- `@AutoConfigureMockMvc` 제거됨 → `MockMvcBuilders.webAppContextSetup(context).addFilters(filter).build()` 패턴
+- `@UseCaseIT`는 현재 `@AutoConfigureMockMvc(addFilters = false)` 기반으로 유지 중
 - `@SpringBootTest` 컨텍스트에서 `ObjectMapper` autowire 불가 → JSON 문자열 직접 구성
 
 ### 테스트 실행
@@ -114,8 +122,9 @@
 ./gradlew --no-daemon :app:useCaseTest   # R10 검증용
 ```
 
-### 미해결 과제 (이전 세션에서 이어짐)
-- `BatchScheduler` cron — 시스템 TZ 기준. 운영 서버 `Asia/Seoul` 설정 여부 확인 필요
+### 미해결 과제 (현재 HEAD 기준)
+- R10 테스트 중복 정리 — 지원 클래스는 도입됐지만 booking/pass/order 시나리오별 인라인 요청/검증이 아직 일부 남아 있음
+- 프론트 선행 API 갭 — 공개 상품 목록, 공개 클래스/슬롯 조회, 공개 8회권 구매 식별 흐름, 공개 주문 API는 아직 없음
 - PG 환불 패턴 중복 → 실 PG 연동 시 RefundExecutor로 통합 예정
 - `DELAY_REQUESTED` → 재개 경로 없음 (ADR-0014)
 - Fulfillment.status와 Order.status 이중 관리 → 불일치 위험 (ADR-0014)
