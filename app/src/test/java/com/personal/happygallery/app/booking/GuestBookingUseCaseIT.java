@@ -20,8 +20,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
 import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
+import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassData;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;

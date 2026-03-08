@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 Claude 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-06 (리팩토링 R1–R9 완료, R10 남음)
+> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료)
 
 ---
 
@@ -19,7 +19,7 @@
 
 ## 미커밋 상태
 
-리팩토링 R1–R9 변경분이 커밋되지 않았음. `./gradlew test` 전체 통과 상태.
+리팩토링 R1–R10 변경분이 커밋되지 않았음. `./gradlew --no-daemon :app:useCaseTest` 통과 상태.
 
 ---
 
@@ -27,7 +27,7 @@
 
 리팩토링 플랜: `docs/1Pager/0002_refactoring_plan/plan.md`
 
-### 완료 (R1–R9)
+### 완료 (R1–R10)
 
 | 단위 | 내용 | 주요 변경 파일 |
 |------|------|----------------|
@@ -40,37 +40,7 @@
 | **R7** | Pass 도메인 계산/검증 메서드 명확화 | `PassPurchase.java` — `requireUsable(now)`, `hasRemainingCredits()`, `calculateRefundAmount()`, `useCredit()` 내부 가드. `GuestBookingService` 만료/잔여 인라인 체크 제거 |
 | **R8** | Product/Inventory 경계 정리 | `InventoryPolicy.java` 삭제 → `Inventory.deduct()` 인라인. `InventoryService.create()` 추가. `ProductAdminService` → `InventoryService` 위임으로 쓰기 경로 통일 |
 | **R9** | 시간 경계 계산 호출부 정리 | `TimeBoundary.java` — `LocalDateTime` 오버로드 3개 추가. 호출부(`BookingCancelService`, `BookingRescheduleService`, `PassPurchaseService`)에서 타입 변환 코드 제거 |
-
-### 미완료: R10 — 테스트 픽스처/중복 유틸 정리
-
-**범위:**
-- `app/src/test/java/com/personal/happygallery/app/order/*`
-- `app/src/test/java/com/personal/happygallery/app/booking/*`
-- `app/src/test/java/com/personal/happygallery/app/pass/*`
-- `app/src/test/java/com/personal/happygallery/support/*`
-
-**작업 목표:**
-- 테스트 데이터 생성/공통 assertion 중복을 지원 클래스로 정리
-- 시나리오 가독성을 유지하면서 보일러플레이트 축소
-
-**완료 조건:**
-- 테스트 중복 코드 감소, 읽기 난도 낮아짐
-- 테스트 실행 시간/신뢰도 회귀 없음
-
-**최소 검증 명령:**
-```bash
-./gradlew --no-daemon :app:useCaseTest
-```
-
-**지시 템플릿:**
-``` 
-리팩토링 plan의 R10만 진행해줘. 기능 변경 없이 리팩토링만 하고, 결과는 변경 파일/핵심 의사결정/실행 테스트 형식으로 보고해줘.
-```
-
-**주의사항:**
-- R7에서 `InventoryPolicyTest` 내용이 `Inventory.deduct()` 테스트로 변경됨 — R10에서 파일명/패키지 조정 가능
-- R3에서 `BookingSupport`가 package-private으로 생성됨 — 테스트에서 직접 접근 불필요 (서비스 통합 테스트로 검증)
-- 충돌 위험: `R7 -> R10` 순차 권장 (완료됨)
+| **R10** | 테스트 픽스처/중복 유틸 정리 | `BookingTestHelper`에 생성 결과 record + 검증 포함 예약 생성 API 추가. `OrderTestHelper`/`NotificationLogTestHelper` 신규 추가. `TestFixtures`에 `booking()`/`passPurchase()` 추가. booking/order/pass use-case 테스트의 반복 fixture와 비동기 로그 대기 중복 정리 |
 
 ---
 
@@ -80,6 +50,8 @@
 신규 파일:
   app/booking/BookingSupport.java         ← R3: 패키지 내부 헬퍼
   app/batch/BatchExecutor.java            ← R5: 배치 공통 실행기
+  app/src/test/.../support/OrderTestHelper.java   ← R10: 주문 테스트 fixture 지원
+  app/src/test/.../support/NotificationLogTestHelper.java   ← R10: 알림 로그 polling 지원
 
 삭제 파일:
   domain/product/InventoryPolicy.java     ← R8: Inventory.deduct()에 인라인
@@ -92,6 +64,9 @@
   InventoryService.java  ← create() 추가 (쓰기 단일 진입점)
   ErrorCode.java         ← INTERNAL_ERROR(500) 추가
   GlobalExceptionHandler ← 500 catch-all + 인프라 예외 로깅
+  BookingTestHelper      ← CreatedBooking record + verified booking/pass booking 생성 메서드
+  TestFixtures.java      ← booking()/passPurchase() fixture 추가
+  BookingRepository      ← findDetailByIdAndAccessToken() fetch join 추가로 예약 조회 LAZY 예외 방지
 ```
 
 ---
@@ -100,8 +75,9 @@
 
 ### 리팩토링 원칙
 - 기능 변경 없이 구조만 정리 — HTTP 계약/상태 결과 변화 없음
-- 각 단위 완료 시 `./gradlew test` 전체 통과 확인됨
-- 커밋은 아직 안 됨 — 다음 에이전트가 R10 완료 후 일괄 커밋 또는 단위별 커밋 선택
+- R10 중 예약 조회 테스트에서 드러난 LAZY 초기화 예외는 `BookingRepository.findDetailByIdAndAccessToken()` fetch join 추가로 보정함
+- 각 단위 완료 시 관련 Gradle 검증 통과 확인
+- 커밋은 아직 안 됨 — 다음 에이전트는 필요 시 리팩토링 변경분을 정리해 커밋하면 됨
 
 ### Spring Boot 4.0 특이사항
 - `@AutoConfigureMockMvc` 제거됨 → `MockMvcBuilders.webAppContextSetup(context).addFilters(filter).build()` 패턴
@@ -111,7 +87,7 @@
 ```bash
 ./gradlew test                           # 전체
 ./gradlew :app:test --tests "*.SomeIT"   # 단일 클래스
-./gradlew --no-daemon :app:useCaseTest   # R10 검증용
+./gradlew --no-daemon :app:useCaseTest   # R10 검증 완료
 ```
 
 ### 미해결 과제 (이전 세션에서 이어짐)

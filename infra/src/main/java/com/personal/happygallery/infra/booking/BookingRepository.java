@@ -14,6 +14,18 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     /** 비회원 예약 조회 — bookingId + accessToken 두 조건 모두 만족해야 함 */
     Optional<Booking> findByIdAndAccessToken(Long id, String accessToken);
 
+    @Query("""
+            SELECT b
+            FROM Booking b
+            JOIN FETCH b.guest
+            JOIN FETCH b.bookingClass
+            JOIN FETCH b.slot
+            WHERE b.id = :id
+              AND b.accessToken = :accessToken
+            """)
+    Optional<Booking> findDetailByIdAndAccessToken(@Param("id") Long id,
+                                                   @Param("accessToken") String accessToken);
+
     /** 동일 슬롯 + 동일 게스트 중복 예약 확인 */
     boolean existsBySlotIdAndGuestId(Long slotId, Long guestId);
 
