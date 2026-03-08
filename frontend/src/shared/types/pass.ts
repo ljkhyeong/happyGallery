@@ -3,6 +3,13 @@ export interface PurchasePassRequest {
   totalPrice?: number;
 }
 
+export interface PurchasePassByPhoneRequest {
+  phone: string;
+  verificationCode: string;
+  name: string;
+  totalPrice?: number;
+}
+
 export interface PurchasePassResponse {
   passId: number;
   guestId: number;

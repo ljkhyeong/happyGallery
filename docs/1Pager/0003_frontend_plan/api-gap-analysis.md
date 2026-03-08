@@ -10,7 +10,8 @@
 | 4 | GET | `/api/v1/bookings/{bookingId}?token=` | 비회원 예약 조회 |
 | 5 | PATCH | `/api/v1/bookings/{bookingId}/reschedule` | 예약 변경 |
 | 6 | DELETE | `/api/v1/bookings/{bookingId}?token=` | 예약 취소 |
-| 7 | POST | `/api/v1/passes/guest` | 게스트 8회권 구매 |
+| 7 | POST | `/api/v1/passes/guest` | 게스트 8회권 구매 (guestId 직접 지정) |
+| 8 | POST | `/api/v1/passes/purchase` | 휴대폰 인증 기반 8회권 구매 |
 
 ## 2) 현재 관리자 API 목록
 
@@ -82,13 +83,10 @@
 - **영향 단위**: F6
 
 ### GAP-4: guestId 획득 흐름 부재
-- **현재**: `POST /api/v1/passes/guest`는 `guestId`를 직접 요구
-- **문제**: 브라우저는 게스트의 DB ID를 알 수 없음
-- **해소 방향** (후보):
-  - A) 전화번호/이름 기반 구매로 변경 (phone + verificationCode로 게스트 특정)
-  - B) 게스트 조회/생성 API 추가 (`POST /api/v1/guests` → guestId 반환)
-  - C) 예약 생성 시 반환된 정보에서 guestId를 간접 획득
-- **영향 단위**: F7, B3
+- **상태**: 해소됨
+- **현재**: `POST /api/v1/passes/purchase`로 phone + verificationCode + name 기반 구매 가능
+- **보완 내용**: 백엔드가 전화번호 기준 Guest를 조회/생성하므로 브라우저가 내부 guestId를 알 필요 없음
+- **영향 단위**: B3 완료, F7 착수 가능
 
 ### GAP-5: 사용자 주문 생성/조회 API 전체 부재
 - **현재**: 주문 관련 공개 API 없음 (전부 관리자 전용)
@@ -109,7 +107,7 @@ B1 (이 문서) ─── 완료
  │                └─ F4 ─── 공개 예약 API 전부 존재, 즉시 착수 가능
  │
  ├─ B2 (GAP-1,2,3 해소) → F5, F6
- ├─ B3 (GAP-4 해소) → F7
+ ├─ B3 (GAP-4 해소) ─── 완료 → F7
  └─ B4 (GAP-5 해소) → F8(관리자 운영 API 이미 존재), F9
 ```
 
@@ -119,6 +117,6 @@ B1 (이 문서) ─── 완료
 
 - **지금 바로 프론트 착수 가능**: F0, F1, F2, F3, F4
 - **B2 완료 후 착수**: F5, F6
-- **B3 완료 후 착수**: F7
+- **지금 바로 프론트 착수 가능**: F0, F1, F2, F3, F4, F7
 - **B4 완료 후 착수**: F9
 - **F8은 관리자 API가 전부 존재**하므로 F2 이후 언제든 착수 가능

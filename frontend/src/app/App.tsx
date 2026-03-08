@@ -8,6 +8,7 @@ import { BookingCreatePage } from "@/pages/BookingCreatePage";
 import { BookingManagePage } from "@/pages/BookingManagePage";
 import { ProductListPage } from "@/pages/ProductListPage";
 import { ProductDetailPage } from "@/pages/ProductDetailPage";
+import { PassPurchasePage } from "@/pages/PassPurchasePage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import "@/styles/global.scss";
 
@@ -23,6 +24,7 @@ export function App() {
               <Route path="/products/:id" element={<ProductDetailPage />} />
               <Route path="/bookings/new" element={<BookingCreatePage />} />
               <Route path="/bookings/manage" element={<BookingManagePage />} />
+              <Route path="/passes/purchase" element={<PassPurchasePage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
