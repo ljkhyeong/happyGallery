@@ -586,7 +586,7 @@ DELETE /api/v1/bookings/{bookingId}?token={accessToken}
 
 ## 11-E. 8회권 구매 API (§7.1)
 
-### 11-E.1 게스트 8회권 구매
+### 11-E.1 게스트 8회권 구매 (guestId 직접 지정)
 
 ```
 POST /api/v1/passes/guest
@@ -610,6 +610,37 @@ POST /api/v1/passes/guest
 - `404 NOT_FOUND` — guestId 미존재
 
 구매 정책:
+- 만료일 = 구매일 기준 90일 후 Asia/Seoul 자정
+- EARN ledger(+8) 자동 기록
+
+### 11-E.2 휴대폰 인증 기반 8회권 구매
+
+```
+POST /api/v1/passes/purchase
+{
+  "phone": "01012345678",
+  "verificationCode": "483921",
+  "name": "홍길동",
+  "totalPrice": 320000
+}
+
+→ 201 Created
+{
+  "passId": 8,
+  "guestId": 1,
+  "expiresAt": "2026-05-28T23:59:59",
+  "totalCredits": 8,
+  "remainingCredits": 8,
+  "totalPrice": 320000
+}
+```
+
+에러:
+- `400 PHONE_VERIFICATION_FAILED` — 인증 코드 불일치 또는 만료
+
+구매 정책:
+- 전화번호 기준으로 Guest를 조회하고 없으면 생성한다.
+- 인증 성공 시 Guest.phoneVerified를 true로 갱신한다.
 - 만료일 = 구매일 기준 90일 후 Asia/Seoul 자정
 - EARN ledger(+8) 자동 기록
 

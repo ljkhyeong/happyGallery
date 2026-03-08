@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.web.pass;
 
 import com.personal.happygallery.app.pass.PassPurchaseService;
+import com.personal.happygallery.app.web.pass.dto.PurchasePassByPhoneRequest;
 import com.personal.happygallery.app.web.pass.dto.PurchasePassRequest;
 import com.personal.happygallery.app.web.pass.dto.PurchasePassResponse;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -22,12 +23,24 @@ public class PassController {
         this.passPurchaseService = passPurchaseService;
     }
 
-    /** 게스트 8회권 구매 */
+    /** 게스트 8회권 구매 (guestId 직접 지정) */
     @PostMapping("/guest")
     @ResponseStatus(HttpStatus.CREATED)
     public PurchasePassResponse purchaseForGuest(@RequestBody @Valid PurchasePassRequest request) {
         PassPurchase purchase = passPurchaseService.purchaseForGuest(
                 request.guestId(), request.totalPrice() != null ? request.totalPrice() : 0L);
+        return PurchasePassResponse.from(purchase);
+    }
+
+    /** 휴대폰 인증 기반 8회권 구매 */
+    @PostMapping("/purchase")
+    @ResponseStatus(HttpStatus.CREATED)
+    public PurchasePassResponse purchaseByPhone(@RequestBody @Valid PurchasePassByPhoneRequest request) {
+        PassPurchase purchase = passPurchaseService.purchaseByPhone(
+                request.phone(),
+                request.verificationCode(),
+                request.name(),
+                request.totalPrice() != null ? request.totalPrice() : 0L);
         return PurchasePassResponse.from(purchase);
     }
 }
