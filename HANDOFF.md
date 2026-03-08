@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, frontend plan F8/F9 주문 화면 추가)
+> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, 로컬 Docker 실행 추가)
 
 ---
 
@@ -31,6 +31,7 @@
   - F7 8회권 구매 화면 추가
   - F8 관리자 운영 확장 컴포넌트 추가
   - F9 사용자 주문 화면 컴포넌트 추가
+  - `docker-compose.yml`, `Dockerfile`, `.dockerignore`로 로컬 컨테이너 실행 경로 추가
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `./gradlew :app:policyTest` 통과
