@@ -27,6 +27,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import static com.personal.happygallery.support.TestDataCleaner.clearPassNotificationData;
 import static com.personal.happygallery.support.TestFixtures.guest;
+import static com.personal.happygallery.support.TestFixtures.passPurchase;
+import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -88,11 +90,11 @@ class PassExpiryNotificationUseCaseIT {
 
         // 정확히 7일 후 만료 — 알림 대상
         LocalDateTime soon = LocalDateTime.now(clock).plusDays(7);
-        passPurchaseRepository.save(new PassPurchase(guest1, soon, 0L));
-        passPurchaseRepository.save(new PassPurchase(guest2, soon, 0L));
+        passPurchaseRepository.save(passPurchase(guest1, soon, 0L));
+        passPurchaseRepository.save(passPurchase(guest2, soon, 0L));
 
         BatchResult result = passExpiryBatchService.sendExpiryNotifications();
-        List<NotificationLog> logs = notificationLogRepository.findAll();
+        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 2);
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(2);
@@ -113,7 +115,7 @@ class PassExpiryNotificationUseCaseIT {
 
         // 30일 후 만료 — 7일 윈도우 밖
         LocalDateTime later = LocalDateTime.now(clock).plusDays(30);
-        passPurchaseRepository.save(new PassPurchase(guest, later, 0L));
+        passPurchaseRepository.save(passPurchase(guest, later, 0L));
 
         BatchResult result = passExpiryBatchService.sendExpiryNotifications();
 
@@ -127,17 +129,19 @@ class PassExpiryNotificationUseCaseIT {
     void sendExpiryNotifications_sameDaySecondRun_skipsDuplicates() {
         Guest guest = guestRepository.save(guest("중복방지", "01077778888"));
         LocalDateTime target = LocalDateTime.now(clock).plusDays(7);
-        passPurchaseRepository.save(new PassPurchase(guest, target, 0L));
+        passPurchaseRepository.save(passPurchase(guest, target, 0L));
 
         BatchResult first = passExpiryBatchService.sendExpiryNotifications();
+        awaitLogCount(notificationLogRepository, 1);
         BatchResult second = passExpiryBatchService.sendExpiryNotifications();
+        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 1);
 
         assertSoftly(softly -> {
             softly.assertThat(first.successCount()).isEqualTo(1);
             softly.assertThat(first.failureCount()).isZero();
             softly.assertThat(second.successCount()).isEqualTo(0);
             softly.assertThat(second.failureCount()).isZero();
-            softly.assertThat(notificationLogRepository.findAll()).hasSize(1);
+            softly.assertThat(logs).hasSize(1);
         });
     }
 }

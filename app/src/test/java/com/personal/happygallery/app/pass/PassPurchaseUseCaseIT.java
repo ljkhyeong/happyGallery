@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassAndRefundData;
 import static com.personal.happygallery.support.TestFixtures.guest;
+import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -100,7 +101,7 @@ class PassPurchaseUseCaseIT {
     void expiry_batch_expiredPass_remainingZero_expireLedgerCreated() {
         // 이미 만료된 pass 직접 생성 (expiresAt = 과거)
         PassPurchase expiredPass = passPurchaseRepository.save(
-                new PassPurchase(guest, LocalDateTime.now().minusDays(1), 0L));
+                passPurchase(guest, LocalDateTime.now().minusDays(1), 0L));
 
         BatchResult result = passExpiryBatchService.expireAll();
 
@@ -126,7 +127,7 @@ class PassPurchaseUseCaseIT {
     @Test
     void expiry_batch_activePass_notTouched() {
         // 미래 만료 pass
-        passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().plusDays(30), 0L));
+        passPurchaseRepository.save(passPurchase(guest, LocalDateTime.now().plusDays(30), 0L));
 
         BatchResult result = passExpiryBatchService.expireAll();
 
@@ -138,7 +139,7 @@ class PassPurchaseUseCaseIT {
     @DisplayName("8회권 만료 배치 관리자 API는 배치 결과를 반환한다")
     @Test
     void expiry_batch_adminApi_returnsBatchResponse() throws Exception {
-        passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().minusDays(1), 0L));
+        passPurchaseRepository.save(passPurchase(guest, LocalDateTime.now().minusDays(1), 0L));
 
         mockMvc.perform(post("/admin/passes/expire"))
                 .andExpect(status().isOk())
@@ -156,10 +157,10 @@ class PassPurchaseUseCaseIT {
     void notification_query_returnsPassesExpiringWithin7Days() {
         // 정확히 7일 후 만료 → 알림 대상
         Guest guest2 = guestRepository.save(guest("이알림", "01088880002"));
-        passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().plusDays(7), 0L));
+        passPurchaseRepository.save(passPurchase(guest, LocalDateTime.now().plusDays(7), 0L));
 
         // 30일 후 만료 → 알림 대상 아님
-        passPurchaseRepository.save(new PassPurchase(guest2, LocalDateTime.now().plusDays(30), 0L));
+        passPurchaseRepository.save(passPurchase(guest2, LocalDateTime.now().plusDays(30), 0L));
 
         var expiring = passExpiryBatchService.findExpiringWithin7Days();
 
