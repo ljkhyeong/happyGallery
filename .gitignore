@@ -30,10 +30,6 @@ Thumbs.db
 .env.*
 
 ## CLAUDE
-.claude/
-CLAUDE.md
-PLAN.md
-HANDOFF.md
 memory/
 
 ## CODEX
