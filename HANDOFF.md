@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 Claude 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-08 (frontend plan B2 공개 조회 API 추가)
+> 작성 시점: 2026-03-08 (frontend plan F4 예약 관리 화면 추가)
 
 ---
 
@@ -20,7 +20,7 @@
 ## 현재 브랜치 / 워크트리 상태
 
 - 작업 브랜치: `ljkhyeong/frontend-setup`
-- 최근 작업: 공개 상품/클래스/슬롯 조회 API 추가 (`ProductController`, `ClassController`, `SlotController`)
+- 최근 작업: `frontend/src/features/booking-manage/**/*`, `frontend/src/pages/BookingManagePage.tsx` 추가
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증: `./gradlew :app:policyTest`, `./gradlew --no-daemon :app:useCaseTest`, `cd frontend && npm run build`
 
@@ -40,6 +40,7 @@
 | **F1** | 공통 API 클라이언트와 에러 처리 계층 | `frontend/src/shared/api/**/*`, `frontend/src/shared/types/**/*`, `frontend/src/shared/lib/**/*` — QueryClient, fetch 래퍼, `ApiError`, DTO 타입, 날짜/통화 포맷터 추가 |
 | **F2 (진행 중)** | 앱 셸/테마 기초 | `frontend/src/shared/ui/**/*`, `frontend/src/styles/**/*`, `frontend/src/pages/NotFoundPage.tsx` — 공통 레이아웃, 토스트 provider, 404 페이지, Bootstrap 변수 오버라이드 추가 |
 | **F3 (진행 중)** | 관리자 상품/슬롯 화면 MVP | `frontend/src/features/admin-product/**/*`, `frontend/src/features/admin-slot/**/*`, `frontend/src/pages/admin/AdminPage.tsx` — admin key 입력, 상품 목록/등록, 슬롯 생성/비활성화, `/admin` 라우트 초안 추가 |
+| **F4** | 예약 조회/변경/취소 화면 | `frontend/src/features/booking-manage/**/*`, `frontend/src/pages/BookingManagePage.tsx`, `frontend/src/app/App.tsx` — 예약 조회, 슬롯 ID 기반 변경, 취소 확인 모달, `/bookings/manage` 라우트 추가 |
 
 ### 다음 우선순위
 
@@ -47,7 +48,6 @@
 - `F3`: 관리자 상품/슬롯 화면 검증 후 세부 UX 보완
 - `B3`: 8회권 구매 계약 보완
 - `F5`, `F6`: 공개 상품 카탈로그 / 예약 생성 화면 착수
-- 화면 단위에서 공통 API 계층을 실제로 사용하는 첫 기능(F4) 착수
 
 ---
 

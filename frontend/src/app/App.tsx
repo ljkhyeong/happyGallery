@@ -4,6 +4,7 @@ import { queryClient } from "@/shared/api";
 import { Layout, ToastProvider } from "@/shared/ui";
 import { HomePage } from "@/pages/HomePage";
 import { AdminPage } from "@/pages/admin/AdminPage";
+import { BookingManagePage } from "@/pages/BookingManagePage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import "@/styles/global.scss";
 
@@ -15,6 +16,7 @@ export function App() {
           <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<HomePage />} />
+              <Route path="/bookings/manage" element={<BookingManagePage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
