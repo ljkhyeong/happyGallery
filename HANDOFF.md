@@ -11,7 +11,9 @@
 - 핵심 스펙: `docs/PRD/0001_spec/spec.md`
 - 전체 구현 계획: `PLAN.md`
 - 의사결정 기록: `docs/ADR/`
-- **리팩토링 계획**: `docs/1Pager/0002_refactoring_plan/codex-plan.md`
+- **리팩토링 계획**: `docs/1Pager/0002_refactoring_plan/plan.md`
+- **프론트 착수 계획**: `docs/1Pager/0003_frontend_plan/plan.md`
+- 도메인별 작업 절차와 세부 테스트 분기는 각 `docs/1Pager/*/plan.md`와 저장소 규칙을 우선 참고하고, 여러 영역에 걸친 변경은 `HANDOFF.md -> docs/PRD/0001_spec/spec.md -> docs/ADR/*` 순으로 기준을 확인
 
 ---
 
@@ -23,7 +25,7 @@
 
 ## 리팩토링 진행 상황
 
-리팩토링 플랜: `docs/1Pager/0002_refactoring_plan/codex-plan.md`
+리팩토링 플랜: `docs/1Pager/0002_refactoring_plan/plan.md`
 
 ### 완료 (R1–R9)
 
@@ -61,8 +63,8 @@
 ```
 
 **지시 템플릿:**
-```
-codex-plan R10만 진행해줘. 기능 변경 없이 리팩토링만 하고, 결과는 변경 파일/핵심 의사결정/실행 테스트 형식으로 보고해줘.
+``` 
+리팩토링 plan의 R10만 진행해줘. 기능 변경 없이 리팩토링만 하고, 결과는 변경 파일/핵심 의사결정/실행 테스트 형식으로 보고해줘.
 ```
 
 **주의사항:**
