@@ -3,6 +3,7 @@ import { Container, Navbar, Nav } from "react-bootstrap";
 
 const NAV_ITEMS = [
   { path: "/", label: "홈" },
+  { path: "/products", label: "상품" },
   { path: "/bookings/manage", label: "예약 조회" },
   { path: "/admin", label: "관리자" },
 ] as const;
