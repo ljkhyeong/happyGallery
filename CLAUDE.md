@@ -26,16 +26,7 @@ curl http://localhost:8080/actuator/health
 
 ## Architecture
 
-멀티모듈 Gradle 프로젝트 (Spring Boot 4.0.2 / Java 21).
-
-```
-app      ← 진입점. Web 레이어(Controller, Filter), Spring Boot main.
-           common + domain + infra 모두 의존.
-domain   ← 도메인 모델·열거형만. 외부 의존 없음(JPA API만 허용).
-           common에 의존.
-infra    ← DB, 외부 연동 구현체. (아직 초기)
-common   ← 공통 유틸(시간, ID, 에러, 응답 포맷 등).
-```
+멀티모듈 Gradle 프로젝트 (Spring Boot 4.0.2 / Java 21). 모듈 구조·레이어링 규칙은 `happygallery-spring-backend` 스킬 참조.
 
 **핵심 도메인 열거형** (`domain` 모듈):
 - `order`: OrderStatus, FulfillmentType, RefundStatus

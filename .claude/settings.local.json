@@ -20,7 +20,8 @@
       "Bash(git pull:*)",
       "Bash(git fetch:*)",
       "Bash(git:*)",
-      "Bash(./gradlew:*)"
+      "Bash(./gradlew:*)",
+      "Bash(mkdir:*)"
     ]
   },
   "sandbox": {
