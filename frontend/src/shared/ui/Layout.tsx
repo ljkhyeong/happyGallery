@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { path: "/products", label: "상품" },
   { path: "/bookings/new", label: "예약하기" },
   { path: "/bookings/manage", label: "예약 조회" },
+  { path: "/passes/purchase", label: "8회권" },
   { path: "/admin", label: "관리자" },
 ] as const;
 
