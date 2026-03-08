@@ -320,7 +320,6 @@
 - 인증 실패 시:
   - `401 UNAUTHORIZED`
   - `{ "code": "UNAUTHORIZED", "message": "관리자 인증이 필요합니다." }`
-
 ---
 
 ## 11. Admin API — 슬롯 관리
@@ -858,7 +857,6 @@ GET /api/v1/orders/{orderId}?token={accessToken}
 정책:
 - 주문 조회 토큰이 일치할 때만 상세를 반환한다.
 - `fulfillment`는 아직 생성되지 않은 경우 `null`일 수 있다.
-
 ## 11-G. 주문 Admin API (§3.1, §3.2, §8.3)
 
 ### 11-G.0 현재 구현된 주문 운영 엔드포인트

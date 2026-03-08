@@ -154,7 +154,6 @@
 - R10 정리분은 PR #24로, R2 재검토 보강은 PR #25로 `codexReview`에 반영됨
 
 ### Spring Boot 4.0 특이사항
-
 - `@UseCaseIT`는 현재 `@AutoConfigureMockMvc(addFilters = false)` 기반으로 유지 중
 - `@SpringBootTest` 컨텍스트에서 `ObjectMapper` autowire 불가 → JSON 문자열 직접 구성
 
@@ -169,7 +168,6 @@ cd frontend && npm run build
 ```
 
 ### 미해결 과제
-
 - PG 환불 패턴 중복 → 실 PG 연동 시 RefundExecutor로 통합 예정
 - `DELAY_REQUESTED` → 재개 경로 없음 (ADR-0014)
 - Fulfillment.status와 Order.status 이중 관리 → 불일치 위험 (ADR-0014)
