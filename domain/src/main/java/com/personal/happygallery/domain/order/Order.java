@@ -33,6 +33,9 @@ public class Order {
     @Column(nullable = false, length = 30)
     private OrderStatus status;
 
+    @Column(name = "access_token", length = 36)
+    private String accessToken;
+
     @Column(name = "total_amount", nullable = false)
     private long totalAmount;
 
@@ -65,6 +68,11 @@ public class Order {
         this.paidAt = paidAt;
         this.approvalDeadlineAt = approvalDeadlineAt;
         this.status = OrderStatus.PAID_APPROVAL_PENDING;
+    }
+
+    public Order(Long guestId, String accessToken, long totalAmount, LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
+        this(guestId, totalAmount, paidAt, approvalDeadlineAt);
+        this.accessToken = accessToken;
     }
 
     /**
@@ -164,6 +172,7 @@ public class Order {
 
     public Long getId() { return id; }
     public Long getGuestId() { return guestId; }
+    public String getAccessToken() { return accessToken; }
     public OrderStatus getStatus() { return status; }
     public long getTotalAmount() { return totalAmount; }
     public LocalDateTime getPaidAt() { return paidAt; }

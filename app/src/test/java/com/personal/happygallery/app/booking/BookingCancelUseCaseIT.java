@@ -30,9 +30,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
-import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
-import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassAndRefundData;
+import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.guest;
 import static com.personal.happygallery.support.TestFixtures.slot;
@@ -94,15 +93,12 @@ class BookingCancelUseCaseIT {
     void cancel_refundable_success() throws Exception {
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = helper.sendVerificationAndGetCode("01011110001");
-        String createResp = helper.createBooking("01011110001", code, slot.getId(), 5_000L);
-
-        Long bookingId = extractBookingId(createResp);
-        String token = extractAccessToken(createResp);
+        BookingTestHelper.CreatedBooking createdBooking = helper.createVerifiedCardBooking("01011110001", slot.getId(), 5_000L);
+        Long bookingId = createdBooking.bookingId();
 
         // 취소 — D-1 이전 슬롯이므로 환불 가능
         mockMvc.perform(delete("/bookings/{id}", bookingId)
-                        .param("token", token))
+                        .param("token", createdBooking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
                 .andExpect(jsonPath("$.status").value("CANCELED"))
@@ -136,14 +132,11 @@ class BookingCancelUseCaseIT {
 
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = helper.sendVerificationAndGetCode("01055550005");
-        String createResp = helper.createBooking("01055550005", code, slot.getId(), 5_000L);
-        Long bookingId = extractBookingId(createResp);
-        String token = extractAccessToken(createResp);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550005", slot.getId(), 5_000L);
 
         // 취소 — 환불 가능 구간이지만 PG 실패
-        mockMvc.perform(delete("/bookings/{id}", bookingId)
-                        .param("token", token))
+        mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
+                        .param("token", booking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(true));
@@ -163,7 +156,7 @@ class BookingCancelUseCaseIT {
     void list_failed_refunds_adminApi_returnsDtoResponse() throws Exception {
         Guest guest = guestRepository.save(guest("환불실패", "01077770007"));
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
-        Booking booking = bookingRepository.save(new Booking(
+        Booking booking = bookingRepository.save(booking(
                 guest, slot, 5_000L, 45_000L, DepositPaymentMethod.CARD, "refund-token"));
 
         Refund refund = new Refund(booking, 5_000L);
@@ -191,14 +184,11 @@ class BookingCancelUseCaseIT {
         LocalDateTime today14 = LocalDateTime.now(ZoneId.of("Asia/Seoul")).withHour(14).withMinute(0).withSecond(0).withNano(0);
         Slot slot = slotRepository.save(slot(cls, today14, today14.plusHours(2)));
 
-        String code = helper.sendVerificationAndGetCode("01022220002");
-        String createResp = helper.createBooking("01022220002", code, slot.getId(), 5_000L);
-
-        Long bookingId = extractBookingId(createResp);
-        String token = extractAccessToken(createResp);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01022220002", slot.getId(), 5_000L);
+        Long bookingId = booking.bookingId();
 
         mockMvc.perform(delete("/bookings/{id}", bookingId)
-                        .param("token", token))
+                        .param("token", booking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(false))
@@ -220,11 +210,9 @@ class BookingCancelUseCaseIT {
     void cancel_wrongToken_returns404() throws Exception {
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = helper.sendVerificationAndGetCode("01033330003");
-        String createResp = helper.createBooking("01033330003", code, slot.getId(), 5_000L);
-        Long bookingId = extractBookingId(createResp);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330003", slot.getId(), 5_000L);
 
-        mockMvc.perform(delete("/bookings/{id}", bookingId)
+        mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
                         .param("token", "invalid-token"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
@@ -239,19 +227,16 @@ class BookingCancelUseCaseIT {
     void cancel_alreadyCanceled_returns400() throws Exception {
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        String code = helper.sendVerificationAndGetCode("01044440004");
-        String createResp = helper.createBooking("01044440004", code, slot.getId(), 5_000L);
-        Long bookingId = extractBookingId(createResp);
-        String token = extractAccessToken(createResp);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01044440004", slot.getId(), 5_000L);
 
         // 첫 번째 취소 — 성공
-        mockMvc.perform(delete("/bookings/{id}", bookingId)
-                        .param("token", token))
+        mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
+                        .param("token", booking.accessToken()))
                 .andExpect(status().isOk());
 
         // 두 번째 취소 — 400
-        mockMvc.perform(delete("/bookings/{id}", bookingId)
-                        .param("token", token))
+        mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
+                        .param("token", booking.accessToken()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }

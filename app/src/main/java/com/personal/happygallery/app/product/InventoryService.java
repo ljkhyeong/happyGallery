@@ -33,7 +33,7 @@ public class InventoryService {
      *
      * <ol>
      *   <li>비관적 락({@code SELECT FOR UPDATE})으로 재고 row를 잠근다.</li>
-     *   <li>{@link com.personal.happygallery.domain.product.InventoryPolicy#checkSufficient}로 수량 검증한다.</li>
+     *   <li>{@link com.personal.happygallery.domain.product.Inventory#deduct(int)}로 수량 검증과 차감을 함께 처리한다.</li>
      *   <li>수량을 차감하고 저장한다.</li>
      * </ol>
      *

@@ -1,0 +1,22 @@
+@use "variables" as *;
+
+// Bootstrap 코어
+@import "bootstrap/scss/bootstrap";
+
+// 공통 유틸리티
+.page-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.text-muted-soft {
+  color: $secondary;
+}
+
+// 상태 배지 커스텀
+.badge-status {
+  font-weight: 500;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+}
