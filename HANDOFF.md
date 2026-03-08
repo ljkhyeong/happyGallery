@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, frontend plan F5 추가)
+> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, frontend plan F6 예약 생성 화면 추가)
 
 ---
 
@@ -25,6 +25,7 @@
   - B2 공개 상품/클래스/슬롯 조회 API 추가
   - F4 예약 조회/변경/취소 화면 추가
   - F5 공개 상품 카탈로그 화면 추가
+  - F6 예약 생성 화면 추가
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `./gradlew :app:policyTest` 통과
@@ -47,6 +48,7 @@
 | **F1** | 공통 API 클라이언트와 에러 처리 계층 | `frontend/src/shared/api/**/*`, `frontend/src/shared/types/**/*`, `frontend/src/shared/lib/**/*` |
 | **F4** | 예약 조회/변경/취소 화면 | `frontend/src/features/booking-manage/**/*`, `frontend/src/pages/BookingManagePage.tsx`, `frontend/src/app/App.tsx` |
 | **F5** | 공개 상품 카탈로그 화면 | `frontend/src/features/product/**/*`, `frontend/src/pages/ProductListPage.tsx`, `frontend/src/pages/ProductDetailPage.tsx`, `frontend/src/shared/ui/Layout.tsx` |
+| **F6** | 예약 생성 화면 | `frontend/src/features/booking-create/**/*`, `frontend/src/pages/BookingCreatePage.tsx`, `frontend/src/shared/types/class.ts`, `frontend/src/shared/types/slot.ts` |
 
 ### 진행 중
 
@@ -60,7 +62,7 @@
 - `F2`: 로딩/에러/empty 상태와 공통 셸 마무리
 - `F3`: 관리자 상품/슬롯 화면 검증 후 세부 UX 보완
 - `B3`: 8회권 구매 계약 보완
-- `F6`: 예약 생성 화면 착수
+- `F7`: 8회권 구매 화면 착수
 
 ---
 

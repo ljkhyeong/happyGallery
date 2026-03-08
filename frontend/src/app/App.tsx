@@ -4,6 +4,7 @@ import { queryClient } from "@/shared/api";
 import { Layout, ToastProvider } from "@/shared/ui";
 import { HomePage } from "@/pages/HomePage";
 import { AdminPage } from "@/pages/admin/AdminPage";
+import { BookingCreatePage } from "@/pages/BookingCreatePage";
 import { BookingManagePage } from "@/pages/BookingManagePage";
 import { ProductListPage } from "@/pages/ProductListPage";
 import { ProductDetailPage } from "@/pages/ProductDetailPage";
@@ -20,6 +21,7 @@ export function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/products" element={<ProductListPage />} />
               <Route path="/products/:id" element={<ProductDetailPage />} />
+              <Route path="/bookings/new" element={<BookingCreatePage />} />
               <Route path="/bookings/manage" element={<BookingManagePage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="*" element={<NotFoundPage />} />
