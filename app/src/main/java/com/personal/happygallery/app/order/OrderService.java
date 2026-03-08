@@ -10,6 +10,7 @@ import com.personal.happygallery.app.product.InventoryService;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,8 +59,9 @@ public class OrderService {
         LocalDateTime paidAt = LocalDateTime.now(clock);
         long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
 
+        String accessToken = UUID.randomUUID().toString();
         Order order = orderRepository.save(
-                new Order(guestId, totalAmount, paidAt, paidAt.plusHours(24)));
+                new Order(guestId, accessToken, totalAmount, paidAt, paidAt.plusHours(24)));
 
         for (OrderItemRequest item : items) {
             orderItemRepository.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));

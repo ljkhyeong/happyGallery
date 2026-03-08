@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, frontend plan F5 추가, R2 재검토 보강 반영)
+> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, frontend plan F8/F9 주문 화면 추가)
 
 ---
 
@@ -23,9 +23,14 @@
 - 최근 작업:
   - `codexReview`의 R10 테스트 픽스처 정리 반영
   - B2 공개 상품/클래스/슬롯 조회 API 추가
+  - B3 휴대폰 인증 기반 8회권 구매 계약 추가
+  - B4 사용자 주문 생성/조회 API 추가
   - F4 예약 조회/변경/취소 화면 추가
   - F5 공개 상품 카탈로그 화면 추가
-  - R2 전역 충돌 예외 매핑 재정리
+  - F6 예약 생성 화면 추가
+  - F7 8회권 구매 화면 추가
+  - F8 관리자 운영 확장 컴포넌트 추가
+  - F9 사용자 주문 화면 컴포넌트 추가
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `./gradlew :app:policyTest` 통과
@@ -46,10 +51,14 @@
 |------|------|----------------|
 | **B1** | 프론트 선행 API 갭 분석 문서화 | `docs/1Pager/0003_frontend_plan/api-gap-analysis.md` |
 | **B2** | 공개 상품/클래스/슬롯 조회 API 추가 | `ProductController`, `ClassController`, `SlotController`, `SlotRepository`, `docs/PRD/0001_spec/spec.md` |
+| **B3** | 8회권 구매 계약 보완 | `PassPurchaseService`, `PassController`, `PurchasePassByPhoneRequest`, `docs/PRD/0001_spec/spec.md` |
+| **B4** | 사용자 주문 API 계약 추가 | `OrderCreationService`, `OrderQueryService`, `OrderController`, `V9__add_order_access_token.sql`, `docs/PRD/0001_spec/spec.md` |
 | **F0** | 프론트 워크스페이스 스캐폴딩 | `frontend/package.json`, `frontend/vite.config.ts`, `frontend/src/**/*` |
 | **F1** | 공통 API 클라이언트와 에러 처리 계층 | `frontend/src/shared/api/**/*`, `frontend/src/shared/types/**/*`, `frontend/src/shared/lib/**/*` |
 | **F4** | 예약 조회/변경/취소 화면 | `frontend/src/features/booking-manage/**/*`, `frontend/src/pages/BookingManagePage.tsx`, `frontend/src/app/App.tsx` |
 | **F5** | 공개 상품 카탈로그 화면 | `frontend/src/features/product/**/*`, `frontend/src/pages/ProductListPage.tsx`, `frontend/src/pages/ProductDetailPage.tsx`, `frontend/src/shared/ui/Layout.tsx` |
+| **F6** | 예약 생성 화면 | `frontend/src/features/booking-create/**/*`, `frontend/src/pages/BookingCreatePage.tsx`, `frontend/src/shared/types/class.ts`, `frontend/src/shared/types/slot.ts` |
+| **F7** | 8회권 구매 화면 | `frontend/src/features/pass/**/*`, `frontend/src/pages/PassPurchasePage.tsx`, `frontend/src/shared/types/pass.ts` |
 
 ### 진행 중
 
@@ -57,13 +66,15 @@
 |------|------|----------------|
 | **F2** | 앱 셸/테마 기초 | `frontend/src/shared/ui/**/*`, `frontend/src/styles/**/*`, `frontend/src/pages/NotFoundPage.tsx` |
 | **F3** | 관리자 상품/슬롯 화면 MVP | `frontend/src/features/admin-product/**/*`, `frontend/src/features/admin-slot/**/*`, `frontend/src/pages/admin/AdminPage.tsx` |
+| **F8** | 관리자 운영 확장 화면 | `frontend/src/features/admin-order/**/*`, `frontend/src/features/admin-pass/**/*`, `frontend/src/features/admin-refund/**/*`, `frontend/src/pages/admin/AdminPage.tsx` |
+| **F9** | 사용자 주문 화면 | `frontend/src/features/order/**/*`, `frontend/src/pages/OrderCreatePage.tsx`, `frontend/src/pages/OrderDetailPage.tsx`, `frontend/src/app/App.tsx` |
 
 ### 다음 우선순위
 
 - `F2`: 로딩/에러/empty 상태와 공통 셸 마무리
 - `F3`: 관리자 상품/슬롯 화면 검증 후 세부 UX 보완
-- `B3`: 8회권 구매 계약 보완
-- `F6`: 예약 생성 화면 착수
+- `F8`: 관리자 운영 화면 실제 검증 및 UX 보완
+- `F9`: 주문 생성/조회 UX 보완 및 최종 연결 점검
 
 ---
 
