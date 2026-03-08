@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 Claude 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료)
+> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, R2 재검토 보강 반영)
 
 ---
 
@@ -19,7 +19,16 @@
 
 ## 미커밋 상태
 
-리팩토링 R1–R10 변경분이 커밋되지 않았음. `./gradlew --no-daemon :app:useCaseTest` 통과 상태.
+- `codexReview`에는 PR #24(`테스트 픽스처 정리와 예약 조회 보강`)가 머지되어 R10 테스트 리팩터링과 예약 조회 fetch join 보강이 반영됨
+- 현재 워크스페이스에는 R2 재검토 보강만 미커밋 상태
+  - `ErrorCode.CONFLICT(409)` 추가
+  - `GlobalExceptionHandler` 예약/비예약 충돌 응답 분리
+  - `GlobalExceptionHandlerTest` 추가
+  - `spec.md`, `HANDOFF.md` 갱신
+- 검증 상태
+  - `./gradlew --no-daemon :app:useCaseTest` 통과
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.OrderApprovalUseCaseIT --tests com.personal.happygallery.app.order.PickupExpireBatchUseCaseIT` 통과
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.admin.AdminSlotUseCaseIT --tests com.personal.happygallery.app.web.GlobalExceptionHandlerTest` 통과
 
 ---
 
@@ -32,7 +41,7 @@
 | 단위 | 내용 | 주요 변경 파일 |
 |------|------|----------------|
 | **R1** | Order 도메인 상태 전이 캡슐화 강화 | `OrderStatus.java` — 가드 메서드 4개 추가 (`requireInProduction`, `requireProductionCompletable`, `requireFulfillmentPending`, `requirePickupReady`). `Order.java` — 인라인 if 체크 5곳 → 가드 메서드 호출로 통일 |
-| **R2** | API 예외 매핑 일관성 정리 | `ErrorCode.java` — `PHONE_VERIFICATION_FAILED` 정렬 이동, `INTERNAL_ERROR(500)` 추가. `GlobalExceptionHandler.java` — 500 catch-all 핸들러 추가, 인프라 예외 로깅 추가 |
+| **R2** | API 예외 매핑 일관성 정리 | `ErrorCode.java` — `PHONE_VERIFICATION_FAILED` 정렬 이동, `INTERNAL_ERROR(500)` 및 일반 `CONFLICT(409)` 추가. `GlobalExceptionHandler.java` — 500 catch-all 핸들러 추가, 인프라 예외 로깅 추가, 예약/비예약 충돌 응답 분리 |
 | **R3** | Booking 유스케이스 공통 절차 추출 | `BookingSupport.java` (신규) — `findByToken()`, `recordHistory()`, `notifyBookingGuest()`. Cancel/Reschedule/Booking/Query 4개 서비스에서 `bookingHistoryRepository`+`notificationService` 의존 제거 |
 | **R4** | Notification fallback 전략 객체화 | `NotificationService.java` — `FALLBACK_ORDER` 하드코딩 + `Map` 제거 → `List<NotificationSender>`를 `@Order` 순 순회. `FakeKakaoSender`/`FakeSmsSender`에 `@Order(1)`/`@Order(2)` |
 | **R5** | Batch 서비스 공통 처리 템플릿화 | `BatchExecutor.java` (신규) — `execute(candidates, idExtractor, processor, label)`. 배치 3종 + 알림 배치 1종의 for-try-catch-집계 루프 제거 |
@@ -62,8 +71,8 @@
   PassPurchase.java      ← requireUsable(now), hasRemainingCredits(), calculateRefundAmount() 추가
   TimeBoundary.java      ← LocalDateTime 오버로드 3개 추가
   InventoryService.java  ← create() 추가 (쓰기 단일 진입점)
-  ErrorCode.java         ← INTERNAL_ERROR(500) 추가
-  GlobalExceptionHandler ← 500 catch-all + 인프라 예외 로깅
+  ErrorCode.java         ← INTERNAL_ERROR(500), CONFLICT(409) 추가
+  GlobalExceptionHandler ← 500 catch-all + 인프라 예외 로깅 + 예약/비예약 충돌 매핑 분리
   BookingTestHelper      ← CreatedBooking record + verified booking/pass booking 생성 메서드
   TestFixtures.java      ← booking()/passPurchase() fixture 추가
   BookingRepository      ← findDetailByIdAndAccessToken() fetch join 추가로 예약 조회 LAZY 예외 방지
@@ -77,7 +86,7 @@
 - 기능 변경 없이 구조만 정리 — HTTP 계약/상태 결과 변화 없음
 - R10 중 예약 조회 테스트에서 드러난 LAZY 초기화 예외는 `BookingRepository.findDetailByIdAndAccessToken()` fetch join 추가로 보정함
 - 각 단위 완료 시 관련 Gradle 검증 통과 확인
-- 커밋은 아직 안 됨 — 다음 에이전트는 필요 시 리팩토링 변경분을 정리해 커밋하면 됨
+- R10 정리분은 PR #24로 `codexReview`에 반영됨. 현재 로컬 미커밋은 R2 재검토 보강만 남아 있음
 
 ### Spring Boot 4.0 특이사항
 - `@AutoConfigureMockMvc` 제거됨 → `MockMvcBuilders.webAppContextSetup(context).addFilters(filter).build()` 패턴

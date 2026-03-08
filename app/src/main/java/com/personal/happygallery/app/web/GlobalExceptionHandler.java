@@ -12,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -44,9 +45,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
         log.warn("DB 제약 위반: {}", e.getMessage());
+        ErrorCode errorCode = resolveDataIntegrityErrorCode(e);
         return ResponseEntity
-                .status(409)
-                .body(ErrorResponse.of(ErrorCode.DUPLICATE_BOOKING));
+                .status(errorCode.httpStatus)
+                .body(ErrorResponse.of(errorCode));
     }
 
     /**
@@ -56,9 +58,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(OptimisticLockingFailureException e) {
         log.warn("낙관적 락 충돌: {}", e.getMessage());
+        ErrorCode errorCode = resolveOptimisticLockErrorCode(e);
         return ResponseEntity
-                .status(409)
-                .body(ErrorResponse.of(ErrorCode.BOOKING_CONFLICT));
+                .status(errorCode.httpStatus)
+                .body(ErrorResponse.of(errorCode));
     }
 
     @ExceptionHandler(Exception.class)
@@ -67,5 +70,36 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(500)
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
+    }
+
+    private ErrorCode resolveDataIntegrityErrorCode(DataIntegrityViolationException e) {
+        String details = collectExceptionDetails(e);
+        if (details.contains("uq_slot_class_start")) {
+            return ErrorCode.INVALID_INPUT;
+        }
+        return ErrorCode.INVALID_INPUT;
+    }
+
+    private ErrorCode resolveOptimisticLockErrorCode(OptimisticLockingFailureException e) {
+        String details = collectExceptionDetails(e);
+        if (details.contains("domain.booking.booking") || details.contains("bookings")) {
+            return ErrorCode.BOOKING_CONFLICT;
+        }
+        return ErrorCode.CONFLICT;
+    }
+
+    private String collectExceptionDetails(Throwable throwable) {
+        StringBuilder builder = new StringBuilder();
+        Throwable current = throwable;
+        while (current != null) {
+            if (current.getMessage() != null) {
+                if (!builder.isEmpty()) {
+                    builder.append(' ');
+                }
+                builder.append(current.getMessage().toLowerCase(Locale.ROOT));
+            }
+            current = current.getCause();
+        }
+        return builder.toString();
     }
 }

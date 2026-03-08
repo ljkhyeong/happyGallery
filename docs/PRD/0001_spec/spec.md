@@ -744,6 +744,7 @@ POST /api/v1/admin/refunds/{refundId}/retry
 | 409 | `DUPLICATE_BOOKING` | 동일 전화번호 + 동일 슬롯 중복 예약 (§5.2) |
 | 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 (§5.2) |
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌 — 동시 변경 요청 (§5.3) |
+| 409 | `CONFLICT` | 주문 승인/픽업/배치 등 비예약 운영 액션의 낙관적 락 충돌 (§8.2) |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 (API 보호) |
 | 422 | `REFUND_NOT_ALLOWED` | D-1 00:00 이후 환불 요청 (§4.2) |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/환불 시도 (§3.2) |
