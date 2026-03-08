@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, frontend plan F5 추가)
+> 작성 시점: 2026-03-08 (리팩토링 R1–R10 완료, frontend plan F5 추가, R2 재검토 보강 반영)
 
 ---
 
@@ -19,16 +19,19 @@
 
 ## 현재 브랜치 / 워크트리 상태
 
-- 작업 브랜치: `ljkhyeong/frontend-setup`
+- 작업 브랜치: `codex/work-r2-review-fix`
 - 최근 작업:
   - `codexReview`의 R10 테스트 픽스처 정리 반영
   - B2 공개 상품/클래스/슬롯 조회 API 추가
   - F4 예약 조회/변경/취소 화면 추가
   - F5 공개 상품 카탈로그 화면 추가
+  - R2 전역 충돌 예외 매핑 재정리
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `./gradlew :app:policyTest` 통과
-  - `./gradlew --no-daemon :app:useCaseTest`는 프론트 브랜치 기준 실패 6건 확인 후 별도 워크스페이스에서 수정 진행
+  - `./gradlew --no-daemon :app:useCaseTest` 통과
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.OrderApprovalUseCaseIT --tests com.personal.happygallery.app.order.PickupExpireBatchUseCaseIT` 통과
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.admin.AdminSlotUseCaseIT --tests com.personal.happygallery.app.web.GlobalExceptionHandlerTest` 통과
   - `cd frontend && npm run build` 통과
 
 ---
@@ -72,16 +75,16 @@
 
 | 단위 | 내용 | 주요 변경 파일 |
 |------|------|----------------|
-| **R1** | Order 도메인 상태 전이 캡슐화 강화 | `OrderStatus.java`, `Order.java` |
-| **R2** | API 예외 매핑 일관성 정리 | `ErrorCode.java`, `GlobalExceptionHandler.java` |
-| **R3** | Booking 유스케이스 공통 절차 추출 | `BookingSupport.java` |
-| **R4** | Notification fallback 전략 객체화 | `NotificationService.java`, `FakeKakaoSender`, `FakeSmsSender` |
-| **R5** | Batch 서비스 공통 처리 템플릿화 | `BatchExecutor.java` |
-| **R6** | Admin Controller DTO 변환 책임 정리 | `OrderProductionResponse`, `PickupResponse`, `AdminOrderController` |
-| **R7** | Pass 도메인 계산/검증 메서드 명확화 | `PassPurchase.java`, `GuestBookingService` |
-| **R8** | Product/Inventory 경계 정리 | `InventoryService.java`, `ProductAdminService`, `Inventory.deduct()` |
-| **R9** | 시간 경계 계산 호출부 정리 | `TimeBoundary.java`, booking/pass 호출부 |
-| **R10** | 테스트 픽스처/중복 유틸 정리 | `BookingTestHelper`, `OrderTestHelper`, `NotificationLogTestHelper`, `TestFixtures`, booking/order/pass use-case 테스트 |
+| **R1** | Order 도메인 상태 전이 캡슐화 강화 | `OrderStatus.java` — 가드 메서드 4개 추가 (`requireInProduction`, `requireProductionCompletable`, `requireFulfillmentPending`, `requirePickupReady`). `Order.java` — 인라인 if 체크 5곳 → 가드 메서드 호출로 통일 |
+| **R2** | API 예외 매핑 일관성 정리 | `ErrorCode.java` — `PHONE_VERIFICATION_FAILED` 정렬 이동, `INTERNAL_ERROR(500)` 및 일반 `CONFLICT(409)` 추가. `GlobalExceptionHandler.java` — 500 catch-all 핸들러 추가, 인프라 예외 로깅 추가, 예약/비예약 충돌 응답 분리 |
+| **R3** | Booking 유스케이스 공통 절차 추출 | `BookingSupport.java` (신규) — `findByToken()`, `recordHistory()`, `notifyBookingGuest()`. Cancel/Reschedule/Booking/Query 4개 서비스에서 `bookingHistoryRepository`+`notificationService` 의존 제거 |
+| **R4** | Notification fallback 전략 객체화 | `NotificationService.java` — `FALLBACK_ORDER` 하드코딩 + `Map` 제거 → `List<NotificationSender>`를 `@Order` 순 순회. `FakeKakaoSender`/`FakeSmsSender`에 `@Order(1)`/`@Order(2)` |
+| **R5** | Batch 서비스 공통 처리 템플릿화 | `BatchExecutor.java` (신규) — `execute(candidates, idExtractor, processor, label)`. 배치 3종 + 알림 배치 1종의 for-try-catch-집계 루프 제거 |
+| **R6** | Admin Controller DTO 변환 책임 정리 | `OrderProductionResponse`/`PickupResponse`에 `from()` 팩토리 추가. `AdminOrderController` 5개 메서드 → 팩토리 1줄 호출로 단순화 |
+| **R7** | Pass 도메인 계산/검증 메서드 명확화 | `PassPurchase.java` — `requireUsable(now)`, `hasRemainingCredits()`, `calculateRefundAmount()`, `useCredit()` 내부 가드. `GuestBookingService` 만료/잔여 인라인 체크 제거 |
+| **R8** | Product/Inventory 경계 정리 | `InventoryPolicy.java` 삭제 → `Inventory.deduct()` 인라인. `InventoryService.create()` 추가. `ProductAdminService` → `InventoryService` 위임으로 쓰기 경로 통일 |
+| **R9** | 시간 경계 계산 호출부 정리 | `TimeBoundary.java` — `LocalDateTime` 오버로드 3개 추가. 호출부(`BookingCancelService`, `BookingRescheduleService`, `PassPurchaseService`)에서 타입 변환 코드 제거 |
+| **R10** | 테스트 픽스처/중복 유틸 정리 | `BookingTestHelper`에 생성 결과 record + 검증 포함 예약 생성 API 추가. `OrderTestHelper`/`NotificationLogTestHelper` 신규 추가. `TestFixtures`에 `booking()`/`passPurchase()` 추가. booking/order/pass use-case 테스트의 반복 fixture와 비동기 로그 대기 중복 정리 |
 
 ---
 
@@ -100,10 +103,16 @@
   domain/product/InventoryPolicy.java
 
 변경된 주요 패턴:
-  NotificationService    ← List<NotificationSender> @Order 순회
-  PassPurchase.java      ← requireUsable/hasRemainingCredits/calculateRefundAmount 추가
-  TimeBoundary.java      ← LocalDateTime 오버로드 추가
-  BookingRepository      ← 예약 조회 fetch join 보강
+  OrderStatus.java       ← 가드 메서드 8개 (기존 3 + 신규 4 = requireInProduction/ProductionCompletable/FulfillmentPending/PickupReady)
+  NotificationService    ← List<NotificationSender> @Order 순회 (Map + FALLBACK_ORDER 제거)
+  PassPurchase.java      ← requireUsable(now), hasRemainingCredits(), calculateRefundAmount() 추가
+  TimeBoundary.java      ← LocalDateTime 오버로드 3개 추가
+  InventoryService.java  ← create() 추가 (쓰기 단일 진입점)
+  ErrorCode.java         ← INTERNAL_ERROR(500), CONFLICT(409) 추가
+  GlobalExceptionHandler ← 500 catch-all + 인프라 예외 로깅 + 예약/비예약 충돌 매핑 분리
+  BookingTestHelper      ← CreatedBooking record + verified booking/pass booking 생성 메서드
+  TestFixtures.java      ← booking()/passPurchase() fixture 추가
+  BookingRepository      ← findDetailByIdAndAccessToken() fetch join 추가로 예약 조회 LAZY 예외 방지
   ProductController      ← 공개 상품 목록 API 추가
   ClassController        ← 공개 클래스 목록 API 추가
   SlotController         ← 공개 예약 가능 슬롯 조회 API 추가
@@ -114,10 +123,10 @@
 ## 알아야 할 것들
 
 ### 리팩토링 원칙
-
-- 기능 변경 없이 구조만 정리하는 방향 유지
-- R10에서 예약 조회 테스트 중 드러난 LAZY 초기화 예외는 `BookingRepository.findDetailByIdAndAccessToken()` fetch join 추가로 보정
-- 각 단위 완료 시 관련 Gradle 검증을 우선 수행
+- 기능 변경 없이 구조만 정리 — HTTP 계약/상태 결과 변화 없음
+- R10 중 예약 조회 테스트에서 드러난 LAZY 초기화 예외는 `BookingRepository.findDetailByIdAndAccessToken()` fetch join 추가로 보정함
+- 각 단위 완료 시 관련 Gradle 검증 통과 확인
+- R10 정리분은 PR #24로 `codexReview`에 반영됨. R2 재검토 보강은 후속 PR에서 합류 예정
 
 ### Spring Boot 4.0 특이사항
 
