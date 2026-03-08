@@ -358,6 +358,81 @@ PATCH /api/v1/admin/slots/{id}/deactivate
 
 ---
 
+## 11-AA. 공개 조회 API
+
+### 11-AA.1 공개 상품 목록 조회
+
+```
+GET /api/v1/products
+
+→ 200 OK
+[
+  {
+    "id": 1,
+    "name": "시그니처 캔들",
+    "type": "READY_STOCK",
+    "price": 39000,
+    "available": true
+  }
+]
+```
+
+정책:
+- `ACTIVE` 상태 상품만 노출한다.
+- 응답은 상품 상세 조회와 동일한 필드 구조를 사용한다.
+- 재고 수량 원문은 노출하지 않고 `available`만 공개한다.
+
+### 11-AA.2 공개 클래스 목록 조회
+
+```
+GET /api/v1/classes
+
+→ 200 OK
+[
+  {
+    "id": 1,
+    "name": "향수 클래스",
+    "category": "PERFUME",
+    "durationMin": 120,
+    "price": 50000,
+    "bufferMin": 30
+  }
+]
+```
+
+정책:
+- 현재 등록된 전체 클래스를 반환한다.
+- 프론트 예약 생성 화면은 이 응답을 기준으로 클래스 선택지를 구성한다.
+
+### 11-AA.3 공개 예약 가능 슬롯 조회
+
+```
+GET /api/v1/slots?classId=1&date=2026-03-01
+
+→ 200 OK
+[
+  {
+    "id": 42,
+    "classId": 1,
+    "startAt": "2026-03-01T10:00:00",
+    "endAt": "2026-03-01T12:00:00",
+    "capacity": 8,
+    "bookedCount": 3,
+    "remainingCapacity": 5
+  }
+]
+```
+
+에러:
+- `400 INVALID_INPUT` — `classId`, `date` 파라미터 누락 또는 형식 오류
+
+정책:
+- `classId` + `date` 기준으로 당일 슬롯만 조회한다.
+- `is_active = true` 이고 `booked_count < capacity` 인 슬롯만 노출한다.
+- 정렬은 `startAt` 오름차순이다.
+
+---
+
 ## 11-B. 예약 API — 게스트 예약 생성/조회 (§5.2)
 
 ### 11-B.1 휴대폰 인증 코드 발송
