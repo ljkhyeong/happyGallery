@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 Claude 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-08 (frontend plan F3 관리자 기능 컴포넌트 초안 추가)
+> 작성 시점: 2026-03-08 (frontend plan F3 관리자 페이지 조립 연결)
 
 ---
 
@@ -20,7 +20,7 @@
 ## 현재 브랜치 / 워크트리 상태
 
 - 작업 브랜치: `ljkhyeong/frontend-setup`
-- 최근 작업: `frontend/src/features/admin-product/**/*`, `frontend/src/features/admin-slot/**/*` 추가
+- 최근 작업: `frontend/src/pages/admin/AdminPage.tsx` 추가, `App.tsx`에 `/admin` 라우트 연결
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 검증: `cd frontend && npm run build`
 
@@ -38,13 +38,13 @@
 | **F0** | 프론트 워크스페이스 스캐폴딩 | `frontend/package.json`, `frontend/vite.config.ts`, `frontend/src/**/*` — Vite + React + TypeScript, 라우팅, `@` alias, `/api -> :8080` proxy |
 | **F1** | 공통 API 클라이언트와 에러 처리 계층 | `frontend/src/shared/api/**/*`, `frontend/src/shared/types/**/*`, `frontend/src/shared/lib/**/*` — QueryClient, fetch 래퍼, `ApiError`, DTO 타입, 날짜/통화 포맷터 추가 |
 | **F2 (진행 중)** | 앱 셸/테마 기초 | `frontend/src/shared/ui/**/*`, `frontend/src/styles/**/*`, `frontend/src/pages/NotFoundPage.tsx` — 공통 레이아웃, 토스트 provider, 404 페이지, Bootstrap 변수 오버라이드 추가 |
-| **F3 (진행 중)** | 관리자 상품/슬롯 기능 컴포넌트 | `frontend/src/features/admin-product/**/*`, `frontend/src/features/admin-slot/**/*` — admin key 입력, 상품 목록/등록, 슬롯 생성 API 연동 컴포넌트 추가 |
+| **F3 (진행 중)** | 관리자 상품/슬롯 화면 MVP | `frontend/src/features/admin-product/**/*`, `frontend/src/features/admin-slot/**/*`, `frontend/src/pages/admin/AdminPage.tsx` — admin key 입력, 상품 목록/등록, 슬롯 생성/비활성화, `/admin` 라우트 초안 추가 |
 
 ### 다음 우선순위
 
 - `F2`: 로딩/에러/empty 상태와 공통 셸 마무리
 - `B2`: 공개 상품/클래스/슬롯 조회 API 추가
-- `F3`: 관리자 페이지 라우트와 실제 화면 조립 연결
+- `F3`: 관리자 상품/슬롯 화면 검증 후 세부 UX 보완
 - 화면 단위에서 공통 API 계층을 실제로 사용하는 첫 기능(F4) 착수
 
 ---
