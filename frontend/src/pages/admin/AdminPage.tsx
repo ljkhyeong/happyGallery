@@ -6,6 +6,9 @@ import { ProductListSection } from "@/features/admin-product/ProductListSection"
 import { CreateProductForm } from "@/features/admin-product/CreateProductForm";
 import { CreateSlotForm } from "@/features/admin-slot/CreateSlotForm";
 import { SlotListSection } from "@/features/admin-slot/SlotListSection";
+import { OrderActionPanel } from "@/features/admin-order/OrderActionPanel";
+import { FailedRefundSection } from "@/features/admin-refund/FailedRefundSection";
+import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
 import type { SlotResponse } from "@/shared/types";
 
 export function AdminPage() {
@@ -66,6 +69,21 @@ export function AdminPage() {
           </Card.Body>
         </Card>
       )}
+
+      <div className="mb-4">
+        <OrderActionPanel adminKey={adminKey} />
+      </div>
+
+      <div className="mb-4">
+        <PassActionPanel adminKey={adminKey} />
+      </div>
+
+      <Card className="mb-4">
+        <Card.Header>환불 실패 목록</Card.Header>
+        <Card.Body>
+          <FailedRefundSection adminKey={adminKey} />
+        </Card.Body>
+      </Card>
     </Container>
   );
 }
