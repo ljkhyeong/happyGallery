@@ -705,6 +705,75 @@ POST /api/v1/admin/passes/expire
 - `failureReasons` 키는 내부 예외명을 그대로 노출하지 않고 아래 운영용 코드로 정규화한다.
   - `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`
 
+## 11-FA. 사용자 주문 API
+
+### 11-FA.1 주문 생성
+
+```
+POST /api/v1/orders
+{
+  "phone": "01012345678",
+  "verificationCode": "483921",
+  "name": "홍길동",
+  "items": [
+    { "productId": 1, "qty": 2 },
+    { "productId": 3, "qty": 1 }
+  ]
+}
+
+→ 201 Created
+{
+  "orderId": 12,
+  "accessToken": "8c1c2d7a-2e29-4dc5-8d26-c73e5a5e2d93",
+  "status": "PAID_APPROVAL_PENDING",
+  "totalAmount": 118000,
+  "paidAt": "2026-03-08T20:30:00"
+}
+```
+
+에러:
+- `400 PHONE_VERIFICATION_FAILED` — 인증 코드 불일치 또는 만료
+- `404 NOT_FOUND` — productId 미존재
+- `409 INVENTORY_NOT_ENOUGH` — 재고 부족
+
+정책:
+- 휴대폰 인증 성공 시 전화번호 기준 Guest를 조회하고 없으면 생성한다.
+- 주문 생성 시 `accessToken`을 발급하고 사용자 조회 토큰으로 사용한다.
+- 주문 아이템의 단가는 서버가 상품 가격을 다시 조회해 확정한다.
+- 생성 직후 상태는 `PAID_APPROVAL_PENDING`이고 승인 마감 시각은 결제 시각 + 24시간이다.
+
+### 11-FA.2 주문 상세 조회
+
+```
+GET /api/v1/orders/{orderId}?token={accessToken}
+
+→ 200 OK
+{
+  "orderId": 12,
+  "status": "PAID_APPROVAL_PENDING",
+  "totalAmount": 118000,
+  "paidAt": "2026-03-08T20:30:00",
+  "approvalDeadlineAt": "2026-03-09T20:30:00",
+  "items": [
+    { "productId": 1, "qty": 2, "unitPrice": 39000 },
+    { "productId": 3, "qty": 1, "unitPrice": 40000 }
+  ],
+  "fulfillment": {
+    "type": "SHIPPING",
+    "status": "FULFILLMENT_PENDING",
+    "expectedShipDate": null,
+    "pickupDeadlineAt": null
+  }
+}
+```
+
+에러:
+- `404 NOT_FOUND` — orderId 미존재 또는 token 불일치
+
+정책:
+- 주문 조회 토큰이 일치할 때만 상세를 반환한다.
+- `fulfillment`는 아직 생성되지 않은 경우 `null`일 수 있다.
+
 ## 11-G. 주문 배치 Admin API (§3.3)
 
 ### 11-G.1 픽업 만료 배치 수동 트리거

@@ -5,3 +5,4 @@ export type { PurchasePassRequest, PurchasePassByPhoneRequest, PurchasePassRespo
 export type { OrderStatus, SlotResponse, CreateSlotRequest, BatchResponse, BookingNoShowResponse, OrderProductionResponse, PickupResponse, MarkPickupReadyRequest, SetExpectedShipDateRequest, FailedRefundResponse } from "./admin";
 export type { ClassResponse } from "./class";
 export type { PublicSlotResponse } from "./slot";
+export type { CreateOrderRequest, OrderItemInput, OrderResponse, OrderDetailResponse, OrderItemDto, FulfillmentType, FulfillmentDto } from "./order";
