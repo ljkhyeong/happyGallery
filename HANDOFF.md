@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 Claude 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-08 (frontend plan F3 관리자 페이지 조립 연결)
+> 작성 시점: 2026-03-08 (frontend plan B2 공개 조회 API 추가)
 
 ---
 
@@ -20,9 +20,9 @@
 ## 현재 브랜치 / 워크트리 상태
 
 - 작업 브랜치: `ljkhyeong/frontend-setup`
-- 최근 작업: `frontend/src/pages/admin/AdminPage.tsx` 추가, `App.tsx`에 `/admin` 라우트 연결
+- 최근 작업: 공개 상품/클래스/슬롯 조회 API 추가 (`ProductController`, `ClassController`, `SlotController`)
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
-- 검증: `cd frontend && npm run build`
+- 최근 검증: `./gradlew :app:policyTest`, `./gradlew --no-daemon :app:useCaseTest`, `cd frontend && npm run build`
 
 ---
 
@@ -35,6 +35,7 @@
 | 단위 | 내용 | 주요 변경 파일 |
 |------|------|----------------|
 | **B1** | 프론트 선행 API 갭 분석 문서화 | `docs/1Pager/0003_frontend_plan/api-gap-analysis.md` — 공개/관리자 API 현황, GAP-1~5, 프론트 선행 관계 정리 |
+| **B2** | 공개 상품/클래스/슬롯 조회 API 추가 | `app/web/product/ProductController.java`, `app/web/booking/ClassController.java`, `app/web/booking/SlotController.java`, `infra/booking/SlotRepository.java` — 공개 상품 목록, 클래스 목록, 예약 가능 슬롯 조회 API 추가 |
 | **F0** | 프론트 워크스페이스 스캐폴딩 | `frontend/package.json`, `frontend/vite.config.ts`, `frontend/src/**/*` — Vite + React + TypeScript, 라우팅, `@` alias, `/api -> :8080` proxy |
 | **F1** | 공통 API 클라이언트와 에러 처리 계층 | `frontend/src/shared/api/**/*`, `frontend/src/shared/types/**/*`, `frontend/src/shared/lib/**/*` — QueryClient, fetch 래퍼, `ApiError`, DTO 타입, 날짜/통화 포맷터 추가 |
 | **F2 (진행 중)** | 앱 셸/테마 기초 | `frontend/src/shared/ui/**/*`, `frontend/src/styles/**/*`, `frontend/src/pages/NotFoundPage.tsx` — 공통 레이아웃, 토스트 provider, 404 페이지, Bootstrap 변수 오버라이드 추가 |
@@ -43,8 +44,9 @@
 ### 다음 우선순위
 
 - `F2`: 로딩/에러/empty 상태와 공통 셸 마무리
-- `B2`: 공개 상품/클래스/슬롯 조회 API 추가
 - `F3`: 관리자 상품/슬롯 화면 검증 후 세부 UX 보완
+- `B3`: 8회권 구매 계약 보완
+- `F5`, `F6`: 공개 상품 카탈로그 / 예약 생성 화면 착수
 - 화면 단위에서 공통 API 계층을 실제로 사용하는 첫 기능(F4) 착수
 
 ---
