@@ -41,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * [UseCaseIT] §8.2 주문 승인 모델 검증.
  *
- * <p>Proof (PLAN.md §8.2): 24h 경과 케이스에서 자동환불되고 승인 시도는 409.
+ * <p>Proof (docs/1Pager/0000_project_plan/plan.md §8.2): 24h 경과 케이스에서 자동환불되고 승인 시도는 409.
  */
 @UseCaseIT
 class OrderApprovalUseCaseIT {

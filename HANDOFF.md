@@ -10,7 +10,7 @@
 
 - 빠른 진입 문서: `README.md`
 - 핵심 스펙: `docs/PRD/0001_spec/spec.md`
-- 전체 구현 계획: `PLAN.md`
+- 전체 구현 계획: `docs/1Pager/0000_project_plan/plan.md`
 - 의사결정 기록: `docs/ADR/`
 - 리팩토링 계획: `docs/1Pager/0002_refactoring_plan/plan.md`
 - 프론트 착수 계획: `docs/1Pager/0003_frontend_plan/plan.md`
