@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 class CircuitBreakerPaymentProviderTest {
 
@@ -28,8 +29,10 @@ class CircuitBreakerPaymentProviderTest {
 
         RefundResult result = provider.refund("pg-ref", 10_000);
 
-        assertThat(result.success()).isFalse();
-        assertThat(result.failReason()).contains("PG error");
+        assertSoftly(softly -> {
+            softly.assertThat(result.success()).isFalse();
+            softly.assertThat(result.failReason()).contains("PG error");
+        });
     }
 
     @DisplayName("외부 호출이 타임아웃을 초과하면 실패 결과를 반환한다")
@@ -48,8 +51,10 @@ class CircuitBreakerPaymentProviderTest {
 
         RefundResult result = provider.refund("pg-ref", 10_000);
 
-        assertThat(result.success()).isFalse();
-        assertThat(result.failReason()).contains("응답 지연");
+        assertSoftly(softly -> {
+            softly.assertThat(result.success()).isFalse();
+            softly.assertThat(result.failReason()).contains("응답 지연");
+        });
     }
 
     @DisplayName("실패가 누적되면 서킷이 열려 빠른 실패를 반환한다")
@@ -65,8 +70,10 @@ class CircuitBreakerPaymentProviderTest {
         provider.refund("pg-ref", 10_000);
         RefundResult result = provider.refund("pg-ref", 10_000);
 
-        assertThat(result.success()).isFalse();
-        assertThat(result.failReason()).contains("일시 차단");
+        assertSoftly(softly -> {
+            softly.assertThat(result.success()).isFalse();
+            softly.assertThat(result.failReason()).contains("일시 차단");
+        });
     }
 
     private static ExternalPaymentProperties properties(long timeoutMillis,

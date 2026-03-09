@@ -26,6 +26,7 @@ import static com.personal.happygallery.support.TestDataCleaner.clearBookingWith
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -98,21 +99,21 @@ class BookingRescheduleUseCaseIT {
         }
 
         // Proof: bookings 1건 유지 + 예약금 그대로 (재결제 없음)
-        assertThat(bookingRepository.findById(booking.bookingId()))
-                .isPresent()
-                .hasValueSatisfying(b -> {
-                    assertThat(b.getSlot().getId()).isEqualTo(slots[5].getId());
-                    assertThat(b.getStatus().name()).isEqualTo("BOOKED");
-                    assertThat(b.getDepositAmount()).isEqualTo(5000L);
-                });
-        assertThat(bookingRepository.count()).isEqualTo(1L);
+        var savedBooking = bookingRepository.findById(booking.bookingId()).orElseThrow();
 
         // Proof: booking_history 6건 (BOOKED×1 + RESCHEDULED×5)
-        assertThat(bookingHistoryRepository.countByBookingId(booking.bookingId())).isEqualTo(6L);
+        long historyCount = bookingHistoryRepository.countByBookingId(booking.bookingId());
+        int finalSlotBookedCount = slotRepository.findById(slots[5].getId()).orElseThrow().getBookedCount();
+        assertSoftly(softly -> {
+            softly.assertThat(savedBooking.getSlot().getId()).isEqualTo(slots[5].getId());
+            softly.assertThat(savedBooking.getStatus().name()).isEqualTo("BOOKED");
+            softly.assertThat(savedBooking.getDepositAmount()).isEqualTo(5000L);
+            softly.assertThat(bookingRepository.count()).isEqualTo(1L);
+            softly.assertThat(historyCount).isEqualTo(6L);
+            softly.assertThat(finalSlotBookedCount).isEqualTo(1);
+        });
 
-        // 슬롯 정원 상태 확인: 최종 슬롯만 1, 나머지는 0
-        assertThat(slotRepository.findById(slots[5].getId()))
-                .hasValueSatisfying(s -> assertThat(s.getBookedCount()).isEqualTo(1));
+        // 슬롯 정원 상태 확인: 나머지는 0
         for (int i = 0; i < 5; i++) {
             int idx = i;
             assertThat(slotRepository.findById(slots[idx].getId()))

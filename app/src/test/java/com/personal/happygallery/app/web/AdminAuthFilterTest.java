@@ -8,6 +8,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 class AdminAuthFilterTest {
 
@@ -20,9 +21,12 @@ class AdminAuthFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter.doFilter(request, response, new MockFilterChain());
+        String responseBody = response.getContentAsString();
 
-        assertThat(response.getStatus()).isEqualTo(401);
-        assertThat(response.getContentAsString()).contains("\"code\":\"UNAUTHORIZED\"");
+        assertSoftly(softly -> {
+            softly.assertThat(response.getStatus()).isEqualTo(401);
+            softly.assertThat(responseBody).contains("\"code\":\"UNAUTHORIZED\"");
+        });
     }
 
     @DisplayName("v1 관리자 경로에 올바른 키를 주면 통과한다")

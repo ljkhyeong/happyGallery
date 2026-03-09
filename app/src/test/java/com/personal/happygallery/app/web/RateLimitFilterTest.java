@@ -9,6 +9,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 class RateLimitFilterTest {
 
@@ -42,10 +43,13 @@ class RateLimitFilterTest {
         second.setRemoteAddr("127.0.0.1");
         MockHttpServletResponse secondResponse = new MockHttpServletResponse();
         filter.doFilter(second, secondResponse, new MockFilterChain());
+        String secondResponseBody = secondResponse.getContentAsString();
 
-        assertThat(secondResponse.getStatus()).isEqualTo(429);
-        assertThat(secondResponse.getHeader("Retry-After")).isNotBlank();
-        assertThat(secondResponse.getContentAsString()).contains("\"code\":\"TOO_MANY_REQUESTS\"");
+        assertSoftly(softly -> {
+            softly.assertThat(secondResponse.getStatus()).isEqualTo(429);
+            softly.assertThat(secondResponse.getHeader("Retry-After")).isNotBlank();
+            softly.assertThat(secondResponseBody).contains("\"code\":\"TOO_MANY_REQUESTS\"");
+        });
     }
 
     @DisplayName("레거시와 v1 관리자 경로는 동일한 처리율 제한 규칙을 사용한다")
@@ -62,9 +66,12 @@ class RateLimitFilterTest {
         v1PathRequest.setRemoteAddr("127.0.0.1");
         MockHttpServletResponse secondResponse = new MockHttpServletResponse();
         filter.doFilter(v1PathRequest, secondResponse, new MockFilterChain());
+        String secondResponseBody = secondResponse.getContentAsString();
 
-        assertThat(secondResponse.getStatus()).isEqualTo(429);
-        assertThat(secondResponse.getContentAsString()).contains("\"code\":\"TOO_MANY_REQUESTS\"");
+        assertSoftly(softly -> {
+            softly.assertThat(secondResponse.getStatus()).isEqualTo(429);
+            softly.assertThat(secondResponseBody).contains("\"code\":\"TOO_MANY_REQUESTS\"");
+        });
     }
 
     private static RateLimitProperties properties(boolean enabled,

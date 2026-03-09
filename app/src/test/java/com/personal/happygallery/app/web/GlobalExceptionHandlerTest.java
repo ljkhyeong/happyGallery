@@ -9,6 +9,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 class GlobalExceptionHandlerTest {
 
@@ -21,8 +22,10 @@ class GlobalExceptionHandlerTest {
                 new OptimisticLockingFailureException(
                         "Object of class [com.personal.happygallery.domain.booking.Booking] with identifier [1]"));
 
-        assertThat(response.getStatusCode().value()).isEqualTo(409);
-        assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.BOOKING_CONFLICT));
+        assertSoftly(softly -> {
+            softly.assertThat(response.getStatusCode().value()).isEqualTo(409);
+            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.BOOKING_CONFLICT));
+        });
     }
 
     @DisplayName("비예약 낙관적 락 충돌은 CONFLICT로 매핑된다")
@@ -32,8 +35,10 @@ class GlobalExceptionHandlerTest {
                 new OptimisticLockingFailureException(
                         "Object of class [com.personal.happygallery.domain.order.Order] with identifier [1]"));
 
-        assertThat(response.getStatusCode().value()).isEqualTo(409);
-        assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.CONFLICT));
+        assertSoftly(softly -> {
+            softly.assertThat(response.getStatusCode().value()).isEqualTo(409);
+            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.CONFLICT));
+        });
     }
 
     @DisplayName("슬롯 유니크 제약 위반은 INVALID_INPUT으로 매핑된다")
@@ -42,7 +47,9 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<ErrorResponse> response = handler.handleDataIntegrityViolation(
                 new DataIntegrityViolationException("Duplicate entry for key 'uq_slot_class_start'"));
 
-        assertThat(response.getStatusCode().value()).isEqualTo(400);
-        assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.INVALID_INPUT));
+        assertSoftly(softly -> {
+            softly.assertThat(response.getStatusCode().value()).isEqualTo(400);
+            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.INVALID_INPUT));
+        });
     }
 }
