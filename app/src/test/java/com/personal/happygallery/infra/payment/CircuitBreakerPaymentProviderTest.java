@@ -24,7 +24,7 @@ class CircuitBreakerPaymentProviderTest {
             throw new RuntimeException("PG error");
         };
 
-        provider = new CircuitBreakerPaymentProvider(delegate, 3_000, 50f, 20, 10, 30, 3);
+        provider = new CircuitBreakerPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3));
 
         RefundResult result = provider.refund("pg-ref", 10_000);
 
@@ -44,7 +44,7 @@ class CircuitBreakerPaymentProviderTest {
             return RefundResult.success("late-ref");
         };
 
-        provider = new CircuitBreakerPaymentProvider(delegate, 50, 50f, 20, 10, 30, 3);
+        provider = new CircuitBreakerPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3));
 
         RefundResult result = provider.refund("pg-ref", 10_000);
 
@@ -59,7 +59,7 @@ class CircuitBreakerPaymentProviderTest {
             throw new RuntimeException("PG down");
         };
 
-        provider = new CircuitBreakerPaymentProvider(delegate, 3_000, 50f, 2, 2, 30, 1);
+        provider = new CircuitBreakerPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1));
 
         provider.refund("pg-ref", 10_000);
         provider.refund("pg-ref", 10_000);
@@ -67,5 +67,23 @@ class CircuitBreakerPaymentProviderTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.failReason()).contains("일시 차단");
+    }
+
+    private static ExternalPaymentProperties properties(long timeoutMillis,
+                                                        float failureRateThreshold,
+                                                        int slidingWindowSize,
+                                                        int minimumNumberOfCalls,
+                                                        long waitDurationOpenSeconds,
+                                                        int permittedCallsInHalfOpenState) {
+        ExternalPaymentProperties properties = new ExternalPaymentProperties();
+        ExternalPaymentProperties.CircuitBreaker circuitBreaker = new ExternalPaymentProperties.CircuitBreaker();
+        circuitBreaker.setFailureRateThreshold(failureRateThreshold);
+        circuitBreaker.setSlidingWindowSize(slidingWindowSize);
+        circuitBreaker.setMinimumNumberOfCalls(minimumNumberOfCalls);
+        circuitBreaker.setWaitDurationOpenSeconds(waitDurationOpenSeconds);
+        circuitBreaker.setPermittedCallsInHalfOpenState(permittedCallsInHalfOpenState);
+        properties.setTimeoutMillis(timeoutMillis);
+        properties.setCircuitBreaker(circuitBreaker);
+        return properties;
     }
 }

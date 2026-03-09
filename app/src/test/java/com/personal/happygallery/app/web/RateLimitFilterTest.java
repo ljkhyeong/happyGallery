@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.web;
 
+import com.personal.happygallery.config.properties.RateLimitProperties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
@@ -16,7 +17,7 @@ class RateLimitFilterTest {
     @DisplayName("제한 대상이 아닌 경로는 처리율 제한 없이 통과한다")
     @Test
     void passesThrough_whenPathIsNotRateLimited() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, true, 1, 1, 1, 1);
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 1, 1, 1, 1));
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/actuator/health");
         request.setRemoteAddr("127.0.0.1");
@@ -30,7 +31,7 @@ class RateLimitFilterTest {
     @DisplayName("동일 IP에서 인증코드 발송 요청이 초과되면 429를 반환한다")
     @Test
     void returns429_whenPhoneVerificationLimitExceeded() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, true, 1, 10, 10, 10);
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 1, 10, 10, 10));
 
         MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/bookings/phone-verifications");
         first.setRemoteAddr("127.0.0.1");
@@ -50,7 +51,7 @@ class RateLimitFilterTest {
     @DisplayName("레거시와 v1 관리자 경로는 동일한 처리율 제한 규칙을 사용한다")
     @Test
     void appliesSameLimit_forLegacyAndV1AdminPaths() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, true, 10, 10, 10, 1);
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 10, 10, 10, 1));
 
         MockHttpServletRequest legacyPathRequest = new MockHttpServletRequest("POST", "/admin/orders/expire-pickups");
         legacyPathRequest.setRemoteAddr("127.0.0.1");
@@ -64,5 +65,19 @@ class RateLimitFilterTest {
 
         assertThat(secondResponse.getStatus()).isEqualTo(429);
         assertThat(secondResponse.getContentAsString()).contains("\"code\":\"TOO_MANY_REQUESTS\"");
+    }
+
+    private static RateLimitProperties properties(boolean enabled,
+                                                  long phoneVerificationPerSecond,
+                                                  long bookingCreatePerMinute,
+                                                  long passPurchasePerMinute,
+                                                  long adminApiPerMinute) {
+        RateLimitProperties properties = new RateLimitProperties();
+        properties.setEnabled(enabled);
+        properties.setPhoneVerificationPerSecond(phoneVerificationPerSecond);
+        properties.setBookingCreatePerMinute(bookingCreatePerMinute);
+        properties.setPassPurchasePerMinute(passPurchasePerMinute);
+        properties.setAdminApiPerMinute(adminApiPerMinute);
+        return properties;
     }
 }

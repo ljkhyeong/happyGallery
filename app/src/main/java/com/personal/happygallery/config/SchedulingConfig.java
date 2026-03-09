@@ -1,6 +1,6 @@
 package com.personal.happygallery.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.personal.happygallery.config.properties.BatchSchedulerProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.TaskScheduler;
@@ -11,13 +11,16 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 @EnableScheduling
 public class SchedulingConfig {
 
-    @Value("${app.batch.scheduler.pool-size:4}")
-    private int poolSize;
+    private final BatchSchedulerProperties properties;
+
+    public SchedulingConfig(BatchSchedulerProperties properties) {
+        this.properties = properties;
+    }
 
     @Bean
     public TaskScheduler taskScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(poolSize);
+        scheduler.setPoolSize(properties.getPoolSize());
         scheduler.setThreadNamePrefix("batch-");
         return scheduler;
     }

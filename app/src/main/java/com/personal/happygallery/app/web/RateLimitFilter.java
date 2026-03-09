@@ -2,6 +2,7 @@ package com.personal.happygallery.app.web;
 
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.ErrorResponse;
+import com.personal.happygallery.config.properties.RateLimitProperties;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
@@ -15,7 +16,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -39,33 +39,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final LimitRule ADMIN_API_RULE = new LimitRule("ADMIN_API", null, null, null);
 
     private final ObjectMapper objectMapper;
-    private final boolean enabled;
-    private final long phoneVerificationPerSecond;
-    private final long bookingCreatePerMinute;
-    private final long passPurchasePerMinute;
-    private final long adminApiPerMinute;
+    private final RateLimitProperties properties;
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
 
-    public RateLimitFilter(
-            ObjectMapper objectMapper,
-            @Value("${app.rate-limit.enabled:true}") boolean enabled,
-            @Value("${app.rate-limit.phone-verification-per-second:10}") long phoneVerificationPerSecond,
-            @Value("${app.rate-limit.booking-create-per-minute:30}") long bookingCreatePerMinute,
-            @Value("${app.rate-limit.pass-purchase-per-minute:20}") long passPurchasePerMinute,
-            @Value("${app.rate-limit.admin-api-per-minute:120}") long adminApiPerMinute) {
+    public RateLimitFilter(ObjectMapper objectMapper, RateLimitProperties properties) {
         this.objectMapper = objectMapper;
-        this.enabled = enabled;
-        this.phoneVerificationPerSecond = phoneVerificationPerSecond;
-        this.bookingCreatePerMinute = bookingCreatePerMinute;
-        this.passPurchasePerMinute = passPurchasePerMinute;
-        this.adminApiPerMinute = adminApiPerMinute;
+        this.properties = properties;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        if (!enabled) {
+        if (!properties.isEnabled()) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -98,16 +84,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String method = request.getMethod();
 
         if (isAdminPath(uri)) {
-            return new ResolvedRule(ADMIN_API_RULE, adminApiPerMinute, Duration.ofMinutes(1));
+            return new ResolvedRule(ADMIN_API_RULE, properties.getAdminApiPerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, PHONE_VERIFICATION_RULE)) {
-            return new ResolvedRule(PHONE_VERIFICATION_RULE, phoneVerificationPerSecond, Duration.ofSeconds(1));
+            return new ResolvedRule(PHONE_VERIFICATION_RULE, properties.getPhoneVerificationPerSecond(), Duration.ofSeconds(1));
         }
         if (matches(request, BOOKING_CREATE_RULE)) {
-            return new ResolvedRule(BOOKING_CREATE_RULE, bookingCreatePerMinute, Duration.ofMinutes(1));
+            return new ResolvedRule(BOOKING_CREATE_RULE, properties.getBookingCreatePerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, PASS_PURCHASE_RULE)) {
-            return new ResolvedRule(PASS_PURCHASE_RULE, passPurchasePerMinute, Duration.ofMinutes(1));
+            return new ResolvedRule(PASS_PURCHASE_RULE, properties.getPassPurchasePerMinute(), Duration.ofMinutes(1));
         }
         return null;
     }
