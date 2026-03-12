@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
  * [UseCaseIT] 단일 재고 동시 주문 동시성 검증.
@@ -107,12 +108,14 @@ class ConcurrentOrderUseCaseIT {
         exec.shutdown();
         exec.awaitTermination(15, TimeUnit.SECONDS);
 
-        assertThat(successes.get()).isEqualTo(1);
-        assertThat(failures.get()).isEqualTo(threadCount - 1);
-
         // 최종 재고 0 확인 (음수로 내려가지 않음)
         int remaining = inventoryRepository.findByProductId(product.getId())
                 .orElseThrow().getQuantity();
-        assertThat(remaining).isEqualTo(0);
+
+        assertSoftly(softly -> {
+            softly.assertThat(successes.get()).isEqualTo(1);
+            softly.assertThat(failures.get()).isEqualTo(threadCount - 1);
+            softly.assertThat(remaining).isEqualTo(0);
+        });
     }
 }

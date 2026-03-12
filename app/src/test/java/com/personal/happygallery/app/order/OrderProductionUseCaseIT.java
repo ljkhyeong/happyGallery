@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 
 /**
@@ -86,11 +87,11 @@ class OrderProductionUseCaseIT {
         orderApprovalService.approve(order.getId());
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
-
-        // Fulfillment 자동 생성 확인
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -105,8 +106,10 @@ class OrderProductionUseCaseIT {
         orderApprovalService.approve(order.getId());
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-        assertThat(fulfillmentRepository.findByOrderId(order.getId())).isEmpty();
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(fulfillmentRepository.findByOrderId(order.getId())).isEmpty();
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -139,13 +142,14 @@ class OrderProductionUseCaseIT {
         orderProductionService.requestDelay(order.getId());
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
-
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
-        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
-                .extracting("decision")
-                .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY);
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
+            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
+            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                    .extracting("decision")
+                    .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -181,19 +185,16 @@ class OrderProductionUseCaseIT {
         orderProductionService.completeProduction(order.getId(), 1L);
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-
-        // 이력: APPROVE + PRODUCTION_COMPLETE
-        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
-                .extracting("decision")
-                .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.PRODUCTION_COMPLETE);
-
-        // adminId 기록 확인
         var histories = orderApprovalHistoryRepository.findByOrderId(order.getId());
-        assertThat(histories.get(1).getDecidedByAdminId()).isEqualTo(1L);
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                    .extracting("decision")
+                    .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.PRODUCTION_COMPLETE);
+            softly.assertThat(histories.get(1).getDecidedByAdminId()).isEqualTo(1L);
+        });
     }
 
     @DisplayName("DELAY_REQUESTED 상태에서도 제작 완료 처리가 가능하다")
@@ -217,13 +218,11 @@ class OrderProductionUseCaseIT {
 
         // 승인 → IN_PRODUCTION
         orderApprovalService.approve(order.getId());
-        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
-                .isEqualTo(OrderStatus.IN_PRODUCTION);
+        Order afterApprove = orderRepository.findById(order.getId()).orElseThrow();
 
         // 제작 완료 → APPROVED_FULFILLMENT_PENDING
         orderProductionService.completeProduction(order.getId(), 1L);
-        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
-                .isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+        Order afterCompleteProduction = orderRepository.findById(order.getId()).orElseThrow();
 
         // 픽업 준비 → PICKUP_READY (기존 흐름과 연결 확인)
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
@@ -233,6 +232,10 @@ class OrderProductionUseCaseIT {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
 
         Order final_ = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(final_.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+        assertSoftly(softly -> {
+            softly.assertThat(afterApprove.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+            softly.assertThat(afterCompleteProduction.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(final_.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+        });
     }
 }

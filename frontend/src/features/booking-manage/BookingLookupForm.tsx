@@ -9,6 +9,7 @@ interface Props {
 export function BookingLookupForm({ onLookup, isLoading }: Props) {
   const [bookingId, setBookingId] = useState("");
   const [token, setToken] = useState("");
+  const [touched, setTouched] = useState({ bookingId: false, token: false });
 
   const valid = Number(bookingId) > 0 && token.trim().length > 0;
 
@@ -16,6 +17,7 @@ export function BookingLookupForm({ onLookup, isLoading }: Props) {
     <Form
       onSubmit={(e) => {
         e.preventDefault();
+        setTouched({ bookingId: true, token: true });
         if (valid) onLookup(Number(bookingId), token.trim());
       }}
     >
@@ -28,8 +30,13 @@ export function BookingLookupForm({ onLookup, isLoading }: Props) {
               min={1}
               value={bookingId}
               onChange={(e) => setBookingId(e.target.value)}
+              onBlur={() => setTouched((t) => ({ ...t, bookingId: true }))}
               placeholder="예약 ID"
+              isInvalid={touched.bookingId && !(Number(bookingId) > 0)}
             />
+            <Form.Control.Feedback type="invalid">
+              유효한 예약 번호를 입력해 주세요.
+            </Form.Control.Feedback>
           </Form.Group>
         </Col>
         <Col xs={12} sm={5}>
@@ -38,8 +45,13 @@ export function BookingLookupForm({ onLookup, isLoading }: Props) {
             <Form.Control
               value={token}
               onChange={(e) => setToken(e.target.value)}
+              onBlur={() => setTouched((t) => ({ ...t, token: true }))}
               placeholder="예약 시 발급된 토큰"
+              isInvalid={touched.token && !token.trim()}
             />
+            <Form.Control.Feedback type="invalid">
+              인증 토큰을 입력해 주세요.
+            </Form.Control.Feedback>
           </Form.Group>
         </Col>
         <Col xs={12} sm={3}>

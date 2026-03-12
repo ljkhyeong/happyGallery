@@ -17,6 +17,7 @@ import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +32,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.doAnswer;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -292,8 +293,13 @@ class OrderApprovalUseCaseIT {
         Order order1 = orderHelper.createExpiredReadyStockPendingOrder("알림실패 상품1", 45000L).order();
         Order order2 = orderHelper.createExpiredReadyStockPendingOrder("알림실패 상품2", 55000L).order();
 
-        // 첫 번째 주문의 알림만 실패
-        doThrow(new RuntimeException("알림 전송 실패"))
+        // 첫 번째 주문의 알림만 비동기 실패(호출 스레드에는 전파되지 않음)
+        doAnswer(invocation -> {
+            CompletableFuture.runAsync(() -> {
+                throw new RuntimeException("알림 전송 실패");
+            });
+            return null;
+        })
                 .doNothing()
                 .when(notificationService)
                 .notifyByGuestId(any(), any());

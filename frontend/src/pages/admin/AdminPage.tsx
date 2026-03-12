@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { Container, Card, Button } from "react-bootstrap";
 import { useAdminKey } from "@/features/admin-product/useAdminKey";
 import { AdminKeyGate } from "@/features/admin-product/AdminKeyGate";
@@ -9,19 +9,16 @@ import { SlotListSection } from "@/features/admin-slot/SlotListSection";
 import { OrderActionPanel } from "@/features/admin-order/OrderActionPanel";
 import { FailedRefundSection } from "@/features/admin-refund/FailedRefundSection";
 import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
-import type { SlotResponse } from "@/shared/types";
+import { useToast } from "@/shared/ui";
 
 export function AdminPage() {
   const { adminKey, setAdminKey, clearAdminKey, isAuthenticated } = useAdminKey();
-  const [slots, setSlots] = useState<SlotResponse[]>([]);
+  const toast = useToast();
 
-  const handleSlotCreated = useCallback((slot: SlotResponse) => {
-    setSlots((prev) => [slot, ...prev]);
-  }, []);
-
-  const handleSlotUpdated = useCallback((updated: SlotResponse) => {
-    setSlots((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-  }, []);
+  const handleAuthError = useCallback(() => {
+    clearAdminKey();
+    toast.show("인증이 만료되었습니다. 다시 로그인해 주세요.", "warning");
+  }, [clearAdminKey, toast]);
 
   if (!isAuthenticated) {
     return <AdminKeyGate onSubmit={setAdminKey} />;
@@ -39,49 +36,43 @@ export function AdminPage() {
       <Card className="mb-4">
         <Card.Header>상품 등록</Card.Header>
         <Card.Body>
-          <CreateProductForm adminKey={adminKey} />
+          <CreateProductForm adminKey={adminKey} onAuthError={handleAuthError} />
         </Card.Body>
       </Card>
 
       <Card className="mb-4">
         <Card.Header>상품 목록</Card.Header>
         <Card.Body>
-          <ProductListSection adminKey={adminKey} />
+          <ProductListSection adminKey={adminKey} onAuthError={handleAuthError} />
         </Card.Body>
       </Card>
 
       <Card className="mb-4">
         <Card.Header>슬롯 생성</Card.Header>
         <Card.Body>
-          <CreateSlotForm adminKey={adminKey} onCreated={handleSlotCreated} />
+          <CreateSlotForm adminKey={adminKey} onAuthError={handleAuthError} />
         </Card.Body>
       </Card>
 
-      {slots.length > 0 && (
-        <Card className="mb-4">
-          <Card.Header>생성된 슬롯</Card.Header>
-          <Card.Body>
-            <SlotListSection
-              adminKey={adminKey}
-              slots={slots}
-              onUpdated={handleSlotUpdated}
-            />
-          </Card.Body>
-        </Card>
-      )}
+      <Card className="mb-4">
+        <Card.Header>슬롯 목록</Card.Header>
+        <Card.Body>
+          <SlotListSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
 
       <div className="mb-4">
-        <OrderActionPanel adminKey={adminKey} />
+        <OrderActionPanel adminKey={adminKey} onAuthError={handleAuthError} />
       </div>
 
       <div className="mb-4">
-        <PassActionPanel adminKey={adminKey} />
+        <PassActionPanel adminKey={adminKey} onAuthError={handleAuthError} />
       </div>
 
       <Card className="mb-4">
         <Card.Header>환불 실패 목록</Card.Header>
         <Card.Body>
-          <FailedRefundSection adminKey={adminKey} />
+          <FailedRefundSection adminKey={adminKey} onAuthError={handleAuthError} />
         </Card.Body>
       </Card>
     </Container>

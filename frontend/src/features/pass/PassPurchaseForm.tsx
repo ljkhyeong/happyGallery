@@ -15,6 +15,7 @@ interface Props {
 export function PassPurchaseForm({ phone, verificationCode, onSuccess }: Props) {
   const toast = useToast();
   const [name, setName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
   const [totalPrice, setTotalPrice] = useState("");
 
   const mutation = useMutation({
@@ -31,10 +32,17 @@ export function PassPurchaseForm({ phone, verificationCode, onSuccess }: Props) 
     },
   });
 
-  const valid = name.trim().length > 0;
+  const nameValid = name.trim().length > 0;
+  const priceValid = totalPrice === "" || Number(totalPrice) >= 0;
+  const formValid = nameValid && priceValid;
 
   return (
-    <div>
+    <Form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (formValid && !mutation.isPending) mutation.mutate();
+      }}
+    >
       <h6 className="mb-3">2. 구매 정보</h6>
       <ErrorAlert error={mutation.error} />
 
@@ -43,8 +51,13 @@ export function PassPurchaseForm({ phone, verificationCode, onSuccess }: Props) 
         <Form.Control
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onBlur={() => setNameTouched(true)}
           placeholder="구매자 이름"
+          isInvalid={nameTouched && !nameValid}
         />
+        <Form.Control.Feedback type="invalid">
+          이름을 입력해 주세요.
+        </Form.Control.Feedback>
       </Form.Group>
 
       <Row className="g-2 align-items-end mb-3">
@@ -57,7 +70,11 @@ export function PassPurchaseForm({ phone, verificationCode, onSuccess }: Props) 
               value={totalPrice}
               onChange={(e) => setTotalPrice(e.target.value)}
               placeholder="0"
+              isInvalid={totalPrice !== "" && Number(totalPrice) < 0}
             />
+            <Form.Control.Feedback type="invalid">
+              금액은 0원 이상이어야 합니다.
+            </Form.Control.Feedback>
             <Form.Text className="text-muted">
               환불 시 잔여 횟수 기준으로 정산됩니다.
             </Form.Text>
@@ -66,16 +83,16 @@ export function PassPurchaseForm({ phone, verificationCode, onSuccess }: Props) 
       </Row>
 
       <Button
+        type="submit"
         variant="primary"
         size="lg"
         className="w-100"
-        disabled={!valid || mutation.isPending}
-        onClick={() => mutation.mutate()}
+        disabled={!formValid || mutation.isPending}
       >
         {mutation.isPending
           ? "구매 처리 중..."
           : `8회권 구매${totalPrice ? ` (${formatKRW(Number(totalPrice))})` : ""}`}
       </Button>
-    </div>
+    </Form>
   );
 }

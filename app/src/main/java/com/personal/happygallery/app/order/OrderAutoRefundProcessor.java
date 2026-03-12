@@ -10,8 +10,6 @@ import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.LocalDateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -21,9 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class OrderAutoRefundProcessor {
-
-    private static final Logger log = LoggerFactory.getLogger(OrderAutoRefundProcessor.class);
-
     private final OrderRepository orderRepository;
     private final OrderApprovalService orderApprovalService;
     private final OrderApprovalHistoryRepository orderApprovalHistoryRepository;
@@ -61,11 +56,7 @@ public class OrderAutoRefundProcessor {
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.AUTO_REFUND));
         orderRepository.saveAndFlush(order);
 
-        try {
-            notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
-        } catch (Exception e) {
-            log.warn("자동환불 알림 실패 [orderId={}] — 환불은 정상 처리됨", orderId, e);
-        }
+        notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
         return true;
     }
 }

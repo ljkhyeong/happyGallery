@@ -25,6 +25,7 @@ import static com.personal.happygallery.support.TestDataCleaner.clearBookingData
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
  * [UseCaseIT] 슬롯 정원 동시 예약 동시성 검증.
@@ -73,8 +74,8 @@ class ConcurrentBookingUseCaseIT {
         for (int i = 0; i < SlotCapacity.MAX - 1; i++) {
             slotManagementService.confirmBooking(slot.getId());
         }
-        assertThat(slotRepository.findById(slot.getId()).orElseThrow().getBookedCount())
-                .isEqualTo(SlotCapacity.MAX - 1);
+        int beforeRaceBookedCount = slotRepository.findById(slot.getId()).orElseThrow().getBookedCount();
+        assertThat(beforeRaceBookedCount).isEqualTo(SlotCapacity.MAX - 1);
 
         int threadCount = 3;
         ExecutorService exec = Executors.newFixedThreadPool(threadCount);
@@ -101,11 +102,12 @@ class ConcurrentBookingUseCaseIT {
         exec.shutdown();
         exec.awaitTermination(15, TimeUnit.SECONDS);
 
-        assertThat(successes.get()).isEqualTo(1);
-        assertThat(failures.get()).isEqualTo(threadCount - 1);
-
         // 최종 bookedCount == MAX (초과 없음)
         int bookedCount = slotRepository.findById(slot.getId()).orElseThrow().getBookedCount();
-        assertThat(bookedCount).isEqualTo(SlotCapacity.MAX);
+        assertSoftly(softly -> {
+            softly.assertThat(successes.get()).isEqualTo(1);
+            softly.assertThat(failures.get()).isEqualTo(threadCount - 1);
+            softly.assertThat(bookedCount).isEqualTo(SlotCapacity.MAX);
+        });
     }
 }

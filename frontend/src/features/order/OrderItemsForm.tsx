@@ -11,6 +11,8 @@ interface Props {
   onChange: (items: OrderItemInput[]) => void;
 }
 
+const MAX_QTY = 99;
+
 export function OrderItemsForm({ items, onChange }: Props) {
   const [selectedId, setSelectedId] = useState("");
   const [qty, setQty] = useState("1");
@@ -24,14 +26,18 @@ export function OrderItemsForm({ items, onChange }: Props) {
     products?.map((p) => [p.id, p]) ?? [],
   );
 
+  const qtyNum = Number(qty);
+  const qtyValid = Number.isInteger(qtyNum) && qtyNum >= 1 && qtyNum <= MAX_QTY;
+
   const addItem = () => {
     const pid = Number(selectedId);
-    if (pid > 0 && Number(qty) > 0) {
+    if (pid > 0 && qtyValid) {
       const existing = items.find((i) => i.productId === pid);
       if (existing) {
-        onChange(items.map((i) => (i.productId === pid ? { ...i, qty: i.qty + Number(qty) } : i)));
+        const newQty = Math.min(existing.qty + qtyNum, MAX_QTY);
+        onChange(items.map((i) => (i.productId === pid ? { ...i, qty: newQty } : i)));
       } else {
-        onChange([...items, { productId: pid, qty: Number(qty) }]);
+        onChange([...items, { productId: pid, qty: qtyNum }]);
       }
       setQty("1");
     }
@@ -40,6 +46,11 @@ export function OrderItemsForm({ items, onChange }: Props) {
   const removeItem = (productId: number) => {
     onChange(items.filter((i) => i.productId !== productId));
   };
+
+  const totalAmount = items.reduce((sum, item) => {
+    const product = productMap.get(item.productId);
+    return sum + (product ? product.price * item.qty : 0);
+  }, 0);
 
   if (isLoading) return <LoadingSpinner text="상품 로딩..." />;
 
@@ -62,38 +73,52 @@ export function OrderItemsForm({ items, onChange }: Props) {
         <Col xs={6} sm={3}>
           <Form.Group>
             <Form.Label>수량</Form.Label>
-            <Form.Control type="number" min={1} value={qty}
-              onChange={(e) => setQty(e.target.value)} />
+            <Form.Control
+              type="number"
+              min={1}
+              max={MAX_QTY}
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              isInvalid={qty !== "" && qty !== "1" && !qtyValid}
+            />
+            <Form.Control.Feedback type="invalid">
+              1~{MAX_QTY} 사이의 수량을 입력해 주세요.
+            </Form.Control.Feedback>
           </Form.Group>
         </Col>
         <Col xs={6} sm={3}>
           <Button variant="outline-primary" className="w-100"
-            disabled={!Number(selectedId)} onClick={addItem}>추가</Button>
+            disabled={!Number(selectedId) || !qtyValid} onClick={addItem}>추가</Button>
         </Col>
       </Row>
 
       {items.length > 0 && (
-        <ListGroup className="mb-2">
-          {items.map((item) => {
-            const product = productMap.get(item.productId);
-            return (
-              <ListGroup.Item key={item.productId}
-                className="d-flex justify-content-between align-items-center">
-                <span>
-                  {product?.name ?? `상품 #${item.productId}`}
-                  <Badge bg="secondary" className="ms-2">x{item.qty}</Badge>
-                  {product && (
-                    <small className="text-muted-soft ms-2">
-                      {formatKRW(product.price * item.qty)}
-                    </small>
-                  )}
-                </span>
-                <Button size="sm" variant="outline-danger"
-                  onClick={() => removeItem(item.productId)}>삭제</Button>
-              </ListGroup.Item>
-            );
-          })}
-        </ListGroup>
+        <>
+          <ListGroup className="mb-2">
+            {items.map((item) => {
+              const product = productMap.get(item.productId);
+              return (
+                <ListGroup.Item key={item.productId}
+                  className="d-flex justify-content-between align-items-center">
+                  <span>
+                    {product?.name ?? `상품 #${item.productId}`}
+                    <Badge bg="secondary" className="ms-2">x{item.qty}</Badge>
+                    {product && (
+                      <small className="text-muted-soft ms-2">
+                        {formatKRW(product.price * item.qty)}
+                      </small>
+                    )}
+                  </span>
+                  <Button size="sm" variant="outline-danger"
+                    onClick={() => removeItem(item.productId)}>삭제</Button>
+                </ListGroup.Item>
+              );
+            })}
+          </ListGroup>
+          <div className="text-end fw-bold">
+            합계: {formatKRW(totalAmount)}
+          </div>
+        </>
       )}
     </div>
   );

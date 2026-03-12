@@ -3,9 +3,12 @@ import { Table, Badge } from "react-bootstrap";
 import { fetchProducts } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
+import { ApiError } from "@/shared/api";
+import { useEffect } from "react";
 
 interface Props {
   adminKey: string;
+  onAuthError: () => void;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -13,14 +16,23 @@ const TYPE_LABEL: Record<string, string> = {
   MADE_TO_ORDER: "예약 제작",
 };
 
-export function ProductListSection({ adminKey }: Props) {
+export function ProductListSection({ adminKey, onAuthError }: Props) {
   const { data: products, isLoading, error } = useQuery({
     queryKey: ["admin", "products"],
     queryFn: () => fetchProducts(adminKey),
   });
 
+  useEffect(() => {
+    if (error instanceof ApiError && error.status === 401) {
+      onAuthError();
+    }
+  }, [error, onAuthError]);
+
   if (isLoading) return <LoadingSpinner />;
-  if (error) return <ErrorAlert error={error} />;
+  if (error) {
+    if (error instanceof ApiError && error.status === 401) return null;
+    return <ErrorAlert error={error} />;
+  }
   if (!products?.length) return <EmptyState message="등록된 상품이 없습니다." />;
 
   return (

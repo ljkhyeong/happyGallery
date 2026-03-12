@@ -25,4 +25,9 @@ public class SlotQueryService {
         LocalDateTime dayEnd = date.atTime(LocalTime.MAX);
         return slotRepository.findAvailableByClassAndDate(classId, dayStart, dayEnd);
     }
+
+    /** 관리자용 — 클래스 기준 슬롯 전체 조회 (활성/비활성 포함) */
+    public List<Slot> listByClass(Long classId) {
+        return slotRepository.findByBookingClassIdOrderByStartAtDesc(classId);
+    }
 }
