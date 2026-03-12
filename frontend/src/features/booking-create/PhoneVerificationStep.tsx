@@ -32,7 +32,7 @@ export function PhoneVerificationStep({ onVerified }: Props) {
       <ErrorAlert error={sendMutation.error} />
 
       <Row className="g-2 align-items-end mb-3">
-        <Col xs={8}>
+        <Col xs={12} sm={8}>
           <Form.Group>
             <Form.Label>휴대폰 번호</Form.Label>
             <Form.Control
@@ -49,7 +49,7 @@ export function PhoneVerificationStep({ onVerified }: Props) {
             </Form.Control.Feedback>
           </Form.Group>
         </Col>
-        <Col xs={4}>
+        <Col xs={12} sm={4}>
           <Button
             variant="outline-primary"
             className="w-100"
@@ -69,7 +69,7 @@ export function PhoneVerificationStep({ onVerified }: Props) {
             </p>
           )}
           <Row className="g-2 align-items-end">
-            <Col xs={8}>
+            <Col xs={12} sm={8}>
               <Form.Group>
                 <Form.Label>인증코드</Form.Label>
                 <Form.Control
@@ -79,7 +79,7 @@ export function PhoneVerificationStep({ onVerified }: Props) {
                 />
               </Form.Group>
             </Col>
-            <Col xs={4}>
+            <Col xs={12} sm={4}>
               <Button
                 variant="primary"
                 className="w-100"

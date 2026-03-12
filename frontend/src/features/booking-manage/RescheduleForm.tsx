@@ -46,7 +46,7 @@ export function RescheduleForm({ booking, token, onSuccess }: Props) {
     >
       <ErrorAlert error={mutation.error} />
       <Row className="g-2 align-items-end">
-        <Col xs={8}>
+        <Col xs={12} sm={8}>
           <Form.Group>
             <Form.Label>새 슬롯 ID</Form.Label>
             <Form.Control
@@ -66,7 +66,7 @@ export function RescheduleForm({ booking, token, onSuccess }: Props) {
             </Form.Text>
           </Form.Group>
         </Col>
-        <Col xs={4}>
+        <Col xs={12} sm={4}>
           <Button type="submit" variant="warning" className="w-100" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? "변경 중..." : "예약 변경"}
           </Button>
