@@ -110,8 +110,8 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
             </Form.Control.Feedback>
           </Form.Group>
         </Col>
-        <Col xs={6} md={3}>
-          <Button type="submit" variant="primary" disabled={!valid || mutation.isPending}>
+        <Col xs={12} sm={6} md={3}>
+          <Button type="submit" variant="primary" className="w-100" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? "생성 중..." : "슬롯 생성"}
           </Button>
         </Col>

@@ -42,6 +42,14 @@
   background-color: $body-bg;
 }
 
+// 모바일에서 페이지 컨테이너 패딩 축소
+@media (max-width: 575.98px) {
+  .page-container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
+
 // md 이상에서 관리자 구분선
 @media (min-width: 768px) {
   .border-md-start {
@@ -79,10 +87,16 @@
   transition: box-shadow 0.15s, border-color 0.15s;
   display: block;
 
-  &:hover {
+  &:hover,
+  &:focus-visible {
     border-color: $primary;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     color: $body-color;
+    outline: none;
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 3px rgba($primary, 0.25);
   }
 }
 

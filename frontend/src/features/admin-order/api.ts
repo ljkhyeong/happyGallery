@@ -1,8 +1,18 @@
 import { api } from "@/shared/api";
-import type { OrderProductionResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest } from "@/shared/types";
+import type { AdminOrderResponse, OrderProductionResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest } from "@/shared/types";
 
 function h(adminKey: string) {
   return { "X-Admin-Key": adminKey };
+}
+
+export function fetchOrders(
+  adminKey: string,
+  status?: string,
+): Promise<AdminOrderResponse[]> {
+  return api<AdminOrderResponse[]>("/admin/orders", {
+    headers: h(adminKey),
+    params: { status },
+  });
 }
 
 export function approveOrder(adminKey: string, id: number): Promise<void> {

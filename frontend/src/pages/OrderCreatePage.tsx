@@ -57,18 +57,20 @@ export function OrderCreatePage() {
       {step === "items" && (
         <>
           <Card className="mb-4">
-            <Card.Header>주문자 이름</Card.Header>
             <Card.Body>
-              <Form.Control
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={() => setNameTouched(true)}
-                placeholder="이름을 입력하세요"
-                isInvalid={nameTouched && !name.trim()}
-              />
-              <Form.Control.Feedback type="invalid">
-                이름을 입력해 주세요.
-              </Form.Control.Feedback>
+              <Form.Group>
+                <Form.Label>주문자 이름</Form.Label>
+                <Form.Control
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setNameTouched(true)}
+                  placeholder="이름을 입력하세요"
+                  isInvalid={nameTouched && !name.trim()}
+                />
+                <Form.Control.Feedback type="invalid">
+                  이름을 입력해 주세요.
+                </Form.Control.Feedback>
+              </Form.Group>
             </Card.Body>
           </Card>
 

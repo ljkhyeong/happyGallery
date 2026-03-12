@@ -44,6 +44,21 @@ curl http://localhost:8080/actuator/health
 ## 세션 시작 시
 `HANDOFF.md`가 존재하면 가장 먼저 읽고 이전 컨텍스트를 이어받는다.
 
+## 작업 시작 시 스킬 참조 규칙
+1. 작업을 시작하기 전에 `.claude/skills/` 디렉토리에서 해당 작업 도메인과 매칭되는 스킬 파일을 읽는다.
+2. 스킬의 **non-negotiable invariants** → **verification workflow** → **doc sync checklist** 순서를 따른다.
+3. 주요 매핑:
+   - 프론트 작업 → `happygallery-frontend-flows`
+   - 주문 관련 → `happygallery-order-flows`
+   - 예약 관련 → `happygallery-booking-flows`
+   - 이용권 관련 → `happygallery-pass-flows`
+   - 상품 관련 → `happygallery-product-flows`
+   - 관리자 기능 → `happygallery-admin-flows`
+   - API 계약 변경 → `api-contract`
+   - DB 스키마 변경 → `db-schema-checklist`
+   - 여러 모듈에 걸친 변경 → `happygallery-spring-backend`
+4. 작업 완료 보고 시 실제 참조한 스킬 이름을 `사용: 스킬명` 형식으로 명시한다.
+
 ---
 
 ## Tool Usage Rules
@@ -58,7 +73,6 @@ curl http://localhost:8080/actuator/health
 - 상태머신/전이: `domain-state-machine`
 - API 계약/오류/스키마: `api-contract`
 - DB 스키마/마이그레이션: `db-schema-checklist`
-- 알림/환불/배치: `notification-refund-batch`
 - 작업 분해/Done 기준: `task-breakdown`
 - JPA 엔티티↔Flyway DDL 동기화: `entity-migration-sync`
 - 시간 경계 정책/Clock 주입: `time-boundary-policy`

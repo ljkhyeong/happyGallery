@@ -36,7 +36,7 @@ export function OrderDetailCard({ order }: Props) {
         </Row>
 
         <h6>주문 상품</h6>
-        <Table size="sm" className="mb-3">
+        <Table responsive size="sm" className="mb-3">
           <thead>
             <tr>
               <th>상품 ID</th>
