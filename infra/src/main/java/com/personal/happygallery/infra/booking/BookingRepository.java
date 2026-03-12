@@ -43,4 +43,16 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findBookingsInRange(@Param("status") BookingStatus status,
                                       @Param("start") LocalDateTime start,
                                       @Param("end") LocalDateTime end);
+
+    /** 관리자 — 날짜 범위 내 예약 전체 조회 (guest, class, slot eager fetch) */
+    @Query("""
+            SELECT b FROM Booking b
+            JOIN FETCH b.guest
+            JOIN FETCH b.bookingClass
+            JOIN FETCH b.slot
+            WHERE b.slot.startAt >= :start AND b.slot.startAt < :end
+            ORDER BY b.slot.startAt ASC
+            """)
+    List<Booking> findAllInRange(@Param("start") LocalDateTime start,
+                                 @Param("end") LocalDateTime end);
 }

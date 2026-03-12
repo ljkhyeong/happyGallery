@@ -62,7 +62,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
             />
           </Form.Group>
         </Col>
-        <Col xs={6} md={2}>
+        <Col xs={12} sm={6} md={2}>
           <Form.Group>
             <Form.Label>유형</Form.Label>
             <Form.Select value={type} onChange={(e) => setType(e.target.value as ProductType)}>
@@ -71,7 +71,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
             </Form.Select>
           </Form.Group>
         </Col>
-        <Col xs={6} md={2}>
+        <Col xs={12} sm={6} md={2}>
           <Form.Group>
             <Form.Label>가격 (원)</Form.Label>
             <Form.Control
@@ -83,7 +83,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
             />
           </Form.Group>
         </Col>
-        <Col xs={6} md={2}>
+        <Col xs={12} sm={6} md={2}>
           <Form.Group>
             <Form.Label>수량</Form.Label>
             <Form.Control
@@ -94,8 +94,8 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
             />
           </Form.Group>
         </Col>
-        <Col xs={6} md={3}>
-          <Button type="submit" variant="primary" disabled={!valid || mutation.isPending}>
+        <Col xs={12} sm={6} md={3}>
+          <Button type="submit" variant="primary" className="w-100" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? "등록 중..." : "상품 등록"}
           </Button>
         </Col>
