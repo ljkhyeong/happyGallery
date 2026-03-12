@@ -69,6 +69,13 @@ curl http://localhost:8080/actuator/health
 - Bash는 위 전용 도구로 대체할 수 없는 시스템 명령에만 사용한다.
 - 위반 시 샌드박스 차단 → unsandboxed 팝업 발생
 
+## Approval Minimization
+- 사용자 확인이나 승인 요청은 기술적으로 꼭 필요한 경우에만 한다.
+- 원격 쓰기, PR merge, 워크스페이스 밖 경로 쓰기처럼 실제 escalation이 필요한 작업만 승인 흐름을 사용한다.
+- 가능한 한 현재 워크트리 안에서 해결하고, 보조 `status`/`log` 확인 때문에 승인 횟수를 늘리지 않는다.
+- PR 작업에서는 먼저 mergeable 여부를 보고, 충돌이 없으면 바로 머지한다. 충돌이 있을 때만 필요한 파일만 정리한다.
+- 사용자가 요구하지 않은 과한 재검증이나 중복 조회는 피하고, 변경 범위에 맞는 최소 검증만 수행한다.
+
 ## Skills (auto-trigger + explicit call)
 - 상태머신/전이: `domain-state-machine`
 - API 계약/오류/스키마: `api-contract`
