@@ -5,18 +5,24 @@ import com.personal.happygallery.app.order.OrderApprovalService;
 import com.personal.happygallery.app.order.OrderPickupService;
 import com.personal.happygallery.app.order.OrderProductionService;
 import com.personal.happygallery.app.order.PickupExpireBatchService;
+import com.personal.happygallery.app.web.admin.dto.AdminOrderResponse;
 import com.personal.happygallery.app.web.admin.dto.BatchResponse;
 import com.personal.happygallery.app.web.admin.dto.MarkPickupReadyRequest;
 import com.personal.happygallery.app.web.admin.dto.OrderProductionResponse;
 import com.personal.happygallery.app.web.admin.dto.PickupResponse;
 import com.personal.happygallery.app.web.admin.dto.SetExpectedShipDateRequest;
+import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.infra.order.OrderRepository;
+import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,15 +36,28 @@ public class AdminOrderController {
     private final OrderProductionService orderProductionService;
     private final OrderPickupService orderPickupService;
     private final PickupExpireBatchService pickupExpireBatchService;
+    private final OrderRepository orderRepository;
 
     public AdminOrderController(OrderApprovalService orderApprovalService,
                                 OrderProductionService orderProductionService,
                                 OrderPickupService orderPickupService,
-                                PickupExpireBatchService pickupExpireBatchService) {
+                                PickupExpireBatchService pickupExpireBatchService,
+                                OrderRepository orderRepository) {
         this.orderApprovalService = orderApprovalService;
         this.orderProductionService = orderProductionService;
         this.orderPickupService = orderPickupService;
         this.pickupExpireBatchService = pickupExpireBatchService;
+        this.orderRepository = orderRepository;
+    }
+
+    /** GET /admin/orders?status=PAID_APPROVAL_PENDING — 상태별 주문 목록 조회 (상태 미지정 시 전체) */
+    @GetMapping
+    public List<AdminOrderResponse> listOrders(
+            @RequestParam(required = false) OrderStatus status) {
+        var orders = (status != null)
+                ? orderRepository.findByStatusOrderByCreatedAtDesc(status)
+                : orderRepository.findAllByOrderByCreatedAtDesc();
+        return orders.stream().map(AdminOrderResponse::from).toList();
     }
 
     /** POST /admin/orders/{id}/approve — 주문 승인 (MADE_TO_ORDER는 IN_PRODUCTION으로 전이) */

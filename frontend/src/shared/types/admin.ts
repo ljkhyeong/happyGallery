@@ -68,3 +68,27 @@ export interface FailedRefundResponse {
   failReason: string;
   createdAt: string;
 }
+
+export interface AdminOrderResponse {
+  orderId: number;
+  orderNumber: string;
+  status: OrderStatus;
+  totalAmount: number;
+  paidAt: string | null;
+  approvalDeadlineAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminBookingResponse {
+  bookingId: number;
+  bookingNumber: string;
+  guestName: string;
+  guestPhone: string;
+  className: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+  depositAmount: number;
+  balanceAmount: number;
+  passBooking: boolean;
+}

@@ -6,7 +6,8 @@ import { ProductListSection } from "@/features/admin-product/ProductListSection"
 import { CreateProductForm } from "@/features/admin-product/CreateProductForm";
 import { CreateSlotForm } from "@/features/admin-slot/CreateSlotForm";
 import { SlotListSection } from "@/features/admin-slot/SlotListSection";
-import { OrderActionPanel } from "@/features/admin-order/OrderActionPanel";
+import { BookingListSection } from "@/features/admin-booking/BookingListSection";
+import { OrderListSection } from "@/features/admin-order/OrderListSection";
 import { FailedRefundSection } from "@/features/admin-refund/FailedRefundSection";
 import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
 import { useToast } from "@/shared/ui";
@@ -61,9 +62,19 @@ export function AdminPage() {
         </Card.Body>
       </Card>
 
-      <div className="mb-4">
-        <OrderActionPanel adminKey={adminKey} onAuthError={handleAuthError} />
-      </div>
+      <Card className="mb-4">
+        <Card.Header>예약 목록</Card.Header>
+        <Card.Body>
+          <BookingListSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-4">
+        <Card.Header>주문 목록</Card.Header>
+        <Card.Body>
+          <OrderListSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
 
       <div className="mb-4">
         <PassActionPanel adminKey={adminKey} onAuthError={handleAuthError} />
