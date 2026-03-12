@@ -3,6 +3,13 @@
 ## 세션 시작 규칙
 컨텍스트 초기화 후 작업을 시작할 때는 항상 저장소 루트의 `HANDOFF.md`를 먼저 읽고 현재 브랜치, 최근 결정, 검증 상태, 남은 작업을 확인한다. `HANDOFF.md`가 실제 구현과 다르면 코드를 기준으로 문서를 즉시 갱신한다.
 
+## Skill 사용 기준
+저장소 전체에 항상 적용되는 전역 규칙은 이 문서에서 관리하고, 도메인별 작업 절차와 세부 테스트 분기는 설치된 `happyGallery` skill을 우선 따른다.
+
+- 전역 규칙: 세션 시작, 모듈 책임, 테스트/문서/DB/브랜치 정책
+- 도메인 규칙: 예약/이용권/주문/상품/결제/관리자/알림/배치/테스트 리팩토링 관련 `happyGallery` skill
+- 여러 영역에 걸친 변경이거나 맞는 skill이 없으면 `happygallery-spring-backend`를 기준으로 진행한다.
+
 ## 프로젝트 구조 및 모듈 책임
 `happyGallery`는 멀티 모듈 Gradle 프로젝트다. `app/`에는 Spring Boot 진입점, 컨트롤러, 애플리케이션 서비스, 배치 작업, 통합 테스트가 있다. `domain/`은 엔티티와 정책처럼 핵심 비즈니스 규칙을 둔다. `infra/`는 JPA 리포지토리, 결제, 알림 등 외부 연동 구현을 담당한다. `common/`은 공통 예외와 시간 유틸리티를 둔다. 기능을 추가할 때는 먼저 레이어 책임에 맞는 모듈을 고르고, `app`에서 도메인 규칙을 직접 구현하거나 `infra`에 업무 규칙을 넣지 않는다.
 
@@ -16,7 +23,7 @@
 - `./gradlew :app:policyTest`: `policy` 태그가 붙은 정책 테스트 실행
 - `docker compose up -d`: 로컬 MySQL 등 의존 서비스 실행
 
-Testcontainers를 사용하는 테스트(`:app:useCaseTest`, `@UseCaseIT`, 특정 `--tests` 대상 실행 포함)는 Docker 탐지 실패를 피하기 위해 기본적으로 `./gradlew --no-daemon ...` 형태로 실행한다.
+테스트 명령의 세부 선택은 관련 `happyGallery` skill을 우선 따른다. Testcontainers를 사용하는 테스트(`:app:useCaseTest`, `@UseCaseIT`, 특정 `--tests` 대상 실행 포함)는 Docker 탐지 실패를 피하기 위해 기본적으로 `./gradlew --no-daemon ...` 형태로 실행한다.
 
 기본 프로필은 `local`이며, 헬스 체크는 `http://localhost:8080/actuator/health`에서 확인한다.
 
@@ -27,8 +34,7 @@ Java 21과 Gradle toolchain 설정을 따른다. 패키지는 `com.personal.happ
 테스트 프레임워크는 JUnit 5다. 정책이나 경계 조건 검증은 `*PolicyTest`로 작성하고 `policy` 태그를 사용한다. Spring Boot 컨텍스트, Flyway, Testcontainers(MySQL)를 함께 검증하는 흐름은 `@UseCaseIT`와 `*UseCaseIT` 형식으로 작성한다. 동작을 바꾸면 관련 테스트를 같이 수정하는 것을 기본으로 한다. 빠른 규칙 검증은 정책 테스트에, 트랜잭션·연동·동시성 검증은 통합 테스트에 둔다.
 모든 테스트 메서드에는 `@DisplayName`을 붙이고, 테스트 의도를 드러내는 한글 문장으로 작성한다.
 
-코드를 수정한 뒤에는 관련 테스트를 반드시 실행한다. 실패하면 원인을 수정한 뒤 성공할 때까지 다시 검증한다. 테스트는 항상 변경 범위에 맞는 최소 단위부터 선택한다. 정책이나 도메인 규칙만 바뀌면 `./gradlew :app:policyTest`를 우선 실행하고, 유스케이스 흐름이나 DB·외부 연동 영향이 있으면 `./gradlew :app:useCaseTest`까지 실행한다. 전체 안정성 확인이 필요한 큰 변경에서만 `./gradlew test` 또는 `./gradlew build`를 사용한다.
-Testcontainers 기반 검증은 위 원칙과 별개로 `--no-daemon`을 유지한다.
+코드를 수정한 뒤에는 관련 테스트를 반드시 실행한다. 실패하면 원인을 수정한 뒤 성공할 때까지 다시 검증한다. 테스트는 항상 변경 범위에 맞는 최소 단위부터 선택한다. 기본 분기는 `policyTest` → `useCaseTest` → `test/build` 순서로 생각하되, 도메인별 더 구체적인 분기와 `--tests` 범위 선택은 관련 `happyGallery` skill을 따른다. Testcontainers 기반 검증은 위 원칙과 별개로 `--no-daemon`을 유지한다.
 코드 수정이 완료되면 구현과 함께 유지돼야 하는 문서도 항상 같이 갱신한다. 최소한 관련 PRD, ADR, 운영 가이드, 저장소 작업 규칙 문서 중 변경 영향이 있는 문서를 확인하고 반영 여부를 명시한다.
 
 ## DB 및 설정 변경 규칙

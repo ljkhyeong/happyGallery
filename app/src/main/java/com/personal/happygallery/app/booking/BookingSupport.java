@@ -27,7 +27,7 @@ class BookingSupport {
     }
 
     Booking findByToken(Long bookingId, String accessToken) {
-        return bookingRepository.findByIdAndAccessToken(bookingId, accessToken)
+        return bookingRepository.findDetailByIdAndAccessToken(bookingId, accessToken)
                 .orElseThrow(() -> new NotFoundException("예약"));
     }
 

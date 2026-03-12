@@ -16,16 +16,21 @@
 - Testcontainers 대상 검증은 `--no-daemon`으로 실행한다.
 
 ## 4) 지시 템플릿
-`codex-plan [단위ID]만 진행해줘. 기능 변경 없이 리팩토링만 하고, 결과는 변경 파일/핵심 의사결정/실행 테스트 형식으로 보고해줘.`
+`리팩토링 plan의 [단위ID]만 진행해줘. 기능 변경 없이 리팩토링만 하고, 결과는 변경 파일/핵심 의사결정/실행 테스트 형식으로 보고해줘.`
 
 예시:
-- `codex-plan R2만 진행해줘. 예외 매핑 일관성만 집중해서.`
-- `codex-plan R7만 진행해줘. 배치 중복 로직 제거 중심으로.`
+- `리팩토링 plan의 R2만 진행해줘. 예외 매핑 일관성만 집중해서.`
+- `리팩토링 plan의 R5만 진행해줘. 배치 중복 로직 제거 중심으로.`
 
 ## 5) 단위 우선순위
 - P0: R1, R2, R3, R4
 - P1: R5, R6, R7, R8
 - P2: R9, R10
+
+## 6) 현재 상태 메모 (2026-03-08)
+- R1–R10은 구현과 검증까지 완료되었다.
+- 후속 재검토에서 R2 예외 매핑 보강(`CONFLICT` 코드, 예약/비예약 충돌 분리)이 추가 반영되었다.
+- 현 시점에는 이 플랜에 새 단위를 더 붙이기보다, 추가 구조 개선이 필요하면 별도 1Pager나 ADR 후속 항목으로 분리하는 편이 안전하다.
 
 ---
 
@@ -64,7 +69,7 @@
 - 관리자/게스트 API 모두 기존 계약과 호환된다.
 
 ### 최소 검증 명령
-- `./gradlew :app:test --tests com.personal.happygallery.app.web.admin.AdminSlotUseCaseIT`
+- `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.admin.AdminSlotUseCaseIT --tests com.personal.happygallery.app.web.GlobalExceptionHandlerTest`
 
 ---
 
@@ -113,6 +118,7 @@
 - `app/src/main/java/com/personal/happygallery/app/order/OrderAutoRefundBatchService.java`
 - `app/src/main/java/com/personal/happygallery/app/order/PickupExpireBatchService.java`
 - `app/src/main/java/com/personal/happygallery/app/pass/PassExpiryBatchService.java`
+- `app/src/main/java/com/personal/happygallery/app/batch/BatchExecutor.java`
 - `app/src/main/java/com/personal/happygallery/app/batch/BatchResult.java`
 
 ### 작업 목표
@@ -124,7 +130,7 @@
 - 실패 건 처리 정책(계속 진행)이 보장된다.
 
 ### 최소 검증 명령
-- `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.PickupExpireBatchUseCaseIT --tests com.personal.happygallery.app.order.OrderApprovalUseCaseIT --tests com.personal.happygallery.app.pass.PassPurchaseUseCaseIT`
+- `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.PickupExpireBatchUseCaseIT --tests com.personal.happygallery.app.order.OrderApprovalUseCaseIT --tests com.personal.happygallery.app.pass.PassExpiryNotificationUseCaseIT`
 
 ---
 
@@ -144,7 +150,7 @@
 - API 응답 필드/이름/의미는 기존과 동일하다.
 
 ### 최소 검증 명령
-- `./gradlew :app:test --tests com.personal.happygallery.app.web.admin.AdminSlotUseCaseIT --tests com.personal.happygallery.app.order.OrderProductionUseCaseIT`
+- `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.admin.AdminSlotUseCaseIT --tests com.personal.happygallery.app.order.OrderProductionUseCaseIT`
 
 ---
 
@@ -193,7 +199,7 @@
 - `common/src/main/java/com/personal/happygallery/common/time/TimeBoundary.java`
 - `app/src/main/java/com/personal/happygallery/app/booking/BookingCancelService.java`
 - `app/src/main/java/com/personal/happygallery/app/booking/BookingRescheduleService.java`
-- `app/src/main/java/com/personal/happygallery/app/pass/PassExpiryBatchService.java`
+- `app/src/main/java/com/personal/happygallery/app/pass/PassPurchaseService.java`
 
 ### 작업 목표
 - 시간 경계 계산 호출 방식을 통일해 조건문 분산을 줄인다.
@@ -205,7 +211,7 @@
 
 ### 최소 검증 명령
 - `./gradlew :app:policyTest`
-- `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.pass.PassExpiryNotificationUseCaseIT`
+- `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.booking.BookingCancelUseCaseIT --tests com.personal.happygallery.app.booking.BookingRescheduleUseCaseIT --tests com.personal.happygallery.app.pass.PassPurchaseUseCaseIT`
 
 ---
 
@@ -229,12 +235,12 @@
 
 ---
 
-## 6) 권장 실행 순서
+## 7) 권장 실행 순서
 1. R1-R4 (핵심 유스케이스/계약 안정화)
 2. R5-R8 (배치/도메인 책임 재배치)
 3. R9-R10 (경계 조건/테스트 품질 정리)
 
-## 7) 병렬화 가이드
+## 8) 병렬화 가이드
 - 동시에 진행 가능: `R2`, `R4`, `R8`
 - 충돌 위험 높음(순차 권장): `R1 -> R5`, `R3 -> R9`, `R7 -> R10`
 - 동일 파일 동시 수정 금지: `OrderApprovalService`, `PassExpiryBatchService`, `GlobalExceptionHandler`

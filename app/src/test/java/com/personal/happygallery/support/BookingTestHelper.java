@@ -16,6 +16,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 public final class BookingTestHelper {
 
+    public record CreatedBooking(Long bookingId, String accessToken, String responseBody) {}
+
     /** 충분히 먼 미래 슬롯 시작 시각 — isRefundable()/isChangeable() 항상 true */
     public static final LocalDateTime FUTURE = LocalDateTime.of(2030, 1, 1, 10, 0);
 
@@ -37,34 +39,71 @@ public final class BookingTestHelper {
     }
 
     public String createBooking(String phone, String code, Long slotId, long deposit) throws Exception {
-        return mockMvc.perform(post("/bookings/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "phone": "%s",
-                                  "verificationCode": "%s",
-                                  "name": "홍길동",
-                                  "slotId": %d,
-                                  "depositAmount": %d,
-                                  "paymentMethod": "CARD"
-                                }
-                                """.formatted(phone, code, slotId, deposit)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        return postGuestBooking("""
+                {
+                  "phone": "%s",
+                  "verificationCode": "%s",
+                  "name": "홍길동",
+                  "slotId": %d,
+                  "depositAmount": %d,
+                  "paymentMethod": "CARD"
+                }
+                """.formatted(phone, code, slotId, deposit));
+    }
+
+    public CreatedBooking createVerifiedCardBooking(String phone, Long slotId, long deposit) throws Exception {
+        return createVerifiedCardBooking(phone, "홍길동", slotId, deposit);
+    }
+
+    public CreatedBooking createVerifiedCardBooking(String phone, String name, Long slotId, long deposit) throws Exception {
+        String code = sendVerificationAndGetCode(phone);
+        String response = postGuestBooking("""
+                {
+                  "phone": "%s",
+                  "verificationCode": "%s",
+                  "name": "%s",
+                  "slotId": %d,
+                  "depositAmount": %d,
+                  "paymentMethod": "CARD"
+                }
+                """.formatted(phone, code, name, slotId, deposit));
+        return new CreatedBooking(extractBookingId(response), extractAccessToken(response), response);
     }
 
     public String bookWithPass(String phone, String code, Long slotId, Long passId) throws Exception {
+        return postGuestBooking("""
+                {
+                  "phone": "%s",
+                  "verificationCode": "%s",
+                  "name": "김테스트",
+                  "slotId": %d,
+                  "passId": %d
+                }
+                """.formatted(phone, code, slotId, passId));
+    }
+
+    public CreatedBooking createVerifiedPassBooking(String phone, Long slotId, Long passId) throws Exception {
+        return createVerifiedPassBooking(phone, "김테스트", slotId, passId);
+    }
+
+    public CreatedBooking createVerifiedPassBooking(String phone, String name, Long slotId, Long passId) throws Exception {
+        String code = sendVerificationAndGetCode(phone);
+        String response = postGuestBooking("""
+                {
+                  "phone": "%s",
+                  "verificationCode": "%s",
+                  "name": "%s",
+                  "slotId": %d,
+                  "passId": %d
+                }
+                """.formatted(phone, code, name, slotId, passId));
+        return new CreatedBooking(extractBookingId(response), extractAccessToken(response), response);
+    }
+
+    private String postGuestBooking(String requestBody) throws Exception {
         return mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "phone": "%s",
-                                  "verificationCode": "%s",
-                                  "name": "김테스트",
-                                  "slotId": %d,
-                                  "passId": %d
-                                }
-                                """.formatted(phone, code, slotId, passId)))
+                        .content(requestBody))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
     }

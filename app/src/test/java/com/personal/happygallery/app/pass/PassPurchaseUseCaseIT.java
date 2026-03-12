@@ -25,7 +25,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassAndRefundData;
 import static com.personal.happygallery.support.TestFixtures.guest;
+import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -86,9 +88,11 @@ class PassPurchaseUseCaseIT {
 
         // Proof: EARN ledger 1건, amount=8
         var ledgers = passLedgerRepository.findByPassPurchaseId(passId);
-        assertThat(ledgers).hasSize(1);
-        assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.EARN);
-        assertThat(ledgers.get(0).getAmount()).isEqualTo(8);
+        assertSoftly(softly -> {
+            softly.assertThat(ledgers).hasSize(1);
+            softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.EARN);
+            softly.assertThat(ledgers.get(0).getAmount()).isEqualTo(8);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -100,22 +104,23 @@ class PassPurchaseUseCaseIT {
     void expiry_batch_expiredPass_remainingZero_expireLedgerCreated() {
         // 이미 만료된 pass 직접 생성 (expiresAt = 과거)
         PassPurchase expiredPass = passPurchaseRepository.save(
-                new PassPurchase(guest, LocalDateTime.now().minusDays(1), 0L));
+                passPurchase(guest, LocalDateTime.now().minusDays(1), 0L));
 
         BatchResult result = passExpiryBatchService.expireAll();
 
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isZero();
-
         // Proof: remaining_credits = 0
         PassPurchase reloaded = passPurchaseRepository.findById(expiredPass.getId()).orElseThrow();
-        assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
 
         // Proof: EARN(구매 직접 저장 시 없음) + EXPIRE ledger 1건
         var ledgers = passLedgerRepository.findByPassPurchaseId(expiredPass.getId());
-        assertThat(ledgers).hasSize(1);
-        assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.EXPIRE);
-        assertThat(ledgers.get(0).getAmount()).isEqualTo(8);
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
+            softly.assertThat(ledgers).hasSize(1);
+            softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.EXPIRE);
+            softly.assertThat(ledgers.get(0).getAmount()).isEqualTo(8);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -126,19 +131,21 @@ class PassPurchaseUseCaseIT {
     @Test
     void expiry_batch_activePass_notTouched() {
         // 미래 만료 pass
-        passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().plusDays(30), 0L));
+        passPurchaseRepository.save(passPurchase(guest, LocalDateTime.now().plusDays(30), 0L));
 
         BatchResult result = passExpiryBatchService.expireAll();
 
-        assertThat(result.successCount()).isEqualTo(0);
-        assertThat(result.failureCount()).isZero();
-        assertThat(passLedgerRepository.count()).isEqualTo(0);
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(0);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(passLedgerRepository.count()).isEqualTo(0);
+        });
     }
 
     @DisplayName("8회권 만료 배치 관리자 API는 배치 결과를 반환한다")
     @Test
     void expiry_batch_adminApi_returnsBatchResponse() throws Exception {
-        passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().minusDays(1), 0L));
+        passPurchaseRepository.save(passPurchase(guest, LocalDateTime.now().minusDays(1), 0L));
 
         mockMvc.perform(post("/admin/passes/expire"))
                 .andExpect(status().isOk())
@@ -156,15 +163,17 @@ class PassPurchaseUseCaseIT {
     void notification_query_returnsPassesExpiringWithin7Days() {
         // 정확히 7일 후 만료 → 알림 대상
         Guest guest2 = guestRepository.save(guest("이알림", "01088880002"));
-        passPurchaseRepository.save(new PassPurchase(guest, LocalDateTime.now().plusDays(7), 0L));
+        passPurchaseRepository.save(passPurchase(guest, LocalDateTime.now().plusDays(7), 0L));
 
         // 30일 후 만료 → 알림 대상 아님
-        passPurchaseRepository.save(new PassPurchase(guest2, LocalDateTime.now().plusDays(30), 0L));
+        passPurchaseRepository.save(passPurchase(guest2, LocalDateTime.now().plusDays(30), 0L));
 
         var expiring = passExpiryBatchService.findExpiringWithin7Days();
 
-        assertThat(expiring).hasSize(1);
-        assertThat(expiring.get(0).getGuest().getId()).isEqualTo(guest.getId());
+        assertSoftly(softly -> {
+            softly.assertThat(expiring).hasSize(1);
+            softly.assertThat(expiring.get(0).getGuest().getId()).isEqualTo(guest.getId());
+        });
     }
 
     // -----------------------------------------------------------------------

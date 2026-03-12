@@ -1,9 +1,7 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.common.error.InventoryNotEnoughException;
-import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
@@ -11,6 +9,7 @@ import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
+import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -25,9 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
-import static com.personal.happygallery.support.TestFixtures.inventory;
-import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
  * [UseCaseIT] 단일 재고 동시 주문 동시성 검증.
@@ -46,10 +44,17 @@ class ConcurrentOrderUseCaseIT {
     @Autowired RefundRepository refundRepository;
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
+    OrderTestHelper orderHelper;
 
     @BeforeEach
     void setUp() {
         cleanup();
+        orderHelper = new OrderTestHelper(
+                productRepository,
+                inventoryRepository,
+                orderRepository,
+                orderItemRepository,
+                orderService);
     }
 
     @AfterEach
@@ -75,8 +80,7 @@ class ConcurrentOrderUseCaseIT {
     @DisplayName("수량 1 재고에서 동시 주문을 시도하면 1건만 성공한다")
     @Test
     void concurrentOrder_quantity1_onlyOneSucceeds() throws InterruptedException {
-        Product product = productRepository.save(readyStockProduct("단일 작품(동시성)", 50000L));
-        inventoryRepository.save(inventory(product, 1));
+        Product product = orderHelper.createReadyStockProduct("단일 작품(동시성)", 50000L, 1);
 
         int threadCount = 5;
         ExecutorService exec = Executors.newFixedThreadPool(threadCount);
@@ -104,12 +108,14 @@ class ConcurrentOrderUseCaseIT {
         exec.shutdown();
         exec.awaitTermination(15, TimeUnit.SECONDS);
 
-        assertThat(successes.get()).isEqualTo(1);
-        assertThat(failures.get()).isEqualTo(threadCount - 1);
-
         // 최종 재고 0 확인 (음수로 내려가지 않음)
         int remaining = inventoryRepository.findByProductId(product.getId())
                 .orElseThrow().getQuantity();
-        assertThat(remaining).isEqualTo(0);
+
+        assertSoftly(softly -> {
+            softly.assertThat(successes.get()).isEqualTo(1);
+            softly.assertThat(failures.get()).isEqualTo(threadCount - 1);
+            softly.assertThat(remaining).isEqualTo(0);
+        });
     }
 }

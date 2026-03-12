@@ -296,10 +296,17 @@
     - 픽업 마감 자동취소
     - 8회권 만료 7일 전 알림 및 만료 소멸
 
+### 10.5 테스트/비교 코드 작성 규칙
+- 테스트 메서드에는 `@DisplayName`을 필수로 사용하고, 테스트 의도를 설명하는 한글 문장으로 작성한다.
+- 한 테스트에서 검증 포인트가 2개 이상이면 `SoftAssertions.assertSoftly`를 기본으로 사용해 실패를 한 번에 확인한다.
+- nullable 가능성이 있는 객체 비교(예: `String`, `Long`, 토큰/ID)는 `Objects.equals(a, b)`를 기본으로 사용한다.
+- nullable 객체 비교에서 `a != null && a.equals(b)` 형태의 수동 null 체크 패턴은 새 코드에 사용하지 않는다.
+
 ---
 
-## 11-A. API 버전 정책
+## 11-A. API 버전 및 인증 정책
 
+### 11-A.1 API 버전 정책
 - 기본 전략: `URI Versioning`
   - 표준 경로: `/api/v1/**`
   - 예시: `/api/v1/bookings`, `/api/v1/admin/orders`
@@ -308,6 +315,17 @@
   - 신규 기능 추가/문서/테스트는 `/api/v1/**`를 기준으로 작성한다.
   - 브레이킹 변경은 `/api/v2/**`로 분리하고, `/api/v1/**`는 공지된 deprecate 기간 이후 제거한다.
 
+### 11-A.2 관리자 인증 정책
+- Admin API는 현재 구현에서도 이미 `X-Admin-Key` 헤더 기반으로 보호된다.
+- 적용 대상:
+  - `/api/v1/admin/**`
+  - 레거시 `/admin/**`
+- 인증키 소스:
+  - 서버 설정 `app.admin.api-key`
+  - 환경 변수 `ADMIN_API_KEY`
+- 인증 실패 시:
+  - `401 UNAUTHORIZED`
+  - `{ "code": "UNAUTHORIZED", "message": "관리자 인증이 필요합니다." }`
 ---
 
 ## 11. Admin API — 슬롯 관리
@@ -355,6 +373,153 @@ PATCH /api/v1/admin/slots/{id}/deactivate
 
 에러:
 - `404 NOT_FOUND` — slotId에 해당하는 슬롯 없음
+
+---
+
+## 11-AA. 공개 조회 API
+
+### 11-AA.1 공개 상품 목록 조회
+
+```
+GET /api/v1/products
+
+→ 200 OK
+[
+  {
+    "id": 1,
+    "name": "시그니처 캔들",
+    "type": "READY_STOCK",
+    "price": 39000,
+    "available": true
+  }
+]
+```
+
+정책:
+- `ACTIVE` 상태 상품만 노출한다.
+- 응답은 상품 상세 조회와 동일한 필드 구조를 사용한다.
+- 재고 수량 원문은 노출하지 않고 `available`만 공개한다.
+
+### 11-AA.2 공개 상품 상세 조회
+
+```
+GET /api/v1/products/{id}
+
+→ 200 OK
+{
+  "id": 1,
+  "name": "시그니처 캔들",
+  "type": "READY_STOCK",
+  "price": 39000,
+  "available": true
+}
+```
+
+에러:
+- `404 NOT_FOUND` — productId 미존재
+
+### 11-AA.3 공개 클래스 목록 조회
+
+```
+GET /api/v1/classes
+
+→ 200 OK
+[
+  {
+    "id": 1,
+    "name": "향수 클래스",
+    "category": "PERFUME",
+    "durationMin": 120,
+    "price": 50000,
+    "bufferMin": 30
+  }
+]
+```
+
+정책:
+- 현재 등록된 전체 클래스를 반환한다.
+- 프론트 예약 생성 화면은 이 응답을 기준으로 클래스 선택지를 구성한다.
+
+### 11-AA.4 공개 예약 가능 슬롯 조회
+
+```
+GET /api/v1/slots?classId=1&date=2026-03-01
+
+→ 200 OK
+[
+  {
+    "id": 42,
+    "classId": 1,
+    "startAt": "2026-03-01T10:00:00",
+    "endAt": "2026-03-01T12:00:00",
+    "capacity": 8,
+    "bookedCount": 3,
+    "remainingCapacity": 5
+  }
+]
+```
+
+에러:
+- `400 INVALID_INPUT` — `classId`, `date` 파라미터 누락 또는 형식 오류
+
+정책:
+- `classId` + `date` 기준으로 당일 슬롯만 조회한다.
+- `is_active = true` 이고 `booked_count < capacity` 인 슬롯만 노출한다.
+- 정렬은 `startAt` 오름차순이다.
+
+---
+
+## 11-AB. 관리자 상품 API
+
+### 11-AB.1 상품 등록
+
+```
+POST /api/v1/admin/products
+Header: X-Admin-Key: {adminKey}
+Content-Type: application/json
+
+{
+  "name": "시그니처 캔들",
+  "type": "READY_STOCK",
+  "price": 39000,
+  "quantity": 5
+}
+
+→ 201 Created
+{
+  "id": 1,
+  "name": "시그니처 캔들",
+  "type": "READY_STOCK",
+  "price": 39000,
+  "status": "ACTIVE",
+  "available": true,
+  "quantity": 5
+}
+```
+
+에러:
+- `400 INVALID_INPUT` — 이름/유형/가격/수량 검증 실패
+- `401 UNAUTHORIZED` — 관리자 인증 실패
+
+### 11-AB.2 ACTIVE 상품 목록 조회
+
+```
+GET /api/v1/admin/products
+Header: X-Admin-Key: {adminKey}
+
+→ 200 OK
+[
+  {
+    "id": 1,
+    "name": "시그니처 캔들",
+    "type": "READY_STOCK",
+    "price": 39000,
+    "status": "ACTIVE",
+    "available": true,
+    "quantity": 5
+  }
+]
+```
 
 ---
 
@@ -511,7 +676,7 @@ DELETE /api/v1/bookings/{bookingId}?token={accessToken}
 
 ## 11-E. 8회권 구매 API (§7.1)
 
-### 11-E.1 게스트 8회권 구매
+### 11-E.1 게스트 8회권 구매 (guestId 직접 지정)
 
 ```
 POST /api/v1/passes/guest
@@ -535,6 +700,37 @@ POST /api/v1/passes/guest
 - `404 NOT_FOUND` — guestId 미존재
 
 구매 정책:
+- 만료일 = 구매일 기준 90일 후 Asia/Seoul 자정
+- EARN ledger(+8) 자동 기록
+
+### 11-E.2 휴대폰 인증 기반 8회권 구매
+
+```
+POST /api/v1/passes/purchase
+{
+  "phone": "01012345678",
+  "verificationCode": "483921",
+  "name": "홍길동",
+  "totalPrice": 320000
+}
+
+→ 201 Created
+{
+  "passId": 8,
+  "guestId": 1,
+  "expiresAt": "2026-05-28T23:59:59",
+  "totalCredits": 8,
+  "remainingCredits": 8,
+  "totalPrice": 320000
+}
+```
+
+에러:
+- `400 PHONE_VERIFICATION_FAILED` — 인증 코드 불일치 또는 만료
+
+구매 정책:
+- 전화번호 기준으로 Guest를 조회하고 없으면 생성한다.
+- 인증 성공 시 Guest.phoneVerified를 true로 갱신한다.
 - 만료일 = 구매일 기준 90일 후 Asia/Seoul 자정
 - EARN ledger(+8) 자동 기록
 
@@ -599,7 +795,113 @@ POST /api/v1/admin/passes/expire
 - `failureReasons` 키는 내부 예외명을 그대로 노출하지 않고 아래 운영용 코드로 정규화한다.
   - `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`
 
-## 11-G. 주문 배치 Admin API (§3.3)
+## 11-FA. 사용자 주문 API
+
+### 11-FA.1 주문 생성
+
+```
+POST /api/v1/orders
+{
+  "phone": "01012345678",
+  "verificationCode": "483921",
+  "name": "홍길동",
+  "items": [
+    { "productId": 1, "qty": 2 },
+    { "productId": 3, "qty": 1 }
+  ]
+}
+
+→ 201 Created
+{
+  "orderId": 12,
+  "accessToken": "8c1c2d7a-2e29-4dc5-8d26-c73e5a5e2d93",
+  "status": "PAID_APPROVAL_PENDING",
+  "totalAmount": 118000,
+  "paidAt": "2026-03-08T20:30:00"
+}
+```
+
+에러:
+- `400 PHONE_VERIFICATION_FAILED` — 인증 코드 불일치 또는 만료
+- `404 NOT_FOUND` — productId 미존재
+- `409 INVENTORY_NOT_ENOUGH` — 재고 부족
+
+정책:
+- 휴대폰 인증 성공 시 전화번호 기준 Guest를 조회하고 없으면 생성한다.
+- 주문 생성 시 `accessToken`을 발급하고 사용자 조회 토큰으로 사용한다.
+- 주문 아이템의 단가는 서버가 상품 가격을 다시 조회해 확정한다.
+- 생성 직후 상태는 `PAID_APPROVAL_PENDING`이고 승인 마감 시각은 결제 시각 + 24시간이다.
+
+### 11-FA.2 주문 상세 조회
+
+```
+GET /api/v1/orders/{orderId}?token={accessToken}
+
+→ 200 OK
+{
+  "orderId": 12,
+  "status": "PAID_APPROVAL_PENDING",
+  "totalAmount": 118000,
+  "paidAt": "2026-03-08T20:30:00",
+  "approvalDeadlineAt": "2026-03-09T20:30:00",
+  "items": [
+    { "productId": 1, "qty": 2, "unitPrice": 39000 },
+    { "productId": 3, "qty": 1, "unitPrice": 40000 }
+  ],
+  "fulfillment": {
+    "type": "SHIPPING",
+    "status": "FULFILLMENT_PENDING",
+    "expectedShipDate": null,
+    "pickupDeadlineAt": null
+  }
+}
+```
+
+에러:
+- `404 NOT_FOUND` — orderId 미존재 또는 token 불일치
+
+정책:
+- 주문 조회 토큰이 일치할 때만 상세를 반환한다.
+- `fulfillment`는 아직 생성되지 않은 경우 `null`일 수 있다.
+## 11-G. 주문 Admin API (§3.1, §3.2, §8.3)
+
+### 11-G.0 현재 구현된 주문 운영 엔드포인트
+- `POST /api/v1/admin/orders/{id}/approve`
+  - 선택 헤더: `X-Admin-Id`
+  - 응답: `200 OK` 본문 없음
+  - 정책:
+    - `PAID_APPROVAL_PENDING`만 승인 가능
+    - 주문에 `MADE_TO_ORDER` 상품이 있으면 `IN_PRODUCTION`, 아니면 `APPROVED_FULFILLMENT_PENDING`으로 전이
+- `POST /api/v1/admin/orders/{id}/reject`
+  - 선택 헤더: `X-Admin-Id`
+  - 응답: `200 OK` 본문 없음
+  - 정책:
+    - 승인 대기 주문만 거절 가능
+    - 재고 복구 + 환불 실행 + `REJECTED_REFUNDED` 전이
+- `PATCH /api/v1/admin/orders/{id}/expected-ship-date`
+  - 요청:
+    - `{ "expectedShipDate": "2026-04-15" }`
+  - 응답:
+    - `{ "orderId": 5, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
+- `POST /api/v1/admin/orders/{id}/delay`
+  - 응답:
+    - `{ "orderId": 5, "status": "DELAY_REQUESTED", "expectedShipDate": "2026-04-15" }`
+  - 정책:
+    - `IN_PRODUCTION`에서만 지연 요청 가능
+- `POST /api/v1/admin/orders/{id}/prepare-pickup`
+  - 요청:
+    - `{ "pickupDeadlineAt": "2026-04-16T18:00:00" }`
+  - 응답:
+    - `{ "orderId": 5, "status": "PICKUP_READY", "pickupDeadlineAt": "2026-04-16T18:00:00" }`
+- `POST /api/v1/admin/orders/{id}/complete-pickup`
+  - 응답:
+    - `{ "orderId": 5, "status": "PICKED_UP", "pickupDeadlineAt": "2026-04-16T18:00:00" }`
+
+공통 에러:
+- `401 UNAUTHORIZED` — 관리자 인증 실패
+- `404 NOT_FOUND` — orderId 또는 관련 fulfillment 미존재
+- `400 INVALID_INPUT` — 허용되지 않은 상태 전이
+- `409 ALREADY_REFUNDED` — 자동환불/거절 완료 주문에 대한 승인·거절 재시도
 
 ### 11-G.1 픽업 만료 배치 수동 트리거
 
@@ -709,8 +1011,8 @@ POST /api/v1/admin/refunds/{refundId}/retry
 - 보안:
     - 비회원 예약은 휴대폰 인증 기반
     - 관리자 기능은 권한 분리(단일 운영자라도 경로는 분리)
-    - **Admin API(`/api/v1/admin/**`)는 인증/인가 필수** — 현재 MVP 구현에서는 미적용 상태. §11 관리자 화면 구현 시 Spring Security 또는 API Key 방식으로 보호해야 한다.
-    - 미적용 기간 동안 `/api/v1/admin/**` 및 레거시 `/admin/**` 엔드포인트는 내부망 또는 개발 환경에서만 노출할 것
+    - **Admin API(`/api/v1/admin/**`)는 현재 `X-Admin-Key` 기반 인증이 적용된 상태**이며, 레거시 `/admin/**`도 동일하게 보호한다.
+    - 운영 배포 시 `ADMIN_API_KEY`는 환경 변수로만 주입하고, 로컬 기본값을 운영에 재사용하지 않는다.
     - 사용자 비밀번호 저장 정책:
       - DB에는 평문 비밀번호를 저장하지 않는다.
       - 단순 해시(SHA-256/MD5) 단독 사용을 금지한다.
@@ -744,6 +1046,7 @@ POST /api/v1/admin/refunds/{refundId}/retry
 | 409 | `DUPLICATE_BOOKING` | 동일 전화번호 + 동일 슬롯 중복 예약 (§5.2) |
 | 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 (§5.2) |
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌 — 동시 변경 요청 (§5.3) |
+| 409 | `CONFLICT` | 주문 승인/픽업/배치 등 비예약 운영 액션의 낙관적 락 충돌 (§8.2) |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 (API 보호) |
 | 422 | `REFUND_NOT_ALLOWED` | D-1 00:00 이후 환불 요청 (§4.2) |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/환불 시도 (§3.2) |

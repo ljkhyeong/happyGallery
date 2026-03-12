@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static com.personal.happygallery.support.TestDataCleaner.clearProductData;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
@@ -27,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * [UseCaseIT] 상품 등록 + 재고 차감 + 동시성 방지 검증.
  *
- * <p>Proof (PLAN.md §8.1): 단일 작품(quantity=1) 재고를 순차 차감 시
+ * <p>Proof (docs/1Pager/0000_project_plan/plan.md §8.1): 단일 작품(quantity=1) 재고를 순차 차감 시
  * 첫 번째 차감은 성공하고 두 번째는 {@link InventoryNotEnoughException}으로 실패한다.
  */
 @UseCaseIT
@@ -74,8 +75,10 @@ class ProductInventoryUseCaseIT {
 
         // Proof: DB에 inventory row 생성 확인
         Inventory inventory = inventoryRepository.findByProductId(productId).orElseThrow();
-        assertThat(inventory.getQuantity()).isEqualTo(1);
-        assertThat(inventory.isAvailable()).isTrue();
+        assertSoftly(softly -> {
+            softly.assertThat(inventory.getQuantity()).isEqualTo(1);
+            softly.assertThat(inventory.isAvailable()).isTrue();
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -108,8 +111,10 @@ class ProductInventoryUseCaseIT {
         inventoryService.deduct(product.getId(), 1);
 
         Inventory updated = inventoryRepository.findByProductId(product.getId()).orElseThrow();
-        assertThat(updated.getQuantity()).isEqualTo(0);
-        assertThat(updated.isAvailable()).isFalse();
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getQuantity()).isEqualTo(0);
+            softly.assertThat(updated.isAvailable()).isFalse();
+        });
     }
 
     // -----------------------------------------------------------------------

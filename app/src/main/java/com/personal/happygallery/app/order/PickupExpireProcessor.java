@@ -9,8 +9,6 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.LocalDateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -20,9 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PickupExpireProcessor {
-
-    private static final Logger log = LoggerFactory.getLogger(PickupExpireProcessor.class);
-
     private final FulfillmentRepository fulfillmentRepository;
     private final OrderRepository orderRepository;
     private final OrderApprovalService orderApprovalService;
@@ -64,11 +59,7 @@ public class PickupExpireProcessor {
         orderRepository.save(order);
         fulfillmentRepository.saveAndFlush(fulfillment);
 
-        try {
-            notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
-        } catch (Exception e) {
-            log.warn("픽업 만료 알림 실패 [orderId={}] — 환불은 정상 처리됨", orderId, e);
-        }
+        notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
         return true;
     }
 }

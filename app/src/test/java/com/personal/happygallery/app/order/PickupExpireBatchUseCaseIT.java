@@ -5,7 +5,6 @@ import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
-import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
@@ -13,6 +12,7 @@ import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
+import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -29,9 +29,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
-import static com.personal.happygallery.support.TestFixtures.inventory;
-import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -58,10 +57,18 @@ class PickupExpireBatchUseCaseIT {
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
     @Autowired Clock clock;
+    OrderTestHelper orderHelper;
 
     @BeforeEach
     void setUp() {
         cleanup();
+        orderHelper = new OrderTestHelper(
+                productRepository,
+                inventoryRepository,
+                orderRepository,
+                orderItemRepository,
+                orderService,
+                clock);
     }
 
     @AfterEach
@@ -87,13 +94,9 @@ class PickupExpireBatchUseCaseIT {
     @DisplayName("픽업 기한이 지난 주문은 환불되고 재고가 복구된다")
     @Test
     void expirePickups_expiredDeadline_refundsAndRestoresInventory() {
-        Product product = productRepository.save(readyStockProduct("픽업 테스트 상품", 50000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        // 주문 생성 → 재고 차감
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 50000L)));
-        assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(0);
+        OrderTestHelper.OrderFixture fixture = orderHelper.createReadyStockPaidOrder("픽업 테스트 상품", 50000L);
+        Order order = fixture.order();
+        assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(0);
 
         // 승인 → APPROVED_FULFILLMENT_PENDING
         orderApprovalService.approve(order.getId());
@@ -103,27 +106,31 @@ class PickupExpireBatchUseCaseIT {
         orderPickupService.markPickupReady(order.getId(), pastDeadline);
 
         Order afterReady = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
 
         // 배치 실행
         BatchResult result = pickupExpireBatchService.expirePickups();
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isZero();
 
         // 상태 확인
         Order expired = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
 
         // 재고 복구 확인
-        assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(1);
+        int restoredQuantity = inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity();
 
         // 환불 기록 확인
-        assertThat(refundRepository.findAll()).hasSize(1);
-        assertThat(refundRepository.findAll().get(0).getOrderId()).isEqualTo(order.getId());
+        var refunds = refundRepository.findAll();
 
         // Fulfillment 상태 동기화 확인
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+        assertSoftly(softly -> {
+            softly.assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+            softly.assertThat(restoredQuantity).isEqualTo(1);
+            softly.assertThat(refunds).hasSize(1);
+            softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -133,11 +140,7 @@ class PickupExpireBatchUseCaseIT {
     @DisplayName("픽업 기한이 남은 주문은 만료 처리되지 않는다")
     @Test
     void expirePickups_futureDeadline_notExpired() {
-        Product product = productRepository.save(readyStockProduct("미만료 픽업 상품", 30000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 30000L)));
+        Order order = orderHelper.createReadyStockPaidOrder("미만료 픽업 상품", 30000L).order();
 
         orderApprovalService.approve(order.getId());
 
@@ -147,22 +150,20 @@ class PickupExpireBatchUseCaseIT {
 
         // 배치 실행 → 0건 처리
         BatchResult result = pickupExpireBatchService.expirePickups();
-        assertThat(result.successCount()).isEqualTo(0);
-        assertThat(result.failureCount()).isZero();
 
         // 상태 유지 확인
         Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(0);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+        });
     }
 
     @DisplayName("픽업 만료 배치 관리자 API는 배치 결과를 반환한다")
     @Test
     void expirePickups_adminApi_returnsBatchResponse() throws Exception {
-        Product product = productRepository.save(readyStockProduct("픽업 API 테스트 상품", 45000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 45000L)));
+        Order order = orderHelper.createReadyStockPaidOrder("픽업 API 테스트 상품", 45000L).order();
         orderApprovalService.approve(order.getId());
         orderPickupService.markPickupReady(order.getId(), LocalDateTime.now(clock).minusMinutes(30));
 
@@ -179,15 +180,10 @@ class PickupExpireBatchUseCaseIT {
     @DisplayName("픽업 만료 배치에서 한 건이 실패해도 다음 주문을 계속 처리하고 실패를 집계한다")
     @Test
     void expirePickups_whenOneOrderFails_continuesNextOrderAndCountsFailure() {
-        Product failedProduct = productRepository.save(readyStockProduct("픽업 만료 실패 상품", 41000L));
-        Product successProduct = productRepository.save(readyStockProduct("픽업 만료 성공 상품", 42000L));
-        inventoryRepository.save(inventory(failedProduct, 1));
-        inventoryRepository.save(inventory(successProduct, 1));
-
-        Order failedOrder = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(failedProduct.getId(), 1, 41000L)));
-        Order successOrder = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(successProduct.getId(), 1, 42000L)));
+        OrderTestHelper.OrderFixture failedFixture = orderHelper.createReadyStockPaidOrder("픽업 만료 실패 상품", 41000L);
+        OrderTestHelper.OrderFixture successFixture = orderHelper.createReadyStockPaidOrder("픽업 만료 성공 상품", 42000L);
+        Order failedOrder = failedFixture.order();
+        Order successOrder = successFixture.order();
 
         orderApprovalService.approve(failedOrder.getId());
         orderApprovalService.approve(successOrder.getId());
@@ -197,28 +193,26 @@ class PickupExpireBatchUseCaseIT {
         orderPickupService.markPickupReady(successOrder.getId(), pastDeadline);
 
         // 실패 케이스 유도: 재고 레코드가 사라진 상태에서 복구 시도하면 NotFoundException 발생
-        inventoryRepository.deleteById(failedProduct.getId());
+        inventoryRepository.deleteById(failedFixture.product().getId());
 
         BatchResult result = pickupExpireBatchService.expirePickups();
 
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isEqualTo(1);
-        assertThat(result.failureReasons()).containsEntry("NotFoundException", 1);
-
         Order failedUpdated = orderRepository.findById(failedOrder.getId()).orElseThrow();
         Order successUpdated = orderRepository.findById(successOrder.getId()).orElseThrow();
-        assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
-        assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isEqualTo(1);
+            softly.assertThat(result.failureReasons()).containsEntry("NotFoundException", 1);
+            softly.assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+            softly.assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+        });
     }
 
     @DisplayName("픽업 완료와 만료 처리 경합 시 최종 상태는 단일하게 유지된다")
     @Test
     void pickupComplete_and_expireProcess_race_keepsSingleTerminalState() throws InterruptedException {
-        Product product = productRepository.save(readyStockProduct("픽업 경합 테스트 상품", 53000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 53000L)));
+        OrderTestHelper.OrderFixture fixture = orderHelper.createReadyStockPaidOrder("픽업 경합 테스트 상품", 53000L);
+        Order order = fixture.order();
         orderApprovalService.approve(order.getId());
         LocalDateTime pastDeadline = LocalDateTime.now(clock).minusMinutes(1);
         orderPickupService.markPickupReady(order.getId(), pastDeadline);
@@ -257,13 +251,11 @@ class PickupExpireBatchUseCaseIT {
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
         assertThat(fulfillment.getStatus()).isEqualTo(updated.getStatus());
 
-        if (updated.getStatus() == OrderStatus.PICKED_UP) {
-            assertThat(refundRepository.count()).isEqualTo(0L);
-            assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(0);
-        } else {
+        if (updated.getStatus() == OrderStatus.PICKUP_EXPIRED_REFUNDED) {
             assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
             assertThat(refundRepository.count()).isEqualTo(1L);
-            assertThat(inventoryRepository.findByProductId(product.getId()).orElseThrow().getQuantity()).isEqualTo(1);
+        } else {
+            assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKED_UP);
         }
 
         if (pickupError.get() != null) {

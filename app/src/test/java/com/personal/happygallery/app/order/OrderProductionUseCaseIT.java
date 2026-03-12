@@ -5,7 +5,6 @@ import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
-import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
@@ -13,6 +12,7 @@ import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
+import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
@@ -24,15 +24,13 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
-import static com.personal.happygallery.support.TestFixtures.inventory;
-import static com.personal.happygallery.support.TestFixtures.madeToOrderProduct;
-import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 
 /**
  * [UseCaseIT] §8.3 예약 제작 주문 검증.
  *
- * <p>Proof (PLAN.md §8.3): 제작 시작 상태에서 취소 요청 시 "환불 불가"로 처리됨.
+ * <p>Proof (docs/1Pager/0000_project_plan/plan.md §8.3): 제작 시작 상태에서 취소 요청 시 "환불 불가"로 처리됨.
  */
 @UseCaseIT
 class OrderProductionUseCaseIT {
@@ -48,10 +46,17 @@ class OrderProductionUseCaseIT {
     @Autowired OrderApprovalService orderApprovalService;
     @Autowired OrderProductionService orderProductionService;
     @Autowired OrderService orderService;
+    OrderTestHelper orderHelper;
 
     @BeforeEach
     void setUp() {
         cleanup();
+        orderHelper = new OrderTestHelper(
+                productRepository,
+                inventoryRepository,
+                orderRepository,
+                orderItemRepository,
+                orderService);
     }
 
     @AfterEach
@@ -77,20 +82,16 @@ class OrderProductionUseCaseIT {
     @DisplayName("주문제작 상품 주문 승인 시 IN_PRODUCTION으로 전이되고 Fulfillment가 생성된다")
     @Test
     void approve_madeToOrder_transitionsToInProductionAndCreatesFulfillment() {
-        Product product = productRepository.save(madeToOrderProduct("예약 제작 상품", 200000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 200000L)));
+        Order order = orderHelper.createMadeToOrderPaidOrder("예약 제작 상품", 200000L).order();
 
         orderApprovalService.approve(order.getId());
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
-
-        // Fulfillment 자동 생성 확인
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -100,17 +101,15 @@ class OrderProductionUseCaseIT {
     @DisplayName("기성품 주문 승인 시 APPROVED_FULFILLMENT_PENDING 상태를 유지한다")
     @Test
     void approve_readyStock_remainsApprovedFulfillmentPending() {
-        Product product = productRepository.save(readyStockProduct("기성품", 50000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 50000L)));
+        Order order = orderHelper.createReadyStockPaidOrder("기성품", 50000L).order();
 
         orderApprovalService.approve(order.getId());
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-        assertThat(fulfillmentRepository.findByOrderId(order.getId())).isEmpty();
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(fulfillmentRepository.findByOrderId(order.getId())).isEmpty();
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -120,11 +119,7 @@ class OrderProductionUseCaseIT {
     @DisplayName("예상 출고일 설정 시 Fulfillment의 출고일이 갱신된다")
     @Test
     void setExpectedShipDate_updatesShipDateOnFulfillment() {
-        Product product = productRepository.save(madeToOrderProduct("출고일 설정 상품", 150000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 150000L)));
+        Order order = orderHelper.createMadeToOrderPaidOrder("출고일 설정 상품", 150000L).order();
         orderApprovalService.approve(order.getId());
 
         LocalDate shipDate = LocalDate.of(2026, 4, 15);
@@ -141,23 +136,20 @@ class OrderProductionUseCaseIT {
     @DisplayName("배송 지연 요청 시 주문 상태가 DELAY_REQUESTED로 전이된다")
     @Test
     void requestDelay_transitionsToDelayRequested() {
-        Product product = productRepository.save(madeToOrderProduct("지연 상품", 180000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 180000L)));
+        Order order = orderHelper.createMadeToOrderPaidOrder("지연 상품", 180000L).order();
         orderApprovalService.approve(order.getId());
 
         orderProductionService.requestDelay(order.getId());
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
-
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
-        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
-                .extracting("decision")
-                .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY);
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
+            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
+            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                    .extracting("decision")
+                    .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -167,11 +159,7 @@ class OrderProductionUseCaseIT {
     @DisplayName("IN_PRODUCTION 상태에서 거절하면 제작 환불 불가 예외가 발생한다")
     @Test
     void reject_inProduction_throwsProductionRefundNotAllowed() {
-        Product product = productRepository.save(madeToOrderProduct("제작 취소 불가 상품", 250000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 250000L)));
+        Order order = orderHelper.createMadeToOrderPaidOrder("제작 취소 불가 상품", 250000L).order();
         orderApprovalService.approve(order.getId());
 
         // IN_PRODUCTION 상태에서 reject → ProductionRefundNotAllowedException
@@ -190,40 +178,29 @@ class OrderProductionUseCaseIT {
     @DisplayName("제작 완료 처리 시 APPROVED_FULFILLMENT_PENDING 상태로 전이된다")
     @Test
     void completeProduction_transitionsToApprovedFulfillmentPending() {
-        Product product = productRepository.save(madeToOrderProduct("제작완료 상품", 200000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 200000L)));
+        Order order = orderHelper.createMadeToOrderPaidOrder("제작완료 상품", 200000L).order();
         orderApprovalService.approve(order.getId());
 
         // IN_PRODUCTION → completeProduction → APPROVED_FULFILLMENT_PENDING
         orderProductionService.completeProduction(order.getId(), 1L);
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-
-        // 이력: APPROVE + PRODUCTION_COMPLETE
-        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
-                .extracting("decision")
-                .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.PRODUCTION_COMPLETE);
-
-        // adminId 기록 확인
         var histories = orderApprovalHistoryRepository.findByOrderId(order.getId());
-        assertThat(histories.get(1).getDecidedByAdminId()).isEqualTo(1L);
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                    .extracting("decision")
+                    .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.PRODUCTION_COMPLETE);
+            softly.assertThat(histories.get(1).getDecidedByAdminId()).isEqualTo(1L);
+        });
     }
 
     @DisplayName("DELAY_REQUESTED 상태에서도 제작 완료 처리가 가능하다")
     @Test
     void completeProduction_fromDelayRequested_alsoWorks() {
-        Product product = productRepository.save(madeToOrderProduct("지연 후 제작완료 상품", 180000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 180000L)));
+        Order order = orderHelper.createMadeToOrderPaidOrder("지연 후 제작완료 상품", 180000L).order();
         orderApprovalService.approve(order.getId());
         orderProductionService.requestDelay(order.getId());
 
@@ -237,21 +214,15 @@ class OrderProductionUseCaseIT {
     @DisplayName("제작 완료 후 픽업 준비까지 전체 흐름이 정상 동작한다")
     @Test
     void completeProduction_thenPickupReady_fullFlow() throws Exception {
-        Product product = productRepository.save(madeToOrderProduct("제작→픽업 전체 흐름 상품", 250000L));
-        inventoryRepository.save(inventory(product, 1));
-
-        Order order = orderService.createPaidOrder(null,
-                java.util.List.of(new OrderService.OrderItemRequest(product.getId(), 1, 250000L)));
+        Order order = orderHelper.createMadeToOrderPaidOrder("제작→픽업 전체 흐름 상품", 250000L).order();
 
         // 승인 → IN_PRODUCTION
         orderApprovalService.approve(order.getId());
-        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
-                .isEqualTo(OrderStatus.IN_PRODUCTION);
+        Order afterApprove = orderRepository.findById(order.getId()).orElseThrow();
 
         // 제작 완료 → APPROVED_FULFILLMENT_PENDING
         orderProductionService.completeProduction(order.getId(), 1L);
-        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
-                .isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+        Order afterCompleteProduction = orderRepository.findById(order.getId()).orElseThrow();
 
         // 픽업 준비 → PICKUP_READY (기존 흐름과 연결 확인)
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
@@ -261,6 +232,10 @@ class OrderProductionUseCaseIT {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
 
         Order final_ = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(final_.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+        assertSoftly(softly -> {
+            softly.assertThat(afterApprove.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+            softly.assertThat(afterCompleteProduction.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(final_.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+        });
     }
 }
