@@ -8,6 +8,7 @@ import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +34,7 @@ public class OrderQueryService {
     public OrderDetail getOrderByToken(Long orderId, String token) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
-        if (order.getAccessToken() == null || !order.getAccessToken().equals(token)) {
+        if (!Objects.equals(order.getAccessToken(), token)) {
             throw new NotFoundException("주문");
         }
         List<OrderItem> items = orderItemRepository.findByOrder(order);

@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.web;
 
+import com.personal.happygallery.config.properties.AdminProperties;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -7,7 +8,6 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -22,8 +22,11 @@ public class AdminAuthFilter implements Filter {
     private static final String LEGACY_ADMIN_PATH_PREFIX = "/admin/";
     private static final String VERSIONED_ADMIN_PATH_PREFIX = "/api/v1/admin/";
 
-    @Value("${app.admin.api-key}")
-    private String adminApiKey;
+    private final AdminProperties adminProperties;
+
+    public AdminAuthFilter(AdminProperties adminProperties) {
+        this.adminProperties = adminProperties;
+    }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -34,7 +37,7 @@ public class AdminAuthFilter implements Filter {
         String uri = httpRequest.getRequestURI();
         if (isAdminPath(uri)) {
             String key = httpRequest.getHeader(ADMIN_KEY_HEADER);
-            if (!adminApiKey.equals(key)) {
+            if (!adminProperties.getApiKey().equals(key)) {
                 httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 httpResponse.setContentType("application/json;charset=UTF-8");
                 httpResponse.getWriter().write("{\"code\":\"UNAUTHORIZED\",\"message\":\"관리자 인증이 필요합니다.\"}");

@@ -7,12 +7,14 @@ import {
   preparePickup, completePickup, expirePickups,
 } from "./api";
 import { ErrorAlert, useToast } from "@/shared/ui";
+import { ApiError } from "@/shared/api";
 
 interface Props {
   adminKey: string;
+  onAuthError: () => void;
 }
 
-export function OrderActionPanel({ adminKey }: Props) {
+export function OrderActionPanel({ adminKey, onAuthError }: Props) {
   const toast = useToast();
   const [orderId, setOrderId] = useState("");
   const [shipDate, setShipDate] = useState("");
@@ -20,37 +22,49 @@ export function OrderActionPanel({ adminKey }: Props) {
 
   const id = Number(orderId);
 
+  function onError(error: Error) {
+    if (error instanceof ApiError && error.status === 401) onAuthError();
+  }
+
   const approve = useMutation({
     mutationFn: () => approveOrder(adminKey, id),
     onSuccess: () => toast.show(`주문 #${id} 승인 완료`),
+    onError,
   });
   const reject = useMutation({
     mutationFn: () => rejectOrder(adminKey, id),
     onSuccess: () => toast.show(`주문 #${id} 거절 완료`),
+    onError,
   });
   const complete = useMutation({
     mutationFn: () => completeProduction(adminKey, id),
     onSuccess: () => toast.show(`주문 #${id} 제작 완료`),
+    onError,
   });
   const setShip = useMutation({
     mutationFn: () => setExpectedShipDate(adminKey, id, { expectedShipDate: shipDate || undefined }),
     onSuccess: () => toast.show(`주문 #${id} 출고일 설정`),
+    onError,
   });
   const delay = useMutation({
     mutationFn: () => requestDelay(adminKey, id),
     onSuccess: () => toast.show(`주문 #${id} 지연 요청`),
+    onError,
   });
   const pickup = useMutation({
     mutationFn: () => preparePickup(adminKey, id, { pickupDeadlineAt: pickupDeadline || undefined }),
     onSuccess: () => toast.show(`주문 #${id} 픽업 준비 완료`),
+    onError,
   });
   const pickupDone = useMutation({
     mutationFn: () => completePickup(adminKey, id),
     onSuccess: () => toast.show(`주문 #${id} 픽업 완료`),
+    onError,
   });
   const expire = useMutation({
     mutationFn: () => expirePickups(adminKey),
     onSuccess: (r) => toast.show(`픽업 만료 배치: 성공 ${r.successCount}, 실패 ${r.failureCount}`),
+    onError,
   });
 
   const pending = approve.isPending || reject.isPending || complete.isPending

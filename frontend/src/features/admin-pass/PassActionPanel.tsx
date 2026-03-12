@@ -3,25 +3,33 @@ import { useMutation } from "@tanstack/react-query";
 import { Card, Form, Button, Row, Col } from "react-bootstrap";
 import { expirePasses, refundPass } from "./api";
 import { ErrorAlert, useToast } from "@/shared/ui";
+import { ApiError } from "@/shared/api";
 import { formatKRW } from "@/shared/lib";
 
 interface Props {
   adminKey: string;
+  onAuthError: () => void;
 }
 
-export function PassActionPanel({ adminKey }: Props) {
+export function PassActionPanel({ adminKey, onAuthError }: Props) {
   const toast = useToast();
   const [passId, setPassId] = useState("");
+
+  function onError(error: Error) {
+    if (error instanceof ApiError && error.status === 401) onAuthError();
+  }
 
   const expire = useMutation({
     mutationFn: () => expirePasses(adminKey),
     onSuccess: (r) => toast.show(`만료 배치: 성공 ${r.successCount}, 실패 ${r.failureCount}`),
+    onError,
   });
 
   const refund = useMutation({
     mutationFn: () => refundPass(adminKey, Number(passId)),
     onSuccess: (r) =>
       toast.show(`환불 완료: ${r.refundCredits}회분 ${formatKRW(r.refundAmount)}, 취소 예약 ${r.canceledBookings}건`),
+    onError,
   });
 
   const pending = expire.isPending || refund.isPending;

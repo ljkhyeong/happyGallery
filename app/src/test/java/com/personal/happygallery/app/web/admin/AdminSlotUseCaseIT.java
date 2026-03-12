@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingData;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -60,6 +61,53 @@ class AdminSlotUseCaseIT {
                 .andExpect(jsonPath("$.classId").value(classId))
                 .andExpect(jsonPath("$.capacity").value(8))
                 .andExpect(jsonPath("$.isActive").value(true));
+    }
+
+    @DisplayName("관리자 슬롯 목록 조회는 비활성 슬롯을 포함해 시작 시각 내림차순으로 반환한다")
+    @Test
+    void listSlots_includingInactiveOrderedByStartAtDesc() throws Exception {
+        String firstResponse = mockMvc.perform(post("/admin/slots")
+                        .header("X-Admin-Key", ADMIN_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "classId": %d,
+                                  "startAt": "2026-03-01T10:00:00",
+                                  "endAt":   "2026-03-01T12:00:00"
+                                }
+                                """.formatted(classId)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String secondResponse = mockMvc.perform(post("/admin/slots")
+                        .header("X-Admin-Key", ADMIN_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "classId": %d,
+                                  "startAt": "2026-03-02T10:00:00",
+                                  "endAt":   "2026-03-02T12:00:00"
+                                }
+                                """.formatted(classId)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        long firstSlotId = ((Number) com.jayway.jsonpath.JsonPath.read(firstResponse, "$.id")).longValue();
+        long secondSlotId = ((Number) com.jayway.jsonpath.JsonPath.read(secondResponse, "$.id")).longValue();
+
+        mockMvc.perform(patch("/admin/slots/{id}/deactivate", firstSlotId)
+                        .header("X-Admin-Key", ADMIN_KEY))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/admin/slots")
+                        .header("X-Admin-Key", ADMIN_KEY)
+                        .param("classId", classId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(secondSlotId))
+                .andExpect(jsonPath("$[0].isActive").value(true))
+                .andExpect(jsonPath("$[1].id").value(firstSlotId))
+                .andExpect(jsonPath("$[1].isActive").value(false));
     }
 
     @DisplayName("관리자 슬롯 비활성화가 성공한다")

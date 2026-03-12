@@ -18,6 +18,7 @@ type PaymentPath = "deposit" | "pass";
 export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: Props) {
   const toast = useToast();
   const [name, setName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
   const [paymentPath, setPaymentPath] = useState<PaymentPath>("deposit");
   const [depositAmount, setDepositAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<DepositPaymentMethod>("CARD");
@@ -49,14 +50,18 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
     },
   });
 
-  const valid =
-    name.trim().length > 0 &&
-    (paymentPath === "pass"
-      ? Number(passId) > 0
-      : Number(depositAmount) > 0);
+  const nameValid = name.trim().length > 0;
+  const depositValid = paymentPath === "deposit" ? Number(depositAmount) > 0 : true;
+  const passValid = paymentPath === "pass" ? Number(passId) > 0 : true;
+  const valid = nameValid && depositValid && passValid;
 
   return (
-    <div>
+    <Form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (valid && !mutation.isPending) mutation.mutate();
+      }}
+    >
       <h6 className="mb-3">3. 예약 정보 입력</h6>
       <ErrorAlert error={mutation.error} />
 
@@ -65,8 +70,13 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
         <Form.Control
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onBlur={() => setNameTouched(true)}
           placeholder="예약자 이름"
+          isInvalid={nameTouched && !nameValid}
         />
+        <Form.Control.Feedback type="invalid">
+          이름을 입력해 주세요.
+        </Form.Control.Feedback>
       </Form.Group>
 
       <Form.Group className="mb-3">
@@ -102,7 +112,11 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
                 value={depositAmount}
                 onChange={(e) => setDepositAmount(e.target.value)}
                 placeholder="30000"
+                isInvalid={depositAmount !== "" && Number(depositAmount) <= 0}
               />
+              <Form.Control.Feedback type="invalid">
+                1원 이상 입력해 주세요.
+              </Form.Control.Feedback>
             </Form.Group>
           </Col>
           <Col xs={6}>
@@ -127,19 +141,23 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
             value={passId}
             onChange={(e) => setPassId(e.target.value)}
             placeholder="8회권 ID"
+            isInvalid={passId !== "" && Number(passId) <= 0}
           />
+          <Form.Control.Feedback type="invalid">
+            유효한 8회권 ID를 입력해 주세요.
+          </Form.Control.Feedback>
         </Form.Group>
       )}
 
       <Button
+        type="submit"
         variant="primary"
         size="lg"
         className="w-100"
         disabled={!valid || mutation.isPending}
-        onClick={() => mutation.mutate()}
       >
         {mutation.isPending ? "예약 처리 중..." : `예약하기${paymentPath === "deposit" && depositAmount ? ` (${formatKRW(Number(depositAmount))})` : ""}`}
       </Button>
-    </div>
+    </Form>
   );
 }

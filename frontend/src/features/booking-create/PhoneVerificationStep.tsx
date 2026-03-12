@@ -13,6 +13,7 @@ export function PhoneVerificationStep({ onVerified }: Props) {
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [mvpCode, setMvpCode] = useState("");
+  const [touched, setTouched] = useState(false);
 
   const sendMutation = useMutation({
     mutationFn: () => sendVerification({ phone }),
@@ -23,6 +24,7 @@ export function PhoneVerificationStep({ onVerified }: Props) {
   });
 
   const phoneValid = /^01[0-9]{8,9}$/.test(phone);
+  const showPhoneError = touched && phone.length > 0 && !phoneValid;
 
   return (
     <div>
@@ -36,10 +38,15 @@ export function PhoneVerificationStep({ onVerified }: Props) {
             <Form.Control
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+              onBlur={() => setTouched(true)}
               placeholder="01012345678"
               maxLength={11}
               disabled={sent}
+              isInvalid={showPhoneError}
             />
+            <Form.Control.Feedback type="invalid">
+              010으로 시작하는 10~11자리 번호를 입력하세요.
+            </Form.Control.Feedback>
           </Form.Group>
         </Col>
         <Col xs={4}>

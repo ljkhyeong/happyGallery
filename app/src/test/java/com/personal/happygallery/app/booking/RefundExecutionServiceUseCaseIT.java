@@ -16,6 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
@@ -47,9 +48,11 @@ class RefundExecutionServiceUseCaseIT {
                 .hasMessage("outer rollback");
 
         var refunds = refundRepository.findAll();
-        assertThat(refunds).hasSize(1);
-        assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
-        assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.FAILED);
-        assertThat(refunds.get(0).getFailReason()).contains("PG timeout");
+        assertSoftly(softly -> {
+            softly.assertThat(refunds).hasSize(1);
+            softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.FAILED);
+            softly.assertThat(refunds.get(0).getFailReason()).contains("PG timeout");
+        });
     }
 }

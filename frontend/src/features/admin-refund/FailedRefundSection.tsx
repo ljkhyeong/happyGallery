@@ -1,15 +1,17 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Table, Button } from "react-bootstrap";
 import { fetchFailedRefunds, retryRefund } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
+import { ApiError } from "@/shared/api";
 import { formatKRW, formatDateTime } from "@/shared/lib";
 
 interface Props {
   adminKey: string;
+  onAuthError: () => void;
 }
 
-export function FailedRefundSection({ adminKey }: Props) {
+export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [pendingId, setPendingId] = useState<number | null>(null);
@@ -19,6 +21,12 @@ export function FailedRefundSection({ adminKey }: Props) {
     queryFn: () => fetchFailedRefunds(adminKey),
   });
 
+  useEffect(() => {
+    if (error instanceof ApiError && error.status === 401) {
+      onAuthError();
+    }
+  }, [error, onAuthError]);
+
   const retry = useMutation({
     mutationFn: (refundId: number) => retryRefund(adminKey, refundId),
     onMutate: (id) => setPendingId(id),
@@ -26,13 +34,19 @@ export function FailedRefundSection({ adminKey }: Props) {
       toast.show("환불 재시도 완료");
       queryClient.invalidateQueries({ queryKey: ["admin", "refunds", "failed"] });
     },
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 401) onAuthError();
+    },
     onSettled: () => setPendingId(null),
   });
 
   const handleRetry = useCallback((id: number) => retry.mutate(id), [retry]);
 
   if (isLoading) return <LoadingSpinner />;
-  if (error) return <ErrorAlert error={error} />;
+  if (error) {
+    if (error instanceof ApiError && error.status === 401) return null;
+    return <ErrorAlert error={error} />;
+  }
   if (!refunds?.length) return <EmptyState message="실패한 환불이 없습니다." />;
 
   return (

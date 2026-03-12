@@ -2,15 +2,16 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
 import { createProduct } from "./api";
-import { ErrorAlert } from "@/shared/ui";
-import { useToast } from "@/shared/ui";
+import { ErrorAlert, useToast } from "@/shared/ui";
+import { ApiError } from "@/shared/api";
 import type { ProductType } from "@/shared/types";
 
 interface Props {
   adminKey: string;
+  onAuthError: () => void;
 }
 
-export function CreateProductForm({ adminKey }: Props) {
+export function CreateProductForm({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [name, setName] = useState("");
@@ -32,6 +33,11 @@ export function CreateProductForm({ adminKey }: Props) {
       setName("");
       setPrice("");
       setQuantity("1");
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        onAuthError();
+      }
     },
   });
 

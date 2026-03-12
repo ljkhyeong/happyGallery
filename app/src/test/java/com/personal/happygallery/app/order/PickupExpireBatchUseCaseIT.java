@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -105,27 +106,31 @@ class PickupExpireBatchUseCaseIT {
         orderPickupService.markPickupReady(order.getId(), pastDeadline);
 
         Order afterReady = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
 
         // 배치 실행
         BatchResult result = pickupExpireBatchService.expirePickups();
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isZero();
 
         // 상태 확인
         Order expired = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
 
         // 재고 복구 확인
-        assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(1);
+        int restoredQuantity = inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity();
 
         // 환불 기록 확인
-        assertThat(refundRepository.findAll()).hasSize(1);
-        assertThat(refundRepository.findAll().get(0).getOrderId()).isEqualTo(order.getId());
+        var refunds = refundRepository.findAll();
 
         // Fulfillment 상태 동기화 확인
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+        assertSoftly(softly -> {
+            softly.assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+            softly.assertThat(restoredQuantity).isEqualTo(1);
+            softly.assertThat(refunds).hasSize(1);
+            softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -145,12 +150,14 @@ class PickupExpireBatchUseCaseIT {
 
         // 배치 실행 → 0건 처리
         BatchResult result = pickupExpireBatchService.expirePickups();
-        assertThat(result.successCount()).isEqualTo(0);
-        assertThat(result.failureCount()).isZero();
 
         // 상태 유지 확인
         Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(0);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+        });
     }
 
     @DisplayName("픽업 만료 배치 관리자 API는 배치 결과를 반환한다")
@@ -190,14 +197,15 @@ class PickupExpireBatchUseCaseIT {
 
         BatchResult result = pickupExpireBatchService.expirePickups();
 
-        assertThat(result.successCount()).isEqualTo(1);
-        assertThat(result.failureCount()).isEqualTo(1);
-        assertThat(result.failureReasons()).containsEntry("NotFoundException", 1);
-
         Order failedUpdated = orderRepository.findById(failedOrder.getId()).orElseThrow();
         Order successUpdated = orderRepository.findById(successOrder.getId()).orElseThrow();
-        assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
-        assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isEqualTo(1);
+            softly.assertThat(result.failureReasons()).containsEntry("NotFoundException", 1);
+            softly.assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+            softly.assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+        });
     }
 
     @DisplayName("픽업 완료와 만료 처리 경합 시 최종 상태는 단일하게 유지된다")

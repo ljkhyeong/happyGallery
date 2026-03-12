@@ -2,6 +2,7 @@ import { ApiError } from "@/shared/api/error";
 import type { ErrorResponse } from "@/shared/types/error";
 
 const BASE_URL = "/api/v1";
+const REQUEST_TIMEOUT_MS = 15_000;
 
 interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
@@ -31,11 +32,20 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(buildUrl(path, params), {
-    ...rest,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path, params), {
+      ...rest,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     let errorBody: ErrorResponse | undefined;

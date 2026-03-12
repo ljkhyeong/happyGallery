@@ -16,7 +16,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -37,30 +36,28 @@ public class CircuitBreakerPaymentProvider implements PaymentProvider {
     private final CircuitBreaker circuitBreaker;
     private final TimeLimiter timeLimiter;
     private final ExecutorService executor;
+    private final long timeoutMillis;
 
     public CircuitBreakerPaymentProvider(
             @Qualifier("paymentProviderDelegate") PaymentProvider delegate,
-            @Value("${app.external.payment.timeout-millis:3000}") long timeoutMillis,
-            @Value("${app.external.payment.circuit-breaker.failure-rate-threshold:50}") float failureRateThreshold,
-            @Value("${app.external.payment.circuit-breaker.sliding-window-size:20}") int slidingWindowSize,
-            @Value("${app.external.payment.circuit-breaker.minimum-number-of-calls:10}") int minimumNumberOfCalls,
-            @Value("${app.external.payment.circuit-breaker.wait-duration-open-seconds:30}") long waitDurationOpenSeconds,
-            @Value("${app.external.payment.circuit-breaker.permitted-calls-in-half-open-state:3}") int permittedCallsInHalfOpenState
+            ExternalPaymentProperties properties
     ) {
+        ExternalPaymentProperties.CircuitBreaker cb = properties.getCircuitBreaker();
         this.delegate = delegate;
+        this.timeoutMillis = properties.getTimeoutMillis();
         this.circuitBreaker = CircuitBreaker.of("paymentProvider", CircuitBreakerConfig.custom()
-                .failureRateThreshold(failureRateThreshold)
-                .slidingWindowSize(slidingWindowSize)
-                .minimumNumberOfCalls(minimumNumberOfCalls)
-                .waitDurationInOpenState(Duration.ofSeconds(waitDurationOpenSeconds))
-                .permittedNumberOfCallsInHalfOpenState(permittedCallsInHalfOpenState)
+                .failureRateThreshold(cb.getFailureRateThreshold())
+                .slidingWindowSize(cb.getSlidingWindowSize())
+                .minimumNumberOfCalls(cb.getMinimumNumberOfCalls())
+                .waitDurationInOpenState(Duration.ofSeconds(cb.getWaitDurationOpenSeconds()))
+                .permittedNumberOfCallsInHalfOpenState(cb.getPermittedCallsInHalfOpenState())
                 .build());
         this.timeLimiter = TimeLimiter.of(TimeLimiterConfig.custom()
-                .timeoutDuration(Duration.ofMillis(timeoutMillis))
+                .timeoutDuration(Duration.ofMillis(this.timeoutMillis))
                 .cancelRunningFuture(true)
                 .build());
         this.executor = Executors.newFixedThreadPool(
-                Math.max(2, permittedCallsInHalfOpenState),
+                Math.max(2, cb.getPermittedCallsInHalfOpenState()),
                 runnable -> {
                     Thread thread = new Thread(runnable);
                     thread.setName("payment-timeout-" + THREAD_SEQ.incrementAndGet());
@@ -78,9 +75,7 @@ public class CircuitBreakerPaymentProvider implements PaymentProvider {
             return RefundResult.failure("PG 장애로 환불 처리가 일시 차단되었습니다. 잠시 후 재시도해주세요.");
         } catch (RuntimeException e) {
             if (containsCause(e, TimeoutException.class)) {
-                log.warn("PG 환불 호출 타임아웃 [timeoutMs={}]", timeLimiter.getTimeLimiterConfig()
-                        .getTimeoutDuration()
-                        .toMillis());
+                log.warn("PG 환불 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
                 return RefundResult.failure("PG 응답 지연으로 환불 처리에 실패했습니다.");
             }
             Throwable cause = rootCause(e);

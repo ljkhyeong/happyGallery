@@ -18,6 +18,9 @@ public interface SlotRepository extends JpaRepository<Slot, Long> {
     /** 관리자 슬롯 목록 조회 — 활성 슬롯만 */
     List<Slot> findByBookingClassIdAndIsActiveTrue(Long classId);
 
+    /** 관리자 슬롯 전체 조회 — 활성/비활성 포함, 시작 시각 내림차순 */
+    List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
+
     /** 공개 슬롯 조회 — classId + 날짜 기준, 활성 & 잔여 정원 있는 슬롯만 */
     @Query("SELECT s FROM Slot s " +
            "WHERE s.bookingClass.id = :classId " +

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Container, Card, Button } from "react-bootstrap";
+import { Container, Card, Button, Form } from "react-bootstrap";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { OrderItemsForm } from "@/features/order/OrderItemsForm";
 import { OrderSuccessCard } from "@/features/order/OrderSuccessCard";
@@ -16,6 +16,7 @@ export function OrderCreatePage() {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
   const [items, setItems] = useState<OrderItemInput[]>([]);
   const [result, setResult] = useState<OrderResponse | null>(null);
 
@@ -58,12 +59,16 @@ export function OrderCreatePage() {
           <Card className="mb-4">
             <Card.Header>주문자 이름</Card.Header>
             <Card.Body>
-              <input
-                className="form-control"
+              <Form.Control
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="이름"
+                onBlur={() => setNameTouched(true)}
+                placeholder="이름을 입력하세요"
+                isInvalid={nameTouched && !name.trim()}
               />
+              <Form.Control.Feedback type="invalid">
+                이름을 입력해 주세요.
+              </Form.Control.Feedback>
             </Card.Body>
           </Card>
 
@@ -79,7 +84,7 @@ export function OrderCreatePage() {
           <Button
             variant="primary" size="lg" className="w-100"
             disabled={!name.trim() || items.length === 0 || mutation.isPending}
-            onClick={() => mutation.mutate()}>
+            onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
             {mutation.isPending ? "주문 처리 중..." : "주문하기"}
           </Button>
         </>

@@ -6,5 +6,6 @@ dependencies {
 	implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.3.0'
 	implementation 'io.github.resilience4j:resilience4j-timelimiter:2.3.0'
 	implementation 'org.flywaydb:flyway-mysql'
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 }
