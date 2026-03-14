@@ -1052,10 +1052,14 @@ POST /api/v1/admin/refunds/{refundId}/retry
 
 ```json
 {
-  "code":    "ALREADY_REFUNDED",
-  "message": "이미 환불된 건입니다."
+  "code":      "ALREADY_REFUNDED",
+  "message":   "이미 환불된 건입니다.",
+  "requestId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
+
+- `requestId`는 선택 필드다.
+- HTTP 요청은 `RequestIdFilter`에서 생성된 값을 그대로 내려주고, 배치 실행 오류는 `batch-*` 형식 requestId를 사용한다.
 
 ### 13.2 HTTP 상태코드 × 에러 코드 목록
 
