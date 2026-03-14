@@ -316,16 +316,40 @@
   - 브레이킹 변경은 `/api/v2/**`로 분리하고, `/api/v1/**`는 공지된 deprecate 기간 이후 제거한다.
 
 ### 11-A.2 관리자 인증 정책
-- Admin API는 현재 구현에서도 이미 `X-Admin-Key` 헤더 기반으로 보호된다.
-- 적용 대상:
-  - `/api/v1/admin/**`
-  - 레거시 `/admin/**`
-- 인증키 소스:
-  - 서버 설정 `app.admin.api-key`
-  - 환경 변수 `ADMIN_API_KEY`
-- 인증 실패 시:
-  - `401 UNAUTHORIZED`
-  - `{ "code": "UNAUTHORIZED", "message": "관리자 인증이 필요합니다." }`
+
+#### 프로덕션 인증 (P9)
+- 관리자 로그인 API를 통해 사용자명/비밀번호 기반으로 인증한다.
+- 비밀번호는 BCrypt 해싱으로 저장한다 (ADR-0019).
+- 로그인 성공 시 UUID 세션 토큰을 발급하고, 이후 요청에 `Authorization: Bearer {token}` 헤더를 사용한다.
+- 세션 만료: 8시간 (인메모리).
+- 현재 구현은 단일 인스턴스 기준 인메모리 세션 저장소를 전제로 한다.
+- 운영 중 인스턴스를 수평 확장하면 JWT 기반 토큰 인증을 우선 검토하고, 필요 시 공유 세션 저장소(예: Redis)와 비교해 결정한다.
+
+#### 인증 엔드포인트
+```
+POST /api/v1/admin/auth/login
+Content-Type: application/json
+{ "username": "admin", "password": "..." }
+→ 200 OK { "token": "uuid-session-token" }
+→ 401 { "code": "UNAUTHORIZED", "message": "아이디 또는 비밀번호가 올바르지 않습니다." }
+
+POST /api/v1/admin/auth/logout
+Authorization: Bearer {token}
+→ 204 No Content
+```
+
+#### API Key 폴백 (개발/테스트용)
+- `app.admin.enable-api-key-auth=true` (기본값)일 때 `X-Admin-Key` 헤더로도 인증 가능.
+- 프로덕션에서는 `enable-api-key-auth=false`로 비활성화한다.
+- 인증키 소스: 서버 설정 `app.admin.api-key`, 환경 변수 `ADMIN_API_KEY`.
+
+#### 적용 대상
+- `/api/v1/admin/**` (로그인/로그아웃 경로 제외)
+- 레거시 `/admin/**`
+
+#### 인증 실패 시
+- `401 UNAUTHORIZED`
+- `{ "code": "UNAUTHORIZED", "message": "관리자 인증이 필요합니다." }`
 ---
 
 ## 11. Admin API — 슬롯 관리
