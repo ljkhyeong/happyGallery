@@ -1019,6 +1019,9 @@ POST /api/v1/admin/refunds/{refundId}/retry
 - 운영 관측성:
     - `prod` 프로필 로그는 JSON 구조화 포맷으로 출력한다
     - 요청 단위 추적을 위해 `requestId`를 로그 필드로 포함한다
+    - 에러 응답에 `requestId`를 포함하여 클라이언트-서버 간 추적을 지원한다
+    - 배치 실행은 `batch-{jobName}-{uuid8}` 형태의 requestId를 MDC에 자동 주입한다
+    - Actuator 노출 정책: `health`, `info`, `metrics` 만 웹 노출 (prod에서 health details는 `never`)
     - 로그 레벨 전략:
       - `TRACE`/`DEBUG`: `local` 개발 환경에서만 사용 (SQL 파라미터, 상세 흐름 추적)
       - `INFO`: 운영 기본값. 시작/종료, 배치 결과, 결제 완료 등 핵심 이벤트만 기록

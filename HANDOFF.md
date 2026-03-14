@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-14 (프론트 F0–F9 완료, polish plan P1–P10 전체 완료)
+> 작성 시점: 2026-03-14 (프론트 F0–F9 완료, P9·P10 완료, P8 시나리오 5 남음)
 
 ---
 
@@ -23,9 +23,9 @@
 
 - 권장 작업 브랜치: `codex/work-20260314`
 - 최근 작업:
+  - P10 관측성/운영 준비 — Actuator 노출 정책, 에러 응답 requestId 포함, 배치 MDC requestId 주입
   - P9 프로덕션 인증 계층 — BCrypt 기반 관리자 로그인, UUID 세션 토큰, X-Admin-Key dev fallback 토글
   - P8 E2E 시나리오 검증 — Playwright smoke 설정 + 실제 로컬 smoke 1~4 pass
-  - local 클래스 seed 추가 — `LocalBookingClassSeedService`, `LocalSeedConfig`
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `cd frontend && npm run build` 통과
@@ -88,12 +88,12 @@
 | 다음 | **P7** | 완료 | 관리자 주문 목록 조회 화면 |
 | 배포 전 | **P8** | 진행 중 | Playwright smoke 1~4 pass, refund-failure hook과 시나리오 5 검증만 남음 |
 | 배포 전 | **P9** | 완료 | 프로덕션 인증 계층 (BCrypt 로그인, UUID 세션 토큰, API Key dev fallback) |
-| 운영 | **P10** | 미착수 | 관측성 및 운영 준비 |
+| 운영 | **P10** | 완료 | 관측성 및 운영 준비 (Actuator 정책, 에러 requestId, 배치 MDC) |
 
 ### 다음 추천 작업
 
 1. `P8` 후속 — refund failure dev hook 추가 후 시나리오 5 자동/반자동 검증
-2. `P10` — 관측성 및 운영 준비
+2. polish plan 전체 완료 — 배포 준비 단계 진입
 
 ---
 
