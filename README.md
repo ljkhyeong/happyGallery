@@ -79,8 +79,12 @@ MySQL만 Docker로 띄우고 앱은 로컬에서 실행:
 
 ```bash
 docker compose up -d mysql
+docker compose stop app
 ./gradlew :app:bootRun
 ```
+
+- 이미 `docker compose up -d --build`로 앱 컨테이너가 떠 있다면, 로컬 `bootRun` 전에 `docker compose stop app`으로 8080 충돌을 먼저 해소한다.
+- `local` 프로필로 `bootRun`하면 `classes` 테이블이 비어 있을 때 기본 클래스 3종(향수/우드/니트)을 자동 seed한다.
 
 MySQL + 앱 컨테이너를 함께 실행:
 
@@ -119,6 +123,15 @@ npm run dev
 ### 프론트
 
 - 프로덕션 빌드: `cd frontend && npm run build`
+- E2E smoke 브라우저 설치: `cd frontend && npm run e2e:install`
+- E2E smoke 실행: `cd frontend && npm run e2e`
+
+E2E 참고:
+- Playwright는 `frontend/playwright.config.ts` 기준으로 동작한다.
+- Vite dev server는 Playwright가 직접 띄우거나 기존 `localhost:3000`을 재사용한다.
+- 백엔드는 별도로 `http://localhost:8080`에서 실행 중이어야 한다.
+- 로컬 `bootRun`은 `classes` 테이블이 비어 있으면 기본 클래스를 자동 생성하므로 clean DB에서도 예약/8회권 시나리오를 바로 돌릴 수 있다.
+- `환불 실패 -> 재시도`는 실패 유도용 dev hook 전까지 수동 검증 대상이다.
 
 ## API/운영 메모
 
