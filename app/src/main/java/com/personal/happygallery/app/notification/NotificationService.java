@@ -5,6 +5,8 @@ import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.infra.booking.GuestRepository;
 import com.personal.happygallery.infra.notification.NotificationLogRepository;
 import com.personal.happygallery.infra.notification.NotificationSender;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,13 +33,16 @@ public class NotificationService {
     private final List<NotificationSender> senders;
     private final NotificationLogRepository notificationLogRepository;
     private final GuestRepository guestRepository;
+    private final Clock clock;
 
     public NotificationService(List<NotificationSender> senders,
                                NotificationLogRepository notificationLogRepository,
-                               GuestRepository guestRepository) {
+                               GuestRepository guestRepository,
+                               Clock clock) {
         this.senders = senders;
         this.notificationLogRepository = notificationLogRepository;
         this.guestRepository = guestRepository;
+        this.clock = clock;
     }
 
     /**
@@ -51,17 +56,18 @@ public class NotificationService {
     @Async("notificationExecutor")
     public void notifyGuest(Long guestId, String phone, String name,
                             NotificationEventType eventType) {
+        LocalDateTime sentAt = LocalDateTime.now(clock);
         for (NotificationSender sender : senders) {
             try {
                 boolean success = sender.send(phone, name, eventType);
                 if (success) {
-                    save(NotificationLog.success(guestId, null, sender.channel(), eventType));
+                    save(NotificationLog.success(guestId, null, sender.channel(), eventType, sentAt));
                     return;
                 }
-                save(NotificationLog.failed(guestId, null, sender.channel(), eventType, "발송 실패"));
+                save(NotificationLog.failed(guestId, null, sender.channel(), eventType, "발송 실패", sentAt));
             } catch (Exception e) {
                 log.warn("[알림] {} 발송 예외 [guestId={} event={}]", sender.channel(), guestId, eventType, e);
-                save(NotificationLog.failed(guestId, null, sender.channel(), eventType, e.getMessage()));
+                save(NotificationLog.failed(guestId, null, sender.channel(), eventType, e.getMessage(), sentAt));
             }
         }
         log.error("[알림] 모든 채널 실패 [guestId={} event={}]", guestId, eventType);
