@@ -61,8 +61,10 @@ public class OrderProductionService {
     public ProductionResult setExpectedShipDate(Long orderId, LocalDate expectedShipDate) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
+        order.getStatus().requireExpectedShipDateWritable();
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
+        fulfillment.requireShippingType();
 
         fulfillment.setExpectedShipDate(expectedShipDate);
         fulfillmentRepository.save(fulfillment);

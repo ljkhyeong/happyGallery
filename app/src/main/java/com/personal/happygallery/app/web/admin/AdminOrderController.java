@@ -4,15 +4,19 @@ import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.order.OrderApprovalService;
 import com.personal.happygallery.app.order.OrderPickupService;
 import com.personal.happygallery.app.order.OrderProductionService;
+import com.personal.happygallery.app.order.OrderShippingService;
 import com.personal.happygallery.app.order.PickupExpireBatchService;
 import com.personal.happygallery.app.web.admin.dto.AdminOrderResponse;
 import com.personal.happygallery.app.web.admin.dto.BatchResponse;
 import com.personal.happygallery.app.web.admin.dto.MarkPickupReadyRequest;
+import com.personal.happygallery.app.web.admin.dto.OrderHistoryResponse;
 import com.personal.happygallery.app.web.admin.dto.OrderProductionResponse;
 import com.personal.happygallery.app.web.admin.dto.PickupResponse;
 import com.personal.happygallery.app.web.admin.dto.SetExpectedShipDateRequest;
+import com.personal.happygallery.app.web.admin.dto.ShippingResponse;
 import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -34,19 +38,25 @@ public class AdminOrderController {
     private final OrderApprovalService orderApprovalService;
     private final OrderProductionService orderProductionService;
     private final OrderPickupService orderPickupService;
+    private final OrderShippingService orderShippingService;
     private final PickupExpireBatchService pickupExpireBatchService;
     private final OrderRepository orderRepository;
+    private final OrderApprovalHistoryRepository orderApprovalHistoryRepository;
 
     public AdminOrderController(OrderApprovalService orderApprovalService,
                                 OrderProductionService orderProductionService,
                                 OrderPickupService orderPickupService,
+                                OrderShippingService orderShippingService,
                                 PickupExpireBatchService pickupExpireBatchService,
-                                OrderRepository orderRepository) {
+                                OrderRepository orderRepository,
+                                OrderApprovalHistoryRepository orderApprovalHistoryRepository) {
         this.orderApprovalService = orderApprovalService;
         this.orderProductionService = orderProductionService;
         this.orderPickupService = orderPickupService;
+        this.orderShippingService = orderShippingService;
         this.pickupExpireBatchService = pickupExpireBatchService;
         this.orderRepository = orderRepository;
+        this.orderApprovalHistoryRepository = orderApprovalHistoryRepository;
     }
 
     /** GET /admin/orders?status=PAID_APPROVAL_PENDING — 상태별 주문 목록 조회 (상태 미지정 시 전체) */
@@ -115,6 +125,35 @@ public class AdminOrderController {
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse confirmPickup(@PathVariable Long id) {
         return PickupResponse.from(orderPickupService.confirmPickup(id));
+    }
+
+    /** POST /admin/orders/{id}/prepare-shipping — 배송 준비 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) */
+    @PostMapping("/{id}/prepare-shipping")
+    @ResponseStatus(HttpStatus.OK)
+    public ShippingResponse prepareShipping(@PathVariable Long id, HttpServletRequest request) {
+        return ShippingResponse.from(orderShippingService.prepareShipping(id, adminId(request)));
+    }
+
+    /** POST /admin/orders/{id}/mark-shipped — 배송 출발 (SHIPPING_PREPARING → SHIPPED) */
+    @PostMapping("/{id}/mark-shipped")
+    @ResponseStatus(HttpStatus.OK)
+    public ShippingResponse markShipped(@PathVariable Long id, HttpServletRequest request) {
+        return ShippingResponse.from(orderShippingService.markShipped(id, adminId(request)));
+    }
+
+    /** POST /admin/orders/{id}/mark-delivered — 배송 완료 (SHIPPED → DELIVERED) */
+    @PostMapping("/{id}/mark-delivered")
+    @ResponseStatus(HttpStatus.OK)
+    public ShippingResponse markDelivered(@PathVariable Long id, HttpServletRequest request) {
+        return ShippingResponse.from(orderShippingService.markDelivered(id, adminId(request)));
+    }
+
+    /** GET /admin/orders/{id}/history — 주문 결정 이력 조회 */
+    @GetMapping("/{id}/history")
+    public List<OrderHistoryResponse> getOrderHistory(@PathVariable Long id) {
+        return orderApprovalHistoryRepository.findByOrderIdOrderByDecidedAtAsc(id).stream()
+                .map(OrderHistoryResponse::from)
+                .toList();
     }
 
     /** POST /admin/orders/expire-pickups — 픽업 마감 초과 자동환불 배치 */

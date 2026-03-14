@@ -4,6 +4,7 @@ import { Table, Button, Form, Row, Col, InputGroup } from "react-bootstrap";
 import {
   fetchOrders, approveOrder, rejectOrder, completeProduction,
   requestDelay, resumeProduction, preparePickup, completePickup, setExpectedShipDate, expirePickups,
+  prepareShipping, markShipped, markDelivered, fetchOrderHistory,
 } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
@@ -21,6 +22,9 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "APPROVED_FULFILLMENT_PENDING", label: "이행 대기" },
   { value: "IN_PRODUCTION", label: "제작 중" },
   { value: "DELAY_REQUESTED", label: "지연 요청" },
+  { value: "SHIPPING_PREPARING", label: "배송 준비" },
+  { value: "SHIPPED", label: "배송 중" },
+  { value: "DELIVERED", label: "배송 완료" },
   { value: "PICKUP_READY", label: "픽업 대기" },
   { value: "PICKED_UP", label: "픽업 완료" },
   { value: "COMPLETED", label: "완료" },
@@ -30,6 +34,22 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
 ];
 
 
+const DECISION_LABELS: Record<string, string> = {
+  APPROVE: "승인",
+  REJECT: "거절",
+  DELAY: "지연 요청",
+  AUTO_REFUND: "자동 환불",
+  PRODUCTION_COMPLETE: "제작 완료",
+  RESUME_PRODUCTION: "제작 재개",
+  PREPARE_SHIPPING: "배송 준비",
+  SHIP: "배송 출발",
+  DELIVER: "배송 완료",
+};
+
+function decisionLabel(decision: string): string {
+  return DECISION_LABELS[decision] ?? decision;
+}
+
 export function OrderListSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -37,6 +57,7 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [pickupDeadline, setPickupDeadline] = useState<Record<number, string>>({});
   const [shipDate, setShipDate] = useState<Record<number, string>>({});
+  const [historyOrderId, setHistoryOrderId] = useState<number | null>(null);
 
   const { data: orders, isLoading, error } = useQuery({
     queryKey: ["admin", "orders", statusFilter],
@@ -121,6 +142,36 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
     onSettled: () => setPendingId(null),
   });
 
+  const prepareShipMut = useMutation({
+    mutationFn: (id: number) => prepareShipping(adminKey, id),
+    onMutate: (id) => setPendingId(id),
+    onSuccess: (_, id) => { toast.show(`주문 #${id} 배송 준비`); invalidate(); },
+    onError,
+    onSettled: () => setPendingId(null),
+  });
+
+  const shippedMut = useMutation({
+    mutationFn: (id: number) => markShipped(adminKey, id),
+    onMutate: (id) => setPendingId(id),
+    onSuccess: (_, id) => { toast.show(`주문 #${id} 배송 출발`); invalidate(); },
+    onError,
+    onSettled: () => setPendingId(null),
+  });
+
+  const deliveredMut = useMutation({
+    mutationFn: (id: number) => markDelivered(adminKey, id),
+    onMutate: (id) => setPendingId(id),
+    onSuccess: (_, id) => { toast.show(`주문 #${id} 배송 완료`); invalidate(); },
+    onError,
+    onSettled: () => setPendingId(null),
+  });
+
+  const { data: historyData, isLoading: historyLoading } = useQuery({
+    queryKey: ["admin", "orders", historyOrderId, "history"],
+    queryFn: () => fetchOrderHistory(adminKey, historyOrderId!),
+    enabled: historyOrderId != null,
+  });
+
   const expireMut = useMutation({
     mutationFn: () => expirePickups(adminKey),
     onSuccess: (r) => { toast.show(`픽업 만료 배치: 성공 ${r.successCount}, 실패 ${r.failureCount}`); invalidate(); },
@@ -128,7 +179,8 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
   });
 
   const lastMutError = approveMut.error || rejectMut.error || completeProdMut.error
-    || delayMut.error || resumeProdMut.error || pickupMut.error || pickupDoneMut.error || shipDateMut.error || expireMut.error;
+    || delayMut.error || resumeProdMut.error || pickupMut.error || pickupDoneMut.error || shipDateMut.error
+    || prepareShipMut.error || shippedMut.error || deliveredMut.error || expireMut.error;
 
   function renderActions(orderId: number, status: OrderStatus) {
     const disabled = pendingId === orderId;
@@ -179,15 +231,35 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
         );
       case "APPROVED_FULFILLMENT_PENDING":
         return (
-          <InputGroup size="sm" style={{ width: "auto" }}>
-            <Form.Control type="datetime-local" value={pickupDeadline[orderId] || ""}
-              onChange={(e) => setPickupDeadline(prev => ({ ...prev, [orderId]: e.target.value }))}
-              style={{ maxWidth: 200 }} />
-            <Button variant="outline-primary" disabled={disabled}
-              onClick={() => pickupMut.mutate(orderId)}>
-              {pending ? "..." : "픽업 준비"}
+          <div className="d-flex gap-1 flex-wrap">
+            <InputGroup size="sm" style={{ width: "auto" }}>
+              <Form.Control type="datetime-local" value={pickupDeadline[orderId] || ""}
+                onChange={(e) => setPickupDeadline(prev => ({ ...prev, [orderId]: e.target.value }))}
+                style={{ maxWidth: 200 }} />
+              <Button variant="outline-primary" disabled={disabled}
+                onClick={() => pickupMut.mutate(orderId)}>
+                {pending ? "..." : "픽업 준비"}
+              </Button>
+            </InputGroup>
+            <Button size="sm" variant="outline-info" disabled={disabled}
+              onClick={() => prepareShipMut.mutate(orderId)}>
+              {pending ? "..." : "배송 준비"}
             </Button>
-          </InputGroup>
+          </div>
+        );
+      case "SHIPPING_PREPARING":
+        return (
+          <Button size="sm" variant="primary" disabled={disabled}
+            onClick={() => shippedMut.mutate(orderId)}>
+            {pending ? "..." : "배송 출발"}
+          </Button>
+        );
+      case "SHIPPED":
+        return (
+          <Button size="sm" variant="success" disabled={disabled}
+            onClick={() => deliveredMut.mutate(orderId)}>
+            {pending ? "..." : "배송 완료"}
+          </Button>
         );
       case "PICKUP_READY":
         return (
@@ -237,6 +309,7 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
               <th>결제일</th>
               <th>생성일</th>
               <th>액션</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -248,10 +321,46 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
                 <td><small>{o.paidAt ? formatDateTime(o.paidAt) : "-"}</small></td>
                 <td><small>{formatDateTime(o.createdAt)}</small></td>
                 <td>{renderActions(o.orderId, o.status)}</td>
+                <td>
+                  <Button size="sm" variant="link"
+                    onClick={() => setHistoryOrderId(historyOrderId === o.orderId ? null : o.orderId)}>
+                    {historyOrderId === o.orderId ? "닫기" : "이력"}
+                  </Button>
+                </td>
               </tr>
             ))}
           </tbody>
         </Table>
+      )}
+
+      {historyOrderId != null && (
+        <div className="mt-3 p-3 border rounded">
+          <h6>주문 #{historyOrderId} 이력</h6>
+          {historyLoading && <LoadingSpinner />}
+          {historyData && historyData.length === 0 && <small className="text-muted">이력이 없습니다.</small>}
+          {historyData && historyData.length > 0 && (
+            <Table size="sm" bordered>
+              <thead>
+                <tr>
+                  <th>결정</th>
+                  <th>관리자 ID</th>
+                  <th>사유</th>
+                  <th>일시</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyData.map((h) => (
+                  <tr key={h.id}>
+                    <td><small>{decisionLabel(h.decision)}</small></td>
+                    <td><small>{h.decidedByAdminId ?? "-"}</small></td>
+                    <td><small>{h.reason ?? "-"}</small></td>
+                    <td><small>{formatDateTime(h.decidedAt)}</small></td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </div>
       )}
 
       {lastMutError && !(lastMutError instanceof ApiError && lastMutError.status === 401) && (

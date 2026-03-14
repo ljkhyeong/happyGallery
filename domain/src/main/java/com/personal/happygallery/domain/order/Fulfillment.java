@@ -76,6 +76,15 @@ public class Fulfillment {
         this.expectedShipDate = expectedShipDate;
     }
 
+    /** SHIPPING 타입인지 확인한다. 픽업 이행에서 출고일 갱신 시 호출. */
+    public void requireShippingType() {
+        if (this.type != FulfillmentType.SHIPPING) {
+            throw new com.personal.happygallery.common.error.HappyGalleryException(
+                    com.personal.happygallery.common.error.ErrorCode.INVALID_INPUT,
+                    "배송 이행에서만 출고일을 설정할 수 있습니다.");
+        }
+    }
+
     /** 기존 이행 레코드를 픽업용으로 전환한다 (MADE_TO_ORDER 제작 완료 후 픽업 시). */
     public void convertToPickup(LocalDateTime pickupDeadlineAt) {
         this.type = FulfillmentType.PICKUP;

@@ -46,6 +46,7 @@ class OrderProductionUseCaseIT {
     @Autowired OrderApprovalService orderApprovalService;
     @Autowired OrderProductionService orderProductionService;
     @Autowired OrderPickupService orderPickupService;
+    @Autowired OrderShippingService orderShippingService;
     @Autowired OrderService orderService;
     OrderTestHelper orderHelper;
 
@@ -318,5 +319,126 @@ class OrderProductionUseCaseIT {
             softly.assertThat(afterCompleteProduction.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
             softly.assertThat(final_.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
         });
+    }
+
+    // -----------------------------------------------------------------------
+    // 배송 흐름: APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING → SHIPPED → DELIVERED
+    // -----------------------------------------------------------------------
+
+    @DisplayName("제작 완료 후 배송 흐름 전체가 정상 전이된다")
+    @Test
+    void shippingFlow_fullTransition() {
+        Order order = orderHelper.createMadeToOrderPaidOrder("배송 흐름 상품", 200000L).order();
+        orderApprovalService.approve(order.getId());
+        orderProductionService.completeProduction(order.getId(), 1L);
+
+        // APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING
+        orderShippingService.prepareShipping(order.getId(), 1L);
+        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+                .isEqualTo(OrderStatus.SHIPPING_PREPARING);
+
+        // SHIPPING_PREPARING → SHIPPED
+        orderShippingService.markShipped(order.getId(), 1L);
+        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+                .isEqualTo(OrderStatus.SHIPPED);
+
+        // SHIPPED → DELIVERED
+        orderShippingService.markDelivered(order.getId(), 1L);
+        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+                .isEqualTo(OrderStatus.DELIVERED);
+
+        // 이력에 배송 전이가 모두 기록됨
+        var decisions = orderApprovalHistoryRepository.findByOrderIdOrderByDecidedAtAsc(order.getId()).stream()
+                .map(h -> h.getDecision())
+                .toList();
+        assertThat(decisions).containsExactly(
+                OrderApprovalDecision.APPROVE,
+                OrderApprovalDecision.PRODUCTION_COMPLETE,
+                OrderApprovalDecision.PREPARE_SHIPPING,
+                OrderApprovalDecision.SHIP,
+                OrderApprovalDecision.DELIVER);
+    }
+
+    @DisplayName("배송 전이 HTTP 엔드포인트가 정상 동작한다")
+    @Test
+    void shippingFlow_httpEndpoints() throws Exception {
+        Order order = orderHelper.createMadeToOrderPaidOrder("HTTP 배송 상품", 200000L).order();
+        orderApprovalService.approve(order.getId());
+        orderProductionService.completeProduction(order.getId(), 1L);
+
+        // prepare-shipping
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/admin/orders/{id}/prepare-shipping", order.getId())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.status").value("SHIPPING_PREPARING"));
+
+        // mark-shipped
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/admin/orders/{id}/mark-shipped", order.getId())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.status").value("SHIPPED"));
+
+        // mark-delivered
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/admin/orders/{id}/mark-delivered", order.getId())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.status").value("DELIVERED"));
+    }
+
+    @DisplayName("주문 이력 조회 HTTP 엔드포인트가 정상 동작한다")
+    @Test
+    void orderHistory_httpEndpoint() throws Exception {
+        Order order = orderHelper.createMadeToOrderPaidOrder("이력 조회 상품", 200000L).order();
+        orderApprovalService.approve(order.getId());
+        orderProductionService.completeProduction(order.getId(), 1L);
+
+        String body = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/admin/orders/{id}/history", order.getId())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertSoftly(softly -> {
+            softly.assertThat(body).contains("APPROVE");
+            softly.assertThat(body).contains("PRODUCTION_COMPLETE");
+        });
+    }
+
+    // -----------------------------------------------------------------------
+    // expectedShipDate write guard
+    // -----------------------------------------------------------------------
+
+    @DisplayName("APPROVED_FULFILLMENT_PENDING 상태에서 출고일 설정 시 400을 반환한다")
+    @Test
+    void setExpectedShipDate_afterProductionComplete_throwsInvalidInput() {
+        Order order = orderHelper.createMadeToOrderPaidOrder("출고일 가드 상품", 150000L).order();
+        orderApprovalService.approve(order.getId());
+        orderProductionService.completeProduction(order.getId(), 1L);
+
+        assertThatThrownBy(() ->
+                orderProductionService.setExpectedShipDate(order.getId(), LocalDate.of(2026, 5, 1)))
+                .isInstanceOf(com.personal.happygallery.common.error.HappyGalleryException.class)
+                .hasMessageContaining("출고일");
+    }
+
+    @DisplayName("SHIPPING_PREPARING 상태에서는 출고일 설정이 가능하다")
+    @Test
+    void setExpectedShipDate_inShippingPreparing_succeeds() {
+        Order order = orderHelper.createMadeToOrderPaidOrder("배송준비 출고일 상품", 150000L).order();
+        orderApprovalService.approve(order.getId());
+        orderProductionService.completeProduction(order.getId(), 1L);
+        orderShippingService.prepareShipping(order.getId(), 1L);
+
+        LocalDate shipDate = LocalDate.of(2026, 5, 1);
+        orderProductionService.setExpectedShipDate(order.getId(), shipDate);
+
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
+        assertThat(fulfillment.getExpectedShipDate()).isEqualTo(shipDate);
     }
 }

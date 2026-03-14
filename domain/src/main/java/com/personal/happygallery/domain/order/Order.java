@@ -156,6 +156,30 @@ public class Order {
     }
 
     /**
+     * 배송 준비 시작. {@link OrderStatus#APPROVED_FULFILLMENT_PENDING} → {@link OrderStatus#SHIPPING_PREPARING}.
+     */
+    public void markShippingPreparing() {
+        this.status.requireShippingPreparable();
+        this.status = OrderStatus.SHIPPING_PREPARING;
+    }
+
+    /**
+     * 배송 출발. {@link OrderStatus#SHIPPING_PREPARING} → {@link OrderStatus#SHIPPED}.
+     */
+    public void markShipped() {
+        this.status.requireShippingPreparing();
+        this.status = OrderStatus.SHIPPED;
+    }
+
+    /**
+     * 배송 완료. {@link OrderStatus#SHIPPED} → {@link OrderStatus#DELIVERED}.
+     */
+    public void markDelivered() {
+        this.status.requireShipped();
+        this.status = OrderStatus.DELIVERED;
+    }
+
+    /**
      * 픽업 준비 완료. {@link OrderStatus#APPROVED_FULFILLMENT_PENDING} 상태가 아니면 400을 던진다.
      */
     public void markPickupReady() {

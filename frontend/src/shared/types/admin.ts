@@ -79,6 +79,31 @@ export interface AdminOrderResponse {
   createdAt: string;
 }
 
+export interface ShippingResponse {
+  orderId: number;
+  status: OrderStatus;
+  expectedShipDate: string | null;
+}
+
+export type OrderApprovalDecision =
+  | "APPROVE"
+  | "REJECT"
+  | "DELAY"
+  | "AUTO_REFUND"
+  | "PRODUCTION_COMPLETE"
+  | "RESUME_PRODUCTION"
+  | "PREPARE_SHIPPING"
+  | "SHIP"
+  | "DELIVER";
+
+export interface OrderHistoryResponse {
+  id: number;
+  decision: OrderApprovalDecision;
+  decidedByAdminId: number | null;
+  reason: string | null;
+  decidedAt: string;
+}
+
 export interface AdminBookingResponse {
   bookingId: number;
   bookingNumber: string;

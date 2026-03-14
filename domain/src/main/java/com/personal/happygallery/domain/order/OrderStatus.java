@@ -95,4 +95,33 @@ public enum OrderStatus {
 			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "픽업 준비 상태에서만 가능합니다.");
 		}
 	}
+
+	/** expectedShipDate 갱신이 허용되는 상태인지 확인한다 (제작 중/지연/배송 준비). */
+	public void requireExpectedShipDateWritable() {
+		if (this != IN_PRODUCTION && this != DELAY_REQUESTED && this != SHIPPING_PREPARING) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
+					"제작 중, 지연 요청, 배송 준비 상태에서만 출고일을 설정할 수 있습니다.");
+		}
+	}
+
+	/** {@link #APPROVED_FULFILLMENT_PENDING} 상태에서 배송 준비로 전환 가능한지 확인한다. */
+	public void requireShippingPreparable() {
+		if (this != APPROVED_FULFILLMENT_PENDING) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이행 대기 상태에서만 배송 준비가 가능합니다.");
+		}
+	}
+
+	/** {@link #SHIPPING_PREPARING} 상태인지 확인한다. */
+	public void requireShippingPreparing() {
+		if (this != SHIPPING_PREPARING) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "배송 준비 상태에서만 가능합니다.");
+		}
+	}
+
+	/** {@link #SHIPPED} 상태인지 확인한다. */
+	public void requireShipped() {
+		if (this != SHIPPED) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "배송 중 상태에서만 가능합니다.");
+		}
+	}
 }

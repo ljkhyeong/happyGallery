@@ -6,5 +6,8 @@ public enum OrderApprovalDecision {
     DELAY,
     AUTO_REFUND,
     PRODUCTION_COMPLETE,
-    RESUME_PRODUCTION
+    RESUME_PRODUCTION,
+    PREPARE_SHIPPING,
+    SHIP,
+    DELIVER
 }
