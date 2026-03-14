@@ -22,7 +22,8 @@
       "Bash(git:*)",
       "Bash(./gradlew:*)",
       "Bash(mkdir:*)",
-      "Bash(cd /Users/lim/Desktop/devProject/personal/happyGallery/.claude/skills && for f in *.md; do name=\"${f%.md}\"; mkdir -p \"$name/scripts\" \"$name/references\" \"$name/assets\"; mv \"$f\" \"$name/skill.md\"; done && find . -type d | sort)"
+      "Bash(cd /Users/lim/Desktop/devProject/personal/happyGallery/.claude/skills && for f in *.md; do name=\"${f%.md}\"; mkdir -p \"$name/scripts\" \"$name/references\" \"$name/assets\"; mv \"$f\" \"$name/skill.md\"; done && find . -type d | sort)",
+      "Bash(cd /Users/lim/Desktop/devProject/personal/happyGallery/frontend && npm run build 2>&1 | tail -15)"
     ]
   },
   "sandbox": {

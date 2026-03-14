@@ -24,9 +24,9 @@
 
 - 권장 작업 브랜치: `codex/work-20260314`
 - 최근 작업:
+  - CR-P5 장기 리팩토링 — DELAY_REQUESTED 재개 흐름, Fulfillment 단일성, *_REFUNDED 상태명 변경, Fulfillment.status 제거, PG 환불 패턴 통합, local hook 범위 제한
   - CR-P1/P2 코드리뷰 후속 — admin 캐시 정합성, Playwright Bearer 전환, 로그인 rate limit, admin id 컨텍스트 주입
   - P10 관측성/운영 준비 — Actuator 노출 정책, 에러 응답 requestId 포함, 배치 MDC requestId 주입
-  - P9 프로덕션 인증 계층 — BCrypt 기반 관리자 로그인, UUID 세션 토큰, X-Admin-Key dev fallback 토글
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `cd frontend && npm run build` 통과
@@ -100,11 +100,11 @@
 | **CR-P2** | 완료 | 운영 인증/테스트 경계 (Playwright Bearer 전환, 로그인 rate limit, admin id 컨텍스트 주입) |
 | **CR-P3** | 완료 | 운영 메모리/인프라 리스크 (세션 eviction, bucket eviction, XFF 신뢰 정책) |
 | **CR-P4** | 완료 | UX 후속 (예약 기본 날짜 Asia/Seoul, 주문 상품 로딩 실패 에러 UI) |
-| **CR-P5** | 미착수 | 장기 리팩토링 및 기능 공백 |
+| **CR-P5** | 완료 | 장기 리팩토링 및 기능 공백 |
 
 ### 다음 추천 작업
 
-1. CR-P5 — DELAY_REQUESTED 재개 흐름, fulfillment 단일성, 환불 상태 분리
+1. ~~문서 정합화 — spec.md, ADR-0013, ADR-0014에 변경된 상태명과 Fulfillment 구조 반영~~ (완료)
 
 ---
 
@@ -169,8 +169,8 @@ cd frontend && npm run e2e
 ### 미해결 과제
 - 로컬 `bootRun` 전 `happygallery-app` 컨테이너가 떠 있으면 8080 충돌 발생
 - PG 환불 패턴 중복 → 실 PG 연동 시 RefundExecutor로 통합 예정
-- `DELAY_REQUESTED` → 재개 경로 없음 (ADR-0014)
-- Fulfillment.status와 Order.status 이중 관리 → 불일치 위험 (ADR-0014)
+- ~~`DELAY_REQUESTED` → 재개 경로 없음~~ (CR-P5에서 `resumeProduction` 추가)
+- ~~Fulfillment.status와 Order.status 이중 관리~~ (CR-P5에서 Fulfillment.status 제거, Order.status가 단일 소스)
 
 ---
 
