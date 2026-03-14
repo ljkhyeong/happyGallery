@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
   adminCard,
+  armNextRefundFailure,
+  clearNextRefundFailure,
   completePhoneVerification,
   extractFirstNumber,
   fetchClasses,
@@ -12,6 +14,8 @@ import {
   toDateInput,
   toDateTimeLocalInput,
   waitForBookingByPhone,
+  waitForFailedRefundByOrderId,
+  waitForFailedRefundGone,
   waitForOrder,
   waitForProduct,
   waitForSlot,
@@ -214,4 +218,66 @@ test("P8-4 주문 생성 후 관리자 승인, 픽업 준비, 픽업 완료까�
 
   await expect(page.locator(".badge-status").filter({ hasText: "수령 완료" }).first()).toBeVisible();
   await expect(page.getByText("이행 정보")).toBeVisible();
+});
+
+test("P8-5 환불 실패 주문을 관리자 화면에서 재시도해 복구할 수 있다", async ({ page, request }) => {
+  const productName = makeUniqueLabel("P8-환불상품");
+  const phone = makePhoneNumber(makeUniqueLabel("p8-refund"));
+  const ordererName = makeUniqueLabel("P8 환불 주문자");
+  const failureReason = makeUniqueLabel("P8-환불실패");
+
+  await clearNextRefundFailure(request);
+
+  try {
+    await loginAdmin(page);
+
+    const createCard = adminCard(page, "상품 등록");
+    await createCard.getByLabel("상품명").fill(productName);
+    await createCard.getByLabel("유형").selectOption("READY_STOCK");
+    await createCard.getByLabel("가격 (원)").fill("27000");
+    await createCard.getByLabel("수량").fill("3");
+    await createCard.getByRole("button", { name: "상품 등록" }).click();
+
+    const product = await waitForProduct(request, productName);
+
+    await page.goto("/orders/new");
+    await completePhoneVerification(page, phone);
+    await page.getByLabel("주문자 이름").fill(ordererName);
+    await page.getByLabel("상품").selectOption(String(product.id));
+    await page.getByLabel("수량").fill("1");
+    await page.getByRole("button", { name: "추가" }).click();
+    await page.getByRole("button", { name: "주문하기" }).click();
+
+    await expect(successAlert(page, "주문이 완료되었습니다!")).toBeVisible();
+    const orderCardText = await page.locator(".card").last().textContent();
+    if (!orderCardText) {
+      throw new Error("Order success card text was empty");
+    }
+    const orderId = extractFirstNumber(orderCardText, "주문 #");
+    const approvalPendingOrder = await waitForOrder(request, orderId, "PAID_APPROVAL_PENDING");
+
+    await armNextRefundFailure(request, failureReason);
+
+    await page.goto("/admin");
+    const orderCard = adminCard(page, "주문 목록");
+    await orderCard.getByLabel("상태").selectOption("PAID_APPROVAL_PENDING");
+    const orderRow = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
+    await expect(orderRow).toBeVisible();
+    await orderRow.getByRole("button", { name: "거절" }).click();
+
+    await waitForOrder(request, orderId, "REJECTED_REFUNDED");
+    const failedRefund = await waitForFailedRefundByOrderId(request, orderId);
+    expect(failedRefund.failReason).toContain(failureReason);
+
+    await page.reload();
+    const refundCard = adminCard(page, "환불 실패 목록");
+    const refundRow = refundCard.locator("tbody tr").filter({ hasText: failureReason }).first();
+    await expect(refundRow).toBeVisible();
+    await refundRow.getByRole("button", { name: "재시도" }).click();
+
+    await waitForFailedRefundGone(request, failedRefund.refundId);
+    await expect(refundCard.locator("tbody tr").filter({ hasText: failureReason })).toHaveCount(0);
+  } finally {
+    await clearNextRefundFailure(request);
+  }
 });

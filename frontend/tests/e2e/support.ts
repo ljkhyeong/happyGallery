@@ -1,6 +1,8 @@
 import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 
 const ADMIN_KEY = process.env.PLAYWRIGHT_ADMIN_KEY ?? "dev-admin-key";
+const ADMIN_USERNAME = process.env.PLAYWRIGHT_ADMIN_USERNAME ?? "admin";
+const ADMIN_PASSWORD = process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? "admin1234";
 const BACKEND_BASE_URL = (process.env.PLAYWRIGHT_BACKEND_URL ?? "http://127.0.0.1:8080/api/v1").replace(/\/$/, "");
 
 export interface BookingClass {
@@ -50,6 +52,15 @@ export interface AdminOrder {
   totalAmount: number;
   paidAt: string | null;
   approvalDeadlineAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminFailedRefund {
+  refundId: number;
+  bookingId: number | null;
+  orderId: number | null;
+  amount: number;
+  failReason: string;
   createdAt: string;
 }
 
@@ -122,10 +133,11 @@ export function extractAccessToken(text: string): string {
 export async function loginAdmin(page: Page) {
   await page.goto("/admin");
 
-  const authHeading = page.getByRole("heading", { name: "관리자 인증" });
-  if (await authHeading.isVisible()) {
-    await page.getByLabel("Admin Key").fill(ADMIN_KEY);
-    await page.getByRole("button", { name: "인증" }).click();
+  const loginHeading = page.getByRole("heading", { name: "관리자 로그인" });
+  if (await loginHeading.isVisible()) {
+    await page.getByLabel("아이디").fill(ADMIN_USERNAME);
+    await page.getByLabel("비밀번호").fill(ADMIN_PASSWORD);
+    await page.getByRole("button", { name: "로그인" }).click();
   }
 
   await expect(page.getByRole("heading", { name: "관리자" })).toBeVisible();
@@ -170,6 +182,39 @@ export async function apiGet<T>(
   return (await response.json()) as T;
 }
 
+export async function apiPost<T>(
+  request: APIRequestContext,
+  path: string,
+  body?: unknown,
+  options: ApiOptions = {},
+): Promise<T | undefined> {
+  const url = new URL(`${BACKEND_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`);
+
+  const response = await request.post(url.toString(), {
+    data: body,
+    headers: options.admin ? { "X-Admin-Key": ADMIN_KEY } : undefined,
+  });
+  expect(response.ok(), `POST ${url} should succeed`).toBeTruthy();
+
+  if (response.status() === 204) {
+    return undefined;
+  }
+  return (await response.json()) as T;
+}
+
+export async function apiDelete(
+  request: APIRequestContext,
+  path: string,
+  options: ApiOptions = {},
+): Promise<void> {
+  const url = new URL(`${BACKEND_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`);
+
+  const response = await request.delete(url.toString(), {
+    headers: options.admin ? { "X-Admin-Key": ADMIN_KEY } : undefined,
+  });
+  expect(response.ok(), `DELETE ${url} should succeed`).toBeTruthy();
+}
+
 export async function fetchClasses(request: APIRequestContext): Promise<BookingClass[]> {
   return apiGet<BookingClass[]>(request, "/classes");
 }
@@ -201,6 +246,21 @@ export async function fetchAdminOrders(
     admin: true,
     query: { status },
   });
+}
+
+export async function fetchFailedRefunds(request: APIRequestContext): Promise<AdminFailedRefund[]> {
+  return apiGet<AdminFailedRefund[]>(request, "/admin/refunds/failed", { admin: true });
+}
+
+export async function armNextRefundFailure(
+  request: APIRequestContext,
+  reason: string,
+): Promise<void> {
+  await apiPost(request, "/admin/dev/payment/refunds/fail-next", { reason }, { admin: true });
+}
+
+export async function clearNextRefundFailure(request: APIRequestContext): Promise<void> {
+  await apiDelete(request, "/admin/dev/payment/refunds/fail-next", { admin: true });
 }
 
 export async function waitForProduct(
@@ -272,4 +332,31 @@ export async function waitForOrder(
     throw new Error(`Could not find order: ${orderId}`);
   }
   return order;
+}
+
+export async function waitForFailedRefundByOrderId(
+  request: APIRequestContext,
+  orderId: number,
+): Promise<AdminFailedRefund> {
+  await expect.poll(async () => {
+    const refunds = await fetchFailedRefunds(request);
+    return refunds.some((refund) => refund.orderId === orderId);
+  }).toBeTruthy();
+
+  const refunds = await fetchFailedRefunds(request);
+  const refund = refunds.find((item) => item.orderId === orderId);
+  if (!refund) {
+    throw new Error(`Could not find failed refund for order: ${orderId}`);
+  }
+  return refund;
+}
+
+export async function waitForFailedRefundGone(
+  request: APIRequestContext,
+  refundId: number,
+): Promise<void> {
+  await expect.poll(async () => {
+    const refunds = await fetchFailedRefunds(request);
+    return refunds.every((refund) => refund.refundId !== refundId);
+  }).toBeTruthy();
 }

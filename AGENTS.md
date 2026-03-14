@@ -37,6 +37,7 @@
 - `docker compose up -d`: 로컬 MySQL 등 의존 서비스 실행
 
 테스트 명령의 세부 선택은 관련 `happyGallery` skill을 우선 따른다. Testcontainers를 사용하는 테스트(`:app:useCaseTest`, `@UseCaseIT`, 특정 `--tests` 대상 실행 포함)는 Docker 탐지 실패를 피하기 위해 기본적으로 `./gradlew --no-daemon ...` 형태로 실행한다.
+Codex 실행 환경에서는 Gradle JVM 명령이 샌드박스에서 `FileLockContentionHandler` 소켓 생성 제한에 자주 걸린다. 그래서 `./gradlew test`, `./gradlew :app:test --tests ...`, `./gradlew :app:policyTest`, `./gradlew --no-daemon :app:useCaseTest`, `./gradlew :app:bootRun` 같은 Gradle 테스트/실행 명령은 처음부터 권한 상승 실행을 기본으로 하고, 샌드박스에서 먼저 한 번 실패시킨 뒤 재시도하지 않는다.
 
 기본 프로필은 `local`이며, 헬스 체크는 `http://localhost:8080/actuator/health`에서 확인한다.
 

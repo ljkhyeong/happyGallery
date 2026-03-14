@@ -131,13 +131,14 @@ E2E 참고:
 - Vite dev server는 Playwright가 직접 띄우거나 기존 `localhost:3000`을 재사용한다.
 - 백엔드는 별도로 `http://localhost:8080`에서 실행 중이어야 한다.
 - 로컬 `bootRun`은 `classes` 테이블이 비어 있으면 기본 클래스를 자동 생성하므로 clean DB에서도 예약/8회권 시나리오를 바로 돌릴 수 있다.
-- `환불 실패 -> 재시도`는 실패 유도용 dev hook 전까지 수동 검증 대상이다.
+- 시나리오 5(`환불 실패 -> 재시도`)는 local 전용 dev hook(`/api/v1/admin/dev/payment/refunds/fail-next`)으로 자동화되어 있다.
+- Playwright 관리자 로그인 기본값은 `admin` / `admin1234`이며, 필요하면 `PLAYWRIGHT_ADMIN_USERNAME`, `PLAYWRIGHT_ADMIN_PASSWORD`로 덮어쓴다.
 
 ## API/운영 메모
 
 - 표준 API 경로는 `/api/v1/**`다.
 - 레거시 무버전 경로도 일부 유지하지만, 신규 문서와 테스트는 `/api/v1/**`를 기준으로 한다.
-- 관리자 API와 관리자 화면은 `X-Admin-Key`가 필요하다.
+- 관리자 화면은 사용자명/비밀번호 로그인 후 Bearer 토큰으로 동작하고, local/dev API 보조 호출은 `X-Admin-Key` 폴백을 사용할 수 있다.
 - 예약/주문 조회는 토큰 기반(`bookingId + token`, `orderId + token`)으로 동작한다.
 
 ## 문서 우선순위

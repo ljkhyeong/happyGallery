@@ -76,6 +76,7 @@ curl http://localhost:8080/actuator/health
 - 사용자가 `바로`, `지금`, `곧바로`처럼 실행을 직접 지시한 경우에는, 파괴적이거나 모호한 상황이 아니면 재확인 질문 없이 진행한다.
 - PR 작업에서는 먼저 mergeable 여부를 보고, 충돌이 없으면 바로 머지한다. 충돌이 있을 때만 필요한 파일만 정리한다.
 - 사용자가 요구하지 않은 과한 재검증이나 중복 조회는 피하고, 변경 범위에 맞는 최소 검증만 수행한다.
+- 이 저장소의 Gradle JVM 명령은 샌드박스에서 `FileLockContentionHandler` 소켓 제한으로 자주 실패하므로, `test`, `:app:test`, `:app:policyTest`, `:app:useCaseTest`, `:app:bootRun` 계열은 처음부터 unsandboxed/escalated 실행을 기본으로 한다.
 
 ## Skills (auto-trigger + explicit call)
 - 상태머신/전이: `domain-state-machine`
