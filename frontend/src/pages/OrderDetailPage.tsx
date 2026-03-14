@@ -14,6 +14,7 @@ export function OrderDetailPage() {
   const lookup = useMutation({
     mutationFn: ({ id, t }: { id: number; t: string }) => fetchOrder(id, t),
     onSuccess: setOrder,
+    onError: () => setOrder(null),
   });
 
   const handleLookup = useCallback(() => {

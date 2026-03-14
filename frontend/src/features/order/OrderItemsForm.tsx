@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Form, Button, Row, Col, ListGroup, Badge } from "react-bootstrap";
 import { fetchProducts } from "@/features/product/api";
-import { LoadingSpinner } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import type { OrderItemInput, ProductDetailResponse } from "@/shared/types";
 
@@ -17,7 +17,7 @@ export function OrderItemsForm({ items, onChange }: Props) {
   const [selectedId, setSelectedId] = useState("");
   const [qty, setQty] = useState("1");
 
-  const { data: products, isLoading } = useQuery({
+  const { data: products, isLoading, error } = useQuery({
     queryKey: ["products"],
     queryFn: fetchProducts,
   });
@@ -53,6 +53,7 @@ export function OrderItemsForm({ items, onChange }: Props) {
   }, 0);
 
   if (isLoading) return <LoadingSpinner text="상품 로딩..." />;
+  if (error) return <ErrorAlert error={error} />;
 
   return (
     <div>

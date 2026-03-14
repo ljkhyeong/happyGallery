@@ -44,6 +44,10 @@ export function BookingCreatePage() {
                     setSelectedSlot(slot);
                     setStep("form");
                   }}
+                  onDeselect={() => {
+                    setSelectedSlot(null);
+                    setStep("select");
+                  }}
                 />
               </Card.Body>
             </Card>

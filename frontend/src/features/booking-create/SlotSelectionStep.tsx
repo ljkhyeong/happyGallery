@@ -9,9 +9,10 @@ import type { PublicSlotResponse } from "@/shared/types";
 interface Props {
   selectedSlotId: number | null;
   onSelect: (slot: PublicSlotResponse) => void;
+  onDeselect?: () => void;
 }
 
-export function SlotSelectionStep({ selectedSlotId, onSelect }: Props) {
+export function SlotSelectionStep({ selectedSlotId, onSelect, onDeselect }: Props) {
   const [classId, setClassId] = useState("");
   const [date, setDate] = useState("");
 
@@ -38,7 +39,7 @@ export function SlotSelectionStep({ selectedSlotId, onSelect }: Props) {
             {classesLoading ? (
               <LoadingSpinner text="클래스 로딩..." />
             ) : (
-              <Form.Select value={classId} onChange={(e) => setClassId(e.target.value)}>
+              <Form.Select value={classId} onChange={(e) => { setClassId(e.target.value); onDeselect?.(); }}>
                 <option value="">선택하세요</option>
                 {classes?.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -55,7 +56,7 @@ export function SlotSelectionStep({ selectedSlotId, onSelect }: Props) {
             <Form.Control
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => { setDate(e.target.value); onDeselect?.(); }}
             />
           </Form.Group>
         </Col>

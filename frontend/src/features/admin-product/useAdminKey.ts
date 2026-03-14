@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/shared/api";
 
 const TOKEN_KEY = "hg_admin_token";
@@ -8,6 +9,7 @@ interface LoginResponse {
 }
 
 export function useAdminKey() {
+  const queryClient = useQueryClient();
   const [adminKey, setAdminKeyState] = useState(
     () => sessionStorage.getItem(TOKEN_KEY) ?? "",
   );
@@ -27,7 +29,8 @@ export function useAdminKey() {
     }
     sessionStorage.removeItem(TOKEN_KEY);
     setAdminKeyState("");
-  }, []);
+    queryClient.removeQueries({ queryKey: ["admin"] });
+  }, [queryClient]);
 
   const login = useCallback(
     async (username: string, password: string): Promise<boolean> => {
