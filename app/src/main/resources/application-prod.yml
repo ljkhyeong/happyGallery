@@ -8,6 +8,10 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+app:
+  admin:
+    enable-api-key-auth: false
+
 logging:
   level:
     root: INFO
