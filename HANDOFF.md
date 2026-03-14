@@ -24,12 +24,14 @@
 
 - 권장 작업 브랜치: `codex/work-20260314`
 - 최근 작업:
+  - CR-P7 배송 흐름 및 운영 이력 확장 — 배송 전이 API 3종 (prepare-shipping, mark-shipped, mark-delivered), 주문 이력 조회 API, expectedShipDate write guard, 프론트 배송 액션/이력 패널, spec/plan/HANDOFF 문서 동기화
   - CR-P6 계약/감사/무결성 후속 — fulfillment.status FE 정합, admin principal 세션 전환, fulfillments.order_id unique, convertToPickup stale 데이터 제거, resume-production HTTP test, 프론트 중복 정리, README/PRD/ADR/E2E 문서 정합화
   - 문서 정합화 — spec.md, ADR-0013, ADR-0014 상태명·Fulfillment 구조 반영
   - CR-P5 장기 리팩토링 — DELAY_REQUESTED 재개 흐름, Fulfillment 단일성, *_REFUNDED 상태명 변경, Fulfillment.status 제거, PG 환불 패턴 통합, local hook 범위 제한
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `cd frontend && npm run build` 통과
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.OrderProductionUseCaseIT` 통과
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.booking.LocalBookingClassSeedServiceTest` 통과
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.infra.payment.FakePaymentProviderTest --tests com.personal.happygallery.app.web.admin.LocalRefundFailureControllerTest --tests com.personal.happygallery.app.web.admin.AdminLoginUseCaseIT` 통과
   - `cd frontend && npx playwright test --list` 통과
@@ -102,11 +104,11 @@
 | **CR-P4** | 완료 | UX 후속 (예약 기본 날짜 Asia/Seoul, 주문 상품 로딩 실패 에러 UI) |
 | **CR-P5** | 완료 | 장기 리팩토링 및 기능 공백 |
 | **CR-P6** | 완료 | 계약/감사/무결성 후속 (fulfillment.status 계약 정합, admin principal 세션 기반 전환, fulfillment unique migration, stale ship metadata 정리, resume-production HTTP test, 프론트 정리) |
-| **CR-P7** | 계획 | 배송 흐름 및 운영 이력 확장 |
+| **CR-P7** | 완료 | 배송 흐름 및 운영 이력 확장 (배송 전이 API 3종, 이력 조회 API, expectedShipDate write guard, 프론트 배송 액션/이력 패널) |
 
 ### 다음 추천 작업
 
-1. CR-P7 — 배송 전이 API와 주문 운영 이력 조회 화면 설계
+코드리뷰 후속 플랜(CR-P1~P7) 전체 완료. 다음 작업은 운영 배포 준비 또는 추가 기능 구현.
 
 ---
 
@@ -175,7 +177,7 @@ cd frontend && npm run e2e
 - ~~공개 주문 상세 `fulfillment.status` 계약 drift 정리 필요~~ (CR-P6에서 FE/BE 정합)
 - ~~`X-Admin-Id` 헤더 의존 제거 전까지 운영 이력의 admin 식별자가 null/위조 가능~~ (CR-P6에서 Bearer 세션 attribute 기반으로 전환)
 - ~~`fulfillments.order_id` unique 부재로 단일 fulfillment 가정이 DB에서 아직 보장되지 않음~~ (CR-P6에서 V13 migration으로 unique 제약 추가)
-- 배송 상태 enum(`SHIPPING_PREPARING`, `SHIPPED`, `DELIVERED`)은 있으나 운영 API/화면 흐름과 `expectedShipDate` write guard는 미완성
+- ~~배송 상태 enum(`SHIPPING_PREPARING`, `SHIPPED`, `DELIVERED`)은 있으나 운영 API/화면 흐름과 `expectedShipDate` write guard는 미완성~~ (CR-P7에서 배송 전이 API 3종, 이력 조회, write guard 구현)
 - ~~`DELAY_REQUESTED` → 재개 경로 없음~~ (CR-P5에서 `resumeProduction` 추가)
 - ~~Fulfillment.status와 Order.status 이중 관리~~ (CR-P5에서 Fulfillment.status 제거, Order.status가 단일 소스)
 

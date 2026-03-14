@@ -173,6 +173,7 @@
     - 픽업: `PICKUP_READY` → `PICKED_UP` / `PICKUP_EXPIRED`
     - 제작: `IN_PRODUCTION` → (선택) `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`(제작 완료) → 픽업/배송 흐름 합류
     - 지연 재개: `DELAY_REQUESTED` → `IN_PRODUCTION`(관리자 `resume-production`)
+    - 배송: `APPROVED_FULFILLMENT_PENDING` → `SHIPPING_PREPARING` → `SHIPPED` → `DELIVERED`
 - 예약: `BOOKED` / `CANCELED` / `NO_SHOW` / `COMPLETED`
     - 결제/미수금은 별도 필드로 분리
 
@@ -212,7 +213,7 @@
 - `order_items`
     - id, order_id, product_id, qty, unit_price
 - `order_approvals`
-    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND|RESUME_PRODUCTION|PRODUCTION_COMPLETE), reason, decided_at
+    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND|RESUME_PRODUCTION|PRODUCTION_COMPLETE|PREPARE_SHIPPING|SHIP|DELIVER), reason, decided_at
     - `AUTO_REFUND`는 배치 결정 이력이며 `decided_by_admin_id`는 null일 수 있음
 - `fulfillments`
     - id, order_id(unique), type(SHIPPING|PICKUP), expected_ship_date, pickup_deadline_at, version
@@ -910,6 +911,9 @@ GET /api/v1/orders/{orderId}?token={accessToken}
     - `{ "expectedShipDate": "2026-04-15" }`
   - 응답:
     - `{ "orderId": 5, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
+  - 정책:
+    - `IN_PRODUCTION`, `DELAY_REQUESTED`, `SHIPPING_PREPARING` 상태에서만 설정 가능
+    - SHIPPING 타입 fulfillment에서만 설정 가능 (PICKUP 타입은 400)
 - `POST /api/v1/admin/orders/{id}/delay`
   - 응답:
     - `{ "orderId": 5, "status": "DELAY_REQUESTED", "expectedShipDate": "2026-04-15" }`
@@ -978,6 +982,55 @@ POST /api/v1/admin/orders/{id}/complete-production
 - `IN_PRODUCTION` 또는 `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`으로 전이한다.
 - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다. API Key 폴백 경로는 null일 수 있다.
 - 이후 `prepare-pickup` 또는 배송 흐름으로 이어진다.
+
+### 11-G.3 배송 흐름 (§8.3)
+
+```
+POST /api/v1/admin/orders/{id}/prepare-shipping
+
+→ 200 OK
+{ "orderId": 5, "status": "SHIPPING_PREPARING", "expectedShipDate": "2026-04-15" }
+```
+
+```
+POST /api/v1/admin/orders/{id}/mark-shipped
+
+→ 200 OK
+{ "orderId": 5, "status": "SHIPPED", "expectedShipDate": "2026-04-15" }
+```
+
+```
+POST /api/v1/admin/orders/{id}/mark-delivered
+
+→ 200 OK
+{ "orderId": 5, "status": "DELIVERED", "expectedShipDate": "2026-04-15" }
+```
+
+정책:
+- `APPROVED_FULFILLMENT_PENDING` → `SHIPPING_PREPARING` → `SHIPPED` → `DELIVERED` 순서로만 전이 가능
+- 각 전이는 `order_approvals` 이력에 기록된다 (`PREPARE_SHIPPING`, `SHIP`, `DELIVER`)
+- 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다
+
+### 11-G.4 주문 결정 이력 조회
+
+```
+GET /api/v1/admin/orders/{id}/history
+
+→ 200 OK
+[
+  {
+    "id": 1,
+    "decision": "APPROVE",
+    "decidedByAdminId": 1,
+    "reason": null,
+    "decidedAt": "2026-03-15T10:00:00"
+  }
+]
+```
+
+정책:
+- 결정 시간 순으로 정렬된 전체 이력을 반환한다
+- decision 값: `APPROVE`, `REJECT`, `DELAY`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
 
 ---
 
