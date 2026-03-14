@@ -24,9 +24,9 @@
 
 - 권장 작업 브랜치: `codex/work-20260314`
 - 최근 작업:
+  - CR-P1/P2 코드리뷰 후속 — admin 캐시 정합성, Playwright Bearer 전환, 로그인 rate limit, admin id 컨텍스트 주입
   - P10 관측성/운영 준비 — Actuator 노출 정책, 에러 응답 requestId 포함, 배치 MDC requestId 주입
   - P9 프로덕션 인증 계층 — BCrypt 기반 관리자 로그인, UUID 세션 토큰, X-Admin-Key dev fallback 토글
-  - P8 E2E 시나리오 검증 — local 환불 실패 hook 추가, 기본 관리자 계정 정합화, 실제 로컬 smoke 1~5 pass
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `cd frontend && npm run build` 통과
@@ -92,9 +92,19 @@
 | 배포 전 | **P9** | 완료 | 프로덕션 인증 계층 (BCrypt 로그인, UUID 세션 토큰, API Key dev fallback) |
 | 운영 | **P10** | 완료 | 관측성 및 운영 준비 (Actuator 정책, 에러 requestId, 배치 MDC) |
 
+### 코드리뷰 후속 진행 상황
+
+| 단위 | 상태 | 내용 |
+|------|------|------|
+| **CR-P1** | 완료 | 인증/조회 상태 정합성 (admin 캐시 제거, 조회 실패 초기화, 슬롯 선택 해제) |
+| **CR-P2** | 완료 | 운영 인증/테스트 경계 (Playwright Bearer 전환, 로그인 rate limit, admin id 컨텍스트 주입) |
+| **CR-P3** | 완료 | 운영 메모리/인프라 리스크 (세션 eviction, bucket eviction, XFF 신뢰 정책) |
+| **CR-P4** | 완료 | UX 후속 (예약 기본 날짜 Asia/Seoul, 주문 상품 로딩 실패 에러 UI) |
+| **CR-P5** | 미착수 | 장기 리팩토링 및 기능 공백 |
+
 ### 다음 추천 작업
 
-1. 코드리뷰 후속 — `docs/1Pager/0006_code_review_followups/plan.md` 기준으로 인증/캐시/조회 stale state 우선 정리
+1. CR-P5 — DELAY_REQUESTED 재개 흐름, fulfillment 단일성, 환불 상태 분리
 
 ---
 
@@ -125,6 +135,7 @@
 - `@UseCaseIT`는 현재 `@AutoConfigureMockMvc(addFilters = false)` 기반으로 유지 중
 - `@SpringBootTest` 컨텍스트에서 `ObjectMapper` autowire 불가 → JSON 문자열 직접 구성
 - Codex 샌드박스에서는 Gradle JVM 명령이 `FileLockContentionHandler` 소켓 생성 제한에 걸릴 수 있어, 테스트와 `:app:bootRun`은 처음부터 권한 상승 실행으로 처리하는 편이 안정적
+- 동일하게 `gh pr *`, 원격 `git fetch/push/pull`, Docker 컨테이너 제어, Playwright 브라우저 설치/실행, 워크스페이스 밖 경로 쓰기처럼 반복적으로 막혔던 작업도 샌드박스 재시도 없이 처음부터 권한 상승 실행으로 처리한다.
 
 ### 프론트 공통 패턴
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달

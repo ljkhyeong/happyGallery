@@ -17,6 +17,8 @@
 
 - 먼저 현재 워크트리와 이미 승인된 명령으로 해결 가능한지 확인하고, 가능하면 그 범위 안에서 끝낸다.
 - 원격 조회, push, PR merge, 워크스페이스 밖 경로 쓰기처럼 실제로 escalation이 필요한 작업만 승인 흐름을 탄다.
+- 이 저장소에서 반복적으로 샌드박스에 막힌 작업은 처음부터 권한 상승 실행을 기본으로 한다. 대표적으로 Gradle JVM 명령, `gh pr create/view/merge/ready`, 원격 `git fetch/push/pull`, Docker 컨테이너 제어와 `docker exec`, Playwright 브라우저 설치/실행, 워크스페이스 밖 경로 또는 별도 worktree 쓰기가 이에 해당한다.
+- 위 범주의 작업은 샌드박스에서 먼저 실패를 재현해보거나, 실패 원인을 설명하기 위한 추가 질문을 하지 말고 바로 권한 상승으로 진행한다.
 - 승인 요청이 필요하면 관련 작업을 가능한 한 한 번에 이어서 처리할 수 있도록 묶고, `status`, `log`, `add` 같은 보조 명령 때문에 승인 횟수를 늘리지 않는다.
 - 사용자가 `바로`, `지금`, `곧바로`처럼 실행 의도를 명확히 지시한 작업은 요구사항이 이미 확정된 것으로 보고, 파괴적이거나 모호한 경우가 아니면 재확인 질문 없이 진행한다.
 - PR 작업에서는 먼저 mergeable 여부를 확인하고, 충돌이 없으면 바로 머지한다. 충돌이 있을 때만 필요한 파일만 정리한다.
@@ -38,6 +40,7 @@
 
 테스트 명령의 세부 선택은 관련 `happyGallery` skill을 우선 따른다. Testcontainers를 사용하는 테스트(`:app:useCaseTest`, `@UseCaseIT`, 특정 `--tests` 대상 실행 포함)는 Docker 탐지 실패를 피하기 위해 기본적으로 `./gradlew --no-daemon ...` 형태로 실행한다.
 Codex 실행 환경에서는 Gradle JVM 명령이 샌드박스에서 `FileLockContentionHandler` 소켓 생성 제한에 자주 걸린다. 그래서 `./gradlew test`, `./gradlew :app:test --tests ...`, `./gradlew :app:policyTest`, `./gradlew --no-daemon :app:useCaseTest`, `./gradlew :app:bootRun` 같은 Gradle 테스트/실행 명령은 처음부터 권한 상승 실행을 기본으로 하고, 샌드박스에서 먼저 한 번 실패시킨 뒤 재시도하지 않는다.
+같은 이유로 원격 GitHub 작업(`gh pr *`), 원격 git 동기화, Docker 제어, Playwright 브라우저 설치처럼 이 저장소에서 반복적으로 샌드박스에 막힌 작업도 처음부터 권한 상승 실행을 기본으로 한다.
 
 기본 프로필은 `local`이며, 헬스 체크는 `http://localhost:8080/actuator/health`에서 확인한다.
 
