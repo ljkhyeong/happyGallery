@@ -234,6 +234,40 @@ class OrderProductionUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
+    // resume-production HTTP 엔드포인트 검증
+    // -----------------------------------------------------------------------
+
+    @DisplayName("POST /admin/orders/{id}/resume-production HTTP 호출 시 200과 IN_PRODUCTION 상태를 반환한다")
+    @Test
+    void resumeProduction_httpEndpoint_returns200WithInProductionStatus() throws Exception {
+        Order order = orderHelper.createMadeToOrderPaidOrder("HTTP 재개 상품", 180000L).order();
+        orderApprovalService.approve(order.getId());
+        orderProductionService.requestDelay(order.getId());
+
+        String body = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/admin/orders/{id}/resume-production", order.getId())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertSoftly(softly -> {
+            softly.assertThat(body).contains("\"status\":\"IN_PRODUCTION\"");
+            softly.assertThat(body).contains("\"orderId\":" + order.getId());
+        });
+    }
+
+    @DisplayName("PAID_APPROVAL_PENDING 상태에서 resume-production 호출 시 400을 반환한다")
+    @Test
+    void resumeProduction_httpEndpoint_invalidState_returns400() throws Exception {
+        Order order = orderHelper.createMadeToOrderPaidOrder("잘못된 상태 재개", 180000L).order();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/admin/orders/{id}/resume-production", order.getId())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+    }
+
+    // -----------------------------------------------------------------------
     // Fulfillment 단일성: MADE_TO_ORDER → completeProduction → markPickupReady
     // -----------------------------------------------------------------------
 

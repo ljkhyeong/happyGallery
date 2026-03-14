@@ -24,9 +24,9 @@
 
 - 권장 작업 브랜치: `codex/work-20260314`
 - 최근 작업:
+  - CR-P6 계약/감사/무결성 후속 — fulfillment.status FE 정합, admin principal 세션 전환, fulfillments.order_id unique, convertToPickup stale 데이터 제거, resume-production HTTP test, 프론트 중복 정리, README/PRD/ADR/E2E 문서 정합화
+  - 문서 정합화 — spec.md, ADR-0013, ADR-0014 상태명·Fulfillment 구조 반영
   - CR-P5 장기 리팩토링 — DELAY_REQUESTED 재개 흐름, Fulfillment 단일성, *_REFUNDED 상태명 변경, Fulfillment.status 제거, PG 환불 패턴 통합, local hook 범위 제한
-  - CR-P1/P2 코드리뷰 후속 — admin 캐시 정합성, Playwright Bearer 전환, 로그인 rate limit, admin id 컨텍스트 주입
-  - P10 관측성/운영 준비 — Actuator 노출 정책, 에러 응답 requestId 포함, 배치 MDC requestId 주입
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `cd frontend && npm run build` 통과
@@ -101,10 +101,12 @@
 | **CR-P3** | 완료 | 운영 메모리/인프라 리스크 (세션 eviction, bucket eviction, XFF 신뢰 정책) |
 | **CR-P4** | 완료 | UX 후속 (예약 기본 날짜 Asia/Seoul, 주문 상품 로딩 실패 에러 UI) |
 | **CR-P5** | 완료 | 장기 리팩토링 및 기능 공백 |
+| **CR-P6** | 완료 | 계약/감사/무결성 후속 (fulfillment.status 계약 정합, admin principal 세션 기반 전환, fulfillment unique migration, stale ship metadata 정리, resume-production HTTP test, 프론트 정리) |
+| **CR-P7** | 계획 | 배송 흐름 및 운영 이력 확장 |
 
 ### 다음 추천 작업
 
-1. ~~문서 정합화 — spec.md, ADR-0013, ADR-0014에 변경된 상태명과 Fulfillment 구조 반영~~ (완료)
+1. CR-P7 — 배송 전이 API와 주문 운영 이력 조회 화면 설계
 
 ---
 
@@ -152,6 +154,7 @@
 - `local` 프로필 `:app:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
 - clean DB 기준으로도 P8 예약/8회권 smoke를 바로 실행할 수 있다.
 - `DELETE /api/v1/admin/dev/payment/refunds/fail-next`로 훅을 비우고, `POST /api/v1/admin/dev/payment/refunds/fail-next`로 다음 환불 1회 실패를 arm할 수 있다.
+  요청 바디에 `orderId`를 넣으면 특정 주문으로 범위를 좁힐 수 있다.
 
 ### 테스트 실행
 
@@ -169,6 +172,10 @@ cd frontend && npm run e2e
 ### 미해결 과제
 - 로컬 `bootRun` 전 `happygallery-app` 컨테이너가 떠 있으면 8080 충돌 발생
 - PG 환불 패턴 중복 → 실 PG 연동 시 RefundExecutor로 통합 예정
+- ~~공개 주문 상세 `fulfillment.status` 계약 drift 정리 필요~~ (CR-P6에서 FE/BE 정합)
+- ~~`X-Admin-Id` 헤더 의존 제거 전까지 운영 이력의 admin 식별자가 null/위조 가능~~ (CR-P6에서 Bearer 세션 attribute 기반으로 전환)
+- ~~`fulfillments.order_id` unique 부재로 단일 fulfillment 가정이 DB에서 아직 보장되지 않음~~ (CR-P6에서 V13 migration으로 unique 제약 추가)
+- 배송 상태 enum(`SHIPPING_PREPARING`, `SHIPPED`, `DELIVERED`)은 있으나 운영 API/화면 흐름과 `expectedShipDate` write guard는 미완성
 - ~~`DELAY_REQUESTED` → 재개 경로 없음~~ (CR-P5에서 `resumeProduction` 추가)
 - ~~Fulfillment.status와 Order.status 이중 관리~~ (CR-P5에서 Fulfillment.status 제거, Order.status가 단일 소스)
 

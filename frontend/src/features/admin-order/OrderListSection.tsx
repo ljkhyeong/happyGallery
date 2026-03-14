@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Table, Button, Badge, Form, Row, Col, InputGroup } from "react-bootstrap";
+import { Table, Button, Form, Row, Col, InputGroup } from "react-bootstrap";
 import {
   fetchOrders, approveOrder, rejectOrder, completeProduction,
   requestDelay, resumeProduction, preparePickup, completePickup, setExpectedShipDate, expirePickups,
 } from "./api";
-import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import type { OrderStatus } from "@/shared/types";
@@ -29,25 +29,6 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "PICKUP_EXPIRED", label: "픽업 만료" },
 ];
 
-function statusBadge(status: OrderStatus) {
-  const map: Record<string, { bg: string; label: string }> = {
-    PAID_APPROVAL_PENDING: { bg: "warning", label: "승인 대기" },
-    APPROVED_FULFILLMENT_PENDING: { bg: "info", label: "이행 대기" },
-    IN_PRODUCTION: { bg: "primary", label: "제작 중" },
-    DELAY_REQUESTED: { bg: "secondary", label: "지연 요청" },
-    PICKUP_READY: { bg: "info", label: "픽업 대기" },
-    PICKED_UP: { bg: "success", label: "픽업 완료" },
-    COMPLETED: { bg: "success", label: "완료" },
-    REJECTED: { bg: "danger", label: "거절" },
-    AUTO_REFUND_TIMEOUT: { bg: "danger", label: "자동 환불" },
-    PICKUP_EXPIRED: { bg: "danger", label: "픽업 만료" },
-    SHIPPING_PREPARING: { bg: "info", label: "배송 준비" },
-    SHIPPED: { bg: "primary", label: "배송 중" },
-    DELIVERED: { bg: "success", label: "배송 완료" },
-  };
-  const m = map[status];
-  return m ? <Badge bg={m.bg}>{m.label}</Badge> : <Badge bg="dark">{status}</Badge>;
-}
 
 export function OrderListSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
@@ -262,7 +243,7 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
             {orders.map((o) => (
               <tr key={o.orderId}>
                 <td>{o.orderNumber}</td>
-                <td>{statusBadge(o.status)}</td>
+                <td><StatusBadge status={o.status} /></td>
                 <td>{formatKRW(o.totalAmount)}</td>
                 <td><small>{o.paidAt ? formatDateTime(o.paidAt) : "-"}</small></td>
                 <td><small>{formatDateTime(o.createdAt)}</small></td>

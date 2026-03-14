@@ -212,11 +212,12 @@
 - `order_items`
     - id, order_id, product_id, qty, unit_price
 - `order_approvals`
-    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND|PRODUCTION_COMPLETE), reason, decided_at
+    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND|RESUME_PRODUCTION|PRODUCTION_COMPLETE), reason, decided_at
     - `AUTO_REFUND`는 배치 결정 이력이며 `decided_by_admin_id`는 null일 수 있음
 - `fulfillments`
-    - id, order_id, type(SHIPPING|PICKUP), expected_ship_date, pickup_deadline_at, version
+    - id, order_id(unique), type(SHIPPING|PICKUP), expected_ship_date, pickup_deadline_at, version
     - 주문 상태는 `orders.status`가 단일 소스 — fulfillments에 별도 status 컬럼 없음
+    - 주문당 fulfillment는 1건만 유지한다
 - `refunds`
     - id, order_id nullable, booking_id nullable, amount, status(REQUESTED|SUCCEEDED|FAILED), pg_ref, fail_reason, created_at
 
@@ -344,6 +345,8 @@ Authorization: Bearer {token}
 - `app.admin.enable-api-key-auth=true` (기본값)일 때 `X-Admin-Key` 헤더로도 인증 가능.
 - 프로덕션에서는 `enable-api-key-auth=false`로 비활성화한다.
 - 인증키 소스: 서버 설정 `app.admin.api-key`, 환경 변수 `ADMIN_API_KEY`.
+- 주문 승인/거절/제작 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
+  API Key 폴백 경로와 배치 이력은 `decided_by_admin_id = null`일 수 있다.
 
 #### 적용 대상
 - `/api/v1/admin/**` (로그인/로그아웃 경로 제외)
@@ -892,13 +895,12 @@ GET /api/v1/orders/{orderId}?token={accessToken}
 
 ### 11-G.0 현재 구현된 주문 운영 엔드포인트
 - `POST /api/v1/admin/orders/{id}/approve`
-  - 선택 헤더: `X-Admin-Id`
   - 응답: `200 OK` 본문 없음
   - 정책:
     - `PAID_APPROVAL_PENDING`만 승인 가능
     - 주문에 `MADE_TO_ORDER` 상품이 있으면 `IN_PRODUCTION`, 아니면 `APPROVED_FULFILLMENT_PENDING`으로 전이
+    - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다
 - `POST /api/v1/admin/orders/{id}/reject`
-  - 선택 헤더: `X-Admin-Id`
   - 응답: `200 OK` 본문 없음
   - 정책:
     - 승인 대기 주문만 거절 가능
@@ -914,11 +916,11 @@ GET /api/v1/orders/{orderId}?token={accessToken}
   - 정책:
     - `IN_PRODUCTION`에서만 지연 요청 가능
 - `POST /api/v1/admin/orders/{id}/resume-production`
-  - 선택 헤더: `X-Admin-Id`
   - 응답:
     - `{ "orderId": 5, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
   - 정책:
     - `DELAY_REQUESTED`에서만 제작 재개 가능
+    - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다
 - `POST /api/v1/admin/orders/{id}/prepare-pickup`
   - 요청:
     - `{ "pickupDeadlineAt": "2026-04-16T18:00:00" }`
@@ -959,7 +961,6 @@ POST /api/v1/admin/orders/expire-pickups
 
 ```
 POST /api/v1/admin/orders/{id}/complete-production
-Header: X-Admin-Id: {adminId}  (선택)
 
 → 200 OK
 {
@@ -975,7 +976,7 @@ Header: X-Admin-Id: {adminId}  (선택)
 
 정책:
 - `IN_PRODUCTION` 또는 `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`으로 전이한다.
-- 이력에 `PRODUCTION_COMPLETE` + adminId를 기록한다.
+- 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다. API Key 폴백 경로는 null일 수 있다.
 - 이후 `prepare-pickup` 또는 배송 흐름으로 이어진다.
 
 ---

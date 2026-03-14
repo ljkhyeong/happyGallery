@@ -8,9 +8,9 @@ P8, P9, P10 완료 이후 운영 리스크와 UX 결함, 인증/테스트 경계
 
 - 기준: `HANDOFF.md`, `docs/PRD/0001_spec/spec.md`
 - 목적: 배포 전 리스크를 줄이고, 다음 리팩토링/기능 추가 우선순위를 명확히 한다.
-- 우선 처리: 인증/캐시/조회 stale state
-- 다음 처리: 운영 보호 장치와 테스트 정밀도
-- 장기 과제: 주문 이행 모델 단순화, 감사 로그 보강, 운영 화면 확장
+- 완료: 인증/캐시/조회 stale state, 운영 보호 장치, 주문 상태/fulfillment 단순화, 계약/감사/무결성 후속
+- 우선 처리: 배송 흐름 구체화, 주문 운영 이력 조회 확장
+- 다음 처리: 환불 공통 경계와 운영 화면 확장
 
 ---
 
@@ -139,10 +139,67 @@ P8, P9, P10 완료 이후 운영 리스크와 UX 결함, 인증/테스트 경계
 
 ---
 
+## P6. 계약/감사/무결성 후속
+
+상태: 완료 (2026-03-14)
+
+### 목표
+
+- 공개 주문 상세 계약과 관리자 감사 경로의 불일치를 해소한다.
+- fulfillment 단일화 리팩토링을 DB 무결성까지 포함해 안전하게 마무리한다.
+- 새 운영 엔드포인트의 HTTP 검증 공백을 메운다.
+
+### 작업 항목
+
+1. 공개 주문 상세 API/프론트 타입에서 `fulfillment.status` 제거를 일치시키고 화면 렌더링을 정리한다.
+2. Bearer 세션의 `adminUserId`를 controller/service까지 전달하는 공통 principal 경로를 만들고 `X-Admin-Id` 의존을 제거한다.
+3. `fulfillments.order_id` 중복 데이터를 점검/정리하는 migration을 추가하고 unique 제약으로 주문당 1건 불변식을 보장한다.
+4. `convertToPickup()` 전환 시 stale `expectedShipDate`를 제거한다.
+5. `/admin/orders/{id}/resume-production`에 대한 MockMvc 또는 통합 테스트를 추가한다.
+6. admin-order 프론트의 중복 상태 매핑과 미사용 `OrderActionPanel`을 정리한다.
+
+### 완료 조건
+
+- 주문 상세에서 fulfillment 렌더링이 계약과 정확히 일치하고 `undefined` 상태 뱃지가 없다.
+- 승인/거절/제작 재개/제작 완료 이력의 admin 식별자가 인증 세션과 일치한다.
+- fulfillment 중복 데이터가 남아 있어도 migration 이후 단건 조회가 깨지지 않는다.
+- pickup fulfillment에 배송 메타데이터가 섞여 남지 않는다.
+
+### 최소 검증
+
+- `./gradlew --no-daemon :app:test --tests ...OrderProduction... --tests ...AdminOrder...`
+- `cd frontend && npm run build`
+- 주문 상세/관리자 주문 관련 Playwright 또는 수동 확인
+
+---
+
+## P7. 배송 흐름 및 운영 이력 확장
+
+### 목표
+
+- enum만 존재하는 배송 흐름을 실제 운영 기능과 문서에 연결한다.
+- 주문 상태 변경 이력을 운영 화면에서 확인할 수 있게 한다.
+
+### 작업 항목
+
+1. `SHIPPING_PREPARING`, `SHIPPED`, `DELIVERED` 전이를 담당하는 Admin API와 서비스/테스트를 설계한다.
+2. 배송을 당장 지원하지 않으면 주문 상태 enum/UI 노출 범위를 축소하는 대안을 결정한다.
+3. `OrderApprovalHistory` 조회 API와 운영 화면을 추가한다.
+4. 환불 실패/재시도 이력과 주문 decision history를 같은 운영 맥락에서 탐색할 수 있게 UI 구성을 검토한다.
+5. `expectedShipDate`는 SHIPPING fulfillment와 허용 상태에서만 갱신되도록 메타데이터 write guard를 보강한다.
+
+### 완료 조건
+
+- 배송 주문에 대해 운영자가 실제 전이를 실행하거나, 미지원 범위가 문서/모델/UI에 일관되게 반영된다.
+- 주문 이력 조회만으로 누가 어떤 결정을 했는지 운영 화면에서 확인 가능하다.
+
+### 최소 검증
+
+- `./gradlew --no-daemon :app:test --tests ...Order...`
+- `cd frontend && npm run build`
+
+---
+
 ## 권장 순서
 
-1. `P1`
-2. `P2`
-3. `P3`
-4. `P4`
-5. `P5`
+1. `P7`

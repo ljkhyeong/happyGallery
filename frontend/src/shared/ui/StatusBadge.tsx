@@ -16,6 +16,9 @@ const VARIANT_MAP: Record<string, string> = {
   PICKUP_READY: "info",
   PICKED_UP: "success",
   PICKUP_EXPIRED: "secondary",
+  SHIPPING_PREPARING: "info",
+  SHIPPED: "primary",
+  DELIVERED: "success",
 };
 
 const LABEL_MAP: Record<string, string> = {
@@ -32,6 +35,9 @@ const LABEL_MAP: Record<string, string> = {
   PICKUP_READY: "픽업 대기",
   PICKED_UP: "수령 완료",
   PICKUP_EXPIRED: "미수령 만료",
+  SHIPPING_PREPARING: "배송 준비",
+  SHIPPED: "배송 중",
+  DELIVERED: "배송 완료",
 };
 
 interface Props {

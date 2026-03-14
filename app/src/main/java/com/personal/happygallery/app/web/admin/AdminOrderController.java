@@ -11,8 +11,10 @@ import com.personal.happygallery.app.web.admin.dto.MarkPickupReadyRequest;
 import com.personal.happygallery.app.web.admin.dto.OrderProductionResponse;
 import com.personal.happygallery.app.web.admin.dto.PickupResponse;
 import com.personal.happygallery.app.web.admin.dto.SetExpectedShipDateRequest;
+import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.order.OrderRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,7 +22,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -29,8 +30,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping({"/api/v1/admin/orders", "/admin/orders"})
 public class AdminOrderController {
-
-    private static final String ADMIN_ID_HEADER = "X-Admin-Id";
 
     private final OrderApprovalService orderApprovalService;
     private final OrderProductionService orderProductionService;
@@ -63,35 +62,29 @@ public class AdminOrderController {
     /** POST /admin/orders/{id}/approve — 주문 승인 (MADE_TO_ORDER는 IN_PRODUCTION으로 전이) */
     @PostMapping("/{id}/approve")
     @ResponseStatus(HttpStatus.OK)
-    public void approve(@PathVariable Long id,
-                        @RequestHeader(value = ADMIN_ID_HEADER, required = false) Long adminId) {
-        orderApprovalService.approve(id, adminId);
+    public void approve(@PathVariable Long id, HttpServletRequest request) {
+        orderApprovalService.approve(id, adminId(request));
     }
 
     /** POST /admin/orders/{id}/reject — 주문 거절 (환불 + 재고 복구 포함, 제작 중은 거절 불가) */
     @PostMapping("/{id}/reject")
     @ResponseStatus(HttpStatus.OK)
-    public void reject(@PathVariable Long id,
-                       @RequestHeader(value = ADMIN_ID_HEADER, required = false) Long adminId) {
-        orderApprovalService.reject(id, adminId);
+    public void reject(@PathVariable Long id, HttpServletRequest request) {
+        orderApprovalService.reject(id, adminId(request));
     }
 
     /** POST /admin/orders/{id}/resume-production — 지연 요청에서 제작 재개 (DELAY_REQUESTED → IN_PRODUCTION) */
     @PostMapping("/{id}/resume-production")
     @ResponseStatus(HttpStatus.OK)
-    public OrderProductionResponse resumeProduction(
-            @PathVariable Long id,
-            @RequestHeader(value = ADMIN_ID_HEADER, required = false) Long adminId) {
-        return OrderProductionResponse.from(orderProductionService.resumeProduction(id, adminId));
+    public OrderProductionResponse resumeProduction(@PathVariable Long id, HttpServletRequest request) {
+        return OrderProductionResponse.from(orderProductionService.resumeProduction(id, adminId(request)));
     }
 
     /** POST /admin/orders/{id}/complete-production — 제작 완료 (IN_PRODUCTION/DELAY_REQUESTED → APPROVED_FULFILLMENT_PENDING) */
     @PostMapping("/{id}/complete-production")
     @ResponseStatus(HttpStatus.OK)
-    public OrderProductionResponse completeProduction(
-            @PathVariable Long id,
-            @RequestHeader(value = ADMIN_ID_HEADER, required = false) Long adminId) {
-        return OrderProductionResponse.from(orderProductionService.completeProduction(id, adminId));
+    public OrderProductionResponse completeProduction(@PathVariable Long id, HttpServletRequest request) {
+        return OrderProductionResponse.from(orderProductionService.completeProduction(id, adminId(request)));
     }
 
     /** PATCH /admin/orders/{id}/expected-ship-date — 예상 출고일 설정/갱신 */
@@ -130,5 +123,10 @@ public class AdminOrderController {
     public BatchResponse expirePickups() {
         BatchResult result = pickupExpireBatchService.expirePickups();
         return BatchResponse.from(result);
+    }
+
+    /** Bearer 세션에서 검증된 admin user ID를 추출한다. API Key 폴백 시 null. */
+    private static Long adminId(HttpServletRequest request) {
+        return (Long) request.getAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR);
     }
 }

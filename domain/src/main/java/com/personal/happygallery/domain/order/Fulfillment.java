@@ -79,6 +79,7 @@ public class Fulfillment {
     /** 기존 이행 레코드를 픽업용으로 전환한다 (MADE_TO_ORDER 제작 완료 후 픽업 시). */
     public void convertToPickup(LocalDateTime pickupDeadlineAt) {
         this.type = FulfillmentType.PICKUP;
+        this.expectedShipDate = null;
         this.pickupDeadlineAt = pickupDeadlineAt;
     }
 

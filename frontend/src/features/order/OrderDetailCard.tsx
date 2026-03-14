@@ -67,10 +67,6 @@ export function OrderDetailCard({ order }: Props) {
                   {FULFILLMENT_TYPE_LABEL[order.fulfillment.type] ?? order.fulfillment.type}
                 </Badge>
               </Col>
-              <Col xs={6}>
-                <small className="text-muted-soft d-block">상태</small>
-                <StatusBadge status={order.fulfillment.status} />
-              </Col>
               {order.fulfillment.expectedShipDate && (
                 <Col xs={6}>
                   <small className="text-muted-soft d-block">예상 출고일</small>
