@@ -19,7 +19,7 @@ export function AdminKeyGate({ onSubmit }: Props) {
               if (input.trim()) onSubmit(input.trim());
             }}
           >
-            <Form.Group className="mb-3">
+            <Form.Group controlId="admin-key-input" className="mb-3">
               <Form.Label>Admin Key</Form.Label>
               <Form.Control
                 type="password"

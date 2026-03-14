@@ -69,7 +69,7 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
     <div>
       <Row className="g-2 mb-3">
         <Col xs={12} sm={5}>
-          <Form.Group>
+          <Form.Group controlId="admin-booking-date-filter">
             <Form.Label>날짜</Form.Label>
             <Form.Control
               type="date"
@@ -79,7 +79,7 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} sm={4}>
-          <Form.Group>
+          <Form.Group controlId="admin-booking-status-filter">
             <Form.Label>상태</Form.Label>
             <Form.Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               {STATUS_OPTIONS.map((o) => (

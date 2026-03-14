@@ -33,7 +33,7 @@ export function SlotSelectionStep({ selectedSlotId, onSelect }: Props) {
 
       <Row className="g-2 mb-3">
         <Col xs={12} sm={6}>
-          <Form.Group>
+          <Form.Group controlId="booking-class-select">
             <Form.Label>클래스</Form.Label>
             {classesLoading ? (
               <LoadingSpinner text="클래스 로딩..." />
@@ -50,7 +50,7 @@ export function SlotSelectionStep({ selectedSlotId, onSelect }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} sm={6}>
-          <Form.Group>
+          <Form.Group controlId="booking-date-input">
             <Form.Label>날짜</Form.Label>
             <Form.Control
               type="date"

@@ -62,7 +62,7 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
       <ErrorAlert error={mutation.error} />
       <Row className="g-2 align-items-end">
         <Col xs={12} md={3}>
-          <Form.Group>
+          <Form.Group controlId="admin-slot-class">
             <Form.Label>클래스</Form.Label>
             {classes?.length ? (
               <Form.Select value={classId} onChange={(e) => setClassId(e.target.value)}>
@@ -85,7 +85,7 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} md={3}>
-          <Form.Group>
+          <Form.Group controlId="admin-slot-start-at">
             <Form.Label>시작 시각</Form.Label>
             <Form.Control
               type="datetime-local"
@@ -96,7 +96,7 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} md={3}>
-          <Form.Group>
+          <Form.Group controlId="admin-slot-end-at">
             <Form.Label>종료 시각</Form.Label>
             <Form.Control
               type="datetime-local"

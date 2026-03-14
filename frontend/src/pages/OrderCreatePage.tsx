@@ -58,7 +58,7 @@ export function OrderCreatePage() {
         <>
           <Card className="mb-4">
             <Card.Body>
-              <Form.Group>
+              <Form.Group controlId="order-create-name">
                 <Form.Label>주문자 이름</Form.Label>
                 <Form.Control
                   value={name}

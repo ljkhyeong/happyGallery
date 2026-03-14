@@ -33,7 +33,7 @@ export function PhoneVerificationStep({ onVerified }: Props) {
 
       <Row className="g-2 align-items-end mb-3">
         <Col xs={12} sm={8}>
-          <Form.Group>
+          <Form.Group controlId="verification-phone">
             <Form.Label>휴대폰 번호</Form.Label>
             <Form.Control
               value={phone}
@@ -70,7 +70,7 @@ export function PhoneVerificationStep({ onVerified }: Props) {
           )}
           <Row className="g-2 align-items-end">
             <Col xs={12} sm={8}>
-              <Form.Group>
+              <Form.Group controlId="verification-code">
                 <Form.Label>인증코드</Form.Label>
                 <Form.Control
                   value={code}

@@ -47,7 +47,7 @@ export function RescheduleForm({ booking, token, onSuccess }: Props) {
       <ErrorAlert error={mutation.error} />
       <Row className="g-2 align-items-end">
         <Col xs={12} sm={8}>
-          <Form.Group>
+          <Form.Group controlId="booking-reschedule-slot-id">
             <Form.Label>새 슬롯 ID</Form.Label>
             <Form.Control
               type="number"
