@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { Container, Navbar, Nav } from "react-bootstrap";
+import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 
 const NAV_ITEMS = [
   { path: "/products", label: "상품" },
@@ -17,6 +18,7 @@ function isActive(pathname: string, itemPath: string): boolean {
 
 export function Layout() {
   const { pathname } = useLocation();
+  const { user, isAuthenticated, isLoading, logout } = useCustomerAuth();
 
   return (
     <div className="d-flex flex-column min-vh-100">
@@ -41,6 +43,31 @@ export function Layout() {
               ))}
             </Nav>
             <Nav className="ms-md-3 border-md-start ps-md-3">
+              {!isLoading && (
+                isAuthenticated ? (
+                  <>
+                    <Nav.Link as="span" className="app-nav-link text-muted-soft" style={{ cursor: "default" }}>
+                      {user!.name}
+                    </Nav.Link>
+                    <Nav.Link
+                      as="button"
+                      className="app-nav-link text-muted-soft btn btn-link p-0 border-0"
+                      onClick={() => logout()}
+                    >
+                      로그아웃
+                    </Nav.Link>
+                  </>
+                ) : (
+                  <Nav.Link
+                    as={Link}
+                    to="/login"
+                    active={isActive(pathname, "/login")}
+                    className="app-nav-link"
+                  >
+                    로그인
+                  </Nav.Link>
+                )
+              )}
               <Nav.Link
                 as={Link}
                 to="/admin"

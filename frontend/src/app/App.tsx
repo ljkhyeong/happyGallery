@@ -11,6 +11,8 @@ import { ProductDetailPage } from "@/pages/ProductDetailPage";
 import { PassPurchasePage } from "@/pages/PassPurchasePage";
 import { OrderCreatePage } from "@/pages/OrderCreatePage";
 import { OrderDetailPage } from "@/pages/OrderDetailPage";
+import { LoginPage } from "@/pages/LoginPage";
+import { SignupPage } from "@/pages/SignupPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import "@/styles/global.scss";
 
@@ -29,6 +31,8 @@ export function App() {
               <Route path="/passes/purchase" element={<PassPurchasePage />} />
               <Route path="/orders/new" element={<OrderCreatePage />} />
               <Route path="/orders/detail" element={<OrderDetailPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
