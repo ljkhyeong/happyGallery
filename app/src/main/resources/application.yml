@@ -43,9 +43,11 @@ app:
         permitted-calls-in-half-open-state: ${PAYMENT_CB_HALF_OPEN_CALLS:3}
   rate-limit:
     enabled: true
+    trust-forwarded-headers: ${RATE_LIMIT_TRUST_FORWARDED:false}
     phone-verification-per-second: 10
     booking-create-per-minute: 30
     pass-purchase-per-minute: 20
+    admin-login-per-minute: 5
     admin-api-per-minute: 120
 
 management:

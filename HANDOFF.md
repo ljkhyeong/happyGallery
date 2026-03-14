@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-14 (프론트 F0–F9 완료, P8·P9·P10 완료)
+> 작성 시점: 2026-03-15 (프론트 F0–F9 완료, P8·P9·P10 완료, CR-P1~P7 완료)
 
 ---
 
@@ -24,12 +24,17 @@
 
 - 권장 작업 브랜치: `codex/work-20260314`
 - 최근 작업:
+  - CR-P7 배송 흐름 및 운영 이력 확장 — 배송 전이 API 3종 (prepare-shipping, mark-shipped, mark-delivered), 주문 이력 조회 API, expectedShipDate write guard, 프론트 배송 액션/이력 패널, spec/plan/HANDOFF 문서 동기화
+  - CR-P6 계약/감사/무결성 후속 — fulfillment.status FE 정합, admin principal 세션 전환, fulfillments.order_id unique, convertToPickup stale 데이터 제거, resume-production HTTP test, 프론트 중복 정리, README/PRD/ADR/E2E 문서 정합화
+  - 문서 정합화 — spec.md, ADR-0013, ADR-0014 상태명·Fulfillment 구조 반영
+  - CR-P5 장기 리팩토링 — DELAY_REQUESTED 재개 흐름, Fulfillment 단일성, *_REFUNDED 상태명 변경, Fulfillment.status 제거, PG 환불 패턴 통합, local hook 범위 제한
   - P10 관측성/운영 준비 — Actuator 노출 정책, 에러 응답 requestId 포함, 배치 MDC requestId 주입
   - P9 프로덕션 인증 계층 — BCrypt 기반 관리자 로그인, UUID 세션 토큰, X-Admin-Key dev fallback 토글
   - P8 E2E 시나리오 검증 — local 환불 실패 hook 추가, 기본 관리자 계정 정합화, 실제 로컬 smoke 1~5 pass
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `cd frontend && npm run build` 통과
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.OrderProductionUseCaseIT` 통과
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.booking.LocalBookingClassSeedServiceTest` 통과
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.infra.payment.FakePaymentProviderTest --tests com.personal.happygallery.app.web.admin.LocalRefundFailureControllerTest --tests com.personal.happygallery.app.web.admin.AdminLoginUseCaseIT` 통과
   - `cd frontend && npx playwright test --list` 통과
@@ -92,9 +97,21 @@
 | 배포 전 | **P9** | 완료 | 프로덕션 인증 계층 (BCrypt 로그인, UUID 세션 토큰, API Key dev fallback) |
 | 운영 | **P10** | 완료 | 관측성 및 운영 준비 (Actuator 정책, 에러 requestId, 배치 MDC) |
 
+### 코드리뷰 후속 진행 상황
+
+| 단위 | 상태 | 내용 |
+|------|------|------|
+| **CR-P1** | 완료 | 인증/조회 상태 정합성 (admin 캐시 제거, 조회 실패 초기화, 슬롯 선택 해제) |
+| **CR-P2** | 완료 | 운영 인증/테스트 경계 (Playwright Bearer 전환, 로그인 rate limit, admin id 컨텍스트 주입) |
+| **CR-P3** | 완료 | 운영 메모리/인프라 리스크 (세션 eviction, bucket eviction, XFF 신뢰 정책) |
+| **CR-P4** | 완료 | UX 후속 (예약 기본 날짜 Asia/Seoul, 주문 상품 로딩 실패 에러 UI) |
+| **CR-P5** | 완료 | 장기 리팩토링 및 기능 공백 |
+| **CR-P6** | 완료 | 계약/감사/무결성 후속 (fulfillment.status 계약 정합, admin principal 세션 기반 전환, fulfillment unique migration, stale ship metadata 정리, resume-production HTTP test, 프론트 정리) |
+| **CR-P7** | 완료 | 배송 흐름 및 운영 이력 확장 (배송 전이 API 3종, 이력 조회 API, expectedShipDate write guard, 프론트 배송 액션/이력 패널) |
+
 ### 다음 추천 작업
 
-1. 코드리뷰 후속 — `docs/1Pager/0006_code_review_followups/plan.md` 기준으로 인증/캐시/조회 stale state 우선 정리
+코드리뷰 후속 플랜(CR-P1~P7) 전체 완료. 다음 작업은 운영 배포 준비 또는 추가 기능 구현.
 
 ---
 
@@ -125,6 +142,7 @@
 - `@UseCaseIT`는 현재 `@AutoConfigureMockMvc(addFilters = false)` 기반으로 유지 중
 - `@SpringBootTest` 컨텍스트에서 `ObjectMapper` autowire 불가 → JSON 문자열 직접 구성
 - Codex 샌드박스에서는 Gradle JVM 명령이 `FileLockContentionHandler` 소켓 생성 제한에 걸릴 수 있어, 테스트와 `:app:bootRun`은 처음부터 권한 상승 실행으로 처리하는 편이 안정적
+- 동일하게 `gh pr *`, 원격 `git fetch/push/pull`, Docker 컨테이너 제어, Playwright 브라우저 설치/실행, 워크스페이스 밖 경로 쓰기처럼 반복적으로 막혔던 작업도 샌드박스 재시도 없이 처음부터 권한 상승 실행으로 처리한다.
 
 ### 프론트 공통 패턴
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
@@ -141,6 +159,7 @@
 - `local` 프로필 `:app:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
 - clean DB 기준으로도 P8 예약/8회권 smoke를 바로 실행할 수 있다.
 - `DELETE /api/v1/admin/dev/payment/refunds/fail-next`로 훅을 비우고, `POST /api/v1/admin/dev/payment/refunds/fail-next`로 다음 환불 1회 실패를 arm할 수 있다.
+  요청 바디에 `orderId`를 넣으면 특정 주문으로 범위를 좁힐 수 있다.
 
 ### 테스트 실행
 
@@ -158,8 +177,12 @@ cd frontend && npm run e2e
 ### 미해결 과제
 - 로컬 `bootRun` 전 `happygallery-app` 컨테이너가 떠 있으면 8080 충돌 발생
 - PG 환불 패턴 중복 → 실 PG 연동 시 RefundExecutor로 통합 예정
-- `DELAY_REQUESTED` → 재개 경로 없음 (ADR-0014)
-- Fulfillment.status와 Order.status 이중 관리 → 불일치 위험 (ADR-0014)
+- ~~공개 주문 상세 `fulfillment.status` 계약 drift 정리 필요~~ (CR-P6에서 FE/BE 정합)
+- ~~`X-Admin-Id` 헤더 의존 제거 전까지 운영 이력의 admin 식별자가 null/위조 가능~~ (CR-P6에서 Bearer 세션 attribute 기반으로 전환)
+- ~~`fulfillments.order_id` unique 부재로 단일 fulfillment 가정이 DB에서 아직 보장되지 않음~~ (CR-P6에서 V13 migration으로 unique 제약 추가)
+- ~~배송 상태 enum(`SHIPPING_PREPARING`, `SHIPPED`, `DELIVERED`)은 있으나 운영 API/화면 흐름과 `expectedShipDate` write guard는 미완성~~ (CR-P7에서 배송 전이 API 3종, 이력 조회, write guard 구현)
+- ~~`DELAY_REQUESTED` → 재개 경로 없음~~ (CR-P5에서 `resumeProduction` 추가)
+- ~~Fulfillment.status와 Order.status 이중 관리~~ (CR-P5에서 Fulfillment.status 제거, Order.status가 단일 소스)
 
 ---
 

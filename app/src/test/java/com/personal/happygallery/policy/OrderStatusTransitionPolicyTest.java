@@ -13,8 +13,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * [PolicyTest] 주문 상태 전이 가드 검증.
  *
- * <p>이미 환불된 주문({@code REJECTED_REFUNDED}, {@code AUTO_REFUNDED_TIMEOUT},
- * {@code PICKUP_EXPIRED_REFUNDED})에 승인을 시도하면 {@link AlreadyRefundedException}이 발생한다.
+ * <p>이미 환불된 주문({@code REJECTED}, {@code AUTO_REFUND_TIMEOUT},
+ * {@code PICKUP_EXPIRED})에 승인을 시도하면 {@link AlreadyRefundedException}이 발생한다.
  */
 @Tag("policy")
 class OrderStatusTransitionPolicyTest {
@@ -26,25 +26,43 @@ class OrderStatusTransitionPolicyTest {
                 .doesNotThrowAnyException();
     }
 
-    @DisplayName("AUTO_REFUNDED_TIMEOUT 상태는 승인 가능 검증에서 예외가 발생한다")
+    @DisplayName("AUTO_REFUND_TIMEOUT 상태는 승인 가능 검증에서 예외가 발생한다")
     @Test
-    void requireApprovable_whenAutoRefunded_throws() {
-        assertThatThrownBy(() -> OrderStatus.AUTO_REFUNDED_TIMEOUT.requireApprovable())
+    void requireApprovable_whenAutoRefundTimeout_throws() {
+        assertThatThrownBy(() -> OrderStatus.AUTO_REFUND_TIMEOUT.requireApprovable())
                 .isInstanceOf(AlreadyRefundedException.class);
     }
 
-    @DisplayName("REJECTED_REFUNDED 상태는 승인 가능 검증에서 예외가 발생한다")
+    @DisplayName("REJECTED 상태는 승인 가능 검증에서 예외가 발생한다")
     @Test
-    void requireApprovable_whenRejectedRefunded_throws() {
-        assertThatThrownBy(() -> OrderStatus.REJECTED_REFUNDED.requireApprovable())
+    void requireApprovable_whenRejected_throws() {
+        assertThatThrownBy(() -> OrderStatus.REJECTED.requireApprovable())
                 .isInstanceOf(AlreadyRefundedException.class);
     }
 
-    @DisplayName("PICKUP_EXPIRED_REFUNDED 상태는 승인 가능 검증에서 예외가 발생한다")
+    @DisplayName("PICKUP_EXPIRED 상태는 승인 가능 검증에서 예외가 발생한다")
     @Test
-    void requireApprovable_whenPickupExpiredRefunded_throws() {
-        assertThatThrownBy(() -> OrderStatus.PICKUP_EXPIRED_REFUNDED.requireApprovable())
+    void requireApprovable_whenPickupExpired_throws() {
+        assertThatThrownBy(() -> OrderStatus.PICKUP_EXPIRED.requireApprovable())
                 .isInstanceOf(AlreadyRefundedException.class);
+    }
+
+    // -----------------------------------------------------------------------
+    // requireDelayRequested() — 제작 재개 가드
+    // -----------------------------------------------------------------------
+
+    @DisplayName("DELAY_REQUESTED 상태는 재개 가능 검증에서 예외가 발생하지 않는다")
+    @Test
+    void requireDelayRequested_whenDelayRequested_noException() {
+        assertThatCode(() -> OrderStatus.DELAY_REQUESTED.requireDelayRequested())
+                .doesNotThrowAnyException();
+    }
+
+    @DisplayName("IN_PRODUCTION 상태는 재개 가능 검증에서 예외가 발생한다")
+    @Test
+    void requireDelayRequested_whenInProduction_throws() {
+        assertThatThrownBy(() -> OrderStatus.IN_PRODUCTION.requireDelayRequested())
+                .isInstanceOf(com.personal.happygallery.common.error.HappyGalleryException.class);
     }
 
     // -----------------------------------------------------------------------

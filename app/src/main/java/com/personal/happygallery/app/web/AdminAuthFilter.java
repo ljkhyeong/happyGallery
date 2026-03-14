@@ -14,10 +14,14 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
 public class AdminAuthFilter implements Filter {
+
+    public static final String ADMIN_USER_ID_ATTR = "adminUserId";
+    public static final String ADMIN_USERNAME_ATTR = "adminUsername";
 
     private static final String ADMIN_KEY_HEADER = "X-Admin-Key";
     private static final String AUTH_HEADER = "Authorization";
@@ -55,11 +59,14 @@ public class AdminAuthFilter implements Filter {
     }
 
     private boolean isAuthenticated(HttpServletRequest request) {
-        // 1) Bearer 토큰 검증
+        // 1) Bearer 토큰 검증 — 세션에서 admin id 추출
         String authHeader = request.getHeader(AUTH_HEADER);
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
             String token = authHeader.substring(BEARER_PREFIX.length());
-            if (sessionStore.validate(token).isPresent()) {
+            Optional<AdminSessionStore.Session> session = sessionStore.validate(token);
+            if (session.isPresent()) {
+                request.setAttribute(ADMIN_USER_ID_ATTR, session.get().adminUserId());
+                request.setAttribute(ADMIN_USERNAME_ATTR, session.get().username());
                 return true;
             }
         }

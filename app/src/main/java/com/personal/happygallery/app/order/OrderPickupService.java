@@ -37,7 +37,7 @@ public class OrderPickupService {
 
     /**
      * 픽업 준비 완료. {@link OrderStatus#APPROVED_FULFILLMENT_PENDING} → {@link OrderStatus#PICKUP_READY}.
-     * Fulfillment 레코드를 생성하고 픽업 마감 시각을 설정한다.
+     * 기존 Fulfillment가 있으면 픽업용으로 전환하고, 없으면 새로 생성한다.
      *
      * @param orderId          주문 ID
      * @param pickupDeadlineAt 픽업 마감 시각
@@ -55,8 +55,13 @@ public class OrderPickupService {
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.markPickupReady();
 
-        Fulfillment fulfillment = fulfillmentRepository.save(
-                new Fulfillment(order.getId(), OrderStatus.PICKUP_READY, pickupDeadlineAt));
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+                .map(existing -> {
+                    existing.convertToPickup(pickupDeadlineAt);
+                    return existing;
+                })
+                .orElseGet(() -> new Fulfillment(orderId, pickupDeadlineAt));
+        fulfillmentRepository.save(fulfillment);
         orderRepository.save(order);
 
         return new PickupResult(order.getId(), order.getStatus(), fulfillment.getPickupDeadlineAt());
@@ -82,7 +87,6 @@ public class OrderPickupService {
 
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
-        fulfillment.syncStatus(order.getStatus());
         fulfillmentRepository.save(fulfillment);
         orderRepository.save(order);
 

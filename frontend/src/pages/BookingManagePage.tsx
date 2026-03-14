@@ -20,6 +20,10 @@ export function BookingManagePage() {
       setBooking(data);
       setCurrentToken(variables.token);
     },
+    onError: () => {
+      setBooking(null);
+      setCurrentToken("");
+    },
   });
 
   const handleLookup = useCallback(

@@ -1,5 +1,5 @@
 import { api } from "@/shared/api";
-import type { AdminOrderResponse, OrderProductionResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest } from "@/shared/types";
+import type { AdminOrderResponse, OrderProductionResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest, ShippingResponse, OrderHistoryResponse } from "@/shared/types";
 
 function h(token: string) {
   return { Authorization: `Bearer ${token}` };
@@ -35,12 +35,32 @@ export function requestDelay(adminKey: string, id: number): Promise<OrderProduct
   return api(`/admin/orders/${id}/delay`, { method: "POST", headers: h(adminKey) });
 }
 
+export function resumeProduction(adminKey: string, id: number): Promise<OrderProductionResponse> {
+  return api(`/admin/orders/${id}/resume-production`, { method: "POST", headers: h(adminKey) });
+}
+
 export function preparePickup(adminKey: string, id: number, body: MarkPickupReadyRequest): Promise<PickupResponse> {
   return api(`/admin/orders/${id}/prepare-pickup`, { method: "POST", headers: h(adminKey), body });
 }
 
 export function completePickup(adminKey: string, id: number): Promise<PickupResponse> {
   return api(`/admin/orders/${id}/complete-pickup`, { method: "POST", headers: h(adminKey) });
+}
+
+export function prepareShipping(adminKey: string, id: number): Promise<ShippingResponse> {
+  return api(`/admin/orders/${id}/prepare-shipping`, { method: "POST", headers: h(adminKey) });
+}
+
+export function markShipped(adminKey: string, id: number): Promise<ShippingResponse> {
+  return api(`/admin/orders/${id}/mark-shipped`, { method: "POST", headers: h(adminKey) });
+}
+
+export function markDelivered(adminKey: string, id: number): Promise<ShippingResponse> {
+  return api(`/admin/orders/${id}/mark-delivered`, { method: "POST", headers: h(adminKey) });
+}
+
+export function fetchOrderHistory(adminKey: string, id: number): Promise<OrderHistoryResponse[]> {
+  return api<OrderHistoryResponse[]>(`/admin/orders/${id}/history`, { headers: h(adminKey) });
 }
 
 export function expirePickups(adminKey: string): Promise<BatchResponse> {

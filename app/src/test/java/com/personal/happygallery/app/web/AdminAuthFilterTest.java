@@ -44,7 +44,7 @@ class AdminAuthFilterTest {
         assertThat(response.getStatus()).isEqualTo(200);
     }
 
-    @DisplayName("Bearer 토큰이 유효하면 통과한다")
+    @DisplayName("Bearer 토큰이 유효하면 통과하고 admin 정보가 request attribute에 설정된다")
     @Test
     void passes_whenValidBearerToken() throws Exception {
         AdminSessionStore store = new AdminSessionStore();
@@ -57,7 +57,11 @@ class AdminAuthFilterTest {
 
         filter.doFilter(request, response, new MockFilterChain());
 
-        assertThat(response.getStatus()).isEqualTo(200);
+        assertSoftly(softly -> {
+            softly.assertThat(response.getStatus()).isEqualTo(200);
+            softly.assertThat(request.getAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR)).isEqualTo(1L);
+            softly.assertThat(request.getAttribute(AdminAuthFilter.ADMIN_USERNAME_ATTR)).isEqualTo("admin");
+        });
     }
 
     @DisplayName("API Key 비활성화 시 X-Admin-Key로는 인증되지 않는다")

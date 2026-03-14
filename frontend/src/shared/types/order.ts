@@ -40,7 +40,6 @@ export type FulfillmentType = "SHIPPING" | "PICKUP";
 
 export interface FulfillmentDto {
   type: FulfillmentType;
-  status: OrderStatus;
   expectedShipDate: string | null;
   pickupDeadlineAt: string | null;
 }
