@@ -210,7 +210,7 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
     <div>
       <Row className="g-2 mb-3 align-items-end">
         <Col xs={12} sm={5}>
-          <Form.Group>
+          <Form.Group controlId="admin-order-status-filter">
             <Form.Label>상태</Form.Label>
             <Form.Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               {STATUS_OPTIONS.map((o) => (

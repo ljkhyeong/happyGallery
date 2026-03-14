@@ -22,4 +22,5 @@ export type ErrorCode =
 export interface ErrorResponse {
   code: ErrorCode;
   message: string;
+  requestId?: string;
 }

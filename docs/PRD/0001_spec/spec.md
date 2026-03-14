@@ -316,16 +316,40 @@
   - 브레이킹 변경은 `/api/v2/**`로 분리하고, `/api/v1/**`는 공지된 deprecate 기간 이후 제거한다.
 
 ### 11-A.2 관리자 인증 정책
-- Admin API는 현재 구현에서도 이미 `X-Admin-Key` 헤더 기반으로 보호된다.
-- 적용 대상:
-  - `/api/v1/admin/**`
-  - 레거시 `/admin/**`
-- 인증키 소스:
-  - 서버 설정 `app.admin.api-key`
-  - 환경 변수 `ADMIN_API_KEY`
-- 인증 실패 시:
-  - `401 UNAUTHORIZED`
-  - `{ "code": "UNAUTHORIZED", "message": "관리자 인증이 필요합니다." }`
+
+#### 프로덕션 인증 (P9)
+- 관리자 로그인 API를 통해 사용자명/비밀번호 기반으로 인증한다.
+- 비밀번호는 BCrypt 해싱으로 저장한다 (ADR-0019).
+- 로그인 성공 시 UUID 세션 토큰을 발급하고, 이후 요청에 `Authorization: Bearer {token}` 헤더를 사용한다.
+- 세션 만료: 8시간 (인메모리).
+- 현재 구현은 단일 인스턴스 기준 인메모리 세션 저장소를 전제로 한다.
+- 운영 중 인스턴스를 수평 확장하면 JWT 기반 토큰 인증을 우선 검토하고, 필요 시 공유 세션 저장소(예: Redis)와 비교해 결정한다.
+
+#### 인증 엔드포인트
+```
+POST /api/v1/admin/auth/login
+Content-Type: application/json
+{ "username": "admin", "password": "..." }
+→ 200 OK { "token": "uuid-session-token" }
+→ 401 { "code": "UNAUTHORIZED", "message": "아이디 또는 비밀번호가 올바르지 않습니다." }
+
+POST /api/v1/admin/auth/logout
+Authorization: Bearer {token}
+→ 204 No Content
+```
+
+#### API Key 폴백 (개발/테스트용)
+- `app.admin.enable-api-key-auth=true` (기본값)일 때 `X-Admin-Key` 헤더로도 인증 가능.
+- 프로덕션에서는 `enable-api-key-auth=false`로 비활성화한다.
+- 인증키 소스: 서버 설정 `app.admin.api-key`, 환경 변수 `ADMIN_API_KEY`.
+
+#### 적용 대상
+- `/api/v1/admin/**` (로그인/로그아웃 경로 제외)
+- 레거시 `/admin/**`
+
+#### 인증 실패 시
+- `401 UNAUTHORIZED`
+- `{ "code": "UNAUTHORIZED", "message": "관리자 인증이 필요합니다." }`
 ---
 
 ## 11. Admin API — 슬롯 관리
@@ -995,6 +1019,9 @@ POST /api/v1/admin/refunds/{refundId}/retry
 - 운영 관측성:
     - `prod` 프로필 로그는 JSON 구조화 포맷으로 출력한다
     - 요청 단위 추적을 위해 `requestId`를 로그 필드로 포함한다
+    - 에러 응답에 `requestId`를 포함하여 클라이언트-서버 간 추적을 지원한다
+    - 배치 실행은 `batch-{jobName}-{uuid8}` 형태의 requestId를 MDC에 자동 주입한다
+    - Actuator 노출 정책: `health`, `info`, `metrics` 만 웹 노출 (prod에서 health details는 `never`)
     - 로그 레벨 전략:
       - `TRACE`/`DEBUG`: `local` 개발 환경에서만 사용 (SQL 파라미터, 상세 흐름 추적)
       - `INFO`: 운영 기본값. 시작/종료, 배치 결과, 결제 완료 등 핵심 이벤트만 기록
@@ -1011,7 +1038,7 @@ POST /api/v1/admin/refunds/{refundId}/retry
 - 보안:
     - 비회원 예약은 휴대폰 인증 기반
     - 관리자 기능은 권한 분리(단일 운영자라도 경로는 분리)
-    - **Admin API(`/api/v1/admin/**`)는 현재 `X-Admin-Key` 기반 인증이 적용된 상태**이며, 레거시 `/admin/**`도 동일하게 보호한다.
+    - **Admin API(`/api/v1/admin/**`)는 관리자 로그인으로 발급받은 Bearer 세션 토큰 기반 인증이 기본**이며, 로컬/테스트에서는 `X-Admin-Key` 폴백을 허용할 수 있다.
     - 운영 배포 시 `ADMIN_API_KEY`는 환경 변수로만 주입하고, 로컬 기본값을 운영에 재사용하지 않는다.
     - 사용자 비밀번호 저장 정책:
       - DB에는 평문 비밀번호를 저장하지 않는다.
@@ -1028,10 +1055,14 @@ POST /api/v1/admin/refunds/{refundId}/retry
 
 ```json
 {
-  "code":    "ALREADY_REFUNDED",
-  "message": "이미 환불된 건입니다."
+  "code":      "ALREADY_REFUNDED",
+  "message":   "이미 환불된 건입니다.",
+  "requestId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
+
+- `requestId`는 선택 필드다.
+- HTTP 요청은 `RequestIdFilter`에서 생성된 값을 그대로 내려주고, 배치 실행 오류는 `batch-*` 형식 requestId를 사용한다.
 
 ### 13.2 HTTP 상태코드 × 에러 코드 목록
 

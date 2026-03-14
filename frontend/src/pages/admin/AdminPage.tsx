@@ -13,7 +13,7 @@ import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
 import { useToast } from "@/shared/ui";
 
 export function AdminPage() {
-  const { adminKey, setAdminKey, clearAdminKey, isAuthenticated } = useAdminKey();
+  const { adminKey, clearAdminKey, login, isAuthenticated } = useAdminKey();
   const toast = useToast();
 
   const handleAuthError = useCallback(() => {
@@ -22,7 +22,7 @@ export function AdminPage() {
   }, [clearAdminKey, toast]);
 
   if (!isAuthenticated) {
-    return <AdminKeyGate onSubmit={setAdminKey} />;
+    return <AdminKeyGate onLogin={login} />;
   }
 
   return (

@@ -31,14 +31,14 @@ export function OrderDetailPage() {
           <Form onSubmit={(e) => { e.preventDefault(); handleLookup(); }}>
             <Row className="g-2 align-items-end">
               <Col xs={12} sm={4}>
-                <Form.Group>
+                <Form.Group controlId="order-detail-id">
                   <Form.Label>주문 ID</Form.Label>
                   <Form.Control type="number" min={1} value={orderId}
                     onChange={(e) => setOrderId(e.target.value)} placeholder="주문 ID" />
                 </Form.Group>
               </Col>
               <Col xs={12} sm={5}>
-                <Form.Group>
+                <Form.Group controlId="order-detail-token">
                   <Form.Label>인증 토큰</Form.Label>
                   <Form.Control value={token}
                     onChange={(e) => setToken(e.target.value)} placeholder="주문 시 발급된 토큰" />

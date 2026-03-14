@@ -53,7 +53,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
       <ErrorAlert error={mutation.error} />
       <Row className="g-2 align-items-end">
         <Col xs={12} md={3}>
-          <Form.Group>
+          <Form.Group controlId="admin-product-name">
             <Form.Label>상품명</Form.Label>
             <Form.Control
               value={name}
@@ -63,7 +63,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} sm={6} md={2}>
-          <Form.Group>
+          <Form.Group controlId="admin-product-type">
             <Form.Label>유형</Form.Label>
             <Form.Select value={type} onChange={(e) => setType(e.target.value as ProductType)}>
               <option value="READY_STOCK">기존 재고</option>
@@ -72,7 +72,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} sm={6} md={2}>
-          <Form.Group>
+          <Form.Group controlId="admin-product-price">
             <Form.Label>가격 (원)</Form.Label>
             <Form.Control
               type="number"
@@ -84,7 +84,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} sm={6} md={2}>
-          <Form.Group>
+          <Form.Group controlId="admin-product-quantity">
             <Form.Label>수량</Form.Label>
             <Form.Control
               type="number"

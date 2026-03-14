@@ -27,6 +27,7 @@ spring:
 app:
   admin:
     api-key: ${ADMIN_API_KEY:dev-admin-key}
+    enable-api-key-auth: ${ADMIN_ENABLE_API_KEY_AUTH:true}
   batch:
     scheduler:
       pool-size: ${BATCH_SCHEDULER_POOL_SIZE:4}
@@ -46,6 +47,21 @@ app:
     booking-create-per-minute: 30
     pass-purchase-per-minute: 20
     admin-api-per-minute: 120
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: ${ACTUATOR_HEALTH_SHOW_DETAILS:never}
+  info:
+    env:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 logging:
   level:
