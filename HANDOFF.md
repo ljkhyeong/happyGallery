@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-15 (프론트 F0–F9 완료, P8·P9·P10 완료, CR-P1~P7 완료)
+> 작성 시점: 2026-03-15 (프론트 F0–F9 완료, P8·P9·P10 완료, CR-P1~P7 완료, U1 완료)
 
 ---
 
@@ -16,6 +16,8 @@
 - 프론트 계획: `docs/1Pager/0003_frontend_plan/plan.md`
 - 후속 폴리시 계획: `docs/1Pager/0004_polish_plan/plan.md`
 - 코드리뷰 후속 계획: `docs/1Pager/0006_code_review_followups/plan.md`
+- 회원 스토어 전환 계획: `docs/1Pager/0007_member_store_transition/plan.md`
+- 회원 스토어 차기 PRD 초안: `docs/PRD/0002_member_store_transition/spec.md`
 - 기준 확인 순서: `HANDOFF.md -> docs/PRD/0001_spec/spec.md -> docs/ADR/*`
 
 ---
@@ -24,6 +26,8 @@
 
 - 권장 작업 브랜치: `codex/work-20260314`
 - 최근 작업:
+  - U1 고객 인증 기반 — `User`/`UserSession` 엔티티, `CustomerAuthService`(BCrypt + DB 세션), `CustomerAuthFilter`(HttpOnly 쿠키 `HG_SESSION`), `/api/v1/auth/{signup,login,logout}` + `GET /api/v1/me`, 프론트 `LoginPage`/`SignupPage`/Layout 로그인 상태 표시, V14 migration, rate limit(customer-login 10/min, customer-signup 5/min)
+  - 회원 스토어 전환 문서 초안 — member storefront PRD 초안, 작업단위별 plan(U1~U6), 병렬 작업 가이드 정리
   - CR-P7 배송 흐름 및 운영 이력 확장 — 배송 전이 API 3종 (prepare-shipping, mark-shipped, mark-delivered), 주문 이력 조회 API, expectedShipDate write guard, 프론트 배송 액션/이력 패널, spec/plan/HANDOFF 문서 동기화
   - CR-P6 계약/감사/무결성 후속 — fulfillment.status FE 정합, admin principal 세션 전환, fulfillments.order_id unique, convertToPickup stale 데이터 제거, resume-production HTTP test, 프론트 중복 정리, README/PRD/ADR/E2E 문서 정합화
   - 문서 정합화 — spec.md, ADR-0013, ADR-0014 상태명·Fulfillment 구조 반영
@@ -33,6 +37,7 @@
   - P8 E2E 시나리오 검증 — local 환불 실패 hook 추가, 기본 관리자 계정 정합화, 실제 로컬 smoke 1~5 pass
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.customer.CustomerAuthUseCaseIT` 통과
   - `cd frontend && npm run build` 통과
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.OrderProductionUseCaseIT` 통과
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.booking.LocalBookingClassSeedServiceTest` 통과
@@ -111,7 +116,8 @@
 
 ### 다음 추천 작업
 
-코드리뷰 후속 플랜(CR-P1~P7) 전체 완료. 다음 작업은 운영 배포 준비 또는 추가 기능 구현.
+1. 회원 스토어 전환 `U2` — 주문/예약/8회권의 회원/비회원 이중 계약 정리
+2. 회원 스토어 전환 `U3` — 상점형 IA, 상품 상세 구매 패널
 
 ---
 
@@ -145,6 +151,8 @@
 - 동일하게 `gh pr *`, 원격 `git fetch/push/pull`, Docker 컨테이너 제어, Playwright 브라우저 설치/실행, 워크스페이스 밖 경로 쓰기처럼 반복적으로 막혔던 작업도 샌드박스 재시도 없이 처음부터 권한 상승 실행으로 처리한다.
 
 ### 프론트 공통 패턴
+- 고객 인증: `useCustomerAuth()` 훅에서 `/api/v1/me`로 세션 확인 (HttpOnly 쿠키 자동 포함), `login`/`signup`/`logout` 제공
+- Layout에서 `useCustomerAuth()`로 로그인 상태에 따라 "로그인"/"사용자명+로그아웃" 표시
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
 - 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
 - 기본 관리자 계정: `admin` / `admin1234` (Flyway V11로 정합화)
