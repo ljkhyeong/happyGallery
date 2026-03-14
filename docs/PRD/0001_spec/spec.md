@@ -1033,7 +1033,7 @@ POST /api/v1/admin/refunds/{refundId}/retry
       - 기본 타임아웃: 3초
       - 실패율 임계치 초과 시 fast-fail로 내부 자원 고갈을 방지한다
     - 필터 기반 처리율 제한을 적용한다 (`/api/v1/**` 기준)
-      - 기본 정책: 인증코드 발송 10 req/sec/IP, 게스트 예약 생성 30 req/min/IP, 이용권 구매 20 req/min/IP, Admin API 120 req/min/IP
+      - 기본 정책: 인증코드 발송 10 req/sec/IP, 게스트 예약 생성 30 req/min/IP, 이용권 구매 20 req/min/IP, 관리자 로그인 5 req/min/IP, Admin API 120 req/min/IP
       - 초과 시 `429 TOO_MANY_REQUESTS`와 `Retry-After` 헤더를 반환한다
 - 보안:
     - 비회원 예약은 휴대폰 인증 기반

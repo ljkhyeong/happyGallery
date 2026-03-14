@@ -12,6 +12,8 @@ public class RateLimitProperties {
 
     private boolean enabled = true;
 
+    private boolean trustForwardedHeaders = false;
+
     @Min(1)
     private long phoneVerificationPerSecond = 10;
 
@@ -22,6 +24,9 @@ public class RateLimitProperties {
     private long passPurchasePerMinute = 20;
 
     @Min(1)
+    private long adminLoginPerMinute = 5;
+
+    @Min(1)
     private long adminApiPerMinute = 120;
 
     public boolean isEnabled() {
@@ -30,6 +35,14 @@ public class RateLimitProperties {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isTrustForwardedHeaders() {
+        return trustForwardedHeaders;
+    }
+
+    public void setTrustForwardedHeaders(boolean trustForwardedHeaders) {
+        this.trustForwardedHeaders = trustForwardedHeaders;
     }
 
     public long getPhoneVerificationPerSecond() {
@@ -54,6 +67,14 @@ public class RateLimitProperties {
 
     public void setPassPurchasePerMinute(long passPurchasePerMinute) {
         this.passPurchasePerMinute = passPurchasePerMinute;
+    }
+
+    public long getAdminLoginPerMinute() {
+        return adminLoginPerMinute;
+    }
+
+    public void setAdminLoginPerMinute(long adminLoginPerMinute) {
+        this.adminLoginPerMinute = adminLoginPerMinute;
     }
 
     public long getAdminApiPerMinute() {
