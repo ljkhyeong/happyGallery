@@ -6,6 +6,7 @@ import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;
+import com.personal.happygallery.infra.payment.RefundContext;
 import com.personal.happygallery.infra.payment.RefundResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,8 +50,9 @@ public class RefundExecutionService {
         return executeRefund(refund, "bookingId=" + bookingId);
     }
 
-    private Refund executeRefund(Refund refund, String target) {
+    Refund executeRefund(Refund refund, String target) {
         try {
+            RefundContext.setOrderId(refund.getOrderId());
             RefundResult result = paymentProvider.refund(refund.getPgRef(), refund.getAmount());
             if (result.success()) {
                 refund.markSucceeded(result.pgRef());
@@ -61,6 +63,8 @@ public class RefundExecutionService {
         } catch (Exception e) {
             log.error("환불 호출 예외 [{} refundId={}]", target, refund.getId(), e);
             refund.markFailed(e.getMessage());
+        } finally {
+            RefundContext.clear();
         }
         return refundRepository.save(refund);
     }

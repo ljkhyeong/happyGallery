@@ -14,11 +14,11 @@ class LocalRefundFailureControllerTest {
         LocalRefundFailureScript localRefundFailureScript = new LocalRefundFailureScript();
         LocalRefundFailureController controller = new LocalRefundFailureController(localRefundFailureScript);
 
-        var response = controller.failNext(new LocalRefundFailureController.FailNextRefundRequest("   "));
+        var response = controller.failNext(new LocalRefundFailureController.FailNextRefundRequest("   ", null));
 
         assertThat(response).containsEntry("status", "ARMED");
         assertThat(response).containsEntry("reason", LocalRefundFailureController.DEFAULT_REASON);
-        assertThat(localRefundFailureScript.consumeNextFailureReason())
+        assertThat(localRefundFailureScript.consumeIfMatches(null))
                 .contains(LocalRefundFailureController.DEFAULT_REASON);
     }
 
@@ -28,9 +28,9 @@ class LocalRefundFailureControllerTest {
         LocalRefundFailureScript localRefundFailureScript = new LocalRefundFailureScript();
         LocalRefundFailureController controller = new LocalRefundFailureController(localRefundFailureScript);
 
-        controller.failNext(new LocalRefundFailureController.FailNextRefundRequest("수동 실패"));
+        controller.failNext(new LocalRefundFailureController.FailNextRefundRequest("수동 실패", null));
         controller.clear();
 
-        assertThat(localRefundFailureScript.consumeNextFailureReason()).isEmpty();
+        assertThat(localRefundFailureScript.consumeIfMatches(null)).isEmpty();
     }
 }

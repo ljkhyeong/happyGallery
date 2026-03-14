@@ -36,7 +36,11 @@ public class LocalRefundFailureController {
             reason = request.reason().trim();
         }
 
-        localRefundFailureScript.armNextFailure(reason);
+        Long orderId = (request != null) ? request.orderId() : null;
+        localRefundFailureScript.armNextFailure(reason, orderId);
+        if (orderId != null) {
+            return Map.of("status", "ARMED", "reason", reason, "orderId", String.valueOf(orderId));
+        }
         return Map.of("status", "ARMED", "reason", reason);
     }
 
@@ -46,5 +50,5 @@ public class LocalRefundFailureController {
         return ResponseEntity.noContent().build();
     }
 
-    public record FailNextRefundRequest(@Size(max = 120) String reason) {}
+    public record FailNextRefundRequest(@Size(max = 120) String reason, Long orderId) {}
 }
