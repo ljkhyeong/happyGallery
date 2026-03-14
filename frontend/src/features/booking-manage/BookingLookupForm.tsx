@@ -23,7 +23,7 @@ export function BookingLookupForm({ onLookup, isLoading }: Props) {
     >
       <Row className="g-2 align-items-end">
         <Col xs={12} sm={4}>
-          <Form.Group>
+          <Form.Group controlId="booking-lookup-id">
             <Form.Label>예약 번호</Form.Label>
             <Form.Control
               type="number"
@@ -40,7 +40,7 @@ export function BookingLookupForm({ onLookup, isLoading }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} sm={5}>
-          <Form.Group>
+          <Form.Group controlId="booking-lookup-token">
             <Form.Label>인증 토큰</Form.Label>
             <Form.Control
               value={token}

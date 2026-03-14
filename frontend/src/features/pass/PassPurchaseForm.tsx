@@ -46,7 +46,7 @@ export function PassPurchaseForm({ phone, verificationCode, onSuccess }: Props) 
       <h6 className="mb-3">2. 구매 정보</h6>
       <ErrorAlert error={mutation.error} />
 
-      <Form.Group className="mb-3">
+      <Form.Group controlId="pass-purchase-name" className="mb-3">
         <Form.Label>이름</Form.Label>
         <Form.Control
           value={name}
@@ -62,7 +62,7 @@ export function PassPurchaseForm({ phone, verificationCode, onSuccess }: Props) 
 
       <Row className="g-2 align-items-end mb-3">
         <Col xs={8}>
-          <Form.Group>
+          <Form.Group controlId="pass-purchase-total-price">
             <Form.Label>결제 금액 (원)</Form.Label>
             <Form.Control
               type="number"

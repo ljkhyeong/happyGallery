@@ -65,7 +65,7 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
       <h6 className="mb-3">3. 예약 정보 입력</h6>
       <ErrorAlert error={mutation.error} />
 
-      <Form.Group className="mb-3">
+      <Form.Group controlId="booking-guest-name" className="mb-3">
         <Form.Label>이름</Form.Label>
         <Form.Control
           value={name}
@@ -85,6 +85,7 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
           <Form.Check
             inline
             type="radio"
+            id="booking-payment-path-deposit"
             label="예약금 결제"
             name="paymentPath"
             checked={paymentPath === "deposit"}
@@ -93,6 +94,7 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
           <Form.Check
             inline
             type="radio"
+            id="booking-payment-path-pass"
             label="8회권 사용"
             name="paymentPath"
             checked={paymentPath === "pass"}
@@ -104,7 +106,7 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
       {paymentPath === "deposit" ? (
         <Row className="g-2 mb-3">
           <Col xs={6}>
-            <Form.Group>
+            <Form.Group controlId="booking-deposit-amount">
               <Form.Label>예약금 (원)</Form.Label>
               <Form.Control
                 type="number"
@@ -120,7 +122,7 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
             </Form.Group>
           </Col>
           <Col xs={6}>
-            <Form.Group>
+            <Form.Group controlId="booking-payment-method">
               <Form.Label>결제 수단</Form.Label>
               <Form.Select
                 value={paymentMethod}
@@ -133,7 +135,7 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
           </Col>
         </Row>
       ) : (
-        <Form.Group className="mb-3">
+        <Form.Group controlId="booking-pass-id" className="mb-3">
           <Form.Label>8회권 ID</Form.Label>
           <Form.Control
             type="number"

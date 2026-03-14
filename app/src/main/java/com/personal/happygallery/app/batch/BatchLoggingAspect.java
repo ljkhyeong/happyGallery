@@ -1,11 +1,13 @@
 package com.personal.happygallery.app.batch;
 
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 
 @Aspect
@@ -16,8 +18,11 @@ public class BatchLoggingAspect {
 
     @Around("@annotation(batchJob)")
     public Object logBatchExecution(ProceedingJoinPoint joinPoint, BatchJob batchJob) throws Throwable {
-        long startedAt = System.nanoTime();
         String jobName = batchJob.value();
+        String batchRequestId = "batch-" + jobName.replaceAll("\\s+", "-") + "-" + UUID.randomUUID().toString().substring(0, 8);
+        MDC.put("requestId", batchRequestId);
+
+        long startedAt = System.nanoTime();
         log.info("[배치] {} 시작", jobName);
 
         try {
@@ -48,6 +53,8 @@ public class BatchLoggingAspect {
             long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
             log.error("[배치] {} 실패 ({}ms)", jobName, durationMs, t);
             throw t;
+        } finally {
+            MDC.remove("requestId");
         }
     }
 }

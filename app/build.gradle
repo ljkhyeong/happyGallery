@@ -2,6 +2,10 @@ plugins {
 	id 'org.springframework.boot'
 }
 
+springBoot {
+	mainClass = 'com.personal.happygallery.HappygalleryApplication'
+}
+
 // 테스트 목적별 실행 태스크
 // - useCaseTest  : @Tag("usecase") — 유스케이스 통합 테스트
 // - policyTest   : @Tag("policy")  — 도메인 경계/정책 테스트 (Spring 컨텍스트 불필요)
@@ -36,6 +40,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-json'
 	implementation 'com.bucket4j:bucket4j-core:8.10.1'
+	implementation 'org.springframework.security:spring-security-crypto'
 	runtimeOnly 'net.logstash.logback:logstash-logback-encoder:8.1'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'

@@ -58,7 +58,7 @@ export function OrderItemsForm({ items, onChange }: Props) {
     <div>
       <Row className="g-2 align-items-end mb-3">
         <Col xs={12} sm={6}>
-          <Form.Group>
+          <Form.Group controlId="order-item-product">
             <Form.Label>상품</Form.Label>
             <Form.Select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
               <option value="">선택하세요</option>
@@ -71,7 +71,7 @@ export function OrderItemsForm({ items, onChange }: Props) {
           </Form.Group>
         </Col>
         <Col xs={6} sm={3}>
-          <Form.Group>
+          <Form.Group controlId="order-item-qty">
             <Form.Label>수량</Form.Label>
             <Form.Control
               type="number"

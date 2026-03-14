@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-13 (프론트 F0–F9 전 단위 완료, polish plan P7 완료)
+> 작성 시점: 2026-03-14 (프론트 F0–F9 완료, P8·P9·P10 완료)
 
 ---
 
@@ -15,20 +15,26 @@
 - 리팩토링 계획: `docs/1Pager/0002_refactoring_plan/plan.md`
 - 프론트 계획: `docs/1Pager/0003_frontend_plan/plan.md`
 - 후속 폴리시 계획: `docs/1Pager/0004_polish_plan/plan.md`
+- 코드리뷰 후속 계획: `docs/1Pager/0006_code_review_followups/plan.md`
 - 기준 확인 순서: `HANDOFF.md -> docs/PRD/0001_spec/spec.md -> docs/ADR/*`
 
 ---
 
 ## 현재 브랜치 / 워크트리 상태
 
-- 작업 브랜치: `main`
-- 최근 작업 (2026-03-13):
-  - P7 관리자 주문 목록 조회 — 상태 필터 기반 주문 목록 API + 인라인 액션(승인/거절/제작 완료/지연/픽업) 프론트 화면
-  - P4 반응형 UI/접근성 점검 — 모바일 375px 레이아웃 수정, 폼 라벨 연결, 스피너/카드 접근성 보강
+- 권장 작업 브랜치: `codex/work-20260314`
+- 최근 작업:
+  - P10 관측성/운영 준비 — Actuator 노출 정책, 에러 응답 requestId 포함, 배치 MDC requestId 주입
+  - P9 프로덕션 인증 계층 — BCrypt 기반 관리자 로그인, UUID 세션 토큰, X-Admin-Key dev fallback 토글
+  - P8 E2E 시나리오 검증 — local 환불 실패 hook 추가, 기본 관리자 계정 정합화, 실제 로컬 smoke 1~5 pass
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
-  - `./gradlew :app:test` 전체 통과
   - `cd frontend && npm run build` 통과
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.booking.LocalBookingClassSeedServiceTest` 통과
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.infra.payment.FakePaymentProviderTest --tests com.personal.happygallery.app.web.admin.LocalRefundFailureControllerTest --tests com.personal.happygallery.app.web.admin.AdminLoginUseCaseIT` 통과
+  - `cd frontend && npx playwright test --list` 통과
+  - `docker compose stop app` 후 로컬 `:app:bootRun` 기동 확인
+  - `cd frontend && npm run e2e` 실행: 5 passed
 
 ---
 
@@ -65,7 +71,7 @@
 - `/passes/purchase` — 8회권 구매
 - `/orders/new` — 주문 생성
 - `/orders/detail` — 주문 조회
-- `/admin` — 관리자 (X-Admin-Key 인증)
+- `/admin` — 관리자 (사용자명/비밀번호 로그인, Bearer 토큰 인증)
 
 ---
 
@@ -82,15 +88,13 @@
 | 다음 | **P5** | 완료 | 관리자 슬롯 조회 API 및 화면 보강 |
 | 다음 | **P6** | 완료 | 관리자 예약 조회/노쇼 처리 화면 |
 | 다음 | **P7** | 완료 | 관리자 주문 목록 조회 화면 |
-| 배포 전 | **P8** | 미착수 | E2E 시나리오 검증 |
-| 배포 전 | **P9** | 미착수 | 프로덕션 인증 계층 |
-| 운영 | **P10** | 미착수 | 관측성 및 운영 준비 |
+| 배포 전 | **P8** | 완료 | Playwright smoke 1~5 pass, local refund failure hook으로 재시도 시나리오까지 검증 완료 |
+| 배포 전 | **P9** | 완료 | 프로덕션 인증 계층 (BCrypt 로그인, UUID 세션 토큰, API Key dev fallback) |
+| 운영 | **P10** | 완료 | 관측성 및 운영 준비 (Actuator 정책, 에러 requestId, 배치 MDC) |
 
 ### 다음 추천 작업
 
-1. `P8` — E2E 시나리오 검증
-2. `P9` — 프로덕션 인증 계층
-3. `P10` — 관측성 및 운영 준비
+1. 코드리뷰 후속 — `docs/1Pager/0006_code_review_followups/plan.md` 기준으로 인증/캐시/조회 stale state 우선 정리
 
 ---
 
@@ -120,12 +124,23 @@
 ### Spring Boot 4.0 특이사항
 - `@UseCaseIT`는 현재 `@AutoConfigureMockMvc(addFilters = false)` 기반으로 유지 중
 - `@SpringBootTest` 컨텍스트에서 `ObjectMapper` autowire 불가 → JSON 문자열 직접 구성
+- Codex 샌드박스에서는 Gradle JVM 명령이 `FileLockContentionHandler` 소켓 생성 제한에 걸릴 수 있어, 테스트와 `:app:bootRun`은 처음부터 권한 상승 실행으로 처리하는 편이 안정적
 
 ### 프론트 공통 패턴
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
-- 관리자 키: `sessionStorage` (`hg_admin_key`), `useAdminKey()` 훅으로 관리
+- 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
+- 기본 관리자 계정: `admin` / `admin1234` (Flyway V11로 정합화)
+- 개발/테스트에서는 `X-Admin-Key` 폴백 가능 (`enable-api-key-auth=true`)
+- 현재 세션 저장소는 인메모리 단일 인스턴스 기준이다. 운영에서 인스턴스가 늘어나면 JWT 기반 인증 전환을 우선 검토한다.
+- API 에러 응답은 필요 시 `requestId`를 포함하고, 배치 로그도 `batch-*` requestId를 같이 남긴다.
 - 슬롯 생성: 공개 `/classes` API로 클래스 드롭다운 제공 (API 없을 시 ID 직접 입력 폴백)
 - 주문 총액: `OrderItemsForm`에서 상품 가격 × 수량으로 실시간 합계 표시
+- `BookingFormStep`의 결제 방식 라디오는 명시적 `id`를 써서 라벨 접근성을 보장
+
+### 로컬 실행 메모
+- `local` 프로필 `:app:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
+- clean DB 기준으로도 P8 예약/8회권 smoke를 바로 실행할 수 있다.
+- `DELETE /api/v1/admin/dev/payment/refunds/fail-next`로 훅을 비우고, `POST /api/v1/admin/dev/payment/refunds/fail-next`로 다음 환불 1회 실패를 arm할 수 있다.
 
 ### 테스트 실행
 
@@ -136,9 +151,12 @@
 ./gradlew --no-daemon :app:useCaseTest
 ./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.admin.AdminSlotUseCaseIT
 cd frontend && npm run build
+cd frontend && npm run e2e:install
+cd frontend && npm run e2e
 ```
 
 ### 미해결 과제
+- 로컬 `bootRun` 전 `happygallery-app` 컨테이너가 떠 있으면 8080 충돌 발생
 - PG 환불 패턴 중복 → 실 PG 연동 시 RefundExecutor로 통합 예정
 - `DELAY_REQUESTED` → 재개 경로 없음 (ADR-0014)
 - Fulfillment.status와 Order.status 이중 관리 → 불일치 위험 (ADR-0014)

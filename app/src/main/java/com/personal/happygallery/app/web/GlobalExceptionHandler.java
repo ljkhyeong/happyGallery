@@ -5,6 +5,7 @@ import com.personal.happygallery.common.error.ErrorResponse;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +26,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = e.getErrorCode();
         return ResponseEntity
                 .status(errorCode.httpStatus)
-                .body(ErrorResponse.of(errorCode, e.getMessage()));
+                .body(ErrorResponse.of(errorCode, e.getMessage(), requestId()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -35,7 +36,7 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         return ResponseEntity
                 .status(400)
-                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, message));
+                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, message, requestId()));
     }
 
     /**
@@ -48,7 +49,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = resolveDataIntegrityErrorCode(e);
         return ResponseEntity
                 .status(errorCode.httpStatus)
-                .body(ErrorResponse.of(errorCode));
+                .body(ErrorResponse.of(errorCode, errorCode.message, requestId()));
     }
 
     /**
@@ -61,7 +62,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = resolveOptimisticLockErrorCode(e);
         return ResponseEntity
                 .status(errorCode.httpStatus)
-                .body(ErrorResponse.of(errorCode));
+                .body(ErrorResponse.of(errorCode, errorCode.message, requestId()));
     }
 
     @ExceptionHandler(Exception.class)
@@ -69,7 +70,11 @@ public class GlobalExceptionHandler {
         log.error("처리되지 않은 예외", e);
         return ResponseEntity
                 .status(500)
-                .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
+                .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
+    }
+
+    private static String requestId() {
+        return MDC.get("requestId");
     }
 
     private ErrorCode resolveDataIntegrityErrorCode(DataIntegrityViolationException e) {
