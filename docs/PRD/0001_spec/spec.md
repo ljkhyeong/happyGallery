@@ -168,10 +168,12 @@
     - `PAID_APPROVAL_PENDING`
     - `APPROVED_FULFILLMENT_PENDING`
     - `DELAY_REQUESTED`
-    - `REJECTED_REFUNDED`
-    - `AUTO_REFUNDED_TIMEOUT`
-    - 픽업: `PICKUP_READY` → `PICKED_UP` / `PICKUP_EXPIRED_REFUNDED`
+    - `REJECTED`
+    - `AUTO_REFUND_TIMEOUT`
+    - 픽업: `PICKUP_READY` → `PICKED_UP` / `PICKUP_EXPIRED`
     - 제작: `IN_PRODUCTION` → (선택) `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`(제작 완료) → 픽업/배송 흐름 합류
+    - 지연 재개: `DELAY_REQUESTED` → `IN_PRODUCTION`(관리자 `resume-production`)
+    - 배송: `APPROVED_FULFILLMENT_PENDING` → `SHIPPING_PREPARING` → `SHIPPED` → `DELIVERED`
 - 예약: `BOOKED` / `CANCELED` / `NO_SHOW` / `COMPLETED`
     - 결제/미수금은 별도 필드로 분리
 
@@ -211,10 +213,12 @@
 - `order_items`
     - id, order_id, product_id, qty, unit_price
 - `order_approvals`
-    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND|PRODUCTION_COMPLETE), reason, decided_at
+    - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND|RESUME_PRODUCTION|PRODUCTION_COMPLETE|PREPARE_SHIPPING|SHIP|DELIVER), reason, decided_at
     - `AUTO_REFUND`는 배치 결정 이력이며 `decided_by_admin_id`는 null일 수 있음
 - `fulfillments`
-    - id, order_id, type(SHIPPING|PICKUP), status, address/pickup_store, expected_ship_date, pickup_deadline_at, version
+    - id, order_id(unique), type(SHIPPING|PICKUP), expected_ship_date, pickup_deadline_at, version
+    - 주문 상태는 `orders.status`가 단일 소스 — fulfillments에 별도 status 컬럼 없음
+    - 주문당 fulfillment는 1건만 유지한다
 - `refunds`
     - id, order_id nullable, booking_id nullable, amount, status(REQUESTED|SUCCEEDED|FAILED), pg_ref, fail_reason, created_at
 
@@ -342,6 +346,8 @@ Authorization: Bearer {token}
 - `app.admin.enable-api-key-auth=true` (기본값)일 때 `X-Admin-Key` 헤더로도 인증 가능.
 - 프로덕션에서는 `enable-api-key-auth=false`로 비활성화한다.
 - 인증키 소스: 서버 설정 `app.admin.api-key`, 환경 변수 `ADMIN_API_KEY`.
+- 주문 승인/거절/제작 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
+  API Key 폴백 경로와 배치 이력은 `decided_by_admin_id = null`일 수 있다.
 
 #### 적용 대상
 - `/api/v1/admin/**` (로그인/로그아웃 경로 제외)
@@ -874,7 +880,6 @@ GET /api/v1/orders/{orderId}?token={accessToken}
   ],
   "fulfillment": {
     "type": "SHIPPING",
-    "status": "FULFILLMENT_PENDING",
     "expectedShipDate": null,
     "pickupDeadlineAt": null
   }
@@ -891,27 +896,35 @@ GET /api/v1/orders/{orderId}?token={accessToken}
 
 ### 11-G.0 현재 구현된 주문 운영 엔드포인트
 - `POST /api/v1/admin/orders/{id}/approve`
-  - 선택 헤더: `X-Admin-Id`
   - 응답: `200 OK` 본문 없음
   - 정책:
     - `PAID_APPROVAL_PENDING`만 승인 가능
     - 주문에 `MADE_TO_ORDER` 상품이 있으면 `IN_PRODUCTION`, 아니면 `APPROVED_FULFILLMENT_PENDING`으로 전이
+    - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다
 - `POST /api/v1/admin/orders/{id}/reject`
-  - 선택 헤더: `X-Admin-Id`
   - 응답: `200 OK` 본문 없음
   - 정책:
     - 승인 대기 주문만 거절 가능
-    - 재고 복구 + 환불 실행 + `REJECTED_REFUNDED` 전이
+    - 재고 복구 + 환불 실행 + `REJECTED` 전이
 - `PATCH /api/v1/admin/orders/{id}/expected-ship-date`
   - 요청:
     - `{ "expectedShipDate": "2026-04-15" }`
   - 응답:
     - `{ "orderId": 5, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
+  - 정책:
+    - `IN_PRODUCTION`, `DELAY_REQUESTED`, `SHIPPING_PREPARING` 상태에서만 설정 가능
+    - SHIPPING 타입 fulfillment에서만 설정 가능 (PICKUP 타입은 400)
 - `POST /api/v1/admin/orders/{id}/delay`
   - 응답:
     - `{ "orderId": 5, "status": "DELAY_REQUESTED", "expectedShipDate": "2026-04-15" }`
   - 정책:
     - `IN_PRODUCTION`에서만 지연 요청 가능
+- `POST /api/v1/admin/orders/{id}/resume-production`
+  - 응답:
+    - `{ "orderId": 5, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
+  - 정책:
+    - `DELAY_REQUESTED`에서만 제작 재개 가능
+    - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다
 - `POST /api/v1/admin/orders/{id}/prepare-pickup`
   - 요청:
     - `{ "pickupDeadlineAt": "2026-04-16T18:00:00" }`
@@ -944,7 +957,7 @@ POST /api/v1/admin/orders/expire-pickups
 
 정책:
 - `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
-- 성공 건은 `PICKUP_EXPIRED_REFUNDED`로 전이하고 환불/재고 복구를 수행한다.
+- 성공 건은 `PICKUP_EXPIRED`로 전이하고 환불/재고 복구를 수행한다.
 - `failureReasons` 키는 내부 예외명을 그대로 노출하지 않고 아래 운영용 코드로 정규화한다.
   - `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`
 
@@ -952,7 +965,6 @@ POST /api/v1/admin/orders/expire-pickups
 
 ```
 POST /api/v1/admin/orders/{id}/complete-production
-Header: X-Admin-Id: {adminId}  (선택)
 
 → 200 OK
 {
@@ -968,9 +980,57 @@ Header: X-Admin-Id: {adminId}  (선택)
 
 정책:
 - `IN_PRODUCTION` 또는 `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`으로 전이한다.
-- Fulfillment 상태도 동기화한다.
-- 이력에 `PRODUCTION_COMPLETE` + adminId를 기록한다.
+- 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다. API Key 폴백 경로는 null일 수 있다.
 - 이후 `prepare-pickup` 또는 배송 흐름으로 이어진다.
+
+### 11-G.3 배송 흐름 (§8.3)
+
+```
+POST /api/v1/admin/orders/{id}/prepare-shipping
+
+→ 200 OK
+{ "orderId": 5, "status": "SHIPPING_PREPARING", "expectedShipDate": "2026-04-15" }
+```
+
+```
+POST /api/v1/admin/orders/{id}/mark-shipped
+
+→ 200 OK
+{ "orderId": 5, "status": "SHIPPED", "expectedShipDate": "2026-04-15" }
+```
+
+```
+POST /api/v1/admin/orders/{id}/mark-delivered
+
+→ 200 OK
+{ "orderId": 5, "status": "DELIVERED", "expectedShipDate": "2026-04-15" }
+```
+
+정책:
+- `APPROVED_FULFILLMENT_PENDING` → `SHIPPING_PREPARING` → `SHIPPED` → `DELIVERED` 순서로만 전이 가능
+- 각 전이는 `order_approvals` 이력에 기록된다 (`PREPARE_SHIPPING`, `SHIP`, `DELIVER`)
+- 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다
+
+### 11-G.4 주문 결정 이력 조회
+
+```
+GET /api/v1/admin/orders/{id}/history
+
+→ 200 OK
+[
+  {
+    "id": 1,
+    "decision": "APPROVE",
+    "decidedByAdminId": 1,
+    "reason": null,
+    "decidedAt": "2026-03-15T10:00:00"
+  }
+]
+```
+
+정책:
+- 결정 시간 순으로 정렬된 전체 이력을 반환한다
+- decision 값: `APPROVE`, `REJECT`, `DELAY`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
 
 ---
 
@@ -1033,7 +1093,7 @@ POST /api/v1/admin/refunds/{refundId}/retry
       - 기본 타임아웃: 3초
       - 실패율 임계치 초과 시 fast-fail로 내부 자원 고갈을 방지한다
     - 필터 기반 처리율 제한을 적용한다 (`/api/v1/**` 기준)
-      - 기본 정책: 인증코드 발송 10 req/sec/IP, 게스트 예약 생성 30 req/min/IP, 이용권 구매 20 req/min/IP, Admin API 120 req/min/IP
+      - 기본 정책: 인증코드 발송 10 req/sec/IP, 게스트 예약 생성 30 req/min/IP, 이용권 구매 20 req/min/IP, 관리자 로그인 5 req/min/IP, Admin API 120 req/min/IP
       - 초과 시 `429 TOO_MANY_REQUESTS`와 `Retry-After` 헤더를 반환한다
 - 보안:
     - 비회원 예약은 휴대폰 인증 기반

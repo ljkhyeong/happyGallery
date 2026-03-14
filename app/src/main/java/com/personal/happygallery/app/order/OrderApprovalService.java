@@ -12,7 +12,6 @@ import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
-import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
@@ -32,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>{@link #approve(Long)} — 관리자 승인 → {@link com.personal.happygallery.domain.order.OrderStatus#APPROVED_FULFILLMENT_PENDING}</li>
- *   <li>{@link #reject(Long)} — 관리자 거절 → 재고 복구 → PG 환불 → {@link com.personal.happygallery.domain.order.OrderStatus#REJECTED_REFUNDED}</li>
+ *   <li>{@link #reject(Long)} — 관리자 거절 → 재고 복구 → PG 환불 → {@link com.personal.happygallery.domain.order.OrderStatus#REJECTED}</li>
  * </ul>
  *
  * <p>이미 환불된 주문에 대한 승인/거절 시도는
@@ -101,7 +100,7 @@ public class OrderApprovalService {
         if (isMadeToOrder) {
             order.approveAsProduction();
             fulfillmentRepository.save(
-                    new Fulfillment(order.getId(), FulfillmentType.SHIPPING, OrderStatus.IN_PRODUCTION));
+                    new Fulfillment(order.getId(), FulfillmentType.SHIPPING));
         } else {
             order.approve();
         }
@@ -128,7 +127,7 @@ public class OrderApprovalService {
      * <ol>
      *   <li>재고 복구</li>
      *   <li>환불 요청 기록 + PG 환불 호출</li>
-     *   <li>주문 상태 → {@link com.personal.happygallery.domain.order.OrderStatus#REJECTED_REFUNDED}</li>
+     *   <li>주문 상태 → {@link com.personal.happygallery.domain.order.OrderStatus#REJECTED}</li>
      * </ol>
      *
      * @param orderId 주문 ID

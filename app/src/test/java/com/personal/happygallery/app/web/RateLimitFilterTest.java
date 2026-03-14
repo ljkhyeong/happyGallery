@@ -74,16 +74,75 @@ class RateLimitFilterTest {
         });
     }
 
+    @DisplayName("trustForwardedHeaders가 false이면 X-Forwarded-For를 무시하고 remoteAddr를 사용한다")
+    @Test
+    void usesRemoteAddr_whenTrustForwardedHeadersDisabled() throws Exception {
+        RateLimitProperties props = properties(true, 10, 10, 10, 10, 10);
+        props.setTrustForwardedHeaders(false);
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, props);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
+        request.setRemoteAddr("10.0.0.1");
+        request.addHeader("X-Forwarded-For", "1.2.3.4");
+
+        assertThat(filter.resolveClientKey(request)).isEqualTo("10.0.0.1");
+    }
+
+    @DisplayName("trustForwardedHeaders가 true이면 X-Forwarded-For 첫 번째 IP를 사용한다")
+    @Test
+    void usesForwardedFor_whenTrustForwardedHeadersEnabled() throws Exception {
+        RateLimitProperties props = properties(true, 10, 10, 10, 10, 10);
+        props.setTrustForwardedHeaders(true);
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, props);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
+        request.setRemoteAddr("10.0.0.1");
+        request.addHeader("X-Forwarded-For", "1.2.3.4, 5.6.7.8");
+
+        assertThat(filter.resolveClientKey(request)).isEqualTo("1.2.3.4");
+    }
+
+    @DisplayName("로그인 경로는 일반 admin API보다 엄격한 rate limit이 적용된다")
+    @Test
+    void returns429_whenAdminLoginLimitExceeded() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 10, 10, 10, 1, 100));
+
+        MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/admin/auth/login");
+        first.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse firstResponse = new MockHttpServletResponse();
+        filter.doFilter(first, firstResponse, new MockFilterChain());
+
+        MockHttpServletRequest second = new MockHttpServletRequest("POST", "/api/v1/admin/auth/login");
+        second.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse secondResponse = new MockHttpServletResponse();
+        filter.doFilter(second, secondResponse, new MockFilterChain());
+
+        assertSoftly(softly -> {
+            softly.assertThat(firstResponse.getStatus()).isEqualTo(200);
+            softly.assertThat(secondResponse.getStatus()).isEqualTo(429);
+        });
+    }
+
     private static RateLimitProperties properties(boolean enabled,
                                                   long phoneVerificationPerSecond,
                                                   long bookingCreatePerMinute,
                                                   long passPurchasePerMinute,
+                                                  long adminApiPerMinute) {
+        return properties(enabled, phoneVerificationPerSecond, bookingCreatePerMinute, passPurchasePerMinute, 5, adminApiPerMinute);
+    }
+
+    private static RateLimitProperties properties(boolean enabled,
+                                                  long phoneVerificationPerSecond,
+                                                  long bookingCreatePerMinute,
+                                                  long passPurchasePerMinute,
+                                                  long adminLoginPerMinute,
                                                   long adminApiPerMinute) {
         RateLimitProperties properties = new RateLimitProperties();
         properties.setEnabled(enabled);
         properties.setPhoneVerificationPerSecond(phoneVerificationPerSecond);
         properties.setBookingCreatePerMinute(bookingCreatePerMinute);
         properties.setPassPurchasePerMinute(passPurchasePerMinute);
+        properties.setAdminLoginPerMinute(adminLoginPerMinute);
         properties.setAdminApiPerMinute(adminApiPerMinute);
         return properties;
     }

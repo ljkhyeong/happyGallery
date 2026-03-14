@@ -1,8 +1,8 @@
 export type OrderStatus =
   | "PAID_APPROVAL_PENDING"
   | "APPROVED_FULFILLMENT_PENDING"
-  | "REJECTED_REFUNDED"
-  | "AUTO_REFUNDED_TIMEOUT"
+  | "REJECTED"
+  | "AUTO_REFUND_TIMEOUT"
   | "IN_PRODUCTION"
   | "DELAY_REQUESTED"
   | "SHIPPING_PREPARING"
@@ -10,7 +10,7 @@ export type OrderStatus =
   | "DELIVERED"
   | "PICKUP_READY"
   | "PICKED_UP"
-  | "PICKUP_EXPIRED_REFUNDED"
+  | "PICKUP_EXPIRED"
   | "COMPLETED";
 
 export interface SlotResponse {
@@ -77,6 +77,31 @@ export interface AdminOrderResponse {
   paidAt: string | null;
   approvalDeadlineAt: string | null;
   createdAt: string;
+}
+
+export interface ShippingResponse {
+  orderId: number;
+  status: OrderStatus;
+  expectedShipDate: string | null;
+}
+
+export type OrderApprovalDecision =
+  | "APPROVE"
+  | "REJECT"
+  | "DELAY"
+  | "AUTO_REFUND"
+  | "PRODUCTION_COMPLETE"
+  | "RESUME_PRODUCTION"
+  | "PREPARE_SHIPPING"
+  | "SHIP"
+  | "DELIVER";
+
+export interface OrderHistoryResponse {
+  id: number;
+  decision: OrderApprovalDecision;
+  decidedByAdminId: number | null;
+  reason: string | null;
+  decidedAt: string;
 }
 
 export interface AdminBookingResponse {

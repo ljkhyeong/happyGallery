@@ -9,8 +9,8 @@ public enum OrderStatus {
 	// 결제 및 승인
 	PAID_APPROVAL_PENDING,
 	APPROVED_FULFILLMENT_PENDING,
-	REJECTED_REFUNDED,
-	AUTO_REFUNDED_TIMEOUT,
+	REJECTED,
+	AUTO_REFUND_TIMEOUT,
 
 	// 제작 및 지연
 	IN_PRODUCTION,
@@ -24,16 +24,16 @@ public enum OrderStatus {
 	// 이행: 픽업
 	PICKUP_READY,
 	PICKED_UP,
-	PICKUP_EXPIRED_REFUNDED,
+	PICKUP_EXPIRED,
 
 	// 최종 상태
 	COMPLETED;
 
 	/** 승인 가능한 상태인지 확인한다. 이미 환불된 경우 {@link AlreadyRefundedException}을 던진다. */
 	public void requireApprovable() {
-		if (this == REJECTED_REFUNDED
-				|| this == AUTO_REFUNDED_TIMEOUT
-				|| this == PICKUP_EXPIRED_REFUNDED) {
+		if (this == REJECTED
+				|| this == AUTO_REFUND_TIMEOUT
+				|| this == PICKUP_EXPIRED) {
 			throw new AlreadyRefundedException();
 		}
 	}
@@ -68,6 +68,13 @@ public enum OrderStatus {
 		}
 	}
 
+	/** {@link #DELAY_REQUESTED} 상태인지 확인한다. */
+	public void requireDelayRequested() {
+		if (this != DELAY_REQUESTED) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지연 요청 상태에서만 가능합니다.");
+		}
+	}
+
 	/** {@link #IN_PRODUCTION} 또는 {@link #DELAY_REQUESTED} 상태인지 확인한다. */
 	public void requireProductionCompletable() {
 		if (this != IN_PRODUCTION && this != DELAY_REQUESTED) {
@@ -86,6 +93,35 @@ public enum OrderStatus {
 	public void requirePickupReady() {
 		if (this != PICKUP_READY) {
 			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "픽업 준비 상태에서만 가능합니다.");
+		}
+	}
+
+	/** expectedShipDate 갱신이 허용되는 상태인지 확인한다 (제작 중/지연/배송 준비). */
+	public void requireExpectedShipDateWritable() {
+		if (this != IN_PRODUCTION && this != DELAY_REQUESTED && this != SHIPPING_PREPARING) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
+					"제작 중, 지연 요청, 배송 준비 상태에서만 출고일을 설정할 수 있습니다.");
+		}
+	}
+
+	/** {@link #APPROVED_FULFILLMENT_PENDING} 상태에서 배송 준비로 전환 가능한지 확인한다. */
+	public void requireShippingPreparable() {
+		if (this != APPROVED_FULFILLMENT_PENDING) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이행 대기 상태에서만 배송 준비가 가능합니다.");
+		}
+	}
+
+	/** {@link #SHIPPING_PREPARING} 상태인지 확인한다. */
+	public void requireShippingPreparing() {
+		if (this != SHIPPING_PREPARING) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "배송 준비 상태에서만 가능합니다.");
+		}
+	}
+
+	/** {@link #SHIPPED} 상태인지 확인한다. */
+	public void requireShipped() {
+		if (this != SHIPPED) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "배송 중 상태에서만 가능합니다.");
 		}
 	}
 }

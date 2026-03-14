@@ -25,14 +25,21 @@
 
 ### 2. `Bucket4j` 기반 토큰 버킷 정책을 적용한다
 
-- 키: 기본적으로 클라이언트 IP(`X-Forwarded-For` 우선, 없으면 remoteAddr)
+- 키: 기본적으로 클라이언트 IP(`remoteAddr`)
+- `app.rate-limit.trust-forwarded-headers=true` 일 때만 `X-Forwarded-For`의 첫 번째 IP를 신뢰한다
 - 기본 한도:
   - 인증코드 발송: 10 req/sec/IP
   - 게스트 예약 생성: 30 req/min/IP
   - 이용권 구매: 20 req/min/IP
+  - 관리자 로그인: 5 req/min/IP
   - Admin API: 120 req/min/IP
 
-### 3. 제한 초과 시 표준 에러 응답을 반환한다
+### 3. 메모리 저장소는 bounded cleanup을 둔다
+
+- 인메모리 bucket map은 마지막 접근 시각을 기록한다
+- 5분마다 10분 이상 미접근 bucket을 제거해 장시간 실행 시 무제한 증가를 줄인다
+
+### 4. 제한 초과 시 표준 에러 응답을 반환한다
 
 - HTTP `429 TOO_MANY_REQUESTS`
 - 본문: `{"code":"TOO_MANY_REQUESTS","message":"..."}`
@@ -57,3 +64,4 @@
 - `app/web/RequestIdFilter`, `app/web/AdminAuthFilter` 필터 순서/경로 보강
 - `common/error/ErrorCode`에 `TOO_MANY_REQUESTS` 추가
 - `application.yml`에 `app.rate-limit.*` 설정 추가
+- `ADMIN_LOGIN` 한도와 `trust-forwarded-headers` 정책 추가

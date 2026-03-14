@@ -83,7 +83,7 @@
 - `domain/src/main/java/com/personal/happygallery/domain/order/Fulfillment.java`
 
 ### 확인 포인트
-- `PICKUP_READY -> PICKED_UP / PICKUP_EXPIRED_REFUNDED` 충돌 시 안전한지
+- `PICKUP_READY -> PICKED_UP / PICKUP_EXPIRED` 충돌 시 안전한지
 - 환불/재고/fulfillment 상태가 원자적으로 맞물리는지
 - 동시 실행 시 중복 상태 전이 위험이 없는지
 

@@ -22,12 +22,11 @@ public record OrderDetailResponse(
         }
     }
 
-    public record FulfillmentDto(String type, String status, LocalDate expectedShipDate,
+    public record FulfillmentDto(String type, LocalDate expectedShipDate,
                                  LocalDateTime pickupDeadlineAt) {
         public static FulfillmentDto from(Fulfillment f) {
             return new FulfillmentDto(
                     f.getType().name(),
-                    f.getStatus().name(),
                     f.getExpectedShipDate(),
                     f.getPickupDeadlineAt()
             );

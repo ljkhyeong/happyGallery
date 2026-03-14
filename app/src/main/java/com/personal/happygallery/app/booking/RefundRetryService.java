@@ -6,11 +6,7 @@ import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.RefundStatus;
 import com.personal.happygallery.infra.booking.RefundRepository;
-import com.personal.happygallery.infra.payment.PaymentProvider;
-import com.personal.happygallery.infra.payment.RefundResult;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,14 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class RefundRetryService {
 
-    private static final Logger log = LoggerFactory.getLogger(RefundRetryService.class);
-
     private final RefundRepository refundRepository;
-    private final PaymentProvider paymentProvider;
+    private final RefundExecutionService refundExecutionService;
 
-    public RefundRetryService(RefundRepository refundRepository, PaymentProvider paymentProvider) {
+    public RefundRetryService(RefundRepository refundRepository,
+                              RefundExecutionService refundExecutionService) {
         this.refundRepository = refundRepository;
-        this.paymentProvider = paymentProvider;
+        this.refundExecutionService = refundExecutionService;
     }
 
     /** FAILED 상태인 특정 환불을 재시도한다. */
@@ -39,20 +34,7 @@ public class RefundRetryService {
                     "FAILED 상태 환불만 재시도 가능합니다. (현재: " + refund.getStatus() + ")");
         }
 
-        try {
-            RefundResult result = paymentProvider.refund(refund.getPgRef(), refund.getAmount());
-            if (result.success()) {
-                refund.markSucceeded(result.pgRef());
-                log.info("환불 재시도 성공 [refundId={}]", refundId);
-            } else {
-                refund.markFailed(result.failReason());
-                log.warn("환불 재시도 실패 [refundId={}] reason={}", refundId, result.failReason());
-            }
-        } catch (Exception e) {
-            refund.markFailed(e.getMessage());
-            log.error("환불 재시도 예외 [refundId={}]", refundId, e);
-        }
-        refundRepository.save(refund);
+        refundExecutionService.executeRefund(refund, "retry refundId=" + refundId);
     }
 
     /** FAILED 상태인 환불 목록 조회 */

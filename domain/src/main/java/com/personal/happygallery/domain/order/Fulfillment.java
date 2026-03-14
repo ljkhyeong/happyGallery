@@ -18,6 +18,8 @@ import java.time.LocalDateTime;
  * <p>MADE_TO_ORDER 승인 시(SHIPPING), 또는 픽업 준비 완료 시(PICKUP) 생성된다.
  * 관리자가 {@link #setExpectedShipDate(LocalDate)}로 예상 출고일을,
  * {@link #getPickupDeadlineAt()}로 픽업 마감 시각을 관리한다.
+ *
+ * <p>주문 상태는 {@link Order#getStatus()}가 단일 소스이다.
  */
 @Entity
 @Table(name = "fulfillments")
@@ -33,10 +35,6 @@ public class Fulfillment {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private FulfillmentType type;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private OrderStatus status;
 
     @Column(name = "expected_ship_date")
     private LocalDate expectedShipDate;
@@ -55,25 +53,21 @@ public class Fulfillment {
      *
      * @param orderId 주문 ID
      * @param type    이행 유형 (SHIPPING | PICKUP)
-     * @param status  초기 주문 상태 (IN_PRODUCTION)
      */
-    public Fulfillment(Long orderId, FulfillmentType type, OrderStatus status) {
+    public Fulfillment(Long orderId, FulfillmentType type) {
         this.orderId = orderId;
         this.type = type;
-        this.status = status;
     }
 
     /**
      * 픽업 이행 레코드 생성 (PICKUP).
      *
      * @param orderId          주문 ID
-     * @param status           초기 주문 상태 (PICKUP_READY)
      * @param pickupDeadlineAt 픽업 마감 시각
      */
-    public Fulfillment(Long orderId, OrderStatus status, LocalDateTime pickupDeadlineAt) {
+    public Fulfillment(Long orderId, LocalDateTime pickupDeadlineAt) {
         this.orderId = orderId;
         this.type = FulfillmentType.PICKUP;
-        this.status = status;
         this.pickupDeadlineAt = pickupDeadlineAt;
     }
 
@@ -82,28 +76,25 @@ public class Fulfillment {
         this.expectedShipDate = expectedShipDate;
     }
 
-    /**
-     * 배치에서 픽업 만료 대상인지 판단한다.
-     * 픽업 준비 상태이고, 픽업 마감 시각이 {@code now} 이전이면 {@code true}.
-     */
-    public boolean canExpirePickup(LocalDateTime now) {
-        return this.status == OrderStatus.PICKUP_READY
-                && this.pickupDeadlineAt != null
-                && this.pickupDeadlineAt.isBefore(now);
+    /** SHIPPING 타입인지 확인한다. 픽업 이행에서 출고일 갱신 시 호출. */
+    public void requireShippingType() {
+        if (this.type != FulfillmentType.SHIPPING) {
+            throw new com.personal.happygallery.common.error.HappyGalleryException(
+                    com.personal.happygallery.common.error.ErrorCode.INVALID_INPUT,
+                    "배송 이행에서만 출고일을 설정할 수 있습니다.");
+        }
     }
 
-    /** 주문 상태와 동기화한다. null이면 무시한다. */
-    public void syncStatus(OrderStatus status) {
-        if (status == null) {
-            return;
-        }
-        this.status = status;
+    /** 기존 이행 레코드를 픽업용으로 전환한다 (MADE_TO_ORDER 제작 완료 후 픽업 시). */
+    public void convertToPickup(LocalDateTime pickupDeadlineAt) {
+        this.type = FulfillmentType.PICKUP;
+        this.expectedShipDate = null;
+        this.pickupDeadlineAt = pickupDeadlineAt;
     }
 
     public Long getId() { return id; }
     public Long getOrderId() { return orderId; }
     public FulfillmentType getType() { return type; }
-    public OrderStatus getStatus() { return status; }
     public LocalDate getExpectedShipDate() { return expectedShipDate; }
     public LocalDateTime getPickupDeadlineAt() { return pickupDeadlineAt; }
     public long getVersion() { return version; }

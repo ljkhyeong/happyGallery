@@ -72,6 +72,8 @@ curl http://localhost:8080/actuator/health
 ## Approval Minimization
 - 사용자 확인이나 승인 요청은 기술적으로 꼭 필요한 경우에만 한다.
 - 원격 쓰기, PR merge, 워크스페이스 밖 경로 쓰기처럼 실제 escalation이 필요한 작업만 승인 흐름을 사용한다.
+- 이 저장소에서 반복적으로 샌드박스에 막힌 작업은 처음부터 unsandboxed/escalated 실행을 기본으로 한다. 대표적으로 Gradle JVM 명령, `gh pr create/view/merge/ready`, 원격 `git fetch/push/pull`, Docker 컨테이너 제어와 `docker exec`, Playwright 브라우저 설치/실행, 워크스페이스 밖 경로 또는 별도 worktree 쓰기가 여기에 포함된다.
+- 위 작업들은 샌드박스에서 먼저 실패를 재현하거나 이유 설명용 질문을 추가하지 말고, 바로 권한 상승으로 처리한다.
 - 가능한 한 현재 워크트리 안에서 해결하고, 보조 `status`/`log` 확인 때문에 승인 횟수를 늘리지 않는다.
 - 사용자가 `바로`, `지금`, `곧바로`처럼 실행을 직접 지시한 경우에는, 파괴적이거나 모호한 상황이 아니면 재확인 질문 없이 진행한다.
 - PR 작업에서는 먼저 mergeable 여부를 보고, 충돌이 없으면 바로 머지한다. 충돌이 있을 때만 필요한 파일만 정리한다.
