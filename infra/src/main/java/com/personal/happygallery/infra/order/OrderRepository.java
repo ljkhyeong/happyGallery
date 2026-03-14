@@ -14,6 +14,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      */
     List<Order> findByStatusAndApprovalDeadlineAtBefore(OrderStatus status, LocalDateTime deadline);
 
+    /** 회원 — 자기 주문 조회 (최신순) */
+    List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
+
     /** 관리자 — 상태별 주문 조회 (최신순) */
     List<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status);
 

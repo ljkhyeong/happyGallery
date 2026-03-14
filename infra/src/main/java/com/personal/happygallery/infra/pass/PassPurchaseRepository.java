@@ -9,6 +9,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long> {
 
+    /** 회원 — 자기 8회권 조회 (구매일 내림차순) */
+    List<PassPurchase> findByUserIdOrderByPurchasedAtDesc(Long userId);
+
     /** 만료 배치 대상: expires_at < now AND remaining_credits > 0 */
     List<PassPurchase> findByExpiresAtBeforeAndRemainingCreditsGreaterThan(
             LocalDateTime now, int credits);

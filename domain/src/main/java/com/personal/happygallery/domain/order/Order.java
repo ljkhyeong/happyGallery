@@ -26,6 +26,9 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @Column(name = "guest_id")
     private Long guestId;
 
@@ -73,6 +76,19 @@ public class Order {
     public Order(Long guestId, String accessToken, long totalAmount, LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
         this(guestId, totalAmount, paidAt, approvalDeadlineAt);
         this.accessToken = accessToken;
+    }
+
+    /**
+     * 회원 주문 생성. guest 대신 user_id를 설정한다.
+     */
+    public static Order forMember(Long userId, long totalAmount, LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
+        Order order = new Order();
+        order.userId = userId;
+        order.totalAmount = totalAmount;
+        order.paidAt = paidAt;
+        order.approvalDeadlineAt = approvalDeadlineAt;
+        order.status = OrderStatus.PAID_APPROVAL_PENDING;
+        return order;
     }
 
     /**
@@ -204,6 +220,7 @@ public class Order {
     }
 
     public Long getId() { return id; }
+    public Long getUserId() { return userId; }
     public Long getGuestId() { return guestId; }
     public String getAccessToken() { return accessToken; }
     public OrderStatus getStatus() { return status; }
