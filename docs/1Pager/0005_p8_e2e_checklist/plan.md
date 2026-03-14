@@ -43,12 +43,10 @@ npm run e2e
 - Playwright는 기본적으로 Vite dev server를 직접 띄우거나 이미 떠 있는 `localhost:3000`을 재사용한다.
 - 백엔드는 기본 `http://localhost:8080`에 떠 있어야 한다.
 - 관리자 로그인 기본값은 `admin` / `admin1234`다. 필요하면 `PLAYWRIGHT_ADMIN_USERNAME`, `PLAYWRIGHT_ADMIN_PASSWORD`로 덮어쓴다.
-- 관리자 보조 API 호출은 `/api/v1/admin/auth/login`으로 얻은 Bearer 토큰을 사용한다.
-- 다른 백엔드 주소를 쓰려면 `PLAYWRIGHT_BACKEND_URL`로 덮어쓴다.
+- API 보조 호출용 관리자 키 기본값은 `dev-admin-key`다. 필요하면 `PLAYWRIGHT_ADMIN_KEY`로 덮어쓴다.
 - 앱 컨테이너가 8080을 쓰고 있으면 로컬 `bootRun` 전에 `docker compose stop app`을 먼저 실행한다.
 - `local` 프로필 `bootRun`은 `classes` 테이블이 비어 있을 때 기본 클래스 3종을 자동 seed한다.
 - 시나리오 5는 local 전용 dev hook `POST /api/v1/admin/dev/payment/refunds/fail-next`와 `DELETE /api/v1/admin/dev/payment/refunds/fail-next`를 사용한다.
-  요청 바디에 `orderId`를 넣으면 특정 주문의 다음 환불 1회만 실패시킬 수 있다.
 
 ## 최신 실행 결과
 

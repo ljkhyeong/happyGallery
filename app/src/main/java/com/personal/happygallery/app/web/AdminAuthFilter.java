@@ -47,7 +47,7 @@ public class AdminAuthFilter implements Filter {
         String uri = httpRequest.getRequestURI();
 
         if (isAdminPath(uri) && !isAuthPath(uri)) {
-            if (!authenticate(httpRequest)) {
+            if (!isAuthenticated(httpRequest)) {
                 httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 httpResponse.setContentType("application/json;charset=UTF-8");
                 httpResponse.getWriter().write("{\"code\":\"UNAUTHORIZED\",\"message\":\"관리자 인증이 필요합니다.\"}");
@@ -58,7 +58,7 @@ public class AdminAuthFilter implements Filter {
         chain.doFilter(request, response);
     }
 
-    private boolean authenticate(HttpServletRequest request) {
+    private boolean isAuthenticated(HttpServletRequest request) {
         // 1) Bearer 토큰 검증 — 세션에서 admin id 추출
         String authHeader = request.getHeader(AUTH_HEADER);
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {

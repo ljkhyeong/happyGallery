@@ -265,7 +265,7 @@ test("P8-5 환불 실패 주문을 관리자 화면에서 재시도해 복구할
     await expect(orderRow).toBeVisible();
     await orderRow.getByRole("button", { name: "거절" }).click();
 
-    await waitForOrder(request, orderId, "REJECTED");
+    await waitForOrder(request, orderId, "REJECTED_REFUNDED");
     const failedRefund = await waitForFailedRefundByOrderId(request, orderId);
     expect(failedRefund.failReason).toContain(failureReason);
 

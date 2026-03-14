@@ -1,10 +1,9 @@
 import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 
+const ADMIN_KEY = process.env.PLAYWRIGHT_ADMIN_KEY ?? "dev-admin-key";
 const ADMIN_USERNAME = process.env.PLAYWRIGHT_ADMIN_USERNAME ?? "admin";
 const ADMIN_PASSWORD = process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? "admin1234";
 const BACKEND_BASE_URL = (process.env.PLAYWRIGHT_BACKEND_URL ?? "http://127.0.0.1:8080/api/v1").replace(/\/$/, "");
-
-let cachedAdminToken: string | null = null;
 
 export interface BookingClass {
   id: number;
@@ -131,19 +130,6 @@ export function extractAccessToken(text: string): string {
   return match[1];
 }
 
-async function getAdminToken(request: APIRequestContext): Promise<string> {
-  if (cachedAdminToken) return cachedAdminToken;
-
-  const url = `${BACKEND_BASE_URL}/admin/auth/login`;
-  const response = await request.post(url, {
-    data: { username: ADMIN_USERNAME, password: ADMIN_PASSWORD },
-  });
-  expect(response.ok(), `Admin login should succeed`).toBeTruthy();
-  const body = await response.json();
-  cachedAdminToken = body.token as string;
-  return cachedAdminToken;
-}
-
 export async function loginAdmin(page: Page) {
   await page.goto("/admin");
 
@@ -177,11 +163,6 @@ export function adminCard(page: Page, title: string): Locator {
   return page.locator(".card").filter({ hasText: title }).first();
 }
 
-async function adminHeaders(request: APIRequestContext): Promise<Record<string, string>> {
-  const token = await getAdminToken(request);
-  return { Authorization: `Bearer ${token}` };
-}
-
 export async function apiGet<T>(
   request: APIRequestContext,
   path: string,
@@ -195,7 +176,7 @@ export async function apiGet<T>(
   }
 
   const response = await request.get(url.toString(), {
-    headers: options.admin ? await adminHeaders(request) : undefined,
+    headers: options.admin ? { "X-Admin-Key": ADMIN_KEY } : undefined,
   });
   expect(response.ok(), `GET ${url} should succeed`).toBeTruthy();
   return (await response.json()) as T;
@@ -211,7 +192,7 @@ export async function apiPost<T>(
 
   const response = await request.post(url.toString(), {
     data: body,
-    headers: options.admin ? await adminHeaders(request) : undefined,
+    headers: options.admin ? { "X-Admin-Key": ADMIN_KEY } : undefined,
   });
   expect(response.ok(), `POST ${url} should succeed`).toBeTruthy();
 
@@ -229,7 +210,7 @@ export async function apiDelete(
   const url = new URL(`${BACKEND_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`);
 
   const response = await request.delete(url.toString(), {
-    headers: options.admin ? await adminHeaders(request) : undefined,
+    headers: options.admin ? { "X-Admin-Key": ADMIN_KEY } : undefined,
   });
   expect(response.ok(), `DELETE ${url} should succeed`).toBeTruthy();
 }

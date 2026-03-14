@@ -46,7 +46,7 @@ class AdminAuthFilterTest {
 
     @DisplayName("Bearer 토큰이 유효하면 통과하고 admin 정보가 request attribute에 설정된다")
     @Test
-    void passes_whenValidBearerToken_andSetsAdminAttributes() throws Exception {
+    void passes_whenValidBearerToken() throws Exception {
         AdminSessionStore store = new AdminSessionStore();
         String token = store.create(1L, "admin");
         AdminAuthFilter filter = new AdminAuthFilter(properties("dev-admin-key", false), store);

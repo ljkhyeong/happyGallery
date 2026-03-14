@@ -1,6 +1,5 @@
 package com.personal.happygallery.app.web.admin;
 
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -27,7 +26,7 @@ public class AdminSessionStore {
         if (session == null) {
             return Optional.empty();
         }
-        if (isExpired(session)) {
+        if (session.createdAt().plusSeconds(SESSION_TTL_SECONDS).isBefore(Instant.now())) {
             sessions.remove(token);
             return Optional.empty();
         }
@@ -36,21 +35,6 @@ public class AdminSessionStore {
 
     public void remove(String token) {
         sessions.remove(token);
-    }
-
-    /** 30분마다 만료 세션 정리 */
-    @Scheduled(fixedRate = 30 * 60 * 1000)
-    void evictExpired() {
-        Instant now = Instant.now();
-        sessions.entrySet().removeIf(e -> e.getValue().createdAt().plusSeconds(SESSION_TTL_SECONDS).isBefore(now));
-    }
-
-    int size() {
-        return sessions.size();
-    }
-
-    private boolean isExpired(Session session) {
-        return session.createdAt().plusSeconds(SESSION_TTL_SECONDS).isBefore(Instant.now());
     }
 
     public record Session(Long adminUserId, String username, Instant createdAt) {}
