@@ -35,6 +35,10 @@ export function requestDelay(adminKey: string, id: number): Promise<OrderProduct
   return api(`/admin/orders/${id}/delay`, { method: "POST", headers: h(adminKey) });
 }
 
+export function resumeProduction(adminKey: string, id: number): Promise<OrderProductionResponse> {
+  return api(`/admin/orders/${id}/resume-production`, { method: "POST", headers: h(adminKey) });
+}
+
 export function preparePickup(adminKey: string, id: number, body: MarkPickupReadyRequest): Promise<PickupResponse> {
   return api(`/admin/orders/${id}/prepare-pickup`, { method: "POST", headers: h(adminKey), body });
 }

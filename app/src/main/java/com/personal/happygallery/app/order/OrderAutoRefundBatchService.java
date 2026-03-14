@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
  *
  * <p>{@code approval_deadline_at < now} 인 {@link OrderStatus#PAID_APPROVAL_PENDING} 주문을 일괄 처리한다.
  * 각 주문에 대해 재고를 복구하고 PG 환불을 호출한 뒤
- * 상태를 {@link OrderStatus#AUTO_REFUNDED_TIMEOUT}으로 전이한다.
+ * 상태를 {@link OrderStatus#AUTO_REFUND_TIMEOUT}으로 전이한다.
  *
  * <p>{@code @Scheduled} 연결은 §10에서 수행한다. 현재는 서비스만 구현됨.
  */
@@ -39,7 +39,7 @@ public class OrderAutoRefundBatchService {
      *
      * <ol>
      *   <li>status=PAID_APPROVAL_PENDING AND approvalDeadlineAt &lt; now 조회</li>
-     *   <li>각 주문: 재고 복구 → PG 환불 → AUTO_REFUNDED_TIMEOUT 전이</li>
+     *   <li>각 주문: 재고 복구 → PG 환불 → AUTO_REFUND_TIMEOUT 전이</li>
      * </ol>
      *
      * @return 처리된 건수

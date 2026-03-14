@@ -77,7 +77,7 @@ public class Order {
 
     /**
      * 관리자 승인 처리.
-     * 이미 환불된 주문({@link OrderStatus#REJECTED_REFUNDED}, {@link OrderStatus#AUTO_REFUNDED_TIMEOUT})에
+     * 이미 환불된 주문({@link OrderStatus#REJECTED}, {@link OrderStatus#AUTO_REFUND_TIMEOUT})에
      * 대한 호출은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}을 던진다.
      * 승인 대기 상태({@link OrderStatus#PAID_APPROVAL_PENDING})가 아니면 400을 던진다.
      */
@@ -96,7 +96,7 @@ public class Order {
     public void reject() {
         this.status.requireCancellable();
         this.status.requireApprovalPending();
-        this.status = OrderStatus.REJECTED_REFUNDED;
+        this.status = OrderStatus.REJECTED;
     }
 
     /**
@@ -118,6 +118,15 @@ public class Order {
     }
 
     /**
+     * 지연 요청 상태에서 제작을 재개한다.
+     * {@link OrderStatus#DELAY_REQUESTED} 상태가 아니면 400을 던진다.
+     */
+    public void resumeProduction() {
+        this.status.requireDelayRequested();
+        this.status = OrderStatus.IN_PRODUCTION;
+    }
+
+    /**
      * 제작 완료 처리. {@link OrderStatus#IN_PRODUCTION} 또는 {@link OrderStatus#DELAY_REQUESTED}
      * 상태에서만 호출 가능하며, {@link OrderStatus#APPROVED_FULFILLMENT_PENDING}으로 전이한다.
      */
@@ -133,7 +142,7 @@ public class Order {
      */
     public void markAutoRefunded() {
         this.status.requireApprovalPending();
-        this.status = OrderStatus.AUTO_REFUNDED_TIMEOUT;
+        this.status = OrderStatus.AUTO_REFUND_TIMEOUT;
     }
 
     /**
@@ -167,7 +176,7 @@ public class Order {
      */
     public void markPickupExpired() {
         this.status.requirePickupReady();
-        this.status = OrderStatus.PICKUP_EXPIRED_REFUNDED;
+        this.status = OrderStatus.PICKUP_EXPIRED;
     }
 
     public Long getId() { return id; }

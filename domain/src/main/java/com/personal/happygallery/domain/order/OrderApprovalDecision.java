@@ -5,5 +5,6 @@ public enum OrderApprovalDecision {
     REJECT,
     DELAY,
     AUTO_REFUND,
-    PRODUCTION_COMPLETE
+    PRODUCTION_COMPLETE,
+    RESUME_PRODUCTION
 }

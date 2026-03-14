@@ -76,6 +76,15 @@ public class AdminOrderController {
         orderApprovalService.reject(id, adminId);
     }
 
+    /** POST /admin/orders/{id}/resume-production — 지연 요청에서 제작 재개 (DELAY_REQUESTED → IN_PRODUCTION) */
+    @PostMapping("/{id}/resume-production")
+    @ResponseStatus(HttpStatus.OK)
+    public OrderProductionResponse resumeProduction(
+            @PathVariable Long id,
+            @RequestHeader(value = ADMIN_ID_HEADER, required = false) Long adminId) {
+        return OrderProductionResponse.from(orderProductionService.resumeProduction(id, adminId));
+    }
+
     /** POST /admin/orders/{id}/complete-production — 제작 완료 (IN_PRODUCTION/DELAY_REQUESTED → APPROVED_FULFILLMENT_PENDING) */
     @PostMapping("/{id}/complete-production")
     @ResponseStatus(HttpStatus.OK)

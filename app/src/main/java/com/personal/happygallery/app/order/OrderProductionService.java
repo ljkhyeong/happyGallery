@@ -91,10 +91,33 @@ public class OrderProductionService {
 
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
-        fulfillment.syncStatus(order.getStatus());
-        fulfillmentRepository.save(fulfillment);
 
         orderApprovalHistoryRepository.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELAY));
+        orderRepository.save(order);
+        return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
+    }
+
+    /**
+     * 지연 요청 상태에서 제작을 재개한다.
+     * {@link OrderStatus#DELAY_REQUESTED} → {@link OrderStatus#IN_PRODUCTION}.
+     */
+    @Retryable(
+            retryFor = ObjectOptimisticLockingFailureException.class,
+            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
+            backoff = @Backoff(
+                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
+                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
+                    random = true))
+    public ProductionResult resumeProduction(Long orderId, Long adminId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("주문"));
+        order.resumeProduction();
+
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new NotFoundException("이행 정보"));
+
+        orderApprovalHistoryRepository.save(
+                new OrderApprovalHistory(order.getId(), OrderApprovalDecision.RESUME_PRODUCTION, adminId, null));
         orderRepository.save(order);
         return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }
@@ -118,8 +141,6 @@ public class OrderProductionService {
 
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
-        fulfillment.syncStatus(order.getStatus());
-        fulfillmentRepository.save(fulfillment);
 
         orderApprovalHistoryRepository.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PRODUCTION_COMPLETE, adminId, null));

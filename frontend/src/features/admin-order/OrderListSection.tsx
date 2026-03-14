@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col, InputGroup } from "react-bootstrap";
 import {
   fetchOrders, approveOrder, rejectOrder, completeProduction,
-  requestDelay, preparePickup, completePickup, setExpectedShipDate, expirePickups,
+  requestDelay, resumeProduction, preparePickup, completePickup, setExpectedShipDate, expirePickups,
 } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
@@ -24,9 +24,9 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "PICKUP_READY", label: "픽업 대기" },
   { value: "PICKED_UP", label: "픽업 완료" },
   { value: "COMPLETED", label: "완료" },
-  { value: "REJECTED_REFUNDED", label: "거절 환불" },
-  { value: "AUTO_REFUNDED_TIMEOUT", label: "자동 환불" },
-  { value: "PICKUP_EXPIRED_REFUNDED", label: "픽업 만료 환불" },
+  { value: "REJECTED", label: "거절" },
+  { value: "AUTO_REFUND_TIMEOUT", label: "자동 환불" },
+  { value: "PICKUP_EXPIRED", label: "픽업 만료" },
 ];
 
 function statusBadge(status: OrderStatus) {
@@ -38,9 +38,9 @@ function statusBadge(status: OrderStatus) {
     PICKUP_READY: { bg: "info", label: "픽업 대기" },
     PICKED_UP: { bg: "success", label: "픽업 완료" },
     COMPLETED: { bg: "success", label: "완료" },
-    REJECTED_REFUNDED: { bg: "danger", label: "거절 환불" },
-    AUTO_REFUNDED_TIMEOUT: { bg: "danger", label: "자동 환불" },
-    PICKUP_EXPIRED_REFUNDED: { bg: "danger", label: "픽업 만료 환불" },
+    REJECTED: { bg: "danger", label: "거절" },
+    AUTO_REFUND_TIMEOUT: { bg: "danger", label: "자동 환불" },
+    PICKUP_EXPIRED: { bg: "danger", label: "픽업 만료" },
     SHIPPING_PREPARING: { bg: "info", label: "배송 준비" },
     SHIPPED: { bg: "primary", label: "배송 중" },
     DELIVERED: { bg: "success", label: "배송 완료" },
@@ -132,6 +132,14 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
     onSettled: () => setPendingId(null),
   });
 
+  const resumeProdMut = useMutation({
+    mutationFn: (id: number) => resumeProduction(adminKey, id),
+    onMutate: (id) => setPendingId(id),
+    onSuccess: (_, id) => { toast.show(`주문 #${id} 제작 재개`); invalidate(); },
+    onError,
+    onSettled: () => setPendingId(null),
+  });
+
   const expireMut = useMutation({
     mutationFn: () => expirePickups(adminKey),
     onSuccess: (r) => { toast.show(`픽업 만료 배치: 성공 ${r.successCount}, 실패 ${r.failureCount}`); invalidate(); },
@@ -139,7 +147,7 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
   });
 
   const lastMutError = approveMut.error || rejectMut.error || completeProdMut.error
-    || delayMut.error || pickupMut.error || pickupDoneMut.error || shipDateMut.error || expireMut.error;
+    || delayMut.error || resumeProdMut.error || pickupMut.error || pickupDoneMut.error || shipDateMut.error || expireMut.error;
 
   function renderActions(orderId: number, status: OrderStatus) {
     const disabled = pendingId === orderId;
@@ -171,6 +179,12 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
               <Button size="sm" variant="outline-warning" disabled={disabled}
                 onClick={() => delayMut.mutate(orderId)}>
                 {pending ? "..." : "지연"}
+              </Button>
+            )}
+            {status === "DELAY_REQUESTED" && (
+              <Button size="sm" variant="outline-success" disabled={disabled}
+                onClick={() => resumeProdMut.mutate(orderId)}>
+                {pending ? "..." : "재개"}
               </Button>
             )}
             <InputGroup size="sm" style={{ width: "auto" }}>

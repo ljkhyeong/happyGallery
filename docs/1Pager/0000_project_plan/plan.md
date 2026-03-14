@@ -26,7 +26,7 @@
 ### 해야 할 일(How)
 - [ ] 변경은 PR로만 하도록 규칙을 둔다.
 - [ ] 주문/예약/패스의 **상태 목록**(enum 후보)을 문서에 1페이지로 요약한다.
-    - 주문: PAID_APPROVAL_PENDING, APPROVED..., REJECTED_REFUNDED, AUTO_REFUNDED_TIMEOUT, ...
+    - 주문: PAID_APPROVAL_PENDING, APPROVED..., REJECTED, AUTO_REFUND_TIMEOUT, ...
     - 예약: BOOKED, CANCELED, NO_SHOW, COMPLETED
     - 패스: ACTIVE, EXPIRED, PARTIAL_REFUNDED(또는 ledger 기반)
 - [ ] “범위 외”를 `OUT_OF_SCOPE.md`로 분리하고, 팀/미래의 나를 위해 이유를 1줄씩 적는다.

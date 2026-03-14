@@ -110,7 +110,7 @@ class OrderApprovalUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof: 거절 → REJECTED_REFUNDED + 재고 복구 + 환불 기록
+    // Proof: 거절 → REJECTED + 재고 복구 + 환불 기록
     // -----------------------------------------------------------------------
 
     @DisplayName("주문 거절 시 환불 처리와 재고 복구가 수행된다")
@@ -127,7 +127,7 @@ class OrderApprovalUseCaseIT {
 
         // 주문 상태 확인
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED_REFUNDED);
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED);
         assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
                 .extracting("decision")
                 .containsExactly(OrderApprovalDecision.REJECT);
@@ -169,7 +169,7 @@ class OrderApprovalUseCaseIT {
                 .isInstanceOf(AlreadyRefundedException.class);
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED_REFUNDED);
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED);
         assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
                 .extracting("decision")
                 .containsExactly(OrderApprovalDecision.REJECT);
@@ -198,7 +198,7 @@ class OrderApprovalUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof (DoD §8.2): 24h 경과 → 자동환불 → AUTO_REFUNDED_TIMEOUT + 재고 복구
+    // Proof (DoD §8.2): 24h 경과 → 자동환불 → AUTO_REFUND_TIMEOUT + 재고 복구
     // -----------------------------------------------------------------------
 
     @DisplayName("24시간 초과 주문 자동환불 시 상태 전이와 재고 복구가 수행된다")
@@ -212,7 +212,7 @@ class OrderApprovalUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.AUTO_REFUND_TIMEOUT);
             softly.assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(1);
             softly.assertThat(refundRepository.findAll()).hasSize(1);
         });
@@ -227,7 +227,7 @@ class OrderApprovalUseCaseIT {
     void approve_afterAutoRefund_throws409() throws Exception {
         Order order = orderHelper.createExpiredReadyStockPendingOrder("409 테스트 상품", 60000L).order();
 
-        // 배치 실행 → AUTO_REFUNDED_TIMEOUT
+        // 배치 실행 → AUTO_REFUND_TIMEOUT
         orderAutoRefundBatchService.autoRefundExpired();
 
         // 승인 시도 → AlreadyRefundedException (409)
@@ -311,8 +311,8 @@ class OrderApprovalUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(2);
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(updated1.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
-            softly.assertThat(updated2.getStatus()).isEqualTo(OrderStatus.AUTO_REFUNDED_TIMEOUT);
+            softly.assertThat(updated1.getStatus()).isEqualTo(OrderStatus.AUTO_REFUND_TIMEOUT);
+            softly.assertThat(updated2.getStatus()).isEqualTo(OrderStatus.AUTO_REFUND_TIMEOUT);
         });
     }
 

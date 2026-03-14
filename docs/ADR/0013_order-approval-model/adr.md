@@ -22,11 +22,11 @@
     ↓
 PAID_APPROVAL_PENDING  (approval_deadline_at = paidAt + 24h)
     ├─ 관리자 승인 → APPROVED_FULFILLMENT_PENDING
-    ├─ 관리자 거절 → REJECTED_REFUNDED
-    └─ 24h 초과 배치 → AUTO_REFUNDED_TIMEOUT
+    ├─ 관리자 거절 → REJECTED
+    └─ 24h 초과 배치 → AUTO_REFUND_TIMEOUT
 ```
 
-이미 환불된 상태(REJECTED_REFUNDED, AUTO_REFUNDED_TIMEOUT)에서
+이미 환불된 상태(REJECTED, AUTO_REFUND_TIMEOUT, PICKUP_EXPIRED)에서
 승인/거절 재시도 → `AlreadyRefundedException` (409).
 이 가드는 기존 `OrderStatus.requireApprovable()`을 재사용한다.
 

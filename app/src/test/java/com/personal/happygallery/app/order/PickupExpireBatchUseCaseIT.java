@@ -1,9 +1,7 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.batch.BatchResult;
-import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
-import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
@@ -119,17 +117,14 @@ class PickupExpireBatchUseCaseIT {
         // 환불 기록 확인
         var refunds = refundRepository.findAll();
 
-        // Fulfillment 상태 동기화 확인
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+            softly.assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
             softly.assertThat(restoredQuantity).isEqualTo(1);
             softly.assertThat(refunds).hasSize(1);
             softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
-            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
         });
     }
 
@@ -174,7 +169,7 @@ class PickupExpireBatchUseCaseIT {
                 .andExpect(jsonPath("$.failureReasons").isMap());
 
         Order expired = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+        assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
     }
 
     @DisplayName("픽업 만료 배치에서 한 건이 실패해도 다음 주문을 계속 처리하고 실패를 집계한다")
@@ -204,7 +199,7 @@ class PickupExpireBatchUseCaseIT {
             softly.assertThat(result.failureCount()).isEqualTo(1);
             softly.assertThat(result.failureReasons()).containsEntry("NotFoundException", 1);
             softly.assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
-            softly.assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+            softly.assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
         });
     }
 
@@ -248,11 +243,9 @@ class PickupExpireBatchUseCaseIT {
         }
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        assertThat(fulfillment.getStatus()).isEqualTo(updated.getStatus());
 
-        if (updated.getStatus() == OrderStatus.PICKUP_EXPIRED_REFUNDED) {
-            assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED_REFUNDED);
+        if (updated.getStatus() == OrderStatus.PICKUP_EXPIRED) {
+            assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
             assertThat(refundRepository.count()).isEqualTo(1L);
         } else {
             assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKED_UP);

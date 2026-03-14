@@ -28,6 +28,7 @@ IN_PRODUCTION          ← 환불 불가 시작점
     ├─ 고객 동의 지연 (requestDelay)
            ↓
     DELAY_REQUESTED
+    ├─ 제작 재개 (resumeProduction) → IN_PRODUCTION
     └─ 제작 완료 (completeProduction)
            ↓
     APPROVED_FULFILLMENT_PENDING
@@ -46,8 +47,8 @@ READY_STOCK 상품은 기존 흐름 유지: approve → APPROVED_FULFILLMENT_PEN
 
 MADE_TO_ORDER 승인 시 `fulfillments` 테이블에 레코드를 생성한다.
 - `type = SHIPPING` (예약 제작은 배송)
-- `status = IN_PRODUCTION` (주문 상태와 동기화)
 - `expected_ship_date = null` (관리자가 별도 설정)
+- Fulfillment에 별도 `status` 컬럼은 없다 — 주문 상태는 `Order.status`가 단일 소스
 
 READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업에서 처리 예정).
 
@@ -69,6 +70,7 @@ READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업
 |---------|-----------------------------------------|-----------------------------|
 | `PATCH` | `/admin/orders/{id}/expected-ship-date` | 예상 출고일 설정/갱신        |
 | `POST`  | `/admin/orders/{id}/delay`              | 배송 지연 상태 전환 (고객 동의) |
+| `POST`  | `/admin/orders/{id}/resume-production`  | 지연 → 제작 재개 (DELAY_REQUESTED → IN_PRODUCTION) |
 | `POST`  | `/admin/orders/{id}/complete-production`| 제작 완료 → 이행 대기 상태 복귀 |
 
 `complete-production` 호출 시 `X-Admin-Id` 헤더(선택)를 받아
@@ -81,5 +83,5 @@ READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업
 | 항목 | 내용 |
 |------|------|
 | 혼합 주문 | MADE_TO_ORDER + READY_STOCK 상품이 같은 주문에 있으면 전체가 IN_PRODUCTION으로 전이됨. MVP에서는 이런 케이스가 없다고 가정. |
-| Fulfillment 상태 동기화 | `requestDelay()`와 `completeProduction()` 모두 Fulfillment.status를 명시적으로 syncStatus()로 갱신한다. |
+| Fulfillment 상태 관리 | Fulfillment에 별도 `status` 컬럼 없음 — `Order.status`가 단일 소스. 제작 완료 시 `Fulfillment.convertToPickup()`으로 type을 PICKUP으로 전환한다. |
 | 관리자 식별자 | `X-Admin-Id`가 선택 헤더라 null 이력이 존재할 수 있다. 인증/인가 체계 도입 시 필수화 여부를 재검토한다. |

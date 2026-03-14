@@ -168,10 +168,11 @@
     - `PAID_APPROVAL_PENDING`
     - `APPROVED_FULFILLMENT_PENDING`
     - `DELAY_REQUESTED`
-    - `REJECTED_REFUNDED`
-    - `AUTO_REFUNDED_TIMEOUT`
-    - 픽업: `PICKUP_READY` → `PICKED_UP` / `PICKUP_EXPIRED_REFUNDED`
+    - `REJECTED`
+    - `AUTO_REFUND_TIMEOUT`
+    - 픽업: `PICKUP_READY` → `PICKED_UP` / `PICKUP_EXPIRED`
     - 제작: `IN_PRODUCTION` → (선택) `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`(제작 완료) → 픽업/배송 흐름 합류
+    - 지연 재개: `DELAY_REQUESTED` → `IN_PRODUCTION`(관리자 `resume-production`)
 - 예약: `BOOKED` / `CANCELED` / `NO_SHOW` / `COMPLETED`
     - 결제/미수금은 별도 필드로 분리
 
@@ -214,7 +215,8 @@
     - id, order_id, decided_by_admin_id, decision(APPROVE|REJECT|DELAY|AUTO_REFUND|PRODUCTION_COMPLETE), reason, decided_at
     - `AUTO_REFUND`는 배치 결정 이력이며 `decided_by_admin_id`는 null일 수 있음
 - `fulfillments`
-    - id, order_id, type(SHIPPING|PICKUP), status, address/pickup_store, expected_ship_date, pickup_deadline_at, version
+    - id, order_id, type(SHIPPING|PICKUP), expected_ship_date, pickup_deadline_at, version
+    - 주문 상태는 `orders.status`가 단일 소스 — fulfillments에 별도 status 컬럼 없음
 - `refunds`
     - id, order_id nullable, booking_id nullable, amount, status(REQUESTED|SUCCEEDED|FAILED), pg_ref, fail_reason, created_at
 
@@ -874,7 +876,6 @@ GET /api/v1/orders/{orderId}?token={accessToken}
   ],
   "fulfillment": {
     "type": "SHIPPING",
-    "status": "FULFILLMENT_PENDING",
     "expectedShipDate": null,
     "pickupDeadlineAt": null
   }
@@ -901,7 +902,7 @@ GET /api/v1/orders/{orderId}?token={accessToken}
   - 응답: `200 OK` 본문 없음
   - 정책:
     - 승인 대기 주문만 거절 가능
-    - 재고 복구 + 환불 실행 + `REJECTED_REFUNDED` 전이
+    - 재고 복구 + 환불 실행 + `REJECTED` 전이
 - `PATCH /api/v1/admin/orders/{id}/expected-ship-date`
   - 요청:
     - `{ "expectedShipDate": "2026-04-15" }`
@@ -912,6 +913,12 @@ GET /api/v1/orders/{orderId}?token={accessToken}
     - `{ "orderId": 5, "status": "DELAY_REQUESTED", "expectedShipDate": "2026-04-15" }`
   - 정책:
     - `IN_PRODUCTION`에서만 지연 요청 가능
+- `POST /api/v1/admin/orders/{id}/resume-production`
+  - 선택 헤더: `X-Admin-Id`
+  - 응답:
+    - `{ "orderId": 5, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
+  - 정책:
+    - `DELAY_REQUESTED`에서만 제작 재개 가능
 - `POST /api/v1/admin/orders/{id}/prepare-pickup`
   - 요청:
     - `{ "pickupDeadlineAt": "2026-04-16T18:00:00" }`
@@ -944,7 +951,7 @@ POST /api/v1/admin/orders/expire-pickups
 
 정책:
 - `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
-- 성공 건은 `PICKUP_EXPIRED_REFUNDED`로 전이하고 환불/재고 복구를 수행한다.
+- 성공 건은 `PICKUP_EXPIRED`로 전이하고 환불/재고 복구를 수행한다.
 - `failureReasons` 키는 내부 예외명을 그대로 노출하지 않고 아래 운영용 코드로 정규화한다.
   - `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`
 
@@ -968,7 +975,6 @@ Header: X-Admin-Id: {adminId}  (선택)
 
 정책:
 - `IN_PRODUCTION` 또는 `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`으로 전이한다.
-- Fulfillment 상태도 동기화한다.
 - 이력에 `PRODUCTION_COMPLETE` + adminId를 기록한다.
 - 이후 `prepare-pickup` 또는 배송 흐름으로 이어진다.
 

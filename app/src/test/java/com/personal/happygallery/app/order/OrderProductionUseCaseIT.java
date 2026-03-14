@@ -45,6 +45,7 @@ class OrderProductionUseCaseIT {
     @Autowired InventoryRepository inventoryRepository;
     @Autowired OrderApprovalService orderApprovalService;
     @Autowired OrderProductionService orderProductionService;
+    @Autowired OrderPickupService orderPickupService;
     @Autowired OrderService orderService;
     OrderTestHelper orderHelper;
 
@@ -88,10 +89,8 @@ class OrderProductionUseCaseIT {
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        assertSoftly(softly -> {
-            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
-            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
-        });
+        assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+        assertThat(fulfillment.getType()).isEqualTo(com.personal.happygallery.domain.order.FulfillmentType.SHIPPING);
     }
 
     // -----------------------------------------------------------------------
@@ -145,7 +144,6 @@ class OrderProductionUseCaseIT {
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
-            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
             softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY);
@@ -189,7 +187,6 @@ class OrderProductionUseCaseIT {
         var histories = orderApprovalHistoryRepository.findByOrderId(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-            softly.assertThat(fulfillment.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
             softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.PRODUCTION_COMPLETE);
@@ -209,6 +206,56 @@ class OrderProductionUseCaseIT {
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+    }
+
+    // -----------------------------------------------------------------------
+    // DELAY_REQUESTED → resumeProduction → IN_PRODUCTION
+    // -----------------------------------------------------------------------
+
+    @DisplayName("지연 요청 상태에서 제작을 재개하면 IN_PRODUCTION으로 전이된다")
+    @Test
+    void resumeProduction_fromDelayRequested_transitionsToInProduction() {
+        Order order = orderHelper.createMadeToOrderPaidOrder("재개 상품", 180000L).order();
+        orderApprovalService.approve(order.getId());
+        orderProductionService.requestDelay(order.getId());
+
+        orderProductionService.resumeProduction(order.getId(), 1L);
+
+        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                    .extracting("decision")
+                    .containsExactly(
+                            OrderApprovalDecision.APPROVE,
+                            OrderApprovalDecision.DELAY,
+                            OrderApprovalDecision.RESUME_PRODUCTION);
+        });
+    }
+
+    // -----------------------------------------------------------------------
+    // Fulfillment 단일성: MADE_TO_ORDER → completeProduction → markPickupReady
+    // -----------------------------------------------------------------------
+
+    @DisplayName("MADE_TO_ORDER 주문의 제작 완료 후 픽업 준비 시 fulfillment는 1건이다")
+    @Test
+    void madeToOrder_completeProduction_thenPickupReady_singleFulfillment() {
+        Order order = orderHelper.createMadeToOrderPaidOrder("단일성 상품", 200000L).order();
+        orderApprovalService.approve(order.getId());
+        orderProductionService.completeProduction(order.getId(), 1L);
+
+        orderPickupService.markPickupReady(order.getId(),
+                java.time.LocalDateTime.of(2026, 4, 1, 18, 0));
+
+        var fulfillments = fulfillmentRepository.findAll().stream()
+                .filter(f -> f.getOrderId().equals(order.getId()))
+                .toList();
+        assertSoftly(softly -> {
+            softly.assertThat(fulfillments).hasSize(1);
+            softly.assertThat(fulfillments.get(0).getType())
+                    .isEqualTo(com.personal.happygallery.domain.order.FulfillmentType.PICKUP);
+            softly.assertThat(fulfillments.get(0).getPickupDeadlineAt()).isNotNull();
+        });
     }
 
     @DisplayName("제작 완료 후 픽업 준비까지 전체 흐름이 정상 동작한다")
