@@ -1,11 +1,17 @@
 package com.personal.happygallery.app.web.customer;
 
+import com.personal.happygallery.app.booking.BookingCancelService;
+import com.personal.happygallery.app.booking.BookingRescheduleService;
+import com.personal.happygallery.app.booking.MemberBookingService;
 import com.personal.happygallery.app.order.OrderQueryService;
 import com.personal.happygallery.app.order.OrderService;
+import com.personal.happygallery.app.pass.PassPurchaseService;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
+import com.personal.happygallery.app.web.booking.dto.CancelResponse;
 import com.personal.happygallery.app.web.order.dto.OrderDetailResponse;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
@@ -21,11 +27,14 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -48,6 +57,10 @@ public class MeController {
     private final ProductRepository productRepository;
     private final BookingRepository bookingRepository;
     private final PassPurchaseRepository passRepository;
+    private final MemberBookingService memberBookingService;
+    private final BookingRescheduleService bookingRescheduleService;
+    private final BookingCancelService bookingCancelService;
+    private final PassPurchaseService passPurchaseService;
 
     public MeController(OrderRepository orderRepository,
                         OrderItemRepository orderItemRepository,
@@ -55,7 +68,11 @@ public class MeController {
                         OrderService orderService,
                         ProductRepository productRepository,
                         BookingRepository bookingRepository,
-                        PassPurchaseRepository passRepository) {
+                        PassPurchaseRepository passRepository,
+                        MemberBookingService memberBookingService,
+                        BookingRescheduleService bookingRescheduleService,
+                        BookingCancelService bookingCancelService,
+                        PassPurchaseService passPurchaseService) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.fulfillmentRepository = fulfillmentRepository;
@@ -63,6 +80,10 @@ public class MeController {
         this.productRepository = productRepository;
         this.bookingRepository = bookingRepository;
         this.passRepository = passRepository;
+        this.memberBookingService = memberBookingService;
+        this.bookingRescheduleService = bookingRescheduleService;
+        this.bookingCancelService = bookingCancelService;
+        this.passPurchaseService = passPurchaseService;
     }
 
     // ── 주문 ──
@@ -121,6 +142,34 @@ public class MeController {
         return MyBookingDetail.from(booking);
     }
 
+    @PostMapping("/bookings")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MyBookingSummary createBooking(@RequestBody @Valid CreateMemberBookingRequest req,
+                                          HttpServletRequest request) {
+        Long userId = getUserId(request);
+        Booking booking = memberBookingService.createMemberBooking(
+                userId, req.slotId(),
+                req.depositAmount() != null ? req.depositAmount() : 0L,
+                req.paymentMethod(), req.passId());
+        return MyBookingSummary.from(booking);
+    }
+
+    @PatchMapping("/bookings/{id}/reschedule")
+    public MyBookingSummary rescheduleBooking(@PathVariable Long id,
+                                              @RequestBody @Valid MemberRescheduleRequest req,
+                                              HttpServletRequest request) {
+        Long userId = getUserId(request);
+        Booking booking = bookingRescheduleService.rescheduleMemberBooking(id, userId, req.newSlotId());
+        return MyBookingSummary.from(booking);
+    }
+
+    @DeleteMapping("/bookings/{id}")
+    public CancelResponse cancelBooking(@PathVariable Long id, HttpServletRequest request) {
+        Long userId = getUserId(request);
+        BookingCancelService.CancelResult result = bookingCancelService.cancelMemberBooking(id, userId);
+        return CancelResponse.of(result.booking(), result.refundable());
+    }
+
     // ── 8회권 ──
 
     @GetMapping("/passes")
@@ -137,6 +186,15 @@ public class MeController {
         PassPurchase pass = passRepository.findById(id)
                 .filter(p -> Objects.equals(p.getUserId(), userId))
                 .orElseThrow(() -> new NotFoundException("8회권"));
+        return MyPassSummary.from(pass);
+    }
+
+    @PostMapping("/passes")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MyPassSummary purchasePass(@RequestBody @Valid PurchaseMemberPassRequest req,
+                                      HttpServletRequest request) {
+        Long userId = getUserId(request);
+        PassPurchase pass = passPurchaseService.purchaseForMember(userId, req.totalPrice());
         return MyPassSummary.from(pass);
     }
 
@@ -195,4 +253,16 @@ public class MeController {
     public record OrderItemDto(
             @NotNull Long productId,
             @Min(1) int qty) {}
+
+    public record CreateMemberBookingRequest(
+            @NotNull Long slotId,
+            @Positive(message = "예약금은 0보다 커야 합니다.") Long depositAmount,
+            DepositPaymentMethod paymentMethod,
+            Long passId) {}
+
+    public record MemberRescheduleRequest(
+            @NotNull Long newSlotId) {}
+
+    public record PurchaseMemberPassRequest(
+            @Positive long totalPrice) {}
 }

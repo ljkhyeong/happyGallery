@@ -41,7 +41,10 @@ export function BookingManagePage() {
 
   return (
     <Container className="page-container">
-      <h4 className="mb-4">예약 조회</h4>
+      <h4 className="mb-4">예약 조회 <small className="text-muted-soft">(비회원)</small></h4>
+      <p className="text-muted-soft small mb-3">
+        회원이신가요? <a href="/my">내 정보</a>에서 예약을 확인하세요.
+      </p>
 
       <Card className="mb-4">
         <Card.Body>

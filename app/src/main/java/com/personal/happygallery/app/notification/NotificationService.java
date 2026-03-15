@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.infra.booking.GuestRepository;
 import com.personal.happygallery.infra.notification.NotificationLogRepository;
 import com.personal.happygallery.infra.notification.NotificationSender;
+import com.personal.happygallery.infra.user.UserRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,15 +34,18 @@ public class NotificationService {
     private final List<NotificationSender> senders;
     private final NotificationLogRepository notificationLogRepository;
     private final GuestRepository guestRepository;
+    private final UserRepository userRepository;
     private final Clock clock;
 
     public NotificationService(List<NotificationSender> senders,
                                NotificationLogRepository notificationLogRepository,
                                GuestRepository guestRepository,
+                               UserRepository userRepository,
                                Clock clock) {
         this.senders = senders;
         this.notificationLogRepository = notificationLogRepository;
         this.guestRepository = guestRepository;
+        this.userRepository = userRepository;
         this.clock = clock;
     }
 
@@ -88,6 +92,44 @@ public class NotificationService {
                 guest -> notifyGuest(guest.getId(), guest.getPhone(), guest.getName(), eventType),
                 () -> log.warn("[알림] 게스트 미존재 [guestId={}]", guestId)
         );
+    }
+
+    /**
+     * userId 만으로 회원에게 알림을 발송한다.
+     * 회원이 존재하지 않으면 경고 로그를 남기고 무시한다.
+     */
+    @Async("notificationExecutor")
+    public void notifyByUserId(Long userId, NotificationEventType eventType) {
+        if (userId == null) {
+            return;
+        }
+        userRepository.findById(userId).ifPresentOrElse(
+                user -> notifyUser(userId, user.getPhone(), user.getName(), eventType),
+                () -> log.warn("[알림] 회원 미존재 [userId={}]", userId)
+        );
+    }
+
+    /**
+     * 회원에게 알림을 발송한다. phone / name 을 이미 알고 있을 때 사용한다.
+     */
+    @Async("notificationExecutor")
+    public void notifyUser(Long userId, String phone, String name,
+                           NotificationEventType eventType) {
+        LocalDateTime sentAt = LocalDateTime.now(clock);
+        for (NotificationSender sender : senders) {
+            try {
+                boolean success = sender.send(phone, name, eventType);
+                if (success) {
+                    save(NotificationLog.success(null, userId, sender.channel(), eventType, sentAt));
+                    return;
+                }
+                save(NotificationLog.failed(null, userId, sender.channel(), eventType, "발송 실패", sentAt));
+            } catch (Exception e) {
+                log.warn("[알림] {} 발송 예외 [userId={} event={}]", sender.channel(), userId, eventType, e);
+                save(NotificationLog.failed(null, userId, sender.channel(), eventType, e.getMessage(), sentAt));
+            }
+        }
+        log.error("[알림] 모든 채널 실패 [userId={} event={}]", userId, eventType);
     }
 
     private void save(NotificationLog entry) {

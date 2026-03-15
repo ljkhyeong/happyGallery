@@ -45,6 +45,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     /** 동일 슬롯 + 동일 게스트 중복 예약 확인 — 특정 booking 제외 (변경 시 자기 자신 제외용) */
     boolean existsBySlotIdAndGuestIdAndIdNot(Long slotId, Long guestId, Long excludeBookingId);
 
+    /** 동일 슬롯 + 동일 회원 중복 예약 확인 — 특정 booking 제외 (변경 시 자기 자신 제외용) */
+    boolean existsBySlotIdAndUserIdAndIdNot(Long slotId, Long userId, Long excludeBookingId);
+
     /** 8회권 환불 시 자동취소 대상 — 해당 pass의 미래 BOOKED 예약 */
     @Query("SELECT b FROM Booking b WHERE b.passPurchase.id = :passId AND b.status = :status AND b.slot.startAt > :now")
     List<Booking> findFuturePassBookings(@Param("passId") Long passId,

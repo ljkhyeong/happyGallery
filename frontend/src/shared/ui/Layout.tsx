@@ -4,11 +4,8 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 
 const NAV_ITEMS = [
   { path: "/products", label: "상품" },
-  { path: "/bookings/new", label: "예약하기" },
-  { path: "/bookings/manage", label: "예약 조회" },
+  { path: "/bookings/new", label: "체험 예약" },
   { path: "/passes/purchase", label: "8회권" },
-  { path: "/orders/new", label: "주문" },
-  { path: "/orders/detail", label: "주문 조회" },
 ] as const;
 
 function isActive(pathname: string, itemPath: string): boolean {
@@ -46,7 +43,12 @@ export function Layout() {
               {!isLoading && (
                 isAuthenticated ? (
                   <>
-                    <Nav.Link as="span" className="app-nav-link text-muted-soft" style={{ cursor: "default" }}>
+                    <Nav.Link
+                      as={Link}
+                      to="/my"
+                      active={isActive(pathname, "/my")}
+                      className="app-nav-link"
+                    >
                       {user!.name}
                     </Nav.Link>
                     <Nav.Link
