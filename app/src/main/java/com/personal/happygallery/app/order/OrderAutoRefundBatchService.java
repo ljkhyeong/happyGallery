@@ -2,9 +2,9 @@ package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.batch.BatchExecutor;
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
-import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,14 +22,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class OrderAutoRefundBatchService {
 
-    private final OrderRepository orderRepository;
+    private final OrderReaderPort orderReader;
     private final OrderAutoRefundProcessor orderAutoRefundProcessor;
     private final Clock clock;
 
-    public OrderAutoRefundBatchService(OrderRepository orderRepository,
+    public OrderAutoRefundBatchService(OrderReaderPort orderReader,
                                        OrderAutoRefundProcessor orderAutoRefundProcessor,
                                        Clock clock) {
-        this.orderRepository = orderRepository;
+        this.orderReader = orderReader;
         this.orderAutoRefundProcessor = orderAutoRefundProcessor;
         this.clock = clock;
     }
@@ -46,7 +46,7 @@ public class OrderAutoRefundBatchService {
      */
     public BatchResult autoRefundExpired() {
         LocalDateTime now = LocalDateTime.now(clock);
-        List<Order> expired = orderRepository.findByStatusAndApprovalDeadlineAtBefore(
+        List<Order> expired = orderReader.findByStatusAndApprovalDeadlineAtBefore(
                 OrderStatus.PAID_APPROVAL_PENDING, now);
 
         return BatchExecutor.execute(expired,

@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.web;
 
-import com.personal.happygallery.app.web.admin.AdminSessionStore;
+import com.personal.happygallery.app.admin.port.out.AdminSessionPort;
+import com.personal.happygallery.app.admin.port.out.AdminSessionPort.AdminSession;
 import com.personal.happygallery.config.properties.AdminProperties;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -31,11 +32,11 @@ public class AdminAuthFilter implements Filter {
     private static final String AUTH_PATH_SUFFIX = "/auth/";
 
     private final AdminProperties adminProperties;
-    private final AdminSessionStore sessionStore;
+    private final AdminSessionPort sessionPort;
 
-    public AdminAuthFilter(AdminProperties adminProperties, AdminSessionStore sessionStore) {
+    public AdminAuthFilter(AdminProperties adminProperties, AdminSessionPort sessionPort) {
         this.adminProperties = adminProperties;
-        this.sessionStore = sessionStore;
+        this.sessionPort = sessionPort;
     }
 
     @Override
@@ -63,7 +64,7 @@ public class AdminAuthFilter implements Filter {
         String authHeader = request.getHeader(AUTH_HEADER);
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
             String token = authHeader.substring(BEARER_PREFIX.length());
-            Optional<AdminSessionStore.Session> session = sessionStore.validate(token);
+            Optional<AdminSession> session = sessionPort.validate(token);
             if (session.isPresent()) {
                 request.setAttribute(ADMIN_USER_ID_ATTR, session.get().adminUserId());
                 request.setAttribute(ADMIN_USERNAME_ATTR, session.get().username());

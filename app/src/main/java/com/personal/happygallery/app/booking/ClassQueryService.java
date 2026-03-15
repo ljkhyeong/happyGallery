@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.domain.booking.BookingClass;
-import com.personal.happygallery.infra.booking.ClassRepository;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,14 +10,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ClassQueryService {
 
-    private final ClassRepository classRepository;
+    private final ClassReaderPort classReaderPort;
 
-    public ClassQueryService(ClassRepository classRepository) {
-        this.classRepository = classRepository;
+    public ClassQueryService(ClassReaderPort classReaderPort) {
+        this.classReaderPort = classReaderPort;
     }
 
     /** 전체 클래스 목록 조회 */
     public List<BookingClass> listAll() {
-        return classRepository.findAll();
+        return classReaderPort.findAll();
     }
 }

@@ -1,13 +1,14 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
+import com.personal.happygallery.app.customer.port.out.GuestStorePort;
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationPort;
+import com.personal.happygallery.app.product.port.out.ProductReaderPort;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
-import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.common.error.NotFoundException;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -22,20 +23,23 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class OrderCreationService {
 
-    private final PhoneVerificationRepository phoneVerificationRepository;
-    private final GuestRepository guestRepository;
-    private final ProductRepository productRepository;
+    private final PhoneVerificationPort phoneVerificationPort;
+    private final GuestReaderPort guestReader;
+    private final GuestStorePort guestStore;
+    private final ProductReaderPort productReader;
     private final OrderService orderService;
     private final Clock clock;
 
-    public OrderCreationService(PhoneVerificationRepository phoneVerificationRepository,
-                                GuestRepository guestRepository,
-                                ProductRepository productRepository,
+    public OrderCreationService(PhoneVerificationPort phoneVerificationPort,
+                                GuestReaderPort guestReader,
+                                GuestStorePort guestStore,
+                                ProductReaderPort productReader,
                                 OrderService orderService,
                                 Clock clock) {
-        this.phoneVerificationRepository = phoneVerificationRepository;
-        this.guestRepository = guestRepository;
-        this.productRepository = productRepository;
+        this.phoneVerificationPort = phoneVerificationPort;
+        this.guestReader = guestReader;
+        this.guestStore = guestStore;
+        this.productReader = productReader;
         this.orderService = orderService;
         this.clock = clock;
     }
@@ -48,21 +52,20 @@ public class OrderCreationService {
     public Order createOrderByPhone(String phone, String verificationCode,
                                      String name, List<OrderItemInput> items) {
         // 인증 코드 검증
-        PhoneVerification pv = phoneVerificationRepository
-                .findByPhoneAndCodeAndVerifiedFalseAndExpiresAtAfter(
-                        phone, verificationCode, LocalDateTime.now(clock))
+        PhoneVerification pv = phoneVerificationPort
+                .findValidVerification(phone, verificationCode, LocalDateTime.now(clock))
                 .orElseThrow(PhoneVerificationFailedException::new);
         pv.markVerified();
 
         // Guest upsert
-        Guest guest = guestRepository.findByPhone(phone)
-                .orElseGet(() -> guestRepository.save(new Guest(name, phone)));
+        Guest guest = guestReader.findByPhone(phone)
+                .orElseGet(() -> guestStore.save(new Guest(name, phone)));
         guest.markPhoneVerified();
 
         // 상품 가격 조회 후 OrderItemRequest 변환
         List<OrderService.OrderItemRequest> orderItems = items.stream()
                 .map(item -> {
-                    Product product = productRepository.findById(item.productId())
+                    Product product = productReader.findById(item.productId())
                             .orElseThrow(() -> new NotFoundException("상품"));
                     return new OrderService.OrderItemRequest(
                             item.productId(), item.qty(), product.getPrice());

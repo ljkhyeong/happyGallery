@@ -1,5 +1,9 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.out.FulfillmentPort;
+import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
+import com.personal.happygallery.app.order.port.out.OrderReaderPort;
+import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.config.RetryConfig;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -8,9 +12,6 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
-import com.personal.happygallery.infra.order.FulfillmentRepository;
-import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -28,16 +29,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class OrderShippingService {
 
-    private final OrderRepository orderRepository;
-    private final FulfillmentRepository fulfillmentRepository;
-    private final OrderApprovalHistoryRepository orderApprovalHistoryRepository;
+    private final OrderReaderPort orderReader;
+    private final OrderStorePort orderStore;
+    private final FulfillmentPort fulfillmentPort;
+    private final OrderHistoryPort orderHistoryPort;
 
-    public OrderShippingService(OrderRepository orderRepository,
-                                FulfillmentRepository fulfillmentRepository,
-                                OrderApprovalHistoryRepository orderApprovalHistoryRepository) {
-        this.orderRepository = orderRepository;
-        this.fulfillmentRepository = fulfillmentRepository;
-        this.orderApprovalHistoryRepository = orderApprovalHistoryRepository;
+    public OrderShippingService(OrderReaderPort orderReader,
+                                OrderStorePort orderStore,
+                                FulfillmentPort fulfillmentPort,
+                                OrderHistoryPort orderHistoryPort) {
+        this.orderReader = orderReader;
+        this.orderStore = orderStore;
+        this.fulfillmentPort = fulfillmentPort;
+        this.orderHistoryPort = orderHistoryPort;
     }
 
     /**
@@ -52,17 +56,17 @@ public class OrderShippingService {
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
     public ShippingResult prepareShipping(Long orderId, Long adminId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.markShippingPreparing();
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
                 .orElseGet(() -> new Fulfillment(orderId, FulfillmentType.SHIPPING));
-        fulfillmentRepository.save(fulfillment);
+        fulfillmentPort.save(fulfillment);
 
-        orderApprovalHistoryRepository.save(
+        orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PREPARE_SHIPPING, adminId, null));
-        orderRepository.save(order);
+        orderStore.save(order);
 
         return new ShippingResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }
@@ -78,15 +82,15 @@ public class OrderShippingService {
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
     public ShippingResult markShipped(Long orderId, Long adminId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.markShipped();
 
-        orderApprovalHistoryRepository.save(
+        orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.SHIP, adminId, null));
-        orderRepository.save(order);
+        orderStore.save(order);
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
         return new ShippingResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }
@@ -102,15 +106,15 @@ public class OrderShippingService {
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
     public ShippingResult markDelivered(Long orderId, Long adminId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.markDelivered();
 
-        orderApprovalHistoryRepository.save(
+        orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELIVER, adminId, null));
-        orderRepository.save(order);
+        orderStore.save(order);
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
         return new ShippingResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }

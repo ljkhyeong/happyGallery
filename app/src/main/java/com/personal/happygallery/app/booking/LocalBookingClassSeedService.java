@@ -1,7 +1,8 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.ClassReaderPort;
+import com.personal.happygallery.app.booking.port.out.ClassStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
-import com.personal.happygallery.infra.booking.ClassRepository;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,15 +16,18 @@ public class LocalBookingClassSeedService {
 
     private static final Logger log = LoggerFactory.getLogger(LocalBookingClassSeedService.class);
 
-    private final ClassRepository classRepository;
+    private final ClassReaderPort classReaderPort;
+    private final ClassStorePort classStorePort;
 
-    public LocalBookingClassSeedService(ClassRepository classRepository) {
-        this.classRepository = classRepository;
+    public LocalBookingClassSeedService(ClassReaderPort classReaderPort,
+                                         ClassStorePort classStorePort) {
+        this.classReaderPort = classReaderPort;
+        this.classStorePort = classStorePort;
     }
 
     @Transactional
     public void seedIfEmpty() {
-        if (classRepository.count() > 0) {
+        if (classReaderPort.count() > 0) {
             return;
         }
 
@@ -33,7 +37,7 @@ public class LocalBookingClassSeedService {
                 new BookingClass("니트 클래스", "KNIT", 120, 45_000L, 30)
         );
 
-        classRepository.saveAll(defaultClasses);
+        classStorePort.saveAll(defaultClasses);
         log.info("[LocalSeed] 기본 클래스 {}건을 생성했습니다.", defaultClasses.size());
     }
 }

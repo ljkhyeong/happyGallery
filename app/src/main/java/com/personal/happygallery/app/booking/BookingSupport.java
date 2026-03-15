@@ -1,5 +1,7 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.BookingHistoryPort;
+import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Booking;
@@ -7,40 +9,38 @@ import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
-import com.personal.happygallery.infra.booking.BookingRepository;
 import java.util.Objects;
 import org.springframework.stereotype.Component;
 
 @Component
 class BookingSupport {
 
-    private final BookingRepository bookingRepository;
-    private final BookingHistoryRepository bookingHistoryRepository;
+    private final BookingReaderPort bookingReaderPort;
+    private final BookingHistoryPort bookingHistoryPort;
     private final NotificationService notificationService;
 
-    BookingSupport(BookingRepository bookingRepository,
-                   BookingHistoryRepository bookingHistoryRepository,
+    BookingSupport(BookingReaderPort bookingReaderPort,
+                   BookingHistoryPort bookingHistoryPort,
                    NotificationService notificationService) {
-        this.bookingRepository = bookingRepository;
-        this.bookingHistoryRepository = bookingHistoryRepository;
+        this.bookingReaderPort = bookingReaderPort;
+        this.bookingHistoryPort = bookingHistoryPort;
         this.notificationService = notificationService;
     }
 
     Booking findByToken(Long bookingId, String accessToken) {
-        return bookingRepository.findDetailByIdAndAccessToken(bookingId, accessToken)
+        return bookingReaderPort.findDetailByIdAndAccessToken(bookingId, accessToken)
                 .orElseThrow(() -> new NotFoundException("예약"));
     }
 
     Booking findByIdAndUserId(Long bookingId, Long userId) {
-        return bookingRepository.findById(bookingId)
+        return bookingReaderPort.findById(bookingId)
                 .filter(b -> Objects.equals(b.getUserId(), userId))
                 .orElseThrow(() -> new NotFoundException("예약"));
     }
 
     void recordHistory(Booking booking, BookingHistoryAction action,
                        Slot oldSlot, Slot newSlot, String actor, String reason) {
-        bookingHistoryRepository.save(
+        bookingHistoryPort.save(
                 new BookingHistory(booking, action, oldSlot, newSlot, actor, reason));
     }
 

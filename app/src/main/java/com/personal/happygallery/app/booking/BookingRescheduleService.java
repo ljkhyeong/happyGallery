@@ -1,5 +1,9 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.app.booking.port.out.BookingStorePort;
+import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.app.booking.port.out.SlotStorePort;
 import com.personal.happygallery.common.error.ChangeNotAllowedException;
 import com.personal.happygallery.common.error.DuplicateBookingException;
 import com.personal.happygallery.common.error.ErrorCode;
@@ -12,8 +16,6 @@ import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
 import java.time.Clock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,19 +24,25 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class BookingRescheduleService {
 
-    private final BookingRepository bookingRepository;
-    private final SlotRepository slotRepository;
+    private final BookingReaderPort bookingReaderPort;
+    private final BookingStorePort bookingStorePort;
+    private final SlotReaderPort slotReaderPort;
+    private final SlotStorePort slotStorePort;
     private final SlotManagementService slotManagementService;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
-    public BookingRescheduleService(BookingRepository bookingRepository,
-                                    SlotRepository slotRepository,
+    public BookingRescheduleService(BookingReaderPort bookingReaderPort,
+                                    BookingStorePort bookingStorePort,
+                                    SlotReaderPort slotReaderPort,
+                                    SlotStorePort slotStorePort,
                                     SlotManagementService slotManagementService,
                                     BookingSupport bookingSupport,
                                     Clock clock) {
-        this.bookingRepository = bookingRepository;
-        this.slotRepository = slotRepository;
+        this.bookingReaderPort = bookingReaderPort;
+        this.bookingStorePort = bookingStorePort;
+        this.slotReaderPort = slotReaderPort;
+        this.slotStorePort = slotStorePort;
         this.slotManagementService = slotManagementService;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
@@ -74,7 +82,7 @@ public class BookingRescheduleService {
         }
 
         // 5. 새 슬롯 빠른 체크 (락 전 — fast-fail)
-        Slot newSlot = slotRepository.findById(newSlotId)
+        Slot newSlot = slotReaderPort.findById(newSlotId)
                 .orElseThrow(() -> new NotFoundException("슬롯"));
         if (!newSlot.isActive()) {
             throw new SlotNotAvailableException();
@@ -82,7 +90,7 @@ public class BookingRescheduleService {
 
         // 6. 중복 예약 체크 (현재 booking 자신 제외)
         if (booking.getGuest() != null &&
-                bookingRepository.existsBySlotIdAndGuestIdAndIdNot(
+                bookingReaderPort.existsBySlotIdAndGuestIdAndIdNot(
                         newSlotId, booking.getGuest().getId(), bookingId)) {
             throw new DuplicateBookingException();
         }
@@ -93,10 +101,10 @@ public class BookingRescheduleService {
         // 8. 기존 슬롯 반납 — 비관적 락 + booked_count--
         // 주의: confirmBooking(new) 후 findByIdWithLock(old) 순서 고정
         //       swap 변경 시 deadlock 이론적 가능 (ADR-0006 참고)
-        Slot oldSlot = slotRepository.findByIdWithLock(booking.getSlot().getId())
+        Slot oldSlot = slotReaderPort.findByIdWithLock(booking.getSlot().getId())
                 .orElseThrow(() -> new NotFoundException("슬롯"));
         oldSlot.decrementBookedCount();
-        slotRepository.save(oldSlot);
+        slotStorePort.save(oldSlot);
 
         // 9. 이력 저장 (append-only)
         bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
@@ -104,7 +112,7 @@ public class BookingRescheduleService {
 
         // 10. 예약 업데이트 — @Version 충돌 시 OptimisticLockingFailureException → 409 BOOKING_CONFLICT
         booking.reschedule(newSlot);
-        Booking saved = bookingRepository.save(booking);
+        Booking saved = bookingStorePort.save(booking);
 
         // 11. 예약 변경 알림
         bookingSupport.notifyBookingGuest(booking, NotificationEventType.BOOKING_RESCHEDULED);
@@ -137,14 +145,14 @@ public class BookingRescheduleService {
         }
 
         // 5. 새 슬롯 빠른 체크 (락 전 — fast-fail)
-        Slot newSlot = slotRepository.findById(newSlotId)
+        Slot newSlot = slotReaderPort.findById(newSlotId)
                 .orElseThrow(() -> new NotFoundException("슬롯"));
         if (!newSlot.isActive()) {
             throw new SlotNotAvailableException();
         }
 
         // 6. 중복 예약 체크 (현재 booking 자신 제외)
-        if (bookingRepository.existsBySlotIdAndUserIdAndIdNot(
+        if (bookingReaderPort.existsBySlotIdAndUserIdAndIdNot(
                 newSlotId, userId, bookingId)) {
             throw new DuplicateBookingException();
         }
@@ -153,10 +161,10 @@ public class BookingRescheduleService {
         slotManagementService.confirmBooking(newSlotId);
 
         // 8. 기존 슬롯 반납
-        Slot oldSlot = slotRepository.findByIdWithLock(booking.getSlot().getId())
+        Slot oldSlot = slotReaderPort.findByIdWithLock(booking.getSlot().getId())
                 .orElseThrow(() -> new NotFoundException("슬롯"));
         oldSlot.decrementBookedCount();
-        slotRepository.save(oldSlot);
+        slotStorePort.save(oldSlot);
 
         // 9. 이력 저장
         bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
@@ -164,7 +172,7 @@ public class BookingRescheduleService {
 
         // 10. 예약 업데이트
         booking.reschedule(newSlot);
-        Booking saved = bookingRepository.save(booking);
+        Booking saved = bookingStorePort.save(booking);
 
         // 11. 예약 변경 알림
         bookingSupport.notifyBookingUser(booking, NotificationEventType.BOOKING_RESCHEDULED);

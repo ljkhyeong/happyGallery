@@ -2,8 +2,8 @@ package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.batch.BatchExecutor;
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.domain.order.Fulfillment;
-import com.personal.happygallery.infra.order.FulfillmentRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,14 +19,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class PickupExpireBatchService {
 
-    private final FulfillmentRepository fulfillmentRepository;
+    private final FulfillmentPort fulfillmentPort;
     private final PickupExpireProcessor pickupExpireProcessor;
     private final Clock clock;
 
-    public PickupExpireBatchService(FulfillmentRepository fulfillmentRepository,
+    public PickupExpireBatchService(FulfillmentPort fulfillmentPort,
                                     PickupExpireProcessor pickupExpireProcessor,
                                     Clock clock) {
-        this.fulfillmentRepository = fulfillmentRepository;
+        this.fulfillmentPort = fulfillmentPort;
         this.pickupExpireProcessor = pickupExpireProcessor;
         this.clock = clock;
     }
@@ -43,7 +43,7 @@ public class PickupExpireBatchService {
      */
     public BatchResult expirePickups() {
         LocalDateTime now = LocalDateTime.now(clock);
-        List<Fulfillment> expired = fulfillmentRepository.findExpiredPickups(now);
+        List<Fulfillment> expired = fulfillmentPort.findExpiredPickups(now);
 
         return BatchExecutor.execute(expired,
                 Fulfillment::getOrderId,
