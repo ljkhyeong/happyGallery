@@ -16,15 +16,26 @@ function isActive(pathname: string, itemPath: string): boolean {
 export function Layout() {
   const { pathname } = useLocation();
   const { user, isAuthenticated, isLoading, logout } = useCustomerAuth();
+  const utilityCopy = isAuthenticated
+    ? "회원은 내 정보에서 주문·예약·8회권을 바로 확인하고, 비회원 이력도 가져올 수 있습니다."
+    : "회원은 내 정보에서, 비회원은 조회 경로에서 주문과 예약을 확인합니다.";
 
   return (
     <div className="d-flex flex-column min-vh-100">
       <div className="app-utility-bar border-bottom">
         <Container className="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
-          <div className="app-utility-copy">
-            Storefront for handmade gifts, workshop bookings, and member reorders.
-          </div>
+          <div className="app-utility-copy">{utilityCopy}</div>
           <div className="d-flex flex-wrap align-items-center gap-3">
+            {!isLoading && (
+              isAuthenticated ? (
+                <Link to="/my" className="app-utility-link">회원 내 정보</Link>
+              ) : (
+                <>
+                  <Link to="/login" className="app-utility-link">회원 로그인</Link>
+                  <Link to="/signup" className="app-utility-link">회원가입</Link>
+                </>
+              )
+            )}
             <Link to="/guest/orders" className="app-utility-link">비회원 주문 조회</Link>
             <Link to="/guest/bookings" className="app-utility-link">비회원 예약 조회</Link>
             <Link to="/admin" className="app-utility-link">관리자</Link>

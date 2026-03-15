@@ -1,14 +1,16 @@
 import { Card, Alert } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { GuestClaimSuccessActions } from "@/features/customer-claim/GuestClaimSuccessActions";
 import { StatusBadge } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import type { OrderResponse } from "@/shared/types";
 
 interface Props {
   order: OrderResponse;
+  guestPhone?: string;
+  guestName?: string;
 }
 
-export function OrderSuccessCard({ order }: Props) {
+export function OrderSuccessCard({ order, guestPhone, guestName }: Props) {
   return (
     <div>
       <Alert variant="success" className="mb-3">주문이 완료되었습니다!</Alert>
@@ -27,9 +29,13 @@ export function OrderSuccessCard({ order }: Props) {
           </Alert>
         </Card.Body>
         <Card.Footer>
-          <Link to="/guest/orders" className="text-decoration-none small">
-            주문 조회 페이지로 이동 &rarr;
-          </Link>
+          <GuestClaimSuccessActions
+            primaryTo="/guest/orders"
+            primaryLabel="비회원 주문 조회"
+            guestPhone={guestPhone}
+            guestName={guestName}
+            helperText="같은 휴대폰 번호로 회원가입하거나 로그인하면 `/my`에서 비회원 주문 이력을 바로 가져올 수 있습니다."
+          />
         </Card.Footer>
       </Card>
     </div>

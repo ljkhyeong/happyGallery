@@ -49,11 +49,11 @@ export function OrderCreatePage() {
 
   if (step === "done" && result) {
     return (
-      <Container className="page-container" style={{ maxWidth: 640 }}>
-        <h4 className="mb-4">주문 완료</h4>
-        <OrderSuccessCard order={result} />
-      </Container>
-    );
+        <Container className="page-container" style={{ maxWidth: 640 }}>
+          <h4 className="mb-4">주문 완료</h4>
+        <OrderSuccessCard order={result} guestPhone={phone} guestName={name} />
+        </Container>
+      );
   }
 
   return (
