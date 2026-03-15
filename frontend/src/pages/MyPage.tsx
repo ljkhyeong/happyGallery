@@ -13,6 +13,7 @@ export function MyPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showClaimModal, setShowClaimModal] = useState(false);
+  const [claimModalSource, setClaimModalSource] = useState<string | null>(null);
   const [showClaimEntryHint, setShowClaimEntryHint] = useState(false);
   const { user, isAuthenticated, isLoading: authLoading, logout, refresh } = useCustomerAuth();
 
@@ -49,6 +50,7 @@ export function MyPage() {
       return;
     }
     setShowClaimEntryHint(true);
+    setClaimModalSource("claim_query_auto_open");
     setShowClaimModal(true);
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.delete("claim");
@@ -159,7 +161,14 @@ export function MyPage() {
                 </div>
               </div>
               <div className="d-flex flex-wrap gap-2">
-                <Button size="sm" variant="dark" onClick={() => setShowClaimModal(true)}>
+                <Button
+                  size="sm"
+                  variant="dark"
+                  onClick={() => {
+                    setClaimModalSource("claim_entry_hint");
+                    setShowClaimModal(true);
+                  }}
+                >
                   지금 확인
                 </Button>
                 <Button size="sm" variant="outline-secondary" onClick={() => setShowClaimEntryHint(false)}>
@@ -181,7 +190,10 @@ export function MyPage() {
             <Button
               variant={user!.phoneVerified ? "outline-primary" : "primary"}
               size="sm"
-              onClick={() => setShowClaimModal(true)}
+              onClick={() => {
+                setClaimModalSource("claim_dashboard_card");
+                setShowClaimModal(true);
+              }}
             >
               {user!.phoneVerified ? "이력 가져오기" : "휴대폰 확인 후 가져오기"}
             </Button>
@@ -311,6 +323,7 @@ export function MyPage() {
           phone={user!.phone}
           phoneVerified={user!.phoneVerified}
           onPhoneVerified={refresh}
+          monitoringSource={claimModalSource}
         />
       )}
     </Container>

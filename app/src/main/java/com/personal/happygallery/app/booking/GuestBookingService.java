@@ -1,5 +1,15 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.app.booking.port.out.BookingStorePort;
+import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
+import com.personal.happygallery.app.customer.port.out.GuestStorePort;
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationPort;
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationStorePort;
+import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
+import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
+import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.common.error.DuplicateBookingException;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.PaymentMethodNotAllowedException;
@@ -15,12 +25,6 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -35,33 +39,45 @@ public class GuestBookingService {
     /** 인증 코드 유효 시간 (5분) */
     private static final int VERIFICATION_EXPIRE_MINUTES = 5;
 
-    private final PhoneVerificationRepository phoneVerificationRepository;
-    private final GuestRepository guestRepository;
-    private final SlotRepository slotRepository;
-    private final BookingRepository bookingRepository;
+    private final PhoneVerificationPort phoneVerificationPort;
+    private final PhoneVerificationStorePort phoneVerificationStorePort;
+    private final GuestReaderPort guestReaderPort;
+    private final GuestStorePort guestStorePort;
+    private final SlotReaderPort slotReaderPort;
+    private final BookingReaderPort bookingReaderPort;
+    private final BookingStorePort bookingStorePort;
     private final SlotManagementService slotManagementService;
-    private final PassPurchaseRepository passPurchaseRepository;
-    private final PassLedgerRepository passLedgerRepository;
+    private final PassPurchaseReaderPort passPurchaseReaderPort;
+    private final PassPurchaseStorePort passPurchaseStorePort;
+    private final PassLedgerStorePort passLedgerStorePort;
     private final BookingSupport bookingSupport;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
-    public GuestBookingService(PhoneVerificationRepository phoneVerificationRepository,
-                               GuestRepository guestRepository,
-                               SlotRepository slotRepository,
-                               BookingRepository bookingRepository,
+    public GuestBookingService(PhoneVerificationPort phoneVerificationPort,
+                               PhoneVerificationStorePort phoneVerificationStorePort,
+                               GuestReaderPort guestReaderPort,
+                               GuestStorePort guestStorePort,
+                               SlotReaderPort slotReaderPort,
+                               BookingReaderPort bookingReaderPort,
+                               BookingStorePort bookingStorePort,
                                SlotManagementService slotManagementService,
-                               PassPurchaseRepository passPurchaseRepository,
-                               PassLedgerRepository passLedgerRepository,
+                               PassPurchaseReaderPort passPurchaseReaderPort,
+                               PassPurchaseStorePort passPurchaseStorePort,
+                               PassLedgerStorePort passLedgerStorePort,
                                BookingSupport bookingSupport,
                                Clock clock) {
-        this.phoneVerificationRepository = phoneVerificationRepository;
-        this.guestRepository = guestRepository;
-        this.slotRepository = slotRepository;
-        this.bookingRepository = bookingRepository;
+        this.phoneVerificationPort = phoneVerificationPort;
+        this.phoneVerificationStorePort = phoneVerificationStorePort;
+        this.guestReaderPort = guestReaderPort;
+        this.guestStorePort = guestStorePort;
+        this.slotReaderPort = slotReaderPort;
+        this.bookingReaderPort = bookingReaderPort;
+        this.bookingStorePort = bookingStorePort;
         this.slotManagementService = slotManagementService;
-        this.passPurchaseRepository = passPurchaseRepository;
-        this.passLedgerRepository = passLedgerRepository;
+        this.passPurchaseReaderPort = passPurchaseReaderPort;
+        this.passPurchaseStorePort = passPurchaseStorePort;
+        this.passLedgerStorePort = passLedgerStorePort;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
@@ -77,7 +93,7 @@ public class GuestBookingService {
         LocalDateTime expiresAt = LocalDateTime.now(clock)
                 .plusMinutes(VERIFICATION_EXPIRE_MINUTES);
         PhoneVerification pv = new PhoneVerification(phone, code, expiresAt);
-        return phoneVerificationRepository.save(pv);
+        return phoneVerificationStorePort.save(pv);
     }
 
     /**
@@ -101,26 +117,25 @@ public class GuestBookingService {
                                       DepositPaymentMethod paymentMethod,
                                       Long passId) {
         // 1. 인증 코드 검증 + 소모
-        PhoneVerification pv = phoneVerificationRepository
-                .findByPhoneAndCodeAndVerifiedFalseAndExpiresAtAfter(
-                        phone, code, LocalDateTime.now(clock))
+        PhoneVerification pv = phoneVerificationPort
+                .findValidVerification(phone, code, LocalDateTime.now(clock))
                 .orElseThrow(PhoneVerificationFailedException::new);
         pv.markVerified();
 
         // 2. Guest upsert by phone
-        Guest guest = guestRepository.findByPhone(phone)
-                .orElseGet(() -> guestRepository.save(new Guest(name, phone)));
+        Guest guest = guestReaderPort.findByPhone(phone)
+                .orElseGet(() -> guestStorePort.save(new Guest(name, phone)));
         guest.markPhoneVerified();
 
         // 3. 슬롯 활성 여부 확인 (락 전 빠른 체크)
-        Slot slot = slotRepository.findById(slotId)
+        Slot slot = slotReaderPort.findById(slotId)
                 .orElseThrow(() -> new NotFoundException("슬롯"));
         if (!slot.isActive()) {
             throw new SlotNotAvailableException();
         }
 
         // 4. 중복 예약 확인
-        if (bookingRepository.existsBySlotIdAndGuestId(slotId, guest.getId())) {
+        if (bookingReaderPort.existsBySlotIdAndGuestId(slotId, guest.getId())) {
             throw new DuplicateBookingException();
         }
 
@@ -132,14 +147,14 @@ public class GuestBookingService {
 
         if (passId != null) {
             // 6a. 8회권 결제 경로
-            PassPurchase pass = passPurchaseRepository.findById(passId)
+            PassPurchase pass = passPurchaseReaderPort.findById(passId)
                     .orElseThrow(() -> new NotFoundException("8회권"));
             pass.requireUsable(LocalDateTime.now(clock));
 
             // USE ledger 선행 기록 → 크레딧 차감 ("크레딧이 돈이다")
-            passLedgerRepository.save(new PassLedger(pass, PassLedgerType.USE, 1));
+            passLedgerStorePort.save(new PassLedger(pass, PassLedgerType.USE, 1));
             pass.useCredit();
-            passPurchaseRepository.save(pass);
+            passPurchaseStorePort.save(pass);
 
             booking = new Booking(guest, slot, pass, accessToken);
         } else {
@@ -151,7 +166,7 @@ public class GuestBookingService {
             booking = new Booking(guest, slot, depositAmount, balanceAmount, paymentMethod, accessToken);
         }
 
-        booking = bookingRepository.save(booking);
+        booking = bookingStorePort.save(booking);
 
         // 7. 초기 이력 저장 (BOOKED)
         bookingSupport.recordHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null);

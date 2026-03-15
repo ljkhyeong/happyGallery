@@ -2,6 +2,11 @@ package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.booking.RefundExecutionService;
+import com.personal.happygallery.app.order.port.out.FulfillmentPort;
+import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
+import com.personal.happygallery.app.order.port.out.OrderItemPort;
+import com.personal.happygallery.app.order.port.out.OrderReaderPort;
+import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.app.product.InventoryService;
 import com.personal.happygallery.config.RetryConfig;
 import com.personal.happygallery.common.error.NotFoundException;
@@ -13,10 +18,6 @@ import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.product.ProductType;
-import com.personal.happygallery.infra.order.FulfillmentRepository;
-import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
-import com.personal.happygallery.infra.order.OrderItemRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,27 +44,30 @@ public class OrderApprovalService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderApprovalService.class);
 
-    private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
+    private final OrderReaderPort orderReader;
+    private final OrderStorePort orderStore;
+    private final OrderItemPort orderItemPort;
     private final InventoryService inventoryService;
     private final RefundExecutionService refundExecutionService;
-    private final FulfillmentRepository fulfillmentRepository;
-    private final OrderApprovalHistoryRepository orderApprovalHistoryRepository;
+    private final FulfillmentPort fulfillmentPort;
+    private final OrderHistoryPort orderHistoryPort;
     private final NotificationService notificationService;
 
-    public OrderApprovalService(OrderRepository orderRepository,
-                                OrderItemRepository orderItemRepository,
+    public OrderApprovalService(OrderReaderPort orderReader,
+                                OrderStorePort orderStore,
+                                OrderItemPort orderItemPort,
                                 InventoryService inventoryService,
                                 RefundExecutionService refundExecutionService,
-                                FulfillmentRepository fulfillmentRepository,
-                                OrderApprovalHistoryRepository orderApprovalHistoryRepository,
+                                FulfillmentPort fulfillmentPort,
+                                OrderHistoryPort orderHistoryPort,
                                 NotificationService notificationService) {
-        this.orderRepository = orderRepository;
-        this.orderItemRepository = orderItemRepository;
+        this.orderReader = orderReader;
+        this.orderStore = orderStore;
+        this.orderItemPort = orderItemPort;
         this.inventoryService = inventoryService;
         this.refundExecutionService = refundExecutionService;
-        this.fulfillmentRepository = fulfillmentRepository;
-        this.orderApprovalHistoryRepository = orderApprovalHistoryRepository;
+        this.fulfillmentPort = fulfillmentPort;
+        this.orderHistoryPort = orderHistoryPort;
         this.notificationService = notificationService;
     }
 
@@ -93,25 +97,25 @@ public class OrderApprovalService {
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
     public Order approve(Long orderId, Long adminId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
 
         boolean isMadeToOrder = isMadeToOrderOrder(order);
         if (isMadeToOrder) {
             order.approveAsProduction();
-            fulfillmentRepository.save(
+            fulfillmentPort.save(
                     new Fulfillment(order.getId(), FulfillmentType.SHIPPING));
         } else {
             order.approve();
         }
-        orderApprovalHistoryRepository.save(
+        orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.APPROVE, adminId, null));
         log.info("order approved [orderId={} adminId={} madeToOrder={}]", orderId, adminId, isMadeToOrder);
-        return orderRepository.save(order);
+        return orderStore.save(order);
     }
 
     private boolean isMadeToOrderOrder(Order order) {
-        return orderItemRepository.existsByOrderAndProductType(order, ProductType.MADE_TO_ORDER);
+        return orderItemPort.existsByOrderAndProductType(order, ProductType.MADE_TO_ORDER);
     }
 
     /**
@@ -142,22 +146,22 @@ public class OrderApprovalService {
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
     public Order reject(Long orderId, Long adminId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.reject();
 
         restoreInventory(order);
         processRefund(order);
-        orderApprovalHistoryRepository.save(
+        orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT, adminId, null));
         notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
         log.info("order rejected [orderId={} adminId={}]", orderId, adminId);
 
-        return orderRepository.save(order);
+        return orderStore.save(order);
     }
 
     void restoreInventory(Order order) {
-        List<OrderItem> items = orderItemRepository.findByOrder(order);
+        List<OrderItem> items = orderItemPort.findByOrder(order);
         for (OrderItem item : items) {
             inventoryService.restore(item.getProductId(), item.getQty());
         }

@@ -35,6 +35,7 @@ export function OrderSuccessCard({ order, guestPhone, guestName }: Props) {
             guestPhone={guestPhone}
             guestName={guestName}
             helperText="같은 휴대폰 번호로 회원가입하거나 로그인하면 `/my`에서 비회원 주문 이력을 바로 가져올 수 있습니다."
+            trackingSource="order_success"
           />
         </Card.Footer>
       </Card>

@@ -1,11 +1,11 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.app.order.port.out.OrderItemPort;
+import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
-import com.personal.happygallery.infra.order.OrderItemRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.app.product.InventoryService;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -24,19 +24,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class OrderService {
 
-    private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
+    private final OrderStorePort orderStore;
+    private final OrderItemPort orderItemPort;
     private final InventoryService inventoryService;
     private final NotificationService notificationService;
     private final Clock clock;
 
-    public OrderService(OrderRepository orderRepository,
-                        OrderItemRepository orderItemRepository,
+    public OrderService(OrderStorePort orderStore,
+                        OrderItemPort orderItemPort,
                         InventoryService inventoryService,
                         NotificationService notificationService,
                         Clock clock) {
-        this.orderRepository = orderRepository;
-        this.orderItemRepository = orderItemRepository;
+        this.orderStore = orderStore;
+        this.orderItemPort = orderItemPort;
         this.inventoryService = inventoryService;
         this.notificationService = notificationService;
         this.clock = clock;
@@ -60,11 +60,11 @@ public class OrderService {
         long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
 
         String accessToken = UUID.randomUUID().toString();
-        Order order = orderRepository.save(
+        Order order = orderStore.save(
                 new Order(guestId, accessToken, totalAmount, paidAt, paidAt.plusHours(24)));
 
         for (OrderItemRequest item : items) {
-            orderItemRepository.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
+            orderItemPort.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
             inventoryService.deduct(item.productId(), item.qty());
         }
 
@@ -80,11 +80,11 @@ public class OrderService {
         LocalDateTime paidAt = LocalDateTime.now(clock);
         long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
 
-        Order order = orderRepository.save(
+        Order order = orderStore.save(
                 Order.forMember(userId, totalAmount, paidAt, paidAt.plusHours(24)));
 
         for (OrderItemRequest item : items) {
-            orderItemRepository.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
+            orderItemPort.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
             inventoryService.deduct(item.productId(), item.qty());
         }
 

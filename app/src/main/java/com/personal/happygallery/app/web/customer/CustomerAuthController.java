@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.web.customer;
 
+import com.personal.happygallery.app.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.domain.user.User;
 import jakarta.servlet.http.Cookie;
@@ -25,16 +26,16 @@ public class CustomerAuthController {
     private static final String COOKIE_NAME = CustomerAuthFilter.COOKIE_NAME;
     private static final int COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7일
 
-    private final CustomerAuthService customerAuthService;
+    private final CustomerAuthUseCase customerAuth;
 
-    public CustomerAuthController(CustomerAuthService customerAuthService) {
-        this.customerAuthService = customerAuthService;
+    public CustomerAuthController(CustomerAuthUseCase customerAuth) {
+        this.customerAuth = customerAuth;
     }
 
     @PostMapping("/auth/signup")
     public ResponseEntity<MeResponse> signup(@RequestBody @Valid SignupRequest request,
                                              HttpServletResponse response) {
-        CustomerAuthService.TokenResult result = customerAuthService.signup(
+        CustomerAuthUseCase.TokenResult result = customerAuth.signup(
                 request.email(), request.password(), request.name(), request.phone());
         addSessionCookie(response, result.rawToken());
         return ResponseEntity.status(HttpStatus.CREATED).body(toMeResponse(result.user()));
@@ -43,7 +44,7 @@ public class CustomerAuthController {
     @PostMapping("/auth/login")
     public ResponseEntity<MeResponse> login(@RequestBody @Valid LoginRequest request,
                                             HttpServletResponse response) {
-        CustomerAuthService.TokenResult result = customerAuthService.login(
+        CustomerAuthUseCase.TokenResult result = customerAuth.login(
                 request.email(), request.password());
         addSessionCookie(response, result.rawToken());
         return ResponseEntity.ok(toMeResponse(result.user()));
@@ -54,7 +55,7 @@ public class CustomerAuthController {
             @CookieValue(name = COOKIE_NAME, required = false) String token,
             HttpServletResponse response) {
         if (token != null && !token.isBlank()) {
-            customerAuthService.logout(token);
+            customerAuth.logout(token);
         }
         clearSessionCookie(response);
         return ResponseEntity.noContent().build();

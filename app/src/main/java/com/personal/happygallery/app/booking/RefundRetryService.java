@@ -1,11 +1,11 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.RefundPort;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.RefundStatus;
-import com.personal.happygallery.infra.booking.RefundRepository;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,18 +15,18 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class RefundRetryService {
 
-    private final RefundRepository refundRepository;
+    private final RefundPort refundPort;
     private final RefundExecutionService refundExecutionService;
 
-    public RefundRetryService(RefundRepository refundRepository,
+    public RefundRetryService(RefundPort refundPort,
                               RefundExecutionService refundExecutionService) {
-        this.refundRepository = refundRepository;
+        this.refundPort = refundPort;
         this.refundExecutionService = refundExecutionService;
     }
 
     /** FAILED 상태인 특정 환불을 재시도한다. */
     public void retry(Long refundId) {
-        Refund refund = refundRepository.findById(refundId)
+        Refund refund = refundPort.findById(refundId)
                 .orElseThrow(() -> new NotFoundException("환불"));
 
         if (refund.getStatus() != RefundStatus.FAILED) {
@@ -40,6 +40,6 @@ public class RefundRetryService {
     /** FAILED 상태인 환불 목록 조회 */
     @Transactional(readOnly = true)
     public List<Refund> listFailed() {
-        return refundRepository.findByStatus(RefundStatus.FAILED);
+        return refundPort.findByStatus(RefundStatus.FAILED);
     }
 }

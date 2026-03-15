@@ -129,19 +129,24 @@ export function HomePage() {
               <h5 className="mb-2">회원은 내 정보에서, 비회원은 조회 경로에서 확인합니다.</h5>
               <p className="text-muted-soft mb-0">
                 회원은 로그인 후 주문·예약·8회권을 추가 인증 없이 확인할 수 있고,
-                비회원은 기존 조회 토큰과 휴대폰 인증 경로를 그대로 사용할 수 있습니다.
+                비회원 조회는 이미 생성된 주문과 예약을 확인하는 보조 경로로 유지됩니다.
               </p>
             </Col>
             <Col md={5}>
+              <div className="lookup-panel-note mb-3">
+                비회원 조회는 생성 후 확인용입니다. 계속 관리할 예정이라면 로그인 후 `/my` 경로를 사용하는 편이 안정적입니다.
+              </div>
               <div className="d-flex flex-wrap gap-2 justify-content-md-end">
                 <Button as={Link as any} to="/my" variant="dark">
                   회원 내 정보
                 </Button>
-                <Button as={Link as any} to="/guest/orders" variant="outline-secondary">
-                  비회원 주문 조회
-                </Button>
-                <Button as={Link as any} to="/guest/bookings" variant="outline-secondary">
-                  비회원 예약 조회
+                <Button
+                  as={Link as any}
+                  to="/guest"
+                  state={{ monitoringSource: "home_lookup_panel" }}
+                  variant="outline-secondary"
+                >
+                  비회원 조회 안내
                 </Button>
               </div>
             </Col>

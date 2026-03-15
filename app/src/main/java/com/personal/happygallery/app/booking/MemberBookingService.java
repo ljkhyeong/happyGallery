@@ -1,5 +1,11 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.app.booking.port.out.BookingStorePort;
+import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
+import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
+import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.common.error.DuplicateBookingException;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.PaymentMethodNotAllowedException;
@@ -12,10 +18,6 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -30,26 +32,32 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class MemberBookingService {
 
-    private final SlotRepository slotRepository;
-    private final BookingRepository bookingRepository;
+    private final SlotReaderPort slotReaderPort;
+    private final BookingReaderPort bookingReaderPort;
+    private final BookingStorePort bookingStorePort;
     private final SlotManagementService slotManagementService;
-    private final PassPurchaseRepository passPurchaseRepository;
-    private final PassLedgerRepository passLedgerRepository;
+    private final PassPurchaseReaderPort passPurchaseReaderPort;
+    private final PassPurchaseStorePort passPurchaseStorePort;
+    private final PassLedgerStorePort passLedgerStorePort;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
-    public MemberBookingService(SlotRepository slotRepository,
-                                BookingRepository bookingRepository,
+    public MemberBookingService(SlotReaderPort slotReaderPort,
+                                BookingReaderPort bookingReaderPort,
+                                BookingStorePort bookingStorePort,
                                 SlotManagementService slotManagementService,
-                                PassPurchaseRepository passPurchaseRepository,
-                                PassLedgerRepository passLedgerRepository,
+                                PassPurchaseReaderPort passPurchaseReaderPort,
+                                PassPurchaseStorePort passPurchaseStorePort,
+                                PassLedgerStorePort passLedgerStorePort,
                                 BookingSupport bookingSupport,
                                 Clock clock) {
-        this.slotRepository = slotRepository;
-        this.bookingRepository = bookingRepository;
+        this.slotReaderPort = slotReaderPort;
+        this.bookingReaderPort = bookingReaderPort;
+        this.bookingStorePort = bookingStorePort;
         this.slotManagementService = slotManagementService;
-        this.passPurchaseRepository = passPurchaseRepository;
-        this.passLedgerRepository = passLedgerRepository;
+        this.passPurchaseReaderPort = passPurchaseReaderPort;
+        this.passPurchaseStorePort = passPurchaseStorePort;
+        this.passLedgerStorePort = passLedgerStorePort;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
@@ -67,14 +75,14 @@ public class MemberBookingService {
                                         DepositPaymentMethod paymentMethod, Long passId) {
 
         // 1. 슬롯 활성 여부 확인
-        Slot slot = slotRepository.findById(slotId)
+        Slot slot = slotReaderPort.findById(slotId)
                 .orElseThrow(() -> new NotFoundException("슬롯"));
         if (!slot.isActive()) {
             throw new SlotNotAvailableException();
         }
 
         // 2. 중복 예약 확인
-        if (bookingRepository.existsBySlotIdAndUserId(slotId, userId)) {
+        if (bookingReaderPort.existsBySlotIdAndUserId(slotId, userId)) {
             throw new DuplicateBookingException();
         }
 
@@ -85,7 +93,7 @@ public class MemberBookingService {
 
         if (passId != null) {
             // 4a. 8회권 결제 경로
-            PassPurchase pass = passPurchaseRepository.findById(passId)
+            PassPurchase pass = passPurchaseReaderPort.findById(passId)
                     .orElseThrow(() -> new NotFoundException("8회권"));
 
             // 8회권 소유자 확인
@@ -95,9 +103,9 @@ public class MemberBookingService {
 
             pass.requireUsable(LocalDateTime.now(clock));
 
-            passLedgerRepository.save(new PassLedger(pass, PassLedgerType.USE, 1));
+            passLedgerStorePort.save(new PassLedger(pass, PassLedgerType.USE, 1));
             pass.useCredit();
-            passPurchaseRepository.save(pass);
+            passPurchaseStorePort.save(pass);
 
             booking = new Booking(userId, slot, pass);
         } else {
@@ -109,7 +117,7 @@ public class MemberBookingService {
             booking = new Booking(userId, slot, depositAmount, balanceAmount, paymentMethod);
         }
 
-        booking = bookingRepository.save(booking);
+        booking = bookingStorePort.save(booking);
 
         // 5. 초기 이력 저장 (BOOKED)
         bookingSupport.recordHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null);

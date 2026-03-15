@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Alert, Badge, Button, Form, Modal, Stack } from "react-bootstrap";
 import { claimGuestRecords, getGuestClaimPreview, verifyGuestClaimPhone } from "./api";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
+import { trackClientEvent } from "@/features/monitoring/api";
 import { queryClient } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
@@ -13,14 +14,23 @@ interface Props {
   phone: string;
   phoneVerified: boolean;
   onPhoneVerified: () => Promise<void>;
+  monitoringSource?: string | null;
 }
 
 function toDigits(phone: string) {
   return phone.replace(/\D/g, "");
 }
 
-export function GuestClaimModal({ show, onClose, phone, phoneVerified, onPhoneVerified }: Props) {
+export function GuestClaimModal({
+  show,
+  onClose,
+  phone,
+  phoneVerified,
+  onPhoneVerified,
+  monitoringSource,
+}: Props) {
   const toast = useToast();
+  const openTrackedRef = useRef(false);
   const [previewOverride, setPreviewOverride] = useState<Awaited<ReturnType<typeof getGuestClaimPreview>> | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
   const [selectedBookingIds, setSelectedBookingIds] = useState<number[]>([]);
@@ -91,6 +101,22 @@ export function GuestClaimModal({ show, onClose, phone, phoneVerified, onPhoneVe
 
   const needsPhoneVerification =
     !phoneVerified && !(previewOverride?.phoneVerified ?? false);
+
+  useEffect(() => {
+    if (!show) {
+      openTrackedRef.current = false;
+      return;
+    }
+    if (openTrackedRef.current) return;
+
+    openTrackedRef.current = true;
+    trackClientEvent({
+      event: "GUEST_CLAIM_MODAL_OPENED",
+      path: "/my",
+      source: monitoringSource ?? "unknown",
+      target: needsPhoneVerification ? "phone_verification" : "preview",
+    });
+  }, [monitoringSource, needsPhoneVerification, show]);
 
   return (
     <Modal show={show} onHide={onClose} centered>

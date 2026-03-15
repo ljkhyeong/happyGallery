@@ -1,5 +1,9 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.out.FulfillmentPort;
+import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
+import com.personal.happygallery.app.order.port.out.OrderReaderPort;
+import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.config.RetryConfig;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
@@ -7,9 +11,6 @@ import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
-import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
-import com.personal.happygallery.infra.order.FulfillmentRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -32,16 +33,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class OrderProductionService {
 
-    private final OrderRepository orderRepository;
-    private final FulfillmentRepository fulfillmentRepository;
-    private final OrderApprovalHistoryRepository orderApprovalHistoryRepository;
+    private final OrderReaderPort orderReader;
+    private final OrderStorePort orderStore;
+    private final FulfillmentPort fulfillmentPort;
+    private final OrderHistoryPort orderHistoryPort;
 
-    public OrderProductionService(OrderRepository orderRepository,
-                                  FulfillmentRepository fulfillmentRepository,
-                                  OrderApprovalHistoryRepository orderApprovalHistoryRepository) {
-        this.orderRepository = orderRepository;
-        this.fulfillmentRepository = fulfillmentRepository;
-        this.orderApprovalHistoryRepository = orderApprovalHistoryRepository;
+    public OrderProductionService(OrderReaderPort orderReader,
+                                  OrderStorePort orderStore,
+                                  FulfillmentPort fulfillmentPort,
+                                  OrderHistoryPort orderHistoryPort) {
+        this.orderReader = orderReader;
+        this.orderStore = orderStore;
+        this.fulfillmentPort = fulfillmentPort;
+        this.orderHistoryPort = orderHistoryPort;
     }
 
     /**
@@ -59,15 +63,15 @@ public class OrderProductionService {
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
     public ProductionResult setExpectedShipDate(Long orderId, LocalDate expectedShipDate) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.getStatus().requireExpectedShipDateWritable();
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
         fulfillment.requireShippingType();
 
         fulfillment.setExpectedShipDate(expectedShipDate);
-        fulfillmentRepository.save(fulfillment);
+        fulfillmentPort.save(fulfillment);
 
         return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }
@@ -87,15 +91,15 @@ public class OrderProductionService {
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
     public ProductionResult requestDelay(Long orderId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.requestDelay();
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
 
-        orderApprovalHistoryRepository.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELAY));
-        orderRepository.save(order);
+        orderHistoryPort.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELAY));
+        orderStore.save(order);
         return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }
 
@@ -111,16 +115,16 @@ public class OrderProductionService {
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
     public ProductionResult resumeProduction(Long orderId, Long adminId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.resumeProduction();
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
 
-        orderApprovalHistoryRepository.save(
+        orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.RESUME_PRODUCTION, adminId, null));
-        orderRepository.save(order);
+        orderStore.save(order);
         return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }
 
@@ -137,16 +141,16 @@ public class OrderProductionService {
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
     public ProductionResult completeProduction(Long orderId, Long adminId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.completeProduction();
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
 
-        orderApprovalHistoryRepository.save(
+        orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PRODUCTION_COMPLETE, adminId, null));
-        orderRepository.save(order);
+        orderStore.save(order);
         return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
     }
 

@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web;
 
-import com.personal.happygallery.app.web.customer.CustomerAuthService;
+import com.personal.happygallery.app.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.domain.user.User;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -27,10 +27,10 @@ public class CustomerAuthFilter implements Filter {
     private static final String ME_PATH = "/api/v1/me";
     private static final String AUTH_PATH_PREFIX = "/api/v1/auth/";
 
-    private final CustomerAuthService customerAuthService;
+    private final CustomerAuthUseCase customerAuth;
 
-    public CustomerAuthFilter(CustomerAuthService customerAuthService) {
-        this.customerAuthService = customerAuthService;
+    public CustomerAuthFilter(CustomerAuthUseCase customerAuth) {
+        this.customerAuth = customerAuth;
     }
 
     @Override
@@ -50,7 +50,7 @@ public class CustomerAuthFilter implements Filter {
         Optional<User> user = Optional.empty();
 
         if (token != null) {
-            user = customerAuthService.validateSession(token);
+            user = customerAuth.validateSession(token);
             user.ifPresent(u -> {
                 httpRequest.setAttribute(CUSTOMER_USER_ID_ATTR, u.getId());
                 httpRequest.setAttribute(CUSTOMER_USER_ATTR, u);

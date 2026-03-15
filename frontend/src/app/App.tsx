@@ -17,40 +17,45 @@ import { MyPage } from "@/pages/MyPage";
 import { MyOrdersPage } from "@/pages/MyOrdersPage";
 import { MyBookingsPage } from "@/pages/MyBookingsPage";
 import { MyPassesPage } from "@/pages/MyPassesPage";
+import { GuestLookupPage } from "@/pages/GuestLookupPage";
 import { MyBookingDetailPage } from "@/pages/MyBookingDetailPage";
 import { MyOrderDetailPage } from "@/pages/MyOrderDetailPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { CustomerAuthProvider } from "@/features/customer-auth/useCustomerAuth";
 import "@/styles/global.scss";
 
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/products" element={<ProductListPage />} />
-              <Route path="/products/:id" element={<ProductDetailPage />} />
-              <Route path="/bookings/new" element={<BookingCreatePage />} />
-              <Route path="/guest/bookings" element={<BookingManagePage />} />
-              <Route path="/passes/purchase" element={<PassPurchasePage />} />
-              <Route path="/orders/new" element={<OrderCreatePage />} />
-              <Route path="/guest/orders" element={<OrderDetailPage />} />
-              <Route path="/my" element={<MyPage />} />
-              <Route path="/my/orders" element={<MyOrdersPage />} />
-              <Route path="/my/bookings/:id" element={<MyBookingDetailPage />} />
-              <Route path="/my/bookings" element={<MyBookingsPage />} />
-              <Route path="/my/orders/:id" element={<MyOrderDetailPage />} />
-              <Route path="/my/passes" element={<MyPassesPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupPage />} />
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </ToastProvider>
+      <CustomerAuthProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/products" element={<ProductListPage />} />
+                <Route path="/products/:id" element={<ProductDetailPage />} />
+                <Route path="/bookings/new" element={<BookingCreatePage />} />
+                <Route path="/guest" element={<GuestLookupPage />} />
+                <Route path="/guest/bookings" element={<BookingManagePage />} />
+                <Route path="/passes/purchase" element={<PassPurchasePage />} />
+                <Route path="/orders/new" element={<OrderCreatePage />} />
+                <Route path="/guest/orders" element={<OrderDetailPage />} />
+                <Route path="/my" element={<MyPage />} />
+                <Route path="/my/orders" element={<MyOrdersPage />} />
+                <Route path="/my/bookings/:id" element={<MyBookingDetailPage />} />
+                <Route path="/my/bookings" element={<MyBookingsPage />} />
+                <Route path="/my/orders/:id" element={<MyOrderDetailPage />} />
+                <Route path="/my/passes" element={<MyPassesPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </ToastProvider>
+      </CustomerAuthProvider>
     </QueryClientProvider>
   );
 }

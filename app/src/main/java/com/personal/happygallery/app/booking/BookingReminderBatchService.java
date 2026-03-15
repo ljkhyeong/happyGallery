@@ -1,11 +1,11 @@
 package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.infra.booking.BookingRepository;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -26,14 +26,14 @@ public class BookingReminderBatchService {
 
     private static final Logger log = LoggerFactory.getLogger(BookingReminderBatchService.class);
 
-    private final BookingRepository bookingRepository;
+    private final BookingReaderPort bookingReaderPort;
     private final NotificationService notificationService;
     private final Clock clock;
 
-    public BookingReminderBatchService(BookingRepository bookingRepository,
+    public BookingReminderBatchService(BookingReaderPort bookingReaderPort,
                                        NotificationService notificationService,
                                        Clock clock) {
-        this.bookingRepository = bookingRepository;
+        this.bookingReaderPort = bookingReaderPort;
         this.notificationService = notificationService;
         this.clock = clock;
     }
@@ -48,7 +48,7 @@ public class BookingReminderBatchService {
         LocalDateTime start = tomorrow.atStartOfDay();
         LocalDateTime end = start.plusDays(1);
 
-        List<Booking> bookings = bookingRepository.findBookingsInRange(BookingStatus.BOOKED, start, end);
+        List<Booking> bookings = bookingReaderPort.findBookingsInRange(BookingStatus.BOOKED, start, end);
         for (Booking booking : bookings) {
             notificationService.notifyByGuestId(booking.getGuest().getId(), NotificationEventType.REMINDER_D1);
             log.info("D-1 리마인드 발송 [bookingId={}, guestId={}]", booking.getId(), booking.getGuest().getId());
@@ -67,7 +67,7 @@ public class BookingReminderBatchService {
         LocalDateTime start = today.atStartOfDay();
         LocalDateTime end = start.plusDays(1);
 
-        List<Booking> bookings = bookingRepository.findBookingsInRange(BookingStatus.BOOKED, start, end);
+        List<Booking> bookings = bookingReaderPort.findBookingsInRange(BookingStatus.BOOKED, start, end);
         for (Booking booking : bookings) {
             notificationService.notifyByGuestId(booking.getGuest().getId(), NotificationEventType.REMINDER_SAME_DAY);
             log.info("당일 리마인드 발송 [bookingId={}, guestId={}]", booking.getId(), booking.getGuest().getId());
