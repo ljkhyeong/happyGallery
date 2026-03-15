@@ -110,5 +110,28 @@
 .home-card-desc {
   font-size: 0.8125rem;
   color: $secondary;
-  margin-bottom: 0;
+  margin-bottom: 0.5rem;
+}
+
+.home-card-cta {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $primary;
+}
+
+// 상품 상세 구매 패널
+.purchase-panel {
+  border-color: $primary;
+  border-width: 2px;
+}
+
+// 모바일에서 구매 패널 하단 고정
+@media (max-width: 575.98px) {
+  .purchase-panel {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    border-radius: $border-radius $border-radius 0 0;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+  }
 }

@@ -1,17 +1,85 @@
 import { useState } from "react";
-import { Container, Card } from "react-bootstrap";
-import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
-import { PassPurchaseForm } from "@/features/pass/PassPurchaseForm";
+import { useMutation } from "@tanstack/react-query";
+import { Container, Card, Form, Row, Col, Button } from "react-bootstrap";
 import { PassSuccessCard } from "@/features/pass/PassSuccessCard";
+import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
+import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { purchasePassByPhone } from "@/features/pass/api";
+import { api } from "@/shared/api";
+import { ErrorAlert, useToast } from "@/shared/ui";
+import { formatKRW } from "@/shared/lib";
 import type { PurchasePassResponse } from "@/shared/types";
 
-type Step = "verify" | "form" | "done";
+interface MemberPassResponse {
+  passId: number;
+  purchasedAt: string;
+  expiresAt: string;
+  totalCredits: number;
+  remainingCredits: number;
+  totalPrice: number;
+}
 
 export function PassPurchasePage() {
-  const [step, setStep] = useState<Step>("verify");
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
-  const [result, setResult] = useState<PurchasePassResponse | null>(null);
+  const toast = useToast();
+  const { isAuthenticated } = useCustomerAuth();
+
+  const [totalPrice, setTotalPrice] = useState("");
+  const [showGate, setShowGate] = useState(false);
+  const [guestResult, setGuestResult] = useState<PurchasePassResponse | null>(null);
+  const [memberDone, setMemberDone] = useState(false);
+
+  const guestMutation = useMutation({
+    mutationFn: (info: { phone: string; verificationCode: string; name: string }) =>
+      purchasePassByPhone({
+        phone: info.phone,
+        verificationCode: info.verificationCode,
+        name: info.name,
+        totalPrice: Number(totalPrice) || 0,
+      }),
+    onSuccess: (result) => {
+      toast.show("8회권이 구매되었습니다!");
+      setGuestResult(result);
+      setShowGate(false);
+    },
+  });
+
+  const memberMutation = useMutation({
+    mutationFn: () =>
+      api<MemberPassResponse>("/me/passes", {
+        method: "POST",
+        body: { totalPrice: Number(totalPrice) || 0 },
+      }),
+    onSuccess: () => {
+      toast.show("8회권이 구매되었습니다!");
+      setMemberDone(true);
+      setShowGate(false);
+    },
+  });
+
+  const priceValid = totalPrice === "" || Number(totalPrice) >= 0;
+
+  if (guestResult) {
+    return (
+      <Container className="page-container" style={{ maxWidth: 540 }}>
+        <h4 className="mb-4">구매 완료</h4>
+        <PassSuccessCard pass={guestResult} />
+      </Container>
+    );
+  }
+
+  if (memberDone) {
+    return (
+      <Container className="page-container" style={{ maxWidth: 540 }}>
+        <h4 className="mb-4">구매 완료</h4>
+        <div className="text-center">
+          <p className="mb-3">8회권이 구매되었습니다.</p>
+          <Button as={"a" as any} href="/my" variant="primary">
+            내 8회권 확인하기
+          </Button>
+        </div>
+      </Container>
+    );
+  }
 
   return (
     <Container className="page-container" style={{ maxWidth: 540 }}>
@@ -21,43 +89,60 @@ export function PassPurchasePage() {
         <Card.Body>
           <p className="text-muted-soft small mb-0">
             8회권을 구매하면 90일간 8회 수업을 이용할 수 있습니다.
-            예약 시 8회권 ID를 입력하면 예약금 없이 횟수가 차감됩니다.
+            예약 시 8회권을 선택하면 예약금 없이 횟수가 차감됩니다.
           </p>
         </Card.Body>
       </Card>
 
-      {step === "done" && result ? (
-        <PassSuccessCard pass={result} />
-      ) : (
-        <>
-          <Card className="mb-4">
-            <Card.Body>
-              <PhoneVerificationStep
-                onVerified={(p, c) => {
-                  setPhone(p);
-                  setCode(c);
-                  setStep("form");
-                }}
-              />
-            </Card.Body>
-          </Card>
-
-          {step === "form" && (
-            <Card className="mb-4">
-              <Card.Body>
-                <PassPurchaseForm
-                  phone={phone}
-                  verificationCode={code}
-                  onSuccess={(res) => {
-                    setResult(res);
-                    setStep("done");
-                  }}
+      <Card className="mb-4">
+        <Card.Body>
+          <h6 className="mb-3">구매 정보</h6>
+          <Row className="g-2 align-items-end">
+            <Col xs={8}>
+              <Form.Group controlId="pass-total-price">
+                <Form.Label>결제 금액 (원)</Form.Label>
+                <Form.Control
+                  type="number" min={0} value={totalPrice}
+                  onChange={(e) => setTotalPrice(e.target.value)}
+                  placeholder="0"
+                  isInvalid={totalPrice !== "" && Number(totalPrice) < 0}
                 />
-              </Card.Body>
-            </Card>
-          )}
-        </>
-      )}
+                <Form.Control.Feedback type="invalid">
+                  금액은 0원 이상이어야 합니다.
+                </Form.Control.Feedback>
+                <Form.Text className="text-muted">
+                  환불 시 잔여 횟수 기준으로 정산됩니다.
+                </Form.Text>
+              </Form.Group>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      <ErrorAlert error={guestMutation.error ?? memberMutation.error} />
+
+      <Button
+        variant="primary" size="lg" className="w-100"
+        disabled={!priceValid || guestMutation.isPending || memberMutation.isPending}
+        onClick={() => {
+          if (isAuthenticated) {
+            memberMutation.mutate();
+          } else {
+            setShowGate(true);
+          }
+        }}
+      >
+        {guestMutation.isPending || memberMutation.isPending
+          ? "구매 처리 중..."
+          : `8회권 구매${totalPrice ? ` (${formatKRW(Number(totalPrice))})` : ""}`}
+      </Button>
+
+      <AuthGateModal
+        show={showGate}
+        onClose={() => setShowGate(false)}
+        onMemberConfirm={() => memberMutation.mutate()}
+        onGuestConfirm={(info) => guestMutation.mutate(info)}
+      />
     </Container>
   );
 }

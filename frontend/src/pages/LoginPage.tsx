@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Container, Form, Button, Alert } from "react-bootstrap";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 
 export function LoginPage() {
   const { login } = useCustomerAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = (location.state as { from?: string } | null)?.from ?? "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -18,7 +20,7 @@ export function LoginPage() {
     const ok = await login(email, password);
     setSubmitting(false);
     if (ok) {
-      navigate("/");
+      navigate(returnTo);
     } else {
       setError("이메일 또는 비밀번호가 올바르지 않습니다.");
     }
