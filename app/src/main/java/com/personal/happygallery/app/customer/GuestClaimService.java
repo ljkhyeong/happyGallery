@@ -1,5 +1,11 @@
 package com.personal.happygallery.app.customer;
 
+import com.personal.happygallery.app.customer.port.in.GuestClaimUseCase;
+import com.personal.happygallery.app.customer.port.out.GuestClaimQueryPort;
+import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationPort;
+import com.personal.happygallery.app.customer.port.out.UserReaderPort;
+import com.personal.happygallery.app.monitoring.ClientMonitoringService;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.error.PhoneVerificationRequiredException;
@@ -9,12 +15,6 @@ import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.user.User;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
-import com.personal.happygallery.infra.user.UserRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
@@ -32,32 +32,29 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class GuestClaimService {
+public class GuestClaimService implements GuestClaimUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(GuestClaimService.class);
 
-    private final UserRepository userRepository;
-    private final GuestRepository guestRepository;
-    private final PhoneVerificationRepository phoneVerificationRepository;
-    private final OrderRepository orderRepository;
-    private final BookingRepository bookingRepository;
-    private final PassPurchaseRepository passPurchaseRepository;
+    private final UserReaderPort userReader;
+    private final GuestReaderPort guestReader;
+    private final PhoneVerificationPort phoneVerificationPort;
+    private final GuestClaimQueryPort claimQuery;
     private final Clock clock;
+    private final ClientMonitoringService clientMonitoringService;
 
-    public GuestClaimService(UserRepository userRepository,
-                             GuestRepository guestRepository,
-                             PhoneVerificationRepository phoneVerificationRepository,
-                             OrderRepository orderRepository,
-                             BookingRepository bookingRepository,
-                             PassPurchaseRepository passPurchaseRepository,
-                             Clock clock) {
-        this.userRepository = userRepository;
-        this.guestRepository = guestRepository;
-        this.phoneVerificationRepository = phoneVerificationRepository;
-        this.orderRepository = orderRepository;
-        this.bookingRepository = bookingRepository;
-        this.passPurchaseRepository = passPurchaseRepository;
+    public GuestClaimService(UserReaderPort userReader,
+                             GuestReaderPort guestReader,
+                             PhoneVerificationPort phoneVerificationPort,
+                             GuestClaimQueryPort claimQuery,
+                             Clock clock,
+                             ClientMonitoringService clientMonitoringService) {
+        this.userReader = userReader;
+        this.guestReader = guestReader;
+        this.phoneVerificationPort = phoneVerificationPort;
+        this.claimQuery = claimQuery;
         this.clock = clock;
+        this.clientMonitoringService = clientMonitoringService;
     }
 
     @Transactional(readOnly = true)
@@ -91,7 +88,7 @@ public class GuestClaimService {
 
         // 주문 일괄 조회 → 소유권 검증 → claim
         Set<Long> orderIdSet = dedupe(orderIds);
-        Map<Long, Order> orderMap = orderRepository.findAllById(orderIdSet).stream()
+        Map<Long, Order> orderMap = claimQuery.findOrdersByIds(orderIdSet).stream()
                 .collect(Collectors.toMap(Order::getId, Function.identity()));
         for (Long orderId : orderIdSet) {
             Order order = orderMap.get(orderId);
@@ -103,7 +100,7 @@ public class GuestClaimService {
 
         // 예약 일괄 조회 → 소유권 검증 → claim + 연결된 pass 수집
         Set<Long> bookingIdSet = dedupe(bookingIds);
-        Map<Long, Booking> bookingMap = bookingRepository.findAllById(bookingIdSet).stream()
+        Map<Long, Booking> bookingMap = claimQuery.findBookingsByIds(bookingIdSet).stream()
                 .collect(Collectors.toMap(Booking::getId, Function.identity()));
         Set<Long> passIdsToClaim = dedupe(passIds);
         for (Long bookingId : bookingIdSet) {
@@ -124,7 +121,7 @@ public class GuestClaimService {
         }
 
         // 8회권 일괄 조회 → 소유권 검증 → claim
-        Map<Long, PassPurchase> passMap = passPurchaseRepository.findAllById(passIdsToClaim).stream()
+        Map<Long, PassPurchase> passMap = claimQuery.findPassPurchasesByIds(passIdsToClaim).stream()
                 .collect(Collectors.toMap(PassPurchase::getId, Function.identity()));
         int claimedPassCount = 0;
         for (Long passId : passIdsToClaim) {
@@ -138,8 +135,12 @@ public class GuestClaimService {
             claimedPassCount++;
         }
 
-        log.info("guest claim completed [userId={} guestId={} orders={} bookings={} passes={}]",
-                userId, guest.getId(), orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
+        clientMonitoringService.logGuestClaimCompleted(
+                userId,
+                guest.getId(),
+                orderIdSet.size(),
+                bookingIdSet.size(),
+                claimedPassCount);
         return new ClaimResult(orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
     }
 
@@ -149,15 +150,15 @@ public class GuestClaimService {
         return findGuestByAnyPhoneFormat(user.getPhone())
                 .map(guest -> new ClaimPreview(
                         user.isPhoneVerified(),
-                        orderRepository.findByGuestIdOrderByCreatedAtDesc(guest.getId()).stream()
+                        claimQuery.findOrdersByGuestId(guest.getId()).stream()
                                 .limit(PREVIEW_LIMIT)
                                 .map(ClaimOrderSummary::from)
                                 .toList(),
-                        bookingRepository.findByGuestIdWithDetails(guest.getId()).stream()
+                        claimQuery.findBookingsByGuestId(guest.getId()).stream()
                                 .limit(PREVIEW_LIMIT)
                                 .map(ClaimBookingSummary::from)
                                 .toList(),
-                        passPurchaseRepository.findByGuestIdOrderByPurchasedAtDesc(guest.getId()).stream()
+                        claimQuery.findPassPurchasesByGuestId(guest.getId()).stream()
                                 .limit(PREVIEW_LIMIT)
                                 .map(ClaimPassSummary::from)
                                 .toList()))
@@ -165,16 +166,15 @@ public class GuestClaimService {
     }
 
     private User findUser(Long userId) {
-        return userRepository.findById(userId)
+        return userReader.findById(userId)
                 .orElseThrow(() -> new NotFoundException("회원"));
     }
 
     private PhoneVerification findValidVerification(String phone, String verificationCode) {
         LocalDateTime now = LocalDateTime.now(clock);
         for (String candidatePhone : candidatePhones(phone)) {
-            Optional<PhoneVerification> verification = phoneVerificationRepository
-                    .findByPhoneAndCodeAndVerifiedFalseAndExpiresAtAfter(
-                            candidatePhone, verificationCode, now);
+            Optional<PhoneVerification> verification = phoneVerificationPort
+                    .findValidVerification(candidatePhone, verificationCode, now);
             if (verification.isPresent()) {
                 return verification.get();
             }
@@ -184,7 +184,7 @@ public class GuestClaimService {
 
     private Optional<Guest> findGuestByAnyPhoneFormat(String phone) {
         for (String candidatePhone : candidatePhones(phone)) {
-            Optional<Guest> guest = guestRepository.findByPhone(candidatePhone);
+            Optional<Guest> guest = guestReader.findByPhone(candidatePhone);
             if (guest.isPresent()) {
                 return guest;
             }
@@ -213,34 +213,4 @@ public class GuestClaimService {
         return ids == null ? Set.of() : new LinkedHashSet<>(ids);
     }
 
-    public record ClaimPreview(boolean phoneVerified,
-                               List<ClaimOrderSummary> orders,
-                               List<ClaimBookingSummary> bookings,
-                               List<ClaimPassSummary> passes) {}
-
-    public record ClaimOrderSummary(Long orderId, String status, long totalAmount, LocalDateTime createdAt) {
-        static ClaimOrderSummary from(Order order) {
-            return new ClaimOrderSummary(order.getId(), order.getStatus().name(),
-                    order.getTotalAmount(), order.getCreatedAt());
-        }
-    }
-
-    public record ClaimBookingSummary(Long bookingId, String status, String className,
-                                      LocalDateTime startAt, LocalDateTime endAt) {
-        static ClaimBookingSummary from(Booking booking) {
-            return new ClaimBookingSummary(booking.getId(), booking.getStatus().name(),
-                    booking.getBookingClass().getName(), booking.getSlot().getStartAt(),
-                    booking.getSlot().getEndAt());
-        }
-    }
-
-    public record ClaimPassSummary(Long passId, int remainingCredits,
-                                   int totalCredits, LocalDateTime expiresAt, long totalPrice) {
-        static ClaimPassSummary from(PassPurchase pass) {
-            return new ClaimPassSummary(pass.getId(), pass.getRemainingCredits(),
-                    pass.getTotalCredits(), pass.getExpiresAt(), pass.getTotalPrice());
-        }
-    }
-
-    public record ClaimResult(int claimedOrderCount, int claimedBookingCount, int claimedPassCount) {}
 }

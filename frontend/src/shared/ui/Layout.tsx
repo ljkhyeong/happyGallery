@@ -18,7 +18,7 @@ export function Layout() {
   const { user, isAuthenticated, isLoading, logout } = useCustomerAuth();
   const utilityCopy = isAuthenticated
     ? "회원은 내 정보에서 주문·예약·8회권을 바로 확인하고, 비회원 이력도 가져올 수 있습니다."
-    : "회원은 내 정보에서, 비회원은 조회 경로에서 주문과 예약을 확인합니다.";
+    : "회원은 내 정보에서, 비회원은 조회 안내 경로에서 주문과 예약을 확인합니다.";
 
   return (
     <div className="d-flex flex-column min-vh-100">
@@ -36,8 +36,13 @@ export function Layout() {
                 </>
               )
             )}
-            <Link to="/guest/orders" className="app-utility-link">비회원 주문 조회</Link>
-            <Link to="/guest/bookings" className="app-utility-link">비회원 예약 조회</Link>
+            <Link
+              to="/guest"
+              state={{ monitoringSource: "layout_utility" }}
+              className="app-utility-link"
+            >
+              비회원 조회 안내
+            </Link>
             <Link to="/admin" className="app-utility-link">관리자</Link>
           </div>
         </Container>

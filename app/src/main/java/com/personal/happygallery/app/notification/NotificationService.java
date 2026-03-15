@@ -1,11 +1,11 @@
 package com.personal.happygallery.app.notification;
 
+import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
+import com.personal.happygallery.app.customer.port.out.UserReaderPort;
+import com.personal.happygallery.app.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
-import com.personal.happygallery.infra.booking.GuestRepository;
 import com.personal.happygallery.infra.notification.NotificationLogRepository;
-import com.personal.happygallery.infra.notification.NotificationSender;
-import com.personal.happygallery.infra.user.UserRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,10 +17,10 @@ import org.springframework.stereotype.Service;
 /**
  * 알림 발송 서비스.
  *
- * <p>주입된 {@link NotificationSender} 목록을 {@code @Order} 우선순위 순으로 시도한다.
+ * <p>주입된 {@link NotificationSenderPort} 목록을 {@code @Order} 우선순위 순으로 시도한다.
  * 한 채널이 성공하면 이후 채널은 시도하지 않는다 (fallback 전략).
  *
- * <p>채널 추가 시 {@link NotificationSender} 구현체를 {@code @Order(n)}과 함께 등록하면
+ * <p>채널 추가 시 {@link NotificationSenderPort} 구현체를 {@code @Order(n)}과 함께 등록하면
  * 이 서비스를 수정할 필요 없이 fallback 체인에 자동 포함된다.
  *
  * <p>알림 실패는 주문/예약 흐름을 중단시키지 않는다.
@@ -31,21 +31,21 @@ public class NotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
-    private final List<NotificationSender> senders;
+    private final List<NotificationSenderPort> senders;
     private final NotificationLogRepository notificationLogRepository;
-    private final GuestRepository guestRepository;
-    private final UserRepository userRepository;
+    private final GuestReaderPort guestReader;
+    private final UserReaderPort userReader;
     private final Clock clock;
 
-    public NotificationService(List<NotificationSender> senders,
+    public NotificationService(List<NotificationSenderPort> senders,
                                NotificationLogRepository notificationLogRepository,
-                               GuestRepository guestRepository,
-                               UserRepository userRepository,
+                               GuestReaderPort guestReader,
+                               UserReaderPort userReader,
                                Clock clock) {
         this.senders = senders;
         this.notificationLogRepository = notificationLogRepository;
-        this.guestRepository = guestRepository;
-        this.userRepository = userRepository;
+        this.guestReader = guestReader;
+        this.userReader = userReader;
         this.clock = clock;
     }
 
@@ -61,7 +61,7 @@ public class NotificationService {
     public void notifyGuest(Long guestId, String phone, String name,
                             NotificationEventType eventType) {
         LocalDateTime sentAt = LocalDateTime.now(clock);
-        for (NotificationSender sender : senders) {
+        for (NotificationSenderPort sender : senders) {
             try {
                 boolean success = sender.send(phone, name, eventType);
                 if (success) {
@@ -88,7 +88,7 @@ public class NotificationService {
         if (guestId == null) {
             return;
         }
-        guestRepository.findById(guestId).ifPresentOrElse(
+        guestReader.findById(guestId).ifPresentOrElse(
                 guest -> notifyGuest(guest.getId(), guest.getPhone(), guest.getName(), eventType),
                 () -> log.warn("[알림] 게스트 미존재 [guestId={}]", guestId)
         );
@@ -103,7 +103,7 @@ public class NotificationService {
         if (userId == null) {
             return;
         }
-        userRepository.findById(userId).ifPresentOrElse(
+        userReader.findById(userId).ifPresentOrElse(
                 user -> notifyUser(userId, user.getPhone(), user.getName(), eventType),
                 () -> log.warn("[알림] 회원 미존재 [userId={}]", userId)
         );
@@ -116,7 +116,7 @@ public class NotificationService {
     public void notifyUser(Long userId, String phone, String name,
                            NotificationEventType eventType) {
         LocalDateTime sentAt = LocalDateTime.now(clock);
-        for (NotificationSender sender : senders) {
+        for (NotificationSenderPort sender : senders) {
             try {
                 boolean success = sender.send(phone, name, eventType);
                 if (success) {

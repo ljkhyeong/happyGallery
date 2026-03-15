@@ -1,12 +1,13 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.out.FulfillmentPort;
+import com.personal.happygallery.app.order.port.out.OrderReaderPort;
+import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.config.RetryConfig;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
-import com.personal.happygallery.infra.order.FulfillmentRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -26,13 +27,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class OrderPickupService {
 
-    private final OrderRepository orderRepository;
-    private final FulfillmentRepository fulfillmentRepository;
+    private final OrderReaderPort orderReader;
+    private final OrderStorePort orderStore;
+    private final FulfillmentPort fulfillmentPort;
 
-    public OrderPickupService(OrderRepository orderRepository,
-                              FulfillmentRepository fulfillmentRepository) {
-        this.orderRepository = orderRepository;
-        this.fulfillmentRepository = fulfillmentRepository;
+    public OrderPickupService(OrderReaderPort orderReader,
+                              OrderStorePort orderStore,
+                              FulfillmentPort fulfillmentPort) {
+        this.orderReader = orderReader;
+        this.orderStore = orderStore;
+        this.fulfillmentPort = fulfillmentPort;
     }
 
     /**
@@ -51,18 +55,18 @@ public class OrderPickupService {
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
     public PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.markPickupReady();
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
                 .map(existing -> {
                     existing.convertToPickup(pickupDeadlineAt);
                     return existing;
                 })
                 .orElseGet(() -> new Fulfillment(orderId, pickupDeadlineAt));
-        fulfillmentRepository.save(fulfillment);
-        orderRepository.save(order);
+        fulfillmentPort.save(fulfillment);
+        orderStore.save(order);
 
         return new PickupResult(order.getId(), order.getStatus(), fulfillment.getPickupDeadlineAt());
     }
@@ -81,14 +85,14 @@ public class OrderPickupService {
                     multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
                     random = true))
     public PickupResult confirmPickup(Long orderId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.confirmPickup();
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(orderId)
+        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
-        fulfillmentRepository.save(fulfillment);
-        orderRepository.save(order);
+        fulfillmentPort.save(fulfillment);
+        orderStore.save(order);
 
         return new PickupResult(order.getId(), order.getStatus(), fulfillment.getPickupDeadlineAt());
     }

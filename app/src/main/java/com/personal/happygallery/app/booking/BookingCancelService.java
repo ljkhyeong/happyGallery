@@ -1,5 +1,10 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.BookingStorePort;
+import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.app.booking.port.out.SlotStorePort;
+import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
+import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.error.NotFoundException;
@@ -12,10 +17,6 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import java.time.Clock;
 import java.util.function.BiConsumer;
 import org.springframework.stereotype.Service;
@@ -25,26 +26,29 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class BookingCancelService {
 
-    private final BookingRepository bookingRepository;
-    private final SlotRepository slotRepository;
+    private final SlotReaderPort slotReaderPort;
+    private final SlotStorePort slotStorePort;
+    private final BookingStorePort bookingStorePort;
     private final RefundExecutionService refundExecutionService;
-    private final PassPurchaseRepository passPurchaseRepository;
-    private final PassLedgerRepository passLedgerRepository;
+    private final PassPurchaseStorePort passPurchaseStorePort;
+    private final PassLedgerStorePort passLedgerStorePort;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
-    public BookingCancelService(BookingRepository bookingRepository,
-                                SlotRepository slotRepository,
+    public BookingCancelService(SlotReaderPort slotReaderPort,
+                                SlotStorePort slotStorePort,
+                                BookingStorePort bookingStorePort,
                                 RefundExecutionService refundExecutionService,
-                                PassPurchaseRepository passPurchaseRepository,
-                                PassLedgerRepository passLedgerRepository,
+                                PassPurchaseStorePort passPurchaseStorePort,
+                                PassLedgerStorePort passLedgerStorePort,
                                 BookingSupport bookingSupport,
                                 Clock clock) {
-        this.bookingRepository = bookingRepository;
-        this.slotRepository = slotRepository;
+        this.slotReaderPort = slotReaderPort;
+        this.slotStorePort = slotStorePort;
+        this.bookingStorePort = bookingStorePort;
         this.refundExecutionService = refundExecutionService;
-        this.passPurchaseRepository = passPurchaseRepository;
-        this.passLedgerRepository = passLedgerRepository;
+        this.passPurchaseStorePort = passPurchaseStorePort;
+        this.passLedgerStorePort = passLedgerStorePort;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
@@ -80,10 +84,10 @@ public class BookingCancelService {
         }
 
         // 2. 슬롯 반납 — 비관적 락 + booked_count--
-        Slot slot = slotRepository.findByIdWithLock(booking.getSlot().getId())
+        Slot slot = slotReaderPort.findByIdWithLock(booking.getSlot().getId())
                 .orElseThrow(() -> new NotFoundException("슬롯"));
         slot.decrementBookedCount();
-        slotRepository.save(slot);
+        slotStorePort.save(slot);
 
         // 3. CANCELED 이력 저장 (append-only)
         bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null);
@@ -94,10 +98,10 @@ public class BookingCancelService {
         if (booking.isPassBooking()) {
             if (refundable) {
                 PassPurchase pass = booking.getPassPurchase();
-                passLedgerRepository.save(
+                passLedgerStorePort.save(
                         new PassLedger(pass, PassLedgerType.REFUND, 1, booking.getId()));
                 pass.refundCredit();
-                passPurchaseRepository.save(pass);
+                passPurchaseStorePort.save(pass);
             }
         } else {
             if (refundable) {
@@ -107,7 +111,7 @@ public class BookingCancelService {
 
         // 5. 예약 취소 처리
         booking.cancel();
-        bookingRepository.save(booking);
+        bookingStorePort.save(booking);
 
         // 6. 취소 알림 (+ 예약금 환불 시 환불 알림)
         notify.accept(booking, NotificationEventType.BOOKING_CANCELED);

@@ -1,5 +1,8 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.ClassReaderPort;
+import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.app.booking.port.out.SlotStorePort;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.error.NotFoundException;
@@ -7,8 +10,6 @@ import com.personal.happygallery.common.error.SlotNotAvailableException;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotBufferPolicy;
-import com.personal.happygallery.infra.booking.ClassRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -18,32 +19,36 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class SlotManagementService {
 
-    private final ClassRepository classRepository;
-    private final SlotRepository slotRepository;
+    private final ClassReaderPort classReaderPort;
+    private final SlotReaderPort slotReaderPort;
+    private final SlotStorePort slotStorePort;
 
-    public SlotManagementService(ClassRepository classRepository, SlotRepository slotRepository) {
-        this.classRepository = classRepository;
-        this.slotRepository = slotRepository;
+    public SlotManagementService(ClassReaderPort classReaderPort,
+                                  SlotReaderPort slotReaderPort,
+                                  SlotStorePort slotStorePort) {
+        this.classReaderPort = classReaderPort;
+        this.slotReaderPort = slotReaderPort;
+        this.slotStorePort = slotStorePort;
     }
 
     /** 슬롯을 생성한다. */
     public Slot createSlot(Long classId, LocalDateTime startAt, LocalDateTime endAt) {
-        BookingClass bookingClass = classRepository.findById(classId)
+        BookingClass bookingClass = classReaderPort.findById(classId)
                 .orElseThrow(() -> new NotFoundException("클래스"));
 
-        if (slotRepository.existsByBookingClassIdAndStartAt(classId, startAt)) {
+        if (slotReaderPort.existsByBookingClassIdAndStartAt(classId, startAt)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미 동일 시간에 슬롯이 존재합니다.");
         }
 
-        return slotRepository.save(new Slot(bookingClass, startAt, endAt));
+        return slotStorePort.save(new Slot(bookingClass, startAt, endAt));
     }
 
     /** 슬롯을 비활성화한다. */
     public Slot deactivateSlot(Long slotId) {
-        Slot slot = slotRepository.findById(slotId)
+        Slot slot = slotReaderPort.findById(slotId)
                 .orElseThrow(() -> new NotFoundException("슬롯"));
         slot.deactivate();
-        return slotRepository.save(slot);
+        return slotStorePort.save(slot);
     }
 
     /**
@@ -58,7 +63,7 @@ public class SlotManagementService {
      * <p>§5.2 BookingService에서 예약 엔티티 생성 직전에 호출한다.
      */
     public Slot confirmBooking(Long slotId) {
-        Slot slot = slotRepository.findByIdWithLock(slotId)
+        Slot slot = slotReaderPort.findByIdWithLock(slotId)
                 .orElseThrow(() -> new NotFoundException("슬롯"));
 
         // 락 획득 후 isActive 재확인 — TOCTOU 방어: 락 없이 체크한 후 다른 트랜잭션이 deactivate했을 수 있음
@@ -66,17 +71,17 @@ public class SlotManagementService {
             throw new SlotNotAvailableException();
         }
         slot.incrementBookedCount();
-        slotRepository.save(slot);
+        slotStorePort.save(slot);
 
         LocalDateTime windowStart = SlotBufferPolicy.bufferWindowStart(slot.getEndAt());
         LocalDateTime windowEnd   = SlotBufferPolicy.bufferWindowEnd(
                 slot.getEndAt(), slot.getBookingClass().getBufferMin());
 
-        List<Slot> bufferSlots = slotRepository.findActiveInBufferWindow(
+        List<Slot> bufferSlots = slotReaderPort.findActiveInBufferWindow(
                 slot.getBookingClass().getId(), windowStart, windowEnd);
         bufferSlots.forEach(s -> {
             s.deactivate();
-            slotRepository.save(s);
+            slotStorePort.save(s);
         });
 
         return slot;

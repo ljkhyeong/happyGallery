@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.customer;
 
-import com.personal.happygallery.app.customer.GuestClaimService;
+import com.personal.happygallery.app.customer.port.in.GuestClaimUseCase;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -16,29 +16,29 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/me/guest-claims")
 public class MeGuestClaimController {
 
-    private final GuestClaimService guestClaimService;
+    private final GuestClaimUseCase guestClaim;
 
-    public MeGuestClaimController(GuestClaimService guestClaimService) {
-        this.guestClaimService = guestClaimService;
+    public MeGuestClaimController(GuestClaimUseCase guestClaim) {
+        this.guestClaim = guestClaim;
     }
 
     @GetMapping("/preview")
-    public GuestClaimService.ClaimPreview previewGuestClaims(HttpServletRequest request) {
-        return guestClaimService.preview(getUserId(request));
+    public GuestClaimUseCase.ClaimPreview previewGuestClaims(HttpServletRequest request) {
+        return guestClaim.preview(getUserId(request));
     }
 
     @PostMapping("/verify")
-    public GuestClaimService.ClaimPreview verifyPhoneAndPreviewGuestClaims(
+    public GuestClaimUseCase.ClaimPreview verifyPhoneAndPreviewGuestClaims(
             @RequestBody @Valid VerifyGuestClaimPhoneRequest req,
             HttpServletRequest request) {
-        return guestClaimService.verifyPhoneAndPreview(getUserId(request), req.verificationCode());
+        return guestClaim.verifyPhoneAndPreview(getUserId(request), req.verificationCode());
     }
 
     @PostMapping
-    public GuestClaimService.ClaimResult claimGuestRecords(
+    public GuestClaimUseCase.ClaimResult claimGuestRecords(
             @RequestBody @Valid ClaimGuestRecordsRequest req,
             HttpServletRequest request) {
-        return guestClaimService.claim(getUserId(request), req.orderIds(), req.bookingIds(), req.passIds());
+        return guestClaim.claim(getUserId(request), req.orderIds(), req.bookingIds(), req.passIds());
     }
 
     private Long getUserId(HttpServletRequest request) {

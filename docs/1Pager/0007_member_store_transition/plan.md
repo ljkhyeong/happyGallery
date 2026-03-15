@@ -8,9 +8,10 @@
 - `U5` 완료 (`/my`, `/my/orders`, `/my/bookings`, `/my/passes`, guest claim, 회원 예약 상세/변경·취소, `/guest/**` 분리)
 - `U6` 3차 완료 (rollout 기준 + Playwright smoke 1~9 + guest claim browser automation + success-onboarding smoke)
 - member self-service / guest lookup polish 완료
-- `/my` 목록 필터 확장 완료
+- `/my` 목록 고도화 완료 (검색/상태 필터 + quick tab + 정렬)
 - 회원 온보딩 polish 완료
-- 남은 후속은 `/guest/**` 운영 정리와 `/my` 후속 고도화 판단
+- guest/member 운영 모니터링 1차 구현 완료 (`/api/v1/monitoring/client-events` + `[client-monitoring]` 로그)
+- 남은 후속은 운영 리뷰와 `/my` 운영 피드백 반영 판단
 
 기준 문서:
 - 현재 구현 기준: `HANDOFF.md`, `docs/PRD/0001_spec/spec.md`
@@ -33,6 +34,7 @@
 - 회원과 비회원은 공존한다. 기존 guest API를 즉시 제거하지 않는다.
 - 회원 조회와 비회원 조회는 분리한다. 회원은 `내 정보` 경로, 비회원은 휴대폰 인증/토큰 경로를 사용한다.
 - 상품 상세가 주문 메인 진입점이 된다. 현재 `/orders/new`는 보조 경로나 레거시 fallback으로 내린다.
+- public guest entry는 `/guest` 허브로 제한하고, `/guest/orders`, `/guest/bookings`, `/orders/new` direct gate는 member route 안정화 이후 2~4주 관측 뒤 축소 여부를 판단한다.
 - 고객 인증은 관리자 인증과 분리한다. 관리자 세션 저장소나 `X-Admin-Key` 패턴을 재사용하지 않는다.
 - 현재 구현과 미래 요구사항을 분리하기 위해, 차기 요구사항은 `docs/PRD/0002_member_store_transition/spec.md`에 먼저 적고 구현 후 `0001_spec`에 흡수한다.
 

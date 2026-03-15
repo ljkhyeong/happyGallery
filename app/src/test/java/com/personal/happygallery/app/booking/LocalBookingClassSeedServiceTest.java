@@ -1,7 +1,8 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.ClassReaderPort;
+import com.personal.happygallery.app.booking.port.out.ClassStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
-import com.personal.happygallery.infra.booking.ClassRepository;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,30 +20,33 @@ import static org.mockito.Mockito.verify;
 class LocalBookingClassSeedServiceTest {
 
     @Mock
-    private ClassRepository classRepository;
+    private ClassReaderPort classReaderPort;
+
+    @Mock
+    private ClassStorePort classStorePort;
 
     @DisplayName("클래스가 이미 있으면 로컬 기본 클래스를 추가로 생성하지 않는다")
     @Test
     void seedIfEmpty_whenClassesExist_doesNotCreateDefaults() {
-        given(classRepository.count()).willReturn(1L);
-        LocalBookingClassSeedService service = new LocalBookingClassSeedService(classRepository);
+        given(classReaderPort.count()).willReturn(1L);
+        LocalBookingClassSeedService service = new LocalBookingClassSeedService(classReaderPort, classStorePort);
 
         service.seedIfEmpty();
 
-        verify(classRepository, never()).saveAll(org.mockito.ArgumentMatchers.<List<BookingClass>>any());
+        verify(classStorePort, never()).saveAll(org.mockito.ArgumentMatchers.<List<BookingClass>>any());
     }
 
     @DisplayName("클래스가 비어 있으면 로컬 기본 클래스를 생성한다")
     @Test
     @SuppressWarnings("unchecked")
     void seedIfEmpty_whenEmpty_createsDefaults() {
-        given(classRepository.count()).willReturn(0L);
-        LocalBookingClassSeedService service = new LocalBookingClassSeedService(classRepository);
+        given(classReaderPort.count()).willReturn(0L);
+        LocalBookingClassSeedService service = new LocalBookingClassSeedService(classReaderPort, classStorePort);
         ArgumentCaptor<List<BookingClass>> classesCaptor = ArgumentCaptor.forClass(List.class);
 
         service.seedIfEmpty();
 
-        verify(classRepository).saveAll(classesCaptor.capture());
+        verify(classStorePort).saveAll(classesCaptor.capture());
         List<BookingClass> seededClasses = classesCaptor.getValue();
 
         assertThat(seededClasses)
