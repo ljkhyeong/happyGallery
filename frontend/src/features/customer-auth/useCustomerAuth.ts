@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api } from "@/shared/api";
 
 interface MeResponse {
@@ -17,11 +17,23 @@ export interface CustomerUser {
   phoneVerified: boolean;
 }
 
+interface CustomerAuthContextValue {
+  user: CustomerUser | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  signup: (email: string, password: string, name: string, phone: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  refresh: () => Promise<void>;
+}
+
+const CustomerAuthContext = createContext<CustomerAuthContextValue | null>(null);
+
 function normalizePhone(phone: string) {
   return phone.replace(/\D/g, "");
 }
 
-export function useCustomerAuth() {
+export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CustomerUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -86,13 +98,27 @@ export function useCustomerAuth() {
     setUser(null);
   }, []);
 
-  return {
-    user,
-    isAuthenticated: user !== null,
-    isLoading,
-    login,
-    signup,
-    logout,
-    refresh: fetchMe,
-  };
+  return createElement(
+    CustomerAuthContext,
+    {
+      value: {
+        user,
+        isAuthenticated: user !== null,
+        isLoading,
+        login,
+        signup,
+        logout,
+        refresh: fetchMe,
+      },
+    },
+    children,
+  );
+}
+
+export function useCustomerAuth() {
+  const context = useContext(CustomerAuthContext);
+  if (!context) {
+    throw new Error("useCustomerAuth must be used within CustomerAuthProvider");
+  }
+  return context;
 }

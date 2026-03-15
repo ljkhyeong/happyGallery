@@ -33,6 +33,14 @@ function successAlert(page: Page, text: string) {
   return page.locator(".alert.alert-success").filter({ hasText: text }).first();
 }
 
+function navLogoutButton(page: Page) {
+  return page.locator(".app-navbar").getByRole("button", { name: "로그아웃" });
+}
+
+function navLoginLink(page: Page) {
+  return page.locator(".app-navbar").getByRole("link", { name: "로그인" });
+}
+
 async function extractCodeText(page: Page): Promise<string> {
   const code = await page.locator(".card code").first().textContent();
   if (!code) {
@@ -516,7 +524,20 @@ test("P8-9 비회원 성공 화면에서 회원가입 후 claim 모달을 바로
   await page.getByRole("button", { name: "회원가입" }).click();
 
   await expect(page).toHaveURL(/\/my$/);
+  await expect(navLogoutButton(page)).toBeVisible();
   const claimDialog = page.getByRole("dialog").filter({ hasText: "비회원 이력 가져오기" }).first();
   await expect(claimDialog).toBeVisible();
   await expect(claimDialog.getByText("휴대폰 재인증")).toBeVisible();
+
+  await claimDialog.getByRole("button", { name: "닫기" }).click();
+  await navLogoutButton(page).click();
+  await expect(navLoginLink(page)).toBeVisible();
+
+  await page.goto("/login?redirect=/my");
+  await page.getByLabel("이메일").fill(`${signupSeed}@example.com`);
+  await page.getByLabel("비밀번호").fill("password123");
+  await page.getByRole("button", { name: "로그인" }).click();
+
+  await expect(page).toHaveURL(/\/my$/);
+  await expect(navLogoutButton(page)).toBeVisible();
 });
