@@ -8,9 +8,9 @@
 - `U5` 완료 (`/my`, `/my/orders`, `/my/bookings`, `/my/passes`, guest claim, 회원 예약 상세/변경·취소, `/guest/**` 분리)
 - `U6` 3차 완료 (rollout 기준 + Playwright smoke 1~9 + guest claim browser automation + success-onboarding smoke)
 - member self-service / guest lookup polish 완료
-- `/my` 목록 필터 확장 완료
+- `/my` 목록 고도화 완료 (검색/상태 필터 + quick tab + 정렬)
 - 회원 온보딩 polish 완료
-- 남은 후속은 `/guest/**` 운영 정리와 `/my` 후속 고도화 판단
+- 남은 후속은 `/guest/**` 운영 정리와 `/my` 운영 피드백 반영 판단
 
 기준 문서:
 - 현재 구현 기준: `HANDOFF.md`, `docs/PRD/0001_spec/spec.md`

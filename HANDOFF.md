@@ -26,6 +26,8 @@
 
 - 권장 작업 브랜치: `codex/work-20260315-015031`
 - 최근 작업:
+  - 로그인 직후 회원 상태 전역 동기화 완료 — `CustomerAuthProvider`를 도입해 로그인/회원가입 후 상단 네비가 새로고침 없이 즉시 `로그아웃` 상태로 반영되도록 정리하고, `P8-9`에 즉시 상태 전환 검증 추가
+  - `/my` 목록 고도화 완료 — `/my/orders`, `/my/bookings`, `/my/passes`에 quick status tab, 정렬, 요약 chip을 추가해 회원 이력 탐색 흐름을 한 단계 정리
   - 회원 온보딩 polish 완료 — 로그인/회원가입 페이지를 storefront/member 문맥에 맞는 2열 레이아웃으로 정리하고, `redirect`·`claim`·회원가입 prefill(`name`/`phone`) 컨텍스트를 로그인/회원가입 전환 링크에도 유지, `/my?claim=1` 진입 뒤 모달을 닫아도 후속 claim 안내 카드가 남도록 보강
   - `/my` 목록 필터 확장 완료 — `/my/orders`, `/my/bookings`, `/my/passes`에 상태 필터와 검색을 추가하고, 회원 8회권 구매 완료 CTA도 `/my/passes`로 맞춤
   - member/guest success flow 고도화 완료 — guest 주문/예약/8회권 성공 화면에서 `회원가입/로그인 -> /my claim` 경로를 직접 안내하고, 회원가입 페이지는 휴대폰/이름 prefill + claim 안내로 진입, `/my?claim=1`은 claim 모달을 자동으로 열도록 정리
@@ -148,7 +150,7 @@
 ### 다음 추천 작업
 
 1. 운영 배포 판단 — `/guest/**` canonical route 유지 기간과 guest fallback 제거 순서 정리
-2. `/my` 고도화 판단 — 목록 필터를 넘어 상태별 탭/정렬까지 필요한지 운영 피드백으로 판단
+2. `/my` 운영 피드백 반영 — 현재 quick tab/정렬 구성이 충분한지 보고 상태 탭 세분화나 기본 정렬 정책을 조정할지 판단
 3. 회원 전환 운영 카피 점검 — claim 안내 문구와 guest 조회 잔존 정책을 실제 사용자 문의 기준으로 다듬을지 판단
 
 ---
@@ -193,7 +195,7 @@
 - 로그인/회원가입 페이지는 `redirect`와 `claim` 문맥을 유지하고, 회원가입은 guest 성공 화면에서 넘어온 `name`/`phone` prefill도 이어받는다.
 - `/my?claim=1` 로 진입한 뒤 자동 오픈된 claim 모달을 닫아도, 대시보드의 claim 카드에서 후속 안내와 재진입 버튼을 계속 노출한다.
 - `/my/bookings/:id` 는 회원 예약 상세/변경/취소 화면이며, 비회원 조회는 `/guest/bookings` 로 분리한다.
-- `/my/orders`, `/my/bookings`, `/my/passes` 는 검색과 상태 필터를 제공한다.
+- `/my/orders`, `/my/bookings`, `/my/passes` 는 검색, 상태 필터, quick tab, 정렬을 제공한다.
 - `/guest/orders`, `/guest/bookings` 가 canonical guest 조회 경로다.
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
 - 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
