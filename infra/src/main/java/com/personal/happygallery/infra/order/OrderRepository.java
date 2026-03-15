@@ -17,6 +17,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     /** 회원 — 자기 주문 조회 (최신순) */
     List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    /** guest claim preview용 비회원 주문 조회 (최신순) */
+    List<Order> findByGuestIdOrderByCreatedAtDesc(Long guestId);
+
     /** 관리자 — 상태별 주문 조회 (최신순) */
     List<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status);
 

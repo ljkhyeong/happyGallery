@@ -59,4 +59,8 @@ public class User {
     public void updateLastLoginAt(LocalDateTime loginAt) {
         this.lastLoginAt = loginAt;
     }
+
+    public void markPhoneVerified() {
+        this.phoneVerified = true;
+    }
 }

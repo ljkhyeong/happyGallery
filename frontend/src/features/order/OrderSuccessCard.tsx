@@ -27,7 +27,7 @@ export function OrderSuccessCard({ order }: Props) {
           </Alert>
         </Card.Body>
         <Card.Footer>
-          <Link to="/orders/detail" className="text-decoration-none small">
+          <Link to="/guest/orders" className="text-decoration-none small">
             주문 조회 페이지로 이동 &rarr;
           </Link>
         </Card.Footer>

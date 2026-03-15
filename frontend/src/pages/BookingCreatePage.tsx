@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Form, Row, Col, Button } from "react-bootstrap";
+import { Link } from "react-router-dom";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
 import { BookingSuccessCard } from "@/features/booking-create/BookingSuccessCard";
 import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
@@ -34,7 +35,7 @@ export function BookingCreatePage() {
 
   const [showGate, setShowGate] = useState(false);
   const [result, setResult] = useState<BookingResponse | null>(null);
-  const [memberDone, setMemberDone] = useState(false);
+  const [memberResult, setMemberResult] = useState<MemberBookingResponse | null>(null);
 
   const guestMutation = useMutation({
     mutationFn: (guestInfo: { phone: string; verificationCode: string; name: string }) => {
@@ -74,9 +75,9 @@ export function BookingCreatePage() {
       }
       return api<MemberBookingResponse>("/me/bookings", { method: "POST", body });
     },
-    onSuccess: () => {
+    onSuccess: (booking) => {
       toast.show("예약이 완료되었습니다!");
-      setMemberDone(true);
+      setMemberResult(booking);
       setShowGate(false);
     },
   });
@@ -94,14 +95,14 @@ export function BookingCreatePage() {
     );
   }
 
-  if (memberDone) {
+  if (memberResult) {
     return (
       <Container className="page-container" style={{ maxWidth: 640 }}>
         <h4 className="mb-4">예약 완료</h4>
         <div className="text-center">
           <p className="mb-3">예약이 완료되었습니다.</p>
-          <Button as={"a" as any} href="/my" variant="primary">
-            내 예약 확인하기
+          <Button as={Link as any} to={`/my/bookings/${memberResult.bookingId}`} variant="primary">
+            내 예약 상세 보기
           </Button>
         </div>
       </Container>

@@ -17,6 +17,10 @@ export interface CustomerUser {
   phoneVerified: boolean;
 }
 
+function normalizePhone(phone: string) {
+  return phone.replace(/\D/g, "");
+}
+
 export function useCustomerAuth() {
   const [user, setUser] = useState<CustomerUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,7 +66,7 @@ export function useCustomerAuth() {
       try {
         const me = await api<MeResponse>("/auth/signup", {
           method: "POST",
-          body: { email, password, name, phone },
+          body: { email, password, name, phone: normalizePhone(phone) },
         });
         setUser(me);
         return true;
@@ -89,5 +93,6 @@ export function useCustomerAuth() {
     login,
     signup,
     logout,
+    refresh: fetchMe,
   };
 }

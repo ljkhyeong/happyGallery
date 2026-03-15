@@ -138,6 +138,11 @@ public class PassPurchase {
         return (long) remainingCredits * unitPrice();
     }
 
+    public void claimToUser(Long userId) {
+        this.userId = userId;
+        this.guest = null;
+    }
+
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Guest getGuest() { return guest; }

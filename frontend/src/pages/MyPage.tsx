@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Container, Card, Row, Col, Badge, Button } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { GuestClaimModal } from "@/features/customer-claim/GuestClaimModal";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { api } from "@/shared/api";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
@@ -34,7 +36,8 @@ interface MyPassSummary {
 
 export function MyPage() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isLoading: authLoading, logout } = useCustomerAuth();
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const { user, isAuthenticated, isLoading: authLoading, logout, refresh } = useCustomerAuth();
 
   const { data: orders, isLoading: ordersLoading, error: ordersError } = useQuery({
     queryKey: ["my", "orders"],
@@ -73,10 +76,32 @@ export function MyPage() {
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <h5 className="mb-1">{user!.name}</h5>
-              <p className="text-muted-soft small mb-0">{user!.email}</p>
+              <p className="text-muted-soft small mb-1">{user!.email}</p>
+              <div className="d-flex flex-wrap gap-2 align-items-center">
+                <span className="text-muted-soft small">{user!.phone}</span>
+                <Badge bg={user!.phoneVerified ? "success" : "secondary"}>
+                  {user!.phoneVerified ? "휴대폰 인증 완료" : "휴대폰 재확인 필요"}
+                </Badge>
+              </div>
             </div>
             <Button variant="outline-secondary" size="sm" onClick={() => { logout(); navigate("/"); }}>
               로그아웃
+            </Button>
+          </div>
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-4">
+        <Card.Body>
+          <div className="d-flex justify-content-between align-items-start gap-3">
+            <div>
+              <h6 className="mb-1">비회원 이력 가져오기</h6>
+              <p className="text-muted-soft small mb-0">
+                같은 휴대폰 번호로 남긴 비회원 주문, 예약, 8회권을 이 계정으로 이전할 수 있습니다.
+              </p>
+            </div>
+            <Button variant="outline-primary" size="sm" onClick={() => setShowClaimModal(true)}>
+              이력 가져오기
             </Button>
           </div>
         </Card.Body>
@@ -119,7 +144,12 @@ export function MyPage() {
         <ErrorAlert error={bookingsError} />
         {bookings && bookings.length === 0 && <EmptyState message="예약 내역이 없습니다." />}
         {bookings && bookings.length > 0 && bookings.slice(0, 5).map((b) => (
-          <Card key={b.bookingId} className="mb-2">
+          <Card
+            key={b.bookingId}
+            as={Link}
+            to={`/my/bookings/${b.bookingId}`}
+            className="mb-2 text-decoration-none"
+          >
             <Card.Body className="py-2 px-3">
               <Row className="align-items-center">
                 <Col xs={4}>
@@ -161,6 +191,16 @@ export function MyPage() {
           </Card>
         ))}
       </section>
+
+      {showClaimModal && (
+        <GuestClaimModal
+          show={showClaimModal}
+          onClose={() => setShowClaimModal(false)}
+          phone={user!.phone}
+          phoneVerified={user!.phoneVerified}
+          onPhoneVerified={refresh}
+        />
+      )}
     </Container>
   );
 }

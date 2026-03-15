@@ -175,6 +175,11 @@ public class Booking {
         this.status = BookingStatus.NO_SHOW;
     }
 
+    public void claimToUser(Long userId) {
+        this.userId = userId;
+        this.guest = null;
+    }
+
     /** 8회권으로 결제된 예약인지 여부. */
     public boolean isPassBooking() {
         return passPurchase != null;

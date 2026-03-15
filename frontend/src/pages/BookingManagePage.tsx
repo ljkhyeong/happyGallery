@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card } from "react-bootstrap";
-import { fetchBooking } from "@/features/booking-manage/api";
+import { cancelBooking, fetchBooking, rescheduleBooking } from "@/features/booking-manage/api";
 import { BookingLookupForm } from "@/features/booking-manage/BookingLookupForm";
 import { BookingDetail } from "@/features/booking-manage/BookingDetail";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
@@ -62,14 +62,21 @@ export function BookingManagePage() {
             <Card className="mt-4">
               <Card.Header>예약 변경</Card.Header>
               <Card.Body>
-                <RescheduleForm booking={booking} token={currentToken} onSuccess={refetch} />
+                <RescheduleForm
+                  currentSlotId={booking.slotId}
+                  onReschedule={(newSlotId) => rescheduleBooking(booking.bookingId, newSlotId, currentToken)}
+                  onSuccess={refetch}
+                />
               </Card.Body>
             </Card>
           )}
 
           {isBooked && (
             <div className="mt-3">
-              <CancelButton bookingId={booking.bookingId} token={currentToken} onSuccess={refetch} />
+              <CancelButton
+                onCancel={() => cancelBooking(booking.bookingId, currentToken)}
+                onSuccess={refetch}
+              />
             </div>
           )}
         </>

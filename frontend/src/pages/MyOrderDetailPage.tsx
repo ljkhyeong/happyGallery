@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Container } from "react-bootstrap";
+import { Button, Container } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { api } from "@/shared/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
@@ -24,6 +24,15 @@ export function MyOrderDetailPage() {
 
   if (error) {
     return <Container className="page-container"><ErrorAlert error={error} /></Container>;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Container className="page-container text-center" style={{ maxWidth: 480 }}>
+        <h5 className="mb-3">로그인이 필요합니다</h5>
+        <Button as={Link as any} to="/login" variant="primary">로그인</Button>
+      </Container>
+    );
   }
 
   if (!order) return null;

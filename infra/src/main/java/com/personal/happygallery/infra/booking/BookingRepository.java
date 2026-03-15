@@ -36,6 +36,27 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             """)
     List<Booking> findByUserIdWithDetails(@Param("userId") Long userId);
 
+    @Query("""
+            SELECT b FROM Booking b
+            JOIN FETCH b.bookingClass
+            JOIN FETCH b.slot
+            WHERE b.id = :id
+              AND b.userId = :userId
+            """)
+    Optional<Booking> findByIdAndUserIdWithDetails(@Param("id") Long id,
+                                                   @Param("userId") Long userId);
+
+    /** guest claim preview용 비회원 예약 조회 (슬롯 시작 시간 내림차순) */
+    @Query("""
+            SELECT b FROM Booking b
+            JOIN FETCH b.guest
+            JOIN FETCH b.bookingClass
+            JOIN FETCH b.slot
+            WHERE b.guest.id = :guestId
+            ORDER BY b.slot.startAt DESC
+            """)
+    List<Booking> findByGuestIdWithDetails(@Param("guestId") Long guestId);
+
     /** 동일 슬롯 + 동일 회원 중복 예약 확인 */
     boolean existsBySlotIdAndUserId(Long slotId, Long userId);
 

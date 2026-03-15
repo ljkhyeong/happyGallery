@@ -25,6 +25,7 @@ import com.personal.happygallery.infra.product.ProductRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -61,6 +62,7 @@ public class MeController {
     private final BookingRescheduleService bookingRescheduleService;
     private final BookingCancelService bookingCancelService;
     private final PassPurchaseService passPurchaseService;
+    private final GuestClaimService guestClaimService;
 
     public MeController(OrderRepository orderRepository,
                         OrderItemRepository orderItemRepository,
@@ -72,7 +74,8 @@ public class MeController {
                         MemberBookingService memberBookingService,
                         BookingRescheduleService bookingRescheduleService,
                         BookingCancelService bookingCancelService,
-                        PassPurchaseService passPurchaseService) {
+                        PassPurchaseService passPurchaseService,
+                        GuestClaimService guestClaimService) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.fulfillmentRepository = fulfillmentRepository;
@@ -84,6 +87,7 @@ public class MeController {
         this.bookingRescheduleService = bookingRescheduleService;
         this.bookingCancelService = bookingCancelService;
         this.passPurchaseService = passPurchaseService;
+        this.guestClaimService = guestClaimService;
     }
 
     // ── 주문 ──
@@ -136,8 +140,7 @@ public class MeController {
     @GetMapping("/bookings/{id}")
     public MyBookingDetail myBooking(@PathVariable Long id, HttpServletRequest request) {
         Long userId = getUserId(request);
-        Booking booking = bookingRepository.findById(id)
-                .filter(b -> Objects.equals(b.getUserId(), userId))
+        Booking booking = bookingRepository.findByIdAndUserIdWithDetails(id, userId)
                 .orElseThrow(() -> new NotFoundException("예약"));
         return MyBookingDetail.from(booking);
     }
@@ -198,6 +201,27 @@ public class MeController {
         return MyPassSummary.from(pass);
     }
 
+    // ── guest claim ──
+
+    @GetMapping("/guest-claims/preview")
+    public GuestClaimService.ClaimPreview previewGuestClaims(HttpServletRequest request) {
+        return guestClaimService.preview(getUserId(request));
+    }
+
+    @PostMapping("/guest-claims/verify")
+    public GuestClaimService.ClaimPreview verifyPhoneAndPreviewGuestClaims(
+            @RequestBody @Valid VerifyGuestClaimPhoneRequest req,
+            HttpServletRequest request) {
+        return guestClaimService.verifyPhoneAndPreview(getUserId(request), req.verificationCode());
+    }
+
+    @PostMapping("/guest-claims")
+    public GuestClaimService.ClaimResult claimGuestRecords(
+            @RequestBody @Valid ClaimGuestRecordsRequest req,
+            HttpServletRequest request) {
+        return guestClaimService.claim(getUserId(request), req.orderIds(), req.bookingIds(), req.passIds());
+    }
+
     // ── 내부 ──
 
     private Long getUserId(HttpServletRequest request) {
@@ -225,12 +249,12 @@ public class MeController {
         }
     }
 
-    public record MyBookingDetail(Long bookingId, String status, String className,
+    public record MyBookingDetail(Long bookingId, Long slotId, String status, String className,
                                    LocalDateTime startAt, LocalDateTime endAt,
                                    long depositAmount, long balanceAmount,
                                    String balanceStatus, boolean passBooking) {
         static MyBookingDetail from(Booking b) {
-            return new MyBookingDetail(b.getId(), b.getStatus().name(),
+            return new MyBookingDetail(b.getId(), b.getSlot().getId(), b.getStatus().name(),
                     b.getBookingClass().getName(),
                     b.getSlot().getStartAt(), b.getSlot().getEndAt(),
                     b.getDepositAmount(), b.getBalanceAmount(),
@@ -265,4 +289,12 @@ public class MeController {
 
     public record PurchaseMemberPassRequest(
             @Positive long totalPrice) {}
+
+    public record VerifyGuestClaimPhoneRequest(
+            @NotBlank String verificationCode) {}
+
+    public record ClaimGuestRecordsRequest(
+            List<Long> orderIds,
+            List<Long> bookingIds,
+            List<Long> passIds) {}
 }

@@ -219,6 +219,11 @@ public class Order {
         this.status = OrderStatus.PICKUP_EXPIRED;
     }
 
+    public void claimToUser(Long userId) {
+        this.userId = userId;
+        this.guestId = null;
+    }
+
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Long getGuestId() { return guestId; }

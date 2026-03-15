@@ -46,6 +46,19 @@ export interface BookingDetailResponse {
   guestPhone: string;
 }
 
+export interface MyBookingDetailResponse {
+  bookingId: number;
+  slotId: number;
+  startAt: string;
+  endAt: string;
+  className: string;
+  status: BookingStatus;
+  depositAmount: number;
+  balanceAmount: number;
+  balanceStatus: string;
+  passBooking: boolean;
+}
+
 export interface RescheduleRequest {
   newSlotId: number;
   token: string;

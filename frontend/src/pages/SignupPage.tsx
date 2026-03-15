@@ -66,9 +66,10 @@ export function SignupPage() {
           <Form.Control
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
             required
-            placeholder="010-0000-0000"
+            placeholder="01012345678"
+            maxLength={11}
           />
         </Form.Group>
         <Button type="submit" className="w-100" disabled={submitting}>
