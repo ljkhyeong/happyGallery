@@ -1,25 +1,29 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
-import { rescheduleBooking } from "./api";
 import { ErrorAlert, useToast } from "@/shared/ui";
-import type { BookingDetailResponse } from "@/shared/types";
 
 interface Props {
-  booking: BookingDetailResponse;
-  token: string;
+  currentSlotId: number;
+  onReschedule: (newSlotId: number) => Promise<unknown>;
   onSuccess: () => void;
+  successMessage?: string;
 }
 
-export function RescheduleForm({ booking, token, onSuccess }: Props) {
+export function RescheduleForm({
+  currentSlotId,
+  onReschedule,
+  onSuccess,
+  successMessage = "예약이 변경되었습니다.",
+}: Props) {
   const toast = useToast();
   const [newSlotId, setNewSlotId] = useState("");
   const [touched, setTouched] = useState(false);
 
   const mutation = useMutation({
-    mutationFn: () => rescheduleBooking(booking.bookingId, Number(newSlotId), token),
-    onSuccess: (res) => {
-      toast.show(`슬롯 #${res.slotId}로 변경 완료`);
+    mutationFn: () => onReschedule(Number(newSlotId)),
+    onSuccess: () => {
+      toast.show(successMessage);
       setNewSlotId("");
       setTouched(false);
       onSuccess();
@@ -28,7 +32,7 @@ export function RescheduleForm({ booking, token, onSuccess }: Props) {
 
   const slotNum = Number(newSlotId);
   const isEmpty = !(slotNum > 0);
-  const isSameSlot = slotNum === booking.slotId;
+  const isSameSlot = slotNum === currentSlotId;
   const valid = !isEmpty && !isSameSlot;
 
   const showError = touched && newSlotId !== "";
@@ -62,7 +66,7 @@ export function RescheduleForm({ booking, token, onSuccess }: Props) {
               {feedback}
             </Form.Control.Feedback>
             <Form.Text className="text-muted">
-              현재 슬롯: #{booking.slotId}
+              현재 슬롯: #{currentSlotId}
             </Form.Text>
           </Form.Group>
         </Col>

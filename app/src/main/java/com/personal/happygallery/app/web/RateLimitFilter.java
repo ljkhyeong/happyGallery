@@ -39,6 +39,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "BOOKING_CREATE", "POST", "/bookings/guest", "/api/v1/bookings/guest");
     private static final LimitRule PASS_PURCHASE_RULE = new LimitRule(
             "PASS_PURCHASE", "POST", "/passes/guest", "/api/v1/passes/guest");
+    private static final LimitRule CUSTOMER_LOGIN_RULE = new LimitRule(
+            "CUSTOMER_LOGIN", "POST", null, "/api/v1/auth/login");
+    private static final LimitRule CUSTOMER_SIGNUP_RULE = new LimitRule(
+            "CUSTOMER_SIGNUP", "POST", null, "/api/v1/auth/signup");
     private static final LimitRule ADMIN_LOGIN_RULE = new LimitRule(
             "ADMIN_LOGIN", "POST", "/admin/auth/login", "/api/v1/admin/auth/login");
     private static final LimitRule ADMIN_API_RULE = new LimitRule("ADMIN_API", null, null, null);
@@ -94,6 +98,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private ResolvedRule resolveRule(HttpServletRequest request) {
+        if (matches(request, CUSTOMER_LOGIN_RULE)) {
+            return new ResolvedRule(CUSTOMER_LOGIN_RULE, properties.getCustomerLoginPerMinute(), Duration.ofMinutes(1));
+        }
+        if (matches(request, CUSTOMER_SIGNUP_RULE)) {
+            return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.getCustomerSignupPerMinute(), Duration.ofMinutes(1));
+        }
         if (matches(request, ADMIN_LOGIN_RULE)) {
             return new ResolvedRule(ADMIN_LOGIN_RULE, properties.getAdminLoginPerMinute(), Duration.ofMinutes(1));
         }
@@ -114,8 +124,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean matches(HttpServletRequest request, LimitRule rule) {
-        return request.getMethod().equals(rule.method())
-                && (request.getRequestURI().equals(rule.legacyPath()) || request.getRequestURI().equals(rule.versionedPath()));
+        if (!request.getMethod().equals(rule.method())) return false;
+        String uri = request.getRequestURI();
+        return (rule.legacyPath() != null && uri.equals(rule.legacyPath()))
+                || (rule.versionedPath() != null && uri.equals(rule.versionedPath()));
     }
 
     private boolean isAdminPath(String uri) {

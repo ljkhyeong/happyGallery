@@ -39,27 +39,30 @@ public class NotificationLog {
     @Column(name = "fail_reason", length = 500)
     private String failReason;
 
-    @Column(name = "sent_at", nullable = false, insertable = false, updatable = false)
+    @Column(name = "sent_at", nullable = false)
     private LocalDateTime sentAt;
 
     protected NotificationLog() {}
 
     public static NotificationLog success(Long guestId, Long userId,
                                           NotificationChannel channel,
-                                          NotificationEventType eventType) {
+                                          NotificationEventType eventType,
+                                          LocalDateTime sentAt) {
         NotificationLog log = new NotificationLog();
         log.guestId = guestId;
         log.userId = userId;
         log.channel = channel;
         log.eventType = eventType;
         log.status = "SUCCESS";
+        log.sentAt = sentAt;
         return log;
     }
 
     public static NotificationLog failed(Long guestId, Long userId,
                                          NotificationChannel channel,
                                          NotificationEventType eventType,
-                                         String failReason) {
+                                         String failReason,
+                                         LocalDateTime sentAt) {
         NotificationLog log = new NotificationLog();
         log.guestId = guestId;
         log.userId = userId;
@@ -67,6 +70,7 @@ public class NotificationLog {
         log.eventType = eventType;
         log.status = "FAILED";
         log.failReason = failReason;
+        log.sentAt = sentAt;
         return log;
     }
 

@@ -111,4 +111,64 @@ public class BookingRescheduleService {
 
         return saved;
     }
+
+    /**
+     * 회원 예약 슬롯을 변경한다.
+     * accessToken 대신 userId 소유권으로 검증한다.
+     */
+    public Booking rescheduleMemberBooking(Long bookingId, Long userId, Long newSlotId) {
+
+        // 1. 예약 로드 (userId 소유권 검증)
+        Booking booking = bookingSupport.findByIdAndUserId(bookingId, userId);
+
+        // 2. 상태 체크 — BOOKED 상태만 변경 가능
+        if (booking.getStatus() != BookingStatus.BOOKED) {
+            throw new ChangeNotAllowedException();
+        }
+
+        // 3. 동일 슬롯 변경 차단
+        if (booking.getSlot().getId().equals(newSlotId)) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "현재 예약된 슬롯과 동일합니다.");
+        }
+
+        // 4. 시간 경계 정책 — 슬롯 시작 1시간 전까지만 변경 가능
+        if (!TimeBoundary.isChangeable(booking.getSlot().getStartAt(), clock)) {
+            throw new ChangeNotAllowedException();
+        }
+
+        // 5. 새 슬롯 빠른 체크 (락 전 — fast-fail)
+        Slot newSlot = slotRepository.findById(newSlotId)
+                .orElseThrow(() -> new NotFoundException("슬롯"));
+        if (!newSlot.isActive()) {
+            throw new SlotNotAvailableException();
+        }
+
+        // 6. 중복 예약 체크 (현재 booking 자신 제외)
+        if (bookingRepository.existsBySlotIdAndUserIdAndIdNot(
+                newSlotId, userId, bookingId)) {
+            throw new DuplicateBookingException();
+        }
+
+        // 7. 새 슬롯 확정
+        slotManagementService.confirmBooking(newSlotId);
+
+        // 8. 기존 슬롯 반납
+        Slot oldSlot = slotRepository.findByIdWithLock(booking.getSlot().getId())
+                .orElseThrow(() -> new NotFoundException("슬롯"));
+        oldSlot.decrementBookedCount();
+        slotRepository.save(oldSlot);
+
+        // 9. 이력 저장
+        bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
+                oldSlot, newSlot, "CUSTOMER", null);
+
+        // 10. 예약 업데이트
+        booking.reschedule(newSlot);
+        Booking saved = bookingRepository.save(booking);
+
+        // 11. 예약 변경 알림
+        bookingSupport.notifyBookingUser(booking, NotificationEventType.BOOKING_RESCHEDULED);
+
+        return saved;
+    }
 }

@@ -1,0 +1,238 @@
+package com.personal.happygallery.app.web.customer;
+
+import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.app.order.OrderService;
+import com.personal.happygallery.app.web.CustomerAuthFilter;
+import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.Guest;
+import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.infra.booking.BookingHistoryRepository;
+import com.personal.happygallery.infra.booking.BookingRepository;
+import com.personal.happygallery.infra.booking.ClassRepository;
+import com.personal.happygallery.infra.booking.GuestRepository;
+import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
+import com.personal.happygallery.infra.booking.RefundRepository;
+import com.personal.happygallery.infra.booking.SlotRepository;
+import com.personal.happygallery.infra.order.FulfillmentRepository;
+import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
+import com.personal.happygallery.infra.order.OrderItemRepository;
+import com.personal.happygallery.infra.order.OrderRepository;
+import com.personal.happygallery.infra.pass.PassLedgerRepository;
+import com.personal.happygallery.infra.pass.PassPurchaseRepository;
+import com.personal.happygallery.infra.product.InventoryRepository;
+import com.personal.happygallery.infra.product.ProductRepository;
+import com.personal.happygallery.infra.user.UserRepository;
+import com.personal.happygallery.infra.user.UserSessionRepository;
+import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.TestFixtures;
+import com.personal.happygallery.support.UseCaseIT;
+import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import java.util.List;
+
+import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassData;
+import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@UseCaseIT
+class CustomerGuestClaimUseCaseIT {
+
+    @Autowired WebApplicationContext context;
+    @Autowired CustomerAuthFilter customerAuthFilter;
+    @Autowired UserRepository userRepository;
+    @Autowired UserSessionRepository userSessionRepository;
+    @Autowired GuestRepository guestRepository;
+    @Autowired PhoneVerificationRepository phoneVerificationRepository;
+    @Autowired OrderRepository orderRepository;
+    @Autowired OrderItemRepository orderItemRepository;
+    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
+    @Autowired FulfillmentRepository fulfillmentRepository;
+    @Autowired RefundRepository refundRepository;
+    @Autowired ProductRepository productRepository;
+    @Autowired InventoryRepository inventoryRepository;
+    @Autowired BookingRepository bookingRepository;
+    @Autowired BookingHistoryRepository bookingHistoryRepository;
+    @Autowired ClassRepository classRepository;
+    @Autowired SlotRepository slotRepository;
+    @Autowired PassPurchaseRepository passPurchaseRepository;
+    @Autowired PassLedgerRepository passLedgerRepository;
+    @Autowired OrderService orderService;
+    @MockitoBean NotificationService notificationService;
+
+    MockMvc mockMvc;
+    BookingTestHelper bookingHelper;
+
+    @BeforeEach
+    void setUp() {
+        cleanup();
+        mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(customerAuthFilter)
+                .build();
+        bookingHelper = new BookingTestHelper(mockMvc);
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanup();
+    }
+
+    private void cleanup() {
+        clearBookingWithPassData(
+                passLedgerRepository,
+                bookingHistoryRepository,
+                bookingRepository,
+                passPurchaseRepository,
+                phoneVerificationRepository,
+                guestRepository,
+                slotRepository,
+                classRepository);
+        clearOrderData(
+                refundRepository,
+                fulfillmentRepository,
+                orderApprovalHistoryRepository,
+                orderItemRepository,
+                orderRepository,
+                inventoryRepository,
+                productRepository);
+        userSessionRepository.deleteAllInBatch();
+        userRepository.deleteAllInBatch();
+    }
+
+    @DisplayName("회원은 휴대폰 재인증 후 같은 번호의 비회원 주문, 예약, 8회권을 가져올 수 있다")
+    @Test
+    void verifyAndClaimGuestRecords() throws Exception {
+        String email = "member@example.com";
+        Guest guest = guestRepository.save(new Guest("비회원", "01012345678"));
+
+        Product product = productRepository.save(new Product("테스트 상품", ProductType.READY_STOCK, 29_000L));
+        inventoryRepository.save(new Inventory(product, 5));
+        Order order = orderService.createPaidOrder(
+                guest.getId(),
+                List.of(new OrderService.OrderItemRequest(product.getId(), 1, 29_000L)));
+
+        BookingClass bookingClass = classRepository.save(TestFixtures.defaultBookingClass());
+        Slot slot = slotRepository.save(TestFixtures.slot(
+                bookingClass,
+                BookingTestHelper.FUTURE,
+                BookingTestHelper.FUTURE.plusHours(2)));
+        PassPurchase pass = passPurchaseRepository.save(
+                TestFixtures.passPurchase(guest, BookingTestHelper.FUTURE.plusDays(90), 120_000L));
+        Booking booking = bookingRepository.save(new Booking(
+                guest,
+                slot,
+                pass,
+                "guest-claim-access-token"));
+
+        Cookie sessionCookie = signupAndGetSessionCookie(email, "010-1234-5678");
+        User user = userRepository.findByEmail(email).orElseThrow();
+
+        String verificationCode = bookingHelper.sendVerificationAndGetCode("01012345678");
+
+        mockMvc.perform(post("/api/v1/me/guest-claims/verify")
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "verificationCode": "%s"
+                                }
+                                """.formatted(verificationCode)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phoneVerified").value(true))
+                .andExpect(jsonPath("$.orders[0].orderId").value(order.getId()))
+                .andExpect(jsonPath("$.bookings[0].bookingId").value(booking.getId()))
+                .andExpect(jsonPath("$.passes[0].passId").value(pass.getId()));
+
+        assertThat(userRepository.findById(user.getId()).orElseThrow().isPhoneVerified()).isTrue();
+
+        mockMvc.perform(post("/api/v1/me/guest-claims")
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "orderIds": [%d],
+                                  "bookingIds": [%d],
+                                  "passIds": []
+                                }
+                                """.formatted(order.getId(), booking.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.claimedOrderCount").value(1))
+                .andExpect(jsonPath("$.claimedBookingCount").value(1))
+                .andExpect(jsonPath("$.claimedPassCount").value(1));
+
+        Order claimedOrder = orderRepository.findById(order.getId()).orElseThrow();
+        assertThat(claimedOrder.getUserId()).isEqualTo(user.getId());
+        assertThat(claimedOrder.getGuestId()).isNull();
+
+        Booking claimedBooking = bookingRepository.findById(booking.getId()).orElseThrow();
+        assertThat(claimedBooking.getUserId()).isEqualTo(user.getId());
+        assertThat(claimedBooking.getGuest()).isNull();
+
+        PassPurchase claimedPass = passPurchaseRepository.findById(pass.getId()).orElseThrow();
+        assertThat(claimedPass.getUserId()).isEqualTo(user.getId());
+        assertThat(claimedPass.getGuest()).isNull();
+
+        mockMvc.perform(get("/api/v1/me/orders")
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].orderId").value(order.getId()));
+
+        mockMvc.perform(get("/api/v1/me/bookings")
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].bookingId").value(booking.getId()));
+
+        mockMvc.perform(get("/api/v1/me/passes")
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].passId").value(pass.getId()));
+    }
+
+    @DisplayName("휴대폰 재인증 전에는 비회원 이력 미리보기를 조회할 수 없다")
+    @Test
+    void preview_requiresPhoneVerification() throws Exception {
+        Cookie sessionCookie = signupAndGetSessionCookie("preview@example.com", "01012345678");
+
+        mockMvc.perform(get("/api/v1/me/guest-claims/preview")
+                        .cookie(sessionCookie))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("휴대폰 인증을 완료한 뒤 다시 시도해주세요."));
+    }
+
+    private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "password123",
+                                  "name": "회원",
+                                  "phone": "%s"
+                                }
+                                """.formatted(email, phone)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return result.getResponse().getCookie("HG_SESSION");
+    }
+}

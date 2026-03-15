@@ -1,13 +1,11 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { Container, Navbar, Nav } from "react-bootstrap";
+import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 
 const NAV_ITEMS = [
   { path: "/products", label: "상품" },
-  { path: "/bookings/new", label: "예약하기" },
-  { path: "/bookings/manage", label: "예약 조회" },
+  { path: "/bookings/new", label: "체험 예약" },
   { path: "/passes/purchase", label: "8회권" },
-  { path: "/orders/new", label: "주문" },
-  { path: "/orders/detail", label: "주문 조회" },
 ] as const;
 
 function isActive(pathname: string, itemPath: string): boolean {
@@ -17,17 +15,32 @@ function isActive(pathname: string, itemPath: string): boolean {
 
 export function Layout() {
   const { pathname } = useLocation();
+  const { user, isAuthenticated, isLoading, logout } = useCustomerAuth();
 
   return (
     <div className="d-flex flex-column min-vh-100">
+      <div className="app-utility-bar border-bottom">
+        <Container className="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
+          <div className="app-utility-copy">
+            Storefront for handmade gifts, workshop bookings, and member reorders.
+          </div>
+          <div className="d-flex flex-wrap align-items-center gap-3">
+            <Link to="/guest/orders" className="app-utility-link">비회원 주문 조회</Link>
+            <Link to="/guest/bookings" className="app-utility-link">비회원 예약 조회</Link>
+            <Link to="/admin" className="app-utility-link">관리자</Link>
+          </div>
+        </Container>
+      </div>
+
       <Navbar expand="md" className="app-navbar border-bottom" data-bs-theme="light">
         <Container>
-          <Navbar.Brand as={Link} to="/" className="app-brand">
-            HappyGallery
+          <Navbar.Brand as={Link} to="/" className="app-brand d-flex flex-column">
+            <span className="app-brand-mark">HappyGallery</span>
+            <span className="app-brand-subtitle">Handmade store & reservation studio</span>
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="main-nav" />
           <Navbar.Collapse id="main-nav">
-            <Nav className="ms-auto gap-md-1">
+            <Nav className="ms-auto align-items-md-center gap-md-2">
               {NAV_ITEMS.map(({ path, label }) => (
                 <Nav.Link
                   key={path}
@@ -40,15 +53,47 @@ export function Layout() {
                 </Nav.Link>
               ))}
             </Nav>
-            <Nav className="ms-md-3 border-md-start ps-md-3">
-              <Nav.Link
-                as={Link}
-                to="/admin"
-                active={isActive(pathname, "/admin")}
-                className="app-nav-link text-muted-soft"
-              >
-                관리자
-              </Nav.Link>
+            <Nav className="ms-md-4 border-md-start ps-md-4 align-items-md-center gap-md-2">
+              {!isLoading && (
+                isAuthenticated ? (
+                  <>
+                    <Nav.Link
+                      as={Link}
+                      to="/my"
+                      active={isActive(pathname, "/my")}
+                      className="app-nav-link app-member-link"
+                    >
+                      {user!.name}
+                    </Nav.Link>
+                    <Nav.Link
+                      as="button"
+                      className="app-nav-link text-muted-soft btn btn-link p-0 border-0"
+                      onClick={() => logout()}
+                    >
+                      로그아웃
+                    </Nav.Link>
+                  </>
+                ) : (
+                  <>
+                    <Nav.Link
+                      as={Link}
+                      to="/login"
+                      active={isActive(pathname, "/login")}
+                      className="app-nav-link"
+                    >
+                      로그인
+                    </Nav.Link>
+                    <Nav.Link
+                      as={Link}
+                      to="/signup"
+                      active={isActive(pathname, "/signup")}
+                      className="app-signup-link"
+                    >
+                      회원가입
+                    </Nav.Link>
+                  </>
+                )
+              )}
             </Nav>
           </Navbar.Collapse>
         </Container>

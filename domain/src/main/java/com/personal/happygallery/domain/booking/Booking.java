@@ -24,6 +24,9 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "guest_id")
     private Guest guest;
@@ -121,6 +124,37 @@ public class Booking {
     }
 
     /**
+     * 회원 예약금 예약 생성.
+     */
+    public Booking(Long userId, Slot slot, long depositAmount, long balanceAmount,
+                   DepositPaymentMethod paymentMethod) {
+        this.userId = userId;
+        this.bookingClass = slot.getBookingClass();
+        this.slot = slot;
+        this.status = BookingStatus.BOOKED;
+        this.depositAmount = depositAmount;
+        this.balanceAmount = balanceAmount;
+        this.balanceStatus = BalanceStatus.UNPAID;
+        this.arrearsFlag = false;
+        this.paymentMethod = paymentMethod;
+    }
+
+    /**
+     * 회원 8회권 예약 생성.
+     */
+    public Booking(Long userId, Slot slot, PassPurchase passPurchase) {
+        this.userId = userId;
+        this.bookingClass = slot.getBookingClass();
+        this.slot = slot;
+        this.status = BookingStatus.BOOKED;
+        this.depositAmount = 0;
+        this.balanceAmount = 0;
+        this.balanceStatus = BalanceStatus.UNPAID;
+        this.arrearsFlag = false;
+        this.passPurchase = passPurchase;
+    }
+
+    /**
      * 예약 슬롯을 변경한다. 상태는 BOOKED를 유지한다.
      * 호출 후 저장 시 {@code @Version}으로 낙관적 락 충돌을 감지한다.
      */
@@ -141,12 +175,18 @@ public class Booking {
         this.status = BookingStatus.NO_SHOW;
     }
 
+    public void claimToUser(Long userId) {
+        this.userId = userId;
+        this.guest = null;
+    }
+
     /** 8회권으로 결제된 예약인지 여부. */
     public boolean isPassBooking() {
         return passPurchase != null;
     }
 
     public Long getId() { return id; }
+    public Long getUserId() { return userId; }
     public Guest getGuest() { return guest; }
     public BookingClass getBookingClass() { return bookingClass; }
     public Slot getSlot() { return slot; }

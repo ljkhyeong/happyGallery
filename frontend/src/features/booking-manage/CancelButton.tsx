@@ -1,22 +1,26 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button, Modal } from "react-bootstrap";
-import { cancelBooking } from "./api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
+import type { CancelResponse } from "@/shared/types";
 
 interface Props {
-  bookingId: number;
-  token: string;
+  onCancel: () => Promise<CancelResponse>;
   onSuccess: () => void;
+  buttonLabel?: string;
 }
 
-export function CancelButton({ bookingId, token, onSuccess }: Props) {
+export function CancelButton({
+  onCancel,
+  onSuccess,
+  buttonLabel = "예약 취소",
+}: Props) {
   const toast = useToast();
   const [showConfirm, setShowConfirm] = useState(false);
 
   const mutation = useMutation({
-    mutationFn: () => cancelBooking(bookingId, token),
+    mutationFn: onCancel,
     onSuccess: (res) => {
       setShowConfirm(false);
       const msg = res.refundable
@@ -30,7 +34,7 @@ export function CancelButton({ bookingId, token, onSuccess }: Props) {
   return (
     <>
       <Button variant="outline-danger" onClick={() => setShowConfirm(true)}>
-        예약 취소
+        {buttonLabel}
       </Button>
 
       <Modal show={showConfirm} onHide={() => setShowConfirm(false)} centered>
