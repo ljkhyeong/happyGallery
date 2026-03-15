@@ -4,6 +4,7 @@ import {
   armNextRefundFailure,
   clearNextRefundFailure,
   completeGuestAuthGate,
+  completeLockedPhoneVerification,
   completePhoneVerification,
   extractFirstNumber,
   fetchClasses,
@@ -95,7 +96,7 @@ test("P8-2 슬롯 생성 후 예약 생성, 변경, 취소를 완주할 수 있�
   const bookingToken = await extractCodeText(page);
   const booking = await waitForBookingByPhone(request, bookingDate, phone);
 
-  await page.goto("/bookings/manage");
+  await page.goto("/guest/bookings");
   await page.getByLabel("예약 번호").fill(String(booking.bookingId));
   await page.getByLabel("인증 토큰").fill(bookingToken);
   await page.getByRole("button", { name: "예약 조회" }).click();
@@ -116,7 +117,6 @@ test("P8-3 8회권 구매 후 8회권으로 예약할 수 있다", async ({ page
   const bookingClass = classes[0]!;
 
   const slotWindow = plusDays(5, 11, 11, bookingClass.durationMin);
-  const slotDate = toDateInput(slotWindow.start);
   const phone = makePhoneNumber(makeUniqueLabel("p8-pass"));
   const guestName = makeUniqueLabel("P8 수강생");
 
@@ -128,6 +128,7 @@ test("P8-3 8회권 구매 후 8회권으로 예약할 수 있다", async ({ page
   await slotCreateCard.getByRole("button", { name: "슬롯 생성" }).click();
 
   const slot = await waitForSlot(request, bookingClass.id, toDateTimeLocalInput(slotWindow.start));
+  const slotDate = toDateInput(new Date(slot.startAt));
 
   await page.goto("/passes/purchase");
   await page.getByLabel("결제 금액 (원)").fill("120000");
@@ -171,13 +172,19 @@ test("P8-4 주문 생성 후 관리자 승인, 픽업 준비, 픽업 완료까�
 
   const product = await waitForProduct(request, productName);
 
-  await page.goto("/orders/new");
+  await page.goto(`/products/${product.id}`);
+  await page.getByRole("spinbutton", { name: "수량" }).fill("2");
+  await page.getByRole("button", { name: "비회원 주문하기" }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/orders/new\\?productId=${product.id}&qty=2$`));
+  await expect(page.getByText("상품 상세에서 선택한 상품과 수량을 미리 담아두었습니다.")).toBeVisible();
+
   await completePhoneVerification(page, phone);
   await page.getByLabel("주문자 이름").fill(ordererName);
-  await page.getByLabel("상품").selectOption(String(product.id));
-  await page.getByLabel("수량").fill("1");
-  await page.getByRole("button", { name: "추가" }).click();
-  await page.getByRole("button", { name: "주문하기" }).click();
+  const prefilledItem = page.locator(".list-group-item").filter({ hasText: productName }).first();
+  await expect(prefilledItem).toBeVisible();
+  await expect(prefilledItem).toContainText("x2");
+  await page.getByRole("button", { name: "주문하기", exact: true }).click();
 
   await expect(successAlert(page, "주문이 완료되었습니다!")).toBeVisible();
   const orderCardText = await page.locator(".card").last().textContent();
@@ -210,7 +217,7 @@ test("P8-4 주문 생성 후 관리자 승인, 픽업 준비, 픽업 완료까�
 
   await waitForOrder(request, orderId, "PICKED_UP");
 
-  await page.goto("/orders/detail");
+  await page.goto("/guest/orders");
   await page.getByLabel("주문 ID").fill(String(orderId));
   await page.getByLabel("인증 토큰").fill(orderToken);
   await page.getByRole("button", { name: "조회" }).click();
@@ -319,16 +326,22 @@ test("P8-7 회원은 8회권 구매와 예약 생성 후 내 정보에서 바로
   test.skip(classes.length === 0, "P8 member booking flow requires at least one class in the local DB");
   const bookingClass = classes[0]!;
 
-  const slotWindow = plusDays(6, 15, 5, bookingClass.durationMin);
-  const slotDate = toDateInput(slotWindow.start);
+  const firstSlotWindow = plusDays(6, 15, 5, bookingClass.durationMin);
+  const secondSlotWindow = plusDays(6, 18, 20, bookingClass.durationMin);
+  const slotDate = toDateInput(firstSlotWindow.start);
 
   await loginAdmin(page);
   const slotCreateCard = adminCard(page, "슬롯 생성");
   await slotCreateCard.getByLabel("클래스").selectOption(String(bookingClass.id));
-  await slotCreateCard.getByLabel("시작 시각").fill(toDateTimeLocalInput(slotWindow.start));
-  await slotCreateCard.getByLabel("종료 시각").fill(toDateTimeLocalInput(slotWindow.end));
+  await slotCreateCard.getByLabel("시작 시각").fill(toDateTimeLocalInput(firstSlotWindow.start));
+  await slotCreateCard.getByLabel("종료 시각").fill(toDateTimeLocalInput(firstSlotWindow.end));
   await slotCreateCard.getByRole("button", { name: "슬롯 생성" }).click();
-  const slot = await waitForSlot(request, bookingClass.id, toDateTimeLocalInput(slotWindow.start));
+  const slot = await waitForSlot(request, bookingClass.id, toDateTimeLocalInput(firstSlotWindow.start));
+
+  await slotCreateCard.getByLabel("시작 시각").fill(toDateTimeLocalInput(secondSlotWindow.start));
+  await slotCreateCard.getByLabel("종료 시각").fill(toDateTimeLocalInput(secondSlotWindow.end));
+  await slotCreateCard.getByRole("button", { name: "슬롯 생성" }).click();
+  const secondSlot = await waitForSlot(request, bookingClass.id, toDateTimeLocalInput(secondSlotWindow.start));
 
   await signupCustomer(page, "p8-member-booking");
 
@@ -346,10 +359,104 @@ test("P8-7 회원은 8회권 구매와 예약 생성 후 내 정보에서 바로
   await page.locator(".list-group-item").filter({ hasText: formatTimeTokenForUi(slot.startAt) }).first().click();
   await page.getByLabel("예약금 (원)").fill("30000");
   await page.getByRole("button", { name: /예약하기/ }).click();
-  await expect(page.getByRole("button", { name: "내 예약 확인하기" })).toBeVisible();
-  await page.getByRole("button", { name: "내 예약 확인하기" }).click();
+  await expect(page.getByRole("button", { name: "내 예약 상세 보기" })).toBeVisible();
+  await page.getByRole("button", { name: "내 예약 상세 보기" }).click();
 
-  await expect(page).toHaveURL("/my");
-  await expect(page.getByText("내 예약")).toBeVisible();
+  await expect(page).toHaveURL(/\/my\/bookings\/\d+$/);
   await expect(page.getByText(bookingClass.name)).toBeVisible();
+  await page.getByLabel("새 슬롯 ID").fill(String(secondSlot.id));
+  await page.getByRole("button", { name: "예약 변경" }).click();
+  await expect(page.getByText(`현재 슬롯: #${secondSlot.id}`)).toBeVisible();
+
+  await page.getByRole("button", { name: "예약 취소" }).click();
+  await page.getByRole("button", { name: "취소 확인" }).click();
+  await expect(page.getByText("취소됨")).toBeVisible();
+});
+
+test("P8-8 회원은 같은 번호의 비회원 주문, 예약, 8회권을 claim 할 수 있다", async ({ page, request }) => {
+  const productName = makeUniqueLabel("P8-claim-order");
+  const classes = await fetchClasses(request);
+  test.skip(classes.length === 0, "P8 guest claim flow requires at least one class in the local DB");
+  const bookingClass = classes[0]!;
+
+  const slotWindow = plusDays(7, 13, 5, bookingClass.durationMin);
+  const slotDate = toDateInput(slotWindow.start);
+  const guestPhone = makePhoneNumber(makeUniqueLabel("p8-claim"));
+  const guestName = makeUniqueLabel("P8 클레임");
+  const memberPhone = `${guestPhone.slice(0, 3)}-${guestPhone.slice(3, 7)}-${guestPhone.slice(7)}`;
+
+  await loginAdmin(page);
+
+  const createCard = adminCard(page, "상품 등록");
+  await createCard.getByLabel("상품명").fill(productName);
+  await createCard.getByLabel("유형").selectOption("READY_STOCK");
+  await createCard.getByLabel("가격 (원)").fill("31000");
+  await createCard.getByLabel("수량").fill("5");
+  await createCard.getByRole("button", { name: "상품 등록" }).click();
+  const product = await waitForProduct(request, productName);
+
+  const slotCreateCard = adminCard(page, "슬롯 생성");
+  await slotCreateCard.getByLabel("클래스").selectOption(String(bookingClass.id));
+  await slotCreateCard.getByLabel("시작 시각").fill(toDateTimeLocalInput(slotWindow.start));
+  await slotCreateCard.getByLabel("종료 시각").fill(toDateTimeLocalInput(slotWindow.end));
+  await slotCreateCard.getByRole("button", { name: "슬롯 생성" }).click();
+  const slot = await waitForSlot(request, bookingClass.id, toDateTimeLocalInput(slotWindow.start));
+
+  await page.goto("/orders/new");
+  await completePhoneVerification(page, guestPhone);
+  await page.getByLabel("주문자 이름").fill(guestName);
+  await page.getByLabel("상품").selectOption(String(product.id));
+  await page.getByLabel("수량").fill("1");
+  await page.getByRole("button", { name: "추가" }).click();
+  await page.getByRole("button", { name: "주문하기", exact: true }).click();
+  await expect(successAlert(page, "주문이 완료되었습니다!")).toBeVisible();
+  const orderCardText = await page.locator(".card").last().textContent();
+  if (!orderCardText) {
+    throw new Error("Order success card text was empty");
+  }
+  const orderId = extractFirstNumber(orderCardText, "주문 #");
+
+  await page.goto("/passes/purchase");
+  await page.getByLabel("결제 금액 (원)").fill("120000");
+  await page.getByRole("button", { name: /8회권 구매/ }).click();
+  await completeGuestAuthGate(page, guestPhone, guestName);
+  await expect(page.getByText("8회권 구매가 완료되었습니다!")).toBeVisible();
+  const passCardText = await page.locator(".card").last().textContent();
+  if (!passCardText) {
+    throw new Error("Pass success card text was empty");
+  }
+  const passId = extractFirstNumber(passCardText, "8회권 ID:");
+
+  await page.goto("/bookings/new");
+  await page.getByLabel("클래스").selectOption(String(bookingClass.id));
+  await page.getByLabel("날짜").fill(slotDate);
+  await page.locator(".list-group-item").filter({ hasText: formatTimeTokenForUi(slot.startAt) }).first().click();
+  await page.getByLabel("8회권 사용").check();
+  await page.getByLabel("8회권 ID").fill(String(passId));
+  await page.getByRole("button", { name: /예약하기/ }).click();
+  await completeGuestAuthGate(page, guestPhone, guestName);
+  await expect(successAlert(page, "예약이 완료되었습니다!")).toBeVisible();
+  const booking = await waitForBookingByPhone(request, slotDate, guestPhone);
+
+  await signupCustomer(page, "p8-member-claim", { phone: memberPhone });
+  await page.goto("/my");
+  await expect(page.getByText("휴대폰 재확인 필요")).toBeVisible();
+
+  await page.getByRole("button", { name: "이력 가져오기" }).click();
+  const claimDialog = page.getByRole("dialog").filter({ hasText: "비회원 이력 가져오기" }).first();
+  await expect(claimDialog).toBeVisible();
+  await completeLockedPhoneVerification(claimDialog, "인증하고 불러오기");
+
+  await expect(claimDialog.getByText("확인 완료")).toBeVisible();
+  await expect(claimDialog.getByText(`주문 #${orderId}`)).toBeVisible();
+  await expect(claimDialog.getByText(`${bookingClass.name} #${booking.bookingId}`)).toBeVisible();
+  await expect(claimDialog.getByText(`8회권 #${passId}`)).toBeVisible();
+
+  await claimDialog.locator(`#claim-pass-${passId}`).uncheck();
+  await claimDialog.getByRole("button", { name: "선택한 이력 가져오기" }).click();
+
+  await expect(page.getByText("휴대폰 인증 완료")).toBeVisible();
+  await expect(page.getByText(String(orderId))).toBeVisible();
+  await expect(page.getByText(bookingClass.name)).toBeVisible();
+  await expect(page.getByText(/잔여\s+\d+\/8회/)).toBeVisible();
 });

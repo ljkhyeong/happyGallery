@@ -76,6 +76,13 @@ export interface CustomerCredentials {
   phone: string;
 }
 
+interface SignupOverrides {
+  email?: string;
+  password?: string;
+  name?: string;
+  phone?: string;
+}
+
 interface ApiOptions {
   admin?: boolean;
   query?: Record<string, number | string | undefined>;
@@ -174,13 +181,28 @@ export async function loginAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "관리자" })).toBeVisible();
 }
 
-export async function signupCustomer(page: Page, prefix: string): Promise<CustomerCredentials> {
+async function extractMvpVerificationCode(root: Page | Locator): Promise<string> {
+  const codeHint = root.locator("p").filter({ hasText: "[MVP] 인증코드:" }).first();
+  await expect(codeHint).toBeVisible();
+  const raw = await codeHint.textContent();
+  const code = raw?.match(/인증코드:\s*(\S+)/)?.[1];
+  if (!code) {
+    throw new Error("Could not parse MVP verification code");
+  }
+  return code;
+}
+
+export async function signupCustomer(
+  page: Page,
+  prefix: string,
+  overrides: SignupOverrides = {},
+): Promise<CustomerCredentials> {
   const label = makeUniqueLabel(prefix);
   const credentials: CustomerCredentials = {
-    email: makeEmail(label),
-    password: "password123",
-    name: label,
-    phone: makePhoneNumber(label),
+    email: overrides.email ?? makeEmail(label),
+    password: overrides.password ?? "password123",
+    name: overrides.name ?? label,
+    phone: overrides.phone ?? makePhoneNumber(label),
   };
 
   const response = await page.request.post(`${BACKEND_BASE_URL}/auth/signup`, {
@@ -213,17 +235,19 @@ export async function logoutCustomer(page: Page) {
 export async function completePhoneVerification(page: Page, phone: string) {
   await page.getByLabel("휴대폰 번호").fill(phone);
   await page.getByRole("button", { name: "인증코드 발송" }).click();
-
-  const codeHint = page.locator("p").filter({ hasText: "[MVP] 인증코드:" }).first();
-  await expect(codeHint).toBeVisible();
-  const raw = await codeHint.textContent();
-  const code = raw?.match(/인증코드:\s*(\S+)/)?.[1];
-  if (!code) {
-    throw new Error("Could not parse MVP verification code");
-  }
-
+  const code = await extractMvpVerificationCode(page);
   await page.getByLabel("인증코드").fill(code);
   await page.getByRole("button", { name: "확인" }).click();
+}
+
+export async function completeLockedPhoneVerification(
+  root: Page | Locator,
+  confirmLabel = "확인",
+) {
+  await root.getByRole("button", { name: "인증코드 발송" }).click();
+  const code = await extractMvpVerificationCode(root);
+  await root.getByLabel("인증코드").fill(code);
+  await root.getByRole("button", { name: confirmLabel }).click();
 }
 
 export async function completeGuestAuthGate(page: Page, phone: string, name: string) {
