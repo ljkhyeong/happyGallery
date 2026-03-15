@@ -50,7 +50,7 @@
   - `cd frontend && npm run e2e -- --grep "P8-8"` 통과
   - `cd frontend && npm run e2e -- --grep "P8-(2|4)"` 통과
   - `cd frontend && npm run e2e -- --grep "P8-7"` 통과
-  - `cd frontend && npm run e2e` 통과 (smoke 1~8)
+  - `cd frontend && npm run e2e -- --grep "P8-(4|7|8)"` 통과
   - `cd frontend && npm run e2e -- --grep "P8-6"` 통과 (U3 핵심 회원 주문 경로)
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.OrderProductionUseCaseIT` 통과
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.booking.LocalBookingClassSeedServiceTest` 통과
