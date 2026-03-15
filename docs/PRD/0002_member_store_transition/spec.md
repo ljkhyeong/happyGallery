@@ -3,6 +3,8 @@
 
 상태:
 - U1 구현 완료 (고객 인증 기반)
+- U2, U4, U5 1차 구현 완료 (회원 `/api/v1/me/**`, 제출 직전 인증 게이트, `/my`)
+- U6 1차 완료 (rollout 기준 정리, Playwright smoke 1~7 통과)
 - 현재 구현 기준 문서는 `docs/PRD/0001_spec/spec.md`
 - 이 문서는 "차기 회원 스토어 전환" 요구사항을 다른 에이전트가 병렬 구현하기 위한 목표 문서다
 
@@ -85,17 +87,28 @@
 - `/login`
 - `/signup`
 
-### 4.2 회원 경로
+### 4.2 회원 UI 경로
 
-- `/me`
-- `/me/orders`
-- `/me/bookings`
-- `/me/passes`
+- `/login`
+- `/signup`
+- `/my`
+- `/my/orders/:id`
 
-### 4.3 비회원 경로
+### 4.3 회원 API 경로
 
-- `/guest/orders`
-- `/guest/bookings`
+- `/api/v1/me/orders`
+- `/api/v1/me/bookings`
+- `/api/v1/me/passes`
+
+### 4.4 비회원 경로
+
+- 현재 구현:
+  - `/orders/new`
+  - `/orders/detail`
+  - `/bookings/manage`
+- 목표 상태:
+  - `/guest/orders`
+  - `/guest/bookings`
 
 레거시 경로:
 - `/orders/new`, `/orders/detail`, `/bookings/manage` 는 구현 전환 과정에서 유지할 수 있으나, 최종적으로는 역할이 명확히 분리되어야 한다.
@@ -205,14 +218,19 @@
 - 세션: `user_sessions` 테이블 (SHA-256 해시 저장), 7일 TTL
 - 쿠키: `HG_SESSION`, HttpOnly, SameSite=Lax, Path=/
 
-### 8.2 회원 전용 조회
+### 8.2 회원 전용 조회 / 생성
 
 - `GET /api/v1/me/orders`
 - `GET /api/v1/me/orders/{id}`
+- `POST /api/v1/me/orders`
 - `GET /api/v1/me/bookings`
 - `GET /api/v1/me/bookings/{id}`
+- `POST /api/v1/me/bookings`
+- `PATCH /api/v1/me/bookings/{id}/reschedule`
+- `DELETE /api/v1/me/bookings/{id}`
 - `GET /api/v1/me/passes`
 - `GET /api/v1/me/passes/{id}`
+- `POST /api/v1/me/passes`
 
 ### 8.3 비회원 조회 유지
 
@@ -226,7 +244,27 @@
 
 ---
 
-## 9. 범위 밖
+## 9. Rollout 기준
+
+### 9.1 guest claim
+
+- 자동 guest → user 병합 금지
+- 로그인 후 휴대폰 인증을 통과한 회원만 수동 claim 가능
+- claim 전에는 기존 guest token 조회를 유지
+
+### 9.2 레거시 경로 유지
+
+- `/orders/detail`, `/bookings/manage` 는 member route 안정화 전까지 유지한다.
+- `/guest/**` UI 이관은 별도 배포 단위로 분리한다.
+
+### 9.3 E2E 기준
+
+- guest/admin 기존 smoke 1~5 유지 + member storefront smoke 6~7 추가
+- 회원 예약 변경/취소 UI와 guest claim은 후속 자동화 대상으로 남긴다
+
+---
+
+## 10. 범위 밖
 
 - 장바구니
 - 리뷰/별점/Q&A
@@ -237,7 +275,7 @@
 
 ---
 
-## 10. 완료 기준
+## 11. 완료 기준
 
 - 상품 상세가 구매 중심 화면이 된다.
 - 회원은 추가 인증 없이 자기 주문/예약/8회권을 조회한다.

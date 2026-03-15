@@ -2,6 +2,12 @@
 
 현재 구현된 비회원 중심 플로우를 "회원 스토어 + 비회원 보조 경로" 구조로 전환하기 위한 상위 계획이다.
 
+현재 상태:
+- `U1` 완료
+- `U2`, `U4`, `U5` 1차 구현 완료
+- `U6` 1차 완료 (rollout 기준 + Playwright smoke 1~7)
+- `U3` 상점형 홈/상품 상세 고도화, `guest claim`, 회원 예약 액션 UI는 후속 범위
+
 기준 문서:
 - 현재 구현 기준: `HANDOFF.md`, `docs/PRD/0001_spec/spec.md`
 - 차기 요구사항 초안: `docs/PRD/0002_member_store_transition/spec.md`

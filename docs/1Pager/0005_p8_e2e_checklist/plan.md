@@ -47,13 +47,15 @@ npm run e2e
 - 앱 컨테이너가 8080을 쓰고 있으면 로컬 `bootRun` 전에 `docker compose stop app`을 먼저 실행한다.
 - `local` 프로필 `bootRun`은 `classes` 테이블이 비어 있을 때 기본 클래스 3종을 자동 seed한다.
 - 시나리오 5는 local 전용 dev hook `POST /api/v1/admin/dev/payment/refunds/fail-next`와 `DELETE /api/v1/admin/dev/payment/refunds/fail-next`를 사용한다.
+- `/bookings/new`, `/passes/purchase`는 첫 화면이 아니라 제출 직전에 auth gate를 연다.
 
 ## 최신 실행 결과
 
 - 실제 로컬 smoke 실행 기준:
-  - pass: 시나리오 1, 2, 3, 4, 5
+  - pass: 시나리오 1, 2, 3, 4, 5, 6, 7
 - 검증 메모:
   - clean DB에서 `:app:bootRun` 시 기본 클래스 seed와 관리자 기본 계정 정합화가 반영된 뒤 smoke 1~5를 통과했다.
+  - 회원 스토어 전환 이후 smoke 2, 3은 guest auth gate 기준으로 갱신했고, smoke 6, 7로 회원 주문/예약/8회권 경로를 추가했다.
   - 슬롯 생성 race condition과 브라우저/Node 시간 포맷 차이, `8회권 사용` 라디오 접근성 연결을 보강했다.
   - 시나리오 5는 주문 거절 직전에 환불 실패를 1회 arm한 뒤, 관리자 환불 실패 목록에서 재시도까지 검증한다.
 
@@ -66,6 +68,8 @@ npm run e2e
 3. 8회권 구매 -> 8회권으로 예약
 4. 주문 생성 -> 관리자 승인 -> 픽업 준비 -> 픽업 완료
 5. 환불 실패 -> 재시도
+6. 회원 가입 -> 상품 상세 회원 주문 -> 내 주문 상세
+7. 회원 8회권 구매 -> 회원 예약 생성 -> 내 정보 확인
 
 ## 수동 체크리스트
 
@@ -75,20 +79,23 @@ npm run e2e
 - 상품 등록 카드에서 상품 생성
 - 상품 목록 카드에서 방금 등록한 상품명, 유형, 상태 확인
 
-### 시나리오 2. 클래스/슬롯 생성 -> 예약 생성 -> 예약 조회/변경/취소
+### 시나리오 2. 클래스/슬롯 생성 -> guest 예약 생성 -> guest 예약 조회/변경/취소
 
 - `/admin`에서 같은 클래스에 미래 슬롯 2개 생성
-- `/bookings/new`에서 휴대폰 인증 후 예약 생성
+- `/bookings/new`에서 슬롯/예약금 입력 후 `예약하기`
+- auth gate에서 `비회원` 선택 후 휴대폰 인증과 이름 입력
 - 성공 카드에서 booking token 확인
 - `/bookings/manage`에서 예약 조회
 - 새 슬롯 ID로 예약 변경
 - 예약 취소 후 상태가 `취소됨`으로 바뀌는지 확인
 
-### 시나리오 3. 8회권 구매 -> 8회권으로 예약
+### 시나리오 3. guest 8회권 구매 -> 8회권으로 예약
 
-- `/passes/purchase`에서 8회권 구매
+- `/passes/purchase`에서 금액 입력 후 `8회권 구매`
+- auth gate에서 `비회원` 선택 후 휴대폰 인증과 이름 입력
 - 성공 카드에서 pass ID 확인
 - `/bookings/new`에서 `8회권 사용` 선택 후 예약 생성
+- auth gate에서 `비회원` 선택 후 휴대폰 인증과 이름 입력
 - 관리자 예약 목록 또는 예약 성공 카드 기준으로 pass booking 여부 확인
 
 ### 시나리오 4. 주문 생성 -> 관리자 승인 -> 픽업 준비 -> 픽업 완료
@@ -108,7 +115,24 @@ npm run e2e
 - 환불 실패 목록에서 생성된 row를 확인하고 `재시도`를 클릭한다.
 - 동일 refund가 실패 목록에서 사라지는지 확인한다.
 
+### 시나리오 6. 회원 가입 -> 상품 상세 회원 주문 -> 내 주문 상세
+
+- `/signup`에서 회원가입한다.
+- `/products/:id`에서 수량을 정한 뒤 `구매하기`를 클릭한다.
+- `/my/orders/:id`로 이동했는지 확인한다.
+- 로그아웃 후 `/my` 접근 시 로그인 필요 문구가 보이는지 확인한다.
+
+### 시나리오 7. 회원 8회권 구매 -> 회원 예약 생성 -> 내 정보 확인
+
+- `/signup`으로 회원가입한다.
+- `/passes/purchase`에서 8회권을 구매한다.
+- `/my`에서 8회권이 보이는지 확인한다.
+- `/bookings/new`에서 예약을 생성한다.
+- `/my`에서 예약 목록에 방금 생성한 예약이 보이는지 확인한다.
+
 ## 후속 과제
 
 1. 안정적인 `data-testid` 추가로 Playwright selector 취약성 완화
-2. 실 PG 연동 전환 시 local dev hook을 테스트 전용 경계로 재정리
+2. 회원 예약 변경/취소 UI가 추가되면 member booking smoke를 확장
+3. guest claim 구현 후 claim 시나리오를 별도 smoke로 추가
+4. 실 PG 연동 전환 시 local dev hook을 테스트 전용 경계로 재정리
