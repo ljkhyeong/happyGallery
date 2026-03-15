@@ -21,11 +21,12 @@
 포함:
 - 회원 마이페이지 라우트
 - 회원 전용 목록/상세 API 연동
+- guest claim preview / verify / claim API
+- 마이페이지 비회원 이력 가져오기 모달
 - 비회원 조회 화면 라벨/경로 재정리
 - 회원 예약 변경/취소, 주문 상태 조회, 8회권 조회 UX
 
 제외:
-- guest → user 이력 claim
 - 리뷰/주문 후 추천
 
 ---
@@ -33,15 +34,14 @@
 ## 3. 권장 라우트
 
 - 회원:
-  - `/me`
-  - `/me/orders`
-  - `/me/bookings`
-  - `/me/passes`
+  - `/my`
+  - `/my/orders/:id`
+  - `/my/bookings/:id`
 - 비회원:
   - `/guest/orders`
   - `/guest/bookings`
 
-현재 `/orders/detail`, `/bookings/manage`는 비회원 라우트로 리다이렉트하거나 단계적으로 대체한다.
+회원 API는 `/api/v1/me/**`를 유지하고, 현재 `/orders/detail`, `/bookings/manage`는 각각 `/guest/orders`, `/guest/bookings`로 리다이렉트한다.
 
 ---
 
@@ -50,11 +50,14 @@
 백엔드:
 - `me` 계열 조회 API
 - 회원 소유권 검증
+- guest claim 수동 이전 API와 휴대폰 재인증
 - 회원 예약 변경/취소 권한 처리
 
 프론트:
 - 마이페이지 셸
 - 주문/예약/8회권 목록 및 상세
+- 회원 예약 상세 화면에서 변경/취소 액션 제공
+- `비회원 이력 가져오기` 모달과 선택 claim UX
 - 기존 guest 조회 페이지의 카피와 경로 정리
 - Layout 상단에 `내 정보` 진입점 추가
 
@@ -63,7 +66,9 @@
 ## 5. 완료 기준
 
 - 회원은 토큰/휴대폰 인증 입력 없이 자신의 데이터에 접근 가능
+- 회원은 같은 휴대폰 번호의 guest 이력을 재인증 후 수동 claim 할 수 있음
 - 비회원은 여전히 기존 방식으로 조회 가능
+- 회원 예약 상세 화면에서 변경/취소가 가능함
 - 사용자가 현재 화면이 회원용인지 비회원용인지 혼동하지 않는다
 
 ---
@@ -72,6 +77,7 @@
 
 - `./gradlew --no-daemon :app:test --tests ...Order... --tests ...Booking... --tests ...Pass...`
 - `cd frontend && npm run build`
+- `cd frontend && npm run e2e -- --grep "P8-7"`
 
 ---
 
@@ -79,4 +85,5 @@
 
 - 회원용 라우트 맵
 - guest 라우트 대체 정책
+- guest claim 수동 이전 정책
 - `401`, `403`, `404` 화면 처리 기준

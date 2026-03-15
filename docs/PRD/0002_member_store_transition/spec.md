@@ -3,8 +3,9 @@
 
 상태:
 - U1 구현 완료 (고객 인증 기반)
-- U2, U4, U5 1차 구현 완료 (회원 `/api/v1/me/**`, 제출 직전 인증 게이트, `/my`)
-- U6 1차 완료 (rollout 기준 정리, Playwright smoke 1~7 통과)
+- U2, U3, U4 구현 완료
+- U5 구현 완료 (회원 `/api/v1/me/**`, `/my`, guest claim preview/verify/claim, 회원 예약 상세/변경·취소, `/guest/**` canonical route)
+- U6 2차 완료 (rollout 기준 정리, Playwright smoke 1~8 통과, guest claim browser automation 반영)
 - 현재 구현 기준 문서는 `docs/PRD/0001_spec/spec.md`
 - 이 문서는 "차기 회원 스토어 전환" 요구사항을 다른 에이전트가 병렬 구현하기 위한 목표 문서다
 
@@ -93,6 +94,7 @@
 - `/signup`
 - `/my`
 - `/my/orders/:id`
+- `/my/bookings/:id`
 
 ### 4.3 회원 API 경로
 
@@ -103,15 +105,15 @@
 ### 4.4 비회원 경로
 
 - 현재 구현:
-  - `/orders/new`
-  - `/orders/detail`
-  - `/bookings/manage`
-- 목표 상태:
+  - `/orders/new` (`productId`, `qty` query prefill 지원)
   - `/guest/orders`
   - `/guest/bookings`
+  - `/orders/detail` -> `/guest/orders`
+  - `/bookings/manage` -> `/guest/bookings`
 
 레거시 경로:
-- `/orders/new`, `/orders/detail`, `/bookings/manage` 는 구현 전환 과정에서 유지할 수 있으나, 최종적으로는 역할이 명확히 분리되어야 한다.
+- `/orders/new` 는 guest 주문 생성 fallback으로 유지한다.
+- `/orders/detail`, `/bookings/manage` 는 구현 전환 과정에서 redirect alias로 유지할 수 있으나, 최종적으로는 제거 여부를 별도 판단한다.
 
 ---
 
@@ -149,6 +151,7 @@
 ### 5.5 조회 화면
 
 - 회원은 `내 주문`, `내 예약`, `내 8회권`에서 조회한다.
+- 회원 예약 상세 화면에서 변경/취소를 직접 수행한다.
 - 비회원은 비회원 전용 조회 화면에서만 조회한다.
 
 ---
@@ -159,6 +162,7 @@
 
 - 회원 주문은 로그인 세션 기준으로 생성한다.
 - 비회원 주문은 guest checkout과 휴대폰 인증을 거쳐 생성한다.
+- 상품 상세에서 guest 주문 fallback으로 이동할 때는 선택한 상품과 수량을 prefill 한다.
 - 회원 주문 조회는 추가 token 없이 가능하다.
 - 비회원 주문 조회는 token 또는 비회원 인증이 필요하다.
 
@@ -231,11 +235,14 @@
 - `GET /api/v1/me/passes`
 - `GET /api/v1/me/passes/{id}`
 - `POST /api/v1/me/passes`
+- `GET /api/v1/me/guest-claims/preview`
+- `POST /api/v1/me/guest-claims/verify`
+- `POST /api/v1/me/guest-claims`
 
 ### 8.3 비회원 조회 유지
 
 - 기존 주문/예약 token 조회 API 유지
-- 구현 과정에서 `/guest/**` 경로로 재정리 가능
+- 프론트 canonical route는 `/guest/orders`, `/guest/bookings`를 사용한다.
 
 ### 8.4 생성 API
 
@@ -250,17 +257,21 @@
 
 - 자동 guest → user 병합 금지
 - 로그인 후 휴대폰 인증을 통과한 회원만 수동 claim 가능
+- 회원 전화번호와 guest/verification 전화번호는 하이픈 유무 차이를 허용한다.
+- claim 전에는 preview로 주문/예약/8회권 후보를 확인하고 일부만 선택할 수 있다.
+- 8회권 예약을 claim하면 연결된 guest 8회권도 함께 이전한다.
 - claim 전에는 기존 guest token 조회를 유지
 
 ### 9.2 레거시 경로 유지
 
-- `/orders/detail`, `/bookings/manage` 는 member route 안정화 전까지 유지한다.
-- `/guest/**` UI 이관은 별도 배포 단위로 분리한다.
+- `/orders/detail`, `/bookings/manage` 는 현재 `/guest/**` 로 redirect하며 호환성 경로로 유지한다.
+- redirect alias 제거 시점은 별도 배포 단위로 분리한다.
 
 ### 9.3 E2E 기준
 
 - guest/admin 기존 smoke 1~5 유지 + member storefront smoke 6~7 추가
-- 회원 예약 변경/취소 UI와 guest claim은 후속 자동화 대상으로 남긴다
+- `P8-7`은 회원 8회권 구매, 회원 예약 생성, `/my/bookings/:id` 예약 상세, 변경/취소까지 포함한다
+- `P8-8`은 guest 주문·8회권·예약 생성 후 같은 번호의 회원이 `/my`에서 재인증과 선택 claim을 수행하는 흐름을 포함한다
 
 ---
 

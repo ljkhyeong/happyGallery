@@ -2,6 +2,12 @@
 
 이 단위는 프론트 IA를 "기능 카드 모음"에서 "상점형 홈 + 상품 상세 구매" 구조로 바꾸는 작업이다.
 
+현재 상태:
+- U3 1차 완료
+- 홈 / 네비게이션 / 상품 상세 / legacy `/orders/new` fallback 위치 재정의 반영
+- 상품 상세의 guest CTA가 `/orders/new?productId=&qty=`로 이동하며 fallback 주문 항목 prefill 반영
+- 남은 후속은 추가 머천다이징 정보와 guest fallback UX 고도화
+
 성격:
 - 프론트 중심
 - 공개 조회 API 재사용 우선
@@ -24,6 +30,7 @@
 - 상품 상세 구매 패널
 - `/products/:id`에서 수량/합계/구매 CTA 제공
 - 레거시 `/orders/new` 위치 재정의
+- guest 주문 fallback prefill (`productId`, `qty`)
 
 제외:
 - 회원/비회원 최종 인증 제출 로직
@@ -48,6 +55,7 @@
 - `frontend/src/features/order/**`
 - 상품 상세 구매용 `OrderComposer` 또는 동등한 feature 모듈 추가
 - 필요 시 `OrderCreatePage`는 단일 상품 직접 진입 시 fallback 페이지로 축소
+- 현재 `OrderCreatePage`는 상품 상세에서 넘어온 `productId`, `qty` query를 초기 주문 항목으로 반영한다
 
 보조 개선:
 - 관련 상품/추천 섹션은 API가 없으면 placeholder 없이 생략
@@ -78,6 +86,7 @@
 ## 6. 완료 기준
 
 - `/products/:id` 에서 바로 주문 흐름 진입 가능
+- 비회원도 상품 상세에서 fallback 주문 페이지로 이동할 때 상품/수량이 유지됨
 - 홈과 네비게이션이 기능 카드 모음이 아니라 스토어 구조로 보임
 - 모바일 기준에서 구매 CTA 접근성이 좋아짐
 
@@ -94,4 +103,5 @@
 
 - 상품 상세 구매 패널 UI
 - 주문 생성 진입 시 필요한 context 값
+- guest fallback prefill query 규칙 (`productId`, `qty`)
 - 로그인/guest checkout 모달이 꽂힐 위치

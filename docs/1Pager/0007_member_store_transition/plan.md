@@ -4,9 +4,10 @@
 
 현재 상태:
 - `U1` 완료
-- `U2`, `U4`, `U5` 1차 구현 완료
-- `U6` 1차 완료 (rollout 기준 + Playwright smoke 1~7)
-- `U3` 상점형 홈/상품 상세 고도화, `guest claim`, 회원 예약 액션 UI는 후속 범위
+- `U2`, `U3`, `U4` 완료
+- `U5` 완료 (`/my`, guest claim, 회원 예약 상세/변경·취소, `/guest/**` 분리)
+- `U6` 2차 완료 (rollout 기준 + Playwright smoke 1~8 + guest claim browser automation)
+- 남은 후속은 `P8-3` flaky 안정화와 legacy redirect alias 제거 판단
 
 기준 문서:
 - 현재 구현 기준: `HANDOFF.md`, `docs/PRD/0001_spec/spec.md`
