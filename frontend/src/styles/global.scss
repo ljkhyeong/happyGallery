@@ -380,11 +380,167 @@
   line-height: 1.5;
 }
 
+.auth-shell {
+  padding-top: 2rem;
+}
+
+.auth-hero-card,
+.auth-form-card {
+  background:
+    linear-gradient(180deg, rgba(#fff, 0.97), rgba(#f6f1e7, 0.96)),
+    var(--hg-surface);
+  box-shadow: var(--hg-shadow-soft);
+  border-radius: 1.25rem;
+}
+
+.auth-kicker {
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba($dark, 0.12);
+  letter-spacing: 0.08em;
+}
+
+.auth-benefit-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.auth-benefit-item {
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: rgba($light, 0.88);
+  border: 1px solid rgba($dark, 0.08);
+  color: $dark;
+  font-size: 0.92rem;
+}
+
+.auth-inline-link,
+.auth-footer-link a {
+  color: $primary;
+  text-decoration: none;
+  font-weight: 600;
+
+  &:hover,
+  &:focus-visible {
+    color: mix($primary, #000, 20%);
+  }
+}
+
+.auth-footer-link {
+  color: var(--hg-ink-soft);
+  font-size: 0.95rem;
+}
+
+.auth-prefill-card {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(#fff, 0.86);
+  border: 1px dashed rgba($primary, 0.45);
+}
+
+.auth-prefill-title {
+  color: $dark;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
 .legacy-order-banner {
   padding: 1.5rem;
   background:
     linear-gradient(180deg, rgba(#fff, 0.98), rgba(#f5f0e6, 0.95)),
     var(--hg-surface);
+}
+
+.my-gate-card,
+.my-dashboard-hero,
+.my-stat-card,
+.my-claim-card,
+.my-list-card,
+.my-action-card {
+  background:
+    linear-gradient(180deg, rgba(#fff, 0.97), rgba(#f6f1e7, 0.96)),
+    var(--hg-surface);
+  box-shadow: var(--hg-shadow-soft);
+}
+
+.my-gate-card,
+.my-dashboard-hero,
+.my-stat-card,
+.my-claim-card {
+  border-radius: 1.25rem;
+}
+
+.my-claim-entry-note {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  background: rgba(#fff, 0.86);
+  border: 1px dashed rgba($primary, 0.45);
+}
+
+.my-inline-link {
+  color: $primary;
+  text-decoration: none;
+  font-weight: 600;
+
+  &:hover,
+  &:focus-visible {
+    color: mix($primary, #000, 20%);
+  }
+}
+
+.my-dashboard-note {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: 999px;
+  background: rgba($light, 0.9);
+  color: $dark;
+  font-size: 0.875rem;
+}
+
+.my-stat-value {
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-weight: 700;
+  color: $dark;
+  margin-bottom: 0.5rem;
+}
+
+.my-list-card {
+  color: $body-color;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: $body-color;
+    transform: translateY(-1px);
+    box-shadow: 0 18px 34px rgba(52, 78, 65, 0.11);
+  }
+}
+
+.my-filter-card {
+  background:
+    linear-gradient(180deg, rgba(#fff, 0.97), rgba(#f6f1e7, 0.96)),
+    var(--hg-surface);
+  box-shadow: var(--hg-shadow-soft);
+  border-radius: 1.1rem;
+}
+
+.my-filter-result {
+  color: var(--hg-ink-soft);
+  font-size: 0.84rem;
+}
+
+.my-detail-header {
+  margin-bottom: 1.5rem;
 }
 
 // 상품 상세 구매 패널

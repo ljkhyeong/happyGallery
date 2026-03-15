@@ -30,6 +30,21 @@ public class OrderQueryService {
 
     public record OrderDetail(Order order, List<OrderItem> items, Fulfillment fulfillment) {}
 
+    /** 회원 — 자기 주문 목록 조회 */
+    public List<Order> listMyOrders(Long userId) {
+        return orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    /** 회원 — 자기 주문 상세 조회 (소유권 검증 포함) */
+    public OrderDetail findMyOrder(Long id, Long userId) {
+        Order order = orderRepository.findById(id)
+                .filter(o -> Objects.equals(o.getUserId(), userId))
+                .orElseThrow(() -> new NotFoundException("주문"));
+        List<OrderItem> items = orderItemRepository.findByOrder(order);
+        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(id).orElse(null);
+        return new OrderDetail(order, items, fulfillment);
+    }
+
     /** 토큰 기반 주문 상세 조회 */
     public OrderDetail getOrderByToken(Long orderId, String token) {
         Order order = orderRepository.findById(orderId)

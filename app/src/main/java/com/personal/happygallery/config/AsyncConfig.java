@@ -1,9 +1,11 @@
 package com.personal.happygallery.config;
 
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +28,14 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setThreadNamePrefix("notify-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
+        executor.setTaskDecorator(runnable -> {
+            Map<String, String> ctx = MDC.getCopyOfContextMap();
+            return () -> {
+                if (ctx != null) MDC.setContextMap(ctx);
+                try { runnable.run(); }
+                finally { MDC.clear(); }
+            };
+        });
         executor.initialize();
         return executor;
     }

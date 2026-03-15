@@ -121,6 +121,35 @@ export function plusDays(days: number, hour: number, minute: number, durationMin
   return { start, end };
 }
 
+export async function findUniqueSlotWindow(
+  request: APIRequestContext,
+  classId: number,
+  days: number,
+  hour: number,
+  minute: number,
+  durationMin: number,
+) {
+  const existingSlots = await fetchAdminSlots(request, classId);
+  const occupiedStarts = new Set(existingSlots.map((slot) => slot.startAt.slice(0, 16)));
+
+  const start = new Date();
+  start.setDate(start.getDate() + days);
+  start.setHours(hour, minute, 0, 0);
+
+  let attempts = 0;
+  while (occupiedStarts.has(toDateTimeLocalInput(start))) {
+    start.setMinutes(start.getMinutes() + 1);
+    attempts += 1;
+    if (attempts > 180) {
+      throw new Error(`Could not find a unique slot window for class=${classId}`);
+    }
+  }
+
+  const end = new Date(start);
+  end.setMinutes(end.getMinutes() + durationMin);
+  return { start, end };
+}
+
 export function toDateInput(date: Date): string {
   return [
     date.getFullYear(),

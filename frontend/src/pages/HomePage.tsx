@@ -135,7 +135,7 @@ export function HomePage() {
             <Col md={5}>
               <div className="d-flex flex-wrap gap-2 justify-content-md-end">
                 <Button as={Link as any} to="/my" variant="dark">
-                  내 정보
+                  회원 내 정보
                 </Button>
                 <Button as={Link as any} to="/guest/orders" variant="outline-secondary">
                   비회원 주문 조회

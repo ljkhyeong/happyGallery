@@ -27,6 +27,8 @@ export function PassPurchasePage() {
   const [showGate, setShowGate] = useState(false);
   const [guestResult, setGuestResult] = useState<PurchasePassResponse | null>(null);
   const [memberDone, setMemberDone] = useState(false);
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestName, setGuestName] = useState("");
 
   const guestMutation = useMutation({
     mutationFn: (info: { phone: string; verificationCode: string; name: string }) =>
@@ -60,11 +62,11 @@ export function PassPurchasePage() {
 
   if (guestResult) {
     return (
-      <Container className="page-container" style={{ maxWidth: 540 }}>
-        <h4 className="mb-4">구매 완료</h4>
-        <PassSuccessCard pass={guestResult} />
-      </Container>
-    );
+        <Container className="page-container" style={{ maxWidth: 540 }}>
+          <h4 className="mb-4">구매 완료</h4>
+        <PassSuccessCard pass={guestResult} guestPhone={guestPhone} guestName={guestName} />
+        </Container>
+      );
   }
 
   if (memberDone) {
@@ -73,7 +75,7 @@ export function PassPurchasePage() {
         <h4 className="mb-4">구매 완료</h4>
         <div className="text-center">
           <p className="mb-3">8회권이 구매되었습니다.</p>
-          <Button as={"a" as any} href="/my" variant="primary">
+          <Button as={"a" as any} href="/my/passes" variant="primary">
             내 8회권 확인하기
           </Button>
         </div>
@@ -141,7 +143,11 @@ export function PassPurchasePage() {
         show={showGate}
         onClose={() => setShowGate(false)}
         onMemberConfirm={() => memberMutation.mutate()}
-        onGuestConfirm={(info) => guestMutation.mutate(info)}
+        onGuestConfirm={(info) => {
+          setGuestPhone(info.phone);
+          setGuestName(info.name);
+          guestMutation.mutate(info);
+        }}
       />
     </Container>
   );

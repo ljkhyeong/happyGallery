@@ -17,6 +17,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,6 +29,8 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class RateLimitFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
 
     private static final String X_FORWARDED_FOR = "X-Forwarded-For";
     private static final String LEGACY_ADMIN_PATH_PREFIX = "/admin/";
@@ -83,6 +87,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (!probe.isConsumed()) {
             long retryAfterSeconds = Math.max(1, TimeUnit.NANOSECONDS.toSeconds(probe.getNanosToWaitForRefill()));
             response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
+            log.warn("rate limit exceeded [rule={} client={}]", resolved.rule().id(), bucketKey);
             writeTooManyRequests(response);
             return;
         }

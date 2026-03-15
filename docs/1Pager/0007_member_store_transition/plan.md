@@ -5,9 +5,12 @@
 현재 상태:
 - `U1` 완료
 - `U2`, `U3`, `U4` 완료
-- `U5` 완료 (`/my`, guest claim, 회원 예약 상세/변경·취소, `/guest/**` 분리)
-- `U6` 2차 완료 (rollout 기준 + Playwright smoke 1~8 + guest claim browser automation)
-- 남은 후속은 `P8-3` flaky 안정화와 legacy redirect alias 제거 판단
+- `U5` 완료 (`/my`, `/my/orders`, `/my/bookings`, `/my/passes`, guest claim, 회원 예약 상세/변경·취소, `/guest/**` 분리)
+- `U6` 3차 완료 (rollout 기준 + Playwright smoke 1~9 + guest claim browser automation + success-onboarding smoke)
+- member self-service / guest lookup polish 완료
+- `/my` 목록 필터 확장 완료
+- 회원 온보딩 polish 완료
+- 남은 후속은 `/guest/**` 운영 정리와 `/my` 후속 고도화 판단
 
 기준 문서:
 - 현재 구현 기준: `HANDOFF.md`, `docs/PRD/0001_spec/spec.md`
