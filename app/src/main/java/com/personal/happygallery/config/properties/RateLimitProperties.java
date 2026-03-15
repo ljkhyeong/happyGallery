@@ -24,6 +24,12 @@ public class RateLimitProperties {
     private long passPurchasePerMinute = 20;
 
     @Min(1)
+    private long customerLoginPerMinute = 10;
+
+    @Min(1)
+    private long customerSignupPerMinute = 5;
+
+    @Min(1)
     private long adminLoginPerMinute = 5;
 
     @Min(1)
@@ -67,6 +73,22 @@ public class RateLimitProperties {
 
     public void setPassPurchasePerMinute(long passPurchasePerMinute) {
         this.passPurchasePerMinute = passPurchasePerMinute;
+    }
+
+    public long getCustomerLoginPerMinute() {
+        return customerLoginPerMinute;
+    }
+
+    public void setCustomerLoginPerMinute(long customerLoginPerMinute) {
+        this.customerLoginPerMinute = customerLoginPerMinute;
+    }
+
+    public long getCustomerSignupPerMinute() {
+        return customerSignupPerMinute;
+    }
+
+    public void setCustomerSignupPerMinute(long customerSignupPerMinute) {
+        this.customerSignupPerMinute = customerSignupPerMinute;
     }
 
     public long getAdminLoginPerMinute() {

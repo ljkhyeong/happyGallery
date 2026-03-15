@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card } from "react-bootstrap";
-import { fetchBooking } from "@/features/booking-manage/api";
+import { cancelBooking, fetchBooking, rescheduleBooking } from "@/features/booking-manage/api";
 import { BookingLookupForm } from "@/features/booking-manage/BookingLookupForm";
 import { BookingDetail } from "@/features/booking-manage/BookingDetail";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
@@ -41,7 +41,10 @@ export function BookingManagePage() {
 
   return (
     <Container className="page-container">
-      <h4 className="mb-4">예약 조회</h4>
+      <h4 className="mb-4">예약 조회 <small className="text-muted-soft">(비회원)</small></h4>
+      <p className="text-muted-soft small mb-3">
+        회원이신가요? <a href="/my">내 정보</a>에서 예약을 확인하세요.
+      </p>
 
       <Card className="mb-4">
         <Card.Body>
@@ -59,14 +62,21 @@ export function BookingManagePage() {
             <Card className="mt-4">
               <Card.Header>예약 변경</Card.Header>
               <Card.Body>
-                <RescheduleForm booking={booking} token={currentToken} onSuccess={refetch} />
+                <RescheduleForm
+                  currentSlotId={booking.slotId}
+                  onReschedule={(newSlotId) => rescheduleBooking(booking.bookingId, newSlotId, currentToken)}
+                  onSuccess={refetch}
+                />
               </Card.Body>
             </Card>
           )}
 
           {isBooked && (
             <div className="mt-3">
-              <CancelButton bookingId={booking.bookingId} token={currentToken} onSuccess={refetch} />
+              <CancelButton
+                onCancel={() => cancelBooking(booking.bookingId, currentToken)}
+                onSuccess={refetch}
+              />
             </div>
           )}
         </>

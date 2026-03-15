@@ -73,5 +73,23 @@ public class OrderService {
         return order;
     }
 
+    /**
+     * 회원 주문 생성. guest 대신 user_id를 설정한다. accessToken 없음.
+     */
+    public Order createMemberOrder(Long userId, List<OrderItemRequest> items) {
+        LocalDateTime paidAt = LocalDateTime.now(clock);
+        long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
+
+        Order order = orderRepository.save(
+                Order.forMember(userId, totalAmount, paidAt, paidAt.plusHours(24)));
+
+        for (OrderItemRequest item : items) {
+            orderItemRepository.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
+            inventoryService.deduct(item.productId(), item.qty());
+        }
+
+        return order;
+    }
+
     public record OrderItemRequest(Long productId, int qty, long unitPrice) {}
 }

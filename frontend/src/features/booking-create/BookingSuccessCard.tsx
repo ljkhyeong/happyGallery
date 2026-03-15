@@ -39,7 +39,7 @@ export function BookingSuccessCard({ booking }: Props) {
           </Alert>
         </Card.Body>
         <Card.Footer>
-          <Link to="/bookings/manage" className="text-decoration-none small">
+          <Link to="/guest/bookings" className="text-decoration-none small">
             예약 조회 페이지로 이동 &rarr;
           </Link>
         </Card.Footer>

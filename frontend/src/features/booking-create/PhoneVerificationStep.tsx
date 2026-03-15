@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
 import { sendVerification } from "./api";
@@ -6,14 +6,30 @@ import { ErrorAlert } from "@/shared/ui";
 
 interface Props {
   onVerified: (phone: string, code: string) => void;
+  title?: string;
+  description?: string;
+  initialPhone?: string;
+  lockPhone?: boolean;
+  confirmLabel?: string;
 }
 
-export function PhoneVerificationStep({ onVerified }: Props) {
-  const [phone, setPhone] = useState("");
+export function PhoneVerificationStep({
+  onVerified,
+  title = "1. 휴대폰 인증",
+  description,
+  initialPhone = "",
+  lockPhone = false,
+  confirmLabel = "확인",
+}: Props) {
+  const [phone, setPhone] = useState(initialPhone.replace(/\D/g, ""));
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [mvpCode, setMvpCode] = useState("");
   const [touched, setTouched] = useState(false);
+
+  useEffect(() => {
+    setPhone(initialPhone.replace(/\D/g, ""));
+  }, [initialPhone]);
 
   const sendMutation = useMutation({
     mutationFn: () => sendVerification({ phone }),
@@ -28,7 +44,8 @@ export function PhoneVerificationStep({ onVerified }: Props) {
 
   return (
     <div>
-      <h6 className="mb-3">1. 휴대폰 인증</h6>
+      <h6 className="mb-3">{title}</h6>
+      {description && <p className="text-muted-soft small mb-3">{description}</p>}
       <ErrorAlert error={sendMutation.error} />
 
       <Row className="g-2 align-items-end mb-3">
@@ -41,7 +58,7 @@ export function PhoneVerificationStep({ onVerified }: Props) {
               onBlur={() => setTouched(true)}
               placeholder="01012345678"
               maxLength={11}
-              disabled={sent}
+              disabled={sent || lockPhone}
               isInvalid={showPhoneError}
             />
             <Form.Control.Feedback type="invalid">
@@ -86,7 +103,7 @@ export function PhoneVerificationStep({ onVerified }: Props) {
                 disabled={!code.trim()}
                 onClick={() => onVerified(phone, code.trim())}
               >
-                확인
+                {confirmLabel}
               </Button>
             </Col>
           </Row>

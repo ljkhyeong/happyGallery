@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-15 (프론트 F0–F9 완료, P8·P9·P10 완료, CR-P1~P7 완료)
+> 작성 시점: 2026-03-15 (프론트 F0–F9 완료, P8·P9·P10 완료, CR-P1~P7 완료, U1 완료, U2/U3/U4 완료, U5 완료, U6 2차 완료)
 
 ---
 
@@ -16,30 +16,46 @@
 - 프론트 계획: `docs/1Pager/0003_frontend_plan/plan.md`
 - 후속 폴리시 계획: `docs/1Pager/0004_polish_plan/plan.md`
 - 코드리뷰 후속 계획: `docs/1Pager/0006_code_review_followups/plan.md`
+- 회원 스토어 전환 계획: `docs/1Pager/0007_member_store_transition/plan.md`
+- 회원 스토어 차기 PRD 초안: `docs/PRD/0002_member_store_transition/spec.md`
 - 기준 확인 순서: `HANDOFF.md -> docs/PRD/0001_spec/spec.md -> docs/ADR/*`
 
 ---
 
 ## 현재 브랜치 / 워크트리 상태
 
-- 권장 작업 브랜치: `codex/work-20260314`
+- 권장 작업 브랜치: `codex/work-20260315-015031`
 - 최근 작업:
+  - U6 guest claim browser automation 완료 — Playwright `P8-8` 추가, guest 주문·8회권·예약 생성 후 같은 번호의 회원이 `/my`에서 휴대폰 재인증과 선택 claim을 수행하는 시나리오 자동화, helper에 locked-phone verification과 custom signup phone 지원 추가
+  - U3 guest 주문 fallback 보강 — 상품 상세의 `비회원 주문하기`가 `/orders/new?productId=&qty=`로 이동하며 선택한 상품/수량을 prefill 하고, legacy guest 주문 페이지에서 그대로 수정/추가 주문할 수 있게 정리, `P8-4`도 이 경로 기준으로 갱신
+  - U5 회원 셀프서비스 완료 — `/my/bookings/:id` 회원 예약 상세 페이지 추가, 회원 예약 변경/취소 UI 연결, `/guest/orders`·`/guest/bookings` canonical guest 경로로 정리하고 `/orders/detail`·`/bookings/manage`는 redirect alias로 유지, `GET /api/v1/me/bookings/{id}` 상세 조회의 slot/class eager fetch 보강
+  - U5 guest claim 2차 완료 — `/api/v1/me/guest-claims/{preview,verify,claim}` 추가, 회원 휴대폰 재인증 후 같은 번호의 guest 주문/예약/8회권을 선택 이전하는 마이페이지 모달 반영, 예약 연결 8회권 자동 claim, 회원 전화번호의 하이픈/숫자-only 포맷 차이 흡수
+  - U3 storefront / 상품 상세 1차 완료 — 홈과 네비게이션을 상점형 IA로 재구성, 상품 상세를 구매 중심 레이아웃으로 정리, `/orders/new`를 legacy guest fallback 경로로 명시
+  - U6 rollout / E2E 2차 완료 — Playwright smoke 1~8 통과, guest/member/claim 혼합 시나리오 정리, 관리자 로그인 토큰 캐시와 고객 세션 쿠키 bootstrap helper 반영, README/P8/U6/PRD/HANDOFF 문서 동기화
+  - U5 회원 셀프서비스 1차 — `/my`, `/my/orders/:id`, 회원 주문/예약/8회권 목록 조회, 회원 주문 상세, 회원 예약/8회권 생성과 `/api/v1/me/**` 기반 흐름 확장
+  - U4 제출 직전 인증 게이트 + 주문 진입 전환 — `/products/:id` 회원 주문, `/bookings/new`·`/passes/purchase`의 member/guest auth gate 분기, legacy guest 조회 경로와 공존
+  - U1 고객 인증 기반 — `User`/`UserSession` 엔티티, `CustomerAuthService`(BCrypt + DB 세션), `CustomerAuthFilter`(HttpOnly 쿠키 `HG_SESSION`), `/api/v1/auth/{signup,login,logout}` + `GET /api/v1/me`, 프론트 `LoginPage`/`SignupPage`/Layout 로그인 상태 표시, V14 migration, rate limit(customer-login 10/min, customer-signup 5/min)
   - CR-P7 배송 흐름 및 운영 이력 확장 — 배송 전이 API 3종 (prepare-shipping, mark-shipped, mark-delivered), 주문 이력 조회 API, expectedShipDate write guard, 프론트 배송 액션/이력 패널, spec/plan/HANDOFF 문서 동기화
   - CR-P6 계약/감사/무결성 후속 — fulfillment.status FE 정합, admin principal 세션 전환, fulfillments.order_id unique, convertToPickup stale 데이터 제거, resume-production HTTP test, 프론트 중복 정리, README/PRD/ADR/E2E 문서 정합화
   - 문서 정합화 — spec.md, ADR-0013, ADR-0014 상태명·Fulfillment 구조 반영
   - CR-P5 장기 리팩토링 — DELAY_REQUESTED 재개 흐름, Fulfillment 단일성, *_REFUNDED 상태명 변경, Fulfillment.status 제거, PG 환불 패턴 통합, local hook 범위 제한
   - P10 관측성/운영 준비 — Actuator 노출 정책, 에러 응답 requestId 포함, 배치 MDC requestId 주입
   - P9 프로덕션 인증 계층 — BCrypt 기반 관리자 로그인, UUID 세션 토큰, X-Admin-Key dev fallback 토글
-  - P8 E2E 시나리오 검증 — local 환불 실패 hook 추가, 기본 관리자 계정 정합화, 실제 로컬 smoke 1~5 pass
+  - P8 E2E 시나리오 검증 — local 환불 실패 hook 추가, 기본 관리자 계정 정합화, 실제 로컬 smoke 1~8 pass
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.customer.CustomerGuestClaimUseCaseIT` 통과
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.customer.CustomerAuthUseCaseIT` 통과
   - `cd frontend && npm run build` 통과
+  - `cd frontend && npm run e2e -- --grep "P8-8"` 통과
+  - `cd frontend && npm run e2e -- --grep "P8-(2|4)"` 통과
+  - `cd frontend && npm run e2e -- --grep "P8-7"` 통과
+  - `cd frontend && npm run e2e -- --grep "P8-(4|7|8)"` 통과
+  - `cd frontend && npm run e2e -- --grep "P8-6"` 통과 (U3 핵심 회원 주문 경로)
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.OrderProductionUseCaseIT` 통과
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.booking.LocalBookingClassSeedServiceTest` 통과
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.infra.payment.FakePaymentProviderTest --tests com.personal.happygallery.app.web.admin.LocalRefundFailureControllerTest --tests com.personal.happygallery.app.web.admin.AdminLoginUseCaseIT` 통과
-  - `cd frontend && npx playwright test --list` 통과
-  - `docker compose stop app` 후 로컬 `:app:bootRun` 기동 확인
-  - `cd frontend && npm run e2e` 실행: 5 passed
+  - `curl -s http://127.0.0.1:8080/actuator/health` 응답 확인
 
 ---
 
@@ -70,12 +86,19 @@
 
 - `/` — 서비스 홈 (진입 카드)
 - `/products` — 상품 목록
-- `/products/:id` — 상품 상세
-- `/bookings/new` — 예약 생성
-- `/bookings/manage` — 예약 조회/변경/취소
-- `/passes/purchase` — 8회권 구매
-- `/orders/new` — 주문 생성
-- `/orders/detail` — 주문 조회
+- `/products/:id` — 상품 상세 + 회원 주문 진입
+- `/login` — 고객 로그인
+- `/signup` — 고객 회원가입
+- `/my` — 회원 마이페이지 (`내 주문`, `내 예약`, `내 8회권`, `비회원 이력 가져오기`)
+- `/my/orders/:id` — 회원 주문 상세
+- `/my/bookings/:id` — 회원 예약 상세 + 변경/취소
+- `/bookings/new` — 예약 생성 (member/guest 제출 직전 auth gate)
+- `/passes/purchase` — 8회권 구매 (member/guest 제출 직전 auth gate)
+- `/guest/orders` — 비회원 주문 조회
+- `/guest/bookings` — 비회원 예약 조회/변경/취소
+- `/orders/new` — legacy guest 주문 생성 fallback (`productId`, `qty` prefill 지원)
+- `/orders/detail` — `/guest/orders` redirect alias
+- `/bookings/manage` — `/guest/bookings` redirect alias
 - `/admin` — 관리자 (사용자명/비밀번호 로그인, Bearer 토큰 인증)
 
 ---
@@ -93,7 +116,7 @@
 | 다음 | **P5** | 완료 | 관리자 슬롯 조회 API 및 화면 보강 |
 | 다음 | **P6** | 완료 | 관리자 예약 조회/노쇼 처리 화면 |
 | 다음 | **P7** | 완료 | 관리자 주문 목록 조회 화면 |
-| 배포 전 | **P8** | 완료 | Playwright smoke 1~5 pass, local refund failure hook으로 재시도 시나리오까지 검증 완료 |
+| 배포 전 | **P8** | 완료 | Playwright smoke 1~8 pass, local refund failure hook과 회원 storefront/guest claim 시나리오까지 검증 완료 |
 | 배포 전 | **P9** | 완료 | 프로덕션 인증 계층 (BCrypt 로그인, UUID 세션 토큰, API Key dev fallback) |
 | 운영 | **P10** | 완료 | 관측성 및 운영 준비 (Actuator 정책, 에러 requestId, 배치 MDC) |
 
@@ -111,7 +134,9 @@
 
 ### 다음 추천 작업
 
-코드리뷰 후속 플랜(CR-P1~P7) 전체 완료. 다음 작업은 운영 배포 준비 또는 추가 기능 구현.
+1. smoke 안정화 — `P8-3` public slot lookup flaky 원인 정리 및 안정화
+2. legacy route 정리 — `/orders/detail`, `/bookings/manage` redirect alias 제거 시점 판단
+3. member self-service 고도화 — 필요하면 `/my` 하위 세부 라우트 확장과 카피 정리
 
 ---
 
@@ -145,8 +170,18 @@
 - 동일하게 `gh pr *`, 원격 `git fetch/push/pull`, Docker 컨테이너 제어, Playwright 브라우저 설치/실행, 워크스페이스 밖 경로 쓰기처럼 반복적으로 막혔던 작업도 샌드박스 재시도 없이 처음부터 권한 상승 실행으로 처리한다.
 
 ### 프론트 공통 패턴
+- 고객 인증: `useCustomerAuth()` 훅에서 `/api/v1/me`로 세션 확인 (HttpOnly 쿠키 자동 포함), `login`/`signup`/`logout` 제공
+- 회원가입 전화번호는 프론트에서 숫자만 정규화해 전송하고, guest claim은 회원 전화번호의 하이픈/숫자-only 포맷 차이를 모두 허용한다.
+- Layout에서 `useCustomerAuth()`로 로그인 상태에 따라 "로그인"/"사용자명+로그아웃" 표시
+- `/products/:id`, `/bookings/new`, `/passes/purchase` 는 회원이면 세션 기준으로 바로 제출하고, 비회원이면 제출 직전에 auth gate를 연다.
+- 상품 상세의 `비회원 주문하기`는 `/orders/new?productId=&qty=` 로 이동해 선택 상품과 수량을 legacy guest fallback에 미리 담아둔다.
+- `/my` 에서 `비회원 이력 가져오기` 모달을 열면, `phoneVerified=false` 회원은 같은 번호로 재인증 후 preview를 보고 주문/예약/8회권을 선택 claim 할 수 있다.
+- `/my/bookings/:id` 는 회원 예약 상세/변경/취소 화면이며, 비회원 조회는 `/guest/bookings` 로 분리한다.
+- `/guest/orders`, `/guest/bookings` 가 canonical guest 조회 경로이고, `/orders/detail`, `/bookings/manage` 는 호환성 redirect alias다.
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
 - 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
+- Playwright smoke는 관리자 Bearer 토큰과 고객 `HG_SESSION` 쿠키를 backend API로 bootstrap해 로그인 rate limit과 UI 초기화 타이밍 영향을 줄였다.
+- `P8-8`은 guest 주문·8회권·예약을 만든 뒤, 같은 번호의 회원이 `/my` 모달에서 재인증 후 claim 하는 흐름을 검증한다.
 - 기본 관리자 계정: `admin` / `admin1234` (Flyway V11로 정합화)
 - 개발/테스트에서는 `X-Admin-Key` 폴백 가능 (`enable-api-key-auth=true`)
 - 현재 세션 저장소는 인메모리 단일 인스턴스 기준이다. 운영에서 인스턴스가 늘어나면 JWT 기반 인증 전환을 우선 검토한다.
@@ -157,7 +192,7 @@
 
 ### 로컬 실행 메모
 - `local` 프로필 `:app:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
-- clean DB 기준으로도 P8 예약/8회권 smoke를 바로 실행할 수 있다.
+- clean DB 기준으로도 P8 guest/member smoke 1~8을 바로 실행할 수 있다.
 - `DELETE /api/v1/admin/dev/payment/refunds/fail-next`로 훅을 비우고, `POST /api/v1/admin/dev/payment/refunds/fail-next`로 다음 환불 1회 실패를 arm할 수 있다.
   요청 바디에 `orderId`를 넣으면 특정 주문으로 범위를 좁힐 수 있다.
 
@@ -176,6 +211,8 @@ cd frontend && npm run e2e
 
 ### 미해결 과제
 - 로컬 `bootRun` 전 `happygallery-app` 컨테이너가 떠 있으면 8080 충돌 발생
+- `/orders/detail`, `/bookings/manage` 는 redirect alias로 남아 있어 제거 시점 판단이 필요
+- Playwright full smoke는 현재 `P8-3`에서 public slot lookup이 간헐적으로 비어 timeout 날 수 있다. U3 관련 핵심 경로인 `P8-6`은 통과 확인.
 - PG 환불 패턴 중복 → 실 PG 연동 시 RefundExecutor로 통합 예정
 - ~~공개 주문 상세 `fulfillment.status` 계약 drift 정리 필요~~ (CR-P6에서 FE/BE 정합)
 - ~~`X-Admin-Id` 헤더 의존 제거 전까지 운영 이력의 admin 식별자가 null/위조 가능~~ (CR-P6에서 Bearer 세션 attribute 기반으로 전환)

@@ -78,6 +78,19 @@ public class PassPurchaseService {
         return createPurchase(guest, totalPrice);
     }
 
+    /**
+     * 회원 8회권 구매.
+     */
+    public PassPurchase purchaseForMember(Long userId, long totalPrice) {
+        ZonedDateTime now = ZonedDateTime.now(clock);
+        LocalDateTime expiresAt = TimeBoundary.passExpiresAtLocal(now);
+
+        PassPurchase purchase = passPurchaseRepository.save(new PassPurchase(userId, expiresAt, totalPrice));
+        passLedgerRepository.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));
+
+        return purchase;
+    }
+
     private PassPurchase createPurchase(Guest guest, long totalPrice) {
         ZonedDateTime now = ZonedDateTime.now(clock);
         LocalDateTime expiresAt = TimeBoundary.passExpiresAtLocal(now);

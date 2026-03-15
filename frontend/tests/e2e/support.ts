@@ -4,6 +4,11 @@ const ADMIN_KEY = process.env.PLAYWRIGHT_ADMIN_KEY ?? "dev-admin-key";
 const ADMIN_USERNAME = process.env.PLAYWRIGHT_ADMIN_USERNAME ?? "admin";
 const ADMIN_PASSWORD = process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? "admin1234";
 const BACKEND_BASE_URL = (process.env.PLAYWRIGHT_BACKEND_URL ?? "http://127.0.0.1:8080/api/v1").replace(/\/$/, "");
+const ADMIN_TOKEN_KEY = "hg_admin_token";
+const CUSTOMER_SESSION_COOKIE = "HG_SESSION";
+const FRONTEND_ORIGIN = "http://127.0.0.1:3000";
+
+let cachedAdminToken: string | null = null;
 
 export interface BookingClass {
   id: number;
@@ -64,16 +69,30 @@ export interface AdminFailedRefund {
   createdAt: string;
 }
 
+export interface CustomerCredentials {
+  email: string;
+  password: string;
+  name: string;
+  phone: string;
+}
+
+interface SignupOverrides {
+  email?: string;
+  password?: string;
+  name?: string;
+  phone?: string;
+}
+
 interface ApiOptions {
   admin?: boolean;
   query?: Record<string, number | string | undefined>;
 }
 
-const timeFormatter = new Intl.DateTimeFormat("ko-KR", {
+const timeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "2-digit",
   minute: "2-digit",
   timeZone: "Asia/Seoul",
-  hourCycle: "h23",
+  hour12: true,
 });
 
 export function makeUniqueLabel(prefix: string): string {
@@ -84,6 +103,11 @@ export function makeUniqueLabel(prefix: string): string {
 export function makePhoneNumber(seed: string): string {
   const digits = seed.replace(/\D/g, "").slice(-8).padStart(8, "0");
   return `010${digits}`;
+}
+
+export function makeEmail(seed: string): string {
+  const normalized = seed.toLowerCase().replace(/[^a-z0-9]/g, "").slice(-12) || "member";
+  return `${normalized}${Date.now().toString().slice(-6)}@example.com`;
 }
 
 export function plusDays(days: number, hour: number, minute: number, durationMin: number) {
@@ -110,7 +134,13 @@ export function toDateTimeLocalInput(date: Date): string {
 }
 
 export function formatTimeTokenForUi(iso: string): string {
-  return timeFormatter.format(new Date(iso));
+  const parts = timeFormatter.formatToParts(new Date(iso));
+  const hour = parts.find((part) => part.type === "hour")?.value;
+  const minute = parts.find((part) => part.type === "minute")?.value;
+  if (!hour || !minute) {
+    throw new Error(`Could not format UI time token for ${iso}`);
+  }
+  return `${hour}:${minute}`;
 }
 
 export function extractFirstNumber(text: string, label: string): number {
@@ -131,32 +161,116 @@ export function extractAccessToken(text: string): string {
 }
 
 export async function loginAdmin(page: Page) {
-  await page.goto("/admin");
-
-  const loginHeading = page.getByRole("heading", { name: "관리자 로그인" });
-  if (await loginHeading.isVisible()) {
-    await page.getByLabel("아이디").fill(ADMIN_USERNAME);
-    await page.getByLabel("비밀번호").fill(ADMIN_PASSWORD);
-    await page.getByRole("button", { name: "로그인" }).click();
+  if (!cachedAdminToken) {
+    const response = await page.request.post(`${BACKEND_BASE_URL}/admin/auth/login`, {
+      data: { username: ADMIN_USERNAME, password: ADMIN_PASSWORD },
+    });
+    expect(response.ok(), "Admin login API should succeed").toBeTruthy();
+    const body = (await response.json()) as { token: string };
+    cachedAdminToken = body.token;
   }
 
+  await page.goto("/admin");
+  await page.evaluate(([tokenKey, token]) => {
+    const browserGlobal = globalThis as {
+      sessionStorage: { setItem(key: string, value: string): void };
+    };
+    browserGlobal.sessionStorage.setItem(tokenKey, token);
+  }, [ADMIN_TOKEN_KEY, cachedAdminToken] as const);
+  await page.reload();
   await expect(page.getByRole("heading", { name: "관리자" })).toBeVisible();
 }
 
-export async function completePhoneVerification(page: Page, phone: string) {
-  await page.getByLabel("휴대폰 번호").fill(phone);
-  await page.getByRole("button", { name: "인증코드 발송" }).click();
-
-  const codeHint = page.locator("p").filter({ hasText: "[MVP] 인증코드:" }).first();
+async function extractMvpVerificationCode(root: Page | Locator): Promise<string> {
+  const codeHint = root.locator("p").filter({ hasText: "[MVP] 인증코드:" }).first();
   await expect(codeHint).toBeVisible();
   const raw = await codeHint.textContent();
   const code = raw?.match(/인증코드:\s*(\S+)/)?.[1];
   if (!code) {
     throw new Error("Could not parse MVP verification code");
   }
+  return code;
+}
 
+export async function signupCustomer(
+  page: Page,
+  prefix: string,
+  overrides: SignupOverrides = {},
+): Promise<CustomerCredentials> {
+  const label = makeUniqueLabel(prefix);
+  const credentials: CustomerCredentials = {
+    email: overrides.email ?? makeEmail(label),
+    password: overrides.password ?? "password123",
+    name: overrides.name ?? label,
+    phone: overrides.phone ?? makePhoneNumber(label),
+  };
+
+  const response = await page.request.post(`${BACKEND_BASE_URL}/auth/signup`, {
+    data: credentials,
+  });
+  expect(response.ok(), "Customer signup API should succeed").toBeTruthy();
+  await setCustomerSessionFromResponse(page, response.headers()["set-cookie"]);
+  await page.goto("/my");
+  await expect(page.getByText(credentials.email)).toBeVisible();
+  return credentials;
+}
+
+export async function loginCustomer(page: Page, credentials: CustomerCredentials) {
+  const response = await page.request.post(`${BACKEND_BASE_URL}/auth/login`, {
+    data: { email: credentials.email, password: credentials.password },
+  });
+  expect(response.ok(), "Customer login API should succeed").toBeTruthy();
+  await setCustomerSessionFromResponse(page, response.headers()["set-cookie"]);
+  await page.goto("/my");
+  await expect(page.getByText(credentials.email)).toBeVisible();
+}
+
+export async function logoutCustomer(page: Page) {
+  const logoutButton = page.getByRole("button", { name: "로그아웃" }).first();
+  if (await logoutButton.isVisible()) {
+    await logoutButton.click();
+  }
+}
+
+export async function completePhoneVerification(page: Page, phone: string) {
+  await page.getByLabel("휴대폰 번호").fill(phone);
+  await page.getByRole("button", { name: "인증코드 발송" }).click();
+  const code = await extractMvpVerificationCode(page);
   await page.getByLabel("인증코드").fill(code);
   await page.getByRole("button", { name: "확인" }).click();
+}
+
+export async function completeLockedPhoneVerification(
+  root: Page | Locator,
+  confirmLabel = "확인",
+) {
+  await root.getByRole("button", { name: "인증코드 발송" }).click();
+  const code = await extractMvpVerificationCode(root);
+  await root.getByLabel("인증코드").fill(code);
+  await root.getByRole("button", { name: confirmLabel }).click();
+}
+
+export async function completeGuestAuthGate(page: Page, phone: string, name: string) {
+  await page.locator(".nav-link").filter({ hasText: "비회원" }).first().click();
+  await completePhoneVerification(page, phone);
+  await page.locator("#gate-guest-name").fill(name);
+  await page.getByRole("button", { name: "비회원으로 진행" }).click();
+}
+
+async function setCustomerSessionFromResponse(page: Page, setCookieHeader?: string) {
+  const match = setCookieHeader?.match(/HG_SESSION=([^;]+)/);
+  if (!match) {
+    throw new Error("Could not extract HG_SESSION cookie from auth response");
+  }
+
+  await page.context().addCookies([
+    {
+      name: CUSTOMER_SESSION_COOKIE,
+      value: match[1]!,
+      url: FRONTEND_ORIGIN,
+      httpOnly: true,
+    },
+  ]);
 }
 
 export function adminCard(page: Page, title: string): Locator {

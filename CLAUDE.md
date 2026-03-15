@@ -47,17 +47,7 @@ curl http://localhost:8080/actuator/health
 ## 작업 시작 시 스킬 참조 규칙
 1. 작업을 시작하기 전에 `.claude/skills/` 디렉토리에서 해당 작업 도메인과 매칭되는 스킬 파일을 읽는다.
 2. 스킬의 **non-negotiable invariants** → **verification workflow** → **doc sync checklist** 순서를 따른다.
-3. 주요 매핑:
-   - 프론트 작업 → `happygallery-frontend-flows`
-   - 주문 관련 → `happygallery-order-flows`
-   - 예약 관련 → `happygallery-booking-flows`
-   - 이용권 관련 → `happygallery-pass-flows`
-   - 상품 관련 → `happygallery-product-flows`
-   - 관리자 기능 → `happygallery-admin-flows`
-   - API 계약 변경 → `api-contract`
-   - DB 스키마 변경 → `db-schema-checklist`
-   - 여러 모듈에 걸친 변경 → `happygallery-spring-backend`
-4. 작업 완료 보고 시 실제 참조한 스킬 이름을 `사용: 스킬명` 형식으로 명시한다.
+3. 작업 완료 보고 시 실제 참조한 스킬 이름을 `사용: 스킬명` 형식으로 명시한다.
 
 ---
 
@@ -80,10 +70,8 @@ curl http://localhost:8080/actuator/health
 - 사용자가 요구하지 않은 과한 재검증이나 중복 조회는 피하고, 변경 범위에 맞는 최소 검증만 수행한다.
 - 이 저장소의 Gradle JVM 명령은 샌드박스에서 `FileLockContentionHandler` 소켓 제한으로 자주 실패하므로, `test`, `:app:test`, `:app:policyTest`, `:app:useCaseTest`, `:app:bootRun` 계열은 처음부터 unsandboxed/escalated 실행을 기본으로 한다.
 
-## Skills (auto-trigger + explicit call)
-- 상태머신/전이: `domain-state-machine`
-- API 계약/오류/스키마: `api-contract`
-- DB 스키마/마이그레이션: `db-schema-checklist`
-- 작업 분해/Done 기준: `task-breakdown`
-- JPA 엔티티↔Flyway DDL 동기화: `entity-migration-sync`
-- 시간 경계 정책/Clock 주입: `time-boundary-policy`
+## 역할 분담
+- 이 에이전트는 **구현(코드 작성)에만 집중**한다.
+- **테스트 작성**, **문서 동기화**(HANDOFF.md, spec.md, ADR 등)는 별도 에이전트가 담당하므로 직접 수행하지 않는다.
+- 구현 완료 후 변경 사항 요약만 남기면 된다. 테스트·문서는 다른 에이전트에게 인계한다.
+

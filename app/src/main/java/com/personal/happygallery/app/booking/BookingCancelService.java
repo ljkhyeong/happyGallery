@@ -114,5 +114,57 @@ public class BookingCancelService {
         return new CancelResult(booking, refundable);
     }
 
+    /**
+     * 회원 예약을 취소한다. accessToken 대신 userId 소유권으로 검증한다.
+     */
+    public CancelResult cancelMemberBooking(Long bookingId, Long userId) {
+
+        // 1. 예약 로드 (userId 소유권 검증)
+        Booking booking = bookingSupport.findByIdAndUserId(bookingId, userId);
+
+        // 2. 상태 체크 — BOOKED 상태만 취소 가능
+        if (booking.getStatus() != BookingStatus.BOOKED) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "취소할 수 없는 예약 상태입니다.");
+        }
+
+        // 3. 슬롯 반납
+        Slot slot = slotRepository.findByIdWithLock(booking.getSlot().getId())
+                .orElseThrow(() -> new NotFoundException("슬롯"));
+        slot.decrementBookedCount();
+        slotRepository.save(slot);
+
+        // 4. CANCELED 이력 저장
+        bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null);
+
+        // 5. 환불 가능 여부 판단
+        boolean refundable = TimeBoundary.isRefundable(slot.getStartAt(), clock);
+
+        if (booking.isPassBooking()) {
+            if (refundable) {
+                PassPurchase pass = booking.getPassPurchase();
+                passLedgerRepository.save(
+                        new PassLedger(pass, PassLedgerType.REFUND, 1, booking.getId()));
+                pass.refundCredit();
+                passPurchaseRepository.save(pass);
+            }
+        } else {
+            if (refundable) {
+                refundExecutionService.processBookingRefund(booking.getId(), booking.getDepositAmount());
+            }
+        }
+
+        // 6. 예약 취소 처리
+        booking.cancel();
+        bookingRepository.save(booking);
+
+        // 7. 취소 알림
+        bookingSupport.notifyBookingUser(booking, NotificationEventType.BOOKING_CANCELED);
+        if (refundable && !booking.isPassBooking()) {
+            bookingSupport.notifyBookingUser(booking, NotificationEventType.DEPOSIT_REFUNDED);
+        }
+
+        return new CancelResult(booking, refundable);
+    }
+
     public record CancelResult(Booking booking, boolean refundable) {}
 }

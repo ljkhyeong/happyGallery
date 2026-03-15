@@ -13,6 +13,7 @@ public enum ErrorCode {
 
     // 401 Unauthorized — 인증 실패
     UNAUTHORIZED(401, "관리자 인증이 필요합니다."),
+    INVALID_CREDENTIALS(401, "이메일 또는 비밀번호가 올바르지 않습니다."),
 
     // 429 Too Many Requests — 처리율 제한 초과
     TOO_MANY_REQUESTS(429, "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
@@ -21,6 +22,7 @@ public enum ErrorCode {
     NOT_FOUND(404, "요청한 리소스를 찾을 수 없습니다."),
 
     // 409 Conflict — 상태 충돌
+    EMAIL_ALREADY_EXISTS(409, "이미 사용 중인 이메일입니다."),
     ALREADY_REFUNDED(409, "이미 환불된 건입니다."),
     INVENTORY_NOT_ENOUGH(409, "재고가 부족합니다."),
     CAPACITY_EXCEEDED(409, "슬롯 정원이 초과되었습니다."),

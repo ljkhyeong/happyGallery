@@ -9,6 +9,7 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
+import java.util.Objects;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -31,6 +32,12 @@ class BookingSupport {
                 .orElseThrow(() -> new NotFoundException("예약"));
     }
 
+    Booking findByIdAndUserId(Long bookingId, Long userId) {
+        return bookingRepository.findById(bookingId)
+                .filter(b -> Objects.equals(b.getUserId(), userId))
+                .orElseThrow(() -> new NotFoundException("예약"));
+    }
+
     void recordHistory(Booking booking, BookingHistoryAction action,
                        Slot oldSlot, Slot newSlot, String actor, String reason) {
         bookingHistoryRepository.save(
@@ -46,5 +53,12 @@ class BookingSupport {
                 booking.getGuest().getPhone(),
                 booking.getGuest().getName(),
                 eventType);
+    }
+
+    void notifyBookingUser(Booking booking, NotificationEventType eventType) {
+        if (booking.getUserId() == null) {
+            return;
+        }
+        notificationService.notifyByUserId(booking.getUserId(), eventType);
     }
 }

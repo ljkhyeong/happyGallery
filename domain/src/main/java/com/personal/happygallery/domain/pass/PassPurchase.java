@@ -24,6 +24,9 @@ public class PassPurchase {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "guest_id")
     private Guest guest;
@@ -58,6 +61,17 @@ public class PassPurchase {
      */
     public PassPurchase(Guest guest, LocalDateTime expiresAt, long totalPrice) {
         this.guest = guest;
+        this.expiresAt = expiresAt;
+        this.totalCredits = 8;
+        this.remainingCredits = 8;
+        this.totalPrice = totalPrice;
+    }
+
+    /**
+     * 회원 8회권 구매 생성.
+     */
+    public PassPurchase(Long userId, LocalDateTime expiresAt, long totalPrice) {
+        this.userId = userId;
         this.expiresAt = expiresAt;
         this.totalCredits = 8;
         this.remainingCredits = 8;
@@ -124,7 +138,13 @@ public class PassPurchase {
         return (long) remainingCredits * unitPrice();
     }
 
+    public void claimToUser(Long userId) {
+        this.userId = userId;
+        this.guest = null;
+    }
+
     public Long getId() { return id; }
+    public Long getUserId() { return userId; }
     public Guest getGuest() { return guest; }
     public LocalDateTime getPurchasedAt() { return purchasedAt; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
