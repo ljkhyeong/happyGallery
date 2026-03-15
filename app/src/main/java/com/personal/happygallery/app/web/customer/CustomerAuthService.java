@@ -9,6 +9,7 @@ import com.personal.happygallery.infra.user.UserSessionRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.Optional;
@@ -26,10 +27,14 @@ public class CustomerAuthService {
     private final UserRepository userRepository;
     private final UserSessionRepository sessionRepository;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final Clock clock;
 
-    public CustomerAuthService(UserRepository userRepository, UserSessionRepository sessionRepository) {
+    public CustomerAuthService(UserRepository userRepository,
+                               UserSessionRepository sessionRepository,
+                               Clock clock) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
+        this.clock = clock;
     }
 
     @Transactional
@@ -50,7 +55,7 @@ public class CustomerAuthService {
                 .filter(u -> passwordEncoder.matches(rawPassword, u.getPasswordHash()))
                 .orElseThrow(() -> new HappyGalleryException(ErrorCode.INVALID_CREDENTIALS));
 
-        user.updateLastLoginAt(LocalDateTime.now());
+        user.updateLastLoginAt(LocalDateTime.now(clock));
 
         return createSession(user);
     }
@@ -66,14 +71,14 @@ public class CustomerAuthService {
     public Optional<User> validateSession(String rawToken) {
         String hash = hashToken(rawToken);
         return sessionRepository.findBySessionTokenHash(hash)
-                .filter(session -> !session.isExpired(LocalDateTime.now()))
+                .filter(session -> !session.isExpired(LocalDateTime.now(clock)))
                 .flatMap(session -> userRepository.findById(session.getUserId()));
     }
 
     private TokenResult createSession(User user) {
         String rawToken = UUID.randomUUID().toString();
         String hash = hashToken(rawToken);
-        LocalDateTime expiresAt = LocalDateTime.now().plusDays(SESSION_TTL_DAYS);
+        LocalDateTime expiresAt = LocalDateTime.now(clock).plusDays(SESSION_TTL_DAYS);
 
         UserSession session = new UserSession(user.getId(), hash, expiresAt);
         sessionRepository.save(session);

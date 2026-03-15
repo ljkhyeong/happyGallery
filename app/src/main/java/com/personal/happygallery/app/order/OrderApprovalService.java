@@ -12,14 +12,14 @@ import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
-import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
-import com.personal.happygallery.infra.product.ProductRepository;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -40,11 +40,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class OrderApprovalService {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderApprovalService.class);
+
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final InventoryService inventoryService;
     private final RefundExecutionService refundExecutionService;
-    private final ProductRepository productRepository;
     private final FulfillmentRepository fulfillmentRepository;
     private final OrderApprovalHistoryRepository orderApprovalHistoryRepository;
     private final NotificationService notificationService;
@@ -53,7 +55,6 @@ public class OrderApprovalService {
                                 OrderItemRepository orderItemRepository,
                                 InventoryService inventoryService,
                                 RefundExecutionService refundExecutionService,
-                                ProductRepository productRepository,
                                 FulfillmentRepository fulfillmentRepository,
                                 OrderApprovalHistoryRepository orderApprovalHistoryRepository,
                                 NotificationService notificationService) {
@@ -61,7 +62,6 @@ public class OrderApprovalService {
         this.orderItemRepository = orderItemRepository;
         this.inventoryService = inventoryService;
         this.refundExecutionService = refundExecutionService;
-        this.productRepository = productRepository;
         this.fulfillmentRepository = fulfillmentRepository;
         this.orderApprovalHistoryRepository = orderApprovalHistoryRepository;
         this.notificationService = notificationService;
@@ -106,19 +106,12 @@ public class OrderApprovalService {
         }
         orderApprovalHistoryRepository.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.APPROVE, adminId, null));
+        log.info("order approved [orderId={} adminId={} madeToOrder={}]", orderId, adminId, isMadeToOrder);
         return orderRepository.save(order);
     }
 
     private boolean isMadeToOrderOrder(Order order) {
-        List<OrderItem> items = orderItemRepository.findByOrder(order);
-        for (OrderItem item : items) {
-            Product product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new NotFoundException("상품"));
-            if (product.getType() == ProductType.MADE_TO_ORDER) {
-                return true;
-            }
-        }
-        return false;
+        return orderItemRepository.existsByOrderAndProductType(order, ProductType.MADE_TO_ORDER);
     }
 
     /**
@@ -158,6 +151,7 @@ public class OrderApprovalService {
         orderApprovalHistoryRepository.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT, adminId, null));
         notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+        log.info("order rejected [orderId={} adminId={}]", orderId, adminId);
 
         return orderRepository.save(order);
     }

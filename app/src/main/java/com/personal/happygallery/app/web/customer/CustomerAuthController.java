@@ -69,6 +69,8 @@ public class CustomerAuthController {
     private void addSessionCookie(HttpServletResponse response, String token) {
         Cookie cookie = new Cookie(COOKIE_NAME, token);
         cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setAttribute("SameSite", "Lax");
         cookie.setPath("/");
         cookie.setMaxAge(COOKIE_MAX_AGE);
         response.addCookie(cookie);
@@ -77,6 +79,8 @@ public class CustomerAuthController {
     private void clearSessionCookie(HttpServletResponse response) {
         Cookie cookie = new Cookie(COOKIE_NAME, "");
         cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setAttribute("SameSite", "Lax");
         cookie.setPath("/");
         cookie.setMaxAge(0);
         response.addCookie(cookie);

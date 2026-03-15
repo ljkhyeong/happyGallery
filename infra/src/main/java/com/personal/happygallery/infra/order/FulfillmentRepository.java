@@ -13,9 +13,8 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long> 
     Optional<Fulfillment> findByOrderId(Long orderId);
 
     /** 픽업 만료 배치용 조회: Order.status=PICKUP_READY AND pickupDeadlineAt &lt; now */
-    @Query("SELECT f FROM Fulfillment f, Order o "
-            + "WHERE f.orderId = o.id "
-            + "AND o.status = com.personal.happygallery.domain.order.OrderStatus.PICKUP_READY "
+    @Query("SELECT f FROM Fulfillment f JOIN Order o ON f.orderId = o.id "
+            + "WHERE o.status = com.personal.happygallery.domain.order.OrderStatus.PICKUP_READY "
             + "AND f.pickupDeadlineAt < :now")
     List<Fulfillment> findExpiredPickups(@Param("now") LocalDateTime now);
 }
