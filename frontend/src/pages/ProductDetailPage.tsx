@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Container, Card, Badge, Button, Form, Row, Col } from "react-bootstrap";
 import { fetchProduct } from "@/features/product/api";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { api } from "@/shared/api";
 import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
@@ -62,6 +63,9 @@ export function ProductDetailPage() {
   const totalAmount = product.price * qty;
   const canBuy = product.available && qty >= 1 && qty <= MAX_QTY;
   const guestFallbackPath = `/orders/new?productId=${productId}&qty=${qty}`;
+  const memberRedirectPath = `/products/${productId}`;
+  const loginHref = buildAuthPageHref("/login", { redirectTo: memberRedirectPath });
+  const signupHref = buildAuthPageHref("/signup", { redirectTo: memberRedirectPath });
 
   return (
     <Container className="page-container">
@@ -207,13 +211,13 @@ export function ProductDetailPage() {
                     size="lg"
                     className="w-100 mb-2"
                     disabled={!canBuy}
-                    onClick={() => navigate("/login", { state: { from: `/products/${productId}` } })}
+                    onClick={() => navigate(loginHref)}
                   >
                     로그인하고 구매하기
                   </Button>
                   <Button
                     as={Link as any}
-                    to="/signup"
+                    to={signupHref}
                     variant="outline-dark"
                     className="w-100 mb-2"
                   >

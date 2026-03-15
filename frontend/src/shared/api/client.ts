@@ -42,6 +42,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
+      credentials: 'include',
     });
   } finally {
     clearTimeout(timeoutId);

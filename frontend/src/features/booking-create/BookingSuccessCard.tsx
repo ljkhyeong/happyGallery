@@ -1,14 +1,16 @@
 import { Card, Alert } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { GuestClaimSuccessActions } from "@/features/customer-claim/GuestClaimSuccessActions";
 import { StatusBadge } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import type { BookingResponse } from "@/shared/types";
 
 interface Props {
   booking: BookingResponse;
+  guestPhone?: string;
+  guestName?: string;
 }
 
-export function BookingSuccessCard({ booking }: Props) {
+export function BookingSuccessCard({ booking, guestPhone, guestName }: Props) {
   return (
     <div>
       <Alert variant="success" className="mb-3">
@@ -39,9 +41,13 @@ export function BookingSuccessCard({ booking }: Props) {
           </Alert>
         </Card.Body>
         <Card.Footer>
-          <Link to="/guest/bookings" className="text-decoration-none small">
-            예약 조회 페이지로 이동 &rarr;
-          </Link>
+          <GuestClaimSuccessActions
+            primaryTo="/guest/bookings"
+            primaryLabel="비회원 예약 조회"
+            guestPhone={guestPhone}
+            guestName={guestName}
+            helperText="같은 휴대폰 번호로 회원가입하거나 로그인하면 `/my`에서 기존 비회원 예약을 바로 가져올 수 있습니다."
+          />
         </Card.Footer>
       </Card>
     </div>

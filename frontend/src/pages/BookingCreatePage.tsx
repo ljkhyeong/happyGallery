@@ -36,6 +36,8 @@ export function BookingCreatePage() {
   const [showGate, setShowGate] = useState(false);
   const [result, setResult] = useState<BookingResponse | null>(null);
   const [memberResult, setMemberResult] = useState<MemberBookingResponse | null>(null);
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestName, setGuestName] = useState("");
 
   const guestMutation = useMutation({
     mutationFn: (guestInfo: { phone: string; verificationCode: string; name: string }) => {
@@ -88,11 +90,11 @@ export function BookingCreatePage() {
 
   if (result) {
     return (
-      <Container className="page-container" style={{ maxWidth: 640 }}>
-        <h4 className="mb-4">예약 완료</h4>
-        <BookingSuccessCard booking={result} />
-      </Container>
-    );
+        <Container className="page-container" style={{ maxWidth: 640 }}>
+          <h4 className="mb-4">예약 완료</h4>
+        <BookingSuccessCard booking={result} guestPhone={guestPhone} guestName={guestName} />
+        </Container>
+      );
   }
 
   if (memberResult) {
@@ -211,7 +213,11 @@ export function BookingCreatePage() {
         show={showGate}
         onClose={() => setShowGate(false)}
         onMemberConfirm={() => memberMutation.mutate()}
-        onGuestConfirm={(info) => guestMutation.mutate(info)}
+        onGuestConfirm={(info) => {
+          setGuestPhone(info.phone);
+          setGuestName(info.name);
+          guestMutation.mutate(info);
+        }}
       />
     </Container>
   );

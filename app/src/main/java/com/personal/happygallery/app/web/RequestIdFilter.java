@@ -38,7 +38,7 @@ public class RequestIdFilter implements Filter {
 
         MDC.put("requestId", requestId);
         httpServletResponse.setHeader(REQUEST_ID_HEADER, requestId);
-        log.info("{} {}", httpServletRequest.getMethod(), httpServletRequest.getRequestURI());
+        log.debug("{} {}", httpServletRequest.getMethod(), httpServletRequest.getRequestURI());
 
         try {
             chain.doFilter(request, response);

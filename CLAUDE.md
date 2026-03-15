@@ -2,28 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Commands
-
-```bash
-# 빌드
-./gradlew build
-
-# 앱 실행 (local 프로필)
-./gradlew :app:bootRun
-
-# 전체 테스트
-./gradlew test
-
-# 단일 테스트 클래스
-./gradlew :app:test --tests "com.personal.happygallery.SomeTest"
-
-# DB 기동 (MySQL 8, docker-compose) — .env 파일 필요
-docker compose up -d
-
-# Health 확인
-curl http://localhost:8080/actuator/health
-```
-
 ## Architecture
 
 멀티모듈 Gradle 프로젝트 (Spring Boot 4.0.2 / Java 21). 모듈 구조·레이어링 규칙은 `happygallery-spring-backend` 스킬 참조.

@@ -42,8 +42,11 @@
 - `/login`
 - `/signup`
 - `/my`
+- `/my/orders`
 - `/my/orders/:id`
+- `/my/bookings`
 - `/my/bookings/:id`
+- `/my/passes`
 
 회원 API:
 - `POST /api/v1/auth/signup`
@@ -66,15 +69,14 @@
 - `/orders/new`
 - `/guest/orders`
 - `/guest/bookings`
-- `/orders/detail` -> `/guest/orders`
-- `/bookings/manage` -> `/guest/bookings`
 - `/passes/purchase`
 - `/bookings/new`
 
 운영 메모:
 - `/bookings/new`, `/passes/purchase`, `/products/:id` 는 제출 직전 인증 게이트를 사용한다.
-- `/orders/new` 는 legacy guest 주문 생성 fallback을 유지하고, `/orders/detail`, `/bookings/manage` 는 `/guest/**` redirect alias다.
+- `/orders/new` 는 legacy guest 주문 생성 fallback을 유지하고, guest 조회는 `/guest/**` canonical route만 사용한다.
 - 회원 예약 변경/취소와 guest claim UI는 `/my` 기준으로 구현 완료 상태다.
+- guest 성공 화면의 회원가입/로그인 CTA는 `/my?claim=1` 로 이어지고, `/my`는 claim 모달을 자동으로 연다.
 
 ---
 
@@ -83,10 +85,10 @@
 | 영역 | 현재 유지 경로 | 목표 상태 | U6 판단 |
 |------|----------------|-----------|---------|
 | 회원 진입 | `/login`, `/signup`, `/my` | 유지 | 유지 |
-| 회원 주문 조회 | `/my`, `/my/orders/:id` | 유지 | 유지 |
-| 회원 예약/8회권 조회 | `/my`, `/my/bookings/:id` | 유지 | 유지 |
-| guest 주문 조회 | `/guest/orders` | 유지 | `/orders/detail` redirect alias 병행 |
-| guest 예약 조회 | `/guest/bookings` | 유지 | `/bookings/manage` redirect alias 병행 |
+| 회원 주문 조회 | `/my`, `/my/orders`, `/my/orders/:id` | 유지 | 유지 |
+| 회원 예약/8회권 조회 | `/my`, `/my/bookings`, `/my/bookings/:id`, `/my/passes` | 유지 | 유지 |
+| guest 주문 조회 | `/guest/orders` | 유지 | canonical route만 유지 |
+| guest 예약 조회 | `/guest/bookings` | 유지 | canonical route만 유지 |
 | guest 주문 생성 | `/orders/new` | 상품 상세 fallback 또는 `/guest/orders/new` | 유지 |
 | guest 예약/8회권 생성 | `/bookings/new`, `/passes/purchase` | 유지 | 인증 게이트 적용 완료 |
 | 회원 API | `/api/v1/me/**` | 유지 | 기준 API로 사용 |
@@ -118,9 +120,10 @@
 6. 회원 가입 → 상품 상세 주문 → 내 주문 상세
 7. 회원 가입 → 8회권 구매 → 회원 예약 생성 → 내 정보 확인
 8. guest 주문·8회권·예약 생성 → 같은 번호의 회원이 `/my`에서 claim
+9. guest 주문 성공 → 회원가입 → `/my` claim 모달 자동 진입
 
 문서만 있고 아직 브라우저 자동화가 없는 항목:
-- 레거시 `/orders/detail`, `/bookings/manage`의 `/guest/**` 이관
+- 없음
 
 ---
 
@@ -142,6 +145,8 @@
 - `/api/v1/me/guest-claims/{preview,verify,claim}`
 - `/my` 의 `비회원 이력 가져오기` 모달
 - Playwright `P8-8` guest claim smoke
+- Playwright `P8-9` guest 성공 화면 → 회원가입 → claim 모달 자동 진입 smoke
+- 로그인/회원가입 페이지의 `redirect`/`claim`/회원가입 prefill(`name`/`phone`) 컨텍스트 유지
 
 ---
 
@@ -156,12 +161,12 @@
 
 ## 10. Rollout 체크리스트
 
-1. local/dev에서 회원/비회원 smoke 1~8을 먼저 통과시킨다.
-2. 운영 문서에 legacy guest 경로 유지 범위를 명시한다.
+1. local/dev에서 회원/비회원 smoke 1~9를 먼저 통과시킨다.
+2. 운영 문서에 `/guest/**` canonical route 유지 범위를 명시한다.
 3. `/api/v1/me/**` 는 HttpOnly 세션 기준으로만 열고, guest token 조회와 혼용하지 않는다.
 4. guest claim API가 있어도 “회원가입해도 기존 비회원 이력은 자동 연결되지 않음”을 운영 공지에 포함한다.
-5. member route 장애 시 legacy guest 조회(`/orders/detail`, `/bookings/manage`)는 즉시 fallback 경로로 유지한다.
-6. `/guest/**` UI 이관은 member route 안정화 후 별도 배포 단위로 분리한다.
+5. member route 장애 시 guest 조회는 `/guest/orders`, `/guest/bookings` canonical route로 안내한다.
+6. `/guest/**` route 변경은 member route 안정화 후 별도 배포 단위로 분리한다.
 
 ---
 

@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Container } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { api } from "@/shared/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
@@ -28,9 +29,11 @@ export function MyOrderDetailPage() {
 
   if (!isAuthenticated) {
     return (
-      <Container className="page-container text-center" style={{ maxWidth: 480 }}>
-        <h5 className="mb-3">로그인이 필요합니다</h5>
-        <Button as={Link as any} to="/login" variant="primary">로그인</Button>
+      <Container className="page-container" style={{ maxWidth: 640 }}>
+        <MyAuthGateCard
+          title="로그인이 필요합니다"
+          description="회원 주문 상세는 로그인 후 내 정보에서 바로 확인할 수 있습니다."
+        />
       </Container>
     );
   }
@@ -39,9 +42,21 @@ export function MyOrderDetailPage() {
 
   return (
     <Container className="page-container" style={{ maxWidth: 640 }}>
-      <Link to="/my" className="text-decoration-none small d-block mb-3">
-        &larr; 내 정보
-      </Link>
+      <div className="my-detail-header">
+        <div className="d-flex flex-wrap justify-content-between gap-2 align-items-start mb-3">
+          <Link to="/my/orders" className="text-decoration-none small">
+            &larr; 내 주문
+          </Link>
+          <Button as={Link as any} to="/products" variant="outline-secondary" size="sm">
+            스토어 둘러보기
+          </Button>
+        </div>
+        <div className="my-section-kicker mb-2">My Order</div>
+        <h4 className="mb-2">주문 상세</h4>
+        <p className="text-muted-soft small mb-0">
+          현재 주문 상태와 이행 정보를 확인할 수 있습니다.
+        </p>
+      </div>
       <OrderDetailCard order={order} />
     </Container>
   );

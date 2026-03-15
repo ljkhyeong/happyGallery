@@ -40,6 +40,10 @@ const LABEL_MAP: Record<string, string> = {
   DELIVERED: "배송 완료",
 };
 
+export function getStatusLabel(status: string) {
+  return LABEL_MAP[status] ?? status;
+}
+
 interface Props {
   status: string;
 }
@@ -47,7 +51,7 @@ interface Props {
 export function StatusBadge({ status }: Props) {
   return (
     <Badge bg={VARIANT_MAP[status] ?? "secondary"} className="badge-status">
-      {LABEL_MAP[status] ?? status}
+      {getStatusLabel(status)}
     </Badge>
   );
 }
