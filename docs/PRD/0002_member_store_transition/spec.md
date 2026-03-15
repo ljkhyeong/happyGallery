@@ -4,8 +4,8 @@
 상태:
 - U1 구현 완료 (고객 인증 기반)
 - U2, U3, U4 구현 완료
-- U5 구현 완료 (회원 `/api/v1/me/**`, `/my`, guest claim preview/verify/claim, 회원 예약 상세/변경·취소, `/guest/**` canonical route)
-- U6 2차 완료 (rollout 기준 정리, Playwright smoke 1~8 통과, guest claim browser automation 반영)
+- U5 구현 완료 (회원 `/api/v1/me/**`, `/my`, `/my/orders`, `/my/bookings`, `/my/passes`, guest claim preview/verify/claim, 회원 예약 상세/변경·취소, `/guest/**` canonical route)
+- U6 3차 완료 (rollout 기준 정리, Playwright smoke 1~9 통과, guest claim browser automation 및 success-onboarding 반영)
 - 현재 구현 기준 문서는 `docs/PRD/0001_spec/spec.md`
 - 이 문서는 "차기 회원 스토어 전환" 요구사항을 다른 에이전트가 병렬 구현하기 위한 목표 문서다
 
@@ -93,8 +93,11 @@
 - `/login`
 - `/signup`
 - `/my`
+- `/my/orders`
 - `/my/orders/:id`
+- `/my/bookings`
 - `/my/bookings/:id`
+- `/my/passes`
 
 ### 4.3 회원 API 경로
 
@@ -108,12 +111,10 @@
   - `/orders/new` (`productId`, `qty` query prefill 지원)
   - `/guest/orders`
   - `/guest/bookings`
-  - `/orders/detail` -> `/guest/orders`
-  - `/bookings/manage` -> `/guest/bookings`
 
 레거시 경로:
 - `/orders/new` 는 guest 주문 생성 fallback으로 유지한다.
-- `/orders/detail`, `/bookings/manage` 는 구현 전환 과정에서 redirect alias로 유지할 수 있으나, 최종적으로는 제거 여부를 별도 판단한다.
+- guest 조회 경로는 `/guest/orders`, `/guest/bookings` canonical route만 유지한다.
 
 ---
 
@@ -151,8 +152,11 @@
 ### 5.5 조회 화면
 
 - 회원은 `내 주문`, `내 예약`, `내 8회권`에서 조회한다.
+- 전체 목록은 `/my/orders`, `/my/bookings`, `/my/passes`에서 나눠 보고, 검색/상태 필터로 좁힐 수 있다.
 - 회원 예약 상세 화면에서 변경/취소를 직접 수행한다.
 - 비회원은 비회원 전용 조회 화면에서만 조회한다.
+- guest 주문/예약/8회권 성공 화면은 회원가입/로그인 후 `/my` claim 으로 이어지는 CTA를 제공한다.
+- 로그인/회원가입 페이지는 `redirect`, `claim`, 회원가입 prefill(`name`, `phone`) 문맥을 유지해 회원 전환 흐름을 끊지 않는다.
 
 ---
 
@@ -264,14 +268,15 @@
 
 ### 9.2 레거시 경로 유지
 
-- `/orders/detail`, `/bookings/manage` 는 현재 `/guest/**` 로 redirect하며 호환성 경로로 유지한다.
-- redirect alias 제거 시점은 별도 배포 단위로 분리한다.
+- guest 조회 UI는 `/guest/orders`, `/guest/bookings` canonical route만 사용한다.
+- guest canonical route 변경은 별도 배포 단위로 분리한다.
 
 ### 9.3 E2E 기준
 
 - guest/admin 기존 smoke 1~5 유지 + member storefront smoke 6~7 추가
 - `P8-7`은 회원 8회권 구매, 회원 예약 생성, `/my/bookings/:id` 예약 상세, 변경/취소까지 포함한다
 - `P8-8`은 guest 주문·8회권·예약 생성 후 같은 번호의 회원이 `/my`에서 재인증과 선택 claim을 수행하는 흐름을 포함한다
+- `P8-9`는 guest 주문 성공 화면에서 회원가입 후 `/my` claim 모달 자동 진입을 포함한다
 
 ---
 
