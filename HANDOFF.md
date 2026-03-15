@@ -17,6 +17,8 @@
 - 후속 폴리시 계획: `docs/1Pager/0004_polish_plan/plan.md`
 - 코드리뷰 후속 계획: `docs/1Pager/0006_code_review_followups/plan.md`
 - 회원 스토어 전환 계획: `docs/1Pager/0007_member_store_transition/plan.md`
+- 관측성 스택 고도화 계획: `docs/1Pager/0009_observability_stack_upgrade/plan.md`
+- 헥사고날 전환 계획: `docs/1Pager/0010_hexagonal_architecture_transition/plan.md`
 - 회원 스토어 차기 PRD 초안: `docs/PRD/0002_member_store_transition/spec.md`
 - 기준 확인 순서: `HANDOFF.md -> docs/PRD/0001_spec/spec.md -> docs/ADR/*`
 
@@ -26,6 +28,11 @@
 
 - 권장 작업 브랜치: `codex/work-20260315-015031`
 - 최근 작업:
+  - 헥사고날 전환 pilot 1차 진행 — customer auth / guest claim / admin session / booking / order / payment / notification / product 경계에 `port/in`, `port/out`, `*PortAdapter`를 도입하고, 기존 애플리케이션 서비스가 `infra` 구현 대신 애플리케이션 포트를 의존하도록 정리
+  - 운영 모니터링 1차 구현 완료 — 프론트 주요 guest/member 전환 지점에서 `/api/v1/monitoring/client-events` 로 fire-and-forget 이벤트를 보내고, 서버는 requestId가 붙은 `[client-monitoring]` 로그로 `/guest` 허브 유입, `/orders/new` direct continue, guest→member CTA, claim 완료를 추적하도록 정리
+  - `/orders/new` direct fallback gate 추가 — 상품 상세에서 prefill로 내려온 경우는 바로 진행하고, query 없이 직접 진입한 `/orders/new`는 “보조 경로” 안내 후 명시적으로 계속해야 수동 비회원 다중 상품 주문을 진행하도록 정리
+  - guest lookup 허브 추가 완료 — `/guest` 진입 페이지를 추가하고, 상단 utility bar와 홈은 direct guest lookup 대신 `/guest` 허브를 우선 노출하도록 정리
+  - guest route 운영 카피 정리 완료 — `/guest/orders`, `/guest/bookings`, 홈 lookup 패널, guest 성공 CTA에서 guest 경로를 “조회용 보조 경로”로 명확히 표시하고, 로그인/회원가입 후 `/my` claim으로 이어지는 전환 문구를 강화
   - 로그인 직후 회원 상태 전역 동기화 완료 — `CustomerAuthProvider`를 도입해 로그인/회원가입 후 상단 네비가 새로고침 없이 즉시 `로그아웃` 상태로 반영되도록 정리하고, `P8-9`에 즉시 상태 전환 검증 추가
   - `/my` 목록 고도화 완료 — `/my/orders`, `/my/bookings`, `/my/passes`에 quick status tab, 정렬, 요약 chip을 추가해 회원 이력 탐색 흐름을 한 단계 정리
   - 회원 온보딩 polish 완료 — 로그인/회원가입 페이지를 storefront/member 문맥에 맞는 2열 레이아웃으로 정리하고, `redirect`·`claim`·회원가입 prefill(`name`/`phone`) 컨텍스트를 로그인/회원가입 전환 링크에도 유지, `/my?claim=1` 진입 뒤 모달을 닫아도 후속 claim 안내 카드가 남도록 보강
@@ -111,9 +118,10 @@
 - `/my/passes` — 회원 8회권 전체 목록
 - `/bookings/new` — 예약 생성 (member/guest 제출 직전 auth gate)
 - `/passes/purchase` — 8회권 구매 (member/guest 제출 직전 auth gate)
+- `/guest` — 비회원 조회 안내 허브
 - `/guest/orders` — 비회원 주문 조회
 - `/guest/bookings` — 비회원 예약 조회/변경/취소
-- `/orders/new` — legacy guest 주문 생성 fallback (`productId`, `qty` prefill 지원)
+- `/orders/new` — legacy guest 주문 생성 fallback (`productId`, `qty` prefill 지원, direct entry는 수동 fallback gate 후 진행)
 - `/admin` — 관리자 (사용자명/비밀번호 로그인, Bearer 토큰 인증)
 
 ---
@@ -149,9 +157,9 @@
 
 ### 다음 추천 작업
 
-1. 운영 배포 판단 — `/guest/**` canonical route 유지 기간과 guest fallback 제거 순서 정리
-2. `/my` 운영 피드백 반영 — 현재 quick tab/정렬 구성이 충분한지 보고 상태 탭 세분화나 기본 정렬 정책을 조정할지 판단
-3. 회원 전환 운영 카피 점검 — claim 안내 문구와 guest 조회 잔존 정책을 실제 사용자 문의 기준으로 다듬을지 판단
+1. 관측성 스택 고도화 — `docs/1Pager/0009_observability_stack_upgrade/plan.md` 기준으로 Prometheus/Grafana/Sentry와 product funnel metric을 정식 운영 경로로 승격
+2. 운영 리뷰 — member route 안정화 후 2~4주 동안 `[client-monitoring]` 로그 또는 후속 metric의 `/guest` 허브 유입, `/orders/new` direct continue, guest → member CTA, claim 완료, 문의 유형을 보고 direct guest fallback 축소 여부를 결정
+3. `/my` 운영 피드백 반영 — 현재 quick tab/정렬 구성이 충분한지 보고 상태 탭 세분화나 기본 정렬 정책을 조정할지 판단
 
 ---
 
@@ -189,14 +197,16 @@
 - 회원가입 전화번호는 프론트에서 숫자만 정규화해 전송하고, guest claim은 회원 전화번호의 하이픈/숫자-only 포맷 차이를 모두 허용한다.
 - Layout에서 `useCustomerAuth()`로 로그인 상태에 따라 "로그인"/"사용자명+로그아웃" 표시
 - `/products/:id`, `/bookings/new`, `/passes/purchase` 는 회원이면 세션 기준으로 바로 제출하고, 비회원이면 제출 직전에 auth gate를 연다.
-- 상품 상세의 `비회원 주문하기`는 `/orders/new?productId=&qty=` 로 이동해 선택 상품과 수량을 legacy guest fallback에 미리 담아둔다.
+- 상품 상세의 `비회원 주문하기`는 `/orders/new?productId=&qty=` 로 이동해 선택 상품과 수량을 legacy guest fallback에 미리 담아둔다. query 없이 직접 진입한 `/orders/new`는 수동 fallback gate를 먼저 거친다.
 - `/my` 에서 `비회원 이력 가져오기` 모달을 열면, `phoneVerified=false` 회원은 같은 번호로 재인증 후 preview를 보고 주문/예약/8회권을 선택 claim 할 수 있다.
 - guest 주문/예약/8회권 성공 화면의 회원가입/로그인 CTA는 `redirect=/my?claim=1` 로 이어지고, `/my`는 이 쿼리로 claim 모달을 자동으로 연다.
 - 로그인/회원가입 페이지는 `redirect`와 `claim` 문맥을 유지하고, 회원가입은 guest 성공 화면에서 넘어온 `name`/`phone` prefill도 이어받는다.
 - `/my?claim=1` 로 진입한 뒤 자동 오픈된 claim 모달을 닫아도, 대시보드의 claim 카드에서 후속 안내와 재진입 버튼을 계속 노출한다.
 - `/my/bookings/:id` 는 회원 예약 상세/변경/취소 화면이며, 비회원 조회는 `/guest/bookings` 로 분리한다.
 - `/my/orders`, `/my/bookings`, `/my/passes` 는 검색, 상태 필터, quick tab, 정렬을 제공한다.
-- `/guest/orders`, `/guest/bookings` 가 canonical guest 조회 경로다.
+- `/guest` 를 비회원 조회 entry route로 노출하고, `/guest/orders`, `/guest/bookings` 는 canonical guest 조회 경로이자 생성 후 확인용 보조 경로로 유지한다.
+- 현재 운영 권장안은 `/guest` 허브와 `/guest/orders`, `/guest/bookings`, `/orders/new` direct gate를 그대로 유지한 채 member route 안정화 이후 2~4주 동안 사용량과 문의 유형을 관찰한 뒤 direct guest fallback 축소 여부를 결정하는 것이다.
+- `/api/v1/monitoring/client-events` 는 guest/member 주요 전환 이벤트를 requestId가 포함된 `[client-monitoring]` 로그로 남긴다. 현재 수집 범위는 `/guest` 허브 진입, `/orders/new` direct continue, guest 성공/조회 화면의 회원 전환 CTA, `/my` claim 모달 오픈, guest claim 완료다.
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
 - 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
 - Playwright smoke는 관리자 Bearer 토큰과 고객 `HG_SESSION` 쿠키를 backend API로 bootstrap해 로그인 rate limit과 UI 초기화 타이밍 영향을 줄였다.
@@ -259,3 +269,10 @@ cd frontend && npm run e2e
 | ADR-0012 | 상품/재고 구현 결정 (§8.1) |
 | ADR-0013 | 주문 승인 모델 결정 (§8.2) |
 | ADR-0014 | 예약 제작 주문 구현 결정 (§8.3) |
+| ADR-0015 | 운영 로그 구조화 및 비즈니스 예외 스택 최적화 |
+| ADR-0016 | API URI 버저닝 전략 도입 |
+| ADR-0017 | 필터 기반 API 처리율 제한 도입 |
+| ADR-0018 | 환불 이력 저장 트랜잭션 분리(REQUIRES_NEW) |
+| ADR-0019 | 비밀번호 해시 정책 (Salt + Key Stretching) |
+| ADR-0020 | 결제 환불 외부 호출 보호를 위한 CircuitBreaker 도입 |
+| ADR-0021 | 기존 app/domain/infra 구조 위에서 점진적 헥사고날 전환 채택 |

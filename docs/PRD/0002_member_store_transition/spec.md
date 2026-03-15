@@ -108,13 +108,14 @@
 ### 4.4 비회원 경로
 
 - 현재 구현:
-  - `/orders/new` (`productId`, `qty` query prefill 지원)
+  - `/guest`
+  - `/orders/new` (`productId`, `qty` query prefill 지원, direct entry는 수동 fallback gate)
   - `/guest/orders`
   - `/guest/bookings`
 
 레거시 경로:
-- `/orders/new` 는 guest 주문 생성 fallback으로 유지한다.
-- guest 조회 경로는 `/guest/orders`, `/guest/bookings` canonical route만 유지한다.
+- `/orders/new` 는 guest 주문 생성 fallback으로 유지한다. 다만 direct entry는 수동 fallback gate 뒤에만 허용하고, 권장 경로는 상품 상세 prefill 진입이다.
+- guest 진입은 `/guest` 허브를 우선 사용하고, 조회 경로는 `/guest/orders`, `/guest/bookings` canonical route만 유지한다.
 
 ---
 
@@ -155,6 +156,7 @@
 - 전체 목록은 `/my/orders`, `/my/bookings`, `/my/passes`에서 나눠 보고, 검색/상태 필터/quick tab/정렬로 좁힐 수 있다.
 - 회원 예약 상세 화면에서 변경/취소를 직접 수행한다.
 - 비회원은 비회원 전용 조회 화면에서만 조회한다.
+- 비회원 전용 조회 화면은 생성 후 확인용 보조 경로로 안내하고, 지속 관리 경로는 회원 `/my`로 유도한다.
 - guest 주문/예약/8회권 성공 화면은 회원가입/로그인 후 `/my` claim 으로 이어지는 CTA를 제공한다.
 - 로그인/회원가입 페이지는 `redirect`, `claim`, 회원가입 prefill(`name`, `phone`) 문맥을 유지해 회원 전환 흐름을 끊지 않는다.
 
@@ -268,7 +270,11 @@
 
 ### 9.2 레거시 경로 유지
 
+- public guest entry는 `/guest` 허브를 사용한다.
 - guest 조회 UI는 `/guest/orders`, `/guest/bookings` canonical route만 사용한다.
+- `/orders/new` direct entry는 상품 상세 prefill 경로와 분리된 gated fallback으로 유지한다.
+- 운영 모니터링은 `/api/v1/monitoring/client-events` 와 `[client-monitoring]` 로그를 기준으로 하고, 현재 지표는 `/guest` 허브 유입, `/orders/new` direct continue, guest → member CTA, claim 완료, 문의 유형이다.
+- member route 안정화 이후 2~4주 동안 위 지표를 보고 direct guest fallback 축소 여부를 재판단한다.
 - guest canonical route 변경은 별도 배포 단위로 분리한다.
 
 ### 9.3 E2E 기준

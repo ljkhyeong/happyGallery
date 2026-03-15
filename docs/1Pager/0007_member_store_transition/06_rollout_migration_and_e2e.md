@@ -35,6 +35,9 @@
 - 권장 연결 방식:
   - 로그인한 회원이 휴대폰 인증을 통과한 뒤 guest 이력을 선택적으로 claim
 - 레거시 guest 링크/토큰은 기존 TTL 정책을 유지한다.
+- public guest entry는 `/guest` 허브만 노출하고, `/guest/orders`, `/guest/bookings` 는 canonical lookup route로 유지한다.
+- `/orders/new` direct entry는 당장은 닫지 않고 명시적 continue가 필요한 gated fallback으로 유지한다.
+- member route 안정화 이후 2~4주 동안 guest route 사용량과 문의 유형을 보고 direct guest fallback 축소 여부를 결정한다.
 
 ## 4. 현재 구현 스냅샷
 
@@ -64,8 +67,10 @@
 - `GET /api/v1/me/guest-claims/preview`
 - `POST /api/v1/me/guest-claims/verify`
 - `POST /api/v1/me/guest-claims`
+- `POST /api/v1/monitoring/client-events`
 
 레거시 guest UI:
+- `/guest`
 - `/orders/new`
 - `/guest/orders`
 - `/guest/bookings`
@@ -74,9 +79,11 @@
 
 운영 메모:
 - `/bookings/new`, `/passes/purchase`, `/products/:id` 는 제출 직전 인증 게이트를 사용한다.
-- `/orders/new` 는 legacy guest 주문 생성 fallback을 유지하고, guest 조회는 `/guest/**` canonical route만 사용한다.
+- `/guest` 를 guest 조회 허브로 노출하고, `/orders/new` 는 legacy guest 주문 생성 fallback을 유지하되 direct entry는 수동 fallback gate를 먼저 노출한다. guest 조회는 `/guest/orders`, `/guest/bookings` canonical route만 사용한다.
 - 회원 예약 변경/취소와 guest claim UI는 `/my` 기준으로 구현 완료 상태다.
 - guest 성공 화면의 회원가입/로그인 CTA는 `/my?claim=1` 로 이어지고, `/my`는 claim 모달을 자동으로 연다.
+- 현재 운영 권장안은 위 route 구성을 바로 더 줄이지 않고 2~4주 동안 관측한 뒤 `/orders/new` direct fallback 축소 여부를 판단하는 것이다.
+- 운영 모니터링은 `/api/v1/monitoring/client-events` + `[client-monitoring]` 로그로 남기고, 현재 수집 이벤트는 `/guest` 허브 진입, `/orders/new` direct continue, guest 성공/조회 화면의 회원 전환 CTA, `/my` claim 모달 오픈, claim 완료다.
 
 ---
 
@@ -87,9 +94,10 @@
 | 회원 진입 | `/login`, `/signup`, `/my` | 유지 | 유지 |
 | 회원 주문 조회 | `/my`, `/my/orders`, `/my/orders/:id` | 유지 | 유지 |
 | 회원 예약/8회권 조회 | `/my`, `/my/bookings`, `/my/bookings/:id`, `/my/passes` | 유지 | 유지 |
+| guest 조회 진입 | `/guest` | 유지 | guest entry route로 유지 |
 | guest 주문 조회 | `/guest/orders` | 유지 | canonical route만 유지 |
 | guest 예약 조회 | `/guest/bookings` | 유지 | canonical route만 유지 |
-| guest 주문 생성 | `/orders/new` | 상품 상세 fallback 또는 `/guest/orders/new` | 유지 |
+| guest 주문 생성 | `/orders/new` | 상품 상세 fallback 또는 `/guest/orders/new` | 유지, direct entry는 명시적 continue 후 진행 |
 | guest 예약/8회권 생성 | `/bookings/new`, `/passes/purchase` | 유지 | 인증 게이트 적용 완료 |
 | 회원 API | `/api/v1/me/**` | 유지 | 기준 API로 사용 |
 | guest 조회 API | token 기반 `/api/v1/orders/*`, `/api/v1/bookings/*` | 유지 | TTL 정책 유지 |
@@ -166,7 +174,8 @@
 3. `/api/v1/me/**` 는 HttpOnly 세션 기준으로만 열고, guest token 조회와 혼용하지 않는다.
 4. guest claim API가 있어도 “회원가입해도 기존 비회원 이력은 자동 연결되지 않음”을 운영 공지에 포함한다.
 5. member route 장애 시 guest 조회는 `/guest/orders`, `/guest/bookings` canonical route로 안내한다.
-6. `/guest/**` route 변경은 member route 안정화 후 별도 배포 단위로 분리한다.
+6. member route 안정화 후 2~4주 동안 `[client-monitoring]` 로그에서 `/guest` 허브 유입, `/orders/new` direct continue, guest → member CTA, claim 완료, 문의 유형을 추적한다.
+7. `/guest/**` route 변경이나 `/orders/new` direct fallback 축소는 위 지표 리뷰 후 별도 배포 단위로 분리한다.
 
 ---
 
