@@ -263,6 +263,26 @@
     var(--hg-surface);
 }
 
+.lookup-panel-note,
+.guest-route-note,
+.guest-claim-actions-note {
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: rgba(#fff, 0.84);
+  border: 1px dashed rgba($primary, 0.3);
+  color: $dark;
+  font-size: 0.87rem;
+}
+
+.guest-route-note-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $primary;
+  margin-bottom: 0.35rem;
+}
+
 .product-card {
   color: $body-color;
   border: 1px solid rgba($dark, 0.09);

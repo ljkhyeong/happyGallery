@@ -3,6 +3,8 @@ import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Form, Button, Row, Col, Badge } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { fetchOrder } from "@/features/order/api";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { ErrorAlert } from "@/shared/ui";
 import type { OrderDetailResponse } from "@/shared/types";
@@ -23,6 +25,14 @@ export function OrderDetailPage() {
       lookup.mutate({ id: Number(orderId), t: token.trim() });
     }
   }, [orderId, token, lookup]);
+  const claimLoginHref = buildAuthPageHref("/login", {
+    redirectTo: "/my?claim=1",
+    claim: true,
+  });
+  const claimSignupHref = buildAuthPageHref("/signup", {
+    redirectTo: "/my?claim=1",
+    claim: true,
+  });
 
   return (
     <Container className="page-container" style={{ maxWidth: 640 }}>
@@ -31,19 +41,40 @@ export function OrderDetailPage() {
           <Badge bg="light" text="dark" className="mb-2">Guest Lookup</Badge>
           <h4 className="mb-2">비회원 주문 조회</h4>
           <p className="text-muted-soft mb-3">
-            주문 완료 후 받은 주문 ID와 access token으로 주문 상태를 확인합니다.
-            회원은 <strong>내 정보</strong>에서 추가 인증 없이 주문을 바로 볼 수 있습니다.
+            이 경로는 이미 완료한 비회원 주문을 확인하는 보조 조회 경로입니다.
+            주문을 계속 관리할 계획이면 회원으로 전환해 <strong>내 정보</strong>에서 바로 확인하는 흐름을 권장합니다.
           </p>
           <div className="d-flex flex-wrap gap-2">
             <Button as={Link as any} to="/my" variant="dark" size="sm">
               회원 내 정보
             </Button>
-            <Button as={Link as any} to="/signup" variant="outline-secondary" size="sm">
+            <Button
+              as={Link as any}
+              to={claimLoginHref}
+              variant="outline-secondary"
+              size="sm"
+              onClick={() => trackGuestMemberCta("guest_order_lookup", "login")}
+            >
+              로그인하고 가져오기
+            </Button>
+            <Button
+              as={Link as any}
+              to={claimSignupHref}
+              variant="outline-secondary"
+              size="sm"
+              onClick={() => trackGuestMemberCta("guest_order_lookup", "signup")}
+            >
               회원가입
             </Button>
             <Button as={Link as any} to="/products" variant="outline-secondary" size="sm">
               상품 보러가기
             </Button>
+          </div>
+          <div className="guest-route-note mt-3">
+            <div className="guest-route-note-title">Guest route policy</div>
+            <div className="small text-muted-soft">
+              비회원 주문은 토큰으로 조회하고, 회원 전환 후에는 같은 번호 기준으로 `/my`에서 이력을 가져와 계속 관리할 수 있습니다.
+            </div>
           </div>
         </Card.Body>
       </Card>

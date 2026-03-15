@@ -17,6 +17,7 @@ import { MyPage } from "@/pages/MyPage";
 import { MyOrdersPage } from "@/pages/MyOrdersPage";
 import { MyBookingsPage } from "@/pages/MyBookingsPage";
 import { MyPassesPage } from "@/pages/MyPassesPage";
+import { GuestLookupPage } from "@/pages/GuestLookupPage";
 import { MyBookingDetailPage } from "@/pages/MyBookingDetailPage";
 import { MyOrderDetailPage } from "@/pages/MyOrderDetailPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -35,6 +36,7 @@ export function App() {
                 <Route path="/products" element={<ProductListPage />} />
                 <Route path="/products/:id" element={<ProductDetailPage />} />
                 <Route path="/bookings/new" element={<BookingCreatePage />} />
+                <Route path="/guest" element={<GuestLookupPage />} />
                 <Route path="/guest/bookings" element={<BookingManagePage />} />
                 <Route path="/passes/purchase" element={<PassPurchasePage />} />
                 <Route path="/orders/new" element={<OrderCreatePage />} />

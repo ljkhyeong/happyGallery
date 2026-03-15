@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Button, Form, Badge, Alert } from "react-bootstrap";
 import { Link, useSearchParams } from "react-router-dom";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
+import { trackClientEvent } from "@/features/monitoring/api";
 import { OrderItemsForm } from "@/features/order/OrderItemsForm";
 import { OrderSuccessCard } from "@/features/order/OrderSuccessCard";
 import { createOrder } from "@/features/order/api";
@@ -16,6 +17,7 @@ export function OrderCreatePage() {
   const toast = useToast();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState<Step>("verify");
+  const [manualEntryConfirmed, setManualEntryConfirmed] = useState(false);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -29,10 +31,12 @@ export function OrderCreatePage() {
   const normalizedPrefilledQty = Number.isInteger(requestedQty) && requestedQty >= 1
     ? Math.min(requestedQty, MAX_QTY)
     : 1;
+  const shouldShowManualEntryGate = !hasPrefilledItem && !manualEntryConfirmed;
 
   useEffect(() => {
     if (hasPrefilledItem) {
       setItems([{ productId: prefilledProductId, qty: normalizedPrefilledQty }]);
+      setManualEntryConfirmed(true);
       return;
     }
     setItems([]);
@@ -81,18 +85,68 @@ export function OrderCreatePage() {
         )}
       </div>
 
-      <Card className="mb-4">
-        <Card.Body>
-          <div className="legacy-order-step-label">1. 휴대폰 인증</div>
-          <PhoneVerificationStep
-            onVerified={(p, c) => {
-              setPhone(p);
-              setCode(c);
-              setStep("items");
-            }}
-          />
-        </Card.Body>
-      </Card>
+      {shouldShowManualEntryGate ? (
+        <Card className="mb-4 border-0 my-claim-card">
+          <Card.Body className="p-4">
+            <div className="legacy-order-step-label mb-2">권장 경로 확인</div>
+            <h5 className="mb-2">직접 진입한 비회원 주문은 보조 경로입니다</h5>
+            <p className="text-muted-soft mb-3">
+              일반적인 비회원 주문은 상품 상세에서 원하는 상품과 수량을 먼저 고른 뒤
+              `/orders/new?productId=&qty=`로 내려오는 흐름을 권장합니다.
+              이 화면은 다중 상품 수동 주문이나 운영 지원용 direct entry를 위해 유지합니다.
+            </p>
+            <div className="guest-route-note mb-3">
+              <div className="guest-route-note-title">Fallback policy</div>
+              <div className="small text-muted-soft">
+                상품 선택이 아직 없다면 먼저 스토어를 둘러본 뒤 내려오는 편이 더 안전합니다.
+                계속 진행하면 비회원 다중 상품 주문을 수동으로 입력할 수 있습니다.
+              </div>
+            </div>
+            <div className="d-flex flex-wrap gap-2">
+              <Button as={Link as any} to="/products" variant="dark" size="sm">
+                상품 먼저 고르기
+              </Button>
+              <Button
+                as={Link as any}
+                to="/guest"
+                state={{ monitoringSource: "order_manual_entry_gate" }}
+                variant="outline-secondary"
+                size="sm"
+              >
+                비회원 조회 안내
+              </Button>
+              <Button
+                variant="outline-primary"
+                size="sm"
+                onClick={() => {
+                  trackClientEvent({
+                    event: "GUEST_ORDER_DIRECT_ENTRY_CONTINUED",
+                    path: "/orders/new",
+                    source: "manual_entry_gate",
+                    target: "order_items_step",
+                  });
+                  setManualEntryConfirmed(true);
+                }}
+              >
+                비회원 다중 상품 주문 계속
+              </Button>
+            </div>
+          </Card.Body>
+        </Card>
+      ) : (
+        <Card className="mb-4">
+          <Card.Body>
+            <div className="legacy-order-step-label">1. 휴대폰 인증</div>
+            <PhoneVerificationStep
+              onVerified={(p, c) => {
+                setPhone(p);
+                setCode(c);
+                setStep("items");
+              }}
+            />
+          </Card.Body>
+        </Card>
+      )}
 
       {step === "items" && (
         <>
