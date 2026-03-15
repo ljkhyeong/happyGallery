@@ -1,4 +1,4 @@
-package com.personal.happygallery.app.web.customer;
+package com.personal.happygallery.app.customer;
 
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
@@ -19,9 +19,12 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -86,27 +89,31 @@ public class GuestClaimService {
             return new ClaimResult(0, 0, 0);
         }
 
-        int claimedOrderCount = 0;
-        int claimedBookingCount = 0;
-        int claimedPassCount = 0;
-
-        for (Long orderId : dedupe(orderIds)) {
-            Order order = orderRepository.findById(orderId)
-                    .filter(o -> Objects.equals(o.getGuestId(), guest.getId()) && o.getUserId() == null)
-                    .orElseThrow(() -> new NotFoundException("claim 주문"));
+        // 주문 일괄 조회 → 소유권 검증 → claim
+        Set<Long> orderIdSet = dedupe(orderIds);
+        Map<Long, Order> orderMap = orderRepository.findAllById(orderIdSet).stream()
+                .collect(Collectors.toMap(Order::getId, Function.identity()));
+        for (Long orderId : orderIdSet) {
+            Order order = orderMap.get(orderId);
+            if (order == null || !Objects.equals(order.getGuestId(), guest.getId()) || order.getUserId() != null) {
+                throw new NotFoundException("claim 주문");
+            }
             order.claimToUser(userId);
-            claimedOrderCount++;
         }
 
+        // 예약 일괄 조회 → 소유권 검증 → claim + 연결된 pass 수집
+        Set<Long> bookingIdSet = dedupe(bookingIds);
+        Map<Long, Booking> bookingMap = bookingRepository.findAllById(bookingIdSet).stream()
+                .collect(Collectors.toMap(Booking::getId, Function.identity()));
         Set<Long> passIdsToClaim = dedupe(passIds);
-        for (Long bookingId : dedupe(bookingIds)) {
-            Booking booking = bookingRepository.findById(bookingId)
-                    .filter(b -> b.getGuest() != null
-                            && Objects.equals(b.getGuest().getId(), guest.getId())
-                            && b.getUserId() == null)
-                    .orElseThrow(() -> new NotFoundException("claim 예약"));
+        for (Long bookingId : bookingIdSet) {
+            Booking booking = bookingMap.get(bookingId);
+            if (booking == null || booking.getGuest() == null
+                    || !Objects.equals(booking.getGuest().getId(), guest.getId())
+                    || booking.getUserId() != null) {
+                throw new NotFoundException("claim 예약");
+            }
             booking.claimToUser(userId);
-            claimedBookingCount++;
 
             if (booking.getPassPurchase() != null
                     && booking.getPassPurchase().getGuest() != null
@@ -116,32 +123,42 @@ public class GuestClaimService {
             }
         }
 
+        // 8회권 일괄 조회 → 소유권 검증 → claim
+        Map<Long, PassPurchase> passMap = passPurchaseRepository.findAllById(passIdsToClaim).stream()
+                .collect(Collectors.toMap(PassPurchase::getId, Function.identity()));
+        int claimedPassCount = 0;
         for (Long passId : passIdsToClaim) {
-            PassPurchase pass = passPurchaseRepository.findById(passId)
-                    .filter(p -> p.getGuest() != null
-                            && Objects.equals(p.getGuest().getId(), guest.getId())
-                            && p.getUserId() == null)
-                    .orElseThrow(() -> new NotFoundException("claim 8회권"));
+            PassPurchase pass = passMap.get(passId);
+            if (pass == null || pass.getGuest() == null
+                    || !Objects.equals(pass.getGuest().getId(), guest.getId())
+                    || pass.getUserId() != null) {
+                throw new NotFoundException("claim 8회권");
+            }
             pass.claimToUser(userId);
             claimedPassCount++;
         }
 
         log.info("guest claim completed [userId={} guestId={} orders={} bookings={} passes={}]",
-                userId, guest.getId(), claimedOrderCount, claimedBookingCount, claimedPassCount);
-        return new ClaimResult(claimedOrderCount, claimedBookingCount, claimedPassCount);
+                userId, guest.getId(), orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
+        return new ClaimResult(orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
     }
+
+    private static final int PREVIEW_LIMIT = 100;
 
     private ClaimPreview buildPreview(User user) {
         return findGuestByAnyPhoneFormat(user.getPhone())
                 .map(guest -> new ClaimPreview(
                         user.isPhoneVerified(),
                         orderRepository.findByGuestIdOrderByCreatedAtDesc(guest.getId()).stream()
+                                .limit(PREVIEW_LIMIT)
                                 .map(ClaimOrderSummary::from)
                                 .toList(),
                         bookingRepository.findByGuestIdWithDetails(guest.getId()).stream()
+                                .limit(PREVIEW_LIMIT)
                                 .map(ClaimBookingSummary::from)
                                 .toList(),
                         passPurchaseRepository.findByGuestIdOrderByPurchasedAtDesc(guest.getId()).stream()
+                                .limit(PREVIEW_LIMIT)
                                 .map(ClaimPassSummary::from)
                                 .toList()))
                 .orElseGet(() -> new ClaimPreview(user.isPhoneVerified(), List.of(), List.of(), List.of()));
