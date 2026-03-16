@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-15 (프론트 F0–F9 완료, P8·P9·P10 완료, CR-P1~P7 완료, U1 완료, U2/U3/U4 완료, U5 완료, U6 3차 완료, 회원 온보딩 polish 완료)
+> 작성 시점: 2026-03-16 (문서 체계 재정리, 루트 plan 전환, 회원 스토어 전환/운영 모니터링 1차/헥사고날 pilot 1차 반영 상태)
 
 ---
 
@@ -9,18 +9,11 @@
 **happyGallery** — 오프라인 공방의 온라인 쇼핑몰 + 체험 예약 시스템 (Spring Boot 4.0.2 / Java 21 / MySQL 8)
 
 - 빠른 진입 문서: `README.md`
+- 현재 활성 계획: `plan.md`
 - 핵심 스펙: `docs/PRD/0001_spec/spec.md`
-- 전체 구현 계획: `docs/1Pager/0000_project_plan/plan.md`
 - 의사결정 기록: `docs/ADR/`
-- 리팩토링 계획: `docs/1Pager/0002_refactoring_plan/plan.md`
-- 프론트 계획: `docs/1Pager/0003_frontend_plan/plan.md`
-- 후속 폴리시 계획: `docs/1Pager/0004_polish_plan/plan.md`
-- 코드리뷰 후속 계획: `docs/1Pager/0006_code_review_followups/plan.md`
-- 회원 스토어 전환 계획: `docs/1Pager/0007_member_store_transition/plan.md`
-- 관측성 스택 고도화 계획: `docs/1Pager/0009_observability_stack_upgrade/plan.md`
-- 헥사고날 전환 계획: `docs/1Pager/0010_hexagonal_architecture_transition/plan.md`
 - 회원 스토어 차기 PRD 초안: `docs/PRD/0002_member_store_transition/spec.md`
-- 기준 확인 순서: `HANDOFF.md -> docs/PRD/0001_spec/spec.md -> docs/ADR/*`
+- 기준 확인 순서: `HANDOFF.md -> plan.md -> docs/PRD/0001_spec/spec.md -> docs/ADR/*`
 
 ---
 
@@ -28,6 +21,7 @@
 
 - 권장 작업 브랜치: `codex/work-20260315-015031`
 - 최근 작업:
+  - 문서 체계 재정리 — 활성 실행 계획은 루트 `plan.md`로 통합, 완료된 `docs/1Pager` 실행 계획 문서는 제거, `docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md`를 추가하고 `README.md` 문서 목록을 현재 구조 기준으로 재작성
   - 헥사고날 전환 pilot 1차 진행 — customer auth / guest claim / admin session / booking / order / payment / notification / product 경계에 `port/in`, `port/out`, `*PortAdapter`를 도입하고, 기존 애플리케이션 서비스가 `infra` 구현 대신 애플리케이션 포트를 의존하도록 정리
   - 운영 모니터링 1차 구현 완료 — 프론트 주요 guest/member 전환 지점에서 `/api/v1/monitoring/client-events` 로 fire-and-forget 이벤트를 보내고, 서버는 requestId가 붙은 `[client-monitoring]` 로그로 `/guest` 허브 유입, `/orders/new` direct continue, guest→member CTA, claim 완료를 추적하도록 정리
   - `/orders/new` direct fallback gate 추가 — 상품 상세에서 prefill로 내려온 경우는 바로 진행하고, query 없이 직접 진입한 `/orders/new`는 “보조 경로” 안내 후 명시적으로 계속해야 수동 비회원 다중 상품 주문을 진행하도록 정리
@@ -82,26 +76,7 @@
 
 ## 프론트 진행 상황
 
-프론트 플랜: `docs/1Pager/0003_frontend_plan/plan.md`
-
-### 전 단위 완료 (B1–B4, F0–F9)
-
-| 단위 | 내용 |
-|------|------|
-| **B1** | 프론트 선행 API 갭 분석 문서화 |
-| **B2** | 공개 상품/클래스/슬롯 조회 API 추가 |
-| **B3** | 8회권 구매 계약 보완 |
-| **B4** | 사용자 주문 API 계약 추가 |
-| **F0** | 프론트 워크스페이스 스캐폴딩 |
-| **F1** | 공통 API 클라이언트와 에러 처리 계층 |
-| **F2** | 앱 셸/테마/공통 UI 안정화 + Pretendard 폰트 + 홈페이지 카드 |
-| **F3** | 관리자 상품/슬롯 화면 + 401/400 에러 구분 + 클래스 드롭다운 |
-| **F4** | 예약 조회/변경/취소 화면 |
-| **F5** | 공개 상품 카탈로그 화면 |
-| **F6** | 예약 생성 화면 |
-| **F7** | 8회권 구매 화면 |
-| **F8** | 관리자 운영 확장 화면 + 401 처리 보강 |
-| **F9** | 사용자 주문 화면 + 총액 미리보기 |
+기존 프론트 이행 계획은 정리했고, 현재는 구현 상태와 활성 백로그만 유지한다.
 
 ### 현재 프론트 진입 경로
 
@@ -126,61 +101,17 @@
 
 ---
 
-## 다음 우선순위 (polish plan)
+## 현재 활성 계획
 
-폴리시 플랜: `docs/1Pager/0004_polish_plan/plan.md`
+현재 남아 있는 실행 백로그는 루트 `plan.md`만 기준으로 본다.
 
-| 우선순위 | 단위 | 상태 | 내용 |
-|------|------|------|------|
-| 즉시 | **P1** | 완료 | 스펙 문서 동기화 |
-| 즉시 | **P2** | 완료 | 홈페이지 구현 |
-| 즉시 | **P3** | 완료 | 폼 검증 및 에러 UX 강화 |
-| 다음 | **P4** | 완료 | 반응형 UI 및 접근성 점검 |
-| 다음 | **P5** | 완료 | 관리자 슬롯 조회 API 및 화면 보강 |
-| 다음 | **P6** | 완료 | 관리자 예약 조회/노쇼 처리 화면 |
-| 다음 | **P7** | 완료 | 관리자 주문 목록 조회 화면 |
-| 배포 전 | **P8** | 완료 | Playwright smoke 1~9 pass, local refund failure hook과 회원 storefront/guest claim/success-onboarding 시나리오까지 검증 완료 |
-| 배포 전 | **P9** | 완료 | 프로덕션 인증 계층 (BCrypt 로그인, UUID 세션 토큰, API Key dev fallback) |
-| 운영 | **P10** | 완료 | 관측성 및 운영 준비 (Actuator 정책, 에러 requestId, 배치 MDC) |
+핵심 트랙:
+1. 관측성 스택 고도화
+2. 헥사고날 전환 후속 정리
+3. guest/member 운영 정책 리뷰와 `/my` 운영 피드백 반영
 
-### 코드리뷰 후속 진행 상황
-
-| 단위 | 상태 | 내용 |
-|------|------|------|
-| **CR-P1** | 완료 | 인증/조회 상태 정합성 (admin 캐시 제거, 조회 실패 초기화, 슬롯 선택 해제) |
-| **CR-P2** | 완료 | 운영 인증/테스트 경계 (Playwright Bearer 전환, 로그인 rate limit, admin id 컨텍스트 주입) |
-| **CR-P3** | 완료 | 운영 메모리/인프라 리스크 (세션 eviction, bucket eviction, XFF 신뢰 정책) |
-| **CR-P4** | 완료 | UX 후속 (예약 기본 날짜 Asia/Seoul, 주문 상품 로딩 실패 에러 UI) |
-| **CR-P5** | 완료 | 장기 리팩토링 및 기능 공백 |
-| **CR-P6** | 완료 | 계약/감사/무결성 후속 (fulfillment.status 계약 정합, admin principal 세션 기반 전환, fulfillment unique migration, stale ship metadata 정리, resume-production HTTP test, 프론트 정리) |
-| **CR-P7** | 완료 | 배송 흐름 및 운영 이력 확장 (배송 전이 API 3종, 이력 조회 API, expectedShipDate write guard, 프론트 배송 액션/이력 패널) |
-
-### 다음 추천 작업
-
-1. 관측성 스택 고도화 — `docs/1Pager/0009_observability_stack_upgrade/plan.md` 기준으로 Prometheus/Grafana/Sentry와 product funnel metric을 정식 운영 경로로 승격
-2. 운영 리뷰 — member route 안정화 후 2~4주 동안 `[client-monitoring]` 로그 또는 후속 metric의 `/guest` 허브 유입, `/orders/new` direct continue, guest → member CTA, claim 완료, 문의 유형을 보고 direct guest fallback 축소 여부를 결정
-3. `/my` 운영 피드백 반영 — 현재 quick tab/정렬 구성이 충분한지 보고 상태 탭 세분화나 기본 정렬 정책을 조정할지 판단
-
----
-
-## 리팩토링 진행 상황
-
-리팩토링 플랜: `docs/1Pager/0002_refactoring_plan/plan.md`
-
-### 완료 (R1–R10)
-
-| 단위 | 내용 |
-|------|------|
-| **R1** | Order 도메인 상태 전이 캡슐화 강화 |
-| **R2** | API 예외 매핑 일관성 정리 |
-| **R3** | Booking 유스케이스 공통 절차 추출 |
-| **R4** | Notification fallback 전략 객체화 |
-| **R5** | Batch 서비스 공통 처리 템플릿화 |
-| **R6** | Admin Controller DTO 변환 책임 정리 |
-| **R7** | Pass 도메인 계산/검증 메서드 명확화 |
-| **R8** | Product/Inventory 경계 정리 |
-| **R9** | 시간 경계 계산 호출부 정리 |
-| **R10** | 테스트 픽스처/중복 유틸 정리 |
+완료된 프론트 플랜, 폴리시 플랜, 리팩토링 플랜, 코드리뷰 후속 plan 문서는 정리했고,
+장기 보관 가치가 있는 내용만 `README.md`, `HANDOFF.md`, `docs/PRD`, `docs/ADR`에 흡수했다.
 
 ---
 

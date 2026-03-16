@@ -60,7 +60,7 @@ spec.md 기반으로 MVP를 구현하기 위한 최초 DB 스키마가 필요했
 | 도메인별 마이그레이션 분리 (V2~V10) | MVP 단계에서 과도한 분리. 테이블 간 FK 순서 관리가 복잡해짐. 초기엔 단일 파일이 리뷰와 롤백이 용이. |
 | `refunds`를 `order_refunds` / `booking_refunds`로 분리 | 환불 재처리 배치가 단일 테이블 스캔으로 단순화 가능. 분리 시 배치 로직 복잡도 증가. |
 | Enum 컬럼 타입 사용 | MySQL ENUM은 값 추가 시 ALTER TABLE 필요. VARCHAR + 애플리케이션 검증이 유연성↑. |
-| `made_to_order_spec` 테이블 추가 | `docs/1Pager/0000_project_plan/plan.md` 명시 목록에 없고 MVP에서 즉시 필요하지 않음. 예약제작 구현 시 V3 이후 추가. |
+| `made_to_order_spec` 테이블 추가 | 초기 MVP 범위에 포함되지 않았고 즉시 필요하지 않음. 예약제작 구현 시 V3 이후 추가. |
 
 ---
 
@@ -80,5 +80,4 @@ spec.md 기반으로 MVP를 구현하기 위한 최초 DB 스키마가 필요했
 ## References
 
 - `docs/PRD/0001_spec/spec.md` § 9 (데이터 모델)
-- `docs/1Pager/0000_project_plan/plan.md` § 2.1, 2.2
 - `domain/src/main/java/com/personal/happygallery/domain/` — 열거형 정의
