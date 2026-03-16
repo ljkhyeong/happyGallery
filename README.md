@@ -9,170 +9,179 @@
 
 ---
 
+## 빠른 길잡이
+
+- 현재 세션 인수인계: `HANDOFF.md`
+- 현재 활성 계획: `plan.md`
+- 기준 스펙: `docs/PRD/0001_spec/spec.md`
+- 설계 결정: `docs/ADR/`
+
+---
+
 ## 문서 목록
 
-### PRD (Product Requirements Document)
+### 루트 운영 문서
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [Core MVP Specification](docs/PRD/0001_spec/spec.md) | `docs/PRD/0001_spec/` | 전체 시스템의 기능 요구사항 정의서 (단일 진실 원천) |
-| [Member Store Transition](docs/PRD/0002_member_store_transition/spec.md) | `docs/PRD/0002_member_store_transition/` | 회원 인증·스토어 전환을 위한 차세대 요구사항 |
+| `README.md` | `/README.md` | 저장소 개요와 문서/실행 진입점 |
+| `HANDOFF.md` | `/HANDOFF.md` | 현재 구현 상태, 최근 변경, 다음 작업 |
+| `plan.md` | `/plan.md` | 현재 활성 실행 계획과 백로그 |
+| `AGENTS.md` | `/AGENTS.md` | 저장소 작업 규칙 |
+| `CLAUDE.md` | `/CLAUDE.md` | 별도 에이전트 운영 메모 |
 
-<details>
-<summary>주요 요약</summary>
-
-- **Core Spec**: 예약(슬롯·보증금·환불), 주문(승인 워크플로), 패스(8회 크레딧), 상품/재고, 비회원 휴대폰 인증, 관리자 Bearer 세션 등 MVP 전체 계약을 정의
-- **Member Store**: HttpOnly 쿠키 + 세션 테이블 기반 회원 인증, `/my` 셀프서비스(주문·예약·패스), 비회원 이력 명시적 claim 워크플로, guest→member 전환 모니터링 정의
-</details>
-
----
-
-### 1Pager (전략 계획)
+### PRD
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [Project Plan](docs/1Pager/0000_project_plan/plan.md) | `docs/1Pager/0000_project_plan/` | 초기 프로젝트 로드맵 (기초 스냅샷) |
-| [Code Review Plan](docs/1Pager/0001_code_review_plan/plan.md) | `docs/1Pager/0001_code_review_plan/` | 유닛 기반 코드 리뷰 전략 (U1–U12) |
-| [Refactoring Plan](docs/1Pager/0002_refactoring_plan/plan.md) | `docs/1Pager/0002_refactoring_plan/` | 구조 개선 10단위 (R1–R10, 완료) |
-| [Frontend Plan](docs/1Pager/0003_frontend_plan/plan.md) | `docs/1Pager/0003_frontend_plan/` | React/Bootstrap UI 구현 (B1–B4, F0–F9, 완료) |
-| [Polish Plan](docs/1Pager/0004_polish_plan/plan.md) | `docs/1Pager/0004_polish_plan/` | MVP 이후 품질 강화 (P1–P10, 완료) |
-| [P8 E2E Checklist](docs/1Pager/0005_p8_e2e_checklist/plan.md) | `docs/1Pager/0005_p8_e2e_checklist/` | Playwright E2E 스모크 검증 (Smoke 1–9) |
-| [Code Review Followups](docs/1Pager/0006_code_review_followups/plan.md) | `docs/1Pager/0006_code_review_followups/` | 리뷰 후속 위험 정리 (P1–P7, 완료) |
-| [Member Store Transition](docs/1Pager/0007_member_store_transition/plan.md) | `docs/1Pager/0007_member_store_transition/` | 회원 인증 기반 구축 및 롤아웃 (U1–U6, 완료) |
-| [Me Controller Refactoring](docs/1Pager/0008_me_controller_refactoring/plan.md) | `docs/1Pager/0008_me_controller_refactoring/` | 서비스 계층 분리 및 N+1 해소 (W1–W9) |
-| [Observability Stack Upgrade](docs/1Pager/0009_observability_stack_upgrade/plan.md) | `docs/1Pager/0009_observability_stack_upgrade/` | Prometheus·Grafana·Sentry 메트릭 확장 (O1–O5) |
-| [Hexagonal Architecture Transition](docs/1Pager/0010_hexagonal_architecture_transition/plan.md) | `docs/1Pager/0010_hexagonal_architecture_transition/` | Port/Adapter 패턴 점진 도입 (H1–H6) |
+| [Core MVP Specification](docs/PRD/0001_spec/spec.md) | `docs/PRD/0001_spec/` | 전체 시스템의 기능 요구사항 정의서 |
+| [Member Store Transition](docs/PRD/0002_member_store_transition/spec.md) | `docs/PRD/0002_member_store_transition/` | 회원 인증·스토어 전환 차기 요구사항 |
+| [Out Of Scope](docs/PRD/0003_out_of_scope/scope.md) | `docs/PRD/0003_out_of_scope/` | 초기 버전에서 명시적으로 제외하는 범위 |
 
-<details>
-<summary>주요 요약</summary>
-
-- **Project Plan**: 저장소 구성 → DB 스키마 → 에러 시스템 → 예약 MVP → 패스/주문 → 배치 → 관리자 → E2E 검증까지 전체 마일스톤
-- **Code Review**: 세션당 1유닛; 버그·스펙 불일치 중심; "수정 완료 / 후속 이슈 / 테스트 리스크" 3단 리포트
-- **Refactoring**: Order 상태 캡슐화, 에러 매핑, 예약 통합, 알림 폴백, 배치 템플릿, DTO 정리, 시간 경계, 테스트 픽스처 등 10단위 구조 개선
-- **Frontend**: Vite + React + TanStack Query 기반 스토어프론트, 회원/관리자 화면, Playwright E2E 스모크
-- **Polish**: 스펙 동기화, 홈페이지, 폼 검증, 반응형, 관리자 운영 화면, 프로덕션 인증, 관측성 기초
-- **Member Store Transition**: 회원 인증 기초 → 계약 모델 → 스토어프론트 → 지연 인증 게이트 → 셀프서비스 → 롤아웃/E2E 까지 6단계
-  - 하위 상세 문서: [01_customer_auth_foundation](docs/1Pager/0007_member_store_transition/01_customer_auth_foundation.md) · [02_identity_model_and_contracts](docs/1Pager/0007_member_store_transition/02_identity_model_and_contracts.md) · [03_storefront_and_product_detail](docs/1Pager/0007_member_store_transition/03_storefront_and_product_detail.md) · [04_deferred_verification_and_checkout](docs/1Pager/0007_member_store_transition/04_deferred_verification_and_checkout.md) · [05_member_self_service_and_guest_lookup](docs/1Pager/0007_member_store_transition/05_member_self_service_and_guest_lookup.md) · [06_rollout_migration_and_e2e](docs/1Pager/0007_member_store_transition/06_rollout_migration_and_e2e.md)
-- **Hexagonal Transition**: 기존 모듈 유지하며 `port/in`(UseCase) · `port/out`(Port) 점진 도입; 교체 가능한 경계에만 인터페이스 적용
-- **Observability Upgrade**: RequestId·JSON 로그·Actuator 기초 위에 Prometheus 카운터, Grafana 대시보드, Sentry 알림 추가
-</details>
-
----
-
-### ADR (Architecture Decision Record)
+### ADR
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [ADR-0001: Core Schema](docs/ADR/0001_core-schema/adr.md) | `docs/ADR/0001_core-schema/` | 16개 핵심 테이블 설계 및 마이그레이션 전략 |
-| [ADR-0002: State Transition Guards](docs/ADR/0002_state-transition-guards/adr.md) | `docs/ADR/0002_state-transition-guards/` | 도메인 객체 내 상태 전이 가드 및 예외 체계 |
-| [ADR-0003: Slot Concurrency](docs/ADR/0003_slot-concurrency-strategy/adr.md) | `docs/ADR/0003_slot-concurrency-strategy/` | 슬롯 용량 동시성 제어 (SELECT FOR UPDATE) |
-| [ADR-0004: Slot Management](docs/ADR/0004_slot-management-impl-decisions/adr.md) | `docs/ADR/0004_slot-management-impl-decisions/` | 슬롯 중복 검사, OSIV 비활성, 버퍼 비활성화 |
-| [ADR-0005: Guest Booking](docs/ADR/0005_guest-booking-impl-decisions/adr.md) | `docs/ADR/0005_guest-booking-impl-decisions/` | 비회원 예약 흐름 및 휴대폰 인증 구현 |
-| [ADR-0006: Booking Reschedule](docs/ADR/0006_booking-reschedule-decisions/adr.md) | `docs/ADR/0006_booking-reschedule-decisions/` | 예약 변경 정책 및 슬롯 교환 전략 |
-| [ADR-0007: Booking Cancel](docs/ADR/0007_booking-cancel-decisions/adr.md) | `docs/ADR/0007_booking-cancel-decisions/` | 예약 취소 환불 정책 (D-1 00:00 기준) |
-| [ADR-0008: Payment Provider](docs/ADR/0008_payment-provider-abstraction/adr.md) | `docs/ADR/0008_payment-provider-abstraction/` | 결제 공급자 추상화 레이어 설계 |
-| [ADR-0009: Deposit Payment](docs/ADR/0009_deposit-payment-policy/adr.md) | `docs/ADR/0009_deposit-payment-policy/` | 보증금 10% 결제 정책 |
-| [ADR-0010: Pass Purchase & Expiry](docs/ADR/0010_pass-purchase-expiry-decisions/adr.md) | `docs/ADR/0010_pass-purchase-expiry-decisions/` | 8회권 구매·90일 만료·7일 전 리마인더 |
-| [ADR-0011: Pass Credit Usage](docs/ADR/0011_pass-credit-usage-decisions/adr.md) | `docs/ADR/0011_pass-credit-usage-decisions/` | 패스 크레딧 차감/복원 원장(ledger) 모델 |
-| [ADR-0012: Product Inventory](docs/ADR/0012_product-inventory-decisions/adr.md) | `docs/ADR/0012_product-inventory-decisions/` | 상품 재고 관리 및 낙관적 잠금 |
-| [ADR-0013: Order Approval Model](docs/ADR/0013_order-approval-model/adr.md) | `docs/ADR/0013_order-approval-model/` | 주문 승인/거절 워크플로 및 24시간 SLA |
-| [ADR-0014: Production Order](docs/ADR/0014_production-order-decisions/adr.md) | `docs/ADR/0014_production-order-decisions/` | 제작 주문 상태 전이 (제작→배송→픽업) |
-| [ADR-0015: Observability & Logging](docs/ADR/0015_observability-logging-and-business-exception/adr.md) | `docs/ADR/0015_observability-logging-and-business-exception/` | 로깅 표준, 비즈니스 예외 분류, RequestId 추적 |
-| [ADR-0016: API Versioning](docs/ADR/0016_api-versioning-strategy/adr.md) | `docs/ADR/0016_api-versioning-strategy/` | URI 기반 API 버전 관리 (`/api/v1/**`) |
-| [ADR-0017: Rate Limiting](docs/ADR/0017_filter-rate-limiting/adr.md) | `docs/ADR/0017_filter-rate-limiting/` | IP·엔드포인트별 필터 기반 Rate Limit |
-| [ADR-0018: Refund Log REQUIRES_NEW](docs/ADR/0018_refund-log-requires-new/adr.md) | `docs/ADR/0018_refund-log-requires-new/` | 환불 로그 독립 트랜잭션 전파 전략 |
-| [ADR-0019: Password Hashing](docs/ADR/0019_password-hashing-policy/adr.md) | `docs/ADR/0019_password-hashing-policy/` | BCrypt 기반 비밀번호 해싱 정책 |
-| [ADR-0020: Payment Circuit Breaker](docs/ADR/0020_payment-provider-circuit-breaker/adr.md) | `docs/ADR/0020_payment-provider-circuit-breaker/` | Resilience4j 기반 결제 Circuit Breaker |
-| [ADR-0021: Hexagonal Transition](docs/ADR/0021_hexagonal-architecture-transition/adr.md) | `docs/ADR/0021_hexagonal-architecture-transition/` | Port/Adapter 패턴 도입 파일럿 전략 |
+| `ADR-0001` ~ `ADR-0021` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
 
-<details>
-<summary>아키텍처 결정 요약</summary>
-
-**데이터 모델**
-- 16개 핵심 테이블 단일 마이그레이션 · Enum은 VARCHAR · 타임스탬프 DATETIME(6)
-- 슬롯 UNIQUE(class_id, start_at) · inventory/bookings에 `@Version` 낙관적 잠금
-
-**동시성 제어**
-- 슬롯 용량: `SELECT FOR UPDATE` 비관적 잠금 (최대 8명, 즉시 실패가 재시도보다 안전)
-- 예약/주문/패스: `@Version` 낙관적 잠금 (충돌 드묾)
-
-**상태 전이**
-- 도메인 객체 내부에 가드 메서드 (`OrderStatus.requireApprovable()`, `SlotCapacity.checkAvailable()`)
-- HTTP 상태 매핑: 409(충돌/용량), 422(정책 위반), 404(미존재)
-
-**결제·환불**
-- 결제 공급자 추상화 + Resilience4j Circuit Breaker (3초 타임아웃, 50% 실패 임계)
-- 보증금 10% · 환불 로그는 `REQUIRES_NEW` 독립 트랜잭션
-- 24시간 미승인 주문 자동 환불 배치
-
-**예약 정책**
-- 비회원 휴대폰 인증 → 예약 생성 · D-1 00:00(Asia/Seoul) 이후 환불 불가
-- 변경 시 기존 슬롯 해제 → 새 슬롯 점유 단일 트랜잭션
-
-**패스·재고**
-- 8회 크레딧 · 90일 유효 · 7일 전 만료 리마인더
-- 원장(ledger) 기반 크레딧 차감/복원 · 상품 재고 낙관적 잠금
-
-**인프라·운영**
-- API 경로 `/api/v1/**` · Bearer 세션 인증 · BCrypt 해싱
-- RequestId MDC 주입 · IP/엔드포인트 Rate Limit
-- 기존 모듈 유지하며 Port/Adapter 점진 도입 (교체 가능 경계에만 인터페이스)
-</details>
-
----
-
-### Idea (검토 중인 아이디어)
+### Idea
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [JSON + Generated Column](docs/Idea/0001_json-generated-column-consideration/idea.md) | `docs/Idea/0001_json-generated-column-consideration/` | 가변 속성이 3–5개 초과 시 JSON 컬럼 + MySQL Generated Column 패턴 검토 |
-| [Bulkhead (Resilience4j)](docs/Idea/0002_bulkhead-resilience4j-consideration/idea.md) | `docs/Idea/0002_bulkhead-resilience4j-consideration/` | 외부 호출 격리를 위한 Resilience4j Bulkhead 패턴 검토 |
-| [Circuit Breaker Rollout](docs/Idea/0003_external-call-circuit-breaker-rollout/idea.md) | `docs/Idea/0003_external-call-circuit-breaker-rollout/` | 결제 외 외부 호출(알림 등)에 Circuit Breaker 확대 적용 검토 |
+| [JSON + Generated Column](docs/Idea/0001_json-generated-column-consideration/idea.md) | `docs/Idea/0001_json-generated-column-consideration/` | 가변 속성 저장 패턴 검토 |
+| [Bulkhead (Resilience4j)](docs/Idea/0002_bulkhead-resilience4j-consideration/idea.md) | `docs/Idea/0002_bulkhead-resilience4j-consideration/` | 외부 호출 격리 전략 검토 |
 
----
+### POC
+
+| 문서 | 경로 | 설명 |
+|------|------|------|
+| [PaymentProvider CircuitBreaker 적용 POC](docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md) | `docs/POC/0001_payment-provider-circuit-breaker-rollout/` | 결제 환불 경계의 CircuitBreaker/TimeLimiter 적용 실험과 결과 |
+
+### 1Pager
+
+| 문서 | 경로 | 설명 |
+|------|------|------|
+| [1Pager Guide](docs/1Pager/README.md) | `docs/1Pager/` | 이해관계자 공유용 한 장 요약 문서 카테고리 안내 |
+
+문서 운영 규칙:
+- 현재 활성 실행 계획은 루트 `plan.md`만 사용한다.
+- 완료된 임시 실행 계획은 `docs/1Pager`에 남기지 않는다.
+- 장기 보관 가치가 있는 내용만 `docs/Idea`, `docs/1Pager`, `docs/PRD`, `docs/POC`, `docs/ADR`에 남긴다.
+
+## 현재 제공 기능
+
+- 공개 사용자 흐름
+  - 상점형 홈 / 스토어 네비게이션
+  - 상품 목록/상세
+  - 회원가입 / 로그인
+  - 제출 직전 인증 게이트 기반 예약 생성
+  - 제출 직전 인증 게이트 기반 8회권 구매
+  - 상품 상세에서 회원 주문 생성
+  - legacy 비회원 주문 fallback (`/orders/new`, 상품/수량 prefill 지원, direct entry는 수동 fallback gate 후 진행)
+  - 비회원 조회 허브 (`/guest`)
+  - 비회원 예약 조회/변경/취소 (`/guest/bookings`, 조회용 보조 경로)
+  - 비회원 주문 조회 (`/guest/orders`, 조회용 보조 경로)
+  - 회원 마이페이지 (`내 주문`, `내 예약`, `내 8회권`, guest claim)
+  - 회원 주문/예약/8회권 전체 목록 (`/my/orders`, `/my/bookings`, `/my/passes`, 검색/상태 필터/quick tab/정렬 포함)
+  - 회원 예약 상세/변경/취소 (`/my/bookings/:id`)
+  - 회원 마이페이지에서 비회원 이력 가져오기 (휴대폰 재인증 후 claim)
+  - 비회원 성공 화면에서 회원가입/로그인 후 `/my` claim으로 바로 이어지는 CTA
+  - 로그인/회원가입 페이지에서 `redirect`·`claim`·회원가입 prefill(`name`/`phone`) 컨텍스트 유지
+- 관리자 흐름
+  - 상품 등록/조회
+  - 슬롯 생성/비활성화
+  - 예약 목록 조회/노쇼 처리
+  - 주문 승인/거절/제작 재개/제작 완료/지연/배송/픽업 관리
+  - 주문 결정 이력 조회
+  - 8회권 만료/환불
+  - 환불 실패 조회/재시도
+
+프론트 주요 경로:
+
+- `/products`
+- `/products/:id`
+- `/login`
+- `/signup`
+- `/my`
+- `/my/orders`
+- `/my/orders/:id`
+- `/my/bookings`
+- `/my/bookings/:id`
+- `/my/passes`
+- `/bookings/new`
+- `/guest`
+- `/guest/bookings`
+- `/passes/purchase`
+- `/orders/new`
+- `/guest/orders`
+- `/admin`
 
 ## 저장소 구조
 
-```
-happyGallery/
-├── app/               # Spring Boot 진입점, 컨트롤러, 서비스, 배치, 통합 테스트
-├── domain/            # 엔티티, 상태 전이, 정책 등 핵심 비즈니스 규칙
-├── infra/             # JPA 리포지토리, 결제/알림 등 외부 연동 구현
-├── common/            # 공통 예외, 시간 유틸, 공용 타입
-├── frontend/          # Vite + React + TypeScript 프론트엔드
-├── docs/
-│   ├── PRD/           # 제품 요구사항 정의서
-│   ├── 1Pager/        # 전략 계획서
-│   ├── ADR/           # 아키텍처 결정 기록
-│   └── Idea/          # 검토 중인 아이디어
-├── HANDOFF.md         # 현재 세션 인수인계
-└── CLAUDE.md          # AI 에이전트 작업 지침
-```
-
----
+- `app/`
+  - Spring Boot 진입점, 컨트롤러, 애플리케이션 서비스, 배치, 통합 테스트
+- `domain/`
+  - 엔티티, 상태 전이, 정책 등 핵심 비즈니스 규칙
+- `infra/`
+  - JPA 리포지토리, 결제/알림 등 외부 연동 구현
+- `common/`
+  - 공통 예외, 시간 유틸, 공용 타입
+- `frontend/`
+  - Vite + React + TypeScript 프론트엔드
 
 ## 로컬 실행
 
-### 요구사항
+### 1. 요구사항
 
 - Java 21
 - Node.js 20+
 - Docker / Docker Compose
 
-### 백엔드
+### 2. 주요 환경 변수
+
+- `DB_URL`
+- `DB_USERNAME`
+- `DB_PASSWORD`
+- `ADMIN_API_KEY`
+- `ADMIN_ENABLE_API_KEY_AUTH`
+- `PAYMENT_TIMEOUT_MILLIS`, `PAYMENT_CB_*`
+- `RATE_LIMIT_TRUST_FORWARDED`
+- `ACTUATOR_HEALTH_SHOW_DETAILS`
+- `MYSQL_ROOT_PASSWORD`
+- `MYSQL_USER`
+- `MYSQL_PASSWORD`
+- `PLAYWRIGHT_ADMIN_USERNAME`
+- `PLAYWRIGHT_ADMIN_PASSWORD`
+- `PLAYWRIGHT_BACKEND_URL`
+
+기본 프로필은 `local`이다.
+
+### 3. 백엔드 실행 방식
+
+MySQL만 Docker로 띄우고 앱은 로컬에서 실행:
 
 ```bash
-# MySQL만 Docker로 띄우고 앱은 로컬 실행
 docker compose up -d mysql
+docker compose stop app
 ./gradlew :app:bootRun
+```
 
-# 또는 MySQL + 앱 컨테이너 함께 실행
+- 이미 `docker compose up -d --build`로 앱 컨테이너가 떠 있다면, 로컬 `bootRun` 전에 `docker compose stop app`으로 8080 충돌을 먼저 해소한다.
+- `local` 프로필로 `bootRun`하면 `classes` 테이블이 비어 있을 때 기본 클래스 3종(향수/우드/니트)을 자동 seed한다.
+
+MySQL + 앱 컨테이너를 함께 실행:
+
+```bash
 docker compose up -d --build
 ```
 
-`local` 프로필로 실행하면 `classes` 테이블이 비어있을 때 기본 클래스 3종(향수/우드/니트)을 자동 seed 한다.
+백엔드 헬스 체크:
 
-### 프론트엔드
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+### 4. 프론트 실행
 
 ```bash
 cd frontend
@@ -180,45 +189,67 @@ npm install
 npm run dev
 ```
 
-- 개발 서버: `http://localhost:3000`
-- `/api` 요청은 Vite proxy로 `http://localhost:8080`에 연결
-
-### 주요 환경 변수
-
-| 변수 | 용도 |
-|------|------|
-| `DB_URL` / `DB_USERNAME` / `DB_PASSWORD` | 데이터베이스 연결 |
-| `ADMIN_API_KEY` / `ADMIN_ENABLE_API_KEY_AUTH` | 관리자 API Key 인증 |
-| `PAYMENT_TIMEOUT_MILLIS` / `PAYMENT_CB_*` | 결제 타임아웃 및 Circuit Breaker |
-| `RATE_LIMIT_TRUST_FORWARDED` | Rate Limit 프록시 신뢰 |
-
----
+- 프론트 개발 서버: `http://localhost:3000`
+- `/api` 요청은 Vite proxy로 `http://localhost:8080`에 연결된다.
 
 ## 빌드와 검증
 
 ### 백엔드
 
-```bash
-./gradlew build                   # 전체 빌드
-./gradlew test                    # 전체 테스트
-./gradlew :app:policyTest         # 정책 테스트
-./gradlew :app:useCaseTest        # 유스케이스 통합 테스트
-```
+- 전체 빌드: `./gradlew build`
+- 전체 테스트: `./gradlew test`
+- 정책 테스트: `./gradlew :app:policyTest`
+- 유스케이스 통합 테스트: `./gradlew --no-daemon :app:useCaseTest`
+- 단일 테스트 예시:
+  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.OrderApprovalUseCaseIT`
 
-### 프론트엔드
+### 프론트
 
-```bash
-cd frontend
-npm run build            # 프로덕션 빌드
-npm run e2e:install      # Playwright 브라우저 설치
-npm run e2e              # E2E 스모크 테스트
-```
+- 프로덕션 빌드: `cd frontend && npm run build`
+- E2E smoke 브라우저 설치: `cd frontend && npm run e2e:install`
+- E2E smoke 실행: `cd frontend && npm run e2e`
 
----
+E2E 참고:
+- Playwright는 `frontend/playwright.config.ts` 기준으로 동작한다.
+- Vite dev server는 Playwright가 직접 띄우거나 기존 `localhost:3000`을 재사용한다.
+- 백엔드는 별도로 `http://localhost:8080`에서 실행 중이어야 한다.
+- 관리자 보조 API 호출은 `POST /api/v1/admin/auth/login`으로 얻은 Bearer 토큰을 사용한다.
+- 로컬 `bootRun`은 `classes` 테이블이 비어 있으면 기본 클래스를 자동 생성하므로 clean DB에서도 예약/8회권 시나리오를 바로 돌릴 수 있다.
+- 시나리오 5(`환불 실패 -> 재시도`)는 local 전용 dev hook(`/api/v1/admin/dev/payment/refunds/fail-next`)으로 자동화되어 있고, 필요하면 요청 바디에 `orderId`를 넣어 특정 주문으로 범위를 좁힐 수 있다.
+- Playwright 관리자 로그인 기본값은 `admin` / `admin1234`이며, 필요하면 `PLAYWRIGHT_ADMIN_USERNAME`, `PLAYWRIGHT_ADMIN_PASSWORD`로 덮어쓴다.
+- 백엔드 기준 URL을 바꾸려면 `PLAYWRIGHT_BACKEND_URL`을 사용한다.
+- 현재 smoke 범위는 guest/admin 1~5와 member storefront/claim/onboarding 6~9이며, `P8-7`은 회원 예약 상세/변경/취소, `P8-8`은 guest claim, `P8-9`는 guest 성공 화면에서 회원가입 후 claim 모달 자동 진입까지 포함한다.
+- `/bookings/new`, `/passes/purchase`는 첫 화면에서 인증하지 않고 제출 직전에 auth gate를 연다.
+- 상품 상세의 `비회원 주문하기`는 `/orders/new?productId=&qty=`로 이동해 선택한 상품과 수량을 prefill 한다.
+- 비회원 진입 허브는 `/guest`이고, canonical guest 조회 경로는 `/guest/orders`, `/guest/bookings`이며 생성 후 확인용 보조 경로로 유지한다.
+
+## API/운영 메모
+
+- 표준 API 경로는 `/api/v1/**`다.
+- 레거시 무버전 경로도 일부 유지하지만, 신규 문서와 테스트는 `/api/v1/**`를 기준으로 한다.
+- 관리자 화면은 사용자명/비밀번호 로그인 후 Bearer 토큰으로 동작하고, local/dev API 보조 호출은 `X-Admin-Key` 폴백을 사용할 수 있다.
+- 주문 승인/거절/제작 재개/제작 완료 이력의 admin 식별자는 Bearer 세션에서 추출한다. API Key 폴백 경로는 adminId가 null일 수 있다.
+- 배송 준비/출발/완료 전이와 주문 결정 이력 조회도 `/api/v1/admin/orders/**` 아래에서 같은 Bearer 세션 기준으로 동작한다.
+- 회원 UI는 `/my`, `/my/orders`, `/my/orders/:id`, `/my/bookings`, `/my/bookings/:id`, `/my/passes`를 사용하고, 목록 페이지는 검색/상태 필터/quick tab/정렬을 제공한다. 백엔드는 `/api/v1/me/**`로 동작한다.
+- `/api/v1/me/guest-claims/{preview,verify,claim}` 로 같은 번호의 guest 주문/예약/8회권을 회원 계정으로 이전할 수 있다.
+- guest 주문/예약/8회권 성공 화면의 회원가입/로그인 CTA는 `/my?claim=1` 로 이어져 claim 모달을 자동으로 열 수 있다.
+- 로그인/회원가입 페이지는 `redirect`, `claim`, `name`, `phone` query를 유지해 guest 성공 화면이나 member gate에서 넘어온 문맥을 잃지 않는다.
+- 비회원 조회는 계속 토큰 기반(`bookingId + token`, `orderId + token`)을 사용하되, 프론트 canonical route는 `/guest/orders`, `/guest/bookings`다.
+- 상품 상세에서 guest 주문으로 넘길 때는 `/orders/new`가 `productId`, `qty` query를 받아 초기 주문 항목을 채운다. query 없이 직접 연 `/orders/new`는 명시적 계속 버튼 뒤에만 수동 다중 상품 주문을 허용한다.
+- 운영 권장안은 `/guest` 허브와 canonical guest 조회 경로, `/orders/new` direct gate를 당분간 유지하고, member route 안정화 후 2~4주 동안 사용량과 문의를 본 뒤 direct guest fallback 축소 여부를 결정하는 것이다.
+- `/api/v1/monitoring/client-events` 는 guest/member 전환 이벤트를 fire-and-forget으로 받아 `[client-monitoring]` 로그를 남긴다. 현재는 `/guest` 허브 유입, `/orders/new` direct continue, guest 성공/조회 화면의 회원 전환 CTA, `/my` claim 모달 오픈, claim 완료를 추적한다.
 
 ## 문서 우선순위
 
-1. `HANDOFF.md` — 현재 세션 인수인계
-2. `docs/PRD/0001_spec/spec.md` — 기준 스펙
-3. `docs/ADR/*` — 관련 아키텍처 결정
-4. `docs/1Pager/*` — 도메인별 계획
+1. `HANDOFF.md`
+2. `plan.md`
+3. `docs/PRD/0001_spec/spec.md`
+4. 관련 `docs/ADR/*`
+5. 필요 시 `docs/Idea`, `docs/1Pager`, `docs/POC`
+
+## 브랜치 흐름
+
+- 작업 브랜치에서 변경 수행
+- 먼저 `codexReview`로 반영해 통합 확인
+- 이후 `codexReview -> main` PR 생성 및 머지
+- 구현 변경 시 관련 문서도 함께 갱신
