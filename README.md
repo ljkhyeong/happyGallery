@@ -1,18 +1,72 @@
 # happyGallery
 
-happyGallery는 오프라인 공방의 온라인 쇼핑몰 + 체험 예약 시스템이다.
+오프라인 공방의 **온라인 쇼핑몰 + 체험 예약 시스템**.
+상품 주문, 클래스 예약, 8회권 패스, 관리자 운영을 하나의 플랫폼에서 처리한다.
 
-- 백엔드: Spring Boot 4.0.2, Java 21, MySQL 8
-- 프론트: Vite, React 19, TypeScript, Bootstrap
-- 저장소 형태: Gradle 멀티 모듈 백엔드 + 별도 `frontend/` 워크스페이스
+- **백엔드**: Spring Boot 4.0.2 / Java 21 / MySQL 8
+- **프론트엔드**: Vite / React 19 / TypeScript / Bootstrap
+- **구조**: Gradle 멀티 모듈(`app` · `domain` · `infra` · `common`) + `frontend/` 워크스페이스
+
+---
 
 ## 빠른 길잡이
 
 - 현재 세션 인수인계: `HANDOFF.md`
+- 현재 활성 계획: `plan.md`
 - 기준 스펙: `docs/PRD/0001_spec/spec.md`
-- 전체 계획/백로그: `docs/1Pager/0000_project_plan/plan.md`
-- 프론트 계획: `docs/1Pager/0003_frontend_plan/plan.md`
 - 설계 결정: `docs/ADR/`
+
+---
+
+## 문서 목록
+
+### 루트 운영 문서
+
+| 문서 | 경로 | 설명 |
+|------|------|------|
+| `README.md` | `/README.md` | 저장소 개요와 문서/실행 진입점 |
+| `HANDOFF.md` | `/HANDOFF.md` | 현재 구현 상태, 최근 변경, 다음 작업 |
+| `plan.md` | `/plan.md` | 현재 활성 실행 계획과 백로그 |
+| `AGENTS.md` | `/AGENTS.md` | 저장소 작업 규칙 |
+| `CLAUDE.md` | `/CLAUDE.md` | 별도 에이전트 운영 메모 |
+
+### PRD
+
+| 문서 | 경로 | 설명 |
+|------|------|------|
+| [Core MVP Specification](docs/PRD/0001_spec/spec.md) | `docs/PRD/0001_spec/` | 전체 시스템의 기능 요구사항 정의서 |
+| [Member Store Transition](docs/PRD/0002_member_store_transition/spec.md) | `docs/PRD/0002_member_store_transition/` | 회원 인증·스토어 전환 차기 요구사항 |
+| [Out Of Scope](docs/PRD/0003_out_of_scope/scope.md) | `docs/PRD/0003_out_of_scope/` | 초기 버전에서 명시적으로 제외하는 범위 |
+
+### ADR
+
+| 문서 | 경로 | 설명 |
+|------|------|------|
+| `ADR-0001` ~ `ADR-0021` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
+
+### Idea
+
+| 문서 | 경로 | 설명 |
+|------|------|------|
+| [JSON + Generated Column](docs/Idea/0001_json-generated-column-consideration/idea.md) | `docs/Idea/0001_json-generated-column-consideration/` | 가변 속성 저장 패턴 검토 |
+| [Bulkhead (Resilience4j)](docs/Idea/0002_bulkhead-resilience4j-consideration/idea.md) | `docs/Idea/0002_bulkhead-resilience4j-consideration/` | 외부 호출 격리 전략 검토 |
+
+### POC
+
+| 문서 | 경로 | 설명 |
+|------|------|------|
+| [PaymentProvider CircuitBreaker 적용 POC](docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md) | `docs/POC/0001_payment-provider-circuit-breaker-rollout/` | 결제 환불 경계의 CircuitBreaker/TimeLimiter 적용 실험과 결과 |
+
+### 1Pager
+
+| 문서 | 경로 | 설명 |
+|------|------|------|
+| [1Pager Guide](docs/1Pager/README.md) | `docs/1Pager/` | 이해관계자 공유용 한 장 요약 문서 카테고리 안내 |
+
+문서 운영 규칙:
+- 현재 활성 실행 계획은 루트 `plan.md`만 사용한다.
+- 완료된 임시 실행 계획은 `docs/1Pager`에 남기지 않는다.
+- 장기 보관 가치가 있는 내용만 `docs/Idea`, `docs/1Pager`, `docs/PRD`, `docs/POC`, `docs/ADR`에 남긴다.
 
 ## 현재 제공 기능
 
@@ -188,9 +242,10 @@ E2E 참고:
 ## 문서 우선순위
 
 1. `HANDOFF.md`
-2. `docs/PRD/0001_spec/spec.md`
-3. 관련 `docs/ADR/*`
-4. 도메인별 `docs/1Pager/*`
+2. `plan.md`
+3. `docs/PRD/0001_spec/spec.md`
+4. 관련 `docs/ADR/*`
+5. 필요 시 `docs/Idea`, `docs/1Pager`, `docs/POC`
 
 ## 브랜치 흐름
 
