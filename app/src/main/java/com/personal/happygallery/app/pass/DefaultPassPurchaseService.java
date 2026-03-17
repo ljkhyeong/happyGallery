@@ -1,5 +1,11 @@
 package com.personal.happygallery.app.pass;
 
+import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
+import com.personal.happygallery.app.pass.port.in.PassPurchaseUseCase;
+import com.personal.happygallery.app.customer.port.out.GuestStorePort;
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationPort;
+import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
+import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.time.TimeBoundary;
@@ -8,10 +14,6 @@ import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
@@ -20,23 +22,26 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class PassPurchaseService {
+public class DefaultPassPurchaseService implements PassPurchaseUseCase {
 
-    private final GuestRepository guestRepository;
-    private final PhoneVerificationRepository phoneVerificationRepository;
-    private final PassPurchaseRepository passPurchaseRepository;
-    private final PassLedgerRepository passLedgerRepository;
+    private final GuestReaderPort guestReader;
+    private final GuestStorePort guestStore;
+    private final PhoneVerificationPort phoneVerificationPort;
+    private final PassPurchaseStorePort passPurchaseStore;
+    private final PassLedgerStorePort passLedgerStore;
     private final Clock clock;
 
-    public PassPurchaseService(GuestRepository guestRepository,
-                               PhoneVerificationRepository phoneVerificationRepository,
-                               PassPurchaseRepository passPurchaseRepository,
-                               PassLedgerRepository passLedgerRepository,
+    public DefaultPassPurchaseService(GuestReaderPort guestReader,
+                               GuestStorePort guestStore,
+                               PhoneVerificationPort phoneVerificationPort,
+                               PassPurchaseStorePort passPurchaseStore,
+                               PassLedgerStorePort passLedgerStore,
                                Clock clock) {
-        this.guestRepository = guestRepository;
-        this.phoneVerificationRepository = phoneVerificationRepository;
-        this.passPurchaseRepository = passPurchaseRepository;
-        this.passLedgerRepository = passLedgerRepository;
+        this.guestReader = guestReader;
+        this.guestStore = guestStore;
+        this.phoneVerificationPort = phoneVerificationPort;
+        this.passPurchaseStore = passPurchaseStore;
+        this.passLedgerStore = passLedgerStore;
         this.clock = clock;
     }
 
@@ -46,7 +51,7 @@ public class PassPurchaseService {
      * @param totalPrice 8회권 총 결제금액 (KRW) — 정산 환불 계산 기준
      */
     public PassPurchase purchaseForGuest(Long guestId, long totalPrice) {
-        Guest guest = guestRepository.findById(guestId)
+        Guest guest = guestReader.findById(guestId)
                 .orElseThrow(() -> new NotFoundException("게스트"));
         return createPurchase(guest, totalPrice);
     }
@@ -64,15 +69,14 @@ public class PassPurchaseService {
     public PassPurchase purchaseByPhone(String phone, String verificationCode,
                                         String name, long totalPrice) {
         // 인증 코드 검증
-        PhoneVerification pv = phoneVerificationRepository
-                .findByPhoneAndCodeAndVerifiedFalseAndExpiresAtAfter(
-                        phone, verificationCode, LocalDateTime.now(clock))
+        PhoneVerification pv = phoneVerificationPort
+                .findValidVerification(phone, verificationCode, LocalDateTime.now(clock))
                 .orElseThrow(PhoneVerificationFailedException::new);
         pv.markVerified();
 
         // Guest upsert
-        Guest guest = guestRepository.findByPhone(phone)
-                .orElseGet(() -> guestRepository.save(new Guest(name, phone)));
+        Guest guest = guestReader.findByPhone(phone)
+                .orElseGet(() -> guestStore.save(new Guest(name, phone)));
         guest.markPhoneVerified();
 
         return createPurchase(guest, totalPrice);
@@ -85,8 +89,8 @@ public class PassPurchaseService {
         ZonedDateTime now = ZonedDateTime.now(clock);
         LocalDateTime expiresAt = TimeBoundary.passExpiresAtLocal(now);
 
-        PassPurchase purchase = passPurchaseRepository.save(new PassPurchase(userId, expiresAt, totalPrice));
-        passLedgerRepository.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));
+        PassPurchase purchase = passPurchaseStore.save(new PassPurchase(userId, expiresAt, totalPrice));
+        passLedgerStore.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));
 
         return purchase;
     }
@@ -95,8 +99,8 @@ public class PassPurchaseService {
         ZonedDateTime now = ZonedDateTime.now(clock);
         LocalDateTime expiresAt = TimeBoundary.passExpiresAtLocal(now);
 
-        PassPurchase purchase = passPurchaseRepository.save(new PassPurchase(guest, expiresAt, totalPrice));
-        passLedgerRepository.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));
+        PassPurchase purchase = passPurchaseStore.save(new PassPurchase(guest, expiresAt, totalPrice));
+        passLedgerStore.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));
 
         return purchase;
     }

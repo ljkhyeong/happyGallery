@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-16 (문서 체계 재정리, 루트 plan 전환, 회원 스토어 전환/운영 모니터링 1차/헥사고날 pilot 1차 반영 상태)
+> 작성 시점: 2026-03-17 (문서 체계 재정리, 루트 plan 전환, 회원 스토어 전환/운영 모니터링 2차/헥사고날 pilot 2차 반영 상태)
 
 ---
 
@@ -19,11 +19,11 @@
 
 ## 현재 브랜치 / 워크트리 상태
 
-- 권장 작업 브랜치: `codex/work-20260315-015031`
+- 권장 작업 브랜치: `codex/work-20260316-221408`
 - 최근 작업:
   - 문서 체계 재정리 — 활성 실행 계획은 루트 `plan.md`로 통합, 완료된 `docs/1Pager` 실행 계획 문서는 제거, `docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md`를 추가하고 `README.md` 문서 목록을 현재 구조 기준으로 재작성
-  - 헥사고날 전환 pilot 1차 진행 — customer auth / guest claim / admin session / booking / order / payment / notification / product 경계에 `port/in`, `port/out`, `*PortAdapter`를 도입하고, 기존 애플리케이션 서비스가 `infra` 구현 대신 애플리케이션 포트를 의존하도록 정리
-  - 운영 모니터링 1차 구현 완료 — 프론트 주요 guest/member 전환 지점에서 `/api/v1/monitoring/client-events` 로 fire-and-forget 이벤트를 보내고, 서버는 requestId가 붙은 `[client-monitoring]` 로그로 `/guest` 허브 유입, `/orders/new` direct continue, guest→member CTA, claim 완료를 추적하도록 정리
+  - 헥사고날 전환 pilot 2차 진행 — booking cancel/reschedule, pass purchase/expiry batch, pickup expiry batch 경계에 `port/in` 유스케이스를 추가하고 controller/batch 진입점을 해당 포트로 전환, `NotificationLogReaderPortAdapter`를 도입하고 주요 구현체 이름을 `Default*`로 정리
+  - 운영 모니터링 2차 구현 완료 — 프론트 주요 guest/member 전환 지점의 `[client-monitoring]` 로그 수집에 더해 `AppMetrics`를 도입해 `happygallery.funnel.client_event`, `happygallery.funnel.guest_claim_completed` 메트릭을 기록하고 `/actuator/prometheus`를 노출하도록 정리
   - `/orders/new` direct fallback gate 추가 — 상품 상세에서 prefill로 내려온 경우는 바로 진행하고, query 없이 직접 진입한 `/orders/new`는 “보조 경로” 안내 후 명시적으로 계속해야 수동 비회원 다중 상품 주문을 진행하도록 정리
   - guest lookup 허브 추가 완료 — `/guest` 진입 페이지를 추가하고, 상단 utility bar와 홈은 direct guest lookup 대신 `/guest` 허브를 우선 노출하도록 정리
   - guest route 운영 카피 정리 완료 — `/guest/orders`, `/guest/bookings`, 홈 lookup 패널, guest 성공 CTA에서 guest 경로를 “조회용 보조 경로”로 명확히 표시하고, 로그인/회원가입 후 `/my` claim으로 이어지는 전환 문구를 강화
@@ -45,7 +45,7 @@
   - U6 rollout / E2E 3차 완료 — Playwright smoke 1~9 통과, guest/member/claim 혼합 시나리오와 guest 성공 화면 -> 회원가입 -> claim 모달 자동 진입까지 정리, 관리자 로그인 토큰 캐시와 고객 세션 쿠키 bootstrap helper 반영, README/P8/U6/PRD/HANDOFF 문서 동기화
   - U5 회원 셀프서비스 1차 — `/my`, `/my/orders/:id`, 회원 주문/예약/8회권 목록 조회, 회원 주문 상세, 회원 예약/8회권 생성과 `/api/v1/me/**` 기반 흐름 확장
   - U4 제출 직전 인증 게이트 + 주문 진입 전환 — `/products/:id` 회원 주문, `/bookings/new`·`/passes/purchase`의 member/guest auth gate 분기, legacy guest 조회 경로와 공존
-  - U1 고객 인증 기반 — `User`/`UserSession` 엔티티, `CustomerAuthService`(BCrypt + DB 세션), `CustomerAuthFilter`(HttpOnly 쿠키 `HG_SESSION`), `/api/v1/auth/{signup,login,logout}` + `GET /api/v1/me`, 프론트 `LoginPage`/`SignupPage`/Layout 로그인 상태 표시, V14 migration, rate limit(customer-login 10/min, customer-signup 5/min)
+  - U1 고객 인증 기반 — `User`/`UserSession` 엔티티, `CustomerAuthUseCase(DefaultCustomerAuthService)` + `CustomerAuthFilter`(HttpOnly 쿠키 `HG_SESSION`), `/api/v1/auth/{signup,login,logout}` + `GET /api/v1/me`, 프론트 `LoginPage`/`SignupPage`/Layout 로그인 상태 표시, V14 migration, rate limit(customer-login 10/min, customer-signup 5/min)
   - CR-P7 배송 흐름 및 운영 이력 확장 — 배송 전이 API 3종 (prepare-shipping, mark-shipped, mark-delivered), 주문 이력 조회 API, expectedShipDate write guard, 프론트 배송 액션/이력 패널, spec/plan/HANDOFF 문서 동기화
   - CR-P6 계약/감사/무결성 후속 — fulfillment.status FE 정합, admin principal 세션 전환, fulfillments.order_id unique, convertToPickup stale 데이터 제거, resume-production HTTP test, 프론트 중복 정리, README/PRD/ADR/E2E 문서 정합화
   - 문서 정합화 — spec.md, ADR-0013, ADR-0014 상태명·Fulfillment 구조 반영
@@ -55,6 +55,7 @@
   - P8 E2E 시나리오 검증 — local 환불 실패 hook 추가, 기본 관리자 계정 정합화, 실제 로컬 smoke 1~9 pass
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
+  - `./gradlew clean :app:test --no-daemon` 통과
   - `cd frontend && npm run e2e -- --grep "P8-9"` 통과
   - `cd frontend && npm run e2e` 통과 (smoke 1~9)
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.customer.CustomerGuestClaimUseCaseIT` 통과
@@ -137,7 +138,7 @@
 - `/my/orders`, `/my/bookings`, `/my/passes` 는 검색, 상태 필터, quick tab, 정렬을 제공한다.
 - `/guest` 를 비회원 조회 entry route로 노출하고, `/guest/orders`, `/guest/bookings` 는 canonical guest 조회 경로이자 생성 후 확인용 보조 경로로 유지한다.
 - 현재 운영 권장안은 `/guest` 허브와 `/guest/orders`, `/guest/bookings`, `/orders/new` direct gate를 그대로 유지한 채 member route 안정화 이후 2~4주 동안 사용량과 문의 유형을 관찰한 뒤 direct guest fallback 축소 여부를 결정하는 것이다.
-- `/api/v1/monitoring/client-events` 는 guest/member 주요 전환 이벤트를 requestId가 포함된 `[client-monitoring]` 로그로 남긴다. 현재 수집 범위는 `/guest` 허브 진입, `/orders/new` direct continue, guest 성공/조회 화면의 회원 전환 CTA, `/my` claim 모달 오픈, guest claim 완료다.
+- `/api/v1/monitoring/client-events` 는 guest/member 주요 전환 이벤트를 requestId가 포함된 `[client-monitoring]` 로그로 남기고, 동시에 `happygallery.funnel.client_event`, `happygallery.funnel.guest_claim_completed` 메트릭을 누적한다. 현재 수집 범위는 `/guest` 허브 진입, `/orders/new` direct continue, guest 성공/조회 화면의 회원 전환 CTA, `/my` claim 모달 오픈, guest claim 완료다.
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
 - 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
 - Playwright smoke는 관리자 Bearer 토큰과 고객 `HG_SESSION` 쿠키를 backend API로 bootstrap해 로그인 rate limit과 UI 초기화 타이밍 영향을 줄였다.
@@ -153,6 +154,7 @@
 
 ### 로컬 실행 메모
 - `local` 프로필 `:app:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
+- `local` 프로필에서 `http://localhost:8080/actuator/prometheus` 로 JVM/HTTP 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 함께 노출한다.
 - clean DB 기준으로도 P8 guest/member smoke 1~9를 바로 실행할 수 있다.
 - `DELETE /api/v1/admin/dev/payment/refunds/fail-next`로 훅을 비우고, `POST /api/v1/admin/dev/payment/refunds/fail-next`로 다음 환불 1회 실패를 arm할 수 있다.
   요청 바디에 `orderId`를 넣으면 특정 주문으로 범위를 좁힐 수 있다.

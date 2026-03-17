@@ -2,8 +2,8 @@ package com.personal.happygallery.app.batch;
 
 import com.personal.happygallery.app.booking.BookingReminderBatchService;
 import com.personal.happygallery.app.order.OrderAutoRefundBatchService;
-import com.personal.happygallery.app.order.PickupExpireBatchService;
-import com.personal.happygallery.app.pass.PassExpiryBatchService;
+import com.personal.happygallery.app.order.port.in.PickupExpireBatchUseCase;
+import com.personal.happygallery.app.pass.port.in.PassExpiryBatchUseCase;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -24,13 +24,13 @@ import org.springframework.stereotype.Component;
 public class BatchScheduler {
 
     private final OrderAutoRefundBatchService orderAutoRefundBatchService;
-    private final PickupExpireBatchService pickupExpireBatchService;
-    private final PassExpiryBatchService passExpiryBatchService;
+    private final PickupExpireBatchUseCase pickupExpireBatchService;
+    private final PassExpiryBatchUseCase passExpiryBatchService;
     private final BookingReminderBatchService bookingReminderBatchService;
 
     public BatchScheduler(OrderAutoRefundBatchService orderAutoRefundBatchService,
-                          PickupExpireBatchService pickupExpireBatchService,
-                          PassExpiryBatchService passExpiryBatchService,
+                          PickupExpireBatchUseCase pickupExpireBatchService,
+                          PassExpiryBatchUseCase passExpiryBatchService,
                           BookingReminderBatchService bookingReminderBatchService) {
         this.orderAutoRefundBatchService = orderAutoRefundBatchService;
         this.pickupExpireBatchService = pickupExpireBatchService;

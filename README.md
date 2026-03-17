@@ -9,12 +9,18 @@
 
 ---
 
-## 빠른 길잡이
+## 구조와 주요 라이브러리
 
-- 현재 세션 인수인계: `HANDOFF.md`
-- 현재 활성 계획: `plan.md`
-- 기준 스펙: `docs/PRD/0001_spec/spec.md`
-- 설계 결정: `docs/ADR/`
+| 구분 | 구성 | 용도 |
+|------|------|------|
+| 백엔드 구조 | `app` / `domain` / `infra` / `common` | 진입점, 도메인 규칙, 외부 연동, 공통 유틸을 분리한 멀티 모듈 구조 |
+| 프론트 구조 | `frontend/` (Vite + React 19 + TypeScript) | 스토어/마이페이지/관리자 UI와 브라우저 흐름 구현 |
+| Resilience4j | `resilience4j-circuitbreaker`, `resilience4j-timelimiter` | PG 환불 외부 호출에 CircuitBreaker + TimeLimiter를 적용해 장애 전파를 줄임 |
+| Spring Actuator | `spring-boot-starter-actuator` | `/actuator/health`, `/actuator/info`, `/actuator/metrics`, `/actuator/prometheus` 운영 엔드포인트 제공 |
+| Prometheus | `micrometer-registry-prometheus` | Actuator 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 scrape 가능한 포맷으로 노출 |
+| Grafana | Prometheus 대시보드 기준 도구 | 운영 메트릭과 전환 퍼널 지표를 시각화하는 대시보드 대상으로 사용하며, 현재 연동 트랙을 진행 중 |
+| TanStack Query | `@tanstack/react-query` | 상품/예약/주문/관리자 데이터를 조회·캐시하고 mutation 후 invalidate를 처리 |
+| Bootstrap | `bootstrap` | 스토어/관리자 화면의 기본 UI 레이아웃과 컴포넌트 스타일링 |
 
 ---
 

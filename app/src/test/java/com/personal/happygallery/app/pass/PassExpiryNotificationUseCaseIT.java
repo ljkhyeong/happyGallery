@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.pass;
 
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
@@ -41,7 +42,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class PassExpiryNotificationUseCaseIT {
 
-    @Autowired PassExpiryBatchService passExpiryBatchService;
+    @Autowired PassExpiryBatchUseCase passExpiryBatchService;
     @Autowired PassPurchaseRepository passPurchaseRepository;
     @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired RefundRepository refundRepository;

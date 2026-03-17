@@ -1,12 +1,13 @@
 package com.personal.happygallery.app.pass;
 
 import com.personal.happygallery.app.batch.BatchExecutor;
+import com.personal.happygallery.app.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.app.notification.port.out.NotificationLogReaderPort;
+import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassPurchase;
-import com.personal.happygallery.infra.notification.NotificationLogRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,22 +16,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class PassExpiryBatchService {
+public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
 
-    private final PassPurchaseRepository passPurchaseRepository;
+    private final PassPurchaseReaderPort passPurchaseReader;
     private final PassExpireProcessor passExpireProcessor;
-    private final NotificationLogRepository notificationLogRepository;
+    private final NotificationLogReaderPort notificationLogReader;
     private final NotificationService notificationService;
     private final Clock clock;
 
-    public PassExpiryBatchService(PassPurchaseRepository passPurchaseRepository,
+    public DefaultPassExpiryBatchService(PassPurchaseReaderPort passPurchaseReader,
                                   PassExpireProcessor passExpireProcessor,
-                                  NotificationLogRepository notificationLogRepository,
+                                  NotificationLogReaderPort notificationLogReader,
                                   NotificationService notificationService,
                                   Clock clock) {
-        this.passPurchaseRepository = passPurchaseRepository;
+        this.passPurchaseReader = passPurchaseReader;
         this.passExpireProcessor = passExpireProcessor;
-        this.notificationLogRepository = notificationLogRepository;
+        this.notificationLogReader = notificationLogReader;
         this.notificationService = notificationService;
         this.clock = clock;
     }
@@ -47,7 +48,7 @@ public class PassExpiryBatchService {
      */
     public BatchResult expireAll() {
         LocalDateTime now = LocalDateTime.now(clock);
-        List<PassPurchase> expired = passPurchaseRepository
+        List<PassPurchase> expired = passPurchaseReader
                 .findByExpiresAtBeforeAndRemainingCreditsGreaterThan(now, 0);
 
         return BatchExecutor.execute(expired,
@@ -65,7 +66,7 @@ public class PassExpiryBatchService {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime targetStart = now.plusDays(7).toLocalDate().atStartOfDay();
         LocalDateTime targetEnd = targetStart.plusDays(1);
-        return passPurchaseRepository
+        return passPurchaseReader
                 .findByExpiresAtBetweenAndRemainingCreditsGreaterThan(targetStart, targetEnd, 0);
     }
 
@@ -83,15 +84,14 @@ public class PassExpiryBatchService {
         LocalDateTime targetEnd = targetStart.plusDays(1);
         LocalDateTime sentStart = now.toLocalDate().atStartOfDay();
         LocalDateTime sentEnd = sentStart.plusDays(1);
-        List<PassPurchase> expiring = passPurchaseRepository.findExpiringWithGuestBetween(targetStart, targetEnd);
+        List<PassPurchase> expiring = passPurchaseReader.findExpiringWithGuestBetween(targetStart, targetEnd);
 
         return BatchExecutor.execute(expiring,
                 PassPurchase::getId,
                 pass -> {
-                    if (notificationLogRepository.existsByGuestIdAndEventTypeAndStatusAndSentAtBetween(
+                    if (notificationLogReader.existsSentNotification(
                             pass.getGuest().getId(),
                             NotificationEventType.PASS_EXPIRY_SOON,
-                            "SUCCESS",
                             sentStart,
                             sentEnd)) {
                         return false;

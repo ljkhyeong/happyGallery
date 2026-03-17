@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.batch.BatchExecutor;
+import com.personal.happygallery.app.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -17,13 +18,13 @@ import org.springframework.stereotype.Service;
  * 상태를 {@code PICKUP_EXPIRED}로 전이한다.
  */
 @Service
-public class PickupExpireBatchService {
+public class DefaultPickupExpireBatchService implements PickupExpireBatchUseCase {
 
     private final FulfillmentPort fulfillmentPort;
     private final PickupExpireProcessor pickupExpireProcessor;
     private final Clock clock;
 
-    public PickupExpireBatchService(FulfillmentPort fulfillmentPort,
+    public DefaultPickupExpireBatchService(FulfillmentPort fulfillmentPort,
                                     PickupExpireProcessor pickupExpireProcessor,
                                     Clock clock) {
         this.fulfillmentPort = fulfillmentPort;
