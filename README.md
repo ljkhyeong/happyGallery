@@ -9,34 +9,38 @@
 
 ---
 
-## 구조와 주요 라이브러리
+## 🧭 구조와 주요 라이브러리
 
 | 구분 | 구성 | 용도 |
 |------|------|------|
 | 백엔드 구조 | `app` / `domain` / `infra` / `common` | 진입점, 도메인 규칙, 외부 연동, 공통 유틸을 분리한 멀티 모듈 구조 |
 | 프론트 구조 | `frontend/` (Vite + React 19 + TypeScript) | 스토어/마이페이지/관리자 UI와 브라우저 흐름 구현 |
+| 관측성 구조 | `monitoring/` + `docker-compose.yml` | Prometheus scrape, Grafana provisioning, alert rule, 대시보드 JSON을 로컬 운영 스택으로 묶음 |
 | Resilience4j | `resilience4j-circuitbreaker`, `resilience4j-timelimiter` | PG 환불 외부 호출에 CircuitBreaker + TimeLimiter를 적용해 장애 전파를 줄임 |
 | Spring Actuator | `spring-boot-starter-actuator` | `/actuator/health`, `/actuator/info`, `/actuator/metrics`, `/actuator/prometheus` 운영 엔드포인트 제공 |
 | Prometheus | `micrometer-registry-prometheus` | Actuator 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 scrape 가능한 포맷으로 노출 |
-| Grafana | Prometheus 대시보드 기준 도구 | 운영 메트릭과 전환 퍼널 지표를 시각화하는 대시보드 대상으로 사용하며, 현재 연동 트랙을 진행 중 |
+| Grafana | Grafana provisioning + dashboard JSON | 시스템 메트릭과 제품 전환 퍼널 지표를 대시보드로 시각화 |
+| Sentry | `sentry-spring-boot-4-starter`, `@sentry/react` | 서버 500 예외와 프론트 API 5xx 에러를 requestId 태그와 함께 캡처 |
 | TanStack Query | `@tanstack/react-query` | 상품/예약/주문/관리자 데이터를 조회·캐시하고 mutation 후 invalidate를 처리 |
 | Bootstrap | `bootstrap` | 스토어/관리자 화면의 기본 UI 레이아웃과 컴포넌트 스타일링 |
 
 ---
 
-## 문서 목록
+## 📚 문서 안내
 
-### 루트 운영 문서
+### 🗂 현재 운영 문서
 
-| 문서 | 경로 | 설명 |
-|------|------|------|
-| `README.md` | `/README.md` | 저장소 개요와 문서/실행 진입점 |
-| `HANDOFF.md` | `/HANDOFF.md` | 현재 구현 상태, 최근 변경, 다음 작업 |
-| `plan.md` | `/plan.md` | 현재 활성 실행 계획과 백로그 |
-| `AGENTS.md` | `/AGENTS.md` | 저장소 작업 규칙 |
-| `CLAUDE.md` | `/CLAUDE.md` | 별도 에이전트 운영 메모 |
+- `README.md`: 저장소 개요, 실행 방법, 문서 진입점과 현재 사용하는 주요 라이브러리를 정리한다.
+- `HANDOFF.md`: 현재 구현 상태, 최근 변경, 다음 세션 인수인계 메모를 유지한다.
+- `plan.md`: 지금 진행 중인 관측성/아키텍처/운영 백로그만 유지한다.
+- `PRD`: 제품 요구사항과 운영 정책의 기준 문서다. 기능 계약이나 정책 변경 시 먼저 맞춘다.
+- `ADR`: 데이터 모델, 상태 전이, 인증, 결제, 관측성, 헥사고날 전환 같은 핵심 설계 결정을 남긴다.
+- `Idea`: 아직 정식 채택 전인 아이디어나 검토 메모를 보관한다.
+- `POC`: 실제 실험 결과와 적용 판단 근거를 남긴다.
+- `1Pager`: 이해관계자 공유용 요약 문서 카테고리다.
+- `AGENTS.md`, `CLAUDE.md`: 에이전트별 작업 규칙과 로컬 운영 메모다.
 
-### PRD
+### 📐 PRD
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
@@ -44,26 +48,26 @@
 | [Member Store Transition](docs/PRD/0002_member_store_transition/spec.md) | `docs/PRD/0002_member_store_transition/` | 회원 인증·스토어 전환 차기 요구사항 |
 | [Out Of Scope](docs/PRD/0003_out_of_scope/scope.md) | `docs/PRD/0003_out_of_scope/` | 초기 버전에서 명시적으로 제외하는 범위 |
 
-### ADR
+### 🧱 ADR
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
 | `ADR-0001` ~ `ADR-0021` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
 
-### Idea
+### 💡 Idea
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
 | [JSON + Generated Column](docs/Idea/0001_json-generated-column-consideration/idea.md) | `docs/Idea/0001_json-generated-column-consideration/` | 가변 속성 저장 패턴 검토 |
 | [Bulkhead (Resilience4j)](docs/Idea/0002_bulkhead-resilience4j-consideration/idea.md) | `docs/Idea/0002_bulkhead-resilience4j-consideration/` | 외부 호출 격리 전략 검토 |
 
-### POC
+### 🧪 POC
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
 | [PaymentProvider CircuitBreaker 적용 POC](docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md) | `docs/POC/0001_payment-provider-circuit-breaker-rollout/` | 결제 환불 경계의 CircuitBreaker/TimeLimiter 적용 실험과 결과 |
 
-### 1Pager
+### 📄 1Pager
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
@@ -74,7 +78,7 @@
 - 완료된 임시 실행 계획은 `docs/1Pager`에 남기지 않는다.
 - 장기 보관 가치가 있는 내용만 `docs/Idea`, `docs/1Pager`, `docs/PRD`, `docs/POC`, `docs/ADR`에 남긴다.
 
-## 현재 제공 기능
+## ✅ 현재 제공 기능
 
 - 공개 사용자 흐름
   - 상점형 홈 / 스토어 네비게이션
@@ -122,7 +126,7 @@
 - `/guest/orders`
 - `/admin`
 
-## 저장소 구조
+## 🏗 저장소 구조
 
 - `app/`
   - Spring Boot 진입점, 컨트롤러, 애플리케이션 서비스, 배치, 통합 테스트
@@ -132,10 +136,12 @@
   - JPA 리포지토리, 결제/알림 등 외부 연동 구현
 - `common/`
   - 공통 예외, 시간 유틸, 공용 타입
+- `monitoring/`
+  - Prometheus scrape/alert rule, Grafana datasource/provisioning, 대시보드 JSON
 - `frontend/`
   - Vite + React + TypeScript 프론트엔드
 
-## 로컬 실행
+## 🚀 로컬 실행
 
 ### 1. 요구사항
 
@@ -181,6 +187,9 @@ MySQL + 앱 컨테이너를 함께 실행:
 docker compose up -d --build
 ```
 
+- `prometheus`: `http://localhost:9090`
+- `grafana`: `http://localhost:3001` (`admin` / `admin`)
+
 백엔드 헬스 체크:
 
 ```bash
@@ -198,7 +207,7 @@ npm run dev
 - 프론트 개발 서버: `http://localhost:3000`
 - `/api` 요청은 Vite proxy로 `http://localhost:8080`에 연결된다.
 
-## 빌드와 검증
+## 🧪 빌드와 검증
 
 ### 백엔드
 
