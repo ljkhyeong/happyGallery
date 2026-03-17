@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
@@ -22,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class BookingRescheduleService {
+public class DefaultBookingRescheduleService implements BookingRescheduleUseCase {
 
     private final BookingReaderPort bookingReaderPort;
     private final BookingStorePort bookingStorePort;
@@ -32,7 +33,7 @@ public class BookingRescheduleService {
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
-    public BookingRescheduleService(BookingReaderPort bookingReaderPort,
+    public DefaultBookingRescheduleService(BookingReaderPort bookingReaderPort,
                                     BookingStorePort bookingStorePort,
                                     SlotReaderPort slotReaderPort,
                                     SlotStorePort slotStorePort,

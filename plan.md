@@ -11,19 +11,20 @@
 
 현재 상태:
 - 기본 `requestId`, 구조화 로그, Actuator `health/info/metrics`, `[client-monitoring]` 로그는 이미 반영됨
-- Prometheus/Grafana/Sentry 기반 운영 관측성은 아직 미완료
+- `/actuator/prometheus` 노출과 `happygallery.funnel.*` 커스텀 메트릭 추가까지는 완료됨
+- Grafana 대시보드, runbook, Sentry 연동은 아직 미완료
 
 다음 작업:
 
 | Task | 상태 | 범위 | 비고 |
 |------|------|------|------|
-| `O1-T1` | pending | `app/build.gradle` | `micrometer-registry-prometheus` 추가 |
-| `O1-T2` | pending | `application.yml` | `/actuator/prometheus` 노출 |
+| `O1-T1` | done | `app/build.gradle` | `micrometer-registry-prometheus` runtimeOnly 추가 |
+| `O1-T2` | done | `application.yml` | `/actuator/prometheus` 노출 |
 | `O1-T3` | pending | 로컬 실행 문서/구성 | Prometheus scrape 경로 정리 |
 | `O1-T4` | pending | 검증 | local scrape 확인 |
-| `O2-T1` | pending | monitoring 패키지 | metric 이름/label 규격 확정 |
-| `O2-T2` | pending | backend monitoring | `client-events` 수신 시 counter 반영 |
-| `O2-T3` | pending | `GuestClaimService` | claim 완료 counter 반영 |
+| `O2-T1` | done | monitoring 패키지 | `AppMetrics` 생성, `happygallery.funnel.*` 네임스페이스 |
+| `O2-T2` | done | backend monitoring | `ClientMonitoringService` → `AppMetrics.incrementClientEvent()` |
+| `O2-T3` | done | guest claim 완료 경로 | claim 완료 로그 경유로 `AppMetrics.incrementGuestClaimCompleted()` 반영 |
 | `O2-T4` | pending | backend test | metric 증가 테스트 추가 |
 | `O3-T1` | pending | dashboard 문서 | Grafana 패널/PromQL 초안 |
 | `O3-T2` | pending | dashboard | 시스템 메트릭 패널 |
@@ -43,28 +44,28 @@
 
 현재 상태:
 - `H1` baseline 문서와 ADR은 완료
-- `H2` 외부 경계 추출은 일부 완료
-- `H3` persistence pilot도 일부 진행됨
+- `H2`~`H5` 주요 전환은 완료되어 controller/batch 진입점이 `port/in` 유스케이스를 호출함
+- 남은 작업은 테스트 전략과 장기 보관 문서 동기화 중심
 
 이미 반영된 범위:
 - `customer auth`, `guest claim`, `admin session`
 - `booking`, `order`, `pass`, `payment`, `notification`, `product`
-- 기존 서비스는 이름을 유지한 채 `port/in`, `port/out`, `*PortAdapter`를 우선 도입
+- 경계가 있는 서비스는 `port/in`, `port/out`, `*Adapter`로 분리했고 주요 구현체는 `Default*` 규칙으로 정리
 
 다음 작업:
 
 | Task | 상태 | 범위 | 비고 |
 |------|------|------|------|
-| `H2-T1` | partial_done | `payment` | `PaymentPort` 도입 후 호출부 정리 잔여 확인 |
-| `H2-T2` | partial_done | `notification` | `NotificationSenderPort` 정리 잔여 확인 |
-| `H2-T3` | partial_done | `customer session` | 구현체 분리 후 naming/패키지 다듬기 |
-| `H2-T4` | partial_done | `admin session` | 운영 저장소 교체 가능성 기준 점검 |
-| `H3-T1` | partial_done | `customer auth + guest claim` | 직접 `infra` 의존 잔여 제거 |
-| `H3-T2` | partial_done | `booking/order/pass/product` | reader/store/history port 정리 마무리 |
-| `H4-T1` | pending | controller | `UseCase` 경계 명시화 |
-| `H4-T2` | pending | batch/scheduler | 진입점이 `UseCase`를 호출하도록 정리 |
-| `H5-T1` | pending | package 정리 | `usecase`, `port/in`, `port/out`, adapter 위치 재정리 |
-| `H5-T2` | pending | naming cleanup | 새 구현체/rename에 `Default*` 규칙 적용 |
+| `H2-T1` | done | `payment` | `PaymentPort` + adapter 완료 |
+| `H2-T2` | done | `notification` | `NotificationSenderPort` + `NotificationLogReaderPort` 완료 |
+| `H2-T3` | done | `customer session` | `CustomerSessionPort` + adapter 완료 |
+| `H2-T4` | done | `admin session` | `AdminSessionPort` 직접 구현 완료 |
+| `H3-T1` | done | `customer auth + guest claim` | infra 직접 의존 제거 완료 |
+| `H3-T2` | done | `booking/order/pass/product` | pass 6개 서비스 port 전환 완료, 전 도메인 infra 직접 의존 제거 |
+| `H4-T1` | done | controller | BookingCancel/Reschedule, PassPurchase UseCase 추출, 컨트롤러 전환 완료 |
+| `H4-T2` | done | batch/scheduler | PassExpiryBatch, PickupExpireBatch UseCase 추출, BatchScheduler/AdminController 전환 완료 |
+| `H5-T1` | done | package 정리 | 전 도메인 port/in·port/out·adapter 위치 확인 완료 — 추가 정리 불필요 |
+| `H5-T2` | done | naming cleanup | UseCase 구현 7개 서비스 `Default*` rename 완료 |
 | `H6-T1` | pending | 테스트 전략 | port 단위 테스트와 통합 테스트 경계 정리 |
 | `H6-T2` | pending | 문서 | README/HANDOFF/ADR 후속 동기화 |
 

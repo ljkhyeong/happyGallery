@@ -1,8 +1,8 @@
 package com.personal.happygallery.app.web.booking;
 
-import com.personal.happygallery.app.booking.BookingCancelService;
 import com.personal.happygallery.app.booking.BookingQueryService;
-import com.personal.happygallery.app.booking.BookingRescheduleService;
+import com.personal.happygallery.app.booking.port.in.BookingRescheduleUseCase;
+import com.personal.happygallery.app.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.app.booking.GuestBookingService;
 import com.personal.happygallery.app.web.booking.dto.BookingDetailResponse;
 import com.personal.happygallery.app.web.booking.dto.BookingResponse;
@@ -33,13 +33,13 @@ public class BookingController {
 
     private final GuestBookingService guestBookingService;
     private final BookingQueryService bookingQueryService;
-    private final BookingRescheduleService bookingRescheduleService;
-    private final BookingCancelService bookingCancelService;
+    private final BookingRescheduleUseCase bookingRescheduleService;
+    private final BookingCancelUseCase bookingCancelService;
 
     public BookingController(GuestBookingService guestBookingService,
                              BookingQueryService bookingQueryService,
-                             BookingRescheduleService bookingRescheduleService,
-                             BookingCancelService bookingCancelService) {
+                             BookingRescheduleUseCase bookingRescheduleService,
+                             BookingCancelUseCase bookingCancelService) {
         this.guestBookingService = guestBookingService;
         this.bookingQueryService = bookingQueryService;
         this.bookingRescheduleService = bookingRescheduleService;
@@ -94,7 +94,7 @@ public class BookingController {
     public CancelResponse cancelBooking(
             @PathVariable Long bookingId,
             @RequestParam String token) {
-        BookingCancelService.CancelResult result =
+        BookingCancelUseCase.CancelResult result =
                 bookingCancelService.cancelBooking(bookingId, token);
         return CancelResponse.of(result.booking(), result.refundable());
     }

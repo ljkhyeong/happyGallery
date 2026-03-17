@@ -1,8 +1,8 @@
 package com.personal.happygallery.app.web.customer;
 
-import com.personal.happygallery.app.booking.BookingCancelService;
 import com.personal.happygallery.app.booking.BookingQueryService;
-import com.personal.happygallery.app.booking.BookingRescheduleService;
+import com.personal.happygallery.app.booking.port.in.BookingRescheduleUseCase;
+import com.personal.happygallery.app.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.app.booking.MemberBookingService;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.booking.dto.CancelResponse;
@@ -31,13 +31,13 @@ public class MeBookingController {
 
     private final BookingQueryService bookingQueryService;
     private final MemberBookingService memberBookingService;
-    private final BookingRescheduleService bookingRescheduleService;
-    private final BookingCancelService bookingCancelService;
+    private final BookingRescheduleUseCase bookingRescheduleService;
+    private final BookingCancelUseCase bookingCancelService;
 
     public MeBookingController(BookingQueryService bookingQueryService,
                                 MemberBookingService memberBookingService,
-                                BookingRescheduleService bookingRescheduleService,
-                                BookingCancelService bookingCancelService) {
+                                BookingRescheduleUseCase bookingRescheduleService,
+                                BookingCancelUseCase bookingCancelService) {
         this.bookingQueryService = bookingQueryService;
         this.memberBookingService = memberBookingService;
         this.bookingRescheduleService = bookingRescheduleService;
@@ -83,7 +83,7 @@ public class MeBookingController {
     @DeleteMapping("/{id}")
     public CancelResponse cancelBooking(@PathVariable Long id, HttpServletRequest request) {
         Long userId = getUserId(request);
-        BookingCancelService.CancelResult result = bookingCancelService.cancelMemberBooking(id, userId);
+        BookingCancelUseCase.CancelResult result = bookingCancelService.cancelMemberBooking(id, userId);
         return CancelResponse.of(result.booking(), result.refundable());
     }
 

@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.pass;
 
-import com.personal.happygallery.app.pass.PassPurchaseService;
+import com.personal.happygallery.app.pass.port.in.PassPurchaseUseCase;
 import com.personal.happygallery.app.web.pass.dto.PurchasePassByPhoneRequest;
 import com.personal.happygallery.app.web.pass.dto.PurchasePassRequest;
 import com.personal.happygallery.app.web.pass.dto.PurchasePassResponse;
@@ -17,9 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/passes", "/passes"})
 public class PassController {
 
-    private final PassPurchaseService passPurchaseService;
+    private final PassPurchaseUseCase passPurchaseService;
 
-    public PassController(PassPurchaseService passPurchaseService) {
+    public PassController(PassPurchaseUseCase passPurchaseService) {
         this.passPurchaseService = passPurchaseService;
     }
 

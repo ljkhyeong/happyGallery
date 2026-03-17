@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.app.booking.port.out.SlotStorePort;
@@ -24,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class BookingCancelService {
+public class DefaultBookingCancelService implements BookingCancelUseCase {
 
     private final SlotReaderPort slotReaderPort;
     private final SlotStorePort slotStorePort;
@@ -35,7 +36,7 @@ public class BookingCancelService {
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
-    public BookingCancelService(SlotReaderPort slotReaderPort,
+    public DefaultBookingCancelService(SlotReaderPort slotReaderPort,
                                 SlotStorePort slotStorePort,
                                 BookingStorePort bookingStorePort,
                                 RefundExecutionService refundExecutionService,
@@ -121,6 +122,4 @@ public class BookingCancelService {
 
         return new CancelResult(booking, refundable);
     }
-
-    public record CancelResult(Booking booking, boolean refundable) {}
 }

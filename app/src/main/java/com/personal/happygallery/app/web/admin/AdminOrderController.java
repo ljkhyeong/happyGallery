@@ -5,7 +5,7 @@ import com.personal.happygallery.app.order.OrderApprovalService;
 import com.personal.happygallery.app.order.OrderPickupService;
 import com.personal.happygallery.app.order.OrderProductionService;
 import com.personal.happygallery.app.order.OrderShippingService;
-import com.personal.happygallery.app.order.PickupExpireBatchService;
+import com.personal.happygallery.app.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.app.web.admin.dto.AdminOrderResponse;
 import com.personal.happygallery.app.web.admin.dto.BatchResponse;
 import com.personal.happygallery.app.web.admin.dto.MarkPickupReadyRequest;
@@ -39,7 +39,7 @@ public class AdminOrderController {
     private final OrderProductionService orderProductionService;
     private final OrderPickupService orderPickupService;
     private final OrderShippingService orderShippingService;
-    private final PickupExpireBatchService pickupExpireBatchService;
+    private final PickupExpireBatchUseCase pickupExpireBatchService;
     private final OrderReaderPort orderReader;
     private final OrderHistoryPort orderHistoryPort;
 
@@ -47,7 +47,7 @@ public class AdminOrderController {
                                 OrderProductionService orderProductionService,
                                 OrderPickupService orderPickupService,
                                 OrderShippingService orderShippingService,
-                                PickupExpireBatchService pickupExpireBatchService,
+                                PickupExpireBatchUseCase pickupExpireBatchService,
                                 OrderReaderPort orderReader,
                                 OrderHistoryPort orderHistoryPort) {
         this.orderApprovalService = orderApprovalService;

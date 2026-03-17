@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.booking.RefundRepository;
@@ -42,7 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PickupExpireBatchUseCaseIT {
 
     @Autowired MockMvc mockMvc;
-    @Autowired PickupExpireBatchService pickupExpireBatchService;
+    @Autowired PickupExpireBatchUseCase pickupExpireBatchService;
     @Autowired PickupExpireProcessor pickupExpireProcessor;
     @Autowired OrderPickupService orderPickupService;
     @Autowired OrderApprovalService orderApprovalService;

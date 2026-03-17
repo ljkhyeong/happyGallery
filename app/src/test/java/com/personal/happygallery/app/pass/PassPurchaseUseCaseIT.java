@@ -38,7 +38,7 @@ class PassPurchaseUseCaseIT {
     @Autowired MockMvc mockMvc;
     @Autowired PassPurchaseRepository passPurchaseRepository;
     @Autowired PassLedgerRepository passLedgerRepository;
-    @Autowired PassExpiryBatchService passExpiryBatchService;
+    @Autowired DefaultPassExpiryBatchService passExpiryBatchService;
     @Autowired GuestRepository guestRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
     @Autowired RefundRepository refundRepository;
