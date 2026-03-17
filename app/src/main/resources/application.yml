@@ -67,6 +67,16 @@ management:
     tags:
       application: ${spring.application.name}
 
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:local}
+  release: ${SENTRY_RELEASE:happygallery@${project.version:unknown}}
+  traces-sample-rate: ${SENTRY_TRACES_SAMPLE_RATE:0.1}
+  context-tags:
+    - requestId
+  send-default-pii: false
+  exception-resolver-order: 2147483647
+
 logging:
   level:
     root: INFO

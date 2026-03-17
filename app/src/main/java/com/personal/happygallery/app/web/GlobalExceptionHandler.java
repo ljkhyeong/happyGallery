@@ -3,6 +3,7 @@ package com.personal.happygallery.app.web;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.ErrorResponse;
 import com.personal.happygallery.common.error.HappyGalleryException;
+import io.sentry.Sentry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -68,6 +69,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception e) {
         log.error("처리되지 않은 예외", e);
+        Sentry.captureException(e);
         return ResponseEntity
                 .status(500)
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));

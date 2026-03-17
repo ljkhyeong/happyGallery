@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import { ApiError } from "@/shared/api/error";
 import type { ErrorResponse } from "@/shared/types/error";
 
@@ -55,11 +56,21 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     } catch {
       // non-JSON error
     }
-    throw new ApiError(
+    const error = new ApiError(
       response.status,
       errorBody?.code ?? "UNKNOWN",
       errorBody?.message ?? response.statusText,
+      errorBody?.requestId,
     );
+    if (response.status >= 500) {
+      Sentry.withScope((scope) => {
+        if (error.requestId) scope.setTag("requestId", error.requestId);
+        scope.setTag("api.path", path);
+        scope.setTag("api.status", response.status);
+        Sentry.captureException(error);
+      });
+    }
+    throw error;
   }
 
   if (response.status === 204 || response.headers.get("content-length") === "0") {
