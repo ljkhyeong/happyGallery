@@ -31,10 +31,12 @@
 ### 🗂 현재 운영 문서
 
 - `README.md`: 저장소 개요, 실행 방법, 문서 진입점과 현재 사용하는 주요 라이브러리를 정리한다.
+- `simple-idea.md`: 작은 개선/정리 아이디어를 `As-Is` / `To-Be` 두 열 표로 한 문장씩 누적한다.
 - `PRD`: 제품 요구사항과 운영 정책의 기준 문서다. 기능 계약이나 정책 변경 시 먼저 맞춘다.
 - `ADR`: 데이터 모델, 상태 전이, 인증, 결제, 관측성, 헥사고날 전환 같은 핵심 설계 결정을 남긴다.
 - `Idea`: 정식 요구사항으로 확정하지 않은 아이디어, 향후 검토 메모, PRD 밖에서 관리하는 엔지니어링 가이드를 보관한다.
 - `POC`: 실제 실험 결과와 적용 판단 근거를 남긴다.
+- `Retrospective`: 지나온 변경 흐름을 되짚어 얻은 교훈과 회고를 남긴다.
 - `1Pager`: 이해관계자 공유용 요약 문서 카테고리다.
 - `AGENTS.md`, `CLAUDE.md`: 에이전트별 작업 규칙과 로컬 운영 메모다.
 
@@ -68,6 +70,19 @@
 |------|------|------|
 | [PaymentProvider CircuitBreaker 적용 POC](docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md) | `docs/POC/0001_payment-provider-circuit-breaker-rollout/` | 결제 환불 경계의 CircuitBreaker/TimeLimiter 적용 실험과 결과 |
 
+### 🔁 Retrospective
+
+| 문서 | 경로 | 설명 |
+|------|------|------|
+| [기반 선행 구축 회고](docs/Retrospective/0001_bootstrap-foundation-retrospective/retrospective.md) | `docs/Retrospective/0001_bootstrap-foundation-retrospective/` | 프로필/문서/마이그레이션/CI/테스트 기반을 먼저 깔았을 때의 효과 회고 |
+| [vertical slice delivery 방식 회고](docs/Retrospective/0002_vertical-slice-delivery-pattern/retrospective.md) | `docs/Retrospective/0002_vertical-slice-delivery-pattern/` | 기능을 도메인별 slice로 완성한 방식의 효과와 한계 회고 |
+| [multi-step 흐름 E2E와 canonical route 안정화 회고](docs/Retrospective/0003_multistep-flow-e2e-and-route-stabilization/retrospective.md) | `docs/Retrospective/0003_multistep-flow-e2e-and-route-stabilization/` | guest/member 전환 흐름에서 브라우저 smoke와 경로 기준이 준 효과 회고 |
+| [기능 성장 후 관측성 보강 회고](docs/Retrospective/0004_observability-retrofit-after-feature-growth/retrospective.md) | `docs/Retrospective/0004_observability-retrofit-after-feature-growth/` | requestId에서 메트릭/대시보드/Sentry까지 확장한 운영 보강 회고 |
+| [guest/member 흐름 수렴 회고](docs/Retrospective/0005_guest-member-flow-convergence/retrospective.md) | `docs/Retrospective/0005_guest-member-flow-convergence/` | guest 중심 공개 흐름 위에 member/claim 흐름이 쌓이면서 생긴 구조 변화 회고 |
+| [query facade와 운영 경계 정리 회고](docs/Retrospective/0006_query-facade-and-ops-boundary-alignment/retrospective.md) | `docs/Retrospective/0006_query-facade-and-ops-boundary-alignment/` | controller/query 조합 책임과 운영 경계가 뒤늦게 정리된 패턴 회고 |
+| [문서 동기화와 canonical route 운영 규율 회고](docs/Retrospective/0007_document-sync-and-canonical-route-discipline/retrospective.md) | `docs/Retrospective/0007_document-sync-and-canonical-route-discipline/` | 문서와 공개 경로 기준을 늦게 정리할 때의 비용 회고 |
+| [local/dev 지원 기능 경계 회고](docs/Retrospective/0008_local-dev-support-boundary/retrospective.md) | `docs/Retrospective/0008_local-dev-support-boundary/` | local 전용 seed/dev hook/지원 API가 늘어나며 생긴 경계 문제 회고 |
+
 ### 📄 1Pager
 
 | 문서 | 경로 | 설명 |
@@ -77,7 +92,7 @@
 문서 운영 규칙:
 - 세션성 인수인계 메모와 활성 실행 계획은 README 문서 목록에서 관리하지 않는다.
 - 완료된 임시 실행 계획은 `docs/1Pager`에 남기지 않는다.
-- 장기 보관 가치가 있는 내용만 `docs/Idea`, `docs/1Pager`, `docs/PRD`, `docs/POC`, `docs/ADR`에 남긴다.
+- 장기 보관 가치가 있는 내용만 `docs/Idea`, `docs/1Pager`, `docs/PRD`, `docs/POC`, `docs/Retrospective`, `docs/ADR`에 남긴다.
 
 ## ✅ 현재 제공 기능
 
