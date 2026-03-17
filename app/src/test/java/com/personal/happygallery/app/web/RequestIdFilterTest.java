@@ -34,7 +34,7 @@ class RequestIdFilterTest {
     @DisplayName("요청 ID가 없으면 서버가 요청 ID를 생성해 반환한다")
     @Test
     void whenNoRequestId_generatesAndReturns() throws Exception {
-        mockMvc.perform(get("/actuator/health"))
+        mockMvc.perform(get("/api/v1/classes"))
                 .andExpect(status().isOk())
                 .andExpect(header().exists("X-Request-Id"));
     }
@@ -42,7 +42,7 @@ class RequestIdFilterTest {
     @DisplayName("요청 ID를 전달하면 동일한 ID를 반환한다")
     @Test
     void whenRequestIdProvided_returnsSameId() throws Exception {
-        mockMvc.perform(get("/actuator/health")
+        mockMvc.perform(get("/api/v1/classes")
                         .header("X-Request-Id", "test-request-id-123"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("X-Request-Id", "test-request-id-123"));

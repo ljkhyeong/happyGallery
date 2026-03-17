@@ -7,6 +7,7 @@ import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.common.token.AccessTokenHasher;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
@@ -45,11 +46,12 @@ public class OrderQueryService {
         return new OrderDetail(order, items, fulfillment);
     }
 
-    /** 토큰 기반 주문 상세 조회 */
-    public OrderDetail getOrderByToken(Long orderId, String token) {
+    /** 토큰 기반 주문 상세 조회 — 입력 토큰을 SHA-256 해시 후 비교 */
+    public OrderDetail getOrderByToken(Long orderId, String rawToken) {
+        String tokenHash = AccessTokenHasher.hash(rawToken);
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
-        if (!Objects.equals(order.getAccessToken(), token)) {
+        if (!Objects.equals(order.getAccessToken(), tokenHash)) {
             throw new NotFoundException("주문");
         }
         List<OrderItem> items = orderItemPort.findByOrder(order);

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingData;
@@ -25,6 +26,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @UseCaseIT
 @AutoConfigureMockMvc(addFilters = true)
+@TestPropertySource(properties = {
+        "app.admin.api-key=dev-admin-key",
+        "app.admin.enable-api-key-auth=true"
+})
 class AdminSlotUseCaseIT {
 
     private static final String ADMIN_KEY = "dev-admin-key";

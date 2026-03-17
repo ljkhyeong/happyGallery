@@ -18,8 +18,7 @@ import org.springframework.stereotype.Service;
  * 예약 리마인드 배치 서비스 (§10.2).
  *
  * <p>D-1(전날 자정)과 당일(당일 07:00) 두 번 발송한다.
- * BookingRepository.findBookingsInRange()가 JOIN FETCH guest 를 수행하므로
- * 트랜잭션 종료 후에도 guest.id 접근이 안전하다.
+ * guest booking 은 notifyByGuestId, member booking 은 notifyByUserId 로 분기한다.
  */
 @Service
 public class BookingReminderBatchService {
@@ -50,8 +49,7 @@ public class BookingReminderBatchService {
 
         List<Booking> bookings = bookingReaderPort.findBookingsInRange(BookingStatus.BOOKED, start, end);
         for (Booking booking : bookings) {
-            notificationService.notifyByGuestId(booking.getGuest().getId(), NotificationEventType.REMINDER_D1);
-            log.info("D-1 리마인드 발송 [bookingId={}, guestId={}]", booking.getId(), booking.getGuest().getId());
+            sendReminder(booking, NotificationEventType.REMINDER_D1);
         }
 
         return BatchResult.successOnly(bookings.size());
@@ -69,10 +67,23 @@ public class BookingReminderBatchService {
 
         List<Booking> bookings = bookingReaderPort.findBookingsInRange(BookingStatus.BOOKED, start, end);
         for (Booking booking : bookings) {
-            notificationService.notifyByGuestId(booking.getGuest().getId(), NotificationEventType.REMINDER_SAME_DAY);
-            log.info("당일 리마인드 발송 [bookingId={}, guestId={}]", booking.getId(), booking.getGuest().getId());
+            sendReminder(booking, NotificationEventType.REMINDER_SAME_DAY);
         }
 
         return BatchResult.successOnly(bookings.size());
+    }
+
+    private void sendReminder(Booking booking, NotificationEventType eventType) {
+        if (booking.getUserId() != null) {
+            notificationService.notifyByUserId(booking.getUserId(), eventType);
+            log.info("리마인드 발송 [bookingId={}, userId={}, type={}]",
+                    booking.getId(), booking.getUserId(), eventType);
+        } else if (booking.getGuest() != null) {
+            notificationService.notifyByGuestId(booking.getGuest().getId(), eventType);
+            log.info("리마인드 발송 [bookingId={}, guestId={}, type={}]",
+                    booking.getId(), booking.getGuest().getId(), eventType);
+        } else {
+            log.warn("리마인드 발송 불가 — guest/userId 모두 없음 [bookingId={}]", booking.getId());
+        }
     }
 }

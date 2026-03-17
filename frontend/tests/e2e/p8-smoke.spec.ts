@@ -475,7 +475,7 @@ test("P8-8 회원은 같은 번호의 비회원 주문, 예약, 8회권을 claim
   await page.getByRole("button", { name: /가져오기/ }).first().click();
   const claimDialog = page.getByRole("dialog").filter({ hasText: "비회원 이력 가져오기" }).first();
   await expect(claimDialog).toBeVisible();
-  await completeLockedPhoneVerification(claimDialog, "인증하고 불러오기");
+  await completeLockedPhoneVerification(claimDialog, page, guestPhone, "인증하고 불러오기");
 
   await expect(claimDialog.getByText("확인 완료")).toBeVisible();
   await expect(claimDialog.getByText(`주문 #${orderId}`)).toBeVisible();

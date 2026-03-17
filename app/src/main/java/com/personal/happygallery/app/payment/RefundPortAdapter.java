@@ -1,6 +1,6 @@
-package com.personal.happygallery.app.booking;
+package com.personal.happygallery.app.payment;
 
-import com.personal.happygallery.app.booking.port.out.RefundPort;
+import com.personal.happygallery.app.payment.port.out.RefundPort;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.RefundStatus;
 import com.personal.happygallery.infra.booking.RefundRepository;

@@ -245,18 +245,19 @@ class PickupExpireBatchUseCaseIT {
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
 
-        if (updated.getStatus() == OrderStatus.PICKUP_EXPIRED) {
-            assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
-            assertThat(refundRepository.count()).isEqualTo(1L);
-        } else {
-            assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKED_UP);
-        }
-
-        if (pickupError.get() != null) {
-            assertThat(pickupError.get()).isInstanceOf(RuntimeException.class);
-        }
-        if (expireError.get() != null) {
-            assertThat(expireError.get()).isInstanceOf(RuntimeException.class);
-        }
+        assertSoftly(softly -> {
+            if (updated.getStatus() == OrderStatus.PICKUP_EXPIRED) {
+                softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
+                softly.assertThat(refundRepository.count()).isEqualTo(1L);
+            } else {
+                softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKED_UP);
+            }
+            if (pickupError.get() != null) {
+                softly.assertThat(pickupError.get()).isInstanceOf(RuntimeException.class);
+            }
+            if (expireError.get() != null) {
+                softly.assertThat(expireError.get()).isInstanceOf(RuntimeException.class);
+            }
+        });
     }
 }

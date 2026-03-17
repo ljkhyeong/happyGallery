@@ -4,6 +4,7 @@ import com.personal.happygallery.app.customer.port.out.UserReaderPort;
 import com.personal.happygallery.app.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.infra.user.UserRepository;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +33,11 @@ class UserPersistencePortAdapter implements UserReaderPort, UserStorePort {
     @Override
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+
+    @Override
+    public List<User> findAllById(List<Long> ids) {
+        return userRepository.findAllById(ids);
     }
 
     @Override

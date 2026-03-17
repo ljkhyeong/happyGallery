@@ -57,15 +57,19 @@
 
 ## 문서 작성 규칙
 - 현재 활성 실행 계획은 저장소 루트 `plan.md`에만 기록
+- 간단한 개선/리팩토링 아이디어는 저장소 루트 `simple-idea.md`에 기록
+- `simple-idea.md`는 `As-Is | To-Be` 두 열 표로 한 줄씩 누적
 - 완료된 임시 실행 계획은 `docs/1Pager`에 남기지 않음
 - 오래 유지해야 하는 문서만 `docs/<Category>/0001_<topic>` 형식으로 관리
 - 기준 스펙 문서는 `docs/PRD/0001_spec/spec.md`
 - 요구사항 변경은 PRD와 구현 동시 갱신, 설계 변경은 ADR도 함께 검토
+- 회고 문서는 `docs/Retrospective`에 기록
 - 주요 카테고리:
   - `docs/Idea`
   - `docs/1Pager`
   - `docs/PRD`
   - `docs/POC`
+  - `docs/Retrospective`
   - `docs/ADR`
 
 ## 커밋 및 Pull Request 가이드

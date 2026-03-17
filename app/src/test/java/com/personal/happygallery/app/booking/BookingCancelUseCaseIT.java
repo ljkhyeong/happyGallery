@@ -66,7 +66,7 @@ class BookingCancelUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc);
+        helper = new BookingTestHelper(mockMvc, phoneVerificationRepository);
         // 기본: PaymentProvider 성공
         when(paymentProvider.refund(any(), anyLong()))
                 .thenReturn(RefundResult.success("FAKE-TEST-REF"));
@@ -98,7 +98,7 @@ class BookingCancelUseCaseIT {
 
         // 취소 — D-1 이전 슬롯이므로 환불 가능
         mockMvc.perform(delete("/bookings/{id}", bookingId)
-                        .param("token", createdBooking.accessToken()))
+                        .header("X-Access-Token", createdBooking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
                 .andExpect(jsonPath("$.status").value("CANCELED"))
@@ -136,7 +136,7 @@ class BookingCancelUseCaseIT {
 
         // 취소 — 환불 가능 구간이지만 PG 실패
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
-                        .param("token", booking.accessToken()))
+                        .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(true));
@@ -188,17 +188,16 @@ class BookingCancelUseCaseIT {
         Long bookingId = booking.bookingId();
 
         mockMvc.perform(delete("/bookings/{id}", bookingId)
-                        .param("token", booking.accessToken()))
+                        .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(false))
                 .andExpect(jsonPath("$.refundAmount").value(0));
 
-        // Proof: refund 미생성
-        assertThat(refundRepository.count()).isEqualTo(0L);
-
-        // Proof: booking_history 2건 (BOOKED + CANCELED)
-        assertThat(bookingHistoryRepository.countByBookingId(bookingId)).isEqualTo(2L);
+        assertSoftly(softly -> {
+            softly.assertThat(refundRepository.count()).isEqualTo(0L);
+            softly.assertThat(bookingHistoryRepository.countByBookingId(bookingId)).isEqualTo(2L);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -213,7 +212,7 @@ class BookingCancelUseCaseIT {
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330003", slot.getId(), 5_000L);
 
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
-                        .param("token", "invalid-token"))
+                        .header("X-Access-Token", "invalid-token"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
@@ -231,12 +230,12 @@ class BookingCancelUseCaseIT {
 
         // 첫 번째 취소 — 성공
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
-                        .param("token", booking.accessToken()))
+                        .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isOk());
 
         // 두 번째 취소 — 400
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
-                        .param("token", booking.accessToken()))
+                        .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }

@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.order.AdminOrderQueryService;
 import com.personal.happygallery.app.order.OrderApprovalService;
 import com.personal.happygallery.app.order.OrderPickupService;
 import com.personal.happygallery.app.order.OrderProductionService;
@@ -15,8 +16,6 @@ import com.personal.happygallery.app.web.admin.dto.PickupResponse;
 import com.personal.happygallery.app.web.admin.dto.SetExpectedShipDateRequest;
 import com.personal.happygallery.app.web.admin.dto.ShippingResponse;
 import com.personal.happygallery.app.web.AdminAuthFilter;
-import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
-import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.domain.order.OrderStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -35,38 +34,32 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/orders", "/admin/orders"})
 public class AdminOrderController {
 
+    private final AdminOrderQueryService adminOrderQueryService;
     private final OrderApprovalService orderApprovalService;
     private final OrderProductionService orderProductionService;
     private final OrderPickupService orderPickupService;
     private final OrderShippingService orderShippingService;
     private final PickupExpireBatchUseCase pickupExpireBatchService;
-    private final OrderReaderPort orderReader;
-    private final OrderHistoryPort orderHistoryPort;
 
-    public AdminOrderController(OrderApprovalService orderApprovalService,
+    public AdminOrderController(AdminOrderQueryService adminOrderQueryService,
+                                OrderApprovalService orderApprovalService,
                                 OrderProductionService orderProductionService,
                                 OrderPickupService orderPickupService,
                                 OrderShippingService orderShippingService,
-                                PickupExpireBatchUseCase pickupExpireBatchService,
-                                OrderReaderPort orderReader,
-                                OrderHistoryPort orderHistoryPort) {
+                                PickupExpireBatchUseCase pickupExpireBatchService) {
+        this.adminOrderQueryService = adminOrderQueryService;
         this.orderApprovalService = orderApprovalService;
         this.orderProductionService = orderProductionService;
         this.orderPickupService = orderPickupService;
         this.orderShippingService = orderShippingService;
         this.pickupExpireBatchService = pickupExpireBatchService;
-        this.orderReader = orderReader;
-        this.orderHistoryPort = orderHistoryPort;
     }
 
     /** GET /admin/orders?status=PAID_APPROVAL_PENDING — 상태별 주문 목록 조회 (상태 미지정 시 전체) */
     @GetMapping
     public List<AdminOrderResponse> listOrders(
             @RequestParam(required = false) OrderStatus status) {
-        var orders = (status != null)
-                ? orderReader.findByStatusOrderByCreatedAtDesc(status)
-                : orderReader.findAllByOrderByCreatedAtDesc();
-        return orders.stream().map(AdminOrderResponse::from).toList();
+        return adminOrderQueryService.listOrders(status);
     }
 
     /** POST /admin/orders/{id}/approve — 주문 승인 (MADE_TO_ORDER는 IN_PRODUCTION으로 전이) */
@@ -151,9 +144,7 @@ public class AdminOrderController {
     /** GET /admin/orders/{id}/history — 주문 결정 이력 조회 */
     @GetMapping("/{id}/history")
     public List<OrderHistoryResponse> getOrderHistory(@PathVariable Long id) {
-        return orderHistoryPort.findByOrderIdOrderByDecidedAtAsc(id).stream()
-                .map(OrderHistoryResponse::from)
-                .toList();
+        return adminOrderQueryService.getOrderHistory(id);
     }
 
     /** POST /admin/orders/expire-pickups — 픽업 마감 초과 자동환불 배치 */

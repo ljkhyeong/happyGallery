@@ -1,16 +1,13 @@
 package com.personal.happygallery.app.pass;
 
+import com.personal.happygallery.app.customer.VerifiedGuestResolver;
 import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.app.pass.port.in.PassPurchaseUseCase;
-import com.personal.happygallery.app.customer.port.out.GuestStorePort;
-import com.personal.happygallery.app.customer.port.out.PhoneVerificationPort;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.common.error.NotFoundException;
-import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Guest;
-import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -24,22 +21,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class DefaultPassPurchaseService implements PassPurchaseUseCase {
 
+    private final VerifiedGuestResolver verifiedGuestResolver;
     private final GuestReaderPort guestReader;
-    private final GuestStorePort guestStore;
-    private final PhoneVerificationPort phoneVerificationPort;
     private final PassPurchaseStorePort passPurchaseStore;
     private final PassLedgerStorePort passLedgerStore;
     private final Clock clock;
 
-    public DefaultPassPurchaseService(GuestReaderPort guestReader,
-                               GuestStorePort guestStore,
-                               PhoneVerificationPort phoneVerificationPort,
+    public DefaultPassPurchaseService(VerifiedGuestResolver verifiedGuestResolver,
+                               GuestReaderPort guestReader,
                                PassPurchaseStorePort passPurchaseStore,
                                PassLedgerStorePort passLedgerStore,
                                Clock clock) {
+        this.verifiedGuestResolver = verifiedGuestResolver;
         this.guestReader = guestReader;
-        this.guestStore = guestStore;
-        this.phoneVerificationPort = phoneVerificationPort;
         this.passPurchaseStore = passPurchaseStore;
         this.passLedgerStore = passLedgerStore;
         this.clock = clock;
@@ -68,17 +62,7 @@ public class DefaultPassPurchaseService implements PassPurchaseUseCase {
      */
     public PassPurchase purchaseByPhone(String phone, String verificationCode,
                                         String name, long totalPrice) {
-        // 인증 코드 검증
-        PhoneVerification pv = phoneVerificationPort
-                .findValidVerification(phone, verificationCode, LocalDateTime.now(clock))
-                .orElseThrow(PhoneVerificationFailedException::new);
-        pv.markVerified();
-
-        // Guest upsert
-        Guest guest = guestReader.findByPhone(phone)
-                .orElseGet(() -> guestStore.save(new Guest(name, phone)));
-        guest.markPhoneVerified();
-
+        Guest guest = verifiedGuestResolver.resolveVerifiedGuest(phone, verificationCode, name);
         return createPurchase(guest, totalPrice);
     }
 

@@ -1,8 +1,7 @@
 package com.personal.happygallery.app.web.customer;
 
+import com.personal.happygallery.app.order.OrderCreationService;
 import com.personal.happygallery.app.order.OrderQueryService;
-import com.personal.happygallery.app.order.OrderService;
-import com.personal.happygallery.app.product.ProductQueryService;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.order.dto.OrderDetailResponse;
 import com.personal.happygallery.domain.order.Order;
@@ -27,15 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class MeOrderController {
 
     private final OrderQueryService orderQueryService;
-    private final OrderService orderService;
-    private final ProductQueryService productQueryService;
+    private final OrderCreationService orderCreationService;
 
     public MeOrderController(OrderQueryService orderQueryService,
-                              OrderService orderService,
-                              ProductQueryService productQueryService) {
+                              OrderCreationService orderCreationService) {
         this.orderQueryService = orderQueryService;
-        this.orderService = orderService;
-        this.productQueryService = productQueryService;
+        this.orderCreationService = orderCreationService;
     }
 
     @GetMapping
@@ -58,13 +54,10 @@ public class MeOrderController {
     public MyOrderSummary createOrder(@RequestBody @Valid CreateMemberOrderRequest req,
                                       HttpServletRequest request) {
         Long userId = getUserId(request);
-        List<OrderService.OrderItemRequest> items = req.items().stream()
-                .map(i -> {
-                    var product = productQueryService.getProduct(i.productId()).product();
-                    return new OrderService.OrderItemRequest(i.productId(), i.qty(), product.getPrice());
-                })
+        var items = req.items().stream()
+                .map(i -> new OrderCreationService.OrderItemInput(i.productId(), i.qty()))
                 .toList();
-        Order order = orderService.createMemberOrder(userId, items);
+        Order order = orderCreationService.createMemberOrder(userId, items);
         return MyOrderSummary.from(order);
     }
 

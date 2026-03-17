@@ -8,7 +8,6 @@ export interface SendVerificationRequest {
 export interface SendVerificationResponse {
   verificationId: number;
   phone: string;
-  code: string; // MVP only
 }
 
 export interface CreateGuestBookingRequest {
@@ -61,7 +60,6 @@ export interface MyBookingDetailResponse {
 
 export interface RescheduleRequest {
   newSlotId: number;
-  token: string;
 }
 
 export interface RescheduleResponse {

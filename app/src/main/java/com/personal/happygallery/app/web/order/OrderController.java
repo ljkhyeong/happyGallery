@@ -5,15 +5,14 @@ import com.personal.happygallery.app.order.OrderQueryService;
 import com.personal.happygallery.app.web.order.dto.CreateOrderRequest;
 import com.personal.happygallery.app.web.order.dto.OrderDetailResponse;
 import com.personal.happygallery.app.web.order.dto.OrderResponse;
-import com.personal.happygallery.domain.order.Order;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,14 +36,15 @@ public class OrderController {
         var items = request.items().stream()
                 .map(i -> new OrderCreationService.OrderItemInput(i.productId(), i.qty()))
                 .toList();
-        Order order = orderCreationService.createOrderByPhone(
+        var result = orderCreationService.createOrderByPhone(
                 request.phone(), request.verificationCode(), request.name(), items);
-        return OrderResponse.from(order);
+        return OrderResponse.from(result.order(), result.rawAccessToken());
     }
 
-    /** GET /orders/{id}?token= — 주문 상세 조회 */
+    /** GET /orders/{id} — 주문 상세 조회 (X-Access-Token 헤더) */
     @GetMapping("/{id}")
-    public OrderDetailResponse getOrder(@PathVariable Long id, @RequestParam String token) {
+    public OrderDetailResponse getOrder(@PathVariable Long id,
+                                         @RequestHeader("X-Access-Token") String token) {
         OrderQueryService.OrderDetail detail = orderQueryService.getOrderByToken(id, token);
         return OrderDetailResponse.from(detail.order(), detail.items(), detail.fulfillment());
     }

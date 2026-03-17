@@ -1,9 +1,9 @@
 package com.personal.happygallery.app.product;
 
+import com.personal.happygallery.app.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
-import com.personal.happygallery.infra.product.ProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,12 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class ProductAdminService {
 
-    private final ProductRepository productRepository;
+    private final ProductStorePort productStorePort;
     private final InventoryService inventoryService;
 
-    public ProductAdminService(ProductRepository productRepository,
+    public ProductAdminService(ProductStorePort productStorePort,
                                InventoryService inventoryService) {
-        this.productRepository = productRepository;
+        this.productStorePort = productStorePort;
         this.inventoryService = inventoryService;
     }
 
@@ -34,7 +34,7 @@ public class ProductAdminService {
      * @param quantity 초기 재고 수량 (단일 작품은 1)
      */
     public RegisterResult register(String name, ProductType type, long price, int quantity) {
-        Product product = productRepository.save(new Product(name, type, price));
+        Product product = productStorePort.save(new Product(name, type, price));
         Inventory inventory = inventoryService.create(product, quantity);
         return new RegisterResult(product, inventory);
     }

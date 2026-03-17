@@ -39,8 +39,9 @@ export interface AdminSlot {
 export interface AdminBooking {
   bookingId: number;
   bookingNumber: string;
-  guestName: string;
-  guestPhone: string;
+  bookerType: "GUEST" | "MEMBER";
+  bookerName: string;
+  bookerPhone: string;
   className: string;
   startAt: string;
   endAt: string;
@@ -210,15 +211,13 @@ export async function loginAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "관리자" })).toBeVisible();
 }
 
-async function extractMvpVerificationCode(root: Page | Locator): Promise<string> {
-  const codeHint = root.locator("p").filter({ hasText: "[MVP] 인증코드:" }).first();
-  await expect(codeHint).toBeVisible();
-  const raw = await codeHint.textContent();
-  const code = raw?.match(/인증코드:\s*(\S+)/)?.[1];
-  if (!code) {
-    throw new Error("Could not parse MVP verification code");
-  }
-  return code;
+async function fetchVerificationCode(page: Page, phone: string): Promise<string> {
+  const res = await page.request.get(
+    `${BACKEND_BASE_URL}/admin/dev/phone-verifications/latest?phone=${phone}`,
+  );
+  expect(res.ok(), "Dev phone-verification lookup should succeed").toBeTruthy();
+  const body = (await res.json()) as { code: string };
+  return body.code;
 }
 
 export async function signupCustomer(
@@ -264,17 +263,19 @@ export async function logoutCustomer(page: Page) {
 export async function completePhoneVerification(page: Page, phone: string) {
   await page.getByLabel("휴대폰 번호").fill(phone);
   await page.getByRole("button", { name: "인증코드 발송" }).click();
-  const code = await extractMvpVerificationCode(page);
+  const code = await fetchVerificationCode(page, phone);
   await page.getByLabel("인증코드").fill(code);
   await page.getByRole("button", { name: "확인" }).click();
 }
 
 export async function completeLockedPhoneVerification(
   root: Page | Locator,
+  page: Page,
+  phone: string,
   confirmLabel = "확인",
 ) {
   await root.getByRole("button", { name: "인증코드 발송" }).click();
-  const code = await extractMvpVerificationCode(root);
+  const code = await fetchVerificationCode(page, phone);
   await root.getByLabel("인증코드").fill(code);
   await root.getByRole("button", { name: confirmLabel }).click();
 }
@@ -448,11 +449,11 @@ export async function waitForBookingByPhone(
 ): Promise<AdminBooking> {
   await expect.poll(async () => {
     const bookings = await fetchAdminBookings(request, date);
-    return bookings.some((booking) => booking.guestPhone === phone);
+    return bookings.some((booking) => booking.bookerPhone === phone);
   }).toBeTruthy();
 
   const bookings = await fetchAdminBookings(request, date);
-  const booking = bookings.find((item) => item.guestPhone === phone);
+  const booking = bookings.find((item) => item.bookerPhone === phone);
   if (!booking) {
     throw new Error(`Could not find booking for phone: ${phone}`);
   }

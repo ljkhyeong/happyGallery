@@ -1,6 +1,6 @@
-package com.personal.happygallery.app.booking;
+package com.personal.happygallery.app.payment;
 
-import com.personal.happygallery.app.booking.port.out.RefundPort;
+import com.personal.happygallery.app.payment.port.out.RefundPort;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.error.NotFoundException;

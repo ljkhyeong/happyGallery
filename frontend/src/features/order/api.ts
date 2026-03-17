@@ -6,5 +6,7 @@ export function createOrder(body: CreateOrderRequest): Promise<OrderResponse> {
 }
 
 export function fetchOrder(id: number, token: string): Promise<OrderDetailResponse> {
-  return api<OrderDetailResponse>(`/orders/${id}`, { params: { token } });
+  return api<OrderDetailResponse>(`/orders/${id}`, {
+    headers: { "X-Access-Token": token },
+  });
 }
