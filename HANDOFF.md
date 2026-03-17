@@ -11,9 +11,10 @@
 - 빠른 진입 문서: `README.md`
 - 현재 활성 계획: `plan.md`
 - 핵심 스펙: `docs/PRD/0001_spec/spec.md`
+- API 계약 문서: `docs/PRD/0004_api_contract/spec.md`
 - 의사결정 기록: `docs/ADR/`
 - 회원 스토어 차기 PRD 초안: `docs/PRD/0002_member_store_transition/spec.md`
-- 기준 확인 순서: `HANDOFF.md -> plan.md -> docs/PRD/0001_spec/spec.md -> docs/ADR/*`
+- 기준 확인 순서: `HANDOFF.md -> plan.md -> docs/PRD/0001_spec/spec.md -> docs/PRD/0004_api_contract/spec.md -> docs/ADR/*`
 
 ---
 
@@ -21,6 +22,8 @@
 
 - 권장 작업 브랜치: `codex/work-20260316-221408`
 - 최근 작업:
+  - spec 분리 2차 — core `docs/PRD/0001_spec/spec.md`에서 API 카탈로그/에러 계약을 `docs/PRD/0004_api_contract/spec.md`로, 시스템 경계·상태/스키마 기준과 관리자 인증·런타임 기준을 `ADR-0022`, `ADR-0023`으로 분리
+  - PRD 경량화 — `docs/PRD/0001_spec/spec.md`에서 테스트 전략/`SoftAssertions.assertSoftly` 규칙과 관리자 인증 확장 검토를 분리하고, `docs/Idea/0003_*`, `docs/Idea/0004_*` 문서로 이동
   - 문서 체계 재정리 — 활성 실행 계획은 루트 `plan.md`로 통합, 완료된 `docs/1Pager` 실행 계획 문서는 제거, `docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md`를 추가하고 `README.md` 문서 목록을 현재 구조 기준으로 재작성
   - 운영 관측성 3차 구현 완료 — `docker-compose.yml`에 Prometheus/Grafana 서비스를 추가하고 `monitoring/`에 scrape 설정, alert rule, datasource/provisioning, system/funnel 대시보드를 반영했으며, backend 500 예외와 frontend API 5xx 에러를 Sentry로 캡처하도록 정리
   - 헥사고날 전환 pilot 2차 진행 — booking cancel/reschedule, pass purchase/expiry batch, pickup expiry batch 경계에 `port/in` 유스케이스를 추가하고 controller/batch 진입점을 해당 포트로 전환, `NotificationLogReaderPortAdapter`를 도입하고 주요 구현체 이름을 `Default*`로 정리
@@ -149,7 +152,7 @@
 - `P8-9`는 guest 주문 성공 화면에서 회원가입으로 넘어가 휴대폰/이름 prefill과 `/my` claim 모달 자동 오픈을 검증한다.
 - 기본 관리자 계정: `admin` / `admin1234` (Flyway V11로 정합화)
 - 개발/테스트에서는 `X-Admin-Key` 폴백 가능 (`enable-api-key-auth=true`)
-- 현재 세션 저장소는 인메모리 단일 인스턴스 기준이다. 운영에서 인스턴스가 늘어나면 JWT 기반 인증 전환을 우선 검토한다.
+- 현재 세션 저장소는 인메모리 단일 인스턴스 기준이다. 수평 확장 검토 메모는 `docs/Idea/0004_admin-auth-session-scaling/idea.md`에 분리했다.
 - API 에러 응답은 필요 시 `requestId`를 포함하고, 배치 로그도 `batch-*` requestId를 같이 남긴다.
 - 슬롯 생성: 공개 `/classes` API로 클래스 드롭다운 제공 (API 없을 시 ID 직접 입력 폴백)
 - 주문 총액: `OrderItemsForm`에서 상품 가격 × 수량으로 실시간 합계 표시
@@ -214,3 +217,5 @@ cd frontend && npm run e2e
 | ADR-0019 | 비밀번호 해시 정책 (Salt + Key Stretching) |
 | ADR-0020 | 결제 환불 외부 호출 보호를 위한 CircuitBreaker 도입 |
 | ADR-0021 | 기존 app/domain/infra 구조 위에서 점진적 헥사고날 전환 채택 |
+| ADR-0022 | 시스템 경계, 상태 모델, 데이터 모델 기준선 |
+| ADR-0023 | 관리자 인증 및 런타임 운영 기준선 |

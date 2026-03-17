@@ -31,11 +31,9 @@
 ### 🗂 현재 운영 문서
 
 - `README.md`: 저장소 개요, 실행 방법, 문서 진입점과 현재 사용하는 주요 라이브러리를 정리한다.
-- `HANDOFF.md`: 현재 구현 상태, 최근 변경, 다음 세션 인수인계 메모를 유지한다.
-- `plan.md`: 지금 진행 중인 관측성/아키텍처/운영 백로그만 유지한다.
 - `PRD`: 제품 요구사항과 운영 정책의 기준 문서다. 기능 계약이나 정책 변경 시 먼저 맞춘다.
 - `ADR`: 데이터 모델, 상태 전이, 인증, 결제, 관측성, 헥사고날 전환 같은 핵심 설계 결정을 남긴다.
-- `Idea`: 아직 정식 채택 전인 아이디어나 검토 메모를 보관한다.
+- `Idea`: 정식 요구사항으로 확정하지 않은 아이디어, 향후 검토 메모, PRD 밖에서 관리하는 엔지니어링 가이드를 보관한다.
 - `POC`: 실제 실험 결과와 적용 판단 근거를 남긴다.
 - `1Pager`: 이해관계자 공유용 요약 문서 카테고리다.
 - `AGENTS.md`, `CLAUDE.md`: 에이전트별 작업 규칙과 로컬 운영 메모다.
@@ -47,12 +45,13 @@
 | [Core MVP Specification](docs/PRD/0001_spec/spec.md) | `docs/PRD/0001_spec/` | 전체 시스템의 기능 요구사항 정의서 |
 | [Member Store Transition](docs/PRD/0002_member_store_transition/spec.md) | `docs/PRD/0002_member_store_transition/` | 회원 인증·스토어 전환 차기 요구사항 |
 | [Out Of Scope](docs/PRD/0003_out_of_scope/scope.md) | `docs/PRD/0003_out_of_scope/` | 초기 버전에서 명시적으로 제외하는 범위 |
+| [API Contract Baseline](docs/PRD/0004_api_contract/spec.md) | `docs/PRD/0004_api_contract/` | 요청/응답 예시, 에러 포맷, v1 API 계약 기준 문서 |
 
 ### 🧱 ADR
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| `ADR-0001` ~ `ADR-0021` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
+| `ADR-0001` ~ `ADR-0023` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
 
 ### 💡 Idea
 
@@ -60,6 +59,8 @@
 |------|------|------|
 | [JSON + Generated Column](docs/Idea/0001_json-generated-column-consideration/idea.md) | `docs/Idea/0001_json-generated-column-consideration/` | 가변 속성 저장 패턴 검토 |
 | [Bulkhead (Resilience4j)](docs/Idea/0002_bulkhead-resilience4j-consideration/idea.md) | `docs/Idea/0002_bulkhead-resilience4j-consideration/` | 외부 호출 격리 전략 검토 |
+| [테스트 전략 및 assertion 작성 규칙](docs/Idea/0003_test-strategy-and-assertion-guidelines/idea.md) | `docs/Idea/0003_test-strategy-and-assertion-guidelines/` | PRD에서 분리한 테스트 철학, 최소 세트, `SoftAssertions.assertSoftly` 규칙 |
+| [관리자 인증 세션 확장 검토](docs/Idea/0004_admin-auth-session-scaling/idea.md) | `docs/Idea/0004_admin-auth-session-scaling/` | 인메모리 관리자 세션의 수평 확장 시 대안 비교 메모 |
 
 ### 🧪 POC
 
@@ -74,7 +75,7 @@
 | [1Pager Guide](docs/1Pager/README.md) | `docs/1Pager/` | 이해관계자 공유용 한 장 요약 문서 카테고리 안내 |
 
 문서 운영 규칙:
-- 현재 활성 실행 계획은 루트 `plan.md`만 사용한다.
+- 세션성 인수인계 메모와 활성 실행 계획은 README 문서 목록에서 관리하지 않는다.
 - 완료된 임시 실행 계획은 `docs/1Pager`에 남기지 않는다.
 - 장기 보관 가치가 있는 내용만 `docs/Idea`, `docs/1Pager`, `docs/PRD`, `docs/POC`, `docs/ADR`에 남긴다.
 
@@ -256,11 +257,9 @@ E2E 참고:
 
 ## 문서 우선순위
 
-1. `HANDOFF.md`
-2. `plan.md`
-3. `docs/PRD/0001_spec/spec.md`
-4. 관련 `docs/ADR/*`
-5. 필요 시 `docs/Idea`, `docs/1Pager`, `docs/POC`
+1. `docs/PRD/0001_spec/spec.md`
+2. 관련 `docs/ADR/*`
+3. 필요 시 `docs/Idea`, `docs/1Pager`, `docs/POC`
 
 ## 브랜치 흐름
 
