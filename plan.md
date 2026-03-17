@@ -12,7 +12,8 @@
 현재 상태:
 - 기본 `requestId`, 구조화 로그, Actuator `health/info/metrics`, `[client-monitoring]` 로그는 이미 반영됨
 - `/actuator/prometheus` 노출과 `happygallery.funnel.*` 커스텀 메트릭 추가까지는 완료됨
-- Grafana 대시보드, runbook, Sentry 연동은 아직 미완료
+- Prometheus/Grafana 로컬 운영 스택과 Sentry 백엔드/프론트 기본 wiring까지 완료됨
+- 남은 작업은 local scrape 확인, metric 증가 테스트, 운영 runbook 정리 중심
 
 다음 작업:
 
@@ -20,20 +21,20 @@
 |------|------|------|------|
 | `O1-T1` | done | `app/build.gradle` | `micrometer-registry-prometheus` runtimeOnly 추가 |
 | `O1-T2` | done | `application.yml` | `/actuator/prometheus` 노출 |
-| `O1-T3` | pending | 로컬 실행 문서/구성 | Prometheus scrape 경로 정리 |
-| `O1-T4` | pending | 검증 | local scrape 확인 |
+| `O1-T3` | done | 로컬 실행 구성 | `monitoring/prometheus.yml` + docker-compose Prometheus 서비스 추가 |
+| `O1-T4` | pending | 검증 | local scrape 확인 (앱 실행 후 `localhost:9090/targets` 에서 확인) |
 | `O2-T1` | done | monitoring 패키지 | `AppMetrics` 생성, `happygallery.funnel.*` 네임스페이스 |
 | `O2-T2` | done | backend monitoring | `ClientMonitoringService` → `AppMetrics.incrementClientEvent()` |
 | `O2-T3` | done | guest claim 완료 경로 | claim 완료 로그 경유로 `AppMetrics.incrementGuestClaimCompleted()` 반영 |
 | `O2-T4` | pending | backend test | metric 증가 테스트 추가 |
-| `O3-T1` | pending | dashboard 문서 | Grafana 패널/PromQL 초안 |
-| `O3-T2` | pending | dashboard | 시스템 메트릭 패널 |
-| `O3-T3` | pending | dashboard | 제품 전환 지표 패널 |
-| `O3-T4` | pending | runbook | alert 기준 정리 |
-| `O4-T1` | pending | backend | Sentry 연동 |
-| `O4-T2` | pending | frontend | Sentry 연동 |
-| `O4-T3` | pending | 공통 config | release/environment/requestId tagging |
-| `O5-T1` | pending | 문서 | 운영 runbook/README/HANDOFF 동기화 |
+| `O3-T1` | done | dashboard 구성 | Grafana provisioning (datasource + dashboard provider) + docker-compose 서비스 추가 |
+| `O3-T2` | done | dashboard | `monitoring/dashboards/system.json` — HTTP rate/latency/5xx, JVM heap/GC/threads, HikariCP, CPU |
+| `O3-T3` | done | dashboard | `monitoring/dashboards/funnel.json` — client event rate/totals, guest claim, conversion gauge |
+| `O3-T4` | done | alert rules | `monitoring/alerts.yml` — 5xx rate, latency p95, HikariCP exhaustion, JVM heap, app down |
+| `O4-T1` | done | backend | `sentry-spring-boot-4-starter` 추가, GlobalExceptionHandler에서 500 에러 캡처 |
+| `O4-T2` | done | frontend | `@sentry/react` 추가, API 5xx 에러에 requestId 태깅 후 캡처 |
+| `O4-T3` | done | 공통 config | backend: env `SENTRY_DSN/ENVIRONMENT/RELEASE`, frontend: `VITE_SENTRY_*`, requestId context-tag |
+| `O5-T1` | pending | 문서 | README/HANDOFF 동기화 후 운영 runbook 정리 잔여 |
 
 원칙:
 - 시스템 메트릭과 제품 전환 지표를 분리한다.
