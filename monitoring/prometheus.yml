@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  # Spring Boot Actuator — bootRun on host
+  - job_name: happygallery
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - "host.docker.internal:8080"

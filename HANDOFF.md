@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-17 (문서 체계 재정리, 루트 plan 전환, 회원 스토어 전환/운영 모니터링 2차/헥사고날 pilot 2차 반영 상태)
+> 작성 시점: 2026-03-17 (문서 체계 재정리, 루트 plan 전환, 회원 스토어 전환/운영 관측성 3차/헥사고날 pilot 2차 반영 상태)
 
 ---
 
@@ -22,6 +22,7 @@
 - 권장 작업 브랜치: `codex/work-20260316-221408`
 - 최근 작업:
   - 문서 체계 재정리 — 활성 실행 계획은 루트 `plan.md`로 통합, 완료된 `docs/1Pager` 실행 계획 문서는 제거, `docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md`를 추가하고 `README.md` 문서 목록을 현재 구조 기준으로 재작성
+  - 운영 관측성 3차 구현 완료 — `docker-compose.yml`에 Prometheus/Grafana 서비스를 추가하고 `monitoring/`에 scrape 설정, alert rule, datasource/provisioning, system/funnel 대시보드를 반영했으며, backend 500 예외와 frontend API 5xx 에러를 Sentry로 캡처하도록 정리
   - 헥사고날 전환 pilot 2차 진행 — booking cancel/reschedule, pass purchase/expiry batch, pickup expiry batch 경계에 `port/in` 유스케이스를 추가하고 controller/batch 진입점을 해당 포트로 전환, `NotificationLogReaderPortAdapter`를 도입하고 주요 구현체 이름을 `Default*`로 정리
   - 운영 모니터링 2차 구현 완료 — 프론트 주요 guest/member 전환 지점의 `[client-monitoring]` 로그 수집에 더해 `AppMetrics`를 도입해 `happygallery.funnel.client_event`, `happygallery.funnel.guest_claim_completed` 메트릭을 기록하고 `/actuator/prometheus`를 노출하도록 정리
   - `/orders/new` direct fallback gate 추가 — 상품 상세에서 prefill로 내려온 경우는 바로 진행하고, query 없이 직접 진입한 `/orders/new`는 “보조 경로” 안내 후 명시적으로 계속해야 수동 비회원 다중 상품 주문을 진행하도록 정리
@@ -56,11 +57,12 @@
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
   - `./gradlew clean :app:test --no-daemon` 통과
+  - `cd frontend && npm run build` 통과 (`@sentry/react` 포함)
+  - `docker compose config` 통과 (Prometheus/Grafana compose wiring 확인)
   - `cd frontend && npm run e2e -- --grep "P8-9"` 통과
   - `cd frontend && npm run e2e` 통과 (smoke 1~9)
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.customer.CustomerGuestClaimUseCaseIT` 통과
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.customer.CustomerAuthUseCaseIT` 통과
-  - `cd frontend && npm run build` 통과
   - `cd frontend && npm run e2e -- --grep "P8-8"` 통과
   - `cd frontend && npm run e2e -- --grep "P8-(2|3|4|8|9)"` 통과
   - `cd frontend && npm run e2e -- --grep "P8-(6|7)"` 통과
@@ -139,6 +141,7 @@
 - `/guest` 를 비회원 조회 entry route로 노출하고, `/guest/orders`, `/guest/bookings` 는 canonical guest 조회 경로이자 생성 후 확인용 보조 경로로 유지한다.
 - 현재 운영 권장안은 `/guest` 허브와 `/guest/orders`, `/guest/bookings`, `/orders/new` direct gate를 그대로 유지한 채 member route 안정화 이후 2~4주 동안 사용량과 문의 유형을 관찰한 뒤 direct guest fallback 축소 여부를 결정하는 것이다.
 - `/api/v1/monitoring/client-events` 는 guest/member 주요 전환 이벤트를 requestId가 포함된 `[client-monitoring]` 로그로 남기고, 동시에 `happygallery.funnel.client_event`, `happygallery.funnel.guest_claim_completed` 메트릭을 누적한다. 현재 수집 범위는 `/guest` 허브 진입, `/orders/new` direct continue, guest 성공/조회 화면의 회원 전환 CTA, `/my` claim 모달 오픈, guest claim 완료다.
+- frontend는 `@sentry/react`로 API 5xx 에러를 캡처하고, backend는 `sentry-spring-boot-4-starter` + `GlobalExceptionHandler`에서 예상치 못한 500 예외를 캡처한다. 두 경로 모두 가능하면 `requestId`를 태그로 남긴다.
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
 - 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
 - Playwright smoke는 관리자 Bearer 토큰과 고객 `HG_SESSION` 쿠키를 backend API로 bootstrap해 로그인 rate limit과 UI 초기화 타이밍 영향을 줄였다.
@@ -155,6 +158,8 @@
 ### 로컬 실행 메모
 - `local` 프로필 `:app:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
 - `local` 프로필에서 `http://localhost:8080/actuator/prometheus` 로 JVM/HTTP 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 함께 노출한다.
+- `docker compose up -d prometheus grafana` 로 로컬 관측성 스택을 따로 띄울 수 있고, 포트는 각각 `9090`, `3001`이다.
+- Sentry는 backend `SENTRY_DSN/SENTRY_ENVIRONMENT/SENTRY_RELEASE`, frontend `VITE_SENTRY_DSN/VITE_SENTRY_ENVIRONMENT/VITE_SENTRY_RELEASE` 환경 변수를 사용한다.
 - clean DB 기준으로도 P8 guest/member smoke 1~9를 바로 실행할 수 있다.
 - `DELETE /api/v1/admin/dev/payment/refunds/fail-next`로 훅을 비우고, `POST /api/v1/admin/dev/payment/refunds/fail-next`로 다음 환불 1회 실패를 arm할 수 있다.
   요청 바디에 `orderId`를 넣으면 특정 주문으로 범위를 좁힐 수 있다.
