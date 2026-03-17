@@ -4,11 +4,13 @@ import { Form, Button, Row, Col } from "react-bootstrap";
 interface Props {
   onLookup: (bookingId: number, token: string) => void;
   isLoading: boolean;
+  initialBookingId?: string;
+  initialToken?: string;
 }
 
-export function BookingLookupForm({ onLookup, isLoading }: Props) {
-  const [bookingId, setBookingId] = useState("");
-  const [token, setToken] = useState("");
+export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initialToken }: Props) {
+  const [bookingId, setBookingId] = useState(initialBookingId ?? "");
+  const [token, setToken] = useState(initialToken ?? "");
   const [touched, setTouched] = useState({ bookingId: false, token: false });
 
   const valid = Number(bookingId) > 0 && token.trim().length > 0;

@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.booking.RefundRetryService;
+import com.personal.happygallery.app.payment.RefundRetryService;
 import com.personal.happygallery.app.web.admin.dto.FailedRefundResponse;
 import java.util.List;
 import org.springframework.http.ResponseEntity;

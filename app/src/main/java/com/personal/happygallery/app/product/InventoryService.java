@@ -1,9 +1,9 @@
 package com.personal.happygallery.app.product;
 
+import com.personal.happygallery.app.product.port.out.InventoryStorePort;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.infra.product.InventoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,10 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class InventoryService {
 
-    private final InventoryRepository inventoryRepository;
+    private final InventoryStorePort inventoryStorePort;
 
-    public InventoryService(InventoryRepository inventoryRepository) {
-        this.inventoryRepository = inventoryRepository;
+    public InventoryService(InventoryStorePort inventoryStorePort) {
+        this.inventoryStorePort = inventoryStorePort;
     }
 
     /**
@@ -25,7 +25,7 @@ public class InventoryService {
      * @return 생성된 재고
      */
     public Inventory create(Product product, int quantity) {
-        return inventoryRepository.save(new Inventory(product, quantity));
+        return inventoryStorePort.save(new Inventory(product, quantity));
     }
 
     /**
@@ -44,10 +44,10 @@ public class InventoryService {
      * @return 차감 후 재고
      */
     public Inventory deduct(Long productId, int qty) {
-        Inventory inventory = inventoryRepository.findByProductIdWithLock(productId)
+        Inventory inventory = inventoryStorePort.findByProductIdWithLock(productId)
                 .orElseThrow(() -> new NotFoundException("재고"));
         inventory.deduct(qty);
-        return inventoryRepository.save(inventory);
+        return inventoryStorePort.save(inventory);
     }
 
     /**
@@ -58,9 +58,9 @@ public class InventoryService {
      * @return 복구 후 재고
      */
     public Inventory restore(Long productId, int qty) {
-        Inventory inventory = inventoryRepository.findByProductIdWithLock(productId)
+        Inventory inventory = inventoryStorePort.findByProductIdWithLock(productId)
                 .orElseThrow(() -> new NotFoundException("재고"));
         inventory.restore(qty);
-        return inventoryRepository.save(inventory);
+        return inventoryStorePort.save(inventory);
     }
 }

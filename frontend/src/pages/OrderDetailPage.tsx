@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Form, Button, Row, Col, Badge } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { fetchOrder } from "@/features/order/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
@@ -9,9 +9,16 @@ import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { ErrorAlert } from "@/shared/ui";
 import type { OrderDetailResponse } from "@/shared/types";
 
+interface LocationState {
+  orderId?: number;
+  token?: string;
+}
+
 export function OrderDetailPage() {
-  const [orderId, setOrderId] = useState("");
-  const [token, setToken] = useState("");
+  const location = useLocation();
+  const navState = location.state as LocationState | null;
+  const [orderId, setOrderId] = useState(navState?.orderId ? String(navState.orderId) : "");
+  const [token, setToken] = useState(navState?.token ?? "");
   const [order, setOrder] = useState<OrderDetailResponse | null>(null);
 
   const lookup = useMutation({
@@ -25,6 +32,14 @@ export function OrderDetailPage() {
       lookup.mutate({ id: Number(orderId), t: token.trim() });
     }
   }, [orderId, token, lookup]);
+
+  const autoLookupDone = useRef(false);
+  useEffect(() => {
+    if (!autoLookupDone.current && navState?.orderId && navState?.token) {
+      autoLookupDone.current = true;
+      lookup.mutate({ id: navState.orderId, t: navState.token });
+    }
+  }, [navState, lookup]);
   const claimLoginHref = buildAuthPageHref("/login", {
     redirectTo: "/my?claim=1",
     claim: true,

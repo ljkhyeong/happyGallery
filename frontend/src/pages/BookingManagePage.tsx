@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Button, Badge } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cancelBooking, fetchBooking, rescheduleBooking } from "@/features/booking-manage/api";
 import { BookingLookupForm } from "@/features/booking-manage/BookingLookupForm";
 import { BookingDetail } from "@/features/booking-manage/BookingDetail";
@@ -12,7 +12,14 @@ import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { ErrorAlert } from "@/shared/ui";
 import type { BookingDetailResponse } from "@/shared/types";
 
+interface LocationState {
+  bookingId?: number;
+  token?: string;
+}
+
 export function BookingManagePage() {
+  const location = useLocation();
+  const navState = location.state as LocationState | null;
   const [booking, setBooking] = useState<BookingDetailResponse | null>(null);
   const [currentToken, setCurrentToken] = useState("");
   const claimLoginHref = buildAuthPageHref("/login", {
@@ -41,6 +48,14 @@ export function BookingManagePage() {
     (bookingId: number, token: string) => lookup.mutate({ bookingId, token }),
     [lookup],
   );
+
+  const autoLookupDone = useRef(false);
+  useEffect(() => {
+    if (!autoLookupDone.current && navState?.bookingId && navState?.token) {
+      autoLookupDone.current = true;
+      lookup.mutate({ bookingId: navState.bookingId, token: navState.token });
+    }
+  }, [navState, lookup]);
 
   const refetch = useCallback(() => {
     if (booking && currentToken) {
@@ -101,7 +116,12 @@ export function BookingManagePage() {
           <p className="text-muted-soft small mb-3">
             조회가 끝나면 같은 화면에서 슬롯 변경과 취소까지 이어서 진행할 수 있습니다.
           </p>
-          <BookingLookupForm onLookup={handleLookup} isLoading={lookup.isPending} />
+          <BookingLookupForm
+            onLookup={handleLookup}
+            isLoading={lookup.isPending}
+            initialBookingId={navState?.bookingId ? String(navState.bookingId) : undefined}
+            initialToken={navState?.token}
+          />
         </Card.Body>
       </Card>
 

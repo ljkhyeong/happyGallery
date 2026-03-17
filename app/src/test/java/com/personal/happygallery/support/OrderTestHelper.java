@@ -75,10 +75,10 @@ public final class OrderTestHelper {
 
     private OrderFixture createPaidOrder(String name, ProductType type, long price) {
         Product product = createProduct(name, type, price, 1);
-        Order order = orderService.createPaidOrder(
+        var result = orderService.createPaidOrder(
                 null,
                 List.of(new OrderService.OrderItemRequest(product.getId(), 1, price)));
-        return new OrderFixture(product, order);
+        return new OrderFixture(product, result.order());
     }
 
     private OrderFixture createExpiredPendingOrder(String name, ProductType type, long price) {

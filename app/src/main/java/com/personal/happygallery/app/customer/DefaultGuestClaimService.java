@@ -69,7 +69,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         PhoneVerification verification = findValidVerification(user.getPhone(), verificationCode);
         verification.markVerified();
         user.markPhoneVerified();
-        log.info("guest claim phone verified [userId={} phone={}]", userId, user.getPhone());
+        log.info("guest claim phone verified [userId={} phone={}]", userId, maskPhone(user.getPhone()));
         return buildPreview(user);
     }
 
@@ -86,27 +86,43 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
             return new ClaimResult(0, 0, 0);
         }
 
-        // 주문 일괄 조회 → 소유권 검증 → claim
         Set<Long> orderIdSet = dedupe(orderIds);
-        Map<Long, Order> orderMap = claimQuery.findOrdersByIds(orderIdSet).stream()
+        claimOrders(orderIdSet, guest.getId(), userId);
+
+        Set<Long> bookingIdSet = dedupe(bookingIds);
+        Set<Long> passIdsToClaim = dedupe(passIds);
+        claimBookings(bookingIdSet, guest.getId(), userId, passIdsToClaim);
+
+        int claimedPassCount = claimPasses(passIdsToClaim, guest.getId(), userId);
+
+        clientMonitoringService.logGuestClaimCompleted(
+                userId, guest.getId(),
+                orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
+        return new ClaimResult(orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
+    }
+
+    private void claimOrders(Set<Long> orderIds, Long guestId, Long userId) {
+        if (orderIds.isEmpty()) return;
+        Map<Long, Order> orderMap = claimQuery.findOrdersByIds(orderIds).stream()
                 .collect(Collectors.toMap(Order::getId, Function.identity()));
-        for (Long orderId : orderIdSet) {
+        for (Long orderId : orderIds) {
             Order order = orderMap.get(orderId);
-            if (order == null || !Objects.equals(order.getGuestId(), guest.getId()) || order.getUserId() != null) {
+            if (order == null || !Objects.equals(order.getGuestId(), guestId) || order.getUserId() != null) {
                 throw new NotFoundException("claim 주문");
             }
             order.claimToUser(userId);
         }
+    }
 
-        // 예약 일괄 조회 → 소유권 검증 → claim + 연결된 pass 수집
-        Set<Long> bookingIdSet = dedupe(bookingIds);
-        Map<Long, Booking> bookingMap = claimQuery.findBookingsByIds(bookingIdSet).stream()
+    private void claimBookings(Set<Long> bookingIds, Long guestId, Long userId,
+                               Set<Long> passIdsToClaim) {
+        if (bookingIds.isEmpty()) return;
+        Map<Long, Booking> bookingMap = claimQuery.findBookingsByIds(bookingIds).stream()
                 .collect(Collectors.toMap(Booking::getId, Function.identity()));
-        Set<Long> passIdsToClaim = dedupe(passIds);
-        for (Long bookingId : bookingIdSet) {
+        for (Long bookingId : bookingIds) {
             Booking booking = bookingMap.get(bookingId);
             if (booking == null || booking.getGuest() == null
-                    || !Objects.equals(booking.getGuest().getId(), guest.getId())
+                    || !Objects.equals(booking.getGuest().getId(), guestId)
                     || booking.getUserId() != null) {
                 throw new NotFoundException("claim 예약");
             }
@@ -114,34 +130,29 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
             if (booking.getPassPurchase() != null
                     && booking.getPassPurchase().getGuest() != null
-                    && Objects.equals(booking.getPassPurchase().getGuest().getId(), guest.getId())
+                    && Objects.equals(booking.getPassPurchase().getGuest().getId(), guestId)
                     && booking.getPassPurchase().getUserId() == null) {
                 passIdsToClaim.add(booking.getPassPurchase().getId());
             }
         }
+    }
 
-        // 8회권 일괄 조회 → 소유권 검증 → claim
-        Map<Long, PassPurchase> passMap = claimQuery.findPassPurchasesByIds(passIdsToClaim).stream()
+    private int claimPasses(Set<Long> passIds, Long guestId, Long userId) {
+        if (passIds.isEmpty()) return 0;
+        Map<Long, PassPurchase> passMap = claimQuery.findPassPurchasesByIds(passIds).stream()
                 .collect(Collectors.toMap(PassPurchase::getId, Function.identity()));
-        int claimedPassCount = 0;
-        for (Long passId : passIdsToClaim) {
+        int count = 0;
+        for (Long passId : passIds) {
             PassPurchase pass = passMap.get(passId);
             if (pass == null || pass.getGuest() == null
-                    || !Objects.equals(pass.getGuest().getId(), guest.getId())
+                    || !Objects.equals(pass.getGuest().getId(), guestId)
                     || pass.getUserId() != null) {
                 throw new NotFoundException("claim 8회권");
             }
             pass.claimToUser(userId);
-            claimedPassCount++;
+            count++;
         }
-
-        clientMonitoringService.logGuestClaimCompleted(
-                userId,
-                guest.getId(),
-                orderIdSet.size(),
-                bookingIdSet.size(),
-                claimedPassCount);
-        return new ClaimResult(orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
+        return count;
     }
 
     private static final int PREVIEW_LIMIT = 100;
@@ -213,4 +224,9 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         return ids == null ? Set.of() : new LinkedHashSet<>(ids);
     }
 
+    /** 전화번호 뒤 4자리를 마스킹한다. */
+    private static String maskPhone(String phone) {
+        if (phone == null || phone.length() <= 4) return "****";
+        return phone.substring(0, phone.length() - 4) + "****";
+    }
 }

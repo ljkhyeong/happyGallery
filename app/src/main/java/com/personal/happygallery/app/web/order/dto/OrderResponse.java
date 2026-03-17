@@ -10,10 +10,10 @@ public record OrderResponse(
         long totalAmount,
         LocalDateTime paidAt
 ) {
-    public static OrderResponse from(Order order) {
+    public static OrderResponse from(Order order, String rawAccessToken) {
         return new OrderResponse(
                 order.getId(),
-                order.getAccessToken(),
+                rawAccessToken,
                 order.getStatus().name(),
                 order.getTotalAmount(),
                 order.getPaidAt()

@@ -31,12 +31,12 @@
 ### 🗂 현재 운영 문서
 
 - `README.md`: 저장소 개요, 실행 방법, 문서 진입점과 현재 사용하는 주요 라이브러리를 정리한다.
-- `HANDOFF.md`: 현재 구현 상태, 최근 변경, 다음 세션 인수인계 메모를 유지한다.
-- `plan.md`: 지금 진행 중인 관측성/아키텍처/운영 백로그만 유지한다.
+- `simple-idea.md`: 작은 개선/정리 아이디어를 `As-Is` / `To-Be` 두 열 표로 한 문장씩 누적한다.
 - `PRD`: 제품 요구사항과 운영 정책의 기준 문서다. 기능 계약이나 정책 변경 시 먼저 맞춘다.
 - `ADR`: 데이터 모델, 상태 전이, 인증, 결제, 관측성, 헥사고날 전환 같은 핵심 설계 결정을 남긴다.
-- `Idea`: 아직 정식 채택 전인 아이디어나 검토 메모를 보관한다.
+- `Idea`: 정식 요구사항으로 확정하지 않은 아이디어, 향후 검토 메모, PRD 밖에서 관리하는 엔지니어링 가이드를 보관한다.
 - `POC`: 실제 실험 결과와 적용 판단 근거를 남긴다.
+- `Retrospective`: 지나온 변경 흐름을 되짚어 얻은 교훈과 회고를 남긴다.
 - `1Pager`: 이해관계자 공유용 요약 문서 카테고리다.
 - `AGENTS.md`, `CLAUDE.md`: 에이전트별 작업 규칙과 로컬 운영 메모다.
 
@@ -47,12 +47,13 @@
 | [Core MVP Specification](docs/PRD/0001_spec/spec.md) | `docs/PRD/0001_spec/` | 전체 시스템의 기능 요구사항 정의서 |
 | [Member Store Transition](docs/PRD/0002_member_store_transition/spec.md) | `docs/PRD/0002_member_store_transition/` | 회원 인증·스토어 전환 차기 요구사항 |
 | [Out Of Scope](docs/PRD/0003_out_of_scope/scope.md) | `docs/PRD/0003_out_of_scope/` | 초기 버전에서 명시적으로 제외하는 범위 |
+| [API Contract Baseline](docs/PRD/0004_api_contract/spec.md) | `docs/PRD/0004_api_contract/` | 요청/응답 예시, 에러 포맷, v1 API 계약 기준 문서 |
 
 ### 🧱 ADR
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| `ADR-0001` ~ `ADR-0021` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
+| `ADR-0001` ~ `ADR-0024` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
 
 ### 💡 Idea
 
@@ -60,12 +61,30 @@
 |------|------|------|
 | [JSON + Generated Column](docs/Idea/0001_json-generated-column-consideration/idea.md) | `docs/Idea/0001_json-generated-column-consideration/` | 가변 속성 저장 패턴 검토 |
 | [Bulkhead (Resilience4j)](docs/Idea/0002_bulkhead-resilience4j-consideration/idea.md) | `docs/Idea/0002_bulkhead-resilience4j-consideration/` | 외부 호출 격리 전략 검토 |
+| [테스트 전략 및 assertion 작성 규칙](docs/Idea/0003_test-strategy-and-assertion-guidelines/idea.md) | `docs/Idea/0003_test-strategy-and-assertion-guidelines/` | PRD에서 분리한 테스트 철학, 최소 세트, `SoftAssertions.assertSoftly` 규칙 |
+| [관리자 인증 세션 확장 검토](docs/Idea/0004_admin-auth-session-scaling/idea.md) | `docs/Idea/0004_admin-auth-session-scaling/` | 인메모리 관리자 세션의 수평 확장 시 대안 비교 메모 |
+| [Guest Token Signed Expiry 전환](docs/Idea/0005_guest-token-signed-expiry/idea.md) | `docs/Idea/0005_guest-token-signed-expiry/` | guest access token의 만료·서명 방식 후속 개선 메모 |
+| [ConfigurationProperties 기반 설정 바인딩 정리](docs/Idea/0010_configuration-properties-binding-guideline/idea.md) | `docs/Idea/0010_configuration-properties-binding-guideline/` | 이미 적용된 설정 바인딩 패턴과 이후 확장 기준 메모 |
+| [OAuth 로그인 도입 검토](docs/Idea/0011_oauth-login-adoption-consideration/idea.md) | `docs/Idea/0011_oauth-login-adoption-consideration/` | 기존 이메일 회원, guest claim, 전화번호 인증 흐름과의 연결 정책 검토 메모 |
 
 ### 🧪 POC
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
 | [PaymentProvider CircuitBreaker 적용 POC](docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md) | `docs/POC/0001_payment-provider-circuit-breaker-rollout/` | 결제 환불 경계의 CircuitBreaker/TimeLimiter 적용 실험과 결과 |
+
+### 🔁 Retrospective
+
+| 문서 | 경로 | 설명 |
+|------|------|------|
+| [기반 선행 구축 회고](docs/Retrospective/0001_bootstrap-foundation-retrospective/retrospective.md) | `docs/Retrospective/0001_bootstrap-foundation-retrospective/` | 프로필/문서/마이그레이션/CI/테스트 기반을 먼저 깔았을 때의 효과 회고 |
+| [vertical slice delivery 방식 회고](docs/Retrospective/0002_vertical-slice-delivery-pattern/retrospective.md) | `docs/Retrospective/0002_vertical-slice-delivery-pattern/` | 기능을 도메인별 slice로 완성한 방식의 효과와 한계 회고 |
+| [multi-step 흐름 E2E와 canonical route 안정화 회고](docs/Retrospective/0003_multistep-flow-e2e-and-route-stabilization/retrospective.md) | `docs/Retrospective/0003_multistep-flow-e2e-and-route-stabilization/` | guest/member 전환 흐름에서 브라우저 smoke와 경로 기준이 준 효과 회고 |
+| [기능 성장 후 관측성 보강 회고](docs/Retrospective/0004_observability-retrofit-after-feature-growth/retrospective.md) | `docs/Retrospective/0004_observability-retrofit-after-feature-growth/` | requestId에서 메트릭/대시보드/Sentry까지 확장한 운영 보강 회고 |
+| [guest/member 흐름 수렴 회고](docs/Retrospective/0005_guest-member-flow-convergence/retrospective.md) | `docs/Retrospective/0005_guest-member-flow-convergence/` | guest 중심 공개 흐름 위에 member/claim 흐름이 쌓이면서 생긴 구조 변화 회고 |
+| [query facade와 운영 경계 정리 회고](docs/Retrospective/0006_query-facade-and-ops-boundary-alignment/retrospective.md) | `docs/Retrospective/0006_query-facade-and-ops-boundary-alignment/` | controller/query 조합 책임과 운영 경계가 뒤늦게 정리된 패턴 회고 |
+| [문서 동기화와 canonical route 운영 규율 회고](docs/Retrospective/0007_document-sync-and-canonical-route-discipline/retrospective.md) | `docs/Retrospective/0007_document-sync-and-canonical-route-discipline/` | 문서와 공개 경로 기준을 늦게 정리할 때의 비용 회고 |
+| [local/dev 지원 기능 경계 회고](docs/Retrospective/0008_local-dev-support-boundary/retrospective.md) | `docs/Retrospective/0008_local-dev-support-boundary/` | local 전용 seed/dev hook/지원 API가 늘어나며 생긴 경계 문제 회고 |
 
 ### 📄 1Pager
 
@@ -74,9 +93,9 @@
 | [1Pager Guide](docs/1Pager/README.md) | `docs/1Pager/` | 이해관계자 공유용 한 장 요약 문서 카테고리 안내 |
 
 문서 운영 규칙:
-- 현재 활성 실행 계획은 루트 `plan.md`만 사용한다.
+- 세션성 인수인계 메모와 활성 실행 계획은 README 문서 목록에서 관리하지 않는다.
 - 완료된 임시 실행 계획은 `docs/1Pager`에 남기지 않는다.
-- 장기 보관 가치가 있는 내용만 `docs/Idea`, `docs/1Pager`, `docs/PRD`, `docs/POC`, `docs/ADR`에 남긴다.
+- 장기 보관 가치가 있는 내용만 `docs/Idea`, `docs/1Pager`, `docs/PRD`, `docs/POC`, `docs/Retrospective`, `docs/ADR`에 남긴다.
 
 ## ✅ 현재 제공 기능
 
@@ -94,6 +113,8 @@
   - 회원 마이페이지 (`내 주문`, `내 예약`, `내 8회권`, guest claim)
   - 회원 주문/예약/8회권 전체 목록 (`/my/orders`, `/my/bookings`, `/my/passes`, 검색/상태 필터/quick tab/정렬 포함)
   - 회원 예약 상세/변경/취소 (`/my/bookings/:id`)
+  - 상품 상세 Product Q&A 조회/회원 작성/비밀글 비밀번호 확인
+  - 회원 1:1 문의 작성/목록 조회 (`/my/inquiries`)
   - 회원 마이페이지에서 비회원 이력 가져오기 (휴대폰 재인증 후 claim)
   - 비회원 성공 화면에서 회원가입/로그인 후 `/my` claim으로 바로 이어지는 CTA
   - 로그인/회원가입 페이지에서 `redirect`·`claim`·회원가입 prefill(`name`/`phone`) 컨텍스트 유지
@@ -105,6 +126,8 @@
   - 주문 결정 이력 조회
   - 8회권 만료/환불
   - 환불 실패 조회/재시도
+  - 상품 Q&A 답변 관리
+  - 1:1 문의 답변 관리
 
 프론트 주요 경로:
 
@@ -118,6 +141,8 @@
 - `/my/bookings`
 - `/my/bookings/:id`
 - `/my/passes`
+- `/my/inquiries`
+- `/my/inquiries/new`
 - `/bookings/new`
 - `/guest`
 - `/guest/bookings`
@@ -256,11 +281,9 @@ E2E 참고:
 
 ## 문서 우선순위
 
-1. `HANDOFF.md`
-2. `plan.md`
-3. `docs/PRD/0001_spec/spec.md`
-4. 관련 `docs/ADR/*`
-5. 필요 시 `docs/Idea`, `docs/1Pager`, `docs/POC`
+1. `docs/PRD/0001_spec/spec.md`
+2. 관련 `docs/ADR/*`
+3. 필요 시 `docs/Idea`, `docs/1Pager`, `docs/POC`
 
 ## 브랜치 흐름
 

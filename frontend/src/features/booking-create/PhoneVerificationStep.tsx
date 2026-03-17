@@ -24,7 +24,6 @@ export function PhoneVerificationStep({
   const [phone, setPhone] = useState(initialPhone.replace(/\D/g, ""));
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
-  const [mvpCode, setMvpCode] = useState("");
   const [touched, setTouched] = useState(false);
 
   useEffect(() => {
@@ -33,9 +32,8 @@ export function PhoneVerificationStep({
 
   const sendMutation = useMutation({
     mutationFn: () => sendVerification({ phone }),
-    onSuccess: (res) => {
+    onSuccess: () => {
       setSent(true);
-      setMvpCode(res.code); // MVP: 코드 노출
     },
   });
 
@@ -80,11 +78,6 @@ export function PhoneVerificationStep({
 
       {sent && (
         <>
-          {mvpCode && (
-            <p className="text-muted-soft small mb-2">
-              [MVP] 인증코드: <strong>{mvpCode}</strong>
-            </p>
-          )}
           <Row className="g-2 align-items-end">
             <Col xs={12} sm={8}>
               <Form.Group controlId="verification-code">

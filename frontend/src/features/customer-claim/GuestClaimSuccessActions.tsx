@@ -7,6 +7,7 @@ interface Props {
   helperText: string;
   primaryTo?: string;
   primaryLabel?: string;
+  primaryState?: Record<string, unknown>;
   trackingSource: string;
 }
 
@@ -38,6 +39,7 @@ export function GuestClaimSuccessActions({
   helperText,
   primaryTo,
   primaryLabel,
+  primaryState,
   trackingSource,
 }: Props) {
   return (
@@ -47,7 +49,7 @@ export function GuestClaimSuccessActions({
       </div>
       <div className="d-flex flex-wrap gap-2 mb-2">
         {primaryTo && primaryLabel && (
-          <Link to={primaryTo} className="btn btn-outline-dark btn-sm">
+          <Link to={primaryTo} state={primaryState} className="btn btn-outline-dark btn-sm">
             {primaryLabel}
           </Link>
         )}

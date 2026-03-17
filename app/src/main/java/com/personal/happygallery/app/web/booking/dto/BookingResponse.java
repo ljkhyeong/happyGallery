@@ -12,11 +12,11 @@ public record BookingResponse(
         long balanceAmount,
         String className
 ) {
-    public static BookingResponse from(Booking booking) {
+    public static BookingResponse from(Booking booking, String rawAccessToken) {
         return new BookingResponse(
                 booking.getId(),
                 "BK-%08d".formatted(booking.getId()),
-                booking.getAccessToken(),
+                rawAccessToken,
                 booking.getSlot().getId(),
                 booking.getStatus().name(),
                 booking.getDepositAmount(),

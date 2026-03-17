@@ -50,7 +50,7 @@ class GuestBookingUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc);
+        helper = new BookingTestHelper(mockMvc, phoneVerificationRepository);
         clearBookingWithPassData(
                 passLedgerRepository,
                 bookingHistoryRepository,
@@ -83,7 +83,7 @@ class GuestBookingUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.verificationId").isNumber())
                 .andExpect(jsonPath("$.phone").value(PHONE))
-                .andExpect(jsonPath("$.code").isString());
+                .andExpect(jsonPath("$.code").doesNotExist());
     }
 
     @DisplayName("유효하지 않은 전화번호로 인증코드를 요청하면 400을 반환한다")
@@ -285,7 +285,7 @@ class GuestBookingUseCaseIT {
         String accessToken = extractAccessToken(createResponse);
 
         mockMvc.perform(get("/bookings/{id}", bookingId)
-                        .param("token", accessToken))
+                        .header("X-Access-Token", accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
                 .andExpect(jsonPath("$.bookingNumber").value("BK-%08d".formatted(bookingId)))
@@ -317,7 +317,7 @@ class GuestBookingUseCaseIT {
         Long bookingId = extractBookingId(createResponse);
 
         mockMvc.perform(get("/bookings/{id}", bookingId)
-                        .param("token", "invalid-token"))
+                        .header("X-Access-Token", "invalid-token"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }

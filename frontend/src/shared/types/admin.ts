@@ -107,8 +107,9 @@ export interface OrderHistoryResponse {
 export interface AdminBookingResponse {
   bookingId: number;
   bookingNumber: string;
-  guestName: string;
-  guestPhone: string;
+  bookerType: "GUEST" | "MEMBER";
+  bookerName: string;
+  bookerPhone: string;
   className: string;
   startAt: string;
   endAt: string;

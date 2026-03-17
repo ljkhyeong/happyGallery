@@ -20,6 +20,8 @@ import { MyPassesPage } from "@/pages/MyPassesPage";
 import { GuestLookupPage } from "@/pages/GuestLookupPage";
 import { MyBookingDetailPage } from "@/pages/MyBookingDetailPage";
 import { MyOrderDetailPage } from "@/pages/MyOrderDetailPage";
+import { MyInquiriesPage } from "@/pages/MyInquiriesPage";
+import { MyInquiryCreatePage } from "@/pages/MyInquiryCreatePage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { CustomerAuthProvider } from "@/features/customer-auth/useCustomerAuth";
 import "@/styles/global.scss";
@@ -47,6 +49,8 @@ export function App() {
                 <Route path="/my/bookings" element={<MyBookingsPage />} />
                 <Route path="/my/orders/:id" element={<MyOrderDetailPage />} />
                 <Route path="/my/passes" element={<MyPassesPage />} />
+                <Route path="/my/inquiries" element={<MyInquiriesPage />} />
+                <Route path="/my/inquiries/new" element={<MyInquiryCreatePage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/admin" element={<AdminPage />} />
