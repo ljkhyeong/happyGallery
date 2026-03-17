@@ -31,7 +31,7 @@
 | `O3-T2` | done | dashboard | `monitoring/dashboards/system.json` — HTTP rate/latency/5xx, JVM heap/GC/threads, HikariCP, CPU |
 | `O3-T3` | done | dashboard | `monitoring/dashboards/funnel.json` — client event rate/totals, guest claim, conversion gauge |
 | `O3-T4` | done | alert rules | `monitoring/alerts.yml` — 5xx rate, latency p95, HikariCP exhaustion, JVM heap, app down |
-| `O4-T1` | done | backend | `sentry-spring-boot-starter-jakarta` 추가, GlobalExceptionHandler에서 500 에러 캡처 |
+| `O4-T1` | done | backend | `sentry-spring-boot-4-starter` 추가, GlobalExceptionHandler에서 500 에러 캡처 |
 | `O4-T2` | done | frontend | `@sentry/react` 추가, API 5xx 에러에 requestId 태깅 후 캡처 |
 | `O4-T3` | done | 공통 config | backend: env `SENTRY_DSN/ENVIRONMENT/RELEASE`, frontend: `VITE_SENTRY_*`, requestId context-tag |
 | `O5-T1` | pending | 문서 | README/HANDOFF 동기화 후 운영 runbook 정리 잔여 |

@@ -141,7 +141,7 @@
 - `/guest` 를 비회원 조회 entry route로 노출하고, `/guest/orders`, `/guest/bookings` 는 canonical guest 조회 경로이자 생성 후 확인용 보조 경로로 유지한다.
 - 현재 운영 권장안은 `/guest` 허브와 `/guest/orders`, `/guest/bookings`, `/orders/new` direct gate를 그대로 유지한 채 member route 안정화 이후 2~4주 동안 사용량과 문의 유형을 관찰한 뒤 direct guest fallback 축소 여부를 결정하는 것이다.
 - `/api/v1/monitoring/client-events` 는 guest/member 주요 전환 이벤트를 requestId가 포함된 `[client-monitoring]` 로그로 남기고, 동시에 `happygallery.funnel.client_event`, `happygallery.funnel.guest_claim_completed` 메트릭을 누적한다. 현재 수집 범위는 `/guest` 허브 진입, `/orders/new` direct continue, guest 성공/조회 화면의 회원 전환 CTA, `/my` claim 모달 오픈, guest claim 완료다.
-- frontend는 `@sentry/react`로 API 5xx 에러를 캡처하고, backend는 `sentry-spring-boot-starter-jakarta` + `GlobalExceptionHandler`에서 예상치 못한 500 예외를 캡처한다. 두 경로 모두 가능하면 `requestId`를 태그로 남긴다.
+- frontend는 `@sentry/react`로 API 5xx 에러를 캡처하고, backend는 `sentry-spring-boot-4-starter` + `GlobalExceptionHandler`에서 예상치 못한 500 예외를 캡처한다. 두 경로 모두 가능하면 `requestId`를 태그로 남긴다.
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
 - 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
 - Playwright smoke는 관리자 Bearer 토큰과 고객 `HG_SESSION` 쿠키를 backend API로 bootstrap해 로그인 rate limit과 UI 초기화 타이밍 영향을 줄였다.
