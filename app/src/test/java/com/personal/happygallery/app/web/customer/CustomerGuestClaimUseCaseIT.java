@@ -131,7 +131,7 @@ class CustomerGuestClaimUseCaseIT {
         inventoryRepository.save(new Inventory(product, 5));
         Order order = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(product.getId(), 1, 29_000L)));
+                List.of(new OrderService.OrderItemRequest(product.getId(), 1, 29_000L))).order();
 
         BookingClass bookingClass = classRepository.save(TestFixtures.defaultBookingClass());
         Slot slot = slotRepository.save(TestFixtures.slot(

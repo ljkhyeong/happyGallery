@@ -1,31 +1,19 @@
 package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
-import com.personal.happygallery.app.booking.port.out.BookingStorePort;
-import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.app.customer.VerifiedGuestResolver;
 import com.personal.happygallery.app.customer.port.out.PhoneVerificationStorePort;
-import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
-import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
-import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.common.error.DuplicateBookingException;
-import com.personal.happygallery.common.error.NotFoundException;
-import com.personal.happygallery.common.error.PaymentMethodNotAllowedException;
-import com.personal.happygallery.common.error.SlotNotAvailableException;
+import com.personal.happygallery.common.token.AccessTokenHasher;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.domain.pass.PassLedger;
-import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -42,38 +30,20 @@ public class GuestBookingService {
 
     private final VerifiedGuestResolver verifiedGuestResolver;
     private final PhoneVerificationStorePort phoneVerificationStorePort;
-    private final SlotReaderPort slotReaderPort;
     private final BookingReaderPort bookingReaderPort;
-    private final BookingStorePort bookingStorePort;
-    private final SlotManagementService slotManagementService;
-    private final PassPurchaseReaderPort passPurchaseReaderPort;
-    private final PassPurchaseStorePort passPurchaseStorePort;
-    private final PassLedgerStorePort passLedgerStorePort;
-    private final BookingSupport bookingSupport;
+    private final BookingCreationSupport creationSupport;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
     public GuestBookingService(VerifiedGuestResolver verifiedGuestResolver,
                                PhoneVerificationStorePort phoneVerificationStorePort,
-                               SlotReaderPort slotReaderPort,
                                BookingReaderPort bookingReaderPort,
-                               BookingStorePort bookingStorePort,
-                               SlotManagementService slotManagementService,
-                               PassPurchaseReaderPort passPurchaseReaderPort,
-                               PassPurchaseStorePort passPurchaseStorePort,
-                               PassLedgerStorePort passLedgerStorePort,
-                               BookingSupport bookingSupport,
+                               BookingCreationSupport creationSupport,
                                Clock clock) {
         this.verifiedGuestResolver = verifiedGuestResolver;
         this.phoneVerificationStorePort = phoneVerificationStorePort;
-        this.slotReaderPort = slotReaderPort;
         this.bookingReaderPort = bookingReaderPort;
-        this.bookingStorePort = bookingStorePort;
-        this.slotManagementService = slotManagementService;
-        this.passPurchaseReaderPort = passPurchaseReaderPort;
-        this.passPurchaseStorePort = passPurchaseStorePort;
-        this.passLedgerStorePort = passLedgerStorePort;
-        this.bookingSupport = bookingSupport;
+        this.creationSupport = creationSupport;
         this.clock = clock;
     }
 
@@ -96,73 +66,42 @@ public class GuestBookingService {
     /**
      * 게스트 예약을 생성한다. {@code passId}가 있으면 8회권 결제, 없으면 예약금 결제.
      *
-     * <ol>
-     *   <li>결제 수단 정책 검증 (passId 없을 때만 — 계좌이체 차단)</li>
-     *   <li>인증 코드 검증 + 소모</li>
-     *   <li>Guest upsert (동일 전화번호 재사용)</li>
-     *   <li>슬롯 활성 여부 확인</li>
-     *   <li>동일 슬롯 중복 예약 확인</li>
-     *   <li>{@code confirmBooking} — 비관적 락 + 정원 + 버퍼</li>
-     *   <li>8회권이면: 만료·잔여 검증 → USE ledger(-1) → useCredit()</li>
-     *   <li>Booking 저장</li>
-     * </ol>
-     *
      * @param passId 8회권 ID (null이면 예약금 결제)
      */
-    public Booking createGuestBooking(String phone, String code, String name,
+    public record GuestBookingResult(Booking booking, String rawAccessToken) {}
+
+    public GuestBookingResult createGuestBooking(String phone, String code, String name,
                                       Long slotId, long depositAmount,
                                       DepositPaymentMethod paymentMethod,
                                       Long passId) {
         // 1. 인증 코드 검증 + Guest upsert
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(phone, code, name);
 
-        // 3. 슬롯 활성 여부 확인 (락 전 빠른 체크)
-        Slot slot = slotReaderPort.findById(slotId)
-                .orElseThrow(() -> new NotFoundException("슬롯"));
-        if (!slot.isActive()) {
-            throw new SlotNotAvailableException();
-        }
+        // 2. 슬롯 활성 여부 확인 (락 전 빠른 체크)
+        Slot slot = creationSupport.loadActiveSlot(slotId);
 
-        // 4. 중복 예약 확인
+        // 3. 중복 예약 확인
         if (bookingReaderPort.existsBySlotIdAndGuestId(slotId, guest.getId())) {
             throw new DuplicateBookingException();
         }
 
-        // 5. confirmBooking — 비관적 락 + 정원 증가 + 버퍼 비활성화
-        slotManagementService.confirmBooking(slotId);
+        // 4. 비관적 락 + 정원 증가 + 버퍼 비활성화
+        creationSupport.lockSlotCapacity(slotId);
 
-        String accessToken = UUID.randomUUID().toString().replace("-", "");
+        String rawToken = AccessTokenHasher.generate();
+        String accessToken = AccessTokenHasher.hash(rawToken);
+
         Booking booking;
-
         if (passId != null) {
-            // 6a. 8회권 결제 경로
-            PassPurchase pass = passPurchaseReaderPort.findById(passId)
-                    .orElseThrow(() -> new NotFoundException("8회권"));
-            pass.requireUsable(LocalDateTime.now(clock));
-
-            // USE ledger 선행 기록 → 크레딧 차감 ("크레딧이 돈이다")
-            passLedgerStorePort.save(new PassLedger(pass, PassLedgerType.USE, 1));
-            pass.useCredit();
-            passPurchaseStorePort.save(pass);
-
+            PassPurchase pass = creationSupport.deductPassCredit(passId, null);
             booking = new Booking(guest, slot, pass, accessToken);
         } else {
-            // 6b. 예약금 결제 경로 — 계좌이체 차단
-            if (paymentMethod == DepositPaymentMethod.BANK_TRANSFER) {
-                throw new PaymentMethodNotAllowedException();
-            }
+            creationSupport.requireValidDeposit(paymentMethod);
             long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
             booking = new Booking(guest, slot, depositAmount, balanceAmount, paymentMethod, accessToken);
         }
 
-        booking = bookingStorePort.save(booking);
-
-        // 7. 초기 이력 저장 (BOOKED)
-        bookingSupport.recordHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null);
-
-        // 8. 예약 완료 알림
-        bookingSupport.notifyBookingGuest(booking, NotificationEventType.BOOKING_CONFIRMED);
-
-        return booking;
+        booking = creationSupport.saveAndComplete(booking, slot);
+        return new GuestBookingResult(booking, rawToken);
     }
 }

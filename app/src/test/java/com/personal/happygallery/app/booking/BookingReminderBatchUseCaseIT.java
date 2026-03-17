@@ -6,6 +6,8 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.infra.user.UserRepository;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
@@ -54,6 +56,7 @@ class BookingReminderBatchUseCaseIT {
     @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired PassPurchaseRepository passPurchaseRepository;
     @Autowired NotificationLogRepository notificationLogRepository;
+    @Autowired UserRepository userRepository;
     @Autowired Clock clock;
 
     @BeforeEach
@@ -76,6 +79,7 @@ class BookingReminderBatchUseCaseIT {
                 slotRepository,
                 classRepository,
                 notificationLogRepository);
+        userRepository.deleteAllInBatch();
     }
 
     // -----------------------------------------------------------------------
@@ -171,8 +175,65 @@ class BookingReminderBatchUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
+    // Q1-T5: member booking 리마인드 — userId 기반 알림 발송
+    // -----------------------------------------------------------------------
+
+    @DisplayName("D-1 리마인드 배치는 회원 예약에도 알림을 발송한다")
+    @Test
+    void sendD1Reminders_memberBooking_sendsNotification() {
+        LocalDate tomorrow = LocalDate.now(clock).plusDays(1);
+        LocalDateTime slotStart = tomorrow.atTime(10, 0);
+
+        Booking booking = createMemberBooking(slotStart);
+
+        BatchResult result = bookingReminderBatchService.sendD1Reminders();
+        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 1);
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(logs).hasSize(1);
+            if (!logs.isEmpty()) {
+                softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
+                softly.assertThat(logs.get(0).getUserId()).isEqualTo(booking.getUserId());
+                softly.assertThat(logs.get(0).getGuestId()).isNull();
+            }
+        });
+    }
+
+    @DisplayName("당일 리마인드 배치는 회원과 게스트 예약 모두에 알림을 발송한다")
+    @Test
+    void sendSameDayReminders_mixedBookings_sendsAll() {
+        LocalDateTime slotStart = LocalDate.now(clock).atTime(14, 0);
+
+        createBooking(slotStart);
+        BookingClass cls2 = classRepository.save(
+                bookingClass("혼합 클래스", "MIX", 60, 30_000L, 30));
+        Slot slot2 = slotRepository.save(slot(cls2, slotStart.plusHours(1), slotStart.plusHours(2)));
+        User user = userRepository.save(new User("mixed@test.com", "hash", "혼합회원", "01088887777"));
+        bookingRepository.save(new Booking(user.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+
+        BatchResult result = bookingReminderBatchService.sendSameDayReminders();
+        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 2);
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(2);
+            softly.assertThat(logs).hasSize(2);
+        });
+    }
+
+    // -----------------------------------------------------------------------
     // 헬퍼
     // -----------------------------------------------------------------------
+
+    private Booking createMemberBooking(LocalDateTime slotStart) {
+        BookingClass cls = classRepository.save(
+                bookingClass("회원 클래스", "MEMBER", 60, 30_000L, 30));
+        Slot slot = slotRepository.save(slot(cls, slotStart, slotStart.plusHours(1)));
+        User user = userRepository.save(new User("reminder@test.com", "hash", "회원테스트", "01077776666"));
+        Booking booking = bookingRepository.save(
+                new Booking(user.getId(), slot, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+        return booking;
+    }
 
     private Booking createBooking(LocalDateTime slotStart) {
         BookingClass cls = classRepository.save(

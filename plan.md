@@ -58,10 +58,10 @@
 
 | Task | 상태 | 범위 | 완료 기준 |
 |------|------|------|-----------|
-| `B1-T1` | pending | admin 예약 조회 쿼리 | `guest` nullable 전제를 반영한 조회로 교체, member booking 도 결과에 포함 |
-| `B1-T2` | pending | admin 예약 응답 DTO | guest/member 공용 응답 포맷 설계, null-safe 매핑과 식별 표시 추가 |
-| `B1-T3` | pending | reminder batch 쿼리/발송 | `guest` 기준 발송 로직을 member/claimed booking 까지 처리하도록 수정 |
-| `B1-T4` | pending | notification 진입점 | 예약 알림에서 guest/user 분기 로직을 명시화하고 중복 제거 |
+| `B1-T1` | done | admin 예약 조회 쿼리 | `findAllInRange` JOIN→LEFT JOIN FETCH, member/claimed booking 결과 포함 |
+| `B1-T2` | done | admin 예약 응답 DTO | `bookerType`(GUEST/MEMBER) 추가, `guestName/Phone`→`bookerName/Phone` 변경, User batch fetch, 프론트 타입/UI 동기화 |
+| `B1-T3` | done | reminder batch 쿼리/발송 | `findBookingsInRange` LEFT JOIN 전환, guest/member 분기 발송 (`notifyByGuestId`/`notifyByUserId`) |
+| `B1-T4` | done | notification 진입점 | `notifyBookingGuest`/`notifyBookingUser` → `notifyBooker` 통합, cancel/reschedule/create 호출처 일괄 전환 |
 | `B1-T5` | pending | 운영 검증 테스트 | member booking, claimed booking, guest booking 각각이 admin list 와 D-1/당일 reminder 대상이 되는지 IT 추가 |
 | `B1-T6` | pending | 문서 | PRD/ADR/HANDOFF에 member/claim 이후 운영 처리 규칙 반영 |
 
@@ -79,12 +79,12 @@
 
 | Task | 상태 | 범위 | 완료 기준 |
 |------|------|------|-----------|
-| `T1-T1` | pending | 현행 계약 정리 | 예약/주문 token 사용 API와 프론트 호출 경로 전수 정리 |
-| `T1-T2` | pending | backend token 저장 방식 | guest token hash 저장 또는 일회성 조회 토큰 전략으로 전환 |
-| `T1-T3` | pending | backend API 계약 | query param 전달 제거 검토, header/body 기반 또는 session-like temporary token 계약으로 전환 |
-| `T1-T4` | pending | frontend guest 조회/변경 흐름 | 새 계약에 맞춰 `/guest/orders`, `/guest/bookings`, 성공 화면 token 취급 방식 수정 |
-| `T1-T5` | pending | migration/compat | 기존 데이터/링크와의 호환 정책 결정, 필요 시 점진 전환 경로 마련 |
-| `T1-T6` | pending | 보안 문서 | API contract, PRD, README, 운영 문서에 token 취급 정책 명시 |
+| `T1-T1` | done | 현행 계약 정리 | 예약/주문 token 사용 API와 프론트 호출 경로 전수 정리 |
+| `T1-T2` | done | backend token 저장 방식 | AccessTokenHasher(SHA-256 해시 저장), V17 migration(orders 컬럼 확장+UNIQUE), 서비스/컨트롤러 전환 완료 |
+| `T1-T3` | done | backend API 계약 | query param → `X-Access-Token` 헤더로 통일, RescheduleRequest에서 token 필드 제거, 프론트엔드 API 호출 동기화 |
+| `T1-T4` | done | frontend guest 조회/변경 흐름 | 성공 화면에 일회성 안내+복사 버튼 추가, 성공→조회 네비게이션 시 state로 token+ID 전달, 조회 페이지 자동 fill+자동 조회 |
+| `T1-T5` | done | migration/compat | V18 마이그레이션으로 기존 평문 토큰 일괄 SHA-256 해싱, CHAR_LENGTH<64 조건으로 멱등 처리 |
+| `T1-T6` | done | 보안 문서 | API contract(query param→X-Access-Token 헤더, 토큰 형식/1회성 명시), PRD §8(토큰 보안 정책), ADR-0024(V18 backfill+헤더 전환), Idea-0005(완료 항목 반영), HANDOFF(ADR-0024 추가) |
 
 결정 포인트:
 - 단기: hash 저장 + 기존 UX 유지
@@ -104,13 +104,13 @@
 
 | Task | 상태 | 범위 | 완료 기준 |
 |------|------|------|-----------|
-| `Q1-T1` | pending | `me/bookings` | 생성/상세/변경/취소 IT 추가 |
-| `Q1-T2` | pending | `me/orders` | 생성/상세/목록 IT 추가 |
-| `Q1-T3` | pending | `me/passes` | 구매/상세/목록 IT 추가 |
-| `Q1-T4` | pending | pass refund | 미래 예약 취소 외에 slot `bookedCount`, `BookingHistory` 적재까지 assert 보강 |
-| `Q1-T5` | pending | 알림 사이드이펙트 | cancel/reschedule/order approve/auto refund/pickup expire 에서 notification 호출 또는 로그 적재 검증 추가 |
-| `Q1-T6` | pending | admin/member filter | `AdminAuthFilter`, `RateLimitFilter`, customer auth 경로 매칭 회귀 테스트 보강 |
-| `Q1-T7` | pending | OTP/관리자 설정 | unsafe default 제거 이후 auth 관련 회귀 테스트 추가 |
+| `Q1-T1` | done | `me/bookings` | MeBookingUseCaseIT: 생성/목록/상세/변경/취소/401 — 6 tests |
+| `Q1-T2` | done | `me/orders` | MeOrderUseCaseIT: 생성/목록/상세/401 — 4 tests |
+| `Q1-T3` | done | `me/passes` | MePassUseCaseIT: 구매/목록/상세/401 — 4 tests |
+| `Q1-T4` | done | pass refund | PassCreditUsageUseCaseIT: slot bookedCount=0, BookingHistory 4건 assert 추가 |
+| `Q1-T5` | done | 알림 사이드이펙트 | BookingReminderBatchUseCaseIT: member D-1 리마인드, guest+member 혼합 당일 리마인드 2 tests 추가 |
+| `Q1-T6` | done | admin/member filter | AdminAuthFilterTest: /api/v1/me/ 통과, /api/v1/auth/ 통과 2 tests 추가 |
+| `Q1-T7` | done | OTP/관리자 설정 | AdminAuthFilterTest: 기본값 enableApiKeyAuth=false 검증, 기본 설정 admin 접근 401 — 2 tests 추가 |
 
 검증:
 - 변경 범위별 최소 IT/UseCaseIT 확보
@@ -125,12 +125,12 @@
 
 | Task | 상태 | 범위 | 완료 기준 |
 |------|------|------|-----------|
-| `A1-T1` | pending | admin query 계층 | `AdminBookingController`, `AdminOrderController` 앞에 명시적 query use case 또는 query service 도입 |
-| `A1-T2` | pending | product 계층 | `ProductQueryService`, `ProductAdminService`, `InventoryService` 의 direct repository 의존 정리 |
-| `A1-T3` | pending | notification 계층 | `NotificationService` 의 저장소 직접 의존 정리 여부 결정 및 일관화 |
-| `A1-T4` | pending | booking creation | guest/member 예약 생성 공통 orchestration 추출 |
-| `A1-T5` | pending | verified guest resolver | booking/order/pass/claim 의 phone verification + guest upsert 공통화 |
-| `A1-T6` | pending | order creation facade | controller 가 가격 조회/DTO 조립을 하지 않도록 `CreateOrderUseCase` 성격으로 재구성 |
+| `A1-T1` | done | admin query 계층 | `AdminBookingQueryService`(날짜조회+User batch fetch), `AdminOrderQueryService`(목록+이력) 도입, 컨트롤러에서 infra 직접 의존 제거, `UserReaderPort.findAllById` 추가 |
+| `A1-T2` | done | product 계층 | `ProductReaderPort` 확장 + `ProductStorePort`/`InventoryReaderPort`/`InventoryStorePort` 신설, `ProductPersistencePortAdapter`/`InventoryPersistencePortAdapter` 도입, 3개 서비스에서 infra repository 직접 의존 제거 |
+| `A1-T3` | done | notification 계층 | `NotificationLogStorePort` 신설, `NotificationLogPersistencePortAdapter` (Reader+Store 통합) 도입, `NotificationService`에서 `NotificationLogRepository` 직접 의존 제거 |
+| `A1-T4` | done | booking creation | `BookingCreationSupport` 추출 — 슬롯검증/락/8회권차감/예약금검증/저장+이력+알림 공통화, GuestBookingService·MemberBookingService에서 8개 의존성 제거 |
+| `A1-T5` | done | verified guest resolver | S1-T3에서 `VerifiedGuestResolver` 추출 완료 (booking/order/pass 3곳 공통). claim은 의미론이 다름(user phone re-verification) — 별도 유지 적합 |
+| `A1-T6` | done | order creation facade | `OrderCreationService.createMemberOrder()` 추가 + `resolveItemPrices()` 추출, `MeOrderController`에서 `ProductQueryService` 의존 제거 — 가격 조회를 서비스 레이어로 이동 |
 | `A1-T7` | pending | refund boundary | `RefundExecutionService` 의 소속을 `booking` 밖으로 옮길지 결정하고 공용 환불 경계 정리 |
 | `A1-T8` | pending | query performance | `ProductQueryService.listActiveProducts()` N+1 제거 |
 | `A1-T9` | pending | guest claim service | `DefaultGuestClaimService` 책임 분리와 PII-safe logging 적용 |

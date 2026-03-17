@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.customer.port.out;
 
 import com.personal.happygallery.domain.user.User;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -13,4 +14,6 @@ public interface UserReaderPort {
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    List<User> findAllById(List<Long> ids);
 }

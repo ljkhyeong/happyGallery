@@ -75,16 +75,16 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                                          @Param("status") BookingStatus status,
                                          @Param("now") LocalDateTime now);
 
-    /** D-1 / 당일 리마인드 공용 — JOIN FETCH guest (detached 후 LAZY 로딩 방지) */
-    @Query("SELECT b FROM Booking b JOIN FETCH b.guest WHERE b.status = :status AND b.slot.startAt >= :start AND b.slot.startAt < :end")
+    /** D-1 / 당일 리마인드 공용 — LEFT JOIN FETCH guest (member booking 포함, detached 후 LAZY 로딩 방지) */
+    @Query("SELECT b FROM Booking b LEFT JOIN FETCH b.guest WHERE b.status = :status AND b.slot.startAt >= :start AND b.slot.startAt < :end")
     List<Booking> findBookingsInRange(@Param("status") BookingStatus status,
                                       @Param("start") LocalDateTime start,
                                       @Param("end") LocalDateTime end);
 
-    /** 관리자 — 날짜 범위 내 예약 전체 조회 (guest, class, slot eager fetch) */
+    /** 관리자 — 날짜 범위 내 예약 전체 조회 (guest nullable, class, slot eager fetch) */
     @Query("""
             SELECT b FROM Booking b
-            JOIN FETCH b.guest
+            LEFT JOIN FETCH b.guest
             JOIN FETCH b.bookingClass
             JOIN FETCH b.slot
             WHERE b.slot.startAt >= :start AND b.slot.startAt < :end

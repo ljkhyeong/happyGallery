@@ -7,10 +7,10 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.app.product.InventoryService;
+import com.personal.happygallery.common.token.AccessTokenHasher;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,13 +55,16 @@ public class OrderService {
      * @param items   주문 상품 목록
      * @return 생성된 주문
      */
-    public Order createPaidOrder(Long guestId, List<OrderItemRequest> items) {
+    public record OrderCreationResult(Order order, String rawAccessToken) {}
+
+    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items) {
         LocalDateTime paidAt = LocalDateTime.now(clock);
         long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
 
-        String accessToken = UUID.randomUUID().toString();
+        String rawToken = AccessTokenHasher.generate();
+        String tokenHash = AccessTokenHasher.hash(rawToken);
         Order order = orderStore.save(
-                new Order(guestId, accessToken, totalAmount, paidAt, paidAt.plusHours(24)));
+                new Order(guestId, tokenHash, totalAmount, paidAt, paidAt.plusHours(24)));
 
         for (OrderItemRequest item : items) {
             orderItemPort.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
@@ -70,7 +73,7 @@ public class OrderService {
 
         notificationService.notifyByGuestId(guestId, NotificationEventType.ORDER_PAID);
 
-        return order;
+        return new OrderCreationResult(order, rawToken);
     }
 
     /**

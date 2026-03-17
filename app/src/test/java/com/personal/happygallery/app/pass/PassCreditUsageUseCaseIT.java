@@ -133,7 +133,7 @@ class PassCreditUsageUseCaseIT {
 
         // 취소 (FUTURE = 2030년 → D-1 이전이므로 환불 가능)
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
-                        .param("token", booking.accessToken()))
+                        .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(true));
@@ -164,7 +164,7 @@ class PassCreditUsageUseCaseIT {
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedPassBooking("01099990001", slot.getId(), pass.getId());
 
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
-                        .param("token", booking.accessToken()))
+                        .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(false));
@@ -230,12 +230,20 @@ class PassCreditUsageUseCaseIT {
         var refundLedgers = passLedgerRepository.findByPassPurchaseId(pass.getId())
                 .stream().filter(l -> l.getType() == PassLedgerType.REFUND).toList();
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
+        Slot reloadedSlot1 = slotRepository.findById(slot1.getId()).orElseThrow();
+        Slot reloadedSlot2 = slotRepository.findById(slot2.getId()).orElseThrow();
+        long historyCount = bookingHistoryRepository.count();
         assertSoftly(softly -> {
             softly.assertThat(bookings).hasSize(2);
             softly.assertThat(bookings).allMatch(b -> b.getStatus() == BookingStatus.CANCELED);
             softly.assertThat(refundLedgers).hasSize(1);
             softly.assertThat(refundLedgers.get(0).getAmount()).isEqualTo(6);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
+            // Q1-T4: slot bookedCount 복구 확인
+            softly.assertThat(reloadedSlot1.getBookedCount()).as("slot1 bookedCount").isEqualTo(0);
+            softly.assertThat(reloadedSlot2.getBookedCount()).as("slot2 bookedCount").isEqualTo(0);
+            // Q1-T4: BookingHistory 적재 확인 (BOOKED×2 + CANCELED×2 = 4)
+            softly.assertThat(historyCount).as("booking history count").isEqualTo(4L);
         });
     }
 

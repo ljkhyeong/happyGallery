@@ -98,7 +98,7 @@ class BookingCancelUseCaseIT {
 
         // 취소 — D-1 이전 슬롯이므로 환불 가능
         mockMvc.perform(delete("/bookings/{id}", bookingId)
-                        .param("token", createdBooking.accessToken()))
+                        .header("X-Access-Token", createdBooking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
                 .andExpect(jsonPath("$.status").value("CANCELED"))
@@ -136,7 +136,7 @@ class BookingCancelUseCaseIT {
 
         // 취소 — 환불 가능 구간이지만 PG 실패
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
-                        .param("token", booking.accessToken()))
+                        .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(true));
@@ -188,7 +188,7 @@ class BookingCancelUseCaseIT {
         Long bookingId = booking.bookingId();
 
         mockMvc.perform(delete("/bookings/{id}", bookingId)
-                        .param("token", booking.accessToken()))
+                        .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(false))
@@ -212,7 +212,7 @@ class BookingCancelUseCaseIT {
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330003", slot.getId(), 5_000L);
 
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
-                        .param("token", "invalid-token"))
+                        .header("X-Access-Token", "invalid-token"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
@@ -230,12 +230,12 @@ class BookingCancelUseCaseIT {
 
         // 첫 번째 취소 — 성공
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
-                        .param("token", booking.accessToken()))
+                        .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isOk());
 
         // 두 번째 취소 — 400
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
-                        .param("token", booking.accessToken()))
+                        .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }

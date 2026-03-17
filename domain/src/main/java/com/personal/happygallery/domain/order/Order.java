@@ -36,7 +36,7 @@ public class Order {
     @Column(nullable = false, length = 30)
     private OrderStatus status;
 
-    @Column(name = "access_token", length = 36)
+    @Column(name = "access_token", length = 64)
     private String accessToken;
 
     @Column(name = "total_amount", nullable = false)

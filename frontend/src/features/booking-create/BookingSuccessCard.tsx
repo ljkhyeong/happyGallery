@@ -1,4 +1,5 @@
-import { Card, Alert } from "react-bootstrap";
+import { useState } from "react";
+import { Card, Alert, Button } from "react-bootstrap";
 import { GuestClaimSuccessActions } from "@/features/customer-claim/GuestClaimSuccessActions";
 import { StatusBadge } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
@@ -11,6 +12,14 @@ interface Props {
 }
 
 export function BookingSuccessCard({ booking, guestPhone, guestName }: Props) {
+  const [copied, setCopied] = useState(false);
+
+  const copyToken = async () => {
+    await navigator.clipboard.writeText(booking.accessToken);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div>
       <Alert variant="success" className="mb-3">
@@ -33,10 +42,14 @@ export function BookingSuccessCard({ booking, guestPhone, guestName }: Props) {
           </p>
           <Alert variant="warning" className="mt-3 mb-0">
             <small>
-              <strong>Access Token:</strong>{" "}
-              <code>{booking.accessToken}</code>
-              <br />
-              이 토큰은 예약 조회/변경/취소에 필요합니다. 반드시 보관하세요.
+              <strong>인증 토큰 (1회 표시)</strong>
+              <div className="d-flex align-items-center gap-2 mt-1 mb-1">
+                <code className="flex-grow-1 text-break">{booking.accessToken}</code>
+                <Button variant="outline-secondary" size="sm" onClick={copyToken}>
+                  {copied ? "복사됨" : "복사"}
+                </Button>
+              </div>
+              이 토큰은 예약 조회/변경/취소에 필요하며, 이 화면을 벗어나면 다시 확인할 수 없습니다.
             </small>
           </Alert>
         </Card.Body>
@@ -44,6 +57,7 @@ export function BookingSuccessCard({ booking, guestPhone, guestName }: Props) {
           <GuestClaimSuccessActions
             primaryTo="/guest/bookings"
             primaryLabel="비회원 예약 조회"
+            primaryState={{ bookingId: booking.bookingId, token: booking.accessToken }}
             guestPhone={guestPhone}
             guestName={guestName}
             helperText="같은 휴대폰 번호로 회원가입하거나 로그인하면 `/my`에서 기존 비회원 예약을 바로 가져올 수 있습니다."

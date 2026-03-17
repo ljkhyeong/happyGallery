@@ -2,10 +2,10 @@ package com.personal.happygallery.app.notification;
 
 import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
+import com.personal.happygallery.app.notification.port.out.NotificationLogStorePort;
 import com.personal.happygallery.app.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
-import com.personal.happygallery.infra.notification.NotificationLogRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,18 +32,18 @@ public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private final List<NotificationSenderPort> senders;
-    private final NotificationLogRepository notificationLogRepository;
+    private final NotificationLogStorePort notificationLogStore;
     private final GuestReaderPort guestReader;
     private final UserReaderPort userReader;
     private final Clock clock;
 
     public NotificationService(List<NotificationSenderPort> senders,
-                               NotificationLogRepository notificationLogRepository,
+                               NotificationLogStorePort notificationLogStore,
                                GuestReaderPort guestReader,
                                UserReaderPort userReader,
                                Clock clock) {
         this.senders = senders;
-        this.notificationLogRepository = notificationLogRepository;
+        this.notificationLogStore = notificationLogStore;
         this.guestReader = guestReader;
         this.userReader = userReader;
         this.clock = clock;
@@ -134,7 +134,7 @@ public class NotificationService {
 
     private void save(NotificationLog entry) {
         try {
-            notificationLogRepository.save(entry);
+            notificationLogStore.save(entry);
         } catch (Exception e) {
             log.error("[알림] 로그 저장 실패", e);
         }

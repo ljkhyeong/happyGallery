@@ -307,16 +307,16 @@ POST /api/v1/bookings/phone-verifications
 ```json
 {
   "verificationId": 1,
-  "phone": "01012345678",
-  "code": "483921"
+  "phone": "01012345678"
 }
 ```
 
 - 성공: `200 OK`
 - 에러:
   - `400 INVALID_INPUT` — 전화번호 형식 불일치 (`^01[0-9]{8,9}$`)
-- 메모:
-  - `code` 필드는 MVP 한정 응답이며 SMS 발송 구현 시 제거한다.
+- 정책:
+  - 인증 코드는 응답에 포함하지 않고 서버 로그에만 기록한다.
+  - 개발/테스트 환경에서는 `GET /api/v1/admin/dev/phone-verifications/latest?phone=` 로 코드를 조회할 수 있다.
 
 #### 2.4.2 게스트 예약 생성
 
@@ -338,7 +338,7 @@ POST /api/v1/bookings/guest
 {
   "bookingId": 1,
   "bookingNumber": "BK-00000001",
-  "accessToken": "abc123...",
+  "accessToken": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
   "slotId": 42,
   "status": "BOOKED",
   "depositAmount": 5000,
@@ -360,12 +360,14 @@ POST /api/v1/bookings/guest
   - `422 PAYMENT_METHOD_NOT_ALLOWED` — `BANK_TRANSFER` 사용 시도
 - 정책:
   - 휴대폰 인증 성공 시 전화번호 기준 Guest를 조회하고 없으면 생성한다.
+  - `accessToken`(32자 hex)은 생성 응답에서 1회만 반환되며, DB에는 SHA-256 해시만 저장된다.
   - `passId`가 있으면 8회권을 우선 사용하고, 없으면 예약금 결제를 사용한다.
 
 #### 2.4.3 비회원 예약 조회
 
 ```http
-GET /api/v1/bookings/{bookingId}?token={accessToken}
+GET /api/v1/bookings/{bookingId}
+X-Access-Token: {accessToken}
 ```
 
 ```json
@@ -392,10 +394,10 @@ GET /api/v1/bookings/{bookingId}?token={accessToken}
 
 ```http
 PATCH /api/v1/bookings/{bookingId}/reschedule
+X-Access-Token: {accessToken}
 
 {
-  "newSlotId": 43,
-  "token": "access_token"
+  "newSlotId": 43
 }
 ```
 
@@ -428,7 +430,8 @@ PATCH /api/v1/bookings/{bookingId}/reschedule
 #### 2.4.5 비회원 예약 취소
 
 ```http
-DELETE /api/v1/bookings/{bookingId}?token={accessToken}
+DELETE /api/v1/bookings/{bookingId}
+X-Access-Token: {accessToken}
 ```
 
 ```json
@@ -597,7 +600,7 @@ POST /api/v1/orders
 ```json
 {
   "orderId": 12,
-  "accessToken": "8c1c2d7a-2e29-4dc5-8d26-c73e5a5e2d93",
+  "accessToken": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
   "status": "PAID_APPROVAL_PENDING",
   "totalAmount": 118000,
   "paidAt": "2026-03-08T20:30:00"
@@ -611,14 +614,15 @@ POST /api/v1/orders
   - `409 INVENTORY_NOT_ENOUGH` — 재고 부족
 - 정책:
   - 휴대폰 인증 성공 시 전화번호 기준 Guest를 조회하고 없으면 생성한다.
-  - 주문 생성 시 `accessToken`을 발급하고 사용자 조회 토큰으로 사용한다.
+  - 주문 생성 시 `accessToken`(32자 hex)을 1회 발급한다. DB에는 SHA-256 해시만 저장되므로, 이 응답 이후에는 원본 토큰을 복구할 수 없다.
   - 주문 아이템 단가는 서버가 다시 조회해 확정한다.
   - 생성 직후 상태는 `PAID_APPROVAL_PENDING`이고 승인 마감은 결제 시각 + 24시간이다.
 
 #### 2.6.2 주문 상세 조회
 
 ```http
-GET /api/v1/orders/{orderId}?token={accessToken}
+GET /api/v1/orders/{orderId}
+X-Access-Token: {accessToken}
 ```
 
 ```json
@@ -644,7 +648,7 @@ GET /api/v1/orders/{orderId}?token={accessToken}
 - 에러:
   - `404 NOT_FOUND` — orderId 미존재 또는 token 불일치
 - 정책:
-  - 주문 조회 토큰이 일치할 때만 상세를 반환한다.
+  - `X-Access-Token` 헤더의 토큰을 SHA-256 해시하여 DB 저장값과 비교한다.
   - `fulfillment`는 아직 생성되지 않은 경우 `null`일 수 있다.
 
 ### 2.7 주문 Admin API

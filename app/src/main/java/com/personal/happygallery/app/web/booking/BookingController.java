@@ -22,8 +22,8 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -59,7 +59,7 @@ public class BookingController {
     @ResponseStatus(HttpStatus.CREATED)
     public BookingResponse createGuestBooking(
             @RequestBody @Valid CreateGuestBookingRequest request) {
-        Booking booking = guestBookingService.createGuestBooking(
+        var result = guestBookingService.createGuestBooking(
                 request.phone(),
                 request.verificationCode(),
                 request.name(),
@@ -67,14 +67,14 @@ public class BookingController {
                 request.depositAmount() != null ? request.depositAmount() : 0L,
                 request.paymentMethod(),
                 request.passId());
-        return BookingResponse.from(booking);
+        return BookingResponse.from(result.booking(), result.rawAccessToken());
     }
 
-    /** 비회원 예약 조회 — bookingId + access_token 검증 */
+    /** 비회원 예약 조회 — bookingId + X-Access-Token 헤더 검증 */
     @GetMapping("/{bookingId}")
     public BookingDetailResponse getBooking(
             @PathVariable Long bookingId,
-            @RequestParam String token) {
+            @RequestHeader("X-Access-Token") String token) {
         Booking booking = bookingQueryService.getBookingByToken(bookingId, token);
         return BookingDetailResponse.from(booking);
     }
@@ -83,9 +83,10 @@ public class BookingController {
     @PatchMapping("/{bookingId}/reschedule")
     public RescheduleResponse reschedule(
             @PathVariable Long bookingId,
+            @RequestHeader("X-Access-Token") String token,
             @RequestBody @Valid RescheduleRequest request) {
         Booking booking = bookingRescheduleService.rescheduleBooking(
-                bookingId, request.token(), request.newSlotId());
+                bookingId, token, request.newSlotId());
         return RescheduleResponse.from(booking);
     }
 
@@ -93,7 +94,7 @@ public class BookingController {
     @DeleteMapping("/{bookingId}")
     public CancelResponse cancelBooking(
             @PathVariable Long bookingId,
-            @RequestParam String token) {
+            @RequestHeader("X-Access-Token") String token) {
         BookingCancelUseCase.CancelResult result =
                 bookingCancelService.cancelBooking(bookingId, token);
         return CancelResponse.of(result.booking(), result.refundable());

@@ -99,7 +99,7 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
           <thead>
             <tr>
               <th>예약번호</th>
-              <th>게스트</th>
+              <th>예약자</th>
               <th>클래스</th>
               <th>시간</th>
               <th>상태</th>
@@ -112,8 +112,13 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
               <tr key={b.bookingId}>
                 <td>{b.bookingNumber}</td>
                 <td>
-                  <div>{b.guestName}</div>
-                  <small className="text-muted-soft">{b.guestPhone}</small>
+                  <div>
+                    {b.bookerName}
+                    {b.bookerType === "MEMBER" && (
+                      <Badge bg="success" className="ms-1" style={{ fontSize: "0.65em" }}>회원</Badge>
+                    )}
+                  </div>
+                  <small className="text-muted-soft">{b.bookerPhone}</small>
                 </td>
                 <td>{b.className}</td>
                 <td>

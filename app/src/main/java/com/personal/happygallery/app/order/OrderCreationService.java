@@ -34,12 +34,23 @@ public class OrderCreationService {
     /**
      * 휴대폰 인증 기반 주문 생성.
      */
-    public Order createOrderByPhone(String phone, String verificationCode,
+    public OrderService.OrderCreationResult createOrderByPhone(String phone, String verificationCode,
                                      String name, List<OrderItemInput> items) {
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(phone, verificationCode, name);
+        List<OrderService.OrderItemRequest> orderItems = resolveItemPrices(items);
+        return orderService.createPaidOrder(guest.getId(), orderItems);
+    }
 
-        // 상품 가격 조회 후 OrderItemRequest 변환
-        List<OrderService.OrderItemRequest> orderItems = items.stream()
+    /**
+     * 회원 주문 생성 — 세션 userId 기반.
+     */
+    public Order createMemberOrder(Long userId, List<OrderItemInput> items) {
+        List<OrderService.OrderItemRequest> orderItems = resolveItemPrices(items);
+        return orderService.createMemberOrder(userId, orderItems);
+    }
+
+    private List<OrderService.OrderItemRequest> resolveItemPrices(List<OrderItemInput> items) {
+        return items.stream()
                 .map(item -> {
                     Product product = productReader.findById(item.productId())
                             .orElseThrow(() -> new NotFoundException("상품"));
@@ -47,7 +58,5 @@ public class OrderCreationService {
                             item.productId(), item.qty(), product.getPrice());
                 })
                 .toList();
-
-        return orderService.createPaidOrder(guest.getId(), orderItems);
     }
 }

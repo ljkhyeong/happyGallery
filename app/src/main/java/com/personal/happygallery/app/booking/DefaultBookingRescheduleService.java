@@ -116,7 +116,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
         Booking saved = bookingStorePort.save(booking);
 
         // 11. 예약 변경 알림
-        bookingSupport.notifyBookingGuest(booking, NotificationEventType.BOOKING_RESCHEDULED);
+        bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_RESCHEDULED);
 
         return saved;
     }
@@ -176,7 +176,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
         Booking saved = bookingStorePort.save(booking);
 
         // 11. 예약 변경 알림
-        bookingSupport.notifyBookingUser(booking, NotificationEventType.BOOKING_RESCHEDULED);
+        bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_RESCHEDULED);
 
         return saved;
     }

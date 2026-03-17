@@ -39,8 +39,9 @@ export interface AdminSlot {
 export interface AdminBooking {
   bookingId: number;
   bookingNumber: string;
-  guestName: string;
-  guestPhone: string;
+  bookerType: "GUEST" | "MEMBER";
+  bookerName: string;
+  bookerPhone: string;
   className: string;
   startAt: string;
   endAt: string;
@@ -448,11 +449,11 @@ export async function waitForBookingByPhone(
 ): Promise<AdminBooking> {
   await expect.poll(async () => {
     const bookings = await fetchAdminBookings(request, date);
-    return bookings.some((booking) => booking.guestPhone === phone);
+    return bookings.some((booking) => booking.bookerPhone === phone);
   }).toBeTruthy();
 
   const bookings = await fetchAdminBookings(request, date);
-  const booking = bookings.find((item) => item.guestPhone === phone);
+  const booking = bookings.find((item) => item.bookerPhone === phone);
   if (!booking) {
     throw new Error(`Could not find booking for phone: ${phone}`);
   }

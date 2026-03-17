@@ -2,6 +2,7 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
+import com.personal.happygallery.app.payment.RefundExecutionService;
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.app.booking.port.out.SlotStorePort;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
@@ -19,7 +20,6 @@ import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
-import java.util.function.BiConsumer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,7 +66,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
      */
     public CancelResult cancelBooking(Long bookingId, String accessToken) {
         Booking booking = bookingSupport.findByToken(bookingId, accessToken);
-        return cancelInternal(booking, bookingSupport::notifyBookingGuest);
+        return cancelInternal(booking);
     }
 
     /**
@@ -74,11 +74,10 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
      */
     public CancelResult cancelMemberBooking(Long bookingId, Long userId) {
         Booking booking = bookingSupport.findByIdAndUserId(bookingId, userId);
-        return cancelInternal(booking, bookingSupport::notifyBookingUser);
+        return cancelInternal(booking);
     }
 
-    private CancelResult cancelInternal(Booking booking,
-                                         BiConsumer<Booking, NotificationEventType> notify) {
+    private CancelResult cancelInternal(Booking booking) {
         // 1. 상태 체크 — BOOKED 상태만 취소 가능
         if (booking.getStatus() != BookingStatus.BOOKED) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "취소할 수 없는 예약 상태입니다.");
@@ -115,9 +114,9 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
         bookingStorePort.save(booking);
 
         // 6. 취소 알림 (+ 예약금 환불 시 환불 알림)
-        notify.accept(booking, NotificationEventType.BOOKING_CANCELED);
+        bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CANCELED);
         if (refundable && !booking.isPassBooking()) {
-            notify.accept(booking, NotificationEventType.DEPOSIT_REFUNDED);
+            bookingSupport.notifyBooker(booking, NotificationEventType.DEPOSIT_REFUNDED);
         }
 
         return new CancelResult(booking, refundable);

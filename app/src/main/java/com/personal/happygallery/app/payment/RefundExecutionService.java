@@ -1,8 +1,8 @@
-package com.personal.happygallery.app.booking;
+package com.personal.happygallery.app.payment;
 
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
-import com.personal.happygallery.app.booking.port.out.RefundPort;
 import com.personal.happygallery.app.payment.port.out.PaymentPort;
+import com.personal.happygallery.app.payment.port.out.RefundPort;
 import com.personal.happygallery.app.payment.port.out.RefundResult;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Booking;
@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 환불 실행/이력 저장 서비스.
  *
  * <p>REQUIRES_NEW 트랜잭션으로 실행해 부모 트랜잭션 롤백과 무관하게 환불 이력을 남긴다.
+ * 예약과 주문 모두의 환불을 처리하는 공용 경계 서비스.
  */
 @Service
 public class RefundExecutionService {
@@ -49,7 +50,7 @@ public class RefundExecutionService {
         return executeRefund(refund, "bookingId=" + bookingId);
     }
 
-    Refund executeRefund(Refund refund, String target) {
+    public Refund executeRefund(Refund refund, String target) {
         try {
             RefundResult result = paymentPort.refund(refund.getPgRef(), refund.getAmount());
             if (result.success()) {

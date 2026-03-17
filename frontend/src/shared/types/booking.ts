@@ -60,7 +60,6 @@ export interface MyBookingDetailResponse {
 
 export interface RescheduleRequest {
   newSlotId: number;
-  token: string;
 }
 
 export interface RescheduleResponse {

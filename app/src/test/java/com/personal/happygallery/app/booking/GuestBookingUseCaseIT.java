@@ -285,7 +285,7 @@ class GuestBookingUseCaseIT {
         String accessToken = extractAccessToken(createResponse);
 
         mockMvc.perform(get("/bookings/{id}", bookingId)
-                        .param("token", accessToken))
+                        .header("X-Access-Token", accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
                 .andExpect(jsonPath("$.bookingNumber").value("BK-%08d".formatted(bookingId)))
@@ -317,7 +317,7 @@ class GuestBookingUseCaseIT {
         Long bookingId = extractBookingId(createResponse);
 
         mockMvc.perform(get("/bookings/{id}", bookingId)
-                        .param("token", "invalid-token"))
+                        .header("X-Access-Token", "invalid-token"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
