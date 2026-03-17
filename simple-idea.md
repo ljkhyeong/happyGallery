@@ -15,3 +15,4 @@
 | 라우트/문서 canonical 기준이 뒤늦게 정리되어 README/PRD/E2E 동기화 커밋이 반복된다. | 새 공개 경로를 도입할 때부터 canonical route와 alias 종료 시점을 함께 기록한다. |
 | controller가 가격 조회, DTO 조립, 소유권 판정을 직접 들고 있는 경우가 있다. | 읽기/쓰기 use case 또는 query facade로 옮겨 controller를 HTTP 매핑에 가깝게 유지한다. |
 | 기능 완료 뒤에 관측성/메트릭/문서가 따라붙는 경우가 반복됐다. | 신규 핵심 흐름에는 최소 문서와 최소 운영 지표를 feature 정의 단계에서 같이 적는다. |
+| `app.*` 설정이 개별 필드나 문자열 key 수준으로 흩어질 수 있다. | `AdminProperties`, `RateLimitProperties`, `BatchSchedulerProperties`처럼 concern별 `@ConfigurationProperties` 클래스로 묶고 기본값/검증을 같이 둔다. |

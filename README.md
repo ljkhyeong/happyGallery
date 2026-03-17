@@ -53,7 +53,7 @@
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| `ADR-0001` ~ `ADR-0023` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
+| `ADR-0001` ~ `ADR-0024` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
 
 ### 💡 Idea
 
@@ -63,6 +63,9 @@
 | [Bulkhead (Resilience4j)](docs/Idea/0002_bulkhead-resilience4j-consideration/idea.md) | `docs/Idea/0002_bulkhead-resilience4j-consideration/` | 외부 호출 격리 전략 검토 |
 | [테스트 전략 및 assertion 작성 규칙](docs/Idea/0003_test-strategy-and-assertion-guidelines/idea.md) | `docs/Idea/0003_test-strategy-and-assertion-guidelines/` | PRD에서 분리한 테스트 철학, 최소 세트, `SoftAssertions.assertSoftly` 규칙 |
 | [관리자 인증 세션 확장 검토](docs/Idea/0004_admin-auth-session-scaling/idea.md) | `docs/Idea/0004_admin-auth-session-scaling/` | 인메모리 관리자 세션의 수평 확장 시 대안 비교 메모 |
+| [Guest Token Signed Expiry 전환](docs/Idea/0005_guest-token-signed-expiry/idea.md) | `docs/Idea/0005_guest-token-signed-expiry/` | guest access token의 만료·서명 방식 후속 개선 메모 |
+| [ConfigurationProperties 기반 설정 바인딩 정리](docs/Idea/0010_configuration-properties-binding-guideline/idea.md) | `docs/Idea/0010_configuration-properties-binding-guideline/` | 이미 적용된 설정 바인딩 패턴과 이후 확장 기준 메모 |
+| [OAuth 로그인 도입 검토](docs/Idea/0011_oauth-login-adoption-consideration/idea.md) | `docs/Idea/0011_oauth-login-adoption-consideration/` | 기존 이메일 회원, guest claim, 전화번호 인증 흐름과의 연결 정책 검토 메모 |
 
 ### 🧪 POC
 
@@ -110,6 +113,8 @@
   - 회원 마이페이지 (`내 주문`, `내 예약`, `내 8회권`, guest claim)
   - 회원 주문/예약/8회권 전체 목록 (`/my/orders`, `/my/bookings`, `/my/passes`, 검색/상태 필터/quick tab/정렬 포함)
   - 회원 예약 상세/변경/취소 (`/my/bookings/:id`)
+  - 상품 상세 Product Q&A 조회/회원 작성/비밀글 비밀번호 확인
+  - 회원 1:1 문의 작성/목록 조회 (`/my/inquiries`)
   - 회원 마이페이지에서 비회원 이력 가져오기 (휴대폰 재인증 후 claim)
   - 비회원 성공 화면에서 회원가입/로그인 후 `/my` claim으로 바로 이어지는 CTA
   - 로그인/회원가입 페이지에서 `redirect`·`claim`·회원가입 prefill(`name`/`phone`) 컨텍스트 유지
@@ -121,6 +126,8 @@
   - 주문 결정 이력 조회
   - 8회권 만료/환불
   - 환불 실패 조회/재시도
+  - 상품 Q&A 답변 관리
+  - 1:1 문의 답변 관리
 
 프론트 주요 경로:
 
@@ -134,6 +141,8 @@
 - `/my/bookings`
 - `/my/bookings/:id`
 - `/my/passes`
+- `/my/inquiries`
+- `/my/inquiries/new`
 - `/bookings/new`
 - `/guest`
 - `/guest/bookings`
