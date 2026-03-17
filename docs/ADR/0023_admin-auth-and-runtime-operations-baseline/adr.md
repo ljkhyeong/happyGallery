@@ -26,9 +26,9 @@
 
 ### 2. API Key는 로컬/테스트용 폴백으로만 허용한다
 
-- `app.admin.enable-api-key-auth=true`일 때 `X-Admin-Key`를 허용한다.
-- 프로덕션에서는 `enable-api-key-auth=false`로 비활성화한다.
-- 운영 배포 시 `ADMIN_API_KEY`는 환경 변수로만 주입하고 로컬 기본값을 재사용하지 않는다.
+- **기본값은 `enable-api-key-auth=false`, `apiKey=""`** — 프로덕션에서 설정 누락 시에도 API Key 경로는 비활성 상태를 유지한다.
+- `local` 프로필에서만 `enable-api-key-auth=true`와 `ADMIN_API_KEY`를 명시적으로 설정한다.
+- 기본 관리자 계정은 Flyway migration에 포함하지 않고, `LocalAdminSeedService`(`@Profile("local")`)로 local 환경에서만 seed한다.
 - Bearer 세션 경로는 검증된 관리자 ID를 이력에 남기고, API Key 폴백 경로와 배치 이력은 `null`일 수 있다.
 
 ### 3. 운영 관측성은 requestId 중심으로 유지한다
@@ -38,7 +38,9 @@
 - 요청 단위 추적을 위해 로그 필드에 `requestId`를 포함한다.
 - 에러 응답은 가능하면 `requestId`를 함께 반환한다.
 - 배치 실행은 `batch-{jobName}-{uuid8}` 형식의 requestId를 MDC에 주입한다.
-- Actuator 웹 노출 정책은 `health`, `info`, `metrics` 기준으로 유지한다.
+- Actuator 웹 노출 정책은 `health`, `info`, `metrics`, `prometheus` 기준으로 유지한다.
+  - management port를 기본 8081로 분리하여 application 트래픽과 격리한다.
+  - `local` 프로필에서는 8080으로 유지한다.
   - `prod`에서 health details는 `never`
 
 로그 레벨 전략:

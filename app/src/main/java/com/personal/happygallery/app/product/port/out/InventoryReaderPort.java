@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.product.port.out;
 
 import com.personal.happygallery.domain.product.Inventory;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -9,4 +10,6 @@ import java.util.Optional;
 public interface InventoryReaderPort {
 
     Optional<Inventory> findByProductId(Long productId);
+
+    List<Inventory> findByProductIdIn(List<Long> productIds);
 }

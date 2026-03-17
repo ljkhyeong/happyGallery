@@ -26,6 +26,8 @@
   - PRD 경량화 — `docs/PRD/0001_spec/spec.md`에서 테스트 전략/`SoftAssertions.assertSoftly` 규칙과 관리자 인증 확장 검토를 분리하고, `docs/Idea/0003_*`, `docs/Idea/0004_*` 문서로 이동
   - 문서 체계 재정리 — 활성 실행 계획은 루트 `plan.md`로 통합, 완료된 `docs/1Pager` 실행 계획 문서는 제거, `docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md`를 추가하고 `README.md` 문서 목록을 현재 구조 기준으로 재작성
   - 운영 관측성 3차 구현 완료 — `docker-compose.yml`에 Prometheus/Grafana 서비스를 추가하고 `monitoring/`에 scrape 설정, alert rule, datasource/provisioning, system/funnel 대시보드를 반영했으며, backend 500 예외와 frontend API 5xx 에러를 Sentry로 캡처하도록 정리
+  - 전수점검 5트랙 완료 — 보안 강화(OTP/admin 기본값/actuator), 예약 조회/리마인더 복구(member/claimed 포함), guest token hardening(SHA-256/X-Access-Token), 테스트 커버리지 회복(me API/admin filter/batch), 아키텍처 수렴(product/notification/payment/booking/order 포트 추출, BookingCreationSupport, N+1 수정)
+  - 상품 Q&A / 1:1 문의 1차 추가 — `product_qna`, `inquiry` 스키마(V19), 공개 상품 Q&A 조회/비밀글 확인, 회원 Q&A 작성/1:1 문의 작성·조회, 관리자 답변 화면/엔드포인트 추가
   - 헥사고날 전환 pilot 2차 진행 — booking cancel/reschedule, pass purchase/expiry batch, pickup expiry batch 경계에 `port/in` 유스케이스를 추가하고 controller/batch 진입점을 해당 포트로 전환, `NotificationLogReaderPortAdapter`를 도입하고 주요 구현체 이름을 `Default*`로 정리
   - 운영 모니터링 2차 구현 완료 — 프론트 주요 guest/member 전환 지점의 `[client-monitoring]` 로그 수집에 더해 `AppMetrics`를 도입해 `happygallery.funnel.client_event`, `happygallery.funnel.guest_claim_completed` 메트릭을 기록하고 `/actuator/prometheus`를 노출하도록 정리
   - `/orders/new` direct fallback gate 추가 — 상품 상세에서 prefill로 내려온 경우는 바로 진행하고, query 없이 직접 진입한 `/orders/new`는 “보조 경로” 안내 후 명시적으로 계속해야 수동 비회원 다중 상품 주문을 진행하도록 정리
@@ -113,8 +115,14 @@
 
 핵심 트랙:
 1. 관측성 스택 고도화
-2. 헥사고날 전환 후속 정리
-3. guest/member 운영 정책 리뷰와 `/my` 운영 피드백 반영
+2. guest/member 운영 정책 리뷰와 `/my` 운영 피드백 반영
+
+완료된 트랙 (plan.md 전수점검):
+- Track 1: 공개/관리자 인증 보안 강화 — OTP 응답 코드 제거, admin 기본값 안전화, actuator 포트 분리
+- Track 2: 예약 조회/리마인더 복구 — admin 예약 목록 LEFT JOIN, bookerType(GUEST/MEMBER) 도입, reminder batch guest/member 분기
+- Track 3: Guest token hardening — SHA-256 해시 저장(V17), X-Access-Token 헤더 통일, V18 backfill
+- Track 4: 테스트 커버리지 회복 — me/bookings·orders·passes IT, admin filter 검증, pass credit/reminder batch 보강
+- Track 5: 아키텍처 수렴 — product/notification/payment/booking/order/admin query 포트 추출, BookingCreationSupport 공통화, N+1 수정, guest claim 분리
 
 완료된 프론트 플랜, 폴리시 플랜, 리팩토링 플랜, 코드리뷰 후속 plan 문서는 정리했고,
 장기 보관 가치가 있는 내용만 `README.md`, `HANDOFF.md`, `docs/PRD`, `docs/ADR`에 흡수했다.

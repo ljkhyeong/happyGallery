@@ -10,6 +10,8 @@ import { BookingListSection } from "@/features/admin-booking/BookingListSection"
 import { OrderListSection } from "@/features/admin-order/OrderListSection";
 import { FailedRefundSection } from "@/features/admin-refund/FailedRefundSection";
 import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
+import { AdminQnaSection } from "@/features/admin-qna/AdminQnaSection";
+import { AdminInquirySection } from "@/features/admin-inquiry/AdminInquirySection";
 import { useToast } from "@/shared/ui";
 
 export function AdminPage() {
@@ -84,6 +86,20 @@ export function AdminPage() {
         <Card.Header>환불 실패 목록</Card.Header>
         <Card.Body>
           <FailedRefundSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-4">
+        <Card.Header>Q&A 관리</Card.Header>
+        <Card.Body>
+          <AdminQnaSection token={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-4">
+        <Card.Header>1:1 문의 관리</Card.Header>
+        <Card.Body>
+          <AdminInquirySection token={adminKey} onAuthError={handleAuthError} />
         </Card.Body>
       </Card>
     </Container>

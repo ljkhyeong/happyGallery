@@ -37,6 +37,8 @@
 
 세부 헥사고날 전환 전략은 `ADR-0021`을 따른다.
 
+- 관리자 조회 경계: `AdminBookingQueryService`/`AdminOrderQueryService`가 컨트롤러의 infra 직접 의존을 대체하고, User batch fetch로 booker 정보를 조합한다.
+
 ### 2. 일관성과 동시성은 DB 트랜잭션을 기준으로 잡는다
 
 - 남은 재고와 슬롯 정원처럼 수량이 줄어드는 값은 DB 트랜잭션 안에서 갱신한다.
@@ -101,6 +103,7 @@
 
 - `orders`
   - `id`, `user_id nullable`, `guest_id nullable`
+  - `access_token VARCHAR(64)` — SHA-256 hex 해시 저장, UNIQUE (V17 migration)
   - `status`, `total_amount`, `paid_at`, `approval_deadline_at`, `bundle_id nullable`, `version`
 - `order_items`
   - `id`, `order_id`, `product_id`, `qty`, `unit_price`
@@ -121,12 +124,24 @@
 - `slots`
   - `id`, `class_id`, `start_at`, `end_at`, `capacity=8`, `booked_count`, `is_active`
 - `bookings`
-  - `id`, `user_id nullable`, `guest_id nullable`
+  - `id`, `user_id nullable`(회원 예약 또는 guest claim 시 설정), `guest_id nullable`(게스트 예약 시 설정)
+  - `access_token VARCHAR(64)` — SHA-256 hex 해시 저장, UNIQUE (V17 migration, 게스트 예약만)
   - `class_id`, `slot_id`, `status`
   - `deposit_amount`, `deposit_paid_at`
   - `balance_amount`, `balance_status`, `arrears_flag`, `version`
 - `booking_history`
   - `id`, `booking_id`, `action`, `from_slot_id`, `to_slot_id`, `actor`, `reason`, `created_at`
+
+#### 상품 Q&A / 1:1 문의
+
+- `product_qna`
+  - `id`, `product_id`, `user_id`
+  - `title`, `content`, `secret`, `password_hash nullable`
+  - `reply_content nullable`, `replied_at nullable`, `replied_by nullable`, `created_at`
+- `inquiry`
+  - `id`, `user_id`
+  - `title`, `content`
+  - `reply_content nullable`, `replied_at nullable`, `replied_by nullable`, `created_at`
 
 #### 8회권
 

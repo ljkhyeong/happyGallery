@@ -8,6 +8,7 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { api } from "@/shared/api";
 import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
+import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
 
 const TYPE_LABEL: Record<string, string> = {
   READY_STOCK: "기존 재고",
@@ -240,6 +241,8 @@ export function ProductDetailPage() {
           </Card>
         </Col>
       </Row>
+
+      <ProductQnaSection productId={productId} />
     </Container>
   );
 }

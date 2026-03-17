@@ -4,6 +4,7 @@ import com.personal.happygallery.app.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.app.product.port.out.InventoryStorePort;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.infra.product.InventoryRepository;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +23,11 @@ class InventoryPersistencePortAdapter implements InventoryReaderPort, InventoryS
     @Override
     public Optional<Inventory> findByProductId(Long productId) {
         return inventoryRepository.findByProductId(productId);
+    }
+
+    @Override
+    public List<Inventory> findByProductIdIn(List<Long> productIds) {
+        return inventoryRepository.findByProductIdIn(productIds);
     }
 
     @Override

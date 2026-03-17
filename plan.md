@@ -41,7 +41,7 @@
 | `S1-T5` | done | admin auth config/filter | 기본값을 `enableApiKeyAuth=false`, `apiKey=""` 로 변경, local 프로필에서만 활성화, prod 누락 시 안전 |
 | `S1-T6` | done | local-only admin hook | 전수 확인: 모든 Local* 클래스에 `@Profile("local")` 적용, 신규 `LocalPhoneVerificationController` 포함 |
 | `S1-T7` | done | actuator/prometheus | management port를 기본 8081로 분리, local에서는 8080 유지, 노출 목록 health/info/metrics/prometheus 유지 |
-| `S1-T8` | pending | 문서 | README/HANDOFF/ADR-0023/API 계약 문서에 인증/운영 기본값 변경 사항 반영 |
+| `S1-T8` | done | 문서 | ADR-0023 admin 기본값 반영, PRD-0004 API Key 폴백 기본값/LocalAdminSeedService 명시, HANDOFF 트랙 완료 반영 |
 
 검증:
 - 공개 OTP API 응답에 code 미포함 확인
@@ -62,8 +62,8 @@
 | `B1-T2` | done | admin 예약 응답 DTO | `bookerType`(GUEST/MEMBER) 추가, `guestName/Phone`→`bookerName/Phone` 변경, User batch fetch, 프론트 타입/UI 동기화 |
 | `B1-T3` | done | reminder batch 쿼리/발송 | `findBookingsInRange` LEFT JOIN 전환, guest/member 분기 발송 (`notifyByGuestId`/`notifyByUserId`) |
 | `B1-T4` | done | notification 진입점 | `notifyBookingGuest`/`notifyBookingUser` → `notifyBooker` 통합, cancel/reschedule/create 호출처 일괄 전환 |
-| `B1-T5` | pending | 운영 검증 테스트 | member booking, claimed booking, guest booking 각각이 admin list 와 D-1/당일 reminder 대상이 되는지 IT 추가 |
-| `B1-T6` | pending | 문서 | PRD/ADR/HANDOFF에 member/claim 이후 운영 처리 규칙 반영 |
+| `B1-T5` | done | 운영 검증 테스트 | `AdminBookingQueryUseCaseIT` — admin list 3종 포함, D-1 claimed 리마인드, 당일 3종 혼합 리마인드 검증 3 tests |
+| `B1-T6` | done | 문서 | PRD-0001 §3.1/§4.1에 member/guest 주체 명시, PRD-0004에 admin 예약 목록(bookerType) 계약 추가, ADR-0022에 admin query 경계 반영 |
 
 검증:
 - admin booking list 에 guest/member/claimed booking 모두 노출
@@ -131,10 +131,10 @@
 | `A1-T4` | done | booking creation | `BookingCreationSupport` 추출 — 슬롯검증/락/8회권차감/예약금검증/저장+이력+알림 공통화, GuestBookingService·MemberBookingService에서 8개 의존성 제거 |
 | `A1-T5` | done | verified guest resolver | S1-T3에서 `VerifiedGuestResolver` 추출 완료 (booking/order/pass 3곳 공통). claim은 의미론이 다름(user phone re-verification) — 별도 유지 적합 |
 | `A1-T6` | done | order creation facade | `OrderCreationService.createMemberOrder()` 추가 + `resolveItemPrices()` 추출, `MeOrderController`에서 `ProductQueryService` 의존 제거 — 가격 조회를 서비스 레이어로 이동 |
-| `A1-T7` | pending | refund boundary | `RefundExecutionService` 의 소속을 `booking` 밖으로 옮길지 결정하고 공용 환불 경계 정리 |
-| `A1-T8` | pending | query performance | `ProductQueryService.listActiveProducts()` N+1 제거 |
-| `A1-T9` | pending | guest claim service | `DefaultGuestClaimService` 책임 분리와 PII-safe logging 적용 |
-| `A1-T10` | pending | ADR 동기화 | 실제 선택한 구조가 ADR-0021/0022/0023 과 맞지 않으면 ADR 갱신 |
+| `A1-T7` | done | refund boundary | `RefundExecutionService`/`RefundRetryService`/`RefundPort`/`RefundPortAdapter`를 `app.booking`→`app.payment`로 이동, booking·order 양쪽의 공용 환불 경계 확립 |
+| `A1-T8` | done | query performance | `InventoryReaderPort.findByProductIdIn()` 추가, `listActiveProducts()` 배치 조회로 전환 — N+1 → 2 쿼리 |
+| `A1-T9` | done | guest claim service | `claim()` 메서드를 `claimOrders`/`claimBookings`/`claimPasses`로 분리, 전화번호 로그 마스킹(`maskPhone`) 적용 |
+| `A1-T10` | done | ADR 동기화 | ADR-0021에 2차 확산 섹션 추가, ADR-0022에 access_token/user_id/admin query 반영, ADR-0023에 admin 기본값/actuator 포트 반영, PRD-0004에 회원 API 계약 추가 |
 
 원칙:
 - 새 포트는 경계가 분명한 곳에만 만든다.

@@ -7,6 +7,9 @@ import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,13 +37,24 @@ public class ProductQueryService {
         return new ProductWithInventory(product, inventory);
     }
 
-    /** ACTIVE 상품 목록 조회 — 최신 등록순 */
+    /** ACTIVE 상품 목록 조회 — 최신 등록순 (N+1 방지: 재고 일괄 조회) */
     public List<ProductWithInventory> listActiveProducts() {
-        return productReaderPort.findByStatusOrderByCreatedAtDesc(ProductStatus.ACTIVE)
+        List<Product> products = productReaderPort.findByStatusOrderByCreatedAtDesc(ProductStatus.ACTIVE);
+        if (products.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> productIds = products.stream().map(Product::getId).toList();
+        Map<Long, Inventory> inventoryMap = inventoryReaderPort.findByProductIdIn(productIds)
                 .stream()
+                .collect(Collectors.toMap(Inventory::getProductId, Function.identity()));
+
+        return products.stream()
                 .map(p -> {
-                    Inventory inv = inventoryReaderPort.findByProductId(p.getId())
-                            .orElseThrow(() -> new NotFoundException("재고"));
+                    Inventory inv = inventoryMap.get(p.getId());
+                    if (inv == null) {
+                        throw new NotFoundException("재고");
+                    }
                     return new ProductWithInventory(p, inv);
                 })
                 .toList();

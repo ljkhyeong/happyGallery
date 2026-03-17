@@ -63,8 +63,9 @@ Authorization: Bearer {token}
 
 #### API Key 폴백
 
-- `app.admin.enable-api-key-auth=true`일 때 `X-Admin-Key` 헤더로도 인증 가능하다.
-- 이 경로는 로컬/테스트 운영용 폴백이며, 프로덕션에서는 `enable-api-key-auth=false`로 비활성화한다.
+- **기본값은 `enable-api-key-auth=false`, `apiKey=""`** — 프로덕션에서 설정 누락 시에도 API Key 경로는 비활성 상태를 유지한다.
+- `local` 프로필에서만 `enable-api-key-auth=true`와 `ADMIN_API_KEY`를 명시적으로 설정한다.
+- 기본 관리자 계정은 Flyway migration에 포함하지 않고, `LocalAdminSeedService`(`@Profile("local")`)로 local 환경에서만 seed한다.
 - 인증키 소스: 서버 설정 `app.admin.api-key`, 환경 변수 `ADMIN_API_KEY`
 - 주문 승인/거절/제작 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
   - API Key 폴백 경로와 배치 이력은 `decided_by_admin_id = null`일 수 있다.
@@ -790,7 +791,40 @@ Authorization: Bearer {token}
   - 결정 시간 순으로 정렬된 전체 이력을 반환한다.
   - `decision`: `APPROVE`, `REJECT`, `DELAY`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
 
-### 2.8 환불 실패 관리 Admin API
+### 2.8 관리자 예약 목록 API
+
+#### 2.8.1 관리자 예약 목록 조회
+
+```http
+GET /api/v1/admin/bookings?date=2026-03-20&status=BOOKED
+Authorization: Bearer {token}
+```
+
+```json
+[
+  {
+    "bookingId": 1,
+    "bookerType": "GUEST",
+    "bookerName": "홍길동",
+    "bookerPhone": "010****5678",
+    "className": "향수 클래스",
+    "slotStart": "2026-03-20T10:00:00",
+    "slotEnd": "2026-03-20T12:00:00",
+    "status": "BOOKED",
+    "depositAmount": 5000,
+    "balanceAmount": 45000
+  }
+]
+```
+
+- 성공: `200 OK`
+- 정책:
+  - `bookerType`은 `GUEST` 또는 `MEMBER`로 구분한다.
+  - guest claim 이후 `userId`가 설정된 예약은 `MEMBER`로 표시한다.
+  - User 정보는 batch fetch(`UserReaderPort.findAllById`)로 조합한다.
+  - `date` 필수, `status`는 선택(미입력 시 전체).
+
+### 2.9 환불 실패 관리 Admin API
 
 #### 2.8.1 환불 실패 목록 조회
 
@@ -829,6 +863,164 @@ Authorization: Bearer {token}
   - `FAILED` 상태 환불만 재시도 가능하다.
   - 성공 시 `SUCCEEDED`, 재실패 시 `FAILED` 유지
   - 환불 실행/실패 이력 저장은 부모 주문/예약 트랜잭션과 분리된 `REQUIRES_NEW` 트랜잭션으로 처리한다.
+
+### 2.10 회원 API (`/api/v1/me`)
+
+회원 인증은 `HG_SESSION` HttpOnly 쿠키 기반이며, `CustomerAuthFilter`에서 검증한다.
+
+#### 2.10.1 회원 예약 생성
+
+```http
+POST /api/v1/me/bookings
+Cookie: HG_SESSION={sessionToken}
+
+{
+  "slotId": 42,
+  "depositAmount": 5000,
+  "paymentMethod": "CARD",
+  "passId": 7
+}
+```
+
+- 성공: `201 Created`
+- 에러: 게스트 예약 생성과 동일한 슬롯/정원/8회권 에러 + `401 UNAUTHORIZED`
+- 정책:
+  - 회원 예약은 access token을 발급하지 않는다.
+  - `passId`는 해당 회원 소유 8회권만 사용 가능하다.
+
+#### 2.10.2 회원 주문 생성
+
+```http
+POST /api/v1/me/orders
+Cookie: HG_SESSION={sessionToken}
+
+{
+  "items": [
+    { "productId": 1, "qty": 2 }
+  ]
+}
+```
+
+- 성공: `201 Created`
+- 에러: 게스트 주문 생성과 동일한 재고/상품 에러 + `401 UNAUTHORIZED`
+- 정책:
+  - 회원 주문은 access token을 발급하지 않는다.
+  - 아이템 단가는 서버가 조회해 확정한다(`OrderCreationService.resolveItemPrices`).
+
+#### 2.10.3 회원 목록/상세 조회
+
+- `GET /api/v1/me/bookings` — 회원 예약 목록
+- `GET /api/v1/me/bookings/{id}` — 회원 예약 상세
+- `GET /api/v1/me/orders` — 회원 주문 목록
+- `GET /api/v1/me/orders/{id}` — 회원 주문 상세
+- `GET /api/v1/me/passes` — 회원 8회권 목록
+- `GET /api/v1/me/passes/{id}` — 회원 8회권 상세
+
+공통 정책:
+- 인증 실패 시 `401 UNAUTHORIZED`
+- 다른 회원의 리소스 접근 시 `404 NOT_FOUND`
+
+#### 2.10.4 회원 상품 Q&A 작성
+
+```http
+POST /api/v1/me/products/{productId}/qna
+Cookie: HG_SESSION={sessionToken}
+
+{
+  "title": "재입고 예정이 있나요?",
+  "content": "다음 달에도 구매 가능한지 궁금합니다.",
+  "secret": true,
+  "password": "1234"
+}
+```
+
+- 성공: `201 Created`
+- 에러:
+  - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `404 NOT_FOUND` — 상품 미존재
+- 정책:
+  - 작성 주체는 회원(User)만 허용한다.
+  - `secret=true`일 때 비밀번호를 설정해 공개 상세 조회 전 검증한다.
+  - 응답에는 작성 결과 요약만 반환한다.
+
+#### 2.10.5 회원 1:1 문의 작성/조회
+
+- `POST /api/v1/me/inquiries` — 회원 문의 생성
+- `GET /api/v1/me/inquiries` — 내 문의 목록
+- `GET /api/v1/me/inquiries/{id}` — 내 문의 상세
+
+```http
+POST /api/v1/me/inquiries
+Cookie: HG_SESSION={sessionToken}
+
+{
+  "title": "배송 일정 문의",
+  "content": "이번 주 안에 수령 가능한지 확인 부탁드립니다."
+}
+```
+
+- 성공: 생성 `201 Created`, 조회 `200 OK`
+- 에러:
+  - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `404 NOT_FOUND` — 다른 회원 문의 또는 미존재
+- 정책:
+  - 문의 작성/조회는 본인 리소스로만 제한한다.
+  - 응답에는 `hasReply`, `replyContent`, `repliedAt`를 포함한다.
+
+### 2.11 공개 Product Q&A API
+
+#### 2.11.1 상품 Q&A 목록 조회
+
+```http
+GET /api/v1/products/{productId}/qna
+```
+
+- 성공: `200 OK`
+- 정책:
+  - 작성자 이름은 마스킹해 반환한다.
+  - `secret=true`인 글은 제목을 `[비밀글입니다]`로 가려서 반환한다.
+  - 공개 목록에는 본문/답변 전문을 포함하지 않는다.
+
+#### 2.11.2 비밀글 비밀번호 검증 후 상세 조회
+
+```http
+POST /api/v1/products/{productId}/qna/{id}/verify
+
+{
+  "password": "1234"
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `400 INVALID_INPUT` — 비밀번호 불일치
+  - `404 NOT_FOUND` — Q&A 미존재
+- 정책:
+  - 비밀글이 아니면 그대로 상세를 반환한다.
+  - 비밀번호가 일치하면 제목/본문/답변을 포함한 상세를 반환한다.
+
+### 2.12 관리자 Q&A / 문의 API
+
+#### 2.12.1 관리자 상품 Q&A 조회/답변
+
+- `GET /api/v1/admin/qna?productId={productId}` — 특정 상품의 Q&A 목록 조회
+- `POST /api/v1/admin/qna/{id}/reply` — Q&A 답변 등록
+
+정책:
+- 인증: `Authorization: Bearer {token}`
+- 답변 작성 시 `replyContent`, `repliedAt`, `repliedBy`를 기록한다.
+- 이미 답변이 있는 글에 재답변을 시도하면 서버가 거절한다.
+
+#### 2.12.2 관리자 1:1 문의 조회/답변
+
+- `GET /api/v1/admin/inquiries` — 전체 문의 목록 조회
+- `GET /api/v1/admin/inquiries/{id}` — 문의 상세 조회
+- `POST /api/v1/admin/inquiries/{id}/reply` — 문의 답변 등록
+
+정책:
+- 인증: `Authorization: Bearer {token}`
+- 회원 이름을 함께 반환한다.
+- 이미 답변이 있는 문의에 재답변을 시도하면 서버가 거절한다.
 
 ---
 
