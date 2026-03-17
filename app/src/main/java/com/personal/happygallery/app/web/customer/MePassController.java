@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.customer;
 
-import com.personal.happygallery.app.pass.PassPurchaseService;
+import com.personal.happygallery.app.pass.port.in.PassPurchaseUseCase;
 import com.personal.happygallery.app.pass.PassQueryService;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -23,10 +23,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class MePassController {
 
     private final PassQueryService passQueryService;
-    private final PassPurchaseService passPurchaseService;
+    private final PassPurchaseUseCase passPurchaseService;
 
     public MePassController(PassQueryService passQueryService,
-                             PassPurchaseService passPurchaseService) {
+                             PassPurchaseUseCase passPurchaseService) {
         this.passQueryService = passQueryService;
         this.passPurchaseService = passPurchaseService;
     }

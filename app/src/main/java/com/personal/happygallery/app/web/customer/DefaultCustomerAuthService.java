@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class CustomerAuthService implements CustomerAuthUseCase {
+public class DefaultCustomerAuthService implements CustomerAuthUseCase {
 
     static final long SESSION_TTL_DAYS = 7;
 
@@ -32,7 +32,7 @@ public class CustomerAuthService implements CustomerAuthUseCase {
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final Clock clock;
 
-    public CustomerAuthService(UserReaderPort userReader,
+    public DefaultCustomerAuthService(UserReaderPort userReader,
                                UserStorePort userStore,
                                CustomerSessionPort sessionPort,
                                Clock clock) {

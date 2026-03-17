@@ -32,9 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class GuestClaimService implements GuestClaimUseCase {
+public class DefaultGuestClaimService implements GuestClaimUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(GuestClaimService.class);
+    private static final Logger log = LoggerFactory.getLogger(DefaultGuestClaimService.class);
 
     private final UserReaderPort userReader;
     private final GuestReaderPort guestReader;
@@ -43,7 +43,7 @@ public class GuestClaimService implements GuestClaimUseCase {
     private final Clock clock;
     private final ClientMonitoringService clientMonitoringService;
 
-    public GuestClaimService(UserReaderPort userReader,
+    public DefaultGuestClaimService(UserReaderPort userReader,
                              GuestReaderPort guestReader,
                              PhoneVerificationPort phoneVerificationPort,
                              GuestClaimQueryPort claimQuery,

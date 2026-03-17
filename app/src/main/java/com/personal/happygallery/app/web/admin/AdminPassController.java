@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.batch.BatchResult;
-import com.personal.happygallery.app.pass.PassExpiryBatchService;
+import com.personal.happygallery.app.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.app.pass.PassRefundService;
 import com.personal.happygallery.app.web.admin.dto.BatchResponse;
 import com.personal.happygallery.app.web.admin.dto.PassRefundResponse;
@@ -14,10 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/passes", "/admin/passes"})
 public class AdminPassController {
 
-    private final PassExpiryBatchService passExpiryBatchService;
+    private final PassExpiryBatchUseCase passExpiryBatchService;
     private final PassRefundService passRefundService;
 
-    public AdminPassController(PassExpiryBatchService passExpiryBatchService,
+    public AdminPassController(PassExpiryBatchUseCase passExpiryBatchService,
                                PassRefundService passRefundService) {
         this.passExpiryBatchService = passExpiryBatchService;
         this.passRefundService = passRefundService;
