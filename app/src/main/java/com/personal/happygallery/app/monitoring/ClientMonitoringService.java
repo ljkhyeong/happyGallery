@@ -10,6 +10,12 @@ public class ClientMonitoringService {
 
     private static final Logger log = LoggerFactory.getLogger(ClientMonitoringService.class);
 
+    private final AppMetrics appMetrics;
+
+    public ClientMonitoringService(AppMetrics appMetrics) {
+        this.appMetrics = appMetrics;
+    }
+
     public void captureFrontendEvent(ClientMonitoringEventType eventType,
                                      String path,
                                      String source,
@@ -22,6 +28,7 @@ public class ClientMonitoringService {
                 sanitizeOrDash(target, 80),
                 userId != null,
                 userId);
+        appMetrics.incrementClientEvent(eventType.logValue());
     }
 
     public void logGuestClaimCompleted(Long userId,
@@ -39,6 +46,7 @@ public class ClientMonitoringService {
                 claimedOrderCount,
                 claimedBookingCount,
                 claimedPassCount);
+        appMetrics.incrementGuestClaimCompleted();
     }
 
     private static String sanitizeOrDash(String value, int maxLength) {
