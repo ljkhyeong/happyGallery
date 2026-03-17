@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -49,11 +50,13 @@ class LocalBookingClassSeedServiceTest {
         verify(classStorePort).saveAll(classesCaptor.capture());
         List<BookingClass> seededClasses = classesCaptor.getValue();
 
-        assertThat(seededClasses)
-                .extracting(BookingClass::getName)
-                .containsExactly("향수 클래스", "우드 클래스", "니트 클래스");
-        assertThat(seededClasses)
-                .extracting(BookingClass::getCategory)
-                .containsExactly("PERFUME", "WOOD", "KNIT");
+        assertSoftly(softly -> {
+            softly.assertThat(seededClasses)
+                    .extracting(BookingClass::getName)
+                    .containsExactly("향수 클래스", "우드 클래스", "니트 클래스");
+            softly.assertThat(seededClasses)
+                    .extracting(BookingClass::getCategory)
+                    .containsExactly("PERFUME", "WOOD", "KNIT");
+        });
     }
 }

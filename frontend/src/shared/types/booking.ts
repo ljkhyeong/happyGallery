@@ -8,7 +8,6 @@ export interface SendVerificationRequest {
 export interface SendVerificationResponse {
   verificationId: number;
   phone: string;
-  code: string; // MVP only
 }
 
 export interface CreateGuestBookingRequest {

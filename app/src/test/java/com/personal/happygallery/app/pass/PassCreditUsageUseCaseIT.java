@@ -60,7 +60,7 @@ class PassCreditUsageUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc);
+        helper = new BookingTestHelper(mockMvc, phoneVerificationRepository);
         clearBookingWithPassAndRefundData(
                 passLedgerRepository,
                 refundRepository,
@@ -169,14 +169,13 @@ class PassCreditUsageUseCaseIT {
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(false));
 
-        // Proof: REFUND ledger 없음 (USE만 존재)
         var ledgers = passLedgerRepository.findByPassPurchaseId(pass.getId());
-        assertThat(ledgers).hasSize(1);
-        assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
-
-        // Proof: remaining_credits = 7 (소멸 유지)
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
-        assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
+        assertSoftly(softly -> {
+            softly.assertThat(ledgers).hasSize(1);
+            softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -195,17 +194,15 @@ class PassCreditUsageUseCaseIT {
                 .andExpect(jsonPath("$.bookingId").value(booking.bookingId()))
                 .andExpect(jsonPath("$.status").value("NO_SHOW"));
 
-        // Proof: booking status = NO_SHOW
-        assertThat(bookingRepository.findById(booking.bookingId()))
-                .hasValueSatisfying(b -> assertThat(b.getStatus()).isEqualTo(BookingStatus.NO_SHOW));
-
-        // Proof: 크레딧 변동 없음 (USE 1건만)
         var ledgers = passLedgerRepository.findByPassPurchaseId(pass.getId());
-        assertThat(ledgers).hasSize(1);
-        assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
-
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
-        assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
+        assertSoftly(softly -> {
+            softly.assertThat(bookingRepository.findById(booking.bookingId()))
+                    .hasValueSatisfying(b -> assertThat(b.getStatus()).isEqualTo(BookingStatus.NO_SHOW));
+            softly.assertThat(ledgers).hasSize(1);
+            softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -229,20 +226,17 @@ class PassCreditUsageUseCaseIT {
                 .andExpect(jsonPath("$.refundCredits").value(6))
                 .andExpect(jsonPath("$.refundAmount").value(240_000)); // 6 × (320000/8)
 
-        // Proof: 미래 예약 2건 모두 CANCELED
         var bookings = bookingRepository.findAll();
-        assertThat(bookings).hasSize(2);
-        assertThat(bookings).allMatch(b -> b.getStatus() == BookingStatus.CANCELED);
-
-        // Proof: REFUND ledger 1건 (amount=6)
         var refundLedgers = passLedgerRepository.findByPassPurchaseId(pass.getId())
                 .stream().filter(l -> l.getType() == PassLedgerType.REFUND).toList();
-        assertThat(refundLedgers).hasSize(1);
-        assertThat(refundLedgers.get(0).getAmount()).isEqualTo(6);
-
-        // Proof: remaining_credits = 0
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
-        assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
+        assertSoftly(softly -> {
+            softly.assertThat(bookings).hasSize(2);
+            softly.assertThat(bookings).allMatch(b -> b.getStatus() == BookingStatus.CANCELED);
+            softly.assertThat(refundLedgers).hasSize(1);
+            softly.assertThat(refundLedgers.get(0).getAmount()).isEqualTo(6);
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
+        });
     }
 
     // -----------------------------------------------------------------------

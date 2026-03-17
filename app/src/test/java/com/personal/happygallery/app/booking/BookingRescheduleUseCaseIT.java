@@ -50,7 +50,7 @@ class BookingRescheduleUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc);
+        helper = new BookingTestHelper(mockMvc, phoneVerificationRepository);
         clearBookingWithPassData(
                 passLedgerRepository,
                 bookingHistoryRepository,

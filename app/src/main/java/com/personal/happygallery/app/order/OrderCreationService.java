@@ -1,17 +1,11 @@
 package com.personal.happygallery.app.order;
 
-import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
-import com.personal.happygallery.app.customer.port.out.GuestStorePort;
-import com.personal.happygallery.app.customer.port.out.PhoneVerificationPort;
+import com.personal.happygallery.app.customer.VerifiedGuestResolver;
 import com.personal.happygallery.app.product.port.out.ProductReaderPort;
-import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.domain.booking.Guest;
-import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.common.error.NotFoundException;
-import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,25 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class OrderCreationService {
 
-    private final PhoneVerificationPort phoneVerificationPort;
-    private final GuestReaderPort guestReader;
-    private final GuestStorePort guestStore;
+    private final VerifiedGuestResolver verifiedGuestResolver;
     private final ProductReaderPort productReader;
     private final OrderService orderService;
-    private final Clock clock;
 
-    public OrderCreationService(PhoneVerificationPort phoneVerificationPort,
-                                GuestReaderPort guestReader,
-                                GuestStorePort guestStore,
+    public OrderCreationService(VerifiedGuestResolver verifiedGuestResolver,
                                 ProductReaderPort productReader,
-                                OrderService orderService,
-                                Clock clock) {
-        this.phoneVerificationPort = phoneVerificationPort;
-        this.guestReader = guestReader;
-        this.guestStore = guestStore;
+                                OrderService orderService) {
+        this.verifiedGuestResolver = verifiedGuestResolver;
         this.productReader = productReader;
         this.orderService = orderService;
-        this.clock = clock;
     }
 
     public record OrderItemInput(Long productId, int qty) {}
@@ -51,16 +36,7 @@ public class OrderCreationService {
      */
     public Order createOrderByPhone(String phone, String verificationCode,
                                      String name, List<OrderItemInput> items) {
-        // 인증 코드 검증
-        PhoneVerification pv = phoneVerificationPort
-                .findValidVerification(phone, verificationCode, LocalDateTime.now(clock))
-                .orElseThrow(PhoneVerificationFailedException::new);
-        pv.markVerified();
-
-        // Guest upsert
-        Guest guest = guestReader.findByPhone(phone)
-                .orElseGet(() -> guestStore.save(new Guest(name, phone)));
-        guest.markPhoneVerified();
+        Guest guest = verifiedGuestResolver.resolveVerifiedGuest(phone, verificationCode, name);
 
         // 상품 가격 조회 후 OrderItemRequest 변환
         List<OrderService.OrderItemRequest> orderItems = items.stream()

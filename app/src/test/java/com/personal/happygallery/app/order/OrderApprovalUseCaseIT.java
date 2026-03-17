@@ -103,10 +103,12 @@ class OrderApprovalUseCaseIT {
                 .andExpect(status().isOk());
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
-                .extracting("decision")
-                .containsExactly(OrderApprovalDecision.APPROVE);
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                    .extracting("decision")
+                    .containsExactly(OrderApprovalDecision.APPROVE);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -125,19 +127,17 @@ class OrderApprovalUseCaseIT {
         mockMvc.perform(post("/admin/orders/{id}/reject", order.getId()))
                 .andExpect(status().isOk());
 
-        // 주문 상태 확인
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED);
-        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
-                .extracting("decision")
-                .containsExactly(OrderApprovalDecision.REJECT);
-
-        // 재고 복구 확인
-        assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(1);
-
-        // 환불 기록 확인
-        assertThat(refundRepository.findAll()).hasSize(1);
-        assertThat(refundRepository.findAll().get(0).getOrderId()).isEqualTo(order.getId());
+        var refunds = refundRepository.findAll();
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED);
+            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                    .extracting("decision")
+                    .containsExactly(OrderApprovalDecision.REJECT);
+            softly.assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(1);
+            softly.assertThat(refunds).hasSize(1);
+            softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
+        });
     }
 
     @DisplayName("주문을 두 번 승인해도 상태 전이와 이력은 한 번만 기록된다")
@@ -152,10 +152,12 @@ class OrderApprovalUseCaseIT {
                 .hasMessageContaining("승인 대기 상태의 주문만 처리할 수 있습니다.");
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
-                .extracting("decision")
-                .containsExactly(OrderApprovalDecision.APPROVE);
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                    .extracting("decision")
+                    .containsExactly(OrderApprovalDecision.APPROVE);
+        });
     }
 
     @DisplayName("주문을 두 번 거절해도 상태 전이와 이력은 한 번만 기록된다")
@@ -169,11 +171,13 @@ class OrderApprovalUseCaseIT {
                 .isInstanceOf(AlreadyRefundedException.class);
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED);
-        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
-                .extracting("decision")
-                .containsExactly(OrderApprovalDecision.REJECT);
-        assertThat(refundRepository.findAll()).hasSize(1);
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED);
+            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                    .extracting("decision")
+                    .containsExactly(OrderApprovalDecision.REJECT);
+            softly.assertThat(refundRepository.findAll()).hasSize(1);
+        });
     }
 
     @DisplayName("승인 후 거절을 시도하면 400을 반환하고 환불되지 않는다")
@@ -189,12 +193,14 @@ class OrderApprovalUseCaseIT {
                 .hasMessageContaining("승인 대기 상태의 주문만 처리할 수 있습니다.");
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-        assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
-                .extracting("decision")
-                .containsExactly(OrderApprovalDecision.APPROVE);
-        assertThat(refundRepository.findAll()).isEmpty();
-        assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(0);
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+                    .extracting("decision")
+                    .containsExactly(OrderApprovalDecision.APPROVE);
+            softly.assertThat(refundRepository.findAll()).isEmpty();
+            softly.assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(0);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -264,12 +270,13 @@ class OrderApprovalUseCaseIT {
 
         BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
 
-        assertThat(result.successCount()).isZero();
-        assertThat(result.failureCount()).isZero();
-
         Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
-        assertThat(refundRepository.findAll()).isEmpty();
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isZero();
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+            softly.assertThat(refundRepository.findAll()).isEmpty();
+        });
     }
 
     // -----------------------------------------------------------------------

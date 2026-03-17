@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 class FakePaymentProviderTest {
 
@@ -18,9 +19,11 @@ class FakePaymentProviderTest {
         RefundResult failed = paymentProvider.refund("PG-REF-1", 5_000L);
         RefundResult succeeded = paymentProvider.refund("PG-REF-1", 5_000L);
 
-        assertThat(failed.success()).isFalse();
-        assertThat(failed.failReason()).isEqualTo("PG 강제 실패");
-        assertThat(succeeded.success()).isTrue();
-        assertThat(succeeded.pgRef()).startsWith("FAKE-REFUND-");
+        assertSoftly(softly -> {
+            softly.assertThat(failed.success()).isFalse();
+            softly.assertThat(failed.failReason()).isEqualTo("PG 강제 실패");
+            softly.assertThat(succeeded.success()).isTrue();
+            softly.assertThat(succeeded.pgRef()).startsWith("FAKE-REFUND-");
+        });
     }
 }

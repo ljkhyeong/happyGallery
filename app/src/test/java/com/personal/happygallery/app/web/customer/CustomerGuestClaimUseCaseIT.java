@@ -51,6 +51,7 @@ import java.util.List;
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassData;
 import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -90,7 +91,7 @@ class CustomerGuestClaimUseCaseIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(customerAuthFilter)
                 .build();
-        bookingHelper = new BookingTestHelper(mockMvc);
+        bookingHelper = new BookingTestHelper(mockMvc, phoneVerificationRepository);
     }
 
     @AfterEach
@@ -182,16 +183,16 @@ class CustomerGuestClaimUseCaseIT {
                 .andExpect(jsonPath("$.claimedPassCount").value(1));
 
         Order claimedOrder = orderRepository.findById(order.getId()).orElseThrow();
-        assertThat(claimedOrder.getUserId()).isEqualTo(user.getId());
-        assertThat(claimedOrder.getGuestId()).isNull();
-
         Booking claimedBooking = bookingRepository.findById(booking.getId()).orElseThrow();
-        assertThat(claimedBooking.getUserId()).isEqualTo(user.getId());
-        assertThat(claimedBooking.getGuest()).isNull();
-
         PassPurchase claimedPass = passPurchaseRepository.findById(pass.getId()).orElseThrow();
-        assertThat(claimedPass.getUserId()).isEqualTo(user.getId());
-        assertThat(claimedPass.getGuest()).isNull();
+        assertSoftly(softly -> {
+            softly.assertThat(claimedOrder.getUserId()).isEqualTo(user.getId());
+            softly.assertThat(claimedOrder.getGuestId()).isNull();
+            softly.assertThat(claimedBooking.getUserId()).isEqualTo(user.getId());
+            softly.assertThat(claimedBooking.getGuest()).isNull();
+            softly.assertThat(claimedPass.getUserId()).isEqualTo(user.getId());
+            softly.assertThat(claimedPass.getGuest()).isNull();
+        });
 
         mockMvc.perform(get("/api/v1/me/orders")
                         .cookie(sessionCookie))

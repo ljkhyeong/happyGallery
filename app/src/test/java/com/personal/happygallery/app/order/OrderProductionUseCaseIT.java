@@ -90,8 +90,10 @@ class OrderProductionUseCaseIT {
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
-        assertThat(fulfillment.getType()).isEqualTo(com.personal.happygallery.domain.order.FulfillmentType.SHIPPING);
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+            softly.assertThat(fulfillment.getType()).isEqualTo(com.personal.happygallery.domain.order.FulfillmentType.SHIPPING);
+        });
     }
 
     // -----------------------------------------------------------------------

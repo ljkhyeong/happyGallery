@@ -117,9 +117,11 @@ class BookingReminderBatchUseCaseIT {
 
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
 
-        assertThat(result.successCount()).isEqualTo(0);
-        assertThat(result.failureCount()).isZero();
-        assertThat(notificationLogRepository.findAll()).isEmpty();
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(0);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(notificationLogRepository.findAll()).isEmpty();
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -161,9 +163,11 @@ class BookingReminderBatchUseCaseIT {
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
 
-        assertThat(result.successCount()).isEqualTo(0);
-        assertThat(result.failureCount()).isZero();
-        assertThat(notificationLogRepository.findAll()).isEmpty();
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(0);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(notificationLogRepository.findAll()).isEmpty();
+        });
     }
 
     // -----------------------------------------------------------------------

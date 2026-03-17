@@ -3,9 +3,7 @@ package com.personal.happygallery.app.booking;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
-import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
-import com.personal.happygallery.app.customer.port.out.GuestStorePort;
-import com.personal.happygallery.app.customer.port.out.PhoneVerificationPort;
+import com.personal.happygallery.app.customer.VerifiedGuestResolver;
 import com.personal.happygallery.app.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
@@ -13,7 +11,6 @@ import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.common.error.DuplicateBookingException;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.PaymentMethodNotAllowedException;
-import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.error.SlotNotAvailableException;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
@@ -29,6 +26,8 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,13 +35,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class GuestBookingService {
 
+    private static final Logger log = LoggerFactory.getLogger(GuestBookingService.class);
+
     /** 인증 코드 유효 시간 (5분) */
     private static final int VERIFICATION_EXPIRE_MINUTES = 5;
 
-    private final PhoneVerificationPort phoneVerificationPort;
+    private final VerifiedGuestResolver verifiedGuestResolver;
     private final PhoneVerificationStorePort phoneVerificationStorePort;
-    private final GuestReaderPort guestReaderPort;
-    private final GuestStorePort guestStorePort;
     private final SlotReaderPort slotReaderPort;
     private final BookingReaderPort bookingReaderPort;
     private final BookingStorePort bookingStorePort;
@@ -54,10 +53,8 @@ public class GuestBookingService {
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
-    public GuestBookingService(PhoneVerificationPort phoneVerificationPort,
+    public GuestBookingService(VerifiedGuestResolver verifiedGuestResolver,
                                PhoneVerificationStorePort phoneVerificationStorePort,
-                               GuestReaderPort guestReaderPort,
-                               GuestStorePort guestStorePort,
                                SlotReaderPort slotReaderPort,
                                BookingReaderPort bookingReaderPort,
                                BookingStorePort bookingStorePort,
@@ -67,10 +64,8 @@ public class GuestBookingService {
                                PassLedgerStorePort passLedgerStorePort,
                                BookingSupport bookingSupport,
                                Clock clock) {
-        this.phoneVerificationPort = phoneVerificationPort;
+        this.verifiedGuestResolver = verifiedGuestResolver;
         this.phoneVerificationStorePort = phoneVerificationStorePort;
-        this.guestReaderPort = guestReaderPort;
-        this.guestStorePort = guestStorePort;
         this.slotReaderPort = slotReaderPort;
         this.bookingReaderPort = bookingReaderPort;
         this.bookingStorePort = bookingStorePort;
@@ -84,16 +79,18 @@ public class GuestBookingService {
 
     /**
      * 휴대폰 인증 코드를 생성·저장한다.
-     * MVP: 실제 SMS 발송 없음. 반환된 code를 클라이언트가 직접 사용.
+     * 실제 SMS 발송은 미구현 — 코드는 서버 로그에서만 확인 가능.
      *
-     * @return 저장된 PhoneVerification (id + code 포함)
+     * @return 저장된 PhoneVerification (id, phone — code는 응답에 포함하지 않음)
      */
     public PhoneVerification sendVerificationCode(String phone) {
         String code = String.format("%06d", random.nextInt(1_000_000));
         LocalDateTime expiresAt = LocalDateTime.now(clock)
                 .plusMinutes(VERIFICATION_EXPIRE_MINUTES);
         PhoneVerification pv = new PhoneVerification(phone, code, expiresAt);
-        return phoneVerificationStorePort.save(pv);
+        pv = phoneVerificationStorePort.save(pv);
+        log.info("[phone-verification] phone={}, verificationId={}, code={}", phone, pv.getId(), code);
+        return pv;
     }
 
     /**
@@ -116,16 +113,8 @@ public class GuestBookingService {
                                       Long slotId, long depositAmount,
                                       DepositPaymentMethod paymentMethod,
                                       Long passId) {
-        // 1. 인증 코드 검증 + 소모
-        PhoneVerification pv = phoneVerificationPort
-                .findValidVerification(phone, code, LocalDateTime.now(clock))
-                .orElseThrow(PhoneVerificationFailedException::new);
-        pv.markVerified();
-
-        // 2. Guest upsert by phone
-        Guest guest = guestReaderPort.findByPhone(phone)
-                .orElseGet(() -> guestStorePort.save(new Guest(name, phone)));
-        guest.markPhoneVerified();
+        // 1. 인증 코드 검증 + Guest upsert
+        Guest guest = verifiedGuestResolver.resolveVerifiedGuest(phone, code, name);
 
         // 3. 슬롯 활성 여부 확인 (락 전 빠른 체크)
         Slot slot = slotReaderPort.findById(slotId)

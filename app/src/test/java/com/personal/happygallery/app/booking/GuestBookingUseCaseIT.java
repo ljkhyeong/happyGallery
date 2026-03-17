@@ -50,7 +50,7 @@ class GuestBookingUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc);
+        helper = new BookingTestHelper(mockMvc, phoneVerificationRepository);
         clearBookingWithPassData(
                 passLedgerRepository,
                 bookingHistoryRepository,
@@ -83,7 +83,7 @@ class GuestBookingUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.verificationId").isNumber())
                 .andExpect(jsonPath("$.phone").value(PHONE))
-                .andExpect(jsonPath("$.code").isString());
+                .andExpect(jsonPath("$.code").doesNotExist());
     }
 
     @DisplayName("유효하지 않은 전화번호로 인증코드를 요청하면 400을 반환한다")

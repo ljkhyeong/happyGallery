@@ -66,7 +66,7 @@ class BookingCancelUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc);
+        helper = new BookingTestHelper(mockMvc, phoneVerificationRepository);
         // 기본: PaymentProvider 성공
         when(paymentProvider.refund(any(), anyLong()))
                 .thenReturn(RefundResult.success("FAKE-TEST-REF"));
@@ -194,11 +194,10 @@ class BookingCancelUseCaseIT {
                 .andExpect(jsonPath("$.refundable").value(false))
                 .andExpect(jsonPath("$.refundAmount").value(0));
 
-        // Proof: refund 미생성
-        assertThat(refundRepository.count()).isEqualTo(0L);
-
-        // Proof: booking_history 2건 (BOOKED + CANCELED)
-        assertThat(bookingHistoryRepository.countByBookingId(bookingId)).isEqualTo(2L);
+        assertSoftly(softly -> {
+            softly.assertThat(refundRepository.count()).isEqualTo(0L);
+            softly.assertThat(bookingHistoryRepository.countByBookingId(bookingId)).isEqualTo(2L);
+        });
     }
 
     // -----------------------------------------------------------------------
