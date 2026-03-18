@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.qna;
 
+import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
 import com.personal.happygallery.app.product.port.out.ProductReaderPort;
 import com.personal.happygallery.app.qna.port.out.ProductQnaReaderPort;
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class ProductQnaService {
+public class ProductQnaService implements ProductQnaUseCase {
 
     private final ProductQnaReaderPort qnaReader;
     private final ProductQnaStorePort qnaStore;

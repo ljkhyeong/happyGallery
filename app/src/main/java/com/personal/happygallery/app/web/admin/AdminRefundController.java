@@ -1,9 +1,8 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.payment.RefundRetryService;
+import com.personal.happygallery.app.payment.port.in.RefundRetryUseCase;
 import com.personal.happygallery.app.web.admin.dto.FailedRefundResponse;
 import java.util.List;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,9 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/refunds", "/admin/refunds"})
 public class AdminRefundController {
 
-    private final RefundRetryService refundRetryService;
+    private final RefundRetryUseCase refundRetryService;
 
-    public AdminRefundController(RefundRetryService refundRetryService) {
+    public AdminRefundController(RefundRetryUseCase refundRetryService) {
         this.refundRetryService = refundRetryService;
     }
 
@@ -30,8 +29,7 @@ public class AdminRefundController {
 
     /** 특정 환불 재시도 */
     @PostMapping("/{refundId}/retry")
-    public ResponseEntity<Void> retry(@PathVariable Long refundId) {
+    public void retry(@PathVariable Long refundId) {
         refundRetryService.retry(refundId);
-        return ResponseEntity.ok().build();
     }
 }

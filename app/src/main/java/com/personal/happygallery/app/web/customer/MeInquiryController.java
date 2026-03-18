@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.customer;
 
-import com.personal.happygallery.app.inquiry.InquiryService;
+import com.personal.happygallery.app.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.customer.dto.CreateInquiryRequest;
 import com.personal.happygallery.app.web.customer.dto.InquiryResponse;
@@ -20,9 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/me/inquiries")
 public class MeInquiryController {
 
-    private final InquiryService inquiryService;
+    private final InquiryUseCase inquiryService;
 
-    public MeInquiryController(InquiryService inquiryService) {
+    public MeInquiryController(InquiryUseCase inquiryService) {
         this.inquiryService = inquiryService;
     }
 

@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.inquiry.InquiryService;
 import com.personal.happygallery.app.inquiry.InquiryService.InquiryWithUser;
+import com.personal.happygallery.app.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.app.web.admin.dto.AdminInquiryResponse;
 import com.personal.happygallery.app.web.admin.dto.InquiryReplyRequest;
@@ -20,9 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/inquiries", "/admin/inquiries"})
 public class AdminInquiryController {
 
-    private final InquiryService inquiryService;
+    private final InquiryUseCase inquiryService;
 
-    public AdminInquiryController(InquiryService inquiryService) {
+    public AdminInquiryController(InquiryUseCase inquiryService) {
         this.inquiryService = inquiryService;
     }
 

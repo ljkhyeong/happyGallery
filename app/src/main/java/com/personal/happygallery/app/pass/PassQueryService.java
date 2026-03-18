@@ -5,12 +5,13 @@ import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.util.List;
 import java.util.Objects;
+import com.personal.happygallery.app.pass.port.in.PassQueryUseCase;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class PassQueryService {
+public class PassQueryService implements PassQueryUseCase {
 
     private final PassPurchaseReaderPort passPurchaseReader;
 

@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.app.order.port.out.OrderStorePort;
@@ -25,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-public class OrderPickupService {
+public class OrderPickupService implements OrderPickupUseCase {
 
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
@@ -68,7 +69,7 @@ public class OrderPickupService {
         fulfillmentPort.save(fulfillment);
         orderStore.save(order);
 
-        return new PickupResult(order.getId(), order.getStatus(), fulfillment.getPickupDeadlineAt());
+        return PickupResult.of(order, fulfillment);
     }
 
     /**
@@ -94,9 +95,13 @@ public class OrderPickupService {
         fulfillmentPort.save(fulfillment);
         orderStore.save(order);
 
-        return new PickupResult(order.getId(), order.getStatus(), fulfillment.getPickupDeadlineAt());
+        return PickupResult.of(order, fulfillment);
     }
 
     /** 픽업 관련 서비스 작업의 결과를 컨트롤러에 전달하는 내부 DTO. */
-    public record PickupResult(Long orderId, OrderStatus status, LocalDateTime pickupDeadlineAt) {}
+    public record PickupResult(Long orderId, OrderStatus status, LocalDateTime pickupDeadlineAt) {
+        static PickupResult of(Order order, Fulfillment fulfillment) {
+            return PickupResult.of(order, fulfillment);
+        }
+    }
 }

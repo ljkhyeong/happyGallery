@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.common.error.DuplicateBookingException;
 import com.personal.happygallery.domain.booking.Booking;
@@ -15,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-public class MemberBookingService {
+public class MemberBookingService implements MemberBookingUseCase {
 
     private final BookingReaderPort bookingReaderPort;
     private final BookingCreationSupport creationSupport;

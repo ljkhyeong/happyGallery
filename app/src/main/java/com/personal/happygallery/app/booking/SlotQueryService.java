@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.domain.booking.Slot;
 import java.time.LocalDate;
@@ -11,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class SlotQueryService {
+public class SlotQueryService implements SlotQueryUseCase {
 
     private final SlotReaderPort slotReaderPort;
 

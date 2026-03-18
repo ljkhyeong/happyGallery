@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.customer.VerifiedGuestResolver;
 import com.personal.happygallery.app.customer.port.out.PhoneVerificationStorePort;
@@ -21,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class GuestBookingService {
+public class GuestBookingService implements GuestBookingUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(GuestBookingService.class);
 
@@ -68,8 +69,6 @@ public class GuestBookingService {
      *
      * @param passId 8회권 ID (null이면 예약금 결제)
      */
-    public record GuestBookingResult(Booking booking, String rawAccessToken) {}
-
     public GuestBookingResult createGuestBooking(String phone, String code, String name,
                                       Long slotId, long depositAmount,
                                       DepositPaymentMethod paymentMethod,

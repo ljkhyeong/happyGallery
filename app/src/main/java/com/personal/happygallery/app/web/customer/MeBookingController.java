@@ -1,9 +1,9 @@
 package com.personal.happygallery.app.web.customer;
 
-import com.personal.happygallery.app.booking.BookingQueryService;
+import com.personal.happygallery.app.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.app.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.app.booking.port.in.BookingCancelUseCase;
-import com.personal.happygallery.app.booking.MemberBookingService;
+import com.personal.happygallery.app.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.booking.dto.CancelResponse;
 import com.personal.happygallery.app.web.customer.dto.CreateMemberBookingRequest;
@@ -29,13 +29,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/me/bookings")
 public class MeBookingController {
 
-    private final BookingQueryService bookingQueryService;
-    private final MemberBookingService memberBookingService;
+    private final BookingQueryUseCase bookingQueryService;
+    private final MemberBookingUseCase memberBookingService;
     private final BookingRescheduleUseCase bookingRescheduleService;
     private final BookingCancelUseCase bookingCancelService;
 
-    public MeBookingController(BookingQueryService bookingQueryService,
-                                MemberBookingService memberBookingService,
+    public MeBookingController(BookingQueryUseCase bookingQueryService,
+                                MemberBookingUseCase memberBookingService,
                                 BookingRescheduleUseCase bookingRescheduleService,
                                 BookingCancelUseCase bookingCancelService) {
         this.bookingQueryService = bookingQueryService;

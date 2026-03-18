@@ -2,6 +2,8 @@ package com.personal.happygallery.app.web.order;
 
 import com.personal.happygallery.app.order.OrderCreationService;
 import com.personal.happygallery.app.order.OrderQueryService;
+import com.personal.happygallery.app.order.port.in.OrderCreationUseCase;
+import com.personal.happygallery.app.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.app.web.order.dto.CreateOrderRequest;
 import com.personal.happygallery.app.web.order.dto.OrderDetailResponse;
 import com.personal.happygallery.app.web.order.dto.OrderResponse;
@@ -20,11 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/orders", "/orders"})
 public class OrderController {
 
-    private final OrderCreationService orderCreationService;
-    private final OrderQueryService orderQueryService;
+    private final OrderCreationUseCase orderCreationService;
+    private final OrderQueryUseCase orderQueryService;
 
-    public OrderController(OrderCreationService orderCreationService,
-                           OrderQueryService orderQueryService) {
+    public OrderController(OrderCreationUseCase orderCreationService,
+                           OrderQueryUseCase orderQueryService) {
         this.orderCreationService = orderCreationService;
         this.orderQueryService = orderQueryService;
     }

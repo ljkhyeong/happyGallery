@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.qna.ProductQnaService;
 import com.personal.happygallery.app.qna.ProductQnaService.QnaWithAuthor;
+import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.app.web.admin.dto.AdminQnaResponse;
 import com.personal.happygallery.app.web.admin.dto.QnaReplyRequest;
@@ -21,9 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/qna", "/admin/qna"})
 public class AdminProductQnaController {
 
-    private final ProductQnaService qnaService;
+    private final ProductQnaUseCase qnaService;
 
-    public AdminProductQnaController(ProductQnaService qnaService) {
+    public AdminProductQnaController(ProductQnaUseCase qnaService) {
         this.qnaService = qnaService;
     }
 

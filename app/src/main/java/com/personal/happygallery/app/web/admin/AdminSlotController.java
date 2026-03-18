@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.booking.SlotManagementService;
-import com.personal.happygallery.app.booking.SlotQueryService;
+import com.personal.happygallery.app.booking.port.in.SlotManagementUseCase;
+import com.personal.happygallery.app.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.app.web.admin.dto.CreateSlotRequest;
 import com.personal.happygallery.app.web.admin.dto.SlotResponse;
 import com.personal.happygallery.domain.booking.Slot;
@@ -22,11 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/slots", "/admin/slots"})
 public class AdminSlotController {
 
-    private final SlotManagementService slotManagementService;
-    private final SlotQueryService slotQueryService;
+    private final SlotManagementUseCase slotManagementService;
+    private final SlotQueryUseCase slotQueryService;
 
-    public AdminSlotController(SlotManagementService slotManagementService,
-                               SlotQueryService slotQueryService) {
+    public AdminSlotController(SlotManagementUseCase slotManagementService,
+                               SlotQueryUseCase slotQueryService) {
         this.slotManagementService = slotManagementService;
         this.slotQueryService = slotQueryService;
     }

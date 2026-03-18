@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.product;
 
-import com.personal.happygallery.app.qna.ProductQnaService;
 import com.personal.happygallery.app.qna.ProductQnaService.QnaWithAuthor;
+import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.app.web.product.dto.ProductQnaDetail;
 import com.personal.happygallery.app.web.product.dto.ProductQnaListItem;
 import com.personal.happygallery.app.web.product.dto.VerifyQnaPasswordRequest;
@@ -18,9 +18,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/products/{productId}/qna", "/products/{productId}/qna"})
 public class ProductQnaController {
 
-    private final ProductQnaService qnaService;
+    private final ProductQnaUseCase qnaService;
 
-    public ProductQnaController(ProductQnaService qnaService) {
+    public ProductQnaController(ProductQnaUseCase qnaService) {
         this.qnaService = qnaService;
     }
 

@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.in.AdminOrderQueryUseCase;
 import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.app.web.admin.dto.AdminOrderResponse;
@@ -11,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class AdminOrderQueryService {
+public class AdminOrderQueryService implements AdminOrderQueryUseCase {
 
     private final OrderReaderPort orderReaderPort;
     private final OrderHistoryPort orderHistoryPort;

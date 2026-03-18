@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
@@ -31,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-public class OrderProductionService {
+public class OrderProductionService implements OrderProductionUseCase {
 
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
@@ -73,7 +74,7 @@ public class OrderProductionService {
         fulfillment.setExpectedShipDate(expectedShipDate);
         fulfillmentPort.save(fulfillment);
 
-        return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
+        return ProductionResult.of(order, fulfillment);
     }
 
     /**
@@ -100,7 +101,7 @@ public class OrderProductionService {
 
         orderHistoryPort.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELAY));
         orderStore.save(order);
-        return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
+        return ProductionResult.of(order, fulfillment);
     }
 
     /**
@@ -125,7 +126,7 @@ public class OrderProductionService {
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.RESUME_PRODUCTION, adminId, null));
         orderStore.save(order);
-        return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
+        return ProductionResult.of(order, fulfillment);
     }
 
     /**
@@ -151,9 +152,13 @@ public class OrderProductionService {
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PRODUCTION_COMPLETE, adminId, null));
         orderStore.save(order);
-        return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
+        return ProductionResult.of(order, fulfillment);
     }
 
     /** 제작 관련 서비스 작업의 결과를 컨트롤러에 전달하는 내부 DTO. */
-    public record ProductionResult(Long orderId, OrderStatus status, LocalDate expectedShipDate) {}
+    public record ProductionResult(Long orderId, OrderStatus status, LocalDate expectedShipDate) {
+        static ProductionResult of(Order order, Fulfillment fulfillment) {
+            return ProductionResult.of(order, fulfillment);
+        }
+    }
 }
