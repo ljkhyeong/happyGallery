@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.in.AdminBookingQueryUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
 import com.personal.happygallery.app.web.admin.dto.AdminBookingResponse;
@@ -18,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class AdminBookingQueryService {
+public class AdminBookingQueryService implements AdminBookingQueryUseCase {
 
     private final BookingReaderPort bookingReaderPort;
     private final UserReaderPort userReaderPort;

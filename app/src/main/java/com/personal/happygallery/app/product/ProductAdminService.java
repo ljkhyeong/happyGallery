@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.product;
 
+import com.personal.happygallery.app.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.app.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
@@ -9,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class ProductAdminService {
+public class ProductAdminService implements ProductAdminUseCase {
 
     private final ProductStorePort productStorePort;
     private final InventoryService inventoryService;

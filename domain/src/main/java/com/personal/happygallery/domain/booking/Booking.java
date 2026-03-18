@@ -82,52 +82,9 @@ public class Booking {
 
     protected Booking() {}
 
-    /**
-     * 게스트 예약 생성.
-     *
-     * @param guest         예약자 (비회원)
-     * @param slot          예약 슬롯
-     * @param depositAmount 예약금 (원)
-     * @param balanceAmount 잔금 (원) = 클래스 가격 - 예약금
-     * @param accessToken   비회원 조회용 토큰 (UUID 기반 32자)
-     */
-    public Booking(Guest guest, Slot slot, long depositAmount, long balanceAmount,
-                   DepositPaymentMethod paymentMethod, String accessToken) {
+    private Booking(Guest guest, Long userId, Slot slot, long depositAmount, long balanceAmount,
+                    DepositPaymentMethod paymentMethod, PassPurchase passPurchase, String accessToken) {
         this.guest = guest;
-        this.bookingClass = slot.getBookingClass();
-        this.slot = slot;
-        this.status = BookingStatus.BOOKED;
-        this.depositAmount = depositAmount;
-        this.balanceAmount = balanceAmount;
-        this.balanceStatus = BalanceStatus.UNPAID;
-        this.arrearsFlag = false;
-        this.paymentMethod = paymentMethod;
-        this.accessToken = accessToken;
-    }
-
-    /**
-     * 8회권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null.
-     *
-     * @param passPurchase 연결된 8회권 (크레딧 차감은 서비스 레이어에서 선행)
-     */
-    public Booking(Guest guest, Slot slot, PassPurchase passPurchase, String accessToken) {
-        this.guest = guest;
-        this.bookingClass = slot.getBookingClass();
-        this.slot = slot;
-        this.status = BookingStatus.BOOKED;
-        this.depositAmount = 0;
-        this.balanceAmount = 0;
-        this.balanceStatus = BalanceStatus.UNPAID;
-        this.arrearsFlag = false;
-        this.passPurchase = passPurchase;
-        this.accessToken = accessToken;
-    }
-
-    /**
-     * 회원 예약금 예약 생성.
-     */
-    public Booking(Long userId, Slot slot, long depositAmount, long balanceAmount,
-                   DepositPaymentMethod paymentMethod) {
         this.userId = userId;
         this.bookingClass = slot.getBookingClass();
         this.slot = slot;
@@ -137,21 +94,30 @@ public class Booking {
         this.balanceStatus = BalanceStatus.UNPAID;
         this.arrearsFlag = false;
         this.paymentMethod = paymentMethod;
+        this.passPurchase = passPurchase;
+        this.accessToken = accessToken;
     }
 
-    /**
-     * 회원 8회권 예약 생성.
-     */
-    public Booking(Long userId, Slot slot, PassPurchase passPurchase) {
-        this.userId = userId;
-        this.bookingClass = slot.getBookingClass();
-        this.slot = slot;
-        this.status = BookingStatus.BOOKED;
-        this.depositAmount = 0;
-        this.balanceAmount = 0;
-        this.balanceStatus = BalanceStatus.UNPAID;
-        this.arrearsFlag = false;
-        this.passPurchase = passPurchase;
+    /** 게스트 예약금 예약 생성. */
+    public static Booking forGuestDeposit(Guest guest, Slot slot, long depositAmount, long balanceAmount,
+                                          DepositPaymentMethod paymentMethod, String accessToken) {
+        return new Booking(guest, null, slot, depositAmount, balanceAmount, paymentMethod, null, accessToken);
+    }
+
+    /** 게스트 8회권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null. */
+    public static Booking forGuestPass(Guest guest, Slot slot, PassPurchase passPurchase, String accessToken) {
+        return new Booking(guest, null, slot, 0, 0, null, passPurchase, accessToken);
+    }
+
+    /** 회원 예약금 예약 생성. */
+    public static Booking forMemberDeposit(Long userId, Slot slot, long depositAmount, long balanceAmount,
+                                           DepositPaymentMethod paymentMethod) {
+        return new Booking(null, userId, slot, depositAmount, balanceAmount, paymentMethod, null, null);
+    }
+
+    /** 회원 8회권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null. */
+    public static Booking forMemberPass(Long userId, Slot slot, PassPurchase passPurchase) {
+        return new Booking(null, userId, slot, 0, 0, null, passPurchase, null);
     }
 
     /**

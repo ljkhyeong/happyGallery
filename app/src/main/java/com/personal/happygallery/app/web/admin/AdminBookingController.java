@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.booking.AdminBookingQueryService;
-import com.personal.happygallery.app.pass.PassNoShowService;
+import com.personal.happygallery.app.booking.port.in.AdminBookingQueryUseCase;
+import com.personal.happygallery.app.pass.port.in.PassNoShowUseCase;
 import com.personal.happygallery.app.web.admin.dto.AdminBookingResponse;
 import com.personal.happygallery.app.web.admin.dto.BookingNoShowResponse;
 import com.personal.happygallery.domain.booking.Booking;
@@ -20,11 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/bookings", "/admin/bookings"})
 public class AdminBookingController {
 
-    private final AdminBookingQueryService adminBookingQueryService;
-    private final PassNoShowService passNoShowService;
+    private final AdminBookingQueryUseCase adminBookingQueryService;
+    private final PassNoShowUseCase passNoShowService;
 
-    public AdminBookingController(AdminBookingQueryService adminBookingQueryService,
-                                  PassNoShowService passNoShowService) {
+    public AdminBookingController(AdminBookingQueryUseCase adminBookingQueryService,
+                                  PassNoShowUseCase passNoShowService) {
         this.adminBookingQueryService = adminBookingQueryService;
         this.passNoShowService = passNoShowService;
     }

@@ -2,10 +2,10 @@ package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.customer.port.in.GuestClaimUseCase;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
+import com.personal.happygallery.app.web.customer.dto.ClaimGuestRecordsRequest;
+import com.personal.happygallery.app.web.customer.dto.VerifyGuestClaimPhoneRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,14 +44,4 @@ public class MeGuestClaimController {
     private Long getUserId(HttpServletRequest request) {
         return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
     }
-
-    // ── DTO ──
-
-    public record VerifyGuestClaimPhoneRequest(
-            @NotBlank String verificationCode) {}
-
-    public record ClaimGuestRecordsRequest(
-            List<Long> orderIds,
-            List<Long> bookingIds,
-            List<Long> passIds) {}
 }

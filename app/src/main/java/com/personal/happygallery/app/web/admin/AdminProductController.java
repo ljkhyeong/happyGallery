@@ -1,7 +1,8 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.product.ProductAdminService;
-import com.personal.happygallery.app.product.ProductQueryService;
+import com.personal.happygallery.app.product.ProductAdminService.RegisterResult;
+import com.personal.happygallery.app.product.port.in.ProductAdminUseCase;
+import com.personal.happygallery.app.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.app.web.admin.dto.CreateProductRequest;
 import com.personal.happygallery.app.web.admin.dto.ProductResponse;
 import jakarta.validation.Valid;
@@ -18,11 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/products", "/admin/products"})
 public class AdminProductController {
 
-    private final ProductAdminService productAdminService;
-    private final ProductQueryService productQueryService;
+    private final ProductAdminUseCase productAdminService;
+    private final ProductQueryUseCase productQueryService;
 
-    public AdminProductController(ProductAdminService productAdminService,
-                                  ProductQueryService productQueryService) {
+    public AdminProductController(ProductAdminUseCase productAdminService,
+                                  ProductQueryUseCase productQueryService) {
         this.productAdminService = productAdminService;
         this.productQueryService = productQueryService;
     }
@@ -31,16 +32,16 @@ public class AdminProductController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ProductResponse register(@RequestBody @Valid CreateProductRequest request) {
-        ProductAdminService.RegisterResult result = productAdminService.register(
+        RegisterResult result = productAdminService.register(
                 request.name(), request.type(), request.price(), request.quantity());
-        return ProductResponse.from(result.product(), result.inventory());
+        return ProductResponse.from(result);
     }
 
     /** GET /admin/products — ACTIVE 상품 목록 */
     @GetMapping
     public List<ProductResponse> listActive() {
         return productQueryService.listActiveProducts().stream()
-                .map(r -> ProductResponse.from(r.product(), r.inventory()))
+                .map(ProductResponse::from)
                 .toList();
     }
 }

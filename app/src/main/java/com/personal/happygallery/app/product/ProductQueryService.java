@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.product;
 
+import com.personal.happygallery.app.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.app.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.app.product.port.out.ProductReaderPort;
 import com.personal.happygallery.common.error.NotFoundException;
@@ -15,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class ProductQueryService {
+public class ProductQueryService implements ProductQueryUseCase {
 
     private final ProductReaderPort productReaderPort;
     private final InventoryReaderPort inventoryReaderPort;

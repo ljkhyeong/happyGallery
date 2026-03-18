@@ -1,5 +1,7 @@
 package com.personal.happygallery.app.web.admin.dto;
 
+import com.personal.happygallery.app.product.ProductAdminService;
+import com.personal.happygallery.app.product.ProductQueryService;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 
@@ -12,7 +14,15 @@ public record ProductResponse(
         boolean available,
         int quantity
 ) {
-    public static ProductResponse from(Product product, Inventory inventory) {
+    public static ProductResponse from(ProductQueryService.ProductWithInventory r) {
+        return from(r.product(), r.inventory());
+    }
+
+    public static ProductResponse from(ProductAdminService.RegisterResult r) {
+        return from(r.product(), r.inventory());
+    }
+
+    private static ProductResponse from(Product product, Inventory inventory) {
         return new ProductResponse(
                 product.getId(),
                 product.getName(),

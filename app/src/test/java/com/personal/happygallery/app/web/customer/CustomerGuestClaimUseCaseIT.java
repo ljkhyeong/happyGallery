@@ -140,11 +140,7 @@ class CustomerGuestClaimUseCaseIT {
                 BookingTestHelper.FUTURE.plusHours(2)));
         PassPurchase pass = passPurchaseRepository.save(
                 TestFixtures.passPurchase(guest, BookingTestHelper.FUTURE.plusDays(90), 120_000L));
-        Booking booking = bookingRepository.save(new Booking(
-                guest,
-                slot,
-                pass,
-                "guest-claim-access-token"));
+        Booking booking = bookingRepository.save(Booking.forGuestPass(guest, slot, pass, "guest-claim-access-token"));
 
         Cookie sessionCookie = signupAndGetSessionCookie(email, "010-1234-5678");
         User user = userRepository.findByEmail(email).orElseThrow();

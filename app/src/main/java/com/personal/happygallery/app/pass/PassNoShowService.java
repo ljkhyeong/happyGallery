@@ -10,12 +10,13 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingStatus;
+import com.personal.happygallery.app.pass.port.in.PassNoShowUseCase;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class PassNoShowService {
+public class PassNoShowService implements PassNoShowUseCase {
 
     private final BookingReaderPort bookingReader;
     private final BookingStorePort bookingStore;

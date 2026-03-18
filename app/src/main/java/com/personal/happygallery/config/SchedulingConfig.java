@@ -20,7 +20,7 @@ public class SchedulingConfig {
     @Bean
     public TaskScheduler taskScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(properties.getPoolSize());
+        scheduler.setPoolSize(properties.poolSize());
         scheduler.setThreadNamePrefix("batch-");
         return scheduler;
     }

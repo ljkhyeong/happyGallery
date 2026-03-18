@@ -1,7 +1,7 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api } from "@/shared/api";
 
-interface MeResponse {
+interface CustomerUserResponse {
   id: number;
   email: string;
   name: string;
@@ -39,7 +39,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
   const fetchMe = useCallback(async () => {
     try {
-      const me = await api<MeResponse>("/me");
+      const me = await api<CustomerUserResponse>("/me");
       setUser(me);
     } catch {
       setUser(null);
@@ -55,7 +55,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (email: string, password: string): Promise<boolean> => {
       try {
-        const me = await api<MeResponse>("/auth/login", {
+        const me = await api<CustomerUserResponse>("/auth/login", {
           method: "POST",
           body: { email, password },
         });
@@ -76,7 +76,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       phone: string,
     ): Promise<boolean> => {
       try {
-        const me = await api<MeResponse>("/auth/signup", {
+        const me = await api<CustomerUserResponse>("/auth/signup", {
           method: "POST",
           body: { email, password, name, phone: normalizePhone(phone) },
         });

@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.web.order.dto;
 
+import com.personal.happygallery.app.order.OrderQueryService;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
@@ -33,7 +34,11 @@ public record OrderDetailResponse(
         }
     }
 
-    public static OrderDetailResponse from(Order order, List<OrderItem> items, Fulfillment fulfillment) {
+    public static OrderDetailResponse from(OrderQueryService.OrderDetail detail) {
+        return from(detail.order(), detail.items(), detail.fulfillment());
+    }
+
+    private static OrderDetailResponse from(Order order, List<OrderItem> items, Fulfillment fulfillment) {
         return new OrderDetailResponse(
                 order.getId(),
                 order.getStatus().name(),

@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.booking;
 
-import com.personal.happygallery.app.booking.SlotQueryService;
+import com.personal.happygallery.app.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.app.web.booking.dto.PublicSlotResponse;
 import java.time.LocalDate;
 import java.util.List;
@@ -14,9 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/slots", "/slots"})
 public class SlotController {
 
-    private final SlotQueryService slotQueryService;
+    private final SlotQueryUseCase slotQueryService;
 
-    public SlotController(SlotQueryService slotQueryService) {
+    public SlotController(SlotQueryUseCase slotQueryService) {
         this.slotQueryService = slotQueryService;
     }
 

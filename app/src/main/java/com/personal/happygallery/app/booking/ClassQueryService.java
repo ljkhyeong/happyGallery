@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.in.ClassQueryUseCase;
 import com.personal.happygallery.app.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import java.util.List;
@@ -8,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class ClassQueryService {
+public class ClassQueryService implements ClassQueryUseCase {
 
     private final ClassReaderPort classReaderPort;
 

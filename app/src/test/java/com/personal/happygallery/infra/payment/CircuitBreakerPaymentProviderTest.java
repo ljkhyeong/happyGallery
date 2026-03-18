@@ -82,15 +82,9 @@ class CircuitBreakerPaymentProviderTest {
                                                         int minimumNumberOfCalls,
                                                         long waitDurationOpenSeconds,
                                                         int permittedCallsInHalfOpenState) {
-        ExternalPaymentProperties properties = new ExternalPaymentProperties();
-        ExternalPaymentProperties.CircuitBreaker circuitBreaker = new ExternalPaymentProperties.CircuitBreaker();
-        circuitBreaker.setFailureRateThreshold(failureRateThreshold);
-        circuitBreaker.setSlidingWindowSize(slidingWindowSize);
-        circuitBreaker.setMinimumNumberOfCalls(minimumNumberOfCalls);
-        circuitBreaker.setWaitDurationOpenSeconds(waitDurationOpenSeconds);
-        circuitBreaker.setPermittedCallsInHalfOpenState(permittedCallsInHalfOpenState);
-        properties.setTimeoutMillis(timeoutMillis);
-        properties.setCircuitBreaker(circuitBreaker);
-        return properties;
+        var circuitBreaker = new ExternalPaymentProperties.CircuitBreaker(
+                failureRateThreshold, slidingWindowSize, minimumNumberOfCalls,
+                waitDurationOpenSeconds, permittedCallsInHalfOpenState);
+        return new ExternalPaymentProperties(timeoutMillis, circuitBreaker);
     }
 }

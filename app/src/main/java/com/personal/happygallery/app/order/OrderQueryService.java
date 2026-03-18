@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.app.order.port.out.OrderItemPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
@@ -15,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class OrderQueryService {
+public class OrderQueryService implements OrderQueryUseCase {
 
     private final OrderReaderPort orderReader;
     private final OrderItemPort orderItemPort;

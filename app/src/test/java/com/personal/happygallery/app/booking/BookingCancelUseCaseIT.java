@@ -159,7 +159,7 @@ class BookingCancelUseCaseIT {
         Booking booking = bookingRepository.save(booking(
                 guest, slot, 5_000L, 45_000L, DepositPaymentMethod.CARD, "refund-token"));
 
-        Refund refund = new Refund(booking, 5_000L);
+        Refund refund = Refund.forBooking(booking, 5_000L);
         refund.markFailed(null);
         refundRepository.save(refund);
 
