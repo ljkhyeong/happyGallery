@@ -52,30 +52,23 @@ public class PassPurchase {
 
     protected PassPurchase() {}
 
-    /**
-     * 게스트 8회권 구매 생성.
-     *
-     * @param guest      구매자 (비회원)
-     * @param expiresAt  만료 시점 = purchased_at + 90일
-     * @param totalPrice 총 결제금액 (KRW) — 정산 환불 계산 기준
-     */
-    public PassPurchase(Guest guest, LocalDateTime expiresAt, long totalPrice) {
+    private PassPurchase(Guest guest, Long userId, LocalDateTime expiresAt, long totalPrice) {
         this.guest = guest;
+        this.userId = userId;
         this.expiresAt = expiresAt;
         this.totalCredits = 8;
         this.remainingCredits = 8;
         this.totalPrice = totalPrice;
     }
 
-    /**
-     * 회원 8회권 구매 생성.
-     */
-    public PassPurchase(Long userId, LocalDateTime expiresAt, long totalPrice) {
-        this.userId = userId;
-        this.expiresAt = expiresAt;
-        this.totalCredits = 8;
-        this.remainingCredits = 8;
-        this.totalPrice = totalPrice;
+    /** 게스트 8회권 구매 생성. expiresAt = purchased_at + 90일. */
+    public static PassPurchase forGuest(Guest guest, LocalDateTime expiresAt, long totalPrice) {
+        return new PassPurchase(guest, null, expiresAt, totalPrice);
+    }
+
+    /** 회원 8회권 구매 생성. */
+    public static PassPurchase forMember(Long userId, LocalDateTime expiresAt, long totalPrice) {
+        return new PassPurchase(null, userId, expiresAt, totalPrice);
     }
 
     /**

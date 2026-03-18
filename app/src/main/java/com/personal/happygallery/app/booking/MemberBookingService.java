@@ -52,11 +52,11 @@ public class MemberBookingService {
         Booking booking;
         if (passId != null) {
             PassPurchase pass = creationSupport.deductPassCredit(passId, userId);
-            booking = new Booking(userId, slot, pass);
+            booking = Booking.forMemberPass(userId, slot, pass);
         } else {
             creationSupport.requireValidDeposit(paymentMethod);
             long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
-            booking = new Booking(userId, slot, depositAmount, balanceAmount, paymentMethod);
+            booking = Booking.forMemberDeposit(userId, slot, depositAmount, balanceAmount, paymentMethod);
         }
 
         return creationSupport.saveAndComplete(booking, slot);

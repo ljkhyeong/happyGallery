@@ -73,7 +73,7 @@ public class DefaultPassPurchaseService implements PassPurchaseUseCase {
         ZonedDateTime now = ZonedDateTime.now(clock);
         LocalDateTime expiresAt = TimeBoundary.passExpiresAtLocal(now);
 
-        PassPurchase purchase = passPurchaseStore.save(new PassPurchase(userId, expiresAt, totalPrice));
+        PassPurchase purchase = passPurchaseStore.save(PassPurchase.forMember(userId, expiresAt, totalPrice));
         passLedgerStore.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));
 
         return purchase;
@@ -83,7 +83,7 @@ public class DefaultPassPurchaseService implements PassPurchaseUseCase {
         ZonedDateTime now = ZonedDateTime.now(clock);
         LocalDateTime expiresAt = TimeBoundary.passExpiresAtLocal(now);
 
-        PassPurchase purchase = passPurchaseStore.save(new PassPurchase(guest, expiresAt, totalPrice));
+        PassPurchase purchase = passPurchaseStore.save(PassPurchase.forGuest(guest, expiresAt, totalPrice));
         passLedgerStore.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));
 
         return purchase;

@@ -36,7 +36,7 @@ class RefundExecutionServiceUseCaseIT {
     void keepsFailedRefundLog_whenOuterTransactionRollsBack() {
         refundRepository.deleteAllInBatch();
 
-        Order order = orderRepository.save(new Order(null, 55_000L, LocalDateTime.now(), LocalDateTime.now().plusHours(24)));
+        Order order = orderRepository.save(Order.forGuest(null, null, 55_000L, LocalDateTime.now(), LocalDateTime.now().plusHours(24)));
         doThrow(new RuntimeException("PG timeout")).when(paymentProvider).refund(any(), anyLong());
 
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);

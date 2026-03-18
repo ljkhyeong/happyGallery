@@ -94,11 +94,11 @@ public class GuestBookingService {
         Booking booking;
         if (passId != null) {
             PassPurchase pass = creationSupport.deductPassCredit(passId, null);
-            booking = new Booking(guest, slot, pass, accessToken);
+            booking = Booking.forGuestPass(guest, slot, pass, accessToken);
         } else {
             creationSupport.requireValidDeposit(paymentMethod);
             long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
-            booking = new Booking(guest, slot, depositAmount, balanceAmount, paymentMethod, accessToken);
+            booking = Booking.forGuestDeposit(guest, slot, depositAmount, balanceAmount, paymentMethod, accessToken);
         }
 
         booking = creationSupport.saveAndComplete(booking, slot);

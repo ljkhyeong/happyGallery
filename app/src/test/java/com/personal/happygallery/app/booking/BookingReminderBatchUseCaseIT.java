@@ -210,7 +210,7 @@ class BookingReminderBatchUseCaseIT {
                 bookingClass("혼합 클래스", "MIX", 60, 30_000L, 30));
         Slot slot2 = slotRepository.save(slot(cls2, slotStart.plusHours(1), slotStart.plusHours(2)));
         User user = userRepository.save(new User("mixed@test.com", "hash", "혼합회원", "01088887777"));
-        bookingRepository.save(new Booking(user.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+        bookingRepository.save(Booking.forMemberDeposit(user.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
         List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 2);
@@ -231,7 +231,7 @@ class BookingReminderBatchUseCaseIT {
         Slot slot = slotRepository.save(slot(cls, slotStart, slotStart.plusHours(1)));
         User user = userRepository.save(new User("reminder@test.com", "hash", "회원테스트", "01077776666"));
         Booking booking = bookingRepository.save(
-                new Booking(user.getId(), slot, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+                Booking.forMemberDeposit(user.getId(), slot, 10_000L, 20_000L, DepositPaymentMethod.CARD));
         return booking;
     }
 

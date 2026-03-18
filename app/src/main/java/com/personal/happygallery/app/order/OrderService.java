@@ -64,7 +64,7 @@ public class OrderService {
         String rawToken = AccessTokenHasher.generate();
         String tokenHash = AccessTokenHasher.hash(rawToken);
         Order order = orderStore.save(
-                new Order(guestId, tokenHash, totalAmount, paidAt, paidAt.plusHours(24)));
+                Order.forGuest(guestId, tokenHash, totalAmount, paidAt, paidAt.plusHours(24)));
 
         for (OrderItemRequest item : items) {
             orderItemPort.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
