@@ -29,16 +29,17 @@ import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.infra.user.UserRepository;
-import com.personal.happygallery.infra.user.UserSessionRepository;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
+import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -62,8 +63,8 @@ class CustomerGuestClaimUseCaseIT {
 
     @Autowired WebApplicationContext context;
     @Autowired CustomerAuthFilter customerAuthFilter;
+    @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired UserRepository userRepository;
-    @Autowired UserSessionRepository userSessionRepository;
     @Autowired GuestRepository guestRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
     @Autowired OrderRepository orderRepository;
@@ -89,7 +90,7 @@ class CustomerGuestClaimUseCaseIT {
     void setUp() {
         cleanup();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(customerAuthFilter)
+                .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
         bookingHelper = new BookingTestHelper(mockMvc, phoneVerificationRepository);
     }
@@ -117,7 +118,6 @@ class CustomerGuestClaimUseCaseIT {
                 orderRepository,
                 inventoryRepository,
                 productRepository);
-        userSessionRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
     }
 

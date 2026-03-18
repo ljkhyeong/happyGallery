@@ -66,6 +66,8 @@
 | [Guest Token Signed Expiry 전환](docs/Idea/0005_guest-token-signed-expiry/idea.md) | `docs/Idea/0005_guest-token-signed-expiry/` | guest access token의 만료·서명 방식 후속 개선 메모 |
 | [ConfigurationProperties 기반 설정 바인딩 정리](docs/Idea/0010_configuration-properties-binding-guideline/idea.md) | `docs/Idea/0010_configuration-properties-binding-guideline/` | 이미 적용된 설정 바인딩 패턴과 이후 확장 기준 메모 |
 | [OAuth 로그인 도입 검토](docs/Idea/0011_oauth-login-adoption-consideration/idea.md) | `docs/Idea/0011_oauth-login-adoption-consideration/` | 기존 이메일 회원, guest claim, 전화번호 인증 흐름과의 연결 정책 검토 메모 |
+| [폼 접근성 향상 가이드](docs/Idea/0012_form-accessibility-guideline/idea.md) | `docs/Idea/0012_form-accessibility-guideline/` | `controlId` 기반 라벨-입력 연결과 이후 폼 접근성 유지 기준 메모 |
+| [회원 세션의 Spring Session 전환](docs/Idea/0013_member-session-spring-session-consideration/idea.md) | `docs/Idea/0013_member-session-spring-session-consideration/` | `HG_SESSION` 계약을 유지한 채 Spring Session + Redis로 전환한 배경과 적용 메모 |
 
 ### 🧪 POC
 

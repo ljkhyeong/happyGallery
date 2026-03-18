@@ -1,0 +1,16 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+
+app:
+  admin:
+    api-key: dev-admin-key
+    enable-api-key-auth: true
+  rate-limit:
+    enabled: false
+
+logging:
+  level:
+    root: WARN
+    com.personal.happygallery: INFO
