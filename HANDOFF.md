@@ -36,6 +36,7 @@
   - guest lookup 허브 추가 완료 — `/guest` 진입 페이지를 추가하고, 상단 utility bar와 홈은 direct guest lookup 대신 `/guest` 허브를 우선 노출하도록 정리
   - guest route 운영 카피 정리 완료 — `/guest/orders`, `/guest/bookings`, 홈 lookup 패널, guest 성공 CTA에서 guest 경로를 “조회용 보조 경로”로 명확히 표시하고, 로그인/회원가입 후 `/my` claim으로 이어지는 전환 문구를 강화
   - 로그인 직후 회원 상태 전역 동기화 완료 — `CustomerAuthProvider`를 도입해 로그인/회원가입 후 상단 네비가 새로고침 없이 즉시 `로그아웃` 상태로 반영되도록 정리하고, `P8-9`에 즉시 상태 전환 검증 추가
+  - Playwright smoke 구조 정리 — `frontend/tests/e2e/p8-smoke.spec.ts` 단일 파일을 사용자 여정 기준 4개 spec(`admin-product-order`, `guest-booking-pass`, `member-self-service`, `guest-claim-onboarding`)으로 분리하고, 공통 UI locator/helper는 별도 `ui-support.ts`로 정리
   - `/my` 목록 고도화 완료 — `/my/orders`, `/my/bookings`, `/my/passes`에 quick status tab, 정렬, 요약 chip을 추가해 회원 이력 탐색 흐름을 한 단계 정리
   - 회원 온보딩 polish 완료 — 로그인/회원가입 페이지를 storefront/member 문맥에 맞는 2열 레이아웃으로 정리하고, `redirect`·`claim`·회원가입 prefill(`name`/`phone`) 컨텍스트를 로그인/회원가입 전환 링크에도 유지, `/my?claim=1` 진입 뒤 모달을 닫아도 후속 claim 안내 카드가 남도록 보강
   - `/my` 목록 필터 확장 완료 — `/my/orders`, `/my/bookings`, `/my/passes`에 상태 필터와 검색을 추가하고, 회원 8회권 구매 완료 CTA도 `/my/passes`로 맞춤
@@ -158,6 +159,7 @@
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
 - 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
 - Playwright smoke는 관리자 Bearer 토큰과 고객 `HG_SESSION` 쿠키를 backend API로 bootstrap해 로그인 rate limit과 UI 초기화 타이밍 영향을 줄였다.
+- Playwright smoke spec은 현재 사용자 여정 기준 4개 파일(`admin-product-order.smoke.spec.ts`, `guest-booking-pass.smoke.spec.ts`, `member-self-service.smoke.spec.ts`, `guest-claim-onboarding.smoke.spec.ts`)로 나뉘어 있고, 시나리오 번호 `P8-1`~`P8-9`는 그대로 유지한다.
 - `P8-8`은 guest 주문·8회권·예약을 만든 뒤, 같은 번호의 회원이 `/my` 모달에서 재인증 후 claim 하는 흐름을 검증한다.
 - `P8-9`는 guest 주문 성공 화면에서 회원가입으로 넘어가 휴대폰/이름 prefill과 `/my` claim 모달 자동 오픈을 검증한다.
 - 기본 관리자 계정: `admin` / `admin1234` (Flyway V11로 정합화)

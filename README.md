@@ -255,12 +255,15 @@ E2E 참고:
 - Playwright는 `frontend/playwright.config.ts` 기준으로 동작한다.
 - Vite dev server는 Playwright가 직접 띄우거나 기존 `localhost:3000`을 재사용한다.
 - 백엔드는 별도로 `http://localhost:8080`에서 실행 중이어야 한다.
+- smoke spec은 사용자 여정 기준으로 분리되어 있다.
+- 현재 파일 구성은 `admin-product-order.smoke.spec.ts`, `guest-booking-pass.smoke.spec.ts`, `member-self-service.smoke.spec.ts`, `guest-claim-onboarding.smoke.spec.ts`다.
+- 시나리오 번호(`P8-1`~`P8-9`)는 유지하므로 기존 `--grep "P8-8"` 같은 실행 방식은 그대로 사용할 수 있다.
 - 관리자 보조 API 호출은 `POST /api/v1/admin/auth/login`으로 얻은 Bearer 토큰을 사용한다.
 - 로컬 `bootRun`은 `classes` 테이블이 비어 있으면 기본 클래스를 자동 생성하므로 clean DB에서도 예약/8회권 시나리오를 바로 돌릴 수 있다.
 - 시나리오 5(`환불 실패 -> 재시도`)는 local 전용 dev hook(`/api/v1/admin/dev/payment/refunds/fail-next`)으로 자동화되어 있고, 필요하면 요청 바디에 `orderId`를 넣어 특정 주문으로 범위를 좁힐 수 있다.
 - Playwright 관리자 로그인 기본값은 `admin` / `admin1234`이며, 필요하면 `PLAYWRIGHT_ADMIN_USERNAME`, `PLAYWRIGHT_ADMIN_PASSWORD`로 덮어쓴다.
 - 백엔드 기준 URL을 바꾸려면 `PLAYWRIGHT_BACKEND_URL`을 사용한다.
-- 현재 smoke 범위는 guest/admin 1~5와 member storefront/claim/onboarding 6~9이며, `P8-7`은 회원 예약 상세/변경/취소, `P8-8`은 guest claim, `P8-9`는 guest 성공 화면에서 회원가입 후 claim 모달 자동 진입까지 포함한다.
+- 현재 smoke 범위는 admin/order 1·4·5, guest booking/pass 2·3, member self-service 6·7, guest claim/onboarding 8·9이며, `P8-7`은 회원 예약 상세/변경/취소, `P8-8`은 guest claim, `P8-9`는 guest 성공 화면에서 회원가입 후 claim 모달 자동 진입까지 포함한다.
 - `/bookings/new`, `/passes/purchase`는 첫 화면에서 인증하지 않고 제출 직전에 auth gate를 연다.
 - 상품 상세의 `비회원 주문하기`는 `/orders/new?productId=&qty=`로 이동해 선택한 상품과 수량을 prefill 한다.
 - 비회원 진입 허브는 `/guest`이고, canonical guest 조회 경로는 `/guest/orders`, `/guest/bookings`이며 생성 후 확인용 보조 경로로 유지한다.
