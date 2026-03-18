@@ -87,7 +87,7 @@ public final class OrderTestHelper {
         }
         Product product = createProduct(name, type, price, 1);
         LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
-        Order order = orderRepository.save(new Order(null, price, paidAt, paidAt.plusHours(24)));
+        Order order = orderRepository.save(Order.forGuest(null, null, price, paidAt, paidAt.plusHours(24)));
         orderItemRepository.save(new OrderItem(order, product.getId(), 1, price));
 
         Inventory inventory = inventoryRepository.findByProductId(product.getId()).orElseThrow();

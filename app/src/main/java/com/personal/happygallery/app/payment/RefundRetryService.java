@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.payment;
 
+import com.personal.happygallery.app.payment.port.in.RefundRetryUseCase;
 import com.personal.happygallery.app.payment.port.out.RefundPort;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
@@ -13,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** 환불 실패 재시도 — 운영자 수동 트리거 */
 @Service
 @Transactional
-public class RefundRetryService {
+public class RefundRetryService implements RefundRetryUseCase {
 
     private final RefundPort refundPort;
     private final RefundExecutionService refundExecutionService;

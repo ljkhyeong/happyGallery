@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.common.error.DuplicateBookingException;
 import com.personal.happygallery.domain.booking.Booking;
@@ -15,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-public class MemberBookingService {
+public class MemberBookingService implements MemberBookingUseCase {
 
     private final BookingReaderPort bookingReaderPort;
     private final BookingCreationSupport creationSupport;
@@ -52,11 +53,11 @@ public class MemberBookingService {
         Booking booking;
         if (passId != null) {
             PassPurchase pass = creationSupport.deductPassCredit(passId, userId);
-            booking = new Booking(userId, slot, pass);
+            booking = Booking.forMemberPass(userId, slot, pass);
         } else {
             creationSupport.requireValidDeposit(paymentMethod);
             long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
-            booking = new Booking(userId, slot, depositAmount, balanceAmount, paymentMethod);
+            booking = Booking.forMemberDeposit(userId, slot, depositAmount, balanceAmount, paymentMethod);
         }
 
         return creationSupport.saveAndComplete(booking, slot);

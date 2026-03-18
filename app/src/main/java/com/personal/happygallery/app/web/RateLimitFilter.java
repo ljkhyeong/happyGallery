@@ -9,29 +9,38 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
-/**
- * Redis 기반 분산 rate limit 필터.
- *
- * <p>Redis INCR + EXPIRE 패턴으로 요청 횟수를 카운팅한다.
- * 다중 인스턴스 환경에서 인스턴스 간 카운터를 공유하므로 정확한 rate limit이 적용된다.
- *
- * <p>키 패턴: {@code rate:{RULE_ID}:{clientKey}}, TTL: 규칙의 윈도우 크기.
- */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
+
+    private static final RedisScript<Long> INCREMENT_SCRIPT;
+
+    static {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptText("""
+                local count = redis.call('INCR', KEYS[1])
+                if count == 1 then
+                    redis.call('EXPIRE', KEYS[1], ARGV[1])
+                end
+                return count
+                """);
+        script.setResultType(Long.class);
+        INCREMENT_SCRIPT = script;
+    }
 
     private static final String X_FORWARDED_FOR = "X-Forwarded-For";
     private static final String LEGACY_ADMIN_PATH_PREFIX = "/admin/";
@@ -67,7 +76,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        if (!properties.isEnabled()) {
+        if (!properties.enabled()) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -86,8 +95,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setHeader("X-RateLimit-Remaining", String.valueOf(remaining));
 
         if (count > resolved.capacity()) {
-            long windowSeconds = resolved.window().toSeconds();
-            response.setHeader("Retry-After", String.valueOf(windowSeconds));
+            response.setHeader("Retry-After", String.valueOf(resolved.window().toSeconds()));
             log.warn("rate limit exceeded [rule={} client={}]", resolved.rule().id(), bucketKey);
             writeTooManyRequests(response);
             return;
@@ -96,41 +104,34 @@ public class RateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * Redis INCR + EXPIRE 패턴으로 카운터를 증가시킨다.
-     * 키가 새로 생성된 경우(count == 1)에만 TTL을 설정해 윈도우를 시작한다.
-     */
     private long increment(String key, Duration window) {
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count == null) count = 1L;
-        if (count == 1) {
-            redisTemplate.expire(key, window.toSeconds(), TimeUnit.SECONDS);
-        }
-        return count;
+        Long count = redisTemplate.execute(
+                INCREMENT_SCRIPT, List.of(key), String.valueOf(window.toSeconds()));
+        return count == null ? 1L : count;
     }
 
     private ResolvedRule resolveRule(HttpServletRequest request) {
         if (matches(request, CUSTOMER_LOGIN_RULE)) {
-            return new ResolvedRule(CUSTOMER_LOGIN_RULE, properties.getCustomerLoginPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(CUSTOMER_LOGIN_RULE, properties.customerLoginPerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, CUSTOMER_SIGNUP_RULE)) {
-            return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.getCustomerSignupPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.customerSignupPerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, ADMIN_LOGIN_RULE)) {
-            return new ResolvedRule(ADMIN_LOGIN_RULE, properties.getAdminLoginPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(ADMIN_LOGIN_RULE, properties.adminLoginPerMinute(), Duration.ofMinutes(1));
         }
         String uri = request.getRequestURI();
         if (isAdminPath(uri)) {
-            return new ResolvedRule(ADMIN_API_RULE, properties.getAdminApiPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(ADMIN_API_RULE, properties.adminApiPerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, PHONE_VERIFICATION_RULE)) {
-            return new ResolvedRule(PHONE_VERIFICATION_RULE, properties.getPhoneVerificationPerSecond(), Duration.ofSeconds(1));
+            return new ResolvedRule(PHONE_VERIFICATION_RULE, properties.phoneVerificationPerSecond(), Duration.ofSeconds(1));
         }
         if (matches(request, BOOKING_CREATE_RULE)) {
-            return new ResolvedRule(BOOKING_CREATE_RULE, properties.getBookingCreatePerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(BOOKING_CREATE_RULE, properties.bookingCreatePerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, PASS_PURCHASE_RULE)) {
-            return new ResolvedRule(PASS_PURCHASE_RULE, properties.getPassPurchasePerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(PASS_PURCHASE_RULE, properties.passPurchasePerMinute(), Duration.ofMinutes(1));
         }
         return null;
     }
@@ -147,7 +148,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     String resolveClientKey(HttpServletRequest request) {
-        if (!properties.isTrustForwardedHeaders()) {
+        if (!properties.trustForwardedHeaders()) {
             String remoteAddr = request.getRemoteAddr();
             return remoteAddr == null ? "unknown" : remoteAddr;
         }

@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.qna;
 
+import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
 import com.personal.happygallery.app.product.port.out.ProductReaderPort;
 import com.personal.happygallery.app.qna.port.out.ProductQnaReaderPort;
@@ -15,31 +16,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class ProductQnaService {
+public class ProductQnaService implements ProductQnaUseCase {
 
     private final ProductQnaReaderPort qnaReader;
     private final ProductQnaStorePort qnaStore;
     private final ProductReaderPort productReader;
     private final UserReaderPort userReader;
     private final Clock clock;
-    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
 
     public ProductQnaService(ProductQnaReaderPort qnaReader,
                              ProductQnaStorePort qnaStore,
                              ProductReaderPort productReader,
                              UserReaderPort userReader,
-                             Clock clock) {
+                             Clock clock,
+                             PasswordEncoder passwordEncoder) {
         this.qnaReader = qnaReader;
         this.qnaStore = qnaStore;
         this.productReader = productReader;
         this.userReader = userReader;
         this.clock = clock;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional

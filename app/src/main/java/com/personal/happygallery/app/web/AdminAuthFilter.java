@@ -2,24 +2,25 @@ package com.personal.happygallery.app.web;
 
 import com.personal.happygallery.app.admin.port.out.AdminSessionPort;
 import com.personal.happygallery.app.admin.port.out.AdminSessionPort.AdminSession;
+import com.personal.happygallery.common.error.ErrorCode;
+import com.personal.happygallery.common.error.ErrorResponse;
 import com.personal.happygallery.config.properties.AdminProperties;
-import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.Optional;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
-public class AdminAuthFilter implements Filter {
+public class AdminAuthFilter extends OncePerRequestFilter {
 
     public static final String ADMIN_USER_ID_ATTR = "adminUserId";
     public static final String ADMIN_USERNAME_ATTR = "adminUsername";
@@ -33,30 +34,31 @@ public class AdminAuthFilter implements Filter {
 
     private final AdminProperties adminProperties;
     private final AdminSessionPort sessionPort;
+    private final ObjectMapper objectMapper;
 
-    public AdminAuthFilter(AdminProperties adminProperties, AdminSessionPort sessionPort) {
+    public AdminAuthFilter(AdminProperties adminProperties, AdminSessionPort sessionPort,
+                           ObjectMapper objectMapper) {
         this.adminProperties = adminProperties;
         this.sessionPort = sessionPort;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
-        HttpServletRequest httpRequest = (HttpServletRequest) request;
-        HttpServletResponse httpResponse = (HttpServletResponse) response;
-
+    protected void doFilterInternal(HttpServletRequest httpRequest, HttpServletResponse httpResponse,
+                                    FilterChain chain) throws IOException, ServletException {
         String uri = httpRequest.getRequestURI();
 
         if (isAdminPath(uri) && !isAuthPath(uri)) {
             if (!isAuthenticated(httpRequest)) {
-                httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                httpResponse.setStatus(ErrorCode.UNAUTHORIZED.httpStatus);
                 httpResponse.setContentType("application/json;charset=UTF-8");
-                httpResponse.getWriter().write("{\"code\":\"UNAUTHORIZED\",\"message\":\"관리자 인증이 필요합니다.\"}");
+                httpResponse.getWriter().write(
+                        objectMapper.writeValueAsString(ErrorResponse.of(ErrorCode.UNAUTHORIZED)));
                 return;
             }
         }
 
-        chain.doFilter(request, response);
+        chain.doFilter(httpRequest, httpResponse);
     }
 
     private boolean isAuthenticated(HttpServletRequest request) {
@@ -73,9 +75,13 @@ public class AdminAuthFilter implements Filter {
         }
 
         // 2) X-Admin-Key 폴백 (활성화된 경우에만)
-        if (adminProperties.isEnableApiKeyAuth()) {
+        if (adminProperties.enableApiKeyAuth()) {
             String key = request.getHeader(ADMIN_KEY_HEADER);
-            return adminProperties.getApiKey().equals(key);
+            if (adminProperties.apiKey().equals(key)) {
+                request.setAttribute(ADMIN_USER_ID_ATTR, 0L);
+                request.setAttribute(ADMIN_USERNAME_ATTR, "api-key");
+                return true;
+            }
         }
 
         return false;

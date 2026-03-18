@@ -2,7 +2,7 @@ package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.pass.port.in.PassExpiryBatchUseCase;
-import com.personal.happygallery.app.pass.PassRefundService;
+import com.personal.happygallery.app.pass.port.in.PassRefundUseCase;
 import com.personal.happygallery.app.web.admin.dto.BatchResponse;
 import com.personal.happygallery.app.web.admin.dto.PassRefundResponse;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,10 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminPassController {
 
     private final PassExpiryBatchUseCase passExpiryBatchService;
-    private final PassRefundService passRefundService;
+    private final PassRefundUseCase passRefundService;
 
     public AdminPassController(PassExpiryBatchUseCase passExpiryBatchService,
-                               PassRefundService passRefundService) {
+                               PassRefundUseCase passRefundService) {
         this.passExpiryBatchService = passExpiryBatchService;
         this.passRefundService = passRefundService;
     }

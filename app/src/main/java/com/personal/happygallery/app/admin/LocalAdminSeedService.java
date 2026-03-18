@@ -5,7 +5,6 @@ import com.personal.happygallery.infra.admin.AdminUserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,10 +22,11 @@ public class LocalAdminSeedService {
     private static final String DEFAULT_PASSWORD = "admin1234";
 
     private final AdminUserRepository adminUserRepository;
-    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
 
-    public LocalAdminSeedService(AdminUserRepository adminUserRepository) {
+    public LocalAdminSeedService(AdminUserRepository adminUserRepository, PasswordEncoder passwordEncoder) {
         this.adminUserRepository = adminUserRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional

@@ -98,7 +98,7 @@ class AdminBookingQueryUseCaseIT {
         BookingClass cls2 = classRepository.save(bookingClass("회원 클래스", "M1", 60, 30_000L, 30));
         Slot slot2 = slotRepository.save(slot(cls2, slotStart.plusHours(1), slotStart.plusHours(2)));
         User member = userRepository.save(new User("member@test.com", "hash", "회원", "01033334444"));
-        bookingRepository.save(new Booking(member.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+        bookingRepository.save(Booking.forMemberDeposit(member.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
 
         // claimed booking (originally guest → claimed to user)
         BookingClass cls3 = classRepository.save(bookingClass("클레임 클래스", "C1", 60, 30_000L, 30));
@@ -171,7 +171,7 @@ class AdminBookingQueryUseCaseIT {
         BookingClass cls2 = classRepository.save(bookingClass("회원", "M2", 60, 30_000L, 30));
         Slot slot2 = slotRepository.save(slot(cls2, slotStart.plusHours(1), slotStart.plusHours(2)));
         User user = userRepository.save(new User("m@test.com", "hash", "회원1", "01022222222"));
-        bookingRepository.save(new Booking(user.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+        bookingRepository.save(Booking.forMemberDeposit(user.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
 
         // claimed
         BookingClass cls3 = classRepository.save(bookingClass("클레임", "C2", 60, 30_000L, 30));

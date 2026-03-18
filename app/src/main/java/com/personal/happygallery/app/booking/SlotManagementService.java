@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.in.SlotManagementUseCase;
 import com.personal.happygallery.app.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.app.booking.port.out.SlotStorePort;
@@ -17,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class SlotManagementService {
+public class SlotManagementService implements SlotManagementUseCase {
 
     private final ClassReaderPort classReaderPort;
     private final SlotReaderPort slotReaderPort;

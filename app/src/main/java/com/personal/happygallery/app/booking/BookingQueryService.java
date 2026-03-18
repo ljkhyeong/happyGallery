@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Booking;
@@ -9,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class BookingQueryService {
+public class BookingQueryService implements BookingQueryUseCase {
 
     private final BookingSupport bookingSupport;
     private final BookingReaderPort bookingReaderPort;

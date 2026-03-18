@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.inquiry;
 
+import com.personal.happygallery.app.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
 import com.personal.happygallery.app.inquiry.port.out.InquiryReaderPort;
 import com.personal.happygallery.app.inquiry.port.out.InquiryStorePort;
@@ -16,7 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class InquiryService {
+public class InquiryService implements InquiryUseCase {
 
     private final InquiryReaderPort inquiryReader;
     private final InquiryStorePort inquiryStore;

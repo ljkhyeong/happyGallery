@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.app.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.app.payment.RefundExecutionService;
 import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
@@ -40,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-public class OrderApprovalService {
+public class OrderApprovalService implements OrderApprovalUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(OrderApprovalService.class);
 

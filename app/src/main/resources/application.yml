@@ -74,7 +74,13 @@ management:
       show-details: ${ACTUATOR_HEALTH_SHOW_DETAILS:never}
   info:
     env:
-      enabled: true
+      enabled: false
+    git:
+      enabled: false
+    java:
+      enabled: false
+    os:
+      enabled: false
   metrics:
     tags:
       application: ${spring.application.name}

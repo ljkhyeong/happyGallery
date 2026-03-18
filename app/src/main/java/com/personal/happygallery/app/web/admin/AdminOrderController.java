@@ -1,11 +1,11 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.batch.BatchResult;
-import com.personal.happygallery.app.order.AdminOrderQueryService;
-import com.personal.happygallery.app.order.OrderApprovalService;
-import com.personal.happygallery.app.order.OrderPickupService;
-import com.personal.happygallery.app.order.OrderProductionService;
-import com.personal.happygallery.app.order.OrderShippingService;
+import com.personal.happygallery.app.order.port.in.AdminOrderQueryUseCase;
+import com.personal.happygallery.app.order.port.in.OrderApprovalUseCase;
+import com.personal.happygallery.app.order.port.in.OrderPickupUseCase;
+import com.personal.happygallery.app.order.port.in.OrderProductionUseCase;
+import com.personal.happygallery.app.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.app.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.app.web.admin.dto.AdminOrderResponse;
 import com.personal.happygallery.app.web.admin.dto.BatchResponse;
@@ -34,18 +34,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/orders", "/admin/orders"})
 public class AdminOrderController {
 
-    private final AdminOrderQueryService adminOrderQueryService;
-    private final OrderApprovalService orderApprovalService;
-    private final OrderProductionService orderProductionService;
-    private final OrderPickupService orderPickupService;
-    private final OrderShippingService orderShippingService;
+    private final AdminOrderQueryUseCase adminOrderQueryService;
+    private final OrderApprovalUseCase orderApprovalService;
+    private final OrderProductionUseCase orderProductionService;
+    private final OrderPickupUseCase orderPickupService;
+    private final OrderShippingUseCase orderShippingService;
     private final PickupExpireBatchUseCase pickupExpireBatchService;
 
-    public AdminOrderController(AdminOrderQueryService adminOrderQueryService,
-                                OrderApprovalService orderApprovalService,
-                                OrderProductionService orderProductionService,
-                                OrderPickupService orderPickupService,
-                                OrderShippingService orderShippingService,
+    public AdminOrderController(AdminOrderQueryUseCase adminOrderQueryService,
+                                OrderApprovalUseCase orderApprovalService,
+                                OrderProductionUseCase orderProductionService,
+                                OrderPickupUseCase orderPickupService,
+                                OrderShippingUseCase orderShippingService,
                                 PickupExpireBatchUseCase pickupExpireBatchService) {
         this.adminOrderQueryService = adminOrderQueryService;
         this.orderApprovalService = orderApprovalService;

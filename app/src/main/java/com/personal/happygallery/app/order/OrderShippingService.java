@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
@@ -12,6 +13,7 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
+import java.time.LocalDate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -27,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-public class OrderShippingService {
+public class OrderShippingService implements OrderShippingUseCase {
 
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
@@ -68,7 +70,7 @@ public class OrderShippingService {
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PREPARE_SHIPPING, adminId, null));
         orderStore.save(order);
 
-        return new ShippingResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
+        return ShippingResult.of(order, fulfillment);
     }
 
     /**
@@ -92,7 +94,7 @@ public class OrderShippingService {
 
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
-        return new ShippingResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
+        return ShippingResult.of(order, fulfillment);
     }
 
     /**
@@ -116,9 +118,13 @@ public class OrderShippingService {
 
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
-        return new ShippingResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
+        return ShippingResult.of(order, fulfillment);
     }
 
     /** 배송 관련 서비스 작업의 결과를 컨트롤러에 전달하는 내부 DTO. */
-    public record ShippingResult(Long orderId, OrderStatus status, java.time.LocalDate expectedShipDate) {}
+    public record ShippingResult(Long orderId, OrderStatus status, LocalDate expectedShipDate) {
+        static ShippingResult of(Order order, Fulfillment fulfillment) {
+            return ShippingResult.of(order, fulfillment);
+        }
+    }
 }

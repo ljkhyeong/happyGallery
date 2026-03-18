@@ -4,6 +4,7 @@ import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.common.error.AlreadyRefundedException;
 import com.personal.happygallery.common.error.HappyGalleryException;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -333,7 +334,7 @@ class OrderApprovalUseCaseIT {
         Order order = orderHelper.createReadyStockPaidOrder("주문환불실패 상품", 90000L).order();
 
         // 주문 환불 FAILED 직접 생성 (booking 없는 refund)
-        var refund = new com.personal.happygallery.domain.booking.Refund(order.getId(), 90000L);
+        var refund = Refund.forOrder(order.getId(), 90000L);
         refund.markFailed("PG 점검중");
         refundRepository.save(refund);
 

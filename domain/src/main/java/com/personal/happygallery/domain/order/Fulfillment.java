@@ -9,6 +9,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import com.personal.happygallery.common.error.ErrorCode;
+import com.personal.happygallery.common.error.HappyGalleryException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -79,8 +81,8 @@ public class Fulfillment {
     /** SHIPPING 타입인지 확인한다. 픽업 이행에서 출고일 갱신 시 호출. */
     public void requireShippingType() {
         if (this.type != FulfillmentType.SHIPPING) {
-            throw new com.personal.happygallery.common.error.HappyGalleryException(
-                    com.personal.happygallery.common.error.ErrorCode.INVALID_INPUT,
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
                     "배송 이행에서만 출고일을 설정할 수 있습니다.");
         }
     }

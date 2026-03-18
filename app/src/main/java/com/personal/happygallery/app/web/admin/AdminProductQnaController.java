@@ -1,13 +1,13 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.qna.ProductQnaService;
 import com.personal.happygallery.app.qna.ProductQnaService.QnaWithAuthor;
+import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.app.web.AdminAuthFilter;
+import com.personal.happygallery.app.web.admin.dto.AdminQnaResponse;
+import com.personal.happygallery.app.web.admin.dto.QnaReplyRequest;
 import com.personal.happygallery.domain.qna.ProductQna;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,9 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/qna", "/admin/qna"})
 public class AdminProductQnaController {
 
-    private final ProductQnaService qnaService;
+    private final ProductQnaUseCase qnaService;
 
-    public AdminProductQnaController(ProductQnaService qnaService) {
+    public AdminProductQnaController(ProductQnaUseCase qnaService) {
         this.qnaService = qnaService;
     }
 
@@ -46,22 +46,4 @@ public class AdminProductQnaController {
                 .findFirst().orElse("탈퇴회원");
         return AdminQnaResponse.from(new QnaWithAuthor(qna, authorName));
     }
-
-    // ── DTO ──
-
-    public record AdminQnaResponse(
-            Long id, Long productId, Long userId, String authorName,
-            String title, String content, boolean secret,
-            String replyContent, LocalDateTime repliedAt, LocalDateTime createdAt
-    ) {
-        static AdminQnaResponse from(QnaWithAuthor qa) {
-            ProductQna q = qa.qna();
-            return new AdminQnaResponse(
-                    q.getId(), q.getProductId(), q.getUserId(), qa.authorName(),
-                    q.getTitle(), q.getContent(), q.isSecret(),
-                    q.getReplyContent(), q.getRepliedAt(), q.getCreatedAt());
-        }
-    }
-
-    public record QnaReplyRequest(@NotBlank String replyContent) {}
 }

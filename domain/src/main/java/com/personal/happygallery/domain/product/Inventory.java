@@ -9,6 +9,7 @@ import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import com.personal.happygallery.common.error.InventoryNotEnoughException;
 import java.time.LocalDateTime;
 
 /**
@@ -63,7 +64,7 @@ public class Inventory {
      */
     public void deduct(int qty) {
         if (this.quantity < qty) {
-            throw new com.personal.happygallery.common.error.InventoryNotEnoughException();
+            throw new InventoryNotEnoughException();
         }
         this.quantity -= qty;
     }

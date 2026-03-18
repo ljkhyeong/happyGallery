@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.in.OrderCreationUseCase;
 import com.personal.happygallery.app.customer.VerifiedGuestResolver;
 import com.personal.happygallery.app.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.booking.Guest;
@@ -15,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-public class OrderCreationService {
+public class OrderCreationService implements OrderCreationUseCase {
 
     private final VerifiedGuestResolver verifiedGuestResolver;
     private final ProductReaderPort productReader;

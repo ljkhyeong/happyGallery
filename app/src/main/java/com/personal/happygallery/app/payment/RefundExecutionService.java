@@ -38,7 +38,7 @@ public class RefundExecutionService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Refund processOrderRefund(Long orderId, long amount) {
-        Refund refund = refundPort.save(new Refund(orderId, amount));
+        Refund refund = refundPort.save(Refund.forOrder(orderId, amount));
         return executeRefund(refund, "orderId=" + orderId);
     }
 
@@ -46,7 +46,7 @@ public class RefundExecutionService {
     public Refund processBookingRefund(Long bookingId, long amount) {
         Booking booking = bookingReaderPort.findById(bookingId)
                 .orElseThrow(() -> new NotFoundException("예약"));
-        Refund refund = refundPort.save(new Refund(booking, amount));
+        Refund refund = refundPort.save(Refund.forBooking(booking, amount));
         return executeRefund(refund, "bookingId=" + bookingId);
     }
 

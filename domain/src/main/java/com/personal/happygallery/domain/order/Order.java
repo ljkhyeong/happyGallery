@@ -57,38 +57,27 @@ public class Order {
 
     protected Order() {}
 
-    /**
-     * 결제 완료 주문 생성. 초기 상태는 {@link OrderStatus#PAID_APPROVAL_PENDING}.
-     *
-     * @param guestId            비회원 ID (회원이면 null)
-     * @param totalAmount        결제 금액 (원)
-     * @param paidAt             결제 완료 시각
-     * @param approvalDeadlineAt 승인 마감 시각 (= paidAt + 24h)
-     */
-    public Order(Long guestId, long totalAmount, LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
+    private Order(Long userId, Long guestId, String accessToken, long totalAmount,
+                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
+        this.userId = userId;
         this.guestId = guestId;
+        this.accessToken = accessToken;
         this.totalAmount = totalAmount;
         this.paidAt = paidAt;
         this.approvalDeadlineAt = approvalDeadlineAt;
         this.status = OrderStatus.PAID_APPROVAL_PENDING;
     }
 
-    public Order(Long guestId, String accessToken, long totalAmount, LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        this(guestId, totalAmount, paidAt, approvalDeadlineAt);
-        this.accessToken = accessToken;
+    /** 비회원 주문 생성. 초기 상태는 {@link OrderStatus#PAID_APPROVAL_PENDING}. */
+    public static Order forGuest(Long guestId, String accessToken, long totalAmount,
+                                 LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
+        return new Order(null, guestId, accessToken, totalAmount, paidAt, approvalDeadlineAt);
     }
 
-    /**
-     * 회원 주문 생성. guest 대신 user_id를 설정한다.
-     */
-    public static Order forMember(Long userId, long totalAmount, LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        Order order = new Order();
-        order.userId = userId;
-        order.totalAmount = totalAmount;
-        order.paidAt = paidAt;
-        order.approvalDeadlineAt = approvalDeadlineAt;
-        order.status = OrderStatus.PAID_APPROVAL_PENDING;
-        return order;
+    /** 회원 주문 생성. guest 대신 user_id를 설정한다. */
+    public static Order forMember(Long userId, long totalAmount,
+                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
+        return new Order(userId, null, null, totalAmount, paidAt, approvalDeadlineAt);
     }
 
     /**

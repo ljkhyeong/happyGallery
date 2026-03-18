@@ -41,11 +41,11 @@ public final class TestFixtures {
                                   long balanceAmount,
                                   DepositPaymentMethod paymentMethod,
                                   String accessToken) {
-        return new Booking(guest, slot, depositAmount, balanceAmount, paymentMethod, accessToken);
+        return Booking.forGuestDeposit(guest, slot, depositAmount, balanceAmount, paymentMethod, accessToken);
     }
 
     public static PassPurchase passPurchase(Guest guest, LocalDateTime expiresAt, long totalPrice) {
-        return new PassPurchase(guest, expiresAt, totalPrice);
+        return PassPurchase.forGuest(guest, expiresAt, totalPrice);
     }
 
     public static Product readyStockProduct(String name, long price) {

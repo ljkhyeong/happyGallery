@@ -1,16 +1,15 @@
 package com.personal.happygallery.app.web.admin;
 
+import com.personal.happygallery.app.web.admin.dto.LoginRequest;
+import com.personal.happygallery.app.web.admin.dto.LoginResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping({"/api/v1/admin/auth", "/admin/auth"})
@@ -23,20 +22,15 @@ public class AdminLoginController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody @Valid LoginRequest request) {
-        return adminAuthService.login(request.username(), request.password())
-                .map(token -> ResponseEntity.ok(Map.of("token", token)))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("code", "UNAUTHORIZED", "message", "아이디 또는 비밀번호가 올바르지 않습니다.")));
+    public LoginResponse login(@RequestBody @Valid LoginRequest request) {
+        return new LoginResponse(adminAuthService.login(request.username(), request.password()));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             adminAuthService.logout(authHeader.substring(7));
         }
-        return ResponseEntity.noContent().build();
     }
-
-    public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
 }
