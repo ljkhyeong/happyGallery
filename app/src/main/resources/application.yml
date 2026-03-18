@@ -23,6 +23,16 @@ spring:
     locations: classpath:db/migration
   jpa:
     open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  session:
+    store-type: redis
+    timeout: 7d
+    redis:
+      namespace: hg:session
+      flush-mode: on_save
 
 app:
   admin:

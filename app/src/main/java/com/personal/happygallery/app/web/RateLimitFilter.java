@@ -3,29 +3,30 @@ package com.personal.happygallery.app.web;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.ErrorResponse;
 import com.personal.happygallery.config.properties.RateLimitProperties;
-import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
-import io.github.bucket4j.ConsumptionProbe;
-import io.github.bucket4j.Refill;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * Redis 기반 분산 rate limit 필터.
+ *
+ * <p>Redis INCR + EXPIRE 패턴으로 요청 횟수를 카운팅한다.
+ * 다중 인스턴스 환경에서 인스턴스 간 카운터를 공유하므로 정확한 rate limit이 적용된다.
+ *
+ * <p>키 패턴: {@code rate:{RULE_ID}:{clientKey}}, TTL: 규칙의 윈도우 크기.
+ */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class RateLimitFilter extends OncePerRequestFilter {
@@ -35,7 +36,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final String X_FORWARDED_FOR = "X-Forwarded-For";
     private static final String LEGACY_ADMIN_PATH_PREFIX = "/admin/";
     private static final String VERSIONED_ADMIN_PATH_PREFIX = "/api/v1/admin/";
-    private static final long BUCKET_EVICTION_SECONDS = 10 * 60; // 10분 미접근 시 제거
 
     private static final LimitRule PHONE_VERIFICATION_RULE = new LimitRule(
             "PHONE_VERIFICATION", "POST", "/bookings/phone-verifications", "/api/v1/bookings/phone-verifications");
@@ -53,11 +53,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final ObjectMapper objectMapper;
     private final RateLimitProperties properties;
-    private final Map<String, TimestampedBucket> buckets = new ConcurrentHashMap<>();
+    private final StringRedisTemplate redisTemplate;
 
-    public RateLimitFilter(ObjectMapper objectMapper, RateLimitProperties properties) {
+    public RateLimitFilter(ObjectMapper objectMapper,
+                           RateLimitProperties properties,
+                           StringRedisTemplate redisTemplate) {
         this.objectMapper = objectMapper;
         this.properties = properties;
+        this.redisTemplate = redisTemplate;
     }
 
     @Override
@@ -75,18 +78,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String bucketKey = resolved.rule().id() + ":" + resolveClientKey(request);
-        TimestampedBucket tb = buckets.computeIfAbsent(bucketKey,
-                ignored -> new TimestampedBucket(createBucket(resolved.capacity(), resolved.window())));
-        tb.touch();
-        ConsumptionProbe probe = tb.bucket().tryConsumeAndReturnRemaining(1);
+        String bucketKey = "rate:" + resolved.rule().id() + ":" + resolveClientKey(request);
+        long count = increment(bucketKey, resolved.window());
+        long remaining = Math.max(0, resolved.capacity() - count);
 
         response.setHeader("X-RateLimit-Limit", String.valueOf(resolved.capacity()));
-        response.setHeader("X-RateLimit-Remaining", String.valueOf(Math.max(0, probe.getRemainingTokens())));
+        response.setHeader("X-RateLimit-Remaining", String.valueOf(remaining));
 
-        if (!probe.isConsumed()) {
-            long retryAfterSeconds = Math.max(1, TimeUnit.NANOSECONDS.toSeconds(probe.getNanosToWaitForRefill()));
-            response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
+        if (count > resolved.capacity()) {
+            long windowSeconds = resolved.window().toSeconds();
+            response.setHeader("Retry-After", String.valueOf(windowSeconds));
             log.warn("rate limit exceeded [rule={} client={}]", resolved.rule().id(), bucketKey);
             writeTooManyRequests(response);
             return;
@@ -95,11 +96,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /** 5분마다 오래된 bucket 제거 */
-    @Scheduled(fixedRate = 5 * 60 * 1000)
-    void evictStaleBuckets() {
-        Instant cutoff = Instant.now().minusSeconds(BUCKET_EVICTION_SECONDS);
-        buckets.entrySet().removeIf(e -> e.getValue().lastAccessed().isBefore(cutoff));
+    /**
+     * Redis INCR + EXPIRE 패턴으로 카운터를 증가시킨다.
+     * 키가 새로 생성된 경우(count == 1)에만 TTL을 설정해 윈도우를 시작한다.
+     */
+    private long increment(String key, Duration window) {
+        Long count = redisTemplate.opsForValue().increment(key);
+        if (count == null) count = 1L;
+        if (count == 1) {
+            redisTemplate.expire(key, window.toSeconds(), TimeUnit.SECONDS);
+        }
+        return count;
     }
 
     private ResolvedRule resolveRule(HttpServletRequest request) {
@@ -139,11 +146,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return uri.startsWith(LEGACY_ADMIN_PATH_PREFIX) || uri.startsWith(VERSIONED_ADMIN_PATH_PREFIX);
     }
 
-    private Bucket createBucket(long capacity, Duration window) {
-        Bandwidth limit = Bandwidth.classic(capacity, Refill.greedy(capacity, window));
-        return Bucket.builder().addLimit(limit).build();
-    }
-
     String resolveClientKey(HttpServletRequest request) {
         if (!properties.isTrustForwardedHeaders()) {
             String remoteAddr = request.getRemoteAddr();
@@ -173,19 +175,5 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private record ResolvedRule(LimitRule rule, long capacity, Duration window) {
-    }
-
-    private static final class TimestampedBucket {
-        private final Bucket bucket;
-        private volatile Instant lastAccessed;
-
-        TimestampedBucket(Bucket bucket) {
-            this.bucket = bucket;
-            this.lastAccessed = Instant.now();
-        }
-
-        Bucket bucket() { return bucket; }
-        Instant lastAccessed() { return lastAccessed; }
-        void touch() { this.lastAccessed = Instant.now(); }
     }
 }
