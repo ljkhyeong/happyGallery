@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,18 +27,20 @@ public class ProductQnaService {
     private final ProductReaderPort productReader;
     private final UserReaderPort userReader;
     private final Clock clock;
-    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
 
     public ProductQnaService(ProductQnaReaderPort qnaReader,
                              ProductQnaStorePort qnaStore,
                              ProductReaderPort productReader,
                              UserReaderPort userReader,
-                             Clock clock) {
+                             Clock clock,
+                             PasswordEncoder passwordEncoder) {
         this.qnaReader = qnaReader;
         this.qnaStore = qnaStore;
         this.productReader = productReader;
         this.userReader = userReader;
         this.clock = clock;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional

@@ -73,9 +73,9 @@ public class AdminAuthFilter implements Filter {
         }
 
         // 2) X-Admin-Key 폴백 (활성화된 경우에만)
-        if (adminProperties.isEnableApiKeyAuth()) {
+        if (adminProperties.enableApiKeyAuth()) {
             String key = request.getHeader(ADMIN_KEY_HEADER);
-            return adminProperties.getApiKey().equals(key);
+            return adminProperties.apiKey().equals(key);
         }
 
         return false;

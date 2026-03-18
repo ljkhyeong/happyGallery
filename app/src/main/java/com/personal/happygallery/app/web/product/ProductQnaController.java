@@ -2,10 +2,10 @@ package com.personal.happygallery.app.web.product;
 
 import com.personal.happygallery.app.qna.ProductQnaService;
 import com.personal.happygallery.app.qna.ProductQnaService.QnaWithAuthor;
-import com.personal.happygallery.domain.qna.ProductQna;
+import com.personal.happygallery.app.web.product.dto.ProductQnaDetail;
+import com.personal.happygallery.app.web.product.dto.ProductQnaListItem;
+import com.personal.happygallery.app.web.product.dto.VerifyQnaPasswordRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,41 +37,5 @@ public class ProductQnaController {
                                    @RequestBody @Valid VerifyQnaPasswordRequest request) {
         QnaWithAuthor result = qnaService.verifyAndGet(id, request.password());
         return ProductQnaDetail.from(result);
-    }
-
-    // ── DTO ──
-
-    public record ProductQnaListItem(
-            Long id, String title, String authorName, boolean secret,
-            boolean hasReply, LocalDateTime createdAt
-    ) {
-        static ProductQnaListItem from(QnaWithAuthor qa) {
-            ProductQna q = qa.qna();
-            String displayTitle = q.isSecret() ? "[비밀글입니다]" : q.getTitle();
-            return new ProductQnaListItem(
-                    q.getId(), displayTitle, maskName(qa.authorName()),
-                    q.isSecret(), q.hasReply(), q.getCreatedAt());
-        }
-    }
-
-    public record ProductQnaDetail(
-            Long id, Long productId, String title, String content,
-            String replyContent, LocalDateTime repliedAt,
-            boolean secret, String authorName, LocalDateTime createdAt
-    ) {
-        static ProductQnaDetail from(QnaWithAuthor qa) {
-            ProductQna q = qa.qna();
-            return new ProductQnaDetail(
-                    q.getId(), q.getProductId(), q.getTitle(), q.getContent(),
-                    q.getReplyContent(), q.getRepliedAt(),
-                    q.isSecret(), maskName(qa.authorName()), q.getCreatedAt());
-        }
-    }
-
-    public record VerifyQnaPasswordRequest(@NotBlank String password) {}
-
-    private static String maskName(String name) {
-        if (name == null || name.length() <= 1) return "*";
-        return name.charAt(0) + "*".repeat(name.length() - 1);
     }
 }

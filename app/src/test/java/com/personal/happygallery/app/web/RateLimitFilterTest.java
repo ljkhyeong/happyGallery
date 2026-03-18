@@ -85,8 +85,7 @@ class RateLimitFilterTest {
     @DisplayName("trustForwardedHeaders가 false이면 X-Forwarded-For를 무시하고 remoteAddr를 사용한다")
     @Test
     void usesRemoteAddr_whenTrustForwardedHeadersDisabled() throws Exception {
-        RateLimitProperties props = properties(true, 10, 10, 10, 10, 10);
-        props.setTrustForwardedHeaders(false);
+        RateLimitProperties props = properties(true, false, 10, 10, 10, 10, 10);
         RateLimitFilter filter = new RateLimitFilter(objectMapper, props, mockRedis());
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
@@ -99,8 +98,7 @@ class RateLimitFilterTest {
     @DisplayName("trustForwardedHeaders가 true이면 X-Forwarded-For 첫 번째 IP를 사용한다")
     @Test
     void usesForwardedFor_whenTrustForwardedHeadersEnabled() throws Exception {
-        RateLimitProperties props = properties(true, 10, 10, 10, 10, 10);
-        props.setTrustForwardedHeaders(true);
+        RateLimitProperties props = properties(true, true, 10, 10, 10, 10, 10);
         RateLimitFilter filter = new RateLimitFilter(objectMapper, props, mockRedis());
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
@@ -152,22 +150,27 @@ class RateLimitFilterTest {
                                                   long bookingCreatePerMinute,
                                                   long passPurchasePerMinute,
                                                   long adminApiPerMinute) {
-        return properties(enabled, phoneVerificationPerSecond, bookingCreatePerMinute, passPurchasePerMinute, 5, adminApiPerMinute);
+        return properties(enabled, false, phoneVerificationPerSecond, bookingCreatePerMinute,
+                passPurchasePerMinute, 5, adminApiPerMinute);
     }
 
     private static RateLimitProperties properties(boolean enabled,
+                                                  boolean trustForwardedHeaders,
                                                   long phoneVerificationPerSecond,
                                                   long bookingCreatePerMinute,
                                                   long passPurchasePerMinute,
                                                   long adminLoginPerMinute,
                                                   long adminApiPerMinute) {
-        RateLimitProperties properties = new RateLimitProperties();
-        properties.setEnabled(enabled);
-        properties.setPhoneVerificationPerSecond(phoneVerificationPerSecond);
-        properties.setBookingCreatePerMinute(bookingCreatePerMinute);
-        properties.setPassPurchasePerMinute(passPurchasePerMinute);
-        properties.setAdminLoginPerMinute(adminLoginPerMinute);
-        properties.setAdminApiPerMinute(adminApiPerMinute);
-        return properties;
+        return new RateLimitProperties(
+                enabled,
+                trustForwardedHeaders,
+                phoneVerificationPerSecond,
+                bookingCreatePerMinute,
+                passPurchasePerMinute,
+                10,
+                5,
+                adminLoginPerMinute,
+                adminApiPerMinute
+        );
     }
 }

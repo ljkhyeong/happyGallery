@@ -3,11 +3,11 @@ package com.personal.happygallery.app.web.customer;
 import com.personal.happygallery.app.pass.port.in.PassPurchaseUseCase;
 import com.personal.happygallery.app.pass.PassQueryService;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
+import com.personal.happygallery.app.web.customer.dto.MyPassSummary;
+import com.personal.happygallery.app.web.customer.dto.PurchaseMemberPassRequest;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Positive;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -58,18 +58,4 @@ public class MePassController {
     private Long getUserId(HttpServletRequest request) {
         return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
     }
-
-    // ── DTO ──
-
-    public record MyPassSummary(Long passId, LocalDateTime purchasedAt,
-                                 LocalDateTime expiresAt, int totalCredits,
-                                 int remainingCredits, long totalPrice) {
-        static MyPassSummary from(PassPurchase p) {
-            return new MyPassSummary(p.getId(), p.getPurchasedAt(), p.getExpiresAt(),
-                    p.getTotalCredits(), p.getRemainingCredits(), p.getTotalPrice());
-        }
-    }
-
-    public record PurchaseMemberPassRequest(
-            @Positive long totalPrice) {}
 }

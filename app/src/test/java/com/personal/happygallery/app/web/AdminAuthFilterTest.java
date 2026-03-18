@@ -142,17 +142,17 @@ class AdminAuthFilterTest {
     @DisplayName("기본 설정에서 API Key 인증이 비활성화되어 있다")
     @Test
     void defaultProperties_apiKeyAuthDisabled() {
-        AdminProperties defaults = new AdminProperties();
+        AdminProperties defaults = new AdminProperties("", false);
         assertSoftly(softly -> {
-            softly.assertThat(defaults.isEnableApiKeyAuth()).as("enableApiKeyAuth default").isFalse();
-            softly.assertThat(defaults.getApiKey()).as("apiKey default").isEmpty();
+            softly.assertThat(defaults.enableApiKeyAuth()).as("enableApiKeyAuth default").isFalse();
+            softly.assertThat(defaults.apiKey()).as("apiKey default").isEmpty();
         });
     }
 
     @DisplayName("기본 설정으로 admin API에 접근하면 401을 반환한다")
     @Test
     void defaultProperties_adminAccess_returns401() throws Exception {
-        AdminAuthFilter filter = createFilter(new AdminProperties());
+        AdminAuthFilter filter = createFilter(new AdminProperties("", false));
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/bookings");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -216,17 +216,17 @@ class AdminAuthFilterTest {
     @DisplayName("기본 설정에서 API Key 인증이 비활성화되어 있다")
     @Test
     void defaultProperties_apiKeyAuthDisabled() {
-        AdminProperties defaults = new AdminProperties();
+        AdminProperties defaults = new AdminProperties("", false);
         assertSoftly(softly -> {
-            softly.assertThat(defaults.isEnableApiKeyAuth()).as("enableApiKeyAuth default").isFalse();
-            softly.assertThat(defaults.getApiKey()).as("apiKey default").isEmpty();
+            softly.assertThat(defaults.enableApiKeyAuth()).as("enableApiKeyAuth default").isFalse();
+            softly.assertThat(defaults.apiKey()).as("apiKey default").isEmpty();
         });
     }
 
     @DisplayName("기본 설정으로 admin API에 접근하면 401을 반환한다")
     @Test
     void defaultProperties_adminAccess_returns401() throws Exception {
-        AdminAuthFilter filter = createFilter(new AdminProperties());
+        AdminAuthFilter filter = createFilter(new AdminProperties("", false));
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/bookings");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -273,17 +273,17 @@ class AdminAuthFilterTest {
     @DisplayName("기본 설정에서 API Key 인증이 비활성화되어 있다")
     @Test
     void defaultProperties_apiKeyAuthDisabled() {
-        AdminProperties defaults = new AdminProperties();
+        AdminProperties defaults = new AdminProperties("", false);
         assertSoftly(softly -> {
-            softly.assertThat(defaults.isEnableApiKeyAuth()).as("enableApiKeyAuth default").isFalse();
-            softly.assertThat(defaults.getApiKey()).as("apiKey default").isEmpty();
+            softly.assertThat(defaults.enableApiKeyAuth()).as("enableApiKeyAuth default").isFalse();
+            softly.assertThat(defaults.apiKey()).as("apiKey default").isEmpty();
         });
     }
 
     @DisplayName("기본 설정으로 admin API에 접근하면 401을 반환한다")
     @Test
     void defaultProperties_adminAccess_returns401() throws Exception {
-        AdminAuthFilter filter = createFilter(new AdminProperties());
+        AdminAuthFilter filter = createFilter(new AdminProperties("", false));
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/bookings");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -294,9 +294,6 @@ class AdminAuthFilterTest {
     }
 
     private static AdminProperties properties(String apiKey, boolean enableApiKeyAuth) {
-        AdminProperties properties = new AdminProperties();
-        properties.setApiKey(apiKey);
-        properties.setEnableApiKeyAuth(enableApiKeyAuth);
-        return properties;
+        return new AdminProperties(apiKey, enableApiKeyAuth);
     }
 }

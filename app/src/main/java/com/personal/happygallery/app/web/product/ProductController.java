@@ -22,7 +22,7 @@ public class ProductController {
     @GetMapping
     public List<ProductDetailResponse> listProducts() {
         return productQueryService.listActiveProducts().stream()
-                .map(r -> ProductDetailResponse.from(r.product(), r.inventory()))
+                .map(ProductDetailResponse::from)
                 .toList();
     }
 
@@ -30,6 +30,6 @@ public class ProductController {
     @GetMapping("/{id}")
     public ProductDetailResponse getProduct(@PathVariable Long id) {
         ProductQueryService.ProductWithInventory result = productQueryService.getProduct(id);
-        return ProductDetailResponse.from(result.product(), result.inventory());
+        return ProductDetailResponse.from(result);
     }
 }

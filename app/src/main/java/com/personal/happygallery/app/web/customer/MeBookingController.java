@@ -6,13 +6,13 @@ import com.personal.happygallery.app.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.app.booking.MemberBookingService;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.booking.dto.CancelResponse;
+import com.personal.happygallery.app.web.customer.dto.CreateMemberBookingRequest;
+import com.personal.happygallery.app.web.customer.dto.MemberRescheduleRequest;
+import com.personal.happygallery.app.web.customer.dto.MyBookingDetail;
+import com.personal.happygallery.app.web.customer.dto.MyBookingSummary;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -90,39 +90,4 @@ public class MeBookingController {
     private Long getUserId(HttpServletRequest request) {
         return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
     }
-
-    // ── DTO ──
-
-    public record MyBookingSummary(Long bookingId, String status, String className,
-                                    LocalDateTime startAt, LocalDateTime endAt,
-                                    long depositAmount) {
-        static MyBookingSummary from(Booking b) {
-            return new MyBookingSummary(b.getId(), b.getStatus().name(),
-                    b.getBookingClass().getName(),
-                    b.getSlot().getStartAt(), b.getSlot().getEndAt(),
-                    b.getDepositAmount());
-        }
-    }
-
-    public record MyBookingDetail(Long bookingId, Long slotId, String status, String className,
-                                   LocalDateTime startAt, LocalDateTime endAt,
-                                   long depositAmount, long balanceAmount,
-                                   String balanceStatus, boolean passBooking) {
-        static MyBookingDetail from(Booking b) {
-            return new MyBookingDetail(b.getId(), b.getSlot().getId(), b.getStatus().name(),
-                    b.getBookingClass().getName(),
-                    b.getSlot().getStartAt(), b.getSlot().getEndAt(),
-                    b.getDepositAmount(), b.getBalanceAmount(),
-                    b.getBalanceStatus().name(), b.isPassBooking());
-        }
-    }
-
-    public record CreateMemberBookingRequest(
-            @NotNull Long slotId,
-            @Positive(message = "예약금은 0보다 커야 합니다.") Long depositAmount,
-            DepositPaymentMethod paymentMethod,
-            Long passId) {}
-
-    public record MemberRescheduleRequest(
-            @NotNull Long newSlotId) {}
 }

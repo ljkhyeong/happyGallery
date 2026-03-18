@@ -42,22 +42,22 @@ public class CircuitBreakerPaymentProvider implements PaymentProvider {
             @Qualifier("paymentProviderDelegate") PaymentProvider delegate,
             ExternalPaymentProperties properties
     ) {
-        ExternalPaymentProperties.CircuitBreaker cb = properties.getCircuitBreaker();
+        ExternalPaymentProperties.CircuitBreaker cb = properties.circuitBreaker();
         this.delegate = delegate;
-        this.timeoutMillis = properties.getTimeoutMillis();
+        this.timeoutMillis = properties.timeoutMillis();
         this.circuitBreaker = CircuitBreaker.of("paymentProvider", CircuitBreakerConfig.custom()
-                .failureRateThreshold(cb.getFailureRateThreshold())
-                .slidingWindowSize(cb.getSlidingWindowSize())
-                .minimumNumberOfCalls(cb.getMinimumNumberOfCalls())
-                .waitDurationInOpenState(Duration.ofSeconds(cb.getWaitDurationOpenSeconds()))
-                .permittedNumberOfCallsInHalfOpenState(cb.getPermittedCallsInHalfOpenState())
+                .failureRateThreshold(cb.failureRateThreshold())
+                .slidingWindowSize(cb.slidingWindowSize())
+                .minimumNumberOfCalls(cb.minimumNumberOfCalls())
+                .waitDurationInOpenState(Duration.ofSeconds(cb.waitDurationOpenSeconds()))
+                .permittedNumberOfCallsInHalfOpenState(cb.permittedCallsInHalfOpenState())
                 .build());
         this.timeLimiter = TimeLimiter.of(TimeLimiterConfig.custom()
                 .timeoutDuration(Duration.ofMillis(this.timeoutMillis))
                 .cancelRunningFuture(true)
                 .build());
         this.executor = Executors.newFixedThreadPool(
-                Math.max(2, cb.getPermittedCallsInHalfOpenState()),
+                Math.max(2, cb.permittedCallsInHalfOpenState()),
                 runnable -> {
                     Thread thread = new Thread(runnable);
                     thread.setName("payment-timeout-" + THREAD_SEQ.incrementAndGet());

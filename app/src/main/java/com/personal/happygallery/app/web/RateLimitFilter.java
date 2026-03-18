@@ -67,7 +67,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        if (!properties.isEnabled()) {
+        if (!properties.enabled()) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -111,26 +111,26 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private ResolvedRule resolveRule(HttpServletRequest request) {
         if (matches(request, CUSTOMER_LOGIN_RULE)) {
-            return new ResolvedRule(CUSTOMER_LOGIN_RULE, properties.getCustomerLoginPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(CUSTOMER_LOGIN_RULE, properties.customerLoginPerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, CUSTOMER_SIGNUP_RULE)) {
-            return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.getCustomerSignupPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.customerSignupPerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, ADMIN_LOGIN_RULE)) {
-            return new ResolvedRule(ADMIN_LOGIN_RULE, properties.getAdminLoginPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(ADMIN_LOGIN_RULE, properties.adminLoginPerMinute(), Duration.ofMinutes(1));
         }
         String uri = request.getRequestURI();
         if (isAdminPath(uri)) {
-            return new ResolvedRule(ADMIN_API_RULE, properties.getAdminApiPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(ADMIN_API_RULE, properties.adminApiPerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, PHONE_VERIFICATION_RULE)) {
-            return new ResolvedRule(PHONE_VERIFICATION_RULE, properties.getPhoneVerificationPerSecond(), Duration.ofSeconds(1));
+            return new ResolvedRule(PHONE_VERIFICATION_RULE, properties.phoneVerificationPerSecond(), Duration.ofSeconds(1));
         }
         if (matches(request, BOOKING_CREATE_RULE)) {
-            return new ResolvedRule(BOOKING_CREATE_RULE, properties.getBookingCreatePerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(BOOKING_CREATE_RULE, properties.bookingCreatePerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, PASS_PURCHASE_RULE)) {
-            return new ResolvedRule(PASS_PURCHASE_RULE, properties.getPassPurchasePerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(PASS_PURCHASE_RULE, properties.passPurchasePerMinute(), Duration.ofMinutes(1));
         }
         return null;
     }
@@ -147,7 +147,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     String resolveClientKey(HttpServletRequest request) {
-        if (!properties.isTrustForwardedHeaders()) {
+        if (!properties.trustForwardedHeaders()) {
             String remoteAddr = request.getRemoteAddr();
             return remoteAddr == null ? "unknown" : remoteAddr;
         }

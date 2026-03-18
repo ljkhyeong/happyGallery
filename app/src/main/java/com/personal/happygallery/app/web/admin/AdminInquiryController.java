@@ -3,11 +3,11 @@ package com.personal.happygallery.app.web.admin;
 import com.personal.happygallery.app.inquiry.InquiryService;
 import com.personal.happygallery.app.inquiry.InquiryService.InquiryWithUser;
 import com.personal.happygallery.app.web.AdminAuthFilter;
+import com.personal.happygallery.app.web.admin.dto.AdminInquiryResponse;
+import com.personal.happygallery.app.web.admin.dto.InquiryReplyRequest;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,22 +47,4 @@ public class AdminInquiryController {
         String userName = inquiryService.findByIdForAdmin(id).userName();
         return AdminInquiryResponse.from(new InquiryWithUser(inquiry, userName));
     }
-
-    // ── DTO ──
-
-    public record AdminInquiryResponse(
-            Long id, Long userId, String userName,
-            String title, String content,
-            String replyContent, LocalDateTime repliedAt, LocalDateTime createdAt
-    ) {
-        static AdminInquiryResponse from(InquiryWithUser iw) {
-            Inquiry i = iw.inquiry();
-            return new AdminInquiryResponse(
-                    i.getId(), i.getUserId(), iw.userName(),
-                    i.getTitle(), i.getContent(),
-                    i.getReplyContent(), i.getRepliedAt(), i.getCreatedAt());
-        }
-    }
-
-    public record InquiryReplyRequest(@NotBlank String replyContent) {}
 }

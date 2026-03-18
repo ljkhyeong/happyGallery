@@ -46,6 +46,6 @@ public class OrderController {
     public OrderDetailResponse getOrder(@PathVariable Long id,
                                          @RequestHeader("X-Access-Token") String token) {
         OrderQueryService.OrderDetail detail = orderQueryService.getOrderByToken(id, token);
-        return OrderDetailResponse.from(detail.order(), detail.items(), detail.fulfillment());
+        return OrderDetailResponse.from(detail);
     }
 }

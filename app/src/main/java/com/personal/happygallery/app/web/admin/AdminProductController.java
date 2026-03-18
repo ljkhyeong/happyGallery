@@ -33,14 +33,14 @@ public class AdminProductController {
     public ProductResponse register(@RequestBody @Valid CreateProductRequest request) {
         ProductAdminService.RegisterResult result = productAdminService.register(
                 request.name(), request.type(), request.price(), request.quantity());
-        return ProductResponse.from(result.product(), result.inventory());
+        return ProductResponse.from(result);
     }
 
     /** GET /admin/products — ACTIVE 상품 목록 */
     @GetMapping
     public List<ProductResponse> listActive() {
         return productQueryService.listActiveProducts().stream()
-                .map(r -> ProductResponse.from(r.product(), r.inventory()))
+                .map(ProductResponse::from)
                 .toList();
     }
 }

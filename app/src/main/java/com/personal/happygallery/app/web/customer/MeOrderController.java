@@ -3,14 +3,12 @@ package com.personal.happygallery.app.web.customer;
 import com.personal.happygallery.app.order.OrderCreationService;
 import com.personal.happygallery.app.order.OrderQueryService;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
+import com.personal.happygallery.app.web.customer.dto.CreateMemberOrderRequest;
+import com.personal.happygallery.app.web.customer.dto.MyOrderSummary;
 import com.personal.happygallery.app.web.order.dto.OrderDetailResponse;
 import com.personal.happygallery.domain.order.Order;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,8 +43,7 @@ public class MeOrderController {
     @GetMapping("/{id}")
     public OrderDetailResponse myOrder(@PathVariable Long id, HttpServletRequest request) {
         Long userId = getUserId(request);
-        OrderQueryService.OrderDetail detail = orderQueryService.findMyOrder(id, userId);
-        return OrderDetailResponse.from(detail.order(), detail.items(), detail.fulfillment());
+        return OrderDetailResponse.from(orderQueryService.findMyOrder(id, userId));
     }
 
     @PostMapping
@@ -64,21 +61,4 @@ public class MeOrderController {
     private Long getUserId(HttpServletRequest request) {
         return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
     }
-
-    // ── DTO ──
-
-    public record MyOrderSummary(Long orderId, String status, long totalAmount,
-                                  LocalDateTime paidAt, LocalDateTime createdAt) {
-        static MyOrderSummary from(Order o) {
-            return new MyOrderSummary(o.getId(), o.getStatus().name(),
-                    o.getTotalAmount(), o.getPaidAt(), o.getCreatedAt());
-        }
-    }
-
-    public record CreateMemberOrderRequest(
-            @NotEmpty List<OrderItemDto> items) {}
-
-    public record OrderItemDto(
-            @NotNull Long productId,
-            @Min(1) int qty) {}
 }

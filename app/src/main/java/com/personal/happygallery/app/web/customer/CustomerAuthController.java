@@ -2,13 +2,13 @@ package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
+import com.personal.happygallery.app.web.customer.dto.CustomerLoginRequest;
+import com.personal.happygallery.app.web.customer.dto.MeResponse;
+import com.personal.happygallery.app.web.customer.dto.SignupRequest;
 import com.personal.happygallery.domain.user.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,7 +36,7 @@ public class CustomerAuthController {
     }
 
     @PostMapping("/auth/login")
-    public ResponseEntity<MeResponse> login(@RequestBody @Valid LoginRequest request,
+    public ResponseEntity<MeResponse> login(@RequestBody @Valid CustomerLoginRequest request,
                                             HttpServletRequest httpRequest) {
         User user = customerAuth.login(request.email(), request.password());
         httpRequest.getSession(true).setAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR, user.getId());
@@ -62,16 +62,4 @@ public class CustomerAuthController {
         return new MeResponse(user.getId(), user.getEmail(), user.getName(),
                 user.getPhone(), user.isPhoneVerified());
     }
-
-    public record SignupRequest(
-            @NotBlank @Email String email,
-            @NotBlank @Size(min = 8, max = 100) String password,
-            @NotBlank String name,
-            @NotBlank String phone) {}
-
-    public record LoginRequest(
-            @NotBlank @Email String email,
-            @NotBlank String password) {}
-
-    public record MeResponse(Long id, String email, String name, String phone, boolean phoneVerified) {}
 }

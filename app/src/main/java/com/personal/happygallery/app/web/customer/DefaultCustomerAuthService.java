@@ -9,7 +9,6 @@ import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Optional;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,14 +18,16 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
 
     private final UserReaderPort userReader;
     private final UserStorePort userStore;
-    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
     private final Clock clock;
 
     public DefaultCustomerAuthService(UserReaderPort userReader,
                                       UserStorePort userStore,
+                                      PasswordEncoder passwordEncoder,
                                       Clock clock) {
         this.userReader = userReader;
         this.userStore = userStore;
+        this.passwordEncoder = passwordEncoder;
         this.clock = clock;
     }
 
