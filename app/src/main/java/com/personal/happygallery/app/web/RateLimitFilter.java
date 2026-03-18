@@ -9,12 +9,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
@@ -32,6 +34,24 @@ import tools.jackson.databind.ObjectMapper;
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
+
+    /**
+     * INCR + EXPIRE를 원자적으로 실행하는 Lua 스크립트.
+     * 키가 새로 생성된 경우에만 TTL을 설정해 윈도우를 시작한다.
+     */
+    private static final RedisScript<Long> INCREMENT_SCRIPT;
+    static {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptText("""
+                local count = redis.call('INCR', KEYS[1])
+                if count == 1 then
+                    redis.call('EXPIRE', KEYS[1], ARGV[1])
+                end
+                return count
+                """);
+        script.setResultType(Long.class);
+        INCREMENT_SCRIPT = script;
+    }
 
     private static final String X_FORWARDED_FOR = "X-Forwarded-For";
     private static final String LEGACY_ADMIN_PATH_PREFIX = "/admin/";
@@ -97,16 +117,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Redis INCR + EXPIRE 패턴으로 카운터를 증가시킨다.
+     * Lua 스크립트로 INCR + EXPIRE를 원자적으로 실행한다.
      * 키가 새로 생성된 경우(count == 1)에만 TTL을 설정해 윈도우를 시작한다.
      */
     private long increment(String key, Duration window) {
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count == null) count = 1L;
-        if (count == 1) {
-            redisTemplate.expire(key, window.toSeconds(), TimeUnit.SECONDS);
-        }
-        return count;
+        Long count = redisTemplate.execute(
+                INCREMENT_SCRIPT, List.of(key), String.valueOf(window.toSeconds()));
+        return count == null ? 1L : count;
     }
 
     private ResolvedRule resolveRule(HttpServletRequest request) {

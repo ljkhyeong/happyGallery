@@ -1,9 +1,11 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.admin.port.out.AdminSessionPort;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -22,16 +24,18 @@ public class AdminSessionStore implements AdminSessionPort {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
-    public AdminSessionStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+    public AdminSessionStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper, Clock clock) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.clock = clock;
     }
 
     @Override
     public String create(Long adminUserId, String username) {
-        String token = java.util.UUID.randomUUID().toString();
-        AdminSession session = new AdminSession(adminUserId, username, Instant.now());
+        String token = UUID.randomUUID().toString();
+        AdminSession session = new AdminSession(adminUserId, username, Instant.now(clock));
         try {
             String json = objectMapper.writeValueAsString(session);
             redisTemplate.opsForValue().set(KEY_PREFIX + token, json, SESSION_TTL);

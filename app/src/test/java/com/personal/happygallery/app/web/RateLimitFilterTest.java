@@ -1,13 +1,14 @@
 package com.personal.happygallery.app.web;
 
 import com.personal.happygallery.config.properties.RateLimitProperties;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -16,8 +17,7 @@ import tools.jackson.databind.ObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyList;
 
 class RateLimitFilterTest {
 
@@ -111,7 +111,7 @@ class RateLimitFilterTest {
     @DisplayName("로그인 경로는 일반 admin API보다 엄격한 rate limit이 적용된다")
     @Test
     void returns429_whenAdminLoginLimitExceeded() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 10, 10, 10, 1, 100), mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, false, 10, 10, 10, 1, 100), mockRedis());
 
         MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/admin/auth/login");
         first.setRemoteAddr("127.0.0.1");
@@ -130,18 +130,19 @@ class RateLimitFilterTest {
     }
 
     /**
-     * 인메모리 카운터로 Redis INCR 동작을 흉내 내는 mock StringRedisTemplate.
+     * Lua 스크립트 execute를 인메모리 카운터로 흉내 내는 mock StringRedisTemplate.
      * 테스트에서 실제 Redis 없이 rate limit 동작을 검증할 수 있게 한다.
      */
     @SuppressWarnings("unchecked")
     private static StringRedisTemplate mockRedis() {
         ConcurrentHashMap<String, AtomicLong> counters = new ConcurrentHashMap<>();
         StringRedisTemplate mock = Mockito.mock(StringRedisTemplate.class);
-        ValueOperations<String, String> ops = Mockito.mock(ValueOperations.class);
-        Mockito.when(mock.opsForValue()).thenReturn(ops);
-        Mockito.when(ops.increment(anyString()))
-                .thenAnswer(inv -> counters.computeIfAbsent(inv.getArgument(0), k -> new AtomicLong(0)).incrementAndGet());
-        Mockito.doNothing().when(mock).expire(anyString(), anyLong(), any());
+        Mockito.when(mock.execute(any(RedisScript.class), anyList(), any(String.class)))
+                .thenAnswer(inv -> {
+                    List<String> keys = inv.getArgument(1);
+                    String key = keys.getFirst();
+                    return counters.computeIfAbsent(key, k -> new AtomicLong(0)).incrementAndGet();
+                });
         return mock;
     }
 

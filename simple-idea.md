@@ -20,3 +20,5 @@
 | `app.*` 설정이 개별 필드나 문자열 key 수준으로 흩어질 수 있다. | `AdminProperties`, `RateLimitProperties`, `BatchSchedulerProperties`처럼 concern별 `@ConfigurationProperties` 클래스로 묶고 기본값/검증을 같이 둔다. |
 | `PasswordEncoder`가 서비스 4곳에서 `new BCryptPasswordEncoder()`로 직접 생성된다. | `PasswordEncoderConfig`에서 빈으로 등록하고 생성자 주입으로 전환해 strength 설정을 한 곳에 모은다. |
 | `AdminProperties`, `RateLimitProperties`, `BatchSchedulerProperties`가 JavaBeans 바인딩(setter)으로 구현되어 가변 상태를 허용한다. | `record` + `@DefaultValue`로 전환해 불변 객체로 만들고, `@ConfigurationPropertiesScan`으로 등록한다. |
+| 서비스 내부 result record(`ShippingResult`, `ProductionResult`, `PickupResult`)가 도메인 객체 필드를 반복 추출하는 `new Result(order.getId(), order.getStatus(), ...)` 패턴을 사용한다. | `Result.of(order, fulfillment)` 팩토리 메서드로 추출 로직을 record 안에 응집시킨다. (완료) |
+| 일부 컨트롤러(`CustomerAuthController`, `AdminLoginController`, `AdminRefundController`)가 항상 동일 status를 반환하면서 `ResponseEntity`로 감싸고 있다. | 고정 status는 `@ResponseStatus` + DTO/void 직접 반환으로 바꾸고, `ResponseEntity`는 조건부 분기(200/404 등)에만 사용한다. (완료) |

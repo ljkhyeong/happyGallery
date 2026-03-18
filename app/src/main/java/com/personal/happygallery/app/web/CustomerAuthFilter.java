@@ -1,11 +1,11 @@
 package com.personal.happygallery.app.web;
 
 import com.personal.happygallery.app.customer.port.in.CustomerAuthUseCase;
-import jakarta.servlet.Filter;
+import com.personal.happygallery.common.error.ErrorCode;
+import com.personal.happygallery.common.error.ErrorResponse;
+import com.personal.happygallery.config.RedisConfig;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -13,6 +13,8 @@ import java.io.IOException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 회원 인증 필터.
@@ -25,31 +27,31 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 60)
-public class CustomerAuthFilter implements Filter {
+public class CustomerAuthFilter extends OncePerRequestFilter {
 
     public static final String CUSTOMER_USER_ID_ATTR = "customerUserId";
     public static final String CUSTOMER_USER_ATTR = "customerUser";
-    /** Spring Session이 사용하는 쿠키 이름. {@link com.personal.happygallery.config.RedisConfig} 참조. */
-    public static final String COOKIE_NAME = "HG_SESSION";
+    /** Spring Session이 사용하는 쿠키 이름. {@link RedisConfig#COOKIE_NAME} 참조. */
+    public static final String COOKIE_NAME = RedisConfig.COOKIE_NAME;
 
     private static final String ME_PATH = "/api/v1/me";
     private static final String AUTH_PATH_PREFIX = "/api/v1/auth/";
 
     private final CustomerAuthUseCase customerAuth;
+    private final ObjectMapper objectMapper;
 
-    public CustomerAuthFilter(CustomerAuthUseCase customerAuth) {
+    public CustomerAuthFilter(CustomerAuthUseCase customerAuth, ObjectMapper objectMapper) {
         this.customerAuth = customerAuth;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
-        HttpServletRequest httpRequest = (HttpServletRequest) request;
-        HttpServletResponse httpResponse = (HttpServletResponse) response;
+    protected void doFilterInternal(HttpServletRequest httpRequest, HttpServletResponse httpResponse,
+                                    FilterChain chain) throws IOException, ServletException {
         String uri = httpRequest.getRequestURI();
 
         if (uri.startsWith(AUTH_PATH_PREFIX)) {
-            chain.doFilter(request, response);
+            chain.doFilter(httpRequest, httpResponse);
             return;
         }
 
@@ -63,14 +65,16 @@ public class CustomerAuthFilter implements Filter {
 
         if (uri.equals(ME_PATH) || uri.startsWith(ME_PATH + "/")) {
             if (httpRequest.getAttribute(CUSTOMER_USER_ATTR) == null) {
-                httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                httpResponse.setStatus(ErrorCode.UNAUTHORIZED.httpStatus);
                 httpResponse.setContentType("application/json;charset=UTF-8");
-                httpResponse.getWriter().write("{\"code\":\"UNAUTHORIZED\",\"message\":\"로그인이 필요합니다.\"}");
+                httpResponse.getWriter().write(
+                        objectMapper.writeValueAsString(
+                                ErrorResponse.of(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.")));
                 return;
             }
         }
 
-        chain.doFilter(request, response);
+        chain.doFilter(httpRequest, httpResponse);
     }
 
     private Long resolveUserId(HttpServletRequest request) {
