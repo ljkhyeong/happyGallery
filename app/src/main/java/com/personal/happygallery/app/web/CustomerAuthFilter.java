@@ -21,9 +21,6 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>Spring Session이 관리하는 {@link HttpSession}에서 {@code customerUserId}를 읽고,
  * DB에서 {@link com.personal.happygallery.domain.user.User}를 로드해 request attribute에 주입한다.
- *
- * <p>Spring Session의 {@code SessionRepositoryFilter} (order = {@code Integer.MIN_VALUE + 50})보다
- * 뒤에 실행되어야 하므로 order를 {@code HIGHEST_PRECEDENCE + 60}으로 설정한다.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 60)
@@ -31,7 +28,6 @@ public class CustomerAuthFilter extends OncePerRequestFilter {
 
     public static final String CUSTOMER_USER_ID_ATTR = "customerUserId";
     public static final String CUSTOMER_USER_ATTR = "customerUser";
-    /** Spring Session이 사용하는 쿠키 이름. {@link RedisConfig#COOKIE_NAME} 참조. */
     public static final String COOKIE_NAME = RedisConfig.COOKIE_NAME;
 
     private static final String ME_PATH = "/api/v1/me";
@@ -63,15 +59,14 @@ public class CustomerAuthFilter extends OncePerRequestFilter {
             });
         }
 
-        if (uri.equals(ME_PATH) || uri.startsWith(ME_PATH + "/")) {
-            if (httpRequest.getAttribute(CUSTOMER_USER_ATTR) == null) {
-                httpResponse.setStatus(ErrorCode.UNAUTHORIZED.httpStatus);
-                httpResponse.setContentType("application/json;charset=UTF-8");
-                httpResponse.getWriter().write(
-                        objectMapper.writeValueAsString(
-                                ErrorResponse.of(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.")));
-                return;
-            }
+        if ((uri.equals(ME_PATH) || uri.startsWith(ME_PATH + "/"))
+                && httpRequest.getAttribute(CUSTOMER_USER_ATTR) == null) {
+            httpResponse.setStatus(ErrorCode.UNAUTHORIZED.httpStatus);
+            httpResponse.setContentType("application/json;charset=UTF-8");
+            httpResponse.getWriter().write(
+                    objectMapper.writeValueAsString(
+                            ErrorResponse.of(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.")));
+            return;
         }
 
         chain.doFilter(httpRequest, httpResponse);

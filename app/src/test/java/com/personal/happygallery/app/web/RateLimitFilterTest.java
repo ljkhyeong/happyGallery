@@ -129,10 +129,6 @@ class RateLimitFilterTest {
         });
     }
 
-    /**
-     * Lua 스크립트 execute를 인메모리 카운터로 흉내 내는 mock StringRedisTemplate.
-     * 테스트에서 실제 Redis 없이 rate limit 동작을 검증할 수 있게 한다.
-     */
     @SuppressWarnings("unchecked")
     private static StringRedisTemplate mockRedis() {
         ConcurrentHashMap<String, AtomicLong> counters = new ConcurrentHashMap<>();

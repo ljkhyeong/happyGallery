@@ -21,25 +21,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
-/**
- * Redis 기반 분산 rate limit 필터.
- *
- * <p>Redis INCR + EXPIRE 패턴으로 요청 횟수를 카운팅한다.
- * 다중 인스턴스 환경에서 인스턴스 간 카운터를 공유하므로 정확한 rate limit이 적용된다.
- *
- * <p>키 패턴: {@code rate:{RULE_ID}:{clientKey}}, TTL: 규칙의 윈도우 크기.
- */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
 
-    /**
-     * INCR + EXPIRE를 원자적으로 실행하는 Lua 스크립트.
-     * 키가 새로 생성된 경우에만 TTL을 설정해 윈도우를 시작한다.
-     */
     private static final RedisScript<Long> INCREMENT_SCRIPT;
+
     static {
         DefaultRedisScript<Long> script = new DefaultRedisScript<>();
         script.setScriptText("""
@@ -106,8 +95,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setHeader("X-RateLimit-Remaining", String.valueOf(remaining));
 
         if (count > resolved.capacity()) {
-            long windowSeconds = resolved.window().toSeconds();
-            response.setHeader("Retry-After", String.valueOf(windowSeconds));
+            response.setHeader("Retry-After", String.valueOf(resolved.window().toSeconds()));
             log.warn("rate limit exceeded [rule={} client={}]", resolved.rule().id(), bucketKey);
             writeTooManyRequests(response);
             return;
@@ -116,10 +104,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * Lua 스크립트로 INCR + EXPIRE를 원자적으로 실행한다.
-     * 키가 새로 생성된 경우(count == 1)에만 TTL을 설정해 윈도우를 시작한다.
-     */
     private long increment(String key, Duration window) {
         Long count = redisTemplate.execute(
                 INCREMENT_SCRIPT, List.of(key), String.valueOf(window.toSeconds()));

@@ -10,12 +10,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
-/**
- * Redis 기반 관리자 세션 저장소.
- *
- * <p>다중 인스턴스 환경에서 세션을 공유하기 위해 Redis를 사용한다.
- * 키 패턴: {@code admin:session:{token}}, TTL: 8시간.
- */
 @Component
 public class AdminSessionStore implements AdminSessionPort {
 
