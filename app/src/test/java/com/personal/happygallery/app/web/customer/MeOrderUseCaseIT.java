@@ -12,14 +12,15 @@ import com.personal.happygallery.infra.product.InventoryRepository;
 import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.user.UserRepository;
-import com.personal.happygallery.infra.user.UserSessionRepository;
 import com.personal.happygallery.support.UseCaseIT;
+import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -40,8 +41,8 @@ class MeOrderUseCaseIT {
 
     @Autowired WebApplicationContext context;
     @Autowired CustomerAuthFilter customerAuthFilter;
+    @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired UserRepository userRepository;
-    @Autowired UserSessionRepository userSessionRepository;
     @Autowired OrderRepository orderRepository;
     @Autowired OrderItemRepository orderItemRepository;
     @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
@@ -59,7 +60,7 @@ class MeOrderUseCaseIT {
     void setUp() throws Exception {
         cleanup();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(customerAuthFilter)
+                .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
 
         Product product = productRepository.save(readyStockProduct("테스트 상품", 29_000L));
@@ -78,7 +79,6 @@ class MeOrderUseCaseIT {
         clearOrderData(refundRepository, fulfillmentRepository,
                 orderApprovalHistoryRepository, orderItemRepository,
                 orderRepository, inventoryRepository, productRepository);
-        userSessionRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
     }
 

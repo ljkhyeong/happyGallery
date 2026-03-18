@@ -1,11 +1,16 @@
 package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.support.UseCaseIT;
+import jakarta.servlet.Filter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
@@ -15,8 +20,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class CustomerAuthUseCaseIT {
 
-    @Autowired
+    @Autowired WebApplicationContext context;
+    @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
+
     MockMvc mockMvc;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(springSessionRepositoryFilter)
+                .build();
+    }
 
     @DisplayName("회원가입 후 사용자 정보와 세션 쿠키를 받는다")
     @Test
@@ -123,7 +137,23 @@ class CustomerAuthUseCaseIT {
     @DisplayName("로그아웃 후 세션 쿠키가 삭제된다")
     @Test
     void logout_clearsCookie() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/logout"))
+        var signupResult = mockMvc.perform(post("/api/v1/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "logout@example.com",
+                                  "password": "password123",
+                                  "name": "로그아웃",
+                                  "phone": "010-9999-0000"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var sessionCookie = signupResult.getResponse().getCookie("HG_SESSION");
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .cookie(sessionCookie))
                 .andExpect(status().isNoContent())
                 .andExpect(cookie().maxAge("HG_SESSION", 0));
     }

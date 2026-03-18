@@ -5,14 +5,15 @@ import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.infra.user.UserRepository;
-import com.personal.happygallery.infra.user.UserSessionRepository;
 import com.personal.happygallery.support.UseCaseIT;
+import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,8 +31,8 @@ class MePassUseCaseIT {
 
     @Autowired WebApplicationContext context;
     @Autowired CustomerAuthFilter customerAuthFilter;
+    @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired UserRepository userRepository;
-    @Autowired UserSessionRepository userSessionRepository;
     @Autowired PassPurchaseRepository passPurchaseRepository;
     @Autowired PassLedgerRepository passLedgerRepository;
     @MockitoBean NotificationService notificationService;
@@ -43,7 +44,7 @@ class MePassUseCaseIT {
     void setUp() throws Exception {
         cleanup();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(customerAuthFilter)
+                .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
         sessionCookie = signupAndGetSessionCookie("pass@test.com", "010-5555-6666");
     }
@@ -56,7 +57,6 @@ class MePassUseCaseIT {
     private void cleanup() {
         passLedgerRepository.deleteAllInBatch();
         passPurchaseRepository.deleteAllInBatch();
-        userSessionRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
     }
 

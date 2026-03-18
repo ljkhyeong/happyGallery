@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.web.admin;
 
+import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
@@ -11,9 +12,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingData;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
@@ -25,25 +26,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @UseCaseIT
-@AutoConfigureMockMvc(addFilters = true)
-@TestPropertySource(properties = {
-        "app.admin.api-key=dev-admin-key",
-        "app.admin.enable-api-key-auth=true"
-})
 class AdminSlotUseCaseIT {
 
     private static final String ADMIN_KEY = "dev-admin-key";
 
-    @Autowired MockMvc mockMvc;
+    @Autowired WebApplicationContext context;
+    @Autowired AdminAuthFilter adminAuthFilter;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
     @Autowired BookingRepository bookingRepository;
 
+    MockMvc mockMvc;
     Long classId;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(adminAuthFilter)
+                .build();
         clearBookingData(bookingHistoryRepository, bookingRepository, slotRepository, classRepository);
         BookingClass cls = classRepository.save(defaultBookingClass());
         classId = cls.getId();

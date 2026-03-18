@@ -14,15 +14,16 @@ import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.infra.user.UserRepository;
-import com.personal.happygallery.infra.user.UserSessionRepository;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
+import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -45,8 +46,8 @@ class MeBookingUseCaseIT {
 
     @Autowired WebApplicationContext context;
     @Autowired CustomerAuthFilter customerAuthFilter;
+    @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired UserRepository userRepository;
-    @Autowired UserSessionRepository userSessionRepository;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingRepository bookingRepository;
@@ -67,7 +68,7 @@ class MeBookingUseCaseIT {
     void setUp() throws Exception {
         cleanup();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(customerAuthFilter)
+                .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
 
         BookingClass cls = classRepository.save(defaultBookingClass());
@@ -90,7 +91,6 @@ class MeBookingUseCaseIT {
                 bookingHistoryRepository, bookingRepository,
                 passPurchaseRepository, phoneVerificationRepository,
                 guestRepository, slotRepository, classRepository);
-        userSessionRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
     }
 
