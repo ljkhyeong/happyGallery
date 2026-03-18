@@ -179,6 +179,63 @@ class AdminAuthFilterTest {
         return new AdminSessionStore(redis, new ObjectMapper());
     }
 
+    // -----------------------------------------------------------------------
+    // Q1-T6: customer auth 경로는 AdminAuthFilter를 통과한다
+    // -----------------------------------------------------------------------
+
+    @DisplayName("회원 경로(/api/v1/me/)는 인증 없이 AdminAuthFilter를 통과한다")
+    @Test
+    void passes_customerMePath_withoutAuthentication() throws Exception {
+        AdminAuthFilter filter = createFilter(properties("dev-admin-key", true));
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/me/bookings");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @DisplayName("공개 경로(/api/v1/auth/)는 인증 없이 AdminAuthFilter를 통과한다")
+    @Test
+    void passes_publicAuthPath_withoutAuthentication() throws Exception {
+        AdminAuthFilter filter = createFilter(properties("dev-admin-key", true));
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/signup");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    // -----------------------------------------------------------------------
+    // Q1-T7: unsafe default 제거 회귀 테스트
+    // -----------------------------------------------------------------------
+
+    @DisplayName("기본 설정에서 API Key 인증이 비활성화되어 있다")
+    @Test
+    void defaultProperties_apiKeyAuthDisabled() {
+        AdminProperties defaults = new AdminProperties();
+        assertSoftly(softly -> {
+            softly.assertThat(defaults.isEnableApiKeyAuth()).as("enableApiKeyAuth default").isFalse();
+            softly.assertThat(defaults.getApiKey()).as("apiKey default").isEmpty();
+        });
+    }
+
+    @DisplayName("기본 설정으로 admin API에 접근하면 401을 반환한다")
+    @Test
+    void defaultProperties_adminAccess_returns401() throws Exception {
+        AdminAuthFilter filter = createFilter(new AdminProperties());
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/bookings");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
     private static AdminProperties properties(String apiKey, boolean enableApiKeyAuth) {
         AdminProperties properties = new AdminProperties();
         properties.setApiKey(apiKey);

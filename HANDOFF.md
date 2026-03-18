@@ -164,7 +164,6 @@
 - 개발/테스트에서는 `X-Admin-Key` 폴백 가능 (`enable-api-key-auth=true`)
 - 회원 세션은 Spring Session + Redis를 사용하며, 쿠키 이름 `HG_SESSION` 계약은 유지한다. `CustomerAuthController`는 로그인/회원가입 시 세션의 `customerUserId`를 기록하고, `CustomerAuthFilter`는 Spring Session filter 이후 실행되며 세션 사용자 ID로 DB 조회를 수행한다.
 - 관리자 Bearer 세션(`AdminSessionStore`)과 `RateLimitFilter`도 Redis를 사용한다. 로컬 기본 Redis 주소는 `localhost:6379`, docker compose 앱 컨테이너는 `REDIS_HOST=redis`로 연결한다.
-- 현재 세션 저장소는 인메모리 단일 인스턴스 기준이다. 수평 확장 검토 메모는 `docs/Idea/0004_admin-auth-session-scaling/idea.md`에 분리했다.
 - API 에러 응답은 필요 시 `requestId`를 포함하고, 배치 로그도 `batch-*` requestId를 같이 남긴다.
 - 슬롯 생성: 공개 `/classes` API로 클래스 드롭다운 제공 (API 없을 시 ID 직접 입력 폴백)
 - 주문 총액: `OrderItemsForm`에서 상품 가격 × 수량으로 실시간 합계 표시
