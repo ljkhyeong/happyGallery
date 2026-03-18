@@ -25,6 +25,8 @@
   - spec 분리 2차 — core `docs/PRD/0001_spec/spec.md`에서 API 카탈로그/에러 계약을 `docs/PRD/0004_api_contract/spec.md`로, 시스템 경계·상태/스키마 기준과 관리자 인증·런타임 기준을 `ADR-0022`, `ADR-0023`으로 분리
   - PRD 경량화 — `docs/PRD/0001_spec/spec.md`에서 테스트 전략/`SoftAssertions.assertSoftly` 규칙과 관리자 인증 확장 검토를 분리하고, `docs/Idea/0003_*`, `docs/Idea/0004_*` 문서로 이동
   - 문서 체계 재정리 — 활성 실행 계획은 루트 `plan.md`로 통합, 완료된 `docs/1Pager` 실행 계획 문서는 제거, `docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md`를 추가하고 `README.md` 문서 목록을 현재 구조 기준으로 재작성
+  - Redis 기반 세션/레이트리밋 전환 완료 — 회원 세션을 Spring Session + Redis(`HG_SESSION`)로 전환하고 `user_sessions` 의존을 제거했으며, 관리자 Bearer 세션과 `RateLimitFilter`도 Redis 저장소로 옮겨 다중 인스턴스 대응을 맞춤
+  - 통합 테스트 프로필/컨텍스트 정리 완료 — `@UseCaseIT`가 `test` 프로파일을 기본 사용하도록 정리하고, `AdminSlotUseCaseIT`를 포함한 필터 검증 테스트를 수동 `MockMvc` 조립 패턴으로 맞춰 불필요한 컨텍스트 분리를 줄임
   - 운영 관측성 3차 구현 완료 — `docker-compose.yml`에 Prometheus/Grafana 서비스를 추가하고 `monitoring/`에 scrape 설정, alert rule, datasource/provisioning, system/funnel 대시보드를 반영했으며, backend 500 예외와 frontend API 5xx 에러를 Sentry로 캡처하도록 정리
   - 전수점검 5트랙 완료 — 보안 강화(OTP/admin 기본값/actuator), 예약 조회/리마인더 복구(member/claimed 포함), guest token hardening(SHA-256/X-Access-Token), 테스트 커버리지 회복(me API/admin filter/batch), 아키텍처 수렴(product/notification/payment/booking/order 포트 추출, BookingCreationSupport, N+1 수정)
   - 상품 Q&A / 1:1 문의 1차 추가 — `product_qna`, `inquiry` 스키마(V19), 공개 상품 Q&A 조회/비밀글 확인, 회원 Q&A 작성/1:1 문의 작성·조회, 관리자 답변 화면/엔드포인트 추가
@@ -51,7 +53,7 @@
   - U6 rollout / E2E 3차 완료 — Playwright smoke 1~9 통과, guest/member/claim 혼합 시나리오와 guest 성공 화면 -> 회원가입 -> claim 모달 자동 진입까지 정리, 관리자 로그인 토큰 캐시와 고객 세션 쿠키 bootstrap helper 반영, README/P8/U6/PRD/HANDOFF 문서 동기화
   - U5 회원 셀프서비스 1차 — `/my`, `/my/orders/:id`, 회원 주문/예약/8회권 목록 조회, 회원 주문 상세, 회원 예약/8회권 생성과 `/api/v1/me/**` 기반 흐름 확장
   - U4 제출 직전 인증 게이트 + 주문 진입 전환 — `/products/:id` 회원 주문, `/bookings/new`·`/passes/purchase`의 member/guest auth gate 분기, legacy guest 조회 경로와 공존
-  - U1 고객 인증 기반 — `User`/`UserSession` 엔티티, `CustomerAuthUseCase(DefaultCustomerAuthService)` + `CustomerAuthFilter`(HttpOnly 쿠키 `HG_SESSION`), `/api/v1/auth/{signup,login,logout}` + `GET /api/v1/me`, 프론트 `LoginPage`/`SignupPage`/Layout 로그인 상태 표시, V14 migration, rate limit(customer-login 10/min, customer-signup 5/min)
+  - U1 고객 인증 기반 — `User` 엔티티, `CustomerAuthUseCase(DefaultCustomerAuthService)` + `CustomerAuthFilter`(Spring Session + Redis 기반 `HG_SESSION`), `/api/v1/auth/{signup,login,logout}` + `GET /api/v1/me`, 프론트 `LoginPage`/`SignupPage`/Layout 로그인 상태 표시, V14 migration, rate limit(customer-login 10/min, customer-signup 5/min)
   - CR-P7 배송 흐름 및 운영 이력 확장 — 배송 전이 API 3종 (prepare-shipping, mark-shipped, mark-delivered), 주문 이력 조회 API, expectedShipDate write guard, 프론트 배송 액션/이력 패널, spec/plan/HANDOFF 문서 동기화
   - CR-P6 계약/감사/무결성 후속 — fulfillment.status FE 정합, admin principal 세션 전환, fulfillments.order_id unique, convertToPickup stale 데이터 제거, resume-production HTTP test, 프론트 중복 정리, README/PRD/ADR/E2E 문서 정합화
   - 문서 정합화 — spec.md, ADR-0013, ADR-0014 상태명·Fulfillment 구조 반영
@@ -160,6 +162,8 @@
 - `P8-9`는 guest 주문 성공 화면에서 회원가입으로 넘어가 휴대폰/이름 prefill과 `/my` claim 모달 자동 오픈을 검증한다.
 - 기본 관리자 계정: `admin` / `admin1234` (Flyway V11로 정합화)
 - 개발/테스트에서는 `X-Admin-Key` 폴백 가능 (`enable-api-key-auth=true`)
+- 회원 세션은 Spring Session + Redis를 사용하며, 쿠키 이름 `HG_SESSION` 계약은 유지한다. `CustomerAuthController`는 로그인/회원가입 시 세션의 `customerUserId`를 기록하고, `CustomerAuthFilter`는 Spring Session filter 이후 실행되며 세션 사용자 ID로 DB 조회를 수행한다.
+- 관리자 Bearer 세션(`AdminSessionStore`)과 `RateLimitFilter`도 Redis를 사용한다. 로컬 기본 Redis 주소는 `localhost:6379`, docker compose 앱 컨테이너는 `REDIS_HOST=redis`로 연결한다.
 - 현재 세션 저장소는 인메모리 단일 인스턴스 기준이다. 수평 확장 검토 메모는 `docs/Idea/0004_admin-auth-session-scaling/idea.md`에 분리했다.
 - API 에러 응답은 필요 시 `requestId`를 포함하고, 배치 로그도 `batch-*` requestId를 같이 남긴다.
 - 슬롯 생성: 공개 `/classes` API로 클래스 드롭다운 제공 (API 없을 시 ID 직접 입력 폴백)
@@ -168,6 +172,7 @@
 
 ### 로컬 실행 메모
 - `local` 프로필 `:app:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
+- 로컬 부팅이나 `docker compose up -d` 전에 Redis(`localhost:6379`)가 필요하다. compose에는 `redis` 서비스가 추가되어 있고, 통합 테스트는 Testcontainers Redis를 함께 기동한다.
 - `local` 프로필에서 `http://localhost:8080/actuator/prometheus` 로 JVM/HTTP 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 함께 노출한다.
 - `docker compose up -d prometheus grafana` 로 로컬 관측성 스택을 따로 띄울 수 있고, 포트는 각각 `9090`, `3001`이다.
 - Sentry는 backend `SENTRY_DSN/SENTRY_ENVIRONMENT/SENTRY_RELEASE`, frontend `VITE_SENTRY_DSN/VITE_SENTRY_ENVIRONMENT/VITE_SENTRY_RELEASE` 환경 변수를 사용한다.
