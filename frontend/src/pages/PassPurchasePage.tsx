@@ -1,14 +1,11 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Form, Row, Col, Button } from "react-bootstrap";
-import { PassSuccessCard } from "@/features/pass/PassSuccessCard";
-import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { purchasePassByPhone } from "@/features/pass/api";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { api } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
-import type { PurchasePassResponse } from "@/shared/types";
 
 interface MemberPassResponse {
   passId: number;
@@ -24,26 +21,7 @@ export function PassPurchasePage() {
   const { isAuthenticated } = useCustomerAuth();
 
   const [totalPrice, setTotalPrice] = useState("");
-  const [showGate, setShowGate] = useState(false);
-  const [guestResult, setGuestResult] = useState<PurchasePassResponse | null>(null);
   const [memberDone, setMemberDone] = useState(false);
-  const [guestPhone, setGuestPhone] = useState("");
-  const [guestName, setGuestName] = useState("");
-
-  const guestMutation = useMutation({
-    mutationFn: (info: { phone: string; verificationCode: string; name: string }) =>
-      purchasePassByPhone({
-        phone: info.phone,
-        verificationCode: info.verificationCode,
-        name: info.name,
-        totalPrice: Number(totalPrice) || 0,
-      }),
-    onSuccess: (result) => {
-      toast.show("8회권이 구매되었습니다!");
-      setGuestResult(result);
-      setShowGate(false);
-    },
-  });
 
   const memberMutation = useMutation({
     mutationFn: () =>
@@ -54,20 +32,12 @@ export function PassPurchasePage() {
     onSuccess: () => {
       toast.show("8회권이 구매되었습니다!");
       setMemberDone(true);
-      setShowGate(false);
     },
   });
 
   const priceValid = totalPrice === "" || Number(totalPrice) >= 0;
 
-  if (guestResult) {
-    return (
-        <Container className="page-container" style={{ maxWidth: 540 }}>
-          <h4 className="mb-4">구매 완료</h4>
-        <PassSuccessCard pass={guestResult} guestPhone={guestPhone} guestName={guestName} />
-        </Container>
-      );
-  }
+  const loginHref = buildAuthPageHref("/login", { redirectTo: "/passes/purchase" });
 
   if (memberDone) {
     return (
@@ -121,34 +91,26 @@ export function PassPurchasePage() {
         </Card.Body>
       </Card>
 
-      <ErrorAlert error={guestMutation.error ?? memberMutation.error} />
+      <ErrorAlert error={memberMutation.error} />
 
-      <Button
-        variant="primary" size="lg" className="w-100"
-        disabled={!priceValid || guestMutation.isPending || memberMutation.isPending}
-        onClick={() => {
-          if (isAuthenticated) {
-            memberMutation.mutate();
-          } else {
-            setShowGate(true);
-          }
-        }}
-      >
-        {guestMutation.isPending || memberMutation.isPending
-          ? "구매 처리 중..."
-          : `8회권 구매${totalPrice ? ` (${formatKRW(Number(totalPrice))})` : ""}`}
-      </Button>
-
-      <AuthGateModal
-        show={showGate}
-        onClose={() => setShowGate(false)}
-        onMemberConfirm={() => memberMutation.mutate()}
-        onGuestConfirm={(info) => {
-          setGuestPhone(info.phone);
-          setGuestName(info.name);
-          guestMutation.mutate(info);
-        }}
-      />
+      {isAuthenticated ? (
+        <Button
+          variant="primary" size="lg" className="w-100"
+          disabled={!priceValid || memberMutation.isPending}
+          onClick={() => memberMutation.mutate()}
+        >
+          {memberMutation.isPending
+            ? "구매 처리 중..."
+            : `8회권 구매${totalPrice ? ` (${formatKRW(Number(totalPrice))})` : ""}`}
+        </Button>
+      ) : (
+        <Button
+          as={"a" as any} href={loginHref}
+          variant="primary" size="lg" className="w-100"
+        >
+          로그인 후 구매하기
+        </Button>
+      )}
     </Container>
   );
 }

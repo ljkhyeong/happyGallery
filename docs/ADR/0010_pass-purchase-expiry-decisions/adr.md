@@ -102,4 +102,15 @@
 ## 미해결 과제
 
 - `/admin/**` 인증 미적용 → §11
-- `POST /passes/guest` — 현재 `guestId` 직접 수신. 실제 서비스에서는 인증(JWT/세션) 또는 전화 인증 후 guestId 발급 흐름 필요
+- ~~`POST /passes/guest` — 현재 `guestId` 직접 수신. 실제 서비스에서는 인증(JWT/세션) 또는 전화 인증 후 guestId 발급 흐름 필요~~ → 아래 Update 참조
+
+---
+
+## Update (2026-03-19)
+
+8회권 구매를 회원 전용으로 전환했다 (Idea-0018).
+
+- guest 구매 엔드포인트 제거: `POST /passes/guest`, `POST /passes/purchase`
+- 회원 구매 엔드포인트로 단일화: `POST /api/v1/me/passes`
+- 신규 guest 구매 진입점은 제거
+- 기존 비회원 8회권 데이터와 claim 흐름은 유지
