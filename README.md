@@ -53,7 +53,7 @@
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| `ADR-0001` ~ `ADR-0024` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
+| `ADR-0001` ~ `ADR-0025` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
 
 ### 💡 Idea
 
@@ -64,10 +64,15 @@
 | [테스트 전략 및 assertion 작성 규칙](docs/Idea/0003_test-strategy-and-assertion-guidelines/idea.md) | `docs/Idea/0003_test-strategy-and-assertion-guidelines/` | PRD에서 분리한 테스트 철학, 최소 세트, `SoftAssertions.assertSoftly` 규칙 |
 | [관리자 인증 세션 확장 검토](docs/Idea/0004_admin-auth-session-scaling/idea.md) | `docs/Idea/0004_admin-auth-session-scaling/` | 인메모리 관리자 세션의 수평 확장 시 대안 비교 메모 |
 | [Guest Token Signed Expiry 전환](docs/Idea/0005_guest-token-signed-expiry/idea.md) | `docs/Idea/0005_guest-token-signed-expiry/` | guest access token의 만료·서명 방식 후속 개선 메모 |
+| [local/dev 지원 기능 경계](docs/Idea/0009_local-dev-support-boundary/idea.md) | `docs/Idea/0009_local-dev-support-boundary/` | local 전용 seed/dev hook/지원 API의 경계와 운영 규율을 정리한 메모 |
 | [ConfigurationProperties 기반 설정 바인딩 정리](docs/Idea/0010_configuration-properties-binding-guideline/idea.md) | `docs/Idea/0010_configuration-properties-binding-guideline/` | 이미 적용된 설정 바인딩 패턴과 이후 확장 기준 메모 |
 | [OAuth 로그인 도입 검토](docs/Idea/0011_oauth-login-adoption-consideration/idea.md) | `docs/Idea/0011_oauth-login-adoption-consideration/` | 기존 이메일 회원, guest claim, 전화번호 인증 흐름과의 연결 정책 검토 메모 |
 | [폼 접근성 향상 가이드](docs/Idea/0012_form-accessibility-guideline/idea.md) | `docs/Idea/0012_form-accessibility-guideline/` | `controlId` 기반 라벨-입력 연결과 이후 폼 접근성 유지 기준 메모 |
 | [회원 세션의 Spring Session 전환](docs/Idea/0013_member-session-spring-session-consideration/idea.md) | `docs/Idea/0013_member-session-spring-session-consideration/` | `HG_SESSION` 계약을 유지한 채 Spring Session + Redis로 전환한 배경과 적용 메모 |
+| [테스트 컨텍스트 공유와 프로파일 분리](docs/Idea/0014_test-context-sharing-and-profile-separation/idea.md) | `docs/Idea/0014_test-context-sharing-and-profile-separation/` | Spring Boot 4.0 테스트 컨텍스트 비용과 `test` 프로파일 정렬 기준 메모 |
+| [Redis 도입 — 다중 인스턴스 대응](docs/Idea/0015_redis-introduction-for-multi-instance/idea.md) | `docs/Idea/0015_redis-introduction-for-multi-instance/` | 회원 세션, 관리자 세션, rate limit의 Redis 전환 배경과 적용 메모 |
+| [금액 타입 도입 검토](docs/Idea/0016_money-type-adoption-consideration/idea.md) | `docs/Idea/0016_money-type-adoption-consideration/` | 현재 `long` 기반 금액 표현을 유지할지 별도 Money 타입을 둘지 검토한 메모 |
+| [Spring Batch 마이그레이션 검토](docs/Idea/0017_spring-batch-migration-consideration/idea.md) | `docs/Idea/0017_spring-batch-migration-consideration/` | 현재 커스텀 배치를 유지할 이유와 Spring Batch 재검토 조건을 정리한 메모 |
 
 ### 🧪 POC
 
