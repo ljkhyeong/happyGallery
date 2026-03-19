@@ -53,7 +53,7 @@
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| `ADR-0001` ~ `ADR-0024` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
+| `ADR-0001` ~ `ADR-0025` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
 
 ### 💡 Idea
 
@@ -64,10 +64,15 @@
 | [테스트 전략 및 assertion 작성 규칙](docs/Idea/0003_test-strategy-and-assertion-guidelines/idea.md) | `docs/Idea/0003_test-strategy-and-assertion-guidelines/` | PRD에서 분리한 테스트 철학, 최소 세트, `SoftAssertions.assertSoftly` 규칙 |
 | [관리자 인증 세션 확장 검토](docs/Idea/0004_admin-auth-session-scaling/idea.md) | `docs/Idea/0004_admin-auth-session-scaling/` | 인메모리 관리자 세션의 수평 확장 시 대안 비교 메모 |
 | [Guest Token Signed Expiry 전환](docs/Idea/0005_guest-token-signed-expiry/idea.md) | `docs/Idea/0005_guest-token-signed-expiry/` | guest access token의 만료·서명 방식 후속 개선 메모 |
+| [local/dev 지원 기능 경계](docs/Idea/0009_local-dev-support-boundary/idea.md) | `docs/Idea/0009_local-dev-support-boundary/` | local 전용 seed/dev hook/지원 API의 경계와 운영 규율을 정리한 메모 |
 | [ConfigurationProperties 기반 설정 바인딩 정리](docs/Idea/0010_configuration-properties-binding-guideline/idea.md) | `docs/Idea/0010_configuration-properties-binding-guideline/` | 이미 적용된 설정 바인딩 패턴과 이후 확장 기준 메모 |
 | [OAuth 로그인 도입 검토](docs/Idea/0011_oauth-login-adoption-consideration/idea.md) | `docs/Idea/0011_oauth-login-adoption-consideration/` | 기존 이메일 회원, guest claim, 전화번호 인증 흐름과의 연결 정책 검토 메모 |
 | [폼 접근성 향상 가이드](docs/Idea/0012_form-accessibility-guideline/idea.md) | `docs/Idea/0012_form-accessibility-guideline/` | `controlId` 기반 라벨-입력 연결과 이후 폼 접근성 유지 기준 메모 |
 | [회원 세션의 Spring Session 전환](docs/Idea/0013_member-session-spring-session-consideration/idea.md) | `docs/Idea/0013_member-session-spring-session-consideration/` | `HG_SESSION` 계약을 유지한 채 Spring Session + Redis로 전환한 배경과 적용 메모 |
+| [테스트 컨텍스트 공유와 프로파일 분리](docs/Idea/0014_test-context-sharing-and-profile-separation/idea.md) | `docs/Idea/0014_test-context-sharing-and-profile-separation/` | Spring Boot 4.0 테스트 컨텍스트 비용과 `test` 프로파일 정렬 기준 메모 |
+| [Redis 도입 — 다중 인스턴스 대응](docs/Idea/0015_redis-introduction-for-multi-instance/idea.md) | `docs/Idea/0015_redis-introduction-for-multi-instance/` | 회원 세션, 관리자 세션, rate limit의 Redis 전환 배경과 적용 메모 |
+| [금액 타입 도입 검토](docs/Idea/0016_money-type-adoption-consideration/idea.md) | `docs/Idea/0016_money-type-adoption-consideration/` | 현재 `long` 기반 금액 표현을 유지할지 별도 Money 타입을 둘지 검토한 메모 |
+| [Spring Batch 마이그레이션 검토](docs/Idea/0017_spring-batch-migration-consideration/idea.md) | `docs/Idea/0017_spring-batch-migration-consideration/` | 현재 커스텀 배치를 유지할 이유와 Spring Batch 재검토 조건을 정리한 메모 |
 
 ### 🧪 POC
 
@@ -255,12 +260,15 @@ E2E 참고:
 - Playwright는 `frontend/playwright.config.ts` 기준으로 동작한다.
 - Vite dev server는 Playwright가 직접 띄우거나 기존 `localhost:3000`을 재사용한다.
 - 백엔드는 별도로 `http://localhost:8080`에서 실행 중이어야 한다.
+- smoke spec은 사용자 여정 기준으로 분리되어 있다.
+- 현재 파일 구성은 `admin-product-order.smoke.spec.ts`, `guest-booking-pass.smoke.spec.ts`, `member-self-service.smoke.spec.ts`, `guest-claim-onboarding.smoke.spec.ts`다.
+- 시나리오 번호(`P8-1`~`P8-9`)는 유지하므로 기존 `--grep "P8-8"` 같은 실행 방식은 그대로 사용할 수 있다.
 - 관리자 보조 API 호출은 `POST /api/v1/admin/auth/login`으로 얻은 Bearer 토큰을 사용한다.
 - 로컬 `bootRun`은 `classes` 테이블이 비어 있으면 기본 클래스를 자동 생성하므로 clean DB에서도 예약/8회권 시나리오를 바로 돌릴 수 있다.
 - 시나리오 5(`환불 실패 -> 재시도`)는 local 전용 dev hook(`/api/v1/admin/dev/payment/refunds/fail-next`)으로 자동화되어 있고, 필요하면 요청 바디에 `orderId`를 넣어 특정 주문으로 범위를 좁힐 수 있다.
 - Playwright 관리자 로그인 기본값은 `admin` / `admin1234`이며, 필요하면 `PLAYWRIGHT_ADMIN_USERNAME`, `PLAYWRIGHT_ADMIN_PASSWORD`로 덮어쓴다.
 - 백엔드 기준 URL을 바꾸려면 `PLAYWRIGHT_BACKEND_URL`을 사용한다.
-- 현재 smoke 범위는 guest/admin 1~5와 member storefront/claim/onboarding 6~9이며, `P8-7`은 회원 예약 상세/변경/취소, `P8-8`은 guest claim, `P8-9`는 guest 성공 화면에서 회원가입 후 claim 모달 자동 진입까지 포함한다.
+- 현재 smoke 범위는 admin/order 1·4·5, guest booking/pass 2·3, member self-service 6·7, guest claim/onboarding 8·9이며, `P8-7`은 회원 예약 상세/변경/취소, `P8-8`은 guest claim, `P8-9`는 guest 성공 화면에서 회원가입 후 claim 모달 자동 진입까지 포함한다.
 - `/bookings/new`, `/passes/purchase`는 첫 화면에서 인증하지 않고 제출 직전에 auth gate를 연다.
 - 상품 상세의 `비회원 주문하기`는 `/orders/new?productId=&qty=`로 이동해 선택한 상품과 수량을 prefill 한다.
 - 비회원 진입 허브는 `/guest`이고, canonical guest 조회 경로는 `/guest/orders`, `/guest/bookings`이며 생성 후 확인용 보조 경로로 유지한다.

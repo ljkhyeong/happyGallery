@@ -61,14 +61,14 @@ public class PassPurchase {
         this.totalPrice = totalPrice;
     }
 
-    /** 게스트 8회권 구매 생성. expiresAt = purchased_at + 90일. */
-    public static PassPurchase forGuest(Guest guest, LocalDateTime expiresAt, long totalPrice) {
-        return new PassPurchase(guest, null, expiresAt, totalPrice);
-    }
-
     /** 회원 8회권 구매 생성. */
     public static PassPurchase forMember(Long userId, LocalDateTime expiresAt, long totalPrice) {
         return new PassPurchase(null, userId, expiresAt, totalPrice);
+    }
+
+    /** 기존 비회원 8회권 데이터 및 claim/테스트 생성을 위한 guest 소유 pass 생성. */
+    public static PassPurchase forGuest(Guest guest, LocalDateTime expiresAt, long totalPrice) {
+        return new PassPurchase(guest, null, expiresAt, totalPrice);
     }
 
     /**

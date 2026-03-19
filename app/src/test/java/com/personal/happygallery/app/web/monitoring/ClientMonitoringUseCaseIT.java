@@ -1,13 +1,19 @@
 package com.personal.happygallery.app.web.monitoring;
 
+import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.support.UseCaseIT;
+import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -15,8 +21,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class ClientMonitoringUseCaseIT {
 
-    @Autowired
+    @Autowired WebApplicationContext context;
+    @Autowired CustomerAuthFilter customerAuthFilter;
+    @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
+
     MockMvc mockMvc;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(springSessionRepositoryFilter, customerAuthFilter)
+                .build();
+    }
 
     @DisplayName("비회원도 client monitoring 이벤트를 전송할 수 있다")
     @Test
