@@ -454,66 +454,14 @@ X-Access-Token: {accessToken}
 
 ### 2.5 8회권 API
 
-#### 2.5.1 게스트 8회권 구매
+#### ~~2.5.1 게스트 8회권 구매~~ (2026-03-19 제거)
 
-```http
-POST /api/v1/passes/guest
+> 8회권 구매는 회원 전용으로 전환됨. `POST /api/v1/me/passes` 참조.
+> 기존 비회원 8회권은 guest claim으로 회원에게 이전 가능.
 
-{
-  "guestId": 1,
-  "totalPrice": 320000
-}
-```
+#### ~~2.5.2 휴대폰 인증 기반 8회권 구매~~ (2026-03-19 제거)
 
-```json
-{
-  "passId": 7,
-  "guestId": 1,
-  "expiresAt": "2026-05-28T23:59:59",
-  "totalCredits": 8,
-  "remainingCredits": 8,
-  "totalPrice": 320000
-}
-```
-
-- 성공: `201 Created`
-- 에러:
-  - `404 NOT_FOUND` — guestId 미존재
-- 정책:
-  - 만료일 = 구매일 기준 90일 후 Asia/Seoul 자정
-  - `EARN` ledger(+8) 자동 기록
-
-#### 2.5.2 휴대폰 인증 기반 8회권 구매
-
-```http
-POST /api/v1/passes/purchase
-
-{
-  "phone": "01012345678",
-  "verificationCode": "483921",
-  "name": "홍길동",
-  "totalPrice": 320000
-}
-```
-
-```json
-{
-  "passId": 8,
-  "guestId": 1,
-  "expiresAt": "2026-05-28T23:59:59",
-  "totalCredits": 8,
-  "remainingCredits": 8,
-  "totalPrice": 320000
-}
-```
-
-- 성공: `201 Created`
-- 에러:
-  - `400 PHONE_VERIFICATION_FAILED` — 인증 코드 불일치 또는 만료
-- 정책:
-  - 전화번호 기준으로 Guest를 조회하고 없으면 생성한다.
-  - 인증 성공 시 `Guest.phoneVerified`를 `true`로 갱신한다.
-  - `EARN` ledger(+8) 자동 기록
+> 상동. 회원 8회권 구매는 `POST /api/v1/me/passes`로 단일화.
 
 #### 2.5.3 결석 처리
 

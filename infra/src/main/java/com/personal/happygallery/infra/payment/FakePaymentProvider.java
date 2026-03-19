@@ -1,6 +1,7 @@
 package com.personal.happygallery.infra.payment;
 
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -9,8 +10,28 @@ import org.springframework.stereotype.Component;
 @Component("paymentProviderDelegate")
 public class FakePaymentProvider implements PaymentProvider {
 
+    private LocalRefundFailureScript localRefundFailureScript;
+
+    public FakePaymentProvider() {
+    }
+
+    FakePaymentProvider(LocalRefundFailureScript localRefundFailureScript) {
+        this.localRefundFailureScript = localRefundFailureScript;
+    }
+
+    @Autowired(required = false)
+    void setLocalRefundFailureScript(LocalRefundFailureScript localRefundFailureScript) {
+        this.localRefundFailureScript = localRefundFailureScript;
+    }
+
     @Override
     public RefundResult refund(String pgRef, long amount) {
+        if (localRefundFailureScript != null) {
+            var reason = localRefundFailureScript.consumeNextFailureReason();
+            if (reason.isPresent()) {
+                return RefundResult.failure(reason.get());
+            }
+        }
         return RefundResult.success("FAKE-REFUND-" + UUID.randomUUID());
     }
 }

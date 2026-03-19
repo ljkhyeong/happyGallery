@@ -1,10 +1,11 @@
 package com.personal.happygallery.app.pass;
 
-import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.pass.port.in.PassPurchaseUseCase;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
 import com.personal.happygallery.infra.booking.ClassRepository;
@@ -14,13 +15,13 @@ import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
+import com.personal.happygallery.infra.user.UserRepository;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassAndRefundData;
@@ -39,7 +40,9 @@ class PassPurchaseUseCaseIT {
     @Autowired PassPurchaseRepository passPurchaseRepository;
     @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired DefaultPassExpiryBatchService passExpiryBatchService;
+    @Autowired PassPurchaseUseCase passPurchaseUseCase;
     @Autowired GuestRepository guestRepository;
+    @Autowired UserRepository userRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
     @Autowired RefundRepository refundRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
@@ -69,26 +72,19 @@ class PassPurchaseUseCaseIT {
     // Proof: 구매 성공 → remaining=8, EARN ledger 1건 생성
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권 구매 성공 시 잔여 크레딧 8과 EARN 원장이 생성된다")
+    @DisplayName("회원 8회권 구매 성공 시 잔여 크레딧 8과 EARN 원장이 생성된다")
     @Test
-    void purchase_success_remainingCredits8_earnLedgerCreated() throws Exception {
-        String resp = mockMvc.perform(post("/passes/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "guestId": %d }
-                                """.formatted(guest.getId())))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.passId").isNumber())
-                .andExpect(jsonPath("$.guestId").value(guest.getId()))
-                .andExpect(jsonPath("$.totalCredits").value(8))
-                .andExpect(jsonPath("$.remainingCredits").value(8))
-                .andReturn().getResponse().getContentAsString();
-
-        Long passId = ((Number) JsonPath.read(resp, "$.passId")).longValue();
+    void purchase_success_remainingCredits8_earnLedgerCreated() {
+        User user = userRepository.save(new User("pass@example.com", "hashed-password", "회원", "01012345678"));
+        PassPurchase purchased = passPurchaseUseCase.purchaseForMember(user.getId(), 120_000L);
+        Long passId = purchased.getId();
 
         // Proof: EARN ledger 1건, amount=8
         var ledgers = passLedgerRepository.findByPassPurchaseId(passId);
         assertSoftly(softly -> {
+            softly.assertThat(purchased.getUserId()).isEqualTo(user.getId());
+            softly.assertThat(purchased.getGuest()).isNull();
+            softly.assertThat(purchased.getRemainingCredits()).isEqualTo(8);
             softly.assertThat(ledgers).hasSize(1);
             softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.EARN);
             softly.assertThat(ledgers.get(0).getAmount()).isEqualTo(8);
@@ -180,13 +176,19 @@ class PassPurchaseUseCaseIT {
     // Proof: 존재하지 않는 guestId → 404
     // -----------------------------------------------------------------------
 
-    @DisplayName("존재하지 않는 게스트가 8회권 구매를 요청하면 404를 반환한다")
+    @DisplayName("만료 임박 조회는 회원/비회원 소유 8회권을 모두 포함한다")
     @Test
-    void purchase_unknownGuest_returns404() throws Exception {
-        mockMvc.perform(post("/passes/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"guestId\": 99999 }"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    void notification_query_includesMemberAndGuestOwnedPass() {
+        User member = userRepository.save(new User("member@example.com", "hashed-password", "회원", "01011112222"));
+        PassPurchase memberPass = passPurchaseRepository.save(
+                PassPurchase.forMember(member.getId(), LocalDateTime.now().plusDays(7), 120_000L));
+        PassPurchase guestPass = passPurchaseRepository.save(
+                passPurchase(guest, LocalDateTime.now().plusDays(7), 120_000L));
+
+        var expiring = passExpiryBatchService.findExpiringWithin7Days();
+
+        assertThat(expiring)
+                .extracting(PassPurchase::getId)
+                .contains(memberPass.getId(), guestPass.getId());
     }
 }

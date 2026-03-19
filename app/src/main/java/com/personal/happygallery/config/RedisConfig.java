@@ -2,9 +2,15 @@ package com.personal.happygallery.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.session.FlushMode;
+import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 import org.springframework.session.web.http.DefaultCookieSerializer;
 
 @Configuration
+@EnableRedisHttpSession(
+        maxInactiveIntervalInSeconds = 7 * 24 * 60 * 60,
+        redisNamespace = "hg:session",
+        flushMode = FlushMode.ON_SAVE)
 public class RedisConfig {
 
     public static final String COOKIE_NAME = "HG_SESSION";

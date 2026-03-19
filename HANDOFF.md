@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-17 (문서 체계 재정리, 루트 plan 전환, 회원 스토어 전환/운영 관측성 3차/헥사고날 pilot 2차 반영 상태)
+> 작성 시점: 2026-03-19 (문서 인덱스 보정, Playwright smoke 분리, 문의/배치 검토 문서 반영 상태)
 
 ---
 
@@ -20,8 +20,11 @@
 
 ## 현재 브랜치 / 워크트리 상태
 
-- 권장 작업 브랜치: `codex/work-20260316-221408`
+- 권장 작업 브랜치: `codex/work-20260319-000329`
 - 최근 작업:
+  - graceful shutdown 운영 기준 문서화 — `ADR-0025`에 Spring graceful shutdown 30초, 알림 `ThreadPoolTaskExecutor` drain 정책, PG timeout executor 2초 종료 정책을 정리
+  - 문서 인덱스/인수인계 보정 — `README.md` Idea 목록을 실제 파일 기준으로 정리하고, `HANDOFF.md` 프론트 경로/문의 흐름 요약을 구현 상태에 맞게 갱신
+  - 배치 마이그레이션 검토 메모 추가 — `docs/Idea/0017_spring-batch-migration-consideration/idea.md`에 현행 커스텀 배치 유지 판단과 Spring Batch 재검토 조건을 기록
   - spec 분리 2차 — core `docs/PRD/0001_spec/spec.md`에서 API 카탈로그/에러 계약을 `docs/PRD/0004_api_contract/spec.md`로, 시스템 경계·상태/스키마 기준과 관리자 인증·런타임 기준을 `ADR-0022`, `ADR-0023`으로 분리
   - PRD 경량화 — `docs/PRD/0001_spec/spec.md`에서 테스트 전략/`SoftAssertions.assertSoftly` 규칙과 관리자 인증 확장 검토를 분리하고, `docs/Idea/0003_*`, `docs/Idea/0004_*` 문서로 이동
   - 문서 체계 재정리 — 활성 실행 계획은 루트 `plan.md`로 통합, 완료된 `docs/1Pager` 실행 계획 문서는 제거, `docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md`를 추가하고 `README.md` 문서 목록을 현재 구조 기준으로 재작성
@@ -36,6 +39,7 @@
   - guest lookup 허브 추가 완료 — `/guest` 진입 페이지를 추가하고, 상단 utility bar와 홈은 direct guest lookup 대신 `/guest` 허브를 우선 노출하도록 정리
   - guest route 운영 카피 정리 완료 — `/guest/orders`, `/guest/bookings`, 홈 lookup 패널, guest 성공 CTA에서 guest 경로를 “조회용 보조 경로”로 명확히 표시하고, 로그인/회원가입 후 `/my` claim으로 이어지는 전환 문구를 강화
   - 로그인 직후 회원 상태 전역 동기화 완료 — `CustomerAuthProvider`를 도입해 로그인/회원가입 후 상단 네비가 새로고침 없이 즉시 `로그아웃` 상태로 반영되도록 정리하고, `P8-9`에 즉시 상태 전환 검증 추가
+  - Playwright smoke 구조 정리 — `frontend/tests/e2e/p8-smoke.spec.ts` 단일 파일을 사용자 여정 기준 4개 spec(`admin-product-order`, `guest-booking-pass`, `member-self-service`, `guest-claim-onboarding`)으로 분리하고, 공통 UI locator/helper는 별도 `ui-support.ts`로 정리
   - `/my` 목록 고도화 완료 — `/my/orders`, `/my/bookings`, `/my/passes`에 quick status tab, 정렬, 요약 chip을 추가해 회원 이력 탐색 흐름을 한 단계 정리
   - 회원 온보딩 polish 완료 — 로그인/회원가입 페이지를 storefront/member 문맥에 맞는 2열 레이아웃으로 정리하고, `redirect`·`claim`·회원가입 prefill(`name`/`phone`) 컨텍스트를 로그인/회원가입 전환 링크에도 유지, `/my?claim=1` 진입 뒤 모달을 닫아도 후속 claim 안내 카드가 남도록 보강
   - `/my` 목록 필터 확장 완료 — `/my/orders`, `/my/bookings`, `/my/passes`에 상태 필터와 검색을 추가하고, 회원 8회권 구매 완료 CTA도 `/my/passes`로 맞춤
@@ -101,8 +105,10 @@
 - `/my/bookings` — 회원 예약 전체 목록
 - `/my/bookings/:id` — 회원 예약 상세 + 변경/취소
 - `/my/passes` — 회원 8회권 전체 목록
+- `/my/inquiries` — 회원 1:1 문의 목록
+- `/my/inquiries/new` — 회원 1:1 문의 작성
 - `/bookings/new` — 예약 생성 (member/guest 제출 직전 auth gate)
-- `/passes/purchase` — 8회권 구매 (member/guest 제출 직전 auth gate)
+- `/passes/purchase` — 8회권 구매 (회원 전용, 비로그인 시 로그인 리다이렉트)
 - `/guest` — 비회원 조회 안내 허브
 - `/guest/orders` — 비회원 주문 조회
 - `/guest/bookings` — 비회원 예약 조회/변경/취소
@@ -143,7 +149,9 @@
 - 고객 인증: `useCustomerAuth()` 훅에서 `/api/v1/me`로 세션 확인 (HttpOnly 쿠키 자동 포함), `login`/`signup`/`logout` 제공
 - 회원가입 전화번호는 프론트에서 숫자만 정규화해 전송하고, guest claim은 회원 전화번호의 하이픈/숫자-only 포맷 차이를 모두 허용한다.
 - Layout에서 `useCustomerAuth()`로 로그인 상태에 따라 "로그인"/"사용자명+로그아웃" 표시
-- `/products/:id`, `/bookings/new`, `/passes/purchase` 는 회원이면 세션 기준으로 바로 제출하고, 비회원이면 제출 직전에 auth gate를 연다.
+- `/products/:id`, `/bookings/new` 는 회원이면 세션 기준으로 바로 제출하고, 비회원이면 제출 직전에 auth gate를 연다.
+- `/passes/purchase` 는 회원 전용이며, 비로그인 시 로그인 페이지로 리다이렉트한다.
+- 상품 상세는 회원 전용 Product Q&A 섹션을 포함하고, 비밀글은 비밀번호 검증 후 상세를 확인한다.
 - 상품 상세의 `비회원 주문하기`는 `/orders/new?productId=&qty=` 로 이동해 선택 상품과 수량을 legacy guest fallback에 미리 담아둔다. query 없이 직접 진입한 `/orders/new`는 수동 fallback gate를 먼저 거친다.
 - `/my` 에서 `비회원 이력 가져오기` 모달을 열면, `phoneVerified=false` 회원은 같은 번호로 재인증 후 preview를 보고 주문/예약/8회권을 선택 claim 할 수 있다.
 - guest 주문/예약/8회권 성공 화면의 회원가입/로그인 CTA는 `redirect=/my?claim=1` 로 이어지고, `/my`는 이 쿼리로 claim 모달을 자동으로 연다.
@@ -151,6 +159,7 @@
 - `/my?claim=1` 로 진입한 뒤 자동 오픈된 claim 모달을 닫아도, 대시보드의 claim 카드에서 후속 안내와 재진입 버튼을 계속 노출한다.
 - `/my/bookings/:id` 는 회원 예약 상세/변경/취소 화면이며, 비회원 조회는 `/guest/bookings` 로 분리한다.
 - `/my/orders`, `/my/bookings`, `/my/passes` 는 검색, 상태 필터, quick tab, 정렬을 제공한다.
+- `/my/inquiries`, `/my/inquiries/new` 는 회원 전용 1:1 문의 목록/작성 경로이며, 관리자는 `/admin`에서 전체 문의 조회/답변을 처리한다.
 - `/guest` 를 비회원 조회 entry route로 노출하고, `/guest/orders`, `/guest/bookings` 는 canonical guest 조회 경로이자 생성 후 확인용 보조 경로로 유지한다.
 - 현재 운영 권장안은 `/guest` 허브와 `/guest/orders`, `/guest/bookings`, `/orders/new` direct gate를 그대로 유지한 채 member route 안정화 이후 2~4주 동안 사용량과 문의 유형을 관찰한 뒤 direct guest fallback 축소 여부를 결정하는 것이다.
 - `/api/v1/monitoring/client-events` 는 guest/member 주요 전환 이벤트를 requestId가 포함된 `[client-monitoring]` 로그로 남기고, 동시에 `happygallery.funnel.client_event`, `happygallery.funnel.guest_claim_completed` 메트릭을 누적한다. 현재 수집 범위는 `/guest` 허브 진입, `/orders/new` direct continue, guest 성공/조회 화면의 회원 전환 CTA, `/my` claim 모달 오픈, guest claim 완료다.
@@ -158,6 +167,7 @@
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
 - 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
 - Playwright smoke는 관리자 Bearer 토큰과 고객 `HG_SESSION` 쿠키를 backend API로 bootstrap해 로그인 rate limit과 UI 초기화 타이밍 영향을 줄였다.
+- Playwright smoke spec은 현재 사용자 여정 기준 4개 파일(`admin-product-order.smoke.spec.ts`, `guest-booking-pass.smoke.spec.ts`, `member-self-service.smoke.spec.ts`, `guest-claim-onboarding.smoke.spec.ts`)로 나뉘어 있고, 시나리오 번호 `P8-1`~`P8-9`는 그대로 유지한다.
 - `P8-8`은 guest 주문·8회권·예약을 만든 뒤, 같은 번호의 회원이 `/my` 모달에서 재인증 후 claim 하는 흐름을 검증한다.
 - `P8-9`는 guest 주문 성공 화면에서 회원가입으로 넘어가 휴대폰/이름 prefill과 `/my` claim 모달 자동 오픈을 검증한다.
 - 기본 관리자 계정: `admin` / `admin1234` (Flyway V11로 정합화)
@@ -232,3 +242,4 @@ cd frontend && npm run e2e
 | ADR-0022 | 시스템 경계, 상태 모델, 데이터 모델 기준선 |
 | ADR-0023 | 관리자 인증 및 런타임 운영 기준선 |
 | ADR-0024 | Guest access token SHA-256 해시 저장 + X-Access-Token 헤더 전환 |
+| ADR-0025 | Graceful Shutdown 및 Executor Drain 정책 |
