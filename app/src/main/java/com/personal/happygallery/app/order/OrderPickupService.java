@@ -101,7 +101,7 @@ public class OrderPickupService implements OrderPickupUseCase {
     /** 픽업 관련 서비스 작업의 결과를 컨트롤러에 전달하는 내부 DTO. */
     public record PickupResult(Long orderId, OrderStatus status, LocalDateTime pickupDeadlineAt) {
         static PickupResult of(Order order, Fulfillment fulfillment) {
-            return PickupResult.of(order, fulfillment);
+            return new PickupResult(order.getId(), order.getStatus(), fulfillment.getPickupDeadlineAt());
         }
     }
 }

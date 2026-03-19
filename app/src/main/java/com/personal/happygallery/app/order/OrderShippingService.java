@@ -124,7 +124,7 @@ public class OrderShippingService implements OrderShippingUseCase {
     /** 배송 관련 서비스 작업의 결과를 컨트롤러에 전달하는 내부 DTO. */
     public record ShippingResult(Long orderId, OrderStatus status, LocalDate expectedShipDate) {
         static ShippingResult of(Order order, Fulfillment fulfillment) {
-            return ShippingResult.of(order, fulfillment);
+            return new ShippingResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
         }
     }
 }
