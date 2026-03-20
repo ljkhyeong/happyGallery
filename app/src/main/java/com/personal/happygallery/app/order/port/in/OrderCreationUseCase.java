@@ -13,8 +13,10 @@ public interface OrderCreationUseCase {
 
     record OrderItemInput(Long productId, int qty) {}
 
-    OrderCreationResult createOrderByPhone(String phone, String verificationCode,
-                                           String name, List<OrderItemInput> items);
+    record CreateOrderByPhoneCommand(String phone, String verificationCode,
+                                     String name, List<OrderItemInput> items) {}
+
+    OrderCreationResult createOrderByPhone(CreateOrderByPhoneCommand command);
 
     Order createMemberOrder(Long userId, List<OrderItemInput> items);
 }

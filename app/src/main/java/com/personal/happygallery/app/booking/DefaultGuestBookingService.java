@@ -69,35 +69,39 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
      *
      * @param passId 8회권 ID (null이면 예약금 결제)
      */
-    public GuestBookingResult createGuestBooking(String phone, String code, String name,
-                                      Long slotId, long depositAmount,
-                                      DepositPaymentMethod paymentMethod,
-                                      Long passId) {
+    public GuestBookingResult createGuestBooking(CreateGuestBookingCommand command) {
         // 1. 인증 코드 검증 + Guest upsert
-        Guest guest = verifiedGuestResolver.resolveVerifiedGuest(phone, code, name);
+        Guest guest = verifiedGuestResolver.resolveVerifiedGuest(
+                command.phone(), command.code(), command.name());
 
         // 2. 슬롯 활성 여부 확인 (락 전 빠른 체크)
-        Slot slot = creationSupport.loadActiveSlot(slotId);
+        Slot slot = creationSupport.loadActiveSlot(command.slotId());
 
         // 3. 중복 예약 확인
-        if (bookingReaderPort.existsBySlotIdAndGuestId(slotId, guest.getId())) {
+        if (bookingReaderPort.existsBySlotIdAndGuestId(command.slotId(), guest.getId())) {
             throw new DuplicateBookingException();
         }
 
         // 4. 비관적 락 + 정원 증가 + 버퍼 비활성화
-        creationSupport.lockSlotCapacity(slotId);
+        creationSupport.lockSlotCapacity(command.slotId());
 
         String rawToken = AccessTokenHasher.generate();
         String accessToken = AccessTokenHasher.hash(rawToken);
 
         Booking booking;
-        if (passId != null) {
-            PassPurchase pass = creationSupport.deductPassCredit(passId, null);
+        if (command.passId() != null) {
+            PassPurchase pass = creationSupport.deductPassCredit(command.passId(), null);
             booking = Booking.forGuestPass(guest, slot, pass, accessToken);
         } else {
-            creationSupport.requireValidDeposit(paymentMethod);
-            long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
-            booking = Booking.forGuestDeposit(guest, slot, depositAmount, balanceAmount, paymentMethod, accessToken);
+            creationSupport.requireValidDeposit(command.paymentMethod());
+            long balanceAmount = slot.getBookingClass().getPrice() - command.depositAmount();
+            booking = Booking.forGuestDeposit(
+                    guest,
+                    slot,
+                    command.depositAmount(),
+                    balanceAmount,
+                    command.paymentMethod(),
+                    accessToken);
         }
 
         booking = creationSupport.saveAndComplete(booking, slot);

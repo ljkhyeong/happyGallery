@@ -33,10 +33,12 @@ public class DefaultOrderCreationService implements OrderCreationUseCase {
     /**
      * 휴대폰 인증 기반 주문 생성.
      */
-    public OrderService.OrderCreationResult createOrderByPhone(String phone, String verificationCode,
-                                     String name, List<OrderItemInput> items) {
-        Guest guest = verifiedGuestResolver.resolveVerifiedGuest(phone, verificationCode, name);
-        List<OrderService.OrderItemRequest> orderItems = resolveItemPrices(items);
+    public OrderService.OrderCreationResult createOrderByPhone(CreateOrderByPhoneCommand command) {
+        Guest guest = verifiedGuestResolver.resolveVerifiedGuest(
+                command.phone(),
+                command.verificationCode(),
+                command.name());
+        List<OrderService.OrderItemRequest> orderItems = resolveItemPrices(command.items());
         return orderService.createPaidOrder(guest.getId(), orderItems);
     }
 

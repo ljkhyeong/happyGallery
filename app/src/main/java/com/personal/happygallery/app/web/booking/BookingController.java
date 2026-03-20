@@ -60,13 +60,14 @@ public class BookingController {
     public BookingResponse createGuestBooking(
             @RequestBody @Valid CreateGuestBookingRequest request) {
         var result = guestBookingUseCase.createGuestBooking(
-                request.phone(),
-                request.verificationCode(),
-                request.name(),
-                request.slotId(),
-                request.depositAmount() != null ? request.depositAmount() : 0L,
-                request.paymentMethod(),
-                request.passId());
+                new GuestBookingUseCase.CreateGuestBookingCommand(
+                        request.phone(),
+                        request.verificationCode(),
+                        request.name(),
+                        request.slotId(),
+                        request.depositAmount() != null ? request.depositAmount() : 0L,
+                        request.paymentMethod(),
+                        request.passId()));
         return BookingResponse.from(result.booking(), result.rawAccessToken());
     }
 

@@ -39,7 +39,11 @@ public class OrderController {
                 .map(i -> new OrderItemInput(i.productId(), i.qty()))
                 .toList();
         var result = orderCreationUseCase.createOrderByPhone(
-                request.phone(), request.verificationCode(), request.name(), items);
+                new OrderCreationUseCase.CreateOrderByPhoneCommand(
+                        request.phone(),
+                        request.verificationCode(),
+                        request.name(),
+                        items));
         return OrderResponse.from(result.order(), result.rawAccessToken());
     }
 
