@@ -13,7 +13,6 @@ import com.personal.happygallery.common.error.SlotNotAvailableException;
 import com.personal.happygallery.common.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
-import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.time.Clock;
@@ -79,45 +78,40 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
     }
 
     private Booking rescheduleInternal(Booking booking, Long newSlotId) {
-        // 1. 상태 체크 — BOOKED 상태만 변경 가능
-        if (booking.getStatus() != BookingStatus.BOOKED) {
-            throw new ChangeNotAllowedException();
-        }
-
-        // 2. 동일 슬롯 변경 차단
+        // 1. 동일 슬롯 변경 차단
         if (booking.getSlot().getId().equals(newSlotId)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "현재 예약된 슬롯과 동일합니다.");
         }
 
-        // 3. 시간 경계 정책 — 슬롯 시작 1시간 전까지만 변경 가능
+        // 2. 시간 경계 정책 — 슬롯 시작 1시간 전까지만 변경 가능
         if (!TimeBoundary.isChangeable(booking.getSlot().getStartAt(), clock)) {
             throw new ChangeNotAllowedException();
         }
 
-        // 4. 새 슬롯 빠른 체크 (락 전 — fast-fail)
+        // 3. 새 슬롯 빠른 체크 (락 전 — fast-fail)
         Slot newSlot = slotReaderPort.findById(newSlotId)
                 .orElseThrow(() -> new NotFoundException("슬롯"));
         if (!newSlot.isActive()) {
             throw new SlotNotAvailableException();
         }
 
-        // 5. 새 슬롯 확정 — 비관적 락 + isActive 재확인 + booked_count++ + 버퍼 비활성화
+        // 4. 새 슬롯 확정 — 비관적 락 + isActive 재확인 + booked_count++ + 버퍼 비활성화
         creationSupport.lockSlotCapacity(newSlotId);
 
-        // 6. 기존 슬롯 반납 — 비관적 락 + booked_count--
+        // 5. 기존 슬롯 반납 — 비관적 락 + booked_count--
         // 주의: lockSlotCapacity(new) 후 releaseSlotCapacity(old) 순서 고정
         //       swap 변경 시 deadlock 이론적 가능 (ADR-0006 참고)
         Slot oldSlot = creationSupport.releaseSlotCapacity(booking.getSlot().getId());
 
-        // 7. 이력 저장 (append-only)
+        // 6. 이력 저장 (append-only)
         bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
                 oldSlot, newSlot, "CUSTOMER", null);
 
-        // 8. 예약 업데이트 — @Version 충돌 시 OptimisticLockingFailureException → 409 BOOKING_CONFLICT
+        // 7. 예약 업데이트 — @Version 충돌 시 OptimisticLockingFailureException → 409 BOOKING_CONFLICT
         booking.reschedule(newSlot);
         Booking saved = bookingStorePort.save(booking);
 
-        // 9. 예약 변경 알림
+        // 8. 예약 변경 알림
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_RESCHEDULED);
 
         return saved;

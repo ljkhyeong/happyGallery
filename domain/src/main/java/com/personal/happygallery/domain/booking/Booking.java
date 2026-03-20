@@ -127,6 +127,9 @@ public class Booking {
      * 호출 후 저장 시 {@code @Version}으로 낙관적 락 충돌을 감지한다.
      */
     public void reschedule(Slot newSlot) {
+        if (status != BookingStatus.BOOKED) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "변경할 수 없는 예약 상태입니다.");
+        }
         this.slot = newSlot;
     }
 
@@ -143,6 +146,9 @@ public class Booking {
 
     /** 결석 처리. 크레딧은 예약 시 이미 소모되었으므로 상태만 변경. */
     public void markNoShow() {
+        if (status != BookingStatus.BOOKED) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "결석 처리할 수 없는 예약 상태입니다.");
+        }
         this.status = BookingStatus.NO_SHOW;
     }
 
