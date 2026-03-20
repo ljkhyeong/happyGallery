@@ -14,3 +14,4 @@
 | ~~`DefaultBookingCancelService`가 환불 가능 여부 판단과 8회권 크레딧 복구/예약금 환불 분기를 한 메서드에서 직접 조합한다.~~ | ~~예약 취소 후 보상 처리를 별도 helper 또는 support로 묶어 시간 경계 판단과 보상 적용 책임을 분리한다.~~ |
 | ~~예약금 예약 취소 시 `refundable`만 보고 `DEPOSIT_REFUNDED` 알림을 보내 PG 환불 실패와 성공을 구분하지 않는다.~~ | ~~`RefundStatus.SUCCEEDED`를 확인한 경우에만 환불 완료 알림을 보내고, 실패는 무알림 또는 별도 이벤트로 분리한다.~~ |
 | UseCase가 JPA 엔티티(`Booking`, `Slot` 등)를 컨트롤러에 직접 반환한다. 현재는 즉시 DTO 변환하므로 안전하지만 비동기 처리 도입 시 `LazyInitializationException` 위험이 있다. | 비동기 응답 조립이 필요해지는 시점에 UseCase 반환 타입을 record로 점진 전환한다. `CancelResult`, `ProductionResult` 등 기존 패턴을 따른다. |
+| Response DTO·UseCase record의 팩토리 메서드가 scalar ID를 나열하여 받는 곳이 혼재한다. 필드 추가 시 컴파일 에러로 잡히지 않고 파라미터 순서 실수 여지가 있다. | 팩토리 메서드는 엔티티 인스턴스를 직접 받도록 통일한다. Response DTO(웹 어댑터)와 UseCase record(app 레이어) 모두 도메인을 알 수 있는 의존 방향이므로 문제없다. |
