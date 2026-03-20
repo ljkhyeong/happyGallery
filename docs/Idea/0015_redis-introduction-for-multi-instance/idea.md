@@ -1,7 +1,9 @@
 # Redis 도입 — 다중 인스턴스 대응
 
 **날짜**: 2026-03-18
-**상태**: 적용 완료
+**상태**: ADR 반영 완료
+
+> 최종 채택 기준은 [ADR-0023](../../ADR/0023_admin-auth-and-runtime-operations-baseline/adr.md), [ADR-0017](../../ADR/0017_filter-rate-limiting/adr.md) 확인. 이 문서는 전환 배경과 검토 맥락 보존용이다.
 
 ---
 
@@ -38,9 +40,9 @@
 
 기존 `AdminSessionPort` 인터페이스가 이미 추상화 경계를 제공하므로 구현 교체만으로 변경이 완료되었다.
 
-### RateLimitFilter → Redis INCR 카운터
+### RateLimitFilter → Redis 공유 카운터
 
-Bucket4j 인메모리 bucket 대신 Redis INCR + EXPIRE 패턴으로 전환했다.
+Bucket4j 인메모리 bucket 대신 Redis 공유 카운터로 전환했다.
 
 ```
 INCR rate:{RULE_ID}:{clientIP}
@@ -50,8 +52,7 @@ EXPIRE rate:{RULE_ID}:{clientIP} {window_seconds}  ← count == 1일 때만 TTL 
 - 인스턴스 간 카운터가 공유되어 정확한 rate limit 적용
 - Redis TTL이 윈도우 만료를 자동 처리 → `@Scheduled evictStaleBuckets()` 제거
 - `TimestampedBucket` inner class 제거
-
-> **주의**: INCR와 EXPIRE 사이 서버 중단 시 TTL이 설정되지 않아 키가 영구 보존될 수 있다. 현재 구현은 서버 재시작이 드문 환경에서 충분하지만, 더 안전한 방법은 Lua 스크립트로 두 명령을 원자적으로 실행하는 것이다.
+- 현재 구현은 Lua script로 `INCR`와 최초 `EXPIRE`를 한 번에 실행한다.
 
 ---
 
