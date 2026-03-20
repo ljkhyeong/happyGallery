@@ -32,14 +32,14 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
     private final VerifiedGuestResolver verifiedGuestResolver;
     private final PhoneVerificationStorePort phoneVerificationStorePort;
     private final BookingReaderPort bookingReaderPort;
-    private final BookingCreationSupport creationSupport;
+    private final BookingSlotSupport creationSupport;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
     public DefaultGuestBookingService(VerifiedGuestResolver verifiedGuestResolver,
                                PhoneVerificationStorePort phoneVerificationStorePort,
                                BookingReaderPort bookingReaderPort,
-                               BookingCreationSupport creationSupport,
+                               BookingSlotSupport creationSupport,
                                Clock clock) {
         this.verifiedGuestResolver = verifiedGuestResolver;
         this.phoneVerificationStorePort = phoneVerificationStorePort;

@@ -3,13 +3,10 @@ package com.personal.happygallery.app.booking;
 import com.personal.happygallery.app.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.app.payment.RefundExecutionService;
-import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
-import com.personal.happygallery.app.booking.port.out.SlotStorePort;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
-import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
@@ -27,29 +24,26 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class DefaultBookingCancelService implements BookingCancelUseCase {
 
-    private final SlotReaderPort slotReaderPort;
-    private final SlotStorePort slotStorePort;
     private final BookingStorePort bookingStorePort;
     private final RefundExecutionService refundExecutionService;
     private final PassPurchaseStorePort passPurchaseStorePort;
     private final PassLedgerStorePort passLedgerStorePort;
+    private final BookingSlotSupport creationSupport;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
-    public DefaultBookingCancelService(SlotReaderPort slotReaderPort,
-                                SlotStorePort slotStorePort,
-                                BookingStorePort bookingStorePort,
+    public DefaultBookingCancelService(BookingStorePort bookingStorePort,
                                 RefundExecutionService refundExecutionService,
                                 PassPurchaseStorePort passPurchaseStorePort,
                                 PassLedgerStorePort passLedgerStorePort,
+                                BookingSlotSupport creationSupport,
                                 BookingSupport bookingSupport,
                                 Clock clock) {
-        this.slotReaderPort = slotReaderPort;
-        this.slotStorePort = slotStorePort;
         this.bookingStorePort = bookingStorePort;
         this.refundExecutionService = refundExecutionService;
         this.passPurchaseStorePort = passPurchaseStorePort;
         this.passLedgerStorePort = passLedgerStorePort;
+        this.creationSupport = creationSupport;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
@@ -84,10 +78,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
         }
 
         // 2. 슬롯 반납 — 비관적 락 + booked_count--
-        Slot slot = slotReaderPort.findByIdWithLock(booking.getSlot().getId())
-                .orElseThrow(() -> new NotFoundException("슬롯"));
-        slot.decrementBookedCount();
-        slotStorePort.save(slot);
+        Slot slot = creationSupport.releaseSlotCapacity(booking.getSlot().getId());
 
         // 3. CANCELED 이력 저장 (append-only)
         bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null);

@@ -4,7 +4,6 @@ import com.personal.happygallery.app.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
-import com.personal.happygallery.app.booking.port.out.SlotStorePort;
 import com.personal.happygallery.common.error.ChangeNotAllowedException;
 import com.personal.happygallery.common.error.DuplicateBookingException;
 import com.personal.happygallery.common.error.ErrorCode;
@@ -28,23 +27,20 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
     private final BookingReaderPort bookingReaderPort;
     private final BookingStorePort bookingStorePort;
     private final SlotReaderPort slotReaderPort;
-    private final SlotStorePort slotStorePort;
-    private final DefaultSlotManagementService slotManagementService;
+    private final BookingSlotSupport creationSupport;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     public DefaultBookingRescheduleService(BookingReaderPort bookingReaderPort,
                                     BookingStorePort bookingStorePort,
                                     SlotReaderPort slotReaderPort,
-                                    SlotStorePort slotStorePort,
-                                    DefaultSlotManagementService slotManagementService,
+                                    BookingSlotSupport creationSupport,
                                     BookingSupport bookingSupport,
                                     Clock clock) {
         this.bookingReaderPort = bookingReaderPort;
         this.bookingStorePort = bookingStorePort;
         this.slotReaderPort = slotReaderPort;
-        this.slotStorePort = slotStorePort;
-        this.slotManagementService = slotManagementService;
+        this.creationSupport = creationSupport;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
@@ -97,15 +93,12 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
         }
 
         // 7. 새 슬롯 확정 — 비관적 락 + isActive 재확인 + booked_count++ + 버퍼 비활성화
-        slotManagementService.confirmBooking(newSlotId);
+        creationSupport.lockSlotCapacity(newSlotId);
 
         // 8. 기존 슬롯 반납 — 비관적 락 + booked_count--
-        // 주의: confirmBooking(new) 후 findByIdWithLock(old) 순서 고정
+        // 주의: lockSlotCapacity(new) 후 releaseSlotCapacity(old) 순서 고정
         //       swap 변경 시 deadlock 이론적 가능 (ADR-0006 참고)
-        Slot oldSlot = slotReaderPort.findByIdWithLock(booking.getSlot().getId())
-                .orElseThrow(() -> new NotFoundException("슬롯"));
-        oldSlot.decrementBookedCount();
-        slotStorePort.save(oldSlot);
+        Slot oldSlot = creationSupport.releaseSlotCapacity(booking.getSlot().getId());
 
         // 9. 이력 저장 (append-only)
         bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
@@ -159,13 +152,10 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
         }
 
         // 7. 새 슬롯 확정
-        slotManagementService.confirmBooking(newSlotId);
+        creationSupport.lockSlotCapacity(newSlotId);
 
         // 8. 기존 슬롯 반납
-        Slot oldSlot = slotReaderPort.findByIdWithLock(booking.getSlot().getId())
-                .orElseThrow(() -> new NotFoundException("슬롯"));
-        oldSlot.decrementBookedCount();
-        slotStorePort.save(oldSlot);
+        Slot oldSlot = creationSupport.releaseSlotCapacity(booking.getSlot().getId());
 
         // 9. 이력 저장
         bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,

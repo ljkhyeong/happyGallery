@@ -19,10 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class DefaultMemberBookingService implements MemberBookingUseCase {
 
     private final BookingReaderPort bookingReaderPort;
-    private final BookingCreationSupport creationSupport;
+    private final BookingSlotSupport creationSupport;
 
     public DefaultMemberBookingService(BookingReaderPort bookingReaderPort,
-                                BookingCreationSupport creationSupport) {
+                                BookingSlotSupport creationSupport) {
         this.bookingReaderPort = bookingReaderPort;
         this.creationSupport = creationSupport;
     }

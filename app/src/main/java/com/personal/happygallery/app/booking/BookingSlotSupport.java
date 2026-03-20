@@ -2,6 +2,7 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.app.booking.port.out.SlotStorePort;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
@@ -28,9 +29,10 @@ import org.springframework.stereotype.Component;
  * 신원 확인 방식과 무관한 공통 단계를 모아 둔다.
  */
 @Component
-class BookingCreationSupport {
+class BookingSlotSupport {
 
     private final SlotReaderPort slotReaderPort;
+    private final SlotStorePort slotStorePort;
     private final DefaultSlotManagementService slotManagementService;
     private final BookingStorePort bookingStorePort;
     private final PassPurchaseReaderPort passPurchaseReaderPort;
@@ -39,7 +41,8 @@ class BookingCreationSupport {
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
-    BookingCreationSupport(SlotReaderPort slotReaderPort,
+    BookingSlotSupport(SlotReaderPort slotReaderPort,
+                           SlotStorePort slotStorePort,
                            DefaultSlotManagementService slotManagementService,
                            BookingStorePort bookingStorePort,
                            PassPurchaseReaderPort passPurchaseReaderPort,
@@ -48,6 +51,7 @@ class BookingCreationSupport {
                            BookingSupport bookingSupport,
                            Clock clock) {
         this.slotReaderPort = slotReaderPort;
+        this.slotStorePort = slotStorePort;
         this.slotManagementService = slotManagementService;
         this.bookingStorePort = bookingStorePort;
         this.passPurchaseReaderPort = passPurchaseReaderPort;
@@ -70,6 +74,15 @@ class BookingCreationSupport {
     /** 비관적 락 + 정원 증가 + 버퍼 비활성화. 중복 체크 이후에 호출한다. */
     void lockSlotCapacity(Long slotId) {
         slotManagementService.confirmBooking(slotId);
+    }
+
+    /** 비관적 락 + 정원 감소. 취소·변경 시 기존 슬롯을 반납한다. */
+    Slot releaseSlotCapacity(Long slotId) {
+        Slot slot = slotReaderPort.findByIdWithLock(slotId)
+                .orElseThrow(() -> new NotFoundException("슬롯"));
+        slot.decrementBookedCount();
+        slotStorePort.save(slot);
+        return slot;
     }
 
     /**
