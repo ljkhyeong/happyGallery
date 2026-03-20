@@ -10,6 +10,8 @@
 | `ProductQueryService`가 상품 목록 뒤에 재고를 건별 조회한다. | 상품+재고 projection 조회 한 번으로 목록을 만들도록 바꾼다. |
 | `Me*Controller` 3개가 DTO를 inner record로 정의하고 나머지는 별도 `dto/` 파일을 사용해 기준이 혼재한다. | DTO는 항상 별도 파일(`dto/` 패키지)로 분리해 위치를 예측 가능하게 유지한다. |
 | ~~컨트롤러가 호출하는 일부 `UseCase`가 하나의 요청 문맥을 이루는 값들을 scalar 파라미터로 직접 나열한다.~~ | ~~controller request와 별도로 app 경계용 command DTO를 두어 유스케이스 입력을 의미 단위로 묶고 순서 의존을 줄인다.~~ |
+| ~~주문 환불 흐름이 `Refund` 결과를 확인하지 않고 `ORDER_REFUNDED` 알림을 보낼 수 있다.~~ | ~~환불 완료 알림은 `RefundStatus.SUCCEEDED`일 때만 발송하고, 실패는 재시도 대상만 남긴다.~~ |
+| ~~`Booking.reschedule()`와 `Booking.markNoShow()`의 상태 전이 검증이 서비스 레이어에 흩어져 있다.~~ | ~~예약 상태 전이 가능 여부를 도메인 메서드 안으로 옮겨 규칙을 한 곳에 응집시킨다.~~ |
 | ~~`DefaultBookingCancelService`가 `BOOKED` 상태 확인을 직접 수행하고 `Booking.cancel()`은 단순 상태 대입만 한다.~~ | ~~취소 가능 상태 검증을 `Booking.cancel()` 안으로 옮겨 예약 취소 전이 규칙을 도메인에 응집시킨다.~~ |
 | ~~`DefaultBookingCancelService`가 환불 가능 여부 판단과 8회권 크레딧 복구/예약금 환불 분기를 한 메서드에서 직접 조합한다.~~ | ~~예약 취소 후 보상 처리를 별도 helper 또는 support로 묶어 시간 경계 판단과 보상 적용 책임을 분리한다.~~ |
 | ~~예약금 예약 취소 시 `refundable`만 보고 `DEPOSIT_REFUNDED` 알림을 보내 PG 환불 실패와 성공을 구분하지 않는다.~~ | ~~`RefundStatus.SUCCEEDED`를 확인한 경우에만 환불 완료 알림을 보내고, 실패는 무알림 또는 별도 이벤트로 분리한다.~~ |
