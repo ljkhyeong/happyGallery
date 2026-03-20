@@ -22,19 +22,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/slots", "/admin/slots"})
 public class AdminSlotController {
 
-    private final SlotManagementUseCase slotManagementService;
-    private final SlotQueryUseCase slotQueryService;
+    private final SlotManagementUseCase slotManagementUseCase;
+    private final SlotQueryUseCase slotQueryUseCase;
 
-    public AdminSlotController(SlotManagementUseCase slotManagementService,
-                               SlotQueryUseCase slotQueryService) {
-        this.slotManagementService = slotManagementService;
-        this.slotQueryService = slotQueryService;
+    public AdminSlotController(SlotManagementUseCase slotManagementUseCase,
+                               SlotQueryUseCase slotQueryUseCase) {
+        this.slotManagementUseCase = slotManagementUseCase;
+        this.slotQueryUseCase = slotQueryUseCase;
     }
 
     /** GET /admin/slots?classId= — 클래스별 슬롯 전체 조회 (활성/비활성 포함) */
     @GetMapping
     public List<SlotResponse> listSlots(@RequestParam Long classId) {
-        return slotQueryService.listByClass(classId).stream()
+        return slotQueryUseCase.listByClass(classId).stream()
                 .map(SlotResponse::from)
                 .toList();
     }
@@ -43,7 +43,7 @@ public class AdminSlotController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public SlotResponse createSlot(@RequestBody @Valid CreateSlotRequest request) {
-        Slot slot = slotManagementService.createSlot(
+        Slot slot = slotManagementUseCase.createSlot(
                 request.classId(), request.startAt(), request.endAt());
         return SlotResponse.from(slot);
     }
@@ -51,7 +51,7 @@ public class AdminSlotController {
     /** PATCH /admin/slots/{id}/deactivate — 슬롯 비활성화 */
     @PatchMapping("/{id}/deactivate")
     public SlotResponse deactivateSlot(@PathVariable Long id) {
-        Slot slot = slotManagementService.deactivateSlot(id);
+        Slot slot = slotManagementUseCase.deactivateSlot(id);
         return SlotResponse.from(slot);
     }
 }

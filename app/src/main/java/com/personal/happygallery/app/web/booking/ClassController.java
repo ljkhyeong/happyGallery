@@ -11,16 +11,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/classes", "/classes"})
 public class ClassController {
 
-    private final ClassQueryUseCase classQueryService;
+    private final ClassQueryUseCase classQueryUseCase;
 
-    public ClassController(ClassQueryUseCase classQueryService) {
-        this.classQueryService = classQueryService;
+    public ClassController(ClassQueryUseCase classQueryUseCase) {
+        this.classQueryUseCase = classQueryUseCase;
     }
 
     /** GET /classes — 전체 클래스 목록 */
     @GetMapping
     public List<ClassResponse> listClasses() {
-        return classQueryService.listAll().stream()
+        return classQueryUseCase.listAll().stream()
                 .map(ClassResponse::from)
                 .toList();
     }

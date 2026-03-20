@@ -5,7 +5,7 @@ import com.personal.happygallery.app.customer.port.out.GuestClaimQueryPort;
 import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.app.customer.port.out.PhoneVerificationPort;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
-import com.personal.happygallery.app.monitoring.ClientMonitoringService;
+import com.personal.happygallery.app.monitoring.port.in.ClientMonitoringUseCase;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.error.PhoneVerificationRequiredException;
@@ -41,20 +41,20 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     private final PhoneVerificationPort phoneVerificationPort;
     private final GuestClaimQueryPort claimQuery;
     private final Clock clock;
-    private final ClientMonitoringService clientMonitoringService;
+    private final ClientMonitoringUseCase clientMonitoringUseCase;
 
     public DefaultGuestClaimService(UserReaderPort userReader,
                              GuestReaderPort guestReader,
                              PhoneVerificationPort phoneVerificationPort,
                              GuestClaimQueryPort claimQuery,
                              Clock clock,
-                             ClientMonitoringService clientMonitoringService) {
+                             ClientMonitoringUseCase clientMonitoringUseCase) {
         this.userReader = userReader;
         this.guestReader = guestReader;
         this.phoneVerificationPort = phoneVerificationPort;
         this.claimQuery = claimQuery;
         this.clock = clock;
-        this.clientMonitoringService = clientMonitoringService;
+        this.clientMonitoringUseCase = clientMonitoringUseCase;
     }
 
     @Transactional(readOnly = true)
@@ -95,7 +95,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
         int claimedPassCount = claimPasses(passIdsToClaim, guest.getId(), userId);
 
-        clientMonitoringService.logGuestClaimCompleted(
+        clientMonitoringUseCase.logGuestClaimCompleted(
                 userId, guest.getId(),
                 orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
         return new ClaimResult(orderIdSet.size(), bookingIdSet.size(), claimedPassCount);

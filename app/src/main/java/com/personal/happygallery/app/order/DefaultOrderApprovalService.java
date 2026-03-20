@@ -41,9 +41,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-public class OrderApprovalService implements OrderApprovalUseCase {
+public class DefaultOrderApprovalService implements OrderApprovalUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(OrderApprovalService.class);
+    private static final Logger log = LoggerFactory.getLogger(DefaultOrderApprovalService.class);
 
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
@@ -54,7 +54,7 @@ public class OrderApprovalService implements OrderApprovalUseCase {
     private final OrderHistoryPort orderHistoryPort;
     private final NotificationService notificationService;
 
-    public OrderApprovalService(OrderReaderPort orderReader,
+    public DefaultOrderApprovalService(OrderReaderPort orderReader,
                                 OrderStorePort orderStore,
                                 OrderItemPort orderItemPort,
                                 InventoryService inventoryService,

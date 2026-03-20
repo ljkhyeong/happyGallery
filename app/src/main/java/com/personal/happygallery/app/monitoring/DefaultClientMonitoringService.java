@@ -1,18 +1,19 @@
 package com.personal.happygallery.app.monitoring;
 
+import com.personal.happygallery.app.monitoring.port.in.ClientMonitoringUseCase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
-public class ClientMonitoringService {
+public class DefaultClientMonitoringService implements ClientMonitoringUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(ClientMonitoringService.class);
+    private static final Logger log = LoggerFactory.getLogger(DefaultClientMonitoringService.class);
 
     private final AppMetrics appMetrics;
 
-    public ClientMonitoringService(AppMetrics appMetrics) {
+    public DefaultClientMonitoringService(AppMetrics appMetrics) {
         this.appMetrics = appMetrics;
     }
 

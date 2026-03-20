@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.qna.ProductQnaService.QnaWithAuthor;
 import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase;
+import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase.QnaWithAuthor;
 import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.app.web.admin.dto.AdminQnaResponse;
 import com.personal.happygallery.app.web.admin.dto.QnaReplyRequest;
@@ -21,15 +21,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/qna", "/admin/qna"})
 public class AdminProductQnaController {
 
-    private final ProductQnaUseCase qnaService;
+    private final ProductQnaUseCase qnaUseCase;
 
-    public AdminProductQnaController(ProductQnaUseCase qnaService) {
-        this.qnaService = qnaService;
+    public AdminProductQnaController(ProductQnaUseCase qnaUseCase) {
+        this.qnaUseCase = qnaUseCase;
     }
 
     @GetMapping
     public List<AdminQnaResponse> list(@RequestParam Long productId) {
-        return qnaService.listByProduct(productId).stream()
+        return qnaUseCase.listByProduct(productId).stream()
                 .map(AdminQnaResponse::from)
                 .toList();
     }
@@ -39,8 +39,8 @@ public class AdminProductQnaController {
                                   @RequestBody @Valid QnaReplyRequest request,
                                   HttpServletRequest httpRequest) {
         Long adminId = (Long) httpRequest.getAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR);
-        ProductQna qna = qnaService.reply(id, request.replyContent(), adminId);
-        String authorName = qnaService.listByProduct(qna.getProductId()).stream()
+        ProductQna qna = qnaUseCase.reply(id, request.replyContent(), adminId);
+        String authorName = qnaUseCase.listByProduct(qna.getProductId()).stream()
                 .filter(q -> q.qna().getId().equals(qna.getId()))
                 .map(QnaWithAuthor::authorName)
                 .findFirst().orElse("탈퇴회원");

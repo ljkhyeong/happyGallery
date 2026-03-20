@@ -12,16 +12,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 회원 예약 생성 서비스.
- * GuestBookingService와 동일한 슬롯/8회권 로직을 따르되, 휴대폰 인증 대신 세션 userId를 사용한다.
+ * DefaultGuestBookingService와 동일한 슬롯/8회권 로직을 따르되, 휴대폰 인증 대신 세션 userId를 사용한다.
  */
 @Service
 @Transactional
-public class MemberBookingService implements MemberBookingUseCase {
+public class DefaultMemberBookingService implements MemberBookingUseCase {
 
     private final BookingReaderPort bookingReaderPort;
     private final BookingCreationSupport creationSupport;
 
-    public MemberBookingService(BookingReaderPort bookingReaderPort,
+    public DefaultMemberBookingService(BookingReaderPort bookingReaderPort,
                                 BookingCreationSupport creationSupport) {
         this.bookingReaderPort = bookingReaderPort;
         this.creationSupport = creationSupport;

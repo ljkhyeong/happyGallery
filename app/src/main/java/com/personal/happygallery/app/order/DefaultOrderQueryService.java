@@ -16,21 +16,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class OrderQueryService implements OrderQueryUseCase {
+public class DefaultOrderQueryService implements OrderQueryUseCase {
 
     private final OrderReaderPort orderReader;
     private final OrderItemPort orderItemPort;
     private final FulfillmentPort fulfillmentPort;
 
-    public OrderQueryService(OrderReaderPort orderReader,
-                             OrderItemPort orderItemPort,
-                             FulfillmentPort fulfillmentPort) {
+    public DefaultOrderQueryService(OrderReaderPort orderReader,
+                                    OrderItemPort orderItemPort,
+                                    FulfillmentPort fulfillmentPort) {
         this.orderReader = orderReader;
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
     }
-
-    public record OrderDetail(Order order, List<OrderItem> items, Fulfillment fulfillment) {}
 
     /** 회원 — 자기 주문 목록 조회 */
     public List<Order> listMyOrders(Long userId) {

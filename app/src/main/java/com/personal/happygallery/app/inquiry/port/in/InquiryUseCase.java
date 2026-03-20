@@ -1,6 +1,5 @@
 package com.personal.happygallery.app.inquiry.port.in;
 
-import com.personal.happygallery.app.inquiry.InquiryService.InquiryWithUser;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import java.util.List;
 
@@ -10,6 +9,8 @@ import java.util.List;
  * <p>회원 문의 등록·조회와 운영자 답변을 지원한다.
  */
 public interface InquiryUseCase {
+
+    record InquiryWithUser(Inquiry inquiry, String userName) {}
 
     Inquiry create(Long userId, String title, String content);
 

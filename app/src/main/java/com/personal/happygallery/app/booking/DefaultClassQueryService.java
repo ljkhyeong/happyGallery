@@ -9,11 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class ClassQueryService implements ClassQueryUseCase {
+public class DefaultClassQueryService implements ClassQueryUseCase {
 
     private final ClassReaderPort classReaderPort;
 
-    public ClassQueryService(ClassReaderPort classReaderPort) {
+    public DefaultClassQueryService(ClassReaderPort classReaderPort) {
         this.classReaderPort = classReaderPort;
     }
 

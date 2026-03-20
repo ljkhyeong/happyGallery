@@ -16,21 +16,19 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-public class OrderCreationService implements OrderCreationUseCase {
+public class DefaultOrderCreationService implements OrderCreationUseCase {
 
     private final VerifiedGuestResolver verifiedGuestResolver;
     private final ProductReaderPort productReader;
     private final OrderService orderService;
 
-    public OrderCreationService(VerifiedGuestResolver verifiedGuestResolver,
-                                ProductReaderPort productReader,
-                                OrderService orderService) {
+    public DefaultOrderCreationService(VerifiedGuestResolver verifiedGuestResolver,
+                                       ProductReaderPort productReader,
+                                       OrderService orderService) {
         this.verifiedGuestResolver = verifiedGuestResolver;
         this.productReader = productReader;
         this.orderService = orderService;
     }
-
-    public record OrderItemInput(Long productId, int qty) {}
 
     /**
      * 휴대폰 인증 기반 주문 생성.

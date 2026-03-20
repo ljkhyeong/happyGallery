@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.monitoring;
 
-import com.personal.happygallery.app.monitoring.ClientMonitoringService;
+import com.personal.happygallery.app.monitoring.port.in.ClientMonitoringUseCase;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.monitoring.dto.CaptureClientEventRequest;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,17 +16,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/monitoring/client-events")
 public class ClientMonitoringController {
 
-    private final ClientMonitoringService clientMonitoringService;
+    private final ClientMonitoringUseCase clientMonitoringUseCase;
 
-    public ClientMonitoringController(ClientMonitoringService clientMonitoringService) {
-        this.clientMonitoringService = clientMonitoringService;
+    public ClientMonitoringController(ClientMonitoringUseCase clientMonitoringUseCase) {
+        this.clientMonitoringUseCase = clientMonitoringUseCase;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void capture(@RequestBody @Valid CaptureClientEventRequest request,
                         HttpServletRequest servletRequest) {
-        clientMonitoringService.captureFrontendEvent(
+        clientMonitoringUseCase.captureFrontendEvent(
                 request.event(),
                 request.path(),
                 request.source(),

@@ -16,15 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class PassNoShowService implements PassNoShowUseCase {
+public class DefaultPassNoShowService implements PassNoShowUseCase {
 
     private final BookingReaderPort bookingReader;
     private final BookingStorePort bookingStore;
     private final BookingHistoryPort bookingHistoryPort;
 
-    public PassNoShowService(BookingReaderPort bookingReader,
-                             BookingStorePort bookingStore,
-                             BookingHistoryPort bookingHistoryPort) {
+    public DefaultPassNoShowService(BookingReaderPort bookingReader,
+                                    BookingStorePort bookingStore,
+                                    BookingHistoryPort bookingHistoryPort) {
         this.bookingReader = bookingReader;
         this.bookingStore = bookingStore;
         this.bookingHistoryPort = bookingHistoryPort;

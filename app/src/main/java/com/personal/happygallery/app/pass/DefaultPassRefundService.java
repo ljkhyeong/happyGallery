@@ -27,9 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class PassRefundService implements PassRefundUseCase {
+public class DefaultPassRefundService implements PassRefundUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(PassRefundService.class);
+    private static final Logger log = LoggerFactory.getLogger(DefaultPassRefundService.class);
 
     private final PassPurchaseReaderPort passPurchaseReader;
     private final PassPurchaseStorePort passPurchaseStore;
@@ -41,7 +41,7 @@ public class PassRefundService implements PassRefundUseCase {
     private final SlotStorePort slotStore;
     private final Clock clock;
 
-    public PassRefundService(PassPurchaseReaderPort passPurchaseReader,
+    public DefaultPassRefundService(PassPurchaseReaderPort passPurchaseReader,
                              PassPurchaseStorePort passPurchaseStore,
                              PassLedgerStorePort passLedgerStore,
                              BookingReaderPort bookingReader,
@@ -115,5 +115,4 @@ public class PassRefundService implements PassRefundUseCase {
         return new PassRefundResult(futureBookings.size(), refundCredits, refundAmount);
     }
 
-    public record PassRefundResult(int canceledBookings, int refundCredits, long refundAmount) {}
 }

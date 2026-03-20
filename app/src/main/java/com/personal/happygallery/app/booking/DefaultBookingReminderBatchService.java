@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.booking.port.in.BookingReminderBatchUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.domain.booking.Booking;
@@ -21,15 +22,15 @@ import org.springframework.stereotype.Service;
  * guest booking 은 notifyByGuestId, member booking 은 notifyByUserId 로 분기한다.
  */
 @Service
-public class BookingReminderBatchService {
+public class DefaultBookingReminderBatchService implements BookingReminderBatchUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(BookingReminderBatchService.class);
+    private static final Logger log = LoggerFactory.getLogger(DefaultBookingReminderBatchService.class);
 
     private final BookingReaderPort bookingReaderPort;
     private final NotificationService notificationService;
     private final Clock clock;
 
-    public BookingReminderBatchService(BookingReaderPort bookingReaderPort,
+    public DefaultBookingReminderBatchService(BookingReaderPort bookingReaderPort,
                                        NotificationService notificationService,
                                        Clock clock) {
         this.bookingReaderPort = bookingReaderPort;

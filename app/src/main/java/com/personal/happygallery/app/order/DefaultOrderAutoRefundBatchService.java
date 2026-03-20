@@ -2,6 +2,7 @@ package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.batch.BatchExecutor;
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.order.port.in.OrderAutoRefundBatchUseCase;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -20,13 +21,13 @@ import org.springframework.stereotype.Service;
  * <p>{@code @Scheduled} 연결은 §10에서 수행한다. 현재는 서비스만 구현됨.
  */
 @Service
-public class OrderAutoRefundBatchService {
+public class DefaultOrderAutoRefundBatchService implements OrderAutoRefundBatchUseCase {
 
     private final OrderReaderPort orderReader;
     private final OrderAutoRefundProcessor orderAutoRefundProcessor;
     private final Clock clock;
 
-    public OrderAutoRefundBatchService(OrderReaderPort orderReader,
+    public DefaultOrderAutoRefundBatchService(OrderReaderPort orderReader,
                                        OrderAutoRefundProcessor orderAutoRefundProcessor,
                                        Clock clock) {
         this.orderReader = orderReader;

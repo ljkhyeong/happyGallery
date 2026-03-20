@@ -29,25 +29,25 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/me/bookings")
 public class MeBookingController {
 
-    private final BookingQueryUseCase bookingQueryService;
-    private final MemberBookingUseCase memberBookingService;
-    private final BookingRescheduleUseCase bookingRescheduleService;
-    private final BookingCancelUseCase bookingCancelService;
+    private final BookingQueryUseCase bookingQueryUseCase;
+    private final MemberBookingUseCase memberBookingUseCase;
+    private final BookingRescheduleUseCase bookingRescheduleUseCase;
+    private final BookingCancelUseCase bookingCancelUseCase;
 
-    public MeBookingController(BookingQueryUseCase bookingQueryService,
-                                MemberBookingUseCase memberBookingService,
-                                BookingRescheduleUseCase bookingRescheduleService,
-                                BookingCancelUseCase bookingCancelService) {
-        this.bookingQueryService = bookingQueryService;
-        this.memberBookingService = memberBookingService;
-        this.bookingRescheduleService = bookingRescheduleService;
-        this.bookingCancelService = bookingCancelService;
+    public MeBookingController(BookingQueryUseCase bookingQueryUseCase,
+                                MemberBookingUseCase memberBookingUseCase,
+                                BookingRescheduleUseCase bookingRescheduleUseCase,
+                                BookingCancelUseCase bookingCancelUseCase) {
+        this.bookingQueryUseCase = bookingQueryUseCase;
+        this.memberBookingUseCase = memberBookingUseCase;
+        this.bookingRescheduleUseCase = bookingRescheduleUseCase;
+        this.bookingCancelUseCase = bookingCancelUseCase;
     }
 
     @GetMapping
     public List<MyBookingSummary> myBookings(HttpServletRequest request) {
         Long userId = getUserId(request);
-        return bookingQueryService.listMyBookings(userId).stream()
+        return bookingQueryUseCase.listMyBookings(userId).stream()
                 .map(MyBookingSummary::from)
                 .toList();
     }
@@ -55,7 +55,7 @@ public class MeBookingController {
     @GetMapping("/{id}")
     public MyBookingDetail myBooking(@PathVariable Long id, HttpServletRequest request) {
         Long userId = getUserId(request);
-        Booking booking = bookingQueryService.findMyBooking(id, userId);
+        Booking booking = bookingQueryUseCase.findMyBooking(id, userId);
         return MyBookingDetail.from(booking);
     }
 
@@ -64,7 +64,7 @@ public class MeBookingController {
     public MyBookingSummary createBooking(@RequestBody @Valid CreateMemberBookingRequest req,
                                           HttpServletRequest request) {
         Long userId = getUserId(request);
-        Booking booking = memberBookingService.createMemberBooking(
+        Booking booking = memberBookingUseCase.createMemberBooking(
                 userId, req.slotId(),
                 req.depositAmount() != null ? req.depositAmount() : 0L,
                 req.paymentMethod(), req.passId());
@@ -76,14 +76,14 @@ public class MeBookingController {
                                               @RequestBody @Valid MemberRescheduleRequest req,
                                               HttpServletRequest request) {
         Long userId = getUserId(request);
-        Booking booking = bookingRescheduleService.rescheduleMemberBooking(id, userId, req.newSlotId());
+        Booking booking = bookingRescheduleUseCase.rescheduleMemberBooking(id, userId, req.newSlotId());
         return MyBookingSummary.from(booking);
     }
 
     @DeleteMapping("/{id}")
     public CancelResponse cancelBooking(@PathVariable Long id, HttpServletRequest request) {
         Long userId = getUserId(request);
-        BookingCancelUseCase.CancelResult result = bookingCancelService.cancelMemberBooking(id, userId);
+        BookingCancelUseCase.CancelResult result = bookingCancelUseCase.cancelMemberBooking(id, userId);
         return CancelResponse.of(result.booking(), result.refundable());
     }
 

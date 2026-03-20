@@ -29,7 +29,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
     private final BookingStorePort bookingStorePort;
     private final SlotReaderPort slotReaderPort;
     private final SlotStorePort slotStorePort;
-    private final SlotManagementService slotManagementService;
+    private final DefaultSlotManagementService slotManagementService;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
@@ -37,7 +37,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
                                     BookingStorePort bookingStorePort,
                                     SlotReaderPort slotReaderPort,
                                     SlotStorePort slotStorePort,
-                                    SlotManagementService slotManagementService,
+                                    DefaultSlotManagementService slotManagementService,
                                     BookingSupport bookingSupport,
                                     Clock clock) {
         this.bookingReaderPort = bookingReaderPort;

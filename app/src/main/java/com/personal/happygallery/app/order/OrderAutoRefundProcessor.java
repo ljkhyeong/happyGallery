@@ -22,13 +22,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderAutoRefundProcessor {
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
-    private final OrderApprovalService orderApprovalService;
+    private final DefaultOrderApprovalService orderApprovalService;
     private final OrderHistoryPort orderHistoryPort;
     private final NotificationService notificationService;
 
     public OrderAutoRefundProcessor(OrderReaderPort orderReader,
                                     OrderStorePort orderStore,
-                                    OrderApprovalService orderApprovalService,
+                                    DefaultOrderApprovalService orderApprovalService,
                                     OrderHistoryPort orderHistoryPort,
                                     NotificationService notificationService) {
         this.orderReader = orderReader;

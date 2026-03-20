@@ -18,13 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class SlotManagementService implements SlotManagementUseCase {
+public class DefaultSlotManagementService implements SlotManagementUseCase {
 
     private final ClassReaderPort classReaderPort;
     private final SlotReaderPort slotReaderPort;
     private final SlotStorePort slotStorePort;
 
-    public SlotManagementService(ClassReaderPort classReaderPort,
+    public DefaultSlotManagementService(ClassReaderPort classReaderPort,
                                   SlotReaderPort slotReaderPort,
                                   SlotStorePort slotStorePort) {
         this.classReaderPort = classReaderPort;

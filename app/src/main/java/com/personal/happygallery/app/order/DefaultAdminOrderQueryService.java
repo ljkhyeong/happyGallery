@@ -12,12 +12,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class AdminOrderQueryService implements AdminOrderQueryUseCase {
+public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
 
     private final OrderReaderPort orderReaderPort;
     private final OrderHistoryPort orderHistoryPort;
 
-    public AdminOrderQueryService(OrderReaderPort orderReaderPort,
+    public DefaultAdminOrderQueryService(OrderReaderPort orderReaderPort,
                                    OrderHistoryPort orderHistoryPort) {
         this.orderReaderPort = orderReaderPort;
         this.orderHistoryPort = orderHistoryPort;

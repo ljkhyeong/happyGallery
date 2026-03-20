@@ -10,13 +10,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class ProductAdminService implements ProductAdminUseCase {
+public class DefaultProductAdminService implements ProductAdminUseCase {
 
     private final ProductStorePort productStorePort;
     private final InventoryService inventoryService;
 
-    public ProductAdminService(ProductStorePort productStorePort,
-                               InventoryService inventoryService) {
+    public DefaultProductAdminService(ProductStorePort productStorePort,
+                                      InventoryService inventoryService) {
         this.productStorePort = productStorePort;
         this.inventoryService = inventoryService;
     }
@@ -40,5 +40,4 @@ public class ProductAdminService implements ProductAdminUseCase {
         return new RegisterResult(product, inventory);
     }
 
-    public record RegisterResult(Product product, Inventory inventory) {}
 }

@@ -34,60 +34,60 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/orders", "/admin/orders"})
 public class AdminOrderController {
 
-    private final AdminOrderQueryUseCase adminOrderQueryService;
-    private final OrderApprovalUseCase orderApprovalService;
-    private final OrderProductionUseCase orderProductionService;
-    private final OrderPickupUseCase orderPickupService;
-    private final OrderShippingUseCase orderShippingService;
-    private final PickupExpireBatchUseCase pickupExpireBatchService;
+    private final AdminOrderQueryUseCase adminOrderQueryUseCase;
+    private final OrderApprovalUseCase orderApprovalUseCase;
+    private final OrderProductionUseCase orderProductionUseCase;
+    private final OrderPickupUseCase orderPickupUseCase;
+    private final OrderShippingUseCase orderShippingUseCase;
+    private final PickupExpireBatchUseCase pickupExpireBatchUseCase;
 
-    public AdminOrderController(AdminOrderQueryUseCase adminOrderQueryService,
-                                OrderApprovalUseCase orderApprovalService,
-                                OrderProductionUseCase orderProductionService,
-                                OrderPickupUseCase orderPickupService,
-                                OrderShippingUseCase orderShippingService,
-                                PickupExpireBatchUseCase pickupExpireBatchService) {
-        this.adminOrderQueryService = adminOrderQueryService;
-        this.orderApprovalService = orderApprovalService;
-        this.orderProductionService = orderProductionService;
-        this.orderPickupService = orderPickupService;
-        this.orderShippingService = orderShippingService;
-        this.pickupExpireBatchService = pickupExpireBatchService;
+    public AdminOrderController(AdminOrderQueryUseCase adminOrderQueryUseCase,
+                                OrderApprovalUseCase orderApprovalUseCase,
+                                OrderProductionUseCase orderProductionUseCase,
+                                OrderPickupUseCase orderPickupUseCase,
+                                OrderShippingUseCase orderShippingUseCase,
+                                PickupExpireBatchUseCase pickupExpireBatchUseCase) {
+        this.adminOrderQueryUseCase = adminOrderQueryUseCase;
+        this.orderApprovalUseCase = orderApprovalUseCase;
+        this.orderProductionUseCase = orderProductionUseCase;
+        this.orderPickupUseCase = orderPickupUseCase;
+        this.orderShippingUseCase = orderShippingUseCase;
+        this.pickupExpireBatchUseCase = pickupExpireBatchUseCase;
     }
 
     /** GET /admin/orders?status=PAID_APPROVAL_PENDING — 상태별 주문 목록 조회 (상태 미지정 시 전체) */
     @GetMapping
     public List<AdminOrderResponse> listOrders(
             @RequestParam(required = false) OrderStatus status) {
-        return adminOrderQueryService.listOrders(status);
+        return adminOrderQueryUseCase.listOrders(status);
     }
 
     /** POST /admin/orders/{id}/approve — 주문 승인 (MADE_TO_ORDER는 IN_PRODUCTION으로 전이) */
     @PostMapping("/{id}/approve")
     @ResponseStatus(HttpStatus.OK)
     public void approve(@PathVariable Long id, HttpServletRequest request) {
-        orderApprovalService.approve(id, adminId(request));
+        orderApprovalUseCase.approve(id, adminId(request));
     }
 
     /** POST /admin/orders/{id}/reject — 주문 거절 (환불 + 재고 복구 포함, 제작 중은 거절 불가) */
     @PostMapping("/{id}/reject")
     @ResponseStatus(HttpStatus.OK)
     public void reject(@PathVariable Long id, HttpServletRequest request) {
-        orderApprovalService.reject(id, adminId(request));
+        orderApprovalUseCase.reject(id, adminId(request));
     }
 
     /** POST /admin/orders/{id}/resume-production — 지연 요청에서 제작 재개 (DELAY_REQUESTED → IN_PRODUCTION) */
     @PostMapping("/{id}/resume-production")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse resumeProduction(@PathVariable Long id, HttpServletRequest request) {
-        return OrderProductionResponse.from(orderProductionService.resumeProduction(id, adminId(request)));
+        return OrderProductionResponse.from(orderProductionUseCase.resumeProduction(id, adminId(request)));
     }
 
     /** POST /admin/orders/{id}/complete-production — 제작 완료 (IN_PRODUCTION/DELAY_REQUESTED → APPROVED_FULFILLMENT_PENDING) */
     @PostMapping("/{id}/complete-production")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse completeProduction(@PathVariable Long id, HttpServletRequest request) {
-        return OrderProductionResponse.from(orderProductionService.completeProduction(id, adminId(request)));
+        return OrderProductionResponse.from(orderProductionUseCase.completeProduction(id, adminId(request)));
     }
 
     /** PATCH /admin/orders/{id}/expected-ship-date — 예상 출고일 설정/갱신 */
@@ -95,14 +95,14 @@ public class AdminOrderController {
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse setExpectedShipDate(@PathVariable Long id,
                                                        @RequestBody SetExpectedShipDateRequest request) {
-        return OrderProductionResponse.from(orderProductionService.setExpectedShipDate(id, request.expectedShipDate()));
+        return OrderProductionResponse.from(orderProductionUseCase.setExpectedShipDate(id, request.expectedShipDate()));
     }
 
     /** POST /admin/orders/{id}/delay — 고객 동의 후 배송 지연 상태로 전환 */
     @PostMapping("/{id}/delay")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse requestDelay(@PathVariable Long id) {
-        return OrderProductionResponse.from(orderProductionService.requestDelay(id));
+        return OrderProductionResponse.from(orderProductionUseCase.requestDelay(id));
     }
 
     /** POST /admin/orders/{id}/prepare-pickup — 픽업 준비 완료 (APPROVED_FULFILLMENT_PENDING → PICKUP_READY) */
@@ -110,48 +110,48 @@ public class AdminOrderController {
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse markPickupReady(@PathVariable Long id,
                                          @RequestBody MarkPickupReadyRequest request) {
-        return PickupResponse.from(orderPickupService.markPickupReady(id, request.pickupDeadlineAt()));
+        return PickupResponse.from(orderPickupUseCase.markPickupReady(id, request.pickupDeadlineAt()));
     }
 
     /** POST /admin/orders/{id}/complete-pickup — 픽업 완료 (PICKUP_READY → PICKED_UP) */
     @PostMapping("/{id}/complete-pickup")
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse confirmPickup(@PathVariable Long id) {
-        return PickupResponse.from(orderPickupService.confirmPickup(id));
+        return PickupResponse.from(orderPickupUseCase.confirmPickup(id));
     }
 
     /** POST /admin/orders/{id}/prepare-shipping — 배송 준비 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) */
     @PostMapping("/{id}/prepare-shipping")
     @ResponseStatus(HttpStatus.OK)
     public ShippingResponse prepareShipping(@PathVariable Long id, HttpServletRequest request) {
-        return ShippingResponse.from(orderShippingService.prepareShipping(id, adminId(request)));
+        return ShippingResponse.from(orderShippingUseCase.prepareShipping(id, adminId(request)));
     }
 
     /** POST /admin/orders/{id}/mark-shipped — 배송 출발 (SHIPPING_PREPARING → SHIPPED) */
     @PostMapping("/{id}/mark-shipped")
     @ResponseStatus(HttpStatus.OK)
     public ShippingResponse markShipped(@PathVariable Long id, HttpServletRequest request) {
-        return ShippingResponse.from(orderShippingService.markShipped(id, adminId(request)));
+        return ShippingResponse.from(orderShippingUseCase.markShipped(id, adminId(request)));
     }
 
     /** POST /admin/orders/{id}/mark-delivered — 배송 완료 (SHIPPED → DELIVERED) */
     @PostMapping("/{id}/mark-delivered")
     @ResponseStatus(HttpStatus.OK)
     public ShippingResponse markDelivered(@PathVariable Long id, HttpServletRequest request) {
-        return ShippingResponse.from(orderShippingService.markDelivered(id, adminId(request)));
+        return ShippingResponse.from(orderShippingUseCase.markDelivered(id, adminId(request)));
     }
 
     /** GET /admin/orders/{id}/history — 주문 결정 이력 조회 */
     @GetMapping("/{id}/history")
     public List<OrderHistoryResponse> getOrderHistory(@PathVariable Long id) {
-        return adminOrderQueryService.getOrderHistory(id);
+        return adminOrderQueryUseCase.getOrderHistory(id);
     }
 
     /** POST /admin/orders/expire-pickups — 픽업 마감 초과 자동환불 배치 */
     @PostMapping("/expire-pickups")
     @ResponseStatus(HttpStatus.OK)
     public BatchResponse expirePickups() {
-        BatchResult result = pickupExpireBatchService.expirePickups();
+        BatchResult result = pickupExpireBatchUseCase.expirePickups();
         return BatchResponse.from(result);
     }
 

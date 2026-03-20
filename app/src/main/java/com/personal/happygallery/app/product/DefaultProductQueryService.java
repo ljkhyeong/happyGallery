@@ -16,18 +16,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class ProductQueryService implements ProductQueryUseCase {
+public class DefaultProductQueryService implements ProductQueryUseCase {
 
     private final ProductReaderPort productReaderPort;
     private final InventoryReaderPort inventoryReaderPort;
 
-    public ProductQueryService(ProductReaderPort productReaderPort,
-                               InventoryReaderPort inventoryReaderPort) {
+    public DefaultProductQueryService(ProductReaderPort productReaderPort,
+                                      InventoryReaderPort inventoryReaderPort) {
         this.productReaderPort = productReaderPort;
         this.inventoryReaderPort = inventoryReaderPort;
     }
-
-    public record ProductWithInventory(Product product, Inventory inventory) {}
 
     /** 상품 단건 조회 */
     public ProductWithInventory getProduct(Long productId) {

@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
 class BookingCreationSupport {
 
     private final SlotReaderPort slotReaderPort;
-    private final SlotManagementService slotManagementService;
+    private final DefaultSlotManagementService slotManagementService;
     private final BookingStorePort bookingStorePort;
     private final PassPurchaseReaderPort passPurchaseReaderPort;
     private final PassPurchaseStorePort passPurchaseStorePort;
@@ -40,7 +40,7 @@ class BookingCreationSupport {
     private final Clock clock;
 
     BookingCreationSupport(SlotReaderPort slotReaderPort,
-                           SlotManagementService slotManagementService,
+                           DefaultSlotManagementService slotManagementService,
                            BookingStorePort bookingStorePort,
                            PassPurchaseReaderPort passPurchaseReaderPort,
                            PassPurchaseStorePort passPurchaseStorePort,

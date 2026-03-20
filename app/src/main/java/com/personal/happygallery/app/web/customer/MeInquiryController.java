@@ -20,10 +20,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/me/inquiries")
 public class MeInquiryController {
 
-    private final InquiryUseCase inquiryService;
+    private final InquiryUseCase inquiryUseCase;
 
-    public MeInquiryController(InquiryUseCase inquiryService) {
-        this.inquiryService = inquiryService;
+    public MeInquiryController(InquiryUseCase inquiryUseCase) {
+        this.inquiryUseCase = inquiryUseCase;
     }
 
     @PostMapping
@@ -31,13 +31,13 @@ public class MeInquiryController {
     public InquiryResponse create(@RequestBody @Valid CreateInquiryRequest request,
                                   HttpServletRequest httpRequest) {
         Long userId = getUserId(httpRequest);
-        return InquiryResponse.from(inquiryService.create(userId, request.title(), request.content()));
+        return InquiryResponse.from(inquiryUseCase.create(userId, request.title(), request.content()));
     }
 
     @GetMapping
     public List<InquiryResponse> list(HttpServletRequest httpRequest) {
         Long userId = getUserId(httpRequest);
-        return inquiryService.listByUser(userId).stream()
+        return inquiryUseCase.listByUser(userId).stream()
                 .map(InquiryResponse::from)
                 .toList();
     }
@@ -45,7 +45,7 @@ public class MeInquiryController {
     @GetMapping("/{id}")
     public InquiryResponse detail(@PathVariable Long id, HttpServletRequest httpRequest) {
         Long userId = getUserId(httpRequest);
-        return InquiryResponse.from(inquiryService.findByIdAndUser(id, userId));
+        return InquiryResponse.from(inquiryUseCase.findByIdAndUser(id, userId));
     }
 
     private Long getUserId(HttpServletRequest request) {

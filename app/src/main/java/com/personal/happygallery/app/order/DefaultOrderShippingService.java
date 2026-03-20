@@ -29,17 +29,17 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-public class OrderShippingService implements OrderShippingUseCase {
+public class DefaultOrderShippingService implements OrderShippingUseCase {
 
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
 
-    public OrderShippingService(OrderReaderPort orderReader,
-                                OrderStorePort orderStore,
-                                FulfillmentPort fulfillmentPort,
-                                OrderHistoryPort orderHistoryPort) {
+    public DefaultOrderShippingService(OrderReaderPort orderReader,
+                                       OrderStorePort orderStore,
+                                       FulfillmentPort fulfillmentPort,
+                                       OrderHistoryPort orderHistoryPort) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.fulfillmentPort = fulfillmentPort;
@@ -121,10 +121,4 @@ public class OrderShippingService implements OrderShippingUseCase {
         return ShippingResult.of(order, fulfillment);
     }
 
-    /** 배송 관련 서비스 작업의 결과를 컨트롤러에 전달하는 내부 DTO. */
-    public record ShippingResult(Long orderId, OrderStatus status, LocalDate expectedShipDate) {
-        static ShippingResult of(Order order, Fulfillment fulfillment) {
-            return new ShippingResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
-        }
-    }
 }

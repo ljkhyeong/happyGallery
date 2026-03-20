@@ -11,11 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class PassQueryService implements PassQueryUseCase {
+public class DefaultPassQueryService implements PassQueryUseCase {
 
     private final PassPurchaseReaderPort passPurchaseReader;
 
-    public PassQueryService(PassPurchaseReaderPort passPurchaseReader) {
+    public DefaultPassQueryService(PassPurchaseReaderPort passPurchaseReader) {
         this.passPurchaseReader = passPurchaseReader;
     }
 

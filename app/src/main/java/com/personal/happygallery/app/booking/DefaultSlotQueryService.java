@@ -12,11 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class SlotQueryService implements SlotQueryUseCase {
+public class DefaultSlotQueryService implements SlotQueryUseCase {
 
     private final SlotReaderPort slotReaderPort;
 
-    public SlotQueryService(SlotReaderPort slotReaderPort) {
+    public DefaultSlotQueryService(SlotReaderPort slotReaderPort) {
         this.slotReaderPort = slotReaderPort;
     }
 

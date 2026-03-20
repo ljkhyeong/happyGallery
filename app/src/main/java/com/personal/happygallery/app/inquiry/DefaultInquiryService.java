@@ -17,17 +17,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class InquiryService implements InquiryUseCase {
+public class DefaultInquiryService implements InquiryUseCase {
 
     private final InquiryReaderPort inquiryReader;
     private final InquiryStorePort inquiryStore;
     private final UserReaderPort userReader;
     private final Clock clock;
 
-    public InquiryService(InquiryReaderPort inquiryReader,
-                          InquiryStorePort inquiryStore,
-                          UserReaderPort userReader,
-                          Clock clock) {
+    public DefaultInquiryService(InquiryReaderPort inquiryReader,
+                                 InquiryStorePort inquiryStore,
+                                 UserReaderPort userReader,
+                                 Clock clock) {
         this.inquiryReader = inquiryReader;
         this.inquiryStore = inquiryStore;
         this.userReader = userReader;
@@ -91,5 +91,4 @@ public class InquiryService implements InquiryUseCase {
         return user != null ? user.getName() : "탈퇴회원";
     }
 
-    public record InquiryWithUser(Inquiry inquiry, String userName) {}
 }

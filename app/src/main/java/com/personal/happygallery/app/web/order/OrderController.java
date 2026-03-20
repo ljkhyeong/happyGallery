@@ -1,9 +1,9 @@
 package com.personal.happygallery.app.web.order;
 
-import com.personal.happygallery.app.order.OrderCreationService;
-import com.personal.happygallery.app.order.OrderQueryService;
 import com.personal.happygallery.app.order.port.in.OrderCreationUseCase;
+import com.personal.happygallery.app.order.port.in.OrderCreationUseCase.OrderItemInput;
 import com.personal.happygallery.app.order.port.in.OrderQueryUseCase;
+import com.personal.happygallery.app.order.port.in.OrderQueryUseCase.OrderDetail;
 import com.personal.happygallery.app.web.order.dto.CreateOrderRequest;
 import com.personal.happygallery.app.web.order.dto.OrderDetailResponse;
 import com.personal.happygallery.app.web.order.dto.OrderResponse;
@@ -22,13 +22,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/orders", "/orders"})
 public class OrderController {
 
-    private final OrderCreationUseCase orderCreationService;
-    private final OrderQueryUseCase orderQueryService;
+    private final OrderCreationUseCase orderCreationUseCase;
+    private final OrderQueryUseCase orderQueryUseCase;
 
-    public OrderController(OrderCreationUseCase orderCreationService,
-                           OrderQueryUseCase orderQueryService) {
-        this.orderCreationService = orderCreationService;
-        this.orderQueryService = orderQueryService;
+    public OrderController(OrderCreationUseCase orderCreationUseCase,
+                           OrderQueryUseCase orderQueryUseCase) {
+        this.orderCreationUseCase = orderCreationUseCase;
+        this.orderQueryUseCase = orderQueryUseCase;
     }
 
     /** POST /orders — 주문 생성 (휴대폰 인증 기반) */
@@ -36,9 +36,9 @@ public class OrderController {
     @ResponseStatus(HttpStatus.CREATED)
     public OrderResponse createOrder(@RequestBody @Valid CreateOrderRequest request) {
         var items = request.items().stream()
-                .map(i -> new OrderCreationService.OrderItemInput(i.productId(), i.qty()))
+                .map(i -> new OrderItemInput(i.productId(), i.qty()))
                 .toList();
-        var result = orderCreationService.createOrderByPhone(
+        var result = orderCreationUseCase.createOrderByPhone(
                 request.phone(), request.verificationCode(), request.name(), items);
         return OrderResponse.from(result.order(), result.rawAccessToken());
     }
@@ -47,7 +47,7 @@ public class OrderController {
     @GetMapping("/{id}")
     public OrderDetailResponse getOrder(@PathVariable Long id,
                                          @RequestHeader("X-Access-Token") String token) {
-        OrderQueryService.OrderDetail detail = orderQueryService.getOrderByToken(id, token);
+        OrderDetail detail = orderQueryUseCase.getOrderByToken(id, token);
         return OrderDetailResponse.from(detail);
     }
 }

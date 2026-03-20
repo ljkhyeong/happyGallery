@@ -22,9 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class GuestBookingService implements GuestBookingUseCase {
+public class DefaultGuestBookingService implements GuestBookingUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(GuestBookingService.class);
+    private static final Logger log = LoggerFactory.getLogger(DefaultGuestBookingService.class);
 
     /** 인증 코드 유효 시간 (5분) */
     private static final int VERIFICATION_EXPIRE_MINUTES = 5;
@@ -36,7 +36,7 @@ public class GuestBookingService implements GuestBookingUseCase {
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
-    public GuestBookingService(VerifiedGuestResolver verifiedGuestResolver,
+    public DefaultGuestBookingService(VerifiedGuestResolver verifiedGuestResolver,
                                PhoneVerificationStorePort phoneVerificationStorePort,
                                BookingReaderPort bookingReaderPort,
                                BookingCreationSupport creationSupport,

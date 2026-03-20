@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class ProductQnaService implements ProductQnaUseCase {
+public class DefaultProductQnaService implements ProductQnaUseCase {
 
     private final ProductQnaReaderPort qnaReader;
     private final ProductQnaStorePort qnaStore;
@@ -30,12 +30,12 @@ public class ProductQnaService implements ProductQnaUseCase {
     private final Clock clock;
     private final PasswordEncoder passwordEncoder;
 
-    public ProductQnaService(ProductQnaReaderPort qnaReader,
-                             ProductQnaStorePort qnaStore,
-                             ProductReaderPort productReader,
-                             UserReaderPort userReader,
-                             Clock clock,
-                             PasswordEncoder passwordEncoder) {
+    public DefaultProductQnaService(ProductQnaReaderPort qnaReader,
+                                    ProductQnaStorePort qnaStore,
+                                    ProductReaderPort productReader,
+                                    UserReaderPort userReader,
+                                    Clock clock,
+                                    PasswordEncoder passwordEncoder) {
         this.qnaReader = qnaReader;
         this.qnaStore = qnaStore;
         this.productReader = productReader;
@@ -106,5 +106,4 @@ public class ProductQnaService implements ProductQnaUseCase {
         return user != null ? user.getName() : "탈퇴회원";
     }
 
-    public record QnaWithAuthor(ProductQna qna, String authorName) {}
 }

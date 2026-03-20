@@ -23,13 +23,13 @@ public class PickupExpireProcessor {
     private final FulfillmentPort fulfillmentPort;
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
-    private final OrderApprovalService orderApprovalService;
+    private final DefaultOrderApprovalService orderApprovalService;
     private final NotificationService notificationService;
 
     public PickupExpireProcessor(FulfillmentPort fulfillmentPort,
                                  OrderReaderPort orderReader,
                                  OrderStorePort orderStore,
-                                 OrderApprovalService orderApprovalService,
+                                 DefaultOrderApprovalService orderApprovalService,
                                  NotificationService notificationService) {
         this.fulfillmentPort = fulfillmentPort;
         this.orderReader = orderReader;

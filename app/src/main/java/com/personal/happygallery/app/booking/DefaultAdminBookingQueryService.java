@@ -19,12 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class AdminBookingQueryService implements AdminBookingQueryUseCase {
+public class DefaultAdminBookingQueryService implements AdminBookingQueryUseCase {
 
     private final BookingReaderPort bookingReaderPort;
     private final UserReaderPort userReaderPort;
 
-    public AdminBookingQueryService(BookingReaderPort bookingReaderPort,
+    public DefaultAdminBookingQueryService(BookingReaderPort bookingReaderPort,
                                      UserReaderPort userReaderPort) {
         this.bookingReaderPort = bookingReaderPort;
         this.userReaderPort = userReaderPort;

@@ -13,16 +13,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/refunds", "/admin/refunds"})
 public class AdminRefundController {
 
-    private final RefundRetryUseCase refundRetryService;
+    private final RefundRetryUseCase refundRetryUseCase;
 
-    public AdminRefundController(RefundRetryUseCase refundRetryService) {
-        this.refundRetryService = refundRetryService;
+    public AdminRefundController(RefundRetryUseCase refundRetryUseCase) {
+        this.refundRetryUseCase = refundRetryUseCase;
     }
 
     /** FAILED 환불 목록 조회 */
     @GetMapping("/failed")
     public List<FailedRefundResponse> listFailed() {
-        return refundRetryService.listFailed().stream()
+        return refundRetryUseCase.listFailed().stream()
                 .map(FailedRefundResponse::from)
                 .toList();
     }
@@ -30,6 +30,6 @@ public class AdminRefundController {
     /** 특정 환불 재시도 */
     @PostMapping("/{refundId}/retry")
     public void retry(@PathVariable Long refundId) {
-        refundRetryService.retry(refundId);
+        refundRetryUseCase.retry(refundId);
     }
 }

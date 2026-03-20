@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.product.dto;
 
-import com.personal.happygallery.app.qna.ProductQnaService.QnaWithAuthor;
+import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase.QnaWithAuthor;
 import com.personal.happygallery.domain.qna.ProductQna;
 import java.time.LocalDateTime;
 

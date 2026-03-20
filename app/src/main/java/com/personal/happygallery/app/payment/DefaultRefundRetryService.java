@@ -14,13 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
 /** 환불 실패 재시도 — 운영자 수동 트리거 */
 @Service
 @Transactional
-public class RefundRetryService implements RefundRetryUseCase {
+public class DefaultRefundRetryService implements RefundRetryUseCase {
 
     private final RefundPort refundPort;
     private final RefundExecutionService refundExecutionService;
 
-    public RefundRetryService(RefundPort refundPort,
-                              RefundExecutionService refundExecutionService) {
+    public DefaultRefundRetryService(RefundPort refundPort,
+                                     RefundExecutionService refundExecutionService) {
         this.refundPort = refundPort;
         this.refundExecutionService = refundExecutionService;
     }
