@@ -41,7 +41,7 @@ class BookingRescheduleUseCaseIT {
     @Autowired BookingHistoryRepository bookingHistoryRepository;
     @Autowired GuestRepository guestRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
-    @Autowired SlotManagementService slotManagementService;
+    @Autowired DefaultSlotManagementService slotManagementService;
     @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired PassPurchaseRepository passPurchaseRepository;
 

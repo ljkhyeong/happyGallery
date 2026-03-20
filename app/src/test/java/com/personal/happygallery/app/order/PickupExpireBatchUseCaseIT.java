@@ -1,6 +1,8 @@
 package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.order.port.in.OrderApprovalUseCase;
+import com.personal.happygallery.app.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.app.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -45,8 +47,8 @@ class PickupExpireBatchUseCaseIT {
     @Autowired MockMvc mockMvc;
     @Autowired PickupExpireBatchUseCase pickupExpireBatchService;
     @Autowired PickupExpireProcessor pickupExpireProcessor;
-    @Autowired OrderPickupService orderPickupService;
-    @Autowired OrderApprovalService orderApprovalService;
+    @Autowired OrderPickupUseCase orderPickupService;
+    @Autowired OrderApprovalUseCase orderApprovalService;
     @Autowired OrderService orderService;
     @Autowired OrderRepository orderRepository;
     @Autowired OrderItemRepository orderItemRepository;
