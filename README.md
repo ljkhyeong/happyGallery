@@ -13,16 +13,36 @@
 
 | 구분 | 구성 | 용도 |
 |------|------|------|
-| 백엔드 구조 | `app` / `domain` / `infra` / `common` | 진입점, 도메인 규칙, 외부 연동, 공통 유틸을 분리한 멀티 모듈 구조 |
+| 백엔드 구조 | `app` / `domain` / `infra` / `common` | 진입점, 도메인 규칙, 외부 연동, 공통 유틸을 분리한 멀티 모듈 구조 위에서 `port/in`, `port/out`, adapter를 도입하는 점진적 헥사고날 전환 진행 중 |
 | 프론트 구조 | `frontend/` (Vite + React 19 + TypeScript) | 스토어/마이페이지/관리자 UI와 브라우저 흐름 구현 |
 | 관측성 구조 | `monitoring/` + `docker-compose.yml` | Prometheus scrape, Grafana provisioning, alert rule, 대시보드 JSON을 로컬 운영 스택으로 묶음 |
 | Resilience4j | `resilience4j-circuitbreaker`, `resilience4j-timelimiter` | PG 환불 외부 호출에 CircuitBreaker + TimeLimiter를 적용해 장애 전파를 줄임 |
+| Redis + Spring Session | `spring-boot-starter-data-redis`, `spring-session-data-redis` | `HG_SESSION`, 관리자 Bearer 세션, Redis 기반 rate limit 저장소를 함께 운영 |
+| Flyway | `spring-boot-starter-flyway`, `flyway-mysql` | MySQL 스키마 변경을 버전 관리하고 환경 간 DB 상태를 일관되게 맞춤 |
 | Spring Actuator | `spring-boot-starter-actuator` | `/actuator/health`, `/actuator/info`, `/actuator/metrics`, `/actuator/prometheus` 운영 엔드포인트 제공 |
 | Prometheus | `micrometer-registry-prometheus` | Actuator 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 scrape 가능한 포맷으로 노출 |
 | Grafana | Grafana provisioning + dashboard JSON | 시스템 메트릭과 제품 전환 퍼널 지표를 대시보드로 시각화 |
 | Sentry | `sentry-spring-boot-4-starter`, `@sentry/react` | 서버 500 예외와 프론트 API 5xx 에러를 requestId 태그와 함께 캡처 |
 | TanStack Query | `@tanstack/react-query` | 상품/예약/주문/관리자 데이터를 조회·캐시하고 mutation 후 invalidate를 처리 |
-| Bootstrap | `bootstrap` | 스토어/관리자 화면의 기본 UI 레이아웃과 컴포넌트 스타일링 |
+| React Router | `react-router-dom` | 스토어, guest 조회, `/my`, 관리자 라우트를 구성하고 브라우저 내비게이션을 관리 |
+| Bootstrap | `bootstrap`, `react-bootstrap` | 스토어/관리자 화면의 기본 UI 레이아웃과 컴포넌트 스타일링 |
+| Testcontainers | `spring-boot-testcontainers`, `testcontainers`, `testcontainers-mysql` | `@UseCaseIT`에서 MySQL/Redis 등 실제에 가까운 통합 환경을 테스트로 재현 |
+| Playwright | `@playwright/test` | guest/member/admin 주요 브라우저 smoke 시나리오를 자동화 |
+
+### 🔄 마이그레이션 현황
+
+- 백엔드 아키텍처: 기존 `app` / `domain` / `infra` / `common` 멀티 모듈 구조는 유지하면서, `app` 내부에 `port/in`, `port/out`과 adapter 경계를 점진적으로 도입하는 헥사고날 전환을 진행 중이다.
+- 인증/세션: 회원 인증은 직접 세션 저장 구현에서 Spring Session + Redis 기반 `HG_SESSION`으로 전환했고, `CustomerAuthFilter`는 Spring Session filter 이후 사용자 ID를 읽는 구조로 정리했다.
+- 운영 세션/레이트리밋: 관리자 Bearer 세션 저장소와 `RateLimitFilter`도 인메모리/프로세스 로컬 상태에서 Redis 기반 저장소로 옮겨 다중 인스턴스 환경에 맞췄다.
+- 유스케이스 경계: `customer auth + guest claim` persistence pilot 이후 booking cancel/reschedule, pass purchase/expiry batch, pickup expire batch 등에서 controller/batch 진입점이 `UseCase` 포트를 통해 들어오도록 확장했다.
+- 포트/어댑터 확산: product, notification, payment, booking, order 도메인에 reader/store/external port를 도입하고, JPA/외부 연동 구현은 adapter로 분리하는 방향으로 수렴 중이다.
+- guest access token: query param/평문 저장 방식에서 `X-Access-Token` 헤더 + SHA-256 해시 저장 방식으로 전환해 로그/Referer 노출과 원문 저장 위험을 줄였다.
+- 로깅 포맷: 운영(`prod`) 로그는 `LogstashEncoder` 기반 JSON 구조화 로그로 전환했고, 비운영(`!prod`)은 로컬 가독성을 위해 텍스트 로그를 유지한다.
+- 관측성: requestId 중심 로그만 두던 상태에서 Actuator + Prometheus + Grafana + Sentry + client funnel metric까지 붙여 운영 가시성을 단계적으로 보강했다.
+- 테스트/실행 환경: 순수 로컬 의존에 가까웠던 통합 검증을 Testcontainers(MySQL/Redis) 기반 `@UseCaseIT`로 정리해 실제 운영 환경과 더 가까운 테스트 경로를 확보했다.
+- 배치: Spring Batch 전면 마이그레이션은 아직 하지 않았고, 현재는 커스텀 배치를 유지하면서 운영 배치/수동 트리거/배치 결과 구조를 보강하는 방향을 택했다.
+
+* 마이그레이션 배경 등 상세 내용은 관련 ADR을 우선 확인하고, 아직 채택 전 대안 비교나 보류 항목은 `docs/Idea`를 확인.
 
 ---
 
@@ -53,7 +73,7 @@
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| `ADR-0001` ~ `ADR-0025` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 헥사고날 전환 등 기술 결정 |
+| `ADR-0001` ~ `ADR-0026` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 테스트 기준, 헥사고날 전환 등 기술 결정 |
 
 ### 💡 Idea
 
@@ -73,6 +93,9 @@
 | [Redis 도입 — 다중 인스턴스 대응](docs/Idea/0015_redis-introduction-for-multi-instance/idea.md) | `docs/Idea/0015_redis-introduction-for-multi-instance/` | 회원 세션, 관리자 세션, rate limit의 Redis 전환 배경과 적용 메모 |
 | [금액 타입 도입 검토](docs/Idea/0016_money-type-adoption-consideration/idea.md) | `docs/Idea/0016_money-type-adoption-consideration/` | 현재 `long` 기반 금액 표현을 유지할지 별도 Money 타입을 둘지 검토한 메모 |
 | [Spring Batch 마이그레이션 검토](docs/Idea/0017_spring-batch-migration-consideration/idea.md) | `docs/Idea/0017_spring-batch-migration-consideration/` | 현재 커스텀 배치를 유지할 이유와 Spring Batch 재검토 조건을 정리한 메모 |
+| [8회권 구매 회원 전용 전환](docs/Idea/0018_pass-member-only-purchase/idea.md) | `docs/Idea/0018_pass-member-only-purchase/` | 비회원 8회권 구매 경로를 제거하고 회원 전용으로 단순화할지 검토한 메모 |
+| [기능 롤아웃 및 canonical route 체크리스트](docs/Idea/0020_feature-rollout-and-canonical-route-checklist/idea.md) | `docs/Idea/0020_feature-rollout-and-canonical-route-checklist/` | 공개 경로, alias 종료 시점, 문서/E2E/운영 지표를 함께 정리하는 기준 메모 |
+| [Controller 경계와 Query Facade 정리 가이드](docs/Idea/0021_controller-boundary-and-query-facade-guideline/idea.md) | `docs/Idea/0021_controller-boundary-and-query-facade-guideline/` | controller 책임을 HTTP 매핑 중심으로 제한하고 읽기 조합을 facade로 내리는 기준 메모 |
 
 ### 🧪 POC
 
@@ -161,11 +184,11 @@
 ## 🏗 저장소 구조
 
 - `app/`
-  - Spring Boot 진입점, 컨트롤러, 애플리케이션 서비스, 배치, 통합 테스트
+  - Spring Boot 진입점, 컨트롤러, 유스케이스 orchestration, `port/in`·`port/out`, 배치, 통합 테스트
 - `domain/`
   - 엔티티, 상태 전이, 정책 등 핵심 비즈니스 규칙
 - `infra/`
-  - JPA 리포지토리, 결제/알림 등 외부 연동 구현
+  - JPA 리포지토리와 persistence/external adapter, 결제/알림/세션/모니터링 등 외부 연동 구현
 - `common/`
   - 공통 예외, 시간 유틸, 공용 타입
 - `monitoring/`
@@ -288,12 +311,6 @@ E2E 참고:
 - 상품 상세에서 guest 주문으로 넘길 때는 `/orders/new`가 `productId`, `qty` query를 받아 초기 주문 항목을 채운다. query 없이 직접 연 `/orders/new`는 명시적 계속 버튼 뒤에만 수동 다중 상품 주문을 허용한다.
 - 운영 권장안은 `/guest` 허브와 canonical guest 조회 경로, `/orders/new` direct gate를 당분간 유지하고, member route 안정화 후 2~4주 동안 사용량과 문의를 본 뒤 direct guest fallback 축소 여부를 결정하는 것이다.
 - `/api/v1/monitoring/client-events` 는 guest/member 전환 이벤트를 fire-and-forget으로 받아 `[client-monitoring]` 로그를 남긴다. 현재는 `/guest` 허브 유입, `/orders/new` direct continue, guest 성공/조회 화면의 회원 전환 CTA, `/my` claim 모달 오픈, claim 완료를 추적한다.
-
-## 문서 우선순위
-
-1. `docs/PRD/0001_spec/spec.md`
-2. 관련 `docs/ADR/*`
-3. 필요 시 `docs/Idea`, `docs/1Pager`, `docs/POC`
 
 ## 브랜치 흐름
 

@@ -11,9 +11,13 @@ import java.util.Optional;
  */
 public interface CustomerAuthUseCase {
 
-    User signup(String email, String rawPassword, String name, String phone);
+    record SignupCommand(String email, String rawPassword, String name, String phone) {}
 
-    User login(String email, String rawPassword);
+    record LoginCommand(String email, String rawPassword) {}
+
+    User signup(SignupCommand command);
+
+    User login(LoginCommand command);
 
     Optional<User> findUser(Long userId);
 }

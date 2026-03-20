@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.booking.port.in.BookingReminderBatchUseCase;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
@@ -47,7 +48,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class BookingReminderBatchUseCaseIT {
 
-    @Autowired BookingReminderBatchService bookingReminderBatchService;
+    @Autowired BookingReminderBatchUseCase bookingReminderBatchService;
     @Autowired BookingRepository bookingRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
     @Autowired GuestRepository guestRepository;

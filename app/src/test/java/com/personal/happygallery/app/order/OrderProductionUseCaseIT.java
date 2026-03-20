@@ -1,5 +1,9 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.in.OrderApprovalUseCase;
+import com.personal.happygallery.app.order.port.in.OrderPickupUseCase;
+import com.personal.happygallery.app.order.port.in.OrderProductionUseCase;
+import com.personal.happygallery.app.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.common.error.ProductionRefundNotAllowedException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
@@ -43,10 +47,10 @@ class OrderProductionUseCaseIT {
     @Autowired RefundRepository refundRepository;
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
-    @Autowired OrderApprovalService orderApprovalService;
-    @Autowired OrderProductionService orderProductionService;
-    @Autowired OrderPickupService orderPickupService;
-    @Autowired OrderShippingService orderShippingService;
+    @Autowired OrderApprovalUseCase orderApprovalService;
+    @Autowired OrderProductionUseCase orderProductionService;
+    @Autowired OrderPickupUseCase orderPickupService;
+    @Autowired OrderShippingUseCase orderShippingService;
     @Autowired OrderService orderService;
     OrderTestHelper orderHelper;
 

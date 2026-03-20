@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.admin.dto;
 
-import com.personal.happygallery.app.order.OrderProductionService.ProductionResult;
+import com.personal.happygallery.app.order.port.in.OrderProductionUseCase.ProductionResult;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDate;
 

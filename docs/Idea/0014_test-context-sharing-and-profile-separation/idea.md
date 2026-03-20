@@ -1,7 +1,9 @@
 # 통합 테스트 컨텍스트 공유 및 프로파일 분리
 
 **날짜**: 2026-03-18
-**상태**: 적용 완료
+**상태**: ADR 반영 완료
+
+> 최종 채택 기준은 [ADR-0026](../../ADR/0026_integration-test-profile-and-testcontainers-baseline/adr.md) 확인. 이 문서는 테스트 전환 배경과 검토 맥락 보존용이다.
 
 ---
 

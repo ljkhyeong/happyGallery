@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.product.port.in;
 
-import com.personal.happygallery.app.product.ProductQueryService.ProductWithInventory;
+import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.domain.product.Product;
 import java.util.List;
 
 /**
@@ -9,6 +10,8 @@ import java.util.List;
  * <p>고객/관리자 공통으로 ACTIVE 상품 목록·단건 조회를 제공한다.
  */
 public interface ProductQueryUseCase {
+
+    record ProductWithInventory(Product product, Inventory inventory) {}
 
     ProductWithInventory getProduct(Long productId);
 

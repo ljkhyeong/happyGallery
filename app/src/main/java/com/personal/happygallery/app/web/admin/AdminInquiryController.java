@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.inquiry.InquiryService.InquiryWithUser;
 import com.personal.happygallery.app.inquiry.port.in.InquiryUseCase;
+import com.personal.happygallery.app.inquiry.port.in.InquiryUseCase.InquiryWithUser;
 import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.app.web.admin.dto.AdminInquiryResponse;
 import com.personal.happygallery.app.web.admin.dto.InquiryReplyRequest;
@@ -20,22 +20,22 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/inquiries", "/admin/inquiries"})
 public class AdminInquiryController {
 
-    private final InquiryUseCase inquiryService;
+    private final InquiryUseCase inquiryUseCase;
 
-    public AdminInquiryController(InquiryUseCase inquiryService) {
-        this.inquiryService = inquiryService;
+    public AdminInquiryController(InquiryUseCase inquiryUseCase) {
+        this.inquiryUseCase = inquiryUseCase;
     }
 
     @GetMapping
     public List<AdminInquiryResponse> list() {
-        return inquiryService.listAll().stream()
+        return inquiryUseCase.listAll().stream()
                 .map(AdminInquiryResponse::from)
                 .toList();
     }
 
     @GetMapping("/{id}")
     public AdminInquiryResponse detail(@PathVariable Long id) {
-        return AdminInquiryResponse.from(inquiryService.findByIdForAdmin(id));
+        return AdminInquiryResponse.from(inquiryUseCase.findByIdForAdmin(id));
     }
 
     @PostMapping("/{id}/reply")
@@ -43,8 +43,8 @@ public class AdminInquiryController {
                                       @RequestBody @Valid InquiryReplyRequest request,
                                       HttpServletRequest httpRequest) {
         Long adminId = (Long) httpRequest.getAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR);
-        Inquiry inquiry = inquiryService.reply(id, request.replyContent(), adminId);
-        String userName = inquiryService.findByIdForAdmin(id).userName();
+        Inquiry inquiry = inquiryUseCase.reply(id, request.replyContent(), adminId);
+        String userName = inquiryUseCase.findByIdForAdmin(id).userName();
         return AdminInquiryResponse.from(new InquiryWithUser(inquiry, userName));
     }
 }

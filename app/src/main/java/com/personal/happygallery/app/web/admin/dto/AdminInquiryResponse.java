@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.admin.dto;
 
-import com.personal.happygallery.app.inquiry.InquiryService.InquiryWithUser;
+import com.personal.happygallery.app.inquiry.port.in.InquiryUseCase.InquiryWithUser;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import java.time.LocalDateTime;
 

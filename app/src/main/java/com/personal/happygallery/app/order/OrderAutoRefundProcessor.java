@@ -1,12 +1,10 @@
 package com.personal.happygallery.app.order;
 
-import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.config.RetryConfig;
 import com.personal.happygallery.common.error.NotFoundException;
-import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
@@ -22,20 +20,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderAutoRefundProcessor {
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
-    private final OrderApprovalService orderApprovalService;
+    private final DefaultOrderApprovalService orderApprovalService;
     private final OrderHistoryPort orderHistoryPort;
-    private final NotificationService notificationService;
 
     public OrderAutoRefundProcessor(OrderReaderPort orderReader,
                                     OrderStorePort orderStore,
-                                    OrderApprovalService orderApprovalService,
-                                    OrderHistoryPort orderHistoryPort,
-                                    NotificationService notificationService) {
+                                    DefaultOrderApprovalService orderApprovalService,
+                                    OrderHistoryPort orderHistoryPort) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.orderApprovalService = orderApprovalService;
         this.orderHistoryPort = orderHistoryPort;
-        this.notificationService = notificationService;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -54,13 +49,13 @@ public class OrderAutoRefundProcessor {
         }
 
         orderApprovalService.restoreInventory(order);
-        orderApprovalService.processRefund(order);
+        boolean refundSucceeded = orderApprovalService.processRefund(order);
         order.markAutoRefunded();
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.AUTO_REFUND));
         orderStore.saveAndFlush(order);
 
-        notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+        orderApprovalService.notifyRefundedGuest(order, refundSucceeded);
         return true;
     }
 }

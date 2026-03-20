@@ -32,19 +32,23 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
     }
 
     @Transactional
-    public User signup(String email, String rawPassword, String name, String phone) {
-        if (userReader.existsByEmail(email)) {
+    public User signup(SignupCommand command) {
+        if (userReader.existsByEmail(command.email())) {
             throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
-        User user = new User(email, passwordEncoder.encode(rawPassword), name, phone);
+        User user = new User(
+                command.email(),
+                passwordEncoder.encode(command.rawPassword()),
+                command.name(),
+                command.phone());
         userStore.save(user);
         return user;
     }
 
     @Transactional
-    public User login(String email, String rawPassword) {
-        User user = userReader.findByEmail(email)
-                .filter(u -> passwordEncoder.matches(rawPassword, u.getPasswordHash()))
+    public User login(LoginCommand command) {
+        User user = userReader.findByEmail(command.email())
+                .filter(u -> passwordEncoder.matches(command.rawPassword(), u.getPasswordHash()))
                 .orElseThrow(() -> new HappyGalleryException(ErrorCode.INVALID_CREDENTIALS));
         user.updateLastLoginAt(LocalDateTime.now(clock));
         return user;

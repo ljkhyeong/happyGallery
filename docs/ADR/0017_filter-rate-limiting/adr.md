@@ -10,8 +10,11 @@
 무제한 API 호출이 가능하면 특정 IP/봇 트래픽이 애플리케이션/DB 자원을 고갈시켜
 정상 사용자 요청까지 장애로 전파될 수 있다.
 
-특히 본 프로젝트의 인증코드 발송, 게스트 예약 생성, 이용권 구매, 관리자 운영 API는
+특히 본 프로젝트의 인증코드 발송, 회원 로그인/회원가입, 게스트 예약 생성, 이용권 구매, 관리자 운영 API는
 짧은 시간 내 대량 호출될 가능성이 있어 선제적인 요청 제한이 필요하다.
+
+초기에는 인메모리 기반 전략도 가능했지만,
+현재 기준 운영 환경은 Redis를 사용하므로 인스턴스 간 카운터 공유를 전제로 제한 정책을 유지한다.
 
 ---
 
@@ -23,21 +26,25 @@
 - 필터 순서:
   - `RequestIdFilter` → `RateLimitFilter` → `AdminAuthFilter`
 
-### 2. `Bucket4j` 기반 토큰 버킷 정책을 적용한다
+### 2. Redis 공유 카운터 기반 fixed-window 정책을 적용한다
 
 - 키: 기본적으로 클라이언트 IP(`remoteAddr`)
 - `app.rate-limit.trust-forwarded-headers=true` 일 때만 `X-Forwarded-For`의 첫 번째 IP를 신뢰한다
+- Redis 키 패턴은 `rate:{RULE_ID}:{clientIP}` 를 사용한다.
 - 기본 한도:
   - 인증코드 발송: 10 req/sec/IP
+  - 회원 로그인: 10 req/min/IP
+  - 회원 회원가입: 5 req/min/IP
   - 게스트 예약 생성: 30 req/min/IP
   - 이용권 구매: 20 req/min/IP
   - 관리자 로그인: 5 req/min/IP
   - Admin API: 120 req/min/IP
 
-### 3. 메모리 저장소는 bounded cleanup을 둔다
+### 3. Redis 증분과 TTL 설정은 Lua script로 원자적으로 처리한다
 
-- 인메모리 bucket map은 마지막 접근 시각을 기록한다
-- 5분마다 10분 이상 미접근 bucket을 제거해 장시간 실행 시 무제한 증가를 줄인다
+- `INCR`와 최초 `EXPIRE`를 하나의 Lua script로 실행한다.
+- count가 1일 때만 TTL을 설정해 윈도우를 시작한다.
+- 별도 인메모리 bucket 상태나 cleanup 스케줄러는 두지 않는다.
 
 ### 4. 제한 초과 시 표준 에러 응답을 반환한다
 
@@ -52,8 +59,10 @@
 | 항목 | 내용 |
 |------|------|
 | 장점 | 대량 호출을 조기에 차단해 서버/DB 보호 효과가 크다 |
+| 장점 | Redis 공유 카운터로 다중 인스턴스 환경에서도 같은 제한값을 적용할 수 있다 |
 | 장점 | 운영자가 `429` 지표로 비정상 트래픽을 빠르게 탐지 가능 |
 | 단점 | 과도하게 낮은 제한값은 정상 사용자 UX에 영향을 줄 수 있음 |
+| 단점 | Redis 장애 시 제한 처리 경로도 영향을 받는다 |
 | 대응 | 제한값을 `application.yml`로 외부화해 환경별 튜닝 |
 
 ---
@@ -62,6 +71,8 @@
 
 - `app/web/RateLimitFilter` 추가
 - `app/web/RequestIdFilter`, `app/web/AdminAuthFilter` 필터 순서/경로 보강
+- `StringRedisTemplate` 기반 Redis 카운터 사용
+- Lua script로 `INCR` + `EXPIRE` 원자 처리
 - `common/error/ErrorCode`에 `TOO_MANY_REQUESTS` 추가
 - `application.yml`에 `app.rate-limit.*` 설정 추가
-- `ADMIN_LOGIN` 한도와 `trust-forwarded-headers` 정책 추가
+- `CUSTOMER_LOGIN`, `CUSTOMER_SIGNUP`, `ADMIN_LOGIN` 한도와 `trust-forwarded-headers` 정책 추가

@@ -31,7 +31,12 @@ public class CustomerAuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public CustomerUserResponse signup(@RequestBody @Valid SignupRequest request,
                                        HttpServletRequest httpRequest) {
-        User user = customerAuth.signup(request.email(), request.password(), request.name(), request.phone());
+        User user = customerAuth.signup(
+                new CustomerAuthUseCase.SignupCommand(
+                        request.email(),
+                        request.password(),
+                        request.name(),
+                        request.phone()));
         httpRequest.getSession(true).setAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR, user.getId());
         return toCustomerUserResponse(user);
     }
@@ -39,7 +44,10 @@ public class CustomerAuthController {
     @PostMapping("/auth/login")
     public CustomerUserResponse login(@RequestBody @Valid CustomerLoginRequest request,
                                       HttpServletRequest httpRequest) {
-        User user = customerAuth.login(request.email(), request.password());
+        User user = customerAuth.login(
+                new CustomerAuthUseCase.LoginCommand(
+                        request.email(),
+                        request.password()));
         httpRequest.getSession(true).setAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR, user.getId());
         return toCustomerUserResponse(user);
     }

@@ -1,7 +1,9 @@
 # 회원 세션의 Spring Session 전환 메모
 
 **날짜**: 2026-03-17  
-**상태**: 적용 완료
+**상태**: ADR 반영 완료
+
+> 최종 채택 기준은 [ADR-0023](../../ADR/0023_admin-auth-and-runtime-operations-baseline/adr.md) 확인. 이 문서는 전환 배경과 검토 맥락 보존용이다.
 
 ---
 

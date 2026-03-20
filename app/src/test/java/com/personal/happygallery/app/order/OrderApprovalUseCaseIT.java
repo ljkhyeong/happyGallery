@@ -2,6 +2,8 @@ package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.app.order.port.in.OrderApprovalUseCase;
+import com.personal.happygallery.app.order.port.in.OrderAutoRefundBatchUseCase;
 import com.personal.happygallery.common.error.AlreadyRefundedException;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.domain.booking.Refund;
@@ -56,8 +58,8 @@ class OrderApprovalUseCaseIT {
     @Autowired RefundRepository refundRepository;
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
-    @Autowired OrderApprovalService orderApprovalService;
-    @Autowired OrderAutoRefundBatchService orderAutoRefundBatchService;
+    @Autowired OrderApprovalUseCase orderApprovalService;
+    @Autowired OrderAutoRefundBatchUseCase orderAutoRefundBatchService;
     @Autowired OrderService orderService;
     @Autowired Clock clock;
     @MockitoBean NotificationService notificationService;

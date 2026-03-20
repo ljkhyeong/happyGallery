@@ -30,7 +30,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class SlotBookingCapacityUseCaseIT {
 
-    @Autowired SlotManagementService slotManagementService;
+    @Autowired DefaultSlotManagementService slotManagementService;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
