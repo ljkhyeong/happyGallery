@@ -11,6 +11,7 @@ import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.app.product.InventoryService;
 import com.personal.happygallery.config.RetryConfig;
 import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
@@ -18,6 +19,7 @@ import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.RefundStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import java.util.List;
 import org.slf4j.Logger;
@@ -152,10 +154,10 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
         order.reject();
 
         restoreInventory(order);
-        processRefund(order);
+        boolean refundSucceeded = processRefund(order);
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT, adminId, null));
-        notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+        notifyRefundedGuest(order, refundSucceeded);
         log.info("order rejected [orderId={} adminId={}]", orderId, adminId);
 
         return orderStore.save(order);
@@ -168,7 +170,14 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
         }
     }
 
-    void processRefund(Order order) {
-        refundExecutionService.processOrderRefund(order.getId(), order.getTotalAmount());
+    boolean processRefund(Order order) {
+        Refund refund = refundExecutionService.processOrderRefund(order.getId(), order.getTotalAmount());
+        return refund.getStatus() == RefundStatus.SUCCEEDED;
+    }
+
+    void notifyRefundedGuest(Order order, boolean refundSucceeded) {
+        if (refundSucceeded) {
+            notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+        }
     }
 }

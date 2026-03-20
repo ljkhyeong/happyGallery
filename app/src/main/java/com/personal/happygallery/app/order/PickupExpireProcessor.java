@@ -1,12 +1,10 @@
 package com.personal.happygallery.app.order;
 
-import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.config.RetryConfig;
 import com.personal.happygallery.common.error.NotFoundException;
-import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -24,18 +22,15 @@ public class PickupExpireProcessor {
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
     private final DefaultOrderApprovalService orderApprovalService;
-    private final NotificationService notificationService;
 
     public PickupExpireProcessor(FulfillmentPort fulfillmentPort,
                                  OrderReaderPort orderReader,
                                  OrderStorePort orderStore,
-                                 DefaultOrderApprovalService orderApprovalService,
-                                 NotificationService notificationService) {
+                                 DefaultOrderApprovalService orderApprovalService) {
         this.fulfillmentPort = fulfillmentPort;
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.orderApprovalService = orderApprovalService;
-        this.notificationService = notificationService;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -60,12 +55,12 @@ public class PickupExpireProcessor {
         }
 
         orderApprovalService.restoreInventory(order);
-        orderApprovalService.processRefund(order);
+        boolean refundSucceeded = orderApprovalService.processRefund(order);
         order.markPickupExpired();
 
         orderStore.save(order);
 
-        notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+        orderApprovalService.notifyRefundedGuest(order, refundSucceeded);
         return true;
     }
 }
