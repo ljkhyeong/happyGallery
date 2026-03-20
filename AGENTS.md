@@ -47,6 +47,7 @@
 - 정책 테스트는 `*PolicyTest`, 통합 흐름은 `@UseCaseIT` / `*UseCaseIT`
 - 모든 테스트 메서드에 `@DisplayName` 한글 문장 사용
 - 코드 수정 후에는 변경 범위 최소 테스트부터 실행
+- 소스 코드를 수정하면 관련 문서를 항상 함께 갱신한다. 최소 `README.md`, `HANDOFF.md`, `docs/PRD`, `docs/ADR`, API 계약 문서 중 영향 범위를 확인하고 구현과 문서가 어긋난 상태로 두지 않는다.
 - 구현 변경 시 관련 PRD, ADR, 운영 문서도 함께 반영
 
 ## DB 및 설정 변경 규칙
