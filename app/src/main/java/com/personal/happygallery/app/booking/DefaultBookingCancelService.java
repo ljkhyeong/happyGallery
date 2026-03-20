@@ -5,14 +5,13 @@ import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.app.payment.RefundExecutionService;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
-import com.personal.happygallery.common.error.ErrorCode;
-import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
-import com.personal.happygallery.domain.booking.BookingStatus;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.order.RefundStatus;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -72,44 +71,52 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
     }
 
     private CancelResult cancelInternal(Booking booking) {
-        // 1. 상태 체크 — BOOKED 상태만 취소 가능
-        if (booking.getStatus() != BookingStatus.BOOKED) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "취소할 수 없는 예약 상태입니다.");
-        }
+        booking.cancel();
 
-        // 2. 슬롯 반납 — 비관적 락 + booked_count--
+        // 1. 슬롯 반납 — 비관적 락 + booked_count--
         Slot slot = creationSupport.releaseSlotCapacity(booking.getSlot().getId());
 
-        // 3. CANCELED 이력 저장 (append-only)
+        // 2. CANCELED 이력 저장 (append-only)
         bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null);
 
-        // 4. 환불 가능 여부 판단 (D-1 00:00 Asia/Seoul 기준)
-        boolean refundable = TimeBoundary.isRefundable(slot.getStartAt(), clock);
+        // 3. 환불/크레딧 복구 등 취소 보상 처리
+        CancellationCompensation compensation = applyCancellationCompensation(booking, slot);
 
-        if (booking.isPassBooking()) {
-            if (refundable) {
-                PassPurchase pass = booking.getPassPurchase();
-                passLedgerStorePort.save(
-                        new PassLedger(pass, PassLedgerType.REFUND, 1, booking.getId()));
-                pass.refundCredit();
-                passPurchaseStorePort.save(pass);
-            }
-        } else {
-            if (refundable) {
-                refundExecutionService.processBookingRefund(booking.getId(), booking.getDepositAmount());
-            }
-        }
-
-        // 5. 예약 취소 처리
-        booking.cancel();
+        // 4. 예약 취소 저장
         bookingStorePort.save(booking);
 
-        // 6. 취소 알림 (+ 예약금 환불 시 환불 알림)
+        // 5. 취소 알림 (+ 실제 예약금 환불 성공 시 환불 알림)
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CANCELED);
-        if (refundable && !booking.isPassBooking()) {
+        if (compensation.depositRefundSucceeded()) {
             bookingSupport.notifyBooker(booking, NotificationEventType.DEPOSIT_REFUNDED);
         }
 
-        return new CancelResult(booking, refundable);
+        return new CancelResult(booking, compensation.refundable());
     }
+
+    private CancellationCompensation applyCancellationCompensation(Booking booking, Slot slot) {
+        boolean refundable = TimeBoundary.isRefundable(slot.getStartAt(), clock);
+        if (!refundable) {
+            return new CancellationCompensation(false, false);
+        }
+
+        if (booking.isPassBooking()) {
+            restorePassCredit(booking);
+            return new CancellationCompensation(true, false);
+        }
+
+        Refund refund = refundExecutionService.processBookingRefund(booking.getId(), booking.getDepositAmount());
+        boolean depositRefundSucceeded = refund.getStatus() == RefundStatus.SUCCEEDED;
+        return new CancellationCompensation(true, depositRefundSucceeded);
+    }
+
+    private void restorePassCredit(Booking booking) {
+        PassPurchase pass = booking.getPassPurchase();
+        passLedgerStorePort.save(
+                new PassLedger(pass, PassLedgerType.REFUND, 1, booking.getId()));
+        pass.refundCredit();
+        passPurchaseStorePort.save(pass);
+    }
+
+    private record CancellationCompensation(boolean refundable, boolean depositRefundSucceeded) {}
 }

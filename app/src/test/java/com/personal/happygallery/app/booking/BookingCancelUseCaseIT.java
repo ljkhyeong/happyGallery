@@ -5,6 +5,8 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Refund;
+import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.infra.booking.BookingHistoryRepository;
 import com.personal.happygallery.infra.booking.BookingRepository;
@@ -13,6 +15,7 @@ import com.personal.happygallery.infra.booking.GuestRepository;
 import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.booking.SlotRepository;
+import com.personal.happygallery.infra.notification.NotificationLogRepository;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;
@@ -21,6 +24,7 @@ import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +34,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
+import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassAndRefundData;
 import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
@@ -59,6 +64,7 @@ class BookingCancelUseCaseIT {
     @Autowired RefundRepository refundRepository;
     @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired PassPurchaseRepository passPurchaseRepository;
+    @Autowired NotificationLogRepository notificationLogRepository;
     @MockitoBean PaymentProvider paymentProvider;
 
     BookingClass cls;
@@ -80,6 +86,7 @@ class BookingCancelUseCaseIT {
                 guestRepository,
                 slotRepository,
                 classRepository);
+        notificationLogRepository.deleteAllInBatch();
 
         cls = classRepository.save(defaultBookingClass());
     }
@@ -95,6 +102,8 @@ class BookingCancelUseCaseIT {
 
         BookingTestHelper.CreatedBooking createdBooking = helper.createVerifiedCardBooking("01011110001", slot.getId(), 5_000L);
         Long bookingId = createdBooking.bookingId();
+        awaitLogCount(notificationLogRepository, 1);
+        notificationLogRepository.deleteAllInBatch();
 
         // 취소 — D-1 이전 슬롯이므로 환불 가능
         mockMvc.perform(delete("/bookings/{id}", bookingId)
@@ -108,6 +117,7 @@ class BookingCancelUseCaseIT {
         Booking booking = bookingRepository.findById(bookingId).orElseThrow();
         var refunds = refundRepository.findAll();
         Slot updatedSlot = slotRepository.findById(slot.getId()).orElseThrow();
+        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 2);
 
         assertSoftly(softly -> {
             softly.assertThat(booking.getStatus().name()).isEqualTo("CANCELED");
@@ -117,6 +127,10 @@ class BookingCancelUseCaseIT {
                 softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("SUCCEEDED");
             }
             softly.assertThat(updatedSlot.getBookedCount()).isEqualTo(0);
+            softly.assertThat(logs).extracting(NotificationLog::getEventType)
+                    .containsExactlyInAnyOrder(
+                            NotificationEventType.BOOKING_CANCELED,
+                            NotificationEventType.DEPOSIT_REFUNDED);
         });
     }
 
@@ -133,6 +147,8 @@ class BookingCancelUseCaseIT {
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550005", slot.getId(), 5_000L);
+        awaitLogCount(notificationLogRepository, 1);
+        notificationLogRepository.deleteAllInBatch();
 
         // 취소 — 환불 가능 구간이지만 PG 실패
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
@@ -142,12 +158,15 @@ class BookingCancelUseCaseIT {
                 .andExpect(jsonPath("$.refundable").value(true));
 
         var refunds = refundRepository.findAll();
+        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 1);
         assertSoftly(softly -> {
             softly.assertThat(refunds).hasSize(1);
             if (!refunds.isEmpty()) {
                 softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("FAILED");
                 softly.assertThat(refunds.get(0).getFailReason()).isEqualTo("PG 타임아웃");
             }
+            softly.assertThat(logs).extracting(NotificationLog::getEventType)
+                    .containsExactly(NotificationEventType.BOOKING_CANCELED);
         });
     }
 

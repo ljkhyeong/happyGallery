@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.booking;
 
+import com.personal.happygallery.common.error.ErrorCode;
+import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -133,6 +135,9 @@ public class Booking {
      * 환불 가능 여부는 호출자가 {@link com.personal.happygallery.common.time.TimeBoundary#isRefundable}로 판단한다.
      */
     public void cancel() {
+        if (status != BookingStatus.BOOKED) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "취소할 수 없는 예약 상태입니다.");
+        }
         this.status = BookingStatus.CANCELED;
     }
 
