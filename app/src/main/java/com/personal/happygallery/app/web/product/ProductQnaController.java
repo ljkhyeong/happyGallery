@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.product;
 
-import com.personal.happygallery.app.qna.ProductQnaService.QnaWithAuthor;
 import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase;
+import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase.QnaWithAuthor;
 import com.personal.happygallery.app.web.product.dto.ProductQnaDetail;
 import com.personal.happygallery.app.web.product.dto.ProductQnaListItem;
 import com.personal.happygallery.app.web.product.dto.VerifyQnaPasswordRequest;
@@ -18,15 +18,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/products/{productId}/qna", "/products/{productId}/qna"})
 public class ProductQnaController {
 
-    private final ProductQnaUseCase qnaService;
+    private final ProductQnaUseCase qnaUseCase;
 
-    public ProductQnaController(ProductQnaUseCase qnaService) {
-        this.qnaService = qnaService;
+    public ProductQnaController(ProductQnaUseCase qnaUseCase) {
+        this.qnaUseCase = qnaUseCase;
     }
 
     @GetMapping
     public List<ProductQnaListItem> list(@PathVariable Long productId) {
-        return qnaService.listByProduct(productId).stream()
+        return qnaUseCase.listByProduct(productId).stream()
                 .map(ProductQnaListItem::from)
                 .toList();
     }
@@ -35,7 +35,7 @@ public class ProductQnaController {
     public ProductQnaDetail verify(@PathVariable Long productId,
                                    @PathVariable Long id,
                                    @RequestBody @Valid VerifyQnaPasswordRequest request) {
-        QnaWithAuthor result = qnaService.verifyAndGet(id, request.password());
+        QnaWithAuthor result = qnaUseCase.verifyAndGet(id, request.password());
         return ProductQnaDetail.from(result);
     }
 }

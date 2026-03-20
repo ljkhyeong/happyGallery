@@ -18,10 +18,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/me/products/{productId}/qna")
 public class MeProductQnaController {
 
-    private final ProductQnaUseCase qnaService;
+    private final ProductQnaUseCase qnaUseCase;
 
-    public MeProductQnaController(ProductQnaUseCase qnaService) {
-        this.qnaService = qnaService;
+    public MeProductQnaController(ProductQnaUseCase qnaUseCase) {
+        this.qnaUseCase = qnaUseCase;
     }
 
     @PostMapping
@@ -30,7 +30,7 @@ public class MeProductQnaController {
                                      @RequestBody @Valid CreateQnaRequest request,
                                      HttpServletRequest httpRequest) {
         Long userId = getUserId(httpRequest);
-        return QnaCreatedResponse.from(qnaService.createQuestion(
+        return QnaCreatedResponse.from(qnaUseCase.createQuestion(
                 productId, userId, request.title(), request.content(),
                 request.secret(), request.password()));
     }

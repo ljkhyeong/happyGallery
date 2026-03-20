@@ -22,19 +22,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/me/passes")
 public class MePassController {
 
-    private final PassQueryUseCase passQueryService;
-    private final PassPurchaseUseCase passPurchaseService;
+    private final PassQueryUseCase passQueryUseCase;
+    private final PassPurchaseUseCase passPurchaseUseCase;
 
-    public MePassController(PassQueryUseCase passQueryService,
-                             PassPurchaseUseCase passPurchaseService) {
-        this.passQueryService = passQueryService;
-        this.passPurchaseService = passPurchaseService;
+    public MePassController(PassQueryUseCase passQueryUseCase,
+                             PassPurchaseUseCase passPurchaseUseCase) {
+        this.passQueryUseCase = passQueryUseCase;
+        this.passPurchaseUseCase = passPurchaseUseCase;
     }
 
     @GetMapping
     public List<MyPassSummary> myPasses(HttpServletRequest request) {
         Long userId = getUserId(request);
-        return passQueryService.listMyPasses(userId).stream()
+        return passQueryUseCase.listMyPasses(userId).stream()
                 .map(MyPassSummary::from)
                 .toList();
     }
@@ -42,7 +42,7 @@ public class MePassController {
     @GetMapping("/{id}")
     public MyPassSummary myPass(@PathVariable Long id, HttpServletRequest request) {
         Long userId = getUserId(request);
-        PassPurchase pass = passQueryService.findMyPass(id, userId);
+        PassPurchase pass = passQueryUseCase.findMyPass(id, userId);
         return MyPassSummary.from(pass);
     }
 
@@ -51,7 +51,7 @@ public class MePassController {
     public MyPassSummary purchasePass(@RequestBody @Valid PurchaseMemberPassRequest req,
                                       HttpServletRequest request) {
         Long userId = getUserId(request);
-        PassPurchase pass = passPurchaseService.purchaseForMember(userId, req.totalPrice());
+        PassPurchase pass = passPurchaseUseCase.purchaseForMember(userId, req.totalPrice());
         return MyPassSummary.from(pass);
     }
 

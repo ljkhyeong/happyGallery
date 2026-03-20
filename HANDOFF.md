@@ -243,3 +243,4 @@ cd frontend && npm run e2e
 | ADR-0023 | 관리자 인증 및 런타임 운영 기준선 |
 | ADR-0024 | Guest access token SHA-256 해시 저장 + X-Access-Token 헤더 전환 |
 | ADR-0025 | Graceful Shutdown 및 Executor Drain 정책 |
+| ADR-0026 | 통합 테스트 프로파일 및 Testcontainers 기준선 |

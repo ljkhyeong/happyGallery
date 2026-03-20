@@ -1,8 +1,7 @@
 package com.personal.happygallery.app.web.customer;
 
-import com.personal.happygallery.app.order.OrderCreationService;
-import com.personal.happygallery.app.order.OrderQueryService;
 import com.personal.happygallery.app.order.port.in.OrderCreationUseCase;
+import com.personal.happygallery.app.order.port.in.OrderCreationUseCase.OrderItemInput;
 import com.personal.happygallery.app.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.customer.dto.CreateMemberOrderRequest;
@@ -25,19 +24,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/me/orders")
 public class MeOrderController {
 
-    private final OrderQueryUseCase orderQueryService;
-    private final OrderCreationUseCase orderCreationService;
+    private final OrderQueryUseCase orderQueryUseCase;
+    private final OrderCreationUseCase orderCreationUseCase;
 
-    public MeOrderController(OrderQueryUseCase orderQueryService,
-                              OrderCreationUseCase orderCreationService) {
-        this.orderQueryService = orderQueryService;
-        this.orderCreationService = orderCreationService;
+    public MeOrderController(OrderQueryUseCase orderQueryUseCase,
+                              OrderCreationUseCase orderCreationUseCase) {
+        this.orderQueryUseCase = orderQueryUseCase;
+        this.orderCreationUseCase = orderCreationUseCase;
     }
 
     @GetMapping
     public List<MyOrderSummary> myOrders(HttpServletRequest request) {
         Long userId = getUserId(request);
-        return orderQueryService.listMyOrders(userId).stream()
+        return orderQueryUseCase.listMyOrders(userId).stream()
                 .map(MyOrderSummary::from)
                 .toList();
     }
@@ -45,7 +44,7 @@ public class MeOrderController {
     @GetMapping("/{id}")
     public OrderDetailResponse myOrder(@PathVariable Long id, HttpServletRequest request) {
         Long userId = getUserId(request);
-        return OrderDetailResponse.from(orderQueryService.findMyOrder(id, userId));
+        return OrderDetailResponse.from(orderQueryUseCase.findMyOrder(id, userId));
     }
 
     @PostMapping
@@ -54,9 +53,9 @@ public class MeOrderController {
                                       HttpServletRequest request) {
         Long userId = getUserId(request);
         var items = req.items().stream()
-                .map(i -> new OrderCreationService.OrderItemInput(i.productId(), i.qty()))
+                .map(i -> new OrderItemInput(i.productId(), i.qty()))
                 .toList();
-        Order order = orderCreationService.createMemberOrder(userId, items);
+        Order order = orderCreationUseCase.createMemberOrder(userId, items);
         return MyOrderSummary.from(order);
     }
 

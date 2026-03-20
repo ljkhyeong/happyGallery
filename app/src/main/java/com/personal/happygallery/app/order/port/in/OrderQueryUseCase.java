@@ -1,7 +1,8 @@
 package com.personal.happygallery.app.order.port.in;
 
-import com.personal.happygallery.app.order.OrderQueryService.OrderDetail;
+import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderItem;
 import java.util.List;
 
 /**
@@ -10,6 +11,8 @@ import java.util.List;
  * <p>토큰 기반(비회원) / 회원 두 경로를 지원한다.
  */
 public interface OrderQueryUseCase {
+
+    record OrderDetail(Order order, List<OrderItem> items, Fulfillment fulfillment) {}
 
     List<Order> listMyOrders(Long userId);
 

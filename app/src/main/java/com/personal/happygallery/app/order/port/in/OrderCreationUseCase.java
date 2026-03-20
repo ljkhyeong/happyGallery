@@ -1,6 +1,5 @@
 package com.personal.happygallery.app.order.port.in;
 
-import com.personal.happygallery.app.order.OrderCreationService.OrderItemInput;
 import com.personal.happygallery.app.order.OrderService.OrderCreationResult;
 import com.personal.happygallery.domain.order.Order;
 import java.util.List;
@@ -12,8 +11,12 @@ import java.util.List;
  */
 public interface OrderCreationUseCase {
 
-    OrderCreationResult createOrderByPhone(String phone, String verificationCode,
-                                           String name, List<OrderItemInput> items);
+    record OrderItemInput(Long productId, int qty) {}
+
+    record CreateOrderByPhoneCommand(String phone, String verificationCode,
+                                     String name, List<OrderItemInput> items) {}
+
+    OrderCreationResult createOrderByPhone(CreateOrderByPhoneCommand command);
 
     Order createMemberOrder(Long userId, List<OrderItemInput> items);
 }

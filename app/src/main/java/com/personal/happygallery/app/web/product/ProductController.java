@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.product;
 
-import com.personal.happygallery.app.product.ProductQueryService.ProductWithInventory;
 import com.personal.happygallery.app.product.port.in.ProductQueryUseCase;
+import com.personal.happygallery.app.product.port.in.ProductQueryUseCase.ProductWithInventory;
 import com.personal.happygallery.app.web.product.dto.ProductDetailResponse;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,16 +13,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/products", "/products"})
 public class ProductController {
 
-    private final ProductQueryUseCase productQueryService;
+    private final ProductQueryUseCase productQueryUseCase;
 
-    public ProductController(ProductQueryUseCase productQueryService) {
-        this.productQueryService = productQueryService;
+    public ProductController(ProductQueryUseCase productQueryUseCase) {
+        this.productQueryUseCase = productQueryUseCase;
     }
 
     /** GET /products — ACTIVE 상품 목록 */
     @GetMapping
     public List<ProductDetailResponse> listProducts() {
-        return productQueryService.listActiveProducts().stream()
+        return productQueryUseCase.listActiveProducts().stream()
                 .map(ProductDetailResponse::from)
                 .toList();
     }
@@ -30,7 +30,7 @@ public class ProductController {
     /** GET /products/{id} — 상품 상세 + 재고 가용 여부 */
     @GetMapping("/{id}")
     public ProductDetailResponse getProduct(@PathVariable Long id) {
-        ProductWithInventory result = productQueryService.getProduct(id);
+        ProductWithInventory result = productQueryUseCase.getProduct(id);
         return ProductDetailResponse.from(result);
     }
 }

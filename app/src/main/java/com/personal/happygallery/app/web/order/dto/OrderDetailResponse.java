@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.order.dto;
 
-import com.personal.happygallery.app.order.OrderQueryService;
+import com.personal.happygallery.app.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
@@ -34,7 +34,7 @@ public record OrderDetailResponse(
         }
     }
 
-    public static OrderDetailResponse from(OrderQueryService.OrderDetail detail) {
+    public static OrderDetailResponse from(OrderQueryUseCase.OrderDetail detail) {
         return from(detail.order(), detail.items(), detail.fulfillment());
     }
 

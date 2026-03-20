@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.product.ProductAdminService.RegisterResult;
 import com.personal.happygallery.app.product.port.in.ProductAdminUseCase;
+import com.personal.happygallery.app.product.port.in.ProductAdminUseCase.RegisterResult;
 import com.personal.happygallery.app.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.app.web.admin.dto.CreateProductRequest;
 import com.personal.happygallery.app.web.admin.dto.ProductResponse;
@@ -19,20 +19,20 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/products", "/admin/products"})
 public class AdminProductController {
 
-    private final ProductAdminUseCase productAdminService;
-    private final ProductQueryUseCase productQueryService;
+    private final ProductAdminUseCase productAdminUseCase;
+    private final ProductQueryUseCase productQueryUseCase;
 
-    public AdminProductController(ProductAdminUseCase productAdminService,
-                                  ProductQueryUseCase productQueryService) {
-        this.productAdminService = productAdminService;
-        this.productQueryService = productQueryService;
+    public AdminProductController(ProductAdminUseCase productAdminUseCase,
+                                  ProductQueryUseCase productQueryUseCase) {
+        this.productAdminUseCase = productAdminUseCase;
+        this.productQueryUseCase = productQueryUseCase;
     }
 
     /** POST /admin/products — 상품 등록 */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ProductResponse register(@RequestBody @Valid CreateProductRequest request) {
-        RegisterResult result = productAdminService.register(
+        RegisterResult result = productAdminUseCase.register(
                 request.name(), request.type(), request.price(), request.quantity());
         return ProductResponse.from(result);
     }
@@ -40,7 +40,7 @@ public class AdminProductController {
     /** GET /admin/products — ACTIVE 상품 목록 */
     @GetMapping
     public List<ProductResponse> listActive() {
-        return productQueryService.listActiveProducts().stream()
+        return productQueryUseCase.listActiveProducts().stream()
                 .map(ProductResponse::from)
                 .toList();
     }

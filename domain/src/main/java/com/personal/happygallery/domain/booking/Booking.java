@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.booking;
 
+import com.personal.happygallery.common.error.ErrorCode;
+import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -125,6 +127,9 @@ public class Booking {
      * 호출 후 저장 시 {@code @Version}으로 낙관적 락 충돌을 감지한다.
      */
     public void reschedule(Slot newSlot) {
+        if (status != BookingStatus.BOOKED) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "변경할 수 없는 예약 상태입니다.");
+        }
         this.slot = newSlot;
     }
 
@@ -133,11 +138,17 @@ public class Booking {
      * 환불 가능 여부는 호출자가 {@link com.personal.happygallery.common.time.TimeBoundary#isRefundable}로 판단한다.
      */
     public void cancel() {
+        if (status != BookingStatus.BOOKED) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "취소할 수 없는 예약 상태입니다.");
+        }
         this.status = BookingStatus.CANCELED;
     }
 
     /** 결석 처리. 크레딧은 예약 시 이미 소모되었으므로 상태만 변경. */
     public void markNoShow() {
+        if (status != BookingStatus.BOOKED) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "결석 처리할 수 없는 예약 상태입니다.");
+        }
         this.status = BookingStatus.NO_SHOW;
     }
 

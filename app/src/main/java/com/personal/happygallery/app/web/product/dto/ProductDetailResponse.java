@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.product.dto;
 
-import com.personal.happygallery.app.product.ProductQueryService;
+import com.personal.happygallery.app.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 
@@ -11,7 +11,7 @@ public record ProductDetailResponse(
         long price,
         boolean available
 ) {
-    public static ProductDetailResponse from(ProductQueryService.ProductWithInventory r) {
+    public static ProductDetailResponse from(ProductQueryUseCase.ProductWithInventory r) {
         return from(r.product(), r.inventory());
     }
 

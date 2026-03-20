@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.batch;
 
-import com.personal.happygallery.app.booking.BookingReminderBatchService;
-import com.personal.happygallery.app.order.OrderAutoRefundBatchService;
+import com.personal.happygallery.app.booking.port.in.BookingReminderBatchUseCase;
+import com.personal.happygallery.app.order.port.in.OrderAutoRefundBatchUseCase;
 import com.personal.happygallery.app.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.app.pass.port.in.PassExpiryBatchUseCase;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,60 +23,60 @@ import org.springframework.stereotype.Component;
 @Component
 public class BatchScheduler {
 
-    private final OrderAutoRefundBatchService orderAutoRefundBatchService;
-    private final PickupExpireBatchUseCase pickupExpireBatchService;
-    private final PassExpiryBatchUseCase passExpiryBatchService;
-    private final BookingReminderBatchService bookingReminderBatchService;
+    private final OrderAutoRefundBatchUseCase orderAutoRefundBatchUseCase;
+    private final PickupExpireBatchUseCase pickupExpireBatchUseCase;
+    private final PassExpiryBatchUseCase passExpiryBatchUseCase;
+    private final BookingReminderBatchUseCase bookingReminderBatchUseCase;
 
-    public BatchScheduler(OrderAutoRefundBatchService orderAutoRefundBatchService,
-                          PickupExpireBatchUseCase pickupExpireBatchService,
-                          PassExpiryBatchUseCase passExpiryBatchService,
-                          BookingReminderBatchService bookingReminderBatchService) {
-        this.orderAutoRefundBatchService = orderAutoRefundBatchService;
-        this.pickupExpireBatchService = pickupExpireBatchService;
-        this.passExpiryBatchService = passExpiryBatchService;
-        this.bookingReminderBatchService = bookingReminderBatchService;
+    public BatchScheduler(OrderAutoRefundBatchUseCase orderAutoRefundBatchUseCase,
+                          PickupExpireBatchUseCase pickupExpireBatchUseCase,
+                          PassExpiryBatchUseCase passExpiryBatchUseCase,
+                          BookingReminderBatchUseCase bookingReminderBatchUseCase) {
+        this.orderAutoRefundBatchUseCase = orderAutoRefundBatchUseCase;
+        this.pickupExpireBatchUseCase = pickupExpireBatchUseCase;
+        this.passExpiryBatchUseCase = passExpiryBatchUseCase;
+        this.bookingReminderBatchUseCase = bookingReminderBatchUseCase;
     }
 
     /** 주문 승인 SLA(24h) 초과 → 자동환불. 매시간 정각 실행. */
     @BatchJob("주문 자동환불")
     @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
     public BatchResult runOrderAutoRefund() {
-        return orderAutoRefundBatchService.autoRefundExpired();
+        return orderAutoRefundBatchUseCase.autoRefundExpired();
     }
 
     /** 픽업 마감 초과 → 자동취소·환불. 매시간 정각 실행. */
     @BatchJob("픽업 만료")
     @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
     public BatchResult runPickupExpire() {
-        return pickupExpireBatchService.expirePickups();
+        return pickupExpireBatchUseCase.expirePickups();
     }
 
     /** 만료된 8회권 크레딧 소멸. 매일 00:00 실행. */
     @BatchJob("8회권 크레딧 소멸")
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
     public BatchResult runPassExpiry() {
-        return passExpiryBatchService.expireAll();
+        return passExpiryBatchUseCase.expireAll();
     }
 
     /** 8회권 만료 7일 전 알림. 매일 09:00 실행. */
     @BatchJob("8회권 만료 7일 전 알림")
     @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
     public BatchResult runPassExpiryNotification() {
-        return passExpiryBatchService.sendExpiryNotifications();
+        return passExpiryBatchUseCase.sendExpiryNotifications();
     }
 
     /** 예약 D-1 리마인드. 매일 00:00 실행. */
     @BatchJob("D-1 예약 리마인드")
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
     public BatchResult runBookingD1Reminder() {
-        return bookingReminderBatchService.sendD1Reminders();
+        return bookingReminderBatchUseCase.sendD1Reminders();
     }
 
     /** 예약 당일 리마인드. 매일 07:00 실행. */
     @BatchJob("당일 예약 리마인드")
     @Scheduled(cron = "0 0 7 * * *", zone = "Asia/Seoul")
     public BatchResult runBookingSameDayReminder() {
-        return bookingReminderBatchService.sendSameDayReminders();
+        return bookingReminderBatchUseCase.sendSameDayReminders();
     }
 }

@@ -14,10 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/slots", "/slots"})
 public class SlotController {
 
-    private final SlotQueryUseCase slotQueryService;
+    private final SlotQueryUseCase slotQueryUseCase;
 
-    public SlotController(SlotQueryUseCase slotQueryService) {
-        this.slotQueryService = slotQueryService;
+    public SlotController(SlotQueryUseCase slotQueryUseCase) {
+        this.slotQueryUseCase = slotQueryUseCase;
     }
 
     /** GET /slots?classId={}&date={} — 예약 가능 슬롯 목록 */
@@ -25,7 +25,7 @@ public class SlotController {
     public List<PublicSlotResponse> listAvailableSlots(
             @RequestParam Long classId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return slotQueryService.listAvailable(classId, date).stream()
+        return slotQueryUseCase.listAvailable(classId, date).stream()
                 .map(PublicSlotResponse::from)
                 .toList();
     }

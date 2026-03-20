@@ -20,13 +20,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/bookings", "/admin/bookings"})
 public class AdminBookingController {
 
-    private final AdminBookingQueryUseCase adminBookingQueryService;
-    private final PassNoShowUseCase passNoShowService;
+    private final AdminBookingQueryUseCase adminBookingQueryUseCase;
+    private final PassNoShowUseCase passNoShowUseCase;
 
-    public AdminBookingController(AdminBookingQueryUseCase adminBookingQueryService,
-                                  PassNoShowUseCase passNoShowService) {
-        this.adminBookingQueryService = adminBookingQueryService;
-        this.passNoShowService = passNoShowService;
+    public AdminBookingController(AdminBookingQueryUseCase adminBookingQueryUseCase,
+                                  PassNoShowUseCase passNoShowUseCase) {
+        this.adminBookingQueryUseCase = adminBookingQueryUseCase;
+        this.passNoShowUseCase = passNoShowUseCase;
     }
 
     /** GET /admin/bookings?date=2026-03-08&status=BOOKED — 날짜별 예약 조회 (상태 필터 선택) */
@@ -34,13 +34,13 @@ public class AdminBookingController {
     public List<AdminBookingResponse> listBookings(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) BookingStatus status) {
-        return adminBookingQueryService.listBookings(date, status);
+        return adminBookingQueryUseCase.listBookings(date, status);
     }
 
     /** 결석 처리 — 8회권 크레딧 소멸 유지, 상태 NO_SHOW 전이 */
     @PostMapping("/{bookingId}/no-show")
     public BookingNoShowResponse markNoShow(@PathVariable Long bookingId) {
-        Booking booking = passNoShowService.markNoShow(bookingId);
+        Booking booking = passNoShowUseCase.markNoShow(bookingId);
         return BookingNoShowResponse.from(booking);
     }
 }

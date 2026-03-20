@@ -2,7 +2,6 @@ package com.personal.happygallery.app.order;
 
 import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.domain.order.Fulfillment;
-import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +32,6 @@ class FulfillmentPortAdapter implements FulfillmentPort {
 
     @Override
     public List<Fulfillment> findExpiredPickups(LocalDateTime now) {
-        return fulfillmentRepository.findExpiredPickups(OrderStatus.PICKUP_READY, now);
+        return fulfillmentRepository.findExpiredPickups(now);
     }
 }

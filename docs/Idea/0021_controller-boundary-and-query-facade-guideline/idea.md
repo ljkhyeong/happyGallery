@@ -1,0 +1,79 @@
+# Controller 경계와 Query Facade 정리 가이드
+
+**날짜**: 2026-03-20  
+**상태**: 검토 중
+
+---
+
+## 배경
+
+일부 흐름에서는 controller가 HTTP 매핑만 담당하지 않고
+가격 조회, 소유권 판정, DTO 조립, 부가 조회 조합까지 직접 들고 있게 된다.
+
+이 패턴은 처음에는 빠르지만, 시간이 지나면 다음 문제가 생긴다.
+
+- controller가 유스케이스/도메인 규칙을 부분적으로 품는다.
+- 같은 조회/조합 로직이 member/admin/public 경계에 중복된다.
+- 테스트가 “HTTP 레이어 검증”과 “비즈니스 조합 검증”을 함께 떠안는다.
+
+---
+
+## 문제 정의
+
+### 1. controller가 HTTP 매핑 이상을 담당한다
+
+As-Is:
+- request를 DTO로 바꾸는 수준을 넘어 가격 조회, 소유권 판정, 응답 조립 책임이 섞인다.
+
+To-Be:
+- controller는 검증/매핑/응답 변환에 집중하고, 나머지는 use case 또는 query facade로 내린다.
+
+### 2. 읽기 모델 조합 책임이 흩어진다
+
+As-Is:
+- admin/member/public 경로마다 비슷한 조회 조합을 다른 controller/service가 반복할 수 있다.
+
+To-Be:
+- 읽기 전용 조합은 query facade를 명시적으로 두고, controller는 그 결과만 사용한다.
+
+### 3. write 흐름과 read 흐름의 경계가 흐려진다
+
+As-Is:
+- 상태 변경 직전 필요한 조회와 실제 상태 변경 로직이 controller/service 여러 군데로 퍼진다.
+
+To-Be:
+- write는 use case, read 조합은 query facade로 역할을 분리해 경계를 분명히 한다.
+
+---
+
+## 제안
+
+- controller가 도메인 조회 2개 이상을 직접 조합하기 시작하면 facade 추출을 우선 검토한다.
+- 소유권/권한/가격 같은 규칙 판단은 HTTP 레이어가 아니라 app 레이어 경계로 내린다.
+- 응답 DTO가 특정 owner 타입만 강하게 전제하면 `summary` 성격의 공용 표현으로 수렴할지 검토한다.
+
+---
+
+## ADR 승격 조건
+
+아래 조건을 만족하면 이 문서는 `Idea`가 아니라 `ADR`로 승격하는 편이 맞다.
+
+1. controller 책임 분리와 query facade/use case 경계를 저장소 전반의 기본 규칙으로 채택했을 때
+2. admin/member/public 경계에서 같은 read 조합 패턴을 3개 이상 도메인에 반복 적용해 예외보다 기본 규칙이 되었을 때
+3. 새 controller 구현 시 “HTTP 매핑 외 조합 책임은 app 레이어로 내린다”를 리뷰 기준으로 강제할 때
+4. 남아 있는 예외 케이스를 레거시 예외로 명시하거나, 대부분 정리해 팀이 하나의 기준으로 설명할 수 있을 때
+
+---
+
+## 현재 판단
+
+부분 채택 상태이긴 하지만, 아직 저장소 전체의 강한 규칙으로 굳었다고 보기는 어렵다.
+
+현재 근거:
+
+- `AdminBookingQueryService`, `AdminOrderQueryService`처럼 query facade 성격의 경계가 이미 도입된 구간이 있다.
+- `OrderCreationService.createMemberOrder()`처럼 controller의 가격 조회 책임을 app 레이어로 내린 사례도 있다.
+- 반면 일부 controller/DTO는 여전히 조합 책임이나 표현 기준이 혼재해 있어 “항상 이렇게 한다” 수준의 단일 규칙까지는 아니다.
+
+따라서 지금은 `simple-idea.md`보다 큰 문서인 `docs/Idea`에 두는 것이 맞고,
+다음 구조 정리 라운드에서 이 기준이 저장소 전반의 기본 규칙으로 굳으면 ADR 승격을 검토한다.

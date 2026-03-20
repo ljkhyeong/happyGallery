@@ -31,26 +31,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/bookings", "/bookings"})
 public class BookingController {
 
-    private final GuestBookingUseCase guestBookingService;
-    private final BookingQueryUseCase bookingQueryService;
-    private final BookingRescheduleUseCase bookingRescheduleService;
-    private final BookingCancelUseCase bookingCancelService;
+    private final GuestBookingUseCase guestBookingUseCase;
+    private final BookingQueryUseCase bookingQueryUseCase;
+    private final BookingRescheduleUseCase bookingRescheduleUseCase;
+    private final BookingCancelUseCase bookingCancelUseCase;
 
-    public BookingController(GuestBookingUseCase guestBookingService,
-                             BookingQueryUseCase bookingQueryService,
-                             BookingRescheduleUseCase bookingRescheduleService,
-                             BookingCancelUseCase bookingCancelService) {
-        this.guestBookingService = guestBookingService;
-        this.bookingQueryService = bookingQueryService;
-        this.bookingRescheduleService = bookingRescheduleService;
-        this.bookingCancelService = bookingCancelService;
+    public BookingController(GuestBookingUseCase guestBookingUseCase,
+                             BookingQueryUseCase bookingQueryUseCase,
+                             BookingRescheduleUseCase bookingRescheduleUseCase,
+                             BookingCancelUseCase bookingCancelUseCase) {
+        this.guestBookingUseCase = guestBookingUseCase;
+        this.bookingQueryUseCase = bookingQueryUseCase;
+        this.bookingRescheduleUseCase = bookingRescheduleUseCase;
+        this.bookingCancelUseCase = bookingCancelUseCase;
     }
 
     /** 휴대폰 인증 코드 발송 (MVP: 응답에 code 포함) */
     @PostMapping("/phone-verifications")
     public SendVerificationResponse sendVerification(
             @RequestBody @Valid SendVerificationRequest request) {
-        PhoneVerification pv = guestBookingService.sendVerificationCode(request.phone());
+        PhoneVerification pv = guestBookingUseCase.sendVerificationCode(request.phone());
         return SendVerificationResponse.from(pv);
     }
 
@@ -59,14 +59,15 @@ public class BookingController {
     @ResponseStatus(HttpStatus.CREATED)
     public BookingResponse createGuestBooking(
             @RequestBody @Valid CreateGuestBookingRequest request) {
-        var result = guestBookingService.createGuestBooking(
-                request.phone(),
-                request.verificationCode(),
-                request.name(),
-                request.slotId(),
-                request.depositAmount() != null ? request.depositAmount() : 0L,
-                request.paymentMethod(),
-                request.passId());
+        var result = guestBookingUseCase.createGuestBooking(
+                new GuestBookingUseCase.CreateGuestBookingCommand(
+                        request.phone(),
+                        request.verificationCode(),
+                        request.name(),
+                        request.slotId(),
+                        request.depositAmount() != null ? request.depositAmount() : 0L,
+                        request.paymentMethod(),
+                        request.passId()));
         return BookingResponse.from(result.booking(), result.rawAccessToken());
     }
 
@@ -75,7 +76,7 @@ public class BookingController {
     public BookingDetailResponse getBooking(
             @PathVariable Long bookingId,
             @RequestHeader("X-Access-Token") String token) {
-        Booking booking = bookingQueryService.getBookingByToken(bookingId, token);
+        Booking booking = bookingQueryUseCase.getBookingByToken(bookingId, token);
         return BookingDetailResponse.from(booking);
     }
 
@@ -85,7 +86,7 @@ public class BookingController {
             @PathVariable Long bookingId,
             @RequestHeader("X-Access-Token") String token,
             @RequestBody @Valid RescheduleRequest request) {
-        Booking booking = bookingRescheduleService.rescheduleBooking(
+        Booking booking = bookingRescheduleUseCase.rescheduleBooking(
                 bookingId, token, request.newSlotId());
         return RescheduleResponse.from(booking);
     }
@@ -96,7 +97,7 @@ public class BookingController {
             @PathVariable Long bookingId,
             @RequestHeader("X-Access-Token") String token) {
         BookingCancelUseCase.CancelResult result =
-                bookingCancelService.cancelBooking(bookingId, token);
+                bookingCancelUseCase.cancelBooking(bookingId, token);
         return CancelResponse.of(result.booking(), result.refundable());
     }
 }
