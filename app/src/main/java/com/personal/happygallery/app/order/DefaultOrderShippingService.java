@@ -120,5 +120,4 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
                 .orElseThrow(() -> new NotFoundException("이행 정보"));
         return ShippingResult.of(order, fulfillment);
     }
-
 }

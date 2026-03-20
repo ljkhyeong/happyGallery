@@ -97,5 +97,4 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
 
         return PickupResult.of(order, fulfillment);
     }
-
 }

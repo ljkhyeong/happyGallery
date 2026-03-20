@@ -154,5 +154,4 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
         orderStore.save(order);
         return ProductionResult.of(order, fulfillment);
     }
-
 }
