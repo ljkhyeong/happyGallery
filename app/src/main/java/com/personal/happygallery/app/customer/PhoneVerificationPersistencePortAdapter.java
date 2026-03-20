@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.customer;
 
-import com.personal.happygallery.app.customer.port.out.PhoneVerificationPort;
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.app.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
@@ -9,11 +9,11 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
-class PhoneVerificationPortAdapter implements PhoneVerificationPort, PhoneVerificationStorePort {
+class PhoneVerificationPersistencePortAdapter implements PhoneVerificationReaderPort, PhoneVerificationStorePort {
 
     private final PhoneVerificationRepository repository;
 
-    PhoneVerificationPortAdapter(PhoneVerificationRepository repository) {
+    PhoneVerificationPersistencePortAdapter(PhoneVerificationRepository repository) {
         this.repository = repository;
     }
 

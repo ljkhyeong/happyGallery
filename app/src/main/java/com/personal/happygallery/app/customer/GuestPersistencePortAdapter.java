@@ -11,11 +11,11 @@ import org.springframework.stereotype.Component;
  * {@link GuestRepository}(infra) → {@link GuestReaderPort} + {@link GuestStorePort}(app) 브릿지 어댑터.
  */
 @Component
-class GuestReaderPortAdapter implements GuestReaderPort, GuestStorePort {
+class GuestPersistencePortAdapter implements GuestReaderPort, GuestStorePort {
 
     private final GuestRepository guestRepository;
 
-    GuestReaderPortAdapter(GuestRepository guestRepository) {
+    GuestPersistencePortAdapter(GuestRepository guestRepository) {
         this.guestRepository = guestRepository;
     }
 

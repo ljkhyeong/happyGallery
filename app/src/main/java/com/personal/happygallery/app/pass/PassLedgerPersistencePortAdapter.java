@@ -11,11 +11,11 @@ import org.springframework.stereotype.Component;
  * {@link PassLedgerRepository}(infra) → {@link PassLedgerReaderPort} + {@link PassLedgerStorePort}(app) 브릿지 어댑터.
  */
 @Component
-class PassLedgerPortAdapter implements PassLedgerReaderPort, PassLedgerStorePort {
+class PassLedgerPersistencePortAdapter implements PassLedgerReaderPort, PassLedgerStorePort {
 
     private final PassLedgerRepository passLedgerRepository;
 
-    PassLedgerPortAdapter(PassLedgerRepository passLedgerRepository) {
+    PassLedgerPersistencePortAdapter(PassLedgerRepository passLedgerRepository) {
         this.passLedgerRepository = passLedgerRepository;
     }
 

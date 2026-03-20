@@ -32,6 +32,7 @@ public class DefaultClientMonitoringService implements ClientMonitoringUseCase {
         appMetrics.incrementClientEvent(eventType.logValue());
     }
 
+    /** guest claim 완료는 내부 서비스가 호출하는 모니터링 헬퍼다. */
     public void logGuestClaimCompleted(Long userId,
                                        Long guestId,
                                        int claimedOrderCount,

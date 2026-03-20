@@ -3,9 +3,9 @@ package com.personal.happygallery.app.customer;
 import com.personal.happygallery.app.customer.port.in.GuestClaimUseCase;
 import com.personal.happygallery.app.customer.port.out.GuestClaimQueryPort;
 import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
-import com.personal.happygallery.app.customer.port.out.PhoneVerificationPort;
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
-import com.personal.happygallery.app.monitoring.port.in.ClientMonitoringUseCase;
+import com.personal.happygallery.app.monitoring.DefaultClientMonitoringService;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.error.PhoneVerificationRequiredException;
@@ -38,23 +38,23 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
     private final UserReaderPort userReader;
     private final GuestReaderPort guestReader;
-    private final PhoneVerificationPort phoneVerificationPort;
+    private final PhoneVerificationReaderPort phoneVerificationReader;
     private final GuestClaimQueryPort claimQuery;
     private final Clock clock;
-    private final ClientMonitoringUseCase clientMonitoringUseCase;
+    private final DefaultClientMonitoringService clientMonitoringService;
 
     public DefaultGuestClaimService(UserReaderPort userReader,
                              GuestReaderPort guestReader,
-                             PhoneVerificationPort phoneVerificationPort,
+                             PhoneVerificationReaderPort phoneVerificationReader,
                              GuestClaimQueryPort claimQuery,
                              Clock clock,
-                             ClientMonitoringUseCase clientMonitoringUseCase) {
+                             DefaultClientMonitoringService clientMonitoringService) {
         this.userReader = userReader;
         this.guestReader = guestReader;
-        this.phoneVerificationPort = phoneVerificationPort;
+        this.phoneVerificationReader = phoneVerificationReader;
         this.claimQuery = claimQuery;
         this.clock = clock;
-        this.clientMonitoringUseCase = clientMonitoringUseCase;
+        this.clientMonitoringService = clientMonitoringService;
     }
 
     @Transactional(readOnly = true)
@@ -95,7 +95,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
         int claimedPassCount = claimPasses(passIdsToClaim, guest.getId(), userId);
 
-        clientMonitoringUseCase.logGuestClaimCompleted(
+        clientMonitoringService.logGuestClaimCompleted(
                 userId, guest.getId(),
                 orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
         return new ClaimResult(orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
@@ -184,7 +184,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     private PhoneVerification findValidVerification(String phone, String verificationCode) {
         LocalDateTime now = LocalDateTime.now(clock);
         for (String candidatePhone : candidatePhones(phone)) {
-            Optional<PhoneVerification> verification = phoneVerificationPort
+            Optional<PhoneVerification> verification = phoneVerificationReader
                     .findValidVerification(candidatePhone, verificationCode, now);
             if (verification.isPresent()) {
                 return verification.get();
