@@ -11,10 +11,11 @@
 
 ## 🧭 구조와 주요 라이브러리
 
+### 백엔드
+
 | 구분 | 구성 | 용도 |
 |------|------|------|
 | 백엔드 구조 | `app` / `domain` / `infra` / `common` | 진입점, 도메인 규칙, 외부 연동, 공통 유틸을 분리한 멀티 모듈 구조 위에서 `port/in`, `port/out`, adapter를 도입하는 점진적 헥사고날 전환 진행 중 |
-| 프론트 구조 | `frontend/` (Vite + React 19 + TypeScript) | 스토어/마이페이지/관리자 UI와 브라우저 흐름 구현 |
 | 관측성 구조 | `monitoring/` + `docker-compose.yml` | Prometheus scrape, Grafana provisioning, alert rule, 대시보드 JSON을 로컬 운영 스택으로 묶음 |
 | Resilience4j | `resilience4j-circuitbreaker`, `resilience4j-timelimiter` | PG 환불 외부 호출에 CircuitBreaker + TimeLimiter를 적용해 장애 전파를 줄임 |
 | Redis + Spring Session | `spring-boot-starter-data-redis`, `spring-session-data-redis` | `HG_SESSION`, 관리자 Bearer 세션, Redis 기반 rate limit 저장소를 함께 운영 |
@@ -22,11 +23,18 @@
 | Spring Actuator | `spring-boot-starter-actuator` | `/actuator/health`, `/actuator/info`, `/actuator/metrics`, `/actuator/prometheus` 운영 엔드포인트 제공 |
 | Prometheus | `micrometer-registry-prometheus` | Actuator 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 scrape 가능한 포맷으로 노출 |
 | Grafana | Grafana provisioning + dashboard JSON | 시스템 메트릭과 제품 전환 퍼널 지표를 대시보드로 시각화 |
-| Sentry | `sentry-spring-boot-4-starter`, `@sentry/react` | 서버 500 예외와 프론트 API 5xx 에러를 requestId 태그와 함께 캡처 |
+| Sentry | `sentry-spring-boot-4-starter` | 서버 500 예외를 requestId 태그와 함께 캡처 |
+| Testcontainers | `spring-boot-testcontainers`, `testcontainers`, `testcontainers-mysql` | `@UseCaseIT`에서 MySQL/Redis 등 실제에 가까운 통합 환경을 테스트로 재현 |
+
+### 프론트
+
+| 구분 | 구성 | 용도 |
+|------|------|------|
+| 프론트 구조 | `frontend/` (Vite + React 19 + TypeScript) | 스토어/마이페이지/관리자 UI와 브라우저 흐름 구현 |
 | TanStack Query | `@tanstack/react-query` | 상품/예약/주문/관리자 데이터를 조회·캐시하고 mutation 후 invalidate를 처리 |
 | React Router | `react-router-dom` | 스토어, guest 조회, `/my`, 관리자 라우트를 구성하고 브라우저 내비게이션을 관리 |
 | Bootstrap | `bootstrap`, `react-bootstrap` | 스토어/관리자 화면의 기본 UI 레이아웃과 컴포넌트 스타일링 |
-| Testcontainers | `spring-boot-testcontainers`, `testcontainers`, `testcontainers-mysql` | `@UseCaseIT`에서 MySQL/Redis 등 실제에 가까운 통합 환경을 테스트로 재현 |
+| Sentry | `@sentry/react` | 프론트 API 5xx 에러와 브라우저 예외를 캡처 |
 | Playwright | `@playwright/test` | guest/member/admin 주요 브라우저 smoke 시나리오를 자동화 |
 
 ### 🔄 마이그레이션 현황
