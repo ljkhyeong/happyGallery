@@ -130,7 +130,7 @@
 | `A1-T3` | done | notification 계층 | `NotificationLogStorePort` 신설, `NotificationLogPersistencePortAdapter` (Reader+Store 통합) 도입, `NotificationService`에서 `NotificationLogRepository` 직접 의존 제거 |
 | `A1-T4` | done | booking creation | `BookingCreationSupport` 추출 — 슬롯검증/락/8회권차감/예약금검증/저장+이력+알림 공통화, GuestBookingService·MemberBookingService에서 8개 의존성 제거 |
 | `A1-T5` | done | verified guest resolver | S1-T3에서 `VerifiedGuestResolver` 추출 완료 (booking/order/pass 3곳 공통). claim은 의미론이 다름(user phone re-verification) — 별도 유지 적합 |
-| `A1-T6` | done | order creation facade | `OrderCreationService.createMemberOrder()` 추가 + `resolveItemPrices()` 추출, `MeOrderController`에서 `ProductQueryService` 의존 제거 — 가격 조회를 서비스 레이어로 이동 |
+| `A1-T6` | done | 주문 생성 조합 서비스 | `OrderCreationService.createMemberOrder()` 추가 + `resolveItemPrices()` 추출, `MeOrderController`에서 `ProductQueryService` 의존 제거 — 가격 조회를 서비스 레이어로 이동 |
 | `A1-T7` | done | refund boundary | `RefundExecutionService`/`RefundRetryService`/`RefundPort`/`RefundPortAdapter`를 `app.booking`→`app.payment`로 이동, booking·order 양쪽의 공용 환불 경계 확립 |
 | `A1-T8` | done | query performance | `InventoryReaderPort.findByProductIdIn()` 추가, `listActiveProducts()` 배치 조회로 전환 — N+1 → 2 쿼리 |
 | `A1-T9` | done | guest claim service | `claim()` 메서드를 `claimOrders`/`claimBookings`/`claimPasses`로 분리, 전화번호 로그 마스킹(`maskPhone`) 적용 |

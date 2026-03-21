@@ -45,7 +45,7 @@ As-Is:
 ### 3. 온보딩 복잡도 증가
 
 As-Is:
-- 현재는 로그인/회원가입 후 redirect, claim, phone prefill 흐름이 비교적 단순하다.
+- 현재는 로그인/회원가입 후 `redirect`, `claim`, 전화번호 미리 채우기 흐름이 비교적 단순하다.
 
 문제:
 - OAuth 첫 로그인 시 이름/이메일만 있고 전화번호가 없을 수 있다.
@@ -53,9 +53,9 @@ As-Is:
 
 ### 4. 운영/보안 고려
 
-- provider 장애 시 로그인 대체 경로 필요
-- provider별 callback, secret, state/redirect 검증 필요
-- 관리자 인증에는 섞지 않고 회원 인증 전용으로 한정해야 한다
+- provider 장애 시 로그인 대체 경로가 필요하다.
+- provider별 callback, secret, state/redirect 검증이 필요하다.
+- 관리자 인증에는 섞지 않고 회원 인증 전용으로 한정해야 한다.
 
 ---
 
