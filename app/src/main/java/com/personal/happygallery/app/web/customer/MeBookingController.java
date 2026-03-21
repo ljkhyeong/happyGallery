@@ -84,7 +84,7 @@ public class MeBookingController {
     public CancelResponse cancelBooking(@PathVariable Long id, HttpServletRequest request) {
         Long userId = getUserId(request);
         BookingCancelUseCase.CancelResult result = bookingCancelUseCase.cancelMemberBooking(id, userId);
-        return CancelResponse.of(result.booking(), result.refundable());
+        return CancelResponse.from(result.booking(), result.refundable());
     }
 
     private Long getUserId(HttpServletRequest request) {

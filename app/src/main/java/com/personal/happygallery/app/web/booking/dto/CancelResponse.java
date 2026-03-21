@@ -8,7 +8,7 @@ public record CancelResponse(
         boolean refundable,
         long refundAmount
 ) {
-    public static CancelResponse of(Booking booking, boolean refundable) {
+    public static CancelResponse from(Booking booking, boolean refundable) {
         return new CancelResponse(
                 booking.getId(),
                 booking.getStatus().name(),

@@ -98,6 +98,6 @@ public class BookingController {
             @RequestHeader("X-Access-Token") String token) {
         BookingCancelUseCase.CancelResult result =
                 bookingCancelUseCase.cancelBooking(bookingId, token);
-        return CancelResponse.of(result.booking(), result.refundable());
+        return CancelResponse.from(result.booking(), result.refundable());
     }
 }
