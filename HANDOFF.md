@@ -22,6 +22,8 @@
 
 - 권장 작업 브랜치: `codex/work-20260319-000329`
 - 최근 작업:
+  - guest 소유 8회권 제거 — `PassPurchase.guest`/guest claim pass/guest pass booking을 제거하고, 만료 알림을 회원 기준으로 전환했으며 `pass_purchases.guest_id` 제거 migration(V21)과 관련 테스트·문서를 함께 정리
+  - `@UseCaseIT` DI 기준 보정 — 포트가 있는 act 경계는 concrete 구현체 대신 `MockMvc` 또는 `port.in UseCase` 타입으로 맞추고, service 직접 주입은 포트가 없는 fixture/support 용도만 허용하는 기준을 `PassPurchaseUseCaseIT`부터 반영
   - graceful shutdown 운영 기준 문서화 — `ADR-0025`에 Spring graceful shutdown 30초, 알림 `ThreadPoolTaskExecutor` drain 정책, PG timeout executor 2초 종료 정책을 정리
   - 문서 인덱스/인수인계 보정 — `README.md` Idea 목록을 실제 파일 기준으로 정리하고, `HANDOFF.md` 프론트 경로/문의 흐름 요약을 구현 상태에 맞게 갱신
   - 배치 마이그레이션 검토 메모 추가 — `docs/Idea/0017_spring-batch-migration-consideration/idea.md`에 현행 커스텀 배치 유지 판단과 Spring Batch 재검토 조건을 기록
@@ -43,16 +45,16 @@
   - `/my` 목록 고도화 완료 — `/my/orders`, `/my/bookings`, `/my/passes`에 quick status tab, 정렬, 요약 chip을 추가해 회원 이력 탐색 흐름을 한 단계 정리
   - 회원 온보딩 polish 완료 — 로그인/회원가입 페이지를 storefront/member 문맥에 맞는 2열 레이아웃으로 정리하고, `redirect`·`claim`·회원가입 prefill(`name`/`phone`) 컨텍스트를 로그인/회원가입 전환 링크에도 유지, `/my?claim=1` 진입 뒤 모달을 닫아도 후속 claim 안내 카드가 남도록 보강
   - `/my` 목록 필터 확장 완료 — `/my/orders`, `/my/bookings`, `/my/passes`에 상태 필터와 검색을 추가하고, 회원 8회권 구매 완료 CTA도 `/my/passes`로 맞춤
-  - member/guest success flow 고도화 완료 — guest 주문/예약/8회권 성공 화면에서 `회원가입/로그인 -> /my claim` 경로를 직접 안내하고, 회원가입 페이지는 휴대폰/이름 prefill + claim 안내로 진입, `/my?claim=1`은 claim 모달을 자동으로 열도록 정리
+  - member/guest success flow 고도화 완료 — guest 주문/예약 성공 화면에서 `회원가입/로그인 -> /my claim` 경로를 직접 안내하고, 회원가입 페이지는 휴대폰/이름 prefill + claim 안내로 진입, `/my?claim=1`은 claim 모달을 자동으로 열도록 정리
   - `/my` 세부 라우트 확장 완료 — `/my/orders`, `/my/bookings`, `/my/passes` 목록 페이지 추가, 대시보드는 최근 5건 + `전체 보기` 구조로 정리, 회원 상세 페이지의 back link도 각 목록 기준으로 맞춤
   - guest/member lookup UX polish 완료 — 상단 utility bar와 홈 lookup CTA에서 `회원 내 정보`/`비회원 조회` 구분을 명확히 하고, `/guest/orders`·`/guest/bookings`를 안내형 카드 + 액션 버튼 구조로 정리, guest 주문/예약 완료 카드에도 `/guest/**` 조회와 회원 claim 진입 버튼을 함께 배치
   - member self-service polish 완료 — `/my` 로그인 게이트를 회원/비회원 진입이 분명한 대시보드형 카드로 정리하고, 로그인 후에는 주문·예약·8회권 요약 통계/다음 예약/guest claim 진입을 한 화면에 배치, `/my/orders/:id`·`/my/bookings/:id` 상세 헤더와 CTA도 회원용 카피 기준으로 정리
   - legacy guest route 정리 완료 — `/orders/detail`, `/bookings/manage` redirect alias 제거, guest 조회 경로를 `/guest/orders`, `/guest/bookings`로 단일화하고 관련 README/PRD/1Pager/P8 문서를 canonical route 기준으로 갱신
   - P8-3 smoke 안정화 완료 — Playwright가 고정 시각 슬롯과 충돌하지 않도록 E2E helper에서 기존 admin 슬롯 시작 시각을 피하는 유니크 슬롯 윈도우를 선택하도록 보강, `P8-5`의 모호한 `주문하기` selector도 같이 정리해서 full smoke 1~8 재통과
-  - U6 guest claim browser automation 완료 — Playwright `P8-8` 추가, guest 주문·8회권·예약 생성 후 같은 번호의 회원이 `/my`에서 휴대폰 재인증과 선택 claim을 수행하는 시나리오 자동화, helper에 locked-phone verification과 custom signup phone 지원 추가
+  - U6 guest claim browser automation 완료 — Playwright `P8-8` 추가, guest 주문·예약 생성 후 같은 번호의 회원이 `/my`에서 휴대폰 재인증과 선택 claim을 수행하는 시나리오 자동화, helper에 locked-phone verification과 custom signup phone 지원 추가
   - U3 guest 주문 fallback 보강 — 상품 상세의 `비회원 주문하기`가 `/orders/new?productId=&qty=`로 이동하며 선택한 상품/수량을 prefill 하고, legacy guest 주문 페이지에서 그대로 수정/추가 주문할 수 있게 정리, `P8-4`도 이 경로 기준으로 갱신
   - U5 회원 셀프서비스 완료 — `/my/bookings/:id` 회원 예약 상세 페이지 추가, 회원 예약 변경/취소 UI 연결, `/guest/orders`·`/guest/bookings` canonical guest 경로 정리, `GET /api/v1/me/bookings/{id}` 상세 조회의 slot/class eager fetch 보강
-  - U5 guest claim 2차 완료 — `/api/v1/me/guest-claims/{preview,verify,claim}` 추가, 회원 휴대폰 재인증 후 같은 번호의 guest 주문/예약/8회권을 선택 이전하는 마이페이지 모달 반영, 예약 연결 8회권 자동 claim, 회원 전화번호의 하이픈/숫자-only 포맷 차이 흡수
+  - U5 guest claim 2차 완료 — `/api/v1/me/guest-claims/{preview,verify,claim}` 추가, 회원 휴대폰 재인증 후 같은 번호의 guest 주문/예약을 선택 이전하는 마이페이지 모달 반영, 회원 전화번호의 하이픈/숫자-only 포맷 차이 흡수
   - U3 storefront / 상품 상세 1차 완료 — 홈과 네비게이션을 상점형 IA로 재구성, 상품 상세를 구매 중심 레이아웃으로 정리, `/orders/new`를 legacy guest fallback 경로로 명시
   - U6 rollout / E2E 3차 완료 — Playwright smoke 1~9 통과, guest/member/claim 혼합 시나리오와 guest 성공 화면 -> 회원가입 -> claim 모달 자동 진입까지 정리, 관리자 로그인 토큰 캐시와 고객 세션 쿠키 bootstrap helper 반영, README/P8/U6/PRD/HANDOFF 문서 동기화
   - U5 회원 셀프서비스 1차 — `/my`, `/my/orders/:id`, 회원 주문/예약/8회권 목록 조회, 회원 주문 상세, 회원 예약/8회권 생성과 `/api/v1/me/**` 기반 흐름 확장
@@ -153,8 +155,8 @@
 - `/passes/purchase` 는 회원 전용이며, 비로그인 시 로그인 페이지로 리다이렉트한다.
 - 상품 상세는 회원 전용 Product Q&A 섹션을 포함하고, 비밀글은 비밀번호 검증 후 상세를 확인한다.
 - 상품 상세의 `비회원 주문하기`는 `/orders/new?productId=&qty=` 로 이동해 선택 상품과 수량을 legacy guest fallback에 미리 담아둔다. query 없이 직접 진입한 `/orders/new`는 수동 fallback gate를 먼저 거친다.
-- `/my` 에서 `비회원 이력 가져오기` 모달을 열면, `phoneVerified=false` 회원은 같은 번호로 재인증 후 preview를 보고 주문/예약/8회권을 선택 claim 할 수 있다.
-- guest 주문/예약/8회권 성공 화면의 회원가입/로그인 CTA는 `redirect=/my?claim=1` 로 이어지고, `/my`는 이 쿼리로 claim 모달을 자동으로 연다.
+- `/my` 에서 `비회원 이력 가져오기` 모달을 열면, `phoneVerified=false` 회원은 같은 번호로 재인증 후 preview를 보고 주문/예약을 선택 claim 할 수 있다.
+- guest 주문/예약 성공 화면의 회원가입/로그인 CTA는 `redirect=/my?claim=1` 로 이어지고, `/my`는 이 쿼리로 claim 모달을 자동으로 연다.
 - 로그인/회원가입 페이지는 `redirect`와 `claim` 문맥을 유지하고, 회원가입은 guest 성공 화면에서 넘어온 `name`/`phone` prefill도 이어받는다.
 - `/my?claim=1` 로 진입한 뒤 자동 오픈된 claim 모달을 닫아도, 대시보드의 claim 카드에서 후속 안내와 재진입 버튼을 계속 노출한다.
 - `/my/bookings/:id` 는 회원 예약 상세/변경/취소 화면이며, 비회원 조회는 `/guest/bookings` 로 분리한다.
@@ -168,7 +170,7 @@
 - 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
 - Playwright smoke는 관리자 Bearer 토큰과 고객 `HG_SESSION` 쿠키를 backend API로 bootstrap해 로그인 rate limit과 UI 초기화 타이밍 영향을 줄였다.
 - Playwright smoke spec은 현재 사용자 여정 기준 4개 파일(`admin-product-order.smoke.spec.ts`, `guest-booking-pass.smoke.spec.ts`, `member-self-service.smoke.spec.ts`, `guest-claim-onboarding.smoke.spec.ts`)로 나뉘어 있고, 시나리오 번호 `P8-1`~`P8-9`는 그대로 유지한다.
-- `P8-8`은 guest 주문·8회권·예약을 만든 뒤, 같은 번호의 회원이 `/my` 모달에서 재인증 후 claim 하는 흐름을 검증한다.
+- `P8-8`은 guest 주문·예약을 만든 뒤, 같은 번호의 회원이 `/my` 모달에서 재인증 후 claim 하는 흐름을 검증한다.
 - `P8-9`는 guest 주문 성공 화면에서 회원가입으로 넘어가 휴대폰/이름 prefill과 `/my` claim 모달 자동 오픈을 검증한다.
 - 기본 관리자 계정: `admin` / `admin1234` (Flyway V11로 정합화)
 - 개발/테스트에서는 `X-Admin-Key` 폴백 가능 (`enable-api-key-auth=true`)

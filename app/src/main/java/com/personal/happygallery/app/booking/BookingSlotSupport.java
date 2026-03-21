@@ -21,6 +21,8 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * guest/member 예약 생성의 공통 orchestration.
@@ -72,11 +74,13 @@ class BookingSlotSupport {
     }
 
     /** 비관적 락 + 정원 증가 + 버퍼 비활성화. 중복 체크 이후에 호출한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
     void lockSlotCapacity(Long slotId) {
         slotManagementService.confirmBooking(slotId);
     }
 
     /** 비관적 락 + 정원 감소. 취소·변경 시 기존 슬롯을 반납한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
     Slot releaseSlotCapacity(Long slotId) {
         Slot slot = slotReaderPort.findByIdWithLock(slotId)
                 .orElseThrow(() -> new NotFoundException("슬롯"));
@@ -92,6 +96,7 @@ class BookingSlotSupport {
      * @param ownerUserId  소유자 회원 ID (회원 예약일 때 non-null, 게스트 예약일 때 null)
      * @return 차감된 PassPurchase
      */
+    @Transactional(propagation = Propagation.MANDATORY)
     PassPurchase deductPassCredit(Long passId, Long ownerUserId) {
         PassPurchase pass = passPurchaseReaderPort.findById(passId)
                 .orElseThrow(() -> new NotFoundException("8회권"));
@@ -115,6 +120,7 @@ class BookingSlotSupport {
     }
 
     /** 예약 저장 → BOOKED 이력 기록 → 예약 완료 알림. */
+    @Transactional(propagation = Propagation.MANDATORY)
     Booking saveAndComplete(Booking booking, Slot slot) {
         booking = bookingStorePort.save(booking);
         bookingSupport.recordHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null);

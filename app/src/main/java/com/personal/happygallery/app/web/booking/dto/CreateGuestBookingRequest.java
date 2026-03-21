@@ -20,13 +20,10 @@ public record CreateGuestBookingRequest(
         @NotNull
         Long slotId,
 
-        /** 예약금 결제 시 필수. passId가 있으면 무시됨. */
+        /** 예약금 결제 금액. 비회원 예약은 예약금 결제만 허용한다. */
         @Positive(message = "예약금은 0보다 커야 합니다.")
         Long depositAmount,
 
-        /** 예약금 결제 수단. passId가 있으면 무시됨. BANK_TRANSFER는 서비스 레이어에서 차단됨. */
-        DepositPaymentMethod paymentMethod,
-
-        /** 8회권 결제 시 지정. null이면 예약금 결제. */
-        Long passId
+        /** 예약금 결제 수단. BANK_TRANSFER는 서비스 레이어에서 차단됨. */
+        DepositPaymentMethod paymentMethod
 ) {}

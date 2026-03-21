@@ -53,8 +53,10 @@ class AdminAuthFilterTest {
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatus()).isEqualTo(200);
-            softly.assertThat(request.getAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR)).isEqualTo(0L);
-            softly.assertThat(request.getAttribute(AdminAuthFilter.ADMIN_USERNAME_ATTR)).isEqualTo("api-key");
+            softly.assertThat(request.getAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR)).isNull();
+            softly.assertThat(request.getAttribute(AdminAuthFilter.ADMIN_USERNAME_ATTR)).isNull();
+            softly.assertThat(request.getAttribute(AdminAuthFilter.ADMIN_AUTH_SOURCE_ATTR))
+                    .isEqualTo(AdminAuthFilter.AdminAuthSource.API_KEY);
         });
     }
 
@@ -75,6 +77,8 @@ class AdminAuthFilterTest {
             softly.assertThat(response.getStatus()).isEqualTo(200);
             softly.assertThat(request.getAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR)).isEqualTo(1L);
             softly.assertThat(request.getAttribute(AdminAuthFilter.ADMIN_USERNAME_ATTR)).isEqualTo("admin");
+            softly.assertThat(request.getAttribute(AdminAuthFilter.ADMIN_AUTH_SOURCE_ATTR))
+                    .isEqualTo(AdminAuthFilter.AdminAuthSource.BEARER_SESSION);
         });
     }
 

@@ -34,7 +34,6 @@ export function GuestClaimModal({
   const [previewOverride, setPreviewOverride] = useState<Awaited<ReturnType<typeof getGuestClaimPreview>> | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
   const [selectedBookingIds, setSelectedBookingIds] = useState<number[]>([]);
-  const [selectedPassIds, setSelectedPassIds] = useState<number[]>([]);
 
   const previewQuery = useQuery({
     queryKey: ["my", "guest-claims", "preview"],
@@ -47,7 +46,6 @@ export function GuestClaimModal({
       setPreviewOverride(null);
       setSelectedOrderIds([]);
       setSelectedBookingIds([]);
-      setSelectedPassIds([]);
     }
   }, [show]);
 
@@ -57,7 +55,6 @@ export function GuestClaimModal({
     if (!preview) return;
     setSelectedOrderIds(preview.orders.map((item) => item.orderId));
     setSelectedBookingIds(preview.bookings.map((item) => item.bookingId));
-    setSelectedPassIds(preview.passes.map((item) => item.passId));
   }, [preview]);
 
   const verifyMutation = useMutation({
@@ -69,17 +66,16 @@ export function GuestClaimModal({
   });
 
   const claimMutation = useMutation({
-    mutationFn: () => claimGuestRecords(selectedOrderIds, selectedBookingIds, selectedPassIds),
+    mutationFn: () => claimGuestRecords(selectedOrderIds, selectedBookingIds),
     onSuccess: async (data) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["my", "orders"] }),
         queryClient.invalidateQueries({ queryKey: ["my", "bookings"] }),
-        queryClient.invalidateQueries({ queryKey: ["my", "passes"] }),
         queryClient.invalidateQueries({ queryKey: ["my", "guest-claims", "preview"] }),
         onPhoneVerified(),
       ]);
       toast.show(
-        `비회원 이력을 가져왔습니다. 주문 ${data.claimedOrderCount}건, 예약 ${data.claimedBookingCount}건, 8회권 ${data.claimedPassCount}건`,
+        `비회원 이력을 가져왔습니다. 주문 ${data.claimedOrderCount}건, 예약 ${data.claimedBookingCount}건`,
       );
       onClose();
     },
@@ -93,8 +89,7 @@ export function GuestClaimModal({
     );
   }
 
-  const totalSelectedCount =
-    selectedOrderIds.length + selectedBookingIds.length + selectedPassIds.length;
+  const totalSelectedCount = selectedOrderIds.length + selectedBookingIds.length;
 
   const combinedError =
     previewQuery.error ?? verifyMutation.error ?? claimMutation.error ?? null;
@@ -125,7 +120,7 @@ export function GuestClaimModal({
       </Modal.Header>
       <Modal.Body>
         <p className="text-muted-soft small mb-3">
-          같은 휴대폰 번호로 남긴 비회원 주문, 예약, 8회권을 현재 회원 계정으로 이전합니다.
+          같은 휴대폰 번호로 남긴 비회원 주문과 예약을 현재 회원 계정으로 이전합니다.
         </p>
         <ErrorAlert error={combinedError as Error | null} />
 
@@ -150,8 +145,7 @@ export function GuestClaimModal({
                 </div>
 
                 {preview.orders.length === 0 &&
-                  preview.bookings.length === 0 &&
-                  preview.passes.length === 0 && (
+                  preview.bookings.length === 0 && (
                     <Alert variant="light" className="mb-0">
                       현재 가져올 비회원 이력이 없습니다.
                     </Alert>
@@ -219,41 +213,6 @@ export function GuestClaimModal({
                   </div>
                 )}
 
-                {preview.passes.length > 0 && (
-                  <div>
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <strong className="small">8회권</strong>
-                      <span className="text-muted-soft small">{preview.passes.length}건</span>
-                    </div>
-                    <Stack gap={2}>
-                      {preview.passes.map((pass) => (
-                        <Form.Check
-                          key={pass.passId}
-                          id={`claim-pass-${pass.passId}`}
-                          type="checkbox"
-                          checked={selectedPassIds.includes(pass.passId)}
-                          onChange={() =>
-                            toggle(selectedPassIds, pass.passId, setSelectedPassIds)
-                          }
-                          label={
-                            <div className="small">
-                              <div className="fw-semibold">8회권 #{pass.passId}</div>
-                              <div className="text-muted-soft">
-                                잔여 {pass.remainingCredits}/{pass.totalCredits}회 · {formatKRW(pass.totalPrice)} · 만료 {formatDateTime(pass.expiresAt)}
-                              </div>
-                            </div>
-                          }
-                        />
-                      ))}
-                    </Stack>
-                  </div>
-                )}
-
-                {(preview.bookings.length > 0 || preview.passes.length > 0) && (
-                  <Alert variant="light" className="mb-0 small">
-                    8회권 예약을 함께 선택하면 연결된 8회권도 자동으로 회원 계정으로 이전됩니다.
-                  </Alert>
-                )}
               </Stack>
             )}
           </>

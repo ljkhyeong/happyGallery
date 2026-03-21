@@ -1,5 +1,7 @@
 package com.personal.happygallery.infra.booking;
 
+import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.app.booking.port.out.SlotStorePort;
 import com.personal.happygallery.domain.booking.Slot;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
@@ -10,7 +12,10 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface SlotRepository extends JpaRepository<Slot, Long> {
+public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPort, SlotStorePort {
+
+    @Override Optional<Slot> findById(Long id);
+    @Override Slot save(Slot slot);
 
     /** 중복 슬롯 검사 — (class_id, start_at) UNIQUE 제약 반영 */
     boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);

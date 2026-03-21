@@ -13,37 +13,23 @@ interface Props {
   onSuccess: (booking: BookingResponse) => void;
 }
 
-type PaymentPath = "deposit" | "pass";
-
 export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: Props) {
   const toast = useToast();
   const [name, setName] = useState("");
   const [nameTouched, setNameTouched] = useState(false);
-  const [paymentPath, setPaymentPath] = useState<PaymentPath>("deposit");
   const [depositAmount, setDepositAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<DepositPaymentMethod>("CARD");
-  const [passId, setPassId] = useState("");
 
   const mutation = useMutation({
-    mutationFn: () => {
-      if (paymentPath === "pass") {
-        return createGuestBooking({
-          phone,
-          verificationCode,
-          name,
-          slotId,
-          passId: Number(passId),
-        });
-      }
-      return createGuestBooking({
+    mutationFn: () =>
+      createGuestBooking({
         phone,
         verificationCode,
         name,
         slotId,
         depositAmount: Number(depositAmount),
         paymentMethod,
-      });
-    },
+      }),
     onSuccess: (booking) => {
       toast.show("예약이 완료되었습니다!");
       onSuccess(booking);
@@ -51,9 +37,8 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
   });
 
   const nameValid = name.trim().length > 0;
-  const depositValid = paymentPath === "deposit" ? Number(depositAmount) > 0 : true;
-  const passValid = paymentPath === "pass" ? Number(passId) > 0 : true;
-  const valid = nameValid && depositValid && passValid;
+  const depositValid = Number(depositAmount) > 0;
+  const valid = nameValid && depositValid;
 
   return (
     <Form
@@ -79,77 +64,36 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
         </Form.Control.Feedback>
       </Form.Group>
 
-      <Form.Group className="mb-3">
-        <Form.Label>결제 방식</Form.Label>
-        <div>
-          <Form.Check
-            inline
-            type="radio"
-            id="booking-payment-path-deposit"
-            label="예약금 결제"
-            name="paymentPath"
-            checked={paymentPath === "deposit"}
-            onChange={() => setPaymentPath("deposit")}
-          />
-          <Form.Check
-            inline
-            type="radio"
-            id="booking-payment-path-pass"
-            label="8회권 사용"
-            name="paymentPath"
-            checked={paymentPath === "pass"}
-            onChange={() => setPaymentPath("pass")}
-          />
-        </div>
-      </Form.Group>
-
-      {paymentPath === "deposit" ? (
-        <Row className="g-2 mb-3">
-          <Col xs={6}>
-            <Form.Group controlId="booking-deposit-amount">
-              <Form.Label>예약금 (원)</Form.Label>
-              <Form.Control
-                type="number"
-                min={1}
-                value={depositAmount}
-                onChange={(e) => setDepositAmount(e.target.value)}
-                placeholder="30000"
-                isInvalid={depositAmount !== "" && Number(depositAmount) <= 0}
-              />
-              <Form.Control.Feedback type="invalid">
-                1원 이상 입력해 주세요.
-              </Form.Control.Feedback>
-            </Form.Group>
-          </Col>
-          <Col xs={6}>
-            <Form.Group controlId="booking-payment-method">
-              <Form.Label>결제 수단</Form.Label>
-              <Form.Select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as DepositPaymentMethod)}
-              >
-                <option value="CARD">카드</option>
-                <option value="EASY_PAY">간편결제</option>
-              </Form.Select>
-            </Form.Group>
-          </Col>
-        </Row>
-      ) : (
-        <Form.Group controlId="booking-pass-id" className="mb-3">
-          <Form.Label>8회권 ID</Form.Label>
-          <Form.Control
-            type="number"
-            min={1}
-            value={passId}
-            onChange={(e) => setPassId(e.target.value)}
-            placeholder="8회권 ID"
-            isInvalid={passId !== "" && Number(passId) <= 0}
-          />
-          <Form.Control.Feedback type="invalid">
-            유효한 8회권 ID를 입력해 주세요.
-          </Form.Control.Feedback>
-        </Form.Group>
-      )}
+      <Row className="g-2 mb-3">
+        <Col xs={6}>
+          <Form.Group controlId="booking-deposit-amount">
+            <Form.Label>예약금 (원)</Form.Label>
+            <Form.Control
+              type="number"
+              min={1}
+              value={depositAmount}
+              onChange={(e) => setDepositAmount(e.target.value)}
+              placeholder="30000"
+              isInvalid={depositAmount !== "" && Number(depositAmount) <= 0}
+            />
+            <Form.Control.Feedback type="invalid">
+              1원 이상 입력해 주세요.
+            </Form.Control.Feedback>
+          </Form.Group>
+        </Col>
+        <Col xs={6}>
+          <Form.Group controlId="booking-payment-method">
+            <Form.Label>결제 수단</Form.Label>
+            <Form.Select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as DepositPaymentMethod)}
+            >
+              <option value="CARD">카드</option>
+              <option value="EASY_PAY">간편결제</option>
+            </Form.Select>
+          </Form.Group>
+        </Col>
+      </Row>
 
       <Button
         type="submit"
@@ -158,7 +102,7 @@ export function BookingFormStep({ phone, verificationCode, slotId, onSuccess }: 
         className="w-100"
         disabled={!valid || mutation.isPending}
       >
-        {mutation.isPending ? "예약 처리 중..." : `예약하기${paymentPath === "deposit" && depositAmount ? ` (${formatKRW(Number(depositAmount))})` : ""}`}
+        {mutation.isPending ? "예약 처리 중..." : `예약하기${depositAmount ? ` (${formatKRW(Number(depositAmount))})` : ""}`}
       </Button>
     </Form>
   );

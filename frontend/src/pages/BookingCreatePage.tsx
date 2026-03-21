@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Form, Row, Col, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
@@ -39,26 +39,22 @@ export function BookingCreatePage() {
   const [guestPhone, setGuestPhone] = useState("");
   const [guestName, setGuestName] = useState("");
 
+  useEffect(() => {
+    if (!isAuthenticated && paymentPath === "pass") {
+      setPaymentPath("deposit");
+    }
+  }, [isAuthenticated, paymentPath]);
+
   const guestMutation = useMutation({
-    mutationFn: (guestInfo: { phone: string; verificationCode: string; name: string }) => {
-      if (paymentPath === "pass") {
-        return createGuestBooking({
+    mutationFn: (guestInfo: { phone: string; verificationCode: string; name: string }) =>
+      createGuestBooking({
           phone: guestInfo.phone,
           verificationCode: guestInfo.verificationCode,
           name: guestInfo.name,
           slotId: selectedSlot!.id,
-          passId: Number(passId),
-        });
-      }
-      return createGuestBooking({
-        phone: guestInfo.phone,
-        verificationCode: guestInfo.verificationCode,
-        name: guestInfo.name,
-        slotId: selectedSlot!.id,
-        depositAmount: Number(depositAmount),
-        paymentMethod,
-      });
-    },
+          depositAmount: Number(depositAmount),
+          paymentMethod,
+      }),
     onSuccess: (booking) => {
       toast.show("예약이 완료되었습니다!");
       setResult(booking);
@@ -85,7 +81,7 @@ export function BookingCreatePage() {
   });
 
   const depositValid = paymentPath === "deposit" ? Number(depositAmount) > 0 : true;
-  const passValid = paymentPath === "pass" ? Number(passId) > 0 : true;
+  const passValid = isAuthenticated && paymentPath === "pass" ? Number(passId) > 0 : true;
   const formReady = selectedSlot !== null && depositValid && passValid;
 
   if (result) {
@@ -141,13 +137,15 @@ export function BookingCreatePage() {
                   checked={paymentPath === "deposit"}
                   onChange={() => setPaymentPath("deposit")}
                 />
-                <Form.Check
-                  inline type="radio"
-                  id="booking-path-pass" label="8회권 사용"
-                  name="paymentPath"
-                  checked={paymentPath === "pass"}
-                  onChange={() => setPaymentPath("pass")}
-                />
+                {isAuthenticated && (
+                  <Form.Check
+                    inline type="radio"
+                    id="booking-path-pass" label="8회권 사용"
+                    name="paymentPath"
+                    checked={paymentPath === "pass"}
+                    onChange={() => setPaymentPath("pass")}
+                  />
+                )}
               </div>
             </Form.Group>
 
@@ -185,6 +183,11 @@ export function BookingCreatePage() {
                   placeholder="8회권 ID"
                 />
               </Form.Group>
+            )}
+            {!isAuthenticated && (
+              <p className="text-muted-soft small mb-0">
+                8회권 예약은 로그인한 회원만 이용할 수 있습니다.
+              </p>
             )}
           </Card.Body>
         </Card>

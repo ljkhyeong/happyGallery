@@ -77,7 +77,7 @@ export function GuestLookupPage() {
             <div className="my-section-kicker mb-2">Move To Member Flow</div>
             <h5 className="mb-2">비회원 이력을 회원 내 정보로 가져오세요</h5>
             <p className="text-muted-soft small mb-0">
-              로그인 또는 회원가입 후 같은 번호의 비회원 주문, 예약, 8회권을 `/my`에서 가져오면
+              로그인 또는 회원가입 후 같은 번호의 비회원 주문과 예약을 `/my`에서 가져오면
               이후에는 추가 토큰 입력 없이 한 화면에서 관리할 수 있습니다.
             </p>
           </div>

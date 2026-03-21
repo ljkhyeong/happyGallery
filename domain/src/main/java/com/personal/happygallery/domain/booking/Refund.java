@@ -1,6 +1,6 @@
 package com.personal.happygallery.domain.booking;
 
-import com.personal.happygallery.domain.order.RefundStatus;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

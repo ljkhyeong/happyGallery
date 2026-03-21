@@ -3,9 +3,9 @@ package com.personal.happygallery.app.customer;
 import com.personal.happygallery.app.customer.port.in.GuestClaimUseCase;
 import com.personal.happygallery.app.customer.port.out.GuestClaimQueryPort;
 import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
-import com.personal.happygallery.app.customer.port.out.PhoneVerificationPort;
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
-import com.personal.happygallery.app.monitoring.port.in.ClientMonitoringUseCase;
+import com.personal.happygallery.app.monitoring.DefaultClientMonitoringService;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.error.PhoneVerificationRequiredException;
@@ -13,7 +13,6 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.order.Order;
-import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -38,23 +37,23 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
     private final UserReaderPort userReader;
     private final GuestReaderPort guestReader;
-    private final PhoneVerificationPort phoneVerificationPort;
+    private final PhoneVerificationReaderPort phoneVerificationReader;
     private final GuestClaimQueryPort claimQuery;
     private final Clock clock;
-    private final ClientMonitoringUseCase clientMonitoringUseCase;
+    private final DefaultClientMonitoringService clientMonitoringService;
 
     public DefaultGuestClaimService(UserReaderPort userReader,
                              GuestReaderPort guestReader,
-                             PhoneVerificationPort phoneVerificationPort,
+                             PhoneVerificationReaderPort phoneVerificationReader,
                              GuestClaimQueryPort claimQuery,
                              Clock clock,
-                             ClientMonitoringUseCase clientMonitoringUseCase) {
+                             DefaultClientMonitoringService clientMonitoringService) {
         this.userReader = userReader;
         this.guestReader = guestReader;
-        this.phoneVerificationPort = phoneVerificationPort;
+        this.phoneVerificationReader = phoneVerificationReader;
         this.claimQuery = claimQuery;
         this.clock = clock;
-        this.clientMonitoringUseCase = clientMonitoringUseCase;
+        this.clientMonitoringService = clientMonitoringService;
     }
 
     @Transactional(readOnly = true)
@@ -75,30 +74,25 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
     public ClaimResult claim(Long userId,
                              List<Long> orderIds,
-                             List<Long> bookingIds,
-                             List<Long> passIds) {
+                             List<Long> bookingIds) {
         User user = findUser(userId);
         requirePhoneVerified(user);
 
         Guest guest = findGuestByAnyPhoneFormat(user.getPhone())
                 .orElse(null);
         if (guest == null) {
-            return new ClaimResult(0, 0, 0);
+            return new ClaimResult(0, 0);
         }
 
         Set<Long> orderIdSet = dedupe(orderIds);
         claimOrders(orderIdSet, guest.getId(), userId);
 
         Set<Long> bookingIdSet = dedupe(bookingIds);
-        Set<Long> passIdsToClaim = dedupe(passIds);
-        claimBookings(bookingIdSet, guest.getId(), userId, passIdsToClaim);
+        claimBookings(bookingIdSet, guest.getId(), userId);
 
-        int claimedPassCount = claimPasses(passIdsToClaim, guest.getId(), userId);
-
-        clientMonitoringUseCase.logGuestClaimCompleted(
-                userId, guest.getId(),
-                orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
-        return new ClaimResult(orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
+        clientMonitoringService.logGuestClaimCompleted(
+                userId, guest.getId(), orderIdSet.size(), bookingIdSet.size());
+        return new ClaimResult(orderIdSet.size(), bookingIdSet.size());
     }
 
     private void claimOrders(Set<Long> orderIds, Long guestId, Long userId) {
@@ -114,8 +108,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         }
     }
 
-    private void claimBookings(Set<Long> bookingIds, Long guestId, Long userId,
-                               Set<Long> passIdsToClaim) {
+    private void claimBookings(Set<Long> bookingIds, Long guestId, Long userId) {
         if (bookingIds.isEmpty()) return;
         Map<Long, Booking> bookingMap = claimQuery.findBookingsByIds(bookingIds).stream()
                 .collect(Collectors.toMap(Booking::getId, Function.identity()));
@@ -127,32 +120,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
                 throw new NotFoundException("claim 예약");
             }
             booking.claimToUser(userId);
-
-            if (booking.getPassPurchase() != null
-                    && booking.getPassPurchase().getGuest() != null
-                    && Objects.equals(booking.getPassPurchase().getGuest().getId(), guestId)
-                    && booking.getPassPurchase().getUserId() == null) {
-                passIdsToClaim.add(booking.getPassPurchase().getId());
-            }
         }
-    }
-
-    private int claimPasses(Set<Long> passIds, Long guestId, Long userId) {
-        if (passIds.isEmpty()) return 0;
-        Map<Long, PassPurchase> passMap = claimQuery.findPassPurchasesByIds(passIds).stream()
-                .collect(Collectors.toMap(PassPurchase::getId, Function.identity()));
-        int count = 0;
-        for (Long passId : passIds) {
-            PassPurchase pass = passMap.get(passId);
-            if (pass == null || pass.getGuest() == null
-                    || !Objects.equals(pass.getGuest().getId(), guestId)
-                    || pass.getUserId() != null) {
-                throw new NotFoundException("claim 8회권");
-            }
-            pass.claimToUser(userId);
-            count++;
-        }
-        return count;
     }
 
     private static final int PREVIEW_LIMIT = 100;
@@ -168,12 +136,8 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
                         claimQuery.findBookingsByGuestId(guest.getId()).stream()
                                 .limit(PREVIEW_LIMIT)
                                 .map(ClaimBookingSummary::from)
-                                .toList(),
-                        claimQuery.findPassPurchasesByGuestId(guest.getId()).stream()
-                                .limit(PREVIEW_LIMIT)
-                                .map(ClaimPassSummary::from)
                                 .toList()))
-                .orElseGet(() -> new ClaimPreview(user.isPhoneVerified(), List.of(), List.of(), List.of()));
+                .orElseGet(() -> new ClaimPreview(user.isPhoneVerified(), List.of(), List.of()));
     }
 
     private User findUser(Long userId) {
@@ -184,7 +148,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     private PhoneVerification findValidVerification(String phone, String verificationCode) {
         LocalDateTime now = LocalDateTime.now(clock);
         for (String candidatePhone : candidatePhones(phone)) {
-            Optional<PhoneVerification> verification = phoneVerificationPort
+            Optional<PhoneVerification> verification = phoneVerificationReader
                     .findValidVerification(candidatePhone, verificationCode, now);
             if (verification.isPresent()) {
                 return verification.get();

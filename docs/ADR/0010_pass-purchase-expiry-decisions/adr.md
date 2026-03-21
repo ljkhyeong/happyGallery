@@ -113,4 +113,4 @@
 - guest 구매 엔드포인트 제거: `POST /passes/guest`, `POST /passes/purchase`
 - 회원 구매 엔드포인트로 단일화: `POST /api/v1/me/passes`
 - 신규 guest 구매 진입점은 제거
-- 기존 비회원 8회권 데이터와 claim 흐름은 유지
+- guest 소유 8회권 상태와 claim 흐름도 함께 제거

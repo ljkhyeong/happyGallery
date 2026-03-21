@@ -1,5 +1,6 @@
 package com.personal.happygallery.infra.payment;
 
+import com.personal.happygallery.app.payment.port.out.RefundResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

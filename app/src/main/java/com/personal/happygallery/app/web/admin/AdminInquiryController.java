@@ -35,7 +35,8 @@ public class AdminInquiryController {
 
     @GetMapping("/{id}")
     public AdminInquiryResponse detail(@PathVariable Long id) {
-        return AdminInquiryResponse.from(inquiryUseCase.findByIdForAdmin(id));
+        InquiryWithUser inquiry = inquiryUseCase.findByIdForAdmin(id);
+        return AdminInquiryResponse.from(inquiry);
     }
 
     @PostMapping("/{id}/reply")

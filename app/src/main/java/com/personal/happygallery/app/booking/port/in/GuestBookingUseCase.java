@@ -17,8 +17,7 @@ public interface GuestBookingUseCase {
 
     record CreateGuestBookingCommand(String phone, String code, String name,
                                      Long slotId, long depositAmount,
-                                     DepositPaymentMethod paymentMethod,
-                                     Long passId) {}
+                                     DepositPaymentMethod paymentMethod) {}
 
     GuestBookingResult createGuestBooking(CreateGuestBookingCommand command);
 }

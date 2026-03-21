@@ -1,5 +1,6 @@
 package com.personal.happygallery.infra.order;
 
+import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.domain.order.Fulfillment;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -8,7 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long> {
+public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>, FulfillmentPort {
+
+    @Override Fulfillment save(Fulfillment fulfillment);
 
     Optional<Fulfillment> findByOrderId(Long orderId);
 

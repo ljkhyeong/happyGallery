@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.admin;
 
 import com.personal.happygallery.domain.admin.AdminUser;
-import com.personal.happygallery.infra.admin.AdminUserRepository;
+import com.personal.happygallery.app.admin.port.out.AdminUserPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -21,10 +21,10 @@ public class LocalAdminSeedService {
     private static final String DEFAULT_USERNAME = "admin";
     private static final String DEFAULT_PASSWORD = "admin1234";
 
-    private final AdminUserRepository adminUserRepository;
+    private final AdminUserPort adminUserRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public LocalAdminSeedService(AdminUserRepository adminUserRepository, PasswordEncoder passwordEncoder) {
+    public LocalAdminSeedService(AdminUserPort adminUserRepository, PasswordEncoder passwordEncoder) {
         this.adminUserRepository = adminUserRepository;
         this.passwordEncoder = passwordEncoder;
     }

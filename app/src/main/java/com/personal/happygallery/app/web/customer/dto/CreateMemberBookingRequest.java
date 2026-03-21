@@ -5,6 +5,6 @@ import jakarta.validation.constraints.NotNull;
 
 public record CreateMemberBookingRequest(
         @NotNull Long slotId,
-        long depositAmount,
+        Long depositAmount,
         DepositPaymentMethod paymentMethod,
         Long passId) {}

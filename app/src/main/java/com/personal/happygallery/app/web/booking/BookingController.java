@@ -66,8 +66,7 @@ public class BookingController {
                         request.name(),
                         request.slotId(),
                         request.depositAmount() != null ? request.depositAmount() : 0L,
-                        request.paymentMethod(),
-                        request.passId()));
+                        request.paymentMethod()));
         return BookingResponse.from(result.booking(), result.rawAccessToken());
     }
 
@@ -98,6 +97,6 @@ public class BookingController {
             @RequestHeader("X-Access-Token") String token) {
         BookingCancelUseCase.CancelResult result =
                 bookingCancelUseCase.cancelBooking(bookingId, token);
-        return CancelResponse.of(result.booking(), result.refundable());
+        return CancelResponse.from(result.booking(), result.refundable());
     }
 }

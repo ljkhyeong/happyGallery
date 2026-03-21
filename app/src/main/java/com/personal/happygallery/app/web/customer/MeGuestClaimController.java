@@ -38,7 +38,7 @@ public class MeGuestClaimController {
     public GuestClaimUseCase.ClaimResult claimGuestRecords(
             @RequestBody @Valid ClaimGuestRecordsRequest req,
             HttpServletRequest request) {
-        return guestClaim.claim(getUserId(request), req.orderIds(), req.bookingIds(), req.passIds());
+        return guestClaim.claim(getUserId(request), req.orderIds(), req.bookingIds());
     }
 
     private Long getUserId(HttpServletRequest request) {

@@ -10,4 +10,7 @@ public interface NotificationLogReaderPort {
 
     boolean existsSentNotification(Long guestId, NotificationEventType eventType,
                                    LocalDateTime sentStart, LocalDateTime sentEnd);
+
+    boolean existsSentUserNotification(Long userId, NotificationEventType eventType,
+                                       LocalDateTime sentStart, LocalDateTime sentEnd);
 }

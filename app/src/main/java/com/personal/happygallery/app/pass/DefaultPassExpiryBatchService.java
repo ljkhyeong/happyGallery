@@ -73,8 +73,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
     /**
      * 만료 7일 전 PASS_EXPIRY_SOON 알림 발송 배치.
      *
-     * <p>JOIN FETCH guest 쿼리로 조회하여 detached 상태에서도 guest.id 접근이 안전하다.
-     * 중복 발송 체크 로직이 포함되어 범용 BatchExecutor를 사용하지 않는다.
+     * <p>중복 발송 체크 로직이 포함되어 범용 BatchExecutor를 사용하지 않는다.
      *
      * @return 발송 건수
      */
@@ -84,19 +83,20 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
         LocalDateTime targetEnd = targetStart.plusDays(1);
         LocalDateTime sentStart = now.toLocalDate().atStartOfDay();
         LocalDateTime sentEnd = sentStart.plusDays(1);
-        List<PassPurchase> expiring = passPurchaseReader.findExpiringWithGuestBetween(targetStart, targetEnd);
+        List<PassPurchase> expiring = passPurchaseReader
+                .findByExpiresAtBetweenAndRemainingCreditsGreaterThan(targetStart, targetEnd, 0);
 
         return BatchExecutor.execute(expiring,
                 PassPurchase::getId,
                 pass -> {
-                    if (notificationLogReader.existsSentNotification(
-                            pass.getGuest().getId(),
+                    if (notificationLogReader.existsSentUserNotification(
+                            pass.getUserId(),
                             NotificationEventType.PASS_EXPIRY_SOON,
                             sentStart,
                             sentEnd)) {
                         return false;
                     }
-                    notificationService.notifyByGuestId(pass.getGuest().getId(), NotificationEventType.PASS_EXPIRY_SOON);
+                    notificationService.notifyByUserId(pass.getUserId(), NotificationEventType.PASS_EXPIRY_SOON);
                     return true;
                 },
                 "8회권 만료 알림");

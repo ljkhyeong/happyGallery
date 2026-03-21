@@ -44,7 +44,8 @@ public class MeOrderController {
     @GetMapping("/{id}")
     public OrderDetailResponse myOrder(@PathVariable Long id, HttpServletRequest request) {
         Long userId = getUserId(request);
-        return OrderDetailResponse.from(orderQueryUseCase.findMyOrder(id, userId));
+        OrderQueryUseCase.OrderDetail detail = orderQueryUseCase.findMyOrder(id, userId);
+        return OrderDetailResponse.from(detail);
     }
 
     @PostMapping

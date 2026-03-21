@@ -1,4 +1,4 @@
-package com.personal.happygallery.domain.order;
+package com.personal.happygallery.domain.payment;
 
 public enum RefundStatus {
     REQUESTED,

@@ -20,7 +20,7 @@ import {
 } from "./support";
 import { navLoginLink, navLogoutButton, successAlert } from "./ui-support";
 
-test("P8-8 회원은 같은 번호의 비회원 주문, 예약, 8회권을 claim 할 수 있다", async ({ page, request }) => {
+test("P8-8 회원은 같은 번호의 비회원 주문과 예약을 claim 할 수 있다", async ({ page, request }) => {
   const productName = makeUniqueLabel("P8-claim-order");
   const classes = await fetchClasses(request);
   test.skip(classes.length === 0, "P8 guest claim flow requires at least one class in the local DB");
@@ -64,23 +64,11 @@ test("P8-8 회원은 같은 번호의 비회원 주문, 예약, 8회권을 claim
   }
   const orderId = extractFirstNumber(orderCardText, "주문 #");
 
-  await page.goto("/passes/purchase");
-  await page.getByLabel("결제 금액 (원)").fill("120000");
-  await page.getByRole("button", { name: /8회권 구매/ }).click();
-  await completeGuestAuthGate(page, guestPhone, guestName);
-  await expect(page.getByText("8회권 구매가 완료되었습니다!")).toBeVisible();
-  const passCardText = await page.locator(".card").last().textContent();
-  if (!passCardText) {
-    throw new Error("Pass success card text was empty");
-  }
-  const passId = extractFirstNumber(passCardText, "8회권 ID:");
-
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
   await page.getByLabel("날짜").fill(slotDate);
   await page.locator(".list-group-item").filter({ hasText: formatTimeTokenForUi(slot.startAt) }).first().click();
-  await page.getByLabel("8회권 사용").check();
-  await page.getByLabel("8회권 ID").fill(String(passId));
+  await page.getByLabel("예약금 (원)").fill("30000");
   await page.getByRole("button", { name: /예약하기/ }).click();
   await completeGuestAuthGate(page, guestPhone, guestName);
   await expect(successAlert(page, "예약이 완료되었습니다!")).toBeVisible();
@@ -98,15 +86,11 @@ test("P8-8 회원은 같은 번호의 비회원 주문, 예약, 8회권을 claim
   await expect(claimDialog.getByText("확인 완료")).toBeVisible();
   await expect(claimDialog.getByText(`주문 #${orderId}`)).toBeVisible();
   await expect(claimDialog.getByText(`${bookingClass.name} #${booking.bookingId}`)).toBeVisible();
-  await expect(claimDialog.getByText(`8회권 #${passId}`)).toBeVisible();
-
-  await claimDialog.locator(`#claim-pass-${passId}`).uncheck();
   await claimDialog.getByRole("button", { name: "선택한 이력 가져오기" }).click();
 
   await expect(page.getByText("휴대폰 인증 완료")).toBeVisible();
   await expect(page.getByText(`주문 #${orderId}`)).toBeVisible();
   await expect(page.getByText(bookingClass.name)).toBeVisible();
-  await expect(page.getByText(/잔여\s+\d+\/8회/)).toBeVisible();
 });
 
 test("P8-9 비회원 성공 화면에서 회원가입 후 claim 모달을 바로 열 수 있다", async ({ page, request }) => {
