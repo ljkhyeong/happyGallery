@@ -1,4 +1,4 @@
-package com.personal.happygallery.app.customer;
+package com.personal.happygallery.infra.customer;
 
 import com.personal.happygallery.app.customer.port.out.GuestClaimQueryPort;
 import com.personal.happygallery.domain.booking.Booking;
@@ -12,15 +12,15 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-class GuestClaimQueryPortAdapter implements GuestClaimQueryPort {
+class JpaGuestClaimQueryAdapter implements GuestClaimQueryPort {
 
     private final OrderRepository orderRepository;
     private final BookingRepository bookingRepository;
     private final PassPurchaseRepository passPurchaseRepository;
 
-    GuestClaimQueryPortAdapter(OrderRepository orderRepository,
-                               BookingRepository bookingRepository,
-                               PassPurchaseRepository passPurchaseRepository) {
+    JpaGuestClaimQueryAdapter(OrderRepository orderRepository,
+                              BookingRepository bookingRepository,
+                              PassPurchaseRepository passPurchaseRepository) {
         this.orderRepository = orderRepository;
         this.bookingRepository = bookingRepository;
         this.passPurchaseRepository = passPurchaseRepository;

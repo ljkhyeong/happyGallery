@@ -1,5 +1,6 @@
 package com.personal.happygallery.infra.payment;
 
+import com.personal.happygallery.app.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;

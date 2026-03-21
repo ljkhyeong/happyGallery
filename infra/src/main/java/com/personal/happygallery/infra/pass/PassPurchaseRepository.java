@@ -1,13 +1,19 @@
 package com.personal.happygallery.infra.pass;
 
+import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
+import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long> {
+public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long>, PassPurchaseReaderPort, PassPurchaseStorePort {
+
+    @Override Optional<PassPurchase> findById(Long id);
+    @Override PassPurchase save(PassPurchase passPurchase);
 
     /** 회원 — 자기 8회권 조회 (구매일 내림차순) */
     List<PassPurchase> findByUserIdOrderByPurchasedAtDesc(Long userId);

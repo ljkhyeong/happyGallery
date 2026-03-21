@@ -1,22 +1,20 @@
-package com.personal.happygallery.app.notification;
+package com.personal.happygallery.infra.notification;
 
 import com.personal.happygallery.app.notification.port.out.NotificationLogReaderPort;
-import com.personal.happygallery.app.notification.port.out.NotificationLogStorePort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.domain.notification.NotificationLog;
-import com.personal.happygallery.infra.notification.NotificationLogRepository;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Component;
 
 /**
- * {@link NotificationLogRepository}(infra) → {@link NotificationLogReaderPort} + {@link NotificationLogStorePort}(app) 브릿지 어댑터.
+ * {@link NotificationLogRepository} → {@link NotificationLogReaderPort} 어댑터.
+ * "SUCCESS" 하드코딩 파라미터 변환이 필요하여 Repository extends 방식이 아닌 별도 어댑터로 구현.
  */
 @Component
-class NotificationLogPersistencePortAdapter implements NotificationLogReaderPort, NotificationLogStorePort {
+class JpaNotificationLogAdapter implements NotificationLogReaderPort {
 
     private final NotificationLogRepository notificationLogRepository;
 
-    NotificationLogPersistencePortAdapter(NotificationLogRepository notificationLogRepository) {
+    JpaNotificationLogAdapter(NotificationLogRepository notificationLogRepository) {
         this.notificationLogRepository = notificationLogRepository;
     }
 
@@ -25,10 +23,5 @@ class NotificationLogPersistencePortAdapter implements NotificationLogReaderPort
                                           LocalDateTime sentStart, LocalDateTime sentEnd) {
         return notificationLogRepository.existsByGuestIdAndEventTypeAndStatusAndSentAtBetween(
                 guestId, eventType, "SUCCESS", sentStart, sentEnd);
-    }
-
-    @Override
-    public NotificationLog save(NotificationLog log) {
-        return notificationLogRepository.save(log);
     }
 }

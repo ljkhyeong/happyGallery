@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.infra.payment.LocalRefundFailureScript;
+import com.personal.happygallery.app.payment.port.out.RefundFailureScriptPort;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import java.util.Map;
@@ -23,9 +23,9 @@ public class LocalRefundFailureController {
 
     static final String DEFAULT_REASON = "로컬 smoke 강제 환불 실패";
 
-    private final LocalRefundFailureScript localRefundFailureScript;
+    private final RefundFailureScriptPort localRefundFailureScript;
 
-    public LocalRefundFailureController(LocalRefundFailureScript localRefundFailureScript) {
+    public LocalRefundFailureController(RefundFailureScriptPort localRefundFailureScript) {
         this.localRefundFailureScript = localRefundFailureScript;
     }
 

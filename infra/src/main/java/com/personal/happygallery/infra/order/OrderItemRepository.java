@@ -1,5 +1,6 @@
 package com.personal.happygallery.infra.order;
 
+import com.personal.happygallery.app.order.port.out.OrderItemPort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.product.ProductType;
@@ -8,7 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
+public interface OrderItemRepository extends JpaRepository<OrderItem, Long>, OrderItemPort {
+
+    @Override OrderItem save(OrderItem item);
 
     List<OrderItem> findByOrder(Order order);
 

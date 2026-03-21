@@ -1,5 +1,6 @@
 package com.personal.happygallery.infra.payment;
 
+import com.personal.happygallery.app.payment.port.out.RefundResult;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;

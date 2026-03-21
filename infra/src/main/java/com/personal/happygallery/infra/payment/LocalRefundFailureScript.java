@@ -1,5 +1,6 @@
 package com.personal.happygallery.infra.payment;
 
+import com.personal.happygallery.app.payment.port.out.RefundFailureScriptPort;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.context.annotation.Profile;
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Component;
  */
 @Profile("local")
 @Component
-public class LocalRefundFailureScript {
+public class LocalRefundFailureScript implements RefundFailureScriptPort {
 
     private final AtomicReference<String> nextFailureReason = new AtomicReference<>();
 
