@@ -80,14 +80,16 @@ public class AdminOrderController {
     @PostMapping("/{id}/resume-production")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse resumeProduction(@PathVariable Long id, HttpServletRequest request) {
-        return OrderProductionResponse.from(orderProductionUseCase.resumeProduction(id, adminId(request)));
+        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.resumeProduction(id, adminId(request));
+        return OrderProductionResponse.from(result);
     }
 
     /** POST /admin/orders/{id}/complete-production — 제작 완료 (IN_PRODUCTION/DELAY_REQUESTED → APPROVED_FULFILLMENT_PENDING) */
     @PostMapping("/{id}/complete-production")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse completeProduction(@PathVariable Long id, HttpServletRequest request) {
-        return OrderProductionResponse.from(orderProductionUseCase.completeProduction(id, adminId(request)));
+        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.completeProduction(id, adminId(request));
+        return OrderProductionResponse.from(result);
     }
 
     /** PATCH /admin/orders/{id}/expected-ship-date — 예상 출고일 설정/갱신 */
@@ -95,14 +97,17 @@ public class AdminOrderController {
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse setExpectedShipDate(@PathVariable Long id,
                                                        @RequestBody SetExpectedShipDateRequest request) {
-        return OrderProductionResponse.from(orderProductionUseCase.setExpectedShipDate(id, request.expectedShipDate()));
+        OrderProductionUseCase.ProductionResult result =
+                orderProductionUseCase.setExpectedShipDate(id, request.expectedShipDate());
+        return OrderProductionResponse.from(result);
     }
 
     /** POST /admin/orders/{id}/delay — 고객 동의 후 배송 지연 상태로 전환 */
     @PostMapping("/{id}/delay")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse requestDelay(@PathVariable Long id) {
-        return OrderProductionResponse.from(orderProductionUseCase.requestDelay(id));
+        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.requestDelay(id);
+        return OrderProductionResponse.from(result);
     }
 
     /** POST /admin/orders/{id}/prepare-pickup — 픽업 준비 완료 (APPROVED_FULFILLMENT_PENDING → PICKUP_READY) */
@@ -110,35 +115,40 @@ public class AdminOrderController {
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse markPickupReady(@PathVariable Long id,
                                          @RequestBody MarkPickupReadyRequest request) {
-        return PickupResponse.from(orderPickupUseCase.markPickupReady(id, request.pickupDeadlineAt()));
+        OrderPickupUseCase.PickupResult result = orderPickupUseCase.markPickupReady(id, request.pickupDeadlineAt());
+        return PickupResponse.from(result);
     }
 
     /** POST /admin/orders/{id}/complete-pickup — 픽업 완료 (PICKUP_READY → PICKED_UP) */
     @PostMapping("/{id}/complete-pickup")
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse confirmPickup(@PathVariable Long id) {
-        return PickupResponse.from(orderPickupUseCase.confirmPickup(id));
+        OrderPickupUseCase.PickupResult result = orderPickupUseCase.confirmPickup(id);
+        return PickupResponse.from(result);
     }
 
     /** POST /admin/orders/{id}/prepare-shipping — 배송 준비 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) */
     @PostMapping("/{id}/prepare-shipping")
     @ResponseStatus(HttpStatus.OK)
     public ShippingResponse prepareShipping(@PathVariable Long id, HttpServletRequest request) {
-        return ShippingResponse.from(orderShippingUseCase.prepareShipping(id, adminId(request)));
+        OrderShippingUseCase.ShippingResult result = orderShippingUseCase.prepareShipping(id, adminId(request));
+        return ShippingResponse.from(result);
     }
 
     /** POST /admin/orders/{id}/mark-shipped — 배송 출발 (SHIPPING_PREPARING → SHIPPED) */
     @PostMapping("/{id}/mark-shipped")
     @ResponseStatus(HttpStatus.OK)
     public ShippingResponse markShipped(@PathVariable Long id, HttpServletRequest request) {
-        return ShippingResponse.from(orderShippingUseCase.markShipped(id, adminId(request)));
+        OrderShippingUseCase.ShippingResult result = orderShippingUseCase.markShipped(id, adminId(request));
+        return ShippingResponse.from(result);
     }
 
     /** POST /admin/orders/{id}/mark-delivered — 배송 완료 (SHIPPED → DELIVERED) */
     @PostMapping("/{id}/mark-delivered")
     @ResponseStatus(HttpStatus.OK)
     public ShippingResponse markDelivered(@PathVariable Long id, HttpServletRequest request) {
-        return ShippingResponse.from(orderShippingUseCase.markDelivered(id, adminId(request)));
+        OrderShippingUseCase.ShippingResult result = orderShippingUseCase.markDelivered(id, adminId(request));
+        return ShippingResponse.from(result);
     }
 
     /** GET /admin/orders/{id}/history — 주문 결정 이력 조회 */

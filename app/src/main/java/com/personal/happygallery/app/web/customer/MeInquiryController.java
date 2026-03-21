@@ -31,7 +31,8 @@ public class MeInquiryController {
     public InquiryResponse create(@RequestBody @Valid CreateInquiryRequest request,
                                   HttpServletRequest httpRequest) {
         Long userId = getUserId(httpRequest);
-        return InquiryResponse.from(inquiryUseCase.create(userId, request.title(), request.content()));
+        var inquiry = inquiryUseCase.create(userId, request.title(), request.content());
+        return InquiryResponse.from(inquiry);
     }
 
     @GetMapping
@@ -45,7 +46,8 @@ public class MeInquiryController {
     @GetMapping("/{id}")
     public InquiryResponse detail(@PathVariable Long id, HttpServletRequest httpRequest) {
         Long userId = getUserId(httpRequest);
-        return InquiryResponse.from(inquiryUseCase.findByIdAndUser(id, userId));
+        var inquiry = inquiryUseCase.findByIdAndUser(id, userId);
+        return InquiryResponse.from(inquiry);
     }
 
     private Long getUserId(HttpServletRequest request) {
