@@ -12,8 +12,8 @@ import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
+import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +44,7 @@ class BookingRescheduleUseCaseIT {
     @Autowired DefaultSlotManagementService slotManagementService;
     @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired PassPurchaseRepository passPurchaseRepository;
+    @Autowired Clock clock;
 
     BookingClass cls;
     BookingTestHelper helper;
@@ -129,7 +130,7 @@ class BookingRescheduleUseCaseIT {
     @Test
     void reschedule_changeNotAllowed_returns422() throws Exception {
         // 현재 시각 기준 30분 후 시작하는 슬롯 (1시간 이내 → 변경 불가)
-        LocalDateTime soonStart = LocalDateTime.now(ZoneId.of("Asia/Seoul")).plusMinutes(30);
+        LocalDateTime soonStart = LocalDateTime.now(clock).plusMinutes(30);
         Slot nearSlot = slotRepository.save(slot(cls, soonStart, soonStart.plusHours(2)));
         Slot targetSlot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
