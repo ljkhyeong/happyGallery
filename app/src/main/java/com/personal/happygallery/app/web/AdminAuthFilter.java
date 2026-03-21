@@ -24,6 +24,12 @@ public class AdminAuthFilter extends OncePerRequestFilter {
 
     public static final String ADMIN_USER_ID_ATTR = "adminUserId";
     public static final String ADMIN_USERNAME_ATTR = "adminUsername";
+    public static final String ADMIN_AUTH_SOURCE_ATTR = "adminAuthSource";
+
+    public enum AdminAuthSource {
+        BEARER_SESSION,
+        API_KEY
+    }
 
     private static final String ADMIN_KEY_HEADER = "X-Admin-Key";
     private static final String AUTH_HEADER = "Authorization";
@@ -70,6 +76,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
             if (session.isPresent()) {
                 request.setAttribute(ADMIN_USER_ID_ATTR, session.get().adminUserId());
                 request.setAttribute(ADMIN_USERNAME_ATTR, session.get().username());
+                request.setAttribute(ADMIN_AUTH_SOURCE_ATTR, AdminAuthSource.BEARER_SESSION);
                 return true;
             }
         }
@@ -78,8 +85,9 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         if (adminProperties.enableApiKeyAuth()) {
             String key = request.getHeader(ADMIN_KEY_HEADER);
             if (adminProperties.apiKey().equals(key)) {
-                request.setAttribute(ADMIN_USER_ID_ATTR, 0L);
-                request.setAttribute(ADMIN_USERNAME_ATTR, "api-key");
+                request.removeAttribute(ADMIN_USER_ID_ATTR);
+                request.removeAttribute(ADMIN_USERNAME_ATTR);
+                request.setAttribute(ADMIN_AUTH_SOURCE_ATTR, AdminAuthSource.API_KEY);
                 return true;
             }
         }
