@@ -9,6 +9,8 @@ import com.personal.happygallery.domain.booking.PhoneVerification;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 전화번호 인증 코드를 검증하고, Guest를 upsert하는 공통 로직.
@@ -37,6 +39,7 @@ public class VerifiedGuestResolver {
      *
      * @return phoneVerified 상태의 Guest
      */
+    @Transactional(propagation = Propagation.MANDATORY)
     public Guest resolveVerifiedGuest(String phone, String verificationCode, String name) {
         PhoneVerification pv = phoneVerificationReader
                 .findValidVerification(phone, verificationCode, LocalDateTime.now(clock))

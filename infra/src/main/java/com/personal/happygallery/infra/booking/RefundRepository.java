@@ -1,7 +1,7 @@
 package com.personal.happygallery.infra.booking;
 
 import com.personal.happygallery.domain.booking.Refund;
-import com.personal.happygallery.domain.order.RefundStatus;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

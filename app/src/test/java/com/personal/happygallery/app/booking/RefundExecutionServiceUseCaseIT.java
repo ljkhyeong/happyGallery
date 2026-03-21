@@ -2,7 +2,7 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.payment.RefundExecutionService;
 import com.personal.happygallery.domain.order.Order;
-import com.personal.happygallery.domain.order.RefundStatus;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;

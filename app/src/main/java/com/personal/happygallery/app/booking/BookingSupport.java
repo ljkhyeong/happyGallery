@@ -12,6 +12,8 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.util.Objects;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 class BookingSupport {
@@ -40,6 +42,7 @@ class BookingSupport {
                 .orElseThrow(() -> new NotFoundException("예약"));
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     void recordHistory(Booking booking, BookingHistoryAction action,
                        Slot oldSlot, Slot newSlot, String actor, String reason) {
         bookingHistoryPort.save(
