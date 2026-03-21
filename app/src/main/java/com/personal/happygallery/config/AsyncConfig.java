@@ -1,5 +1,8 @@
 package com.personal.happygallery.config;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -20,7 +23,7 @@ public class AsyncConfig implements AsyncConfigurer {
     private static final Logger log = LoggerFactory.getLogger(AsyncConfig.class);
 
     @Bean
-    public Executor notificationExecutor() {
+    public Executor notificationExecutor(MeterRegistry meterRegistry) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);
         executor.setMaxPoolSize(4);
@@ -37,6 +40,11 @@ public class AsyncConfig implements AsyncConfigurer {
             };
         });
         executor.initialize();
+        ExecutorServiceMetrics.monitor(
+                meterRegistry,
+                executor.getThreadPoolExecutor(),
+                "executor",
+                Tags.of("name", "notificationExecutor"));
         return executor;
     }
 

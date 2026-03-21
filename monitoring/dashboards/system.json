@@ -90,9 +90,69 @@
     },
     {
       "id": 7,
-      "title": "JVM Threads",
+      "title": "Tomcat Threads",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "tomcat_threads_current_threads{application=\"happygallery\"}",
+          "legendFormat": "current"
+        },
+        {
+          "expr": "tomcat_threads_busy_threads{application=\"happygallery\"}",
+          "legendFormat": "busy"
+        },
+        {
+          "expr": "tomcat_threads_config_max_threads{application=\"happygallery\"}",
+          "legendFormat": "max"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Notification Executor Threads",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "expr": "executor_active_threads{application=\"happygallery\",name=\"notificationExecutor\"}",
+          "legendFormat": "active"
+        },
+        {
+          "expr": "executor_pool_size_threads{application=\"happygallery\",name=\"notificationExecutor\"}",
+          "legendFormat": "pool size"
+        },
+        {
+          "expr": "executor_pool_max_threads{application=\"happygallery\",name=\"notificationExecutor\"}",
+          "legendFormat": "max"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Payment Timeout Executor Threads",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "targets": [
+        {
+          "expr": "executor_active_threads{application=\"happygallery\",name=\"paymentTimeoutExecutor\"}",
+          "legendFormat": "active"
+        },
+        {
+          "expr": "executor_pool_size_threads{application=\"happygallery\",name=\"paymentTimeoutExecutor\"}",
+          "legendFormat": "pool size"
+        },
+        {
+          "expr": "executor_pool_max_threads{application=\"happygallery\",name=\"paymentTimeoutExecutor\"}",
+          "legendFormat": "max"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "JVM Threads",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
       "targets": [
         {
           "expr": "jvm_threads_live_threads{application=\"happygallery\"}",
@@ -105,10 +165,10 @@
       ]
     },
     {
-      "id": 8,
+      "id": 11,
       "title": "Process CPU Usage",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 40 },
       "targets": [
         {
           "expr": "process_cpu_usage{application=\"happygallery\"}",

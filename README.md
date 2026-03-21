@@ -22,7 +22,7 @@
 | Flyway | `spring-boot-starter-flyway`, `flyway-mysql` | MySQL 스키마 변경을 버전 관리하고 환경 간 DB 상태를 일관되게 맞춤 |
 | Spring Actuator | `spring-boot-starter-actuator` | `/actuator/health`, `/actuator/info`, `/actuator/metrics`, `/actuator/prometheus` 운영 엔드포인트 제공 |
 | Prometheus | `micrometer-registry-prometheus` | Actuator 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 scrape 가능한 포맷으로 노출 |
-| Grafana | Grafana provisioning + dashboard JSON | 시스템 메트릭과 제품 전환 퍼널 지표를 대시보드로 시각화 |
+| Grafana | Grafana provisioning + dashboard JSON | 시스템 메트릭, Tomcat/커스텀 executor thread pool, 제품 전환 퍼널 지표를 대시보드로 시각화 |
 | Sentry | `sentry-spring-boot-4-starter` | 서버 500 예외를 requestId 태그와 함께 캡처 |
 | Testcontainers | `spring-boot-testcontainers`, `testcontainers`, `testcontainers-mysql` | `@UseCaseIT`에서 MySQL/Redis 등 실제에 가까운 통합 환경을 테스트로 재현 |
 
