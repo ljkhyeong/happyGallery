@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.pass;
 
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.app.pass.port.in.PassPurchaseUseCase;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.pass.PassLedgerType;
@@ -39,7 +40,7 @@ class PassPurchaseUseCaseIT {
     @Autowired MockMvc mockMvc;
     @Autowired PassPurchaseRepository passPurchaseRepository;
     @Autowired PassLedgerRepository passLedgerRepository;
-    @Autowired DefaultPassExpiryBatchService passExpiryBatchService;
+    @Autowired PassExpiryBatchUseCase passExpiryBatchService;
     @Autowired PassPurchaseUseCase passPurchaseUseCase;
     @Autowired GuestRepository guestRepository;
     @Autowired UserRepository userRepository;

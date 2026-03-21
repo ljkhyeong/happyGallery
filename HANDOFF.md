@@ -22,6 +22,7 @@
 
 - 권장 작업 브랜치: `codex/work-20260319-000329`
 - 최근 작업:
+  - `@UseCaseIT` DI 기준 보정 — 포트가 있는 act 경계는 concrete 구현체 대신 `MockMvc` 또는 `port.in UseCase` 타입으로 맞추고, service 직접 주입은 포트가 없는 fixture/support 용도만 허용하는 기준을 `PassPurchaseUseCaseIT`부터 반영
   - graceful shutdown 운영 기준 문서화 — `ADR-0025`에 Spring graceful shutdown 30초, 알림 `ThreadPoolTaskExecutor` drain 정책, PG timeout executor 2초 종료 정책을 정리
   - 문서 인덱스/인수인계 보정 — `README.md` Idea 목록을 실제 파일 기준으로 정리하고, `HANDOFF.md` 프론트 경로/문의 흐름 요약을 구현 상태에 맞게 갱신
   - 배치 마이그레이션 검토 메모 추가 — `docs/Idea/0017_spring-batch-migration-consideration/idea.md`에 현행 커스텀 배치 유지 판단과 Spring Batch 재검토 조건을 기록
