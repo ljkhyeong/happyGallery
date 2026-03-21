@@ -74,36 +74,6 @@ public final class BookingTestHelper {
         return new CreatedBooking(extractBookingId(response), extractAccessToken(response), response);
     }
 
-    public String bookWithPass(String phone, String code, Long slotId, Long passId) throws Exception {
-        return postGuestBooking("""
-                {
-                  "phone": "%s",
-                  "verificationCode": "%s",
-                  "name": "김테스트",
-                  "slotId": %d,
-                  "passId": %d
-                }
-                """.formatted(phone, code, slotId, passId));
-    }
-
-    public CreatedBooking createVerifiedPassBooking(String phone, Long slotId, Long passId) throws Exception {
-        return createVerifiedPassBooking(phone, "김테스트", slotId, passId);
-    }
-
-    public CreatedBooking createVerifiedPassBooking(String phone, String name, Long slotId, Long passId) throws Exception {
-        String code = sendVerificationAndGetCode(phone);
-        String response = postGuestBooking("""
-                {
-                  "phone": "%s",
-                  "verificationCode": "%s",
-                  "name": "%s",
-                  "slotId": %d,
-                  "passId": %d
-                }
-                """.formatted(phone, code, name, slotId, passId));
-        return new CreatedBooking(extractBookingId(response), extractAccessToken(response), response);
-    }
-
     private String postGuestBooking(String requestBody) throws Exception {
         return mockMvc.perform(post("/bookings/guest")
                         .contentType(MediaType.APPLICATION_JSON)

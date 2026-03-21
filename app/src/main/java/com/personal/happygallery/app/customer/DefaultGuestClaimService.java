@@ -13,7 +13,6 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.order.Order;
-import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -75,30 +74,25 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
     public ClaimResult claim(Long userId,
                              List<Long> orderIds,
-                             List<Long> bookingIds,
-                             List<Long> passIds) {
+                             List<Long> bookingIds) {
         User user = findUser(userId);
         requirePhoneVerified(user);
 
         Guest guest = findGuestByAnyPhoneFormat(user.getPhone())
                 .orElse(null);
         if (guest == null) {
-            return new ClaimResult(0, 0, 0);
+            return new ClaimResult(0, 0);
         }
 
         Set<Long> orderIdSet = dedupe(orderIds);
         claimOrders(orderIdSet, guest.getId(), userId);
 
         Set<Long> bookingIdSet = dedupe(bookingIds);
-        Set<Long> passIdsToClaim = dedupe(passIds);
-        claimBookings(bookingIdSet, guest.getId(), userId, passIdsToClaim);
-
-        int claimedPassCount = claimPasses(passIdsToClaim, guest.getId(), userId);
+        claimBookings(bookingIdSet, guest.getId(), userId);
 
         clientMonitoringService.logGuestClaimCompleted(
-                userId, guest.getId(),
-                orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
-        return new ClaimResult(orderIdSet.size(), bookingIdSet.size(), claimedPassCount);
+                userId, guest.getId(), orderIdSet.size(), bookingIdSet.size());
+        return new ClaimResult(orderIdSet.size(), bookingIdSet.size());
     }
 
     private void claimOrders(Set<Long> orderIds, Long guestId, Long userId) {
@@ -114,8 +108,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         }
     }
 
-    private void claimBookings(Set<Long> bookingIds, Long guestId, Long userId,
-                               Set<Long> passIdsToClaim) {
+    private void claimBookings(Set<Long> bookingIds, Long guestId, Long userId) {
         if (bookingIds.isEmpty()) return;
         Map<Long, Booking> bookingMap = claimQuery.findBookingsByIds(bookingIds).stream()
                 .collect(Collectors.toMap(Booking::getId, Function.identity()));
@@ -127,32 +120,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
                 throw new NotFoundException("claim 예약");
             }
             booking.claimToUser(userId);
-
-            if (booking.getPassPurchase() != null
-                    && booking.getPassPurchase().getGuest() != null
-                    && Objects.equals(booking.getPassPurchase().getGuest().getId(), guestId)
-                    && booking.getPassPurchase().getUserId() == null) {
-                passIdsToClaim.add(booking.getPassPurchase().getId());
-            }
         }
-    }
-
-    private int claimPasses(Set<Long> passIds, Long guestId, Long userId) {
-        if (passIds.isEmpty()) return 0;
-        Map<Long, PassPurchase> passMap = claimQuery.findPassPurchasesByIds(passIds).stream()
-                .collect(Collectors.toMap(PassPurchase::getId, Function.identity()));
-        int count = 0;
-        for (Long passId : passIds) {
-            PassPurchase pass = passMap.get(passId);
-            if (pass == null || pass.getGuest() == null
-                    || !Objects.equals(pass.getGuest().getId(), guestId)
-                    || pass.getUserId() != null) {
-                throw new NotFoundException("claim 8회권");
-            }
-            pass.claimToUser(userId);
-            count++;
-        }
-        return count;
     }
 
     private static final int PREVIEW_LIMIT = 100;
@@ -168,12 +136,8 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
                         claimQuery.findBookingsByGuestId(guest.getId()).stream()
                                 .limit(PREVIEW_LIMIT)
                                 .map(ClaimBookingSummary::from)
-                                .toList(),
-                        claimQuery.findPassPurchasesByGuestId(guest.getId()).stream()
-                                .limit(PREVIEW_LIMIT)
-                                .map(ClaimPassSummary::from)
                                 .toList()))
-                .orElseGet(() -> new ClaimPreview(user.isPhoneVerified(), List.of(), List.of(), List.of()));
+                .orElseGet(() -> new ClaimPreview(user.isPhoneVerified(), List.of(), List.of()));
     }
 
     private User findUser(Long userId) {

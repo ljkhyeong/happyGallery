@@ -2,7 +2,6 @@ package com.personal.happygallery.app.customer.port.out;
 
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.order.Order;
-import com.personal.happygallery.domain.pass.PassPurchase;
 import java.util.Collection;
 import java.util.List;
 
@@ -20,8 +19,4 @@ public interface GuestClaimQueryPort {
     List<Booking> findBookingsByGuestId(Long guestId);
 
     List<Booking> findBookingsByIds(Collection<Long> ids);
-
-    List<PassPurchase> findPassPurchasesByGuestId(Long guestId);
-
-    List<PassPurchase> findPassPurchasesByIds(Collection<Long> ids);
 }

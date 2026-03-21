@@ -15,25 +15,15 @@ export interface ClaimBookingSummary {
   endAt: string;
 }
 
-export interface ClaimPassSummary {
-  passId: number;
-  remainingCredits: number;
-  totalCredits: number;
-  expiresAt: string;
-  totalPrice: number;
-}
-
 export interface GuestClaimPreview {
   phoneVerified: boolean;
   orders: ClaimOrderSummary[];
   bookings: ClaimBookingSummary[];
-  passes: ClaimPassSummary[];
 }
 
 export interface GuestClaimResult {
   claimedOrderCount: number;
   claimedBookingCount: number;
-  claimedPassCount: number;
 }
 
 export function getGuestClaimPreview() {
@@ -47,9 +37,9 @@ export function verifyGuestClaimPhone(verificationCode: string) {
   });
 }
 
-export function claimGuestRecords(orderIds: number[], bookingIds: number[], passIds: number[]) {
+export function claimGuestRecords(orderIds: number[], bookingIds: number[]) {
   return api<GuestClaimResult>("/me/guest-claims", {
     method: "POST",
-    body: { orderIds, bookingIds, passIds },
+    body: { orderIds, bookingIds },
   });
 }

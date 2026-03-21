@@ -66,8 +66,7 @@ public class BookingController {
                         request.name(),
                         request.slotId(),
                         request.depositAmount() != null ? request.depositAmount() : 0L,
-                        request.paymentMethod(),
-                        request.passId()));
+                        request.paymentMethod()));
         return BookingResponse.from(result.booking(), result.rawAccessToken());
     }
 

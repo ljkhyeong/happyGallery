@@ -106,11 +106,6 @@ public class Booking {
         return new Booking(guest, null, slot, depositAmount, balanceAmount, paymentMethod, null, accessToken);
     }
 
-    /** 게스트 8회권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null. */
-    public static Booking forGuestPass(Guest guest, Slot slot, PassPurchase passPurchase, String accessToken) {
-        return new Booking(guest, null, slot, 0, 0, null, passPurchase, accessToken);
-    }
-
     /** 회원 예약금 예약 생성. */
     public static Booking forMemberDeposit(Long userId, Slot slot, long depositAmount, long balanceAmount,
                                            DepositPaymentMethod paymentMethod) {

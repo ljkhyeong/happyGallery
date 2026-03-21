@@ -24,4 +24,11 @@ class JpaNotificationLogAdapter implements NotificationLogReaderPort {
         return notificationLogRepository.existsByGuestIdAndEventTypeAndStatusAndSentAtBetween(
                 guestId, eventType, "SUCCESS", sentStart, sentEnd);
     }
+
+    @Override
+    public boolean existsSentUserNotification(Long userId, NotificationEventType eventType,
+                                              LocalDateTime sentStart, LocalDateTime sentEnd) {
+        return notificationLogRepository.existsByUserIdAndEventTypeAndStatusAndSentAtBetween(
+                userId, eventType, "SUCCESS", sentStart, sentEnd);
+    }
 }

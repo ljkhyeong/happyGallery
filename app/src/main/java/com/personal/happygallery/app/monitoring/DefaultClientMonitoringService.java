@@ -36,9 +36,8 @@ public class DefaultClientMonitoringService implements ClientMonitoringUseCase {
     public void logGuestClaimCompleted(Long userId,
                                        Long guestId,
                                        int claimedOrderCount,
-                                       int claimedBookingCount,
-                                       int claimedPassCount) {
-        log.info("[client-monitoring] event={} path={} source={} target={} authenticated=true userId={} guestId={} orders={} bookings={} passes={}",
+                                       int claimedBookingCount) {
+        log.info("[client-monitoring] event={} path={} source={} target={} authenticated=true userId={} guestId={} orders={} bookings={}",
                 ClientMonitoringEventType.GUEST_CLAIM_COMPLETED.logValue(),
                 "/api/v1/me/guest-claims",
                 "guest_claim_submit",
@@ -46,8 +45,7 @@ public class DefaultClientMonitoringService implements ClientMonitoringUseCase {
                 userId,
                 guestId,
                 claimedOrderCount,
-                claimedBookingCount,
-                claimedPassCount);
+                claimedBookingCount);
         appMetrics.incrementGuestClaimCompleted();
     }
 

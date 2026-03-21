@@ -2,7 +2,6 @@ package com.personal.happygallery.app.customer.port.in;
 
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.order.Order;
-import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,12 +14,11 @@ public interface GuestClaimUseCase {
 
     ClaimPreview verifyPhoneAndPreview(Long userId, String verificationCode);
 
-    ClaimResult claim(Long userId, List<Long> orderIds, List<Long> bookingIds, List<Long> passIds);
+    ClaimResult claim(Long userId, List<Long> orderIds, List<Long> bookingIds);
 
     record ClaimPreview(boolean phoneVerified,
                         List<ClaimOrderSummary> orders,
-                        List<ClaimBookingSummary> bookings,
-                        List<ClaimPassSummary> passes) {}
+                        List<ClaimBookingSummary> bookings) {}
 
     record ClaimOrderSummary(Long orderId, String status, long totalAmount, LocalDateTime createdAt) {
         public static ClaimOrderSummary from(Order order) {
@@ -38,13 +36,5 @@ public interface GuestClaimUseCase {
         }
     }
 
-    record ClaimPassSummary(Long passId, int remainingCredits,
-                            int totalCredits, LocalDateTime expiresAt, long totalPrice) {
-        public static ClaimPassSummary from(PassPurchase pass) {
-            return new ClaimPassSummary(pass.getId(), pass.getRemainingCredits(),
-                    pass.getTotalCredits(), pass.getExpiresAt(), pass.getTotalPrice());
-        }
-    }
-
-    record ClaimResult(int claimedOrderCount, int claimedBookingCount, int claimedPassCount) {}
+    record ClaimResult(int claimedOrderCount, int claimedBookingCount) {}
 }

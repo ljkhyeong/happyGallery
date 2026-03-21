@@ -44,8 +44,8 @@ public final class TestFixtures {
         return Booking.forGuestDeposit(guest, slot, depositAmount, balanceAmount, paymentMethod, accessToken);
     }
 
-    public static PassPurchase passPurchase(Guest guest, LocalDateTime expiresAt, long totalPrice) {
-        return PassPurchase.forGuest(guest, expiresAt, totalPrice);
+    public static PassPurchase passPurchase(Long userId, LocalDateTime expiresAt, long totalPrice) {
+        return PassPurchase.forMember(userId, expiresAt, totalPrice);
     }
 
     public static Product readyStockProduct(String name, long price) {

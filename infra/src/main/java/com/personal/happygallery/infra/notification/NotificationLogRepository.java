@@ -15,4 +15,10 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
                                                                  String status,
                                                                  LocalDateTime start,
                                                                  LocalDateTime end);
+
+    boolean existsByUserIdAndEventTypeAndStatusAndSentAtBetween(Long userId,
+                                                                NotificationEventType eventType,
+                                                                String status,
+                                                                LocalDateTime start,
+                                                                LocalDateTime end);
 }

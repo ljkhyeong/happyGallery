@@ -17,7 +17,6 @@ export interface CreateGuestBookingRequest {
   slotId: number;
   depositAmount?: number;
   paymentMethod?: DepositPaymentMethod;
-  passId?: number;
 }
 
 export interface BookingResponse {

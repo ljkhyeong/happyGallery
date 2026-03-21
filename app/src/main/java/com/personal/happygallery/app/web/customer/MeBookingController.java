@@ -66,7 +66,7 @@ public class MeBookingController {
         Long userId = getUserId(request);
         Booking booking = memberBookingUseCase.createMemberBooking(
                 userId, req.slotId(),
-                req.depositAmount(),
+                req.depositAmount() != null ? req.depositAmount() : 0L,
                 req.paymentMethod(), req.passId());
         return MyBookingSummary.from(booking);
     }

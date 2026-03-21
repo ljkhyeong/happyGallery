@@ -26,11 +26,11 @@
 - 비회원 구매 엔드포인트 제거: `POST /passes/guest`, `POST /passes/purchase`
 - 프론트: `/passes/purchase` 페이지에서 비로그인 시 로그인 리다이렉트
 
-## 유지 대상
+## 후속 반영
 
-- `pass_purchases.guest_id` 컬럼과 `PassPurchase.guest` 필드 — 기존 비회원 8회권 데이터 호환
-- `PassPurchase.claimToUser()` — 기존 비회원 8회권의 회원 이전 지원
-- `DefaultGuestClaimService.claimPasses()` — 기존 비회원 8회권 claim 흐름
+- `pass_purchases.guest_id` 컬럼 제거
+- `PassPurchase.guest` / `PassPurchase.claimToUser()` 제거
+- `DefaultGuestClaimService`는 주문/예약 claim만 유지
 
 ## 영향 범위
 

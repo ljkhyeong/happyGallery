@@ -312,8 +312,8 @@ E2E 참고:
 - 주문 승인/거절/제작 재개/제작 완료 이력의 admin 식별자는 Bearer 세션에서 추출한다. API Key 폴백 경로는 adminId가 null일 수 있다.
 - 배송 준비/출발/완료 전이와 주문 결정 이력 조회도 `/api/v1/admin/orders/**` 아래에서 같은 Bearer 세션 기준으로 동작한다.
 - 회원 UI는 `/my`, `/my/orders`, `/my/orders/:id`, `/my/bookings`, `/my/bookings/:id`, `/my/passes`를 사용하고, 목록 페이지는 검색/상태 필터/quick tab/정렬을 제공한다. 백엔드는 `/api/v1/me/**`로 동작한다.
-- `/api/v1/me/guest-claims/{preview,verify,claim}` 로 같은 번호의 guest 주문/예약/8회권을 회원 계정으로 이전할 수 있다.
-- guest 주문/예약/8회권 성공 화면의 회원가입/로그인 CTA는 `/my?claim=1` 로 이어져 claim 모달을 자동으로 열 수 있다.
+- `/api/v1/me/guest-claims/{preview,verify,claim}` 로 같은 번호의 guest 주문/예약을 회원 계정으로 이전할 수 있다.
+- guest 주문/예약 성공 화면의 회원가입/로그인 CTA는 `/my?claim=1` 로 이어져 claim 모달을 자동으로 열 수 있다.
 - 로그인/회원가입 페이지는 `redirect`, `claim`, `name`, `phone` query를 유지해 guest 성공 화면이나 member gate에서 넘어온 문맥을 잃지 않는다.
 - 비회원 조회는 계속 토큰 기반(`bookingId + token`, `orderId + token`)을 사용하되, 프론트 canonical route는 `/guest/orders`, `/guest/bookings`다.
 - 상품 상세에서 guest 주문으로 넘길 때는 `/orders/new`가 `productId`, `qty` query를 받아 초기 주문 항목을 채운다. query 없이 직접 연 `/orders/new`는 명시적 계속 버튼 뒤에만 수동 다중 상품 주문을 허용한다.
