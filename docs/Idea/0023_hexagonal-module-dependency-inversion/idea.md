@@ -46,6 +46,27 @@ app     → common, domain          (포트 인터페이스만 정의)
 - `app/build.gradle`에서 `implementation project(":infra")` 제거
 - 컴파일 검증
 
+## 향후 검토: 도메인 객체 ↔ JPA 엔티티 분리
+
+현재 `domain` 모듈의 클래스가 `@Entity`, `@Table` 등 JPA 어노테이션을 직접 가진다.
+순수 헥사고날에서는 도메인이 인프라 기술을 모르는 것이 원칙이지만, 현 단계에서는 분리하지 않는다.
+
+### 분리하지 않는 이유
+- 엔티티 ~20개 × (도메인 클래스 + JPA 엔티티 + Mapper) = 파일 3배 증가
+- 도메인 모델과 DB 스키마가 1:1로 대응되어 매핑 계층의 실질 이득이 없음
+- JPA 어노테이션은 메타데이터일 뿐 비즈니스 로직 동작을 바꾸지 않음
+- 상태 전이 가드(`requireCancellable()` 등)가 enum에 응집되어 있어 도메인 순수성은 실질적으로 유지됨
+
+### 분리를 재검토할 시점
+- CQRS 읽기 모델 분리 또는 이벤트 소싱 도입 시
+- 하나의 도메인 객체가 여러 테이블에 걸치는 구조가 될 때
+- domain 모듈을 JPA 없는 환경(예: 다른 프로젝트)에서 재사용해야 할 때
+
+### 분리 시 접근법 (참고)
+- MapStruct 또는 수동 매퍼로 `domain.Booking` ↔ `infra.BookingEntity` 변환
+- Repository가 JPA 엔티티를 다루고, Port 구현체에서 도메인 객체로 변환하여 반환
+- 점진적 전환: 변경이 잦은 도메인부터 하나씩 분리
+
 ## 주의사항
 
 - Spring Data JPA의 `JpaRepository` 메서드 시그니처와 Port 메서드가 충돌할 수 있음

@@ -17,6 +17,7 @@ import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.infra.user.UserRepository;
 import com.personal.happygallery.support.UseCaseIT;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +49,7 @@ class PassPurchaseUseCaseIT {
     @Autowired BookingRepository bookingRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired ClassRepository classRepository;
+    @Autowired Clock clock;
 
     @BeforeEach
     void setUp() {
@@ -96,7 +98,7 @@ class PassPurchaseUseCaseIT {
         User user = userRepository.save(new User("expired-pass@example.com", "hashed-password", "회원", "01011112222"));
         // 이미 만료된 pass 직접 생성 (expiresAt = 과거)
         PassPurchase expiredPass = passPurchaseRepository.save(
-                passPurchase(user.getId(), LocalDateTime.now().minusDays(1), 0L));
+                passPurchase(user.getId(), LocalDateTime.now(clock).minusDays(1), 0L));
 
         BatchResult result = passExpiryBatchService.expireAll();
 
@@ -124,7 +126,7 @@ class PassPurchaseUseCaseIT {
     void expiry_batch_activePass_notTouched() {
         User user = userRepository.save(new User("active-pass@example.com", "hashed-password", "회원", "01022223333"));
         // 미래 만료 pass
-        passPurchaseRepository.save(passPurchase(user.getId(), LocalDateTime.now().plusDays(30), 0L));
+        passPurchaseRepository.save(passPurchase(user.getId(), LocalDateTime.now(clock).plusDays(30), 0L));
 
         BatchResult result = passExpiryBatchService.expireAll();
 
@@ -139,7 +141,7 @@ class PassPurchaseUseCaseIT {
     @Test
     void expiry_batch_adminApi_returnsBatchResponse() throws Exception {
         User user = userRepository.save(new User("admin-pass@example.com", "hashed-password", "회원", "01033334444"));
-        passPurchaseRepository.save(passPurchase(user.getId(), LocalDateTime.now().minusDays(1), 0L));
+        passPurchaseRepository.save(passPurchase(user.getId(), LocalDateTime.now(clock).minusDays(1), 0L));
 
         mockMvc.perform(post("/admin/passes/expire"))
                 .andExpect(status().isOk())
@@ -158,10 +160,10 @@ class PassPurchaseUseCaseIT {
         // 정확히 7일 후 만료 → 알림 대상
         User firstUser = userRepository.save(new User("notify-pass-1@example.com", "hashed-password", "회원", "01044445555"));
         User secondUser = userRepository.save(new User("notify-pass-2@example.com", "hashed-password", "회원", "01055556666"));
-        passPurchaseRepository.save(passPurchase(firstUser.getId(), LocalDateTime.now().plusDays(7), 0L));
+        passPurchaseRepository.save(passPurchase(firstUser.getId(), LocalDateTime.now(clock).plusDays(7), 0L));
 
         // 30일 후 만료 → 알림 대상 아님
-        passPurchaseRepository.save(passPurchase(secondUser.getId(), LocalDateTime.now().plusDays(30), 0L));
+        passPurchaseRepository.save(passPurchase(secondUser.getId(), LocalDateTime.now(clock).plusDays(30), 0L));
 
         var expiring = passExpiryBatchService.findExpiringWithin7Days();
 
@@ -181,9 +183,9 @@ class PassPurchaseUseCaseIT {
         User firstMember = userRepository.save(new User("member-1@example.com", "hashed-password", "회원", "01066667777"));
         User secondMember = userRepository.save(new User("member-2@example.com", "hashed-password", "회원", "01077778888"));
         PassPurchase firstPass = passPurchaseRepository.save(
-                PassPurchase.forMember(firstMember.getId(), LocalDateTime.now().plusDays(7), 120_000L));
+                PassPurchase.forMember(firstMember.getId(), LocalDateTime.now(clock).plusDays(7), 120_000L));
         PassPurchase secondPass = passPurchaseRepository.save(
-                passPurchase(secondMember.getId(), LocalDateTime.now().plusDays(7), 120_000L));
+                passPurchase(secondMember.getId(), LocalDateTime.now(clock).plusDays(7), 120_000L));
 
         var expiring = passExpiryBatchService.findExpiringWithin7Days();
 

@@ -22,8 +22,8 @@ import com.personal.happygallery.infra.payment.PaymentProvider;
 import com.personal.happygallery.app.payment.port.out.RefundResult;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
+import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
@@ -65,6 +65,7 @@ class BookingCancelUseCaseIT {
     @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired PassPurchaseRepository passPurchaseRepository;
     @Autowired NotificationLogRepository notificationLogRepository;
+    @Autowired Clock clock;
     @MockitoBean PaymentProvider paymentProvider;
 
     BookingClass cls;
@@ -200,7 +201,7 @@ class BookingCancelUseCaseIT {
     @Test
     void cancel_notRefundable_noRefundCreated() throws Exception {
         // 오늘 14:00 시작하는 슬롯 — 체험일(오늘)의 D-1 deadline(오늘 00:00)이 이미 지남 → 환불 불가
-        LocalDateTime today14 = LocalDateTime.now(ZoneId.of("Asia/Seoul")).withHour(14).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime today14 = LocalDateTime.now(clock).toLocalDate().atTime(14, 0);
         Slot slot = slotRepository.save(slot(cls, today14, today14.plusHours(2)));
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01022220002", slot.getId(), 5_000L);

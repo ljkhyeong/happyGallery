@@ -146,7 +146,7 @@
 #### 8회권
 
 - `pass_purchases`
-  - `id`, `user_id/guest_id`, `purchased_at`, `expires_at`, `total_credits=8`, `remaining_credits`, `version`
+  - `id`, `user_id`, `purchased_at`, `expires_at`, `total_credits=8`, `remaining_credits`, `total_price`, `version`
 - `pass_ledger`
   - `id`, `pass_purchase_id`, `type(EARN|USE|REFUND|EXPIRE)`, `amount`, `related_booking_id nullable`, `created_at`
 
