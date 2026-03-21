@@ -21,6 +21,7 @@ public class RedisConfig {
         serializer.setCookieName(COOKIE_NAME);
         serializer.setUseHttpOnlyCookie(true);
         serializer.setSameSite("Lax");
+        serializer.setUseSecureCookie(true);
         return serializer;
     }
 }

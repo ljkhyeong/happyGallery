@@ -9,4 +9,5 @@ public interface FulfillmentPort {
     Fulfillment save(Fulfillment fulfillment);
     Optional<Fulfillment> findByOrderId(Long orderId);
     List<Fulfillment> findExpiredPickups(LocalDateTime now);
+    List<Fulfillment> findPickupsApproachingDeadline(LocalDateTime from, LocalDateTime to);
 }

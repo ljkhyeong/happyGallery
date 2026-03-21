@@ -7,6 +7,7 @@ import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.OrderRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;
 import com.personal.happygallery.support.UseCaseIT;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ class RefundExecutionServiceUseCaseIT {
     @Autowired RefundRepository refundRepository;
     @Autowired OrderRepository orderRepository;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired Clock clock;
     @MockitoBean PaymentProvider paymentProvider;
 
     @DisplayName("외부 트랜잭션이 롤백되어도 환불 실패 이력은 커밋되어 남는다")
@@ -36,7 +38,8 @@ class RefundExecutionServiceUseCaseIT {
     void keepsFailedRefundLog_whenOuterTransactionRollsBack() {
         refundRepository.deleteAllInBatch();
 
-        Order order = orderRepository.save(Order.forGuest(null, null, 55_000L, LocalDateTime.now(), LocalDateTime.now().plusHours(24)));
+        LocalDateTime paidAt = LocalDateTime.now(clock);
+        Order order = orderRepository.save(Order.forGuest(null, null, 55_000L, paidAt, paidAt.plusHours(24)));
         doThrow(new RuntimeException("PG timeout")).when(paymentProvider).refund(any(), anyLong());
 
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);

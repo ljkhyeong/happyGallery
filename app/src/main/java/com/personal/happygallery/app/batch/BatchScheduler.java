@@ -2,6 +2,7 @@ package com.personal.happygallery.app.batch;
 
 import com.personal.happygallery.app.booking.port.in.BookingReminderBatchUseCase;
 import com.personal.happygallery.app.order.port.in.OrderAutoRefundBatchUseCase;
+import com.personal.happygallery.app.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.app.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.app.pass.port.in.PassExpiryBatchUseCase;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Component;
  * 이 클래스는 {@code @Transactional}을 갖지 않으며, 트랜잭션은 각 서비스 메서드에서 처리한다.
  *
  * <ul>
- *   <li>매시간 정각: 주문 승인 SLA 초과 자동환불, 픽업 마감 자동취소</li>
+ *   <li>매시간 정각: 주문 승인 SLA 초과 자동환불, 픽업 마감 자동취소, 픽업 마감 2시간 전 알림</li>
  *   <li>매일 00:00: 8회권 크레딧 소멸, 예약 D-1 리마인드</li>
  *   <li>매일 07:00: 예약 당일 리마인드</li>
  *   <li>매일 09:00: 8회권 만료 7일 전 알림</li>
@@ -25,15 +26,18 @@ public class BatchScheduler {
 
     private final OrderAutoRefundBatchUseCase orderAutoRefundBatchUseCase;
     private final PickupExpireBatchUseCase pickupExpireBatchUseCase;
+    private final PickupDeadlineReminderBatchUseCase pickupDeadlineReminderBatchUseCase;
     private final PassExpiryBatchUseCase passExpiryBatchUseCase;
     private final BookingReminderBatchUseCase bookingReminderBatchUseCase;
 
     public BatchScheduler(OrderAutoRefundBatchUseCase orderAutoRefundBatchUseCase,
                           PickupExpireBatchUseCase pickupExpireBatchUseCase,
+                          PickupDeadlineReminderBatchUseCase pickupDeadlineReminderBatchUseCase,
                           PassExpiryBatchUseCase passExpiryBatchUseCase,
                           BookingReminderBatchUseCase bookingReminderBatchUseCase) {
         this.orderAutoRefundBatchUseCase = orderAutoRefundBatchUseCase;
         this.pickupExpireBatchUseCase = pickupExpireBatchUseCase;
+        this.pickupDeadlineReminderBatchUseCase = pickupDeadlineReminderBatchUseCase;
         this.passExpiryBatchUseCase = passExpiryBatchUseCase;
         this.bookingReminderBatchUseCase = bookingReminderBatchUseCase;
     }
@@ -64,6 +68,13 @@ public class BatchScheduler {
     @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
     public BatchResult runPassExpiryNotification() {
         return passExpiryBatchUseCase.sendExpiryNotifications();
+    }
+
+    /** 픽업 마감 2시간 전 알림. 매시간 정각 실행. */
+    @BatchJob("픽업 마감 알림")
+    @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
+    public BatchResult runPickupDeadlineReminder() {
+        return pickupDeadlineReminderBatchUseCase.sendPickupDeadlineReminders();
     }
 
     /** 예약 D-1 리마인드. 매일 00:00 실행. */

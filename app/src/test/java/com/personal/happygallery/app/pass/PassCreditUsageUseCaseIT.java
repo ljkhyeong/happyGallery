@@ -20,8 +20,8 @@ import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
+import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,6 +61,7 @@ class PassCreditUsageUseCaseIT {
     @Autowired SlotRepository slotRepository;
     @Autowired ClassRepository classRepository;
     @Autowired UserRepository userRepository;
+    @Autowired Clock clock;
 
     BookingClass cls;
     PassPurchase pass;
@@ -165,8 +166,7 @@ class PassCreditUsageUseCaseIT {
     @Test
     void cancel_pass_booking_late_loses_credit() throws Exception {
         // 오늘 14:00 시작 슬롯 — D-1 deadline(오늘 00:00) 이미 지남
-        LocalDateTime today14 = LocalDateTime.now(ZoneId.of("Asia/Seoul"))
-                .withHour(14).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime today14 = LocalDateTime.now(clock).toLocalDate().atTime(14, 0);
         Slot slot = slotRepository.save(slot(cls, today14, today14.plusHours(2)));
 
         Long bookingId = createPassBooking(slot.getId());

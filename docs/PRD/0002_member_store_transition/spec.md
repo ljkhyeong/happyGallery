@@ -29,7 +29,8 @@
 - 상품 상세 페이지에서 바로 주문 흐름으로 진입할 수 있다.
 - 회원은 로그인 후 주문/예약/8회권 조회를 추가 인증 없이 처리한다.
 - 비회원은 기존처럼 휴대폰 인증 또는 토큰 기반 조회를 유지한다.
-- 예약, 8회권 구매, guest 주문은 제출 직전까지 인증을 요구하지 않는다.
+- 예약과 guest 주문은 제출 직전까지 인증을 요구하지 않는다.
+- 8회권 구매는 회원 로그인 후 진행한다.
 
 ---
 
@@ -72,7 +73,8 @@
 ### 3.3 인증 시점
 
 - 상품/클래스/시간 탐색 단계에서는 인증을 요구하지 않는다.
-- 결제/예약 확정 직전에만 로그인/회원가입/비회원 진행을 선택하게 한다.
+- 예약/guest 주문은 확정 직전에만 로그인/회원가입/비회원 진행을 선택하게 한다.
+- 8회권은 상품 안내를 볼 수 있지만, 구매 실행은 로그인 세션 기준으로만 허용한다.
 
 ---
 
@@ -148,7 +150,8 @@
 ### 5.4 8회권 구매
 
 - 먼저 상품 안내/가격을 확인한다.
-- 제출 직전에 인증 게이트를 연다.
+- 비로그인 사용자는 로그인 페이지로 리다이렉트한다.
+- 로그인한 회원만 구매를 실행할 수 있다.
 
 ### 5.5 조회 화면
 
@@ -196,18 +199,15 @@
 
 ### 7.2 sessions
 
-- 고객 세션 저장 구조가 필요하다.
-- 권장안:
-  - `user_sessions`
-  - `user_id`
-  - `session_token_hash`
-  - `expires_at`
-  - `created_at`
+- 고객 세션은 `HG_SESSION` 쿠키 + Spring Session + Redis를 기준으로 한다.
+- 세션 사용자 식별자는 Spring Session에 저장한 `customerUserId`를 사용한다.
+- 세션 TTL은 7일이다.
 
 ### 7.3 주문/예약/8회권 식별
 
-- `orders`, `bookings`, `pass_purchases` 는 `user_id` 또는 `guest_id` 중 하나만 가진다.
+- `orders`, `bookings` 는 `user_id` 또는 `guest_id` 중 하나만 가진다.
 - 둘 다 비어 있거나 둘 다 채워진 상태는 금지한다.
+- `pass_purchases` 는 회원 전용이므로 `user_id`만 가진다.
 
 ### 7.4 guest 이력 claim
 
@@ -225,7 +225,7 @@
 - `POST /api/v1/auth/login` — 이메일/비밀번호, 200 + HttpOnly 쿠키
 - `POST /api/v1/auth/logout` — 204 + 쿠키 삭제
 - `GET /api/v1/me` — 로그인 필수, 200 `{id, email, name, phone, phoneVerified}`
-- 세션: `user_sessions` 테이블 (SHA-256 해시 저장), 7일 TTL
+- 세션: Spring Session + Redis, 7일 TTL
 - 쿠키: `HG_SESSION`, HttpOnly, SameSite=Lax, Path=/
 
 ### 8.2 회원 전용 조회 / 생성
@@ -272,7 +272,7 @@
 - public guest entry는 `/guest` 허브를 사용한다.
 - guest 조회 UI는 `/guest/orders`, `/guest/bookings` canonical route만 사용한다.
 - `/orders/new` direct entry는 상품 상세 prefill 경로와 분리된 gated fallback으로 유지한다.
-- 운영 모니터링은 `/api/v1/monitoring/client-events` 와 `[client-monitoring]` 로그를 기준으로 하고, 현재 지표는 `/guest` 허브 유입, `/orders/new` direct continue, guest → member CTA, claim 완료, 문의 유형이다.
+- 운영 모니터링은 `/api/v1/monitoring/client-events` 와 `[client-monitoring]` 로그를 기준으로 하고, 현재 지표는 `/guest` 허브 유입, `/orders/new` direct continue, guest → member CTA, claim 모달 오픈, claim 완료다.
 - member route 안정화 이후 2~4주 동안 위 지표를 보고 direct guest fallback 축소 여부를 재판단한다.
 - guest canonical route 변경은 별도 배포 단위로 분리한다.
 
@@ -301,5 +301,6 @@
 - 상품 상세가 구매 중심 화면이 된다.
 - 회원은 추가 인증 없이 자기 주문/예약/8회권을 조회한다.
 - 비회원은 현재 조회 경로를 유지한다.
-- 예약/8회권 구매는 탐색 후 제출 직전에만 인증이 뜬다.
+- 예약은 탐색 후 제출 직전에만 인증이 뜬다.
+- 8회권 구매는 로그인 세션 기준으로 진행된다.
 - 구현 완료 시 `docs/PRD/0001_spec/spec.md`와 `HANDOFF.md`에 반영된다.
