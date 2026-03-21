@@ -7,7 +7,7 @@
 
 ## 컨텍스트
 
-기존 `docs/PRD/0001_spec/spec.md`에는 제품 요구사항 외에
+기존 `docs/PRD/0001_spec/spec.md`에는 제품 요구사항 외에도
 
 - 시스템 형태와 패키지 경계
 - 동시성/락 전략
@@ -16,7 +16,7 @@
 
 같은 설계 기준이 함께 들어 있었다.
 
-이 내용은 core PRD보다 설계 의사결정과 구현 기준선에 가깝기 때문에 ADR로 분리한다.
+이 내용은 core PRD보다 설계 결정과 구현 기준선에 가깝다. 그래서 ADR로 분리한다.
 
 ---
 
@@ -37,14 +37,14 @@
 
 세부 헥사고날 전환 전략은 `ADR-0021`을 따른다.
 
-- 관리자 조회 경계: `AdminBookingQueryService`/`AdminOrderQueryService`가 컨트롤러의 infra 직접 의존을 대체하고, User batch fetch로 booker 정보를 조합한다.
+- 관리자 조회 경로는 `AdminBookingQueryService`/`AdminOrderQueryService`를 기준으로 한다. 컨트롤러가 infra를 직접 보지 않게 하고, User batch fetch로 예약자/주문자 정보를 합쳐 만든다.
 
 ### 2. 일관성과 동시성은 DB 트랜잭션을 기준으로 잡는다
 
 - 남은 재고와 슬롯 정원처럼 수량이 줄어드는 값은 DB 트랜잭션 안에서 갱신한다.
 - 외부 호출이 섞이는 주문 승인/환불 계열은 상태를 먼저 기록하고 재시도 가능하게 설계한다.
 
-현재 기준 잠금/충돌 처리:
+현재 잠금/충돌 처리 기준:
 
 - 슬롯 정원:
   - slot row를 `SELECT ... FOR UPDATE`로 잠그고 `booked_count`를 증가/검증한다.
@@ -103,7 +103,7 @@
 
 - `orders`
   - `id`, `user_id nullable`, `guest_id nullable`
-  - `access_token VARCHAR(64)` — SHA-256 hex 해시 저장, UNIQUE (V17 migration)
+  - `access_token VARCHAR(64)` — SHA-256 hex 해시를 저장하고 UNIQUE 제약을 둔다 (V17 migration)
   - `status`, `total_amount`, `paid_at`, `approval_deadline_at`, `bundle_id nullable`, `version`
 - `order_items`
   - `id`, `order_id`, `product_id`, `qty`, `unit_price`
@@ -125,7 +125,7 @@
   - `id`, `class_id`, `start_at`, `end_at`, `capacity=8`, `booked_count`, `is_active`
 - `bookings`
   - `id`, `user_id nullable`(회원 예약 또는 guest claim 시 설정), `guest_id nullable`(게스트 예약 시 설정)
-  - `access_token VARCHAR(64)` — SHA-256 hex 해시 저장, UNIQUE (V17 migration, 게스트 예약만)
+  - `access_token VARCHAR(64)` — SHA-256 hex 해시를 저장하고 UNIQUE 제약을 둔다 (V17 migration, 게스트 예약만)
   - `class_id`, `slot_id`, `status`
   - `deposit_amount`, `deposit_paid_at`
   - `balance_amount`, `balance_status`, `arrears_flag`, `version`
@@ -163,7 +163,7 @@
 ### 장점
 
 - core PRD는 비즈니스 정책과 제품 요구사항에 집중할 수 있다.
-- 현재 설계 기준선이 ADR 문서에서 한 번에 보인다.
+- 현재 설계 기준을 ADR 문서 한 곳에서 볼 수 있다.
 - 상태 모델과 스키마 기준을 API 계약 문서와 분리해 관리할 수 있다.
 
 ### 단점

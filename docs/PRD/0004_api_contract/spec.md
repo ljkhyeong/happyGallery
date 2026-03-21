@@ -35,7 +35,7 @@ happyGallery API 계약 기준 문서
 - 관리자 로그인 API를 통해 사용자명/비밀번호 기반으로 인증한다.
 - 로그인 성공 시 UUID 세션 토큰을 발급하고, 이후 요청에 `Authorization: Bearer {token}` 헤더를 사용한다.
 - 세션 만료: 8시간
-- 현재 기준 세션 저장소는 인메모리 단일 인스턴스다.
+- 세션 저장소는 Redis 기반 `AdminSessionStore`를 사용한다. 여러 인스턴스가 떠 있어도 같은 세션을 본다.
 
 #### 인증 엔드포인트
 
@@ -63,7 +63,7 @@ Authorization: Bearer {token}
 
 #### API Key 폴백
 
-- **기본값은 `enable-api-key-auth=false`, `apiKey=""`** — 프로덕션에서 설정 누락 시에도 API Key 경로는 비활성 상태를 유지한다.
+- **기본값은 `enable-api-key-auth=false`, `apiKey=""`** 이다. 프로덕션에서 설정이 빠져도 API Key 경로는 비활성 상태를 유지한다.
 - `local` 프로필에서만 `enable-api-key-auth=true`와 `ADMIN_API_KEY`를 명시적으로 설정한다.
 - 기본 관리자 계정은 Flyway migration에 포함하지 않고, `LocalAdminSeedService`(`@Profile("local")`)로 local 환경에서만 seed한다.
 - 인증키 소스: 서버 설정 `app.admin.api-key`, 환경 변수 `ADMIN_API_KEY`

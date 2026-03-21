@@ -15,42 +15,44 @@
 
 | 구분 | 구성 | 용도 |
 |------|------|------|
-| 백엔드 구조 | `app` / `domain` / `infra` / `common` | 진입점, 도메인 규칙, 외부 연동, 공통 유틸을 분리한 멀티 모듈 구조 위에서 `port/in`, `port/out`, adapter를 도입하는 점진적 헥사고날 전환 진행 중 |
-| 관측성 구조 | `monitoring/` + `docker-compose.yml` | Prometheus scrape, Grafana provisioning, alert rule, 대시보드 JSON을 로컬 운영 스택으로 묶음 |
-| Resilience4j | `resilience4j-circuitbreaker`, `resilience4j-timelimiter` | PG 환불 외부 호출에 CircuitBreaker + TimeLimiter를 적용해 장애 전파를 줄임 |
-| Redis + Spring Session | `spring-boot-starter-data-redis`, `spring-session-data-redis` | `HG_SESSION`, 관리자 Bearer 세션, Redis 기반 rate limit 저장소를 함께 운영 |
-| Flyway | `spring-boot-starter-flyway`, `flyway-mysql` | MySQL 스키마 변경을 버전 관리하고 환경 간 DB 상태를 일관되게 맞춤 |
-| Spring Actuator | `spring-boot-starter-actuator` | `/actuator/health`, `/actuator/info`, `/actuator/metrics`, `/actuator/prometheus` 운영 엔드포인트 제공 |
-| Prometheus | `micrometer-registry-prometheus` | Actuator 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 scrape 가능한 포맷으로 노출 |
-| Grafana | Grafana provisioning + dashboard JSON | 시스템 메트릭, Tomcat/커스텀 executor thread pool, 제품 전환 퍼널 지표를 대시보드로 시각화 |
-| Sentry | `sentry-spring-boot-4-starter` | 서버 500 예외를 requestId 태그와 함께 캡처 |
-| Testcontainers | `spring-boot-testcontainers`, `testcontainers`, `testcontainers-mysql` | `@UseCaseIT`에서 MySQL/Redis 등 실제에 가까운 통합 환경을 테스트로 재현 |
+| 백엔드 구조 | `app` / `domain` / `infra` / `common` | 진입점, 도메인 규칙, 외부 연동을 나눈 멀티 모듈 구조다. `app` 안에서는 유스케이스 입력 인터페이스와 저장/외부 연동 인터페이스를 조금씩 분리하고 있다. |
+| 관측성 구조 | `monitoring/` + `docker-compose.yml` | Prometheus, Grafana, alert rule, 대시보드 설정을 로컬에서 바로 띄울 수 있게 묶어 둔다. |
+| Resilience4j | `resilience4j-circuitbreaker`, `resilience4j-timelimiter` | PG 환불 호출에 circuit breaker와 timeout을 적용해 장애 전파를 줄인다. |
+| Redis + Spring Session | `spring-boot-starter-data-redis`, `spring-session-data-redis` | 회원 세션(`HG_SESSION`), 관리자 Bearer 세션, 요청 제한 카운터를 Redis에 저장한다. |
+| Flyway | `spring-boot-starter-flyway`, `flyway-mysql` | MySQL 스키마 변경을 버전으로 관리한다. |
+| Spring Actuator | `spring-boot-starter-actuator` | 헬스 체크와 메트릭 엔드포인트를 제공한다. |
+| Prometheus | `micrometer-registry-prometheus` | Actuator 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 Prometheus 형식으로 노출한다. |
+| Grafana | Grafana provisioning + dashboard JSON | 시스템 지표, executor thread pool, 전환 퍼널 지표를 대시보드로 본다. |
+| Sentry | `sentry-spring-boot-4-starter` | 서버 500 예외를 `requestId`와 함께 수집한다. |
+| Testcontainers | `spring-boot-testcontainers`, `testcontainers`, `testcontainers-mysql` | `@UseCaseIT`에서 MySQL, Redis 같은 실제 의존성을 가깝게 재현한다. |
 
 ### 프론트
 
 | 구분 | 구성 | 용도 |
 |------|------|------|
-| 프론트 구조 | `frontend/` (Vite + React 19 + TypeScript) | 스토어/마이페이지/관리자 UI와 브라우저 흐름 구현 |
-| TanStack Query | `@tanstack/react-query` | 상품/예약/주문/관리자 데이터를 조회·캐시하고 mutation 후 invalidate를 처리 |
-| React Router | `react-router-dom` | 스토어, guest 조회, `/my`, 관리자 라우트를 구성하고 브라우저 내비게이션을 관리 |
-| Bootstrap | `bootstrap`, `react-bootstrap` | 스토어/관리자 화면의 기본 UI 레이아웃과 컴포넌트 스타일링 |
-| Sentry | `@sentry/react` | 프론트 API 5xx 에러와 브라우저 예외를 캡처 |
-| Playwright | `@playwright/test` | guest/member/admin 주요 브라우저 smoke 시나리오를 자동화 |
+| 프론트 구조 | `frontend/` (Vite + React 19 + TypeScript) | 스토어, 마이페이지, 관리자 화면을 담당한다. |
+| TanStack Query | `@tanstack/react-query` | 상품, 예약, 주문, 관리자 데이터를 조회하고 캐시한다. |
+| React Router | `react-router-dom` | 스토어, guest 조회, `/my`, 관리자 라우트를 관리한다. |
+| Bootstrap | `bootstrap`, `react-bootstrap` | 기본 레이아웃과 공통 UI 컴포넌트를 맞춘다. |
+| Sentry | `@sentry/react` | 프론트 5xx 에러와 브라우저 예외를 수집한다. |
+| Playwright | `@playwright/test` | guest, member, admin 핵심 브라우저 시나리오를 자동화한다. |
 
 ### 🔄 마이그레이션 현황
 
-- 백엔드 아키텍처: 기존 `app` / `domain` / `infra` / `common` 멀티 모듈 구조는 유지하면서, `app` 내부에 `port/in`, `port/out`과 adapter 경계를 점진적으로 도입하는 헥사고날 전환을 진행 중이다.
-- 인증/세션: 회원 인증은 직접 세션 저장 구현에서 Spring Session + Redis 기반 `HG_SESSION`으로 전환했고, `CustomerAuthFilter`는 Spring Session filter 이후 사용자 ID를 읽는 구조로 정리했다.
-- 운영 세션/레이트리밋: 관리자 Bearer 세션 저장소와 `RateLimitFilter`도 인메모리/프로세스 로컬 상태에서 Redis 기반 저장소로 옮겨 다중 인스턴스 환경에 맞췄다.
-- 유스케이스 경계: `customer auth + guest claim` persistence pilot 이후 booking cancel/reschedule, pass purchase/expiry batch, pickup expire batch 등에서 controller/batch 진입점이 `UseCase` 포트를 통해 들어오도록 확장했다.
-- 포트/어댑터 확산: product, notification, payment, booking, order 도메인에 reader/store/external port를 도입하고, JPA/외부 연동 구현은 adapter로 분리하는 방향으로 수렴 중이다.
-- guest access token: query param/평문 저장 방식에서 `X-Access-Token` 헤더 + SHA-256 해시 저장 방식으로 전환해 로그/Referer 노출과 원문 저장 위험을 줄였다.
-- 로깅 포맷: 운영(`prod`) 로그는 `LogstashEncoder` 기반 JSON 구조화 로그로 전환했고, 비운영(`!prod`)은 로컬 가독성을 위해 텍스트 로그를 유지한다.
-- 관측성: requestId 중심 로그만 두던 상태에서 Actuator + Prometheus + Grafana + Sentry + client funnel metric까지 붙여 운영 가시성을 단계적으로 보강했다.
-- 테스트/실행 환경: 순수 로컬 의존에 가까웠던 통합 검증을 Testcontainers(MySQL/Redis) 기반 `@UseCaseIT`로 정리해 실제 운영 환경과 더 가까운 테스트 경로를 확보했다.
-- 배치: Spring Batch 전면 마이그레이션은 아직 하지 않았고, 현재는 커스텀 배치를 유지하면서 운영 배치/수동 트리거/배치 결과 구조를 보강하는 방향을 택했다.
+- 아키텍처: 멀티 모듈 구조는 유지하고 있다. 대신 `app` 안에서 `port/in`, `port/out`, adapter 경계를 조금씩 늘리고 있다.
+- 회원 세션: 직접 만든 세션 저장 로직을 걷어내고 Spring Session + Redis로 옮겼다. `HG_SESSION` 쿠키 이름은 그대로 유지한다.
+- 회원 세션 테이블: 세션을 Redis로 옮긴 뒤 DB `user_sessions` 테이블도 제거했다.
+- 관리자 세션과 요청 제한: 관리자 Bearer 세션과 rate limit 카운터를 각 서버 메모리 대신 Redis에 저장한다. 여러 인스턴스가 떠 있어도 같은 제한값을 공유한다.
+- 유스케이스 진입점: 회원 인증과 guest claim부터 시작해 예약 변경/취소, 8회권 만료 배치, 픽업 만료 배치도 유스케이스 인터페이스를 통해 호출하도록 정리했다.
+- 인터페이스 분리: 상품, 알림, 결제, 예약, 주문 영역에서 조회/저장/외부 연동 인터페이스를 나눴다. JPA와 외부 연동 구현은 별도 구현 클래스로 둔다.
+- 8회권: guest 소유 8회권을 없애고 회원 전용 구매로 단일화했다. `pass_purchases.guest_id`도 제거했다.
+- guest 토큰: URL query와 평문 저장을 걷어내고 `X-Access-Token` 헤더 + SHA-256 해시 저장으로 바꿨다.
+- 로그: `prod`는 JSON 구조화 로그를 쓰고, `local`/`test`는 읽기 쉬운 텍스트 로그를 유지한다.
+- 관측성: requestId 로그만 보던 상태에서 Actuator, Prometheus, Grafana, Sentry를 붙였다. 지금은 서버 상태와 client funnel 지표를 함께 본다.
+- 테스트: `@UseCaseIT`는 MySQL/Redis Testcontainers와 고정 `Clock`을 사용한다. 시간 경계와 Redis 의존 흐름을 운영과 가깝게 검증한다.
+- 배치: Spring Batch로는 아직 옮기지 않았다. 현재는 커스텀 배치를 유지한다.
 
-* 마이그레이션 배경 등 상세 내용은 관련 ADR을 우선 확인하고, 아직 채택 전 대안 비교나 보류 항목은 `docs/Idea`를 확인.
+* 자세한 배경은 관련 ADR을 우선 보고, 아직 채택하지 않은 대안이나 보류 메모는 `docs/Idea`를 본다.
 
 ---
 
@@ -58,15 +60,15 @@
 
 ### 🗂 현재 운영 문서
 
-- `README.md`: 저장소 개요, 실행 방법, 문서 진입점과 현재 사용하는 주요 라이브러리를 정리한다.
-- `simple-idea.md`: 작은 개선/정리 아이디어를 `As-Is` / `To-Be` 두 열 표로 한 문장씩 누적한다.
-- `PRD`: 제품 요구사항과 운영 정책의 기준 문서다. 기능 계약이나 정책 변경 시 먼저 맞춘다.
-- `ADR`: 데이터 모델, 상태 전이, 인증, 결제, 관측성, 헥사고날 전환 같은 핵심 설계 결정을 남긴다.
-- `Idea`: 정식 요구사항으로 확정하지 않은 아이디어, 향후 검토 메모, PRD 밖에서 관리하는 엔지니어링 가이드를 보관한다.
-- `POC`: 실제 실험 결과와 적용 판단 근거를 남긴다.
-- `Retrospective`: 지나온 변경 흐름을 되짚어 얻은 교훈과 회고를 남긴다.
+- `README.md`: 저장소 개요, 실행 방법, 문서 진입점을 모아 둔 시작 문서다.
+- `simple-idea.md`: 작은 개선 아이디어를 `As-Is | To-Be` 표로 누적한다.
+- `PRD`: 제품 요구사항과 운영 정책의 기준 문서다.
+- `ADR`: 데이터 모델, 인증, 결제, 관측성, 아키텍처 같은 핵심 설계 결정을 남긴다.
+- `Idea`: 아직 확정하지 않은 아이디어와 검토 메모를 둔다.
+- `POC`: 실험 결과와 적용 판단 근거를 남긴다.
+- `Retrospective`: 구현 후 회고와 교훈을 정리한다.
 - `1Pager`: 이해관계자 공유용 요약 문서 카테고리다.
-- `AGENTS.md`, `CLAUDE.md`: 에이전트별 작업 규칙과 로컬 운영 메모다.
+- `AGENTS.md`, `CLAUDE.md`: 에이전트 작업 규칙과 로컬 운영 메모다.
 
 ### 📐 PRD
 
@@ -84,7 +86,7 @@
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [IDEA-0001 ~ IDEA-0024](docs/Idea/) | `docs/Idea/` | 검토 메모, 후속 아이디어, 운영 가이드 문서 모음 |
+| [IDEA-0001 ~ IDEA-0026](docs/Idea/) | `docs/Idea/` | 검토 메모, 후속 아이디어, 운영 가이드 문서 모음 |
 
 ### 🧪 POC
 
@@ -115,21 +117,21 @@
   - 상점형 홈 / 스토어 네비게이션
   - 상품 목록/상세
   - 회원가입 / 로그인
-  - 제출 직전 인증 게이트 기반 예약 생성
+  - 제출 직전에 인증하는 예약 생성 흐름
   - 회원 전용 8회권 구매 (`/passes/purchase`, 비로그인 시 로그인 리다이렉트)
   - 상품 상세에서 회원 주문 생성
-  - legacy 비회원 주문 fallback (`/orders/new`, 상품/수량 prefill 지원, direct entry는 수동 fallback gate 후 진행)
+  - 비회원 주문 보조 경로 (`/orders/new`, 상품/수량 미리 채우기 지원, 주소를 직접 입력해 들어온 경우는 명시적 계속 후 진행)
   - 비회원 조회 허브 (`/guest`)
   - 비회원 예약 조회/변경/취소 (`/guest/bookings`, 조회용 보조 경로)
   - 비회원 주문 조회 (`/guest/orders`, 조회용 보조 경로)
-  - 회원 마이페이지 (`내 주문`, `내 예약`, `내 8회권`, guest claim)
+  - 회원 마이페이지 (`내 주문`, `내 예약`, `내 8회권`, 비회원 이력 가져오기)
   - 회원 주문/예약/8회권 전체 목록 (`/my/orders`, `/my/bookings`, `/my/passes`, 검색/상태 필터/quick tab/정렬 포함)
   - 회원 예약 상세/변경/취소 (`/my/bookings/:id`)
   - 상품 상세 Product Q&A 조회/회원 작성/비밀글 비밀번호 확인
   - 회원 1:1 문의 작성/목록 조회 (`/my/inquiries`)
-  - 회원 마이페이지에서 비회원 이력 가져오기 (휴대폰 재인증 후 claim)
+  - 회원 마이페이지에서 같은 전화번호의 비회원 이력 가져오기 (휴대폰 재인증 후 claim)
   - 비회원 성공 화면에서 회원가입/로그인 후 `/my` claim으로 바로 이어지는 CTA
-  - 로그인/회원가입 페이지에서 `redirect`·`claim`·회원가입 prefill(`name`/`phone`) 컨텍스트 유지
+  - 로그인/회원가입 페이지에서 `redirect`, `claim`, `name`, `phone` 문맥 유지
 - 관리자 흐름
   - 상품 등록/조회
   - 슬롯 생성/비활성화
@@ -188,27 +190,13 @@
 
 ### 2. 주요 환경 변수
 
-- `DB_URL`
-- `DB_USERNAME`
-- `DB_PASSWORD`
-- `ADMIN_API_KEY`
-- `ADMIN_ENABLE_API_KEY_AUTH`
-- `PAYMENT_TIMEOUT_MILLIS`, `PAYMENT_CB_*`
-- `RATE_LIMIT_TRUST_FORWARDED`
-- `ACTUATOR_HEALTH_SHOW_DETAILS`
-- `MYSQL_ROOT_PASSWORD`
-- `MYSQL_USER`
-- `MYSQL_PASSWORD`
-- `KAKAO_API_KEY`
-- `KAKAO_SENDER_KEY`
-- `SMS_API_KEY`
-- `SMS_API_SECRET`
-- `SMS_SENDER_NUMBER`
-- `GRAFANA_ADMIN_USER`
-- `GRAFANA_ADMIN_PASSWORD`
-- `PLAYWRIGHT_ADMIN_USERNAME`
-- `PLAYWRIGHT_ADMIN_PASSWORD`
-- `PLAYWRIGHT_BACKEND_URL`
+- DB: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `MYSQL_USER`, `MYSQL_PASSWORD`
+- 관리자 local/dev: `ADMIN_API_KEY`, `ADMIN_ENABLE_API_KEY_AUTH`
+- 결제: `PAYMENT_TIMEOUT_MILLIS`, `PAYMENT_CB_*`
+- 요청 제한 / Actuator: `RATE_LIMIT_TRUST_FORWARDED`, `ACTUATOR_HEALTH_SHOW_DETAILS`
+- 알림: `KAKAO_API_KEY`, `KAKAO_SENDER_KEY`, `SMS_API_KEY`, `SMS_API_SECRET`, `SMS_SENDER_NUMBER`
+- Grafana: `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`
+- Playwright: `PLAYWRIGHT_ADMIN_USERNAME`, `PLAYWRIGHT_ADMIN_PASSWORD`, `PLAYWRIGHT_BACKEND_URL`
 
 기본 프로필은 `local`이다.
 
@@ -223,9 +211,9 @@ docker compose stop app
 ```
 
 - 이미 `docker compose up -d --build`로 앱 컨테이너가 떠 있다면, 로컬 `bootRun` 전에 `docker compose stop app`으로 8080 충돌을 먼저 해소한다.
-- 회원 세션, 관리자 Bearer 세션, rate limit 저장소가 모두 Redis를 사용하므로 로컬 `bootRun`에도 Redis(`localhost:6379`)가 필요하다.
-- `local` 프로필로 `bootRun`하면 `classes` 테이블이 비어 있을 때 기본 클래스 3종(향수/우드/니트)을 자동 seed한다.
-- 알림 발송 어댑터는 `!prod`에서 fake sender를, `prod`에서 카카오 알림톡/NHN SMS 실제 sender를 사용한다.
+- 회원 세션, 관리자 세션, 요청 제한 카운터가 모두 Redis를 쓰므로 로컬 `bootRun`에도 Redis(`localhost:6379`)가 필요하다.
+- `local` 프로필로 `bootRun`하면 `classes` 테이블이 비어 있을 때 기본 클래스 3종(향수/우드/니트)을 자동으로 넣는다.
+- 알림 발송은 `!prod`에서 fake sender를, `prod`에서 카카오 알림톡/NHN SMS sender를 사용한다.
 
 MySQL + 앱 컨테이너를 함께 실행:
 
@@ -268,42 +256,42 @@ npm run dev
 ### 프론트
 
 - 프로덕션 빌드: `cd frontend && npm run build`
-- E2E smoke 브라우저 설치: `cd frontend && npm run e2e:install`
-- E2E smoke 실행: `cd frontend && npm run e2e`
+- E2E 브라우저 테스트 설치: `cd frontend && npm run e2e:install`
+- E2E 브라우저 테스트 실행: `cd frontend && npm run e2e`
 
 E2E 참고:
 - Playwright는 `frontend/playwright.config.ts` 기준으로 동작한다.
 - Vite dev server는 Playwright가 직접 띄우거나 기존 `localhost:3000`을 재사용한다.
 - 백엔드는 별도로 `http://localhost:8080`에서 실행 중이어야 한다.
-- smoke spec은 사용자 여정 기준으로 분리되어 있다.
-- 현재 파일 구성은 `admin-product-order.smoke.spec.ts`, `guest-booking-pass.smoke.spec.ts`, `member-self-service.smoke.spec.ts`, `guest-claim-onboarding.smoke.spec.ts`다.
-- 시나리오 번호(`P8-1`~`P8-9`)는 유지하므로 기존 `--grep "P8-8"` 같은 실행 방식은 그대로 사용할 수 있다.
+- 테스트 파일은 사용자 여정 기준으로 나뉘어 있다.
+- 현재 파일은 `admin-product-order.smoke.spec.ts`, `guest-booking-pass.smoke.spec.ts`, `member-self-service.smoke.spec.ts`, `guest-claim-onboarding.smoke.spec.ts`다.
+- 시나리오 번호(`P8-1`~`P8-9`)는 유지하므로 `--grep "P8-8"` 같은 실행 방식도 그대로 쓸 수 있다.
 - 관리자 보조 API 호출은 `POST /api/v1/admin/auth/login`으로 얻은 Bearer 토큰을 사용한다.
 - 로컬 `bootRun`은 `classes` 테이블이 비어 있으면 기본 클래스를 자동 생성하므로 clean DB에서도 예약/8회권 시나리오를 바로 돌릴 수 있다.
-- 시나리오 5(`환불 실패 -> 재시도`)는 local 전용 dev hook(`/api/v1/admin/dev/payment/refunds/fail-next`)으로 자동화되어 있고, 필요하면 요청 바디에 `orderId`를 넣어 특정 주문으로 범위를 좁힐 수 있다.
+- 시나리오 5(`환불 실패 -> 재시도`)는 local 전용 실패 주입 API(`/api/v1/admin/dev/payment/refunds/fail-next`)로 자동화했다. 요청 바디에 `orderId`를 넣으면 특정 주문만 대상으로 잡을 수 있다.
 - Playwright 관리자 로그인 기본값은 `admin` / `admin1234`이며, 필요하면 `PLAYWRIGHT_ADMIN_USERNAME`, `PLAYWRIGHT_ADMIN_PASSWORD`로 덮어쓴다.
 - 백엔드 기준 URL을 바꾸려면 `PLAYWRIGHT_BACKEND_URL`을 사용한다.
-- 현재 smoke 범위는 admin/order 1·4·5, guest booking/pass 2·3, member self-service 6·7, guest claim/onboarding 8·9이며, `P8-7`은 회원 예약 상세/변경/취소, `P8-8`은 guest claim, `P8-9`는 guest 성공 화면에서 회원가입 후 claim 모달 자동 진입까지 포함한다.
-- `/bookings/new`는 첫 화면에서 인증하지 않고 제출 직전에 auth gate를 연다.
+- 현재 브라우저 테스트 범위는 admin/order 1·4·5, guest booking/pass 2·3, member self-service 6·7, guest claim/onboarding 8·9다. `P8-7`은 회원 예약 상세/변경/취소, `P8-8`은 guest claim, `P8-9`는 회원가입 후 claim 모달 자동 진입까지 포함한다.
+- `/bookings/new`는 첫 화면에서 인증하지 않고 제출 직전에 인증 선택 단계를 연다.
 - `/passes/purchase`는 비로그인 사용자를 로그인으로 보내고, 로그인한 회원만 구매를 진행한다.
-- 상품 상세의 `비회원 주문하기`는 `/orders/new?productId=&qty=`로 이동해 선택한 상품과 수량을 prefill 한다.
-- 비회원 진입 허브는 `/guest`이고, canonical guest 조회 경로는 `/guest/orders`, `/guest/bookings`이며 생성 후 확인용 보조 경로로 유지한다.
+- 상품 상세의 `비회원 주문하기`는 `/orders/new?productId=&qty=`로 이동해 선택한 상품과 수량을 미리 채운다.
+- 비회원 진입 허브는 `/guest`다. 기본 비회원 조회 경로는 `/guest/orders`, `/guest/bookings`이며 생성 후 확인용 보조 경로로 유지한다.
 
 ## API/운영 메모
 
 - 표준 API 경로는 `/api/v1/**`다.
-- 레거시 무버전 경로도 일부 유지하지만, 신규 문서와 테스트는 `/api/v1/**`를 기준으로 한다.
-- 관리자 화면은 사용자명/비밀번호 로그인 후 Bearer 토큰으로 동작하고, local/dev API 보조 호출은 `X-Admin-Key` 폴백을 사용할 수 있다.
-- 주문 승인/거절/제작 재개/제작 완료 이력의 admin 식별자는 Bearer 세션에서 추출한다. API Key 폴백 경로는 adminId가 null일 수 있다.
+- 레거시 무버전 경로도 일부 남아 있지만, 문서와 테스트는 `/api/v1/**`를 기준으로 본다.
+- 관리자 화면은 사용자명/비밀번호로 로그인한 뒤 Bearer 토큰으로 동작한다. local/dev 보조 호출은 `X-Admin-Key` 폴백을 쓸 수 있다.
+- 주문 승인/거절/제작 재개/제작 완료 이력의 adminId는 Bearer 세션에서 가져온다. API Key 폴백 경로는 adminId가 null일 수 있다.
 - 배송 준비/출발/완료 전이와 주문 결정 이력 조회도 `/api/v1/admin/orders/**` 아래에서 같은 Bearer 세션 기준으로 동작한다.
-- 회원 UI는 `/my`, `/my/orders`, `/my/orders/:id`, `/my/bookings`, `/my/bookings/:id`, `/my/passes`를 사용하고, 목록 페이지는 검색/상태 필터/quick tab/정렬을 제공한다. 백엔드는 `/api/v1/me/**`로 동작한다.
-- `/api/v1/me/guest-claims/{preview,verify,claim}` 로 같은 번호의 guest 주문/예약을 회원 계정으로 이전할 수 있다.
-- guest 주문/예약 성공 화면의 회원가입/로그인 CTA는 `/my?claim=1` 로 이어져 claim 모달을 자동으로 열 수 있다.
-- 로그인/회원가입 페이지는 `redirect`, `claim`, `name`, `phone` query를 유지해 guest 성공 화면이나 member gate에서 넘어온 문맥을 잃지 않는다.
-- 비회원 조회는 계속 토큰 기반(`bookingId + token`, `orderId + token`)을 사용하되, 프론트 canonical route는 `/guest/orders`, `/guest/bookings`다.
-- 상품 상세에서 guest 주문으로 넘길 때는 `/orders/new`가 `productId`, `qty` query를 받아 초기 주문 항목을 채운다. query 없이 직접 연 `/orders/new`는 명시적 계속 버튼 뒤에만 수동 다중 상품 주문을 허용한다.
-- 운영 권장안은 `/guest` 허브와 canonical guest 조회 경로, `/orders/new` direct gate를 당분간 유지하고, member route 안정화 후 2~4주 동안 사용량과 문의를 본 뒤 direct guest fallback 축소 여부를 결정하는 것이다.
-- `/api/v1/monitoring/client-events` 는 guest/member 전환 이벤트를 fire-and-forget으로 받아 `[client-monitoring]` 로그를 남긴다. 현재는 `/guest` 허브 유입, `/orders/new` direct continue, guest 성공/조회 화면의 회원 전환 CTA, `/my` claim 모달 오픈, claim 완료를 추적한다.
+- 회원 UI는 `/my`, `/my/orders`, `/my/bookings`, `/my/passes`를 쓴다. 백엔드는 `/api/v1/me/**`로 동작한다.
+- `/api/v1/me/guest-claims/{preview,verify,claim}` 로 같은 전화번호의 guest 주문/예약을 회원 계정으로 가져올 수 있다.
+- guest 주문/예약 성공 화면의 회원가입/로그인 CTA는 `/my?claim=1` 로 이어지고, claim 모달을 자동으로 연다.
+- 로그인/회원가입 페이지는 `redirect`, `claim`, `name`, `phone` query를 유지해 이전 문맥을 잃지 않는다.
+- 비회원 조회는 여전히 토큰 기반(`bookingId + token`, `orderId + token`)이다. 프론트 기본 경로는 `/guest/orders`, `/guest/bookings`다.
+- 상품 상세에서 비회원 주문으로 넘어갈 때는 `/orders/new`가 `productId`, `qty` query를 받아 초기 주문 항목을 채운다. query 없이 직접 열면 계속 버튼을 한 번 더 눌러야 수동 다중 상품 주문을 진행할 수 있다.
+- 현재 운영 권장안은 `/guest` 허브, 기본 비회원 조회 경로, `/orders/new` 직접 진입 확인 단계를 유지하는 것이다. 회원 경로를 안정화한 뒤 비회원 보조 경로를 줄일지 다시 결정한다.
+- `/api/v1/monitoring/client-events` 는 guest/member 전환 이벤트를 받아 `[client-monitoring]` 로그를 남긴다. 지금은 `/guest` 유입, `/orders/new` 직접 진입 뒤 계속, 회원 전환 CTA, `/my` claim 모달 오픈, claim 완료를 추적한다.
 
 ## 브랜치 흐름
 

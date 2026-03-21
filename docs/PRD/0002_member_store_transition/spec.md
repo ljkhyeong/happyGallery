@@ -4,10 +4,10 @@
 상태:
 - U1 구현 완료 (고객 인증 기반)
 - U2, U3, U4 구현 완료
-- U5 구현 완료 (회원 `/api/v1/me/**`, `/my`, `/my/orders`, `/my/bookings`, `/my/passes`, guest claim preview/verify/claim, 회원 예약 상세/변경·취소, `/guest/**` canonical route)
-- U6 3차 완료 (rollout 기준 정리, Playwright smoke 1~9 통과, guest claim browser automation 및 success-onboarding 반영)
+- U5 구현 완료 (회원 `/api/v1/me/**`, `/my`, `/my/orders`, `/my/bookings`, `/my/passes`, guest claim preview/verify/claim, 회원 예약 상세/변경·취소, `/guest/**` 표준 경로)
+- U6 3차 완료 (운영 반영 기준 정리, Playwright 핵심 시나리오 1~9 통과, guest claim 브라우저 자동화 및 성공 화면 이후 회원가입 반영)
 - 현재 구현 기준 문서는 `docs/PRD/0001_spec/spec.md`
-- 이 문서는 "차기 회원 스토어 전환" 요구사항을 다른 에이전트가 병렬 구현하기 위한 목표 문서다
+- 이 문서는 "차기 회원 스토어 전환" 요구사항을 정리한 목표 문서다. 다른 에이전트가 병렬로 작업할 때 기준선으로 쓴다.
 
 참고 레퍼런스:
 - 사용자가 제시한 네이버 스마트스토어 상품 상세 페이지 레퍼런스
@@ -111,13 +111,13 @@
 
 - 현재 구현:
   - `/guest`
-  - `/orders/new` (`productId`, `qty` query prefill 지원, direct entry는 수동 fallback gate)
+  - `/orders/new` (`productId`, `qty` query로 상품/수량 미리 채우기 지원, 직접 진입은 수동 안내 뒤 진행)
   - `/guest/orders`
   - `/guest/bookings`
 
 레거시 경로:
-- `/orders/new` 는 guest 주문 생성 fallback으로 유지한다. 다만 direct entry는 수동 fallback gate 뒤에만 허용하고, 권장 경로는 상품 상세 prefill 진입이다.
-- guest 진입은 `/guest` 허브를 우선 사용하고, 조회 경로는 `/guest/orders`, `/guest/bookings` canonical route만 유지한다.
+- `/orders/new` 는 guest 주문 생성 보조 경로로 유지한다. 직접 진입은 수동 안내 뒤에만 허용하고, 권장 경로는 상품 상세에서 상품/수량을 미리 채워 들어오는 방식이다.
+- guest 진입은 `/guest` 허브를 우선 사용한다. 조회 경로는 `/guest/orders`, `/guest/bookings` 표준 경로만 유지한다.
 
 ---
 
@@ -125,7 +125,7 @@
 
 ### 5.1 홈
 
-- 기존 기능 카드 모음 대신 스토어 진입 화면으로 재구성한다.
+- 기존 기능 카드 모음 화면을 스토어 진입 화면으로 바꾼다.
 - 상품, 체험 예약, 8회권, 내 정보 또는 로그인 진입점이 명확해야 한다.
 
 ### 5.2 상품 상세
@@ -144,7 +144,7 @@
 ### 5.3 예약 생성
 
 - 먼저 클래스/날짜/시간을 고른다.
-- 제출 직전에 인증 게이트를 연다.
+- 제출 직전에 인증 선택 단계를 연다.
 - 회원이면 바로 제출, 비회원이면 휴대폰 인증 후 제출한다.
 
 ### 5.4 8회권 구매
@@ -161,7 +161,7 @@
 - 비회원은 비회원 전용 조회 화면에서만 조회한다.
 - 비회원 전용 조회 화면은 생성 후 확인용 보조 경로로 안내하고, 지속 관리 경로는 회원 `/my`로 유도한다.
 - guest 주문/예약 성공 화면은 회원가입/로그인 후 `/my` claim 으로 이어지는 CTA를 제공한다.
-- 로그인/회원가입 페이지는 `redirect`, `claim`, 회원가입 prefill(`name`, `phone`) 문맥을 유지해 회원 전환 흐름을 끊지 않는다.
+- 로그인/회원가입 페이지는 `redirect`, `claim`, 회원가입 시 미리 채우는 값(`name`, `phone`)을 유지한다. 회원 전환 흐름이 중간에 끊기지 않게 하기 위함이다.
 
 ---
 
@@ -171,7 +171,7 @@
 
 - 회원 주문은 로그인 세션 기준으로 생성한다.
 - 비회원 주문은 guest checkout과 휴대폰 인증을 거쳐 생성한다.
-- 상품 상세에서 guest 주문 fallback으로 이동할 때는 선택한 상품과 수량을 prefill 한다.
+- 상품 상세에서 guest 주문 보조 경로로 이동할 때는 선택한 상품과 수량을 미리 채운다.
 - 회원 주문 조회는 추가 token 없이 가능하다.
 - 비회원 주문 조회는 token 또는 비회원 인증이 필요하다.
 
@@ -247,12 +247,12 @@
 
 ### 8.3 비회원 조회 유지
 
-- 기존 주문/예약 token 조회 API 유지
-- 프론트 canonical route는 `/guest/orders`, `/guest/bookings`를 사용한다.
+- 기존 주문/예약 token 조회 API를 유지한다.
+- 프론트 표준 경로는 `/guest/orders`, `/guest/bookings`를 사용한다.
 
 ### 8.4 생성 API
 
-- 주문, 예약 API는 로그인 사용자와 guest payload를 모두 지원한다. 8회권 구매는 회원 전용(`POST /api/v1/me/passes`)이다.
+- 주문과 예약 API는 로그인 사용자와 guest payload를 모두 지원한다. 8회권 구매는 회원 전용(`POST /api/v1/me/passes`)이다.
 - 로그인 사용자가 있으면 `user_id`를 우선 사용한다.
 
 ---
@@ -269,16 +269,16 @@
 
 ### 9.2 레거시 경로 유지
 
-- public guest entry는 `/guest` 허브를 사용한다.
-- guest 조회 UI는 `/guest/orders`, `/guest/bookings` canonical route만 사용한다.
-- `/orders/new` direct entry는 상품 상세 prefill 경로와 분리된 gated fallback으로 유지한다.
-- 운영 모니터링은 `/api/v1/monitoring/client-events` 와 `[client-monitoring]` 로그를 기준으로 하고, 현재 지표는 `/guest` 허브 유입, `/orders/new` direct continue, guest → member CTA, claim 모달 오픈, claim 완료다.
-- member route 안정화 이후 2~4주 동안 위 지표를 보고 direct guest fallback 축소 여부를 재판단한다.
-- guest canonical route 변경은 별도 배포 단위로 분리한다.
+- 공개 guest 진입점은 `/guest` 허브를 사용한다.
+- guest 조회 UI는 `/guest/orders`, `/guest/bookings` 표준 경로만 사용한다.
+- `/orders/new` 직접 진입은 상품 상세에서 상품/수량을 미리 채워 들어오는 경로와 분리된 보조 경로로 유지한다. 사용자는 안내 문구를 본 뒤 명시적으로 계속해야 한다.
+- 운영 모니터링은 `/api/v1/monitoring/client-events` 와 `[client-monitoring]` 로그를 기준으로 본다. 현재 지표는 `/guest` 허브 유입, `/orders/new` 직접 계속, guest → member CTA, claim 모달 오픈, claim 완료다.
+- member 경로를 안정화한 뒤 2~4주 동안 위 지표를 보고 guest 보조 경로를 줄일지 다시 판단한다.
+- guest 표준 경로 변경은 별도 배포 단위로 분리한다.
 
 ### 9.3 E2E 기준
 
-- guest/admin 기존 smoke 1~5 유지 + member storefront smoke 6~7 추가
+- guest/admin 기존 핵심 브라우저 시나리오 1~5 유지 + member storefront 시나리오 6~7 추가
 - `P8-7`은 회원 8회권 구매, 회원 예약 생성, `/my/bookings/:id` 예약 상세, 변경/취소까지 포함한다
 - `P8-8`은 guest 주문·예약 생성 후 같은 번호의 회원이 `/my`에서 재인증과 선택 claim을 수행하는 흐름을 포함한다
 - `P8-9`는 guest 주문 성공 화면에서 회원가입 후 `/my` claim 모달 자동 진입을 포함한다
