@@ -11,7 +11,6 @@ import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.domain.pass.PassPurchase;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -64,11 +63,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         return pv;
     }
 
-    /**
-     * 게스트 예약을 생성한다. {@code passId}가 있으면 8회권 결제, 없으면 예약금 결제.
-     *
-     * @param passId 8회권 ID (null이면 예약금 결제)
-     */
+    /** 게스트 예약을 생성한다. 비회원은 예약금 결제만 허용한다. */
     public GuestBookingResult createGuestBooking(CreateGuestBookingCommand command) {
         // 1. 인증 코드 검증 + Guest upsert
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(
@@ -88,21 +83,15 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         String rawToken = AccessTokenHasher.generate();
         String accessToken = AccessTokenHasher.hash(rawToken);
 
-        Booking booking;
-        if (command.passId() != null) {
-            PassPurchase pass = creationSupport.deductPassCredit(command.passId(), null);
-            booking = Booking.forGuestPass(guest, slot, pass, accessToken);
-        } else {
-            creationSupport.requireValidDeposit(command.paymentMethod());
-            long balanceAmount = slot.getBookingClass().getPrice() - command.depositAmount();
-            booking = Booking.forGuestDeposit(
-                    guest,
-                    slot,
-                    command.depositAmount(),
-                    balanceAmount,
-                    command.paymentMethod(),
-                    accessToken);
-        }
+        creationSupport.requireValidDeposit(command.paymentMethod());
+        long balanceAmount = slot.getBookingClass().getPrice() - command.depositAmount();
+        Booking booking = Booking.forGuestDeposit(
+                guest,
+                slot,
+                command.depositAmount(),
+                balanceAmount,
+                command.paymentMethod(),
+                accessToken);
 
         booking = creationSupport.saveAndComplete(booking, slot);
         return new GuestBookingResult(booking, rawToken);

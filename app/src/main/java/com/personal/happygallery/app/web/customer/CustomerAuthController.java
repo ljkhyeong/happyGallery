@@ -38,7 +38,7 @@ public class CustomerAuthController {
                         request.name(),
                         request.phone()));
         httpRequest.getSession(true).setAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR, user.getId());
-        return toCustomerUserResponse(user);
+        return CustomerUserResponse.from(user);
     }
 
     @PostMapping("/auth/login")
@@ -49,7 +49,7 @@ public class CustomerAuthController {
                         request.email(),
                         request.password()));
         httpRequest.getSession(true).setAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR, user.getId());
-        return toCustomerUserResponse(user);
+        return CustomerUserResponse.from(user);
     }
 
     @PostMapping("/auth/logout")
@@ -64,11 +64,6 @@ public class CustomerAuthController {
     @GetMapping("/me")
     public CustomerUserResponse me(HttpServletRequest request) {
         User user = (User) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ATTR);
-        return toCustomerUserResponse(user);
-    }
-
-    private static CustomerUserResponse toCustomerUserResponse(User user) {
-        return new CustomerUserResponse(user.getId(), user.getEmail(), user.getName(),
-                user.getPhone(), user.isPhoneVerified());
+        return CustomerUserResponse.from(user);
     }
 }

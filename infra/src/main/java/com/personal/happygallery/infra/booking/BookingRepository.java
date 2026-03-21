@@ -1,5 +1,7 @@
 package com.personal.happygallery.infra.booking;
 
+import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import java.time.LocalDateTime;
@@ -9,7 +11,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface BookingRepository extends JpaRepository<Booking, Long> {
+public interface BookingRepository extends JpaRepository<Booking, Long>, BookingReaderPort, BookingStorePort {
+
+    @Override Optional<Booking> findById(Long id);
+    @Override Booking save(Booking booking);
 
     /** 비회원 예약 조회 — bookingId + accessToken 두 조건 모두 만족해야 함 */
     Optional<Booking> findByIdAndAccessToken(Long id, String accessToken);

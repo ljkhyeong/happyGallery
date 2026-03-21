@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.payment.port.out;
 
 import com.personal.happygallery.domain.booking.Refund;
-import com.personal.happygallery.domain.order.RefundStatus;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import java.util.List;
 import java.util.Optional;
 

@@ -11,22 +11,30 @@
 
 ## 🧭 구조와 주요 라이브러리
 
+### 백엔드
+
 | 구분 | 구성 | 용도 |
 |------|------|------|
 | 백엔드 구조 | `app` / `domain` / `infra` / `common` | 진입점, 도메인 규칙, 외부 연동, 공통 유틸을 분리한 멀티 모듈 구조 위에서 `port/in`, `port/out`, adapter를 도입하는 점진적 헥사고날 전환 진행 중 |
-| 프론트 구조 | `frontend/` (Vite + React 19 + TypeScript) | 스토어/마이페이지/관리자 UI와 브라우저 흐름 구현 |
 | 관측성 구조 | `monitoring/` + `docker-compose.yml` | Prometheus scrape, Grafana provisioning, alert rule, 대시보드 JSON을 로컬 운영 스택으로 묶음 |
 | Resilience4j | `resilience4j-circuitbreaker`, `resilience4j-timelimiter` | PG 환불 외부 호출에 CircuitBreaker + TimeLimiter를 적용해 장애 전파를 줄임 |
 | Redis + Spring Session | `spring-boot-starter-data-redis`, `spring-session-data-redis` | `HG_SESSION`, 관리자 Bearer 세션, Redis 기반 rate limit 저장소를 함께 운영 |
 | Flyway | `spring-boot-starter-flyway`, `flyway-mysql` | MySQL 스키마 변경을 버전 관리하고 환경 간 DB 상태를 일관되게 맞춤 |
 | Spring Actuator | `spring-boot-starter-actuator` | `/actuator/health`, `/actuator/info`, `/actuator/metrics`, `/actuator/prometheus` 운영 엔드포인트 제공 |
 | Prometheus | `micrometer-registry-prometheus` | Actuator 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 scrape 가능한 포맷으로 노출 |
-| Grafana | Grafana provisioning + dashboard JSON | 시스템 메트릭과 제품 전환 퍼널 지표를 대시보드로 시각화 |
-| Sentry | `sentry-spring-boot-4-starter`, `@sentry/react` | 서버 500 예외와 프론트 API 5xx 에러를 requestId 태그와 함께 캡처 |
+| Grafana | Grafana provisioning + dashboard JSON | 시스템 메트릭, Tomcat/커스텀 executor thread pool, 제품 전환 퍼널 지표를 대시보드로 시각화 |
+| Sentry | `sentry-spring-boot-4-starter` | 서버 500 예외를 requestId 태그와 함께 캡처 |
+| Testcontainers | `spring-boot-testcontainers`, `testcontainers`, `testcontainers-mysql` | `@UseCaseIT`에서 MySQL/Redis 등 실제에 가까운 통합 환경을 테스트로 재현 |
+
+### 프론트
+
+| 구분 | 구성 | 용도 |
+|------|------|------|
+| 프론트 구조 | `frontend/` (Vite + React 19 + TypeScript) | 스토어/마이페이지/관리자 UI와 브라우저 흐름 구현 |
 | TanStack Query | `@tanstack/react-query` | 상품/예약/주문/관리자 데이터를 조회·캐시하고 mutation 후 invalidate를 처리 |
 | React Router | `react-router-dom` | 스토어, guest 조회, `/my`, 관리자 라우트를 구성하고 브라우저 내비게이션을 관리 |
 | Bootstrap | `bootstrap`, `react-bootstrap` | 스토어/관리자 화면의 기본 UI 레이아웃과 컴포넌트 스타일링 |
-| Testcontainers | `spring-boot-testcontainers`, `testcontainers`, `testcontainers-mysql` | `@UseCaseIT`에서 MySQL/Redis 등 실제에 가까운 통합 환경을 테스트로 재현 |
+| Sentry | `@sentry/react` | 프론트 API 5xx 에러와 브라우저 예외를 캡처 |
 | Playwright | `@playwright/test` | guest/member/admin 주요 브라우저 smoke 시나리오를 자동화 |
 
 ### 🔄 마이그레이션 현황
@@ -304,8 +312,8 @@ E2E 참고:
 - 주문 승인/거절/제작 재개/제작 완료 이력의 admin 식별자는 Bearer 세션에서 추출한다. API Key 폴백 경로는 adminId가 null일 수 있다.
 - 배송 준비/출발/완료 전이와 주문 결정 이력 조회도 `/api/v1/admin/orders/**` 아래에서 같은 Bearer 세션 기준으로 동작한다.
 - 회원 UI는 `/my`, `/my/orders`, `/my/orders/:id`, `/my/bookings`, `/my/bookings/:id`, `/my/passes`를 사용하고, 목록 페이지는 검색/상태 필터/quick tab/정렬을 제공한다. 백엔드는 `/api/v1/me/**`로 동작한다.
-- `/api/v1/me/guest-claims/{preview,verify,claim}` 로 같은 번호의 guest 주문/예약/8회권을 회원 계정으로 이전할 수 있다.
-- guest 주문/예약/8회권 성공 화면의 회원가입/로그인 CTA는 `/my?claim=1` 로 이어져 claim 모달을 자동으로 열 수 있다.
+- `/api/v1/me/guest-claims/{preview,verify,claim}` 로 같은 번호의 guest 주문/예약을 회원 계정으로 이전할 수 있다.
+- guest 주문/예약 성공 화면의 회원가입/로그인 CTA는 `/my?claim=1` 로 이어져 claim 모달을 자동으로 열 수 있다.
 - 로그인/회원가입 페이지는 `redirect`, `claim`, `name`, `phone` query를 유지해 guest 성공 화면이나 member gate에서 넘어온 문맥을 잃지 않는다.
 - 비회원 조회는 계속 토큰 기반(`bookingId + token`, `orderId + token`)을 사용하되, 프론트 canonical route는 `/guest/orders`, `/guest/bookings`다.
 - 상품 상세에서 guest 주문으로 넘길 때는 `/orders/new`가 `productId`, `qty` query를 받아 초기 주문 항목을 채운다. query 없이 직접 연 `/orders/new`는 명시적 계속 버튼 뒤에만 수동 다중 상품 주문을 허용한다.

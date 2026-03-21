@@ -1,5 +1,7 @@
 package com.personal.happygallery.infra.product;
 
+import com.personal.happygallery.app.product.port.out.InventoryReaderPort;
+import com.personal.happygallery.app.product.port.out.InventoryStorePort;
 import com.personal.happygallery.domain.product.Inventory;
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -9,7 +11,9 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface InventoryRepository extends JpaRepository<Inventory, Long> {
+public interface InventoryRepository extends JpaRepository<Inventory, Long>, InventoryReaderPort, InventoryStorePort {
+
+    @Override Inventory save(Inventory inventory);
 
     /** productId로 재고 조회 (읽기용) */
     Optional<Inventory> findByProductId(Long productId);

@@ -330,8 +330,7 @@ POST /api/v1/bookings/guest
   "name": "홍길동",
   "slotId": 42,
   "depositAmount": 5000,
-  "paymentMethod": "CARD",
-  "passId": 7
+  "paymentMethod": "CARD"
 }
 ```
 
@@ -352,17 +351,14 @@ POST /api/v1/bookings/guest
 - 에러:
   - `400 PHONE_VERIFICATION_FAILED` — 코드 불일치 또는 만료(5분)
   - `404 NOT_FOUND` — slotId 미존재
-  - `404 NOT_FOUND` — passId 미존재
   - `409 CAPACITY_EXCEEDED` — 슬롯 정원 초과
   - `409 DUPLICATE_BOOKING` — 동일 전화번호 + 동일 슬롯 중복
   - `409 SLOT_NOT_AVAILABLE` — 비활성 슬롯 예약 시도
-  - `422 PASS_EXPIRED` — 만료된 8회권
-  - `422 PASS_CREDIT_INSUFFICIENT` — 잔여 크레딧 0
   - `422 PAYMENT_METHOD_NOT_ALLOWED` — `BANK_TRANSFER` 사용 시도
 - 정책:
   - 휴대폰 인증 성공 시 전화번호 기준 Guest를 조회하고 없으면 생성한다.
   - `accessToken`(32자 hex)은 생성 응답에서 1회만 반환되며, DB에는 SHA-256 해시만 저장된다.
-  - `passId`가 있으면 8회권을 우선 사용하고, 없으면 예약금 결제를 사용한다.
+  - 비회원 예약은 예약금 결제만 허용한다.
 
 #### 2.4.3 비회원 예약 조회
 
@@ -457,7 +453,7 @@ X-Access-Token: {accessToken}
 #### ~~2.5.1 게스트 8회권 구매~~ (2026-03-19 제거)
 
 > 8회권 구매는 회원 전용으로 전환됨. `POST /api/v1/me/passes` 참조.
-> 기존 비회원 8회권은 guest claim으로 회원에게 이전 가능.
+> guest 소유 8회권 상태는 지원하지 않는다.
 
 #### ~~2.5.2 휴대폰 인증 기반 8회권 구매~~ (2026-03-19 제거)
 

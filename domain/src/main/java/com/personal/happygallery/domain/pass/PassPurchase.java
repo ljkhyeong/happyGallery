@@ -2,15 +2,11 @@ package com.personal.happygallery.domain.pass;
 
 import com.personal.happygallery.common.error.PassCreditInsufficientException;
 import com.personal.happygallery.common.error.PassExpiredException;
-import com.personal.happygallery.domain.booking.Guest;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
@@ -26,10 +22,6 @@ public class PassPurchase {
 
     @Column(name = "user_id")
     private Long userId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "guest_id")
-    private Guest guest;
 
     @Column(name = "purchased_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime purchasedAt;
@@ -52,8 +44,7 @@ public class PassPurchase {
 
     protected PassPurchase() {}
 
-    private PassPurchase(Guest guest, Long userId, LocalDateTime expiresAt, long totalPrice) {
-        this.guest = guest;
+    private PassPurchase(Long userId, LocalDateTime expiresAt, long totalPrice) {
         this.userId = userId;
         this.expiresAt = expiresAt;
         this.totalCredits = 8;
@@ -63,12 +54,7 @@ public class PassPurchase {
 
     /** 회원 8회권 구매 생성. */
     public static PassPurchase forMember(Long userId, LocalDateTime expiresAt, long totalPrice) {
-        return new PassPurchase(null, userId, expiresAt, totalPrice);
-    }
-
-    /** 기존 비회원 8회권 데이터 및 claim/테스트 생성을 위한 guest 소유 pass 생성. */
-    public static PassPurchase forGuest(Guest guest, LocalDateTime expiresAt, long totalPrice) {
-        return new PassPurchase(guest, null, expiresAt, totalPrice);
+        return new PassPurchase(userId, expiresAt, totalPrice);
     }
 
     /**
@@ -131,14 +117,8 @@ public class PassPurchase {
         return (long) remainingCredits * unitPrice();
     }
 
-    public void claimToUser(Long userId) {
-        this.userId = userId;
-        this.guest = null;
-    }
-
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
-    public Guest getGuest() { return guest; }
     public LocalDateTime getPurchasedAt() { return purchasedAt; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public int getTotalCredits() { return totalCredits; }

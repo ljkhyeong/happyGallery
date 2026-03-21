@@ -1,10 +1,14 @@
 package com.personal.happygallery.infra.payment;
 
+import com.personal.happygallery.app.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import jakarta.annotation.PreDestroy;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -40,7 +44,8 @@ public class CircuitBreakerPaymentProvider implements PaymentProvider {
 
     public CircuitBreakerPaymentProvider(
             @Qualifier("paymentProviderDelegate") PaymentProvider delegate,
-            ExternalPaymentProperties properties
+            ExternalPaymentProperties properties,
+            MeterRegistry meterRegistry
     ) {
         ExternalPaymentProperties.CircuitBreaker cb = properties.circuitBreaker();
         this.delegate = delegate;
@@ -56,7 +61,7 @@ public class CircuitBreakerPaymentProvider implements PaymentProvider {
                 .timeoutDuration(Duration.ofMillis(this.timeoutMillis))
                 .cancelRunningFuture(true)
                 .build());
-        this.executor = Executors.newFixedThreadPool(
+        ExecutorService rawExecutor = Executors.newFixedThreadPool(
                 Math.max(2, cb.permittedCallsInHalfOpenState()),
                 runnable -> {
                     Thread thread = new Thread(runnable);
@@ -64,6 +69,11 @@ public class CircuitBreakerPaymentProvider implements PaymentProvider {
                     thread.setDaemon(true);
                     return thread;
                 });
+        this.executor = ExecutorServiceMetrics.monitor(
+                meterRegistry,
+                rawExecutor,
+                "executor",
+                Tags.of("name", "paymentTimeoutExecutor"));
     }
 
     @Override

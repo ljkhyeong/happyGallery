@@ -5,7 +5,7 @@ import com.personal.happygallery.app.admin.port.out.AdminSessionPort.AdminSessio
 import com.personal.happygallery.app.web.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
-import com.personal.happygallery.infra.admin.AdminUserRepository;
+import com.personal.happygallery.app.admin.port.out.AdminUserPort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -14,11 +14,11 @@ import java.util.Optional;
 @Service
 public class DefaultAdminAuthService implements AdminAuthUseCase {
 
-    private final AdminUserRepository adminUserRepository;
+    private final AdminUserPort adminUserRepository;
     private final AdminSessionPort sessionPort;
     private final PasswordEncoder passwordEncoder;
 
-    public DefaultAdminAuthService(AdminUserRepository adminUserRepository, AdminSessionPort sessionPort,
+    public DefaultAdminAuthService(AdminUserPort adminUserRepository, AdminSessionPort sessionPort,
                                    PasswordEncoder passwordEncoder) {
         this.adminUserRepository = adminUserRepository;
         this.sessionPort = sessionPort;

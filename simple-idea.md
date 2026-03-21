@@ -9,6 +9,7 @@
 | `AdminBookingResponse`는 guest 전용 이름/전화번호 전제를 강하게 가진다. | guest/member/claimed booking을 모두 담을 수 있는 `customerSummary` 형태로 단순화한다. |
 | `ProductQueryService`가 상품 목록 뒤에 재고를 건별 조회한다. | 상품+재고 projection 조회 한 번으로 목록을 만들도록 바꾼다. |
 | `Me*Controller` 3개가 DTO를 inner record로 정의하고 나머지는 별도 `dto/` 파일을 사용해 기준이 혼재한다. | DTO는 항상 별도 파일(`dto/` 패키지)로 분리해 위치를 예측 가능하게 유지한다. |
+| `@UseCaseIT` 일부가 act 단계에서도 concrete service(`Default*Service`, `*Service`)를 직접 주입해 테스트 경계가 섞여 있다. | 포트가 있는 영역은 act를 `MockMvc` 또는 `port.in UseCase`로 통일하고, service 직접 주입은 포트가 없는 fixture/support 용도만 남긴다. |
 | ~~컨트롤러가 호출하는 일부 `UseCase`가 하나의 요청 문맥을 이루는 값들을 scalar 파라미터로 직접 나열한다.~~ | ~~controller request와 별도로 app 경계용 command DTO를 두어 유스케이스 입력을 의미 단위로 묶고 순서 의존을 줄인다.~~ |
 | ~~주문 환불 흐름이 `Refund` 결과를 확인하지 않고 `ORDER_REFUNDED` 알림을 보낼 수 있다.~~ | ~~환불 완료 알림은 `RefundStatus.SUCCEEDED`일 때만 발송하고, 실패는 재시도 대상만 남긴다.~~ |
 | ~~`Booking.reschedule()`와 `Booking.markNoShow()`의 상태 전이 검증이 서비스 레이어에 흩어져 있다.~~ | ~~예약 상태 전이 가능 여부를 도메인 메서드 안으로 옮겨 규칙을 한 곳에 응집시킨다.~~ |

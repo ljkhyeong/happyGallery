@@ -36,6 +36,7 @@ public class AdminPassController {
      */
     @PostMapping("/{passId}/refund")
     public PassRefundResponse refundPass(@PathVariable Long passId) {
-        return PassRefundResponse.from(passRefundUseCase.refundPass(passId));
+        var result = passRefundUseCase.refundPass(passId);
+        return PassRefundResponse.from(result);
     }
 }

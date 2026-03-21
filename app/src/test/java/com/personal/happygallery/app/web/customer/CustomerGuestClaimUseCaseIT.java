@@ -8,7 +8,6 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.order.Order;
-import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
@@ -121,7 +120,7 @@ class CustomerGuestClaimUseCaseIT {
         userRepository.deleteAllInBatch();
     }
 
-    @DisplayName("회원은 휴대폰 재인증 후 같은 번호의 비회원 주문, 예약, 8회권을 가져올 수 있다")
+    @DisplayName("회원은 휴대폰 재인증 후 같은 번호의 비회원 주문과 예약을 가져올 수 있다")
     @Test
     void verifyAndClaimGuestRecords() throws Exception {
         String email = "member@example.com";
@@ -138,9 +137,10 @@ class CustomerGuestClaimUseCaseIT {
                 bookingClass,
                 BookingTestHelper.FUTURE,
                 BookingTestHelper.FUTURE.plusHours(2)));
-        PassPurchase pass = passPurchaseRepository.save(
-                TestFixtures.passPurchase(guest, BookingTestHelper.FUTURE.plusDays(90), 120_000L));
-        Booking booking = bookingRepository.save(Booking.forGuestPass(guest, slot, pass, "guest-claim-access-token"));
+        Booking booking = bookingRepository.save(Booking.forGuestDeposit(
+                guest, slot, 10_000L, 40_000L,
+                com.personal.happygallery.domain.booking.DepositPaymentMethod.CARD,
+                "guest-claim-access-token"));
 
         Cookie sessionCookie = signupAndGetSessionCookie(email, "010-1234-5678");
         User user = userRepository.findByEmail(email).orElseThrow();
@@ -158,8 +158,7 @@ class CustomerGuestClaimUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phoneVerified").value(true))
                 .andExpect(jsonPath("$.orders[0].orderId").value(order.getId()))
-                .andExpect(jsonPath("$.bookings[0].bookingId").value(booking.getId()))
-                .andExpect(jsonPath("$.passes[0].passId").value(pass.getId()));
+                .andExpect(jsonPath("$.bookings[0].bookingId").value(booking.getId()));
 
         assertThat(userRepository.findById(user.getId()).orElseThrow().isPhoneVerified()).isTrue();
 
@@ -169,25 +168,20 @@ class CustomerGuestClaimUseCaseIT {
                         .content("""
                                 {
                                   "orderIds": [%d],
-                                  "bookingIds": [%d],
-                                  "passIds": []
+                                  "bookingIds": [%d]
                                 }
                                 """.formatted(order.getId(), booking.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.claimedOrderCount").value(1))
-                .andExpect(jsonPath("$.claimedBookingCount").value(1))
-                .andExpect(jsonPath("$.claimedPassCount").value(1));
+                .andExpect(jsonPath("$.claimedBookingCount").value(1));
 
         Order claimedOrder = orderRepository.findById(order.getId()).orElseThrow();
         Booking claimedBooking = bookingRepository.findById(booking.getId()).orElseThrow();
-        PassPurchase claimedPass = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(claimedOrder.getUserId()).isEqualTo(user.getId());
             softly.assertThat(claimedOrder.getGuestId()).isNull();
             softly.assertThat(claimedBooking.getUserId()).isEqualTo(user.getId());
             softly.assertThat(claimedBooking.getGuest()).isNull();
-            softly.assertThat(claimedPass.getUserId()).isEqualTo(user.getId());
-            softly.assertThat(claimedPass.getGuest()).isNull();
         });
 
         mockMvc.perform(get("/api/v1/me/orders")
@@ -199,11 +193,6 @@ class CustomerGuestClaimUseCaseIT {
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].bookingId").value(booking.getId()));
-
-        mockMvc.perform(get("/api/v1/me/passes")
-                        .cookie(sessionCookie))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].passId").value(pass.getId()));
     }
 
     @DisplayName("휴대폰 재인증 전에는 비회원 이력 미리보기를 조회할 수 없다")

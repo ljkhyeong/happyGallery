@@ -1,5 +1,7 @@
 package com.personal.happygallery.infra.payment;
 
+import com.personal.happygallery.app.payment.port.out.RefundResult;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,12 +12,14 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class CircuitBreakerPaymentProviderTest {
 
     private CircuitBreakerPaymentProvider provider;
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @AfterEach
     void tearDown() {
         if (provider != null) {
             provider.shutdown();
         }
+        meterRegistry.close();
     }
 
     @DisplayName("외부 호출 예외가 발생하면 실패 결과를 반환한다")
@@ -25,7 +29,7 @@ class CircuitBreakerPaymentProviderTest {
             throw new RuntimeException("PG error");
         };
 
-        provider = new CircuitBreakerPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3));
+        provider = new CircuitBreakerPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3), meterRegistry);
 
         RefundResult result = provider.refund("pg-ref", 10_000);
 
@@ -47,7 +51,7 @@ class CircuitBreakerPaymentProviderTest {
             return RefundResult.success("late-ref");
         };
 
-        provider = new CircuitBreakerPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3));
+        provider = new CircuitBreakerPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3), meterRegistry);
 
         RefundResult result = provider.refund("pg-ref", 10_000);
 
@@ -64,7 +68,7 @@ class CircuitBreakerPaymentProviderTest {
             throw new RuntimeException("PG down");
         };
 
-        provider = new CircuitBreakerPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1));
+        provider = new CircuitBreakerPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1), meterRegistry);
 
         provider.refund("pg-ref", 10_000);
         provider.refund("pg-ref", 10_000);

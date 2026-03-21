@@ -1,12 +1,19 @@
 package com.personal.happygallery.infra.order;
 
+import com.personal.happygallery.app.order.port.out.OrderReaderPort;
+import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface OrderRepository extends JpaRepository<Order, Long> {
+public interface OrderRepository extends JpaRepository<Order, Long>, OrderReaderPort, OrderStorePort {
+
+    @Override Optional<Order> findById(Long id);
+    @Override Order save(Order order);
+    @Override Order saveAndFlush(Order order);
 
     /**
      * 자동환불 배치용 조회.

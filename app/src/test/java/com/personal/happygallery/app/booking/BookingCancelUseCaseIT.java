@@ -19,7 +19,7 @@ import com.personal.happygallery.infra.notification.NotificationLogRepository;
 import com.personal.happygallery.infra.pass.PassLedgerRepository;
 import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.infra.payment.PaymentProvider;
-import com.personal.happygallery.infra.payment.RefundResult;
+import com.personal.happygallery.app.payment.port.out.RefundResult;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;

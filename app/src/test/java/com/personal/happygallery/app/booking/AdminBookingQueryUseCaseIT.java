@@ -26,7 +26,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,11 +34,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingReminderData;
+import static com.personal.happygallery.support.TestFixtures.accessToken;
 import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.guest;
 import static com.personal.happygallery.support.TestFixtures.slot;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
@@ -89,28 +88,10 @@ class AdminBookingQueryUseCaseIT {
         LocalDate tomorrow = LocalDate.now(clock).plusDays(1);
         LocalDateTime slotStart = tomorrow.atTime(10, 0);
 
-        // guest booking
-        BookingClass cls1 = classRepository.save(bookingClass("게스트 클래스", "G1", 60, 30_000L, 30));
-        Slot slot1 = slotRepository.save(slot(cls1, slotStart, slotStart.plusHours(1)));
-        Guest g = guestRepository.save(guest("게스트", "01011112222"));
-        bookingRepository.save(booking(g, slot1, 10_000L, 20_000L, DepositPaymentMethod.CARD,
-                UUID.randomUUID().toString().replace("-", "")));
-
-        // member booking
-        BookingClass cls2 = classRepository.save(bookingClass("회원 클래스", "M1", 60, 30_000L, 30));
-        Slot slot2 = slotRepository.save(slot(cls2, slotStart.plusHours(1), slotStart.plusHours(2)));
-        User member = userRepository.save(new User("member@test.com", "hash", "회원", "01033334444"));
-        bookingRepository.save(Booking.forMemberDeposit(member.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
-
-        // claimed booking (originally guest → claimed to user)
-        BookingClass cls3 = classRepository.save(bookingClass("클레임 클래스", "C1", 60, 30_000L, 30));
-        Slot slot3 = slotRepository.save(slot(cls3, slotStart.plusHours(2), slotStart.plusHours(3)));
-        Guest g2 = guestRepository.save(guest("클레임대상", "01055556666"));
-        User claimer = userRepository.save(new User("claimer@test.com", "hash", "클레이머", "01055556666"));
-        Booking claimed = bookingRepository.save(booking(g2, slot3, 10_000L, 20_000L, DepositPaymentMethod.CARD,
-                UUID.randomUUID().toString().replace("-", "")));
-        claimed.claimToUser(claimer.getId());
-        bookingRepository.save(claimed);
+        saveGuestBooking(slotStart, "게스트 클래스", "G1", "게스트", "01011112222");
+        saveMemberBooking(slotStart.plusHours(1), "회원 클래스", "M1", "member@test.com", "회원", "01033334444");
+        saveClaimedBooking(slotStart.plusHours(2), "클레임 클래스", "C1",
+                "클레임대상", "01055556666", "claimer@test.com", "클레이머");
 
         List<AdminBookingResponse> responses = adminBookingQueryService.listBookings(tomorrow, null);
 
@@ -134,14 +115,8 @@ class AdminBookingQueryUseCaseIT {
         LocalDate tomorrow = LocalDate.now(clock).plusDays(1);
         LocalDateTime slotStart = tomorrow.atTime(10, 0);
 
-        BookingClass cls = classRepository.save(bookingClass("클레임리마인드", "CR", 60, 30_000L, 30));
-        Slot slot = slotRepository.save(slot(cls, slotStart, slotStart.plusHours(1)));
-        Guest g = guestRepository.save(guest("원래게스트", "01077778888"));
-        User claimer = userRepository.save(new User("remind@test.com", "hash", "리마인드회원", "01077778888"));
-        Booking claimed = bookingRepository.save(booking(g, slot, 10_000L, 20_000L, DepositPaymentMethod.CARD,
-                UUID.randomUUID().toString().replace("-", "")));
-        claimed.claimToUser(claimer.getId());
-        bookingRepository.save(claimed);
+        User claimer = saveClaimedBooking(slotStart, "클레임리마인드", "CR",
+                "원래게스트", "01077778888", "remind@test.com", "리마인드회원");
 
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
         List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 1);
@@ -162,28 +137,10 @@ class AdminBookingQueryUseCaseIT {
     void sendSameDayReminders_allBookingTypes_sendsAll() {
         LocalDateTime slotStart = LocalDate.now(clock).atTime(14, 0);
 
-        // guest
-        BookingClass cls1 = classRepository.save(bookingClass("게스트", "G2", 60, 30_000L, 30));
-        Slot slot1 = slotRepository.save(slot(cls1, slotStart, slotStart.plusHours(1)));
-        Guest g1 = guestRepository.save(guest("게스트1", "01011111111"));
-        bookingRepository.save(booking(g1, slot1, 10_000L, 20_000L, DepositPaymentMethod.CARD,
-                UUID.randomUUID().toString().replace("-", "")));
-
-        // member
-        BookingClass cls2 = classRepository.save(bookingClass("회원", "M2", 60, 30_000L, 30));
-        Slot slot2 = slotRepository.save(slot(cls2, slotStart.plusHours(1), slotStart.plusHours(2)));
-        User user = userRepository.save(new User("m@test.com", "hash", "회원1", "01022222222"));
-        bookingRepository.save(Booking.forMemberDeposit(user.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
-
-        // claimed
-        BookingClass cls3 = classRepository.save(bookingClass("클레임", "C2", 60, 30_000L, 30));
-        Slot slot3 = slotRepository.save(slot(cls3, slotStart.plusHours(2), slotStart.plusHours(3)));
-        Guest g2 = guestRepository.save(guest("원래게스트2", "01033333333"));
-        User claimer = userRepository.save(new User("c@test.com", "hash", "클레이머2", "01033333333"));
-        Booking claimed = bookingRepository.save(booking(g2, slot3, 10_000L, 20_000L, DepositPaymentMethod.CARD,
-                UUID.randomUUID().toString().replace("-", "")));
-        claimed.claimToUser(claimer.getId());
-        bookingRepository.save(claimed);
+        saveGuestBooking(slotStart, "게스트", "G2", "게스트1", "01011111111");
+        saveMemberBooking(slotStart.plusHours(1), "회원", "M2", "m@test.com", "회원1", "01022222222");
+        saveClaimedBooking(slotStart.plusHours(2), "클레임", "C2",
+                "원래게스트2", "01033333333", "c@test.com", "클레이머2");
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
         List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 3);
@@ -192,5 +149,38 @@ class AdminBookingQueryUseCaseIT {
             softly.assertThat(result.successCount()).isEqualTo(3);
             softly.assertThat(logs).hasSize(3);
         });
+    }
+
+    // ── helpers ──────────────────────────────────────────────
+
+    private Slot saveSlot(LocalDateTime start, String className, String category) {
+        BookingClass cls = classRepository.save(bookingClass(className, category, 60, 30_000L, 30));
+        return slotRepository.save(slot(cls, start, start.plusHours(1)));
+    }
+
+    private void saveGuestBooking(LocalDateTime slotStart, String className, String category,
+                                  String guestName, String phone) {
+        Slot s = saveSlot(slotStart, className, category);
+        Guest g = guestRepository.save(guest(guestName, phone));
+        bookingRepository.save(booking(g, s, 10_000L, 20_000L, DepositPaymentMethod.CARD, accessToken()));
+    }
+
+    private void saveMemberBooking(LocalDateTime slotStart, String className, String category,
+                                   String email, String name, String phone) {
+        Slot s = saveSlot(slotStart, className, category);
+        User member = userRepository.save(new User(email, "hash", name, phone));
+        bookingRepository.save(Booking.forMemberDeposit(member.getId(), s, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+    }
+
+    private User saveClaimedBooking(LocalDateTime slotStart, String className, String category,
+                                    String guestName, String phone, String claimerEmail, String claimerName) {
+        Slot s = saveSlot(slotStart, className, category);
+        Guest g = guestRepository.save(guest(guestName, phone));
+        User claimer = userRepository.save(new User(claimerEmail, "hash", claimerName, phone));
+        Booking claimed = bookingRepository.save(
+                booking(g, s, 10_000L, 20_000L, DepositPaymentMethod.CARD, accessToken()));
+        claimed.claimToUser(claimer.getId());
+        bookingRepository.save(claimed);
+        return claimer;
     }
 }

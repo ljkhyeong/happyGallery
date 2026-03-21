@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.admin;
 
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.domain.booking.PhoneVerification;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
 import java.util.Map;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
@@ -19,15 +19,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping({"/api/v1/admin/dev/phone-verifications", "/admin/dev/phone-verifications"})
 public class LocalPhoneVerificationController {
 
-    private final PhoneVerificationRepository repository;
+    private final PhoneVerificationReaderPort phoneVerificationReader;
 
-    public LocalPhoneVerificationController(PhoneVerificationRepository repository) {
-        this.repository = repository;
+    public LocalPhoneVerificationController(PhoneVerificationReaderPort phoneVerificationReader) {
+        this.phoneVerificationReader = phoneVerificationReader;
     }
 
     @GetMapping("/latest")
     public ResponseEntity<Map<String, String>> latestCode(@RequestParam String phone) {
-        return repository.findTopByPhoneAndVerifiedFalseOrderByIdDesc(phone)
+        return phoneVerificationReader.findLatestUnverifiedCode(phone)
                 .map(PhoneVerification::getCode)
                 .map(code -> ResponseEntity.ok(Map.of("code", code)))
                 .orElseGet(() -> ResponseEntity.notFound().build());

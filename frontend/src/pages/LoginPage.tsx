@@ -73,7 +73,7 @@ export function LoginPage() {
               {error && <Alert variant="danger">{error}</Alert>}
               {claimIntent && (
                 <Alert variant="info">
-                  로그인 후 <strong>내 정보</strong>에서 비회원 주문, 예약, 8회권을 바로 가져올 수 있습니다.
+                  로그인 후 <strong>내 정보</strong>에서 비회원 주문과 예약을 바로 가져올 수 있습니다.
                 </Alert>
               )}
               {!claimIntent && (
