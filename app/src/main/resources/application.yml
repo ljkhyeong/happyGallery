@@ -42,6 +42,17 @@ app:
     scheduler:
       pool-size: ${BATCH_SCHEDULER_POOL_SIZE:4}
   external:
+    kakao:
+      api-key: ${KAKAO_API_KEY:}
+      sender-key: ${KAKAO_SENDER_KEY:}
+      base-url: ${KAKAO_BASE_URL:https://bizapi.kakao.com}
+      timeout-millis: ${KAKAO_TIMEOUT_MILLIS:5000}
+    sms:
+      api-key: ${SMS_API_KEY:}
+      api-secret: ${SMS_API_SECRET:}
+      sender-number: ${SMS_SENDER_NUMBER:}
+      base-url: ${SMS_BASE_URL:https://api-sms.cloud.toast.com}
+      timeout-millis: ${SMS_TIMEOUT_MILLIS:5000}
     payment:
       # SI 운영 기본값: 외부 호출은 짧은 타임아웃 + 서킷 브레이커로 보호
       timeout-millis: ${PAYMENT_TIMEOUT_MILLIS:3000}

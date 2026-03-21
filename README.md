@@ -84,7 +84,7 @@
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [IDEA-0001 ~ IDEA-0023](docs/Idea/) | `docs/Idea/` | 검토 메모, 후속 아이디어, 운영 가이드 문서 모음 |
+| [IDEA-0001 ~ IDEA-0024](docs/Idea/) | `docs/Idea/` | 검토 메모, 후속 아이디어, 운영 가이드 문서 모음 |
 
 ### 🧪 POC
 
@@ -199,6 +199,13 @@
 - `MYSQL_ROOT_PASSWORD`
 - `MYSQL_USER`
 - `MYSQL_PASSWORD`
+- `KAKAO_API_KEY`
+- `KAKAO_SENDER_KEY`
+- `SMS_API_KEY`
+- `SMS_API_SECRET`
+- `SMS_SENDER_NUMBER`
+- `GRAFANA_ADMIN_USER`
+- `GRAFANA_ADMIN_PASSWORD`
 - `PLAYWRIGHT_ADMIN_USERNAME`
 - `PLAYWRIGHT_ADMIN_PASSWORD`
 - `PLAYWRIGHT_BACKEND_URL`
@@ -218,6 +225,7 @@ docker compose stop app
 - 이미 `docker compose up -d --build`로 앱 컨테이너가 떠 있다면, 로컬 `bootRun` 전에 `docker compose stop app`으로 8080 충돌을 먼저 해소한다.
 - 회원 세션, 관리자 Bearer 세션, rate limit 저장소가 모두 Redis를 사용하므로 로컬 `bootRun`에도 Redis(`localhost:6379`)가 필요하다.
 - `local` 프로필로 `bootRun`하면 `classes` 테이블이 비어 있을 때 기본 클래스 3종(향수/우드/니트)을 자동 seed한다.
+- 알림 발송 어댑터는 `!prod`에서 fake sender를, `prod`에서 카카오 알림톡/NHN SMS 실제 sender를 사용한다.
 
 MySQL + 앱 컨테이너를 함께 실행:
 
@@ -226,7 +234,7 @@ docker compose up -d --build
 ```
 
 - `prometheus`: `http://localhost:9090`
-- `grafana`: `http://localhost:3001` (`admin` / `admin`)
+- `grafana`: `http://localhost:3001` (`GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`; 사용자명 기본값은 `admin`)
 
 백엔드 헬스 체크:
 

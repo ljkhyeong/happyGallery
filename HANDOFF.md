@@ -22,6 +22,7 @@
 
 - 권장 작업 브랜치: `codex/work-20260319-000329`
 - 최근 작업:
+  - 픽업 마감 알림 배치 + 실알림 어댑터 기반 추가 — 매시간 `pickupDeadlineAt` 기준 2시간 이내 `PICKUP_READY` 주문에 알림을 보내는 배치를 추가했고, prod 프로필에서는 카카오 알림톡/NHN SMS 실제 sender를 사용하고 비운영에서는 fake sender를 유지하도록 분리했으며 관련 외부 설정 키와 문서 인덱스를 갱신
   - 테스트 전략 ADR 승격 — 커버리지 수치보다 비즈니스 검증/문서화와 최소 테스트 세트를 우선하는 기준, 테스트/문서의 절대량 자체를 줄여 장기 관리 비용을 통제해야 한다는 원칙, 유스케이스/도메인 정책/직렬화·역직렬화 테스트 분류를 `ADR-0027`로 승격하고 기존 `docs/Idea/0003_*`는 배경 메모로 축소
   - `@UseCaseIT` 고정 Clock 기준선 추가 — test 컨텍스트에서 Asia/Seoul 고정 `Clock`을 `@Primary`로 주입하고, `PassPurchaseUseCaseIT`·`BookingCancelUseCaseIT`·`BookingRescheduleUseCaseIT`·`PassCreditUsageUseCaseIT`·`RefundExecutionServiceUseCaseIT`의 벽시계(`now()`) 의존을 주입 Clock 기준으로 정리해 시간 경계 테스트를 결정적으로 맞춤
   - guest 소유 8회권 제거 — `PassPurchase.guest`/guest claim pass/guest pass booking을 제거하고, 만료 알림을 회원 기준으로 전환했으며 `pass_purchases.guest_id` 제거 migration(V21)과 관련 테스트·문서를 함께 정리
@@ -189,7 +190,9 @@
 - 로컬 부팅이나 `docker compose up -d` 전에 Redis(`localhost:6379`)가 필요하다. compose에는 `redis` 서비스가 추가되어 있고, 통합 테스트는 Testcontainers Redis를 함께 기동한다.
 - `local` 프로필에서 `http://localhost:8080/actuator/prometheus` 로 JVM/HTTP 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 함께 노출한다.
 - `docker compose up -d prometheus grafana` 로 로컬 관측성 스택을 따로 띄울 수 있고, 포트는 각각 `9090`, `3001`이다.
+- Grafana 로그인은 `GRAFANA_ADMIN_USER`/`GRAFANA_ADMIN_PASSWORD` 환경 변수를 사용하고, 사용자명 기본값은 `admin`이다.
 - Sentry는 backend `SENTRY_DSN/SENTRY_ENVIRONMENT/SENTRY_RELEASE`, frontend `VITE_SENTRY_DSN/VITE_SENTRY_ENVIRONMENT/VITE_SENTRY_RELEASE` 환경 변수를 사용한다.
+- 알림 sender는 `!prod`에서 fake sender, `prod`에서 카카오 알림톡/NHN SMS 실제 sender를 사용한다. 실제 운영 발송에는 `KAKAO_*`, `SMS_*` 환경 변수가 필요하다.
 - clean DB 기준으로도 P8 guest/member smoke 1~9를 바로 실행할 수 있다.
 - `DELETE /api/v1/admin/dev/payment/refunds/fail-next`로 훅을 비우고, `POST /api/v1/admin/dev/payment/refunds/fail-next`로 다음 환불 1회 실패를 arm할 수 있다.
   요청 바디에 `orderId`를 넣으면 특정 주문으로 범위를 좁힐 수 있다.

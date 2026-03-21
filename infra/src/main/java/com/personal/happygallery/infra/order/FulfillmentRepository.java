@@ -20,4 +20,11 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>,
             + "WHERE o.status = 'PICKUP_READY' "
             + "AND f.pickupDeadlineAt < :now")
     List<Fulfillment> findExpiredPickups(@Param("now") LocalDateTime now);
+
+    /** 픽업 마감 임박 알림용 조회: Order.status=PICKUP_READY AND pickupDeadlineAt BETWEEN from AND to */
+    @Query("SELECT f FROM Fulfillment f JOIN Order o ON f.orderId = o.id "
+            + "WHERE o.status = 'PICKUP_READY' "
+            + "AND f.pickupDeadlineAt BETWEEN :from AND :to")
+    List<Fulfillment> findPickupsApproachingDeadline(@Param("from") LocalDateTime from,
+                                                     @Param("to") LocalDateTime to);
 }
