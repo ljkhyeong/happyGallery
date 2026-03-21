@@ -59,4 +59,9 @@ public final class TestFixtures {
     public static Inventory inventory(Product product, int quantity) {
         return new Inventory(product, quantity);
     }
+
+    /** 32자 hex access token (테스트용). */
+    public static String accessToken() {
+        return java.util.UUID.randomUUID().toString().replace("-", "");
+    }
 }
