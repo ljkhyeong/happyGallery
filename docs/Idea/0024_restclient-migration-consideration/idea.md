@@ -2,8 +2,8 @@
 
 ## 배경
 
-`infra/notification/` 패키지의 외부 API 호출(`KakaoAlimtalkSender`, `RealSmsSender`)이 `java.net.http.HttpClient`를 사용 중이다.
-JDK 표준 라이브러리라 Spring 의존이 없다는 장점이 있지만, `infra` 모듈은 이미 `@Component`, `@Profile` 등 Spring에 전면 의존하고 있어 JDK-only를 고수할 실익이 없다.
+`infra/notification/` 패키지의 외부 API 호출(`KakaoAlimtalkSender`, `RealSmsSender`)은 `java.net.http.HttpClient`를 사용 중이다.
+JDK 표준 라이브러리라 Spring 의존이 없다는 장점은 있다. 하지만 `infra` 모듈은 이미 `@Component`, `@Profile` 등 Spring에 전면 의존하고 있어 JDK 표준만 고집할 실익은 작다.
 
 ## 현재 문제
 
@@ -35,10 +35,10 @@ Spring 6.1+ (Boot 3.2+)에서 도입된 `RestClient`는 `RestTemplate`의 fluent
 
 ### 주의사항
 
-- `WebClient`(리액티브)는 프로젝트가 동기 서블릿 기반이므로 과잉 — `RestClient`가 적합.
+- `WebClient`(리액티브)는 프로젝트가 동기 서블릿 기반이므로 과하다. `RestClient`가 더 맞다.
 - payment 영역의 `CircuitBreakerPaymentProvider`는 이미 별도 resilience 레이어가 있으므로 notification과는 독립적으로 판단.
-- 전환 시 기존 fallback(KAKAO→SMS) 동작과 `NotificationSender` 인터페이스 계약은 변경하지 않는다.
+- 전환 시 기존 대체 발송 순서(KAKAO→SMS)와 `NotificationSender` 인터페이스 계약은 바꾸지 않는다.
 
 ## 상태
 
-검토 중 — 구현 우선순위 미정.
+검토 중이다. 구현 우선순위는 아직 정하지 않았다.

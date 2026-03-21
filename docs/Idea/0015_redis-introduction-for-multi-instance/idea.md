@@ -9,10 +9,10 @@
 
 ## 배경
 
-다중 인스턴스 배포(이중화)를 위해 현재 JVM 힙에 상태를 저장하는 두 컴포넌트를 검토했다.
+다중 인스턴스 배포(이중화)를 위해 현재 JVM 힙에 상태를 저장하는 두 컴포넌트를 먼저 봤다.
 
-- **AdminSessionStore**: `ConcurrentHashMap` 기반 인메모리 → 인스턴스 A에서 로그인한 관리자 세션이 인스턴스 B에서 인식되지 않음
-- **RateLimitFilter**: Bucket4j 인메모리 bucket → 인스턴스별 rate limit 카운터가 분리되어 다중 인스턴스 환경에서 제한 우회 가능
+- **AdminSessionStore**: `ConcurrentHashMap` 기반 서버 메모리 저장소 → 인스턴스 A에서 로그인한 관리자 세션을 인스턴스 B가 알 수 없음
+- **RateLimitFilter**: Bucket4j 서버 메모리 bucket → 인스턴스별 rate limit 카운터가 따로 잡혀 다중 인스턴스 환경에서 제한 우회 가능
 
 회원 세션도 이번에 Spring Session + Redis로 전환해 다중 인스턴스에서 같은 세션 저장소를 공유하도록 맞췄다.
 
@@ -35,22 +35,22 @@
 `AdminSessionStore`를 `StringRedisTemplate` 기반으로 전환했다.
 
 - 키 패턴: `admin:session:{token}`
-- TTL: 8시간 (Redis EXPIRE로 자동 처리 — 기존 수동 만료 체크 제거)
+- TTL: 8시간 (Redis EXPIRE로 자동 처리, 기존 수동 만료 체크 제거)
 - 직렬화: Jackson ObjectMapper로 JSON 변환
 
 기존 `AdminSessionPort` 인터페이스가 이미 추상화 경계를 제공하므로 구현 교체만으로 변경이 완료되었다.
 
 ### RateLimitFilter → Redis 공유 카운터
 
-Bucket4j 인메모리 bucket 대신 Redis 공유 카운터로 전환했다.
+Bucket4j 서버 메모리 bucket 대신 Redis 공유 카운터로 전환했다.
 
 ```
 INCR rate:{RULE_ID}:{clientIP}
 EXPIRE rate:{RULE_ID}:{clientIP} {window_seconds}  ← count == 1일 때만 TTL 설정
 ```
 
-- 인스턴스 간 카운터가 공유되어 정확한 rate limit 적용
-- Redis TTL이 윈도우 만료를 자동 처리 → `@Scheduled evictStaleBuckets()` 제거
+- 인스턴스 간 카운터가 공유되어 정확한 rate limit을 적용할 수 있다.
+- Redis TTL이 윈도우 만료를 자동 처리하므로 `@Scheduled evictStaleBuckets()`를 제거했다.
 - `TimestampedBucket` inner class 제거
 - 현재 구현은 Lua script로 `INCR`와 최초 `EXPIRE`를 한 번에 실행한다.
 
@@ -81,7 +81,7 @@ spring:
 
 ### 테스트 (Testcontainers)
 
-`TestcontainersConfig`에 Redis 컨테이너 추가. MySQL과 동일한 `@ServiceConnection` 패턴 적용.
+`TestcontainersConfig`에 Redis 컨테이너를 추가했다. MySQL과 같은 `@ServiceConnection` 패턴을 적용한다.
 
 ```java
 @Bean

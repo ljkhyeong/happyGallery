@@ -7,10 +7,9 @@
 
 ## 컨텍스트
 
-기존 `docs/PRD/0001_spec/spec.md`에는 관리자 인증, 운영 관측성, 에러 응답 추적, rate limit, 비밀번호 저장 정책처럼
-런타임 운영 기준이 한데 섞여 있었다.
+기존 `docs/PRD/0001_spec/spec.md`에는 관리자 인증, 운영 관측성, 에러 응답 추적, rate limit, 비밀번호 저장 정책이 한 문서에 함께 들어 있었다.
 
-이 내용은 제품 요구사항보다 운영/보안 설계 기준에 가깝기 때문에 ADR로 분리한다.
+이 내용은 제품 요구사항보다 운영/보안 설계 기준에 가깝다. 그래서 ADR로 분리한다.
 
 ---
 
@@ -36,7 +35,7 @@
 
 ### 3. API Key는 로컬/테스트용 폴백으로만 허용한다
 
-- **기본값은 `enable-api-key-auth=false`, `apiKey=""`** — 프로덕션에서 설정 누락 시에도 API Key 경로는 비활성 상태를 유지한다.
+- **기본값은 `enable-api-key-auth=false`, `apiKey=""`** 이다. 프로덕션에서 설정이 빠져도 API Key 경로는 비활성 상태를 유지한다.
 - `local` 프로필에서만 `enable-api-key-auth=true`와 `ADMIN_API_KEY`를 명시적으로 설정한다.
 - 기본 관리자 계정은 Flyway migration에 포함하지 않고, `LocalAdminSeedService`(`@Profile("local")`)로 local 환경에서만 seed한다.
 - Bearer 세션 경로는 검증된 관리자 ID를 이력에 남기고, API Key 폴백 경로와 배치 이력은 `null`일 수 있다.
@@ -44,7 +43,7 @@
 ### 4. 운영 관측성은 requestId 중심으로 유지한다
 
 - 타임존은 `Asia/Seoul` 고정이다.
-- `prod` 프로필 로그는 JSON 구조화 포맷으로 출력한다.
+- `prod` 프로필 로그는 JSON 구조로 출력한다.
 - 요청 단위 추적을 위해 로그 필드에 `requestId`를 포함한다.
 - 에러 응답은 가능하면 `requestId`를 함께 반환한다.
 - 배치 실행은 `batch-{jobName}-{uuid8}` 형식의 requestId를 MDC에 주입한다.
@@ -67,7 +66,7 @@
 - 외부 결제(PG) 호출은 `CircuitBreaker + Timeout`으로 보호한다.
   - 현재 기본 타임아웃은 3초
 - 필터 기반 처리율 제한을 `/api/v1/**` 기준으로 적용한다.
-  - 저장소는 Redis 공유 카운터를 사용해 다중 인스턴스에서도 같은 제한값을 본다.
+  - 저장소는 Redis 공유 카운터를 사용한다. 다중 인스턴스에서도 같은 제한값을 본다.
   - 인증코드 발송: 10 req/sec/IP
   - 게스트 예약 생성: 30 req/min/IP
   - 이용권 구매: 20 req/min/IP
@@ -84,7 +83,7 @@
 - 기본 구현은 Spring Security `PasswordEncoder`를 사용한다.
 - 운영 로그에 비밀번호와 해시 원문을 출력하지 않는다.
 
-현재 구현 기준 위치:
+현재 구현 위치:
 
 - `ErrorCode` enum — `common/error/ErrorCode.java`
 - `HappyGalleryException` — `common/error/HappyGalleryException.java`
@@ -100,7 +99,7 @@
 
 - core PRD에서 운영/보안 구현 기준을 걷어낼 수 있다.
 - 관리자/회원 세션 저장 전략과 런타임 정책을 별도 ADR에서 관리할 수 있다.
-- requestId, 에러 응답, rate limit, password 정책의 기준 문서가 명확해진다.
+- requestId, 에러 응답, rate limit, password 정책의 기준 문서가 더 분명해진다.
 
 ### 단점
 

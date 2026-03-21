@@ -13,16 +13,16 @@
 ### 1. 수동 polling 구현이 테스트 의도를 가린다
 
 As-Is:
-- helper 안에서 deadline 계산, 반복 조회, `Thread.sleep`, 인터럽트 처리를 직접 구현한다.
+- 보조 유틸 안에서 deadline 계산, 반복 조회, `Thread.sleep`, 인터럽트 처리를 직접 구현한다.
 - 실패 메시지는 "왜 기다렸는지"보다 최종 assertion 실패로만 드러난다.
 
 To-Be:
-- "비동기 저장이 끝날 때까지 기다린다"는 의도를 테스트 helper 수준에서 바로 읽을 수 있어야 한다.
+- "비동기 저장이 끝날 때까지 기다린다"는 의도를 테스트 보조 유틸 이름만 봐도 바로 읽을 수 있어야 한다.
 
 ### 2. timeout 실패 원인이 덜 선명하다
 
 As-Is:
-- helper timeout 후 `repository.findAll()`을 반환한다.
+- 보조 유틸 timeout 후 `repository.findAll()`을 반환한다.
 - 테스트 본문에서 `hasSize`가 깨져도 실제 원인이 대기 timeout인지, 잘못된 이벤트 저장인지 한 번 더 해석해야 한다.
 
 To-Be:
@@ -31,17 +31,17 @@ To-Be:
 ### 3. 같은 종류의 비동기 검증 기준이 필요하다
 
 As-Is:
-- 알림 로그처럼 비동기 side effect를 검증하는 테스트는 대기 helper를 쓰지만, 구현 방식은 라이브러리 도움 없이 직접 들고 간다.
+- 알림 로그처럼 비동기 부수 효과를 검증하는 테스트는 대기 보조 유틸을 쓰지만, 구현 방식은 라이브러리 도움 없이 직접 들고 간다.
 
 To-Be:
-- 비동기 side effect 완료 대기는 `Awaitility`를 공통 규칙으로 삼고, timeout 유도 자체가 목적인 테스트는 별도로 둔다.
+- 비동기 부수 효과 완료 대기는 `Awaitility`를 공통 규칙으로 삼고, timeout 유도 자체가 목적인 테스트는 별도로 둔다.
 
 ## 제안
 
-### Awaitility를 공통 helper 내부에 적용
+### Awaitility를 공통 보조 유틸 내부에 적용
 
 - `NotificationLogTestHelper.awaitLogCount()`는 `Awaitility.await().untilAsserted(...)`로 교체한다.
-- helper 호출부는 그대로 두어 테스트 본문 가독성을 유지한다.
+- 보조 유틸 호출부는 그대로 두어 테스트 본문 가독성을 유지한다.
 - polling 간격과 timeout은 기존 값(25ms / 2s)을 유지해 동작 특성만 보존한다.
 
 예시:
@@ -72,8 +72,8 @@ await()
 
 이유:
 
-- helper 구현이 간결해진다.
+- 보조 유틸 구현이 간결해진다.
 - timeout 시 진단 메시지가 더 직접적이다.
 - 기존 테스트 본문은 유지하면서 비동기 대기 정책만 공통화할 수 있다.
 
-반면 `CircuitBreakerPaymentProviderTest`의 `Thread.sleep`은 외부 PG timeout을 유도하는 fixture 성격이므로 Awaitility로 바꾸지 않는다.
+반면 `CircuitBreakerPaymentProviderTest`의 `Thread.sleep`은 외부 PG timeout을 일부러 만들기 위한 테스트용 지연 장치이므로 Awaitility로 바꾸지 않는다.
