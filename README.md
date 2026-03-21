@@ -41,9 +41,11 @@
 
 - 백엔드 아키텍처: 기존 `app` / `domain` / `infra` / `common` 멀티 모듈 구조는 유지하면서, `app` 내부에 `port/in`, `port/out`과 adapter 경계를 점진적으로 도입하는 헥사고날 전환을 진행 중이다.
 - 인증/세션: 회원 인증은 직접 세션 저장 구현에서 Spring Session + Redis 기반 `HG_SESSION`으로 전환했고, `CustomerAuthFilter`는 Spring Session filter 이후 사용자 ID를 읽는 구조로 정리했다.
+- 세션 저장소 정리: Spring Session + Redis 전환 이후 기존 DB 기반 `user_sessions` 테이블도 제거해 회원 세션 저장 책임을 Redis로 일원화했다.
 - 운영 세션/레이트리밋: 관리자 Bearer 세션 저장소와 `RateLimitFilter`도 인메모리/프로세스 로컬 상태에서 Redis 기반 저장소로 옮겨 다중 인스턴스 환경에 맞췄다.
 - 유스케이스 경계: `customer auth + guest claim` persistence pilot 이후 booking cancel/reschedule, pass purchase/expiry batch, pickup expire batch 등에서 controller/batch 진입점이 `UseCase` 포트를 통해 들어오도록 확장했다.
 - 포트/어댑터 확산: product, notification, payment, booking, order 도메인에 reader/store/external port를 도입하고, JPA/외부 연동 구현은 adapter로 분리하는 방향으로 수렴 중이다.
+- 8회권 정책 전환: 8회권 구매는 회원 전용으로 단일화했고, guest 소유 8회권/claim 지원은 제거해 `pass_purchases.guest_id` 의존을 없앴다.
 - guest access token: query param/평문 저장 방식에서 `X-Access-Token` 헤더 + SHA-256 해시 저장 방식으로 전환해 로그/Referer 노출과 원문 저장 위험을 줄였다.
 - 로깅 포맷: 운영(`prod`) 로그는 `LogstashEncoder` 기반 JSON 구조화 로그로 전환했고, 비운영(`!prod`)은 로컬 가독성을 위해 텍스트 로그를 유지한다.
 - 관측성: requestId 중심 로그만 두던 상태에서 Actuator + Prometheus + Grafana + Sentry + client funnel metric까지 붙여 운영 가시성을 단계적으로 보강했다.
@@ -84,7 +86,7 @@
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [IDEA-0001 ~ IDEA-0024](docs/Idea/) | `docs/Idea/` | 검토 메모, 후속 아이디어, 운영 가이드 문서 모음 |
+| [IDEA-0001 ~ IDEA-0026](docs/Idea/) | `docs/Idea/` | 검토 메모, 후속 아이디어, 운영 가이드 문서 모음 |
 
 ### 🧪 POC
 

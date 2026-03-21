@@ -22,6 +22,9 @@
 
 - 권장 작업 브랜치: `codex/work-20260319-000329`
 - 최근 작업:
+  - 중복 PasswordEncoder 설정 제거 — `CryptoConfig`와 동일한 `passwordEncoder` 빈을 다시 등록하던 `PasswordEncoderConfig`를 제거해 Spring 테스트 컨텍스트의 `BeanDefinitionOverrideException` 충돌을 해소
+  - 알림 비동기 테스트 대기 정리 — `NotificationLogTestHelper`를 Awaitility 기반으로 전환하고, 알림 로그 저장 완료를 기다리는 테스트는 공통 helper를 계속 사용하도록 정리했으며 적용 판단 기준을 `docs/Idea/0026_awaitility-for-async-test-waits/idea.md`에 기록
+  - bootJar 패키징 검토 메모 추가 — `:app:bootJar`에 `common`, `domain`은 포함되지만 `infra`는 포함되지 않는 현재 구조와, 실행 전용 bootstrap 모듈 분리 후보를 `docs/Idea/0025_bootjar-bootstrap-module-packaging/idea.md`에 기록
   - 픽업 마감 알림 배치 + 실알림 어댑터 기반 추가 — 매시간 `pickupDeadlineAt` 기준 2시간 이내 `PICKUP_READY` 주문에 알림을 보내는 배치를 추가했고, prod 프로필에서는 카카오 알림톡/NHN SMS 실제 sender를 사용하고 비운영에서는 fake sender를 유지하도록 분리했으며 관련 외부 설정 키와 문서 인덱스를 갱신
   - 테스트 전략 ADR 승격 — 커버리지 수치보다 비즈니스 검증/문서화와 최소 테스트 세트를 우선하는 기준, 테스트/문서의 절대량 자체를 줄여 장기 관리 비용을 통제해야 한다는 원칙, 유스케이스/도메인 정책/직렬화·역직렬화 테스트 분류를 `ADR-0027`로 승격하고 기존 `docs/Idea/0003_*`는 배경 메모로 축소
   - `@UseCaseIT` 고정 Clock 기준선 추가 — test 컨텍스트에서 Asia/Seoul 고정 `Clock`을 `@Primary`로 주입하고, `PassPurchaseUseCaseIT`·`BookingCancelUseCaseIT`·`BookingRescheduleUseCaseIT`·`PassCreditUsageUseCaseIT`·`RefundExecutionServiceUseCaseIT`의 벽시계(`now()`) 의존을 주입 Clock 기준으로 정리해 시간 경계 테스트를 결정적으로 맞춤
@@ -176,7 +179,8 @@
 - Playwright smoke spec은 현재 사용자 여정 기준 4개 파일(`admin-product-order.smoke.spec.ts`, `guest-booking-pass.smoke.spec.ts`, `member-self-service.smoke.spec.ts`, `guest-claim-onboarding.smoke.spec.ts`)로 나뉘어 있고, 시나리오 번호 `P8-1`~`P8-9`는 그대로 유지한다.
 - `P8-8`은 guest 주문·예약을 만든 뒤, 같은 번호의 회원이 `/my` 모달에서 재인증 후 claim 하는 흐름을 검증한다.
 - `P8-9`는 guest 주문 성공 화면에서 회원가입으로 넘어가 휴대폰/이름 prefill과 `/my` claim 모달 자동 오픈을 검증한다.
-- 기본 관리자 계정: `admin` / `admin1234` (Flyway V11로 정합화)
+- local 기본 관리자 계정: `admin` / `admin1234` (`LocalAdminSeedService`, `@Profile("local")`)
+- 프로덕션 관리자 계정은 Flyway에 포함하지 않고 별도 bootstrap 절차를 전제로 한다.
 - 개발/테스트에서는 `X-Admin-Key` 폴백 가능 (`enable-api-key-auth=true`)
 - 회원 세션은 Spring Session + Redis를 사용하며, 쿠키 이름 `HG_SESSION` 계약은 유지한다. `CustomerAuthController`는 로그인/회원가입 시 세션의 `customerUserId`를 기록하고, `CustomerAuthFilter`는 Spring Session filter 이후 실행되며 세션 사용자 ID로 DB 조회를 수행한다.
 - 관리자 Bearer 세션(`AdminSessionStore`)과 `RateLimitFilter`도 Redis를 사용한다. 로컬 기본 Redis 주소는 `localhost:6379`, docker compose 앱 컨테이너는 `REDIS_HOST=redis`로 연결한다.
@@ -212,6 +216,7 @@ cd frontend && npm run e2e
 
 ### 미해결 과제
 - 로컬 `bootRun` 전 `happygallery-app` 컨테이너가 떠 있으면 8080 충돌 발생
+- 현재 `:app:bootJar`는 `common`, `domain`은 포함하지만 `infra`는 포함하지 않는다. `app` 단독 실행 산출물로 유지할지, bootstrap 모듈을 분리해 최종 조립을 맡길지 검토 필요 (`docs/Idea/0025_bootjar-bootstrap-module-packaging/idea.md`)
 - PG 환불 패턴 중복 → 실 PG 연동 시 RefundExecutor로 통합 예정
 - ~~공개 주문 상세 `fulfillment.status` 계약 drift 정리 필요~~ (CR-P6에서 FE/BE 정합)
 - ~~`X-Admin-Id` 헤더 의존 제거 전까지 운영 이력의 admin 식별자가 null/위조 가능~~ (CR-P6에서 Bearer 세션 attribute 기반으로 전환)
