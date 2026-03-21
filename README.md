@@ -72,63 +72,37 @@
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [Core MVP Specification](docs/PRD/0001_spec/spec.md) | `docs/PRD/0001_spec/` | 전체 시스템의 기능 요구사항 정의서 |
-| [Member Store Transition](docs/PRD/0002_member_store_transition/spec.md) | `docs/PRD/0002_member_store_transition/` | 회원 인증·스토어 전환 차기 요구사항 |
-| [Out Of Scope](docs/PRD/0003_out_of_scope/scope.md) | `docs/PRD/0003_out_of_scope/` | 초기 버전에서 명시적으로 제외하는 범위 |
-| [API Contract Baseline](docs/PRD/0004_api_contract/spec.md) | `docs/PRD/0004_api_contract/` | 요청/응답 예시, 에러 포맷, v1 API 계약 기준 문서 |
+| [PRD-0001 ~ PRD-0004](docs/PRD/) | `docs/PRD/` | 제품 요구사항, 범위, API 계약 기준 문서 모음 |
 
 ### 🧱 ADR
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| `ADR-0001` ~ `ADR-0026` | `docs/ADR/` | 데이터 모델, 상태 전이, 결제, 인증, 운영, 테스트 기준, 헥사고날 전환 등 기술 결정 |
+| [ADR-0001 ~ ADR-0027](docs/ADR/) | `docs/ADR/` | 데이터 모델, 인증, 운영, 테스트, 아키텍처 결정 기록 |
 
 ### 💡 Idea
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [JSON + Generated Column](docs/Idea/0001_json-generated-column-consideration/idea.md) | `docs/Idea/0001_json-generated-column-consideration/` | 가변 속성 저장 패턴 검토 |
-| [Bulkhead (Resilience4j)](docs/Idea/0002_bulkhead-resilience4j-consideration/idea.md) | `docs/Idea/0002_bulkhead-resilience4j-consideration/` | 외부 호출 격리 전략 검토 |
-| [테스트 전략 및 assertion 작성 규칙](docs/Idea/0003_test-strategy-and-assertion-guidelines/idea.md) | `docs/Idea/0003_test-strategy-and-assertion-guidelines/` | PRD에서 분리한 테스트 철학, 최소 세트, `SoftAssertions.assertSoftly` 규칙 |
-| [관리자 인증 세션 확장 검토](docs/Idea/0004_admin-auth-session-scaling/idea.md) | `docs/Idea/0004_admin-auth-session-scaling/` | 인메모리 관리자 세션의 수평 확장 시 대안 비교 메모 |
-| [Guest Token Signed Expiry 전환](docs/Idea/0005_guest-token-signed-expiry/idea.md) | `docs/Idea/0005_guest-token-signed-expiry/` | guest access token의 만료·서명 방식 후속 개선 메모 |
-| [local/dev 지원 기능 경계](docs/Idea/0009_local-dev-support-boundary/idea.md) | `docs/Idea/0009_local-dev-support-boundary/` | local 전용 seed/dev hook/지원 API의 경계와 운영 규율을 정리한 메모 |
-| [ConfigurationProperties 기반 설정 바인딩 정리](docs/Idea/0010_configuration-properties-binding-guideline/idea.md) | `docs/Idea/0010_configuration-properties-binding-guideline/` | 이미 적용된 설정 바인딩 패턴과 이후 확장 기준 메모 |
-| [OAuth 로그인 도입 검토](docs/Idea/0011_oauth-login-adoption-consideration/idea.md) | `docs/Idea/0011_oauth-login-adoption-consideration/` | 기존 이메일 회원, guest claim, 전화번호 인증 흐름과의 연결 정책 검토 메모 |
-| [폼 접근성 향상 가이드](docs/Idea/0012_form-accessibility-guideline/idea.md) | `docs/Idea/0012_form-accessibility-guideline/` | `controlId` 기반 라벨-입력 연결과 이후 폼 접근성 유지 기준 메모 |
-| [회원 세션의 Spring Session 전환](docs/Idea/0013_member-session-spring-session-consideration/idea.md) | `docs/Idea/0013_member-session-spring-session-consideration/` | `HG_SESSION` 계약을 유지한 채 Spring Session + Redis로 전환한 배경과 적용 메모 |
-| [테스트 컨텍스트 공유와 프로파일 분리](docs/Idea/0014_test-context-sharing-and-profile-separation/idea.md) | `docs/Idea/0014_test-context-sharing-and-profile-separation/` | Spring Boot 4.0 테스트 컨텍스트 비용과 `test` 프로파일 정렬 기준 메모 |
-| [Redis 도입 — 다중 인스턴스 대응](docs/Idea/0015_redis-introduction-for-multi-instance/idea.md) | `docs/Idea/0015_redis-introduction-for-multi-instance/` | 회원 세션, 관리자 세션, rate limit의 Redis 전환 배경과 적용 메모 |
-| [금액 타입 도입 검토](docs/Idea/0016_money-type-adoption-consideration/idea.md) | `docs/Idea/0016_money-type-adoption-consideration/` | 현재 `long` 기반 금액 표현을 유지할지 별도 Money 타입을 둘지 검토한 메모 |
-| [Spring Batch 마이그레이션 검토](docs/Idea/0017_spring-batch-migration-consideration/idea.md) | `docs/Idea/0017_spring-batch-migration-consideration/` | 현재 커스텀 배치를 유지할 이유와 Spring Batch 재검토 조건을 정리한 메모 |
-| [8회권 구매 회원 전용 전환](docs/Idea/0018_pass-member-only-purchase/idea.md) | `docs/Idea/0018_pass-member-only-purchase/` | 비회원 8회권 구매 경로를 제거하고 회원 전용으로 단순화할지 검토한 메모 |
-| [기능 롤아웃 및 canonical route 체크리스트](docs/Idea/0020_feature-rollout-and-canonical-route-checklist/idea.md) | `docs/Idea/0020_feature-rollout-and-canonical-route-checklist/` | 공개 경로, alias 종료 시점, 문서/E2E/운영 지표를 함께 정리하는 기준 메모 |
-| [Controller 경계와 Query Facade 정리 가이드](docs/Idea/0021_controller-boundary-and-query-facade-guideline/idea.md) | `docs/Idea/0021_controller-boundary-and-query-facade-guideline/` | controller 책임을 HTTP 매핑 중심으로 제한하고 읽기 조합을 facade로 내리는 기준 메모 |
+| [IDEA-0001 ~ IDEA-0023](docs/Idea/) | `docs/Idea/` | 검토 메모, 후속 아이디어, 운영 가이드 문서 모음 |
 
 ### 🧪 POC
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [PaymentProvider CircuitBreaker 적용 POC](docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md) | `docs/POC/0001_payment-provider-circuit-breaker-rollout/` | 결제 환불 경계의 CircuitBreaker/TimeLimiter 적용 실험과 결과 |
+| [POC-0001](docs/POC/) | `docs/POC/` | 실험 결과와 적용 판단 기록 |
 
 ### 🔁 Retrospective
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [기반 선행 구축 회고](docs/Retrospective/0001_bootstrap-foundation-retrospective/retrospective.md) | `docs/Retrospective/0001_bootstrap-foundation-retrospective/` | 프로필/문서/마이그레이션/CI/테스트 기반을 먼저 깔았을 때의 효과 회고 |
-| [vertical slice delivery 방식 회고](docs/Retrospective/0002_vertical-slice-delivery-pattern/retrospective.md) | `docs/Retrospective/0002_vertical-slice-delivery-pattern/` | 기능을 도메인별 slice로 완성한 방식의 효과와 한계 회고 |
-| [multi-step 흐름 E2E와 canonical route 안정화 회고](docs/Retrospective/0003_multistep-flow-e2e-and-route-stabilization/retrospective.md) | `docs/Retrospective/0003_multistep-flow-e2e-and-route-stabilization/` | guest/member 전환 흐름에서 브라우저 smoke와 경로 기준이 준 효과 회고 |
-| [기능 성장 후 관측성 보강 회고](docs/Retrospective/0004_observability-retrofit-after-feature-growth/retrospective.md) | `docs/Retrospective/0004_observability-retrofit-after-feature-growth/` | requestId에서 메트릭/대시보드/Sentry까지 확장한 운영 보강 회고 |
-| [guest/member 흐름 수렴 회고](docs/Retrospective/0005_guest-member-flow-convergence/retrospective.md) | `docs/Retrospective/0005_guest-member-flow-convergence/` | guest 중심 공개 흐름 위에 member/claim 흐름이 쌓이면서 생긴 구조 변화 회고 |
-| [query facade와 운영 경계 정리 회고](docs/Retrospective/0006_query-facade-and-ops-boundary-alignment/retrospective.md) | `docs/Retrospective/0006_query-facade-and-ops-boundary-alignment/` | controller/query 조합 책임과 운영 경계가 뒤늦게 정리된 패턴 회고 |
-| [문서 동기화와 canonical route 운영 규율 회고](docs/Retrospective/0007_document-sync-and-canonical-route-discipline/retrospective.md) | `docs/Retrospective/0007_document-sync-and-canonical-route-discipline/` | 문서와 공개 경로 기준을 늦게 정리할 때의 비용 회고 |
-| [local/dev 지원 기능 경계 회고](docs/Retrospective/0008_local-dev-support-boundary/retrospective.md) | `docs/Retrospective/0008_local-dev-support-boundary/` | local 전용 seed/dev hook/지원 API가 늘어나며 생긴 경계 문제 회고 |
+| [RETRO-0001 ~ RETRO-0008](docs/Retrospective/) | `docs/Retrospective/` | 구현 후 교훈, 운영 회고, 패턴 정리 문서 모음 |
 
 ### 📄 1Pager
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [1Pager Guide](docs/1Pager/README.md) | `docs/1Pager/` | 이해관계자 공유용 한 장 요약 문서 카테고리 안내 |
+| [1PAGER-README](docs/1Pager/) | `docs/1Pager/` | 한 장 요약 문서 카테고리 안내 |
 
 문서 운영 규칙:
 - 세션성 인수인계 메모와 활성 실행 계획은 README 문서 목록에서 관리하지 않는다.
@@ -142,7 +116,7 @@
   - 상품 목록/상세
   - 회원가입 / 로그인
   - 제출 직전 인증 게이트 기반 예약 생성
-  - 제출 직전 인증 게이트 기반 8회권 구매
+  - 회원 전용 8회권 구매 (`/passes/purchase`, 비로그인 시 로그인 리다이렉트)
   - 상품 상세에서 회원 주문 생성
   - legacy 비회원 주문 fallback (`/orders/new`, 상품/수량 prefill 지원, direct entry는 수동 fallback gate 후 진행)
   - 비회원 조회 허브 (`/guest`)
@@ -233,15 +207,16 @@
 
 ### 3. 백엔드 실행 방식
 
-MySQL만 Docker로 띄우고 앱은 로컬에서 실행:
+MySQL, Redis만 Docker로 띄우고 앱은 로컬에서 실행:
 
 ```bash
-docker compose up -d mysql
+docker compose up -d mysql redis
 docker compose stop app
 ./gradlew :app:bootRun
 ```
 
 - 이미 `docker compose up -d --build`로 앱 컨테이너가 떠 있다면, 로컬 `bootRun` 전에 `docker compose stop app`으로 8080 충돌을 먼저 해소한다.
+- 회원 세션, 관리자 Bearer 세션, rate limit 저장소가 모두 Redis를 사용하므로 로컬 `bootRun`에도 Redis(`localhost:6379`)가 필요하다.
 - `local` 프로필로 `bootRun`하면 `classes` 테이블이 비어 있을 때 기본 클래스 3종(향수/우드/니트)을 자동 seed한다.
 
 MySQL + 앱 컨테이너를 함께 실행:
@@ -280,6 +255,7 @@ npm run dev
 - 유스케이스 통합 테스트: `./gradlew --no-daemon :app:useCaseTest`
 - 단일 테스트 예시:
   - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.OrderApprovalUseCaseIT`
+- `@UseCaseIT`는 MySQL/Redis Testcontainers와 함께 고정 `Clock`(Asia/Seoul)을 써서 시간 경계 테스트가 벽시계에 흔들리지 않도록 한다.
 
 ### 프론트
 
@@ -300,7 +276,8 @@ E2E 참고:
 - Playwright 관리자 로그인 기본값은 `admin` / `admin1234`이며, 필요하면 `PLAYWRIGHT_ADMIN_USERNAME`, `PLAYWRIGHT_ADMIN_PASSWORD`로 덮어쓴다.
 - 백엔드 기준 URL을 바꾸려면 `PLAYWRIGHT_BACKEND_URL`을 사용한다.
 - 현재 smoke 범위는 admin/order 1·4·5, guest booking/pass 2·3, member self-service 6·7, guest claim/onboarding 8·9이며, `P8-7`은 회원 예약 상세/변경/취소, `P8-8`은 guest claim, `P8-9`는 guest 성공 화면에서 회원가입 후 claim 모달 자동 진입까지 포함한다.
-- `/bookings/new`, `/passes/purchase`는 첫 화면에서 인증하지 않고 제출 직전에 auth gate를 연다.
+- `/bookings/new`는 첫 화면에서 인증하지 않고 제출 직전에 auth gate를 연다.
+- `/passes/purchase`는 비로그인 사용자를 로그인으로 보내고, 로그인한 회원만 구매를 진행한다.
 - 상품 상세의 `비회원 주문하기`는 `/orders/new?productId=&qty=`로 이동해 선택한 상품과 수량을 prefill 한다.
 - 비회원 진입 허브는 `/guest`이고, canonical guest 조회 경로는 `/guest/orders`, `/guest/bookings`이며 생성 후 확인용 보조 경로로 유지한다.
 

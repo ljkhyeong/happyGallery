@@ -22,13 +22,15 @@
 
 - 권장 작업 브랜치: `codex/work-20260319-000329`
 - 최근 작업:
+  - 테스트 전략 ADR 승격 — 커버리지 수치보다 비즈니스 검증/문서화와 최소 테스트 세트를 우선하는 기준, 테스트/문서의 절대량 자체를 줄여 장기 관리 비용을 통제해야 한다는 원칙, 유스케이스/도메인 정책/직렬화·역직렬화 테스트 분류를 `ADR-0027`로 승격하고 기존 `docs/Idea/0003_*`는 배경 메모로 축소
+  - `@UseCaseIT` 고정 Clock 기준선 추가 — test 컨텍스트에서 Asia/Seoul 고정 `Clock`을 `@Primary`로 주입하고, `PassPurchaseUseCaseIT`·`BookingCancelUseCaseIT`·`BookingRescheduleUseCaseIT`·`PassCreditUsageUseCaseIT`·`RefundExecutionServiceUseCaseIT`의 벽시계(`now()`) 의존을 주입 Clock 기준으로 정리해 시간 경계 테스트를 결정적으로 맞춤
   - guest 소유 8회권 제거 — `PassPurchase.guest`/guest claim pass/guest pass booking을 제거하고, 만료 알림을 회원 기준으로 전환했으며 `pass_purchases.guest_id` 제거 migration(V21)과 관련 테스트·문서를 함께 정리
   - `@UseCaseIT` DI 기준 보정 — 포트가 있는 act 경계는 concrete 구현체 대신 `MockMvc` 또는 `port.in UseCase` 타입으로 맞추고, service 직접 주입은 포트가 없는 fixture/support 용도만 허용하는 기준을 `PassPurchaseUseCaseIT`부터 반영
   - graceful shutdown 운영 기준 문서화 — `ADR-0025`에 Spring graceful shutdown 30초, 알림 `ThreadPoolTaskExecutor` drain 정책, PG timeout executor 2초 종료 정책을 정리
   - 문서 인덱스/인수인계 보정 — `README.md` Idea 목록을 실제 파일 기준으로 정리하고, `HANDOFF.md` 프론트 경로/문의 흐름 요약을 구현 상태에 맞게 갱신
   - 배치 마이그레이션 검토 메모 추가 — `docs/Idea/0017_spring-batch-migration-consideration/idea.md`에 현행 커스텀 배치 유지 판단과 Spring Batch 재검토 조건을 기록
   - spec 분리 2차 — core `docs/PRD/0001_spec/spec.md`에서 API 카탈로그/에러 계약을 `docs/PRD/0004_api_contract/spec.md`로, 시스템 경계·상태/스키마 기준과 관리자 인증·런타임 기준을 `ADR-0022`, `ADR-0023`으로 분리
-  - PRD 경량화 — `docs/PRD/0001_spec/spec.md`에서 테스트 전략/`SoftAssertions.assertSoftly` 규칙과 관리자 인증 확장 검토를 분리하고, `docs/Idea/0003_*`, `docs/Idea/0004_*` 문서로 이동
+  - PRD 경량화 — `docs/PRD/0001_spec/spec.md`에서 테스트 전략/`SoftAssertions.assertSoftly` 규칙과 관리자 인증 확장 검토를 분리했고, 현재 테스트 전략은 `ADR-0027`, 관리자 인증 확장 검토는 `docs/Idea/0004_*`에서 관리한다
   - 문서 체계 재정리 — 활성 실행 계획은 루트 `plan.md`로 통합, 완료된 `docs/1Pager` 실행 계획 문서는 제거, `docs/POC/0001_payment-provider-circuit-breaker-rollout/poc.md`를 추가하고 `README.md` 문서 목록을 현재 구조 기준으로 재작성
   - Redis 기반 세션/레이트리밋 전환 완료 — 회원 세션을 Spring Session + Redis(`HG_SESSION`)로 전환하고 `user_sessions` 의존을 제거했으며, 관리자 Bearer 세션과 `RateLimitFilter`도 Redis 저장소로 옮겨 다중 인스턴스 대응을 맞춤
   - 통합 테스트 프로필/컨텍스트 정리 완료 — `@UseCaseIT`가 `test` 프로파일을 기본 사용하도록 정리하고, `AdminSlotUseCaseIT`를 포함한 필터 검증 테스트를 수동 `MockMvc` 조립 패턴으로 맞춰 불필요한 컨텍스트 분리를 줄임
@@ -143,6 +145,7 @@
 
 ### Spring Boot 4.0 특이사항
 - `@UseCaseIT`는 현재 `@AutoConfigureMockMvc(addFilters = false)` 기반으로 유지 중
+- `@UseCaseIT`의 `test` 컨텍스트는 `TestcontainersConfig`에서 Asia/Seoul 고정 `Clock`을 `@Primary`로 제공한다. 시간 관련 fixture는 `LocalDateTime.now(clock)` 또는 `LocalDate.now(clock)` 기준으로 맞추는 편이 안전하다.
 - `@SpringBootTest` 컨텍스트에서 `ObjectMapper` autowire 불가 → JSON 문자열 직접 구성
 - Codex 샌드박스에서는 Gradle JVM 명령이 `FileLockContentionHandler` 소켓 생성 제한에 걸릴 수 있어, 테스트와 `:app:bootRun`은 처음부터 권한 상승 실행으로 처리하는 편이 안정적
 - 동일하게 `gh pr *`, 원격 `git fetch/push/pull`, Docker 컨테이너 제어, Playwright 브라우저 설치/실행, 워크스페이스 밖 경로 쓰기처럼 반복적으로 막혔던 작업도 샌드박스 재시도 없이 처음부터 권한 상승 실행으로 처리한다.
