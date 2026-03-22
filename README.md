@@ -47,7 +47,7 @@
 - 인터페이스 분리: 상품, 알림, 결제, 예약, 주문 영역에서 조회/저장/외부 연동 인터페이스를 나눴다. JPA와 외부 연동 구현은 별도 구현 클래스로 둔다.
 - 8회권: guest 소유 8회권을 없애고 회원 전용 구매로 단일화했다. `pass_purchases.guest_id`도 제거했다.
 - guest 토큰: URL query와 평문 저장을 걷어내고 `X-Access-Token` 헤더 + SHA-256 해시 저장으로 바꿨다.
-- 로그: `prod`는 JSON 구조화 로그를 쓰고, `local`/`test`는 읽기 쉬운 텍스트 로그를 유지한다.
+- 로그: `prod`는 JSON 구조화 로그를 쓰고, `local`/`test`는 읽기 쉬운 텍스트 로그를 유지한다. 전화번호, Bearer 토큰, 세션 토큰, access token은 로그 출력 전에 마스킹한다.
 - 관측성: requestId 로그만 보던 상태에서 Actuator, Prometheus, Grafana, Sentry를 붙였다. 지금은 서버 상태와 client funnel 지표를 함께 본다.
 - 테스트: `@UseCaseIT`는 MySQL/Redis Testcontainers와 고정 `Clock`을 사용한다. 시간 경계와 Redis 의존 흐름을 운영과 가깝게 검증한다.
 - 배치: Spring Batch로는 아직 옮기지 않았다. 현재는 커스텀 배치를 유지한다.
@@ -80,13 +80,13 @@
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [ADR-0001 ~ ADR-0027](docs/ADR/) | `docs/ADR/` | 데이터 모델, 인증, 운영, 테스트, 아키텍처 결정 기록 |
+| [ADR-0001 ~ ADR-0028](docs/ADR/) | `docs/ADR/` | 데이터 모델, 인증, 운영, 테스트, 아키텍처 결정 기록 |
 
 ### 💡 Idea
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [IDEA-0001 ~ IDEA-0026](docs/Idea/) | `docs/Idea/` | 검토 메모, 후속 아이디어, 운영 가이드 문서 모음 |
+| [IDEA-0001 ~ IDEA-0028](docs/Idea/) | `docs/Idea/` | 검토 메모, 후속 아이디어, 운영 가이드 문서 모음 |
 
 ### 🧪 POC
 
@@ -221,6 +221,7 @@ MySQL + 앱 컨테이너를 함께 실행:
 docker compose up -d --build
 ```
 
+- `nginx`: `http://localhost` (frontend `dist` 정적 파일 + `/api` 리버스 프록시)
 - `prometheus`: `http://localhost:9090`
 - `grafana`: `http://localhost:3001` (`GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`; 사용자명 기본값은 `admin`)
 

@@ -12,7 +12,11 @@ import java.util.List;
  */
 public interface OrderQueryUseCase {
 
-    record OrderDetail(Order order, List<OrderItem> items, Fulfillment fulfillment) {}
+    record OrderDetail(Order order, List<OrderItem> items, Fulfillment fulfillment) {
+        public OrderDetail {
+            items = List.copyOf(items);
+        }
+    }
 
     List<Order> listMyOrders(Long userId);
 

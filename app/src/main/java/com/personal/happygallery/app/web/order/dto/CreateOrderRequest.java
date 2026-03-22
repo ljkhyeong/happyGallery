@@ -13,6 +13,10 @@ public record CreateOrderRequest(
         @NotBlank String name,
         @NotEmpty @Valid List<OrderItemDto> items
 ) {
+    public CreateOrderRequest {
+        items = items == null ? null : List.copyOf(items);
+    }
+
     public record OrderItemDto(
             @Positive Long productId,
             @Positive int qty

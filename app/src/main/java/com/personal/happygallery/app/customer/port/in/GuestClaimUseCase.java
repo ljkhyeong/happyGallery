@@ -18,7 +18,12 @@ public interface GuestClaimUseCase {
 
     record ClaimPreview(boolean phoneVerified,
                         List<ClaimOrderSummary> orders,
-                        List<ClaimBookingSummary> bookings) {}
+                        List<ClaimBookingSummary> bookings) {
+        public ClaimPreview {
+            orders = orders == null ? List.of() : List.copyOf(orders);
+            bookings = bookings == null ? List.of() : List.copyOf(bookings);
+        }
+    }
 
     record ClaimOrderSummary(Long orderId, String status, long totalAmount, LocalDateTime createdAt) {
         public static ClaimOrderSummary from(Order order) {
