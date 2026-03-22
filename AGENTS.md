@@ -62,7 +62,7 @@
 - `simple-idea.md`는 `As-Is | To-Be` 두 열 표로 한 줄씩 누적
 - 완료된 임시 실행 계획은 `docs/1Pager`에 남기지 않음
 - 오래 유지해야 하는 문서만 `docs/<Category>/0001_<topic>` 형식으로 관리
-- 기준 스펙 문서는 `docs/PRD/0001_spec/spec.md`
+- 기준 스펙 문서는 `docs/PRD/0001_기준_스펙/spec.md`
 - 요구사항 변경은 PRD와 구현 동시 갱신, 설계 변경은 ADR도 함께 검토
 - 회고 문서는 `docs/Retrospective`에 기록
 - 문서는 추상어·내부 은어보다 사용자 기준 표현과 구현 실체를 먼저 쓰고, 현재 상태와 변경 전후가 짧게 바로 읽히게 적는다.
