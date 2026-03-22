@@ -25,7 +25,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 /**
  * [UseCaseIT] 슬롯 정원(8명) 강제 + 뒤쪽 버퍼 비활성화 검증.
  *
- * <p>Proof (docs/1Pager/0000_project_plan/plan.md §5.1): 같은 슬롯에 9번째 예약 시도는 실패로 귀결.
+ * <p>Proof (docs/PRD/0001_기준_스펙/spec.md §5.1): 같은 슬롯에 9번째 예약 시도는 실패로 귀결.
  */
 @UseCaseIT
 class SlotBookingCapacityUseCaseIT {

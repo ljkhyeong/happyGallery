@@ -31,7 +31,10 @@
       "Read(//Users/lim/.docker/run/**)",
       "Bash(docker context:*)",
       "Bash(echo \"DOCKER_HOST=$DOCKER_HOST\")",
-      "Bash(nc -z -w1 -U /var/run/docker.sock)"
+      "Bash(nc -z -w1 -U /var/run/docker.sock)",
+      "Bash(cat /Users/lim/Desktop/devProject/personal/happyGallery/app/build/test-results/useCaseTest/*.xml)",
+      "Bash(mkdir -p /Users/lim/Desktop/devProject/personal/happyGallery/.claude/skills/happygallery-documentation-flows)",
+      "Bash(mkdir -p /Users/lim/Desktop/devProject/personal/happyGallery/.claude/skills/happygallery-observability-flows)"
     ]
   },
   "sandbox": {
