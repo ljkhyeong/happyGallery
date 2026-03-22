@@ -1,30 +1,77 @@
+import { Suspense, lazy, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Container } from "react-bootstrap";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/shared/api";
-import { Layout, ToastProvider } from "@/shared/ui";
+import { Layout, LoadingSpinner, ToastProvider } from "@/shared/ui";
 import { HomePage } from "@/pages/HomePage";
-import { AdminPage } from "@/pages/admin/AdminPage";
 import { BookingCreatePage } from "@/pages/BookingCreatePage";
-import { BookingManagePage } from "@/pages/BookingManagePage";
 import { ProductListPage } from "@/pages/ProductListPage";
 import { ProductDetailPage } from "@/pages/ProductDetailPage";
-import { PassPurchasePage } from "@/pages/PassPurchasePage";
 import { OrderCreatePage } from "@/pages/OrderCreatePage";
-import { OrderDetailPage } from "@/pages/OrderDetailPage";
-import { LoginPage } from "@/pages/LoginPage";
-import { SignupPage } from "@/pages/SignupPage";
-import { MyPage } from "@/pages/MyPage";
-import { MyOrdersPage } from "@/pages/MyOrdersPage";
-import { MyBookingsPage } from "@/pages/MyBookingsPage";
-import { MyPassesPage } from "@/pages/MyPassesPage";
-import { GuestLookupPage } from "@/pages/GuestLookupPage";
-import { MyBookingDetailPage } from "@/pages/MyBookingDetailPage";
-import { MyOrderDetailPage } from "@/pages/MyOrderDetailPage";
-import { MyInquiriesPage } from "@/pages/MyInquiriesPage";
-import { MyInquiryCreatePage } from "@/pages/MyInquiryCreatePage";
-import { NotFoundPage } from "@/pages/NotFoundPage";
 import { CustomerAuthProvider } from "@/features/customer-auth/useCustomerAuth";
 import "@/styles/global.scss";
+
+const GuestLookupPage = lazy(() =>
+  import("@/pages/GuestLookupPage").then((module) => ({ default: module.GuestLookupPage })),
+);
+const BookingManagePage = lazy(() =>
+  import("@/pages/BookingManagePage").then((module) => ({ default: module.BookingManagePage })),
+);
+const PassPurchasePage = lazy(() =>
+  import("@/pages/PassPurchasePage").then((module) => ({ default: module.PassPurchasePage })),
+);
+const OrderDetailPage = lazy(() =>
+  import("@/pages/OrderDetailPage").then((module) => ({ default: module.OrderDetailPage })),
+);
+const MyPage = lazy(() =>
+  import("@/pages/MyPage").then((module) => ({ default: module.MyPage })),
+);
+const MyOrdersPage = lazy(() =>
+  import("@/pages/MyOrdersPage").then((module) => ({ default: module.MyOrdersPage })),
+);
+const MyBookingsPage = lazy(() =>
+  import("@/pages/MyBookingsPage").then((module) => ({ default: module.MyBookingsPage })),
+);
+const MyBookingDetailPage = lazy(() =>
+  import("@/pages/MyBookingDetailPage").then((module) => ({ default: module.MyBookingDetailPage })),
+);
+const MyOrderDetailPage = lazy(() =>
+  import("@/pages/MyOrderDetailPage").then((module) => ({ default: module.MyOrderDetailPage })),
+);
+const MyPassesPage = lazy(() =>
+  import("@/pages/MyPassesPage").then((module) => ({ default: module.MyPassesPage })),
+);
+const MyInquiriesPage = lazy(() =>
+  import("@/pages/MyInquiriesPage").then((module) => ({ default: module.MyInquiriesPage })),
+);
+const MyInquiryCreatePage = lazy(() =>
+  import("@/pages/MyInquiryCreatePage").then((module) => ({ default: module.MyInquiryCreatePage })),
+);
+const LoginPage = lazy(() =>
+  import("@/pages/LoginPage").then((module) => ({ default: module.LoginPage })),
+);
+const SignupPage = lazy(() =>
+  import("@/pages/SignupPage").then((module) => ({ default: module.SignupPage })),
+);
+const AdminPage = lazy(() =>
+  import("@/pages/admin/AdminPage").then((module) => ({ default: module.AdminPage })),
+);
+const NotFoundPage = lazy(() =>
+  import("@/pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })),
+);
+
+function RouteFallback() {
+  return (
+    <Container className="page-container">
+      <LoadingSpinner />
+    </Container>
+  );
+}
+
+function LazyRoute({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+}
 
 export function App() {
   return (
@@ -38,23 +85,23 @@ export function App() {
                 <Route path="/products" element={<ProductListPage />} />
                 <Route path="/products/:id" element={<ProductDetailPage />} />
                 <Route path="/bookings/new" element={<BookingCreatePage />} />
-                <Route path="/guest" element={<GuestLookupPage />} />
-                <Route path="/guest/bookings" element={<BookingManagePage />} />
-                <Route path="/passes/purchase" element={<PassPurchasePage />} />
+                <Route path="/guest" element={<LazyRoute><GuestLookupPage /></LazyRoute>} />
+                <Route path="/guest/bookings" element={<LazyRoute><BookingManagePage /></LazyRoute>} />
+                <Route path="/passes/purchase" element={<LazyRoute><PassPurchasePage /></LazyRoute>} />
                 <Route path="/orders/new" element={<OrderCreatePage />} />
-                <Route path="/guest/orders" element={<OrderDetailPage />} />
-                <Route path="/my" element={<MyPage />} />
-                <Route path="/my/orders" element={<MyOrdersPage />} />
-                <Route path="/my/bookings/:id" element={<MyBookingDetailPage />} />
-                <Route path="/my/bookings" element={<MyBookingsPage />} />
-                <Route path="/my/orders/:id" element={<MyOrderDetailPage />} />
-                <Route path="/my/passes" element={<MyPassesPage />} />
-                <Route path="/my/inquiries" element={<MyInquiriesPage />} />
-                <Route path="/my/inquiries/new" element={<MyInquiryCreatePage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/signup" element={<SignupPage />} />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="*" element={<NotFoundPage />} />
+                <Route path="/guest/orders" element={<LazyRoute><OrderDetailPage /></LazyRoute>} />
+                <Route path="/my" element={<LazyRoute><MyPage /></LazyRoute>} />
+                <Route path="/my/orders" element={<LazyRoute><MyOrdersPage /></LazyRoute>} />
+                <Route path="/my/bookings/:id" element={<LazyRoute><MyBookingDetailPage /></LazyRoute>} />
+                <Route path="/my/bookings" element={<LazyRoute><MyBookingsPage /></LazyRoute>} />
+                <Route path="/my/orders/:id" element={<LazyRoute><MyOrderDetailPage /></LazyRoute>} />
+                <Route path="/my/passes" element={<LazyRoute><MyPassesPage /></LazyRoute>} />
+                <Route path="/my/inquiries" element={<LazyRoute><MyInquiriesPage /></LazyRoute>} />
+                <Route path="/my/inquiries/new" element={<LazyRoute><MyInquiryCreatePage /></LazyRoute>} />
+                <Route path="/login" element={<LazyRoute><LoginPage /></LazyRoute>} />
+                <Route path="/signup" element={<LazyRoute><SignupPage /></LazyRoute>} />
+                <Route path="/admin" element={<LazyRoute><AdminPage /></LazyRoute>} />
+                <Route path="*" element={<LazyRoute><NotFoundPage /></LazyRoute>} />
               </Route>
             </Routes>
           </BrowserRouter>

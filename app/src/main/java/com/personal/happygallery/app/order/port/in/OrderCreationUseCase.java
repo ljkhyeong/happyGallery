@@ -14,7 +14,11 @@ public interface OrderCreationUseCase {
     record OrderItemInput(Long productId, int qty) {}
 
     record CreateOrderByPhoneCommand(String phone, String verificationCode,
-                                     String name, List<OrderItemInput> items) {}
+                                     String name, List<OrderItemInput> items) {
+        public CreateOrderByPhoneCommand {
+            items = List.copyOf(items);
+        }
+    }
 
     OrderCreationResult createOrderByPhone(CreateOrderByPhoneCommand command);
 

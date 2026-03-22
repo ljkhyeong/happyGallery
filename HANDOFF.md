@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-19 (문서 인덱스 보정, Playwright 핵심 시나리오 분리, 문의/배치 검토 문서 반영 상태)
+> 작성 시점: 2026-03-22 (배포 준비 문서/인프라 반영, 문서 인덱스 보정 상태)
 
 ---
 
@@ -22,6 +22,7 @@
 
 - 권장 작업 브랜치: `codex/work-20260319-000329`
 - 최근 작업:
+  - 1차 배포 준비 정리 — `ADR-0028`에 prod 로그 민감 데이터 마스킹, `nginx` SPA fallback + `/api` 리버스 프록시, `application-prod.yml` forwarded headers/rate-limit trust 설정, Grafana 관리자 비밀번호 환경변수 외부화 결정을 정리했고, `docs/Idea/0027_*`에 Tomcat `internal-proxies` 재검토 조건을 기록
   - 중복 PasswordEncoder 설정 제거 — `CryptoConfig`와 동일한 `passwordEncoder` 빈을 다시 등록하던 `PasswordEncoderConfig`를 제거해 Spring 테스트 컨텍스트의 `BeanDefinitionOverrideException` 충돌을 해소
   - 알림 비동기 테스트 대기 정리 — `NotificationLogTestHelper`를 Awaitility 기반으로 전환했고, 알림 로그 저장 완료를 기다리는 테스트는 공통 대기 유틸을 계속 사용하도록 정리했다. 적용 판단 기준은 `docs/Idea/0026_awaitility-for-async-test-waits/idea.md`에 기록했다
   - bootJar 패키징 검토 메모 추가 — `:app:bootJar`에 `common`, `domain`은 포함되지만 `infra`는 포함되지 않는 현재 구조와, 실행 전용 조립 모듈 분리 후보를 `docs/Idea/0025_bootjar-bootstrap-module-packaging/idea.md`에 기록
@@ -192,6 +193,7 @@
 ### 로컬 실행 메모
 - `local` 프로필 `:app:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
 - 로컬 부팅이나 `docker compose up -d` 전에 Redis(`localhost:6379`)가 필요하다. compose에는 `redis` 서비스가 추가되어 있고, 통합 테스트는 Testcontainers Redis를 함께 기동한다.
+- `docker compose up -d --build` 뒤에는 `nginx`가 `http://localhost` 에서 frontend `dist` 정적 파일을 서빙하고 `/api` 요청을 app 컨테이너로 프록시한다.
 - `local` 프로필에서 `http://localhost:8080/actuator/prometheus` 로 JVM/HTTP 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 함께 노출한다.
 - `docker compose up -d prometheus grafana` 로 로컬 관측성 스택을 따로 띄울 수 있고, 포트는 각각 `9090`, `3001`이다.
 - Grafana 로그인은 `GRAFANA_ADMIN_USER`/`GRAFANA_ADMIN_PASSWORD` 환경 변수를 사용하고, 사용자명 기본값은 `admin`이다.
@@ -257,3 +259,5 @@ cd frontend && npm run e2e
 | ADR-0024 | Guest access token SHA-256 해시 저장 + X-Access-Token 헤더 전환 |
 | ADR-0025 | Graceful Shutdown 및 Executor Drain 정책 |
 | ADR-0026 | 통합 테스트 프로파일 및 Testcontainers 기준선 |
+| ADR-0027 | 테스트 전략 — 최소 고가치 검증 우선 |
+| ADR-0028 | 1차 배포 준비 — 알림 실 연동, 로그 마스킹, 배포 인프라 |
