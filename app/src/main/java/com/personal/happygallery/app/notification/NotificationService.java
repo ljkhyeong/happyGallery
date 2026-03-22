@@ -42,7 +42,7 @@ public class NotificationService {
                                GuestReaderPort guestReader,
                                UserReaderPort userReader,
                                Clock clock) {
-        this.senders = senders;
+        this.senders = List.copyOf(senders);
         this.notificationLogStore = notificationLogStore;
         this.guestReader = guestReader;
         this.userReader = userReader;
