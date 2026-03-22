@@ -110,12 +110,12 @@
 
 ## 참고 문서
 
-- `docs/ADR/0015_관측성_로깅과_비즈니스_예외/adr.md`
-- `docs/ADR/0016_에이피아이_버전_전략/adr.md`
-- `docs/ADR/0017_필터_처리율_제한/adr.md`
+- `docs/ADR/0015_Observability_로깅과_비즈니스_예외/adr.md`
+- `docs/ADR/0016_API_버전_전략/adr.md`
+- `docs/ADR/0017_Filter_처리율_제한/adr.md`
 - `docs/ADR/0019_비밀번호_해시_정책/adr.md`
-- `docs/ADR/0020_결제_제공자_서킷브레이커/adr.md`
-- `docs/Idea/0013_회원_세션_스프링_세션_전환_검토/idea.md`
-- `docs/Idea/0015_다중_인스턴스용_레디스_도입/idea.md`
-- `docs/Idea/0004_관리자_인증_세션_확장/idea.md`
-- `docs/PRD/0004_에이피아이_계약/spec.md`
+- `docs/ADR/0020_결제_제공자_CircuitBreaker/adr.md`
+- `docs/Idea/0013_회원_세션_Spring_Session_전환_검토/idea.md`
+- `docs/Idea/0015_다중_인스턴스용_Redis_도입/idea.md`
+- `docs/Idea/0004_관리자_Auth_세션_확장/idea.md`
+- `docs/PRD/0004_API_계약/spec.md`

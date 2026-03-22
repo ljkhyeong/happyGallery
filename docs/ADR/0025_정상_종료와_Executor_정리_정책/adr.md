@@ -150,7 +150,7 @@
 
 ## 참고 문서
 
-- `docs/ADR/0020_결제_제공자_서킷브레이커/adr.md`
+- `docs/ADR/0020_결제_제공자_CircuitBreaker/adr.md`
 - `docs/ADR/0023_관리자_인증과_런타임_운영_기준선/adr.md`
 - `app/src/main/resources/application.yml`
 - `app/src/main/java/com/personal/happygallery/config/AsyncConfig.java`

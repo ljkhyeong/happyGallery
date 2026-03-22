@@ -3,7 +3,7 @@
 ## 배경
 
 현재 CI 파이프라인(`ci.yml`)은 PR 대상으로 Gradle 빌드만 수행한다.
-운영 배포 토폴로지는 `0028_클라우드프론트_에스쓰리_로드밸런서_배포_구조`에서 CloudFront + S3 + ALB 구성으로 방향을 잡았다.
+운영 배포 토폴로지는 `0028_CloudFront_S3_ALB_배포_구조`에서 CloudFront + S3 + ALB 구성으로 방향을 잡았다.
 백엔드 런타임은 EC2 대신 **ECS Fargate**를 사용해 컨테이너 관리 부담을 줄이기로 한다.
 
 이 Idea에서는 GitHub Actions 기반 CI/CD 파이프라인의 전체 설계를 정리한다.

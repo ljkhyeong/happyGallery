@@ -46,6 +46,6 @@
 3. Prometheus/Grafana 기반 운영 메트릭 연결
 
 관련 문서:
-- `docs/ADR/0020_결제_제공자_서킷브레이커/adr.md`
-- `docs/Idea/0002_격벽_패턴_검토/idea.md`
+- `docs/ADR/0020_결제_제공자_CircuitBreaker/adr.md`
+- `docs/Idea/0002_Bulkhead_패턴_검토/idea.md`
 - `plan.md`

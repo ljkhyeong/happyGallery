@@ -179,5 +179,5 @@
 - `docs/ADR/0003_슬롯_동시성_전략/adr.md`
 - `docs/ADR/0013_주문_승인_모델/adr.md`
 - `docs/ADR/0014_예약_제작_주문_결정/adr.md`
-- `docs/ADR/0021_헥사고날_아키텍처_전환/adr.md`
+- `docs/ADR/0021_Hexagonal_아키텍처_전환/adr.md`
 - `docs/PRD/0001_기준_스펙/spec.md`

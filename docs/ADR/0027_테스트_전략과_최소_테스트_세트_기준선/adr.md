@@ -92,9 +92,9 @@
 
 ## 기존 문서와의 관계
 
-- 통합 테스트 인프라, `@UseCaseIT`, Testcontainers 기준은 [ADR-0026](../0026_통합_테스트_프로파일과_테스트컨테이너_기준선/adr.md)에서 관리한다.
+- 통합 테스트 인프라, `@UseCaseIT`, Testcontainers 기준은 [ADR-0026](../0026_통합_테스트_프로파일과_TestContainer_기준선/adr.md)에서 관리한다.
 - 본 문서는 "무엇을 왜 테스트할지"에 대한 철학과 최소 세트 기준을 다룬다.
-- 이전 working note였던 `docs/Idea/0003_테스트_전략과_검증_작성_규칙/idea.md`는 배경 메모로 축소한다.
+- 이전 working note였던 `docs/Idea/0003_테스트_전략과_Assertion_작성_규칙/idea.md`는 배경 메모로 축소한다.
 
 ---
 
@@ -122,6 +122,6 @@
 
 ## 참고 문서
 
-- `docs/ADR/0026_통합_테스트_프로파일과_테스트컨테이너_기준선/adr.md`
+- `docs/ADR/0026_통합_테스트_프로파일과_TestContainer_기준선/adr.md`
 - `docs/PRD/0001_기준_스펙/spec.md`
 - `HANDOFF.md`
