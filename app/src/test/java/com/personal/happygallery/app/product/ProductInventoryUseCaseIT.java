@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * [UseCaseIT] 상품 등록 + 재고 차감 + 동시성 방지 검증.
  *
- * <p>Proof (docs/1Pager/0000_project_plan/plan.md §8.1): 단일 작품(quantity=1) 재고를 순차 차감 시
+ * <p>Proof (docs/PRD/0001_기준_스펙/spec.md §8.1): 단일 작품(quantity=1) 재고를 순차 차감 시
  * 첫 번째 차감은 성공하고 두 번째는 {@link InventoryNotEnoughException}으로 실패한다.
  */
 @UseCaseIT
