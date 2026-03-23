@@ -16,6 +16,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Optional;
 
 @Component
@@ -84,7 +86,9 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         // 2) X-Admin-Key 폴백 (활성화된 경우에만)
         if (adminProperties.enableApiKeyAuth()) {
             String key = request.getHeader(ADMIN_KEY_HEADER);
-            if (adminProperties.apiKey().equals(key)) {
+            if (key != null && MessageDigest.isEqual(
+                    adminProperties.apiKey().getBytes(StandardCharsets.UTF_8),
+                    key.getBytes(StandardCharsets.UTF_8))) {
                 request.removeAttribute(ADMIN_USER_ID_ATTR);
                 request.removeAttribute(ADMIN_USERNAME_ATTR);
                 request.setAttribute(ADMIN_AUTH_SOURCE_ATTR, AdminAuthSource.API_KEY);
@@ -100,6 +104,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
     }
 
     private boolean isAuthPath(String uri) {
-        return uri.contains(AUTH_PATH_SUFFIX);
+        return uri.startsWith(VERSIONED_ADMIN_PATH_PREFIX + "auth/")
+                || uri.startsWith(LEGACY_ADMIN_PATH_PREFIX + "auth/");
     }
 }

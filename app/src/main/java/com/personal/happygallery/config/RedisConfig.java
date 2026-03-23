@@ -1,5 +1,6 @@
 package com.personal.happygallery.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.session.FlushMode;
@@ -16,12 +17,13 @@ public class RedisConfig {
     public static final String COOKIE_NAME = "HG_SESSION";
 
     @Bean
-    DefaultCookieSerializer cookieSerializer() {
+    DefaultCookieSerializer cookieSerializer(
+            @Value("${app.session.secure-cookie:true}") boolean secureCookie) {
         DefaultCookieSerializer serializer = new DefaultCookieSerializer();
         serializer.setCookieName(COOKIE_NAME);
         serializer.setUseHttpOnlyCookie(true);
         serializer.setSameSite("Lax");
-        serializer.setUseSecureCookie(true);
+        serializer.setUseSecureCookie(secureCookie);
         return serializer;
     }
 }
