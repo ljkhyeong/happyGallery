@@ -12,6 +12,8 @@ app:
   admin:
     api-key: dev-admin-key
     enable-api-key-auth: true
+  session:
+    secure-cookie: false
 
 management:
   server:

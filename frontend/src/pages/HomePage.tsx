@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchProducts } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
-import { LoadingSpinner } from "@/shared/ui";
+import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
 export function HomePage() {
-  const { data: products, isLoading } = useQuery({
+  const { data: products, isLoading, isError, error } = useQuery({
     queryKey: ["products"],
     queryFn: fetchProducts,
   });
@@ -84,6 +84,7 @@ export function HomePage() {
             </Link>
           </div>
           {isLoading && <LoadingSpinner />}
+          {isError && <ErrorAlert error={error} />}
           {featured.length > 0 && (
             <Row xs={1} sm={2} md={3} className="g-3">
               {featured.map((p) => (

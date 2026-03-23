@@ -22,6 +22,9 @@
 
 - 권장 작업 브랜치: `codex/work-20260319-000329`
 - 최근 작업:
+  - 마이페이지 컴포넌트 분해 + 공통 UI 정리 — `/my` 대시보드의 hero/stats/claim/목록 섹션을 전용 컴포넌트로 분리했고, 상품/주문 타입 라벨을 `frontend/src/shared/lib/labels.ts`로 모았으며, 앱 최상단 `ErrorBoundary`와 홈 상품 목록 에러 표시를 추가해 프론트 장애 대응을 정리
+  - 관리자 인증/세션 로컬 보정 — `AdminAuthFilter`의 `X-Admin-Key` 비교를 `MessageDigest.isEqual`로 바꾸고 `/admin/auth/**`만 인증 예외로 좁혔으며, local 프로필에서는 `HG_SESSION` secure cookie를 끄도록 `app.session.secure-cookie=false`를 추가했다
+  - 예약 도메인/배치 정리 — 예약 변경·취소·결석의 `BOOKED` 상태 검증을 `BookingStatus.requireBooked()`로 모았고, D-1/당일 예약 리마인드 배치는 `BatchExecutor`를 사용하도록 맞췄으며, nginx에는 기본 보안 응답 헤더를 추가했다
   - 1차 배포 준비 정리 — `ADR-0028`에 prod 로그 민감 데이터 마스킹, `nginx` SPA fallback + `/api` 리버스 프록시, `application-prod.yml` forwarded headers/rate-limit trust 설정, Grafana 관리자 비밀번호 환경변수 외부화 결정을 정리했고, `docs/Idea/0027_*`에 Tomcat `internal-proxies` 재검토 조건을 기록
   - 중복 PasswordEncoder 설정 제거 — `CryptoConfig`와 동일한 `passwordEncoder` 빈을 다시 등록하던 `PasswordEncoderConfig`를 제거해 Spring 테스트 컨텍스트의 `BeanDefinitionOverrideException` 충돌을 해소
   - 알림 비동기 테스트 대기 정리 — `NotificationLogTestHelper`를 Awaitility 기반으로 전환했고, 알림 로그 저장 완료를 기다리는 테스트는 공통 대기 유틸을 계속 사용하도록 정리했다. 적용 판단 기준은 `docs/Idea/0026_비동기_테스트_대기_Awaitility_우선/idea.md`에 기록했다

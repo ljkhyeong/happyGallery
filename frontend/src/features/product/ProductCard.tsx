@@ -1,12 +1,7 @@
 import { Card, Badge } from "react-bootstrap";
 import { Link } from "react-router-dom";
-import { formatKRW } from "@/shared/lib";
+import { formatKRW, PRODUCT_TYPE_LABEL } from "@/shared/lib";
 import type { ProductDetailResponse } from "@/shared/types";
-
-const TYPE_LABEL: Record<string, string> = {
-  READY_STOCK: "기존 재고",
-  MADE_TO_ORDER: "예약 제작",
-};
 
 interface Props {
   product: ProductDetailResponse;
@@ -18,7 +13,7 @@ export function ProductCard({ product }: Props) {
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-3">
           <div>
-            <div className="product-card-kicker">{TYPE_LABEL[product.type] ?? product.type}</div>
+            <div className="product-card-kicker">{PRODUCT_TYPE_LABEL[product.type] ?? product.type}</div>
             <Card.Title className="h6 mb-0">{product.name}</Card.Title>
           </div>
           <Badge bg={product.available ? "success" : "secondary"} className="badge-status">
