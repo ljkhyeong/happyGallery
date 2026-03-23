@@ -1,12 +1,7 @@
 import { Card, Table, Row, Col, Badge } from "react-bootstrap";
 import { StatusBadge } from "@/shared/ui";
-import { formatKRW, formatDateTime, formatDate } from "@/shared/lib";
+import { formatKRW, formatDateTime, formatDate, FULFILLMENT_TYPE_LABEL } from "@/shared/lib";
 import type { OrderDetailResponse } from "@/shared/types";
-
-const FULFILLMENT_TYPE_LABEL: Record<string, string> = {
-  SHIPPING: "배송",
-  PICKUP: "픽업",
-};
 
 interface Props {
   order: OrderDetailResponse;

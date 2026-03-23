@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Container } from "react-bootstrap";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/shared/api";
-import { Layout, LoadingSpinner, ToastProvider } from "@/shared/ui";
+import { ErrorBoundary, Layout, LoadingSpinner, ToastProvider } from "@/shared/ui";
 import { HomePage } from "@/pages/HomePage";
 import { BookingCreatePage } from "@/pages/BookingCreatePage";
 import { ProductListPage } from "@/pages/ProductListPage";
@@ -75,6 +75,7 @@ function LazyRoute({ children }: { children: ReactNode }) {
 
 export function App() {
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <CustomerAuthProvider>
         <ToastProvider>
@@ -108,5 +109,6 @@ export function App() {
         </ToastProvider>
       </CustomerAuthProvider>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Table, Badge } from "react-bootstrap";
 import { fetchProducts } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
-import { formatKRW } from "@/shared/lib";
+import { formatKRW, PRODUCT_TYPE_LABEL } from "@/shared/lib";
 import { ApiError } from "@/shared/api";
 import { useEffect } from "react";
 
@@ -10,11 +10,6 @@ interface Props {
   adminKey: string;
   onAuthError: () => void;
 }
-
-const TYPE_LABEL: Record<string, string> = {
-  READY_STOCK: "기존 재고",
-  MADE_TO_ORDER: "예약 제작",
-};
 
 export function ProductListSection({ adminKey, onAuthError }: Props) {
   const { data: products, isLoading, error } = useQuery({
@@ -52,7 +47,7 @@ export function ProductListSection({ adminKey, onAuthError }: Props) {
           <tr key={p.id}>
             <td>{p.id}</td>
             <td>{p.name}</td>
-            <td>{TYPE_LABEL[p.type] ?? p.type}</td>
+            <td>{PRODUCT_TYPE_LABEL[p.type] ?? p.type}</td>
             <td className="text-end">{formatKRW(p.price)}</td>
             <td className="text-end">{p.quantity}</td>
             <td>

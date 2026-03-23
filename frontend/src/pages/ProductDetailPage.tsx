@@ -7,18 +7,8 @@ import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { api } from "@/shared/api";
 import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
-import { formatKRW } from "@/shared/lib";
+import { formatKRW, PRODUCT_TYPE_LABEL, PRODUCT_FULFILLMENT_LABEL } from "@/shared/lib";
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
-
-const TYPE_LABEL: Record<string, string> = {
-  READY_STOCK: "기존 재고",
-  MADE_TO_ORDER: "예약 제작",
-};
-
-const FULFILLMENT_LABEL: Record<string, string> = {
-  READY_STOCK: "배송 상품 - 승인 후 출고됩니다.",
-  MADE_TO_ORDER: "예약 제작 - 승인 후 제작이 시작됩니다.",
-};
 
 const MAX_QTY = 99;
 
@@ -84,7 +74,7 @@ export function ProductDetailPage() {
             <Card.Body>
               <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
                 <div>
-                  <div className="store-detail-kicker">{TYPE_LABEL[product.type] ?? product.type}</div>
+                  <div className="store-detail-kicker">{PRODUCT_TYPE_LABEL[product.type] ?? product.type}</div>
                   <h2 className="store-detail-title mb-2">{product.name}</h2>
                   <p className="text-muted-soft mb-0">
                     {product.type === "MADE_TO_ORDER"
@@ -118,7 +108,7 @@ export function ProductDetailPage() {
                 <Card.Body>
                   <div className="store-detail-info-title">이행 안내</div>
                   <p className="mb-0 text-muted-soft small">
-                    {FULFILLMENT_LABEL[product.type] ?? ""}
+                    {PRODUCT_FULFILLMENT_LABEL[product.type] ?? ""}
                   </p>
                 </Card.Body>
               </Card>

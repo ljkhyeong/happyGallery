@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.batch.BatchExecutor;
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.booking.port.in.BookingReminderBatchUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
@@ -49,11 +50,9 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
         LocalDateTime end = start.plusDays(1);
 
         List<Booking> bookings = bookingReaderPort.findBookingsInRange(BookingStatus.BOOKED, start, end);
-        for (Booking booking : bookings) {
-            sendReminder(booking, NotificationEventType.REMINDER_D1);
-        }
-
-        return BatchResult.successOnly(bookings.size());
+        return BatchExecutor.execute(bookings, Booking::getId,
+                booking -> { sendReminder(booking, NotificationEventType.REMINDER_D1); return true; },
+                "D-1 예약 리마인드");
     }
 
     /**
@@ -67,11 +66,9 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
         LocalDateTime end = start.plusDays(1);
 
         List<Booking> bookings = bookingReaderPort.findBookingsInRange(BookingStatus.BOOKED, start, end);
-        for (Booking booking : bookings) {
-            sendReminder(booking, NotificationEventType.REMINDER_SAME_DAY);
-        }
-
-        return BatchResult.successOnly(bookings.size());
+        return BatchExecutor.execute(bookings, Booking::getId,
+                booking -> { sendReminder(booking, NotificationEventType.REMINDER_SAME_DAY); return true; },
+                "당일 예약 리마인드");
     }
 
     private void sendReminder(Booking booking, NotificationEventType eventType) {
