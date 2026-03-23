@@ -57,7 +57,6 @@ public class PickupExpireProcessor {
         orderApprovalService.restoreInventory(order);
         boolean refundSucceeded = orderApprovalService.processRefund(order);
         order.markPickupExpired();
-
         orderStore.save(order);
 
         orderApprovalService.notifyRefundedGuest(order, refundSucceeded);
