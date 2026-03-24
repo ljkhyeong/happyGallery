@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchProducts } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
+import { NoticeListWidget } from "@/features/notice/NoticeListWidget";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
 export function HomePage() {
@@ -70,6 +71,8 @@ export function HomePage() {
       </section>
 
       <Container className="page-container">
+        <NoticeListWidget />
+
         <section className="store-section mb-5">
           <div className="store-section-header">
             <div>

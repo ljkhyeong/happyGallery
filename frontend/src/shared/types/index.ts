@@ -9,3 +9,4 @@ export type { PublicSlotResponse } from "./slot";
 export type { CreateOrderRequest, OrderItemInput, OrderResponse, OrderDetailResponse, OrderItemDto, FulfillmentType, FulfillmentDto } from "./order";
 export type { ProductQnaListItem, ProductQnaDetail, CreateQnaRequest } from "./qna";
 export type { InquiryResponse, CreateInquiryRequest } from "./inquiry";
+export type { NoticeListItem, NoticeDetail, CreateNoticeRequest } from "./notice";
