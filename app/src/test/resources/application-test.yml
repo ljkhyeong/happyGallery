@@ -9,6 +9,9 @@ app:
     enable-api-key-auth: true
   rate-limit:
     enabled: false
+  field-encryption:
+    encrypt-key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    hmac-key: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 
 logging:
   level:

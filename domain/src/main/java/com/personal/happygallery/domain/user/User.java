@@ -19,6 +19,12 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "email_enc")
+    private String emailEnc;
+
+    @Column(name = "email_hmac", length = 64)
+    private String emailHmac;
+
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
@@ -27,6 +33,12 @@ public class User {
 
     @Column(nullable = false, length = 20)
     private String phone;
+
+    @Column(name = "phone_enc")
+    private String phoneEnc;
+
+    @Column(name = "phone_hmac", length = 64)
+    private String phoneHmac;
 
     @Column(name = "phone_verified", nullable = false)
     private boolean phoneVerified;
@@ -47,11 +59,23 @@ public class User {
         this.phoneVerified = false;
     }
 
+    public void applyEncryption(String emailEnc, String emailHmac,
+                               String phoneEnc, String phoneHmac) {
+        this.emailEnc = emailEnc;
+        this.emailHmac = emailHmac;
+        this.phoneEnc = phoneEnc;
+        this.phoneHmac = phoneHmac;
+    }
+
     public Long getId() { return id; }
     public String getEmail() { return email; }
+    public String getEmailEnc() { return emailEnc; }
+    public String getEmailHmac() { return emailHmac; }
     public String getPasswordHash() { return passwordHash; }
     public String getName() { return name; }
     public String getPhone() { return phone; }
+    public String getPhoneEnc() { return phoneEnc; }
+    public String getPhoneHmac() { return phoneHmac; }
     public boolean isPhoneVerified() { return phoneVerified; }
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }

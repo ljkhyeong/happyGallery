@@ -3,6 +3,8 @@ package com.personal.happygallery.app.web.customer;
 import com.personal.happygallery.app.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
 import com.personal.happygallery.app.customer.port.out.UserStorePort;
+import com.personal.happygallery.common.crypto.BlindIndexer;
+import com.personal.happygallery.common.crypto.FieldEncryptor;
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.User;
@@ -19,15 +21,21 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
     private final UserReaderPort userReader;
     private final UserStorePort userStore;
     private final PasswordEncoder passwordEncoder;
+    private final FieldEncryptor fieldEncryptor;
+    private final BlindIndexer blindIndexer;
     private final Clock clock;
 
     public DefaultCustomerAuthService(UserReaderPort userReader,
                                       UserStorePort userStore,
                                       PasswordEncoder passwordEncoder,
+                                      FieldEncryptor fieldEncryptor,
+                                      BlindIndexer blindIndexer,
                                       Clock clock) {
         this.userReader = userReader;
         this.userStore = userStore;
         this.passwordEncoder = passwordEncoder;
+        this.fieldEncryptor = fieldEncryptor;
+        this.blindIndexer = blindIndexer;
         this.clock = clock;
     }
 
@@ -41,6 +49,9 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
                 passwordEncoder.encode(command.rawPassword()),
                 command.name(),
                 command.phone());
+        user.applyEncryption(
+                fieldEncryptor.encrypt(command.email()), blindIndexer.index(command.email()),
+                fieldEncryptor.encrypt(command.phone()), blindIndexer.index(command.phone()));
         userStore.save(user);
         return user;
     }
