@@ -598,7 +598,37 @@ X-Access-Token: {accessToken}
 
 ### 2.7 주문 Admin API
 
-#### 2.7.1 주문 운영 엔드포인트
+#### 2.7.1 관리자 주문 목록 조회
+
+```http
+GET /api/v1/admin/orders?status=PAID_APPROVAL_PENDING&cursor=MjAyNi0wMy0yNFQxMTo0MDozMHwxMjM&size=20
+Authorization: Bearer {token}
+```
+
+```json
+{
+  "content": [
+    {
+      "orderId": 123,
+      "orderNumber": "HG-20260324-00123",
+      "status": "PAID_APPROVAL_PENDING",
+      "totalAmount": 118000,
+      "paidAt": "2026-03-24T11:32:10",
+      "createdAt": "2026-03-24T11:32:10"
+    }
+  ],
+  "nextCursor": "MjAyNi0wMy0yNFQxMTozMjoxMHwxMjM",
+  "hasMore": true
+}
+```
+
+- 성공: `200 OK`
+- 정책:
+  - 상태 필터가 없으면 전체 주문을 `createdAt DESC, id DESC` 기준으로 조회한다.
+  - `cursor`는 `Base64("{ISO_LOCAL_DATE_TIME}|{id}")` 형식이다.
+  - 프론트는 `hasMore=true`일 때만 `nextCursor`로 다음 페이지를 요청한다.
+
+#### 2.7.2 주문 운영 엔드포인트
 
 - `POST /api/v1/admin/orders/{id}/approve`
   - 응답: `200 OK` 본문 없음
@@ -638,7 +668,7 @@ X-Access-Token: {accessToken}
 - `400 INVALID_INPUT` — 허용되지 않은 상태 전이
 - `409 ALREADY_REFUNDED` — 자동환불/거절 완료 주문에 대한 승인·거절 재시도
 
-#### 2.7.2 픽업 만료 배치 수동 트리거
+#### 2.7.3 픽업 만료 배치 수동 트리거
 
 ```http
 POST /api/v1/admin/orders/expire-pickups
@@ -661,7 +691,7 @@ Authorization: Bearer {token}
   - 성공 건은 `PICKUP_EXPIRED`로 전이하고 환불/재고 복구를 수행한다.
   - `failureReasons`는 내부 예외명을 그대로 노출하지 않고 `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`로 정규화한다.
 
-#### 2.7.3 제작 완료
+#### 2.7.4 제작 완료
 
 ```http
 POST /api/v1/admin/orders/{id}/complete-production
@@ -685,7 +715,7 @@ Authorization: Bearer {token}
   - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
   - API Key 폴백 경로는 `null`일 수 있다.
 
-#### 2.7.4 배송 흐름
+#### 2.7.5 배송 흐름
 
 ```http
 POST /api/v1/admin/orders/{id}/prepare-shipping
@@ -711,7 +741,7 @@ Authorization: Bearer {token}
   - 각 전이는 `order_approvals` 이력에 `PREPARE_SHIPPING`, `SHIP`, `DELIVER`로 기록한다.
   - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
 
-#### 2.7.5 주문 결정 이력 조회
+#### 2.7.6 주문 결정 이력 조회
 
 ```http
 GET /api/v1/admin/orders/{id}/history
@@ -735,9 +765,74 @@ Authorization: Bearer {token}
   - 결정 시간 순으로 정렬된 전체 이력을 반환한다.
   - `decision`: `APPROVE`, `REJECT`, `DELAY`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
 
-### 2.8 관리자 예약 목록 API
+### 2.8 공지사항 API
 
-#### 2.8.1 관리자 예약 목록 조회
+#### 2.8.1 공개 공지 목록 조회
+
+```http
+GET /api/v1/notices
+```
+
+```json
+[
+  {
+    "id": 3,
+    "title": "4월 클래스 일정 공지",
+    "pinned": true,
+    "viewCount": 18,
+    "createdAt": "2026-03-24T09:00:00"
+  }
+]
+```
+
+- 성공: `200 OK`
+- 정책:
+  - pinned 우선, 같은 pinned 그룹 안에서는 `createdAt DESC`로 정렬한다.
+  - 홈 위젯은 이 목록에서 최근 5건만 노출한다.
+
+#### 2.8.2 공개 공지 상세 조회
+
+```http
+GET /api/v1/notices/{id}
+```
+
+```json
+{
+  "id": 3,
+  "title": "4월 클래스 일정 공지",
+  "content": "4월 예약 오픈 일정입니다.",
+  "pinned": true,
+  "viewCount": 19,
+  "createdAt": "2026-03-24T09:00:00"
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `404 NOT_FOUND` — noticeId 미존재
+- 정책:
+  - 상세 조회 시 `viewCount`를 1 증가시킨 뒤 최신 값을 반환한다.
+
+#### 2.8.3 관리자 공지 CRUD
+
+- `GET /api/v1/admin/notices`
+  - 응답: 공개 목록 조회와 동일한 배열
+- `POST /api/v1/admin/notices`
+  - 요청: `{ "title": "점검 공지", "content": "3/28 점검 예정", "pinned": true }`
+  - 응답: `201 Created` + 공지 상세 응답
+- `PUT /api/v1/admin/notices/{id}`
+  - 요청: `{ "title": "수정 공지", "content": "본문 수정", "pinned": false }`
+  - 응답: `200 OK` + 공지 상세 응답
+- `DELETE /api/v1/admin/notices/{id}`
+  - 응답: `204 No Content`
+
+공통 에러:
+- `401 UNAUTHORIZED` — 관리자 인증 실패
+- `404 NOT_FOUND` — noticeId 미존재
+
+### 2.9 관리자 예약 목록 API
+
+#### 2.9.1 관리자 예약 목록 조회
 
 ```http
 GET /api/v1/admin/bookings?date=2026-03-20&status=BOOKED

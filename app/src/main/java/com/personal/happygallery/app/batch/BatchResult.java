@@ -18,6 +18,15 @@ public record BatchResult(int successCount, int failureCount, Map<String, Intege
         return new BatchResult(successCount, failureCount, failureReasons);
     }
 
+    public BatchResult merge(BatchResult other) {
+        Map<String, Integer> merged = new LinkedHashMap<>(failureReasons);
+        other.failureReasons.forEach((k, v) -> merged.merge(k, v, Integer::sum));
+        return new BatchResult(
+                successCount + other.successCount,
+                failureCount + other.failureCount,
+                merged);
+    }
+
     public static Map<String, Integer> failureReasonsOf(Throwable... errors) {
         Map<String, Integer> reasons = new LinkedHashMap<>();
         for (Throwable error : errors) {

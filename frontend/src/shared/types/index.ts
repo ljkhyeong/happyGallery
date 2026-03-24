@@ -1,3 +1,4 @@
+export type { CursorPage } from "./cursor";
 export type { ErrorCode, ErrorResponse } from "./error";
 export type { ProductType, ProductStatus, ProductDetailResponse, ProductResponse, CreateProductRequest } from "./product";
 export type { BookingStatus, DepositPaymentMethod, SendVerificationRequest, SendVerificationResponse, CreateGuestBookingRequest, BookingResponse, BookingDetailResponse, MyBookingDetailResponse, RescheduleRequest, RescheduleResponse, CancelResponse } from "./booking";
@@ -8,3 +9,4 @@ export type { PublicSlotResponse } from "./slot";
 export type { CreateOrderRequest, OrderItemInput, OrderResponse, OrderDetailResponse, OrderItemDto, FulfillmentType, FulfillmentDto } from "./order";
 export type { ProductQnaListItem, ProductQnaDetail, CreateQnaRequest } from "./qna";
 export type { InquiryResponse, CreateInquiryRequest } from "./inquiry";
+export type { NoticeListItem, NoticeDetail, CreateNoticeRequest } from "./notice";

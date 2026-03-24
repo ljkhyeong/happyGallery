@@ -3,6 +3,8 @@ package com.personal.happygallery.app.customer;
 import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.app.customer.port.out.GuestStorePort;
 import com.personal.happygallery.app.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.common.crypto.BlindIndexer;
+import com.personal.happygallery.common.crypto.FieldEncryptor;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
@@ -22,15 +24,21 @@ public class VerifiedGuestResolver {
     private final PhoneVerificationReaderPort phoneVerificationReader;
     private final GuestReaderPort guestReader;
     private final GuestStorePort guestStore;
+    private final FieldEncryptor fieldEncryptor;
+    private final BlindIndexer blindIndexer;
     private final Clock clock;
 
     public VerifiedGuestResolver(PhoneVerificationReaderPort phoneVerificationReader,
                                   GuestReaderPort guestReader,
                                   GuestStorePort guestStore,
+                                  FieldEncryptor fieldEncryptor,
+                                  BlindIndexer blindIndexer,
                                   Clock clock) {
         this.phoneVerificationReader = phoneVerificationReader;
         this.guestReader = guestReader;
         this.guestStore = guestStore;
+        this.fieldEncryptor = fieldEncryptor;
+        this.blindIndexer = blindIndexer;
         this.clock = clock;
     }
 
@@ -47,7 +55,14 @@ public class VerifiedGuestResolver {
         pv.markVerified();
 
         Guest guest = guestReader.findByPhone(phone)
-                .orElseGet(() -> guestStore.save(new Guest(name, phone)));
+                .orElseGet(() -> {
+                    Guest g = new Guest(name, phone);
+                    g.applyEncryption(fieldEncryptor.encrypt(phone), blindIndexer.index(phone));
+                    return guestStore.save(g);
+                });
+        if (guest.getPhoneHmac() == null) {
+            guest.applyEncryption(fieldEncryptor.encrypt(phone), blindIndexer.index(phone));
+        }
         guest.markPhoneVerified();
 
         return guest;

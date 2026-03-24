@@ -14,7 +14,12 @@ public interface UserRepository extends JpaRepository<User, Long>, UserReaderPor
 
     Optional<User> findByEmail(String email);
 
+    /** 블라인드 인덱스로 회원 조회 */
+    Optional<User> findByEmailHmac(String emailHmac);
+
     boolean existsByEmail(String email);
+
+    boolean existsByEmailHmac(String emailHmac);
 
     @Override
     default List<User> findAllById(List<Long> ids) {

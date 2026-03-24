@@ -57,6 +57,9 @@ const SignupPage = lazy(() =>
 const AdminPage = lazy(() =>
   import("@/pages/admin/AdminPage").then((module) => ({ default: module.AdminPage })),
 );
+const NoticeDetailPage = lazy(() =>
+  import("@/pages/NoticeDetailPage").then((module) => ({ default: module.NoticeDetailPage })),
+);
 const NotFoundPage = lazy(() =>
   import("@/pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })),
 );
@@ -83,6 +86,7 @@ export function App() {
             <Routes>
               <Route element={<Layout />}>
                 <Route path="/" element={<HomePage />} />
+                <Route path="/notices/:id" element={<LazyRoute><NoticeDetailPage /></LazyRoute>} />
                 <Route path="/products" element={<ProductListPage />} />
                 <Route path="/products/:id" element={<ProductDetailPage />} />
                 <Route path="/bookings/new" element={<BookingCreatePage />} />

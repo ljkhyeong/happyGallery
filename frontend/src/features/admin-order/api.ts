@@ -1,5 +1,5 @@
 import { api } from "@/shared/api";
-import type { AdminOrderResponse, OrderProductionResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest, ShippingResponse, OrderHistoryResponse } from "@/shared/types";
+import type { CursorPage, AdminOrderResponse, OrderProductionResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest, ShippingResponse, OrderHistoryResponse } from "@/shared/types";
 
 function h(token: string) {
   return { Authorization: `Bearer ${token}` };
@@ -8,10 +8,12 @@ function h(token: string) {
 export function fetchOrders(
   adminKey: string,
   status?: string,
-): Promise<AdminOrderResponse[]> {
-  return api<AdminOrderResponse[]>("/admin/orders", {
+  cursor?: string,
+  size = 20,
+): Promise<CursorPage<AdminOrderResponse>> {
+  return api<CursorPage<AdminOrderResponse>>("/admin/orders", {
     headers: h(adminKey),
-    params: { status },
+    params: { status, cursor, size: String(size) },
   });
 }
 
