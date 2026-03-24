@@ -11,6 +11,7 @@ import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,12 +47,14 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
      *
      * @return 처리된 건수
      */
+    private static final int PAGE_SIZE = 100;
+
     public BatchResult expireAll() {
         LocalDateTime now = LocalDateTime.now(clock);
-        List<PassPurchase> expired = passPurchaseReader
-                .findByExpiresAtBeforeAndRemainingCreditsGreaterThan(now, 0);
 
-        return BatchExecutor.execute(expired,
+        return BatchExecutor.executePaginated(
+                () -> passPurchaseReader
+                        .findByExpiresAtBeforeAndRemainingCreditsGreaterThan(now, 0, PageRequest.ofSize(PAGE_SIZE)),
                 PassPurchase::getId,
                 pass -> passExpireProcessor.process(pass.getId()),
                 "8회권 만료");

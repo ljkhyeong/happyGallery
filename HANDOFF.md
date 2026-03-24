@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-22 (배포 준비 문서/인프라 반영, 문서 인덱스 보정 상태)
+> 작성 시점: 2026-03-24 (공지사항/암호화/주문 조회 개선 반영 상태)
 
 ---
 
@@ -22,6 +22,9 @@
 
 - 권장 작업 브랜치: `codex/work-20260319-000329`
 - 최근 작업:
+  - 공지사항 노출/관리 추가 — `notices` 테이블(V24)과 공지 도메인·조회/관리 API를 추가했고, 홈에 최근 공지 위젯과 `/notices/:id` 상세, `/admin` 공지 관리 섹션을 연결했다
+  - 개인정보 암호화 1차 도입 — `Guest.phone`, `User.phone`, `User.email`에 AES-GCM 암호문 + HMAC 블라인드 인덱스 컬럼(V23)을 추가했고, 회원가입/전화 인증 게스트 생성 시 암호화/HMAC 저장을 시작하도록 정리했다
+  - 관리자 주문 목록/배치 조회 최적화 — 관리자 주문 목록을 커서 기반으로 전환했고, 주문 자동환불·픽업 만료·8회권 만료 배치를 page 0 반복 조회 방식으로 바꿨으며, 관련 커버링 인덱스(V22)와 검토 메모(`docs/Idea/0030_*`)를 추가했다
   - 마이페이지 컴포넌트 분해 + 공통 UI 정리 — `/my` 대시보드의 hero/stats/claim/목록 섹션을 전용 컴포넌트로 분리했고, 상품/주문 타입 라벨을 `frontend/src/shared/lib/labels.ts`로 모았으며, 앱 최상단 `ErrorBoundary`와 홈 상품 목록 에러 표시를 추가해 프론트 장애 대응을 정리
   - 관리자 인증/세션 로컬 보정 — `AdminAuthFilter`의 `X-Admin-Key` 비교를 `MessageDigest.isEqual`로 바꾸고 `/admin/auth/**`만 인증 예외로 좁혔으며, local 프로필에서는 `HG_SESSION` secure cookie를 끄도록 `app.session.secure-cookie=false`를 추가했다
   - 예약 도메인/배치 정리 — 예약 변경·취소·결석의 `BOOKED` 상태 검증을 `BookingStatus.requireBooked()`로 모았고, D-1/당일 예약 리마인드 배치는 `BatchExecutor`를 사용하도록 맞췄으며, nginx에는 기본 보안 응답 헤더를 추가했다
@@ -109,6 +112,7 @@
 - `/` — 서비스 홈 (진입 카드)
 - `/products` — 상품 목록
 - `/products/:id` — 상품 상세 + 회원 주문 진입
+- `/notices/:id` — 공지사항 상세
 - `/login` — 고객 로그인
 - `/signup` — 고객 회원가입
 - `/my` — 회원 마이페이지 (`내 주문`, `내 예약`, `내 8회권`, `비회원 이력 가져오기`)
@@ -176,9 +180,12 @@
 - `/guest` 를 비회원 조회 시작 경로로 노출하고, `/guest/orders`, `/guest/bookings` 는 기본 비회원 조회 경로이자 생성 후 확인용 보조 경로로 유지한다.
 - 현재 운영 권장안은 `/guest` 허브, `/guest/orders`, `/guest/bookings`, `/orders/new` 직접 진입 확인 단계를 그대로 유지하는 것이다. 회원 경로를 안정화한 뒤 2~4주 동안 사용량과 문의 유형을 보고 비회원 보조 경로를 줄일지 결정한다.
 - `/api/v1/monitoring/client-events` 는 guest/member 주요 전환 이벤트를 requestId가 포함된 `[client-monitoring]` 로그로 남기고, 동시에 `happygallery.funnel.client_event`, `happygallery.funnel.guest_claim_completed` 메트릭을 누적한다. 현재 수집 범위는 `/guest` 허브 진입, `/orders/new` 직접 진입 뒤 계속, guest 성공/조회 화면의 회원 전환 CTA, `/my` claim 모달 오픈, guest claim 완료다.
+- 홈은 최근 공지 5건을 pinned 우선·생성일 역순으로 노출하고, `/notices/:id` 상세 조회 시 조회수가 1 증가한다.
 - frontend는 `@sentry/react`로 API 5xx 에러를 캡처하고, backend는 `sentry-spring-boot-4-starter` + `GlobalExceptionHandler`에서 예상치 못한 500 예외를 캡처한다. 두 경로 모두 가능하면 `requestId`를 태그로 남긴다.
 - 관리자 API 401 처리: `onAuthError` 콜백을 AdminPage에서 모든 하위 컴포넌트에 전달
 - 관리자 인증: `useAdminKey()` 훅에서 사용자명/비밀번호 로그인 → UUID 세션 토큰을 `sessionStorage` (`hg_admin_token`)에 저장, 이후 `Authorization: Bearer {token}` 헤더 사용
+- 관리자 주문 목록은 `/api/v1/admin/orders?status=&cursor=&size=` 커서 응답을 사용하며, 프론트는 `더보기` 버튼으로 누적 조회한다.
+- 관리자 화면에는 공지사항 CRUD 섹션이 추가됐고, 공지 등록/수정/삭제는 `/api/v1/admin/notices` Bearer 세션 기준으로 동작한다.
 - Playwright 핵심 시나리오는 관리자 Bearer 토큰과 고객 `HG_SESSION` 쿠키를 backend API로 미리 만들어 로그인 rate limit과 UI 초기화 타이밍 영향을 줄였다.
 - Playwright 테스트 파일은 현재 사용자 여정 기준 4개 파일(`admin-product-order.smoke.spec.ts`, `guest-booking-pass.smoke.spec.ts`, `member-self-service.smoke.spec.ts`, `guest-claim-onboarding.smoke.spec.ts`)로 나뉘어 있고, 시나리오 번호 `P8-1`~`P8-9`는 그대로 유지한다.
 - `P8-8`은 guest 주문·예약을 만든 뒤, 같은 번호의 회원이 `/my` 모달에서 재인증 후 claim 하는 흐름을 검증한다.

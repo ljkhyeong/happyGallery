@@ -12,6 +12,7 @@ import { FailedRefundSection } from "@/features/admin-refund/FailedRefundSection
 import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
 import { AdminQnaSection } from "@/features/admin-qna/AdminQnaSection";
 import { AdminInquirySection } from "@/features/admin-inquiry/AdminInquirySection";
+import { AdminNoticeSection } from "@/features/admin-notice/AdminNoticeSection";
 import { useToast } from "@/shared/ui";
 
 export function AdminPage() {
@@ -35,6 +36,13 @@ export function AdminPage() {
           로그아웃
         </Button>
       </div>
+
+      <Card className="mb-4">
+        <Card.Header>공지사항 관리</Card.Header>
+        <Card.Body>
+          <AdminNoticeSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
 
       <Card className="mb-4">
         <Card.Header>상품 등록</Card.Header>

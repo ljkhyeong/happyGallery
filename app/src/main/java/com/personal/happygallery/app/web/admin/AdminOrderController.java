@@ -7,6 +7,7 @@ import com.personal.happygallery.app.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.app.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.app.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.app.order.port.in.PickupExpireBatchUseCase;
+import com.personal.happygallery.app.web.CursorPage;
 import com.personal.happygallery.app.web.admin.dto.AdminOrderResponse;
 import com.personal.happygallery.app.web.admin.dto.BatchResponse;
 import com.personal.happygallery.app.web.admin.dto.MarkPickupReadyRequest;
@@ -55,11 +56,13 @@ public class AdminOrderController {
         this.pickupExpireBatchUseCase = pickupExpireBatchUseCase;
     }
 
-    /** GET /admin/orders?status=PAID_APPROVAL_PENDING — 상태별 주문 목록 조회 (상태 미지정 시 전체) */
+    /** GET /admin/orders?status=...&cursor=...&size=20 — 커서 기반 주문 목록 조회 */
     @GetMapping
-    public List<AdminOrderResponse> listOrders(
-            @RequestParam(required = false) OrderStatus status) {
-        return adminOrderQueryUseCase.listOrders(status);
+    public CursorPage<AdminOrderResponse> listOrders(
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminOrderQueryUseCase.listOrders(status, cursor, size);
     }
 
     /** POST /admin/orders/{id}/approve — 주문 승인 (MADE_TO_ORDER는 IN_PRODUCTION으로 전이) */

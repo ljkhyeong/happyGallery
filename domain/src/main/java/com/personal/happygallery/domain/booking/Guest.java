@@ -23,6 +23,12 @@ public class Guest {
     @Column(nullable = false, length = 20)
     private String phone;
 
+    @Column(name = "phone_enc")
+    private String phoneEnc;
+
+    @Column(name = "phone_hmac", length = 64)
+    private String phoneHmac;
+
     @Column(name = "phone_verified", nullable = false)
     private boolean phoneVerified = false;
 
@@ -42,9 +48,16 @@ public class Guest {
         this.phoneVerified = true;
     }
 
+    public void applyEncryption(String phoneEnc, String phoneHmac) {
+        this.phoneEnc = phoneEnc;
+        this.phoneHmac = phoneHmac;
+    }
+
     public Long getId() { return id; }
     public String getName() { return name; }
     public String getPhone() { return phone; }
+    public String getPhoneEnc() { return phoneEnc; }
+    public String getPhoneHmac() { return phoneHmac; }
     public boolean isPhoneVerified() { return phoneVerified; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

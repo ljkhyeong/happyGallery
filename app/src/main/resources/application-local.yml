@@ -14,6 +14,9 @@ app:
     enable-api-key-auth: true
   session:
     secure-cookie: false
+  field-encryption:
+    encrypt-key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    hmac-key: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 
 management:
   server:

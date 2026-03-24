@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -52,5 +53,34 @@ public final class BatchExecutor {
         }
 
         return BatchResult.of(processed, failureReasons);
+    }
+
+    /**
+     * 페이지네이션 배치 실행기.
+     *
+     * <p>처리 후 상태가 변경되어 결과셋에서 빠지는 mutation 배치용이다.
+     * 매 반복마다 첫 페이지를 조회하여 빈 페이지가 나올 때까지 처리한다.
+     * 한 페이지에서 성공 건수가 0이면 무한 루프 방지를 위해 종료한다.
+     *
+     * @param pageFetcher 첫 페이지 조회 함수 (항상 page 0, 고정 크기)
+     * @param idExtractor 로그용 ID 추출 함수
+     * @param processor   건별 처리 함수 (true=성공, false=스킵)
+     * @param label       로그 라벨
+     */
+    public static <T> BatchResult executePaginated(Supplier<List<T>> pageFetcher,
+                                                    Function<T, Object> idExtractor,
+                                                    Function<T, Boolean> processor,
+                                                    String label) {
+        BatchResult total = BatchResult.successOnly(0);
+        List<T> page;
+        while (!(page = pageFetcher.get()).isEmpty()) {
+            BatchResult pageResult = execute(page, idExtractor, processor, label);
+            total = total.merge(pageResult);
+            if (pageResult.successCount() == 0) {
+                log.warn("{} 페이지 진행 없음 — 루프 종료 (failureCount={})", label, pageResult.failureCount());
+                break;
+            }
+        }
+        return total;
     }
 }
