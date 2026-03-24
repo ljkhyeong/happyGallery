@@ -7,7 +7,7 @@ import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.domain.order.Fulfillment;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.List;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
@@ -42,11 +42,13 @@ public class DefaultPickupExpireBatchService implements PickupExpireBatchUseCase
      *
      * @return 처리된 건수
      */
+    private static final int PAGE_SIZE = 100;
+
     public BatchResult expirePickups() {
         LocalDateTime now = LocalDateTime.now(clock);
-        List<Fulfillment> expired = fulfillmentPort.findExpiredPickups(now);
 
-        return BatchExecutor.execute(expired,
+        return BatchExecutor.executePaginated(
+                () -> fulfillmentPort.findExpiredPickups(now, PageRequest.ofSize(PAGE_SIZE)),
                 Fulfillment::getOrderId,
                 f -> pickupExpireProcessor.process(f.getOrderId(), now),
                 "픽업 만료");

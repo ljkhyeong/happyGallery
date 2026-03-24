@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order.port.in;
 
+import com.personal.happygallery.app.web.CursorPage;
 import com.personal.happygallery.app.web.admin.dto.AdminOrderResponse;
 import com.personal.happygallery.app.web.admin.dto.OrderHistoryResponse;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -13,6 +14,8 @@ import java.util.List;
 public interface AdminOrderQueryUseCase {
 
     List<AdminOrderResponse> listOrders(OrderStatus status);
+
+    CursorPage<AdminOrderResponse> listOrders(OrderStatus status, String cursor, int size);
 
     List<OrderHistoryResponse> getOrderHistory(Long orderId);
 }

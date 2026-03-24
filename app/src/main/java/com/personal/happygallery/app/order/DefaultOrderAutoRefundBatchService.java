@@ -8,7 +8,7 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.List;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
@@ -45,12 +45,14 @@ public class DefaultOrderAutoRefundBatchService implements OrderAutoRefundBatchU
      *
      * @return 처리된 건수
      */
+    private static final int PAGE_SIZE = 100;
+
     public BatchResult autoRefundExpired() {
         LocalDateTime now = LocalDateTime.now(clock);
-        List<Order> expired = orderReader.findByStatusAndApprovalDeadlineAtBefore(
-                OrderStatus.PAID_APPROVAL_PENDING, now);
 
-        return BatchExecutor.execute(expired,
+        return BatchExecutor.executePaginated(
+                () -> orderReader.findByStatusAndApprovalDeadlineAtBefore(
+                        OrderStatus.PAID_APPROVAL_PENDING, now, PageRequest.ofSize(PAGE_SIZE)),
                 Order::getId,
                 order -> orderAutoRefundProcessor.process(order.getId(), now),
                 "주문 자동환불");

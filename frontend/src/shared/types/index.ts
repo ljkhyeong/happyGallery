@@ -1,3 +1,4 @@
+export type { CursorPage } from "./cursor";
 export type { ErrorCode, ErrorResponse } from "./error";
 export type { ProductType, ProductStatus, ProductDetailResponse, ProductResponse, CreateProductRequest } from "./product";
 export type { BookingStatus, DepositPaymentMethod, SendVerificationRequest, SendVerificationResponse, CreateGuestBookingRequest, BookingResponse, BookingDetailResponse, MyBookingDetailResponse, RescheduleRequest, RescheduleResponse, CancelResponse } from "./booking";

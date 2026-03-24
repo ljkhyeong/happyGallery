@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Form, Row, Col, InputGroup } from "react-bootstrap";
+import type { AdminOrderResponse, OrderStatus } from "@/shared/types";
 import {
   fetchOrders, approveOrder, rejectOrder, completeProduction,
   requestDelay, resumeProduction, preparePickup, completePickup, setExpectedShipDate, expirePickups,
@@ -9,7 +10,6 @@ import {
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import type { OrderStatus } from "@/shared/types";
 
 interface Props {
   adminKey: string;
@@ -58,11 +58,27 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
   const [pickupDeadline, setPickupDeadline] = useState<Record<number, string>>({});
   const [shipDate, setShipDate] = useState<Record<number, string>>({});
   const [historyOrderId, setHistoryOrderId] = useState<number | null>(null);
+  const [allOrders, setAllOrders] = useState<AdminOrderResponse[]>([]);
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const [hasMore, setHasMore] = useState(false);
 
-  const { data: orders, isLoading, error } = useQuery({
-    queryKey: ["admin", "orders", statusFilter],
-    queryFn: () => fetchOrders(adminKey, statusFilter || undefined),
+  const { data: page, isLoading, error, isFetching } = useQuery({
+    queryKey: ["admin", "orders", statusFilter, cursor],
+    queryFn: () => fetchOrders(adminKey, statusFilter || undefined, cursor),
   });
+
+  useEffect(() => {
+    if (page) {
+      setAllOrders(prev => cursor ? [...prev, ...page.content] : page.content);
+      setHasMore(page.hasMore);
+    }
+  }, [page, cursor]);
+
+  const resetPagination = useCallback(() => {
+    setAllOrders([]);
+    setCursor(undefined);
+    setHasMore(false);
+  }, []);
 
   useEffect(() => {
     if (error instanceof ApiError && error.status === 401) {
@@ -75,7 +91,8 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
   }
 
   function invalidate() {
-    queryClient.invalidateQueries({ queryKey: ["admin", "orders", statusFilter] });
+    resetPagination();
+    queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
   }
 
   const approveMut = useMutation({
@@ -279,7 +296,7 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
         <Col xs={12} sm={5}>
           <Form.Group controlId="admin-order-status-filter">
             <Form.Label>상태</Form.Label>
-            <Form.Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <Form.Select value={statusFilter} onChange={(e) => { resetPagination(); setStatusFilter(e.target.value); }}>
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
@@ -297,40 +314,51 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
 
       {isLoading && <LoadingSpinner />}
       {error && !(error instanceof ApiError && error.status === 401) && <ErrorAlert error={error} />}
-      {orders && orders.length === 0 && <EmptyState message="해당 조건의 주문이 없습니다." />}
+      {!isLoading && allOrders.length === 0 && <EmptyState message="해당 조건의 주문이 없습니다." />}
 
-      {orders && orders.length > 0 && (
-        <Table responsive hover size="sm">
-          <thead>
-            <tr>
-              <th>주문번호</th>
-              <th>상태</th>
-              <th>금액</th>
-              <th>결제일</th>
-              <th>생성일</th>
-              <th>액션</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((o) => (
-              <tr key={o.orderId}>
-                <td>{o.orderNumber}</td>
-                <td><StatusBadge status={o.status} /></td>
-                <td>{formatKRW(o.totalAmount)}</td>
-                <td><small>{o.paidAt ? formatDateTime(o.paidAt) : "-"}</small></td>
-                <td><small>{formatDateTime(o.createdAt)}</small></td>
-                <td>{renderActions(o.orderId, o.status)}</td>
-                <td>
-                  <Button size="sm" variant="link"
-                    onClick={() => setHistoryOrderId(historyOrderId === o.orderId ? null : o.orderId)}>
-                    {historyOrderId === o.orderId ? "닫기" : "이력"}
-                  </Button>
-                </td>
+      {allOrders.length > 0 && (
+        <>
+          <Table responsive hover size="sm">
+            <thead>
+              <tr>
+                <th>주문번호</th>
+                <th>상태</th>
+                <th>금액</th>
+                <th>결제일</th>
+                <th>생성일</th>
+                <th>액션</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {allOrders.map((o) => (
+                <tr key={o.orderId}>
+                  <td>{o.orderNumber}</td>
+                  <td><StatusBadge status={o.status} /></td>
+                  <td>{formatKRW(o.totalAmount)}</td>
+                  <td><small>{o.paidAt ? formatDateTime(o.paidAt) : "-"}</small></td>
+                  <td><small>{formatDateTime(o.createdAt)}</small></td>
+                  <td>{renderActions(o.orderId, o.status)}</td>
+                  <td>
+                    <Button size="sm" variant="link"
+                      onClick={() => setHistoryOrderId(historyOrderId === o.orderId ? null : o.orderId)}>
+                      {historyOrderId === o.orderId ? "닫기" : "이력"}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+          {hasMore && (
+            <div className="text-center mb-3">
+              <Button variant="outline-primary" size="sm"
+                disabled={isFetching}
+                onClick={() => page?.nextCursor && setCursor(page.nextCursor)}>
+                {isFetching ? "불러오는 중..." : "더보기"}
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
       {historyOrderId != null && (
