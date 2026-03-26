@@ -1,32 +1,21 @@
 package com.personal.happygallery.app.order;
 
-import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.order.port.in.OrderApprovalUseCase;
-import com.personal.happygallery.app.payment.RefundExecutionService;
 import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.app.order.port.out.OrderItemPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.app.order.port.out.OrderStorePort;
-import com.personal.happygallery.app.product.InventoryService;
-import com.personal.happygallery.config.RetryConfig;
+import com.personal.happygallery.config.OptimisticLockRetryable;
 import com.personal.happygallery.common.error.NotFoundException;
-import com.personal.happygallery.domain.booking.Refund;
-import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
-import com.personal.happygallery.domain.order.OrderItem;
-import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.ProductType;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,28 +39,22 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
     private final OrderItemPort orderItemPort;
-    private final InventoryService inventoryService;
-    private final RefundExecutionService refundExecutionService;
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
-    private final NotificationService notificationService;
+    private final OrderRefundSupport orderRefundSupport;
 
     public DefaultOrderApprovalService(OrderReaderPort orderReader,
                                 OrderStorePort orderStore,
                                 OrderItemPort orderItemPort,
-                                InventoryService inventoryService,
-                                RefundExecutionService refundExecutionService,
                                 FulfillmentPort fulfillmentPort,
                                 OrderHistoryPort orderHistoryPort,
-                                NotificationService notificationService) {
+                                OrderRefundSupport orderRefundSupport) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
-        this.inventoryService = inventoryService;
-        this.refundExecutionService = refundExecutionService;
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
-        this.notificationService = notificationService;
+        this.orderRefundSupport = orderRefundSupport;
     }
 
     /**
@@ -84,21 +67,12 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
      * @param orderId 주문 ID
      * @return 승인된 주문
      */
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
+    @OptimisticLockRetryable
     public Order approve(Long orderId) {
         return approve(orderId, null);
     }
 
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
-            backoff = @Backoff(
-                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
-                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
-                    random = true))
+    @OptimisticLockRetryable
     public Order approve(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -133,51 +107,23 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
      * @param orderId 주문 ID
      * @return 거절된 주문
      */
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 50, multiplier = 2.0, random = true))
+    @OptimisticLockRetryable
     public Order reject(Long orderId) {
         return reject(orderId, null);
     }
 
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
-            backoff = @Backoff(
-                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
-                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
-                    random = true))
+    @OptimisticLockRetryable
     public Order reject(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         order.reject();
 
-        restoreInventory(order);
-        boolean refundSucceeded = processRefund(order);
+        orderRefundSupport.refundOrder(order);
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT, adminId, null));
-        notifyRefundedGuest(order, refundSucceeded);
         log.info("order rejected [orderId={} adminId={}]", orderId, adminId);
 
         return orderStore.save(order);
     }
 
-    void restoreInventory(Order order) {
-        List<OrderItem> items = orderItemPort.findByOrder(order);
-        for (OrderItem item : items) {
-            inventoryService.restore(item.getProductId(), item.getQty());
-        }
-    }
-
-    boolean processRefund(Order order) {
-        Refund refund = refundExecutionService.processOrderRefund(order.getId(), order.getTotalAmount());
-        return refund.getStatus() == RefundStatus.SUCCEEDED;
-    }
-
-    void notifyRefundedGuest(Order order, boolean refundSucceeded) {
-        if (refundSucceeded) {
-            notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
-        }
-    }
 }

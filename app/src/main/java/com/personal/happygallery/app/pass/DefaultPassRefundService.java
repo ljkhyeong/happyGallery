@@ -82,20 +82,7 @@ public class DefaultPassRefundService implements PassRefundUseCase {
         List<Booking> futureBookings = bookingReader.findFuturePassBookings(
                 passId, BookingStatus.BOOKED, LocalDateTime.now(clock));
 
-        for (Booking booking : futureBookings) {
-            var slot = slotReader.findByIdWithLock(booking.getSlot().getId())
-                    .orElseThrow(() -> new NotFoundException("슬롯"));
-            slot.decrementBookedCount();
-            slotStore.save(slot);
-
-            bookingHistoryPort.save(
-                    new BookingHistory(booking, BookingHistoryAction.CANCELED,
-                            slot, null, "ADMIN", null));
-
-            booking.cancel();
-            bookingStore.save(booking);
-            log.info("Pass환불 연동 취소 [passId={}, bookingId={}]", passId, booking.getId());
-        }
+        futureBookings.forEach(booking -> cancelLinkedBooking(booking, passId));
 
         // 2. REFUND ledger 기록 (잔여 크레딧 전체)
         int refundCredits = pass.getRemainingCredits();
@@ -115,4 +102,18 @@ public class DefaultPassRefundService implements PassRefundUseCase {
         return new PassRefundResult(futureBookings.size(), refundCredits, refundAmount);
     }
 
+    private void cancelLinkedBooking(Booking booking, Long passId) {
+        var slot = slotReader.findByIdWithLock(booking.getSlot().getId())
+                .orElseThrow(() -> new NotFoundException("슬롯"));
+        slot.decrementBookedCount();
+        slotStore.save(slot);
+
+        bookingHistoryPort.save(
+                new BookingHistory(booking, BookingHistoryAction.CANCELED,
+                        slot, null, "ADMIN", null));
+
+        booking.cancel();
+        bookingStore.save(booking);
+        log.info("Pass환불 연동 취소 [passId={}, bookingId={}]", passId, booking.getId());
+    }
 }

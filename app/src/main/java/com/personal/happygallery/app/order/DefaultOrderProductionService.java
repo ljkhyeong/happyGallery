@@ -5,7 +5,7 @@ import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.app.order.port.out.OrderStorePort;
-import com.personal.happygallery.config.RetryConfig;
+import com.personal.happygallery.config.OptimisticLockRetryable;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
@@ -14,9 +14,6 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDate;
 import org.springframework.stereotype.Service;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -56,13 +53,7 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      * @param expectedShipDate 예상 출고일
      * @return 주문 상태 + 갱신된 출고일
      */
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
-            backoff = @Backoff(
-                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
-                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
-                    random = true))
+    @OptimisticLockRetryable
     public ProductionResult setExpectedShipDate(Long orderId, LocalDate expectedShipDate) {
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -84,13 +75,7 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      * @param orderId 주문 ID
      * @return 전이된 주문 상태 + 출고일
      */
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
-            backoff = @Backoff(
-                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
-                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
-                    random = true))
+    @OptimisticLockRetryable
     public ProductionResult requestDelay(Long orderId) {
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -108,13 +93,7 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      * 지연 요청 상태에서 제작을 재개한다.
      * {@link OrderStatus#DELAY_REQUESTED} → {@link OrderStatus#IN_PRODUCTION}.
      */
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
-            backoff = @Backoff(
-                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
-                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
-                    random = true))
+    @OptimisticLockRetryable
     public ProductionResult resumeProduction(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -134,13 +113,7 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      * {@link OrderStatus#APPROVED_FULFILLMENT_PENDING}으로 전이한다.
      * 이후 픽업 준비({@code markPickupReady}) 또는 배송 흐름으로 이어진다.
      */
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
-            backoff = @Backoff(
-                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
-                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
-                    random = true))
+    @OptimisticLockRetryable
     public ProductionResult completeProduction(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));

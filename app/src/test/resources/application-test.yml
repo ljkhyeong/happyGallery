@@ -12,6 +12,14 @@ app:
   field-encryption:
     encrypt-key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     hmac-key: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+  external:
+    kakao:
+      api-key: "test-kakao-api-key"
+      sender-key: "test-kakao-sender-key"
+    sms:
+      api-key: "test-sms-api-key"
+      api-secret: "test-sms-api-secret"
+      sender-number: "01000000000"
 
 logging:
   level:

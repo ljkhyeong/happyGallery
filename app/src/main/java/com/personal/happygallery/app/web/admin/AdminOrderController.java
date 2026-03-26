@@ -7,7 +7,10 @@ import com.personal.happygallery.app.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.app.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.app.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.app.order.port.in.PickupExpireBatchUseCase;
+import com.personal.happygallery.app.search.dto.AdminOrderSearchRow;
+import com.personal.happygallery.app.search.port.in.AdminOrderSearchUseCase;
 import com.personal.happygallery.app.web.CursorPage;
+import com.personal.happygallery.app.web.OffsetPage;
 import com.personal.happygallery.app.web.admin.dto.AdminOrderResponse;
 import com.personal.happygallery.app.web.admin.dto.BatchResponse;
 import com.personal.happygallery.app.web.admin.dto.MarkPickupReadyRequest;
@@ -19,7 +22,9 @@ import com.personal.happygallery.app.web.admin.dto.ShippingResponse;
 import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.domain.order.OrderStatus;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -36,6 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminOrderController {
 
     private final AdminOrderQueryUseCase adminOrderQueryUseCase;
+    private final AdminOrderSearchUseCase adminOrderSearchUseCase;
     private final OrderApprovalUseCase orderApprovalUseCase;
     private final OrderProductionUseCase orderProductionUseCase;
     private final OrderPickupUseCase orderPickupUseCase;
@@ -43,12 +49,14 @@ public class AdminOrderController {
     private final PickupExpireBatchUseCase pickupExpireBatchUseCase;
 
     public AdminOrderController(AdminOrderQueryUseCase adminOrderQueryUseCase,
+                                AdminOrderSearchUseCase adminOrderSearchUseCase,
                                 OrderApprovalUseCase orderApprovalUseCase,
                                 OrderProductionUseCase orderProductionUseCase,
                                 OrderPickupUseCase orderPickupUseCase,
                                 OrderShippingUseCase orderShippingUseCase,
                                 PickupExpireBatchUseCase pickupExpireBatchUseCase) {
         this.adminOrderQueryUseCase = adminOrderQueryUseCase;
+        this.adminOrderSearchUseCase = adminOrderSearchUseCase;
         this.orderApprovalUseCase = orderApprovalUseCase;
         this.orderProductionUseCase = orderProductionUseCase;
         this.orderPickupUseCase = orderPickupUseCase;
@@ -63,6 +71,18 @@ public class AdminOrderController {
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int size) {
         return adminOrderQueryUseCase.listOrders(status, cursor, size);
+    }
+
+    /** GET /admin/orders/search — 상태·날짜·키워드 기반 주문 검색 (OFFSET + 지연 조인) */
+    @GetMapping("/search")
+    public OffsetPage<AdminOrderSearchRow> searchOrders(
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminOrderSearchUseCase.search(status, dateFrom, dateTo, keyword, page, size);
     }
 
     /** POST /admin/orders/{id}/approve — 주문 승인 (MADE_TO_ORDER는 IN_PRODUCTION으로 전이) */
