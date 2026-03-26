@@ -13,7 +13,12 @@ export function ProductCard({ product }: Props) {
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-3">
           <div>
-            <div className="product-card-kicker">{PRODUCT_TYPE_LABEL[product.type] ?? product.type}</div>
+            <div className="product-card-kicker">
+              {PRODUCT_TYPE_LABEL[product.type] ?? product.type}
+              {product.category && (
+                <Badge bg="light" text="dark" className="ms-1">{product.category}</Badge>
+              )}
+            </div>
             <Card.Title className="h6 mb-0">{product.name}</Card.Title>
           </div>
           <Badge bg={product.available ? "success" : "secondary"} className="badge-status">

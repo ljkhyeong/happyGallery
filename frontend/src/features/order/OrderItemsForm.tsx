@@ -19,7 +19,7 @@ export function OrderItemsForm({ items, onChange }: Props) {
 
   const { data: products, isLoading, error } = useQuery({
     queryKey: ["products"],
-    queryFn: fetchProducts,
+    queryFn: () => fetchProducts(),
   });
 
   const productMap = new Map<number, ProductDetailResponse>(

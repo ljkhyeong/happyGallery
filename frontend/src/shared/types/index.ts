@@ -1,6 +1,6 @@
 export type { CursorPage } from "./cursor";
 export type { ErrorCode, ErrorResponse } from "./error";
-export type { ProductType, ProductStatus, ProductDetailResponse, ProductResponse, CreateProductRequest } from "./product";
+export type { ProductType, ProductStatus, ProductSortOrder, ProductDetailResponse, ProductResponse, CreateProductRequest, ProductFilterParams } from "./product";
 export type { BookingStatus, DepositPaymentMethod, SendVerificationRequest, SendVerificationResponse, CreateGuestBookingRequest, BookingResponse, BookingDetailResponse, MyBookingDetailResponse, RescheduleRequest, RescheduleResponse, CancelResponse } from "./booking";
 export type { PassRefundResponse } from "./pass";
 export type { OrderStatus, SlotResponse, CreateSlotRequest, BatchResponse, BookingNoShowResponse, OrderProductionResponse, PickupResponse, MarkPickupReadyRequest, SetExpectedShipDateRequest, FailedRefundResponse, AdminOrderResponse, AdminBookingResponse, ShippingResponse, OrderApprovalDecision, OrderHistoryResponse } from "./admin";

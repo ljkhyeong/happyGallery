@@ -15,3 +15,10 @@ export const FULFILLMENT_TYPE_LABEL: Record<string, string> = {
   SHIPPING: "배송",
   PICKUP: "픽업",
 };
+
+/** 상품 정렬 라벨 */
+export const PRODUCT_SORT_LABEL: Record<string, string> = {
+  newest: "최신순",
+  price_asc: "가격 낮은순",
+  price_desc: "가격 높은순",
+};

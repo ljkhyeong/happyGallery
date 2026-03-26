@@ -9,7 +9,7 @@ import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 export function HomePage() {
   const { data: products, isLoading, isError, error } = useQuery({
     queryKey: ["products"],
-    queryFn: fetchProducts,
+    queryFn: () => fetchProducts(),
   });
 
   const featured = products?.filter((p) => p.available).slice(0, 6) ?? [];
