@@ -19,6 +19,7 @@
 | 관측성 구조 | `monitoring/` + `docker-compose.yml` | Prometheus, Grafana, alert rule, 대시보드 설정을 로컬에서 바로 띄울 수 있게 묶어 둔다. |
 | Resilience4j | `resilience4j-circuitbreaker`, `resilience4j-timelimiter` | PG 환불 호출에 circuit breaker와 timeout을 적용해 장애 전파를 줄인다. |
 | Redis + Spring Session | `spring-boot-starter-data-redis`, `spring-session-data-redis` | 회원 세션(`HG_SESSION`), 관리자 Bearer 세션, 요청 제한 카운터를 Redis에 저장한다. |
+| HTTP 캐시 | `ShallowEtagHeaderFilter` | 공개 상품/클래스/공지 GET 응답에 `ETag`를 붙이고 `If-None-Match` 기반 `304 Not Modified`를 지원한다. |
 | Flyway | `spring-boot-starter-flyway`, `flyway-mysql` | MySQL 스키마 변경을 버전으로 관리한다. |
 | Spring Actuator | `spring-boot-starter-actuator` | 헬스 체크와 메트릭 엔드포인트를 제공한다. |
 | Prometheus | `micrometer-registry-prometheus` | Actuator 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 Prometheus 형식으로 노출한다. |
@@ -86,7 +87,7 @@
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| [IDEA-0001 ~ IDEA-0031](docs/Idea/) | `docs/Idea/` | 검토 메모, 후속 아이디어, 운영 가이드 문서 모음 |
+| [IDEA-0001 ~ IDEA-0032](docs/Idea/) | `docs/Idea/` | 검토 메모, 후속 아이디어, 운영 가이드 문서 모음 |
 
 ### 🧪 POC
 
@@ -135,9 +136,10 @@
 - 관리자 흐름
   - 상품 등록/조회
   - 슬롯 생성/비활성화
-  - 예약 목록 조회/노쇼 처리
-  - 주문 승인/거절/제작 재개/제작 완료/지연/배송/픽업 관리
+  - 예약 목록 조회/검색/노쇼 처리
+  - 주문 커서 목록 조회/검색/승인/거절/제작 재개/제작 완료/지연/배송/픽업 관리
   - 주문 결정 이력 조회
+  - 매출 요약/환불 현황/주문 상태/상위 상품/일별 매출/예약 가동률 관리자 대시보드 조회
   - 8회권 만료/환불
   - 환불 실패 조회/재시도
   - 상품 Q&A 답변 관리
@@ -189,17 +191,19 @@
 - Node.js 20+
 - Docker / Docker Compose
 
-### 2. 주요 환경 변수
+### 2. 주요 환경 변수 / 설정
 
 - DB: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `MYSQL_USER`, `MYSQL_PASSWORD`
 - 관리자 local/dev: `ADMIN_API_KEY`, `ADMIN_ENABLE_API_KEY_AUTH`
 - 결제: `PAYMENT_TIMEOUT_MILLIS`, `PAYMENT_CB_*`
 - 요청 제한 / Actuator: `RATE_LIMIT_TRUST_FORWARDED`, `ACTUATOR_HEALTH_SHOW_DETAILS`
+- 필드 암호화: 비local 프로필은 `app.field-encryption.encrypt-key`, `app.field-encryption.hmac-key`를 64자리 hex 값으로 반드시 주입
 - 알림: `KAKAO_API_KEY`, `KAKAO_SENDER_KEY`, `SMS_API_KEY`, `SMS_API_SECRET`, `SMS_SENDER_NUMBER`
 - Grafana: `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`
 - Playwright: `PLAYWRIGHT_ADMIN_USERNAME`, `PLAYWRIGHT_ADMIN_PASSWORD`, `PLAYWRIGHT_BACKEND_URL`
 
 기본 프로필은 `local`이다.
+- `local` 프로필은 샘플 필드 암호화 키를 기본 제공하지만, `dev`/`prod`는 직접 설정해야 한다.
 
 ### 3. 백엔드 실행 방식
 
