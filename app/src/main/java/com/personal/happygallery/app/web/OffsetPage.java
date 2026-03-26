@@ -20,6 +20,12 @@ public record OffsetPage<T>(
 ) {
 
     public static <T> OffsetPage<T> of(List<T> content, int page, int size, long totalCount) {
+        if (size < 1) {
+            throw new IllegalArgumentException("size must be >= 1");
+        }
+        if (page < 0) {
+            throw new IllegalArgumentException("page must be >= 0");
+        }
         int totalPages = (int) Math.ceil((double) totalCount / size);
         return new OffsetPage<>(content, page, size, totalCount, totalPages);
     }

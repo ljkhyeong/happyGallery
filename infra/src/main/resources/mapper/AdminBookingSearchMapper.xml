@@ -30,7 +30,7 @@
         지연 조인(Deferred Join):
         서브쿼리에서 커버링 인덱스로 ID만 페이징한 뒤,
         외부 쿼리에서 실제 데이터를 JOIN으로 가져온다.
-        예약은 날짜 필터가 slots.start_at 기준이므로 서브쿼리에 항상 slots JOIN 포함.
+        예약은 날짜 필터가 slots.start_at 기준이므로 날짜 조건 존재 시 slots JOIN 포함.
     -->
     <select id="search" resultType="com.personal.happygallery.app.search.dto.AdminBookingSearchRow">
         SELECT
@@ -51,7 +51,9 @@
         INNER JOIN (
             SELECT b.id
             FROM bookings b
-            JOIN slots s ON b.slot_id = s.id
+            <if test="dateFrom != null or dateTo != null">
+                JOIN slots s ON b.slot_id = s.id
+            </if>
             <if test="keyword != null and keyword != ''">
                 LEFT JOIN users u ON b.user_id = u.id
                 LEFT JOIN guests g ON b.guest_id = g.id
@@ -70,7 +72,9 @@
     <select id="count" resultType="long">
         SELECT COUNT(*)
         FROM bookings b
-        JOIN slots s ON b.slot_id = s.id
+        <if test="dateFrom != null or dateTo != null">
+            JOIN slots s ON b.slot_id = s.id
+        </if>
         <if test="keyword != null and keyword != ''">
             LEFT JOIN users u ON b.user_id = u.id
             LEFT JOIN guests g ON b.guest_id = g.id

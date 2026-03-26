@@ -20,14 +20,18 @@ class DefaultAdminBookingSearchService implements AdminBookingSearchUseCase {
         this.searchPort = searchPort;
     }
 
+    private static final int MAX_SIZE = 100;
+
     @Override
     public OffsetPage<AdminBookingSearchRow> search(BookingStatus status, LocalDate dateFrom, LocalDate dateTo,
                                                      String keyword, int page, int size) {
+        int clampedSize = Math.min(Math.max(size, 1), MAX_SIZE);
         long totalCount = searchPort.count(status, dateFrom, dateTo, keyword);
-        if (totalCount == 0) {
-            return OffsetPage.of(List.of(), page, size, 0);
+        if (totalCount == 0 || (long) page * clampedSize >= totalCount) {
+            return OffsetPage.of(List.of(), page, clampedSize, totalCount);
         }
-        List<AdminBookingSearchRow> rows = searchPort.search(status, dateFrom, dateTo, keyword, page * size, size);
-        return OffsetPage.of(rows, page, size, totalCount);
+        List<AdminBookingSearchRow> rows = searchPort.search(
+                status, dateFrom, dateTo, keyword, page * clampedSize, clampedSize);
+        return OffsetPage.of(rows, page, clampedSize, totalCount);
     }
 }
