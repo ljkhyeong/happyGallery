@@ -12,7 +12,7 @@ interface Props {
   onAuthError: () => void;
 }
 
-export function AdminNoticeSection({ adminKey, onAuthError: _onAuthError }: Props) {
+export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -80,9 +80,9 @@ export function AdminNoticeSection({ adminKey, onAuthError: _onAuthError }: Prop
 
   useEffect(() => {
     if (error instanceof ApiError && error.status === 401) {
-      _onAuthError();
+      onAuthError();
     }
-  }, [error, _onAuthError]);
+  }, [error, onAuthError]);
 
   return (
     <div>
