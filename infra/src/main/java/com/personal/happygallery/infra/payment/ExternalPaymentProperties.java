@@ -1,18 +1,22 @@
 package com.personal.happygallery.infra.payment;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.validation.annotation.Validated;
 
+@Validated
 @ConfigurationProperties(prefix = "app.external.payment")
 public record ExternalPaymentProperties(
-        @DefaultValue("3000") long timeoutMillis,
-        CircuitBreaker circuitBreaker
+        @Min(1) @DefaultValue("3000") long timeoutMillis,
+        @Valid CircuitBreaker circuitBreaker
 ) {
     public record CircuitBreaker(
-            @DefaultValue("50") float failureRateThreshold,
-            @DefaultValue("20") int slidingWindowSize,
-            @DefaultValue("10") int minimumNumberOfCalls,
-            @DefaultValue("30") long waitDurationOpenSeconds,
-            @DefaultValue("3") int permittedCallsInHalfOpenState
+            @Min(1) @DefaultValue("50") float failureRateThreshold,
+            @Min(1) @DefaultValue("20") int slidingWindowSize,
+            @Min(1) @DefaultValue("10") int minimumNumberOfCalls,
+            @Min(1) @DefaultValue("30") long waitDurationOpenSeconds,
+            @Min(1) @DefaultValue("3") int permittedCallsInHalfOpenState
     ) {}
 }

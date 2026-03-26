@@ -1,8 +1,11 @@
 package com.personal.happygallery.app.batch;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -72,9 +75,20 @@ public final class BatchExecutor {
                                                     Function<T, Boolean> processor,
                                                     String label) {
         BatchResult total = BatchResult.successOnly(0);
+        Set<Object> seenIds = new HashSet<>();
         List<T> page;
         while (!(page = pageFetcher.get()).isEmpty()) {
-            BatchResult pageResult = execute(page, idExtractor, processor, label);
+            List<T> fresh = new ArrayList<>();
+            for (T item : page) {
+                if (seenIds.add(idExtractor.apply(item))) {
+                    fresh.add(item);
+                }
+            }
+            if (fresh.isEmpty()) {
+                log.warn("{} 남은 항목이 모두 처리 완료 — 루프 종료", label);
+                break;
+            }
+            BatchResult pageResult = execute(fresh, idExtractor, processor, label);
             total = total.merge(pageResult);
             if (pageResult.successCount() == 0) {
                 log.warn("{} 페이지 진행 없음 — 루프 종료 (failureCount={})", label, pageResult.failureCount());

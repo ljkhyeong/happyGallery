@@ -5,7 +5,7 @@ import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.app.order.port.out.OrderStorePort;
-import com.personal.happygallery.config.RetryConfig;
+import com.personal.happygallery.config.OptimisticLockRetryable;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
@@ -14,9 +14,6 @@ import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDate;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,13 +47,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
      * 배송 준비 시작. APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING.
      * Fulfillment가 SHIPPING 타입이어야 한다 (없으면 새로 생성).
      */
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
-            backoff = @Backoff(
-                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
-                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
-                    random = true))
+    @OptimisticLockRetryable
     public ShippingResult prepareShipping(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -76,13 +67,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     /**
      * 배송 출발. SHIPPING_PREPARING → SHIPPED.
      */
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
-            backoff = @Backoff(
-                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
-                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
-                    random = true))
+    @OptimisticLockRetryable
     public ShippingResult markShipped(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -100,13 +85,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     /**
      * 배송 완료. SHIPPED → DELIVERED.
      */
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
-            backoff = @Backoff(
-                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
-                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
-                    random = true))
+    @OptimisticLockRetryable
     public ShippingResult markDelivered(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
