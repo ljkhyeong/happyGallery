@@ -4,16 +4,13 @@ import com.personal.happygallery.app.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.app.order.port.out.FulfillmentPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.app.order.port.out.OrderStorePort;
-import com.personal.happygallery.config.RetryConfig;
+import com.personal.happygallery.config.OptimisticLockRetryable;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -48,13 +45,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
      * @param pickupDeadlineAt 픽업 마감 시각
      * @return 픽업 결과 (주문 ID, 상태, 마감 시각)
      */
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
-            backoff = @Backoff(
-                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
-                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
-                    random = true))
+    @OptimisticLockRetryable
     public PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt) {
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
@@ -78,13 +69,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
      * @param orderId 주문 ID
      * @return 픽업 결과 (주문 ID, 상태, 마감 시각)
      */
-    @Retryable(
-            retryFor = ObjectOptimisticLockingFailureException.class,
-            maxAttempts = RetryConfig.OPTIMISTIC_LOCK_MAX_ATTEMPTS,
-            backoff = @Backoff(
-                    delay = RetryConfig.OPTIMISTIC_LOCK_INITIAL_DELAY_MILLIS,
-                    multiplier = RetryConfig.OPTIMISTIC_LOCK_BACKOFF_MULTIPLIER,
-                    random = true))
+    @OptimisticLockRetryable
     public PickupResult confirmPickup(Long orderId) {
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
