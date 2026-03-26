@@ -6,7 +6,7 @@
 
 - 응답 body의 MD5 해시를 `ETag` 헤더로 내려줌
 - 클라이언트가 `If-None-Match`를 보내면 body 비교 후 `304 Not Modified` 반환
-- **한계**: DB 쿼리와 직렬화는 매번 실행됨 — 네트워크 트래픽만 절감
+- 한계: DB 쿼리와 직렬화는 매번 실행됨. 네트워크 트래픽만 절감
 
 ## Phase 2 — Caffeine 로컬 캐시 + Cache-Control (미적용)
 
@@ -23,18 +23,18 @@
 
 ### 구현 방향
 
-1. **Caffeine 캐시** 도입 (`spring-boot-starter-cache` + `caffeine`)
+1. Caffeine 캐시 도입 (`spring-boot-starter-cache` + `caffeine`)
    - 서비스 계층에서 `@Cacheable` / `@CacheEvict` 적용
-   - DB 쿼리 자체를 스킵하여 응답 지연과 DB 부하 동시 절감
+   - DB 쿼리 자체를 스킵하여 응답 지연과 DB 부하를 함께 줄인다.
 
-2. **`Cache-Control` 헤더** 추가
+2. `Cache-Control` 헤더 추가
    - 브라우저가 TTL 동안 서버 요청 자체를 하지 않음
-   - TTL 만료 후에는 `ETag`로 304 판단
+   - TTL 만료 후에는 `ETag`로 `304` 여부를 판단
 
-3. **캐시 무효화**
+3. 캐시 무효화
    - 관리자 API에서 상품/클래스/공지 CUD 시 `@CacheEvict` 호출
    - 단일 인스턴스에서는 Caffeine으로 충분
-   - 다중 인스턴스 시 Redis pub/sub 기반 무효화 필요 (0015 참조)
+   - 다중 인스턴스 시 Redis pub/sub 기반 무효화 필요 (`0015` 참조)
 
 ### Phase 2 도입 시점 판단 기준
 

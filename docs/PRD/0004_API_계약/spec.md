@@ -165,6 +165,8 @@ GET /api/v1/products
   - `ACTIVE` 상태 상품만 노출한다.
   - 응답은 상품 상세 조회와 동일한 필드 구조를 사용한다.
   - 재고 수량 원문은 노출하지 않고 `available`만 공개한다.
+  - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
+  - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 
 #### 2.2.2 공개 상품 상세 조회
 
@@ -185,6 +187,9 @@ GET /api/v1/products/{id}
 - 성공: `200 OK`
 - 에러:
   - `404 NOT_FOUND` — productId 미존재
+- 정책:
+  - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
+  - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 
 #### 2.2.3 공개 클래스 목록 조회
 
@@ -209,6 +214,8 @@ GET /api/v1/classes
 - 정책:
   - 현재 등록된 전체 클래스를 반환한다.
   - 프론트 예약 생성 화면은 이 응답을 기준으로 클래스 선택지를 구성한다.
+  - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
+  - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 
 #### 2.2.4 공개 예약 가능 슬롯 조회
 
@@ -628,7 +635,43 @@ Authorization: Bearer {token}
   - `cursor`는 `Base64("{ISO_LOCAL_DATE_TIME}|{id}")` 형식이다.
   - 프론트는 `hasMore=true`일 때만 `nextCursor`로 다음 페이지를 요청한다.
 
-#### 2.7.2 주문 운영 엔드포인트
+#### 2.7.2 관리자 주문 검색
+
+```http
+GET /api/v1/admin/orders/search?status=PAID_APPROVAL_PENDING&dateFrom=2026-03-20&dateTo=2026-03-24&keyword=홍길동&page=0&size=20
+Authorization: Bearer {token}
+```
+
+```json
+{
+  "content": [
+    {
+      "orderId": 123,
+      "orderNumber": "ORD-00000123",
+      "status": "PAID_APPROVAL_PENDING",
+      "totalAmount": 118000,
+      "buyerName": "홍길동",
+      "buyerPhone": "01012345678",
+      "paidAt": "2026-03-24T11:32:10",
+      "approvalDeadlineAt": "2026-03-25T11:32:10",
+      "createdAt": "2026-03-24T11:32:10"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalCount": 37,
+  "totalPages": 2
+}
+```
+
+- 성공: `200 OK`
+- 정책:
+  - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
+  - `keyword`는 주문 ID 문자열, 회원 이름, 비회원 이름에 대해 부분 일치 검색한다.
+  - `dateFrom`~`dateTo`는 KST 기준 주문 생성일 범위를 의미한다.
+  - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
+
+#### 2.7.3 주문 운영 엔드포인트
 
 - `POST /api/v1/admin/orders/{id}/approve`
   - 응답: `200 OK` 본문 없음
@@ -668,7 +711,7 @@ Authorization: Bearer {token}
 - `400 INVALID_INPUT` — 허용되지 않은 상태 전이
 - `409 ALREADY_REFUNDED` — 자동환불/거절 완료 주문에 대한 승인·거절 재시도
 
-#### 2.7.3 픽업 만료 배치 수동 트리거
+#### 2.7.4 픽업 만료 배치 수동 트리거
 
 ```http
 POST /api/v1/admin/orders/expire-pickups
@@ -691,7 +734,7 @@ Authorization: Bearer {token}
   - 성공 건은 `PICKUP_EXPIRED`로 전이하고 환불/재고 복구를 수행한다.
   - `failureReasons`는 내부 예외명을 그대로 노출하지 않고 `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`로 정규화한다.
 
-#### 2.7.4 제작 완료
+#### 2.7.5 제작 완료
 
 ```http
 POST /api/v1/admin/orders/{id}/complete-production
@@ -715,7 +758,7 @@ Authorization: Bearer {token}
   - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
   - API Key 폴백 경로는 `null`일 수 있다.
 
-#### 2.7.5 배송 흐름
+#### 2.7.6 배송 흐름
 
 ```http
 POST /api/v1/admin/orders/{id}/prepare-shipping
@@ -741,7 +784,7 @@ Authorization: Bearer {token}
   - 각 전이는 `order_approvals` 이력에 `PREPARE_SHIPPING`, `SHIP`, `DELIVER`로 기록한다.
   - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
 
-#### 2.7.6 주문 결정 이력 조회
+#### 2.7.7 주문 결정 이력 조회
 
 ```http
 GET /api/v1/admin/orders/{id}/history
@@ -789,6 +832,8 @@ GET /api/v1/notices
 - 정책:
   - pinned 우선, 같은 pinned 그룹 안에서는 `createdAt DESC`로 정렬한다.
   - 홈 위젯은 이 목록에서 최근 5건만 노출한다.
+  - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
+  - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 
 #### 2.8.2 공개 공지 상세 조회
 
@@ -812,6 +857,8 @@ GET /api/v1/notices/{id}
   - `404 NOT_FOUND` — noticeId 미존재
 - 정책:
   - 상세 조회 시 `viewCount`를 1 증가시킨 뒤 최신 값을 반환한다.
+  - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
+  - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 
 #### 2.8.3 관리자 공지 CRUD
 
@@ -863,9 +910,96 @@ Authorization: Bearer {token}
   - User 정보는 batch fetch(`UserReaderPort.findAllById`)로 조합한다.
   - `date` 필수, `status`는 선택(미입력 시 전체).
 
-### 2.9 환불 실패 관리 Admin API
+#### 2.9.2 관리자 예약 검색
 
-#### 2.8.1 환불 실패 목록 조회
+```http
+GET /api/v1/admin/bookings/search?status=BOOKED&dateFrom=2026-03-20&dateTo=2026-03-24&keyword=홍길동&page=0&size=20
+Authorization: Bearer {token}
+```
+
+```json
+{
+  "content": [
+    {
+      "bookingId": 15,
+      "bookingNumber": "BK-00000015",
+      "bookerType": "MEMBER",
+      "bookerName": "홍길동",
+      "bookerPhone": "01012345678",
+      "className": "향수 클래스",
+      "startAt": "2026-03-24T10:00:00",
+      "endAt": "2026-03-24T12:00:00",
+      "status": "BOOKED",
+      "depositAmount": 5000,
+      "balanceAmount": 45000,
+      "passBooking": false,
+      "createdAt": "2026-03-20T09:15:00"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalCount": 18,
+  "totalPages": 1
+}
+```
+
+- 성공: `200 OK`
+- 정책:
+  - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
+  - `keyword`는 예약 ID 문자열, 회원 이름, 비회원 이름에 대해 부분 일치 검색한다.
+  - 날짜 필터는 슬롯 시작 시간(`slotStart`) 기준 KST 범위를 사용한다.
+  - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
+
+### 2.10 관리자 대시보드 API
+
+관리자 인증은 `Authorization: Bearer {token}` 기준이며, 모든 응답은 `200 OK`를 반환한다.
+
+#### 2.10.1 개요/매출 집계
+
+- `GET /api/v1/admin/dashboard/overview?from=2026-03-01&to=2026-03-31`
+  - 응답:
+
+```json
+{
+  "todayRevenue": 118000,
+  "todayOrderCount": 3,
+  "pendingApprovalCount": 2,
+  "todayBookingCount": 4,
+  "monthRevenue": 2140000,
+  "monthOrderCount": 41
+}
+```
+
+- `GET /api/v1/admin/dashboard/sales-summary?from=2026-03-01&to=2026-03-31&granularity=DAILY`
+  - 응답: `[{"periodLabel":"2026-03-24","totalRevenue":118000,"orderCount":3,"avgOrderValue":39333}]`
+- `GET /api/v1/admin/dashboard/revenue-breakdown?from=2026-03-01&to=2026-03-31`
+  - 응답: `{"orderRevenue":1500000,"bookingDepositRevenue":120000,"bookingBalanceRevenue":320000,"passPurchaseRevenue":200000,"totalRevenue":2140000}`
+- `GET /api/v1/admin/dashboard/refunds?from=2026-03-01&to=2026-03-31`
+  - 응답: `{"totalRefundCount":4,"totalRefundedAmount":180000,"refundRate":0.08}`
+
+정책:
+- `from`, `to`는 KST 기준 집계 기간이다.
+- `sales-summary.granularity` 기본값은 `DAILY`이며 `DAILY`, `WEEKLY`, `MONTHLY`를 지원한다.
+
+#### 2.10.2 상태/상품/예약 분포
+
+- `GET /api/v1/admin/dashboard/order-status`
+  - 응답: `[{"status":"PAID_APPROVAL_PENDING","count":2},{"status":"IN_PRODUCTION","count":5}]`
+- `GET /api/v1/admin/dashboard/top-products?from=2026-03-01&to=2026-03-31&limit=10&sort=REVENUE`
+  - 응답: `[{"productId":1,"productName":"시그니처 캔들","productType":"READY_STOCK","totalRevenue":530000,"totalQuantity":14}]`
+- `GET /api/v1/admin/dashboard/daily-revenue?from=2026-03-01&to=2026-03-31`
+  - 응답: `[{"date":"2026-03-24","revenue":118000}]`
+- `GET /api/v1/admin/dashboard/slot-utilization?from=2026-03-01&to=2026-03-31`
+  - 응답: `[{"date":"2026-03-24","className":"향수 클래스","totalCapacity":24,"totalBooked":18,"utilizationRate":0.75}]`
+
+정책:
+- `top-products.limit` 기본값은 `10`이다.
+- `top-products.sort` 기본값은 `REVENUE`이며 `REVENUE`, `QUANTITY`를 지원한다.
+- `order-status`는 전체 운영 상태 분포를 반환하고, 나머지 API는 `from`, `to`를 필수로 받는다.
+
+### 2.11 환불 실패 관리 Admin API
+
+#### 2.11.1 환불 실패 목록 조회
 
 ```http
 GET /api/v1/admin/refunds/failed
@@ -887,7 +1021,7 @@ Authorization: Bearer {token}
 
 - 성공: `200 OK`
 
-#### 2.8.2 환불 재시도
+#### 2.11.2 환불 재시도
 
 ```http
 POST /api/v1/admin/refunds/{refundId}/retry
@@ -903,11 +1037,11 @@ Authorization: Bearer {token}
   - 성공 시 `SUCCEEDED`, 재실패 시 `FAILED` 유지
   - 환불 실행/실패 이력 저장은 부모 주문/예약 트랜잭션과 분리된 `REQUIRES_NEW` 트랜잭션으로 처리한다.
 
-### 2.10 회원 API (`/api/v1/me`)
+### 2.12 회원 API (`/api/v1/me`)
 
 회원 인증은 `HG_SESSION` HttpOnly 쿠키 기반이며, `CustomerAuthFilter`에서 검증한다.
 
-#### 2.10.1 회원 예약 생성
+#### 2.12.1 회원 예약 생성
 
 ```http
 POST /api/v1/me/bookings
@@ -927,7 +1061,7 @@ Cookie: HG_SESSION={sessionToken}
   - 회원 예약은 access token을 발급하지 않는다.
   - `passId`는 해당 회원 소유 8회권만 사용 가능하다.
 
-#### 2.10.2 회원 주문 생성
+#### 2.12.2 회원 주문 생성
 
 ```http
 POST /api/v1/me/orders
@@ -946,7 +1080,7 @@ Cookie: HG_SESSION={sessionToken}
   - 회원 주문은 access token을 발급하지 않는다.
   - 아이템 단가는 서버가 조회해 확정한다(`OrderCreationService.resolveItemPrices`).
 
-#### 2.10.3 회원 목록/상세 조회
+#### 2.12.3 회원 목록/상세 조회
 
 - `GET /api/v1/me/bookings` — 회원 예약 목록
 - `GET /api/v1/me/bookings/{id}` — 회원 예약 상세
@@ -959,7 +1093,7 @@ Cookie: HG_SESSION={sessionToken}
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 다른 회원의 리소스 접근 시 `404 NOT_FOUND`
 
-#### 2.10.4 회원 상품 Q&A 작성
+#### 2.12.4 회원 상품 Q&A 작성
 
 ```http
 POST /api/v1/me/products/{productId}/qna
@@ -982,7 +1116,7 @@ Cookie: HG_SESSION={sessionToken}
   - `secret=true`일 때 비밀번호를 설정해 공개 상세 조회 전 검증한다.
   - 응답에는 작성 결과 요약만 반환한다.
 
-#### 2.10.5 회원 1:1 문의 작성/조회
+#### 2.12.5 회원 1:1 문의 작성/조회
 
 - `POST /api/v1/me/inquiries` — 회원 문의 생성
 - `GET /api/v1/me/inquiries` — 내 문의 목록
@@ -1006,9 +1140,9 @@ Cookie: HG_SESSION={sessionToken}
   - 문의 작성/조회는 본인 리소스로만 제한한다.
   - 응답에는 `hasReply`, `replyContent`, `repliedAt`를 포함한다.
 
-### 2.11 공개 Product Q&A API
+### 2.13 공개 Product Q&A API
 
-#### 2.11.1 상품 Q&A 목록 조회
+#### 2.13.1 상품 Q&A 목록 조회
 
 ```http
 GET /api/v1/products/{productId}/qna
@@ -1020,7 +1154,7 @@ GET /api/v1/products/{productId}/qna
   - `secret=true`인 글은 제목을 `[비밀글입니다]`로 가려서 반환한다.
   - 공개 목록에는 본문/답변 전문을 포함하지 않는다.
 
-#### 2.11.2 비밀글 비밀번호 검증 후 상세 조회
+#### 2.13.2 비밀글 비밀번호 검증 후 상세 조회
 
 ```http
 POST /api/v1/products/{productId}/qna/{id}/verify
@@ -1038,9 +1172,9 @@ POST /api/v1/products/{productId}/qna/{id}/verify
   - 비밀글이 아니면 그대로 상세를 반환한다.
   - 비밀번호가 일치하면 제목/본문/답변을 포함한 상세를 반환한다.
 
-### 2.12 관리자 Q&A / 문의 API
+### 2.14 관리자 Q&A / 문의 API
 
-#### 2.12.1 관리자 상품 Q&A 조회/답변
+#### 2.14.1 관리자 상품 Q&A 조회/답변
 
 - `GET /api/v1/admin/qna?productId={productId}` — 특정 상품의 Q&A 목록 조회
 - `POST /api/v1/admin/qna/{id}/reply` — Q&A 답변 등록
@@ -1050,7 +1184,7 @@ POST /api/v1/products/{productId}/qna/{id}/verify
 - 답변 작성 시 `replyContent`, `repliedAt`, `repliedBy`를 기록한다.
 - 이미 답변이 있는 글에 재답변을 시도하면 서버가 거절한다.
 
-#### 2.12.2 관리자 1:1 문의 조회/답변
+#### 2.14.2 관리자 1:1 문의 조회/답변
 
 - `GET /api/v1/admin/inquiries` — 전체 문의 목록 조회
 - `GET /api/v1/admin/inquiries/{id}` — 문의 상세 조회

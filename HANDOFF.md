@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-24 (공지사항/암호화/주문 조회 개선 반영 상태)
+> 작성 시점: 2026-03-26 (관리자 검색/대시보드/ETag 문서 반영 상태)
 
 ---
 
@@ -20,8 +20,12 @@
 
 ## 현재 브랜치 / 워크트리 상태
 
-- 권장 작업 브랜치: `codex/work-20260319-000329`
+- 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - 문서 동기화 — `README.md`, `HANDOFF.md`, `docs/PRD/0001_*`, `docs/PRD/0004_*`에 관리자 검색/대시보드, ETag 조건부 요청, 필드 암호화 설정 요구사항을 구현 기준으로 반영했고 `docs/Idea/0032_*`를 표준 경로(`idea.md`)로 정리했다
+  - 관리자 검색/대시보드 추가 — MyBatis 지연 조인 기반 관리자 주문/예약 검색 API와 관리자 매출 대시보드 API(`/api/v1/admin/dashboard/**`)를 추가했고, 주문/예약 운영 화면에서 상태·기간·키워드 검색과 매출/환불/가동률 조회를 할 수 있게 정리했다
+  - HTTP 캐시 1차 적용 — `ShallowEtagHeaderFilter`를 상품/클래스/공지 공개 GET 응답에 적용해 `ETag`/`If-None-Match` 기반 `304 Not Modified`를 지원하도록 정리했고, 후속 고도화 검토 메모는 `docs/Idea/0032_*`에 남겼다
+  - 설정 검증/공통 재시도 정리 — `app.field-encryption` 설정을 `@Validated` + `@NotBlank`로 강제했고, 낙관적 락 재시도 메타 어노테이션(`@OptimisticLockRetryable`)과 `OrderRefundSupport`를 도입해 주문 환불/재시도 공통 처리를 정리했다
   - 공지사항 노출/관리 추가 — `notices` 테이블(V24)과 공지 도메인·조회/관리 API를 추가했고, 홈에 최근 공지 위젯과 `/notices/:id` 상세, `/admin` 공지 관리 섹션을 연결했다
   - 개인정보 암호화 1차 도입 — `Guest.phone`, `User.phone`, `User.email`에 AES-GCM 암호문 + HMAC 블라인드 인덱스 컬럼(V23)을 추가했고, 회원가입/전화 인증 게스트 생성 시 암호화/HMAC 저장을 시작하도록 정리했다
   - 관리자 주문 목록/배치 조회 최적화 — 관리자 주문 목록을 커서 기반으로 전환했고, 주문 자동환불·픽업 만료·8회권 만료 배치를 page 0 반복 조회 방식으로 바꿨으며, 관련 커버링 인덱스(V22)와 검토 메모(`docs/Idea/0030_*`)를 추가했다
