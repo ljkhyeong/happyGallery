@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.product.port.in;
 
+import com.personal.happygallery.app.product.ProductFilter;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import java.util.List;
@@ -15,5 +16,12 @@ public interface ProductQueryUseCase {
 
     ProductWithInventory getProduct(Long productId);
 
+    /** 전체 ACTIVE 상품 (최신순). HomePage 등 필터 불필요 시 사용. */
     List<ProductWithInventory> listActiveProducts();
+
+    /** 필터 조건에 따른 ACTIVE 상품 목록. */
+    List<ProductWithInventory> listActiveProducts(ProductFilter filter);
+
+    /** ACTIVE 상품에 존재하는 카테고리 목록 (distinct). */
+    List<String> listActiveCategories();
 }
