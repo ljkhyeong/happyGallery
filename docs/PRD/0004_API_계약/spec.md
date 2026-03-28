@@ -1140,6 +1140,76 @@ Cookie: HG_SESSION={sessionToken}
   - 문의 작성/조회는 본인 리소스로만 제한한다.
   - 응답에는 `hasReply`, `replyContent`, `repliedAt`를 포함한다.
 
+#### 2.12.6 회원 장바구니
+
+- `GET /api/v1/me/cart` — 내 장바구니 조회
+  - 응답:
+
+```json
+{
+  "items": [
+    {
+      "productId": 1,
+      "productName": "시그니처 캔들",
+      "price": 39000,
+      "qty": 2,
+      "subtotal": 78000,
+      "available": true
+    }
+  ],
+  "totalAmount": 78000
+}
+```
+
+- `POST /api/v1/me/cart/items`
+  - 요청: `{ "productId": 1, "qty": 2 }`
+  - 응답: `201 Created`
+- `PUT /api/v1/me/cart/items/{productId}`
+  - 요청: `{ "qty": 3 }`
+  - 응답: `200 OK` 본문 없음
+- `DELETE /api/v1/me/cart/items/{productId}`
+  - 응답: `204 No Content`
+- `POST /api/v1/me/cart/checkout`
+  - 응답: 회원 주문 생성 응답(`MyOrderSummary`)과 동일
+
+공통 정책:
+- 인증 실패 시 `401 UNAUTHORIZED`
+- 장바구니는 회원 전용이며 `user_id + product_id` 단위로 중복 없이 관리한다.
+- 상품이 `ACTIVE`가 아니거나 재고가 없으면 `available=false`로 표시되며, checkout 시 구매 가능한 항목만 주문으로 전환한다.
+- checkout 성공 시 장바구니를 비운다.
+
+#### 2.12.7 회원 알림함
+
+- `GET /api/v1/me/notifications?page=0&size=20`
+  - 응답:
+
+```json
+[
+  {
+    "id": 101,
+    "channel": "KAKAO",
+    "eventType": "ORDER_PAID",
+    "status": "SUCCESS",
+    "sentAt": "2026-03-28T09:15:00",
+    "readAt": null,
+    "read": false
+  }
+]
+```
+
+- `GET /api/v1/me/notifications/unread-count`
+  - 응답: `{ "count": 3 }`
+- `PATCH /api/v1/me/notifications/{id}/read`
+  - 응답: `200 OK` 본문 없음
+- `PATCH /api/v1/me/notifications/read-all`
+  - 응답: `200 OK` 본문 없음
+
+공통 정책:
+- 인증 실패 시 `401 UNAUTHORIZED`
+- 본인 알림만 조회/읽음 처리할 수 있고, 타인 알림 ID는 찾을 수 없는 것처럼 거절한다.
+- 목록은 `sentAt DESC` 기준 페이지네이션으로 조회한다.
+- `readAt != null`이면 `read=true`로 본다.
+
 ### 2.13 공개 Product Q&A API
 
 #### 2.13.1 상품 Q&A 목록 조회

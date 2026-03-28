@@ -42,6 +42,9 @@ public class NotificationLog {
     @Column(name = "sent_at", nullable = false)
     private LocalDateTime sentAt;
 
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
     protected NotificationLog() {}
 
     public static NotificationLog success(Long guestId, Long userId,
@@ -74,6 +77,16 @@ public class NotificationLog {
         return log;
     }
 
+    public void markRead(LocalDateTime now) {
+        if (this.readAt == null) {
+            this.readAt = now;
+        }
+    }
+
+    public boolean isRead() {
+        return readAt != null;
+    }
+
     public Long getId() { return id; }
     public Long getGuestId() { return guestId; }
     public Long getUserId() { return userId; }
@@ -82,4 +95,5 @@ public class NotificationLog {
     public String getStatus() { return status; }
     public String getFailReason() { return failReason; }
     public LocalDateTime getSentAt() { return sentAt; }
+    public LocalDateTime getReadAt() { return readAt; }
 }

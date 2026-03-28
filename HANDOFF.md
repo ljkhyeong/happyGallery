@@ -22,6 +22,7 @@
 
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - 회원 장바구니/알림함 추가 — `cart_items` 테이블(V27)과 `/api/v1/me/cart` 장바구니 API, `notification_log.read_at` 컬럼(V28)과 `/api/v1/me/notifications` 조회·읽음 API를 추가했고, 프론트에는 `/cart`, 상품 상세 장바구니 담기, 상단 알림 벨을 연결했다
   - 비회원 토큰 서명+만료 추가 — `AccessTokenSigner`(HMAC-SHA256 서명+만료)와 `GuestTokenService`(듀얼 모드 검증)를 도입해 게스트 토큰을 서명 기반으로 전환했고, 레거시 토큰 폴백을 유지했다. ADR-0024·Idea-0005 갱신 완료.
   - RestClient 전환 — `KakaoAlimtalkSender`와 `RealSmsSender`를 JDK HttpClient에서 Spring RestClient로 전환하고 JSON 수동 조립을 DTO 자동 직렬화로 교체했다. Idea-0024 갱신 완료.
   - Idea 문서 정리 — 구현 완료(0018, 0023) 및 ADR 반영 완료(0026) 상태 표기 추가, 빈 디렉토리(0006, 0007, 0008) 안내 문서 생성
