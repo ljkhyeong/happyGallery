@@ -1,6 +1,7 @@
 package com.personal.happygallery.policy;
 
 import com.personal.happygallery.common.error.AlreadyRefundedException;
+import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.common.error.ProductionRefundNotAllowedException;
 import com.personal.happygallery.domain.order.OrderStatus;
 import org.junit.jupiter.api.DisplayName;
@@ -62,7 +63,7 @@ class OrderStatusTransitionPolicyTest {
     @Test
     void requireDelayRequested_whenInProduction_throws() {
         assertThatThrownBy(() -> OrderStatus.IN_PRODUCTION.requireDelayRequested())
-                .isInstanceOf(com.personal.happygallery.common.error.HappyGalleryException.class);
+                .isInstanceOf(HappyGalleryException.class);
     }
 
     // -----------------------------------------------------------------------

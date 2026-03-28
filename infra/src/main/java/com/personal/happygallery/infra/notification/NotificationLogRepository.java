@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -27,12 +28,10 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
                                                                 LocalDateTime end);
 
     @Query("SELECT n FROM NotificationLog n WHERE n.userId = :userId ORDER BY n.sentAt DESC")
-    List<NotificationLog> findByUserIdOrderBySentAtDesc(@Param("userId") Long userId,
-                                                        org.springframework.data.domain.Pageable pageable);
+    List<NotificationLog> findByUserIdOrderBySentAtDesc(@Param("userId") Long userId, Pageable pageable);
 
     @Query("SELECT n FROM NotificationLog n WHERE n.guestId = :guestId ORDER BY n.sentAt DESC")
-    List<NotificationLog> findByGuestIdOrderBySentAtDesc(@Param("guestId") Long guestId,
-                                                         org.springframework.data.domain.Pageable pageable);
+    List<NotificationLog> findByGuestIdOrderBySentAtDesc(@Param("guestId") Long guestId, Pageable pageable);
 
     long countByUserIdAndReadAtIsNull(Long userId);
 
