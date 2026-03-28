@@ -63,6 +63,9 @@ const NoticeDetailPage = lazy(() =>
 const CartPage = lazy(() =>
   import("@/pages/CartPage").then((module) => ({ default: module.CartPage })),
 );
+const GoogleCallbackPage = lazy(() =>
+  import("@/pages/GoogleCallbackPage").then((module) => ({ default: module.GoogleCallbackPage })),
+);
 const NotFoundPage = lazy(() =>
   import("@/pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })),
 );
@@ -107,6 +110,7 @@ export function App() {
                 <Route path="/my/passes" element={<LazyRoute><MyPassesPage /></LazyRoute>} />
                 <Route path="/my/inquiries" element={<LazyRoute><MyInquiriesPage /></LazyRoute>} />
                 <Route path="/my/inquiries/new" element={<LazyRoute><MyInquiryCreatePage /></LazyRoute>} />
+                <Route path="/auth/callback/google" element={<LazyRoute><GoogleCallbackPage /></LazyRoute>} />
                 <Route path="/login" element={<LazyRoute><LoginPage /></LazyRoute>} />
                 <Route path="/signup" element={<LazyRoute><SignupPage /></LazyRoute>} />
                 <Route path="/admin" element={<LazyRoute><AdminPage /></LazyRoute>} />

@@ -53,6 +53,9 @@ app:
       sender-number: ${SMS_SENDER_NUMBER:}
       base-url: ${SMS_BASE_URL:https://api-sms.cloud.toast.com}
       timeout-millis: ${SMS_TIMEOUT_MILLIS:5000}
+    google-oauth:
+      client-id: ${GOOGLE_OAUTH_CLIENT_ID:}
+      client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET:}
     payment:
       # SI 운영 기본값: 외부 호출은 짧은 타임아웃 + 서킷 브레이커로 보호
       timeout-millis: ${PAYMENT_TIMEOUT_MILLIS:3000}
@@ -75,6 +78,7 @@ app:
     customer-signup-per-minute: 5
     admin-login-per-minute: 5
     admin-api-per-minute: 120
+    social-login-per-minute: 10
 
 management:
   server:

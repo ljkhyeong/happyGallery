@@ -1041,6 +1041,64 @@ Authorization: Bearer {token}
 
 회원 인증은 `HG_SESSION` HttpOnly 쿠키 기반이며, `CustomerAuthFilter`에서 검증한다.
 
+#### 2.12.0 회원 인증 정책
+
+- 회원 세션은 `HG_SESSION` HttpOnly 쿠키로 유지한다.
+- 회원 로그인은 이메일/비밀번호(local)와 Google OAuth2를 함께 지원한다.
+- 신규 Google 가입 사용자는 `users.provider=GOOGLE`, `users.provider_id={google sub}`로 저장하고 `password_hash`는 비워둘 수 있다.
+- 동일 이메일의 기존 local 회원이 있으면 새 사용자를 만들지 않고 Google provider를 연결한다.
+
+#### 2.12.0.1 Google 로그인 URL 발급
+
+```http
+GET /api/v1/auth/social/google/url?redirectUri=https://www.happygallery.com/auth/callback/google
+```
+
+```json
+{
+  "url": "https://accounts.google.com/o/oauth2/v2/auth?...",
+  "state": "b4aa5f3d6c7e4f0f8b2c1d9e6a3b2c10"
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `400 INVALID_INPUT` — `redirectUri` 누락 또는 형식 오류
+
+#### 2.12.0.2 Google 로그인 코드 교환
+
+```http
+POST /api/v1/auth/social/google
+
+{
+  "code": "4/0AQSTgQExampleAuthCode",
+  "redirectUri": "https://www.happygallery.com/auth/callback/google"
+}
+```
+
+```json
+{
+  "user": {
+    "id": 7,
+    "email": "guest@example.com",
+    "name": "홍길동",
+    "phone": "",
+    "phoneVerified": false,
+    "provider": "GOOGLE"
+  },
+  "newUser": true
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `401 UNAUTHORIZED` — `SOCIAL_LOGIN_FAILED`
+  - `429 TOO_MANY_REQUESTS` — 분당 10회 초과
+- 정책:
+  - 성공 시 일반 회원 로그인과 동일하게 `HG_SESSION`을 시작한다.
+  - `newUser=true`인 경우 후속 전화번호 입력/인증 온보딩이 필요할 수 있다.
+  - 소셜 로그인 요청은 IP 기준 분당 10회로 제한한다.
+
 #### 2.12.1 회원 예약 생성
 
 ```http

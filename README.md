@@ -117,7 +117,7 @@
 - 공개 사용자 흐름
   - 상점형 홈 / 스토어 네비게이션
   - 상품 목록/상세
-  - 회원가입 / 로그인
+  - 회원가입 / 로그인 / Google 소셜 로그인
   - 제출 직전에 인증하는 예약 생성 흐름
   - 회원 전용 8회권 구매 (`/passes/purchase`, 비로그인 시 로그인 리다이렉트)
   - 상품 상세에서 회원 주문 생성
@@ -130,6 +130,7 @@
   - 회원 예약 상세/변경/취소 (`/my/bookings/:id`)
   - 회원 장바구니 (`/cart`)에서 상품 수량 조정 후 바로 주문
   - 회원 상단 알림함에서 최근 알림 확인, 읽지 않음 개수 조회, 개별/전체 읽음 처리
+  - Google 로그인/회원가입 후 `/auth/callback/google`에서 회원 세션 연결
   - 상품 상세 Product Q&A 조회/회원 작성/비밀글 비밀번호 확인
   - 회원 1:1 문의 작성/목록 조회 (`/my/inquiries`)
   - 회원 마이페이지에서 같은 전화번호의 비회원 이력 가져오기 (휴대폰 재인증 후 claim)
@@ -154,6 +155,7 @@
 - `/notices/:id`
 - `/login`
 - `/signup`
+- `/auth/callback/google`
 - `/my`
 - `/cart`
 - `/my/orders`
@@ -200,6 +202,7 @@
 - 관리자 local/dev: `ADMIN_API_KEY`, `ADMIN_ENABLE_API_KEY_AUTH`
 - 결제: `PAYMENT_TIMEOUT_MILLIS`, `PAYMENT_CB_*`
 - 요청 제한 / Actuator: `RATE_LIMIT_TRUST_FORWARDED`, `ACTUATOR_HEALTH_SHOW_DETAILS`
+- Google OAuth: `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`
 - 필드 암호화: 비local 프로필은 `app.field-encryption.encrypt-key`, `app.field-encryption.hmac-key`를 64자리 hex 값으로 반드시 주입
 - 알림: `KAKAO_API_KEY`, `KAKAO_SENDER_KEY`, `SMS_API_KEY`, `SMS_API_SECRET`, `SMS_SENDER_NUMBER`
 - Grafana: `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`

@@ -7,6 +7,12 @@ interface CustomerUserResponse {
   name: string;
   phone: string;
   phoneVerified: boolean;
+  provider: string;
+}
+
+interface SocialLoginResponse {
+  user: CustomerUserResponse;
+  newUser: boolean;
 }
 
 export interface CustomerUser {
@@ -15,6 +21,7 @@ export interface CustomerUser {
   name: string;
   phone: string;
   phoneVerified: boolean;
+  provider: string;
 }
 
 interface CustomerAuthContextValue {
@@ -23,6 +30,7 @@ interface CustomerAuthContextValue {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   signup: (email: string, password: string, name: string, phone: string) => Promise<boolean>;
+  socialLogin: (code: string, redirectUri: string) => Promise<{ ok: boolean; newUser: boolean }>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -89,6 +97,22 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const socialLogin = useCallback(
+    async (code: string, redirectUri: string): Promise<{ ok: boolean; newUser: boolean }> => {
+      try {
+        const res = await api<SocialLoginResponse>("/auth/social/google", {
+          method: "POST",
+          body: { code, redirectUri },
+        });
+        setUser(res.user);
+        return { ok: true, newUser: res.newUser };
+      } catch {
+        return { ok: false, newUser: false };
+      }
+    },
+    [],
+  );
+
   const logout = useCallback(async () => {
     try {
       await api("/auth/logout", { method: "POST" });
@@ -107,6 +131,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         signup,
+        socialLogin,
         logout,
         refresh: fetchMe,
       },

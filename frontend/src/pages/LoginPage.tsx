@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { api } from "@/shared/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 
@@ -106,6 +107,30 @@ export function LoginPage() {
                   {submitting ? "로그인 중..." : "로그인"}
                 </Button>
               </Form>
+              <div className="d-flex align-items-center my-4">
+                <hr className="flex-grow-1" />
+                <span className="px-3 text-muted-soft small">또는</span>
+                <hr className="flex-grow-1" />
+              </div>
+              <Button
+                variant="outline-dark"
+                className="w-100"
+                onClick={async () => {
+                  sessionStorage.setItem("social_login_return_to", returnTo);
+                  const redirectUri = window.location.origin + "/auth/callback/google";
+                  try {
+                    const data = await api<{ url: string; state: string }>(
+                      `/auth/social/google/url?redirectUri=${encodeURIComponent(redirectUri)}`,
+                    );
+                    sessionStorage.setItem("google_oauth_state", data.state);
+                    window.location.href = data.url;
+                  } catch {
+                    setError("Google 로그인 준비에 실패했습니다.");
+                  }
+                }}
+              >
+                Google로 로그인
+              </Button>
               <div className="auth-footer-link mt-4">
                 계정이 없으신가요? <Link to={signupHref}>회원가입</Link>
               </div>

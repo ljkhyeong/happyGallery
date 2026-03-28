@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.customer.port.out;
 
+import com.personal.happygallery.domain.user.AuthProvider;
 import com.personal.happygallery.domain.user.User;
 import java.util.List;
 import java.util.Optional;
@@ -20,4 +21,6 @@ public interface UserReaderPort {
     boolean existsByEmailHmac(String emailHmac);
 
     List<User> findAllById(List<Long> ids);
+
+    Optional<User> findByProviderAndProviderId(AuthProvider provider, String providerId);
 }
