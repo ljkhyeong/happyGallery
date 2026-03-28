@@ -62,6 +62,9 @@ app:
         minimum-number-of-calls: ${PAYMENT_CB_MINIMUM_CALLS:10}
         wait-duration-open-seconds: ${PAYMENT_CB_WAIT_OPEN_SECONDS:30}
         permitted-calls-in-half-open-state: ${PAYMENT_CB_HALF_OPEN_CALLS:3}
+  guest-token:
+    hmac-secret: ${GUEST_TOKEN_HMAC_SECRET:}
+    expiry-hours: ${GUEST_TOKEN_EXPIRY_HOURS:168}
   rate-limit:
     enabled: true
     trust-forwarded-headers: ${RATE_LIMIT_TRUST_FORWARDED:false}

@@ -8,7 +8,7 @@ import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
-import com.personal.happygallery.common.token.AccessTokenHasher;
+import com.personal.happygallery.app.token.GuestTokenService;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
@@ -21,13 +21,16 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     private final OrderReaderPort orderReader;
     private final OrderItemPort orderItemPort;
     private final FulfillmentPort fulfillmentPort;
+    private final GuestTokenService guestTokenService;
 
     public DefaultOrderQueryService(OrderReaderPort orderReader,
                                     OrderItemPort orderItemPort,
-                                    FulfillmentPort fulfillmentPort) {
+                                    FulfillmentPort fulfillmentPort,
+                                    GuestTokenService guestTokenService) {
         this.orderReader = orderReader;
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
+        this.guestTokenService = guestTokenService;
     }
 
     /** 회원 — 자기 주문 목록 조회 */
@@ -47,7 +50,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
 
     /** 토큰 기반 주문 상세 조회 — 입력 토큰을 SHA-256 해시 후 비교 */
     public OrderDetail getOrderByToken(Long orderId, String rawToken) {
-        String tokenHash = AccessTokenHasher.hash(rawToken);
+        String tokenHash = guestTokenService.resolveTokenHash(rawToken);
         Order order = orderReader.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("주문"));
         if (!Objects.equals(order.getAccessToken(), tokenHash)) {

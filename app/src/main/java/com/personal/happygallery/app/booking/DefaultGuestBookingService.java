@@ -5,7 +5,7 @@ import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.customer.VerifiedGuestResolver;
 import com.personal.happygallery.app.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.common.error.DuplicateBookingException;
-import com.personal.happygallery.common.token.AccessTokenHasher;
+import com.personal.happygallery.app.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
@@ -32,6 +32,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
     private final PhoneVerificationStorePort phoneVerificationStorePort;
     private final BookingReaderPort bookingReaderPort;
     private final BookingSlotSupport creationSupport;
+    private final GuestTokenService guestTokenService;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
@@ -39,11 +40,13 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
                                PhoneVerificationStorePort phoneVerificationStorePort,
                                BookingReaderPort bookingReaderPort,
                                BookingSlotSupport creationSupport,
+                               GuestTokenService guestTokenService,
                                Clock clock) {
         this.verifiedGuestResolver = verifiedGuestResolver;
         this.phoneVerificationStorePort = phoneVerificationStorePort;
         this.bookingReaderPort = bookingReaderPort;
         this.creationSupport = creationSupport;
+        this.guestTokenService = guestTokenService;
         this.clock = clock;
     }
 
@@ -80,8 +83,9 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         // 4. 비관적 락 + 정원 증가 + 버퍼 비활성화
         creationSupport.lockSlotCapacity(command.slotId());
 
-        String rawToken = AccessTokenHasher.generate();
-        String accessToken = AccessTokenHasher.hash(rawToken);
+        GuestTokenService.IssuedToken issued = guestTokenService.issue();
+        String rawToken = issued.rawToken();
+        String accessToken = issued.tokenHash();
 
         creationSupport.requireValidDeposit(command.paymentMethod());
         long balanceAmount = slot.getBookingClass().getPrice() - command.depositAmount();
