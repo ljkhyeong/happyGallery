@@ -2,6 +2,7 @@ import { Badge } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchNotices } from "./api";
+import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, EmptyState } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 
@@ -9,6 +10,7 @@ export function NoticeListWidget() {
   const { data: notices, isLoading } = useQuery({
     queryKey: ["notices"],
     queryFn: fetchNotices,
+    staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
   const recent = notices?.slice(0, 5) ?? [];

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Form, Row, Col, ListGroup, Badge } from "react-bootstrap";
 import { fetchClasses, fetchAvailableSlots } from "./api";
+import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 import type { PublicSlotResponse } from "@/shared/types";
@@ -19,6 +20,7 @@ export function SlotSelectionStep({ selectedSlotId, onSelect, onDeselect }: Prop
   const { data: classes, isLoading: classesLoading } = useQuery({
     queryKey: ["classes"],
     queryFn: fetchClasses,
+    staleTime: REFERENCE_DATA_STALE_TIME,
   });
 
   const classIdNum = Number(classId);

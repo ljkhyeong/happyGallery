@@ -4,6 +4,7 @@ import { Container, Row, Col } from "react-bootstrap";
 import { fetchProducts, fetchCategories } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
 import { ProductFilterBar } from "@/features/product/ProductFilterBar";
+import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import type { ProductFilterParams, ProductSortOrder, ProductType } from "@/shared/types";
@@ -32,12 +33,13 @@ export function ProductListPage() {
   } = useQuery({
     queryKey: hasActiveFilter ? ["products", filterParams] : ["products"],
     queryFn: () => fetchProducts(hasActiveFilter ? filterParams : undefined),
+    staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
   const { data: categories = [] } = useQuery({
     queryKey: ["product-categories"],
     queryFn: fetchCategories,
-    staleTime: 300_000,
+    staleTime: REFERENCE_DATA_STALE_TIME,
   });
 
   function handleReset() {

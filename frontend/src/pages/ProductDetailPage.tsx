@@ -6,6 +6,7 @@ import { fetchProduct } from "@/features/product/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { api } from "@/shared/api";
+import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
 import { formatKRW, PRODUCT_TYPE_LABEL, PRODUCT_FULFILLMENT_LABEL } from "@/shared/lib";
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
@@ -35,6 +36,7 @@ export function ProductDetailPage() {
     queryKey: ["products", productId],
     queryFn: () => fetchProduct(productId),
     enabled: productId > 0,
+    staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
   const orderMutation = useMutation({
