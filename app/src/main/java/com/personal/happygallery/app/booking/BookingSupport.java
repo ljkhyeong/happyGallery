@@ -4,7 +4,7 @@ import com.personal.happygallery.app.booking.port.out.BookingHistoryPort;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.common.error.NotFoundException;
-import com.personal.happygallery.common.token.AccessTokenHasher;
+import com.personal.happygallery.app.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
@@ -21,17 +21,20 @@ class BookingSupport {
     private final BookingReaderPort bookingReaderPort;
     private final BookingHistoryPort bookingHistoryPort;
     private final NotificationService notificationService;
+    private final GuestTokenService guestTokenService;
 
     BookingSupport(BookingReaderPort bookingReaderPort,
                    BookingHistoryPort bookingHistoryPort,
-                   NotificationService notificationService) {
+                   NotificationService notificationService,
+                   GuestTokenService guestTokenService) {
         this.bookingReaderPort = bookingReaderPort;
         this.bookingHistoryPort = bookingHistoryPort;
         this.notificationService = notificationService;
+        this.guestTokenService = guestTokenService;
     }
 
     Booking findByToken(Long bookingId, String rawAccessToken) {
-        String tokenHash = AccessTokenHasher.hash(rawAccessToken);
+        String tokenHash = guestTokenService.resolveTokenHash(rawAccessToken);
         return bookingReaderPort.findDetailByIdAndAccessToken(bookingId, tokenHash)
                 .orElseThrow(() -> new NotFoundException("예약"));
     }

@@ -41,4 +41,4 @@ Spring 6.1+ (Boot 3.2+)에서 도입된 `RestClient`는 `RestTemplate`의 fluent
 
 ## 상태
 
-검토 중이다. 구현 우선순위는 아직 정하지 않았다.
+구현 완료. `KakaoAlimtalkSender`와 `RealSmsSender`를 `RestClient` 기반으로 전환했다. JSON 수동 조립을 DTO 자동 직렬화로 교체했고, timeout을 `NotificationRestClientConfig`에서 중앙 관리한다.

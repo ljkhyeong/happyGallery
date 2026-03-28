@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Form, Button, Row, Col, ListGroup, Badge } from "react-bootstrap";
 import { fetchProducts } from "@/features/product/api";
+import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import type { OrderItemInput, ProductDetailResponse } from "@/shared/types";
@@ -19,7 +20,8 @@ export function OrderItemsForm({ items, onChange }: Props) {
 
   const { data: products, isLoading, error } = useQuery({
     queryKey: ["products"],
-    queryFn: fetchProducts,
+    queryFn: () => fetchProducts(),
+    staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
   const productMap = new Map<number, ProductDetailResponse>(

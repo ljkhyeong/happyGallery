@@ -167,7 +167,8 @@ class RateLimitFilterTest {
                 10,
                 5,
                 adminLoginPerMinute,
-                adminApiPerMinute
+                adminApiPerMinute,
+                10
         );
     }
 }

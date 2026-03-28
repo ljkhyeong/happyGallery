@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.product.port.out;
 
+import com.personal.happygallery.app.product.ProductFilter;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import java.util.List;
@@ -13,4 +14,10 @@ public interface ProductReaderPort {
     Optional<Product> findById(Long id);
 
     List<Product> findByStatusOrderByCreatedAtDesc(ProductStatus status);
+
+    /** 필터 조건에 따른 ACTIVE 상품 목록 조회. */
+    List<Product> findActiveByFilter(ProductFilter filter);
+
+    /** ACTIVE 상품의 카테고리 목록 (distinct, non-null). */
+    List<String> findDistinctCategoriesByStatus(ProductStatus status);
 }

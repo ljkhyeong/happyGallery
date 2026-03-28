@@ -2,17 +2,15 @@ package com.personal.happygallery.infra.notification;
 
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.infra.notification.dto.SmsRequest;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
-
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+import org.springframework.web.client.RestClient;
 
 /**
  * SMS 실제 발송 어댑터 (NHN Cloud SMS).
@@ -26,13 +24,12 @@ public class RealSmsSender implements NotificationSender {
     private static final Logger log = LoggerFactory.getLogger(RealSmsSender.class);
 
     private final SmsNotificationProperties properties;
-    private final HttpClient httpClient;
+    private final RestClient restClient;
 
-    public RealSmsSender(SmsNotificationProperties properties) {
+    public RealSmsSender(SmsNotificationProperties properties,
+                         RestClient smsRestClient) {
         this.properties = properties;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofMillis(properties.timeoutMillis()))
-                .build();
+        this.restClient = smsRestClient;
     }
 
     @Override
@@ -44,25 +41,22 @@ public class RealSmsSender implements NotificationSender {
     public boolean send(String phone, String recipientName, NotificationEventType eventType) {
         try {
             String message = buildMessage(recipientName, eventType);
+            var request = new SmsRequest(
+                    message, properties.senderNumber(),
+                    List.of(new SmsRequest.Recipient(phone)));
 
-            String body = """
-                    {"body":"%s","sendNo":"%s","recipientList":[{"recipientNo":"%s"}]}"""
-                    .formatted(escapeJson(message), properties.senderNumber(), phone);
+            var response = restClient.post()
+                    .uri("/sms/v3.0/appKeys/{apiKey}/sender/sms", properties.apiKey())
+                    .body(request)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (req, resp) -> {
+                        log.warn("[SMS] HTTP {} phone={} event={}", resp.getStatusCode(), phone, eventType);
+                    })
+                    .toBodilessEntity();
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(properties.baseUrl() + "/sms/v3.0/appKeys/" + properties.apiKey() + "/sender/sms"))
-                    .header("Content-Type", "application/json")
-                    .header("X-Secret-Key", properties.apiSecret())
-                    .timeout(Duration.ofMillis(properties.timeoutMillis()))
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            boolean success = response.statusCode() >= 200 && response.statusCode() < 300;
+            boolean success = response.getStatusCode().is2xxSuccessful();
             if (success) {
                 log.info("[SMS] 발송 성공 phone={} event={}", phone, eventType);
-            } else {
-                log.warn("[SMS] HTTP {} phone={} event={} body={}", response.statusCode(), phone, eventType, response.body());
             }
             return success;
         } catch (Exception e) {
@@ -85,9 +79,5 @@ public class RealSmsSender implements NotificationSender {
             case PASS_EXPIRY_SOON -> prefix + recipientName + "님, 8회권 만료가 7일 남았습니다.";
             case PICKUP_DEADLINE_REMINDER -> prefix + recipientName + "님, 픽업 마감이 2시간 남았습니다.";
         };
-    }
-
-    private static String escapeJson(String value) {
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

@@ -1,6 +1,8 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { Container, Navbar, Nav } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { CartBadge } from "@/features/cart/CartBadge";
+import { NotificationBell } from "@/features/notification/NotificationBell";
 
 const NAV_ITEMS = [
   { path: "/products", label: "상품" },
@@ -70,6 +72,8 @@ export function Layout() {
               ))}
             </Nav>
             <Nav className="ms-md-4 border-md-start ps-md-4 align-items-md-center gap-md-2">
+              <CartBadge />
+              <NotificationBell />
               {!isLoading && (
                 isAuthenticated ? (
                   <>

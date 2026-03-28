@@ -1,6 +1,7 @@
 package com.personal.happygallery.app.web;
 
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * 커서 기반 페이지 응답.
@@ -23,7 +24,7 @@ public record CursorPage<T>(
      * @param cursorExtractor 마지막 항목에서 커서 문자열을 추출하는 함수
      */
     public static <T> CursorPage<T> of(List<T> fetchedItems, int size,
-                                        java.util.function.Function<T, String> cursorExtractor) {
+                                       Function<T, String> cursorExtractor) {
         if (fetchedItems.size() > size) {
             List<T> content = fetchedItems.subList(0, size);
             String nextCursor = cursorExtractor.apply(content.get(content.size() - 1));

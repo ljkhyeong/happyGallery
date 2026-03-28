@@ -1,0 +1,11 @@
+package com.personal.happygallery.infra.notification.dto;
+
+import java.util.List;
+
+public record SmsRequest(
+        String body,
+        String sendNo,
+        List<Recipient> recipientList
+) {
+    public record Recipient(String recipientNo) {}
+}

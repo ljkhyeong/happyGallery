@@ -14,6 +14,7 @@ public enum ErrorCode {
     // 401 Unauthorized — 인증 실패
     UNAUTHORIZED(401, "관리자 인증이 필요합니다."),
     INVALID_CREDENTIALS(401, "이메일 또는 비밀번호가 올바르지 않습니다."),
+    SOCIAL_LOGIN_FAILED(401, "소셜 로그인에 실패했습니다. 다시 시도해주세요."),
 
     // 429 Too Many Requests — 처리율 제한 초과
     TOO_MANY_REQUESTS(429, "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),

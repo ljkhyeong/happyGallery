@@ -6,7 +6,6 @@ import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.infra.dashboard.mapper.AdminBookingSearchMapper;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -30,7 +29,7 @@ class MyBatisAdminBookingSearchAdapter implements AdminBookingSearchPort {
         return mapper.search(
                 status != null ? status.name() : null,
                 dateFrom != null ? dateFrom.atStartOfDay() : null,
-                dateTo != null ? dateTo.atTime(LocalTime.MAX) : null,
+                dateTo != null ? dateTo.plusDays(1).atStartOfDay() : null,
                 keyword, offset, size);
     }
 
@@ -39,7 +38,7 @@ class MyBatisAdminBookingSearchAdapter implements AdminBookingSearchPort {
         return mapper.count(
                 status != null ? status.name() : null,
                 dateFrom != null ? dateFrom.atStartOfDay() : null,
-                dateTo != null ? dateTo.atTime(LocalTime.MAX) : null,
+                dateTo != null ? dateTo.plusDays(1).atStartOfDay() : null,
                 keyword);
     }
 }

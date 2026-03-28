@@ -10,6 +10,7 @@ import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 테스트 엔티티 생성 유틸.
@@ -62,6 +63,6 @@ public final class TestFixtures {
 
     /** 32자 hex access token (테스트용). */
     public static String accessToken() {
-        return java.util.UUID.randomUUID().toString().replace("-", "");
+        return UUID.randomUUID().toString().replace("-", "");
     }
 }

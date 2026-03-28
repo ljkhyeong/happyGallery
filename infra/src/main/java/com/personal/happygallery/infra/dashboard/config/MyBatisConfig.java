@@ -1,6 +1,7 @@
 package com.personal.happygallery.infra.dashboard.config;
 
 import javax.sql.DataSource;
+import com.personal.happygallery.infra.dashboard.mapper.SalesStatsMapper;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.annotation.MapperScan;
@@ -9,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 @Configuration
-@MapperScan("com.personal.happygallery.infra.dashboard.mapper")
+@MapperScan(basePackageClasses = SalesStatsMapper.class)
 public class MyBatisConfig {
 
     @Bean

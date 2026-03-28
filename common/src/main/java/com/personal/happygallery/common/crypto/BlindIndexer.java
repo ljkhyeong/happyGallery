@@ -18,8 +18,8 @@ public final class BlindIndexer {
     private final byte[] keyBytes;
 
     public BlindIndexer(byte[] keyBytes) {
-        if (keyBytes.length < 32) {
-            throw new IllegalArgumentException("HMAC 키는 최소 32바이트여야 합니다 (현재: " + keyBytes.length + ")");
+        if (keyBytes.length != 32) {
+            throw new IllegalArgumentException("HMAC 키는 32바이트여야 합니다 (현재: " + keyBytes.length + ")");
         }
         this.keyBytes = keyBytes.clone();
     }

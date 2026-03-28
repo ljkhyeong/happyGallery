@@ -2,6 +2,7 @@ package com.personal.happygallery.infra.user;
 
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
 import com.personal.happygallery.app.customer.port.out.UserStorePort;
+import com.personal.happygallery.domain.user.AuthProvider;
 import com.personal.happygallery.domain.user.User;
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +21,8 @@ public interface UserRepository extends JpaRepository<User, Long>, UserReaderPor
     boolean existsByEmail(String email);
 
     boolean existsByEmailHmac(String emailHmac);
+
+    Optional<User> findByProviderAndProviderId(AuthProvider provider, String providerId);
 
     @Override
     default List<User> findAllById(List<Long> ids) {

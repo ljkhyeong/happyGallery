@@ -11,6 +11,8 @@ import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 주문 환불 공통 보조 로직.
@@ -41,6 +43,7 @@ class OrderRefundSupport {
      *
      * <p>환불 성공 시에만 게스트에게 알림을 발송한다.
      */
+    @Transactional(propagation = Propagation.MANDATORY)
     void refundOrder(Order order) {
         List<OrderItem> items = orderItemPort.findByOrder(order);
         for (OrderItem item : items) {

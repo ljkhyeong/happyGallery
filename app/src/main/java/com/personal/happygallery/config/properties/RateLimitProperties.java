@@ -16,5 +16,6 @@ public record RateLimitProperties(
         @Min(1) @DefaultValue("10") long customerLoginPerMinute,
         @Min(1) @DefaultValue("5") long customerSignupPerMinute,
         @Min(1) @DefaultValue("5") long adminLoginPerMinute,
-        @Min(1) @DefaultValue("120") long adminApiPerMinute
+        @Min(1) @DefaultValue("120") long adminApiPerMinute,
+        @Min(1) @DefaultValue("10") long socialLoginPerMinute
 ) {}
