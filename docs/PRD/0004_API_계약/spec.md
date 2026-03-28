@@ -1098,7 +1098,6 @@ POST /api/v1/auth/social/google
   - 성공 시 일반 회원 로그인과 동일하게 `HG_SESSION`을 시작한다.
   - `newUser=true`인 경우 후속 전화번호 입력/인증 온보딩이 필요할 수 있다.
   - 소셜 로그인 요청은 IP 기준 분당 10회로 제한한다.
-
 #### 2.12.1 회원 예약 생성
 
 ```http
@@ -1269,7 +1268,6 @@ Cookie: HG_SESSION={sessionToken}
 - `readAt != null`이면 `read=true`로 본다.
 
 ### 2.13 공개 Product Q&A API
-
 #### 2.13.1 상품 Q&A 목록 조회
 
 ```http
