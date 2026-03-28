@@ -22,6 +22,10 @@
 
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - 비회원 토큰 서명+만료 추가 — `AccessTokenSigner`(HMAC-SHA256 서명+만료)와 `GuestTokenService`(듀얼 모드 검증)를 도입해 게스트 토큰을 서명 기반으로 전환했고, 레거시 토큰 폴백을 유지했다. ADR-0024·Idea-0005 갱신 완료.
+  - RestClient 전환 — `KakaoAlimtalkSender`와 `RealSmsSender`를 JDK HttpClient에서 Spring RestClient로 전환하고 JSON 수동 조립을 DTO 자동 직렬화로 교체했다. Idea-0024 갱신 완료.
+  - Idea 문서 정리 — 구현 완료(0018, 0023) 및 ADR 반영 완료(0026) 상태 표기 추가, 빈 디렉토리(0006, 0007, 0008) 안내 문서 생성
+  - 백엔드 코딩 관습 가이드 추가 — 보안(IDOR 방지), 성능(List vs HashSet), JPA(save vs saveAndFlush) 모범 사례를 `docs/Idea/0033_백엔드_코딩_관습_가이드/idea.md`에 정리했다
   - 문서 동기화 — `README.md`, `HANDOFF.md`, `docs/PRD/0001_*`, `docs/PRD/0004_*`에 관리자 검색/대시보드, ETag 조건부 요청, 필드 암호화 설정 요구사항을 구현 기준으로 반영했고 `docs/Idea/0032_*`를 표준 경로(`idea.md`)로 정리했다
   - 관리자 검색/대시보드 추가 — MyBatis 지연 조인 기반 관리자 주문/예약 검색 API와 관리자 매출 대시보드 API(`/api/v1/admin/dashboard/**`)를 추가했고, 주문/예약 운영 화면에서 상태·기간·키워드 검색과 매출/환불/가동률 조회를 할 수 있게 정리했다
   - HTTP 캐시 1차 적용 — `ShallowEtagHeaderFilter`를 상품/클래스/공지 공개 GET 응답에 적용해 `ETag`/`If-None-Match` 기반 `304 Not Modified`를 지원하도록 정리했고, 후속 고도화 검토 메모는 `docs/Idea/0032_*`에 남겼다
