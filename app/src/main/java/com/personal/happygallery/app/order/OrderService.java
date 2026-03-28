@@ -7,7 +7,7 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.app.product.InventoryService;
-import com.personal.happygallery.common.token.AccessTokenHasher;
+import com.personal.happygallery.app.token.GuestTokenService;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,17 +28,20 @@ public class OrderService {
     private final OrderItemPort orderItemPort;
     private final InventoryService inventoryService;
     private final NotificationService notificationService;
+    private final GuestTokenService guestTokenService;
     private final Clock clock;
 
     public OrderService(OrderStorePort orderStore,
                         OrderItemPort orderItemPort,
                         InventoryService inventoryService,
                         NotificationService notificationService,
+                        GuestTokenService guestTokenService,
                         Clock clock) {
         this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
         this.inventoryService = inventoryService;
         this.notificationService = notificationService;
+        this.guestTokenService = guestTokenService;
         this.clock = clock;
     }
 
@@ -61,8 +64,9 @@ public class OrderService {
         LocalDateTime paidAt = LocalDateTime.now(clock);
         long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
 
-        String rawToken = AccessTokenHasher.generate();
-        String tokenHash = AccessTokenHasher.hash(rawToken);
+        GuestTokenService.IssuedToken issued = guestTokenService.issue();
+        String rawToken = issued.rawToken();
+        String tokenHash = issued.tokenHash();
         Order order = orderStore.save(
                 Order.forGuest(guestId, tokenHash, totalAmount, paidAt, paidAt.plusHours(24)));
 

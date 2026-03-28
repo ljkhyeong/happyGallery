@@ -20,14 +20,20 @@ class DefaultAdminOrderSearchService implements AdminOrderSearchUseCase {
         this.searchPort = searchPort;
     }
 
+    private static final int MAX_SIZE = 100;
+
     @Override
     public OffsetPage<AdminOrderSearchRow> search(OrderStatus status, LocalDate dateFrom, LocalDate dateTo,
                                                    String keyword, int page, int size) {
-        long totalCount = searchPort.count(status, dateFrom, dateTo, keyword);
-        if (totalCount == 0) {
-            return OffsetPage.of(List.of(), page, size, 0);
+        String safeKeyword = SearchParams.clampKeyword(keyword);
+        int safePage = SearchParams.clampPage(page);
+        int clampedSize = Math.min(Math.max(size, 1), MAX_SIZE);
+        long totalCount = searchPort.count(status, dateFrom, dateTo, safeKeyword);
+        if (totalCount == 0 || (long) safePage * clampedSize >= totalCount) {
+            return OffsetPage.of(List.of(), safePage, clampedSize, totalCount);
         }
-        List<AdminOrderSearchRow> rows = searchPort.search(status, dateFrom, dateTo, keyword, page * size, size);
-        return OffsetPage.of(rows, page, size, totalCount);
+        List<AdminOrderSearchRow> rows = searchPort.search(
+                status, dateFrom, dateTo, safeKeyword, safePage * clampedSize, clampedSize);
+        return OffsetPage.of(rows, safePage, clampedSize, totalCount);
     }
 }

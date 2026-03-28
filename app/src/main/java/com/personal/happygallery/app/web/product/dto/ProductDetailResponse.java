@@ -8,6 +8,7 @@ public record ProductDetailResponse(
         Long id,
         String name,
         String type,
+        String category,
         long price,
         boolean available
 ) {
@@ -20,6 +21,7 @@ public record ProductDetailResponse(
                 product.getId(),
                 product.getName(),
                 product.getType().name(),
+                product.getCategory(),
                 product.getPrice(),
                 inventory.isAvailable()
         );

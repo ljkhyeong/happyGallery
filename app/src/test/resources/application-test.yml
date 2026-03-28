@@ -7,6 +7,9 @@ app:
   admin:
     api-key: dev-admin-key
     enable-api-key-auth: true
+  guest-token:
+    hmac-secret: "test-hmac-secret-key-at-least-32-bytes-long-for-security"
+    expiry-hours: 168
   rate-limit:
     enabled: false
   field-encryption:

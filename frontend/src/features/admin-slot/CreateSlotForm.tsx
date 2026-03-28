@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
 import { createSlot, fetchClasses } from "./api";
+import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { ErrorAlert, useToast, LoadingSpinner } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 
@@ -21,6 +22,7 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
   const { data: classes, isLoading: classesLoading } = useQuery({
     queryKey: ["classes"],
     queryFn: fetchClasses,
+    staleTime: REFERENCE_DATA_STALE_TIME,
   });
 
   const mutation = useMutation({

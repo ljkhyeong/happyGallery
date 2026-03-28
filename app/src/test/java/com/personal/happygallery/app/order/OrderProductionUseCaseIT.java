@@ -6,9 +6,11 @@ import com.personal.happygallery.app.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.app.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.common.error.ProductionRefundNotAllowedException;
 import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.infra.booking.RefundRepository;
 import com.personal.happygallery.infra.order.FulfillmentRepository;
 import com.personal.happygallery.infra.order.OrderItemRepository;
@@ -19,17 +21,23 @@ import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * [UseCaseIT] §8.3 예약 제작 주문 검증.
@@ -96,7 +104,7 @@ class OrderProductionUseCaseIT {
         Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
-            softly.assertThat(fulfillment.getType()).isEqualTo(com.personal.happygallery.domain.order.FulfillmentType.SHIPPING);
+            softly.assertThat(fulfillment.getType()).isEqualTo(FulfillmentType.SHIPPING);
         });
     }
 
@@ -251,10 +259,9 @@ class OrderProductionUseCaseIT {
         orderApprovalService.approve(order.getId());
         orderProductionService.requestDelay(order.getId());
 
-        String body = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .post("/admin/orders/{id}/resume-production", order.getId())
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+        String body = mockMvc.perform(post("/admin/orders/{id}/resume-production", order.getId())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         assertSoftly(softly -> {
@@ -268,10 +275,9 @@ class OrderProductionUseCaseIT {
     void resumeProduction_httpEndpoint_invalidState_returns400() throws Exception {
         Order order = orderHelper.createMadeToOrderPaidOrder("잘못된 상태 재개", 180000L).order();
 
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .post("/admin/orders/{id}/resume-production", order.getId())
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        mockMvc.perform(post("/admin/orders/{id}/resume-production", order.getId())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
     }
 
     // -----------------------------------------------------------------------
@@ -286,7 +292,7 @@ class OrderProductionUseCaseIT {
         orderProductionService.completeProduction(order.getId(), 1L);
 
         orderPickupService.markPickupReady(order.getId(),
-                java.time.LocalDateTime.of(2026, 4, 1, 18, 0));
+                LocalDateTime.of(2026, 4, 1, 18, 0));
 
         var fulfillments = fulfillmentRepository.findAll().stream()
                 .filter(f -> f.getOrderId().equals(order.getId()))
@@ -294,7 +300,7 @@ class OrderProductionUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(fulfillments).hasSize(1);
             softly.assertThat(fulfillments.get(0).getType())
-                    .isEqualTo(com.personal.happygallery.domain.order.FulfillmentType.PICKUP);
+                    .isEqualTo(FulfillmentType.PICKUP);
             softly.assertThat(fulfillments.get(0).getPickupDeadlineAt()).isNotNull();
         });
     }
@@ -313,11 +319,10 @@ class OrderProductionUseCaseIT {
         Order afterCompleteProduction = orderRepository.findById(order.getId()).orElseThrow();
 
         // 픽업 준비 → PICKUP_READY (기존 흐름과 연결 확인)
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .post("/admin/orders/{id}/prepare-pickup", order.getId())
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+        mockMvc.perform(post("/admin/orders/{id}/prepare-pickup", order.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"pickupDeadlineAt\":\"2026-04-01T18:00:00\"}"))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+                .andExpect(status().isOk());
 
         Order final_ = orderRepository.findById(order.getId()).orElseThrow();
         assertSoftly(softly -> {
@@ -373,28 +378,22 @@ class OrderProductionUseCaseIT {
         orderProductionService.completeProduction(order.getId(), 1L);
 
         // prepare-shipping
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .post("/admin/orders/{id}/prepare-shipping", order.getId())
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .jsonPath("$.status").value("SHIPPING_PREPARING"));
+        mockMvc.perform(post("/admin/orders/{id}/prepare-shipping", order.getId())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SHIPPING_PREPARING"));
 
         // mark-shipped
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .post("/admin/orders/{id}/mark-shipped", order.getId())
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .jsonPath("$.status").value("SHIPPED"));
+        mockMvc.perform(post("/admin/orders/{id}/mark-shipped", order.getId())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SHIPPED"));
 
         // mark-delivered
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .post("/admin/orders/{id}/mark-delivered", order.getId())
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .jsonPath("$.status").value("DELIVERED"));
+        mockMvc.perform(post("/admin/orders/{id}/mark-delivered", order.getId())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DELIVERED"));
     }
 
     @DisplayName("주문 이력 조회 HTTP 엔드포인트가 정상 동작한다")
@@ -404,10 +403,9 @@ class OrderProductionUseCaseIT {
         orderApprovalService.approve(order.getId());
         orderProductionService.completeProduction(order.getId(), 1L);
 
-        String body = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .get("/admin/orders/{id}/history", order.getId())
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+        String body = mockMvc.perform(get("/admin/orders/{id}/history", order.getId())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         assertSoftly(softly -> {
@@ -429,7 +427,7 @@ class OrderProductionUseCaseIT {
 
         assertThatThrownBy(() ->
                 orderProductionService.setExpectedShipDate(order.getId(), LocalDate.of(2026, 5, 1)))
-                .isInstanceOf(com.personal.happygallery.common.error.HappyGalleryException.class)
+                .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("출고일");
     }
 

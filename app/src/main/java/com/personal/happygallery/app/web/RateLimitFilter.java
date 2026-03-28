@@ -58,6 +58,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "CUSTOMER_SIGNUP", "POST", null, "/api/v1/auth/signup");
     private static final LimitRule ADMIN_LOGIN_RULE = new LimitRule(
             "ADMIN_LOGIN", "POST", "/admin/auth/login", "/api/v1/admin/auth/login");
+    private static final LimitRule SOCIAL_LOGIN_RULE = new LimitRule(
+            "SOCIAL_LOGIN", "POST", null, "/api/v1/auth/social/google");
     private static final LimitRule ADMIN_API_RULE = new LimitRule("ADMIN_API", null, null, null);
 
     private final ObjectMapper objectMapper;
@@ -116,6 +118,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if (matches(request, CUSTOMER_SIGNUP_RULE)) {
             return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.customerSignupPerMinute(), Duration.ofMinutes(1));
+        }
+        if (matches(request, SOCIAL_LOGIN_RULE)) {
+            return new ResolvedRule(SOCIAL_LOGIN_RULE, properties.socialLoginPerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, ADMIN_LOGIN_RULE)) {
             return new ResolvedRule(ADMIN_LOGIN_RULE, properties.adminLoginPerMinute(), Duration.ofMinutes(1));

@@ -1,5 +1,7 @@
 # Idea 0026: 비동기 테스트 대기에는 Awaitility를 우선 사용
 
+> **ADR 반영 완료** — [ADR-0027](../../ADR/0027_테스트_전략과_최소_테스트_셋_기준선/adr.md) 테스트 전략에 포함되었다. 이 문서는 배경 메모로만 유지한다.
+
 ## 배경
 
 알림 발송은 `NotificationService`의 `@Async("notificationExecutor")`를 통해 비동기로 실행된다.

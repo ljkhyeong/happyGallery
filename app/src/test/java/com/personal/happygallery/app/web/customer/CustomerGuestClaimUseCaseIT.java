@@ -5,6 +5,7 @@ import com.personal.happygallery.app.order.OrderService;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.order.Order;
@@ -139,7 +140,7 @@ class CustomerGuestClaimUseCaseIT {
                 BookingTestHelper.FUTURE.plusHours(2)));
         Booking booking = bookingRepository.save(Booking.forGuestDeposit(
                 guest, slot, 10_000L, 40_000L,
-                com.personal.happygallery.domain.booking.DepositPaymentMethod.CARD,
+                DepositPaymentMethod.CARD,
                 "guest-claim-access-token"));
 
         Cookie sessionCookie = signupAndGetSessionCookie(email, "010-1234-5678");

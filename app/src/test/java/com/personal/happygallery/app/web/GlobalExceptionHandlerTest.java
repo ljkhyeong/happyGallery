@@ -2,6 +2,8 @@ package com.personal.happygallery.app.web;
 
 import com.personal.happygallery.common.error.ErrorCode;
 import com.personal.happygallery.common.error.ErrorResponse;
+import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.order.Order;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -20,7 +22,7 @@ class GlobalExceptionHandlerTest {
     void optimisticLock_booking_mapsToBookingConflict() {
         ResponseEntity<ErrorResponse> response = handler.handleOptimisticLockingFailure(
                 new OptimisticLockingFailureException(
-                        "Object of class [com.personal.happygallery.domain.booking.Booking] with identifier [1]"));
+                        "Object of class [" + Booking.class.getName() + "] with identifier [1]"));
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(409);
@@ -33,7 +35,7 @@ class GlobalExceptionHandlerTest {
     void optimisticLock_nonBooking_mapsToConflict() {
         ResponseEntity<ErrorResponse> response = handler.handleOptimisticLockingFailure(
                 new OptimisticLockingFailureException(
-                        "Object of class [com.personal.happygallery.domain.order.Order] with identifier [1]"));
+                        "Object of class [" + Order.class.getName() + "] with identifier [1]"));
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(409);

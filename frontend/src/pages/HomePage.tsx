@@ -4,12 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchProducts } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
 import { NoticeListWidget } from "@/features/notice/NoticeListWidget";
+import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
 export function HomePage() {
   const { data: products, isLoading, isError, error } = useQuery({
     queryKey: ["products"],
-    queryFn: fetchProducts,
+    queryFn: () => fetchProducts(),
+    staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
   const featured = products?.filter((p) => p.available).slice(0, 6) ?? [];

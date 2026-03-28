@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col, ProgressBar } from "react-bootstrap";
 import { fetchClasses, fetchSlotsByClass, deactivateSlot } from "./api";
+import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
@@ -20,6 +21,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const { data: classes } = useQuery({
     queryKey: ["classes"],
     queryFn: fetchClasses,
+    staleTime: REFERENCE_DATA_STALE_TIME,
   });
 
   const classIdNum = Number(classId);

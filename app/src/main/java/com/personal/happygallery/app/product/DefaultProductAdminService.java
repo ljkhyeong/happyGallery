@@ -28,16 +28,10 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
      *   <li>Product 저장 (status=ACTIVE)</li>
      *   <li>Inventory 저장 (초기 수량)</li>
      * </ol>
-     *
-     * @param name     상품명
-     * @param type     상품 유형
-     * @param price    가격 (원)
-     * @param quantity 초기 재고 수량 (단일 작품은 1)
      */
-    public RegisterResult register(String name, ProductType type, long price, int quantity) {
-        Product product = productStorePort.save(new Product(name, type, price));
+    public RegisterResult register(String name, ProductType type, String category, long price, int quantity) {
+        Product product = productStorePort.save(new Product(name, type, category, price));
         Inventory inventory = inventoryService.create(product, quantity);
         return new RegisterResult(product, inventory);
     }
-
 }

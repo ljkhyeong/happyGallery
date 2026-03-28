@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-26 (관리자 검색/대시보드/ETag 문서 반영 상태)
+> 작성 시점: 2026-03-28 (회원 장바구니/소셜 로그인 반영 상태)
 
 ---
 
@@ -22,6 +22,12 @@
 
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - Google 소셜 로그인 추가 — `users`에 `provider`/`provider_id` 컬럼(V29)과 Google OAuth 교환 클라이언트를 추가했고, `/api/v1/auth/social/google{,/url}` API와 `/auth/callback/google` 프론트 콜백, 소셜 로그인 rate limit(분당 10회)를 연결했다
+  - 회원 장바구니/알림함 추가 — `cart_items` 테이블(V27)과 `/api/v1/me/cart` 장바구니 API, `notification_log.read_at` 컬럼(V28)과 `/api/v1/me/notifications` 조회·읽음 API를 추가했고, 프론트에는 `/cart`, 상품 상세 장바구니 담기, 상단 알림 벨을 연결했다
+  - 비회원 토큰 서명+만료 추가 — `AccessTokenSigner`(HMAC-SHA256 서명+만료)와 `GuestTokenService`(듀얼 모드 검증)를 도입해 게스트 토큰을 서명 기반으로 전환했고, 레거시 토큰 폴백을 유지했다. ADR-0024·Idea-0005 갱신 완료.
+  - RestClient 전환 — `KakaoAlimtalkSender`와 `RealSmsSender`를 JDK HttpClient에서 Spring RestClient로 전환하고 JSON 수동 조립을 DTO 자동 직렬화로 교체했다. Idea-0024 갱신 완료.
+  - Idea 문서 정리 — 구현 완료(0018, 0023) 및 ADR 반영 완료(0026) 상태 표기 추가, 빈 디렉토리(0006, 0007, 0008) 안내 문서 생성
+  - 백엔드 코딩 관습 가이드 추가 — 보안(IDOR 방지), 성능(List vs HashSet), JPA(save vs saveAndFlush) 모범 사례를 `docs/Idea/0033_백엔드_코딩_관습_가이드/idea.md`에 정리했다
   - 문서 동기화 — `README.md`, `HANDOFF.md`, `docs/PRD/0001_*`, `docs/PRD/0004_*`에 관리자 검색/대시보드, ETag 조건부 요청, 필드 암호화 설정 요구사항을 구현 기준으로 반영했고 `docs/Idea/0032_*`를 표준 경로(`idea.md`)로 정리했다
   - 관리자 검색/대시보드 추가 — MyBatis 지연 조인 기반 관리자 주문/예약 검색 API와 관리자 매출 대시보드 API(`/api/v1/admin/dashboard/**`)를 추가했고, 주문/예약 운영 화면에서 상태·기간·키워드 검색과 매출/환불/가동률 조회를 할 수 있게 정리했다
   - HTTP 캐시 1차 적용 — `ShallowEtagHeaderFilter`를 상품/클래스/공지 공개 GET 응답에 적용해 `ETag`/`If-None-Match` 기반 `304 Not Modified`를 지원하도록 정리했고, 후속 고도화 검토 메모는 `docs/Idea/0032_*`에 남겼다

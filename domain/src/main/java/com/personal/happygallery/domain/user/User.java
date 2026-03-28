@@ -2,6 +2,8 @@ package com.personal.happygallery.domain.user;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -25,8 +27,15 @@ public class User {
     @Column(name = "email_hmac", length = 64)
     private String emailHmac;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AuthProvider provider;
+
+    @Column(name = "provider_id")
+    private String providerId;
 
     @Column(nullable = false, length = 100)
     private String name;
@@ -56,6 +65,17 @@ public class User {
         this.passwordHash = passwordHash;
         this.name = name;
         this.phone = phone;
+        this.provider = AuthProvider.LOCAL;
+        this.phoneVerified = false;
+    }
+
+    public User(String email, String name, AuthProvider provider, String providerId) {
+        this.email = email;
+        this.passwordHash = null;
+        this.name = name;
+        this.phone = "";
+        this.provider = provider;
+        this.providerId = providerId;
         this.phoneVerified = false;
     }
 
@@ -72,6 +92,8 @@ public class User {
     public String getEmailEnc() { return emailEnc; }
     public String getEmailHmac() { return emailHmac; }
     public String getPasswordHash() { return passwordHash; }
+    public AuthProvider getProvider() { return provider; }
+    public String getProviderId() { return providerId; }
     public String getName() { return name; }
     public String getPhone() { return phone; }
     public String getPhoneEnc() { return phoneEnc; }
@@ -86,5 +108,10 @@ public class User {
 
     public void markPhoneVerified() {
         this.phoneVerified = true;
+    }
+
+    public void linkProvider(AuthProvider provider, String providerId) {
+        this.provider = provider;
+        this.providerId = providerId;
     }
 }

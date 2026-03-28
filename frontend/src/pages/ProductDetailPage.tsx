@@ -6,9 +6,11 @@ import { fetchProduct } from "@/features/product/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { api } from "@/shared/api";
+import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
 import { formatKRW, PRODUCT_TYPE_LABEL, PRODUCT_FULFILLMENT_LABEL } from "@/shared/lib";
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
+import { useCart } from "@/features/cart/useCart";
 
 const MAX_QTY = 99;
 
@@ -28,11 +30,13 @@ export function ProductDetailPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
 
   const [qty, setQty] = useState(1);
+  const { addItem: addToCart } = useCart();
 
   const { data: product, isLoading, error } = useQuery({
     queryKey: ["products", productId],
     queryFn: () => fetchProduct(productId),
     enabled: productId > 0,
+    staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
   const orderMutation = useMutation({
@@ -191,6 +195,18 @@ export function ProductDetailPage() {
                   >
                     {orderMutation.isPending ? "주문 처리 중..." : "구매하기"}
                   </Button>
+                  <Button
+                    variant="outline-primary"
+                    size="lg"
+                    className="w-100 mb-2"
+                    disabled={!canBuy}
+                    onClick={() => {
+                      addToCart(productId, qty);
+                      toast.show("장바구니에 추가되었습니다.");
+                    }}
+                  >
+                    장바구니 담기
+                  </Button>
                   <p className="store-purchase-helper mb-0">
                     주문이 완료되면 바로 내 주문 상세로 이동합니다.
                   </p>
@@ -213,6 +229,17 @@ export function ProductDetailPage() {
                     className="w-100 mb-2"
                   >
                     회원가입 후 구매하기
+                  </Button>
+                  <Button
+                    variant="outline-primary"
+                    className="w-100 mb-2"
+                    disabled={!canBuy}
+                    onClick={() => {
+                      addToCart(productId, qty);
+                      toast.show("장바구니에 추가되었습니다.");
+                    }}
+                  >
+                    장바구니 담기
                   </Button>
                   <Button
                     as={Link as any}

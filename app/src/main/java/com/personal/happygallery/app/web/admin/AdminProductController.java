@@ -33,7 +33,7 @@ public class AdminProductController {
     @ResponseStatus(HttpStatus.CREATED)
     public ProductResponse register(@RequestBody @Valid CreateProductRequest request) {
         RegisterResult result = productAdminUseCase.register(
-                request.name(), request.type(), request.price(), request.quantity());
+                request.name(), request.type(), request.category(), request.price(), request.quantity());
         return ProductResponse.from(result);
     }
 

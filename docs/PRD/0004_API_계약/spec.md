@@ -1041,6 +1041,63 @@ Authorization: Bearer {token}
 
 회원 인증은 `HG_SESSION` HttpOnly 쿠키 기반이며, `CustomerAuthFilter`에서 검증한다.
 
+#### 2.12.0 회원 인증 정책
+
+- 회원 세션은 `HG_SESSION` HttpOnly 쿠키로 유지한다.
+- 회원 로그인은 이메일/비밀번호(local)와 Google OAuth2를 함께 지원한다.
+- 신규 Google 가입 사용자는 `users.provider=GOOGLE`, `users.provider_id={google sub}`로 저장하고 `password_hash`는 비워둘 수 있다.
+- 동일 이메일의 기존 local 회원이 있으면 새 사용자를 만들지 않고 Google provider를 연결한다.
+
+#### 2.12.0.1 Google 로그인 URL 발급
+
+```http
+GET /api/v1/auth/social/google/url?redirectUri=https://www.happygallery.com/auth/callback/google
+```
+
+```json
+{
+  "url": "https://accounts.google.com/o/oauth2/v2/auth?...",
+  "state": "b4aa5f3d6c7e4f0f8b2c1d9e6a3b2c10"
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `400 INVALID_INPUT` — `redirectUri` 누락 또는 형식 오류
+
+#### 2.12.0.2 Google 로그인 코드 교환
+
+```http
+POST /api/v1/auth/social/google
+
+{
+  "code": "4/0AQSTgQExampleAuthCode",
+  "redirectUri": "https://www.happygallery.com/auth/callback/google"
+}
+```
+
+```json
+{
+  "user": {
+    "id": 7,
+    "email": "guest@example.com",
+    "name": "홍길동",
+    "phone": "",
+    "phoneVerified": false,
+    "provider": "GOOGLE"
+  },
+  "newUser": true
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `401 UNAUTHORIZED` — `SOCIAL_LOGIN_FAILED`
+  - `429 TOO_MANY_REQUESTS` — 분당 10회 초과
+- 정책:
+  - 성공 시 일반 회원 로그인과 동일하게 `HG_SESSION`을 시작한다.
+  - `newUser=true`인 경우 후속 전화번호 입력/인증 온보딩이 필요할 수 있다.
+  - 소셜 로그인 요청은 IP 기준 분당 10회로 제한한다.
 #### 2.12.1 회원 예약 생성
 
 ```http
@@ -1140,8 +1197,77 @@ Cookie: HG_SESSION={sessionToken}
   - 문의 작성/조회는 본인 리소스로만 제한한다.
   - 응답에는 `hasReply`, `replyContent`, `repliedAt`를 포함한다.
 
-### 2.13 공개 Product Q&A API
+#### 2.12.6 회원 장바구니
 
+- `GET /api/v1/me/cart` — 내 장바구니 조회
+  - 응답:
+
+```json
+{
+  "items": [
+    {
+      "productId": 1,
+      "productName": "시그니처 캔들",
+      "price": 39000,
+      "qty": 2,
+      "subtotal": 78000,
+      "available": true
+    }
+  ],
+  "totalAmount": 78000
+}
+```
+
+- `POST /api/v1/me/cart/items`
+  - 요청: `{ "productId": 1, "qty": 2 }`
+  - 응답: `201 Created`
+- `PUT /api/v1/me/cart/items/{productId}`
+  - 요청: `{ "qty": 3 }`
+  - 응답: `200 OK` 본문 없음
+- `DELETE /api/v1/me/cart/items/{productId}`
+  - 응답: `204 No Content`
+- `POST /api/v1/me/cart/checkout`
+  - 응답: 회원 주문 생성 응답(`MyOrderSummary`)과 동일
+
+공통 정책:
+- 인증 실패 시 `401 UNAUTHORIZED`
+- 장바구니는 회원 전용이며 `user_id + product_id` 단위로 중복 없이 관리한다.
+- 상품이 `ACTIVE`가 아니거나 재고가 없으면 `available=false`로 표시되며, checkout 시 구매 가능한 항목만 주문으로 전환한다.
+- checkout 성공 시 장바구니를 비운다.
+
+#### 2.12.7 회원 알림함
+
+- `GET /api/v1/me/notifications?page=0&size=20`
+  - 응답:
+
+```json
+[
+  {
+    "id": 101,
+    "channel": "KAKAO",
+    "eventType": "ORDER_PAID",
+    "status": "SUCCESS",
+    "sentAt": "2026-03-28T09:15:00",
+    "readAt": null,
+    "read": false
+  }
+]
+```
+
+- `GET /api/v1/me/notifications/unread-count`
+  - 응답: `{ "count": 3 }`
+- `PATCH /api/v1/me/notifications/{id}/read`
+  - 응답: `200 OK` 본문 없음
+- `PATCH /api/v1/me/notifications/read-all`
+  - 응답: `200 OK` 본문 없음
+
+공통 정책:
+- 인증 실패 시 `401 UNAUTHORIZED`
+- 본인 알림만 조회/읽음 처리할 수 있고, 타인 알림 ID는 찾을 수 없는 것처럼 거절한다.
+- 목록은 `sentAt DESC` 기준 페이지네이션으로 조회한다.
+- `readAt != null`이면 `read=true`로 본다.
+
+### 2.13 공개 Product Q&A API
 #### 2.13.1 상품 Q&A 목록 조회
 
 ```http
