@@ -30,14 +30,14 @@ export function ProductListPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["products", filterParams],
+    queryKey: hasActiveFilter ? ["products", filterParams] : ["products"],
     queryFn: () => fetchProducts(hasActiveFilter ? filterParams : undefined),
   });
 
   const { data: categories = [] } = useQuery({
     queryKey: ["product-categories"],
     queryFn: fetchCategories,
-    staleTime: 60_000,
+    staleTime: 300_000,
   });
 
   function handleReset() {

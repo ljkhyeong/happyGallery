@@ -18,7 +18,19 @@ public record ProductFilter(
         String keyword,
         ProductSortOrder sort
 ) {
-    public enum ProductSortOrder { NEWEST, PRICE_ASC, PRICE_DESC }
+    public enum ProductSortOrder {
+        NEWEST, PRICE_ASC, PRICE_DESC;
+
+        /** 쿼리 파라미터 문자열을 enum으로 변환한다. 매칭 실패 시 NEWEST. */
+        public static ProductSortOrder fromParam(String param) {
+            if (param == null) return NEWEST;
+            return switch (param) {
+                case "price_asc" -> PRICE_ASC;
+                case "price_desc" -> PRICE_DESC;
+                default -> NEWEST;
+            };
+        }
+    }
 
     public static ProductFilter defaults() {
         return new ProductFilter(null, null, null, ProductSortOrder.NEWEST);

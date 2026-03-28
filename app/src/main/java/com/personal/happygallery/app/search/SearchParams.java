@@ -1,22 +1,25 @@
 package com.personal.happygallery.app.search;
 
 /**
- * 관리자 검색 공통 파라미터 정제 유틸.
+ * 검색 파라미터 정제 유틸.
  */
-final class SearchParams {
+public final class SearchParams {
 
-    static final int MAX_KEYWORD_LENGTH = 100;
+    public static final int MAX_KEYWORD_LENGTH = 100;
 
     private SearchParams() {}
 
-    static String clampKeyword(String keyword) {
-        if (keyword == null || keyword.length() <= MAX_KEYWORD_LENGTH) {
-            return keyword;
-        }
-        return keyword.substring(0, MAX_KEYWORD_LENGTH);
+    /** keyword를 trim → empty→null → max 100자로 정제한다. */
+    public static String clampKeyword(String keyword) {
+        if (keyword == null) return null;
+        String trimmed = keyword.trim();
+        if (trimmed.isEmpty()) return null;
+        return trimmed.length() > MAX_KEYWORD_LENGTH
+                ? trimmed.substring(0, MAX_KEYWORD_LENGTH)
+                : trimmed;
     }
 
-    static int clampPage(int page) {
+    public static int clampPage(int page) {
         return Math.max(page, 0);
     }
 }

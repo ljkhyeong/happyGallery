@@ -26,14 +26,15 @@ public final class ProductSpecifications {
         return (root, query, cb) -> cb.equal(root.get("category"), category);
     }
 
+    /** MySQL 8 utf8mb4_0900_ai_ci 기본 collation은 case-insensitive이므로 LOWER() 없이 LIKE 사용. */
     public static Specification<Product> nameContains(String keyword) {
         if (keyword == null || keyword.isBlank()) return null;
         return (root, query, cb) -> {
-            String escaped = keyword.toLowerCase()
+            String escaped = keyword
                     .replace("\\", "\\\\")
                     .replace("%", "\\%")
                     .replace("_", "\\_");
-            return cb.like(cb.lower(root.get("name")), "%" + escaped + "%", '\\');
+            return cb.like(root.get("name"), "%" + escaped + "%", '\\');
         };
     }
 }
