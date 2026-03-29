@@ -4,14 +4,12 @@ import com.personal.happygallery.common.crypto.BlindIndexer;
 import com.personal.happygallery.common.crypto.FieldEncryptor;
 import com.personal.happygallery.config.properties.FieldEncryptionProperties;
 import java.util.HexFormat;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
-@EnableConfigurationProperties(FieldEncryptionProperties.class)
 public class CryptoConfig {
 
     @Bean

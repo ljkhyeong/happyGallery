@@ -3,6 +3,7 @@ package com.personal.happygallery.common.crypto;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
@@ -15,20 +16,20 @@ public final class BlindIndexer {
 
     private static final String ALGORITHM = "HmacSHA256";
 
-    private final byte[] keyBytes;
+    private final SecretKey secretKey;
 
     public BlindIndexer(byte[] keyBytes) {
         if (keyBytes.length != 32) {
             throw new IllegalArgumentException("HMAC 키는 32바이트여야 합니다 (현재: " + keyBytes.length + ")");
         }
-        this.keyBytes = keyBytes.clone();
+        this.secretKey = new SecretKeySpec(keyBytes.clone(), ALGORITHM);
     }
 
     /** 평문 → 64자 lowercase hex HMAC */
     public String index(String plaintext) {
         try {
             Mac mac = Mac.getInstance(ALGORITHM);
-            mac.init(new SecretKeySpec(keyBytes, ALGORITHM));
+            mac.init(secretKey);
             byte[] hash = mac.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (Exception e) {
