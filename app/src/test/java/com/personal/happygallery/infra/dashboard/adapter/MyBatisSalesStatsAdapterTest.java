@@ -17,7 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @Tag("policy")
 class MyBatisSalesStatsAdapterTest {
@@ -33,10 +33,12 @@ class MyBatisSalesStatsAdapterTest {
 
         adapter.findOverview(LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31));
 
-        assertThat(mapper.todayFrom).isEqualTo(LocalDateTime.of(2026, 3, 4, 15, 0));
-        assertThat(mapper.todayTo).isEqualTo(LocalDateTime.of(2026, 3, 5, 15, 0));
-        assertThat(mapper.rangeFrom).isEqualTo(LocalDateTime.of(2026, 2, 29, 15, 0));
-        assertThat(mapper.rangeTo).isEqualTo(LocalDateTime.of(2026, 3, 31, 15, 0));
+        assertSoftly(softly -> {
+            softly.assertThat(mapper.todayFrom).isEqualTo(LocalDateTime.of(2026, 3, 4, 15, 0));
+            softly.assertThat(mapper.todayTo).isEqualTo(LocalDateTime.of(2026, 3, 5, 15, 0));
+            softly.assertThat(mapper.rangeFrom).isEqualTo(LocalDateTime.of(2026, 2, 29, 15, 0));
+            softly.assertThat(mapper.rangeTo).isEqualTo(LocalDateTime.of(2026, 3, 31, 15, 0));
+        });
     }
 
     private static final class RecordingSalesStatsMapper implements SalesStatsMapper {
