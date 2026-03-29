@@ -22,6 +22,7 @@
 
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - 검색 파라미터 정규화 정리 — `ProductController`의 얇은 sort wrapper를 제거하고, 관리자 검색의 page size clamp는 `SearchParams` 공통 메서드로 올려 중복을 줄였다
   - 공지 최근 조회 최적화 — 홈 최근 공지를 `findAll().stream().limit(...)` 대신 `PageRequest` 기반 상위 N건 조회로 바꿨고, 홈의 비회원 조회 안내 문구는 제거했다
   - BlindIndexer/암호화 설정 정리 — `BlindIndexer`가 `SecretKeySpec`을 생성자에서 한 번만 만들고 재사용하도록 바꿨고, `CryptoConfig`의 중복 `@EnableConfigurationProperties` 선언은 제거했다
   - 주문 커서 조회 최적화 — `OrderRepository` 커서 쿼리를 OR 조건 JPQL에서 tuple comparison native query로 바꾸고, 관련 인덱스와 검토 메모(`docs/Idea/0038_*`)를 추가했다

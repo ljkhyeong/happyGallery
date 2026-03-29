@@ -27,7 +27,7 @@ class DefaultAdminOrderSearchService implements AdminOrderSearchUseCase {
                                                    String keyword, int page, int size) {
         String safeKeyword = SearchParams.clampKeyword(keyword);
         int safePage = SearchParams.clampPage(page);
-        int clampedSize = Math.min(Math.max(size, 1), MAX_SIZE);
+        int clampedSize = SearchParams.clampSize(size, MAX_SIZE);
         long totalCount = searchPort.count(status, dateFrom, dateTo, safeKeyword);
         if (totalCount == 0 || (long) safePage * clampedSize >= totalCount) {
             return OffsetPage.of(List.of(), safePage, clampedSize, totalCount);

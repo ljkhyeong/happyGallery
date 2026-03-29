@@ -32,7 +32,7 @@ public class ProductController {
             @RequestParam(required = false, defaultValue = "newest") String sort) {
 
         String cleanKeyword = SearchParams.clampKeyword(keyword);
-        ProductSortOrder sortOrder = parseSortOrder(sort);
+        ProductSortOrder sortOrder = ProductSortOrder.fromParam(sort);
 
         ProductFilter filter = new ProductFilter(type, category, cleanKeyword, sortOrder);
 
@@ -51,9 +51,5 @@ public class ProductController {
     @GetMapping("/{id}")
     public ProductDetailResponse getProduct(@PathVariable Long id) {
         return ProductDetailResponse.from(productQueryUseCase.getProduct(id));
-    }
-
-    private static ProductSortOrder parseSortOrder(String sort) {
-        return ProductSortOrder.fromParam(sort);
     }
 }
