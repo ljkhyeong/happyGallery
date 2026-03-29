@@ -34,24 +34,24 @@ public class CartItem {
 
     protected CartItem() {}
 
-    public CartItem(Long userId, Long productId, int qty) {
+    public CartItem(Long userId, Long productId, int qty, LocalDateTime now) {
         this.userId = userId;
         this.productId = productId;
         this.qty = qty;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = now;
         this.updatedAt = this.createdAt;
     }
 
-    public void addQty(int delta) {
-        updateQty(this.qty + delta);
+    public void addQty(int delta, LocalDateTime now) {
+        updateQty(this.qty + delta, now);
     }
 
-    public void updateQty(int newQty) {
+    public void updateQty(int newQty, LocalDateTime now) {
         if (newQty < 1) {
             throw new IllegalArgumentException("수량은 1 이상이어야 합니다.");
         }
         this.qty = newQty;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = now;
     }
 
     public Long getId() { return id; }

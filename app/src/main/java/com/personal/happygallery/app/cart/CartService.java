@@ -10,6 +10,8 @@ import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -24,15 +26,18 @@ public class CartService implements CartUseCase {
     private final CartItemStorePort cartItemStore;
     private final ProductReaderPort productReader;
     private final InventoryReaderPort inventoryReader;
+    private final Clock clock;
 
     public CartService(CartItemReaderPort cartItemReader,
                        CartItemStorePort cartItemStore,
                        ProductReaderPort productReader,
-                       InventoryReaderPort inventoryReader) {
+                       InventoryReaderPort inventoryReader,
+                       Clock clock) {
         this.cartItemReader = cartItemReader;
         this.cartItemStore = cartItemStore;
         this.productReader = productReader;
         this.inventoryReader = inventoryReader;
+        this.clock = clock;
     }
 
     @Override
@@ -71,18 +76,19 @@ public class CartService implements CartUseCase {
     public void addItem(Long userId, Long productId, int qty) {
         productReader.findById(productId)
                 .orElseThrow(() -> new NotFoundException("상품"));
+        LocalDateTime now = LocalDateTime.now(clock);
 
         cartItemReader.findByUserIdAndProductId(userId, productId)
                 .ifPresentOrElse(
-                        existing -> existing.addQty(qty),
-                        () -> cartItemStore.save(new CartItem(userId, productId, qty)));
+                        existing -> existing.addQty(qty, now),
+                        () -> cartItemStore.save(new CartItem(userId, productId, qty, now)));
     }
 
     @Override
     public void updateItemQty(Long userId, Long productId, int qty) {
         CartItem item = cartItemReader.findByUserIdAndProductId(userId, productId)
                 .orElseThrow(() -> new NotFoundException("장바구니 항목"));
-        item.updateQty(qty);
+        item.updateQty(qty, LocalDateTime.now(clock));
     }
 
     @Override
