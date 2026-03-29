@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class CartService implements CartUseCase {
+public class DefaultCartService implements CartUseCase {
 
     private final CartItemReaderPort cartItemReader;
     private final CartItemStorePort cartItemStore;
@@ -28,7 +28,7 @@ public class CartService implements CartUseCase {
     private final InventoryReaderPort inventoryReader;
     private final Clock clock;
 
-    public CartService(CartItemReaderPort cartItemReader,
+    public DefaultCartService(CartItemReaderPort cartItemReader,
                        CartItemStorePort cartItemStore,
                        ProductReaderPort productReader,
                        InventoryReaderPort inventoryReader,
