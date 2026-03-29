@@ -1,17 +1,12 @@
 package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.app.product.port.out.InventoryStorePort;
+import com.personal.happygallery.app.product.port.out.ProductStorePort;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.infra.order.FulfillmentRepository;
-import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
-import com.personal.happygallery.infra.order.OrderItemRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
-import com.personal.happygallery.infra.product.InventoryRepository;
-import com.personal.happygallery.infra.product.ProductRepository;
-import com.personal.happygallery.infra.booking.RefundRepository;
-import com.personal.happygallery.infra.user.UserRepository;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
@@ -28,7 +23,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -42,14 +36,9 @@ class MeOrderUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
-    @Autowired UserRepository userRepository;
-    @Autowired OrderRepository orderRepository;
-    @Autowired OrderItemRepository orderItemRepository;
-    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
-    @Autowired FulfillmentRepository fulfillmentRepository;
-    @Autowired RefundRepository refundRepository;
-    @Autowired ProductRepository productRepository;
-    @Autowired InventoryRepository inventoryRepository;
+    @Autowired ProductStorePort productStorePort;
+    @Autowired InventoryStorePort inventoryStorePort;
+    @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
@@ -63,8 +52,8 @@ class MeOrderUseCaseIT {
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
 
-        Product product = productRepository.save(readyStockProduct("테스트 상품", 29_000L));
-        inventoryRepository.save(inventory(product, 10));
+        Product product = productStorePort.save(readyStockProduct("테스트 상품", 29_000L));
+        inventoryStorePort.save(inventory(product, 10));
         productId = product.getId();
 
         sessionCookie = signupAndGetSessionCookie("order@test.com", "010-3333-4444");
@@ -76,10 +65,8 @@ class MeOrderUseCaseIT {
     }
 
     private void cleanup() {
-        clearOrderData(refundRepository, fulfillmentRepository,
-                orderApprovalHistoryRepository, orderItemRepository,
-                orderRepository, inventoryRepository, productRepository);
-        userRepository.deleteAllInBatch();
+        cleanupSupport.clearOrderData();
+        cleanupSupport.clearUsers();
     }
 
     @DisplayName("회원 주문 생성이 성공한다")

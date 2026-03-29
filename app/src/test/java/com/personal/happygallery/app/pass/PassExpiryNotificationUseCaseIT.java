@@ -1,21 +1,14 @@
 package com.personal.happygallery.app.pass;
 
 import com.personal.happygallery.app.batch.BatchResult;
+import com.personal.happygallery.app.customer.port.out.UserStorePort;
 import com.personal.happygallery.app.pass.port.in.PassExpiryBatchUseCase;
+import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.user.User;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.ClassRepository;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
-import com.personal.happygallery.infra.booking.RefundRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.infra.notification.NotificationLogRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
-import com.personal.happygallery.infra.user.UserRepository;
+import com.personal.happygallery.support.NotificationLogProbe;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -26,7 +19,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import static com.personal.happygallery.support.TestDataCleaner.clearPassNotificationData;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,17 +34,10 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class PassExpiryNotificationUseCaseIT {
 
     @Autowired PassExpiryBatchUseCase passExpiryBatchService;
-    @Autowired PassPurchaseRepository passPurchaseRepository;
-    @Autowired PassLedgerRepository passLedgerRepository;
-    @Autowired RefundRepository refundRepository;
-    @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired BookingRepository bookingRepository;
-    @Autowired PhoneVerificationRepository phoneVerificationRepository;
-    @Autowired GuestRepository guestRepository;
-    @Autowired SlotRepository slotRepository;
-    @Autowired ClassRepository classRepository;
-    @Autowired NotificationLogRepository notificationLogRepository;
-    @Autowired UserRepository userRepository;
+    @Autowired UserStorePort userStorePort;
+    @Autowired PassPurchaseStorePort passPurchaseStorePort;
+    @Autowired NotificationLogProbe notificationLogProbe;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
 
     @BeforeEach
@@ -66,18 +51,8 @@ class PassExpiryNotificationUseCaseIT {
     }
 
     private void cleanup() {
-        clearPassNotificationData(
-                passLedgerRepository,
-                refundRepository,
-                bookingHistoryRepository,
-                bookingRepository,
-                passPurchaseRepository,
-                phoneVerificationRepository,
-                notificationLogRepository,
-                guestRepository,
-                slotRepository,
-                classRepository);
-        userRepository.deleteAllInBatch();
+        cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearUsers();
     }
 
     // -----------------------------------------------------------------------
@@ -87,16 +62,16 @@ class PassExpiryNotificationUseCaseIT {
     @DisplayName("8회권 만료 알림 배치는 대상 기간 내 8회권에 알림을 발송하고 로그를 남긴다")
     @Test
     void sendExpiryNotifications_withinWindow_sendsAndLogsNotifications() {
-        User user1 = userRepository.save(new User("pass-expiry-1@example.com", "hashed-password", "회원", "01011112222"));
-        User user2 = userRepository.save(new User("pass-expiry-2@example.com", "hashed-password", "회원", "01033334444"));
+        User user1 = userStorePort.save(new User("pass-expiry-1@example.com", "hashed-password", "회원", "01011112222"));
+        User user2 = userStorePort.save(new User("pass-expiry-2@example.com", "hashed-password", "회원", "01033334444"));
 
         // 정확히 7일 후 만료 — 알림 대상
         LocalDateTime soon = LocalDateTime.now(clock).plusDays(7);
-        passPurchaseRepository.save(passPurchase(user1.getId(), soon, 0L));
-        passPurchaseRepository.save(passPurchase(user2.getId(), soon, 0L));
+        passPurchaseStorePort.save(passPurchase(user1.getId(), soon, 0L));
+        passPurchaseStorePort.save(passPurchase(user2.getId(), soon, 0L));
 
         BatchResult result = passExpiryBatchService.sendExpiryNotifications();
-        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 2);
+        List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 2);
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(2);
@@ -114,30 +89,30 @@ class PassExpiryNotificationUseCaseIT {
     @DisplayName("8회권 만료 알림 배치는 대상 기간 밖의 8회권을 건너뛴다")
     @Test
     void sendExpiryNotifications_outsideWindow_skips() {
-        User user = userRepository.save(new User("pass-expiry-skip@example.com", "hashed-password", "회원", "01055556666"));
+        User user = userStorePort.save(new User("pass-expiry-skip@example.com", "hashed-password", "회원", "01055556666"));
 
         // 30일 후 만료 — 7일 윈도우 밖
         LocalDateTime later = LocalDateTime.now(clock).plusDays(30);
-        passPurchaseRepository.save(passPurchase(user.getId(), later, 0L));
+        passPurchaseStorePort.save(passPurchase(user.getId(), later, 0L));
 
         BatchResult result = passExpiryBatchService.sendExpiryNotifications();
 
         assertThat(result.successCount()).isEqualTo(0);
         assertThat(result.failureCount()).isZero();
-        assertThat(notificationLogRepository.findAll()).isEmpty();
+        assertThat(notificationLogProbe.all()).isEmpty();
     }
 
     @DisplayName("8회권 만료 알림 배치를 같은 날 두 번 실행하면 중복 발송을 건너뛴다")
     @Test
     void sendExpiryNotifications_sameDaySecondRun_skipsDuplicates() {
-        User user = userRepository.save(new User("pass-expiry-dedupe@example.com", "hashed-password", "회원", "01077778888"));
+        User user = userStorePort.save(new User("pass-expiry-dedupe@example.com", "hashed-password", "회원", "01077778888"));
         LocalDateTime target = LocalDateTime.now(clock).plusDays(7);
-        passPurchaseRepository.save(passPurchase(user.getId(), target, 0L));
+        passPurchaseStorePort.save(passPurchase(user.getId(), target, 0L));
 
         BatchResult first = passExpiryBatchService.sendExpiryNotifications();
-        awaitLogCount(notificationLogRepository, 1);
+        awaitLogCount(notificationLogProbe, 1);
         BatchResult second = passExpiryBatchService.sendExpiryNotifications();
-        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 1);
+        List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
 
         assertSoftly(softly -> {
             softly.assertThat(first.successCount()).isEqualTo(1);

@@ -1,16 +1,13 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.ClassStorePort;
+import com.personal.happygallery.app.booking.port.out.SlotStorePort;
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.ClassRepository;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.BookingStateProbe;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -22,7 +19,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
-import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassData;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,15 +31,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class BookingRescheduleUseCaseIT {
 
     @Autowired MockMvc mockMvc;
-    @Autowired ClassRepository classRepository;
-    @Autowired SlotRepository slotRepository;
-    @Autowired BookingRepository bookingRepository;
-    @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired GuestRepository guestRepository;
-    @Autowired PhoneVerificationRepository phoneVerificationRepository;
+    @Autowired ClassStorePort classStorePort;
+    @Autowired SlotStorePort slotStorePort;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
+    @Autowired BookingStateProbe bookingStateProbe;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired DefaultSlotManagementService slotManagementService;
-    @Autowired PassLedgerRepository passLedgerRepository;
-    @Autowired PassPurchaseRepository passPurchaseRepository;
+    @Autowired SlotBookingCoordinator slotBookingCoordinator;
     @Autowired Clock clock;
 
     BookingClass cls;
@@ -51,18 +45,10 @@ class BookingRescheduleUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc, phoneVerificationRepository);
-        clearBookingWithPassData(
-                passLedgerRepository,
-                bookingHistoryRepository,
-                bookingRepository,
-                passPurchaseRepository,
-                phoneVerificationRepository,
-                guestRepository,
-                slotRepository,
-                classRepository);
+        helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort);
+        cleanupSupport.clearBookingWithPassAndRefundData();
 
-        cls = classRepository.save(defaultBookingClass());
+        cls = classStorePort.save(defaultBookingClass());
     }
 
     // -----------------------------------------------------------------------
@@ -75,7 +61,7 @@ class BookingRescheduleUseCaseIT {
         // 슬롯 6개 생성 (간격을 충분히 벌려 버퍼 간섭 방지)
         Slot[] slots = new Slot[6];
         for (int i = 0; i < 6; i++) {
-            slots[i] = slotRepository.save(slot(cls,
+            slots[i] = slotStorePort.save(slot(cls,
                     FUTURE.plusHours(i * 3L),
                     FUTURE.plusHours(i * 3L + 2)));
         }
@@ -100,16 +86,16 @@ class BookingRescheduleUseCaseIT {
         }
 
         // Proof: bookings 1건 유지 + 예약금 그대로 (재결제 없음)
-        var savedBooking = bookingRepository.findById(booking.bookingId()).orElseThrow();
+        var savedBooking = bookingStateProbe.getBooking(booking.bookingId());
 
         // Proof: booking_history 6건 (BOOKED×1 + RESCHEDULED×5)
-        long historyCount = bookingHistoryRepository.countByBookingId(booking.bookingId());
-        int finalSlotBookedCount = slotRepository.findById(slots[5].getId()).orElseThrow().getBookedCount();
+        long historyCount = bookingStateProbe.bookingHistoryCountByBookingId(booking.bookingId());
+        int finalSlotBookedCount = bookingStateProbe.getSlot(slots[5].getId()).getBookedCount();
         assertSoftly(softly -> {
             softly.assertThat(savedBooking.getSlot().getId()).isEqualTo(slots[5].getId());
             softly.assertThat(savedBooking.getStatus().name()).isEqualTo("BOOKED");
             softly.assertThat(savedBooking.getDepositAmount()).isEqualTo(5000L);
-            softly.assertThat(bookingRepository.count()).isEqualTo(1L);
+            softly.assertThat(bookingStateProbe.bookingCount()).isEqualTo(1L);
             softly.assertThat(historyCount).isEqualTo(6L);
             softly.assertThat(finalSlotBookedCount).isEqualTo(1);
         });
@@ -117,8 +103,7 @@ class BookingRescheduleUseCaseIT {
         // 슬롯 정원 상태 확인: 나머지는 0
         for (int i = 0; i < 5; i++) {
             int idx = i;
-            assertThat(slotRepository.findById(slots[idx].getId()))
-                    .hasValueSatisfying(s -> assertThat(s.getBookedCount()).isEqualTo(0));
+            assertThat(bookingStateProbe.getSlot(slots[idx].getId()).getBookedCount()).isEqualTo(0);
         }
     }
 
@@ -131,8 +116,8 @@ class BookingRescheduleUseCaseIT {
     void reschedule_changeNotAllowed_returns422() throws Exception {
         // 현재 시각 기준 30분 후 시작하는 슬롯 (1시간 이내 → 변경 불가)
         LocalDateTime soonStart = LocalDateTime.now(clock).plusMinutes(30);
-        Slot nearSlot = slotRepository.save(slot(cls, soonStart, soonStart.plusHours(2)));
-        Slot targetSlot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot nearSlot = slotStorePort.save(slot(cls, soonStart, soonStart.plusHours(2)));
+        Slot targetSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01022220001", nearSlot.getId(), 5000L);
 
@@ -155,7 +140,7 @@ class BookingRescheduleUseCaseIT {
     @DisplayName("동일 슬롯으로 예약 변경을 요청하면 400을 반환한다")
     @Test
     void reschedule_sameSlot_returns400() throws Exception {
-        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330001", slot.getId(), 5000L);
 
@@ -178,8 +163,8 @@ class BookingRescheduleUseCaseIT {
     @DisplayName("비활성 슬롯으로 예약 변경을 요청하면 409를 반환한다")
     @Test
     void reschedule_slotNotAvailable_returns409() throws Exception {
-        Slot fromSlot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
-        Slot inactiveSlot = slotRepository.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
+        Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot inactiveSlot = slotStorePort.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
         slotManagementService.deactivateSlot(inactiveSlot.getId());
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01044440001", fromSlot.getId(), 5000L);
@@ -203,12 +188,12 @@ class BookingRescheduleUseCaseIT {
     @DisplayName("예약 변경 시 정원 초과 슬롯을 선택하면 409를 반환한다")
     @Test
     void reschedule_capacityExceeded_returns409() throws Exception {
-        Slot fromSlot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
-        Slot fullSlot = slotRepository.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
+        Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot fullSlot = slotStorePort.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
 
         // fullSlot을 8명으로 채운다 (서비스 직접 호출)
         for (int i = 0; i < 8; i++) {
-            slotManagementService.confirmBooking(fullSlot.getId());
+            slotBookingCoordinator.confirmBooking(fullSlot.getId());
         }
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550001", fromSlot.getId(), 5000L);
@@ -232,8 +217,8 @@ class BookingRescheduleUseCaseIT {
     @DisplayName("잘못된 토큰으로 예약 변경을 요청하면 404를 반환한다")
     @Test
     void reschedule_wrongToken_returns404() throws Exception {
-        Slot fromSlot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
-        Slot toSlot = slotRepository.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
+        Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot toSlot = slotStorePort.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01066660001", fromSlot.getId(), 5000L);
 

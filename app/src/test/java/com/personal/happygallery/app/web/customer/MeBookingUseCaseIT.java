@@ -1,20 +1,13 @@
 package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.app.booking.port.out.ClassStorePort;
+import com.personal.happygallery.app.booking.port.out.SlotStorePort;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.ClassRepository;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
-import com.personal.happygallery.infra.booking.RefundRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
-import com.personal.happygallery.infra.user.UserRepository;
 import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
@@ -31,7 +24,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassAndRefundData;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -47,16 +39,9 @@ class MeBookingUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
-    @Autowired UserRepository userRepository;
-    @Autowired ClassRepository classRepository;
-    @Autowired SlotRepository slotRepository;
-    @Autowired BookingRepository bookingRepository;
-    @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired GuestRepository guestRepository;
-    @Autowired PhoneVerificationRepository phoneVerificationRepository;
-    @Autowired PassLedgerRepository passLedgerRepository;
-    @Autowired PassPurchaseRepository passPurchaseRepository;
-    @Autowired RefundRepository refundRepository;
+    @Autowired ClassStorePort classStorePort;
+    @Autowired SlotStorePort slotStorePort;
+    @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
@@ -71,9 +56,9 @@ class MeBookingUseCaseIT {
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
 
-        BookingClass cls = classRepository.save(defaultBookingClass());
-        Slot s1 = slotRepository.save(slot(cls, BookingTestHelper.FUTURE, BookingTestHelper.FUTURE.plusHours(2)));
-        Slot s2 = slotRepository.save(slot(cls, BookingTestHelper.FUTURE.plusDays(1), BookingTestHelper.FUTURE.plusDays(1).plusHours(2)));
+        BookingClass cls = classStorePort.save(defaultBookingClass());
+        Slot s1 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE, BookingTestHelper.FUTURE.plusHours(2)));
+        Slot s2 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE.plusDays(1), BookingTestHelper.FUTURE.plusDays(1).plusHours(2)));
         slotId = s1.getId();
         slot2Id = s2.getId();
 
@@ -86,12 +71,8 @@ class MeBookingUseCaseIT {
     }
 
     private void cleanup() {
-        clearBookingWithPassAndRefundData(
-                passLedgerRepository, refundRepository,
-                bookingHistoryRepository, bookingRepository,
-                passPurchaseRepository, phoneVerificationRepository,
-                guestRepository, slotRepository, classRepository);
-        userRepository.deleteAllInBatch();
+        cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearUsers();
     }
 
     @DisplayName("회원 예약금 예약 생성이 성공한다")
