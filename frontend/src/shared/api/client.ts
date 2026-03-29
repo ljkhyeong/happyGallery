@@ -3,7 +3,7 @@ import { ApiError } from "@/shared/api/error";
 import type { ErrorResponse } from "@/shared/types/error";
 
 const BASE_URL = "/api/v1";
-const REQUEST_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_MS = 35_000;
 
 interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
