@@ -34,6 +34,12 @@
                 ──→ HMAC-SHA256         ──→ phone_hmac (검색용, 단방향)
 ```
 
+### IV 생성 난수원 선택
+
+- `FieldEncryptor`의 GCM IV(12바이트)는 `SecureRandom`으로 생성한다.
+- `java.util.Random`은 시드와 알고리즘 특성상 출력 예측 가능성이 있어, IV처럼 재사용/예측되면 안 되는 값에 적합하지 않다.
+- AES-GCM은 IV 품질이 직접 보안성에 영향을 주므로, 암호학적 난수원인 `SecureRandom`을 기본값으로 유지한다.
+
 ### 대상 엔티티·필드
 
 | 엔티티 | 평문 필드 | 암호화 필드 | HMAC 인덱스 필드 |

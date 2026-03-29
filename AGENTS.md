@@ -43,6 +43,8 @@
 - Java 21, Gradle toolchain, `com.personal.happygallery.<layer>.<feature>` 패키지 구조 유지
 - 클래스 `UpperCamelCase`, 메서드/필드 `lowerCamelCase`, DTO는 `Request`/`Response`
 - 컨트롤러는 검증/변환, 흐름은 서비스, 정책은 도메인에 둔다
+- 리팩토링할 때는 수정 대상 주변만 보지 말고 `rg`로 동일/유사 패턴이 코드베이스에 더 있는지 먼저 확인한다.
+- 동일한 리팩토링 이유가 성립하는 중복 패턴은 한 번에 같이 정리한다. 의도적으로 남겨야 하면 왜 남겼는지 답변이나 문서에 명시한다.
 - 테스트는 JUnit 5
 - 정책 테스트는 `*PolicyTest`, 통합 흐름은 `@UseCaseIT` / `*UseCaseIT`
 - 모든 테스트 메서드에 `@DisplayName` 한글 문장 사용

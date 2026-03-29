@@ -22,6 +22,11 @@
 
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - 장바구니 시각 처리 정리 — `CartItem`이 `LocalDateTime.now()`를 직접 읽지 않게 바꾸고, `CartService`에서 주입된 `Clock` 기준 `now`를 생성/수정 메서드에 넘기도록 정리했다. 같은 패턴의 무인자 `now()` 호출도 함께 확인했고 현재 코드 기준 `CartItem`만 해당했다
+  - 알림 로그 어댑터 단순화 — `JpaNotificationLogAdapter`를 제거하고 `NotificationLogRepository`가 `NotificationLogReaderPort`를 직접 구현하도록 접었다. `SUCCESS` 상태/`PageRequest` 변환은 repository default 메서드로 옮겼다
+  - 리팩토링 작업 규칙 보강 — `AGENTS.md`에 리팩토링 전 `rg`로 동일/유사 패턴을 확인하고, 같은 이유가 성립하는 중복은 함께 정리하라는 기준을 추가했다
+  - 비회원 토큰 예외 정리 — `AccessTokenSigner` 내부 `InvalidTokenException`을 top-level 공용 클래스로 분리했고, `HappyGalleryException` 계열과 맞춰 스택트레이스를 비활성화했다
+  - 개인정보 암호화 문서 보강 — `FieldEncryptor`의 IV 생성에 `SecureRandom`을 쓰는 이유와 `Random` 부적합 사유를 `docs/Idea/0031_*`에 남겼다
   - 검색 파라미터 정규화 정리 — `ProductController`의 얇은 sort wrapper를 제거하고, 관리자 검색의 page size clamp는 `SearchParams` 공통 메서드로 올려 중복을 줄였다
   - 공지 최근 조회 최적화 — 홈 최근 공지를 `findAll().stream().limit(...)` 대신 `PageRequest` 기반 상위 N건 조회로 바꿨고, 홈의 비회원 조회 안내 문구는 제거했다
   - BlindIndexer/암호화 설정 정리 — `BlindIndexer`가 `SecretKeySpec`을 생성자에서 한 번만 만들고 재사용하도록 바꿨고, `CryptoConfig`의 중복 `@EnableConfigurationProperties` 선언은 제거했다
