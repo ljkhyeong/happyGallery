@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 예약 검색 어댑터.
- * slots.start_at은 UTC 변환 없이 KST 기준 날짜 범위를 직접 사용한다.
+ * slots.start_at은 UTC 변환 없이 서울 시간대 기준 날짜 범위를 직접 사용한다.
  * (기존 {@code DefaultAdminBookingQueryService}와 동일한 패턴)
  */
 @Component
