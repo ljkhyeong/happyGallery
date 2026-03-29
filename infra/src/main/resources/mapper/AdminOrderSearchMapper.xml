@@ -16,14 +16,17 @@
             <if test="dateTo != null">
                 AND o.created_at &lt; #{dateTo}
             </if>
-            <if test="keyword != null and keyword != ''">
-                AND (
-                    CAST(o.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
-                    OR u.name LIKE CONCAT('%', #{keyword}, '%')
-                    OR g.name LIKE CONCAT('%', #{keyword}, '%')
-                )
-            </if>
         </where>
+    </sql>
+
+    <sql id="keywordConditions">
+        <if test="keyword != null and keyword != ''">
+            AND (
+                CAST(o.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                OR u.name LIKE CONCAT('%', #{keyword}, '%')
+                OR g.name LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
     </sql>
 
     <!--
@@ -51,6 +54,7 @@
                 LEFT JOIN guests g ON o.guest_id = g.id
             </if>
             <include refid="searchConditions"/>
+            <include refid="keywordConditions"/>
             ORDER BY o.created_at DESC
             LIMIT #{size} OFFSET #{offset}
         ) sub ON o.id = sub.id
@@ -67,6 +71,7 @@
             LEFT JOIN guests g ON o.guest_id = g.id
         </if>
         <include refid="searchConditions"/>
+        <include refid="keywordConditions"/>
     </select>
 
 </mapper>

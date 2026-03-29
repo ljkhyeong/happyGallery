@@ -1,6 +1,5 @@
 package com.personal.happygallery.app.batch;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -78,12 +77,10 @@ public final class BatchExecutor {
         Set<Object> seenIds = new HashSet<>();
         List<T> page;
         while (!(page = pageFetcher.get()).isEmpty()) {
-            List<T> fresh = new ArrayList<>();
-            for (T item : page) {
-                if (seenIds.add(idExtractor.apply(item))) {
-                    fresh.add(item);
-                }
-            }
+            List<T> fresh = page.stream()
+                    .filter(item -> seenIds.add(idExtractor.apply(item)))
+                    .toList();
+
             if (fresh.isEmpty()) {
                 log.warn("{} 남은 항목이 모두 처리 완료 — 루프 종료", label);
                 break;

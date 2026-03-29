@@ -1,10 +1,11 @@
 package com.personal.happygallery.infra.notification;
 
-import java.time.Duration;
+import com.personal.happygallery.infra.http.PooledHttpClientFactory;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -15,30 +16,47 @@ import org.springframework.web.client.RestClient;
 @Profile("prod")
 class NotificationRestClientConfig {
 
+    @Bean(destroyMethod = "close")
+    CloseableHttpClient kakaoHttpClient(KakaoNotificationProperties props) {
+        return PooledHttpClientFactory.create(
+                props.connectTimeoutMillis(),
+                props.timeoutMillis(),
+                props.acquireTimeoutMillis(),
+                props.maxConnections(),
+                props.keepAliveMillis()
+        );
+    }
+
     @Bean
-    RestClient kakaoRestClient(KakaoNotificationProperties props) {
+    RestClient kakaoRestClient(KakaoNotificationProperties props,
+                               @Qualifier("kakaoHttpClient") CloseableHttpClient httpClient) {
         return RestClient.builder()
                 .baseUrl(props.baseUrl())
                 .defaultHeader("Content-Type", "application/json")
                 .defaultHeader("Authorization", "KakaoAK " + props.apiKey())
-                .requestFactory(clientHttpRequestFactory(props.timeoutMillis()))
+                .requestFactory(PooledHttpClientFactory.requestFactory(httpClient))
                 .build();
     }
 
+    @Bean(destroyMethod = "close")
+    CloseableHttpClient smsHttpClient(SmsNotificationProperties props) {
+        return PooledHttpClientFactory.create(
+                props.connectTimeoutMillis(),
+                props.timeoutMillis(),
+                props.acquireTimeoutMillis(),
+                props.maxConnections(),
+                props.keepAliveMillis()
+        );
+    }
+
     @Bean
-    RestClient smsRestClient(SmsNotificationProperties props) {
+    RestClient smsRestClient(SmsNotificationProperties props,
+                             @Qualifier("smsHttpClient") CloseableHttpClient httpClient) {
         return RestClient.builder()
                 .baseUrl(props.baseUrl())
                 .defaultHeader("Content-Type", "application/json")
                 .defaultHeader("X-Secret-Key", props.apiSecret())
-                .requestFactory(clientHttpRequestFactory(props.timeoutMillis()))
+                .requestFactory(PooledHttpClientFactory.requestFactory(httpClient))
                 .build();
-    }
-
-    private static SimpleClientHttpRequestFactory clientHttpRequestFactory(long timeoutMillis) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofMillis(timeoutMillis));
-        factory.setReadTimeout(Duration.ofMillis(timeoutMillis));
-        return factory;
     }
 }

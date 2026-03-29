@@ -9,4 +9,9 @@ public interface ClientMonitoringUseCase {
                               String source,
                               String target,
                               Long userId);
+
+    void logGuestClaimCompleted(Long userId,
+                                Long guestId,
+                                int claimedOrderCount,
+                                int claimedBookingCount);
 }

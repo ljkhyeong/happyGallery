@@ -3,6 +3,11 @@ package com.personal.happygallery.app.booking;
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.booking.port.in.AdminBookingQueryUseCase;
 import com.personal.happygallery.app.booking.port.in.BookingReminderBatchUseCase;
+import com.personal.happygallery.app.booking.port.out.BookingStorePort;
+import com.personal.happygallery.app.booking.port.out.ClassStorePort;
+import com.personal.happygallery.app.booking.port.out.SlotStorePort;
+import com.personal.happygallery.app.customer.port.out.GuestStorePort;
+import com.personal.happygallery.app.customer.port.out.UserStorePort;
 import com.personal.happygallery.app.web.admin.dto.AdminBookingResponse;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -12,15 +17,8 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.user.User;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.ClassRepository;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.infra.notification.NotificationLogRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
-import com.personal.happygallery.infra.user.UserRepository;
+import com.personal.happygallery.support.NotificationLogProbe;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -33,7 +31,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
-import static com.personal.happygallery.support.TestDataCleaner.clearBookingReminderData;
 import static com.personal.happygallery.support.TestFixtures.accessToken;
 import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
@@ -50,15 +47,13 @@ class AdminBookingQueryUseCaseIT {
 
     @Autowired AdminBookingQueryUseCase adminBookingQueryService;
     @Autowired BookingReminderBatchUseCase bookingReminderBatchService;
-    @Autowired BookingRepository bookingRepository;
-    @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired GuestRepository guestRepository;
-    @Autowired SlotRepository slotRepository;
-    @Autowired ClassRepository classRepository;
-    @Autowired PassLedgerRepository passLedgerRepository;
-    @Autowired PassPurchaseRepository passPurchaseRepository;
-    @Autowired NotificationLogRepository notificationLogRepository;
-    @Autowired UserRepository userRepository;
+    @Autowired ClassStorePort classStorePort;
+    @Autowired SlotStorePort slotStorePort;
+    @Autowired GuestStorePort guestStorePort;
+    @Autowired UserStorePort userStorePort;
+    @Autowired BookingStorePort bookingStorePort;
+    @Autowired NotificationLogProbe notificationLogProbe;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
 
     @BeforeEach
@@ -72,12 +67,8 @@ class AdminBookingQueryUseCaseIT {
     }
 
     private void cleanup() {
-        clearBookingReminderData(
-                passLedgerRepository, passPurchaseRepository,
-                bookingHistoryRepository, bookingRepository,
-                guestRepository, slotRepository,
-                classRepository, notificationLogRepository);
-        userRepository.deleteAllInBatch();
+        cleanupSupport.clearBookingReminderData();
+        cleanupSupport.clearUsers();
     }
 
     // ── admin booking list ───────────────────────────────────
@@ -119,7 +110,7 @@ class AdminBookingQueryUseCaseIT {
                 "원래게스트", "01077778888", "remind@test.com", "리마인드회원");
 
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
-        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 1);
+        List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
@@ -143,7 +134,7 @@ class AdminBookingQueryUseCaseIT {
                 "원래게스트2", "01033333333", "c@test.com", "클레이머2");
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
-        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 3);
+        List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 3);
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(3);
@@ -154,33 +145,33 @@ class AdminBookingQueryUseCaseIT {
     // ── helpers ──────────────────────────────────────────────
 
     private Slot saveSlot(LocalDateTime start, String className, String category) {
-        BookingClass cls = classRepository.save(bookingClass(className, category, 60, 30_000L, 30));
-        return slotRepository.save(slot(cls, start, start.plusHours(1)));
+        BookingClass cls = classStorePort.save(bookingClass(className, category, 60, 30_000L, 30));
+        return slotStorePort.save(slot(cls, start, start.plusHours(1)));
     }
 
     private void saveGuestBooking(LocalDateTime slotStart, String className, String category,
                                   String guestName, String phone) {
         Slot s = saveSlot(slotStart, className, category);
-        Guest g = guestRepository.save(guest(guestName, phone));
-        bookingRepository.save(booking(g, s, 10_000L, 20_000L, DepositPaymentMethod.CARD, accessToken()));
+        Guest g = guestStorePort.save(guest(guestName, phone));
+        bookingStorePort.save(booking(g, s, 10_000L, 20_000L, DepositPaymentMethod.CARD, accessToken()));
     }
 
     private void saveMemberBooking(LocalDateTime slotStart, String className, String category,
                                    String email, String name, String phone) {
         Slot s = saveSlot(slotStart, className, category);
-        User member = userRepository.save(new User(email, "hash", name, phone));
-        bookingRepository.save(Booking.forMemberDeposit(member.getId(), s, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+        User member = userStorePort.save(new User(email, "hash", name, phone));
+        bookingStorePort.save(Booking.forMemberDeposit(member.getId(), s, 10_000L, 20_000L, DepositPaymentMethod.CARD));
     }
 
     private User saveClaimedBooking(LocalDateTime slotStart, String className, String category,
                                     String guestName, String phone, String claimerEmail, String claimerName) {
         Slot s = saveSlot(slotStart, className, category);
-        Guest g = guestRepository.save(guest(guestName, phone));
-        User claimer = userRepository.save(new User(claimerEmail, "hash", claimerName, phone));
-        Booking claimed = bookingRepository.save(
+        Guest g = guestStorePort.save(guest(guestName, phone));
+        User claimer = userStorePort.save(new User(claimerEmail, "hash", claimerName, phone));
+        Booking claimed = bookingStorePort.save(
                 booking(g, s, 10_000L, 20_000L, DepositPaymentMethod.CARD, accessToken()));
         claimed.claimToUser(claimer.getId());
-        bookingRepository.save(claimed);
+        bookingStorePort.save(claimed);
         return claimer;
     }
 }

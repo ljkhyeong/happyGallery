@@ -1,7 +1,6 @@
 package com.personal.happygallery.support;
 
 import com.personal.happygallery.domain.notification.NotificationLog;
-import com.personal.happygallery.infra.notification.NotificationLogRepository;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -16,11 +15,11 @@ public final class NotificationLogTestHelper {
     private NotificationLogTestHelper() {
     }
 
-    public static List<NotificationLog> awaitLogCount(NotificationLogRepository repository, int expectedCount) {
+    public static List<NotificationLog> awaitLogCount(NotificationLogProbe notificationLogProbe, int expectedCount) {
         await()
                 .atMost(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
                 .pollInterval(POLL_INTERVAL_MILLIS, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> assertThat(repository.findAll()).hasSize(expectedCount));
-        return repository.findAll();
+                .untilAsserted(() -> assertThat(notificationLogProbe.all()).hasSize(expectedCount));
+        return notificationLogProbe.all();
     }
 }

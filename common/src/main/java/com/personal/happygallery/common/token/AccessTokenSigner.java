@@ -114,10 +114,4 @@ public final class AccessTokenSigner {
     public record SignedToken(String rawToken, String nonceHash) {}
 
     public record TokenClaims(String nonce, String nonceHash, Instant expiry) {}
-
-    public static class InvalidTokenException extends RuntimeException {
-        public InvalidTokenException(String message) {
-            super(message);
-        }
-    }
 }

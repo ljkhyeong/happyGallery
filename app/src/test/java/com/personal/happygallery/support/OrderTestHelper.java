@@ -1,15 +1,16 @@
 package com.personal.happygallery.support;
 
 import com.personal.happygallery.app.order.OrderService;
+import com.personal.happygallery.app.order.port.out.OrderItemPort;
+import com.personal.happygallery.app.order.port.out.OrderStorePort;
+import com.personal.happygallery.app.product.port.out.InventoryReaderPort;
+import com.personal.happygallery.app.product.port.out.InventoryStorePort;
+import com.personal.happygallery.app.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
-import com.personal.happygallery.infra.order.OrderItemRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
-import com.personal.happygallery.infra.product.InventoryRepository;
-import com.personal.happygallery.infra.product.ProductRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,31 +19,35 @@ public final class OrderTestHelper {
 
     public record OrderFixture(Product product, Order order) {}
 
-    private final ProductRepository productRepository;
-    private final InventoryRepository inventoryRepository;
-    private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
+    private final ProductStorePort productStorePort;
+    private final InventoryStorePort inventoryStorePort;
+    private final InventoryReaderPort inventoryReaderPort;
+    private final OrderStorePort orderStorePort;
+    private final OrderItemPort orderItemPort;
     private final OrderService orderService;
     private final Clock clock;
 
-    public OrderTestHelper(ProductRepository productRepository,
-                           InventoryRepository inventoryRepository,
-                           OrderRepository orderRepository,
-                           OrderItemRepository orderItemRepository,
+    public OrderTestHelper(ProductStorePort productStorePort,
+                           InventoryStorePort inventoryStorePort,
+                           InventoryReaderPort inventoryReaderPort,
+                           OrderStorePort orderStorePort,
+                           OrderItemPort orderItemPort,
                            OrderService orderService) {
-        this(productRepository, inventoryRepository, orderRepository, orderItemRepository, orderService, null);
+        this(productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort, orderService, null);
     }
 
-    public OrderTestHelper(ProductRepository productRepository,
-                           InventoryRepository inventoryRepository,
-                           OrderRepository orderRepository,
-                           OrderItemRepository orderItemRepository,
+    public OrderTestHelper(ProductStorePort productStorePort,
+                           InventoryStorePort inventoryStorePort,
+                           InventoryReaderPort inventoryReaderPort,
+                           OrderStorePort orderStorePort,
+                           OrderItemPort orderItemPort,
                            OrderService orderService,
                            Clock clock) {
-        this.productRepository = productRepository;
-        this.inventoryRepository = inventoryRepository;
-        this.orderRepository = orderRepository;
-        this.orderItemRepository = orderItemRepository;
+        this.productStorePort = productStorePort;
+        this.inventoryStorePort = inventoryStorePort;
+        this.inventoryReaderPort = inventoryReaderPort;
+        this.orderStorePort = orderStorePort;
+        this.orderItemPort = orderItemPort;
         this.orderService = orderService;
         this.clock = clock;
     }
@@ -68,8 +73,8 @@ public final class OrderTestHelper {
     }
 
     private Product createProduct(String name, ProductType type, long price, int quantity) {
-        Product product = productRepository.save(new Product(name, type, price));
-        inventoryRepository.save(new Inventory(product, quantity));
+        Product product = productStorePort.save(new Product(name, type, price));
+        inventoryStorePort.save(new Inventory(product, quantity));
         return product;
     }
 
@@ -87,12 +92,12 @@ public final class OrderTestHelper {
         }
         Product product = createProduct(name, type, price, 1);
         LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
-        Order order = orderRepository.save(Order.forGuest(null, null, price, paidAt, paidAt.plusHours(24)));
-        orderItemRepository.save(new OrderItem(order, product.getId(), 1, price));
+        Order order = orderStorePort.save(Order.forGuest(null, null, price, paidAt, paidAt.plusHours(24)));
+        orderItemPort.save(new OrderItem(order, product.getId(), 1, price));
 
-        Inventory inventory = inventoryRepository.findByProductId(product.getId()).orElseThrow();
+        Inventory inventory = inventoryReaderPort.findByProductId(product.getId()).orElseThrow();
         inventory.deduct(1);
-        inventoryRepository.save(inventory);
+        inventoryStorePort.save(inventory);
         return new OrderFixture(product, order);
     }
 }

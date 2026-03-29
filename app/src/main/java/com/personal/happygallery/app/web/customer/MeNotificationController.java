@@ -1,10 +1,10 @@
 package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.notification.port.in.NotificationQueryUseCase;
-import com.personal.happygallery.app.notification.port.in.NotificationQueryUseCase.NotificationView;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
+import com.personal.happygallery.app.web.customer.dto.NotificationResponse;
+import com.personal.happygallery.app.web.customer.dto.UnreadCountResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -52,18 +52,4 @@ public class MeNotificationController {
     private Long getUserId(HttpServletRequest request) {
         return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
     }
-
-    // --- DTOs ---
-
-    public record NotificationResponse(Long id, String channel, String eventType,
-                                       String status, LocalDateTime sentAt,
-                                       LocalDateTime readAt, boolean read) {
-        static NotificationResponse from(NotificationView v) {
-            return new NotificationResponse(
-                    v.id(), v.channel().name(), v.eventType().name(),
-                    v.status(), v.sentAt(), v.readAt(), v.isRead());
-        }
-    }
-
-    public record UnreadCountResponse(long count) {}
 }

@@ -1,11 +1,10 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.web.AdminAuthFilter;
+import com.personal.happygallery.app.booking.port.out.ClassStorePort;
+import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.domain.booking.BookingClass;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.ClassRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,7 +15,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-import static com.personal.happygallery.support.TestDataCleaner.clearBookingData;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -32,10 +30,9 @@ class AdminSlotUseCaseIT {
 
     @Autowired WebApplicationContext context;
     @Autowired AdminAuthFilter adminAuthFilter;
-    @Autowired ClassRepository classRepository;
-    @Autowired SlotRepository slotRepository;
-    @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired BookingRepository bookingRepository;
+    @Autowired ClassStorePort classStorePort;
+    @Autowired SlotReaderPort slotReaderPort;
+    @Autowired TestCleanupSupport cleanupSupport;
 
     MockMvc mockMvc;
     Long classId;
@@ -45,8 +42,8 @@ class AdminSlotUseCaseIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(adminAuthFilter)
                 .build();
-        clearBookingData(bookingHistoryRepository, bookingRepository, slotRepository, classRepository);
-        BookingClass cls = classRepository.save(defaultBookingClass());
+        cleanupSupport.clearBookingData();
+        BookingClass cls = classStorePort.save(defaultBookingClass());
         classId = cls.getId();
     }
 
@@ -142,9 +139,9 @@ class AdminSlotUseCaseIT {
                 .andExpect(jsonPath("$.isActive").value(false));
 
         // then — DB 상태 확인
-        assertThat(slotRepository.findById(slotId))
+        assertThat(slotReaderPort.findById(slotId))
                 .isPresent()
-                .hasValueSatisfying(s -> assertThat(s.isActive()).isFalse());
+                .hasValueSatisfying(slot -> assertThat(slot.isActive()).isFalse());
     }
 
     @DisplayName("존재하지 않는 클래스로 슬롯을 생성하면 실패한다")

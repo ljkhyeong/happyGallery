@@ -65,6 +65,11 @@
 - 환불/알림은 실패 시 `FAILED` 상태를 남기고 운영자가 재시도할 수 있게 유지한다.
 - 외부 결제(PG) 호출은 `CircuitBreaker + Timeout`으로 보호한다.
   - 현재 기본 타임아웃은 3초
+- 외부 알림/Google OAuth 호출은 downstream별 HTTP connection pool을 분리한다.
+  - 세부 기준선은 `ADR-0029`에서 관리한다.
+- timeout 기준선은 바깥 계층이 더 길고 안쪽 계층이 더 짧게 잡히도록 유지한다.
+  - 현재 기본값은 `frontend 35s > nginx read 30s > transaction 10s > DB query 5s > lock wait 3s > DB/Hikari acquire 2s` 순서를 따른다.
+  - 동기 MVC 전체 요청 deadline은 별도 필터/컨테이너 커스터마이저 후보로 남겨 둔다.
 - 필터 기반 처리율 제한을 `/api/v1/**` 기준으로 적용한다.
   - 저장소는 Redis 공유 카운터를 사용한다. 다중 인스턴스에서도 같은 제한값을 본다.
   - 인증코드 발송: 10 req/sec/IP
@@ -115,6 +120,7 @@
 - `docs/ADR/0017_Filter_처리율_제한/adr.md`
 - `docs/ADR/0019_비밀번호_해시_정책/adr.md`
 - `docs/ADR/0020_결제_제공자_CircuitBreaker/adr.md`
+- `docs/ADR/0029_외부_HTTP_클라이언트_풀링_기준선/adr.md`
 - `docs/Idea/0013_회원_세션_Spring_Session_전환_검토/idea.md`
 - `docs/Idea/0015_다중_인스턴스용_Redis_도입/idea.md`
 - `docs/Idea/0004_관리자_Auth_세션_확장/idea.md`

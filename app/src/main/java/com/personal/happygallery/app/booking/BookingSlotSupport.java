@@ -2,7 +2,6 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
-import com.personal.happygallery.app.booking.port.out.SlotStorePort;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
@@ -34,8 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 class BookingSlotSupport {
 
     private final SlotReaderPort slotReaderPort;
-    private final SlotStorePort slotStorePort;
-    private final DefaultSlotManagementService slotManagementService;
+    private final SlotBookingCoordinator slotBookingCoordinator;
     private final BookingStorePort bookingStorePort;
     private final PassPurchaseReaderPort passPurchaseReaderPort;
     private final PassPurchaseStorePort passPurchaseStorePort;
@@ -44,17 +42,15 @@ class BookingSlotSupport {
     private final Clock clock;
 
     BookingSlotSupport(SlotReaderPort slotReaderPort,
-                           SlotStorePort slotStorePort,
-                           DefaultSlotManagementService slotManagementService,
-                           BookingStorePort bookingStorePort,
-                           PassPurchaseReaderPort passPurchaseReaderPort,
-                           PassPurchaseStorePort passPurchaseStorePort,
-                           PassLedgerStorePort passLedgerStorePort,
-                           BookingSupport bookingSupport,
-                           Clock clock) {
+                       SlotBookingCoordinator slotBookingCoordinator,
+                       BookingStorePort bookingStorePort,
+                       PassPurchaseReaderPort passPurchaseReaderPort,
+                       PassPurchaseStorePort passPurchaseStorePort,
+                       PassLedgerStorePort passLedgerStorePort,
+                       BookingSupport bookingSupport,
+                       Clock clock) {
         this.slotReaderPort = slotReaderPort;
-        this.slotStorePort = slotStorePort;
-        this.slotManagementService = slotManagementService;
+        this.slotBookingCoordinator = slotBookingCoordinator;
         this.bookingStorePort = bookingStorePort;
         this.passPurchaseReaderPort = passPurchaseReaderPort;
         this.passPurchaseStorePort = passPurchaseStorePort;
@@ -76,17 +72,13 @@ class BookingSlotSupport {
     /** 비관적 락 + 정원 증가 + 버퍼 비활성화. 중복 체크 이후에 호출한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     void lockSlotCapacity(Long slotId) {
-        slotManagementService.confirmBooking(slotId);
+        slotBookingCoordinator.confirmBooking(slotId);
     }
 
     /** 비관적 락 + 정원 감소. 취소·변경 시 기존 슬롯을 반납한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Slot releaseSlotCapacity(Long slotId) {
-        Slot slot = slotReaderPort.findByIdWithLock(slotId)
-                .orElseThrow(() -> new NotFoundException("슬롯"));
-        slot.decrementBookedCount();
-        slotStorePort.save(slot);
-        return slot;
+        return slotBookingCoordinator.releaseSlotCapacity(slotId);
     }
 
     /**

@@ -6,6 +6,8 @@ spring:
     name: happygallery
   datasource:
     hikari:
+      # DB 풀 대기는 느린 요청으로 이어지기 전에 빠르게 실패시킨다.
+      connection-timeout: ${DB_HIKARI_CONNECTION_TIMEOUT_MS:2000}
       # DB wait_timeout(초)보다 짧게 유지한다.
       # 기본값: DB 600초(10분) 기준 540초(9분).
       max-lifetime: ${DB_HIKARI_MAX_LIFETIME_MS:540000}
@@ -14,6 +16,10 @@ spring:
       # 현재 기본값(T_n=4, C_m=2) 기준 최소 5이므로 여유를 두어 12로 설정한다.
       maximum-pool-size: ${DB_HIKARI_MAXIMUM_POOL_SIZE:12}
       minimum-idle: ${DB_HIKARI_MINIMUM_IDLE:4}
+      connection-init-sql: SET SESSION innodb_lock_wait_timeout = ${DB_LOCK_WAIT_TIMEOUT_SECONDS:3}
+      data-source-properties:
+        connectTimeout: ${DB_CONNECT_TIMEOUT_MS:2000}
+        socketTimeout: ${DB_SOCKET_TIMEOUT_MS:5000}
   lifecycle:
     timeout-per-shutdown-phase: 30s
   profiles:
@@ -23,6 +29,8 @@ spring:
     locations: classpath:db/migration
   jpa:
     open-in-view: false
+    properties:
+      "[jakarta.persistence.query.timeout]": ${DB_QUERY_TIMEOUT_MS:5000}
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -33,6 +41,8 @@ spring:
     redis:
       namespace: hg:session
       flush-mode: on_save
+  transaction:
+    default-timeout: ${TX_DEFAULT_TIMEOUT:10s}
 
 app:
   admin:
@@ -47,15 +57,28 @@ app:
       sender-key: ${KAKAO_SENDER_KEY:}
       base-url: ${KAKAO_BASE_URL:https://bizapi.kakao.com}
       timeout-millis: ${KAKAO_TIMEOUT_MILLIS:5000}
+      connect-timeout-millis: ${KAKAO_CONNECT_TIMEOUT_MILLIS:2000}
+      acquire-timeout-millis: ${KAKAO_ACQUIRE_TIMEOUT_MILLIS:1000}
+      max-connections: ${KAKAO_MAX_CONNECTIONS:20}
+      keep-alive-millis: ${KAKAO_KEEP_ALIVE_MILLIS:30000}
     sms:
       api-key: ${SMS_API_KEY:}
       api-secret: ${SMS_API_SECRET:}
       sender-number: ${SMS_SENDER_NUMBER:}
       base-url: ${SMS_BASE_URL:https://api-sms.cloud.toast.com}
       timeout-millis: ${SMS_TIMEOUT_MILLIS:5000}
+      connect-timeout-millis: ${SMS_CONNECT_TIMEOUT_MILLIS:2000}
+      acquire-timeout-millis: ${SMS_ACQUIRE_TIMEOUT_MILLIS:1000}
+      max-connections: ${SMS_MAX_CONNECTIONS:20}
+      keep-alive-millis: ${SMS_KEEP_ALIVE_MILLIS:30000}
     google-oauth:
       client-id: ${GOOGLE_OAUTH_CLIENT_ID:}
       client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET:}
+      timeout-millis: ${GOOGLE_OAUTH_TIMEOUT_MILLIS:5000}
+      connect-timeout-millis: ${GOOGLE_OAUTH_CONNECT_TIMEOUT_MILLIS:2000}
+      acquire-timeout-millis: ${GOOGLE_OAUTH_ACQUIRE_TIMEOUT_MILLIS:1000}
+      max-connections: ${GOOGLE_OAUTH_MAX_CONNECTIONS:10}
+      keep-alive-millis: ${GOOGLE_OAUTH_KEEP_ALIVE_MILLIS:30000}
     payment:
       # SI 운영 기본값: 외부 호출은 짧은 타임아웃 + 서킷 브레이커로 보호
       timeout-millis: ${PAYMENT_TIMEOUT_MILLIS:3000}

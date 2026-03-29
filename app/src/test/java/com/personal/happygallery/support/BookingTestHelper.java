@@ -1,7 +1,7 @@
 package com.personal.happygallery.support;
 
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationReaderPort;
 import com.jayway.jsonpath.JsonPath;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -23,11 +23,11 @@ public final class BookingTestHelper {
     public static final LocalDateTime FUTURE = LocalDateTime.of(2030, 1, 1, 10, 0);
 
     private final MockMvc mockMvc;
-    private final PhoneVerificationRepository phoneVerificationRepository;
+    private final PhoneVerificationReaderPort phoneVerificationReaderPort;
 
-    public BookingTestHelper(MockMvc mockMvc, PhoneVerificationRepository phoneVerificationRepository) {
+    public BookingTestHelper(MockMvc mockMvc, PhoneVerificationReaderPort phoneVerificationReaderPort) {
         this.mockMvc = mockMvc;
-        this.phoneVerificationRepository = phoneVerificationRepository;
+        this.phoneVerificationReaderPort = phoneVerificationReaderPort;
     }
 
     public String sendVerificationAndGetCode(String phone) throws Exception {
@@ -37,7 +37,7 @@ public final class BookingTestHelper {
                                 { "phone": "%s" }
                                 """.formatted(phone)))
                 .andExpect(status().isOk());
-        return phoneVerificationRepository.findTopByPhoneAndVerifiedFalseOrderByIdDesc(phone)
+        return phoneVerificationReaderPort.findLatestUnverifiedCode(phone)
                 .orElseThrow(() -> new AssertionError("No verification code found for " + phone))
                 .getCode();
     }

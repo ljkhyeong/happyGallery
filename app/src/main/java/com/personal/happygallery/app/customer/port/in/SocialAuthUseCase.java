@@ -8,5 +8,9 @@ public interface SocialAuthUseCase {
 
     record SocialLoginResult(User user, boolean newUser) {}
 
+    record AuthorizationUrlResult(String url, String state) {}
+
+    AuthorizationUrlResult buildAuthorizationUrl(String redirectUri);
+
     SocialLoginResult socialLogin(SocialLoginCommand command);
 }

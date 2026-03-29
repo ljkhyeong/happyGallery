@@ -3,9 +3,9 @@ package com.personal.happygallery.app.customer;
 import com.personal.happygallery.app.customer.port.in.GuestClaimUseCase;
 import com.personal.happygallery.app.customer.port.out.GuestClaimQueryPort;
 import com.personal.happygallery.app.customer.port.out.GuestReaderPort;
+import com.personal.happygallery.app.monitoring.port.in.ClientMonitoringUseCase;
 import com.personal.happygallery.app.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
-import com.personal.happygallery.app.monitoring.DefaultClientMonitoringService;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.error.PhoneVerificationFailedException;
 import com.personal.happygallery.common.error.PhoneVerificationRequiredException;
@@ -40,14 +40,14 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     private final PhoneVerificationReaderPort phoneVerificationReader;
     private final GuestClaimQueryPort claimQuery;
     private final Clock clock;
-    private final DefaultClientMonitoringService clientMonitoringService;
+    private final ClientMonitoringUseCase clientMonitoringService;
 
     public DefaultGuestClaimService(UserReaderPort userReader,
                              GuestReaderPort guestReader,
                              PhoneVerificationReaderPort phoneVerificationReader,
                              GuestClaimQueryPort claimQuery,
                              Clock clock,
-                             DefaultClientMonitoringService clientMonitoringService) {
+                             ClientMonitoringUseCase clientMonitoringService) {
         this.userReader = userReader;
         this.guestReader = guestReader;
         this.phoneVerificationReader = phoneVerificationReader;
