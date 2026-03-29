@@ -139,9 +139,6 @@ export function HomePage() {
               </p>
             </Col>
             <Col md={5}>
-              <div className="lookup-panel-note mb-3">
-                비회원 조회는 생성 후 확인용입니다. 계속 관리할 예정이라면 로그인 후 `/my` 경로를 사용하는 편이 안정적입니다.
-              </div>
               <div className="d-flex flex-wrap gap-2 justify-content-md-end">
                 <Button as={Link as any} to="/my" variant="dark">
                   회원 내 정보
