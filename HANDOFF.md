@@ -22,6 +22,15 @@
 
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - 공지 최근 조회 최적화 — 홈 최근 공지를 `findAll().stream().limit(...)` 대신 `PageRequest` 기반 상위 N건 조회로 바꿨고, 홈의 비회원 조회 안내 문구는 제거했다
+  - BlindIndexer/암호화 설정 정리 — `BlindIndexer`가 `SecretKeySpec`을 생성자에서 한 번만 만들고 재사용하도록 바꿨고, `CryptoConfig`의 중복 `@EnableConfigurationProperties` 선언은 제거했다
+  - 주문 커서 조회 최적화 — `OrderRepository` 커서 쿼리를 OR 조건 JPQL에서 tuple comparison native query로 바꾸고, 관련 인덱스와 검토 메모(`docs/Idea/0038_*`)를 추가했다
+  - MyBatis 시간대 표현 통일 — `KstDateTimeRangeConverter`를 `SeoulDateTimeRangeConverter`로 이름을 바꾸고, MyBatis adapter 주석/변수명도 `Clocks.SEOUL` 기준 서울 시간대 표현으로 정리했다
+  - 관리자 검색 MyBatis 조건 정리 — `AdminOrderSearchMapper`, `AdminBookingSearchMapper`의 `searchConditions`에서 `u/g` alias 의존 키워드 조건을 별도 fragment로 분리해, 조인 포함 위치에서만 명시적으로 포함되도록 정리했다
+  - BatchExecutor 정리 — `executePaginated`의 `fresh` 생성부를 stream 기반 중복 필터로 간단히 정리했고, `seenIds` 기반 무한 루프 방지 의미는 그대로 유지했다
+  - 서울 시간대 날짜 경계 변환 추출 — 반복되던 MyBatis 조회용 UTC 변환을 `SeoulDateTimeRangeConverter`로 공통화했고, 판매/대시보드/관리자 주문 검색 adapter는 이 유틸을 사용하도록 정리했다
+  - 대시보드 MyBatis 시간 처리 정리 — `MyBatisSalesStatsAdapter`가 `Clock` 주입 기준으로 오늘 서울 시간대 범위를 계산하도록 바꿨고, 대시보드/관리자 검색 adapter의 서울 시간대 상수는 `Clocks.SEOUL`로 통일했다
+  - 인덱스 정리 — `V30`에서 `notification_log`의 단일 `sent_at` 인덱스를 제거하고 `/api/v1/me/notifications` 목록 패턴에 맞춰 `(user_id, sent_at DESC)`, `(guest_id, sent_at DESC)` 인덱스를 추가했다. `orders`의 `(status, created_at)`는 `(status, created_at, id)` 커서 인덱스로 흡수되도록 제거했다
   - Google 소셜 로그인 추가 — `users`에 `provider`/`provider_id` 컬럼(V29)과 Google OAuth 교환 클라이언트를 추가했고, `/api/v1/auth/social/google{,/url}` API와 `/auth/callback/google` 프론트 콜백, 소셜 로그인 rate limit(분당 10회)를 연결했다
   - 회원 장바구니/알림함 추가 — `cart_items` 테이블(V27)과 `/api/v1/me/cart` 장바구니 API, `notification_log.read_at` 컬럼(V28)과 `/api/v1/me/notifications` 조회·읽음 API를 추가했고, 프론트에는 `/cart`, 상품 상세 장바구니 담기, 상단 알림 벨을 연결했다
   - 비회원 토큰 서명+만료 추가 — `AccessTokenSigner`(HMAC-SHA256 서명+만료)와 `GuestTokenService`(듀얼 모드 검증)를 도입해 게스트 토큰을 서명 기반으로 전환했고, 레거시 토큰 폴백을 유지했다. ADR-0024·Idea-0005 갱신 완료.
@@ -92,6 +101,11 @@
   - P8 E2E 시나리오 검증 — local 환불 실패 hook 추가, 기본 관리자 계정 정합화, 실제 로컬 핵심 브라우저 시나리오 1~9 통과
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
+  - `./gradlew --no-daemon :app:compileJava` 통과 (BatchExecutor stream 정리 후)
+  - `./gradlew --no-daemon :app:compileTestJava` 통과
+  - `./gradlew --no-daemon :app:compileJava` 통과
+  - `docker exec -i hg-mysql-audit mysql ... < app/src/main/resources/db/migration/V30__cleanup_redundant_indexes.sql` 적용 확인
+  - `docker exec hg-mysql-audit mysql ... -e "SHOW INDEX FROM orders; SHOW INDEX FROM notification_log"` 로 최신 인덱스 상태 확인
   - `./gradlew clean :app:test --no-daemon` 통과
   - `cd frontend && npm run build` 통과 (`@sentry/react` 포함)
   - `docker compose config` 통과 (Prometheus/Grafana compose wiring 확인)
