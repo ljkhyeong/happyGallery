@@ -2,23 +2,21 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.booking.port.in.BookingReminderBatchUseCase;
+import com.personal.happygallery.app.booking.port.out.BookingStorePort;
+import com.personal.happygallery.app.booking.port.out.ClassStorePort;
+import com.personal.happygallery.app.booking.port.out.SlotStorePort;
+import com.personal.happygallery.app.customer.port.out.GuestStorePort;
+import com.personal.happygallery.app.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.user.User;
-import com.personal.happygallery.infra.user.UserRepository;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.ClassRepository;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.infra.notification.NotificationLogRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
+import com.personal.happygallery.support.NotificationLogProbe;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -31,7 +29,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import static com.personal.happygallery.support.TestDataCleaner.clearBookingReminderData;
 import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
 import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
@@ -49,15 +46,13 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class BookingReminderBatchUseCaseIT {
 
     @Autowired BookingReminderBatchUseCase bookingReminderBatchService;
-    @Autowired BookingRepository bookingRepository;
-    @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired GuestRepository guestRepository;
-    @Autowired SlotRepository slotRepository;
-    @Autowired ClassRepository classRepository;
-    @Autowired PassLedgerRepository passLedgerRepository;
-    @Autowired PassPurchaseRepository passPurchaseRepository;
-    @Autowired NotificationLogRepository notificationLogRepository;
-    @Autowired UserRepository userRepository;
+    @Autowired ClassStorePort classStorePort;
+    @Autowired SlotStorePort slotStorePort;
+    @Autowired GuestStorePort guestStorePort;
+    @Autowired UserStorePort userStorePort;
+    @Autowired BookingStorePort bookingStorePort;
+    @Autowired NotificationLogProbe notificationLogProbe;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
 
     @BeforeEach
@@ -71,16 +66,8 @@ class BookingReminderBatchUseCaseIT {
     }
 
     private void cleanup() {
-        clearBookingReminderData(
-                passLedgerRepository,
-                passPurchaseRepository,
-                bookingHistoryRepository,
-                bookingRepository,
-                guestRepository,
-                slotRepository,
-                classRepository,
-                notificationLogRepository);
-        userRepository.deleteAllInBatch();
+        cleanupSupport.clearBookingReminderData();
+        cleanupSupport.clearUsers();
     }
 
     // -----------------------------------------------------------------------
@@ -96,7 +83,7 @@ class BookingReminderBatchUseCaseIT {
         Booking booking = createBooking(slotStart);
 
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
-        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 1);
+        List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
@@ -125,7 +112,7 @@ class BookingReminderBatchUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(0);
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(notificationLogRepository.findAll()).isEmpty();
+            softly.assertThat(notificationLogProbe.all()).isEmpty();
         });
     }
 
@@ -141,7 +128,7 @@ class BookingReminderBatchUseCaseIT {
         Booking booking = createBooking(slotStart);
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
-        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 1);
+        List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
@@ -171,7 +158,7 @@ class BookingReminderBatchUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(0);
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(notificationLogRepository.findAll()).isEmpty();
+            softly.assertThat(notificationLogProbe.all()).isEmpty();
         });
     }
 
@@ -188,7 +175,7 @@ class BookingReminderBatchUseCaseIT {
         Booking booking = createMemberBooking(slotStart);
 
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
-        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 1);
+        List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
@@ -207,14 +194,14 @@ class BookingReminderBatchUseCaseIT {
         LocalDateTime slotStart = LocalDate.now(clock).atTime(14, 0);
 
         createBooking(slotStart);
-        BookingClass cls2 = classRepository.save(
+        BookingClass cls2 = classStorePort.save(
                 bookingClass("혼합 클래스", "MIX", 60, 30_000L, 30));
-        Slot slot2 = slotRepository.save(slot(cls2, slotStart.plusHours(1), slotStart.plusHours(2)));
-        User user = userRepository.save(new User("mixed@test.com", "hash", "혼합회원", "01088887777"));
-        bookingRepository.save(Booking.forMemberDeposit(user.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+        Slot slot2 = slotStorePort.save(slot(cls2, slotStart.plusHours(1), slotStart.plusHours(2)));
+        User user = userStorePort.save(new User("mixed@test.com", "hash", "혼합회원", "01088887777"));
+        bookingStorePort.save(Booking.forMemberDeposit(user.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
-        List<NotificationLog> logs = awaitLogCount(notificationLogRepository, 2);
+        List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 2);
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(2);
@@ -227,22 +214,22 @@ class BookingReminderBatchUseCaseIT {
     // -----------------------------------------------------------------------
 
     private Booking createMemberBooking(LocalDateTime slotStart) {
-        BookingClass cls = classRepository.save(
+        BookingClass cls = classStorePort.save(
                 bookingClass("회원 클래스", "MEMBER", 60, 30_000L, 30));
-        Slot slot = slotRepository.save(slot(cls, slotStart, slotStart.plusHours(1)));
-        User user = userRepository.save(new User("reminder@test.com", "hash", "회원테스트", "01077776666"));
-        Booking booking = bookingRepository.save(
+        Slot slot = slotStorePort.save(slot(cls, slotStart, slotStart.plusHours(1)));
+        User user = userStorePort.save(new User("reminder@test.com", "hash", "회원테스트", "01077776666"));
+        Booking booking = bookingStorePort.save(
                 Booking.forMemberDeposit(user.getId(), slot, 10_000L, 20_000L, DepositPaymentMethod.CARD));
         return booking;
     }
 
     private Booking createBooking(LocalDateTime slotStart) {
-        BookingClass cls = classRepository.save(
+        BookingClass cls = classStorePort.save(
                 bookingClass("테스트 클래스", "TEST", 60, 30_000L, 30));
-        Slot slot = slotRepository.save(
+        Slot slot = slotStorePort.save(
                 slot(cls, slotStart, slotStart.plusHours(1)));
-        Guest guest = guestRepository.save(guest("홍길동", "01099998888"));
-        Booking booking = bookingRepository.save(booking(
+        Guest guest = guestStorePort.save(guest("홍길동", "01099998888"));
+        Booking booking = bookingStorePort.save(booking(
                 guest,
                 slot,
                 10_000L,

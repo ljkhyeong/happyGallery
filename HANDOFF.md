@@ -22,6 +22,24 @@
 
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - 외부 HTTP 풀링 기준선 추가 — `prod` 프로필의 Kakao/SMS/Google OAuth `RestClient`를 서비스별 Apache HttpClient 5 풀로 분리했다. 기본값은 `acquire 1s`, `connect 2s`, `read 5s`, `keep-alive 30s`이며, 알림은 max 20, Google OAuth는 max 10으로 시작한다. 상세 의사결정은 ADR-0029를 참고한다
+  - timeout 기준선 정리 — 프론트 fetch timeout을 35초, nginx `proxy_read_timeout`을 30초, Hikari acquire timeout을 2초, 기본 트랜잭션 timeout을 10초, JPA query timeout을 5초, MySQL `innodb_lock_wait_timeout` 세션값을 3초로 맞췄다. 외부 알림/OAuth 호출은 read 5초를 유지하면서 acquire 1초, connect 2초, keep-alive 30초, 서비스별 max connections 기준을 추가했고, 동기 MVC 전체 요청 deadline은 별도 필터/컨테이너 커스터마이저 후보로 남겼다
+  - 서비스/테스트 경계 정리 — `BookingSlotSupport`의 슬롯 점유/반납 책임을 `SlotBookingCoordinator`로 분리했고, `DefaultGuestClaimService`는 `DefaultClientMonitoringService` 대신 `ClientMonitoringUseCase`를 의존하도록 바꿨다. 테스트 쪽은 `TestRepositoryHelper`를 완전히 제거했고, 시드 저장/조회는 `ReaderPort`/`StorePort`/`UseCase`를 직접 주입하며, 정리·삭제만 `TestCleanupSupport`에 남기고, 영속 확인은 `BookingStateProbe`/`OrderStateProbe`/`NotificationLogProbe` 같은 좁은 probe로 나눴다. `PassCreditUsageUseCaseIT`는 HTTP 계약용 `PassCreditUsageWebUseCaseIT`와 영속 효과 검증용 `PassCreditUsagePersistenceUseCaseIT`로 분리했다. app 테스트에서 direct infra repository import를 의도적으로 유지하는 파일은 `ConcurrentBookingUseCaseIT`, `RefundExecutionServiceUseCaseIT`, `SlotBookingCapacityUseCaseIT`, `ProductInventoryUseCaseIT` 네 개뿐이다
+  - 장바구니 시각 처리 정리 — `CartItem`이 `LocalDateTime.now()`를 직접 읽지 않게 바꾸고, `CartService`에서 주입된 `Clock` 기준 `now`를 생성/수정 메서드에 넘기도록 정리했다. 같은 패턴의 무인자 `now()` 호출도 함께 확인했고 현재 코드 기준 `CartItem`만 해당했다
+  - 알림 로그 어댑터 단순화 — `JpaNotificationLogAdapter`를 제거하고 `NotificationLogRepository`가 `NotificationLogReaderPort`를 직접 구현하도록 접었다. `SUCCESS` 상태/`PageRequest` 변환은 repository default 메서드로 옮겼다
+  - 리팩토링 작업 규칙 보강 — `AGENTS.md`에 리팩토링 전 `rg`로 동일/유사 패턴을 확인하고, 같은 이유가 성립하는 중복은 함께 정리하라는 기준을 추가했다
+  - 비회원 토큰 예외 정리 — `AccessTokenSigner` 내부 `InvalidTokenException`을 top-level 공용 클래스로 분리했고, `HappyGalleryException` 계열과 맞춰 스택트레이스를 비활성화했다
+  - 개인정보 암호화 문서 보강 — `FieldEncryptor`의 IV 생성에 `SecureRandom`을 쓰는 이유와 `Random` 부적합 사유를 `docs/Idea/0031_*`에 남겼다
+  - 검색 파라미터 정규화 정리 — `ProductController`의 얇은 sort wrapper를 제거하고, 관리자 검색의 page size clamp는 `SearchParams` 공통 메서드로 올려 중복을 줄였다
+  - 공지 최근 조회 최적화 — 홈 최근 공지를 `findAll().stream().limit(...)` 대신 `PageRequest` 기반 상위 N건 조회로 바꿨고, 홈의 비회원 조회 안내 문구는 제거했다
+  - BlindIndexer/암호화 설정 정리 — `BlindIndexer`가 `SecretKeySpec`을 생성자에서 한 번만 만들고 재사용하도록 바꿨고, `CryptoConfig`의 중복 `@EnableConfigurationProperties` 선언은 제거했다
+  - 주문 커서 조회 최적화 — `OrderRepository` 커서 쿼리를 OR 조건 JPQL에서 tuple comparison native query로 바꾸고, 관련 인덱스와 검토 메모(`docs/Idea/0038_*`)를 추가했다
+  - MyBatis 시간대 표현 통일 — `KstDateTimeRangeConverter`를 `SeoulDateTimeRangeConverter`로 이름을 바꾸고, MyBatis adapter 주석/변수명도 `Clocks.SEOUL` 기준 서울 시간대 표현으로 정리했다
+  - 관리자 검색 MyBatis 조건 정리 — `AdminOrderSearchMapper`, `AdminBookingSearchMapper`의 `searchConditions`에서 `u/g` alias 의존 키워드 조건을 별도 fragment로 분리해, 조인 포함 위치에서만 명시적으로 포함되도록 정리했다
+  - BatchExecutor 정리 — `executePaginated`의 `fresh` 생성부를 stream 기반 중복 필터로 간단히 정리했고, `seenIds` 기반 무한 루프 방지 의미는 그대로 유지했다
+  - 서울 시간대 날짜 경계 변환 추출 — 반복되던 MyBatis 조회용 UTC 변환을 `SeoulDateTimeRangeConverter`로 공통화했고, 판매/대시보드/관리자 주문 검색 adapter는 이 유틸을 사용하도록 정리했다
+  - 대시보드 MyBatis 시간 처리 정리 — `MyBatisSalesStatsAdapter`가 `Clock` 주입 기준으로 오늘 서울 시간대 범위를 계산하도록 바꿨고, 대시보드/관리자 검색 adapter의 서울 시간대 상수는 `Clocks.SEOUL`로 통일했다
+  - 인덱스 정리 — `V30`에서 `notification_log`의 단일 `sent_at` 인덱스를 제거하고 `/api/v1/me/notifications` 목록 패턴에 맞춰 `(user_id, sent_at DESC)`, `(guest_id, sent_at DESC)` 인덱스를 추가했다. `orders`의 `(status, created_at)`는 `(status, created_at, id)` 커서 인덱스로 흡수되도록 제거했다
   - Google 소셜 로그인 추가 — `users`에 `provider`/`provider_id` 컬럼(V29)과 Google OAuth 교환 클라이언트를 추가했고, `/api/v1/auth/social/google{,/url}` API와 `/auth/callback/google` 프론트 콜백, 소셜 로그인 rate limit(분당 10회)를 연결했다
   - 회원 장바구니/알림함 추가 — `cart_items` 테이블(V27)과 `/api/v1/me/cart` 장바구니 API, `notification_log.read_at` 컬럼(V28)과 `/api/v1/me/notifications` 조회·읽음 API를 추가했고, 프론트에는 `/cart`, 상품 상세 장바구니 담기, 상단 알림 벨을 연결했다
   - 비회원 토큰 서명+만료 추가 — `AccessTokenSigner`(HMAC-SHA256 서명+만료)와 `GuestTokenService`(듀얼 모드 검증)를 도입해 게스트 토큰을 서명 기반으로 전환했고, 레거시 토큰 폴백을 유지했다. ADR-0024·Idea-0005 갱신 완료.
@@ -92,6 +110,11 @@
   - P8 E2E 시나리오 검증 — local 환불 실패 hook 추가, 기본 관리자 계정 정합화, 실제 로컬 핵심 브라우저 시나리오 1~9 통과
 - 프론트 생성물(`node_modules`, `dist`, `*.tsbuildinfo`)은 `frontend/.gitignore` 기준으로 추적 제외
 - 최근 검증:
+  - `./gradlew --no-daemon :app:compileJava` 통과 (BatchExecutor stream 정리 후)
+  - `./gradlew --no-daemon :app:compileTestJava` 통과
+  - `./gradlew --no-daemon :app:compileJava` 통과
+  - `docker exec -i hg-mysql-audit mysql ... < app/src/main/resources/db/migration/V30__cleanup_redundant_indexes.sql` 적용 확인
+  - `docker exec hg-mysql-audit mysql ... -e "SHOW INDEX FROM orders; SHOW INDEX FROM notification_log"` 로 최신 인덱스 상태 확인
   - `./gradlew clean :app:test --no-daemon` 통과
   - `cd frontend && npm run build` 통과 (`@sentry/react` 포함)
   - `docker compose config` 통과 (Prometheus/Grafana compose wiring 확인)

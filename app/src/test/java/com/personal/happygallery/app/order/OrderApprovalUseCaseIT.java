@@ -4,20 +4,21 @@ import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.app.order.port.in.OrderAutoRefundBatchUseCase;
+import com.personal.happygallery.app.order.port.out.OrderItemPort;
+import com.personal.happygallery.app.order.port.out.OrderStorePort;
+import com.personal.happygallery.app.payment.port.out.RefundPort;
+import com.personal.happygallery.app.product.port.out.InventoryReaderPort;
+import com.personal.happygallery.app.product.port.out.InventoryStorePort;
+import com.personal.happygallery.app.product.port.out.ProductStorePort;
 import com.personal.happygallery.common.error.AlreadyRefundedException;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
-import com.personal.happygallery.infra.booking.RefundRepository;
-import com.personal.happygallery.infra.order.FulfillmentRepository;
-import com.personal.happygallery.infra.order.OrderItemRepository;
-import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
-import com.personal.happygallery.infra.product.InventoryRepository;
-import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.OrderTestHelper;
+import com.personal.happygallery.support.OrderStateProbe;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.util.concurrent.CompletableFuture;
@@ -32,7 +33,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doAnswer;
@@ -51,13 +51,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class OrderApprovalUseCaseIT {
 
     @Autowired MockMvc mockMvc;
-    @Autowired OrderRepository orderRepository;
-    @Autowired OrderItemRepository orderItemRepository;
-    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
-    @Autowired FulfillmentRepository fulfillmentRepository;
-    @Autowired RefundRepository refundRepository;
-    @Autowired ProductRepository productRepository;
-    @Autowired InventoryRepository inventoryRepository;
+    @Autowired ProductStorePort productStorePort;
+    @Autowired InventoryStorePort inventoryStorePort;
+    @Autowired InventoryReaderPort inventoryReaderPort;
+    @Autowired OrderStorePort orderStorePort;
+    @Autowired OrderItemPort orderItemPort;
+    @Autowired OrderStateProbe orderStateProbe;
+    @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired RefundPort refundPort;
     @Autowired OrderApprovalUseCase orderApprovalService;
     @Autowired OrderAutoRefundBatchUseCase orderAutoRefundBatchService;
     @Autowired OrderService orderService;
@@ -69,12 +70,7 @@ class OrderApprovalUseCaseIT {
     void setUp() {
         cleanup();
         orderHelper = new OrderTestHelper(
-                productRepository,
-                inventoryRepository,
-                orderRepository,
-                orderItemRepository,
-                orderService,
-                clock);
+                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort, orderService, clock);
     }
 
     @AfterEach
@@ -83,14 +79,7 @@ class OrderApprovalUseCaseIT {
     }
 
     private void cleanup() {
-        clearOrderData(
-                refundRepository,
-                fulfillmentRepository,
-                orderApprovalHistoryRepository,
-                orderItemRepository,
-                orderRepository,
-                inventoryRepository,
-                productRepository);
+        cleanupSupport.clearOrderData();
     }
 
     // -----------------------------------------------------------------------
@@ -105,10 +94,10 @@ class OrderApprovalUseCaseIT {
         mockMvc.perform(post("/admin/orders/{id}/approve", order.getId()))
                 .andExpect(status().isOk());
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        Order updated = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE);
         });
@@ -125,19 +114,19 @@ class OrderApprovalUseCaseIT {
         Order order = fixture.order();
 
         // 재고 차감 확인
-        assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(0);
+        assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(0);
 
         mockMvc.perform(post("/admin/orders/{id}/reject", order.getId()))
                 .andExpect(status().isOk());
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        var refunds = refundRepository.findAll();
+        Order updated = orderStateProbe.getOrder(order.getId());
+        var refunds = orderStateProbe.refunds();
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED);
-            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.REJECT);
-            softly.assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(1);
+            softly.assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(1);
             softly.assertThat(refunds).hasSize(1);
             softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
         });
@@ -154,10 +143,10 @@ class OrderApprovalUseCaseIT {
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("승인 대기 상태의 주문만 처리할 수 있습니다.");
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        Order updated = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE);
         });
@@ -173,13 +162,13 @@ class OrderApprovalUseCaseIT {
         assertThatThrownBy(() -> orderApprovalService.reject(order.getId()))
                 .isInstanceOf(AlreadyRefundedException.class);
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        Order updated = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED);
-            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.REJECT);
-            softly.assertThat(refundRepository.findAll()).hasSize(1);
+            softly.assertThat(orderStateProbe.refunds()).hasSize(1);
         });
     }
 
@@ -195,14 +184,14 @@ class OrderApprovalUseCaseIT {
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("승인 대기 상태의 주문만 처리할 수 있습니다.");
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        Order updated = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE);
-            softly.assertThat(refundRepository.findAll()).isEmpty();
-            softly.assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(0);
+            softly.assertThat(orderStateProbe.refunds()).isEmpty();
+            softly.assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(0);
         });
     }
 
@@ -217,13 +206,13 @@ class OrderApprovalUseCaseIT {
         Order order = fixture.order();
 
         BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        Order updated = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isZero();
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.AUTO_REFUND_TIMEOUT);
-            softly.assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(1);
-            softly.assertThat(refundRepository.findAll()).hasSize(1);
+            softly.assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(1);
+            softly.assertThat(orderStateProbe.refunds()).hasSize(1);
         });
     }
 
@@ -273,12 +262,12 @@ class OrderApprovalUseCaseIT {
 
         BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
 
-        Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
+        Order unchanged = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isZero();
             softly.assertThat(result.failureCount()).isZero();
             softly.assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
-            softly.assertThat(refundRepository.findAll()).isEmpty();
+            softly.assertThat(orderStateProbe.refunds()).isEmpty();
         });
     }
 
@@ -316,8 +305,8 @@ class OrderApprovalUseCaseIT {
 
         BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
 
-        Order updated1 = orderRepository.findById(order1.getId()).orElseThrow();
-        Order updated2 = orderRepository.findById(order2.getId()).orElseThrow();
+        Order updated1 = orderStateProbe.getOrder(order1.getId());
+        Order updated2 = orderStateProbe.getOrder(order2.getId());
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(2);
             softly.assertThat(result.failureCount()).isZero();
@@ -338,7 +327,7 @@ class OrderApprovalUseCaseIT {
         // 주문 환불 FAILED 직접 생성 (booking 없는 refund)
         var refund = Refund.forOrder(order.getId(), 90000L);
         refund.markFailed("PG 점검중");
-        refundRepository.save(refund);
+        refundPort.save(refund);
 
         mockMvc.perform(get("/admin/refunds/failed"))
                 .andExpect(status().isOk())

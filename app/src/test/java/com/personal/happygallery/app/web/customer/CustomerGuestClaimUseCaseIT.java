@@ -1,6 +1,16 @@
 package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.notification.NotificationService;
+import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.app.booking.port.out.BookingStorePort;
+import com.personal.happygallery.app.booking.port.out.ClassStorePort;
+import com.personal.happygallery.app.booking.port.out.SlotStorePort;
+import com.personal.happygallery.app.customer.port.out.GuestStorePort;
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.app.customer.port.out.UserReaderPort;
+import com.personal.happygallery.app.product.port.out.InventoryStorePort;
+import com.personal.happygallery.app.product.port.out.ProductStorePort;
+import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.app.order.OrderService;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.domain.booking.Booking;
@@ -13,23 +23,8 @@ import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.ClassRepository;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
-import com.personal.happygallery.infra.booking.RefundRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.infra.order.FulfillmentRepository;
-import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
-import com.personal.happygallery.infra.order.OrderItemRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
-import com.personal.happygallery.infra.product.InventoryRepository;
-import com.personal.happygallery.infra.product.ProductRepository;
-import com.personal.happygallery.infra.user.UserRepository;
 import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
@@ -49,8 +44,6 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
 
-import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassData;
-import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -64,22 +57,17 @@ class CustomerGuestClaimUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
-    @Autowired UserRepository userRepository;
-    @Autowired GuestRepository guestRepository;
-    @Autowired PhoneVerificationRepository phoneVerificationRepository;
-    @Autowired OrderRepository orderRepository;
-    @Autowired OrderItemRepository orderItemRepository;
-    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
-    @Autowired FulfillmentRepository fulfillmentRepository;
-    @Autowired RefundRepository refundRepository;
-    @Autowired ProductRepository productRepository;
-    @Autowired InventoryRepository inventoryRepository;
-    @Autowired BookingRepository bookingRepository;
-    @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired ClassRepository classRepository;
-    @Autowired SlotRepository slotRepository;
-    @Autowired PassPurchaseRepository passPurchaseRepository;
-    @Autowired PassLedgerRepository passLedgerRepository;
+    @Autowired GuestStorePort guestStorePort;
+    @Autowired ProductStorePort productStorePort;
+    @Autowired InventoryStorePort inventoryStorePort;
+    @Autowired ClassStorePort classStorePort;
+    @Autowired SlotStorePort slotStorePort;
+    @Autowired BookingStorePort bookingStorePort;
+    @Autowired UserReaderPort userReaderPort;
+    @Autowired BookingReaderPort bookingReaderPort;
+    @Autowired OrderReaderPort orderReaderPort;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired OrderService orderService;
     @MockitoBean NotificationService notificationService;
 
@@ -92,7 +80,7 @@ class CustomerGuestClaimUseCaseIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
-        bookingHelper = new BookingTestHelper(mockMvc, phoneVerificationRepository);
+        bookingHelper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort);
     }
 
     @AfterEach
@@ -101,50 +89,35 @@ class CustomerGuestClaimUseCaseIT {
     }
 
     private void cleanup() {
-        clearBookingWithPassData(
-                passLedgerRepository,
-                bookingHistoryRepository,
-                bookingRepository,
-                passPurchaseRepository,
-                phoneVerificationRepository,
-                guestRepository,
-                slotRepository,
-                classRepository);
-        clearOrderData(
-                refundRepository,
-                fulfillmentRepository,
-                orderApprovalHistoryRepository,
-                orderItemRepository,
-                orderRepository,
-                inventoryRepository,
-                productRepository);
-        userRepository.deleteAllInBatch();
+        cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearOrderData();
+        cleanupSupport.clearUsers();
     }
 
     @DisplayName("회원은 휴대폰 재인증 후 같은 번호의 비회원 주문과 예약을 가져올 수 있다")
     @Test
     void verifyAndClaimGuestRecords() throws Exception {
         String email = "member@example.com";
-        Guest guest = guestRepository.save(new Guest("비회원", "01012345678"));
+        Guest guest = guestStorePort.save(new Guest("비회원", "01012345678"));
 
-        Product product = productRepository.save(new Product("테스트 상품", ProductType.READY_STOCK, 29_000L));
-        inventoryRepository.save(new Inventory(product, 5));
+        Product product = productStorePort.save(new Product("테스트 상품", ProductType.READY_STOCK, 29_000L));
+        inventoryStorePort.save(new Inventory(product, 5));
         Order order = orderService.createPaidOrder(
                 guest.getId(),
                 List.of(new OrderService.OrderItemRequest(product.getId(), 1, 29_000L))).order();
 
-        BookingClass bookingClass = classRepository.save(TestFixtures.defaultBookingClass());
-        Slot slot = slotRepository.save(TestFixtures.slot(
+        BookingClass bookingClass = classStorePort.save(TestFixtures.defaultBookingClass());
+        Slot slot = slotStorePort.save(TestFixtures.slot(
                 bookingClass,
                 BookingTestHelper.FUTURE,
                 BookingTestHelper.FUTURE.plusHours(2)));
-        Booking booking = bookingRepository.save(Booking.forGuestDeposit(
+        Booking booking = bookingStorePort.save(Booking.forGuestDeposit(
                 guest, slot, 10_000L, 40_000L,
                 DepositPaymentMethod.CARD,
                 "guest-claim-access-token"));
 
         Cookie sessionCookie = signupAndGetSessionCookie(email, "010-1234-5678");
-        User user = userRepository.findByEmail(email).orElseThrow();
+        User user = userReaderPort.findByEmail(email).orElseThrow();
 
         String verificationCode = bookingHelper.sendVerificationAndGetCode("01012345678");
 
@@ -161,7 +134,7 @@ class CustomerGuestClaimUseCaseIT {
                 .andExpect(jsonPath("$.orders[0].orderId").value(order.getId()))
                 .andExpect(jsonPath("$.bookings[0].bookingId").value(booking.getId()));
 
-        assertThat(userRepository.findById(user.getId()).orElseThrow().isPhoneVerified()).isTrue();
+        assertThat(userReaderPort.findById(user.getId()).orElseThrow().isPhoneVerified()).isTrue();
 
         mockMvc.perform(post("/api/v1/me/guest-claims")
                         .cookie(sessionCookie)
@@ -176,8 +149,8 @@ class CustomerGuestClaimUseCaseIT {
                 .andExpect(jsonPath("$.claimedOrderCount").value(1))
                 .andExpect(jsonPath("$.claimedBookingCount").value(1));
 
-        Order claimedOrder = orderRepository.findById(order.getId()).orElseThrow();
-        Booking claimedBooking = bookingRepository.findById(booking.getId()).orElseThrow();
+        Order claimedOrder = orderReaderPort.findById(order.getId()).orElseThrow();
+        Booking claimedBooking = bookingReaderPort.findById(booking.getId()).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(claimedOrder.getUserId()).isEqualTo(user.getId());
             softly.assertThat(claimedOrder.getGuestId()).isNull();

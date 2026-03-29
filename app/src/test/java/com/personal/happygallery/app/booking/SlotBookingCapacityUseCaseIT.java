@@ -30,7 +30,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class SlotBookingCapacityUseCaseIT {
 
-    @Autowired DefaultSlotManagementService slotManagementService;
+    @Autowired SlotBookingCoordinator slotBookingCoordinator;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
@@ -60,7 +60,7 @@ class SlotBookingCapacityUseCaseIT {
     @Test
     void confirmBooking_8times_allSucceed() {
         for (int i = 0; i < SlotCapacity.MAX; i++) {
-            slotManagementService.confirmBooking(mainSlot.getId());
+            slotBookingCoordinator.confirmBooking(mainSlot.getId());
         }
         Slot updated = slotRepository.findById(mainSlot.getId()).orElseThrow();
         assertThat(updated.getBookedCount()).isEqualTo(SlotCapacity.MAX);
@@ -70,10 +70,10 @@ class SlotBookingCapacityUseCaseIT {
     @Test
     void confirmBooking_9th_throwsCapacityExceeded() {
         for (int i = 0; i < SlotCapacity.MAX; i++) {
-            slotManagementService.confirmBooking(mainSlot.getId());
+            slotBookingCoordinator.confirmBooking(mainSlot.getId());
         }
 
-        assertThatThrownBy(() -> slotManagementService.confirmBooking(mainSlot.getId()))
+        assertThatThrownBy(() -> slotBookingCoordinator.confirmBooking(mainSlot.getId()))
                 .isInstanceOf(CapacityExceededException.class);
 
         // booked_count 변경 없음 확인
@@ -89,7 +89,7 @@ class SlotBookingCapacityUseCaseIT {
         Slot bufferSlot2 = slotRepository.save(
                 slot(bookingClass, BUFFER_IN2, BUFFER_IN2.plusHours(2)));
 
-        slotManagementService.confirmBooking(mainSlot.getId());
+        slotBookingCoordinator.confirmBooking(mainSlot.getId());
 
         assertSoftly(softly -> {
             softly.assertThat(slotRepository.findById(bufferSlot1.getId()).orElseThrow().isActive()).isFalse();
@@ -103,7 +103,7 @@ class SlotBookingCapacityUseCaseIT {
         Slot outsideSlot = slotRepository.save(
                 slot(bookingClass, BUFFER_OUT, BUFFER_OUT.plusHours(2)));
 
-        slotManagementService.confirmBooking(mainSlot.getId());
+        slotBookingCoordinator.confirmBooking(mainSlot.getId());
 
         assertThat(slotRepository.findById(outsideSlot.getId()).orElseThrow().isActive()).isTrue();
     }

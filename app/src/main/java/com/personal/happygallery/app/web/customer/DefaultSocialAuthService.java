@@ -2,6 +2,7 @@ package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.app.customer.port.out.OAuthTokenExchangePort;
+import com.personal.happygallery.app.customer.port.out.OAuthTokenExchangePort.AuthorizationUrl;
 import com.personal.happygallery.app.customer.port.out.OAuthTokenExchangePort.OAuthUserInfo;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
 import com.personal.happygallery.app.customer.port.out.UserStorePort;
@@ -12,6 +13,7 @@ import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,13 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
         this.fieldEncryptor = fieldEncryptor;
         this.blindIndexer = blindIndexer;
         this.clock = clock;
+    }
+
+    @Override
+    public AuthorizationUrlResult buildAuthorizationUrl(String redirectUri) {
+        String state = UUID.randomUUID().toString();
+        AuthorizationUrl authUrl = oauthPort.buildAuthorizationUrl(redirectUri, state);
+        return new AuthorizationUrlResult(authUrl.url(), authUrl.state());
     }
 
     @Override

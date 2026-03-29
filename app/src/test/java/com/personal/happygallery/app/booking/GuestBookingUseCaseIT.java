@@ -1,16 +1,14 @@
 package com.personal.happygallery.app.booking;
 
+import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.app.booking.port.out.ClassStorePort;
+import com.personal.happygallery.app.booking.port.out.SlotStorePort;
+import com.personal.happygallery.app.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.ClassRepository;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
 import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.BookingStateProbe;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
@@ -22,7 +20,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
 import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
-import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassData;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,14 +32,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class GuestBookingUseCaseIT {
 
     @Autowired MockMvc mockMvc;
-    @Autowired ClassRepository classRepository;
-    @Autowired SlotRepository slotRepository;
-    @Autowired BookingRepository bookingRepository;
-    @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired GuestRepository guestRepository;
-    @Autowired PhoneVerificationRepository phoneVerificationRepository;
-    @Autowired PassLedgerRepository passLedgerRepository;
-    @Autowired PassPurchaseRepository passPurchaseRepository;
+    @Autowired ClassStorePort classStorePort;
+    @Autowired SlotStorePort slotStorePort;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
+    @Autowired BookingReaderPort bookingReaderPort;
+    @Autowired BookingStateProbe bookingStateProbe;
+    @Autowired TestCleanupSupport cleanupSupport;
 
     Long slotId;
     static final String PHONE = "01012345678";
@@ -50,19 +45,11 @@ class GuestBookingUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc, phoneVerificationRepository);
-        clearBookingWithPassData(
-                passLedgerRepository,
-                bookingHistoryRepository,
-                bookingRepository,
-                passPurchaseRepository,
-                phoneVerificationRepository,
-                guestRepository,
-                slotRepository,
-                classRepository);
+        helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort);
+        cleanupSupport.clearBookingWithPassAndRefundData();
 
-        BookingClass cls = classRepository.save(defaultBookingClass());
-        Slot slot = slotRepository.save(
+        BookingClass cls = classStorePort.save(defaultBookingClass());
+        Slot slot = slotStorePort.save(
                 slot(cls, LocalDateTime.of(2026, 3, 1, 10, 0),
                         LocalDateTime.of(2026, 3, 1, 12, 0)));
         slotId = slot.getId();
@@ -131,7 +118,7 @@ class GuestBookingUseCaseIT {
 
         // DB 저장 확인
         Long bookingId = extractBookingId(response);
-        assertThat(bookingRepository.findById(bookingId)).isPresent();
+        assertThat(bookingReaderPort.findById(bookingId)).isPresent();
     }
 
     // Proof: 계좌이체로 예약금 결제 시도 → 422 차단
@@ -156,7 +143,7 @@ class GuestBookingUseCaseIT {
                 .andExpect(jsonPath("$.code").value("PAYMENT_METHOD_NOT_ALLOWED"));
 
         // Proof: 예약 레코드 미생성
-        assertThat(bookingRepository.count()).isEqualTo(0L);
+        assertThat(bookingStateProbe.bookingCount()).isEqualTo(0L);
     }
 
     @DisplayName("게스트가 중복 예약을 시도하면 409를 반환한다")

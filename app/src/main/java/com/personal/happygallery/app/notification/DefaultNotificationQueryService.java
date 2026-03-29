@@ -11,12 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
-public class NotificationQueryService implements NotificationQueryUseCase {
+public class DefaultNotificationQueryService implements NotificationQueryUseCase {
 
     private final NotificationLogReaderPort logReader;
     private final Clock clock;
 
-    public NotificationQueryService(NotificationLogReaderPort logReader, Clock clock) {
+    public DefaultNotificationQueryService(NotificationLogReaderPort logReader, Clock clock) {
         this.logReader = logReader;
         this.clock = clock;
     }

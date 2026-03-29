@@ -3,19 +3,14 @@ package com.personal.happygallery.app.pass;
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.app.pass.port.in.PassPurchaseUseCase;
+import com.personal.happygallery.app.customer.port.out.UserStorePort;
+import com.personal.happygallery.app.pass.port.out.PassLedgerReaderPort;
+import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
+import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.user.User;
-import com.personal.happygallery.infra.booking.BookingHistoryRepository;
-import com.personal.happygallery.infra.booking.BookingRepository;
-import com.personal.happygallery.infra.booking.ClassRepository;
-import com.personal.happygallery.infra.booking.GuestRepository;
-import com.personal.happygallery.infra.booking.PhoneVerificationRepository;
-import com.personal.happygallery.infra.booking.RefundRepository;
-import com.personal.happygallery.infra.booking.SlotRepository;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
-import com.personal.happygallery.infra.user.UserRepository;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -25,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassAndRefundData;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -37,33 +31,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PassPurchaseUseCaseIT {
 
     @Autowired MockMvc mockMvc;
-    @Autowired PassPurchaseRepository passPurchaseRepository;
-    @Autowired PassLedgerRepository passLedgerRepository;
+    @Autowired UserStorePort userStorePort;
+    @Autowired PassPurchaseStorePort passPurchaseStorePort;
+    @Autowired PassPurchaseReaderPort passPurchaseReaderPort;
+    @Autowired PassLedgerReaderPort passLedgerReaderPort;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PassExpiryBatchUseCase passExpiryBatchService;
     @Autowired PassPurchaseUseCase passPurchaseUseCase;
-    @Autowired UserRepository userRepository;
-    @Autowired GuestRepository guestRepository;
-    @Autowired PhoneVerificationRepository phoneVerificationRepository;
-    @Autowired RefundRepository refundRepository;
-    @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired BookingRepository bookingRepository;
-    @Autowired SlotRepository slotRepository;
-    @Autowired ClassRepository classRepository;
     @Autowired Clock clock;
 
     @BeforeEach
     void setUp() {
-        clearBookingWithPassAndRefundData(
-                passLedgerRepository,
-                refundRepository,
-                bookingHistoryRepository,
-                bookingRepository,
-                passPurchaseRepository,
-                phoneVerificationRepository,
-                guestRepository,
-                slotRepository,
-                classRepository);
-        userRepository.deleteAllInBatch();
+        cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearUsers();
     }
 
     // -----------------------------------------------------------------------
@@ -73,12 +53,12 @@ class PassPurchaseUseCaseIT {
     @DisplayName("회원 8회권 구매 성공 시 잔여 크레딧 8과 EARN 원장이 생성된다")
     @Test
     void purchase_success_remainingCredits8_earnLedgerCreated() {
-        User user = userRepository.save(new User("pass@example.com", "hashed-password", "회원", "01012345678"));
+        User user = userStorePort.save(new User("pass@example.com", "hashed-password", "회원", "01012345678"));
         PassPurchase purchased = passPurchaseUseCase.purchaseForMember(user.getId(), 120_000L);
         Long passId = purchased.getId();
 
         // Proof: EARN ledger 1건, amount=8
-        var ledgers = passLedgerRepository.findByPassPurchaseId(passId);
+        var ledgers = passLedgerReaderPort.findByPassPurchaseId(passId);
         assertSoftly(softly -> {
             softly.assertThat(purchased.getUserId()).isEqualTo(user.getId());
             softly.assertThat(purchased.getRemainingCredits()).isEqualTo(8);
@@ -95,18 +75,18 @@ class PassPurchaseUseCaseIT {
     @DisplayName("만료된 8회권은 잔여 크레딧이 0이 되고 EXPIRE 원장이 생성된다")
     @Test
     void expiry_batch_expiredPass_remainingZero_expireLedgerCreated() {
-        User user = userRepository.save(new User("expired-pass@example.com", "hashed-password", "회원", "01011112222"));
+        User user = userStorePort.save(new User("expired-pass@example.com", "hashed-password", "회원", "01011112222"));
         // 이미 만료된 pass 직접 생성 (expiresAt = 과거)
-        PassPurchase expiredPass = passPurchaseRepository.save(
+        PassPurchase expiredPass = passPurchaseStorePort.save(
                 passPurchase(user.getId(), LocalDateTime.now(clock).minusDays(1), 0L));
 
         BatchResult result = passExpiryBatchService.expireAll();
 
         // Proof: remaining_credits = 0
-        PassPurchase reloaded = passPurchaseRepository.findById(expiredPass.getId()).orElseThrow();
+        PassPurchase reloaded = passPurchaseReaderPort.findById(expiredPass.getId()).orElseThrow();
 
         // Proof: EARN(구매 직접 저장 시 없음) + EXPIRE ledger 1건
-        var ledgers = passLedgerRepository.findByPassPurchaseId(expiredPass.getId());
+        var ledgers = passLedgerReaderPort.findByPassPurchaseId(expiredPass.getId());
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isZero();
@@ -124,24 +104,25 @@ class PassPurchaseUseCaseIT {
     @DisplayName("유효한 8회권은 만료 배치에서 변경되지 않는다")
     @Test
     void expiry_batch_activePass_notTouched() {
-        User user = userRepository.save(new User("active-pass@example.com", "hashed-password", "회원", "01022223333"));
+        User user = userStorePort.save(new User("active-pass@example.com", "hashed-password", "회원", "01022223333"));
         // 미래 만료 pass
-        passPurchaseRepository.save(passPurchase(user.getId(), LocalDateTime.now(clock).plusDays(30), 0L));
+        PassPurchase activePass = passPurchaseStorePort.save(
+                passPurchase(user.getId(), LocalDateTime.now(clock).plusDays(30), 0L));
 
         BatchResult result = passExpiryBatchService.expireAll();
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(0);
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(passLedgerRepository.count()).isEqualTo(0);
+            softly.assertThat(passLedgerReaderPort.findByPassPurchaseId(activePass.getId())).isEmpty();
         });
     }
 
     @DisplayName("8회권 만료 배치 관리자 API는 배치 결과를 반환한다")
     @Test
     void expiry_batch_adminApi_returnsBatchResponse() throws Exception {
-        User user = userRepository.save(new User("admin-pass@example.com", "hashed-password", "회원", "01033334444"));
-        passPurchaseRepository.save(passPurchase(user.getId(), LocalDateTime.now(clock).minusDays(1), 0L));
+        User user = userStorePort.save(new User("admin-pass@example.com", "hashed-password", "회원", "01033334444"));
+        passPurchaseStorePort.save(passPurchase(user.getId(), LocalDateTime.now(clock).minusDays(1), 0L));
 
         mockMvc.perform(post("/admin/passes/expire"))
                 .andExpect(status().isOk())
@@ -158,12 +139,12 @@ class PassPurchaseUseCaseIT {
     @Test
     void notification_query_returnsPassesExpiringWithin7Days() {
         // 정확히 7일 후 만료 → 알림 대상
-        User firstUser = userRepository.save(new User("notify-pass-1@example.com", "hashed-password", "회원", "01044445555"));
-        User secondUser = userRepository.save(new User("notify-pass-2@example.com", "hashed-password", "회원", "01055556666"));
-        passPurchaseRepository.save(passPurchase(firstUser.getId(), LocalDateTime.now(clock).plusDays(7), 0L));
+        User firstUser = userStorePort.save(new User("notify-pass-1@example.com", "hashed-password", "회원", "01044445555"));
+        User secondUser = userStorePort.save(new User("notify-pass-2@example.com", "hashed-password", "회원", "01055556666"));
+        passPurchaseStorePort.save(passPurchase(firstUser.getId(), LocalDateTime.now(clock).plusDays(7), 0L));
 
         // 30일 후 만료 → 알림 대상 아님
-        passPurchaseRepository.save(passPurchase(secondUser.getId(), LocalDateTime.now(clock).plusDays(30), 0L));
+        passPurchaseStorePort.save(passPurchase(secondUser.getId(), LocalDateTime.now(clock).plusDays(30), 0L));
 
         var expiring = passExpiryBatchService.findExpiringWithin7Days();
 
@@ -180,11 +161,11 @@ class PassPurchaseUseCaseIT {
     @DisplayName("만료 임박 조회는 회원 소유 8회권만 반환한다")
     @Test
     void notification_query_returnsOnlyMemberOwnedPasses() {
-        User firstMember = userRepository.save(new User("member-1@example.com", "hashed-password", "회원", "01066667777"));
-        User secondMember = userRepository.save(new User("member-2@example.com", "hashed-password", "회원", "01077778888"));
-        PassPurchase firstPass = passPurchaseRepository.save(
+        User firstMember = userStorePort.save(new User("member-1@example.com", "hashed-password", "회원", "01066667777"));
+        User secondMember = userStorePort.save(new User("member-2@example.com", "hashed-password", "회원", "01077778888"));
+        PassPurchase firstPass = passPurchaseStorePort.save(
                 PassPurchase.forMember(firstMember.getId(), LocalDateTime.now(clock).plusDays(7), 120_000L));
-        PassPurchase secondPass = passPurchaseRepository.save(
+        PassPurchase secondPass = passPurchaseStorePort.save(
                 passPurchase(secondMember.getId(), LocalDateTime.now(clock).plusDays(7), 120_000L));
 
         var expiring = passExpiryBatchService.findExpiringWithin7Days();

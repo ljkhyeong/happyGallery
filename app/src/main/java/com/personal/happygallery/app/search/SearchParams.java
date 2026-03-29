@@ -22,4 +22,8 @@ public final class SearchParams {
     public static int clampPage(int page) {
         return Math.max(page, 0);
     }
+
+    public static int clampSize(int size, int maxSize) {
+        return Math.min(Math.max(size, 1), maxSize);
+    }
 }

@@ -4,16 +4,16 @@ import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.app.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.app.order.port.in.PickupExpireBatchUseCase;
+import com.personal.happygallery.app.order.port.out.OrderItemPort;
+import com.personal.happygallery.app.order.port.out.OrderStorePort;
+import com.personal.happygallery.app.product.port.out.InventoryReaderPort;
+import com.personal.happygallery.app.product.port.out.InventoryStorePort;
+import com.personal.happygallery.app.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
-import com.personal.happygallery.infra.booking.RefundRepository;
-import com.personal.happygallery.infra.order.FulfillmentRepository;
-import com.personal.happygallery.infra.order.OrderItemRepository;
-import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
-import com.personal.happygallery.infra.product.InventoryRepository;
-import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.OrderTestHelper;
+import com.personal.happygallery.support.OrderStateProbe;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -31,7 +31,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -50,13 +49,13 @@ class PickupExpireBatchUseCaseIT {
     @Autowired OrderPickupUseCase orderPickupService;
     @Autowired OrderApprovalUseCase orderApprovalService;
     @Autowired OrderService orderService;
-    @Autowired OrderRepository orderRepository;
-    @Autowired OrderItemRepository orderItemRepository;
-    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
-    @Autowired FulfillmentRepository fulfillmentRepository;
-    @Autowired RefundRepository refundRepository;
-    @Autowired ProductRepository productRepository;
-    @Autowired InventoryRepository inventoryRepository;
+    @Autowired ProductStorePort productStorePort;
+    @Autowired InventoryStorePort inventoryStorePort;
+    @Autowired InventoryReaderPort inventoryReaderPort;
+    @Autowired OrderStorePort orderStorePort;
+    @Autowired OrderItemPort orderItemPort;
+    @Autowired OrderStateProbe orderStateProbe;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
     OrderTestHelper orderHelper;
 
@@ -64,12 +63,7 @@ class PickupExpireBatchUseCaseIT {
     void setUp() {
         cleanup();
         orderHelper = new OrderTestHelper(
-                productRepository,
-                inventoryRepository,
-                orderRepository,
-                orderItemRepository,
-                orderService,
-                clock);
+                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort, orderService, clock);
     }
 
     @AfterEach
@@ -78,14 +72,7 @@ class PickupExpireBatchUseCaseIT {
     }
 
     private void cleanup() {
-        clearOrderData(
-                refundRepository,
-                fulfillmentRepository,
-                orderApprovalHistoryRepository,
-                orderItemRepository,
-                orderRepository,
-                inventoryRepository,
-                productRepository);
+        cleanupSupport.clearOrderData();
     }
 
     // -----------------------------------------------------------------------
@@ -97,7 +84,7 @@ class PickupExpireBatchUseCaseIT {
     void expirePickups_expiredDeadline_refundsAndRestoresInventory() {
         OrderTestHelper.OrderFixture fixture = orderHelper.createReadyStockPaidOrder("픽업 테스트 상품", 50000L);
         Order order = fixture.order();
-        assertThat(inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity()).isEqualTo(0);
+        assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(0);
 
         // 승인 → APPROVED_FULFILLMENT_PENDING
         orderApprovalService.approve(order.getId());
@@ -106,19 +93,19 @@ class PickupExpireBatchUseCaseIT {
         LocalDateTime pastDeadline = LocalDateTime.now(clock).minusHours(1);
         orderPickupService.markPickupReady(order.getId(), pastDeadline);
 
-        Order afterReady = orderRepository.findById(order.getId()).orElseThrow();
+        Order afterReady = orderStateProbe.getOrder(order.getId());
 
         // 배치 실행
         BatchResult result = pickupExpireBatchService.expirePickups();
 
         // 상태 확인
-        Order expired = orderRepository.findById(order.getId()).orElseThrow();
+        Order expired = orderStateProbe.getOrder(order.getId());
 
         // 재고 복구 확인
-        int restoredQuantity = inventoryRepository.findByProductId(fixture.product().getId()).orElseThrow().getQuantity();
+        int restoredQuantity = orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity();
 
         // 환불 기록 확인
-        var refunds = refundRepository.findAll();
+        var refunds = orderStateProbe.refunds();
 
         assertSoftly(softly -> {
             softly.assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
@@ -150,7 +137,7 @@ class PickupExpireBatchUseCaseIT {
         BatchResult result = pickupExpireBatchService.expirePickups();
 
         // 상태 유지 확인
-        Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
+        Order unchanged = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(0);
             softly.assertThat(result.failureCount()).isZero();
@@ -171,7 +158,7 @@ class PickupExpireBatchUseCaseIT {
                 .andExpect(jsonPath("$.failureCount").value(0))
                 .andExpect(jsonPath("$.failureReasons").isMap());
 
-        Order expired = orderRepository.findById(order.getId()).orElseThrow();
+        Order expired = orderStateProbe.getOrder(order.getId());
         assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
     }
 
@@ -191,12 +178,12 @@ class PickupExpireBatchUseCaseIT {
         orderPickupService.markPickupReady(successOrder.getId(), pastDeadline);
 
         // 실패 케이스 유도: 재고 레코드가 사라진 상태에서 복구 시도하면 NotFoundException 발생
-        inventoryRepository.deleteById(failedFixture.product().getId());
+        orderStateProbe.deleteInventory(failedFixture.product().getId());
 
         BatchResult result = pickupExpireBatchService.expirePickups();
 
-        Order failedUpdated = orderRepository.findById(failedOrder.getId()).orElseThrow();
-        Order successUpdated = orderRepository.findById(successOrder.getId()).orElseThrow();
+        Order failedUpdated = orderStateProbe.getOrder(failedOrder.getId());
+        Order successUpdated = orderStateProbe.getOrder(successOrder.getId());
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isEqualTo(1);
@@ -245,12 +232,12 @@ class PickupExpireBatchUseCaseIT {
             executor.awaitTermination(10, TimeUnit.SECONDS);
         }
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        Order updated = orderStateProbe.getOrder(order.getId());
 
         assertSoftly(softly -> {
             if (updated.getStatus() == OrderStatus.PICKUP_EXPIRED) {
                 softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
-                softly.assertThat(refundRepository.count()).isEqualTo(1L);
+                softly.assertThat(orderStateProbe.refundCount()).isEqualTo(1L);
             } else {
                 softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKED_UP);
             }

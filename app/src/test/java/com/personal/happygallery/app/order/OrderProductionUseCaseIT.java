@@ -4,6 +4,11 @@ import com.personal.happygallery.app.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.app.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.app.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.app.order.port.in.OrderShippingUseCase;
+import com.personal.happygallery.app.order.port.out.OrderItemPort;
+import com.personal.happygallery.app.order.port.out.OrderStorePort;
+import com.personal.happygallery.app.product.port.out.InventoryReaderPort;
+import com.personal.happygallery.app.product.port.out.InventoryStorePort;
+import com.personal.happygallery.app.product.port.out.ProductStorePort;
 import com.personal.happygallery.common.error.ProductionRefundNotAllowedException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
@@ -11,14 +16,9 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.common.error.HappyGalleryException;
-import com.personal.happygallery.infra.booking.RefundRepository;
-import com.personal.happygallery.infra.order.FulfillmentRepository;
-import com.personal.happygallery.infra.order.OrderItemRepository;
-import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
-import com.personal.happygallery.infra.product.InventoryRepository;
-import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.OrderTestHelper;
+import com.personal.happygallery.support.OrderStateProbe;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,7 +33,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -48,13 +47,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class OrderProductionUseCaseIT {
 
     @Autowired MockMvc mockMvc;
-    @Autowired OrderRepository orderRepository;
-    @Autowired OrderItemRepository orderItemRepository;
-    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
-    @Autowired FulfillmentRepository fulfillmentRepository;
-    @Autowired RefundRepository refundRepository;
-    @Autowired ProductRepository productRepository;
-    @Autowired InventoryRepository inventoryRepository;
+    @Autowired ProductStorePort productStorePort;
+    @Autowired InventoryStorePort inventoryStorePort;
+    @Autowired InventoryReaderPort inventoryReaderPort;
+    @Autowired OrderStorePort orderStorePort;
+    @Autowired OrderItemPort orderItemPort;
+    @Autowired OrderStateProbe orderStateProbe;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired OrderApprovalUseCase orderApprovalService;
     @Autowired OrderProductionUseCase orderProductionService;
     @Autowired OrderPickupUseCase orderPickupService;
@@ -66,11 +65,7 @@ class OrderProductionUseCaseIT {
     void setUp() {
         cleanup();
         orderHelper = new OrderTestHelper(
-                productRepository,
-                inventoryRepository,
-                orderRepository,
-                orderItemRepository,
-                orderService);
+                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort, orderService);
     }
 
     @AfterEach
@@ -79,14 +74,7 @@ class OrderProductionUseCaseIT {
     }
 
     private void cleanup() {
-        clearOrderData(
-                refundRepository,
-                fulfillmentRepository,
-                orderApprovalHistoryRepository,
-                orderItemRepository,
-                orderRepository,
-                inventoryRepository,
-                productRepository);
+        cleanupSupport.clearOrderData();
     }
 
     // -----------------------------------------------------------------------
@@ -100,8 +88,8 @@ class OrderProductionUseCaseIT {
 
         orderApprovalService.approve(order.getId());
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
+        Order updated = orderStateProbe.getOrder(order.getId());
+        Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
             softly.assertThat(fulfillment.getType()).isEqualTo(FulfillmentType.SHIPPING);
@@ -119,10 +107,10 @@ class OrderProductionUseCaseIT {
 
         orderApprovalService.approve(order.getId());
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        Order updated = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-            softly.assertThat(fulfillmentRepository.findByOrderId(order.getId())).isEmpty();
+            softly.assertThat(orderStateProbe.findFulfillmentByOrderId(order.getId())).isEmpty();
         });
     }
 
@@ -139,7 +127,7 @@ class OrderProductionUseCaseIT {
         LocalDate shipDate = LocalDate.of(2026, 4, 15);
         orderProductionService.setExpectedShipDate(order.getId(), shipDate);
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
+        Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
         assertThat(fulfillment.getExpectedShipDate()).isEqualTo(shipDate);
     }
 
@@ -155,11 +143,11 @@ class OrderProductionUseCaseIT {
 
         orderProductionService.requestDelay(order.getId());
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
+        Order updated = orderStateProbe.getOrder(order.getId());
+        Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
-            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY);
         });
@@ -180,7 +168,7 @@ class OrderProductionUseCaseIT {
                 .isInstanceOf(ProductionRefundNotAllowedException.class);
 
         // 상태 변경 없음 확인
-        Order unchanged = orderRepository.findById(order.getId()).orElseThrow();
+        Order unchanged = orderStateProbe.getOrder(order.getId());
         assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
     }
 
@@ -197,12 +185,12 @@ class OrderProductionUseCaseIT {
         // IN_PRODUCTION → completeProduction → APPROVED_FULFILLMENT_PENDING
         orderProductionService.completeProduction(order.getId(), 1L);
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
-        var histories = orderApprovalHistoryRepository.findByOrderId(order.getId());
+        Order updated = orderStateProbe.getOrder(order.getId());
+        Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
+        var histories = orderStateProbe.orderApprovalHistory(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.PRODUCTION_COMPLETE);
             softly.assertThat(histories.get(1).getDecidedByAdminId()).isEqualTo(1L);
@@ -219,7 +207,7 @@ class OrderProductionUseCaseIT {
         // DELAY_REQUESTED → completeProduction → APPROVED_FULFILLMENT_PENDING
         orderProductionService.completeProduction(order.getId(), null);
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        Order updated = orderStateProbe.getOrder(order.getId());
         assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
     }
 
@@ -236,10 +224,10 @@ class OrderProductionUseCaseIT {
 
         orderProductionService.resumeProduction(order.getId(), 1L);
 
-        Order updated = orderRepository.findById(order.getId()).orElseThrow();
+        Order updated = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
-            softly.assertThat(orderApprovalHistoryRepository.findByOrderId(order.getId()))
+            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
                     .extracting("decision")
                     .containsExactly(
                             OrderApprovalDecision.APPROVE,
@@ -294,7 +282,7 @@ class OrderProductionUseCaseIT {
         orderPickupService.markPickupReady(order.getId(),
                 LocalDateTime.of(2026, 4, 1, 18, 0));
 
-        var fulfillments = fulfillmentRepository.findAll().stream()
+        var fulfillments = orderStateProbe.fulfillments().stream()
                 .filter(f -> f.getOrderId().equals(order.getId()))
                 .toList();
         assertSoftly(softly -> {
@@ -312,11 +300,11 @@ class OrderProductionUseCaseIT {
 
         // 승인 → IN_PRODUCTION
         orderApprovalService.approve(order.getId());
-        Order afterApprove = orderRepository.findById(order.getId()).orElseThrow();
+        Order afterApprove = orderStateProbe.getOrder(order.getId());
 
         // 제작 완료 → APPROVED_FULFILLMENT_PENDING
         orderProductionService.completeProduction(order.getId(), 1L);
-        Order afterCompleteProduction = orderRepository.findById(order.getId()).orElseThrow();
+        Order afterCompleteProduction = orderStateProbe.getOrder(order.getId());
 
         // 픽업 준비 → PICKUP_READY (기존 흐름과 연결 확인)
         mockMvc.perform(post("/admin/orders/{id}/prepare-pickup", order.getId())
@@ -324,7 +312,7 @@ class OrderProductionUseCaseIT {
                         .content("{\"pickupDeadlineAt\":\"2026-04-01T18:00:00\"}"))
                 .andExpect(status().isOk());
 
-        Order final_ = orderRepository.findById(order.getId()).orElseThrow();
+        Order final_ = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(afterApprove.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
             softly.assertThat(afterCompleteProduction.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
@@ -345,21 +333,21 @@ class OrderProductionUseCaseIT {
 
         // APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING
         orderShippingService.prepareShipping(order.getId(), 1L);
-        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+        assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
                 .isEqualTo(OrderStatus.SHIPPING_PREPARING);
 
         // SHIPPING_PREPARING → SHIPPED
         orderShippingService.markShipped(order.getId(), 1L);
-        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+        assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
                 .isEqualTo(OrderStatus.SHIPPED);
 
         // SHIPPED → DELIVERED
         orderShippingService.markDelivered(order.getId(), 1L);
-        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus())
+        assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
                 .isEqualTo(OrderStatus.DELIVERED);
 
         // 이력에 배송 전이가 모두 기록됨
-        var decisions = orderApprovalHistoryRepository.findByOrderIdOrderByDecidedAtAsc(order.getId()).stream()
+        var decisions = orderStateProbe.orderApprovalHistoryOrdered(order.getId()).stream()
                 .map(h -> h.getDecision())
                 .toList();
         assertThat(decisions).containsExactly(
@@ -442,7 +430,7 @@ class OrderProductionUseCaseIT {
         LocalDate shipDate = LocalDate.of(2026, 5, 1);
         orderProductionService.setExpectedShipDate(order.getId(), shipDate);
 
-        Fulfillment fulfillment = fulfillmentRepository.findByOrderId(order.getId()).orElseThrow();
+        Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
         assertThat(fulfillment.getExpectedShipDate()).isEqualTo(shipDate);
     }
 }

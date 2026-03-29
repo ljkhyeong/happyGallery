@@ -3,7 +3,7 @@ package com.personal.happygallery.app.token;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.common.token.AccessTokenHasher;
 import com.personal.happygallery.common.token.AccessTokenSigner;
-import com.personal.happygallery.common.token.AccessTokenSigner.InvalidTokenException;
+import com.personal.happygallery.common.token.InvalidTokenException;
 import com.personal.happygallery.config.properties.GuestTokenProperties;
 import java.time.Clock;
 import java.time.Duration;
@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>신규 토큰은 HMAC-SHA256 서명 + 만료 기반으로 발급한다.
  * 기존 레거시 토큰(서명 없는 32자 hex)은 SHA-256 해시 비교 경로로 폴백한다.
+ * 토큰 파싱 오류는 {@link InvalidTokenException}으로 구분하고, 외부에는 NotFound로 변환한다.
  */
 @Component
 public class GuestTokenService {

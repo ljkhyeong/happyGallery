@@ -2,9 +2,7 @@ package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
-import com.personal.happygallery.infra.pass.PassLedgerRepository;
-import com.personal.happygallery.infra.pass.PassPurchaseRepository;
-import com.personal.happygallery.infra.user.UserRepository;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
@@ -32,9 +30,7 @@ class MePassUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
-    @Autowired UserRepository userRepository;
-    @Autowired PassPurchaseRepository passPurchaseRepository;
-    @Autowired PassLedgerRepository passLedgerRepository;
+    @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
@@ -55,9 +51,8 @@ class MePassUseCaseIT {
     }
 
     private void cleanup() {
-        passLedgerRepository.deleteAllInBatch();
-        passPurchaseRepository.deleteAllInBatch();
-        userRepository.deleteAllInBatch();
+        cleanupSupport.clearPassData();
+        cleanupSupport.clearUsers();
     }
 
     @DisplayName("회원 8회권 구매가 성공한다")

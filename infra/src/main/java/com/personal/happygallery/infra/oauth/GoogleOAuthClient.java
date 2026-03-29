@@ -2,6 +2,7 @@ package com.personal.happygallery.infra.oauth;
 
 import com.personal.happygallery.app.customer.port.out.OAuthTokenExchangePort;
 import com.personal.happygallery.common.error.ErrorCode;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.personal.happygallery.common.error.HappyGalleryException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -85,7 +86,7 @@ class GoogleOAuthClient implements OAuthTokenExchangePort {
     }
 
     private record TokenResponse(
-            @com.fasterxml.jackson.annotation.JsonProperty("access_token") String accessToken
+            @JsonProperty("access_token") String accessToken
     ) {}
 
     private record UserInfoResponse(String sub, String email, String name) {}

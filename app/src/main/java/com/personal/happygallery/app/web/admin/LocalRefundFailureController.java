@@ -1,9 +1,9 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.payment.port.out.RefundFailureScriptPort;
+import com.personal.happygallery.app.web.admin.dto.ArmRefundFailureResponse;
+import com.personal.happygallery.app.web.admin.dto.FailNextRefundRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Size;
-import java.util.Map;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -30,14 +30,14 @@ public class LocalRefundFailureController {
     }
 
     @PostMapping("/fail-next")
-    public Map<String, String> failNext(@RequestBody(required = false) @Valid FailNextRefundRequest request) {
+    public ArmRefundFailureResponse failNext(@RequestBody(required = false) @Valid FailNextRefundRequest request) {
         String reason = DEFAULT_REASON;
         if (request != null && StringUtils.hasText(request.reason())) {
             reason = request.reason().trim();
         }
 
         localRefundFailureScript.armNextFailure(reason);
-        return Map.of("status", "ARMED", "reason", reason);
+        return new ArmRefundFailureResponse("ARMED", reason);
     }
 
     @DeleteMapping("/fail-next")
@@ -46,5 +46,4 @@ public class LocalRefundFailureController {
         return ResponseEntity.noContent().build();
     }
 
-    public record FailNextRefundRequest(@Size(max = 120) String reason) {}
 }

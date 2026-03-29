@@ -1,15 +1,15 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.out.OrderItemPort;
+import com.personal.happygallery.app.order.port.out.OrderStorePort;
+import com.personal.happygallery.app.product.port.out.InventoryReaderPort;
+import com.personal.happygallery.app.product.port.out.InventoryStorePort;
+import com.personal.happygallery.app.product.port.out.ProductStorePort;
 import com.personal.happygallery.common.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.infra.booking.RefundRepository;
-import com.personal.happygallery.infra.order.FulfillmentRepository;
-import com.personal.happygallery.infra.order.OrderItemRepository;
-import com.personal.happygallery.infra.order.OrderApprovalHistoryRepository;
-import com.personal.happygallery.infra.order.OrderRepository;
-import com.personal.happygallery.infra.product.InventoryRepository;
-import com.personal.happygallery.infra.product.ProductRepository;
 import com.personal.happygallery.support.OrderTestHelper;
+import com.personal.happygallery.support.OrderStateProbe;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -23,7 +23,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import static com.personal.happygallery.support.TestDataCleaner.clearOrderData;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -37,24 +36,20 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class ConcurrentOrderUseCaseIT {
 
     @Autowired OrderService orderService;
-    @Autowired OrderRepository orderRepository;
-    @Autowired OrderItemRepository orderItemRepository;
-    @Autowired OrderApprovalHistoryRepository orderApprovalHistoryRepository;
-    @Autowired FulfillmentRepository fulfillmentRepository;
-    @Autowired RefundRepository refundRepository;
-    @Autowired ProductRepository productRepository;
-    @Autowired InventoryRepository inventoryRepository;
+    @Autowired ProductStorePort productStorePort;
+    @Autowired InventoryStorePort inventoryStorePort;
+    @Autowired InventoryReaderPort inventoryReaderPort;
+    @Autowired OrderStorePort orderStorePort;
+    @Autowired OrderItemPort orderItemPort;
+    @Autowired OrderStateProbe orderStateProbe;
+    @Autowired TestCleanupSupport cleanupSupport;
     OrderTestHelper orderHelper;
 
     @BeforeEach
     void setUp() {
         cleanup();
         orderHelper = new OrderTestHelper(
-                productRepository,
-                inventoryRepository,
-                orderRepository,
-                orderItemRepository,
-                orderService);
+                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort, orderService);
     }
 
     @AfterEach
@@ -63,14 +58,7 @@ class ConcurrentOrderUseCaseIT {
     }
 
     private void cleanup() {
-        clearOrderData(
-                refundRepository,
-                fulfillmentRepository,
-                orderApprovalHistoryRepository,
-                orderItemRepository,
-                orderRepository,
-                inventoryRepository,
-                productRepository);
+        cleanupSupport.clearOrderData();
     }
 
     // -----------------------------------------------------------------------
@@ -109,8 +97,7 @@ class ConcurrentOrderUseCaseIT {
         exec.awaitTermination(15, TimeUnit.SECONDS);
 
         // 최종 재고 0 확인 (음수로 내려가지 않음)
-        int remaining = inventoryRepository.findByProductId(product.getId())
-                .orElseThrow().getQuantity();
+        int remaining = orderStateProbe.getInventoryByProductId(product.getId()).getQuantity();
 
         assertSoftly(softly -> {
             softly.assertThat(successes.get()).isEqualTo(1);

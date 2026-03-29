@@ -43,14 +43,15 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     @Query("SELECT o FROM Order o ORDER BY o.createdAt DESC, o.id DESC LIMIT :limit")
     List<Order> findAllOrderByCreatedAtDesc(@Param("limit") int limit);
 
-    /** 전체 주문 — 커서 이후 */
-    @Query("""
-            SELECT o FROM Order o
-            WHERE o.createdAt < :cursorCreatedAt
-               OR (o.createdAt = :cursorCreatedAt AND o.id < :cursorId)
-            ORDER BY o.createdAt DESC, o.id DESC
+    /** 전체 주문 — 커서 이후 (tuple comparison으로 복합 인덱스 range scan 활용) */
+    @Query(value = """
+            SELECT id, user_id, guest_id, access_token, status,
+                   total_amount, paid_at, approval_deadline_at, version, created_at
+            FROM orders
+            WHERE (created_at, id) < (:cursorCreatedAt, :cursorId)
+            ORDER BY created_at DESC, id DESC
             LIMIT :limit
-            """)
+            """, nativeQuery = true)
     List<Order> findAllOrderByCreatedAtDescAfterCursor(
             @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
             @Param("cursorId") Long cursorId,
@@ -62,15 +63,16 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
             @Param("status") OrderStatus status,
             @Param("limit") int limit);
 
-    /** 상태별 주문 — 커서 이후 */
-    @Query("""
-            SELECT o FROM Order o
-            WHERE o.status = :status
-              AND (o.createdAt < :cursorCreatedAt
-                   OR (o.createdAt = :cursorCreatedAt AND o.id < :cursorId))
-            ORDER BY o.createdAt DESC, o.id DESC
+    /** 상태별 주문 — 커서 이후 (tuple comparison으로 복합 인덱스 range scan 활용) */
+    @Query(value = """
+            SELECT id, user_id, guest_id, access_token, status,
+                   total_amount, paid_at, approval_deadline_at, version, created_at
+            FROM orders
+            WHERE status = :#{#status.name()}
+              AND (created_at, id) < (:cursorCreatedAt, :cursorId)
+            ORDER BY created_at DESC, id DESC
             LIMIT :limit
-            """)
+            """, nativeQuery = true)
     List<Order> findByStatusOrderByCreatedAtDescAfterCursor(
             @Param("status") OrderStatus status,
             @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,

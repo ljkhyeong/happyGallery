@@ -1,27 +1,33 @@
 package com.personal.happygallery.infra.oauth;
 
-import java.time.Duration;
+import com.personal.happygallery.infra.http.PooledHttpClientFactory;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @Configuration
 @Profile("prod")
 class GoogleOAuthRestClientConfig {
 
-    @Bean
-    RestClient googleOAuthRestClient(GoogleOAuthProperties props) {
-        return RestClient.builder()
-                .requestFactory(clientHttpRequestFactory(props.timeoutMillis()))
-                .build();
+    @Bean(destroyMethod = "close")
+    CloseableHttpClient googleOAuthHttpClient(GoogleOAuthProperties props) {
+        return PooledHttpClientFactory.create(
+                props.connectTimeoutMillis(),
+                props.timeoutMillis(),
+                props.acquireTimeoutMillis(),
+                props.maxConnections(),
+                props.keepAliveMillis()
+        );
     }
 
-    private static SimpleClientHttpRequestFactory clientHttpRequestFactory(long timeoutMillis) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofMillis(timeoutMillis));
-        factory.setReadTimeout(Duration.ofMillis(timeoutMillis));
-        return factory;
+    @Bean
+    RestClient googleOAuthRestClient(GoogleOAuthProperties props,
+                                     @Qualifier("googleOAuthHttpClient") CloseableHttpClient httpClient) {
+        return RestClient.builder()
+                .requestFactory(PooledHttpClientFactory.requestFactory(httpClient))
+                .build();
     }
 }

@@ -5,6 +5,7 @@
 
 | As-Is | To-Be |
 |------|-------|
+| Google OAuth `state`를 프론트 `sessionStorage`에서만 비교하고, 백엔드는 `code`/`redirectUri`만 받아 처리한다. | OAuth 시작 시 `state`를 서버 세션에도 저장하고, 콜백 또는 코드 교환 시 백엔드가 직접 검증해 login CSRF 방어 경계를 서버 쪽으로 옮긴다. |
 | `AdminAuthFilter`가 URL 시작 문자열과 `/auth/` 포함 여부만 보고 관리자 경로를 판정한다. | 공통 경로 판정 규칙이나 명시적 관리자 경로 목록을 두어 우회 가능성을 줄인다. |
 | `AdminBookingResponse`는 비회원 예약 기준의 이름/전화번호 구조를 강하게 전제한다. | 비회원 예약, 회원 예약, 이관된 예약을 모두 담을 수 있는 `customerSummary` 구조로 단순화한다. |
 | ~~`ProductQueryService`가 상품 목록 뒤에 재고를 건별 조회한다.~~ | ~~상품과 재고를 함께 읽는 조회 한 번으로 목록을 만들도록 바꾼다.~~ |

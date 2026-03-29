@@ -7,6 +7,7 @@ import com.personal.happygallery.app.notice.port.out.NoticeStorePort;
 import com.personal.happygallery.common.error.NotFoundException;
 import com.personal.happygallery.domain.notice.Notice;
 import java.util.List;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +31,7 @@ public class DefaultNoticeService implements NoticeQueryUseCase, NoticeAdminUseC
     @Override
     @Transactional(readOnly = true)
     public List<Notice> listRecent(int limit) {
-        return listAll().stream().limit(limit).toList();
+        return noticeReader.findAllByOrderByPinnedDescCreatedAtDesc(PageRequest.of(0, limit));
     }
 
     @Override
