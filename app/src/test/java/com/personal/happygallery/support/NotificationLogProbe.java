@@ -1,20 +1,20 @@
 package com.personal.happygallery.support;
 
 import com.personal.happygallery.domain.notification.NotificationLog;
-import com.personal.happygallery.infra.notification.NotificationLogRepository;
+import com.personal.happygallery.app.notification.port.out.NotificationLogReaderPort;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
 public class NotificationLogProbe {
 
-    private final NotificationLogRepository notificationLogRepository;
+    private final NotificationLogReaderPort notificationLogReaderPort;
 
-    public NotificationLogProbe(NotificationLogRepository notificationLogRepository) {
-        this.notificationLogRepository = notificationLogRepository;
+    public NotificationLogProbe(NotificationLogReaderPort notificationLogReaderPort) {
+        this.notificationLogReaderPort = notificationLogReaderPort;
     }
 
     public List<NotificationLog> all() {
-        return notificationLogRepository.findAll();
+        return notificationLogReaderPort.findAll();
     }
 }

@@ -11,5 +11,9 @@ public interface RefundPort {
 
     Optional<Refund> findById(Long id);
 
+    List<Refund> findAll();
+
+    long count();
+
     List<Refund> findByStatus(RefundStatus status);
 }
