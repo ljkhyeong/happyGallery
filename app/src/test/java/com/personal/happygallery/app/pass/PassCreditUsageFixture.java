@@ -14,9 +14,6 @@ import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import org.junit.jupiter.api.BeforeEach;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -30,25 +27,44 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-abstract class PassCreditUsageTestSupport {
+final class PassCreditUsageFixture {
 
-    @Autowired protected WebApplicationContext context;
-    @Autowired protected CustomerAuthFilter customerAuthFilter;
-    @Autowired @Qualifier("springSessionRepositoryFilter") protected Filter springSessionRepositoryFilter;
-    @Autowired protected ClassStorePort classStorePort;
-    @Autowired protected SlotStorePort slotStorePort;
-    @Autowired protected UserReaderPort userReaderPort;
-    @Autowired protected PassPurchaseStorePort passPurchaseStorePort;
-    @Autowired protected TestCleanupSupport cleanupSupport;
-    @Autowired protected Clock clock;
+    private final WebApplicationContext context;
+    private final CustomerAuthFilter customerAuthFilter;
+    private final Filter springSessionRepositoryFilter;
+    private final ClassStorePort classStorePort;
+    private final SlotStorePort slotStorePort;
+    private final UserReaderPort userReaderPort;
+    private final PassPurchaseStorePort passPurchaseStorePort;
+    private final TestCleanupSupport cleanupSupport;
+    private final Clock clock;
 
-    protected MockMvc mockMvc;
-    protected BookingClass bookingClass;
-    protected PassPurchase pass;
-    protected Cookie sessionCookie;
+    private MockMvc mockMvc;
+    private BookingClass bookingClass;
+    private PassPurchase pass;
+    private Cookie sessionCookie;
 
-    @BeforeEach
-    void setUpPassCreditUsageContext() throws Exception {
+    PassCreditUsageFixture(WebApplicationContext context,
+                           CustomerAuthFilter customerAuthFilter,
+                           Filter springSessionRepositoryFilter,
+                           ClassStorePort classStorePort,
+                           SlotStorePort slotStorePort,
+                           UserReaderPort userReaderPort,
+                           PassPurchaseStorePort passPurchaseStorePort,
+                           TestCleanupSupport cleanupSupport,
+                           Clock clock) {
+        this.context = context;
+        this.customerAuthFilter = customerAuthFilter;
+        this.springSessionRepositoryFilter = springSessionRepositoryFilter;
+        this.classStorePort = classStorePort;
+        this.slotStorePort = slotStorePort;
+        this.userReaderPort = userReaderPort;
+        this.passPurchaseStorePort = passPurchaseStorePort;
+        this.cleanupSupport = cleanupSupport;
+        this.clock = clock;
+    }
+
+    void setUp() throws Exception {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
@@ -61,15 +77,31 @@ abstract class PassCreditUsageTestSupport {
         pass = passPurchaseStorePort.save(passPurchase(userId, FUTURE.plusDays(90), 320_000L));
     }
 
-    protected Slot createFutureSlot() {
+    MockMvc mockMvc() {
+        return mockMvc;
+    }
+
+    PassPurchase pass() {
+        return pass;
+    }
+
+    Cookie sessionCookie() {
+        return sessionCookie;
+    }
+
+    Clock clock() {
+        return clock;
+    }
+
+    Slot createFutureSlot() {
         return slotStorePort.save(slot(bookingClass, FUTURE, FUTURE.plusHours(2)));
     }
 
-    protected Slot createFutureSlot(LocalDateTime startAt) {
+    Slot createFutureSlot(LocalDateTime startAt) {
         return slotStorePort.save(slot(bookingClass, startAt, startAt.plusHours(2)));
     }
 
-    protected Long createPassBooking(Long slotId) throws Exception {
+    Long createPassBooking(Long slotId) throws Exception {
         String response = mockMvc.perform(post("/api/v1/me/bookings")
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -86,7 +118,7 @@ abstract class PassCreditUsageTestSupport {
         return BookingTestHelper.extractBookingId(response);
     }
 
-    protected Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
+    private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
         var result = mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
