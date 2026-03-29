@@ -2,16 +2,15 @@ package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.cart.CartCheckoutService;
 import com.personal.happygallery.app.cart.port.in.CartUseCase;
-import com.personal.happygallery.app.cart.port.in.CartUseCase.CartItemView;
 import com.personal.happygallery.app.cart.port.in.CartUseCase.CartView;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
+import com.personal.happygallery.app.web.customer.dto.AddCartItemRequest;
+import com.personal.happygallery.app.web.customer.dto.CartResponse;
 import com.personal.happygallery.app.web.customer.dto.MyOrderSummary;
+import com.personal.happygallery.app.web.customer.dto.UpdateCartItemRequest;
 import com.personal.happygallery.domain.order.Order;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
-import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -69,28 +68,5 @@ public class MeCartController {
 
     private Long getUserId(HttpServletRequest request) {
         return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
-    }
-
-    // --- DTOs ---
-
-    public record AddCartItemRequest(
-            @NotNull Long productId,
-            @Min(1) int qty) {}
-
-    public record UpdateCartItemRequest(
-            @Min(1) int qty) {}
-
-    public record CartItemResponse(Long productId, String productName, long price,
-                                   int qty, long subtotal, boolean available) {}
-
-    public record CartResponse(List<CartItemResponse> items, long totalAmount) {
-        static CartResponse from(CartView view) {
-            List<CartItemResponse> items = view.items().stream()
-                    .map(i -> new CartItemResponse(
-                            i.productId(), i.productName(), i.price(),
-                            i.qty(), i.subtotal(), i.available()))
-                    .toList();
-            return new CartResponse(items, view.totalAmount());
-        }
     }
 }

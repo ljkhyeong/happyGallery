@@ -1,8 +1,8 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.payment.port.out.RefundFailureScriptPort;
+import com.personal.happygallery.app.web.admin.dto.FailNextRefundRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Size;
 import java.util.Map;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
@@ -46,5 +46,4 @@ public class LocalRefundFailureController {
         return ResponseEntity.noContent().build();
     }
 
-    public record FailNextRefundRequest(@Size(max = 120) String reason) {}
 }
