@@ -5,7 +5,7 @@ import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.app.payment.RefundExecutionService;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
-import com.personal.happygallery.common.time.TimeBoundary;
+import com.personal.happygallery.domain.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.Refund;

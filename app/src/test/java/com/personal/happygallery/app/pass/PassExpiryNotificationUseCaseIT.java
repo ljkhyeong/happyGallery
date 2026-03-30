@@ -52,6 +52,7 @@ class PassExpiryNotificationUseCaseIT {
 
     private void cleanup() {
         cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearNotificationLogs();
         cleanupSupport.clearUsers();
     }
 

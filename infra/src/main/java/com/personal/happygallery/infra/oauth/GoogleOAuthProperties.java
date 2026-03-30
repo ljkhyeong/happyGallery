@@ -1,5 +1,6 @@
 package com.personal.happygallery.infra.oauth;
 
+import com.personal.happygallery.infra.http.HttpPoolProperties;
 import jakarta.validation.constraints.Min;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -17,4 +18,4 @@ public record GoogleOAuthProperties(
         @Min(1) @DefaultValue("1000") long acquireTimeoutMillis,
         @Min(1) @DefaultValue("10") int maxConnections,
         @Min(1) @DefaultValue("30000") long keepAliveMillis
-) {}
+) implements HttpPoolProperties {}

@@ -211,7 +211,8 @@
 
 기본 프로필은 `local`이다.
 - `local` 프로필은 샘플 필드 암호화 키를 기본 제공하지만, `dev`/`prod`는 직접 설정해야 한다.
-- timeout 기준선 기본값은 `frontend 35s > nginx read 30s > transaction 10s > DB query 5s > lock wait 3s > DB/Hikari acquire 2s` 순서를 따른다.
+- timeout 기준선 기본값은 `frontend 35s > nginx read 30s > transaction 10s > DB query 5s > lock wait 3s > DB/Hikari acquire 2s` 순서를 따른다. 상세 원칙은 `ADR-0030`을 따른다.
+- ingress keep-alive 기준선은 `client -> nginx keepalive_timeout 15s`, `nginx -> app` upstream keep-alive 활성화로 시작한다. caller가 먼저 연결을 버리고 callee가 나중에 닫도록 유지해 stale connection 재사용 가능성을 줄인다. 상세 원칙은 `ADR-0030`을 따른다.
 - `prod` 프로필의 외부 알림/Google OAuth `RestClient`는 downstream별 Apache HttpClient 5 커넥션 풀을 사용한다. 기본값은 `acquire 1s`, `connect 2s`, `read 5s`, `keep-alive 30s`이며, 알림 풀은 최대 20개, Google OAuth 풀은 최대 10개다.
 
 ### 3. 백엔드 실행 방식

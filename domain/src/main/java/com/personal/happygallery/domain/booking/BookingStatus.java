@@ -1,7 +1,7 @@
 package com.personal.happygallery.domain.booking;
 
-import com.personal.happygallery.common.error.ErrorCode;
-import com.personal.happygallery.common.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 
 public enum BookingStatus {
 	BOOKED,

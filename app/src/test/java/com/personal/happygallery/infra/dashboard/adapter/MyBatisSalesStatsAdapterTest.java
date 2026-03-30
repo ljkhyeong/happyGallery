@@ -6,7 +6,7 @@ import com.personal.happygallery.app.dashboard.dto.RefundStats;
 import com.personal.happygallery.app.dashboard.dto.RevenueBreakdown;
 import com.personal.happygallery.app.dashboard.dto.StatusCount;
 import com.personal.happygallery.app.dashboard.dto.TopProduct;
-import com.personal.happygallery.common.time.Clocks;
+import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.infra.dashboard.mapper.SalesStatsMapper;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -36,7 +36,7 @@ class MyBatisSalesStatsAdapterTest {
         assertSoftly(softly -> {
             softly.assertThat(mapper.todayFrom).isEqualTo(LocalDateTime.of(2026, 3, 4, 15, 0));
             softly.assertThat(mapper.todayTo).isEqualTo(LocalDateTime.of(2026, 3, 5, 15, 0));
-            softly.assertThat(mapper.rangeFrom).isEqualTo(LocalDateTime.of(2026, 2, 29, 15, 0));
+            softly.assertThat(mapper.rangeFrom).isEqualTo(LocalDateTime.of(2026, 2, 28, 15, 0));
             softly.assertThat(mapper.rangeTo).isEqualTo(LocalDateTime.of(2026, 3, 31, 15, 0));
         });
     }

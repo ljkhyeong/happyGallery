@@ -2,7 +2,7 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
-import com.personal.happygallery.common.error.DuplicateBookingException;
+import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;

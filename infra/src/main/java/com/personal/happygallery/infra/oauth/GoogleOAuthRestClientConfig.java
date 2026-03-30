@@ -12,22 +12,22 @@ import org.springframework.web.client.RestClient;
 @Profile("prod")
 class GoogleOAuthRestClientConfig {
 
+    private final PooledHttpClientFactory pooledHttpClientFactory;
+
+    GoogleOAuthRestClientConfig(PooledHttpClientFactory pooledHttpClientFactory) {
+        this.pooledHttpClientFactory = pooledHttpClientFactory;
+    }
+
     @Bean(destroyMethod = "close")
     CloseableHttpClient googleOAuthHttpClient(GoogleOAuthProperties props) {
-        return PooledHttpClientFactory.create(
-                props.connectTimeoutMillis(),
-                props.timeoutMillis(),
-                props.acquireTimeoutMillis(),
-                props.maxConnections(),
-                props.keepAliveMillis()
-        );
+        return pooledHttpClientFactory.create(props);
     }
 
     @Bean
     RestClient googleOAuthRestClient(GoogleOAuthProperties props,
                                      @Qualifier("googleOAuthHttpClient") CloseableHttpClient httpClient) {
         return RestClient.builder()
-                .requestFactory(PooledHttpClientFactory.requestFactory(httpClient))
+                .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
                 .build();
     }
 }

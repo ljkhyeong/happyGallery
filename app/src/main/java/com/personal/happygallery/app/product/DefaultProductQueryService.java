@@ -3,7 +3,7 @@ package com.personal.happygallery.app.product;
 import com.personal.happygallery.app.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.app.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.app.product.port.out.ProductReaderPort;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;

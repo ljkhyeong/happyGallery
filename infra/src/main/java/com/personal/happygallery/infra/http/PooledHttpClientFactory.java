@@ -9,33 +9,28 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
+import org.springframework.stereotype.Component;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
-public final class PooledHttpClientFactory {
+@Component
+public class PooledHttpClientFactory {
 
-    private PooledHttpClientFactory() {
-    }
-
-    public static CloseableHttpClient create(long connectTimeoutMillis,
-                                             long readTimeoutMillis,
-                                             long acquireTimeoutMillis,
-                                             int maxConnections,
-                                             long keepAliveMillis) {
+    public CloseableHttpClient create(HttpPoolProperties props) {
         ConnectionConfig connectionConfig = ConnectionConfig.custom()
-                .setConnectTimeout(Timeout.ofMilliseconds(connectTimeoutMillis))
-                .setSocketTimeout(Timeout.ofMilliseconds(readTimeoutMillis))
-                .setTimeToLive(TimeValue.ofMilliseconds(keepAliveMillis))
+                .setConnectTimeout(Timeout.ofMilliseconds(props.connectTimeoutMillis()))
+                .setSocketTimeout(Timeout.ofMilliseconds(props.timeoutMillis()))
+                .setTimeToLive(TimeValue.ofMilliseconds(props.keepAliveMillis()))
                 .build();
 
         PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
                 .setDefaultConnectionConfig(connectionConfig)
-                .setMaxConnTotal(maxConnections)
-                .setMaxConnPerRoute(maxConnections)
+                .setMaxConnTotal(props.maxConnections())
+                .setMaxConnPerRoute(props.maxConnections())
                 .build();
 
         RequestConfig requestConfig = RequestConfig.custom()
-                .setConnectionRequestTimeout(Timeout.ofMilliseconds(acquireTimeoutMillis))
-                .setResponseTimeout(Timeout.ofMilliseconds(readTimeoutMillis))
+                .setConnectionRequestTimeout(Timeout.ofMilliseconds(props.acquireTimeoutMillis()))
+                .setResponseTimeout(Timeout.ofMilliseconds(props.timeoutMillis()))
                 .build();
 
         return HttpClients.custom()
@@ -47,14 +42,14 @@ public final class PooledHttpClientFactory {
                     if (keepAlive != null && keepAlive.toMilliseconds() > 0) {
                         return keepAlive;
                     }
-                    return TimeValue.ofMilliseconds(keepAliveMillis);
+                    return TimeValue.ofMilliseconds(props.keepAliveMillis());
                 })
                 .evictExpiredConnections()
-                .evictIdleConnections(TimeValue.ofMilliseconds(keepAliveMillis))
+                .evictIdleConnections(TimeValue.ofMilliseconds(props.keepAliveMillis()))
                 .build();
     }
 
-    public static HttpComponentsClientHttpRequestFactory requestFactory(CloseableHttpClient httpClient) {
+    public HttpComponentsClientHttpRequestFactory requestFactory(CloseableHttpClient httpClient) {
         return new HttpComponentsClientHttpRequestFactory(httpClient);
     }
 }

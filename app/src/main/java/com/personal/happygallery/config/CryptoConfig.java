@@ -1,7 +1,7 @@
 package com.personal.happygallery.config;
 
-import com.personal.happygallery.common.crypto.BlindIndexer;
-import com.personal.happygallery.common.crypto.FieldEncryptor;
+import com.personal.happygallery.domain.crypto.BlindIndexer;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.config.properties.FieldEncryptionProperties;
 import java.util.HexFormat;
 import org.springframework.context.annotation.Bean;

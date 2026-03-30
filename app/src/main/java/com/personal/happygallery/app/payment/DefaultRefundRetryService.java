@@ -2,9 +2,9 @@ package com.personal.happygallery.app.payment;
 
 import com.personal.happygallery.app.payment.port.in.RefundRetryUseCase;
 import com.personal.happygallery.app.payment.port.out.RefundPort;
-import com.personal.happygallery.common.error.ErrorCode;
-import com.personal.happygallery.common.error.HappyGalleryException;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import java.util.List;

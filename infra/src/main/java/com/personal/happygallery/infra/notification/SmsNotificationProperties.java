@@ -1,5 +1,6 @@
 package com.personal.happygallery.infra.notification;
 
+import com.personal.happygallery.infra.http.HttpPoolProperties;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -18,4 +19,4 @@ public record SmsNotificationProperties(
         @Min(1) @DefaultValue("1000") long acquireTimeoutMillis,
         @Min(1) @DefaultValue("20") int maxConnections,
         @Min(1) @DefaultValue("30000") long keepAliveMillis
-) {}
+) implements HttpPoolProperties {}

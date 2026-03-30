@@ -1,6 +1,6 @@
 package com.personal.happygallery.config;
 
-import com.personal.happygallery.common.time.Clocks;
+import com.personal.happygallery.domain.time.Clocks;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

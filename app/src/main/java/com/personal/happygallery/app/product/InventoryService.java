@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.product;
 
 import com.personal.happygallery.app.product.port.out.InventoryStorePort;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import org.springframework.stereotype.Service;
@@ -37,7 +37,7 @@ public class InventoryService {
      *   <li>수량을 차감하고 저장한다.</li>
      * </ol>
      *
-     * <p>재고 부족 시 {@link com.personal.happygallery.common.error.InventoryNotEnoughException} (409).
+     * <p>재고 부족 시 {@link com.personal.happygallery.domain.error.InventoryNotEnoughException} (409).
      *
      * @param productId 상품 ID
      * @param qty       차감 수량

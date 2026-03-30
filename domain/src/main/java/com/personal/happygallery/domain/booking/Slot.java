@@ -56,7 +56,7 @@ public class Slot {
     }
 
     /**
-     * 예약을 1건 추가한다. 정원 초과 시 {@link com.personal.happygallery.common.error.CapacityExceededException}을 던진다.
+     * 예약을 1건 추가한다. 정원 초과 시 {@link com.personal.happygallery.domain.error.CapacityExceededException}을 던진다.
      * 호출 전 반드시 비관적 락(SELECT FOR UPDATE)으로 row를 잠가야 한다.
      */
     public void incrementBookedCount() {

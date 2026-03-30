@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.booking;
 
-import com.personal.happygallery.common.error.CapacityExceededException;
+import com.personal.happygallery.domain.error.CapacityExceededException;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotCapacity;
@@ -14,6 +14,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingData;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
@@ -35,6 +37,7 @@ class SlotBookingCapacityUseCaseIT {
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
     @Autowired BookingRepository bookingRepository;
+    @Autowired PlatformTransactionManager transactionManager;
 
     BookingClass bookingClass;
     Slot mainSlot;
@@ -60,7 +63,7 @@ class SlotBookingCapacityUseCaseIT {
     @Test
     void confirmBooking_8times_allSucceed() {
         for (int i = 0; i < SlotCapacity.MAX; i++) {
-            slotBookingCoordinator.confirmBooking(mainSlot.getId());
+            confirmBookingInTx(mainSlot.getId());
         }
         Slot updated = slotRepository.findById(mainSlot.getId()).orElseThrow();
         assertThat(updated.getBookedCount()).isEqualTo(SlotCapacity.MAX);
@@ -70,10 +73,10 @@ class SlotBookingCapacityUseCaseIT {
     @Test
     void confirmBooking_9th_throwsCapacityExceeded() {
         for (int i = 0; i < SlotCapacity.MAX; i++) {
-            slotBookingCoordinator.confirmBooking(mainSlot.getId());
+            confirmBookingInTx(mainSlot.getId());
         }
 
-        assertThatThrownBy(() -> slotBookingCoordinator.confirmBooking(mainSlot.getId()))
+        assertThatThrownBy(() -> confirmBookingInTx(mainSlot.getId()))
                 .isInstanceOf(CapacityExceededException.class);
 
         // booked_count 변경 없음 확인
@@ -89,7 +92,7 @@ class SlotBookingCapacityUseCaseIT {
         Slot bufferSlot2 = slotRepository.save(
                 slot(bookingClass, BUFFER_IN2, BUFFER_IN2.plusHours(2)));
 
-        slotBookingCoordinator.confirmBooking(mainSlot.getId());
+        confirmBookingInTx(mainSlot.getId());
 
         assertSoftly(softly -> {
             softly.assertThat(slotRepository.findById(bufferSlot1.getId()).orElseThrow().isActive()).isFalse();
@@ -103,8 +106,13 @@ class SlotBookingCapacityUseCaseIT {
         Slot outsideSlot = slotRepository.save(
                 slot(bookingClass, BUFFER_OUT, BUFFER_OUT.plusHours(2)));
 
-        slotBookingCoordinator.confirmBooking(mainSlot.getId());
+        confirmBookingInTx(mainSlot.getId());
 
         assertThat(slotRepository.findById(outsideSlot.getId()).orElseThrow().isActive()).isTrue();
+    }
+
+    private void confirmBookingInTx(Long slotId) {
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(status -> slotBookingCoordinator.confirmBooking(slotId));
     }
 }
