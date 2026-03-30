@@ -1,6 +1,6 @@
 package com.personal.happygallery.domain.booking;
 
-import com.personal.happygallery.common.error.CapacityExceededException;
+import com.personal.happygallery.domain.error.CapacityExceededException;
 
 /** 슬롯 정원 정책. 슬롯당 최대 예약 인원을 관리한다. */
 public final class SlotCapacity {

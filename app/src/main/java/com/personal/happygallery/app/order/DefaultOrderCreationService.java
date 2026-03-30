@@ -6,7 +6,7 @@ import com.personal.happygallery.app.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

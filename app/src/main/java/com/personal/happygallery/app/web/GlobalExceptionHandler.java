@@ -1,8 +1,8 @@
 package com.personal.happygallery.app.web;
 
-import com.personal.happygallery.common.error.ErrorCode;
-import com.personal.happygallery.common.error.ErrorResponse;
-import com.personal.happygallery.common.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.app.web.error.ErrorResponse;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.sentry.Sentry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

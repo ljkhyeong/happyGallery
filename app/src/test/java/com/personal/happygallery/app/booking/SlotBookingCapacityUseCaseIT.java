@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.booking;
 
-import com.personal.happygallery.common.error.CapacityExceededException;
+import com.personal.happygallery.domain.error.CapacityExceededException;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotCapacity;

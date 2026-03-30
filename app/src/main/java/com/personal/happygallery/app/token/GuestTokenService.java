@@ -1,9 +1,9 @@
 package com.personal.happygallery.app.token;
 
-import com.personal.happygallery.common.error.NotFoundException;
-import com.personal.happygallery.common.token.AccessTokenHasher;
-import com.personal.happygallery.common.token.AccessTokenSigner;
-import com.personal.happygallery.common.token.InvalidTokenException;
+import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.app.token.AccessTokenHasher;
+import com.personal.happygallery.app.token.AccessTokenSigner;
+import com.personal.happygallery.app.token.InvalidTokenException;
 import com.personal.happygallery.config.properties.GuestTokenProperties;
 import java.time.Clock;
 import java.time.Duration;

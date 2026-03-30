@@ -1,7 +1,7 @@
 package com.personal.happygallery.domain.pass;
 
-import com.personal.happygallery.common.error.PassCreditInsufficientException;
-import com.personal.happygallery.common.error.PassExpiredException;
+import com.personal.happygallery.domain.error.PassCreditInsufficientException;
+import com.personal.happygallery.domain.error.PassExpiredException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

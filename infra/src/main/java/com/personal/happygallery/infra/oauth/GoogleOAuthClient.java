@@ -1,9 +1,9 @@
 package com.personal.happygallery.infra.oauth;
 
 import com.personal.happygallery.app.customer.port.out.OAuthTokenExchangePort;
-import com.personal.happygallery.common.error.ErrorCode;
+import com.personal.happygallery.domain.error.ErrorCode;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.personal.happygallery.common.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;

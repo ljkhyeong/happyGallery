@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web;
 
-import com.personal.happygallery.common.error.ErrorCode;
-import com.personal.happygallery.common.error.ErrorResponse;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.app.web.error.ErrorResponse;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.order.Order;
 import org.junit.jupiter.api.DisplayName;

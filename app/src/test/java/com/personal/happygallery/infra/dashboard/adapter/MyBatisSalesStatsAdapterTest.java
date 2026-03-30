@@ -6,7 +6,7 @@ import com.personal.happygallery.app.dashboard.dto.RefundStats;
 import com.personal.happygallery.app.dashboard.dto.RevenueBreakdown;
 import com.personal.happygallery.app.dashboard.dto.StatusCount;
 import com.personal.happygallery.app.dashboard.dto.TopProduct;
-import com.personal.happygallery.common.time.Clocks;
+import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.infra.dashboard.mapper.SalesStatsMapper;
 import java.time.Clock;
 import java.time.LocalDate;

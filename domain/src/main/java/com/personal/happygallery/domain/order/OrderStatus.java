@@ -1,9 +1,9 @@
 package com.personal.happygallery.domain.order;
 
-import com.personal.happygallery.common.error.AlreadyRefundedException;
-import com.personal.happygallery.common.error.ErrorCode;
-import com.personal.happygallery.common.error.HappyGalleryException;
-import com.personal.happygallery.common.error.ProductionRefundNotAllowedException;
+import com.personal.happygallery.domain.error.AlreadyRefundedException;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.ProductionRefundNotAllowedException;
 
 public enum OrderStatus {
 	// 결제 및 승인

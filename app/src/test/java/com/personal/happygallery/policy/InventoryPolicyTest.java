@@ -1,6 +1,6 @@
 package com.personal.happygallery.policy;
 
-import com.personal.happygallery.common.error.InventoryNotEnoughException;
+import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;

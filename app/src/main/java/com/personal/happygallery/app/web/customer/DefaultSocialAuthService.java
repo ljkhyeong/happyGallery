@@ -6,8 +6,8 @@ import com.personal.happygallery.app.customer.port.out.OAuthTokenExchangePort.Au
 import com.personal.happygallery.app.customer.port.out.OAuthTokenExchangePort.OAuthUserInfo;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
 import com.personal.happygallery.app.customer.port.out.UserStorePort;
-import com.personal.happygallery.common.crypto.BlindIndexer;
-import com.personal.happygallery.common.crypto.FieldEncryptor;
+import com.personal.happygallery.domain.crypto.BlindIndexer;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.user.AuthProvider;
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;

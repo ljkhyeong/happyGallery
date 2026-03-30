@@ -3,7 +3,7 @@ package com.personal.happygallery.app.pass;
 import com.personal.happygallery.app.pass.port.in.PassPurchaseUseCase;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
-import com.personal.happygallery.common.time.TimeBoundary;
+import com.personal.happygallery.domain.time.TimeBoundary;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;

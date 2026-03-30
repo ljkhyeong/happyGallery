@@ -1,8 +1,8 @@
 package com.personal.happygallery.app.web;
 
 import com.personal.happygallery.app.customer.port.in.CustomerAuthUseCase;
-import com.personal.happygallery.common.error.ErrorCode;
-import com.personal.happygallery.common.error.ErrorResponse;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.app.web.error.ErrorResponse;
 import com.personal.happygallery.config.RedisConfig;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
