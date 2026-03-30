@@ -20,6 +20,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static com.personal.happygallery.support.TestDataCleaner.clearBookingData;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
@@ -41,6 +43,7 @@ class ConcurrentBookingUseCaseIT {
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
     @Autowired BookingRepository bookingRepository;
+    @Autowired PlatformTransactionManager transactionManager;
 
     private static final LocalDateTime SLOT_START = LocalDateTime.of(2026, 6, 1, 10, 0);
     private static final LocalDateTime SLOT_END   = LocalDateTime.of(2026, 6, 1, 12, 0);
@@ -72,7 +75,7 @@ class ConcurrentBookingUseCaseIT {
 
         // 슬롯을 MAX-1 상태로 채움
         for (int i = 0; i < SlotCapacity.MAX - 1; i++) {
-            slotBookingCoordinator.confirmBooking(slot.getId());
+            confirmBookingInTx(slot.getId());
         }
         int beforeRaceBookedCount = slotRepository.findById(slot.getId()).orElseThrow().getBookedCount();
         assertThat(beforeRaceBookedCount).isEqualTo(SlotCapacity.MAX - 1);
@@ -87,7 +90,7 @@ class ConcurrentBookingUseCaseIT {
             exec.submit(() -> {
                 try {
                     startLatch.await();
-                    slotBookingCoordinator.confirmBooking(slot.getId());
+                    confirmBookingInTx(slot.getId());
                     successes.incrementAndGet();
                 } catch (CapacityExceededException e) {
                     failures.incrementAndGet();
@@ -109,5 +112,10 @@ class ConcurrentBookingUseCaseIT {
             softly.assertThat(failures.get()).isEqualTo(threadCount - 1);
             softly.assertThat(bookedCount).isEqualTo(SlotCapacity.MAX);
         });
+    }
+
+    private void confirmBookingInTx(Long slotId) {
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(status -> slotBookingCoordinator.confirmBooking(slotId));
     }
 }

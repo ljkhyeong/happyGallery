@@ -36,7 +36,7 @@ class MyBatisSalesStatsAdapterTest {
         assertSoftly(softly -> {
             softly.assertThat(mapper.todayFrom).isEqualTo(LocalDateTime.of(2026, 3, 4, 15, 0));
             softly.assertThat(mapper.todayTo).isEqualTo(LocalDateTime.of(2026, 3, 5, 15, 0));
-            softly.assertThat(mapper.rangeFrom).isEqualTo(LocalDateTime.of(2026, 2, 29, 15, 0));
+            softly.assertThat(mapper.rangeFrom).isEqualTo(LocalDateTime.of(2026, 2, 28, 15, 0));
             softly.assertThat(mapper.rangeTo).isEqualTo(LocalDateTime.of(2026, 3, 31, 15, 0));
         });
     }
