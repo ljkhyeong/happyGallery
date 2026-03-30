@@ -116,7 +116,7 @@
   - `./gradlew --no-daemon :app:compileJava` 통과 (BatchExecutor stream 정리 후)
   - `./gradlew --no-daemon :app:compileTestJava` 통과
   - `./gradlew --no-daemon :app:compileJava` 통과
-  - `docker exec -i hg-mysql-audit mysql ... < app/src/main/resources/db/migration/V30__cleanup_redundant_indexes.sql` 적용 확인
+  - `docker exec -i hg-mysql-audit mysql ... < app/src/main/resources/db/migration/V31__cleanup_redundant_indexes.sql` 적용 확인
   - `docker exec hg-mysql-audit mysql ... -e "SHOW INDEX FROM orders; SHOW INDEX FROM notification_log"` 로 최신 인덱스 상태 확인
   - `./gradlew clean :app:test --no-daemon` 통과
   - `cd frontend && npm run build` 통과 (`@sentry/react` 포함)
