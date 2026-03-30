@@ -1,6 +1,5 @@
 rootProject.name = 'happygallery'
 
 include 'app'
-include 'common'
 include 'domain'
 include 'infra'

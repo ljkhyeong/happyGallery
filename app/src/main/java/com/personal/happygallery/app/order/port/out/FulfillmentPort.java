@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 public interface FulfillmentPort {
     Fulfillment save(Fulfillment fulfillment);
     Optional<Fulfillment> findByOrderId(Long orderId);
+    List<Fulfillment> findAll();
     List<Fulfillment> findExpiredPickups(LocalDateTime now);
     List<Fulfillment> findExpiredPickups(LocalDateTime now, Pageable pageable);
     List<Fulfillment> findPickupsApproachingDeadline(LocalDateTime from, LocalDateTime to);

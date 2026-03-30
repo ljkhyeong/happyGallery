@@ -1,3 +1,0 @@
-dependencies {
-    compileOnly 'com.fasterxml.jackson.core:jackson-annotations'
-}

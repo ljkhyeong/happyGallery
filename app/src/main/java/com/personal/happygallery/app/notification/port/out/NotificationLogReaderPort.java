@@ -30,4 +30,6 @@ public interface NotificationLogReaderPort {
     void markAllReadByUserId(Long userId, LocalDateTime now);
 
     void markAllReadByGuestId(Long guestId, LocalDateTime now);
+
+    List<NotificationLog> findAll();
 }

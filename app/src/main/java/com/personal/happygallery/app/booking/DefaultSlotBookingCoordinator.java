@@ -2,8 +2,8 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.app.booking.port.out.SlotStorePort;
-import com.personal.happygallery.common.error.NotFoundException;
-import com.personal.happygallery.common.error.SlotNotAvailableException;
+import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.error.SlotNotAvailableException;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotBufferPolicy;
 import java.time.LocalDateTime;

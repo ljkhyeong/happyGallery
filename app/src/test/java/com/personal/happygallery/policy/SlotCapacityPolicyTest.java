@@ -1,6 +1,6 @@
 package com.personal.happygallery.policy;
 
-import com.personal.happygallery.common.error.CapacityExceededException;
+import com.personal.happygallery.domain.error.CapacityExceededException;
 import com.personal.happygallery.domain.booking.SlotCapacity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;

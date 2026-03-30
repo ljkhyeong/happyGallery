@@ -9,7 +9,7 @@ import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import com.personal.happygallery.common.error.InventoryNotEnoughException;
+import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import java.time.LocalDateTime;
 
 /**
@@ -58,7 +58,7 @@ public class Inventory {
 
     /**
      * 재고를 차감한다.
-     * 재고 부족 시 {@link com.personal.happygallery.common.error.InventoryNotEnoughException}.
+     * 재고 부족 시 {@link com.personal.happygallery.domain.error.InventoryNotEnoughException}.
      *
      * @param qty 차감 수량
      */

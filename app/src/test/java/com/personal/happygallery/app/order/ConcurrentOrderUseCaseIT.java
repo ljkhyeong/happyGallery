@@ -5,7 +5,7 @@ import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.app.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.app.product.port.out.InventoryStorePort;
 import com.personal.happygallery.app.product.port.out.ProductStorePort;
-import com.personal.happygallery.common.error.InventoryNotEnoughException;
+import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.OrderStateProbe;

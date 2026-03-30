@@ -4,7 +4,7 @@ import com.personal.happygallery.app.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.app.customer.port.out.UserReaderPort;
 import com.personal.happygallery.app.inquiry.port.out.InquiryReaderPort;
 import com.personal.happygallery.app.inquiry.port.out.InquiryStorePort;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;

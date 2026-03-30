@@ -1,7 +1,7 @@
 package com.personal.happygallery.policy;
 
-import com.personal.happygallery.common.time.Clocks;
-import com.personal.happygallery.common.time.TimeBoundary;
+import com.personal.happygallery.domain.time.Clocks;
+import com.personal.happygallery.domain.time.TimeBoundary;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;

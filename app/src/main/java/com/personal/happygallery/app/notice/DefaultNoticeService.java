@@ -4,7 +4,7 @@ import com.personal.happygallery.app.notice.port.in.NoticeAdminUseCase;
 import com.personal.happygallery.app.notice.port.in.NoticeQueryUseCase;
 import com.personal.happygallery.app.notice.port.out.NoticeReaderPort;
 import com.personal.happygallery.app.notice.port.out.NoticeStorePort;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.notice.Notice;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;

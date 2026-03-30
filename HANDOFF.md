@@ -23,8 +23,11 @@
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
   - 외부 HTTP 풀링 기준선 추가 — `prod` 프로필의 Kakao/SMS/Google OAuth `RestClient`를 서비스별 Apache HttpClient 5 풀로 분리했다. 기본값은 `acquire 1s`, `connect 2s`, `read 5s`, `keep-alive 30s`이며, 알림은 max 20, Google OAuth는 max 10으로 시작한다. 상세 의사결정은 ADR-0029를 참고한다
-  - timeout 기준선 정리 — 프론트 fetch timeout을 35초, nginx `proxy_read_timeout`을 30초, Hikari acquire timeout을 2초, 기본 트랜잭션 timeout을 10초, JPA query timeout을 5초, MySQL `innodb_lock_wait_timeout` 세션값을 3초로 맞췄다. 외부 알림/OAuth 호출은 read 5초를 유지하면서 acquire 1초, connect 2초, keep-alive 30초, 서비스별 max connections 기준을 추가했고, 동기 MVC 전체 요청 deadline은 별도 필터/컨테이너 커스터마이저 후보로 남겼다
+  - timeout 기준선 정리 — 프론트 fetch timeout을 35초, nginx `proxy_read_timeout`을 30초, Hikari acquire timeout을 2초, 기본 트랜잭션 timeout을 10초, JPA query timeout을 5초, MySQL `innodb_lock_wait_timeout` 세션값을 3초로 맞췄다. 외부 알림/OAuth 호출은 read 5초를 유지하면서 acquire 1초, connect 2초, keep-alive 30초, 서비스별 max connections 기준을 추가했고, 동기 MVC 전체 요청 deadline은 별도 필터/컨테이너 커스터마이저 후보로 남겼다. 상세 의사결정은 ADR-0030과 ADR-0029를 참고한다
+  - ingress keep-alive 기준선 추가 — `nginx`는 `client -> nginx keepalive_timeout 15s`를 명시하고, `nginx -> app`은 upstream keep-alive를 켰다. 이 hop에서는 caller가 먼저 연결을 정리하고 callee가 더 오래 유지하도록 시작값을 맞춘다. 상세 의사결정은 ADR-0030을 참고한다
   - 서비스/테스트 경계 정리 — `BookingSlotSupport`의 슬롯 점유/반납 책임을 `SlotBookingCoordinator`로 분리했고, `DefaultGuestClaimService`는 `DefaultClientMonitoringService` 대신 `ClientMonitoringUseCase`를 의존하도록 바꿨다. 테스트 쪽은 `TestRepositoryHelper`를 완전히 제거했고, 시드 저장/조회는 `ReaderPort`/`StorePort`/`UseCase`를 직접 주입하며, 정리·삭제만 `TestCleanupSupport`에 남기고, 영속 확인은 `BookingStateProbe`/`OrderStateProbe`/`NotificationLogProbe` 같은 좁은 probe로 나눴다. `PassCreditUsageUseCaseIT`는 HTTP 계약용 `PassCreditUsageWebUseCaseIT`와 영속 효과 검증용 `PassCreditUsagePersistenceUseCaseIT`로 분리했다. app 테스트에서 direct infra repository import를 의도적으로 유지하는 파일은 `ConcurrentBookingUseCaseIT`, `RefundExecutionServiceUseCaseIT`, `SlotBookingCapacityUseCaseIT`, `ProductInventoryUseCaseIT` 네 개뿐이다
+  - PassCreditUsage 테스트 조합 전환 — `PassCreditUsageWebUseCaseIT`, `PassCreditUsagePersistenceUseCaseIT`는 더 이상 `PassCreditUsageTestSupport`를 상속하지 않고, 공통 준비를 `PassCreditUsageFixture` 조합 객체로 사용한다. 현재 `app/src/test/java` 기준 test support 상속 패턴은 이 케이스 외에는 남아 있지 않다
+  - 테스트 probe 경계 정리 — `BookingStateProbe`, `OrderStateProbe`, `NotificationLogProbe`는 더 이상 `infra` repository를 직접 잡지 않고 `ReaderPort`/`StorePort`/`HistoryPort`/`RefundPort`/`FulfillmentPort`를 사용한다. 반면 `TestCleanupSupport`는 테스트 정리 인프라이므로 concrete repository 의존을 유지한다
   - 장바구니 시각 처리 정리 — `CartItem`이 `LocalDateTime.now()`를 직접 읽지 않게 바꾸고, `CartService`에서 주입된 `Clock` 기준 `now`를 생성/수정 메서드에 넘기도록 정리했다. 같은 패턴의 무인자 `now()` 호출도 함께 확인했고 현재 코드 기준 `CartItem`만 해당했다
   - 알림 로그 어댑터 단순화 — `JpaNotificationLogAdapter`를 제거하고 `NotificationLogRepository`가 `NotificationLogReaderPort`를 직접 구현하도록 접었다. `SUCCESS` 상태/`PageRequest` 변환은 repository default 메서드로 옮겼다
   - 리팩토링 작업 규칙 보강 — `AGENTS.md`에 리팩토링 전 `rg`로 동일/유사 패턴을 확인하고, 같은 이유가 성립하는 중복은 함께 정리하라는 기준을 추가했다
@@ -68,7 +71,7 @@
   - graceful shutdown 운영 기준 문서화 — `ADR-0025`에 Spring graceful shutdown 30초, 알림 `ThreadPoolTaskExecutor` drain 정책, PG timeout executor 2초 종료 정책을 정리
   - 문서 인덱스/인수인계 보정 — `README.md` Idea 목록을 실제 파일 기준으로 정리하고, `HANDOFF.md` 프론트 경로/문의 흐름 요약을 구현 상태에 맞게 갱신
   - 배치 마이그레이션 검토 메모 추가 — `docs/Idea/0017_Spring_Batch_마이그레이션_검토/idea.md`에 현행 커스텀 배치 유지 판단과 Spring Batch 재검토 조건을 기록
-  - spec 분리 2차 — core `docs/PRD/0001_기준_스펙/spec.md`에서 API 카탈로그/에러 계약을 `docs/PRD/0004_API_계약/spec.md`로, 시스템 경계·상태/스키마 기준과 관리자 인증·런타임 기준을 `ADR-0022`, `ADR-0023`으로 분리
+  - spec 분리 2차 — core `docs/PRD/0001_기준_스펙/spec.md`에서 API 카탈로그/에러 계약을 `docs/PRD/0004_API_계약/spec.md`로, 시스템 경계·상태/스키마 기준과 인증/운영 기준을 `ADR-0022`, `ADR-0023`, `ADR-0030`으로 분리
   - PRD 경량화 — `docs/PRD/0001_기준_스펙/spec.md`에서 테스트 전략/`SoftAssertions.assertSoftly` 규칙과 관리자 인증 확장 검토를 분리했고, 현재 테스트 전략은 `ADR-0027`, 관리자 인증 확장 검토는 `docs/Idea/0004_*`에서 관리한다
   - 문서 체계 재정리 — 활성 실행 계획은 루트 `plan.md`로 통합, 완료된 `docs/1Pager` 실행 계획 문서는 제거, `docs/POC/0001_결제_제공자_CircuitBreaker_적용/poc.md`를 추가하고 `README.md` 문서 목록을 현재 구조 기준으로 재작성
   - Redis 기반 세션/레이트리밋 전환 완료 — 회원 세션을 Spring Session + Redis(`HG_SESSION`)로 전환하고 `user_sessions` 의존을 제거했으며, 관리자 Bearer 세션과 `RateLimitFilter`도 Redis 저장소로 옮겨 다중 인스턴스 대응을 맞춤
@@ -298,9 +301,11 @@ cd frontend && npm run e2e
 | ADR-0020 | 결제 환불 외부 호출 보호를 위한 CircuitBreaker 도입 |
 | ADR-0021 | 기존 app/domain/infra 구조 위에서 점진적 헥사고날 전환 채택 |
 | ADR-0022 | 시스템 경계, 상태 모델, 데이터 모델 기준선 |
-| ADR-0023 | 관리자 인증 및 런타임 운영 기준선 |
+| ADR-0023 | 관리자/회원 인증 세션 기준선 |
 | ADR-0024 | Guest access token SHA-256 해시 저장 + X-Access-Token 헤더 전환 |
 | ADR-0025 | Graceful Shutdown 및 Executor Drain 정책 |
 | ADR-0026 | 통합 테스트 프로파일 및 Testcontainers 기준선 |
 | ADR-0027 | 테스트 전략 — 최소 고가치 검증 우선 |
 | ADR-0028 | 1차 배포 준비 — 알림 실 연동, 로그 마스킹, 배포 인프라 |
+| ADR-0029 | 외부 HTTP 클라이언트 풀링 기준선 |
+| ADR-0030 | 타임아웃 계층과 ingress keep-alive 기준선 |

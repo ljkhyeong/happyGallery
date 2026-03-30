@@ -6,7 +6,7 @@ import com.personal.happygallery.app.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.config.OptimisticLockRetryable;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;

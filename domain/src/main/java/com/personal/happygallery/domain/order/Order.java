@@ -83,7 +83,7 @@ public class Order {
     /**
      * 관리자 승인 처리.
      * 이미 환불된 주문({@link OrderStatus#REJECTED}, {@link OrderStatus#AUTO_REFUND_TIMEOUT})에
-     * 대한 호출은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}을 던진다.
+     * 대한 호출은 {@link com.personal.happygallery.domain.error.AlreadyRefundedException}을 던진다.
      * 승인 대기 상태({@link OrderStatus#PAID_APPROVAL_PENDING})가 아니면 400을 던진다.
      */
     public void approve() {
@@ -93,10 +93,10 @@ public class Order {
 
     /**
      * 관리자 거절 처리. 환불·재고 복구는 서비스 레이어에서 선행한다.
-     * 이미 환불된 주문에 대한 호출은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}을 던진다.
+     * 이미 환불된 주문에 대한 호출은 {@link com.personal.happygallery.domain.error.AlreadyRefundedException}을 던진다.
      * 승인 대기 상태({@link OrderStatus#PAID_APPROVAL_PENDING})가 아니면 400을 던진다.
      * 제작 중인 주문({@link OrderStatus#IN_PRODUCTION}, {@link OrderStatus#DELAY_REQUESTED})은
-     * {@link com.personal.happygallery.common.error.ProductionRefundNotAllowedException}을 던진다.
+     * {@link com.personal.happygallery.domain.error.ProductionRefundNotAllowedException}을 던진다.
      */
     public void reject() {
         this.status.requireCancellable();
@@ -106,7 +106,7 @@ public class Order {
 
     /**
      * 예약 제작 승인. MADE_TO_ORDER 상품 주문에서 호출한다.
-     * 이미 환불된 주문에 대한 호출은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}을 던진다.
+     * 이미 환불된 주문에 대한 호출은 {@link com.personal.happygallery.domain.error.AlreadyRefundedException}을 던진다.
      */
     public void approveAsProduction() {
         this.status.requireApprovalPending();
@@ -143,7 +143,7 @@ public class Order {
     /**
      * 24시간 초과 자동환불 처리.
      * 승인 대기 상태({@link OrderStatus#PAID_APPROVAL_PENDING})가 아니면 예외를 던진다.
-     * 이미 환불된 주문은 {@link com.personal.happygallery.common.error.AlreadyRefundedException}(409).
+     * 이미 환불된 주문은 {@link com.personal.happygallery.domain.error.AlreadyRefundedException}(409).
      */
     public void markAutoRefunded() {
         this.status.requireApprovalPending();

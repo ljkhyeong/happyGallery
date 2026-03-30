@@ -5,7 +5,7 @@ import com.personal.happygallery.app.cart.port.out.CartItemReaderPort;
 import com.personal.happygallery.app.cart.port.out.CartItemStorePort;
 import com.personal.happygallery.app.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.app.product.port.out.ProductReaderPort;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;

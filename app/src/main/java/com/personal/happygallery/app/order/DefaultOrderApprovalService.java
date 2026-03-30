@@ -7,7 +7,7 @@ import com.personal.happygallery.app.order.port.out.OrderItemPort;
 import com.personal.happygallery.app.order.port.out.OrderReaderPort;
 import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.config.OptimisticLockRetryable;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
  * </ul>
  *
  * <p>이미 환불된 주문에 대한 승인/거절 시도는
- * {@link com.personal.happygallery.common.error.AlreadyRefundedException}(409)을 던진다.
+ * {@link com.personal.happygallery.domain.error.AlreadyRefundedException}(409)을 던진다.
  */
 @Service
 @Transactional

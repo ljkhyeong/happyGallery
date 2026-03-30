@@ -1,8 +1,8 @@
 package com.personal.happygallery.policy;
 
-import com.personal.happygallery.common.error.AlreadyRefundedException;
-import com.personal.happygallery.common.error.HappyGalleryException;
-import com.personal.happygallery.common.error.ProductionRefundNotAllowedException;
+import com.personal.happygallery.domain.error.AlreadyRefundedException;
+import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.ProductionRefundNotAllowedException;
 import com.personal.happygallery.domain.order.OrderStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;

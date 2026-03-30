@@ -16,15 +16,15 @@ import org.springframework.web.client.RestClient;
 @Profile("prod")
 class NotificationRestClientConfig {
 
+    private final PooledHttpClientFactory pooledHttpClientFactory;
+
+    NotificationRestClientConfig(PooledHttpClientFactory pooledHttpClientFactory) {
+        this.pooledHttpClientFactory = pooledHttpClientFactory;
+    }
+
     @Bean(destroyMethod = "close")
     CloseableHttpClient kakaoHttpClient(KakaoNotificationProperties props) {
-        return PooledHttpClientFactory.create(
-                props.connectTimeoutMillis(),
-                props.timeoutMillis(),
-                props.acquireTimeoutMillis(),
-                props.maxConnections(),
-                props.keepAliveMillis()
-        );
+        return pooledHttpClientFactory.create(props);
     }
 
     @Bean
@@ -34,19 +34,13 @@ class NotificationRestClientConfig {
                 .baseUrl(props.baseUrl())
                 .defaultHeader("Content-Type", "application/json")
                 .defaultHeader("Authorization", "KakaoAK " + props.apiKey())
-                .requestFactory(PooledHttpClientFactory.requestFactory(httpClient))
+                .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
                 .build();
     }
 
     @Bean(destroyMethod = "close")
     CloseableHttpClient smsHttpClient(SmsNotificationProperties props) {
-        return PooledHttpClientFactory.create(
-                props.connectTimeoutMillis(),
-                props.timeoutMillis(),
-                props.acquireTimeoutMillis(),
-                props.maxConnections(),
-                props.keepAliveMillis()
-        );
+        return pooledHttpClientFactory.create(props);
     }
 
     @Bean
@@ -56,7 +50,7 @@ class NotificationRestClientConfig {
                 .baseUrl(props.baseUrl())
                 .defaultHeader("Content-Type", "application/json")
                 .defaultHeader("X-Secret-Key", props.apiSecret())
-                .requestFactory(PooledHttpClientFactory.requestFactory(httpClient))
+                .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
                 .build();
     }
 }

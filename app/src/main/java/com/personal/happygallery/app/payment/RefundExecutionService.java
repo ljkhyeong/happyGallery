@@ -4,7 +4,7 @@ import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.payment.port.out.PaymentPort;
 import com.personal.happygallery.app.payment.port.out.RefundPort;
 import com.personal.happygallery.app.payment.port.out.RefundResult;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Refund;
 import org.slf4j.Logger;

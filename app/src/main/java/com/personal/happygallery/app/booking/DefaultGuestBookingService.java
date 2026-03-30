@@ -4,7 +4,7 @@ import com.personal.happygallery.app.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.customer.VerifiedGuestResolver;
 import com.personal.happygallery.app.customer.port.out.PhoneVerificationStorePort;
-import com.personal.happygallery.common.error.DuplicateBookingException;
+import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.app.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;

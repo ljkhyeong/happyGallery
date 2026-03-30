@@ -9,8 +9,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import com.personal.happygallery.common.error.ErrorCode;
-import com.personal.happygallery.common.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 

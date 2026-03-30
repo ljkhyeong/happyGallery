@@ -11,4 +11,6 @@ public interface InventoryStorePort {
     Inventory save(Inventory inventory);
 
     Optional<Inventory> findByProductIdWithLock(Long productId);
+
+    void deleteById(Long inventoryId);
 }

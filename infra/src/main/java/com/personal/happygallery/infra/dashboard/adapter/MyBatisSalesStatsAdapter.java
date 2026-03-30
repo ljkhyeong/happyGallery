@@ -10,7 +10,7 @@ import com.personal.happygallery.app.dashboard.dto.StatusCount;
 import com.personal.happygallery.app.dashboard.dto.TopProduct;
 import com.personal.happygallery.app.dashboard.dto.TopProductSort;
 import com.personal.happygallery.app.dashboard.port.out.SalesStatsQueryPort;
-import com.personal.happygallery.common.time.SeoulDateTimeRangeConverter;
+import com.personal.happygallery.infra.time.SeoulDateTimeRangeConverter;
 import com.personal.happygallery.infra.dashboard.mapper.SalesStatsMapper;
 import java.time.Clock;
 import java.time.LocalDate;

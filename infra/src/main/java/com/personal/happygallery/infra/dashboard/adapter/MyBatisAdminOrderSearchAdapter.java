@@ -2,7 +2,7 @@ package com.personal.happygallery.infra.dashboard.adapter;
 
 import com.personal.happygallery.app.search.dto.AdminOrderSearchRow;
 import com.personal.happygallery.app.search.port.out.AdminOrderSearchPort;
-import com.personal.happygallery.common.time.SeoulDateTimeRangeConverter;
+import com.personal.happygallery.infra.time.SeoulDateTimeRangeConverter;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.infra.dashboard.mapper.AdminOrderSearchMapper;
 import java.time.LocalDate;

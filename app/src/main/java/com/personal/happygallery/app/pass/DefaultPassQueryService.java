@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.pass;
 
 import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.util.List;
 import java.util.Objects;

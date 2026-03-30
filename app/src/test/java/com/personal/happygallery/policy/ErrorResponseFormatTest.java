@@ -2,8 +2,8 @@ package com.personal.happygallery.policy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.personal.happygallery.common.error.ErrorCode;
-import com.personal.happygallery.common.error.ErrorResponse;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.app.web.error.ErrorResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;

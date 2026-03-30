@@ -8,7 +8,7 @@ import com.personal.happygallery.app.booking.port.out.SlotStorePort;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;

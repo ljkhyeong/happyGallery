@@ -3,7 +3,7 @@ package com.personal.happygallery.app.pass;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;

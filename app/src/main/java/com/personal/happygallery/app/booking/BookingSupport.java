@@ -3,7 +3,7 @@ package com.personal.happygallery.app.booking;
 import com.personal.happygallery.app.booking.port.out.BookingHistoryPort;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.notification.NotificationService;
-import com.personal.happygallery.common.error.NotFoundException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.app.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistory;

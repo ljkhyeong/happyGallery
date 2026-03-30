@@ -126,7 +126,7 @@ public class Booking {
 
     /**
      * 예약을 취소한다. 상태를 CANCELED로 변경한다.
-     * 환불 가능 여부는 호출자가 {@link com.personal.happygallery.common.time.TimeBoundary#isRefundable}로 판단한다.
+     * 환불 가능 여부는 호출자가 {@link com.personal.happygallery.domain.time.TimeBoundary#isRefundable}로 판단한다.
      */
     public void cancel() {
         status.requireBooked();

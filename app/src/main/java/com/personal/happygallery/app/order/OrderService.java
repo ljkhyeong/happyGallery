@@ -49,7 +49,7 @@ public class OrderService {
      * 결제 완료 주문을 생성한다.
      *
      * <ol>
-     *   <li>각 상품의 재고를 차감한다 (재고 부족 시 {@link com.personal.happygallery.common.error.InventoryNotEnoughException}).</li>
+     *   <li>각 상품의 재고를 차감한다 (재고 부족 시 {@link com.personal.happygallery.domain.error.InventoryNotEnoughException}).</li>
      *   <li>주문을 {@link com.personal.happygallery.domain.order.OrderStatus#PAID_APPROVAL_PENDING}으로 저장한다.</li>
      *   <li>승인 마감({@code approvalDeadlineAt})을 결제 시각 + 24시간으로 설정한다.</li>
      * </ol>
