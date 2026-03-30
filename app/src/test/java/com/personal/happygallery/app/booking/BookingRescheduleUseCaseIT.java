@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
@@ -39,6 +41,7 @@ class BookingRescheduleUseCaseIT {
     @Autowired DefaultSlotManagementService slotManagementService;
     @Autowired SlotBookingCoordinator slotBookingCoordinator;
     @Autowired Clock clock;
+    @Autowired PlatformTransactionManager transactionManager;
 
     BookingClass cls;
     BookingTestHelper helper;
@@ -193,7 +196,7 @@ class BookingRescheduleUseCaseIT {
 
         // fullSlot을 8명으로 채운다 (서비스 직접 호출)
         for (int i = 0; i < 8; i++) {
-            slotBookingCoordinator.confirmBooking(fullSlot.getId());
+            confirmBookingInTx(fullSlot.getId());
         }
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550001", fromSlot.getId(), 5000L);
@@ -232,6 +235,11 @@ class BookingRescheduleUseCaseIT {
                                 """.formatted(toSlot.getId())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    private void confirmBookingInTx(Long slotId) {
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(status -> slotBookingCoordinator.confirmBooking(slotId));
     }
 
 }
