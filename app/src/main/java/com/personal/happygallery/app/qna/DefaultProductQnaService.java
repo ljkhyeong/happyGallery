@@ -95,6 +95,17 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
         return qnaStore.save(qna);
     }
 
+    @Transactional
+    public QnaWithAuthor replyAndGet(Long qnaId, String replyContent, Long adminId) {
+        ProductQna qna = qnaReader.findById(qnaId)
+                .orElseThrow(() -> new NotFoundException("Q&A"));
+        qna.reply(replyContent, adminId, LocalDateTime.now(clock));
+        qna = qnaStore.save(qna);
+        String authorName = userReader.findById(qna.getUserId())
+                .map(User::getName).orElse("탈퇴회원");
+        return new QnaWithAuthor(qna, authorName);
+    }
+
     private Map<Long, User> batchFetchUsers(List<ProductQna> qnaList) {
         List<Long> userIds = qnaList.stream().map(ProductQna::getUserId).distinct().toList();
         return userReader.findAllById(userIds).stream()

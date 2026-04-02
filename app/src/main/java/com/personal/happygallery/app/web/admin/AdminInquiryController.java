@@ -5,7 +5,6 @@ import com.personal.happygallery.app.inquiry.port.in.InquiryUseCase.InquiryWithU
 import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.app.web.admin.dto.AdminInquiryResponse;
 import com.personal.happygallery.app.web.admin.dto.InquiryReplyRequest;
-import com.personal.happygallery.domain.inquiry.Inquiry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -44,8 +43,6 @@ public class AdminInquiryController {
                                       @RequestBody @Valid InquiryReplyRequest request,
                                       HttpServletRequest httpRequest) {
         Long adminId = (Long) httpRequest.getAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR);
-        Inquiry inquiry = inquiryUseCase.reply(id, request.replyContent(), adminId);
-        String userName = inquiryUseCase.findByIdForAdmin(id).userName();
-        return AdminInquiryResponse.from(new InquiryWithUser(inquiry, userName));
+        return AdminInquiryResponse.from(inquiryUseCase.replyAndGet(id, request.replyContent(), adminId));
     }
 }

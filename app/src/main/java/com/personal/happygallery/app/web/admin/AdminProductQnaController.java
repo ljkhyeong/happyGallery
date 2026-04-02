@@ -5,7 +5,6 @@ import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase.QnaWithAuthor
 import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.app.web.admin.dto.AdminQnaResponse;
 import com.personal.happygallery.app.web.admin.dto.QnaReplyRequest;
-import com.personal.happygallery.domain.qna.ProductQna;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -39,11 +38,6 @@ public class AdminProductQnaController {
                                   @RequestBody @Valid QnaReplyRequest request,
                                   HttpServletRequest httpRequest) {
         Long adminId = (Long) httpRequest.getAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR);
-        ProductQna qna = qnaUseCase.reply(id, request.replyContent(), adminId);
-        String authorName = qnaUseCase.listByProduct(qna.getProductId()).stream()
-                .filter(q -> q.qna().getId().equals(qna.getId()))
-                .map(QnaWithAuthor::authorName)
-                .findFirst().orElse("탈퇴회원");
-        return AdminQnaResponse.from(new QnaWithAuthor(qna, authorName));
+        return AdminQnaResponse.from(qnaUseCase.replyAndGet(id, request.replyContent(), adminId));
     }
 }
