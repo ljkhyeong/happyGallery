@@ -23,4 +23,6 @@ public interface InquiryUseCase {
     InquiryWithUser findByIdForAdmin(Long inquiryId);
 
     Inquiry reply(Long inquiryId, String replyContent, Long adminId);
+
+    InquiryWithUser replyAndGet(Long inquiryId, String replyContent, Long adminId);
 }

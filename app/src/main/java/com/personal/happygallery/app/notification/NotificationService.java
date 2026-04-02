@@ -55,11 +55,55 @@ public class NotificationService {
      * <p>{@code @Order} 우선순위 순으로 시도한다. 한 채널이 성공하면 이후 채널은 시도하지 않는다.
      * 모든 채널 실패 시에도 예외를 던지지 않고 로그만 기록한다.
      *
-     * <p>비동기로 실행되므로 호출자의 트랜잭션과 독립적이다.
+     * @deprecated 이벤트 기반 전환 중. 새 코드는 {@code ApplicationEventPublisher}를 사용한다.
      */
+    @Deprecated
     @Async("notificationExecutor")
     public void notifyGuest(Long guestId, String phone, String name,
                             NotificationEventType eventType) {
+        sendToGuest(guestId, phone, name, eventType);
+    }
+
+    /**
+     * guestId 만으로 게스트에게 알림을 발송한다.
+     * 게스트가 존재하지 않으면 경고 로그를 남기고 무시한다.
+     *
+     * @deprecated 이벤트 기반 전환 중. 새 코드는 {@code ApplicationEventPublisher}를 사용한다.
+     */
+    @Deprecated
+    @Async("notificationExecutor")
+    public void notifyByGuestId(Long guestId, NotificationEventType eventType) {
+        sendByGuestId(guestId, eventType);
+    }
+
+    /**
+     * userId 만으로 회원에게 알림을 발송한다.
+     * 회원이 존재하지 않으면 경고 로그를 남기고 무시한다.
+     *
+     * @deprecated 이벤트 기반 전환 중. 새 코드는 {@code ApplicationEventPublisher}를 사용한다.
+     */
+    @Deprecated
+    @Async("notificationExecutor")
+    public void notifyByUserId(Long userId, NotificationEventType eventType) {
+        sendByUserId(userId, eventType);
+    }
+
+    /**
+     * 회원에게 알림을 발송한다. phone / name 을 이미 알고 있을 때 사용한다.
+     *
+     * @deprecated 이벤트 기반 전환 중. 새 코드는 {@code ApplicationEventPublisher}를 사용한다.
+     */
+    @Deprecated
+    @Async("notificationExecutor")
+    public void notifyUser(Long userId, String phone, String name,
+                           NotificationEventType eventType) {
+        sendToUser(userId, phone, name, eventType);
+    }
+
+    // -- 이벤트 리스너용 package-private 메서드 (@Async 없음) --
+
+    void sendToGuest(Long guestId, String phone, String name,
+                     NotificationEventType eventType) {
         LocalDateTime sentAt = LocalDateTime.now(clock);
         for (NotificationSenderPort sender : senders) {
             try {
@@ -77,44 +121,28 @@ public class NotificationService {
         log.error("[알림] 모든 채널 실패 [guestId={} event={}]", guestId, eventType);
     }
 
-    /**
-     * guestId 만으로 게스트에게 알림을 발송한다.
-     * 게스트가 존재하지 않으면 경고 로그를 남기고 무시한다.
-     *
-     * <p>비동기로 실행되므로 호출자의 트랜잭션과 독립적이다.
-     */
-    @Async("notificationExecutor")
-    public void notifyByGuestId(Long guestId, NotificationEventType eventType) {
+    void sendByGuestId(Long guestId, NotificationEventType eventType) {
         if (guestId == null) {
             return;
         }
         guestReader.findById(guestId).ifPresentOrElse(
-                guest -> notifyGuest(guest.getId(), guest.getPhone(), guest.getName(), eventType),
+                guest -> sendToGuest(guest.getId(), guest.getPhone(), guest.getName(), eventType),
                 () -> log.warn("[알림] 게스트 미존재 [guestId={}]", guestId)
         );
     }
 
-    /**
-     * userId 만으로 회원에게 알림을 발송한다.
-     * 회원이 존재하지 않으면 경고 로그를 남기고 무시한다.
-     */
-    @Async("notificationExecutor")
-    public void notifyByUserId(Long userId, NotificationEventType eventType) {
+    void sendByUserId(Long userId, NotificationEventType eventType) {
         if (userId == null) {
             return;
         }
         userReader.findById(userId).ifPresentOrElse(
-                user -> notifyUser(userId, user.getPhone(), user.getName(), eventType),
+                user -> sendToUser(userId, user.getPhone(), user.getName(), eventType),
                 () -> log.warn("[알림] 회원 미존재 [userId={}]", userId)
         );
     }
 
-    /**
-     * 회원에게 알림을 발송한다. phone / name 을 이미 알고 있을 때 사용한다.
-     */
-    @Async("notificationExecutor")
-    public void notifyUser(Long userId, String phone, String name,
-                           NotificationEventType eventType) {
+    void sendToUser(Long userId, String phone, String name,
+                    NotificationEventType eventType) {
         LocalDateTime sentAt = LocalDateTime.now(clock);
         for (NotificationSenderPort sender : senders) {
             try {

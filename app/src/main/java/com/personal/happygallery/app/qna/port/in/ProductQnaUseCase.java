@@ -20,4 +20,6 @@ public interface ProductQnaUseCase {
     QnaWithAuthor verifyAndGet(Long qnaId, String rawPassword);
 
     ProductQna reply(Long qnaId, String replyContent, Long adminId);
+
+    QnaWithAuthor replyAndGet(Long qnaId, String replyContent, Long adminId);
 }

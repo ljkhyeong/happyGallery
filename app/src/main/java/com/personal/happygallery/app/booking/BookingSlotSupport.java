@@ -2,9 +2,7 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
-import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
-import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
-import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
+import com.personal.happygallery.app.pass.port.in.PassCreditPort;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.PaymentMethodNotAllowedException;
 import com.personal.happygallery.domain.error.SlotNotAvailableException;
@@ -13,12 +11,8 @@ import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.domain.pass.PassLedger;
-import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
-import java.time.LocalDateTime;
-import java.util.Objects;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,26 +29,20 @@ class BookingSlotSupport {
     private final SlotReaderPort slotReaderPort;
     private final SlotBookingCoordinator slotBookingCoordinator;
     private final BookingStorePort bookingStorePort;
-    private final PassPurchaseReaderPort passPurchaseReaderPort;
-    private final PassPurchaseStorePort passPurchaseStorePort;
-    private final PassLedgerStorePort passLedgerStorePort;
+    private final PassCreditPort passCreditPort;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     BookingSlotSupport(SlotReaderPort slotReaderPort,
                        SlotBookingCoordinator slotBookingCoordinator,
                        BookingStorePort bookingStorePort,
-                       PassPurchaseReaderPort passPurchaseReaderPort,
-                       PassPurchaseStorePort passPurchaseStorePort,
-                       PassLedgerStorePort passLedgerStorePort,
+                       PassCreditPort passCreditPort,
                        BookingSupport bookingSupport,
                        Clock clock) {
         this.slotReaderPort = slotReaderPort;
         this.slotBookingCoordinator = slotBookingCoordinator;
         this.bookingStorePort = bookingStorePort;
-        this.passPurchaseReaderPort = passPurchaseReaderPort;
-        this.passPurchaseStorePort = passPurchaseStorePort;
-        this.passLedgerStorePort = passLedgerStorePort;
+        this.passCreditPort = passCreditPort;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
@@ -82,7 +70,7 @@ class BookingSlotSupport {
     }
 
     /**
-     * 8회권 크레딧 차감: 조회 → (ownerUserId가 non-null이면 소유자 확인) → usable 검증 → ledger → useCredit.
+     * 8회권 크레딧 차감을 PassCreditPort에 위임한다.
      *
      * @param passId       8회권 ID
      * @param ownerUserId  소유자 회원 ID (회원 예약일 때 non-null, 게스트 예약일 때 null)
@@ -90,18 +78,7 @@ class BookingSlotSupport {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     PassPurchase deductPassCredit(Long passId, Long ownerUserId) {
-        PassPurchase pass = passPurchaseReaderPort.findById(passId)
-                .orElseThrow(() -> new NotFoundException("8회권"));
-
-        if (ownerUserId != null && !Objects.equals(pass.getUserId(), ownerUserId)) {
-            throw new NotFoundException("8회권");
-        }
-
-        pass.requireUsable(LocalDateTime.now(clock));
-        passLedgerStorePort.save(new PassLedger(pass, PassLedgerType.USE, 1));
-        pass.useCredit();
-        passPurchaseStorePort.save(pass);
-        return pass;
+        return passCreditPort.deductCredit(passId, ownerUserId);
     }
 
     /** 예약금 결제 수단 검증 — 계좌이체 차단. */

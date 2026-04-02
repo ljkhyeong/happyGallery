@@ -1,15 +1,16 @@
 package com.personal.happygallery.app.order;
 
-import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.order.port.out.OrderItemPort;
 import com.personal.happygallery.app.payment.RefundExecutionService;
 import com.personal.happygallery.app.product.InventoryService;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,16 +27,16 @@ class OrderRefundSupport {
     private final OrderItemPort orderItemPort;
     private final InventoryService inventoryService;
     private final RefundExecutionService refundExecutionService;
-    private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     OrderRefundSupport(OrderItemPort orderItemPort,
                        InventoryService inventoryService,
                        RefundExecutionService refundExecutionService,
-                       NotificationService notificationService) {
+                       ApplicationEventPublisher eventPublisher) {
         this.orderItemPort = orderItemPort;
         this.inventoryService = inventoryService;
         this.refundExecutionService = refundExecutionService;
-        this.notificationService = notificationService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -52,7 +53,7 @@ class OrderRefundSupport {
 
         Refund refund = refundExecutionService.processOrderRefund(order.getId(), order.getTotalAmount());
         if (refund.getStatus() == RefundStatus.SUCCEEDED) {
-            notificationService.notifyByGuestId(order.getGuestId(), NotificationEventType.ORDER_REFUNDED);
+            eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(order.getGuestId(), NotificationEventType.ORDER_REFUNDED));
         }
     }
 }

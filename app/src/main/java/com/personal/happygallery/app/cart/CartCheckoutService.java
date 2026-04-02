@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.cart;
 
+import com.personal.happygallery.app.cart.port.in.CartCheckoutUseCase;
 import com.personal.happygallery.app.cart.port.in.CartUseCase;
 import com.personal.happygallery.app.cart.port.in.CartUseCase.CartItemView;
 import com.personal.happygallery.app.cart.port.in.CartUseCase.CartView;
@@ -12,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class CartCheckoutService {
+public class CartCheckoutService implements CartCheckoutUseCase {
 
     private final CartUseCase cartUseCase;
     private final OrderCreationUseCase orderCreationUseCase;

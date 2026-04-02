@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-03-28 (회원 장바구니/소셜 로그인 반영 상태)
+> 작성 시점: 2026-04-02 (알림 이벤트 전환/예약-패스 경계 정리 반영 상태)
 
 ---
 
@@ -22,6 +22,10 @@
 
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - 알림 발송 흐름 정리 — `NotificationRequestedEvent` + `NotificationEventListener`를 추가해 주문/예약/배치에서 알림 요청을 트랜잭션 커밋 후 비동기 이벤트로 발행하도록 바꿨다. `NotificationService`의 기존 `@Async` 메서드는 하위 호환용으로 유지하되 신규 호출은 event publisher 기준으로 모은다
+  - 예약/패스 경계 정리 — 예약 생성/취소 쪽의 8회권 크레딧 차감·복구를 `PassCreditPort`로 위임했고, pass 환불 시 미래 예약 일괄 취소는 `BookingCancellationPort`로 넘겼다. 관리자 no-show 유스케이스도 `PassNoShowUseCase` 대신 `BookingNoShowUseCase`로 이름과 소속을 바로잡았다
+  - 조회/응답 조립 정리 — 장바구니 checkout은 `CartCheckoutUseCase`를 통해 주입하고, 관리자 Q&A/문의 답변은 `replyAndGet`으로 저장과 응답 조립을 한 번에 처리하도록 정리했다
+  - README 동기화 — 실제 멀티 모듈 구성을 `app/domain/infra`로 바로잡고, 관리자 검색/대시보드 집계에 MyBatis를 쓰는 점을 README에 명시했다
   - 외부 HTTP 풀링 기준선 추가 — `prod` 프로필의 Kakao/SMS/Google OAuth `RestClient`를 서비스별 Apache HttpClient 5 풀로 분리했다. 기본값은 `acquire 1s`, `connect 2s`, `read 5s`, `keep-alive 30s`이며, 알림은 max 20, Google OAuth는 max 10으로 시작한다. 상세 의사결정은 ADR-0029를 참고한다
   - timeout 기준선 정리 — 프론트 fetch timeout을 35초, nginx `proxy_read_timeout`을 30초, Hikari acquire timeout을 2초, 기본 트랜잭션 timeout을 10초, JPA query timeout을 5초, MySQL `innodb_lock_wait_timeout` 세션값을 3초로 맞췄다. 외부 알림/OAuth 호출은 read 5초를 유지하면서 acquire 1초, connect 2초, keep-alive 30초, 서비스별 max connections 기준을 추가했고, 동기 MVC 전체 요청 deadline은 별도 필터/컨테이너 커스터마이저 후보로 남겼다. 상세 의사결정은 ADR-0030과 ADR-0029를 참고한다
   - ingress keep-alive 기준선 추가 — `nginx`는 `client -> nginx keepalive_timeout 15s`를 명시하고, `nginx -> app`은 upstream keep-alive를 켰다. 이 hop에서는 caller가 먼저 연결을 정리하고 callee가 더 오래 유지하도록 시작값을 맞춘다. 상세 의사결정은 ADR-0030을 참고한다

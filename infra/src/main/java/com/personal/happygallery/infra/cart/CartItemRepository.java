@@ -8,7 +8,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CartItemRepository extends JpaRepository<CartItem, Long>,
-        CartItemStorePort, CartItemReaderPort {
+        CartItemReaderPort, CartItemStorePort {
 
     @Override
     List<CartItem> findByUserId(Long userId);
