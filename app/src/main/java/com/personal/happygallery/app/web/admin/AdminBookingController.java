@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.booking.port.in.AdminBookingQueryUseCase;
-import com.personal.happygallery.app.pass.port.in.PassNoShowUseCase;
+import com.personal.happygallery.app.booking.port.in.BookingNoShowUseCase;
 import com.personal.happygallery.app.search.dto.AdminBookingSearchRow;
 import com.personal.happygallery.app.search.port.in.AdminBookingSearchUseCase;
 import com.personal.happygallery.app.web.OffsetPage;
@@ -25,14 +25,14 @@ public class AdminBookingController {
 
     private final AdminBookingQueryUseCase adminBookingQueryUseCase;
     private final AdminBookingSearchUseCase adminBookingSearchUseCase;
-    private final PassNoShowUseCase passNoShowUseCase;
+    private final BookingNoShowUseCase bookingNoShowUseCase;
 
     public AdminBookingController(AdminBookingQueryUseCase adminBookingQueryUseCase,
                                   AdminBookingSearchUseCase adminBookingSearchUseCase,
-                                  PassNoShowUseCase passNoShowUseCase) {
+                                  BookingNoShowUseCase bookingNoShowUseCase) {
         this.adminBookingQueryUseCase = adminBookingQueryUseCase;
         this.adminBookingSearchUseCase = adminBookingSearchUseCase;
-        this.passNoShowUseCase = passNoShowUseCase;
+        this.bookingNoShowUseCase = bookingNoShowUseCase;
     }
 
     /** GET /admin/bookings?date=2026-03-08&status=BOOKED — 날짜별 예약 조회 (상태 필터 선택) */
@@ -58,7 +58,7 @@ public class AdminBookingController {
     /** 결석 처리 — 8회권 크레딧 소멸 유지, 상태 NO_SHOW 전이 */
     @PostMapping("/{bookingId}/no-show")
     public BookingNoShowResponse markNoShow(@PathVariable Long bookingId) {
-        Booking booking = passNoShowUseCase.markNoShow(bookingId);
+        Booking booking = bookingNoShowUseCase.markNoShow(bookingId);
         return BookingNoShowResponse.from(booking);
     }
 }

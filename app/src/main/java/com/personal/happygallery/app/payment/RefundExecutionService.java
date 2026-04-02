@@ -1,10 +1,8 @@
 package com.personal.happygallery.app.payment;
 
-import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.app.payment.port.out.PaymentPort;
 import com.personal.happygallery.app.payment.port.out.RefundPort;
 import com.personal.happygallery.app.payment.port.out.RefundResult;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Refund;
 import org.slf4j.Logger;
@@ -25,14 +23,11 @@ public class RefundExecutionService {
     private static final Logger log = LoggerFactory.getLogger(RefundExecutionService.class);
 
     private final RefundPort refundPort;
-    private final BookingReaderPort bookingReaderPort;
     private final PaymentPort paymentPort;
 
     public RefundExecutionService(RefundPort refundPort,
-                                  BookingReaderPort bookingReaderPort,
                                   PaymentPort paymentPort) {
         this.refundPort = refundPort;
-        this.bookingReaderPort = bookingReaderPort;
         this.paymentPort = paymentPort;
     }
 
@@ -43,11 +38,9 @@ public class RefundExecutionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Refund processBookingRefund(Long bookingId, long amount) {
-        Booking booking = bookingReaderPort.findById(bookingId)
-                .orElseThrow(() -> new NotFoundException("예약"));
+    public Refund processBookingRefund(Booking booking, long amount) {
         Refund refund = refundPort.save(Refund.forBooking(booking, amount));
-        return executeRefund(refund, "bookingId=" + bookingId);
+        return executeRefund(refund, "bookingId=" + booking.getId());
     }
 
     public Refund executeRefund(Refund refund, String target) {

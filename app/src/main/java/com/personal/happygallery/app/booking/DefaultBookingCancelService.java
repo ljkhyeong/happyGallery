@@ -2,9 +2,8 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
+import com.personal.happygallery.app.pass.port.in.PassCreditPort;
 import com.personal.happygallery.app.payment.RefundExecutionService;
-import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
-import com.personal.happygallery.app.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.domain.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
@@ -12,9 +11,6 @@ import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.payment.RefundStatus;
-import com.personal.happygallery.domain.pass.PassLedger;
-import com.personal.happygallery.domain.pass.PassLedgerType;
-import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,23 +21,20 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
 
     private final BookingStorePort bookingStorePort;
     private final RefundExecutionService refundExecutionService;
-    private final PassPurchaseStorePort passPurchaseStorePort;
-    private final PassLedgerStorePort passLedgerStorePort;
+    private final PassCreditPort passCreditPort;
     private final BookingSlotSupport creationSupport;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     public DefaultBookingCancelService(BookingStorePort bookingStorePort,
                                 RefundExecutionService refundExecutionService,
-                                PassPurchaseStorePort passPurchaseStorePort,
-                                PassLedgerStorePort passLedgerStorePort,
+                                PassCreditPort passCreditPort,
                                 BookingSlotSupport creationSupport,
                                 BookingSupport bookingSupport,
                                 Clock clock) {
         this.bookingStorePort = bookingStorePort;
         this.refundExecutionService = refundExecutionService;
-        this.passPurchaseStorePort = passPurchaseStorePort;
-        this.passLedgerStorePort = passLedgerStorePort;
+        this.passCreditPort = passCreditPort;
         this.creationSupport = creationSupport;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
@@ -105,17 +98,13 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
             return new CancellationCompensation(true, false);
         }
 
-        Refund refund = refundExecutionService.processBookingRefund(booking.getId(), booking.getDepositAmount());
+        Refund refund = refundExecutionService.processBookingRefund(booking, booking.getDepositAmount());
         boolean depositRefundSucceeded = refund.getStatus() == RefundStatus.SUCCEEDED;
         return new CancellationCompensation(true, depositRefundSucceeded);
     }
 
     private void restorePassCredit(Booking booking) {
-        PassPurchase pass = booking.getPassPurchase();
-        passLedgerStorePort.save(
-                new PassLedger(pass, PassLedgerType.REFUND, 1, booking.getId()));
-        pass.refundCredit();
-        passPurchaseStorePort.save(pass);
+        passCreditPort.restoreCredit(booking.getPassPurchase().getId(), booking.getId());
     }
 
     private record CancellationCompensation(boolean refundable, boolean depositRefundSucceeded) {}

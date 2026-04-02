@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.customer;
 
-import com.personal.happygallery.app.cart.CartCheckoutService;
+import com.personal.happygallery.app.cart.port.in.CartCheckoutUseCase;
 import com.personal.happygallery.app.cart.port.in.CartUseCase;
 import com.personal.happygallery.app.cart.port.in.CartUseCase.CartView;
 import com.personal.happygallery.app.web.CustomerAuthFilter;
@@ -27,11 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class MeCartController {
 
     private final CartUseCase cartUseCase;
-    private final CartCheckoutService cartCheckoutService;
+    private final CartCheckoutUseCase cartCheckoutUseCase;
 
-    public MeCartController(CartUseCase cartUseCase, CartCheckoutService cartCheckoutService) {
+    public MeCartController(CartUseCase cartUseCase, CartCheckoutUseCase cartCheckoutUseCase) {
         this.cartUseCase = cartUseCase;
-        this.cartCheckoutService = cartCheckoutService;
+        this.cartCheckoutUseCase = cartCheckoutUseCase;
     }
 
     @GetMapping
@@ -62,7 +62,7 @@ public class MeCartController {
     @PostMapping("/checkout")
     @ResponseStatus(HttpStatus.CREATED)
     public MyOrderSummary checkout(HttpServletRequest request) {
-        Order order = cartCheckoutService.checkout(getUserId(request));
+        Order order = cartCheckoutUseCase.checkout(getUserId(request));
         return MyOrderSummary.from(order);
     }
 

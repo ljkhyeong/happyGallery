@@ -80,6 +80,17 @@ public class DefaultInquiryService implements InquiryUseCase {
         return inquiryStore.save(inquiry);
     }
 
+    @Transactional
+    public InquiryWithUser replyAndGet(Long inquiryId, String replyContent, Long adminId) {
+        Inquiry inquiry = inquiryReader.findById(inquiryId)
+                .orElseThrow(() -> new NotFoundException("문의"));
+        inquiry.reply(replyContent, adminId, LocalDateTime.now(clock));
+        inquiry = inquiryStore.save(inquiry);
+        String name = userReader.findById(inquiry.getUserId())
+                .map(User::getName).orElse("탈퇴회원");
+        return new InquiryWithUser(inquiry, name);
+    }
+
     private Map<Long, User> batchFetchUsers(List<Inquiry> inquiries) {
         List<Long> userIds = inquiries.stream().map(Inquiry::getUserId).distinct().toList();
         return userReader.findAllById(userIds).stream()

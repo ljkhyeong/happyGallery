@@ -2,7 +2,6 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.booking.port.out.BookingHistoryPort;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
-import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.app.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
@@ -10,7 +9,9 @@ import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.util.Objects;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,16 +21,16 @@ class BookingSupport {
 
     private final BookingReaderPort bookingReaderPort;
     private final BookingHistoryPort bookingHistoryPort;
-    private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
     private final GuestTokenService guestTokenService;
 
     BookingSupport(BookingReaderPort bookingReaderPort,
                    BookingHistoryPort bookingHistoryPort,
-                   NotificationService notificationService,
+                   ApplicationEventPublisher eventPublisher,
                    GuestTokenService guestTokenService) {
         this.bookingReaderPort = bookingReaderPort;
         this.bookingHistoryPort = bookingHistoryPort;
-        this.notificationService = notificationService;
+        this.eventPublisher = eventPublisher;
         this.guestTokenService = guestTokenService;
     }
 
@@ -55,13 +56,13 @@ class BookingSupport {
     /** booking 의 guest/member 를 자동 판별하여 알림을 발송한다. */
     void notifyBooker(Booking booking, NotificationEventType eventType) {
         if (booking.getUserId() != null) {
-            notificationService.notifyByUserId(booking.getUserId(), eventType);
+            eventPublisher.publishEvent(NotificationRequestedEvent.forUser(booking.getUserId(), eventType));
         } else if (booking.getGuest() != null) {
-            notificationService.notifyGuest(
+            eventPublisher.publishEvent(NotificationRequestedEvent.forGuestWithContact(
                     booking.getGuest().getId(),
                     booking.getGuest().getPhone(),
                     booking.getGuest().getName(),
-                    eventType);
+                    eventType));
         }
     }
 }

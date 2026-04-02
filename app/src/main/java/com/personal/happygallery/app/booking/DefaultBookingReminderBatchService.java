@@ -4,16 +4,17 @@ import com.personal.happygallery.app.batch.BatchExecutor;
 import com.personal.happygallery.app.batch.BatchResult;
 import com.personal.happygallery.app.booking.port.in.BookingReminderBatchUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingReaderPort;
-import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 /**
@@ -28,14 +29,14 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
     private static final Logger log = LoggerFactory.getLogger(DefaultBookingReminderBatchService.class);
 
     private final BookingReaderPort bookingReaderPort;
-    private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     public DefaultBookingReminderBatchService(BookingReaderPort bookingReaderPort,
-                                       NotificationService notificationService,
+                                       ApplicationEventPublisher eventPublisher,
                                        Clock clock) {
         this.bookingReaderPort = bookingReaderPort;
-        this.notificationService = notificationService;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -73,11 +74,11 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
 
     private void sendReminder(Booking booking, NotificationEventType eventType) {
         if (booking.getUserId() != null) {
-            notificationService.notifyByUserId(booking.getUserId(), eventType);
+            eventPublisher.publishEvent(NotificationRequestedEvent.forUser(booking.getUserId(), eventType));
             log.info("리마인드 발송 [bookingId={}, userId={}, type={}]",
                     booking.getId(), booking.getUserId(), eventType);
         } else if (booking.getGuest() != null) {
-            notificationService.notifyByGuestId(booking.getGuest().getId(), eventType);
+            eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(booking.getGuest().getId(), eventType));
             log.info("리마인드 발송 [bookingId={}, guestId={}, type={}]",
                     booking.getId(), booking.getGuest().getId(), eventType);
         } else {
