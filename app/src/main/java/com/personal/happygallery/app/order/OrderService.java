@@ -1,9 +1,9 @@
 package com.personal.happygallery.app.order;
 
-import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.order.port.out.OrderItemPort;
 import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.app.product.InventoryService;
@@ -11,6 +11,7 @@ import com.personal.happygallery.app.token.GuestTokenService;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,20 +28,20 @@ public class OrderService {
     private final OrderStorePort orderStore;
     private final OrderItemPort orderItemPort;
     private final InventoryService inventoryService;
-    private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
     private final GuestTokenService guestTokenService;
     private final Clock clock;
 
     public OrderService(OrderStorePort orderStore,
                         OrderItemPort orderItemPort,
                         InventoryService inventoryService,
-                        NotificationService notificationService,
+                        ApplicationEventPublisher eventPublisher,
                         GuestTokenService guestTokenService,
                         Clock clock) {
         this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
         this.inventoryService = inventoryService;
-        this.notificationService = notificationService;
+        this.eventPublisher = eventPublisher;
         this.guestTokenService = guestTokenService;
         this.clock = clock;
     }
@@ -75,7 +76,7 @@ public class OrderService {
             inventoryService.deduct(item.productId(), item.qty());
         }
 
-        notificationService.notifyByGuestId(guestId, NotificationEventType.ORDER_PAID);
+        eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(guestId, NotificationEventType.ORDER_PAID));
 
         return new OrderCreationResult(order, rawToken);
     }

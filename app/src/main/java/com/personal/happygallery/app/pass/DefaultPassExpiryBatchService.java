@@ -3,14 +3,15 @@ package com.personal.happygallery.app.pass;
 import com.personal.happygallery.app.batch.BatchExecutor;
 import com.personal.happygallery.app.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.app.batch.BatchResult;
-import com.personal.happygallery.app.notification.NotificationService;
 import com.personal.happygallery.app.notification.port.out.NotificationLogReaderPort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,18 +23,18 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
     private final PassPurchaseReaderPort passPurchaseReader;
     private final PassExpireProcessor passExpireProcessor;
     private final NotificationLogReaderPort notificationLogReader;
-    private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     public DefaultPassExpiryBatchService(PassPurchaseReaderPort passPurchaseReader,
                                   PassExpireProcessor passExpireProcessor,
                                   NotificationLogReaderPort notificationLogReader,
-                                  NotificationService notificationService,
+                                  ApplicationEventPublisher eventPublisher,
                                   Clock clock) {
         this.passPurchaseReader = passPurchaseReader;
         this.passExpireProcessor = passExpireProcessor;
         this.notificationLogReader = notificationLogReader;
-        this.notificationService = notificationService;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -99,7 +100,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
                             sentEnd)) {
                         return false;
                     }
-                    notificationService.notifyByUserId(pass.getUserId(), NotificationEventType.PASS_EXPIRY_SOON);
+                    eventPublisher.publishEvent(NotificationRequestedEvent.forUser(pass.getUserId(), NotificationEventType.PASS_EXPIRY_SOON));
                     return true;
                 },
                 "8회권 만료 알림");
