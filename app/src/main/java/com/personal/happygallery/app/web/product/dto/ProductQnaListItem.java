@@ -1,5 +1,7 @@
 package com.personal.happygallery.app.web.product.dto;
 
+import static com.personal.happygallery.app.web.MaskingUtil.maskName;
+
 import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase.QnaWithAuthor;
 import com.personal.happygallery.domain.qna.ProductQna;
 import java.time.LocalDateTime;
@@ -14,10 +16,5 @@ public record ProductQnaListItem(
         return new ProductQnaListItem(
                 q.getId(), displayTitle, maskName(qa.authorName()),
                 q.isSecret(), q.hasReply(), q.getCreatedAt());
-    }
-
-    private static String maskName(String name) {
-        if (name == null || name.length() <= 1) return "*";
-        return name.charAt(0) + "*".repeat(name.length() - 1);
     }
 }
