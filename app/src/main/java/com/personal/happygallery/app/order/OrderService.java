@@ -1,5 +1,6 @@
 package com.personal.happygallery.app.order;
 
+import com.personal.happygallery.app.order.port.in.OrderCreationUseCase.OrderCreationResult;
 import com.personal.happygallery.app.order.port.out.OrderItemPort;
 import com.personal.happygallery.app.order.port.out.OrderStorePort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
@@ -59,8 +60,6 @@ public class OrderService {
      * @param items   주문 상품 목록
      * @return 생성된 주문
      */
-    public record OrderCreationResult(Order order, String rawAccessToken) {}
-
     public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items) {
         LocalDateTime paidAt = LocalDateTime.now(clock);
         long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();

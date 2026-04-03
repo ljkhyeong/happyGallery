@@ -13,12 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
-public class CartCheckoutService implements CartCheckoutUseCase {
+public class DefaultCartCheckoutService implements CartCheckoutUseCase {
 
     private final CartUseCase cartUseCase;
     private final OrderCreationUseCase orderCreationUseCase;
 
-    public CartCheckoutService(CartUseCase cartUseCase, OrderCreationUseCase orderCreationUseCase) {
+    public DefaultCartCheckoutService(CartUseCase cartUseCase, OrderCreationUseCase orderCreationUseCase) {
         this.cartUseCase = cartUseCase;
         this.orderCreationUseCase = orderCreationUseCase;
     }
