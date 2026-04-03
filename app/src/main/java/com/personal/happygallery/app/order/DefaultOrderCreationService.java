@@ -33,7 +33,7 @@ public class DefaultOrderCreationService implements OrderCreationUseCase {
     /**
      * 휴대폰 인증 기반 주문 생성.
      */
-    public OrderService.OrderCreationResult createOrderByPhone(CreateOrderByPhoneCommand command) {
+    public OrderCreationResult createOrderByPhone(CreateOrderByPhoneCommand command) {
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(
                 command.phone(),
                 command.verificationCode(),

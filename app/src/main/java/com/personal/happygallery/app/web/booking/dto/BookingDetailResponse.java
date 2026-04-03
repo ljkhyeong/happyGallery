@@ -1,5 +1,7 @@
 package com.personal.happygallery.app.web.booking.dto;
 
+import static com.personal.happygallery.app.web.MaskingUtil.maskPhoneMiddle;
+
 import com.personal.happygallery.domain.booking.Booking;
 import java.time.LocalDateTime;
 
@@ -18,7 +20,7 @@ public record BookingDetailResponse(
 ) {
     public static BookingDetailResponse from(Booking booking) {
         String rawPhone = booking.getGuest().getPhone();
-        String maskedPhone = maskPhone(rawPhone);
+        String maskedPhone = maskPhoneMiddle(rawPhone);
         return new BookingDetailResponse(
                 booking.getId(),
                 "BK-%08d".formatted(booking.getId()),
@@ -32,11 +34,5 @@ public record BookingDetailResponse(
                 booking.getGuest().getName(),
                 maskedPhone
         );
-    }
-
-    /** 010-1234-5678 → 010****5678 (가운데 4자리 마스킹) */
-    private static String maskPhone(String phone) {
-        if (phone == null || phone.length() < 7) return phone;
-        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 }
