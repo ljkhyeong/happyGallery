@@ -1,9 +1,5 @@
-import { api } from "@/shared/api";
+import { adminHeaders as h, api } from "@/shared/api";
 import type { CursorPage, AdminOrderResponse, OrderProductionResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest, ShippingResponse, OrderHistoryResponse } from "@/shared/types";
-
-function h(token: string) {
-  return { Authorization: `Bearer ${token}` };
-}
 
 export function fetchOrders(
   adminKey: string,
