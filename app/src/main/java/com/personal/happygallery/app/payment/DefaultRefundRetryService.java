@@ -28,7 +28,7 @@ public class DefaultRefundRetryService implements RefundRetryUseCase {
     /** FAILED 상태인 특정 환불을 재시도한다. */
     public void retry(Long refundId) {
         Refund refund = refundPort.findById(refundId)
-                .orElseThrow(() -> new NotFoundException("환불"));
+                .orElseThrow(NotFoundException.supplier("환불"));
 
         if (refund.getStatus() != RefundStatus.FAILED) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,

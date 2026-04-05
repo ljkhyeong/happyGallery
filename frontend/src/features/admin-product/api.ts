@@ -1,9 +1,5 @@
-import { api } from "@/shared/api";
+import { adminHeaders as h, api } from "@/shared/api";
 import type { ProductResponse, CreateProductRequest } from "@/shared/types";
-
-function h(token: string) {
-  return { Authorization: `Bearer ${token}` };
-}
 
 export function fetchProducts(adminKey: string): Promise<ProductResponse[]> {
   return api<ProductResponse[]>("/admin/products", {

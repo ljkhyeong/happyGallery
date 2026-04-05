@@ -104,21 +104,7 @@ public class NotificationService {
 
     void sendToGuest(Long guestId, String phone, String name,
                      NotificationEventType eventType) {
-        LocalDateTime sentAt = LocalDateTime.now(clock);
-        for (NotificationSenderPort sender : senders) {
-            try {
-                boolean success = sender.send(phone, name, eventType);
-                if (success) {
-                    save(NotificationLog.success(guestId, null, sender.channel(), eventType, sentAt));
-                    return;
-                }
-                save(NotificationLog.failed(guestId, null, sender.channel(), eventType, "발송 실패", sentAt));
-            } catch (Exception e) {
-                log.warn("[알림] {} 발송 예외 [guestId={} event={}]", sender.channel(), guestId, eventType, e);
-                save(NotificationLog.failed(guestId, null, sender.channel(), eventType, e.getMessage(), sentAt));
-            }
-        }
-        log.error("[알림] 모든 채널 실패 [guestId={} event={}]", guestId, eventType);
+        sendNotification(guestId, null, phone, name, eventType);
     }
 
     void sendByGuestId(Long guestId, NotificationEventType eventType) {
@@ -143,21 +129,29 @@ public class NotificationService {
 
     void sendToUser(Long userId, String phone, String name,
                     NotificationEventType eventType) {
+        sendNotification(null, userId, phone, name, eventType);
+    }
+
+    private void sendNotification(Long guestId, Long userId, String phone, String name,
+                                  NotificationEventType eventType) {
         LocalDateTime sentAt = LocalDateTime.now(clock);
+        Long recipientId = guestId != null ? guestId : userId;
+        String recipientLabel = guestId != null ? "guestId" : "userId";
+
         for (NotificationSenderPort sender : senders) {
             try {
                 boolean success = sender.send(phone, name, eventType);
                 if (success) {
-                    save(NotificationLog.success(null, userId, sender.channel(), eventType, sentAt));
+                    save(NotificationLog.success(guestId, userId, sender.channel(), eventType, sentAt));
                     return;
                 }
-                save(NotificationLog.failed(null, userId, sender.channel(), eventType, "발송 실패", sentAt));
+                save(NotificationLog.failed(guestId, userId, sender.channel(), eventType, "발송 실패", sentAt));
             } catch (Exception e) {
-                log.warn("[알림] {} 발송 예외 [userId={} event={}]", sender.channel(), userId, eventType, e);
-                save(NotificationLog.failed(null, userId, sender.channel(), eventType, e.getMessage(), sentAt));
+                log.warn("[알림] {} 발송 예외 [{}={} event={}]", sender.channel(), recipientLabel, recipientId, eventType, e);
+                save(NotificationLog.failed(guestId, userId, sender.channel(), eventType, e.getMessage(), sentAt));
             }
         }
-        log.error("[알림] 모든 채널 실패 [userId={} event={}]", userId, eventType);
+        log.error("[알림] 모든 채널 실패 [{}={} event={}]", recipientLabel, recipientId, eventType);
     }
 
     private void save(NotificationLog entry) {

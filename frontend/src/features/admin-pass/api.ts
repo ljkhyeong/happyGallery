@@ -1,9 +1,5 @@
-import { api } from "@/shared/api";
+import { adminHeaders as h, api } from "@/shared/api";
 import type { BatchResponse, PassRefundResponse } from "@/shared/types";
-
-function h(token: string) {
-  return { Authorization: `Bearer ${token}` };
-}
 
 export function expirePasses(adminKey: string): Promise<BatchResponse> {
   return api("/admin/passes/expire", { method: "POST", headers: h(adminKey) });

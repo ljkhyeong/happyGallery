@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.admin.port.out;
 
-import java.time.Instant;
+import com.personal.happygallery.app.admin.port.AdminSession;
 import java.util.Optional;
 
 /**
@@ -19,6 +19,4 @@ public interface AdminSessionPort {
 
     /** 세션을 제거한다. */
     void remove(String token);
-
-    record AdminSession(Long adminUserId, String username, Instant createdAt) {}
 }

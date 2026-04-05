@@ -7,6 +7,8 @@ dependencies {
 	implementation 'org.springframework:spring-web'
 	implementation 'org.apache.httpcomponents.client5:httpclient5'
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
+	implementation 'org.springframework.boot:spring-boot-starter-json'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'io.micrometer:micrometer-core'
 	implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.3.0'
 	implementation 'io.github.resilience4j:resilience4j-timelimiter:2.3.0'

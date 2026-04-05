@@ -33,7 +33,7 @@ public class DefaultOrderCreationService implements OrderCreationUseCase {
     /**
      * 휴대폰 인증 기반 주문 생성.
      */
-    public OrderService.OrderCreationResult createOrderByPhone(CreateOrderByPhoneCommand command) {
+    public OrderCreationResult createOrderByPhone(CreateOrderByPhoneCommand command) {
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(
                 command.phone(),
                 command.verificationCode(),
@@ -54,7 +54,7 @@ public class DefaultOrderCreationService implements OrderCreationUseCase {
         return items.stream()
                 .map(item -> {
                     Product product = productReader.findById(item.productId())
-                            .orElseThrow(() -> new NotFoundException("상품"));
+                            .orElseThrow(NotFoundException.supplier("상품"));
                     return new OrderService.OrderItemRequest(
                             item.productId(), item.qty(), product.getPrice());
                 })

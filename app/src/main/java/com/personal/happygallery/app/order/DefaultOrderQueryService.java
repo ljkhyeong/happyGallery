@@ -42,7 +42,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     public OrderDetail findMyOrder(Long id, Long userId) {
         Order order = orderReader.findById(id)
                 .filter(o -> Objects.equals(o.getUserId(), userId))
-                .orElseThrow(() -> new NotFoundException("주문"));
+                .orElseThrow(NotFoundException.supplier("주문"));
         List<OrderItem> items = orderItemPort.findByOrder(order);
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(id).orElse(null);
         return new OrderDetail(order, items, fulfillment);
@@ -52,7 +52,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     public OrderDetail getOrderByToken(Long orderId, String rawToken) {
         String tokenHash = guestTokenService.resolveTokenHash(rawToken);
         Order order = orderReader.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("주문"));
+                .orElseThrow(NotFoundException.supplier("주문"));
         if (!Objects.equals(order.getAccessToken(), tokenHash)) {
             throw new NotFoundException("주문");
         }

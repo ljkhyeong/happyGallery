@@ -1,6 +1,5 @@
 package com.personal.happygallery.app.order.port.in;
 
-import com.personal.happygallery.app.order.OrderService.OrderCreationResult;
 import com.personal.happygallery.domain.order.Order;
 import java.util.List;
 
@@ -19,6 +18,8 @@ public interface OrderCreationUseCase {
             items = List.copyOf(items);
         }
     }
+
+    record OrderCreationResult(Order order, String rawAccessToken) {}
 
     OrderCreationResult createOrderByPhone(CreateOrderByPhoneCommand command);
 

@@ -75,7 +75,7 @@ public class DefaultCartService implements CartUseCase {
     @Override
     public void addItem(Long userId, Long productId, int qty) {
         productReader.findById(productId)
-                .orElseThrow(() -> new NotFoundException("상품"));
+                .orElseThrow(NotFoundException.supplier("상품"));
         LocalDateTime now = LocalDateTime.now(clock);
 
         cartItemReader.findByUserIdAndProductId(userId, productId)
@@ -87,14 +87,14 @@ public class DefaultCartService implements CartUseCase {
     @Override
     public void updateItemQty(Long userId, Long productId, int qty) {
         CartItem item = cartItemReader.findByUserIdAndProductId(userId, productId)
-                .orElseThrow(() -> new NotFoundException("장바구니 항목"));
+                .orElseThrow(NotFoundException.supplier("장바구니 항목"));
         item.updateQty(qty, LocalDateTime.now(clock));
     }
 
     @Override
     public void removeItem(Long userId, Long productId) {
         CartItem item = cartItemReader.findByUserIdAndProductId(userId, productId)
-                .orElseThrow(() -> new NotFoundException("장바구니 항목"));
+                .orElseThrow(NotFoundException.supplier("장바구니 항목"));
         cartItemStore.delete(item);
     }
 

@@ -28,6 +28,6 @@ public class DefaultPassQueryService implements PassQueryUseCase {
     public PassPurchase findMyPass(Long id, Long userId) {
         return passPurchaseReader.findById(id)
                 .filter(p -> Objects.equals(p.getUserId(), userId))
-                .orElseThrow(() -> new NotFoundException("8회권"));
+                .orElseThrow(NotFoundException.supplier("8회권"));
     }
 }

@@ -34,7 +34,7 @@ public class OrderAutoRefundProcessor {
     @OptimisticLockRetryable
     public boolean process(Long orderId, LocalDateTime now) {
         Order order = orderReader.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("주문"));
+                .orElseThrow(NotFoundException.supplier("주문"));
         if (!order.canAutoRefund(now)) {
             return false;
         }
