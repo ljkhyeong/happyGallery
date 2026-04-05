@@ -3,7 +3,7 @@ package com.personal.happygallery.app.web;
 import com.personal.happygallery.app.admin.port.out.AdminSessionPort;
 import com.personal.happygallery.app.admin.port.out.AdminSessionPort.AdminSession;
 import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.app.web.error.ErrorResponse;
+
 import com.personal.happygallery.config.properties.AdminProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -58,10 +58,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
 
         if (isAdminPath(uri) && !isAuthPath(uri)) {
             if (!isAuthenticated(httpRequest)) {
-                httpResponse.setStatus(ErrorCode.UNAUTHORIZED.httpStatus);
-                httpResponse.setContentType("application/json;charset=UTF-8");
-                httpResponse.getWriter().write(
-                        objectMapper.writeValueAsString(ErrorResponse.of(ErrorCode.UNAUTHORIZED)));
+                FilterErrorResponseWriter.write(httpResponse, objectMapper, ErrorCode.UNAUTHORIZED);
                 return;
             }
         }
