@@ -142,7 +142,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
     private User findUser(Long userId) {
         return userReader.findById(userId)
-                .orElseThrow(() -> new NotFoundException("회원"));
+                .orElseThrow(NotFoundException.supplier("회원"));
     }
 
     private PhoneVerification findValidVerification(String phone, String verificationCode) {

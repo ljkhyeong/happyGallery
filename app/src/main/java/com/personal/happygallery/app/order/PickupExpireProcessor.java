@@ -34,13 +34,13 @@ public class PickupExpireProcessor {
     @OptimisticLockRetryable
     public boolean process(Long orderId, LocalDateTime now) {
         Order order = orderReader.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("주문"));
+                .orElseThrow(NotFoundException.supplier("주문"));
         if (order.getStatus() != OrderStatus.PICKUP_READY) {
             return false;
         }
 
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(() -> new NotFoundException("이행 정보"));
+                .orElseThrow(NotFoundException.supplier("이행 정보"));
         if (fulfillment.getPickupDeadlineAt() == null || !fulfillment.getPickupDeadlineAt().isBefore(now)) {
             return false;
         }

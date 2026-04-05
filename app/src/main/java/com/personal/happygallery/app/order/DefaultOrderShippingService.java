@@ -50,7 +50,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     @OptimisticLockRetryable
     public ShippingResult prepareShipping(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("주문"));
+                .orElseThrow(NotFoundException.supplier("주문"));
         order.markShippingPreparing();
 
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
@@ -70,7 +70,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     @OptimisticLockRetryable
     public ShippingResult markShipped(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("주문"));
+                .orElseThrow(NotFoundException.supplier("주문"));
         order.markShipped();
 
         orderHistoryPort.save(
@@ -78,7 +78,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
         orderStore.save(order);
 
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(() -> new NotFoundException("이행 정보"));
+                .orElseThrow(NotFoundException.supplier("이행 정보"));
         return ShippingResult.of(order, fulfillment);
     }
 
@@ -88,7 +88,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     @OptimisticLockRetryable
     public ShippingResult markDelivered(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("주문"));
+                .orElseThrow(NotFoundException.supplier("주문"));
         order.markDelivered();
 
         orderHistoryPort.save(
@@ -96,7 +96,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
         orderStore.save(order);
 
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(() -> new NotFoundException("이행 정보"));
+                .orElseThrow(NotFoundException.supplier("이행 정보"));
         return ShippingResult.of(order, fulfillment);
     }
 }

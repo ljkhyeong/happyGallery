@@ -48,7 +48,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
     @OptimisticLockRetryable
     public PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt) {
         Order order = orderReader.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("주문"));
+                .orElseThrow(NotFoundException.supplier("주문"));
         order.markPickupReady();
 
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
@@ -72,11 +72,11 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
     @OptimisticLockRetryable
     public PickupResult confirmPickup(Long orderId) {
         Order order = orderReader.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("주문"));
+                .orElseThrow(NotFoundException.supplier("주문"));
         order.confirmPickup();
 
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(() -> new NotFoundException("이행 정보"));
+                .orElseThrow(NotFoundException.supplier("이행 정보"));
         fulfillmentPort.save(fulfillment);
         orderStore.save(order);
 

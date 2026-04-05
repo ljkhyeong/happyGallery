@@ -37,7 +37,7 @@ class DefaultPassCreditService implements PassCreditPort {
     @Transactional(propagation = Propagation.MANDATORY)
     public PassPurchase deductCredit(Long passId, Long ownerUserId) {
         PassPurchase pass = passPurchaseReader.findById(passId)
-                .orElseThrow(() -> new NotFoundException("8회권"));
+                .orElseThrow(NotFoundException.supplier("8회권"));
 
         if (ownerUserId != null && !Objects.equals(pass.getUserId(), ownerUserId)) {
             throw new NotFoundException("8회권");
@@ -54,7 +54,7 @@ class DefaultPassCreditService implements PassCreditPort {
     @Transactional(propagation = Propagation.MANDATORY)
     public void restoreCredit(Long passId, Long bookingId) {
         PassPurchase pass = passPurchaseReader.findById(passId)
-                .orElseThrow(() -> new NotFoundException("8회권"));
+                .orElseThrow(NotFoundException.supplier("8회권"));
         passLedgerStore.save(
                 new PassLedger(pass, PassLedgerType.REFUND, 1, bookingId));
         pass.refundCredit();

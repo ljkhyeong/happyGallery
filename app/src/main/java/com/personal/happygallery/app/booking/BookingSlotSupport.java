@@ -50,7 +50,7 @@ class BookingSlotSupport {
     /** 슬롯 조회 + 활성 여부 확인 (락 전 빠른 체크). */
     Slot loadActiveSlot(Long slotId) {
         Slot slot = slotReaderPort.findById(slotId)
-                .orElseThrow(() -> new NotFoundException("슬롯"));
+                .orElseThrow(NotFoundException.supplier("슬롯"));
         if (!slot.isActive()) {
             throw new SlotNotAvailableException();
         }

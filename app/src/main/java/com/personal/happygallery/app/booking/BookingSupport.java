@@ -37,13 +37,13 @@ class BookingSupport {
     Booking findByToken(Long bookingId, String rawAccessToken) {
         String tokenHash = guestTokenService.resolveTokenHash(rawAccessToken);
         return bookingReaderPort.findDetailByIdAndAccessToken(bookingId, tokenHash)
-                .orElseThrow(() -> new NotFoundException("예약"));
+                .orElseThrow(NotFoundException.supplier("예약"));
     }
 
     Booking findByIdAndUserId(Long bookingId, Long userId) {
         return bookingReaderPort.findById(bookingId)
                 .filter(b -> Objects.equals(b.getUserId(), userId))
-                .orElseThrow(() -> new NotFoundException("예약"));
+                .orElseThrow(NotFoundException.supplier("예약"));
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

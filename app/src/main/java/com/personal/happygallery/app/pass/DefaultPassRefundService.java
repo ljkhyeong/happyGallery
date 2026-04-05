@@ -50,7 +50,7 @@ public class DefaultPassRefundService implements PassRefundUseCase {
      */
     public PassRefundResult refundPass(Long passId) {
         PassPurchase pass = passPurchaseReader.findById(passId)
-                .orElseThrow(() -> new NotFoundException("8회권"));
+                .orElseThrow(NotFoundException.supplier("8회권"));
 
         // 1. 미래 BOOKED 예약 자동 취소
         int cancelledCount = bookingCancellationPort.cancelLinkedBookings(passId);
