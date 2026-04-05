@@ -58,5 +58,6 @@ dependencies {
 	testImplementation 'org.testcontainers:testcontainers-mysql'
 	testImplementation 'org.testcontainers:testcontainers'
 	testImplementation 'org.awaitility:awaitility'
+	testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.0'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
