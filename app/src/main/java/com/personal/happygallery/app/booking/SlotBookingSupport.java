@@ -13,13 +13,13 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-class DefaultSlotBookingCoordinator implements SlotBookingCoordinator {
+class SlotBookingSupport {
 
     private final SlotReaderPort slotReaderPort;
     private final SlotStorePort slotStorePort;
 
-    DefaultSlotBookingCoordinator(SlotReaderPort slotReaderPort,
-                                  SlotStorePort slotStorePort) {
+    SlotBookingSupport(SlotReaderPort slotReaderPort,
+                       SlotStorePort slotStorePort) {
         this.slotReaderPort = slotReaderPort;
         this.slotStorePort = slotStorePort;
     }

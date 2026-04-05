@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.pass;
 
-import com.personal.happygallery.app.booking.port.in.BookingCancellationPort;
+import com.personal.happygallery.app.booking.port.in.BookingCancellationUseCase;
 import com.personal.happygallery.app.pass.port.in.PassRefundUseCase;
 import com.personal.happygallery.app.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.app.pass.port.out.PassPurchaseReaderPort;
@@ -23,12 +23,12 @@ public class DefaultPassRefundService implements PassRefundUseCase {
     private final PassPurchaseReaderPort passPurchaseReader;
     private final PassPurchaseStorePort passPurchaseStore;
     private final PassLedgerStorePort passLedgerStore;
-    private final BookingCancellationPort bookingCancellationPort;
+    private final BookingCancellationUseCase bookingCancellationPort;
 
     public DefaultPassRefundService(PassPurchaseReaderPort passPurchaseReader,
                              PassPurchaseStorePort passPurchaseStore,
                              PassLedgerStorePort passLedgerStore,
-                             BookingCancellationPort bookingCancellationPort) {
+                             BookingCancellationUseCase bookingCancellationPort) {
         this.passPurchaseReader = passPurchaseReader;
         this.passPurchaseStore = passPurchaseStore;
         this.passLedgerStore = passLedgerStore;

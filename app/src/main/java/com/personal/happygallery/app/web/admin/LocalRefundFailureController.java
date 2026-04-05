@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.payment.port.out.RefundFailureScriptPort;
+import com.personal.happygallery.app.payment.port.in.DevRefundFailureUseCase;
 import com.personal.happygallery.app.web.admin.dto.ArmRefundFailureResponse;
 import com.personal.happygallery.app.web.admin.dto.FailNextRefundRequest;
 import jakarta.validation.Valid;
@@ -23,10 +23,10 @@ public class LocalRefundFailureController {
 
     static final String DEFAULT_REASON = "로컬 smoke 강제 환불 실패";
 
-    private final RefundFailureScriptPort localRefundFailureScript;
+    private final DevRefundFailureUseCase devRefundFailure;
 
-    public LocalRefundFailureController(RefundFailureScriptPort localRefundFailureScript) {
-        this.localRefundFailureScript = localRefundFailureScript;
+    public LocalRefundFailureController(DevRefundFailureUseCase devRefundFailure) {
+        this.devRefundFailure = devRefundFailure;
     }
 
     @PostMapping("/fail-next")
@@ -36,13 +36,13 @@ public class LocalRefundFailureController {
             reason = request.reason().trim();
         }
 
-        localRefundFailureScript.armNextFailure(reason);
+        devRefundFailure.armNextFailure(reason);
         return new ArmRefundFailureResponse("ARMED", reason);
     }
 
     @DeleteMapping("/fail-next")
     public ResponseEntity<Void> clear() {
-        localRefundFailureScript.clear();
+        devRefundFailure.clear();
         return ResponseEntity.noContent().build();
     }
 
