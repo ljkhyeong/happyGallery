@@ -90,7 +90,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
 
         // 3. 새 슬롯 빠른 체크 (락 전 — fast-fail)
         Slot newSlot = slotReaderPort.findById(newSlotId)
-                .orElseThrow(() -> new NotFoundException("슬롯"));
+                .orElseThrow(NotFoundException.supplier("슬롯"));
         if (!newSlot.isActive()) {
             throw new SlotNotAvailableException();
         }

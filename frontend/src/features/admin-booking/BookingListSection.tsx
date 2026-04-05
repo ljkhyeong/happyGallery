@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col } from "react-bootstrap";
 import { fetchBookings, markNoShow } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 
 interface Props {
@@ -52,15 +53,12 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
     }
   }, [error, onAuthError]);
 
-  const noShowMutation = useMutation({
+  const noShowMutation = useAdminMutation(onAuthError, {
     mutationFn: (bookingId: number) => markNoShow(adminKey, bookingId),
     onMutate: (bookingId) => setPendingId(bookingId),
     onSuccess: (res) => {
       toast.show(`예약 #${res.bookingId} 노쇼 처리 완료`);
       queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
-    },
-    onError: (err) => {
-      if (err instanceof ApiError && err.status === 401) onAuthError();
     },
     onSettled: () => setPendingId(null),
   });

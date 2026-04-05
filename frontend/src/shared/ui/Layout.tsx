@@ -5,9 +5,9 @@ import { CartBadge } from "@/features/cart/CartBadge";
 import { NotificationBell } from "@/features/notification/NotificationBell";
 
 const NAV_ITEMS = [
-  { path: "/products", label: "상품" },
-  { path: "/bookings/new", label: "체험 예약" },
-  { path: "/passes/purchase", label: "8회권" },
+  { path: "/products", label: "STORE" },
+  { path: "/bookings/new", label: "WORKSHOP" },
+  { path: "/passes/purchase", label: "PASS" },
 ] as const;
 
 function isActive(pathname: string, itemPath: string): boolean {
@@ -18,23 +18,20 @@ function isActive(pathname: string, itemPath: string): boolean {
 export function Layout() {
   const { pathname } = useLocation();
   const { user, isAuthenticated, isLoading, logout } = useCustomerAuth();
-  const utilityCopy = isAuthenticated
-    ? "회원은 내 정보에서 주문·예약·8회권을 바로 확인하고, 비회원 이력도 가져올 수 있습니다."
-    : "회원은 내 정보에서, 비회원은 조회 안내 경로에서 주문과 예약을 확인합니다.";
 
   return (
     <div className="d-flex flex-column min-vh-100">
-      <div className="app-utility-bar border-bottom">
-        <Container className="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
-          <div className="app-utility-copy">{utilityCopy}</div>
+      <div className="app-utility-bar">
+        <Container className="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2" style={{ maxWidth: 1100 }}>
+          <div className="app-utility-copy">FREE SHIPPING ON ORDERS OVER ₩50,000</div>
           <div className="d-flex flex-wrap align-items-center gap-3">
             {!isLoading && (
               isAuthenticated ? (
-                <Link to="/my" className="app-utility-link">회원 내 정보</Link>
+                <Link to="/my" className="app-utility-link">MY PAGE</Link>
               ) : (
                 <>
-                  <Link to="/login" className="app-utility-link">회원 로그인</Link>
-                  <Link to="/signup" className="app-utility-link">회원가입</Link>
+                  <Link to="/login" className="app-utility-link">LOGIN</Link>
+                  <Link to="/signup" className="app-utility-link">JOIN</Link>
                 </>
               )
             )}
@@ -43,22 +40,22 @@ export function Layout() {
               state={{ monitoringSource: "layout_utility" }}
               className="app-utility-link"
             >
-              비회원 조회 안내
+              ORDER LOOKUP
             </Link>
-            <Link to="/admin" className="app-utility-link">관리자</Link>
+            <Link to="/admin" className="app-utility-link">ADMIN</Link>
           </div>
         </Container>
       </div>
 
-      <Navbar expand="md" className="app-navbar border-bottom" data-bs-theme="light">
-        <Container>
+      <Navbar expand="md" className="app-navbar" data-bs-theme="light">
+        <Container style={{ maxWidth: 1100 }}>
           <Navbar.Brand as={Link} to="/" className="app-brand d-flex flex-column">
-            <span className="app-brand-mark">HappyGallery</span>
-            <span className="app-brand-subtitle">Handmade store & reservation studio</span>
+            <span className="app-brand-mark">HAPPYGALLERY</span>
+            <span className="app-brand-subtitle">Handmade Store &amp; Workshop</span>
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="main-nav" />
           <Navbar.Collapse id="main-nav">
-            <Nav className="ms-auto align-items-md-center gap-md-2">
+            <Nav className="ms-auto align-items-md-center gap-md-1">
               {NAV_ITEMS.map(({ path, label }) => (
                 <Nav.Link
                   key={path}
@@ -90,7 +87,7 @@ export function Layout() {
                       className="app-nav-link text-muted-soft btn btn-link p-0 border-0"
                       onClick={() => logout()}
                     >
-                      로그아웃
+                      LOGOUT
                     </Nav.Link>
                   </>
                 ) : (
@@ -101,7 +98,7 @@ export function Layout() {
                       active={isActive(pathname, "/login")}
                       className="app-nav-link"
                     >
-                      로그인
+                      LOGIN
                     </Nav.Link>
                     <Nav.Link
                       as={Link}
@@ -109,7 +106,7 @@ export function Layout() {
                       active={isActive(pathname, "/signup")}
                       className="app-signup-link"
                     >
-                      회원가입
+                      JOIN US
                     </Nav.Link>
                   </>
                 )
@@ -119,14 +116,14 @@ export function Layout() {
         </Container>
       </Navbar>
 
-      <main className="flex-grow-1 py-4">
+      <main className="flex-grow-1">
         <Outlet />
       </main>
 
-      <footer className="app-footer text-center py-3 small border-top">
-        <Container>
-          <span className="text-muted-soft">
-            &copy; {new Date().getFullYear()} HappyGallery &middot; 핸드메이드 공방
+      <footer className="app-footer text-center py-4 small">
+        <Container style={{ maxWidth: 1100 }}>
+          <span>
+            &copy; {new Date().getFullYear()} HAPPYGALLERY &middot; Handmade with care
           </span>
         </Container>
       </footer>

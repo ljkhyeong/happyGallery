@@ -38,7 +38,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class ConcurrentBookingUseCaseIT {
 
-    @Autowired SlotBookingCoordinator slotBookingCoordinator;
+    @Autowired SlotBookingSupport slotBookingCoordinator;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;

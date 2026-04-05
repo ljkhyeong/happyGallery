@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Form, Row, Col, InputGroup } from "react-bootstrap";
 import type { AdminOrderResponse, OrderStatus } from "@/shared/types";
 import {
@@ -9,6 +9,7 @@ import {
 } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 
 interface Props {
@@ -86,100 +87,85 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
     }
   }, [error, onAuthError]);
 
-  function onError(err: Error) {
-    if (err instanceof ApiError && err.status === 401) onAuthError();
-  }
-
   function invalidate() {
     resetPagination();
     queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
   }
 
-  const approveMut = useMutation({
+  const approveMut = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => approveOrder(adminKey, id),
     onMutate: (id) => setPendingId(id),
     onSuccess: (_, id) => { toast.show(`주문 #${id} 승인 완료`); invalidate(); },
-    onError,
     onSettled: () => setPendingId(null),
   });
 
-  const rejectMut = useMutation({
+  const rejectMut = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => rejectOrder(adminKey, id),
     onMutate: (id) => setPendingId(id),
     onSuccess: (_, id) => { toast.show(`주문 #${id} 거절 완료`); invalidate(); },
-    onError,
     onSettled: () => setPendingId(null),
   });
 
-  const completeProdMut = useMutation({
+  const completeProdMut = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => completeProduction(adminKey, id),
     onMutate: (id) => setPendingId(id),
     onSuccess: (_, id) => { toast.show(`주문 #${id} 제작 완료`); invalidate(); },
-    onError,
     onSettled: () => setPendingId(null),
   });
 
-  const delayMut = useMutation({
+  const delayMut = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => requestDelay(adminKey, id),
     onMutate: (id) => setPendingId(id),
     onSuccess: (_, id) => { toast.show(`주문 #${id} 지연 요청`); invalidate(); },
-    onError,
     onSettled: () => setPendingId(null),
   });
 
-  const pickupMut = useMutation({
+  const pickupMut = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => preparePickup(adminKey, id, { pickupDeadlineAt: pickupDeadline[id] || undefined }),
     onMutate: (id) => setPendingId(id),
     onSuccess: (_, id) => { toast.show(`주문 #${id} 픽업 준비 완료`); invalidate(); },
-    onError,
     onSettled: () => setPendingId(null),
   });
 
-  const pickupDoneMut = useMutation({
+  const pickupDoneMut = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => completePickup(adminKey, id),
     onMutate: (id) => setPendingId(id),
     onSuccess: (_, id) => { toast.show(`주문 #${id} 픽업 완료`); invalidate(); },
-    onError,
     onSettled: () => setPendingId(null),
   });
 
-  const shipDateMut = useMutation({
+  const shipDateMut = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => setExpectedShipDate(adminKey, id, { expectedShipDate: shipDate[id] || undefined }),
     onMutate: (id) => setPendingId(id),
     onSuccess: (_, id) => { toast.show(`주문 #${id} 출고일 설정`); invalidate(); },
-    onError,
     onSettled: () => setPendingId(null),
   });
 
-  const resumeProdMut = useMutation({
+  const resumeProdMut = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => resumeProduction(adminKey, id),
     onMutate: (id) => setPendingId(id),
     onSuccess: (_, id) => { toast.show(`주문 #${id} 제작 재개`); invalidate(); },
-    onError,
     onSettled: () => setPendingId(null),
   });
 
-  const prepareShipMut = useMutation({
+  const prepareShipMut = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => prepareShipping(adminKey, id),
     onMutate: (id) => setPendingId(id),
     onSuccess: (_, id) => { toast.show(`주문 #${id} 배송 준비`); invalidate(); },
-    onError,
     onSettled: () => setPendingId(null),
   });
 
-  const shippedMut = useMutation({
+  const shippedMut = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => markShipped(adminKey, id),
     onMutate: (id) => setPendingId(id),
     onSuccess: (_, id) => { toast.show(`주문 #${id} 배송 출발`); invalidate(); },
-    onError,
     onSettled: () => setPendingId(null),
   });
 
-  const deliveredMut = useMutation({
+  const deliveredMut = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => markDelivered(adminKey, id),
     onMutate: (id) => setPendingId(id),
     onSuccess: (_, id) => { toast.show(`주문 #${id} 배송 완료`); invalidate(); },
-    onError,
     onSettled: () => setPendingId(null),
   });
 
@@ -189,10 +175,9 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
     enabled: historyOrderId != null,
   });
 
-  const expireMut = useMutation({
+  const expireMut = useAdminMutation(onAuthError, {
     mutationFn: () => expirePickups(adminKey),
     onSuccess: (r) => { toast.show(`픽업 만료 배치: 성공 ${r.successCount}, 실패 ${r.failureCount}`); invalidate(); },
-    onError,
   });
 
   const lastMutError = approveMut.error || rejectMut.error || completeProdMut.error

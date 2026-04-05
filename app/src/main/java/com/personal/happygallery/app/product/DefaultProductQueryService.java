@@ -30,9 +30,9 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
     /** 상품 단건 조회 */
     public ProductWithInventory getProduct(Long productId) {
         Product product = productReaderPort.findById(productId)
-                .orElseThrow(() -> new NotFoundException("상품"));
+                .orElseThrow(NotFoundException.supplier("상품"));
         Inventory inventory = inventoryReaderPort.findByProductId(productId)
-                .orElseThrow(() -> new NotFoundException("재고"));
+                .orElseThrow(NotFoundException.supplier("재고"));
         return new ProductWithInventory(product, inventory);
     }
 

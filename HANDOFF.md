@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-04-02 (알림 이벤트 전환/예약-패스 경계 정리 반영 상태)
+> 작성 시점: 2026-04-05 (스토어 UI 리프레시/웹 인증 resolver 정리 반영 상태)
 
 ---
 
@@ -22,6 +22,14 @@
 
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - 레이어 경계 정리 — 관리자/고객 인증 서비스와 관리자 세션 DTO를 `app` 계층으로 옮기고, Redis 기반 관리자 세션 저장소는 `infra` 구현으로 분리했다. `AdminAuthFilter`는 세션 저장소 대신 `AdminAuthUseCase`를 보도록 바꿨다
+  - 로컬 dev 보조 API 정리 — 최신 휴대폰 인증번호 조회와 다음 환불 실패 arm 기능을 controller가 port.out에 직접 붙지 않도록 각각 `DevPhoneVerificationQueryUseCase`, `DevRefundFailureUseCase`를 거치게 정리했다
+  - 포트/지원 클래스 이름 정리 — `BookingCancellationPort`/`PassCreditPort`를 `*UseCase`로 맞추고, 슬롯 점유/반납 helper는 `SlotBookingSupport` 이름으로 바로잡았다
+  - 아키텍처 정책 테스트 보강 — ArchUnit 기반 `LayerDependencyArchTest`를 추가해 `domain -> app/infra/config` 금지, `web -> port.out` 금지, `infra -> app service 직접 의존 금지`를 policyTest로 고정했다
+  - 알림 이벤트 타입 안전화 — `NotificationRequestedEvent`를 guest/user 별 sealed subtype으로 바꾸고, 리스너는 pattern matching switch로 분기하도록 정리했다
+  - 웹 인증/검색 보일러플레이트 정리 — `@CustomerUserId`, `@AdminUserId`, `AuthUserIdResolver`, `WebMvcConfig`를 추가해 컨트롤러의 `HttpServletRequest` attribute 추출 코드를 제거했고, 필터 JSON 에러 응답은 `FilterErrorResponseWriter`로 공통화했다. 관리자 주문/예약 검색은 `AdminSearchPort` + `AdminSearchHelper`로 page/size clamp와 empty page 처리를 공통화했다
+  - 스토어 UI 리프레시 — 홈/상품 목록/상품 상세/레이아웃 전반을 Montserrat + Raleway 타이포와 밝은 편집샵 톤으로 다시 정리했고, `ProductCard`/hero/lookup/purchase 패널 스타일과 전역 변수·애니메이션을 함께 손봤다
+  - NotFound 조회 중복 정리 — `NotFoundException.supplier(...)`를 추가해 booking/order/pass/product/cart/inquiry/qna/notice/payment 전반의 `orElseThrow(() -> new NotFoundException(...))` 중복을 줄였다
   - 알림 발송 흐름 정리 — `NotificationRequestedEvent` + `NotificationEventListener`를 추가해 주문/예약/배치에서 알림 요청을 트랜잭션 커밋 후 비동기 이벤트로 발행하도록 바꿨다. `NotificationService`의 기존 `@Async` 메서드는 하위 호환용으로 유지하되 신규 호출은 event publisher 기준으로 모은다
   - 예약/패스 경계 정리 — 예약 생성/취소 쪽의 8회권 크레딧 차감·복구를 `PassCreditPort`로 위임했고, pass 환불 시 미래 예약 일괄 취소는 `BookingCancellationPort`로 넘겼다. 관리자 no-show 유스케이스도 `PassNoShowUseCase` 대신 `BookingNoShowUseCase`로 이름과 소속을 바로잡았다
   - 조회/응답 조립 정리 — 장바구니 checkout은 `CartCheckoutUseCase`를 통해 주입하고, 관리자 Q&A/문의 답변은 `replyAndGet`으로 저장과 응답 조립을 한 번에 처리하도록 정리했다

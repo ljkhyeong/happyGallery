@@ -37,6 +37,6 @@ public class DefaultBookingQueryService implements BookingQueryUseCase {
     /** 회원 — 자기 예약 상세 조회 */
     public Booking findMyBooking(Long id, Long userId) {
         return bookingReaderPort.findByIdAndUserIdWithDetails(id, userId)
-                .orElseThrow(() -> new NotFoundException("예약"));
+                .orElseThrow(NotFoundException.supplier("예약"));
     }
 }

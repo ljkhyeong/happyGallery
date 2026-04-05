@@ -1,5 +1,6 @@
-package com.personal.happygallery.app.web.admin;
+package com.personal.happygallery.infra.admin;
 
+import com.personal.happygallery.app.admin.port.AdminSession;
 import com.personal.happygallery.app.admin.port.out.AdminSessionPort;
 import java.time.Clock;
 import java.time.Duration;

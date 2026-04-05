@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col, ProgressBar } from "react-bootstrap";
 import { fetchClasses, fetchSlotsByClass, deactivateSlot } from "./api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { formatDateTime } from "@/shared/lib";
 
 interface Props {
@@ -37,15 +38,12 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
     }
   }, [error, onAuthError]);
 
-  const mutation = useMutation({
+  const mutation = useAdminMutation(onAuthError, {
     mutationFn: (slotId: number) => deactivateSlot(adminKey, slotId),
     onMutate: (slotId) => setPendingId(slotId),
     onSuccess: (slot) => {
       toast.show(`슬롯 #${slot.id} 비활성화 완료`);
       queryClient.invalidateQueries({ queryKey: ["admin", "slots", classIdNum] });
-    },
-    onError: (err) => {
-      if (err instanceof ApiError && err.status === 401) onAuthError();
     },
     onSettled: () => setPendingId(null),
   });

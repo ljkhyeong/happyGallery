@@ -4,14 +4,13 @@ import com.personal.happygallery.app.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.app.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.app.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.app.booking.port.in.MemberBookingUseCase;
-import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.booking.dto.CancelResponse;
 import com.personal.happygallery.app.web.customer.dto.CreateMemberBookingRequest;
 import com.personal.happygallery.app.web.customer.dto.MemberRescheduleRequest;
 import com.personal.happygallery.app.web.customer.dto.MyBookingDetail;
 import com.personal.happygallery.app.web.customer.dto.MyBookingSummary;
+import com.personal.happygallery.app.web.resolver.CustomerUserId;
 import com.personal.happygallery.domain.booking.Booking;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -45,16 +44,14 @@ public class MeBookingController {
     }
 
     @GetMapping
-    public List<MyBookingSummary> myBookings(HttpServletRequest request) {
-        Long userId = getUserId(request);
+    public List<MyBookingSummary> myBookings(@CustomerUserId Long userId) {
         return bookingQueryUseCase.listMyBookings(userId).stream()
                 .map(MyBookingSummary::from)
                 .toList();
     }
 
     @GetMapping("/{id}")
-    public MyBookingDetail myBooking(@PathVariable Long id, HttpServletRequest request) {
-        Long userId = getUserId(request);
+    public MyBookingDetail myBooking(@PathVariable Long id, @CustomerUserId Long userId) {
         Booking booking = bookingQueryUseCase.findMyBooking(id, userId);
         return MyBookingDetail.from(booking);
     }
@@ -62,8 +59,7 @@ public class MeBookingController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public MyBookingSummary createBooking(@RequestBody @Valid CreateMemberBookingRequest req,
-                                          HttpServletRequest request) {
-        Long userId = getUserId(request);
+                                          @CustomerUserId Long userId) {
         Booking booking = memberBookingUseCase.createMemberBooking(
                 userId, req.slotId(),
                 req.depositAmount() != null ? req.depositAmount() : 0L,
@@ -74,20 +70,14 @@ public class MeBookingController {
     @PatchMapping("/{id}/reschedule")
     public MyBookingSummary rescheduleBooking(@PathVariable Long id,
                                               @RequestBody @Valid MemberRescheduleRequest req,
-                                              HttpServletRequest request) {
-        Long userId = getUserId(request);
+                                              @CustomerUserId Long userId) {
         Booking booking = bookingRescheduleUseCase.rescheduleMemberBooking(id, userId, req.newSlotId());
         return MyBookingSummary.from(booking);
     }
 
     @DeleteMapping("/{id}")
-    public CancelResponse cancelBooking(@PathVariable Long id, HttpServletRequest request) {
-        Long userId = getUserId(request);
+    public CancelResponse cancelBooking(@PathVariable Long id, @CustomerUserId Long userId) {
         BookingCancelUseCase.CancelResult result = bookingCancelUseCase.cancelMemberBooking(id, userId);
         return CancelResponse.from(result.booking(), result.refundable());
-    }
-
-    private Long getUserId(HttpServletRequest request) {
-        return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
     }
 }

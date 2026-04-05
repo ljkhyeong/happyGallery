@@ -33,7 +33,7 @@ public class PassExpireProcessor {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean process(Long passId) {
         PassPurchase pass = passPurchaseReader.findById(passId)
-                .orElseThrow(() -> new NotFoundException("8회권"));
+                .orElseThrow(NotFoundException.supplier("8회권"));
         if (!pass.hasRemainingCredits()) {
             return false;
         }

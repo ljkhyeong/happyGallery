@@ -2,10 +2,9 @@ package com.personal.happygallery.app.web.admin;
 
 import com.personal.happygallery.app.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.app.inquiry.port.in.InquiryUseCase.InquiryWithUser;
-import com.personal.happygallery.app.web.AdminAuthFilter;
 import com.personal.happygallery.app.web.admin.dto.AdminInquiryResponse;
 import com.personal.happygallery.app.web.admin.dto.InquiryReplyRequest;
-import jakarta.servlet.http.HttpServletRequest;
+import com.personal.happygallery.app.web.resolver.AdminUserId;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,8 +40,7 @@ public class AdminInquiryController {
     @PostMapping("/{id}/reply")
     public AdminInquiryResponse reply(@PathVariable Long id,
                                       @RequestBody @Valid InquiryReplyRequest request,
-                                      HttpServletRequest httpRequest) {
-        Long adminId = (Long) httpRequest.getAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR);
+                                      @AdminUserId Long adminId) {
         return AdminInquiryResponse.from(inquiryUseCase.replyAndGet(id, request.replyContent(), adminId));
     }
 }

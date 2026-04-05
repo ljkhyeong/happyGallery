@@ -48,7 +48,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     public ProductQna createQuestion(Long productId, Long userId, String title, String content,
                                      boolean secret, String rawPassword) {
         productReader.findById(productId)
-                .orElseThrow(() -> new NotFoundException("상품"));
+                .orElseThrow(NotFoundException.supplier("상품"));
         String hash = (secret && rawPassword != null) ? passwordEncoder.encode(rawPassword) : null;
         return qnaStore.save(new ProductQna(productId, userId, title, content, secret, hash));
     }
@@ -65,7 +65,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     @Transactional(readOnly = true)
     public QnaWithAuthor verifyAndGet(Long qnaId, String rawPassword) {
         ProductQna qna = qnaReader.findById(qnaId)
-                .orElseThrow(() -> new NotFoundException("Q&A"));
+                .orElseThrow(NotFoundException.supplier("Q&A"));
         if (qna.isSecret()) {
             if (rawPassword == null || !passwordEncoder.matches(rawPassword, qna.getPasswordHash())) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비밀번호가 일치하지 않습니다.");
@@ -90,7 +90,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     @Transactional
     public ProductQna reply(Long qnaId, String replyContent, Long adminId) {
         ProductQna qna = qnaReader.findById(qnaId)
-                .orElseThrow(() -> new NotFoundException("Q&A"));
+                .orElseThrow(NotFoundException.supplier("Q&A"));
         qna.reply(replyContent, adminId, LocalDateTime.now(clock));
         return qnaStore.save(qna);
     }
@@ -98,7 +98,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     @Transactional
     public QnaWithAuthor replyAndGet(Long qnaId, String replyContent, Long adminId) {
         ProductQna qna = qnaReader.findById(qnaId)
-                .orElseThrow(() -> new NotFoundException("Q&A"));
+                .orElseThrow(NotFoundException.supplier("Q&A"));
         qna.reply(replyContent, adminId, LocalDateTime.now(clock));
         qna = qnaStore.save(qna);
         String authorName = userReader.findById(qna.getUserId())

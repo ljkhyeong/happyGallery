@@ -2,7 +2,7 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
 import com.personal.happygallery.app.booking.port.out.SlotReaderPort;
-import com.personal.happygallery.app.pass.port.in.PassCreditPort;
+import com.personal.happygallery.app.pass.port.in.PassCreditUseCase;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.PaymentMethodNotAllowedException;
 import com.personal.happygallery.domain.error.SlotNotAvailableException;
@@ -27,16 +27,16 @@ import org.springframework.transaction.annotation.Transactional;
 class BookingSlotSupport {
 
     private final SlotReaderPort slotReaderPort;
-    private final SlotBookingCoordinator slotBookingCoordinator;
+    private final SlotBookingSupport slotBookingCoordinator;
     private final BookingStorePort bookingStorePort;
-    private final PassCreditPort passCreditPort;
+    private final PassCreditUseCase passCreditPort;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     BookingSlotSupport(SlotReaderPort slotReaderPort,
-                       SlotBookingCoordinator slotBookingCoordinator,
+                       SlotBookingSupport slotBookingCoordinator,
                        BookingStorePort bookingStorePort,
-                       PassCreditPort passCreditPort,
+                       PassCreditUseCase passCreditPort,
                        BookingSupport bookingSupport,
                        Clock clock) {
         this.slotReaderPort = slotReaderPort;
@@ -50,7 +50,7 @@ class BookingSlotSupport {
     /** 슬롯 조회 + 활성 여부 확인 (락 전 빠른 체크). */
     Slot loadActiveSlot(Long slotId) {
         Slot slot = slotReaderPort.findById(slotId)
-                .orElseThrow(() -> new NotFoundException("슬롯"));
+                .orElseThrow(NotFoundException.supplier("슬롯"));
         if (!slot.isActive()) {
             throw new SlotNotAvailableException();
         }
@@ -70,7 +70,7 @@ class BookingSlotSupport {
     }
 
     /**
-     * 8회권 크레딧 차감을 PassCreditPort에 위임한다.
+     * 8회권 크레딧 차감을 PassCreditUseCase에 위임한다.
      *
      * @param passId       8회권 ID
      * @param ownerUserId  소유자 회원 ID (회원 예약일 때 non-null, 게스트 예약일 때 null)

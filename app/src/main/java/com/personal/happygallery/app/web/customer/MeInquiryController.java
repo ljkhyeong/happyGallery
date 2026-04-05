@@ -1,10 +1,9 @@
 package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.inquiry.port.in.InquiryUseCase;
-import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.customer.dto.CreateInquiryRequest;
 import com.personal.happygallery.app.web.customer.dto.InquiryResponse;
-import jakarta.servlet.http.HttpServletRequest;
+import com.personal.happygallery.app.web.resolver.CustomerUserId;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -29,28 +28,21 @@ public class MeInquiryController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public InquiryResponse create(@RequestBody @Valid CreateInquiryRequest request,
-                                  HttpServletRequest httpRequest) {
-        Long userId = getUserId(httpRequest);
+                                  @CustomerUserId Long userId) {
         var inquiry = inquiryUseCase.create(userId, request.title(), request.content());
         return InquiryResponse.from(inquiry);
     }
 
     @GetMapping
-    public List<InquiryResponse> list(HttpServletRequest httpRequest) {
-        Long userId = getUserId(httpRequest);
+    public List<InquiryResponse> list(@CustomerUserId Long userId) {
         return inquiryUseCase.listByUser(userId).stream()
                 .map(InquiryResponse::from)
                 .toList();
     }
 
     @GetMapping("/{id}")
-    public InquiryResponse detail(@PathVariable Long id, HttpServletRequest httpRequest) {
-        Long userId = getUserId(httpRequest);
+    public InquiryResponse detail(@PathVariable Long id, @CustomerUserId Long userId) {
         var inquiry = inquiryUseCase.findByIdAndUser(id, userId);
         return InquiryResponse.from(inquiry);
-    }
-
-    private Long getUserId(HttpServletRequest request) {
-        return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
     }
 }

@@ -17,7 +17,6 @@ import java.time.LocalDateTime;
  *
  * <p>product_id가 PK이자 FK. 상품 1개당 재고 row 1개를 유지한다.
  * 단일 작품(수량=1) 중복 판매 방지: {@code deduct()} 호출 전 반드시
- * {@link com.personal.happygallery.infra.product.InventoryRepository#findByProductIdWithLock}으로
  * 비관적 락을 획득해야 한다.
  */
 @Entity

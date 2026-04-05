@@ -1,9 +1,5 @@
-import { api } from "@/shared/api";
+import { adminHeaders as h, api } from "@/shared/api";
 import type { SlotResponse, CreateSlotRequest, ClassResponse } from "@/shared/types";
-
-function h(token: string) {
-  return { Authorization: `Bearer ${token}` };
-}
 
 export function fetchClasses(): Promise<ClassResponse[]> {
   return api<ClassResponse[]>("/classes");
