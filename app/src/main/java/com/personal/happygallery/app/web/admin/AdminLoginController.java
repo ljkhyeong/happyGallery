@@ -1,6 +1,6 @@
 package com.personal.happygallery.app.web.admin;
 
-import com.personal.happygallery.app.web.admin.port.in.AdminAuthUseCase;
+import com.personal.happygallery.app.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.app.web.admin.dto.LoginRequest;
 import com.personal.happygallery.app.web.admin.dto.LoginResponse;
 import jakarta.validation.Valid;

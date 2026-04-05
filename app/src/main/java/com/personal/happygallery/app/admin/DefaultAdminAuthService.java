@@ -1,8 +1,8 @@
-package com.personal.happygallery.app.web.admin;
+package com.personal.happygallery.app.admin;
 
+import com.personal.happygallery.app.admin.port.AdminSession;
 import com.personal.happygallery.app.admin.port.out.AdminSessionPort;
-import com.personal.happygallery.app.admin.port.out.AdminSessionPort.AdminSession;
-import com.personal.happygallery.app.web.admin.port.in.AdminAuthUseCase;
+import com.personal.happygallery.app.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.app.admin.port.out.AdminUserPort;

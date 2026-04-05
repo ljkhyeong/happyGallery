@@ -1,6 +1,6 @@
-package com.personal.happygallery.app.web.admin.port.in;
+package com.personal.happygallery.app.admin.port.in;
 
-import com.personal.happygallery.app.admin.port.out.AdminSessionPort.AdminSession;
+import com.personal.happygallery.app.admin.port.AdminSession;
 import java.util.Optional;
 
 public interface AdminAuthUseCase {

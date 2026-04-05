@@ -1,7 +1,7 @@
 package com.personal.happygallery.app.web;
 
-import com.personal.happygallery.app.admin.port.out.AdminSessionPort;
-import com.personal.happygallery.app.admin.port.out.AdminSessionPort.AdminSession;
+import com.personal.happygallery.app.admin.port.AdminSession;
+import com.personal.happygallery.app.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.domain.error.ErrorCode;
 
 import com.personal.happygallery.config.properties.AdminProperties;
@@ -41,13 +41,13 @@ public class AdminAuthFilter extends OncePerRequestFilter {
     private static final String AUTH_PATH_SUFFIX = "/auth/";
 
     private final AdminProperties adminProperties;
-    private final AdminSessionPort sessionPort;
+    private final AdminAuthUseCase adminAuthUseCase;
     private final ObjectMapper objectMapper;
 
-    public AdminAuthFilter(AdminProperties adminProperties, AdminSessionPort sessionPort,
+    public AdminAuthFilter(AdminProperties adminProperties, AdminAuthUseCase adminAuthUseCase,
                            ObjectMapper objectMapper) {
         this.adminProperties = adminProperties;
-        this.sessionPort = sessionPort;
+        this.adminAuthUseCase = adminAuthUseCase;
         this.objectMapper = objectMapper;
     }
 
@@ -71,7 +71,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader(AUTH_HEADER);
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
             String token = authHeader.substring(BEARER_PREFIX.length());
-            Optional<AdminSession> session = sessionPort.validate(token);
+            Optional<AdminSession> session = adminAuthUseCase.validateToken(token);
             if (session.isPresent()) {
                 request.setAttribute(ADMIN_USER_ID_ATTR, session.get().adminUserId());
                 request.setAttribute(ADMIN_USERNAME_ATTR, session.get().username());
