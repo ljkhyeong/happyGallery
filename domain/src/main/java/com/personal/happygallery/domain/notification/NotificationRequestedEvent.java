@@ -3,28 +3,32 @@ package com.personal.happygallery.domain.notification;
 /**
  * 알림 발송 요청 이벤트.
  *
- * <p>guestId/userId 중 하나만 non-null이어야 한다.
- * phone/name이 non-null이면 조회 없이 바로 발송하고,
- * null이면 guestId/userId로 수신자 정보를 조회한 뒤 발송한다.
+ * <p>수신자 유형별로 서브타입이 나뉘며, 리스너는 pattern matching 으로 분기한다.
  */
-public record NotificationRequestedEvent(
-        Long guestId,
-        Long userId,
-        String phone,
-        String name,
-        NotificationEventType eventType
-) {
+public sealed interface NotificationRequestedEvent {
 
-    public static NotificationRequestedEvent forGuest(Long guestId, NotificationEventType eventType) {
-        return new NotificationRequestedEvent(guestId, null, null, null, eventType);
+    NotificationEventType eventType();
+
+    record ForGuest(Long guestId, NotificationEventType eventType)
+            implements NotificationRequestedEvent {}
+
+    record ForGuestWithContact(Long guestId, String phone, String name,
+                               NotificationEventType eventType)
+            implements NotificationRequestedEvent {}
+
+    record ForUser(Long userId, NotificationEventType eventType)
+            implements NotificationRequestedEvent {}
+
+    static NotificationRequestedEvent forGuest(Long guestId, NotificationEventType eventType) {
+        return new ForGuest(guestId, eventType);
     }
 
-    public static NotificationRequestedEvent forGuestWithContact(Long guestId, String phone, String name,
-                                                                  NotificationEventType eventType) {
-        return new NotificationRequestedEvent(guestId, null, phone, name, eventType);
+    static NotificationRequestedEvent forGuestWithContact(Long guestId, String phone, String name,
+                                                          NotificationEventType eventType) {
+        return new ForGuestWithContact(guestId, phone, name, eventType);
     }
 
-    public static NotificationRequestedEvent forUser(Long userId, NotificationEventType eventType) {
-        return new NotificationRequestedEvent(null, userId, null, null, eventType);
+    static NotificationRequestedEvent forUser(Long userId, NotificationEventType eventType) {
+        return new ForUser(userId, eventType);
     }
 }
