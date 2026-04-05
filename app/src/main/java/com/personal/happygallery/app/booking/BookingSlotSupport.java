@@ -27,14 +27,14 @@ import org.springframework.transaction.annotation.Transactional;
 class BookingSlotSupport {
 
     private final SlotReaderPort slotReaderPort;
-    private final SlotBookingCoordinator slotBookingCoordinator;
+    private final SlotBookingSupport slotBookingCoordinator;
     private final BookingStorePort bookingStorePort;
     private final PassCreditUseCase passCreditPort;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     BookingSlotSupport(SlotReaderPort slotReaderPort,
-                       SlotBookingCoordinator slotBookingCoordinator,
+                       SlotBookingSupport slotBookingCoordinator,
                        BookingStorePort bookingStorePort,
                        PassCreditUseCase passCreditPort,
                        BookingSupport bookingSupport,
