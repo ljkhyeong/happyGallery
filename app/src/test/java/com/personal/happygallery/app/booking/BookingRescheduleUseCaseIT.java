@@ -39,7 +39,7 @@ class BookingRescheduleUseCaseIT {
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired DefaultSlotManagementService slotManagementService;
-    @Autowired SlotBookingCoordinator slotBookingCoordinator;
+    @Autowired SlotBookingSupport slotBookingCoordinator;
     @Autowired Clock clock;
     @Autowired PlatformTransactionManager transactionManager;
 

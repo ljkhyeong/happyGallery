@@ -47,7 +47,7 @@ public class DefaultInquiryService implements InquiryUseCase {
     @Transactional(readOnly = true)
     public Inquiry findByIdAndUser(Long inquiryId, Long userId) {
         Inquiry inquiry = inquiryReader.findById(inquiryId)
-                .orElseThrow(() -> new NotFoundException("문의"));
+                .orElseThrow(NotFoundException.supplier("문의"));
         if (!inquiry.getUserId().equals(userId)) {
             throw new NotFoundException("문의");
         }
@@ -66,7 +66,7 @@ public class DefaultInquiryService implements InquiryUseCase {
     @Transactional(readOnly = true)
     public InquiryWithUser findByIdForAdmin(Long inquiryId) {
         Inquiry inquiry = inquiryReader.findById(inquiryId)
-                .orElseThrow(() -> new NotFoundException("문의"));
+                .orElseThrow(NotFoundException.supplier("문의"));
         String name = userReader.findById(inquiry.getUserId())
                 .map(User::getName).orElse("탈퇴회원");
         return new InquiryWithUser(inquiry, name);
@@ -75,7 +75,7 @@ public class DefaultInquiryService implements InquiryUseCase {
     @Transactional
     public Inquiry reply(Long inquiryId, String replyContent, Long adminId) {
         Inquiry inquiry = inquiryReader.findById(inquiryId)
-                .orElseThrow(() -> new NotFoundException("문의"));
+                .orElseThrow(NotFoundException.supplier("문의"));
         inquiry.reply(replyContent, adminId, LocalDateTime.now(clock));
         return inquiryStore.save(inquiry);
     }
@@ -83,7 +83,7 @@ public class DefaultInquiryService implements InquiryUseCase {
     @Transactional
     public InquiryWithUser replyAndGet(Long inquiryId, String replyContent, Long adminId) {
         Inquiry inquiry = inquiryReader.findById(inquiryId)
-                .orElseThrow(() -> new NotFoundException("문의"));
+                .orElseThrow(NotFoundException.supplier("문의"));
         inquiry.reply(replyContent, adminId, LocalDateTime.now(clock));
         inquiry = inquiryStore.save(inquiry);
         String name = userReader.findById(inquiry.getUserId())

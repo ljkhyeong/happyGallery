@@ -1,10 +1,9 @@
 package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.notification.port.in.NotificationQueryUseCase;
-import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.customer.dto.NotificationResponse;
 import com.personal.happygallery.app.web.customer.dto.UnreadCountResponse;
-import jakarta.servlet.http.HttpServletRequest;
+import com.personal.happygallery.app.web.resolver.CustomerUserId;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -26,30 +25,25 @@ public class MeNotificationController {
     @GetMapping
     public List<NotificationResponse> list(@RequestParam(defaultValue = "0") int page,
                                            @RequestParam(defaultValue = "20") int size,
-                                           HttpServletRequest request) {
-        Long userId = getUserId(request);
+                                           @CustomerUserId Long userId) {
         return notificationQuery.listNotifications(userId, null, page, size).stream()
                 .map(NotificationResponse::from)
                 .toList();
     }
 
     @GetMapping("/unread-count")
-    public UnreadCountResponse unreadCount(HttpServletRequest request) {
-        long count = notificationQuery.countUnread(getUserId(request), null);
+    public UnreadCountResponse unreadCount(@CustomerUserId Long userId) {
+        long count = notificationQuery.countUnread(userId, null);
         return new UnreadCountResponse(count);
     }
 
     @PatchMapping("/{id}/read")
-    public void markAsRead(@PathVariable Long id, HttpServletRequest request) {
-        notificationQuery.markAsRead(id, getUserId(request), null);
+    public void markAsRead(@PathVariable Long id, @CustomerUserId Long userId) {
+        notificationQuery.markAsRead(id, userId, null);
     }
 
     @PatchMapping("/read-all")
-    public void markAllAsRead(HttpServletRequest request) {
-        notificationQuery.markAllAsRead(getUserId(request), null);
-    }
-
-    private Long getUserId(HttpServletRequest request) {
-        return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
+    public void markAllAsRead(@CustomerUserId Long userId) {
+        notificationQuery.markAllAsRead(userId, null);
     }
 }

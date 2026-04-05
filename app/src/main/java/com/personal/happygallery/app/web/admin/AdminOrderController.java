@@ -19,9 +19,8 @@ import com.personal.happygallery.app.web.admin.dto.OrderProductionResponse;
 import com.personal.happygallery.app.web.admin.dto.PickupResponse;
 import com.personal.happygallery.app.web.admin.dto.SetExpectedShipDateRequest;
 import com.personal.happygallery.app.web.admin.dto.ShippingResponse;
-import com.personal.happygallery.app.web.AdminAuthFilter;
+import com.personal.happygallery.app.web.resolver.AdminUserId;
 import com.personal.happygallery.domain.order.OrderStatus;
-import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -88,30 +87,30 @@ public class AdminOrderController {
     /** POST /admin/orders/{id}/approve — 주문 승인 (MADE_TO_ORDER는 IN_PRODUCTION으로 전이) */
     @PostMapping("/{id}/approve")
     @ResponseStatus(HttpStatus.OK)
-    public void approve(@PathVariable Long id, HttpServletRequest request) {
-        orderApprovalUseCase.approve(id, adminId(request));
+    public void approve(@PathVariable Long id, @AdminUserId Long adminId) {
+        orderApprovalUseCase.approve(id, adminId);
     }
 
     /** POST /admin/orders/{id}/reject — 주문 거절 (환불 + 재고 복구 포함, 제작 중은 거절 불가) */
     @PostMapping("/{id}/reject")
     @ResponseStatus(HttpStatus.OK)
-    public void reject(@PathVariable Long id, HttpServletRequest request) {
-        orderApprovalUseCase.reject(id, adminId(request));
+    public void reject(@PathVariable Long id, @AdminUserId Long adminId) {
+        orderApprovalUseCase.reject(id, adminId);
     }
 
     /** POST /admin/orders/{id}/resume-production — 지연 요청에서 제작 재개 (DELAY_REQUESTED → IN_PRODUCTION) */
     @PostMapping("/{id}/resume-production")
     @ResponseStatus(HttpStatus.OK)
-    public OrderProductionResponse resumeProduction(@PathVariable Long id, HttpServletRequest request) {
-        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.resumeProduction(id, adminId(request));
+    public OrderProductionResponse resumeProduction(@PathVariable Long id, @AdminUserId Long adminId) {
+        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.resumeProduction(id, adminId);
         return OrderProductionResponse.from(result);
     }
 
     /** POST /admin/orders/{id}/complete-production — 제작 완료 (IN_PRODUCTION/DELAY_REQUESTED → APPROVED_FULFILLMENT_PENDING) */
     @PostMapping("/{id}/complete-production")
     @ResponseStatus(HttpStatus.OK)
-    public OrderProductionResponse completeProduction(@PathVariable Long id, HttpServletRequest request) {
-        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.completeProduction(id, adminId(request));
+    public OrderProductionResponse completeProduction(@PathVariable Long id, @AdminUserId Long adminId) {
+        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.completeProduction(id, adminId);
         return OrderProductionResponse.from(result);
     }
 
@@ -153,24 +152,24 @@ public class AdminOrderController {
     /** POST /admin/orders/{id}/prepare-shipping — 배송 준비 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) */
     @PostMapping("/{id}/prepare-shipping")
     @ResponseStatus(HttpStatus.OK)
-    public ShippingResponse prepareShipping(@PathVariable Long id, HttpServletRequest request) {
-        OrderShippingUseCase.ShippingResult result = orderShippingUseCase.prepareShipping(id, adminId(request));
+    public ShippingResponse prepareShipping(@PathVariable Long id, @AdminUserId Long adminId) {
+        OrderShippingUseCase.ShippingResult result = orderShippingUseCase.prepareShipping(id, adminId);
         return ShippingResponse.from(result);
     }
 
     /** POST /admin/orders/{id}/mark-shipped — 배송 출발 (SHIPPING_PREPARING → SHIPPED) */
     @PostMapping("/{id}/mark-shipped")
     @ResponseStatus(HttpStatus.OK)
-    public ShippingResponse markShipped(@PathVariable Long id, HttpServletRequest request) {
-        OrderShippingUseCase.ShippingResult result = orderShippingUseCase.markShipped(id, adminId(request));
+    public ShippingResponse markShipped(@PathVariable Long id, @AdminUserId Long adminId) {
+        OrderShippingUseCase.ShippingResult result = orderShippingUseCase.markShipped(id, adminId);
         return ShippingResponse.from(result);
     }
 
     /** POST /admin/orders/{id}/mark-delivered — 배송 완료 (SHIPPED → DELIVERED) */
     @PostMapping("/{id}/mark-delivered")
     @ResponseStatus(HttpStatus.OK)
-    public ShippingResponse markDelivered(@PathVariable Long id, HttpServletRequest request) {
-        OrderShippingUseCase.ShippingResult result = orderShippingUseCase.markDelivered(id, adminId(request));
+    public ShippingResponse markDelivered(@PathVariable Long id, @AdminUserId Long adminId) {
+        OrderShippingUseCase.ShippingResult result = orderShippingUseCase.markDelivered(id, adminId);
         return ShippingResponse.from(result);
     }
 
@@ -188,8 +187,4 @@ public class AdminOrderController {
         return BatchResponse.from(result);
     }
 
-    /** Bearer 세션에서 검증된 admin user ID를 추출한다. API Key 폴백 시 null. */
-    private static Long adminId(HttpServletRequest request) {
-        return (Long) request.getAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR);
-    }
 }

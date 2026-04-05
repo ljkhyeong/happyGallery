@@ -1,9 +1,8 @@
 package com.personal.happygallery.app.web.monitoring;
 
 import com.personal.happygallery.app.monitoring.port.in.ClientMonitoringUseCase;
-import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.monitoring.dto.CaptureClientEventRequest;
-import jakarta.servlet.http.HttpServletRequest;
+import com.personal.happygallery.app.web.resolver.CustomerUserId;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,16 +24,12 @@ public class ClientMonitoringController {
     @PostMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void capture(@RequestBody @Valid CaptureClientEventRequest request,
-                        HttpServletRequest servletRequest) {
+                        @CustomerUserId Long userId) {
         clientMonitoringUseCase.captureFrontendEvent(
                 request.event(),
                 request.path(),
                 request.source(),
                 request.target(),
-                getUserId(servletRequest));
-    }
-
-    private Long getUserId(HttpServletRequest request) {
-        return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
+                userId);
     }
 }

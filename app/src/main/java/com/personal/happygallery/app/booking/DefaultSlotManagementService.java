@@ -32,7 +32,7 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
     /** 슬롯을 생성한다. */
     public Slot createSlot(Long classId, LocalDateTime startAt, LocalDateTime endAt) {
         BookingClass bookingClass = classReaderPort.findById(classId)
-                .orElseThrow(() -> new NotFoundException("클래스"));
+                .orElseThrow(NotFoundException.supplier("클래스"));
 
         if (slotReaderPort.existsByBookingClassIdAndStartAt(classId, startAt)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미 동일 시간에 슬롯이 존재합니다.");
@@ -44,7 +44,7 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
     /** 슬롯을 비활성화한다. */
     public Slot deactivateSlot(Long slotId) {
         Slot slot = slotReaderPort.findById(slotId)
-                .orElseThrow(() -> new NotFoundException("슬롯"));
+                .orElseThrow(NotFoundException.supplier("슬롯"));
         slot.deactivate();
         return slotStorePort.save(slot);
     }

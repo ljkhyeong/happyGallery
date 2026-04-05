@@ -64,30 +64,30 @@ export function ProductDetailPage() {
 
   return (
     <Container className="page-container">
-      <div className="store-detail-breadcrumb">
-        <Link to="/" className="text-decoration-none">홈</Link>
+      <div className="store-detail-breadcrumb anim-fade-up">
+        <Link to="/" className="store-detail-breadcrumb-link">HOME</Link>
         <span>/</span>
-        <Link to="/products" className="text-decoration-none">상품</Link>
+        <Link to="/products" className="store-detail-breadcrumb-link">STORE</Link>
         <span>/</span>
-        <span>{product.name}</span>
+        <span className="store-detail-breadcrumb-current">{product.name}</span>
       </div>
 
-      <Row className="g-4 align-items-start">
-        <Col lg={7}>
-          <Card className="store-detail-card">
-            <Card.Body>
+      <Row className="g-5 align-items-start">
+        <Col lg={7} className="anim-fade-up anim-delay-1">
+          <Card className="store-detail-card border-0">
+            <Card.Body className="p-0">
               <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
                 <div>
-                  <div className="store-detail-kicker">{PRODUCT_TYPE_LABEL[product.type] ?? product.type}</div>
+                  <div className="store-detail-kicker mb-2">{PRODUCT_TYPE_LABEL[product.type] ?? product.type}</div>
                   <h2 className="store-detail-title mb-2">{product.name}</h2>
-                  <p className="text-muted-soft mb-0">
+                  <p className="text-muted-soft store-section-desc mb-0">
                     {product.type === "MADE_TO_ORDER"
                       ? "주문 승인 후 제작을 시작하는 공방 제작 상품입니다."
                       : "재고 수량 기준으로 바로 주문을 접수하는 판매 상품입니다."}
                   </p>
                 </div>
-                <Badge bg={product.available ? "success" : "secondary"} className="badge-status">
-                  {product.available ? "구매 가능" : "품절"}
+                <Badge bg={product.available ? "dark" : "secondary"} className="badge-status py-2 px-3">
+                  {product.available ? "IN STOCK" : "SOLD OUT"}
                 </Badge>
               </div>
 
@@ -95,16 +95,16 @@ export function ProductDetailPage() {
 
               <div className="store-detail-note-grid mb-4">
                 <div className="store-detail-note">
-                  <div className="store-detail-note-label">구매 흐름</div>
+                  <div className="store-detail-note-label">Process</div>
                   <div className="store-detail-note-body">상품 상세에서 수량 선택 후 바로 주문</div>
                 </div>
                 <div className="store-detail-note">
-                  <div className="store-detail-note-label">회원 주문</div>
-                  <div className="store-detail-note-body">결제 후 `/my/orders/:id` 에서 즉시 확인</div>
+                  <div className="store-detail-note-label">Member</div>
+                  <div className="store-detail-note-body">결제 후 내 주문에서 즉시 확인</div>
                 </div>
                 <div className="store-detail-note">
-                  <div className="store-detail-note-label">비회원 주문</div>
-                  <div className="store-detail-note-body">legacy 주문 fallback 경로로 계속 지원</div>
+                  <div className="store-detail-note-label">Guest</div>
+                  <div className="store-detail-note-body">비회원 주문 경로로 계속 지원</div>
                 </div>
               </div>
 
@@ -120,26 +120,27 @@ export function ProductDetailPage() {
           </Card>
         </Col>
 
-        <Col lg={5}>
+        <Col lg={5} className="anim-fade-up anim-delay-2">
           <Card className="purchase-panel store-purchase-card">
-            <Card.Body>
-              <div className="store-purchase-kicker">Quick Order</div>
-              <h5 className="mb-3">이 상품으로 바로 주문하기</h5>
+            <Card.Body className="p-4">
+              <div className="store-purchase-kicker mb-1">Order</div>
+              <h5 className="store-purchase-title mb-4">바로 주문하기</h5>
 
               <Row className="align-items-center g-3 mb-3">
                 <Col xs={4}>
-                  <Form.Label htmlFor="product-qty" className="mb-0 small fw-semibold">수량</Form.Label>
+                  <Form.Label htmlFor="product-qty" className="mb-0 small store-purchase-qty-label">수량</Form.Label>
                 </Col>
                 <Col xs={8}>
                   <div className="d-flex align-items-center gap-2">
                     <Button
-                      variant="outline-secondary"
+                      variant="outline-dark"
                       size="sm"
                       disabled={qty <= 1}
                       onClick={() => setQty((q) => Math.max(1, q - 1))}
                       aria-label="수량 감소"
+                      className="store-purchase-qty-btn"
                     >
-                      -
+                      −
                     </Button>
                     <Form.Control
                       id="product-qty"
@@ -151,15 +152,15 @@ export function ProductDetailPage() {
                         const v = Number(e.target.value);
                         if (v >= 1 && v <= MAX_QTY) setQty(v);
                       }}
-                      className="text-center"
-                      style={{ width: 72 }}
+                      className="text-center store-purchase-qty-input"
                     />
                     <Button
-                      variant="outline-secondary"
+                      variant="outline-dark"
                       size="sm"
                       disabled={qty >= MAX_QTY}
                       onClick={() => setQty((q) => Math.min(MAX_QTY, q + 1))}
                       aria-label="수량 증가"
+                      className="store-purchase-qty-btn"
                     >
                       +
                     </Button>
@@ -167,18 +168,20 @@ export function ProductDetailPage() {
                 </Col>
               </Row>
 
-              <div className="store-purchase-summary mb-3">
-                <div className="d-flex justify-content-between align-items-center">
-                  <span className="text-muted-soft">상품 금액</span>
-                  <span>{formatKRW(product.price)}</span>
+              <div className="store-purchase-summary mb-4">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className="text-muted-soft store-purchase-line">상품 금액</span>
+                  <span className="store-purchase-line">{formatKRW(product.price)}</span>
                 </div>
-                <div className="d-flex justify-content-between align-items-center">
-                  <span className="text-muted-soft">선택 수량</span>
-                  <span>{qty}개</span>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className="text-muted-soft store-purchase-line">선택 수량</span>
+                  <span className="store-purchase-line">{qty}개</span>
                 </div>
-                <div className="d-flex justify-content-between align-items-center pt-2 mt-2 border-top">
-                  <span className="fw-semibold">총 금액</span>
-                  <span className="fs-5 fw-bold">{formatKRW(totalAmount)}</span>
+                <div className="d-flex justify-content-between align-items-center pt-3 mt-2 store-purchase-total-divider">
+                  <span className="store-purchase-total-label">총 금액</span>
+                  <span className="store-purchase-total-value">
+                    {formatKRW(totalAmount)}
+                  </span>
                 </div>
               </div>
 
@@ -187,16 +190,16 @@ export function ProductDetailPage() {
               {!authLoading && isAuthenticated ? (
                 <>
                   <Button
-                    variant="primary"
+                    variant="dark"
                     size="lg"
-                    className="w-100 mb-2"
+                    className="w-100 mb-2 store-purchase-btn-primary"
                     disabled={!canBuy || orderMutation.isPending}
                     onClick={() => orderMutation.mutate()}
                   >
-                    {orderMutation.isPending ? "주문 처리 중..." : "구매하기"}
+                    {orderMutation.isPending ? "PROCESSING..." : "BUY NOW"}
                   </Button>
                   <Button
-                    variant="outline-primary"
+                    variant="outline-dark"
                     size="lg"
                     className="w-100 mb-2"
                     disabled={!canBuy}
@@ -205,7 +208,7 @@ export function ProductDetailPage() {
                       toast.show("장바구니에 추가되었습니다.");
                     }}
                   >
-                    장바구니 담기
+                    ADD TO CART
                   </Button>
                   <p className="store-purchase-helper mb-0">
                     주문이 완료되면 바로 내 주문 상세로 이동합니다.
@@ -214,13 +217,13 @@ export function ProductDetailPage() {
               ) : !authLoading ? (
                 <>
                   <Button
-                    variant="primary"
+                    variant="dark"
                     size="lg"
-                    className="w-100 mb-2"
+                    className="w-100 mb-2 store-purchase-btn-primary"
                     disabled={!canBuy}
                     onClick={() => navigate(loginHref)}
                   >
-                    로그인하고 구매하기
+                    LOGIN & BUY
                   </Button>
                   <Button
                     as={Link as any}
@@ -228,10 +231,10 @@ export function ProductDetailPage() {
                     variant="outline-dark"
                     className="w-100 mb-2"
                   >
-                    회원가입 후 구매하기
+                    JOIN & BUY
                   </Button>
                   <Button
-                    variant="outline-primary"
+                    variant="outline-dark"
                     className="w-100 mb-2"
                     disabled={!canBuy}
                     onClick={() => {
@@ -239,18 +242,18 @@ export function ProductDetailPage() {
                       toast.show("장바구니에 추가되었습니다.");
                     }}
                   >
-                    장바구니 담기
+                    ADD TO CART
                   </Button>
                   <Button
                     as={Link as any}
                     to={guestFallbackPath}
-                    variant="outline-secondary"
-                    className="w-100"
+                    variant="link"
+                    className="w-100 text-muted-soft store-purchase-guest-link"
                   >
-                    비회원 주문하기
+                    비회원 주문하기 →
                   </Button>
-                  <p className="store-purchase-helper mb-0 mt-3">
-                    비회원 주문은 fallback 경로로 이어지며, 현재 선택한 상품과 수량을 미리 담아둡니다.
+                  <p className="store-purchase-helper mb-0 mt-2">
+                    비회원 주문은 별도 경로로 이어지며, 선택한 상품과 수량을 미리 담아둡니다.
                   </p>
                 </>
               ) : null}

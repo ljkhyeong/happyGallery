@@ -2,7 +2,7 @@ package com.personal.happygallery.app.booking;
 
 import com.personal.happygallery.app.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.app.booking.port.out.BookingStorePort;
-import com.personal.happygallery.app.pass.port.in.PassCreditPort;
+import com.personal.happygallery.app.pass.port.in.PassCreditUseCase;
 import com.personal.happygallery.app.payment.RefundExecutionService;
 import com.personal.happygallery.domain.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
@@ -21,14 +21,14 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
 
     private final BookingStorePort bookingStorePort;
     private final RefundExecutionService refundExecutionService;
-    private final PassCreditPort passCreditPort;
+    private final PassCreditUseCase passCreditPort;
     private final BookingSlotSupport creationSupport;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     public DefaultBookingCancelService(BookingStorePort bookingStorePort,
                                 RefundExecutionService refundExecutionService,
-                                PassCreditPort passCreditPort,
+                                PassCreditUseCase passCreditPort,
                                 BookingSlotSupport creationSupport,
                                 BookingSupport bookingSupport,
                                 Clock clock) {

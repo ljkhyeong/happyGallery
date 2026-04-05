@@ -51,37 +51,39 @@ export function ProductListPage() {
 
   return (
     <Container className="page-container">
-      <section className="store-list-header mb-4">
-        <p className="store-section-kicker mb-2">Store Catalog</p>
+      <section className="store-list-header mb-4 anim-fade-up">
+        <p className="store-section-kicker mb-2">Store</p>
         <div className="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-end">
           <div>
-            <h4 className="mb-1">작품 스토어</h4>
-            <p className="text-muted-soft mb-0">
+            <h3 className="store-list-title mb-1">ALL PRODUCTS</h3>
+            <p className="text-muted-soft store-section-desc mb-0">
               바로 판매 가능한 상품과 예약 제작 상품을 한 곳에서 확인하세요.
             </p>
           </div>
         </div>
       </section>
 
-      <ProductFilterBar
-        keyword={keyword}
-        onKeywordChange={setKeyword}
-        type={type}
-        onTypeChange={setType}
-        category={category}
-        onCategoryChange={setCategory}
-        categories={categories}
-        sort={sort}
-        onSortChange={setSort}
-        resultText={products ? `${products.length}개의 상품` : "상품을 불러오는 중"}
-        onReset={handleReset}
-      />
+      <div className="anim-fade-up anim-delay-1">
+        <ProductFilterBar
+          keyword={keyword}
+          onKeywordChange={setKeyword}
+          type={type}
+          onTypeChange={setType}
+          category={category}
+          onCategoryChange={setCategory}
+          categories={categories}
+          sort={sort}
+          onSortChange={setSort}
+          resultText={products ? `${products.length}개의 상품` : "상품을 불러오는 중"}
+          onReset={handleReset}
+        />
+      </div>
 
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} />
       {products && products.length === 0 && <EmptyState message="조건에 맞는 상품이 없습니다." />}
       {products && products.length > 0 && (
-        <Row xs={1} sm={2} md={3} className="g-3">
+        <Row xs={1} sm={2} md={3} className="g-4 anim-fade-up anim-delay-2">
           {products.map((p) => (
             <Col key={p.id}>
               <ProductCard product={p} />

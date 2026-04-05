@@ -45,7 +45,7 @@ public class InventoryService {
      */
     public Inventory deduct(Long productId, int qty) {
         Inventory inventory = inventoryStorePort.findByProductIdWithLock(productId)
-                .orElseThrow(() -> new NotFoundException("재고"));
+                .orElseThrow(NotFoundException.supplier("재고"));
         inventory.deduct(qty);
         return inventoryStorePort.save(inventory);
     }
@@ -59,7 +59,7 @@ public class InventoryService {
      */
     public Inventory restore(Long productId, int qty) {
         Inventory inventory = inventoryStorePort.findByProductIdWithLock(productId)
-                .orElseThrow(() -> new NotFoundException("재고"));
+                .orElseThrow(NotFoundException.supplier("재고"));
         inventory.restore(qty);
         return inventoryStorePort.save(inventory);
     }

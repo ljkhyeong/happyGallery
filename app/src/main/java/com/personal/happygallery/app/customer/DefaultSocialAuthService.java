@@ -1,4 +1,4 @@
-package com.personal.happygallery.app.web.customer;
+package com.personal.happygallery.app.customer;
 
 import com.personal.happygallery.app.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.app.customer.port.out.OAuthTokenExchangePort;

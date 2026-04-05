@@ -1,16 +1,13 @@
 package com.personal.happygallery.app.web;
 
-import com.personal.happygallery.app.admin.port.out.AdminSessionPort;
-import com.personal.happygallery.app.web.admin.AdminSessionStore;
+import com.personal.happygallery.app.admin.port.AdminSession;
+import com.personal.happygallery.app.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.config.properties.AdminProperties;
-import java.time.Clock;
-import java.time.Duration;
-import java.util.concurrent.ConcurrentHashMap;
+import java.time.Instant;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -18,7 +15,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 
 class AdminAuthFilterTest {
@@ -63,9 +59,11 @@ class AdminAuthFilterTest {
     @DisplayName("Bearer 토큰이 유효하면 통과하고 admin 정보가 request attribute에 설정된다")
     @Test
     void passes_whenValidBearerToken() throws Exception {
-        AdminSessionStore store = workingAdminSessionStore();
-        String token = store.create(1L, "admin");
-        AdminAuthFilter filter = new AdminAuthFilter(properties("dev-admin-key", false), store, new ObjectMapper());
+        AdminAuthUseCase authUseCase = Mockito.mock(AdminAuthUseCase.class);
+        Mockito.when(authUseCase.validateToken(anyString()))
+                .thenReturn(Optional.of(new AdminSession(1L, "admin", Instant.now())));
+        AdminAuthFilter filter = new AdminAuthFilter(properties("dev-admin-key", false), authUseCase, new ObjectMapper());
+        String token = "valid-token";
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/products");
         request.addHeader("Authorization", "Bearer " + token);
@@ -159,20 +157,7 @@ class AdminAuthFilterTest {
     }
 
     private static AdminAuthFilter createFilter(AdminProperties props) {
-        return new AdminAuthFilter(props, Mockito.mock(AdminSessionPort.class), new ObjectMapper());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static AdminSessionStore workingAdminSessionStore() {
-        ConcurrentHashMap<String, String> store = new ConcurrentHashMap<>();
-        StringRedisTemplate redis = Mockito.mock(StringRedisTemplate.class);
-        ValueOperations<String, String> ops = Mockito.mock(ValueOperations.class);
-        Mockito.when(redis.opsForValue()).thenReturn(ops);
-        Mockito.doAnswer(inv -> { store.put(inv.getArgument(0), inv.getArgument(1)); return null; })
-                .when(ops).set(anyString(), anyString(), any(Duration.class));
-        Mockito.when(ops.get(anyString())).thenAnswer(inv -> store.get(inv.getArgument(0)));
-        Mockito.when(redis.delete(anyString())).thenReturn(true);
-        return new AdminSessionStore(redis, new ObjectMapper(), Clock.systemUTC());
+        return new AdminAuthFilter(props, Mockito.mock(AdminAuthUseCase.class), new ObjectMapper());
     }
 
     private static AdminProperties properties(String apiKey, boolean enableApiKeyAuth) {

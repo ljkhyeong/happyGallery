@@ -3,13 +3,12 @@ package com.personal.happygallery.app.web.customer;
 import com.personal.happygallery.app.cart.port.in.CartCheckoutUseCase;
 import com.personal.happygallery.app.cart.port.in.CartUseCase;
 import com.personal.happygallery.app.cart.port.in.CartUseCase.CartView;
-import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.customer.dto.AddCartItemRequest;
 import com.personal.happygallery.app.web.customer.dto.CartResponse;
 import com.personal.happygallery.app.web.customer.dto.MyOrderSummary;
 import com.personal.happygallery.app.web.customer.dto.UpdateCartItemRequest;
+import com.personal.happygallery.app.web.resolver.CustomerUserId;
 import com.personal.happygallery.domain.order.Order;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -35,38 +34,34 @@ public class MeCartController {
     }
 
     @GetMapping
-    public CartResponse getCart(HttpServletRequest request) {
-        CartView cart = cartUseCase.getCart(getUserId(request));
+    public CartResponse getCart(@CustomerUserId Long userId) {
+        CartView cart = cartUseCase.getCart(userId);
         return CartResponse.from(cart);
     }
 
     @PostMapping("/items")
     @ResponseStatus(HttpStatus.CREATED)
-    public void addItem(@RequestBody @Valid AddCartItemRequest req, HttpServletRequest request) {
-        cartUseCase.addItem(getUserId(request), req.productId(), req.qty());
+    public void addItem(@RequestBody @Valid AddCartItemRequest req, @CustomerUserId Long userId) {
+        cartUseCase.addItem(userId, req.productId(), req.qty());
     }
 
     @PutMapping("/items/{productId}")
     public void updateItemQty(@PathVariable Long productId,
                               @RequestBody @Valid UpdateCartItemRequest req,
-                              HttpServletRequest request) {
-        cartUseCase.updateItemQty(getUserId(request), productId, req.qty());
+                              @CustomerUserId Long userId) {
+        cartUseCase.updateItemQty(userId, productId, req.qty());
     }
 
     @DeleteMapping("/items/{productId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removeItem(@PathVariable Long productId, HttpServletRequest request) {
-        cartUseCase.removeItem(getUserId(request), productId);
+    public void removeItem(@PathVariable Long productId, @CustomerUserId Long userId) {
+        cartUseCase.removeItem(userId, productId);
     }
 
     @PostMapping("/checkout")
     @ResponseStatus(HttpStatus.CREATED)
-    public MyOrderSummary checkout(HttpServletRequest request) {
-        Order order = cartCheckoutUseCase.checkout(getUserId(request));
+    public MyOrderSummary checkout(@CustomerUserId Long userId) {
+        Order order = cartCheckoutUseCase.checkout(userId);
         return MyOrderSummary.from(order);
-    }
-
-    private Long getUserId(HttpServletRequest request) {
-        return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
     }
 }

@@ -1,9 +1,5 @@
-import { api } from "@/shared/api";
+import { adminHeaders as h, api } from "@/shared/api";
 import type { FailedRefundResponse } from "@/shared/types";
-
-function h(token: string) {
-  return { Authorization: `Bearer ${token}` };
-}
 
 export function fetchFailedRefunds(adminKey: string): Promise<FailedRefundResponse[]> {
   return api("/admin/refunds/failed", { headers: h(adminKey) });

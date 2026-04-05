@@ -13,13 +13,13 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-class DefaultSlotBookingCoordinator implements SlotBookingCoordinator {
+class SlotBookingSupport {
 
     private final SlotReaderPort slotReaderPort;
     private final SlotStorePort slotStorePort;
 
-    DefaultSlotBookingCoordinator(SlotReaderPort slotReaderPort,
-                                  SlotStorePort slotStorePort) {
+    SlotBookingSupport(SlotReaderPort slotReaderPort,
+                       SlotStorePort slotStorePort) {
         this.slotReaderPort = slotReaderPort;
         this.slotStorePort = slotStorePort;
     }
@@ -27,7 +27,7 @@ class DefaultSlotBookingCoordinator implements SlotBookingCoordinator {
     @Transactional(propagation = Propagation.MANDATORY)
     public void confirmBooking(Long slotId) {
         Slot slot = slotReaderPort.findByIdWithLock(slotId)
-                .orElseThrow(() -> new NotFoundException("슬롯"));
+                .orElseThrow(NotFoundException.supplier("슬롯"));
 
         if (!slot.isActive()) {
             throw new SlotNotAvailableException();
@@ -50,7 +50,7 @@ class DefaultSlotBookingCoordinator implements SlotBookingCoordinator {
     @Transactional(propagation = Propagation.MANDATORY)
     public Slot releaseSlotCapacity(Long slotId) {
         Slot slot = slotReaderPort.findByIdWithLock(slotId)
-                .orElseThrow(() -> new NotFoundException("슬롯"));
+                .orElseThrow(NotFoundException.supplier("슬롯"));
         slot.decrementBookedCount();
         slotStorePort.save(slot);
         return slot;

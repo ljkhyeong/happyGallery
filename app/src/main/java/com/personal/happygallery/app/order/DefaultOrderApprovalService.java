@@ -75,7 +75,7 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
     @OptimisticLockRetryable
     public Order approve(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("주문"));
+                .orElseThrow(NotFoundException.supplier("주문"));
 
         boolean isMadeToOrder = isMadeToOrderOrder(order);
         if (isMadeToOrder) {
@@ -115,7 +115,7 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
     @OptimisticLockRetryable
     public Order reject(Long orderId, Long adminId) {
         Order order = orderReader.findById(orderId)
-                .orElseThrow(() -> new NotFoundException("주문"));
+                .orElseThrow(NotFoundException.supplier("주문"));
         order.reject();
 
         orderRefundSupport.refundOrder(order);

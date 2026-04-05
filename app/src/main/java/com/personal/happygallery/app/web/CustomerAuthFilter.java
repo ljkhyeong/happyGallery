@@ -2,7 +2,7 @@ package com.personal.happygallery.app.web;
 
 import com.personal.happygallery.app.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.app.web.error.ErrorResponse;
+
 import com.personal.happygallery.config.RedisConfig;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -61,11 +61,8 @@ public class CustomerAuthFilter extends OncePerRequestFilter {
 
         if ((uri.equals(ME_PATH) || uri.startsWith(ME_PATH + "/"))
                 && httpRequest.getAttribute(CUSTOMER_USER_ATTR) == null) {
-            httpResponse.setStatus(ErrorCode.UNAUTHORIZED.httpStatus);
-            httpResponse.setContentType("application/json;charset=UTF-8");
-            httpResponse.getWriter().write(
-                    objectMapper.writeValueAsString(
-                            ErrorResponse.of(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.")));
+            FilterErrorResponseWriter.write(httpResponse, objectMapper,
+                    ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
             return;
         }
 

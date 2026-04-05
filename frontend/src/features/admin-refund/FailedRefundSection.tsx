@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, Button } from "react-bootstrap";
 import { fetchFailedRefunds, retryRefund } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { formatKRW, formatDateTime } from "@/shared/lib";
 
 interface Props {
@@ -27,15 +28,12 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
     }
   }, [error, onAuthError]);
 
-  const retry = useMutation({
+  const retry = useAdminMutation(onAuthError, {
     mutationFn: (refundId: number) => retryRefund(adminKey, refundId),
     onMutate: (id) => setPendingId(id),
     onSuccess: () => {
       toast.show("환불 재시도 완료");
       queryClient.invalidateQueries({ queryKey: ["admin", "refunds", "failed"] });
-    },
-    onError: (err) => {
-      if (err instanceof ApiError && err.status === 401) onAuthError();
     },
     onSettled: () => setPendingId(null),
   });

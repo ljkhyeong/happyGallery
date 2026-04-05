@@ -36,7 +36,7 @@ class DefaultBookingNoShowService implements BookingNoShowUseCase {
     @Override
     public Booking markNoShow(Long bookingId) {
         Booking booking = bookingReader.findById(bookingId)
-                .orElseThrow(() -> new NotFoundException("예약"));
+                .orElseThrow(NotFoundException.supplier("예약"));
 
         bookingSupport.recordHistory(booking, BookingHistoryAction.NO_SHOW,
                 booking.getSlot(), null, "ADMIN", null);

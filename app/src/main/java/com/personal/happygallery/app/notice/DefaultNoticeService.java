@@ -38,7 +38,7 @@ public class DefaultNoticeService implements NoticeQueryUseCase, NoticeAdminUseC
     @Transactional
     public Notice getDetail(Long id) {
         Notice notice = noticeReader.findById(id)
-                .orElseThrow(() -> new NotFoundException("공지사항"));
+                .orElseThrow(NotFoundException.supplier("공지사항"));
         notice.incrementViewCount();
         return noticeStore.save(notice);
     }
@@ -53,7 +53,7 @@ public class DefaultNoticeService implements NoticeQueryUseCase, NoticeAdminUseC
     @Transactional
     public Notice update(Long id, String title, String content, boolean pinned) {
         Notice notice = noticeReader.findById(id)
-                .orElseThrow(() -> new NotFoundException("공지사항"));
+                .orElseThrow(NotFoundException.supplier("공지사항"));
         notice.update(title, content, pinned);
         return noticeStore.save(notice);
     }
@@ -62,7 +62,7 @@ public class DefaultNoticeService implements NoticeQueryUseCase, NoticeAdminUseC
     @Transactional
     public void delete(Long id) {
         noticeReader.findById(id)
-                .orElseThrow(() -> new NotFoundException("공지사항"));
+                .orElseThrow(NotFoundException.supplier("공지사항"));
         noticeStore.deleteById(id);
     }
 }

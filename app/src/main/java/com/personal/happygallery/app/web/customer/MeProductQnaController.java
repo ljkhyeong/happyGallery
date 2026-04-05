@@ -1,10 +1,9 @@
 package com.personal.happygallery.app.web.customer;
 
 import com.personal.happygallery.app.qna.port.in.ProductQnaUseCase;
-import com.personal.happygallery.app.web.CustomerAuthFilter;
 import com.personal.happygallery.app.web.customer.dto.CreateQnaRequest;
 import com.personal.happygallery.app.web.customer.dto.QnaCreatedResponse;
-import jakarta.servlet.http.HttpServletRequest;
+import com.personal.happygallery.app.web.resolver.CustomerUserId;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,14 +27,9 @@ public class MeProductQnaController {
     @ResponseStatus(HttpStatus.CREATED)
     public QnaCreatedResponse create(@PathVariable Long productId,
                                      @RequestBody @Valid CreateQnaRequest request,
-                                     HttpServletRequest httpRequest) {
-        Long userId = getUserId(httpRequest);
+                                     @CustomerUserId Long userId) {
         return QnaCreatedResponse.from(qnaUseCase.createQuestion(
                 productId, userId, request.title(), request.content(),
                 request.secret(), request.password()));
-    }
-
-    private Long getUserId(HttpServletRequest request) {
-        return (Long) request.getAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR);
     }
 }

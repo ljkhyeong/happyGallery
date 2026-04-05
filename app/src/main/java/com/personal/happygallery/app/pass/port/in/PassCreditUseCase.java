@@ -8,7 +8,7 @@ import com.personal.happygallery.domain.pass.PassPurchase;
  * <p>Booking이 Pass 내부 구현(PassLedger, PassPurchaseStorePort)을
  * 직접 알지 않아도 크레딧 조작이 가능하도록 추상화한다.
  */
-public interface PassCreditPort {
+public interface PassCreditUseCase {
 
     /**
      * 8회권 크레딧 1회 차감.
