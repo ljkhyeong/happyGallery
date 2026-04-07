@@ -39,7 +39,7 @@ class BookingRescheduleUseCaseIT {
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired DefaultSlotManagementService slotManagementService;
-    @Autowired SlotBookingSupport slotBookingCoordinator;
+    @Autowired SlotBookingSupport slotBookingSupport;
     @Autowired Clock clock;
     @Autowired PlatformTransactionManager transactionManager;
 
@@ -239,7 +239,7 @@ class BookingRescheduleUseCaseIT {
 
     private void confirmBookingInTx(Long slotId) {
         new TransactionTemplate(transactionManager)
-                .executeWithoutResult(status -> slotBookingCoordinator.confirmBooking(slotId));
+                .executeWithoutResult(status -> slotBookingSupport.confirmBooking(slotId));
     }
 
 }
