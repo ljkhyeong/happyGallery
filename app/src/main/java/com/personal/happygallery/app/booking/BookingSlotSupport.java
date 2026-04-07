@@ -27,20 +27,20 @@ import org.springframework.transaction.annotation.Transactional;
 class BookingSlotSupport {
 
     private final SlotReaderPort slotReaderPort;
-    private final SlotBookingSupport slotBookingCoordinator;
+    private final SlotBookingSupport slotBookingSupport;
     private final BookingStorePort bookingStorePort;
     private final PassCreditUseCase passCreditPort;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     BookingSlotSupport(SlotReaderPort slotReaderPort,
-                       SlotBookingSupport slotBookingCoordinator,
+                       SlotBookingSupport slotBookingSupport,
                        BookingStorePort bookingStorePort,
                        PassCreditUseCase passCreditPort,
                        BookingSupport bookingSupport,
                        Clock clock) {
         this.slotReaderPort = slotReaderPort;
-        this.slotBookingCoordinator = slotBookingCoordinator;
+        this.slotBookingSupport = slotBookingSupport;
         this.bookingStorePort = bookingStorePort;
         this.passCreditPort = passCreditPort;
         this.bookingSupport = bookingSupport;
@@ -60,13 +60,13 @@ class BookingSlotSupport {
     /** 비관적 락 + 정원 증가 + 버퍼 비활성화. 중복 체크 이후에 호출한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     void lockSlotCapacity(Long slotId) {
-        slotBookingCoordinator.confirmBooking(slotId);
+        slotBookingSupport.confirmBooking(slotId);
     }
 
     /** 비관적 락 + 정원 감소. 취소·변경 시 기존 슬롯을 반납한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Slot releaseSlotCapacity(Long slotId) {
-        return slotBookingCoordinator.releaseSlotCapacity(slotId);
+        return slotBookingSupport.releaseSlotCapacity(slotId);
     }
 
     /**
