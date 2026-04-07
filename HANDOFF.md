@@ -1,6 +1,6 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-04-05 (스토어 UI 리프레시/웹 인증 resolver 정리 반영 상태)
+> 작성 시점: 2026-04-07 (AWS 배포 설정 베이스라인/booking support naming 반영 상태)
 
 ---
 
@@ -22,6 +22,7 @@
 
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - booking support naming 정리 — `BookingSlotSupport`와 관련 use case test에서 `slotBookingCoordinator` 필드명을 실제 타입명에 맞춰 `slotBookingSupport`로 통일했다
   - 레이어 경계 정리 — 관리자/고객 인증 서비스와 관리자 세션 DTO를 `app` 계층으로 옮기고, Redis 기반 관리자 세션 저장소는 `infra` 구현으로 분리했다. `AdminAuthFilter`는 세션 저장소 대신 `AdminAuthUseCase`를 보도록 바꿨다
   - 로컬 dev 보조 API 정리 — 최신 휴대폰 인증번호 조회와 다음 환불 실패 arm 기능을 controller가 port.out에 직접 붙지 않도록 각각 `DevPhoneVerificationQueryUseCase`, `DevRefundFailureUseCase`를 거치게 정리했다
   - 포트/지원 클래스 이름 정리 — `BookingCancellationPort`/`PassCreditPort`를 `*UseCase`로 맞추고, 슬롯 점유/반납 helper는 `SlotBookingSupport` 이름으로 바로잡았다
@@ -37,6 +38,7 @@
   - 외부 HTTP 풀링 기준선 추가 — `prod` 프로필의 Kakao/SMS/Google OAuth `RestClient`를 서비스별 Apache HttpClient 5 풀로 분리했다. 기본값은 `acquire 1s`, `connect 2s`, `read 5s`, `keep-alive 30s`이며, 알림은 max 20, Google OAuth는 max 10으로 시작한다. 상세 의사결정은 ADR-0029를 참고한다
   - timeout 기준선 정리 — 프론트 fetch timeout을 35초, nginx `proxy_read_timeout`을 30초, Hikari acquire timeout을 2초, 기본 트랜잭션 timeout을 10초, JPA query timeout을 5초, MySQL `innodb_lock_wait_timeout` 세션값을 3초로 맞췄다. 외부 알림/OAuth 호출은 read 5초를 유지하면서 acquire 1초, connect 2초, keep-alive 30초, 서비스별 max connections 기준을 추가했고, 동기 MVC 전체 요청 deadline은 별도 필터/컨테이너 커스터마이저 후보로 남겼다. 상세 의사결정은 ADR-0030과 ADR-0029를 참고한다
   - ingress keep-alive 기준선 추가 — `nginx`는 `client -> nginx keepalive_timeout 15s`를 명시하고, `nginx -> app`은 upstream keep-alive를 켰다. 이 hop에서는 caller가 먼저 연결을 정리하고 callee가 더 오래 유지하도록 시작값을 맞춘다. 상세 의사결정은 ADR-0030을 참고한다
+  - AWS 배포 설정 문서 추가 — `docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md`에 ECR repository 기본값, lifecycle policy, GitHub Actions OIDC role trust/permission policy, GitHub Secrets / Variables 기준선을 한곳에 모았다
   - 서비스/테스트 경계 정리 — `BookingSlotSupport`의 슬롯 점유/반납 책임을 `SlotBookingCoordinator`로 분리했고, `DefaultGuestClaimService`는 `DefaultClientMonitoringService` 대신 `ClientMonitoringUseCase`를 의존하도록 바꿨다. 테스트 쪽은 `TestRepositoryHelper`를 완전히 제거했고, 시드 저장/조회는 `ReaderPort`/`StorePort`/`UseCase`를 직접 주입하며, 정리·삭제만 `TestCleanupSupport`에 남기고, 영속 확인은 `BookingStateProbe`/`OrderStateProbe`/`NotificationLogProbe` 같은 좁은 probe로 나눴다. `PassCreditUsageUseCaseIT`는 HTTP 계약용 `PassCreditUsageWebUseCaseIT`와 영속 효과 검증용 `PassCreditUsagePersistenceUseCaseIT`로 분리했다. app 테스트에서 direct infra repository import를 의도적으로 유지하는 파일은 `ConcurrentBookingUseCaseIT`, `RefundExecutionServiceUseCaseIT`, `SlotBookingCapacityUseCaseIT`, `ProductInventoryUseCaseIT` 네 개뿐이다
   - PassCreditUsage 테스트 조합 전환 — `PassCreditUsageWebUseCaseIT`, `PassCreditUsagePersistenceUseCaseIT`는 더 이상 `PassCreditUsageTestSupport`를 상속하지 않고, 공통 준비를 `PassCreditUsageFixture` 조합 객체로 사용한다. 현재 `app/src/test/java` 기준 test support 상속 패턴은 이 케이스 외에는 남아 있지 않다
   - 테스트 probe 경계 정리 — `BookingStateProbe`, `OrderStateProbe`, `NotificationLogProbe`는 더 이상 `infra` repository를 직접 잡지 않고 `ReaderPort`/`StorePort`/`HistoryPort`/`RefundPort`/`FulfillmentPort`를 사용한다. 반면 `TestCleanupSupport`는 테스트 정리 인프라이므로 concrete repository 의존을 유지한다
@@ -257,6 +259,7 @@
 - Grafana 로그인은 `GRAFANA_ADMIN_USER`/`GRAFANA_ADMIN_PASSWORD` 환경 변수를 사용하고, 사용자명 기본값은 `admin`이다.
 - Sentry는 backend `SENTRY_DSN/SENTRY_ENVIRONMENT/SENTRY_RELEASE`, frontend `VITE_SENTRY_DSN/VITE_SENTRY_ENVIRONMENT/VITE_SENTRY_RELEASE` 환경 변수를 사용한다.
 - 알림 sender는 `!prod`에서 fake sender, `prod`에서 카카오 알림톡/NHN SMS 실제 sender를 사용한다. 실제 운영 발송에는 `KAKAO_*`, `SMS_*` 환경 변수가 필요하다.
+- AWS 운영 배포 설정은 `docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md`를 기준으로 보고, ECR lifecycle policy, GitHub OIDC role, GitHub Actions variable/secret 변경도 같은 문서에 누적한다.
 - clean DB 기준으로도 P8 guest/member 핵심 브라우저 시나리오 1~9를 바로 실행할 수 있다.
 - `DELETE /api/v1/admin/dev/payment/refunds/fail-next`로 훅을 비우고, `POST /api/v1/admin/dev/payment/refunds/fail-next`로 다음 환불 1회 실패를 arm할 수 있다.
   요청 바디에 `orderId`를 넣으면 특정 주문으로 범위를 좁힐 수 있다.

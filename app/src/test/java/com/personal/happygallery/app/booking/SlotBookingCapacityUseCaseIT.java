@@ -32,7 +32,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class SlotBookingCapacityUseCaseIT {
 
-    @Autowired SlotBookingSupport slotBookingCoordinator;
+    @Autowired SlotBookingSupport slotBookingSupport;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
@@ -113,6 +113,6 @@ class SlotBookingCapacityUseCaseIT {
 
     private void confirmBookingInTx(Long slotId) {
         new TransactionTemplate(transactionManager)
-                .executeWithoutResult(status -> slotBookingCoordinator.confirmBooking(slotId));
+                .executeWithoutResult(status -> slotBookingSupport.confirmBooking(slotId));
     }
 }
