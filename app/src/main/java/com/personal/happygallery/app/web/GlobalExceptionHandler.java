@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -47,10 +48,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
         log.warn("DB 제약 위반: {}", e.getMessage());
-        ErrorCode errorCode = resolveDataIntegrityErrorCode(e);
         return ResponseEntity
-                .status(errorCode.httpStatus)
-                .body(ErrorResponse.of(errorCode, errorCode.message, requestId()));
+                .status(ErrorCode.INVALID_INPUT.httpStatus)
+                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, ErrorCode.INVALID_INPUT.message, requestId()));
     }
 
     /**
@@ -79,23 +79,21 @@ public class GlobalExceptionHandler {
         return MDC.get("requestId");
     }
 
-    private ErrorCode resolveDataIntegrityErrorCode(DataIntegrityViolationException e) {
-        String details = collectExceptionDetails(e);
-        if (details.contains("uq_slot_class_start")) {
-            return ErrorCode.INVALID_INPUT;
-        }
-        return ErrorCode.INVALID_INPUT;
-    }
+    private static final Map<String, ErrorCode> OPTIMISTIC_LOCK_HINTS = Map.of(
+            "domain.booking.booking", ErrorCode.BOOKING_CONFLICT,
+            "bookings", ErrorCode.BOOKING_CONFLICT
+    );
 
     private ErrorCode resolveOptimisticLockErrorCode(OptimisticLockingFailureException e) {
         String details = collectExceptionDetails(e);
-        if (details.contains("domain.booking.booking") || details.contains("bookings")) {
-            return ErrorCode.BOOKING_CONFLICT;
-        }
-        return ErrorCode.CONFLICT;
+        return OPTIMISTIC_LOCK_HINTS.entrySet().stream()
+                .filter(entry -> details.contains(entry.getKey()))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(ErrorCode.CONFLICT);
     }
 
-    private String collectExceptionDetails(Throwable throwable) {
+    private static String collectExceptionDetails(Throwable throwable) {
         StringBuilder builder = new StringBuilder();
         Throwable current = throwable;
         while (current != null) {
