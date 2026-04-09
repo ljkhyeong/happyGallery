@@ -21,7 +21,6 @@ import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
-import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,9 +32,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doAnswer;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -292,16 +288,9 @@ class OrderApprovalUseCaseIT {
         Order order1 = orderHelper.createExpiredReadyStockPendingOrder("알림실패 상품1", 45000L).order();
         Order order2 = orderHelper.createExpiredReadyStockPendingOrder("알림실패 상품2", 55000L).order();
 
-        // 첫 번째 주문의 알림만 비동기 실패(호출 스레드에는 전파되지 않음)
-        doAnswer(invocation -> {
-            CompletableFuture.runAsync(() -> {
-                throw new RuntimeException("알림 전송 실패");
-            });
-            return null;
-        })
-                .doNothing()
-                .when(notificationService)
-                .notifyByGuestId(any(), any());
+        // NotificationService가 @MockitoBean이므로 알림은 no-op.
+        // @TransactionalEventListener(AFTER_COMMIT) + @Async 구조상
+        // 알림 실패는 원래 트랜잭션에 영향을 줄 수 없다.
 
         BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
 

@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 /**
@@ -24,7 +23,6 @@ import org.springframework.stereotype.Service;
  * 이 서비스를 수정할 필요 없이 fallback 체인에 자동 포함된다.
  *
  * <p>알림 실패는 주문/예약 흐름을 중단시키지 않는다.
- * 호출자는 {@code notifyGuest()} 혹은 {@code notifyByGuestId()} 를 try-catch 없이 호출해도 된다.
  */
 @Service
 public class NotificationService {
@@ -49,58 +47,7 @@ public class NotificationService {
         this.clock = clock;
     }
 
-    /**
-     * 게스트에게 알림을 발송한다. phone / name 을 이미 알고 있을 때 사용한다.
-     *
-     * <p>{@code @Order} 우선순위 순으로 시도한다. 한 채널이 성공하면 이후 채널은 시도하지 않는다.
-     * 모든 채널 실패 시에도 예외를 던지지 않고 로그만 기록한다.
-     *
-     * @deprecated 이벤트 기반 전환 중. 새 코드는 {@code ApplicationEventPublisher}를 사용한다.
-     */
-    @Deprecated
-    @Async("notificationExecutor")
-    public void notifyGuest(Long guestId, String phone, String name,
-                            NotificationEventType eventType) {
-        sendToGuest(guestId, phone, name, eventType);
-    }
-
-    /**
-     * guestId 만으로 게스트에게 알림을 발송한다.
-     * 게스트가 존재하지 않으면 경고 로그를 남기고 무시한다.
-     *
-     * @deprecated 이벤트 기반 전환 중. 새 코드는 {@code ApplicationEventPublisher}를 사용한다.
-     */
-    @Deprecated
-    @Async("notificationExecutor")
-    public void notifyByGuestId(Long guestId, NotificationEventType eventType) {
-        sendByGuestId(guestId, eventType);
-    }
-
-    /**
-     * userId 만으로 회원에게 알림을 발송한다.
-     * 회원이 존재하지 않으면 경고 로그를 남기고 무시한다.
-     *
-     * @deprecated 이벤트 기반 전환 중. 새 코드는 {@code ApplicationEventPublisher}를 사용한다.
-     */
-    @Deprecated
-    @Async("notificationExecutor")
-    public void notifyByUserId(Long userId, NotificationEventType eventType) {
-        sendByUserId(userId, eventType);
-    }
-
-    /**
-     * 회원에게 알림을 발송한다. phone / name 을 이미 알고 있을 때 사용한다.
-     *
-     * @deprecated 이벤트 기반 전환 중. 새 코드는 {@code ApplicationEventPublisher}를 사용한다.
-     */
-    @Deprecated
-    @Async("notificationExecutor")
-    public void notifyUser(Long userId, String phone, String name,
-                           NotificationEventType eventType) {
-        sendToUser(userId, phone, name, eventType);
-    }
-
-    // -- 이벤트 리스너용 package-private 메서드 (@Async 없음) --
+    // -- 이벤트 리스너용 package-private 메서드 --
 
     void sendToGuest(Long guestId, String phone, String name,
                      NotificationEventType eventType) {
