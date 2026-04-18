@@ -1,3 +1,7 @@
+plugins {
+	id 'java-test-fixtures'
+}
+
 // 테스트 목적별 실행 태스크
 tasks.register('useCaseTest', Test) {
 	group = 'verification'
@@ -33,12 +37,25 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
+	// test fixtures — 타 모듈 테스트가 consume 하는 공용 테스트 인프라 (support/**)
+	testFixturesApi project(":domain")
+	testFixturesApi project(":adapter-out-persistence")
+	testFixturesApi project(":adapter-in-web")
+	testFixturesApi 'org.springframework.boot:spring-boot-starter-test'
+	testFixturesApi 'org.springframework.boot:spring-boot-starter-data-jpa'
+	testFixturesApi 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testFixturesApi 'org.springframework.boot:spring-boot-testcontainers'
+	testFixturesApi 'org.testcontainers:testcontainers-mysql'
+	testFixturesApi 'org.testcontainers:testcontainers'
+	testFixturesApi 'org.awaitility:awaitility'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-jdbc-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:testcontainers-mysql'
 	testImplementation 'org.testcontainers:testcontainers'

@@ -1,7 +1,7 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
 > 작성 시점: 2026-04-07 (AWS 배포 설정 베이스라인/booking support naming 반영 상태)
-> 갱신 시점: 2026-04-19 (Step 3 완료 — `infra` → `adapter-out-persistence` + `adapter-out-external` 분리, main 컴파일 + bootJar green)
+> 갱신 시점: 2026-04-19 (Step 4 완료 — `java-test-fixtures` 도입, 전체 `compileTestJava` green)
 
 ---
 
@@ -31,8 +31,8 @@ test-support/                 java-test-fixtures (Step 4)
 | Step 1 — bootstrap 정리 (yml/logback/migrations/config/Masking* 이동, 중복 `@SpringBootApplication` 제거) | ✅ 완료 | — |
 | Step 2 — app → application + adapter-in-web 추출 | ✅ 완료 | main 소스 컴파일 / `:bootstrap:bootJar -x test` green. 테스트 컴파일은 Step 4 |
 | Step 3 — infra → adapter-out-persistence + adapter-out-external | ✅ 완료 | `infra/`, `app/` 디렉토리/`include` 모두 제거. `settings.gradle`은 `application/adapter-in-web/adapter-out-persistence/adapter-out-external/domain/bootstrap` 6개 모듈. `:bootstrap:bootJar -x test` green |
-| Step 4 — `test-support` 모듈(java-test-fixtures) | ⬜ 미착수 | `adapter-in-web/build.gradle`에 testImplementation 없음 — `application:compileTestJava`는 여전히 깨질 가능성 큼. 테스트 지원 유틸(`TestCleanupSupport`, probe 등)은 현재 `application/src/test/java/.../support`에 있음 |
-| Step 5 — ArchUnit 모듈 규칙 리라이트 + 문서/Dockerfile 갱신 | ⬜ 미착수 | `LayerDependencyArchTest`는 현재 `application/src/test/java/.../policy/`에 옛 규칙 상태. 새 모듈(`adapter.out.persistence.*`, `adapter.out.external.*`) 경계 규칙으로 리라이트 필요 |
+| Step 4 — `test-support` (java-test-fixtures) | ✅ 완료 | `application`에 `java-test-fixtures` 플러그인 적용, `application/src/test/java/.../support/` → `application/src/testFixtures/java/.../support/` 이동. `adapter-in-web`는 `testImplementation testFixtures(project(":application"))`로 consume. 전체 `compileTestJava` BUILD SUCCESSFUL. 실제 테스트 실행은 미검증 |
+| Step 5 — ArchUnit 모듈 규칙 리라이트 + 문서/Dockerfile 갱신 | ⬜ 미착수 | `LayerDependencyArchTest`는 현재 `application/src/test/java/.../policy/`에 옛 규칙 상태. 새 모듈(`adapter.out.persistence.*`, `adapter.out.external.*`) 경계 규칙으로 리라이트 필요. `Dockerfile` / CI 빌드 명령에 `:app:bootJar`가 남아 있다면 `:bootstrap:bootJar`로 교체 |
 
 ### Step 3에서 수행된 작업 요약 (2026-04-19)
 
@@ -48,11 +48,22 @@ test-support/                 java-test-fixtures (Step 4)
 - 빈 `app/`, `infra/` 디렉토리 삭제, `settings.gradle`에서 두 include 제거
 - 최종 검증: `:adapter-out-persistence:compileJava`, `:adapter-out-external:compileJava`, `:adapter-in-web:compileJava`, `:bootstrap:compileJava`, `:bootstrap:bootJar -x test` 모두 BUILD SUCCESSFUL
 
-### Step 4 진입 시 바로 확인할 것
+### Step 4에서 수행된 작업 요약 (2026-04-19)
 
-- `application/src/test`가 `adapter-out-persistence`, `adapter-out-external`, `adapter-in-web`의 구현 클래스를 직접 import하는 범위를 `TestDataCleaner`, `TestCleanupSupport`, `ProductInventoryUseCaseIT`, `ConcurrentBookingUseCaseIT`, `SlotBookingCapacityUseCaseIT`, `RefundExecutionServiceUseCaseIT`, `PassCreditUsageUseCaseIT`, `BookingCancelUseCaseIT` 기준으로 재확인
-- `adapter-in-web/build.gradle`에 testImplementation starter-webmvc-test 등 추가 후 `java-test-fixtures` 플러그인 도입 검토
-- `application/src/test/java/.../policy/LayerDependencyArchTest` 를 새 6-module 구조 기준으로 리라이트 (Step 5)
+- `application/build.gradle`에 `plugins { id 'java-test-fixtures' }` 추가. 이 플러그인은 내부적으로 `java-library`까지 적용해주므로 `testFixturesApi` 스코프가 바로 사용 가능
+- `application/src/test/java/com/personal/happygallery/support/**` 전체를 `application/src/testFixtures/java/com/personal/happygallery/support/**`로 이동 (`UseCaseIT`, `TestcontainersConfig`, `TestCleanupSupport`, `TestDataCleaner`, `TestFixtures`, `BookingTestHelper`, `OrderTestHelper`, `NotificationLogTestHelper`, `BookingStateProbe`, `OrderStateProbe`, `NotificationLogProbe`)
+- `application/build.gradle` testFixturesApi 선언: `:domain`, `:adapter-out-persistence`, `:adapter-in-web`, `spring-boot-starter-test`, `spring-boot-starter-data-jpa`, `spring-boot-starter-webmvc-test`, `spring-boot-testcontainers`, `testcontainers-mysql`, `testcontainers`, `awaitility` — consumer 모듈도 testFixtures를 consume하면 이 deps가 전이됨
+- `application/build.gradle` testImplementation에 `spring-boot-starter-data-jpa` 직접 선언 추가 (adapter-out-persistence의 JPA 스타터가 implementation 스코프라 자기 test 소스셋엔 전이되지 않는 Gradle 특성 보완)
+- `adapter-in-web/build.gradle` testImplementation 전면 신설: `testFixtures(project(":application"))` + `:adapter-out-persistence` + `:adapter-out-external` + `spring-boot-starter-test` + `starter-webmvc-test` + `starter-data-jpa` + testcontainers 3종 + awaitility + junit-platform-launcher
+- 최종 검증: `./gradlew compileTestJava` 전체 BUILD SUCCESSFUL (`:application:compileTestFixturesJava`, `:application:compileTestJava`, `:adapter-in-web:compileTestJava` 포함)
+
+### Step 5 진입 시 바로 확인할 것
+
+- `application/src/test/java/com/personal/happygallery/policy/LayerDependencyArchTest` (옛 3-module 구조 기준)를 6-module 경계로 리라이트
+  - 규칙 후보: `domain`은 외부 모듈 import 금지, `application`은 `adapter.*` import 금지, `adapter.in.web`은 `adapter.out.*` port 구현체 직접 import 금지 등
+- `Dockerfile`, `Dockerfile.deploy`, `.github/workflows/deploy.yml`의 `:app:bootJar` → `:bootstrap:bootJar` 치환 (실제 현재 상태 확인 후)
+- `README.md` 모듈 설명 업데이트
+- 실제 테스트 실행(`./gradlew test`, `./gradlew :application:useCaseTest`)으로 Step 2~4 리팩토링의 런타임 회귀 없음 확인
 
 ### Step 2에서 다음 세션이 이어받아야 할 잔여 작업 (Task ID는 현재 TaskList 기준)
 

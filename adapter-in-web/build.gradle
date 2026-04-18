@@ -14,4 +14,16 @@ dependencies {
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+	testImplementation testFixtures(project(":application"))
+	testImplementation project(":adapter-out-persistence")
+	testImplementation project(":adapter-out-external")
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:testcontainers-mysql'
+	testImplementation 'org.testcontainers:testcontainers'
+	testImplementation 'org.awaitility:awaitility'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
