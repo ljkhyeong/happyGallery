@@ -223,7 +223,7 @@ MySQL, Redis만 Docker로 띄우고 앱은 로컬에서 실행:
 ```bash
 docker compose up -d mysql redis
 docker compose stop app
-./gradlew :app:bootRun
+./gradlew :bootstrap:bootRun
 ```
 
 - 이미 `docker compose up -d --build`로 앱 컨테이너가 떠 있다면, 로컬 `bootRun` 전에 `docker compose stop app`으로 8080 충돌을 먼저 해소한다.
@@ -264,10 +264,10 @@ npm run dev
 
 - 전체 빌드: `./gradlew build`
 - 전체 테스트: `./gradlew test`
-- 정책 테스트: `./gradlew :app:policyTest`
-- 유스케이스 통합 테스트: `./gradlew --no-daemon :app:useCaseTest`
+- 정책 테스트: `./gradlew :application:policyTest`
+- 유스케이스 통합 테스트: `./gradlew --no-daemon :application:useCaseTest`
 - 단일 테스트 예시:
-  - `./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.order.OrderApprovalUseCaseIT`
+  - `./gradlew --no-daemon :application:test --tests com.personal.happygallery.app.order.OrderApprovalUseCaseIT`
 - `@UseCaseIT`는 MySQL/Redis Testcontainers와 함께 고정 `Clock`(Asia/Seoul)을 써서 시간 경계 테스트가 벽시계에 흔들리지 않도록 한다.
 
 ### 프론트

@@ -1,0 +1,51 @@
+// 테스트 목적별 실행 태스크
+tasks.register('useCaseTest', Test) {
+	group = 'verification'
+	description = '유스케이스 통합 테스트 (@UseCaseIT)'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform { includeTags 'usecase' }
+}
+
+tasks.register('policyTest', Test) {
+	group = 'verification'
+	description = '도메인 정책 단위 테스트 (@Tag("policy"))'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform { includeTags 'policy' }
+}
+
+dependencies {
+	implementation project(":domain")
+
+	implementation 'org.springframework.boot:spring-boot-starter'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.retry:spring-retry:2.0.12'
+	implementation 'org.springframework:spring-aop'
+	implementation 'org.springframework:spring-tx'
+	implementation 'org.springframework:spring-orm'
+	implementation 'org.springframework.data:spring-data-commons'
+	implementation 'org.springframework.security:spring-security-crypto'
+	implementation 'org.aspectj:aspectjweaver'
+
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-jdbc-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:testcontainers-mysql'
+	testImplementation 'org.testcontainers:testcontainers'
+	testImplementation 'org.awaitility:awaitility'
+	testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.0'
+	testImplementation project(":adapter-out-persistence")
+	testImplementation project(":adapter-out-external")
+	testImplementation project(":adapter-in-web")
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}

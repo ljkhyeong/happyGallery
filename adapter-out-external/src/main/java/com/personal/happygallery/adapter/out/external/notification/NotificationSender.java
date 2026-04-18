@@ -1,0 +1,12 @@
+package com.personal.happygallery.adapter.out.external.notification;
+
+import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
+
+/**
+ * 알림 발송 인프라 인터페이스.
+ * {@link NotificationSenderPort}를 확장하여 infra 구현체가 app 포트를 자동으로 만족한다.
+ * 구현체: {@link FakeKakaoSender}, {@link FakeSmsSender} (개발·테스트),
+ * {@link KakaoAlimtalkSender}, {@link RealSmsSender} (프로덕션).
+ */
+public interface NotificationSender extends NotificationSenderPort {
+}

@@ -444,7 +444,126 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 - Redis 인증이나 TLS를 켜면 ECS task 환경변수와 클라이언트 설정을 함께 맞춰야 한다.
 - 운영 비밀값은 GitHub Secrets 대신 ECS runtime 또는 Secrets Manager/SSM에서 주입한다.
 
-## 9. GitHub Actions Secrets / Variables 기준선
+## 9. ECS Task Definition 기본값
+
+운영 앱 실행은 `ECS Fargate` 기준으로 한다.
+
+### 현재 기준
+
+- launch type: `Fargate`
+- OS: `Linux`
+- task definition family 예시: `happygallery-prod-app`
+- container port: `8080`
+- 시작 리소스 권장값
+  - CPU: `512`
+  - Memory: `1024`
+
+### ALB / service 배치 기준
+
+- ALB: public subnet
+- ECS service: private subnet
+- ECS task public IP: `disabled`
+- target group target type: `ip`
+
+### 필수 일반 환경변수
+
+| 이름 | 용도 |
+|------|------|
+| `SPRING_PROFILES_ACTIVE=prod` | 운영 프로필 활성화 |
+| `DB_URL` | RDS JDBC URL |
+| `DB_USERNAME` | DB 계정 |
+| `DB_PASSWORD` | DB 비밀번호 |
+| `REDIS_HOST` | Redis endpoint |
+| `REDIS_PORT` | Redis 포트 |
+| `MANAGEMENT_PORT=8080` | 초기 ALB health check 단순화를 위해 actuator를 앱 포트와 동일화 |
+| `RATE_LIMIT_TRUST_FORWARDED=true` | ALB/CloudFront 뒤 실제 IP 기준 rate limit 유지 |
+| `SENTRY_ENVIRONMENT=production` | backend Sentry 환경값 |
+| `SENTRY_RELEASE` | backend 배포 버전/commit 추적 |
+
+### 필수 비밀값
+
+| 이름 | 용도 |
+|------|------|
+| `GUEST_TOKEN_HMAC_SECRET` | guest access token 서명 |
+| `APP_FIELD_ENCRYPTION_ENCRYPT_KEY` | 개인정보 필드 암호화 키 |
+| `APP_FIELD_ENCRYPTION_HMAC_KEY` | blind index / 검증용 HMAC 키 |
+| `SENTRY_DSN` | backend Sentry DSN |
+
+### 외부 연동 사용 시 필수값
+
+| 이름 | 용도 |
+|------|------|
+| `GOOGLE_OAUTH_CLIENT_ID` | Google 로그인 |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Google 로그인 |
+| `KAKAO_API_KEY` | 카카오 알림톡 |
+| `KAKAO_SENDER_KEY` | 카카오 알림톡 |
+| `SMS_API_KEY` | SMS 발송 |
+| `SMS_API_SECRET` | SMS 발송 |
+| `SMS_SENDER_NUMBER` | SMS 발신 번호 |
+
+### 운영 튜닝용 선택값
+
+| 이름 | 기본값 |
+|------|------|
+| `TX_DEFAULT_TIMEOUT` | `10s` |
+| `DB_HIKARI_CONNECTION_TIMEOUT_MS` | `2000` |
+| `DB_CONNECT_TIMEOUT_MS` | `2000` |
+| `DB_SOCKET_TIMEOUT_MS` | `5000` |
+| `DB_QUERY_TIMEOUT_MS` | `5000` |
+| `DB_LOCK_WAIT_TIMEOUT_SECONDS` | `3` |
+| `ACTUATOR_HEALTH_SHOW_DETAILS` | `never` |
+| `GOOGLE_OAUTH_TIMEOUT_MILLIS` | `5000` |
+| `GOOGLE_OAUTH_CONNECT_TIMEOUT_MILLIS` | `2000` |
+| `GOOGLE_OAUTH_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
+| `GOOGLE_OAUTH_MAX_CONNECTIONS` | `10` |
+| `GOOGLE_OAUTH_KEEP_ALIVE_MILLIS` | `30000` |
+| `KAKAO_TIMEOUT_MILLIS` | `5000` |
+| `KAKAO_CONNECT_TIMEOUT_MILLIS` | `2000` |
+| `KAKAO_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
+| `KAKAO_MAX_CONNECTIONS` | `20` |
+| `KAKAO_KEEP_ALIVE_MILLIS` | `30000` |
+| `SMS_TIMEOUT_MILLIS` | `5000` |
+| `SMS_CONNECT_TIMEOUT_MILLIS` | `2000` |
+| `SMS_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
+| `SMS_MAX_CONNECTIONS` | `20` |
+| `SMS_KEEP_ALIVE_MILLIS` | `30000` |
+
+### 메모
+
+- 비밀값은 GitHub Actions가 아니라 ECS task runtime의 Secrets Manager/SSM 주입을 우선한다.
+- `app.field-encryption.*`는 Spring relaxed binding 기준으로 `APP_FIELD_ENCRYPTION_ENCRYPT_KEY`, `APP_FIELD_ENCRYPTION_HMAC_KEY` 환경변수로 주입한다.
+- local 전용 `ADMIN_API_KEY`, `ADMIN_ENABLE_API_KEY_AUTH=true`는 운영에서 기본값으로 쓰지 않는다.
+
+## 10. ALB Target Group health check 기준
+
+### 현재 기준
+
+- health check path: `/actuator/health`
+- health check port: `traffic port (8080)`
+- matcher: `200`
+
+### 이유
+
+- 기본 설정상 `management.server.port`는 prod에서 `8081`이다.
+- 하지만 초기 ECS/ALB 운영에서는 health check 단순화가 더 중요하므로 `MANAGEMENT_PORT=8080`으로 덮어 actuator를 앱 포트와 합친다.
+- 이렇게 하면 ALB target group health check를 별도 관리 포트 없이 바로 사용할 수 있다.
+
+### target group 권장값
+
+- protocol: `HTTP`
+- target type: `ip`
+- port: `8080`
+- healthy threshold: `2`
+- unhealthy threshold: `2`
+- timeout: `5s`
+- interval: `15s` 또는 `30s`
+
+### 재검토 조건
+
+- 나중에 management port를 application port와 다시 분리하고 싶을 때
+- ALB 대신 service connect / service mesh / 내부 health check 전략을 별도로 둘 때
+
+## 11. GitHub Actions Secrets / Variables 기준선
 
 현재 `.github/workflows/deploy.yml` 기준으로 필요한 값은 아래와 같다.
 
@@ -471,7 +590,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 - DB 비밀번호, Redis 비밀번호, API 키, 암호화 키 같은 운영 비밀값은 GitHub Secrets에 넣지 않는다.
 - 앱 런타임 비밀값은 ECS Task Definition + Secrets Manager 또는 SSM Parameter Store에서 주입한다.
 
-## 10. GitHub Actions OIDC IAM Role trust policy 기준선
+## 12. GitHub Actions OIDC IAM Role trust policy 기준선
 
 현재 deploy workflow는 `push -> main`에서만 배포된다.
 그래서 trust policy도 우선 `main` 브랜치만 assume 가능하게 좁게 잡는다.
@@ -504,7 +623,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 
 브랜치 대신 GitHub Environment 기반 승인 게이트를 붙이면 `sub` 조건도 그 구조에 맞게 다시 좁힌다.
 
-## 11. GitHub Actions OIDC IAM Role permission policy 기준선
+## 13. GitHub Actions OIDC IAM Role permission policy 기준선
 
 단일 deploy role을 유지한다면 아래 권한 세트가 현재 workflow와 맞는다.
 
@@ -585,7 +704,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 - 나중에 frontend/backend deploy role을 분리하면 이 정책도 역할별로 나누는 편이 더 안전하다.
 - ECS 쪽에서 task definition까지 GitHub Actions가 직접 갱신하게 되면 `ecs:RegisterTaskDefinition`, `iam:PassRole` 같은 권한을 추가로 검토한다.
 
-## 12. GitHub에 두지 않는 운영 비밀값
+## 14. GitHub에 두지 않는 운영 비밀값
 
 아래 값은 GitHub Secrets 대신 ECS 런타임 쪽에서 관리한다.
 
@@ -597,9 +716,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 - `KAKAO_*`, `SMS_*`, `GOOGLE_OAUTH_*`
 - backend `SENTRY_DSN`
 
-## 13. 다음에 이 문서에 이어서 넣을 항목
+## 15. 다음에 이 문서에 이어서 넣을 항목
 
-- ECS Task Definition 환경변수 기준선
-- ALB Target Group health check 경로/포트
 - Redis 네트워크 및 보안 그룹 기준선
 - 배포 전 체크리스트와 rollback 기준

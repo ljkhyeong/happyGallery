@@ -1,0 +1,196 @@
+package com.personal.happygallery.application.customer;
+
+import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
+import com.personal.happygallery.application.customer.port.out.GuestClaimQueryPort;
+import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
+import com.personal.happygallery.application.monitoring.port.in.ClientMonitoringUseCase;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.application.customer.port.out.UserReaderPort;
+import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
+import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
+import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.Guest;
+import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.user.User;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class DefaultGuestClaimService implements GuestClaimUseCase {
+
+    private static final Logger log = LoggerFactory.getLogger(DefaultGuestClaimService.class);
+
+    private final UserReaderPort userReader;
+    private final GuestReaderPort guestReader;
+    private final PhoneVerificationReaderPort phoneVerificationReader;
+    private final GuestClaimQueryPort claimQuery;
+    private final Clock clock;
+    private final ClientMonitoringUseCase clientMonitoringService;
+
+    public DefaultGuestClaimService(UserReaderPort userReader,
+                             GuestReaderPort guestReader,
+                             PhoneVerificationReaderPort phoneVerificationReader,
+                             GuestClaimQueryPort claimQuery,
+                             Clock clock,
+                             ClientMonitoringUseCase clientMonitoringService) {
+        this.userReader = userReader;
+        this.guestReader = guestReader;
+        this.phoneVerificationReader = phoneVerificationReader;
+        this.claimQuery = claimQuery;
+        this.clock = clock;
+        this.clientMonitoringService = clientMonitoringService;
+    }
+
+    @Transactional(readOnly = true)
+    public ClaimPreview preview(Long userId) {
+        User user = findUser(userId);
+        requirePhoneVerified(user);
+        return buildPreview(user);
+    }
+
+    public ClaimPreview verifyPhoneAndPreview(Long userId, String verificationCode) {
+        User user = findUser(userId);
+        PhoneVerification verification = findValidVerification(user.getPhone(), verificationCode);
+        verification.markVerified();
+        user.markPhoneVerified();
+        log.info("guest claim phone verified [userId={} phone={}]", userId, maskPhone(user.getPhone()));
+        return buildPreview(user);
+    }
+
+    public ClaimResult claim(Long userId,
+                             List<Long> orderIds,
+                             List<Long> bookingIds) {
+        User user = findUser(userId);
+        requirePhoneVerified(user);
+
+        Guest guest = findGuestByAnyPhoneFormat(user.getPhone())
+                .orElse(null);
+        if (guest == null) {
+            return new ClaimResult(0, 0);
+        }
+
+        Set<Long> orderIdSet = dedupe(orderIds);
+        claimOrders(orderIdSet, guest.getId(), userId);
+
+        Set<Long> bookingIdSet = dedupe(bookingIds);
+        claimBookings(bookingIdSet, guest.getId(), userId);
+
+        clientMonitoringService.logGuestClaimCompleted(
+                userId, guest.getId(), orderIdSet.size(), bookingIdSet.size());
+        return new ClaimResult(orderIdSet.size(), bookingIdSet.size());
+    }
+
+    private void claimOrders(Set<Long> orderIds, Long guestId, Long userId) {
+        if (orderIds.isEmpty()) return;
+        Map<Long, Order> orderMap = claimQuery.findOrdersByIds(orderIds).stream()
+                .collect(Collectors.toMap(Order::getId, Function.identity()));
+        for (Long orderId : orderIds) {
+            Order order = orderMap.get(orderId);
+            if (order == null || !Objects.equals(order.getGuestId(), guestId) || order.getUserId() != null) {
+                throw new NotFoundException("claim 주문");
+            }
+            order.claimToUser(userId);
+        }
+    }
+
+    private void claimBookings(Set<Long> bookingIds, Long guestId, Long userId) {
+        if (bookingIds.isEmpty()) return;
+        Map<Long, Booking> bookingMap = claimQuery.findBookingsByIds(bookingIds).stream()
+                .collect(Collectors.toMap(Booking::getId, Function.identity()));
+        for (Long bookingId : bookingIds) {
+            Booking booking = bookingMap.get(bookingId);
+            if (booking == null || booking.getGuest() == null
+                    || !Objects.equals(booking.getGuest().getId(), guestId)
+                    || booking.getUserId() != null) {
+                throw new NotFoundException("claim 예약");
+            }
+            booking.claimToUser(userId);
+        }
+    }
+
+    private static final int PREVIEW_LIMIT = 100;
+
+    private ClaimPreview buildPreview(User user) {
+        return findGuestByAnyPhoneFormat(user.getPhone())
+                .map(guest -> new ClaimPreview(
+                        user.isPhoneVerified(),
+                        claimQuery.findOrdersByGuestId(guest.getId()).stream()
+                                .limit(PREVIEW_LIMIT)
+                                .map(ClaimOrderSummary::from)
+                                .toList(),
+                        claimQuery.findBookingsByGuestId(guest.getId()).stream()
+                                .limit(PREVIEW_LIMIT)
+                                .map(ClaimBookingSummary::from)
+                                .toList()))
+                .orElseGet(() -> new ClaimPreview(user.isPhoneVerified(), List.of(), List.of()));
+    }
+
+    private User findUser(Long userId) {
+        return userReader.findById(userId)
+                .orElseThrow(NotFoundException.supplier("회원"));
+    }
+
+    private PhoneVerification findValidVerification(String phone, String verificationCode) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        for (String candidatePhone : candidatePhones(phone)) {
+            Optional<PhoneVerification> verification = phoneVerificationReader
+                    .findValidVerification(candidatePhone, verificationCode, now);
+            if (verification.isPresent()) {
+                return verification.get();
+            }
+        }
+        throw new PhoneVerificationFailedException();
+    }
+
+    private Optional<Guest> findGuestByAnyPhoneFormat(String phone) {
+        for (String candidatePhone : candidatePhones(phone)) {
+            Optional<Guest> guest = guestReader.findByPhone(candidatePhone);
+            if (guest.isPresent()) {
+                return guest;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private void requirePhoneVerified(User user) {
+        if (!user.isPhoneVerified()) {
+            throw new PhoneVerificationRequiredException();
+        }
+    }
+
+    private static List<String> candidatePhones(String phone) {
+        Set<String> candidates = new LinkedHashSet<>();
+        candidates.add(phone);
+
+        String digitsOnly = phone.replaceAll("\\D", "");
+        if (!digitsOnly.isBlank()) {
+            candidates.add(digitsOnly);
+        }
+        return List.copyOf(candidates);
+    }
+
+    private static Set<Long> dedupe(List<Long> ids) {
+        return ids == null ? Set.of() : new LinkedHashSet<>(ids);
+    }
+
+    /** 전화번호 뒤 4자리를 마스킹한다. */
+    private static String maskPhone(String phone) {
+        if (phone == null || phone.length() <= 4) return "****";
+        return phone.substring(0, phone.length() - 4) + "****";
+    }
+}

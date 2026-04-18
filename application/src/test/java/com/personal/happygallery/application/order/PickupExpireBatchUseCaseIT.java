@@ -1,0 +1,252 @@
+package com.personal.happygallery.application.order;
+
+import com.personal.happygallery.application.batch.BatchResult;
+import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
+import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
+import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
+import com.personal.happygallery.application.order.port.out.OrderItemPort;
+import com.personal.happygallery.application.order.port.out.OrderStorePort;
+import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
+import com.personal.happygallery.application.product.port.out.InventoryStorePort;
+import com.personal.happygallery.application.product.port.out.ProductStorePort;
+import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.support.OrderTestHelper;
+import com.personal.happygallery.support.OrderStateProbe;
+import com.personal.happygallery.support.TestCleanupSupport;
+import com.personal.happygallery.support.UseCaseIT;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * [UseCaseIT] §8.4 픽업 만료 배치 검증.
+ *
+ * <p>Proof (§8.4 DoD): 배치 실행 시 픽업 만료 주문이 환불되고 재고가 복구됨.
+ */
+@UseCaseIT
+class PickupExpireBatchUseCaseIT {
+
+    @Autowired MockMvc mockMvc;
+    @Autowired PickupExpireBatchUseCase pickupExpireBatchService;
+    @Autowired PickupExpireProcessor pickupExpireProcessor;
+    @Autowired OrderPickupUseCase orderPickupService;
+    @Autowired OrderApprovalUseCase orderApprovalService;
+    @Autowired OrderService orderService;
+    @Autowired ProductStorePort productStorePort;
+    @Autowired InventoryStorePort inventoryStorePort;
+    @Autowired InventoryReaderPort inventoryReaderPort;
+    @Autowired OrderStorePort orderStorePort;
+    @Autowired OrderItemPort orderItemPort;
+    @Autowired OrderStateProbe orderStateProbe;
+    @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired Clock clock;
+    OrderTestHelper orderHelper;
+
+    @BeforeEach
+    void setUp() {
+        cleanup();
+        orderHelper = new OrderTestHelper(
+                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort, orderService, clock);
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanup();
+    }
+
+    private void cleanup() {
+        cleanupSupport.clearOrderData();
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof (DoD §8.4): 픽업 마감 초과 → 자동환불 + 재고 복구
+    // -----------------------------------------------------------------------
+
+    @DisplayName("픽업 기한이 지난 주문은 환불되고 재고가 복구된다")
+    @Test
+    void expirePickups_expiredDeadline_refundsAndRestoresInventory() {
+        OrderTestHelper.OrderFixture fixture = orderHelper.createReadyStockPaidOrder("픽업 테스트 상품", 50000L);
+        Order order = fixture.order();
+        assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(0);
+
+        // 승인 → APPROVED_FULFILLMENT_PENDING
+        orderApprovalService.approve(order.getId());
+
+        // 픽업 준비 완료 (마감 시각: 과거)
+        LocalDateTime pastDeadline = LocalDateTime.now(clock).minusHours(1);
+        orderPickupService.markPickupReady(order.getId(), pastDeadline);
+
+        Order afterReady = orderStateProbe.getOrder(order.getId());
+
+        // 배치 실행
+        BatchResult result = pickupExpireBatchService.expirePickups();
+
+        // 상태 확인
+        Order expired = orderStateProbe.getOrder(order.getId());
+
+        // 재고 복구 확인
+        int restoredQuantity = orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity();
+
+        // 환불 기록 확인
+        var refunds = orderStateProbe.refunds();
+
+        assertSoftly(softly -> {
+            softly.assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
+            softly.assertThat(restoredQuantity).isEqualTo(1);
+            softly.assertThat(refunds).hasSize(1);
+            softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
+        });
+    }
+
+    // -----------------------------------------------------------------------
+    // 마감 미경과 → 배치가 처리하지 않음
+    // -----------------------------------------------------------------------
+
+    @DisplayName("픽업 기한이 남은 주문은 만료 처리되지 않는다")
+    @Test
+    void expirePickups_futureDeadline_notExpired() {
+        Order order = orderHelper.createReadyStockPaidOrder("미만료 픽업 상품", 30000L).order();
+
+        orderApprovalService.approve(order.getId());
+
+        // 픽업 준비 완료 (마감 시각: 미래)
+        LocalDateTime futureDeadline = LocalDateTime.now(clock).plusDays(1);
+        orderPickupService.markPickupReady(order.getId(), futureDeadline);
+
+        // 배치 실행 → 0건 처리
+        BatchResult result = pickupExpireBatchService.expirePickups();
+
+        // 상태 유지 확인
+        Order unchanged = orderStateProbe.getOrder(order.getId());
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(0);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+        });
+    }
+
+    @DisplayName("픽업 만료 배치 관리자 API는 배치 결과를 반환한다")
+    @Test
+    void expirePickups_adminApi_returnsBatchResponse() throws Exception {
+        Order order = orderHelper.createReadyStockPaidOrder("픽업 API 테스트 상품", 45000L).order();
+        orderApprovalService.approve(order.getId());
+        orderPickupService.markPickupReady(order.getId(), LocalDateTime.now(clock).minusMinutes(30));
+
+        mockMvc.perform(post("/admin/orders/expire-pickups"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successCount").value(1))
+                .andExpect(jsonPath("$.failureCount").value(0))
+                .andExpect(jsonPath("$.failureReasons").isMap());
+
+        Order expired = orderStateProbe.getOrder(order.getId());
+        assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
+    }
+
+    @DisplayName("픽업 만료 배치에서 한 건이 실패해도 다음 주문을 계속 처리하고 실패를 집계한다")
+    @Test
+    void expirePickups_whenOneOrderFails_continuesNextOrderAndCountsFailure() {
+        OrderTestHelper.OrderFixture failedFixture = orderHelper.createReadyStockPaidOrder("픽업 만료 실패 상품", 41000L);
+        OrderTestHelper.OrderFixture successFixture = orderHelper.createReadyStockPaidOrder("픽업 만료 성공 상품", 42000L);
+        Order failedOrder = failedFixture.order();
+        Order successOrder = successFixture.order();
+
+        orderApprovalService.approve(failedOrder.getId());
+        orderApprovalService.approve(successOrder.getId());
+
+        LocalDateTime pastDeadline = LocalDateTime.now(clock).minusHours(1);
+        orderPickupService.markPickupReady(failedOrder.getId(), pastDeadline);
+        orderPickupService.markPickupReady(successOrder.getId(), pastDeadline);
+
+        // 실패 케이스 유도: 재고 레코드가 사라진 상태에서 복구 시도하면 NotFoundException 발생
+        orderStateProbe.deleteInventory(failedFixture.product().getId());
+
+        BatchResult result = pickupExpireBatchService.expirePickups();
+
+        Order failedUpdated = orderStateProbe.getOrder(failedOrder.getId());
+        Order successUpdated = orderStateProbe.getOrder(successOrder.getId());
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isEqualTo(1);
+            softly.assertThat(result.failureReasons()).containsEntry("NotFoundException", 1);
+            softly.assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+            softly.assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
+        });
+    }
+
+    @DisplayName("픽업 완료와 만료 처리 경합 시 최종 상태는 단일하게 유지된다")
+    @Test
+    void pickupComplete_and_expireProcess_race_keepsSingleTerminalState() throws InterruptedException {
+        OrderTestHelper.OrderFixture fixture = orderHelper.createReadyStockPaidOrder("픽업 경합 테스트 상품", 53000L);
+        Order order = fixture.order();
+        orderApprovalService.approve(order.getId());
+        LocalDateTime pastDeadline = LocalDateTime.now(clock).minusMinutes(1);
+        orderPickupService.markPickupReady(order.getId(), pastDeadline);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        AtomicReference<Throwable> pickupError = new AtomicReference<>();
+        AtomicReference<Throwable> expireError = new AtomicReference<>();
+
+        try {
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    orderPickupService.confirmPickup(order.getId());
+                } catch (Throwable t) {
+                    pickupError.set(t);
+                }
+            });
+
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    pickupExpireProcessor.process(order.getId(), LocalDateTime.now(clock));
+                } catch (Throwable t) {
+                    expireError.set(t);
+                }
+            });
+
+            startLatch.countDown();
+        } finally {
+            executor.shutdown();
+            executor.awaitTermination(10, TimeUnit.SECONDS);
+        }
+
+        Order updated = orderStateProbe.getOrder(order.getId());
+
+        assertSoftly(softly -> {
+            if (updated.getStatus() == OrderStatus.PICKUP_EXPIRED) {
+                softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
+                softly.assertThat(orderStateProbe.refundCount()).isEqualTo(1L);
+            } else {
+                softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKED_UP);
+            }
+            if (pickupError.get() != null) {
+                softly.assertThat(pickupError.get()).isInstanceOf(RuntimeException.class);
+            }
+            if (expireError.get() != null) {
+                softly.assertThat(expireError.get()).isInstanceOf(RuntimeException.class);
+            }
+        });
+    }
+}

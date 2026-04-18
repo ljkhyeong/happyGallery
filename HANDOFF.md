@@ -1,6 +1,135 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
 > 작성 시점: 2026-04-07 (AWS 배포 설정 베이스라인/booking support naming 반영 상태)
+> 갱신 시점: 2026-04-19 (Step 3 완료 — `infra` → `adapter-out-persistence` + `adapter-out-external` 분리, main 컴파일 + bootJar green)
+
+---
+
+## 🚧 현재 진행 중: 헥사고날 풀-스플릿 (Option B) 마이그레이션
+
+**브랜치**: `codexReview`
+**원본 플랜**: 이전 세션 `~/.claude/projects/-Users-lim-Desktop-devProject-personal-happyGallery/6613d378-e386-41ef-826f-c2639e374084.jsonl`의 `ExitPlanMode` 승인본. 요점은 아래 요약 참고.
+
+### 최종 목표 모듈 구조 (플랜)
+
+```
+domain/                       순수 도메인
+application/                  use case + port(in/out) + application service + batch
+adapter-in-web/               Controller · Filter · Resolver · Web config
+adapter-out-persistence/      JPA Repository · MyBatis Mapper · persistence-only config  (Step 3)
+adapter-out-external/         Payment · OAuth · Notification · HTTP pool · Redis session  (Step 3)
+bootstrap/                    @SpringBootApplication · application*.yml · db/migration · logback
+test-support/                 java-test-fixtures (Step 4)
+```
+
+의존 방향: `bootstrap → adapter-in-web/out-* → application → domain`
+
+### 진행 상태 요약
+
+| Step | 상태 | 메모 |
+|------|------|------|
+| Step 1 — bootstrap 정리 (yml/logback/migrations/config/Masking* 이동, 중복 `@SpringBootApplication` 제거) | ✅ 완료 | — |
+| Step 2 — app → application + adapter-in-web 추출 | ✅ 완료 | main 소스 컴파일 / `:bootstrap:bootJar -x test` green. 테스트 컴파일은 Step 4 |
+| Step 3 — infra → adapter-out-persistence + adapter-out-external | ✅ 완료 | `infra/`, `app/` 디렉토리/`include` 모두 제거. `settings.gradle`은 `application/adapter-in-web/adapter-out-persistence/adapter-out-external/domain/bootstrap` 6개 모듈. `:bootstrap:bootJar -x test` green |
+| Step 4 — `test-support` 모듈(java-test-fixtures) | ⬜ 미착수 | `adapter-in-web/build.gradle`에 testImplementation 없음 — `application:compileTestJava`는 여전히 깨질 가능성 큼. 테스트 지원 유틸(`TestCleanupSupport`, probe 등)은 현재 `application/src/test/java/.../support`에 있음 |
+| Step 5 — ArchUnit 모듈 규칙 리라이트 + 문서/Dockerfile 갱신 | ⬜ 미착수 | `LayerDependencyArchTest`는 현재 `application/src/test/java/.../policy/`에 옛 규칙 상태. 새 모듈(`adapter.out.persistence.*`, `adapter.out.external.*`) 경계 규칙으로 리라이트 필요 |
+
+### Step 3에서 수행된 작업 요약 (2026-04-19)
+
+- `adapter-out-persistence`, `adapter-out-external` 두 모듈 신설 (`settings.gradle`, 각 `build.gradle`)
+- 구 `infra/src/main/java/com/personal/happygallery/infra/**` 전체 이동:
+  - **persistence**: `booking/`, `cart/`, `customer/`, `dashboard/` (adapter+mapper+config), `inquiry/`, `notice/`, `order/`, `pass/`, `product/`, `qna/`, `time/`, `user/`, `admin/AdminUserRepository`, `notification/NotificationLogRepository`
+  - **external**: `http/`, `notification/` (Kakao/SMS sender + config + properties + dto), `oauth/`, `payment/`, `admin/AdminSessionStore`
+- MyBatis XML mapper 4종 + namespace → `adapter-out-persistence/src/main/resources/mapper/`, `com.personal.happygallery.adapter.out.persistence.dashboard.mapper.*`
+- 모든 `com.personal.happygallery.infra.*` 참조를 새 패키지로 sed 교체 — 메인 코드에는 존재하지 않았고 `application/src/test/java`의 7개 IT + `TestDataCleaner` + `TestCleanupSupport`에만 있었음
+- 구 `infra/` 경로에 있던 3개 어댑터 테스트(`CircuitBreakerPaymentProviderTest`, `FakePaymentProviderTest`, `MyBatisSalesStatsAdapterTest`)는 `application/src/test/java/com/personal/happygallery/adapter/out/{external|persistence}/**`로 물리 이동
+- `bootstrap/build.gradle`: `:infra` → `:adapter-out-persistence` + `:adapter-out-external`, `spring-boot-starter-flyway` + `flyway-mysql` 추가 (마이그레이션 리소스가 bootstrap에 있으므로)
+- `application/build.gradle`: `testImplementation project(":infra")` → `adapter-out-persistence` + `adapter-out-external`
+- 빈 `app/`, `infra/` 디렉토리 삭제, `settings.gradle`에서 두 include 제거
+- 최종 검증: `:adapter-out-persistence:compileJava`, `:adapter-out-external:compileJava`, `:adapter-in-web:compileJava`, `:bootstrap:compileJava`, `:bootstrap:bootJar -x test` 모두 BUILD SUCCESSFUL
+
+### Step 4 진입 시 바로 확인할 것
+
+- `application/src/test`가 `adapter-out-persistence`, `adapter-out-external`, `adapter-in-web`의 구현 클래스를 직접 import하는 범위를 `TestDataCleaner`, `TestCleanupSupport`, `ProductInventoryUseCaseIT`, `ConcurrentBookingUseCaseIT`, `SlotBookingCapacityUseCaseIT`, `RefundExecutionServiceUseCaseIT`, `PassCreditUsageUseCaseIT`, `BookingCancelUseCaseIT` 기준으로 재확인
+- `adapter-in-web/build.gradle`에 testImplementation starter-webmvc-test 등 추가 후 `java-test-fixtures` 플러그인 도입 검토
+- `application/src/test/java/.../policy/LayerDependencyArchTest` 를 새 6-module 구조 기준으로 리라이트 (Step 5)
+
+### Step 2에서 다음 세션이 이어받아야 할 잔여 작업 (Task ID는 현재 TaskList 기준)
+
+- [x] Task #6 — 기계적 package/import 리네임 (`com.personal.happygallery.app.*` → `application.*` / `adapter.in.web.*`, `com.personal.happygallery.config.*` → `bootstrap.config.*`, Masking* 는 `bootstrap.logging`, `logback-spring.xml` FQN 포함). 스크립트: `/tmp/claude/rename_packages.py`, `/tmp/claude/rename_config.py`
+- [x] Task #4 — Properties 경로 정리 (컨슈머 근접 배치)
+  - `GuestTokenProperties` → `application/src/.../application/token/GuestTokenProperties.java` (패키지 `application.token`)
+  - `RateLimitProperties` → `adapter-in-web/src/.../adapter/in/web/config/properties/RateLimitProperties.java`
+  - `AdminProperties` → 동일 경로
+  - `GuestTokenService`, `RateLimitFilter`, `AdminAuthFilter`, 해당 테스트 2종 import 갱신 완료
+- [x] Task #2 — pagination 타입을 application으로 이동
+  - `CursorPage`, `OffsetPage`, `CursorUtils` → `application/.../application/shared/page/` 로 이동 완료
+  - 9개 참조 파일 import 전수 갱신 (Controller 2, port.in 3, 서비스 4)
+- [x] Task #3 — admin query DTO application으로 이동
+  - `AdminOrderResponse`, `OrderHistoryResponse` → `application/.../application/order/port/in/`
+  - `AdminBookingResponse` → `application/.../application/booking/port/in/`
+  - 관련 UseCase/Service/Controller/Test 전부 import 갱신
+- [x] Task #1 — `application/build.gradle` 의존성 보강
+  - `spring-data-commons`, `spring-security-crypto`, `spring-orm` 추가, `aspectjweaver`를 runtimeOnly → implementation 전환
+- [x] Task #5 — 전체 컴파일 검증
+  - `:application:compileJava` / `:adapter-in-web:compileJava` / `:bootstrap:compileJava` / `:bootstrap:bootJar -x test` 모두 BUILD SUCCESSFUL
+  - ⚠️ `compileTestJava`는 adapter-in-web testImplementation 의존 부재로 깨짐 — Step 4에서 처리
+
+### 주요 구조 변경 요약 (이미 적용된 것)
+
+1. `app/src/main/java/com/personal/happygallery/HappygalleryApplication.java` **삭제됨** (중복 제거). 유일 엔트리는 `bootstrap/src/main/java/com/personal/happygallery/HappygalleryApplication.java`
+2. `application*.yml`, `logback-spring.xml`, `db/migration/V*.sql` → `bootstrap/src/main/resources/`로 이동 완료
+3. `MaskingPatternLayout`, `MaskingMessageJsonProvider` → `com.personal.happygallery.bootstrap.logging` 로 이동 + `logback-spring.xml`의 FQN 갱신 완료
+4. bootstrap 내 config 및 properties 패키지 선언이 전부 `com.personal.happygallery.bootstrap.config.*`로 정합화됨 (이전엔 `com.personal.happygallery.config.*`)
+5. `settings.gradle`: `include 'app'`, `'application'`, `'adapter-in-web'`, `'domain'`, `'infra'`, `'bootstrap'` — `app`은 아직 남아 있으나 source는 비어 있음. Step 3 완료 시 `infra`와 함께 정리 예정
+6. **Step 2 완료 추가 조치**:
+   - `RetryPolicy`(상수) → `application/config/`, `RetryConfig`(@EnableRetry)은 bootstrap에 남김 — `OptimisticLockRetryable` 어노테이션이 application → bootstrap 역방향 참조하던 문제 해소
+   - `CustomerAuthFilter.COOKIE_NAME`은 리터럴 `"HG_SESSION"`로 인라인 — adapter→bootstrap 역방향 의존 제거
+   - `infra/build.gradle`: `:app` → `:application` + `:adapter-in-web` 의존으로 변경
+   - `bootstrap/build.gradle`: `:domain`, `:application`, `:adapter-in-web`, `:infra` 명시 + spring-session-data-redis, spring-retry, spring-security-crypto, micrometer-core, jackson-json, logstash-encoder, starter-validation 보강
+   - `OptimisticLockRetryable`을 참조하던 6개 서비스(Approval/Pickup/Production/Shipping/PickupExpire/AutoRefund) 의 import 경로 `application.config.*`로 수정
+
+### 추가로 조심해야 할 포인트
+
+- `bootstrap/src/main/java/com/personal/happygallery/bootstrap/config/AppPropertiesConfig.java`는 `@ConfigurationPropertiesScan("com.personal.happygallery")` 이므로 properties 클래스 위치가 application/adapter-in-web으로 흩어져도 바인딩 자체는 문제없음
+- `adapter-in-web/build.gradle`, `application/build.gradle`이 현재 플랜과 일치하는지 전수 대조 필요 (특히 application에 아직 남아 있는 `spring-boot-starter-webmvc` 같은 어댑터 전용 의존이 있는지 확인)
+- `GuestTokenService` 최상단의 중복 self-import (`com.personal.happygallery.application.token.AccessTokenHasher` 등 3종)는 자기 자신 패키지 import이므로 컴파일은 되지만 불필요. 정리해도 좋음
+- `@SpringBootApplication`의 `scanBasePackages`가 현재 어떻게 설정돼 있는지 확인 필요 (플랜상 `application`, `adapter`, `bootstrap`만 명시)
+- `EntityScan` / `EnableJpaRepositories` 의 base package 지정이 아직 안 들어갔을 가능성 높음 → `:bootstrap:bootRun` 시 런타임 에러로 드러남. Step 3에서 adapter-out-persistence 분리하며 같이 처리
+- `app/build.gradle`, `app/src/` 는 Step 3 끝날 때까지 남겨둬도 무방하지만 `settings.gradle`의 `include 'app'`을 언제 끊을지는 Step 2 말미에 컴파일 green 확인 후 판단
+
+### 다음 세션이 바로 실행할 수 있는 검증 명령
+
+```bash
+./gradlew --no-daemon :application:compileJava 2>&1 | tail -40
+./gradlew --no-daemon :adapter-in-web:compileJava 2>&1 | tail -40
+./gradlew --no-daemon :bootstrap:bootJar -x test 2>&1 | tail -40
+```
+
+에러 패턴별 대응:
+- `package com.personal.happygallery.app.* does not exist` → 리네임 스크립트 미적용 파일. `/tmp/claude/rename_packages.py --apply` 재실행 시 멱등.
+- `cannot find symbol CursorPage/OffsetPage/AdminOrderResponse/...` → Task #2/#3 미완. 해당 파일 application 이동 + import 갱신.
+- `cannot find symbol Pageable/PageRequest/PasswordEncoder/ObjectOptimisticLockingFailureException/ProceedingJoinPoint` → Task #1 미완. application/build.gradle 의존성 추가.
+
+### 참고: 원본 플랜 전문 추출 방법
+
+```bash
+python3 -c "
+import json
+p = '/Users/lim/.claude/projects/-Users-lim-Desktop-devProject-personal-happyGallery/6613d378-e386-41ef-826f-c2639e374084.jsonl'
+best = ''
+with open(p) as f:
+    for line in f:
+        try:
+            obj = json.loads(line)
+            for item in obj.get('message', {}).get('content', []) or []:
+                if isinstance(item, dict) and item.get('name') == 'ExitPlanMode':
+                    plan = item.get('input', {}).get('plan', '')
+                    if len(plan) > len(best): best = plan
+        except: pass
+print(best)
+"
+```
 
 ---
 
