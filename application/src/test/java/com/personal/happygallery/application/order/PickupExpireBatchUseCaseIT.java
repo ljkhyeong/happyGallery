@@ -178,7 +178,7 @@ class PickupExpireBatchUseCaseIT {
         orderPickupService.markPickupReady(successOrder.getId(), pastDeadline);
 
         // 실패 케이스 유도: 재고 레코드가 사라진 상태에서 복구 시도하면 NotFoundException 발생
-        orderStateProbe.deleteInventory(failedFixture.product().getId());
+        inventoryStorePort.deleteById(failedFixture.product().getId());
 
         BatchResult result = pickupExpireBatchService.expirePickups();
 
