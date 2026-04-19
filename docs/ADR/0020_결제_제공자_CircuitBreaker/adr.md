@@ -52,7 +52,7 @@
 
 ## 구현 반영
 
-- `infra/payment/CircuitBreakerPaymentProvider` 추가
-- `infra/payment/FakePaymentProvider` 빈 이름 분리 (`paymentProviderDelegate`)
-- `infra/build.gradle`에 Resilience4j 의존성 추가
-- `application.yml`에 `app.external.payment.*` 설정 추가
+- `adapter-out-external/.../payment/CircuitBreakerPaymentProvider` 추가
+- `adapter-out-external/.../payment/FakePaymentProvider` 빈 이름 분리 (`paymentProviderDelegate`)
+- `adapter-out-external/build.gradle`에 Resilience4j 의존성 추가
+- `bootstrap/src/main/resources/application.yml`에 `app.external.payment.*` 설정 추가

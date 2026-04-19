@@ -63,6 +63,6 @@
 
 ## 구현 반영
 
-- `app/src/main/resources/logback-spring.xml` 추가
-- `app/build.gradle`에 `logstash-logback-encoder` 런타임 의존성 추가
-- `common/error/HappyGalleryException` 생성자 변경
+- `bootstrap/src/main/resources/logback-spring.xml` 추가
+- `bootstrap/build.gradle`에 `logstash-logback-encoder` 런타임 의존성 추가
+- `domain/error/HappyGalleryException` 생성자 변경

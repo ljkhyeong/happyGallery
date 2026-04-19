@@ -54,11 +54,11 @@
 
 ## 결정 5: API — DELETE /bookings/{bookingId}?token=xxx
 
-**결정**: `DELETE` 메서드, access_token은 query param.
+**결정**: `DELETE` 메서드를 쓰고, `access_token`은 쿼리 파라미터로 받는다.
 
 **대안**: `PATCH /bookings/{bookingId}/cancel` with body.
 
-**이유**: DELETE가 취소(자원 소멸)의 의미에 더 부합. token을 body가 아닌 query param으로 받아 GET 조회 패턴과 일관성 유지. 응답 body에 취소 결과를 담아 200 반환 (refundable 정보 전달 목적).
+**이유**: `DELETE`가 취소(자원 소멸)의 의미에 더 부합한다. 토큰을 본문이 아닌 쿼리 파라미터로 받아 GET 조회 패턴과 일관성을 유지했다. 응답 본문에 취소 결과를 담아 `200`을 반환한 이유는 환불 가능 여부를 함께 전달하기 위해서다.
 
 ---
 

@@ -1,7 +1,7 @@
 # ConfigurationProperties 기반 설정 바인딩 정리 메모
 
 **날짜**: 2026-03-17  
-**상태**: Working note (이미 일부 적용, 이후 확장 기준)
+**상태**: 검토 메모 (이미 일부 적용, 이후 확장 기준)
 
 ---
 
@@ -21,7 +21,7 @@
 | Rate limit | `app.rate-limit` | `RateLimitProperties` | 공개/회원/관리자 경로 제한값과 forwarded header 신뢰 여부 |
 | 배치 스케줄러 | `app.batch.scheduler` | `BatchSchedulerProperties` | 스케줄러 thread pool 크기 |
 
-코드 검색 기준으로 현재 `app/src/main/java`에는 `@Value` 직접 주입이 남아 있지 않다.
+코드 검색 기준으로 현재 메인 소스에는 `@Value` 직접 주입이 남아 있지 않다.
 
 ---
 

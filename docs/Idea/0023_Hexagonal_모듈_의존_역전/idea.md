@@ -1,79 +1,61 @@
-# 0023 — 헥사고날 모듈 의존 방향 역전
+# 6개 모듈 분리와 의존 방향 정리 메모
 
-> **구현 완료** — `app → infra` 의존 제거, `infra → app` 구현 완료. 아키텍처 결정은 [ADR-0021](../../ADR/0021_Hexagonal_아키텍처_전환/adr.md)에서 관리한다. 이 문서는 배경 기록으로만 유지한다.
+> **구현 완료** — 현재 백엔드는 `bootstrap`, `adapter-in-web`, `adapter-out-persistence`, `adapter-out-external`, `application`, `domain` 6개 모듈 구조를 사용한다. 이 문서는 구조 정리 배경을 남기는 메모다.
 
-## 현재 상태
+## 변경 전
 
+초기 구조는 `app / domain / infra / common` 기준이었다.
+
+이 구조는 시작은 빠르지만, 시간이 지나면서 아래 문제가 커졌다.
+
+- 웹 진입점과 업무 로직, 인프라 구현의 경계가 흐려진다.
+- `app`이 `infra` 구현을 바로 알게 된다.
+- 테스트와 문서가 현재 유스케이스 경계를 설명하기 어려워진다.
+
+## 변경 후
+
+현재 구조는 아래와 같다.
+
+```text
+bootstrap
+  -> adapter-in-web
+  -> adapter-out-persistence
+  -> adapter-out-external
+  -> application
+  -> domain
 ```
-common  ← (순수 유틸)
-domain  → common
-infra   → common, domain
-app     → common, domain, infra   ← 역방향 의존
-```
 
-`app` 모듈이 `infra`를 직접 의존한다.
-PortAdapter 클래스 20+개가 `app`에 위치하며 `infra`의 Repository를 import하여
-`app → infra` 역방향 의존이 발생한다.
+의존 방향은 `bootstrap -> adapter -> application -> domain` 으로 고정한다.
 
-## 목표 상태
+### 각 모듈의 역할
 
-```
-common  ← (순수 유틸)
-domain  → common
-infra   → common, domain, app     (어댑터가 포트를 구현)
-app     → common, domain          (포트 인터페이스만 정의)
-```
+- `bootstrap`: 앱 시작점과 공통 설정
+- `adapter-in-web`: 컨트롤러, 필터, 요청/응답 처리
+- `adapter-out-persistence`: JPA, MyBatis, DB 접근
+- `adapter-out-external`: 결제, 알림, OAuth, Redis 세션, 외부 HTTP
+- `application`: 유스케이스, 포트, 업무 흐름, 배치
+- `domain`: 핵심 도메인 규칙
 
-`app`은 포트 인터페이스를 정의하고, `infra`가 이를 구현한다.
-`app → infra` 의존을 완전히 제거한다.
+## 이번 정리에서 바뀐 점
 
-## 전환 단계
+- 기존 `app`은 `application`과 `adapter-in-web` 책임으로 나눴다.
+- 기존 `infra`는 `adapter-out-persistence`와 `adapter-out-external`로 나눴다.
+- 공통 테스트 인프라는 `application/src/testFixtures/**`로 옮겼다.
+- 실행 산출물은 `:bootstrap:bootJar` 하나로 통일했다.
 
-### 1단계: infra → app 의존 추가
-- `infra/build.gradle`에 `implementation project(":app")` 추가
-- 이 시점에서 양방향 의존이 일시적으로 존재함 (Gradle은 허용, 순환만 없으면 됨)
+## 지금도 유지하는 원칙
 
-### 2단계: 단순 위임 어댑터 제거
-- Repository가 Port를 직접 extends하는 방식으로 전환
-- 예: `FulfillmentRepository extends JpaRepository<...>, FulfillmentPort`
-- 대상: 1:1 단순 위임만 하는 PortAdapter (약 15~18개)
+- `application`은 `UseCase`, `Port` 같은 경계를 정의한다.
+- 웹과 배치는 유스케이스만 호출한다.
+- 영속성과 외부 연동 구현은 각 어댑터 모듈에 둔다.
+- 모듈 경계는 `LayerDependencyArchTest`로 검증한다.
 
-### 3단계: 복합/변환 어댑터를 infra로 이동
-- 여러 Repository를 조합하는 어댑터 (`GuestClaimQueryPortAdapter` 등)
-- 변환 로직이 있는 어댑터 (`NotificationSenderPortAdapter` 등)
-- `app` → `infra` 패키지로 이동, import 수정
+## 이번 범위에 넣지 않은 것
 
-### 4단계: app → infra 의존 제거
-- `app`에서 `infra` import가 0개인지 확인
-- `app/build.gradle`에서 `implementation project(":infra")` 제거
-- 컴파일 검증
+도메인 객체와 JPA 엔티티를 완전히 분리하는 작업은 이번 구조 정리 범위에 넣지 않았다.
 
-## 향후 검토: 도메인 객체 ↔ JPA 엔티티 분리
+이유:
 
-현재 `domain` 모듈의 클래스가 `@Entity`, `@Table` 등 JPA 어노테이션을 직접 가진다.
-순수 헥사고날에서는 도메인이 인프라 기술을 모르는 것이 원칙이지만, 현 단계에서는 분리하지 않는다.
-
-### 분리하지 않는 이유
-- 엔티티 ~20개 × (도메인 클래스 + JPA 엔티티 + Mapper) = 파일 3배 증가
-- 도메인 모델과 DB 스키마가 1:1로 대응되어 매핑 계층의 실질 이득이 없음
-- JPA 어노테이션은 메타데이터일 뿐 비즈니스 로직 동작을 바꾸지 않음
-- 상태 전이 가드(`requireCancellable()` 등)가 enum에 응집되어 있어 도메인 순수성은 실질적으로 유지됨
-
-### 분리를 재검토할 시점
-- CQRS 읽기 모델 분리 또는 이벤트 소싱 도입 시
-- 하나의 도메인 객체가 여러 테이블에 걸치는 구조가 될 때
-- domain 모듈을 JPA 없는 환경(예: 다른 프로젝트)에서 재사용해야 할 때
-
-### 분리 시 접근법 (참고)
-- MapStruct 또는 수동 매퍼로 `domain.Booking` ↔ `infra.BookingEntity` 변환
-- Repository가 JPA 엔티티를 다루고, Port 구현체에서 도메인 객체로 변환하여 반환
-- 점진적 전환: 변경이 잦은 도메인부터 하나씩 분리
-
-## 주의사항
-
-- Spring Data JPA의 `JpaRepository` 메서드 시그니처와 Port 메서드가 충돌할 수 있음
-  - `save(T)` 반환 타입, `findById(ID)` 등은 대부분 호환
-  - 커스텀 쿼리 메서드명이 Port와 다르면 `default` 메서드로 브릿지 가능
-- `@SpringBootApplication`의 component scan 범위 확인 필요
-  - `infra` 패키지가 scan 대상에 포함되어야 함
-- 웹 컨트롤러는 현재 `app` 모듈에 있으므로 별도 `web` 모듈 분리는 이번 범위 밖
+- 파일 수와 매핑 코드가 크게 늘어난다.
+- 현재 도메인 모델과 DB 스키마가 대부분 1:1에 가깝다.
+- 지금 단계에서는 경계 정리 효과보다 비용이 더 크다.
