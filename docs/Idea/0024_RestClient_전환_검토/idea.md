@@ -1,9 +1,9 @@
-# Idea 0024: HttpClient → RestClient 전환 검토
+# HttpClient에서 RestClient로 전환하는 방안 검토
 
 ## 배경
 
-`infra/notification/` 패키지의 외부 API 호출(`KakaoAlimtalkSender`, `RealSmsSender`)은 `java.net.http.HttpClient`를 사용 중이다.
-JDK 표준 라이브러리라 Spring 의존이 없다는 장점은 있다. 하지만 `infra` 모듈은 이미 `@Component`, `@Profile` 등 Spring에 전면 의존하고 있어 JDK 표준만 고집할 실익은 작다.
+외부 알림 API 호출(`KakaoAlimtalkSender`, `RealSmsSender`)은 당시 `java.net.http.HttpClient`를 사용 중이었다.
+JDK 표준 라이브러리라 Spring 의존이 없다는 장점은 있다. 하지만 현재 외부 연동 모듈은 이미 `@Component`, `@Profile` 등 Spring에 전면 의존하고 있어 JDK 표준만 고집할 실익은 작다.
 
 ## 현재 문제
 

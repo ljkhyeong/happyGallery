@@ -4,6 +4,7 @@ import { useAdminKey } from "@/features/admin-product/useAdminKey";
 import { AdminKeyGate } from "@/features/admin-product/AdminKeyGate";
 import { ProductListSection } from "@/features/admin-product/ProductListSection";
 import { CreateProductForm } from "@/features/admin-product/CreateProductForm";
+import { CreateClassForm } from "@/features/admin-class/CreateClassForm";
 import { CreateSlotForm } from "@/features/admin-slot/CreateSlotForm";
 import { SlotListSection } from "@/features/admin-slot/SlotListSection";
 import { BookingListSection } from "@/features/admin-booking/BookingListSection";
@@ -55,6 +56,13 @@ export function AdminPage() {
         <Card.Header>상품 목록</Card.Header>
         <Card.Body>
           <ProductListSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-4">
+        <Card.Header>클래스 생성</Card.Header>
+        <Card.Body>
+          <CreateClassForm adminKey={adminKey} onAuthError={handleAuthError} />
         </Card.Body>
       </Card>
 

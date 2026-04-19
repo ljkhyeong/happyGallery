@@ -6,3 +6,11 @@ export interface ClassResponse {
   price: number;
   bufferMin: number;
 }
+
+export interface CreateClassRequest {
+  name: string;
+  category: string;
+  durationMin: number;
+  price: number;
+  bufferMin: number;
+}

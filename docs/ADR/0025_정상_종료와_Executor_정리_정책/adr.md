@@ -1,4 +1,4 @@
-# ADR-0025: Graceful Shutdown 및 Executor Drain 정책
+# ADR-0025: 정상 종료와 실행기 정리 정책
 
 **날짜**: 2026-03-19  
 **상태**: Accepted
@@ -112,13 +112,13 @@
 
 ## 구현 반영
 
-- `app/src/main/resources/application.yml`
+- `bootstrap/src/main/resources/application.yml`
   - `server.shutdown: graceful`
   - `spring.lifecycle.timeout-per-shutdown-phase: 30s`
-- `app/src/main/java/com/personal/happygallery/config/AsyncConfig.java`
+- `bootstrap/src/main/java/com/personal/happygallery/bootstrap/config/AsyncConfig.java`
   - `notificationExecutor`에 shutdown drain 설정 적용
   - `TaskDecorator`로 MDC 복사/주입/정리 적용
-- `infra/src/main/java/com/personal/happygallery/infra/payment/CircuitBreakerPaymentProvider.java`
+- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/CircuitBreakerPaymentProvider.java`
   - `@PreDestroy` 기반 executor 종료 로직 적용
 
 ---
@@ -152,6 +152,6 @@
 
 - `docs/ADR/0020_결제_제공자_CircuitBreaker/adr.md`
 - `docs/ADR/0030_타임아웃_계층과_ingress_keep_alive_기준선/adr.md`
-- `app/src/main/resources/application.yml`
-- `app/src/main/java/com/personal/happygallery/config/AsyncConfig.java`
-- `infra/src/main/java/com/personal/happygallery/infra/payment/CircuitBreakerPaymentProvider.java`
+- `bootstrap/src/main/resources/application.yml`
+- `bootstrap/src/main/java/com/personal/happygallery/bootstrap/config/AsyncConfig.java`
+- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/CircuitBreakerPaymentProvider.java`

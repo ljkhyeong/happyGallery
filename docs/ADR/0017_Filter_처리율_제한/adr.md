@@ -68,10 +68,10 @@
 
 ## 구현 반영
 
-- `app/web/RateLimitFilter` 추가
-- `app/web/RequestIdFilter`, `app/web/AdminAuthFilter` 필터 순서/경로 보강
+- `adapter-in-web/.../RateLimitFilter` 추가
+- `adapter-in-web/.../RequestIdFilter`, `adapter-in-web/.../AdminAuthFilter` 필터 순서/경로 보강
 - `StringRedisTemplate` 기반 Redis 카운터 사용
 - Lua script로 `INCR` + `EXPIRE` 원자 처리
-- `common/error/ErrorCode`에 `TOO_MANY_REQUESTS` 추가
-- `application.yml`에 `app.rate-limit.*` 설정 추가
+- `domain/error/ErrorCode`에 `TOO_MANY_REQUESTS` 추가
+- `bootstrap/src/main/resources/application.yml`에 `app.rate-limit.*` 설정 추가
 - `CUSTOMER_LOGIN`, `CUSTOMER_SIGNUP`, `ADMIN_LOGIN` 한도와 `trust-forwarded-headers` 정책 추가

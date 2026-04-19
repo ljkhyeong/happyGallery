@@ -3,14 +3,14 @@
 - **상태**: 확정
 - **날짜**: 2026-02-22
 - **관련 파일**:
-  - `app/build.gradle`
-  - `app/booking/SlotManagementService.java`
-  - `app/web/admin/dto/SlotResponse.java`
-  - `infra/booking/SlotRepository.java`
+  - `application/build.gradle`
+  - `application/src/main/java/com/personal/happygallery/application/booking/DefaultSlotManagementService.java`
+  - `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/admin/dto/SlotResponse.java`
+  - `adapter-out-persistence/src/main/java/com/personal/happygallery/adapter/out/persistence/booking/SlotRepository.java`
 
 ---
 
-## Context
+## 배경
 
 §5.1 슬롯 관리 구현 중 아키텍처 결정(ADR-0003) 외에도,
 구현 레벨에서 여러 선택 지점이 있었다.
@@ -21,20 +21,20 @@
 ## Decision 1: `app` 모듈에 `spring-boot-starter-data-jpa` 직접 선언
 
 ### 배경
-`app` 모듈에서 `@Transactional`을 사용하려면 `spring-tx`가 필요하다.
-`infra` 모듈이 `spring-boot-starter-data-jpa`를 `implementation` 스코프로 가지고 있지만,
-Gradle `implementation`은 소비자(app)에게 전이되지 않는다.
+`application` 모듈에서 `@Transactional`을 사용하려면 `spring-tx`가 필요하다.
+`adapter-out-persistence` 모듈이 `spring-boot-starter-data-jpa`를 `implementation` 스코프로 가지고 있지만,
+Gradle `implementation`은 소비자(`application`)에게 전이되지 않는다.
 
 ### 결정
-`app/build.gradle`에 `spring-boot-starter-data-jpa`를 직접 추가한다.
+`application/build.gradle`에 `spring-boot-starter-data-jpa`를 직접 추가한다.
 
 ### 대안
-- `infra/build.gradle`에서 `api` 스코프로 변경 → 전이 가능하나, JPA 구현 세부를 `app`에 노출하는 것이 명시적이지 않음
+- `adapter-out-persistence/build.gradle`에서 `api` 스코프로 변경 → 전이 가능하나, JPA 구현 세부를 `application`에 노출하는 것이 명시적이지 않음
 - `spring-tx`만 별도 선언 → 버전 관리가 분산됨. Spring Boot BOM 활용 위해 스타터 전체 사용이 편리
 
 ### 트레이드오프 / 위험
 - `infra`와 `app` 모두 JPA 스타터 보유. Spring Boot는 단일 `EntityManagerFactory`로 통합하므로 런타임 충돌 없음.
-- JPA 관련 설정(`spring.jpa.*`)은 `app` 모듈의 `application.yml`에서 관리. `infra`에서 설정하지 않는다.
+- JPA 관련 설정(`spring.jpa.*`)은 `bootstrap` 모듈의 `application.yml`에서 관리한다.
 
 ---
 
@@ -111,7 +111,7 @@ void deactivateInBufferWindow(...);
 
 ---
 
-## Consequences
+## 결과
 
 **공통 위험 요약**
 
@@ -127,4 +127,4 @@ void deactivateInBufferWindow(...);
 
 - `docs/PRD/0001_기준_스펙/spec.md` §4.1 (슬롯 정원, 버퍼)
 - ADR-0003 (비관적 락 — confirmBooking 트랜잭션 계약)
-- `app/booking/SlotManagementService.java`
+- `application/src/main/java/com/personal/happygallery/application/booking/DefaultSlotManagementService.java`
