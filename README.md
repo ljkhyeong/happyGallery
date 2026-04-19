@@ -14,7 +14,7 @@
 
 | 사용자 | 주요 기능 |
 | --- | --- |
-| 비회원 | 휴대폰 인증 기반 주문/예약 생성, 토큰 기반 조회, 회원 가입 후 기존 이력 가져오기 |
+| 비회원 | 휴대폰 인증 기반 주문/예약 생성, 토큰 기반 조회, 회원가입 후 기존 이력 가져오기 |
 | 회원 | 상품 주문, 클래스 예약, 8회권 구매/사용, 장바구니, 알림함, 마이페이지 |
 | 관리자 | 상품/슬롯 관리, 주문 승인/거절/배송/픽업, 예약 운영, 대시보드, 환불 재시도, Q&A/문의 답변 |
 
@@ -28,7 +28,7 @@
 ## 운영 주소
 
 - 현재 운영 주소: `https://d36l7yi27358tl.cloudfront.net/`
-- 주요 경로: 스토어 `/products`, 예약 생성 `/bookings/new`, 8회권 구매 `/passes/purchase`, 관리자 `/admin`
+- 주요 경로: 스토어 `/products`, 예약 생성 `/bookings/new`, 8회권 구매 `/passes/purchase`, 비회원 조회 `/guest`, 관리자 `/admin`
 
 ## 배포 구조
 
@@ -52,10 +52,10 @@
 
 ### 배포 파이프라인
 
-`main` 브랜치에 push되면 GitHub Actions가 자동 배포한다.
+`main` 브랜치에 push되면 GitHub Actions가 자동으로 배포를 수행한다.
 
 - 프론트: `npm build` -> `S3 sync` -> `CloudFront invalidation`
-- 백엔드: `bootJar` -> Docker build -> `ECR push` -> `ECS update-service --force-new-deployment`
+- 백엔드: `bootJar` -> `linux/arm64` 이미지 빌드 -> `ECR push` -> 새 ECS task definition 등록 -> ECS 배포
 
 배포 관련 문서:
 - [docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md)
@@ -130,8 +130,8 @@ npm run dev
 
 - DB가 비어 있으면 기본 클래스 3종을 자동 생성한다.
 - 관리자 계정이 없으면 `admin / admin1234`를 자동 생성한다.
-- local/dev 보조 호출은 `X-Admin-Key: dev-admin-key`를 사용할 수 있다.
-- 알림 발송은 `!prod`에서 fake sender를 사용한다.
+- 로컬/개발 보조 호출은 `X-Admin-Key: dev-admin-key`를 사용할 수 있다.
+- 알림 발송은 `!prod` 환경에서 실제 발송 대신 테스트용 발송기를 사용한다.
 
 ### Docker로 전체 스택 실행
 
@@ -155,6 +155,7 @@ docker compose up -d --build
 
 - `local`에서는 기본 관리자 계정이 자동 생성되므로 별도 작업이 필요 없다.
 - `local`이 아닌 환경에서 관리자 계정이 없으면 `ADMIN_SETUP_TOKEN`을 잠깐 주입하고 `/api/v1/admin/setup`으로 최초 계정을 만든다.
+- setup 가능 여부는 `/api/v1/admin/setup/status`에서 확인할 수 있다.
 - setup이 끝나면 `ADMIN_SETUP_TOKEN`은 제거한다.
 
 ## 자주 쓰는 명령어

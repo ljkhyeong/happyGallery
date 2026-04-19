@@ -1,15 +1,15 @@
-# Idea 0039: AWS 배포 설정 베이스라인
+# Idea 0039: AWS 배포 설정 정리
 
 ## 배경
 
 운영 배포를 준비하면서 ECR, ECS, S3, CloudFront, GitHub Actions OIDC 설정이 대화와 개별 문서에 흩어지기 시작했다.
 
-이 문서는 현재 확정한 AWS 배포 설정을 한곳에 모아 두는 기준 문서다.
+이 문서는 현재 확정한 AWS 배포 설정을 한곳에 모아 둔 문서다.
 앞으로 운영 배포 설정을 추가할 때도 이 문서에 같은 형식으로 누적한다.
 
 ## 현재 범위
 
-- AWS 리소스 생성 권장 순서
+- AWS 리소스 생성 순서
 - ECR 리포지토리 기본값
 - ECR lifecycle policy
 - S3 버킷 기본값
@@ -21,9 +21,9 @@
 - GitHub Actions OIDC IAM Role trust policy
 - GitHub Actions OIDC IAM Role permission policy
 
-## 1. AWS 리소스 생성 권장 순서
+## 1. AWS 리소스 생성 순서
 
-현재 기준 권장 순서는 아래와 같다.
+현재 추천 순서는 아래와 같다.
 
 1. ECR 생성
 2. S3 버킷 생성
@@ -44,6 +44,7 @@
 ## 2. ECR 리포지토리 기본값
 
 현재 GitHub Actions 배포 워크플로우는 `ap-northeast-2` 리전에서 backend 이미지를 ECR로 push한다.
+ECS task definition은 `ARM64` 기준으로 운영하므로 backend 이미지는 `docker buildx`로 `linux/arm64` 플랫폼에 맞춰 빌드한다.
 
 - 타입: Private repository
 - 리전: `ap-northeast-2`
@@ -52,10 +53,10 @@
 - scan on push: `enabled`
 - encryption: 기본 `AES-256`
 
-이 프로젝트의 deploy workflow는 같은 이미지에 commit SHA 태그와 `latest` 태그를 함께 push한다.
+이 프로젝트의 deploy workflow는 같은 이미지에 commit SHA 태그와 `latest` 태그를 함께 push하고, 배포 시에는 현재 서비스의 task definition을 기준으로 새 revision을 등록해 commit SHA 이미지를 명시적으로 박아 넣는다.
 그래서 `latest`를 계속 갱신할 수 있도록 tag immutability는 `MUTABLE`을 사용한다.
 
-## 3. ECR lifecycle policy 기준선
+## 3. ECR lifecycle policy 기본값
 
 ### 현재 기준
 
@@ -128,7 +129,7 @@ aws ecr put-lifecycle-policy \
 
 ### 이유
 
-- 현재 운영 권장안은 `S3 website endpoint`가 아니라 `CloudFront + OAC`로 private bucket을 origin으로 쓰는 방식이다.
+- 현재 운영 방식은 `S3 website endpoint`가 아니라 `CloudFront + OAC`로 private bucket을 원본(origin)으로 쓰는 방식이다.
 - 그래서 bucket 자체를 public으로 열지 않는다.
 - SPA fallback도 S3 website hosting보다 CloudFront 쪽 정책으로 관리하는 방향이 더 맞다.
 
@@ -137,7 +138,7 @@ aws ecr put-lifecycle-policy \
 1. Bucket name을 전역에서 유일한 이름으로 만든다.
 2. `Block all public access`를 유지한다.
 3. 필요하면 versioning을 켠다.
-4. bucket 생성 후 CloudFront origin으로 연결한다.
+4. bucket 생성 후 CloudFront 원본(origin)으로 연결한다.
 5. GitHub Actions variable에는 bucket 이름만 `S3_BUCKET`으로 넣는다.
 
 ### 지금 단계에서 아직 안 정해지는 값
@@ -153,9 +154,9 @@ aws ecr put-lifecycle-policy \
 
 ### 현재 기준
 
-- 기본 origin: private S3 bucket
+- 기본 원본(origin): private S3 bucket
 - S3 접근 방식: `OAC (Origin Access Control)`
-- 추가 origin: `ALB` (`/api/*` 용)
+- 추가 원본(origin): `ALB` (`/api/*` 용)
 - viewer protocol policy: `Redirect HTTP to HTTPS`
 - allowed methods
   - 기본 정적 behavior: `GET, HEAD, OPTIONS`
@@ -168,10 +169,10 @@ aws ecr put-lifecycle-policy \
 
 ### path pattern 기준
 
-- 기본 behavior `*` -> S3 origin
-- ordered behavior `/api/*` -> ALB origin
+- 기본 behavior `*` -> S3 원본
+- ordered behavior `/api/*` -> ALB 원본
 
-이 방식이면 브라우저 기준으로 frontend와 API가 같은 origin 아래에 있으므로, 현재 앱의 세션/쿠키/CORS 가정과 가장 잘 맞는다.
+이 방식이면 브라우저 기준으로 frontend와 API가 같은 도메인 아래에 있으므로, 현재 앱의 세션/쿠키/CORS 가정과 가장 잘 맞는다.
 
 ### SPA fallback 기준
 
@@ -185,7 +186,7 @@ CloudFront에서는 아래 방식 중 하나로 처리한다.
 2. CloudFront Function / Lambda@Edge
    - 브라우저 라우트만 `index.html`로 rewrite
 
-현재 기준선은 단순한 `custom error response`부터 시작한다.
+현재 기본값은 단순한 `custom error response`부터 시작한다.
 
 ### OAC 기준
 
@@ -219,7 +220,7 @@ bucket policy 예시:
 
 ### 지금 단계에서 할 일
 
-1. S3 bucket을 origin으로 둔 CloudFront distribution 생성
+1. S3 bucket을 원본으로 둔 CloudFront distribution 생성
 2. OAC 생성 및 연결
 3. `default root object = index.html` 설정
 4. `403`, `404`를 `/index.html`로 돌리는 custom error response 설정
@@ -228,7 +229,7 @@ bucket policy 예시:
 
 ### 지금 단계에서 아직 안 정해지는 값
 
-- `/api/*` origin으로 붙일 실제 ALB 도메인
+- `/api/*` 원본으로 붙일 실제 ALB 도메인
 - custom domain 이름
 - ACM certificate ARN
 - WAF 연결 여부
@@ -285,7 +286,7 @@ bucket policy 예시:
 
 ### 메모
 
-- 당장 PoC만 띄우는 목적이면 default VPC도 가능하지만, 운영 기준선으로는 채택하지 않는다.
+- 당장 PoC만 띄우는 목적이면 default VPC도 가능하지만, 운영 기본값으로는 채택하지 않는다.
 - RDS를 만들기 전에 VPC 구조를 먼저 확정하는 편이 맞다.
 
 ## 7. RDS MySQL 기본값
@@ -563,7 +564,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 - 나중에 management port를 application port와 다시 분리하고 싶을 때
 - ALB 대신 service connect / service mesh / 내부 health check 전략을 별도로 둘 때
 
-## 11. GitHub Actions Secrets / Variables 기준선
+## 11. GitHub Actions Secrets / Variables 기본값
 
 현재 `.github/workflows/deploy.yml` 기준으로 필요한 값은 아래와 같다.
 
@@ -590,7 +591,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 - DB 비밀번호, Redis 비밀번호, API 키, 암호화 키 같은 운영 비밀값은 GitHub Secrets에 넣지 않는다.
 - 앱 런타임 비밀값은 ECS Task Definition + Secrets Manager 또는 SSM Parameter Store에서 주입한다.
 
-## 12. GitHub Actions OIDC IAM Role trust policy 기준선
+## 12. GitHub Actions OIDC IAM Role trust policy 기본값
 
 현재 deploy workflow는 `push -> main`에서만 배포된다.
 그래서 trust policy도 우선 `main` 브랜치만 assume 가능하게 좁게 잡는다.
@@ -623,12 +624,12 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 
 브랜치 대신 GitHub Environment 기반 승인 게이트를 붙이면 `sub` 조건도 그 구조에 맞게 다시 좁힌다.
 
-## 13. GitHub Actions OIDC IAM Role permission policy 기준선
+## 13. GitHub Actions OIDC IAM Role permission policy 기본값
 
 단일 deploy role을 유지한다면 아래 권한 세트가 현재 workflow와 맞는다.
 
 - ECR login / image push
-- ECS service 강제 새 배포
+- ECS task definition 조회 / 새 revision 등록 / service 배포
 - S3 정적 파일 sync
 - CloudFront invalidation
 
@@ -663,10 +664,23 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
       "Sid": "EcsDeploy",
       "Effect": "Allow",
       "Action": [
+        "ecs:DescribeTaskDefinition",
         "ecs:DescribeServices",
+        "ecs:RegisterTaskDefinition",
         "ecs:UpdateService"
       ],
-      "Resource": "arn:aws:ecs:ap-northeast-2:<AWS_ACCOUNT_ID>:service/<ECS_CLUSTER>/<ECS_SERVICE>"
+      "Resource": "*"
+    },
+    {
+      "Sid": "PassTaskRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::<AWS_ACCOUNT_ID>:role/ecsTaskExecutionRole",
+        "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ECS_TASK_ROLE>"
+      ]
     },
     {
       "Sid": "S3Deploy",
@@ -702,7 +716,8 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 
 - 이 permission policy는 ECR, S3, CloudFront, ECS 리소스 이름이 확정된 뒤 최종 반영한다.
 - 나중에 frontend/backend deploy role을 분리하면 이 정책도 역할별로 나누는 편이 더 안전하다.
-- ECS 쪽에서 task definition까지 GitHub Actions가 직접 갱신하게 되면 `ecs:RegisterTaskDefinition`, `iam:PassRole` 같은 권한을 추가로 검토한다.
+- 현재 workflow는 task definition 새 revision까지 GitHub Actions가 직접 등록하므로 `ecs:DescribeTaskDefinition`, `ecs:RegisterTaskDefinition`, `iam:PassRole`을 포함해야 한다.
+- `iam:PassRole`의 `<ECS_TASK_ROLE>`은 task definition에 별도 `taskRoleArn`이 있을 때만 실제 값으로 채운다. 없으면 execution role만 남기면 된다.
 
 ## 14. GitHub에 두지 않는 운영 비밀값
 
@@ -718,5 +733,5 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 
 ## 15. 다음에 이 문서에 이어서 넣을 항목
 
-- Redis 네트워크 및 보안 그룹 기준선
+- Redis 네트워크 및 보안 그룹 기본값
 - 배포 전 체크리스트와 rollback 기준
