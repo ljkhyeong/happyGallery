@@ -50,7 +50,7 @@
 
 ## Approval Minimization
 - 승인 요청은 원격 쓰기·PR merge·워크스페이스 밖 쓰기 등 실제 escalation이 필요한 경우에만.
-- 아래 명령은 처음부터 unsandboxed 실행: Gradle JVM (`test`, `:app:bootRun` 등), `gh pr *`, `git fetch/push/pull`, `docker exec`, Playwright
+- 아래 명령은 처음부터 unsandboxed 실행: Gradle JVM (`test`, `:bootstrap:bootRun` 등), `gh pr *`, `git fetch/push/pull`, `docker exec`, Playwright
 - `바로`/`지금`/`곧바로` 지시 시 비파괴적이면 재확인 없이 진행.
 - PR은 mergeable 확인 후 충돌 없으면 바로 머지.
 - 변경 범위를 벗어난 재검증·중복 조회 금지.

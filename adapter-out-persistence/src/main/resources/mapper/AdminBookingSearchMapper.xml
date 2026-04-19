@@ -35,7 +35,7 @@
         외부 쿼리에서 실제 데이터를 JOIN으로 가져온다.
         예약은 날짜 필터가 slots.start_at 기준이므로 날짜 조건 존재 시 slots JOIN 포함.
     -->
-    <select id="search" resultType="com.personal.happygallery.app.search.dto.AdminBookingSearchRow">
+    <select id="search" resultType="com.personal.happygallery.application.search.dto.AdminBookingSearchRow">
         SELECT
             b.id                                                              AS bookingId,
             CONCAT('BK-', LPAD(b.id, 8, '0'))                                AS bookingNumber,

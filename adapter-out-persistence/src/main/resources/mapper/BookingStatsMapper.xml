@@ -4,7 +4,7 @@
 
 <mapper namespace="com.personal.happygallery.adapter.out.persistence.dashboard.mapper.BookingStatsMapper">
 
-    <select id="findSlotUtilization" resultType="com.personal.happygallery.app.dashboard.dto.SlotUtilization">
+    <select id="findSlotUtilization" resultType="com.personal.happygallery.application.dashboard.dto.SlotUtilization">
         SELECT
             DATE(CONVERT_TZ(s.start_at, '+00:00', '+09:00')) AS date,
             c.name                                            AS className,

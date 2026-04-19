@@ -20,20 +20,22 @@
 - 과한 재검증, 과한 상태 점검, 중복 조회 금지
 
 ## 프로젝트 구조 및 모듈 책임
-- `app/`: 진입점, 웹, 서비스, 배치, 통합 테스트
-- `domain/`: 엔티티, 정책, 핵심 규칙
-- `infra/`: 저장소, 결제, 알림 등 외부 연동
-- `common/`: 공통 예외, 시간 유틸리티
-- 레이어 책임 준수: 도메인 규칙은 `domain`, 외부 연동은 `infra`
+- `bootstrap/`: `@SpringBootApplication`, `application*.yml`, Flyway, logback, 마스킹 layout
+- `adapter-in-web/`: 컨트롤러, 필터, resolver, 웹 전용 properties
+- `adapter-out-persistence/`: JPA repository, MyBatis mapper/adapter
+- `adapter-out-external/`: 결제, 알림, OAuth, Redis 세션, HTTP pool
+- `application/`: 유스케이스 인터페이스(`port.in`/`port.out`), service, batch, `java-test-fixtures` 기반 공용 test support
+- `domain/`: 엔티티, 정책 enum, 도메인 예외, 핵심 규칙
+- 의존 방향: `bootstrap → adapter-in-web/out-* → application → domain` (ArchUnit `LayerDependencyArchTest`로 강제)
 
 ## 빌드, 테스트, 개발 명령어
 - 모든 명령은 저장소 루트 + Gradle Wrapper 기준
 - 대표 명령:
   - `./gradlew build`
   - `./gradlew test`
-  - `./gradlew :app:bootRun`
-  - `./gradlew :app:useCaseTest`
-  - `./gradlew :app:policyTest`
+  - `./gradlew :bootstrap:bootRun`
+  - `./gradlew :application:useCaseTest`
+  - `./gradlew :application:policyTest`
   - `docker compose up -d`
 - Testcontainers 계열은 기본적으로 `./gradlew --no-daemon ...`
 - Gradle JVM, 원격 GitHub/git, Docker, Playwright는 필요 시 바로 권한 상승 실행
@@ -54,7 +56,7 @@
 - 구현 변경 시 관련 PRD, ADR, 운영 문서도 함께 반영
 
 ## DB 및 설정 변경 규칙
-- DB 변경은 `app/src/main/resources/db/migration` 아래 Flyway만 사용
+- DB 변경은 `bootstrap/src/main/resources/db/migration` 아래 Flyway만 사용
 - 파일명은 `V<number>__description.sql`
 - 환경별 설정은 `application-*.yml`, 공통은 `application.yml`
 - 비밀값은 환경 변수로 주입, 저장소 하드코딩 금지

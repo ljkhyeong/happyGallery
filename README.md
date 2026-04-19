@@ -5,7 +5,7 @@
 
 - **백엔드**: Spring Boot 4.0.2 / Java 21 / MySQL 8
 - **프론트엔드**: Vite / React 19 / TypeScript / Bootstrap
-- **구조**: Gradle 멀티 모듈(`app` · `domain` · `infra`) + `frontend/` 워크스페이스
+- **구조**: Gradle 6-module (`bootstrap` · `adapter-in-web` · `adapter-out-persistence` · `adapter-out-external` · `application` · `domain`) + `frontend/` 워크스페이스
 
 ---
 
@@ -15,7 +15,7 @@
 
 | 구분 | 구성 | 용도 |
 |------|------|------|
-| 백엔드 구조 | `app` / `domain` / `infra` | 진입점, 도메인 규칙, 외부 연동을 나눈 멀티 모듈 구조다. `app` 안에서는 유스케이스 입력 인터페이스와 저장/외부 연동 인터페이스를 조금씩 분리하고 있다. |
+| 백엔드 구조 | `bootstrap` / `adapter-in-web` / `adapter-out-persistence` / `adapter-out-external` / `application` / `domain` | 헥사고날 풀-스플릿 6-module 구조. 의존 방향은 `bootstrap → adapter-in-web/out-* → application → domain`. ArchUnit `LayerDependencyArchTest`로 경계를 강제한다. |
 | 관측성 구조 | `monitoring/` + `docker-compose.yml` | Prometheus, Grafana, alert rule, 대시보드 설정을 로컬에서 바로 띄울 수 있게 묶어 둔다. |
 | Resilience4j | `resilience4j-circuitbreaker`, `resilience4j-timelimiter` | PG 환불 호출에 circuit breaker와 timeout을 적용해 장애 전파를 줄인다. |
 | Redis + Spring Session | `spring-boot-starter-data-redis`, `spring-session-data-redis` | 회원 세션(`HG_SESSION`), 관리자 Bearer 세션, 요청 제한 카운터를 Redis에 저장한다. |
@@ -41,13 +41,13 @@
 
 ### 🔄 마이그레이션 현황
 
-- 아키텍처: 멀티 모듈 구조는 유지하고 있다. 대신 `app` 안에서 `port/in`, `port/out`, adapter 경계를 조금씩 늘리고 있다.
+- 아키텍처: 헥사고날 풀-스플릿을 마무리해 `app/infra`를 6-module(`bootstrap`, `adapter-in-web`, `adapter-out-persistence`, `adapter-out-external`, `application`, `domain`)로 나눴다. 모듈 경계는 ArchUnit `LayerDependencyArchTest`로 강제한다.
 - 회원 세션: 직접 만든 세션 저장 로직을 걷어내고 Spring Session + Redis로 옮겼다. `HG_SESSION` 쿠키 이름은 그대로 유지한다.
 - 회원 세션 테이블: 세션을 Redis로 옮긴 뒤 DB `user_sessions` 테이블도 제거했다.
 - 관리자 세션과 요청 제한: 관리자 Bearer 세션과 rate limit 카운터를 각 서버 메모리 대신 Redis에 저장한다. 여러 인스턴스가 떠 있어도 같은 제한값을 공유한다.
 - 유스케이스 진입점: 회원 인증과 guest claim부터 시작해 예약 변경/취소, 8회권 만료 배치, 픽업 만료 배치도 유스케이스 인터페이스를 통해 호출하도록 정리했다.
 - 인터페이스 분리: 상품, 알림, 결제, 예약, 주문 영역에서 조회/저장/외부 연동 인터페이스를 나눴다. JPA와 외부 연동 구현은 별도 구현 클래스로 둔다.
-- 관리자 검색/집계: 관리자 주문/예약 검색과 매출/환불/가동률 대시보드 조회는 `infra`의 MyBatis adapter + mapper로 처리한다.
+- 관리자 검색/집계: 관리자 주문/예약 검색과 매출/환불/가동률 대시보드 조회는 `adapter-out-persistence`의 MyBatis adapter + mapper로 처리한다.
 - 8회권: guest 소유 8회권을 없애고 회원 전용 구매로 단일화했다. `pass_purchases.guest_id`도 제거했다.
 - guest 토큰: URL query와 평문 저장을 걷어내고 `X-Access-Token` 헤더 + SHA-256 해시 저장으로 바꿨다.
 - 로그: `prod`는 JSON 구조화 로그를 쓰고, `local`/`test`는 읽기 쉬운 텍스트 로그를 유지한다. 전화번호, Bearer 토큰, 세션 토큰, access token은 로그 출력 전에 마스킹한다.
@@ -178,16 +178,24 @@
 
 ## 🏗 저장소 구조
 
-- `app/`
-  - Spring Boot 진입점, 컨트롤러, 유스케이스 orchestration, `port/in`·`port/out`, 배치, 통합 테스트
+- `bootstrap/`
+  - `@SpringBootApplication` 엔트리, `application*.yml`, `db/migration` Flyway 스크립트, `logback-spring.xml`, `bootstrap.config.*`, `bootstrap.logging.*` (마스킹 layout)
+- `adapter-in-web/`
+  - 컨트롤러, 필터(`RequestIdFilter`/`RateLimitFilter`/`CustomerAuthFilter`/`AdminAuthFilter`), `@CustomerUserId`/`@AdminUserId` resolver, 웹 전용 properties
+- `adapter-out-persistence/`
+  - JPA Repository, MyBatis mapper/adapter, persistence 전용 config
+- `adapter-out-external/`
+  - 결제(PG + CircuitBreaker), 알림(Kakao/SMS), Google OAuth, 외부 HTTP pool, 관리자 Redis 세션 저장소
+- `application/`
+  - 유스케이스 입력(`port.in`)/출력(`port.out`) 인터페이스, application service, batch, application 공용 properties, `java-test-fixtures` 기반 `support/**` 공용 테스트 인프라
 - `domain/`
-  - 엔티티, 상태 전이, 정책 등 핵심 비즈니스 규칙
-- `infra/`
-  - JPA 리포지토리와 MyBatis mapper/adapter, 결제/알림/세션/모니터링 등 외부 연동 구현
+  - 엔티티, 상태 전이, 정책 enum, 도메인 예외 등 핵심 비즈니스 규칙
 - `monitoring/`
   - Prometheus scrape/alert rule, Grafana datasource/provisioning, 대시보드 JSON
 - `frontend/`
   - Vite + React + TypeScript 프론트엔드
+
+의존 방향은 `bootstrap → adapter-in-web / adapter-out-* → application → domain` 한 방향이며, ArchUnit `application/src/test/java/com/personal/happygallery/policy/LayerDependencyArchTest.java` 가 회귀를 막는다.
 
 ## 🚀 로컬 실행
 
@@ -267,7 +275,7 @@ npm run dev
 - 정책 테스트: `./gradlew :application:policyTest`
 - 유스케이스 통합 테스트: `./gradlew --no-daemon :application:useCaseTest`
 - 단일 테스트 예시:
-  - `./gradlew --no-daemon :application:test --tests com.personal.happygallery.app.order.OrderApprovalUseCaseIT`
+  - `./gradlew --no-daemon :application:test --tests com.personal.happygallery.application.order.OrderApprovalUseCaseIT`
 - `@UseCaseIT`는 MySQL/Redis Testcontainers와 함께 고정 `Clock`(Asia/Seoul)을 써서 시간 경계 테스트가 벽시계에 흔들리지 않도록 한다.
 
 ### 프론트

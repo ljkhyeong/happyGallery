@@ -64,5 +64,7 @@ dependencies {
 	testImplementation project(":adapter-out-persistence")
 	testImplementation project(":adapter-out-external")
 	testImplementation project(":adapter-in-web")
+	// bootstrap 의 @SpringBootApplication / Flyway / config 클래스가 @SpringBootTest 컨텍스트 부팅에 필요
+	testImplementation project(":bootstrap")
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

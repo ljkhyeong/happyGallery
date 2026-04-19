@@ -9,7 +9,7 @@
         'REJECTED', 'AUTO_REFUND_TIMEOUT', 'PICKUP_EXPIRED'
     </sql>
 
-    <select id="findOverview" resultType="com.personal.happygallery.app.dashboard.dto.DashboardOverview">
+    <select id="findOverview" resultType="com.personal.happygallery.application.dashboard.dto.DashboardOverview">
         SELECT
             COALESCE(ord.todayRevenue, 0)   AS todayRevenue,
             COALESCE(ord.todayOrderCount, 0) AS todayOrderCount,
@@ -41,7 +41,7 @@
             ) today_bk
     </select>
 
-    <select id="findSalesSummary" resultType="com.personal.happygallery.app.dashboard.dto.PeriodSalesSummary">
+    <select id="findSalesSummary" resultType="com.personal.happygallery.application.dashboard.dto.PeriodSalesSummary">
         SELECT
             <choose>
                 <when test="granularity == 'DAILY'">
@@ -65,7 +65,7 @@
         ORDER BY periodLabel
     </select>
 
-    <select id="findRevenueBreakdown" resultType="com.personal.happygallery.app.dashboard.dto.RevenueBreakdown">
+    <select id="findRevenueBreakdown" resultType="com.personal.happygallery.application.dashboard.dto.RevenueBreakdown">
         SELECT
             COALESCE(ord.rev, 0)  AS orderRevenue,
             COALESCE(dep.rev, 0)  AS bookingDepositRevenue,
@@ -97,14 +97,14 @@
             ) pp
     </select>
 
-    <select id="findOrderStatusDistribution" resultType="com.personal.happygallery.app.dashboard.dto.StatusCount">
+    <select id="findOrderStatusDistribution" resultType="com.personal.happygallery.application.dashboard.dto.StatusCount">
         SELECT status, COUNT(*) AS count
         FROM orders
         GROUP BY status
         ORDER BY count DESC
     </select>
 
-    <select id="findRefundStats" resultType="com.personal.happygallery.app.dashboard.dto.RefundStats">
+    <select id="findRefundStats" resultType="com.personal.happygallery.application.dashboard.dto.RefundStats">
         SELECT
             COUNT(*)                         AS totalRefundCount,
             COALESCE(SUM(r.amount), 0)       AS totalRefundedAmount,
@@ -121,7 +121,7 @@
           AND r.created_at >= #{rangeFrom} AND r.created_at &lt; #{rangeTo}
     </select>
 
-    <select id="findTopProducts" resultType="com.personal.happygallery.app.dashboard.dto.TopProduct">
+    <select id="findTopProducts" resultType="com.personal.happygallery.application.dashboard.dto.TopProduct">
         SELECT
             p.id                        AS productId,
             p.name                      AS productName,

@@ -34,7 +34,7 @@
         서브쿼리에서 커버링 인덱스로 ID만 페이징한 뒤,
         외부 쿼리에서 실제 데이터를 JOIN으로 가져온다.
     -->
-    <select id="search" resultType="com.personal.happygallery.app.search.dto.AdminOrderSearchRow">
+    <select id="search" resultType="com.personal.happygallery.application.search.dto.AdminOrderSearchRow">
         SELECT
             o.id                                    AS orderId,
             CONCAT('ORD-', LPAD(o.id, 8, '0'))      AS orderNumber,

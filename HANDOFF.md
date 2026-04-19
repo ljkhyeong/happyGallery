@@ -1,7 +1,7 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
 > 작성 시점: 2026-04-07 (AWS 배포 설정 베이스라인/booking support naming 반영 상태)
-> 갱신 시점: 2026-04-19 (Step 4 완료 — `java-test-fixtures` 도입, 전체 `compileTestJava` green)
+> 갱신 시점: 2026-04-19 (Step 5 검증 완료 — 전체 `test` / `useCaseTest` / `policyTest` green, 208 tests / 0 failure. Step 5 예정 작업은 Step 3/4 과정에서 연쇄 반영되어 실제 파일 상태가 이미 6-module 기준임을 스캔으로 확인)
 
 ---
 
@@ -32,7 +32,7 @@ test-support/                 java-test-fixtures (Step 4)
 | Step 2 — app → application + adapter-in-web 추출 | ✅ 완료 | main 소스 컴파일 / `:bootstrap:bootJar -x test` green. 테스트 컴파일은 Step 4 |
 | Step 3 — infra → adapter-out-persistence + adapter-out-external | ✅ 완료 | `infra/`, `app/` 디렉토리/`include` 모두 제거. `settings.gradle`은 `application/adapter-in-web/adapter-out-persistence/adapter-out-external/domain/bootstrap` 6개 모듈. `:bootstrap:bootJar -x test` green |
 | Step 4 — `test-support` (java-test-fixtures) | ✅ 완료 | `application`에 `java-test-fixtures` 플러그인 적용, `application/src/test/java/.../support/` → `application/src/testFixtures/java/.../support/` 이동. `adapter-in-web`는 `testImplementation testFixtures(project(":application"))`로 consume. 전체 `compileTestJava` BUILD SUCCESSFUL. 실제 테스트 실행은 미검증 |
-| Step 5 — ArchUnit 모듈 규칙 리라이트 + 문서/Dockerfile 갱신 | ⬜ 미착수 | `LayerDependencyArchTest`는 현재 `application/src/test/java/.../policy/`에 옛 규칙 상태. 새 모듈(`adapter.out.persistence.*`, `adapter.out.external.*`) 경계 규칙으로 리라이트 필요. `Dockerfile` / CI 빌드 명령에 `:app:bootJar`가 남아 있다면 `:bootstrap:bootJar`로 교체 |
+| Step 5 — ArchUnit 모듈 규칙 리라이트 + 문서/Dockerfile 갱신 | ✅ 완료 | Step 3/4 연쇄 반영으로 별도 작업 없이 현실 상태가 6-module 기준. `LayerDependencyArchTest`는 6-module 경계 9개 룰로 리라이트 완료(`@Tag("policy")`, `policyTest` green). `Dockerfile` / `Dockerfile.deploy` / `.github/workflows/deploy.yml` 모두 `:bootstrap:bootJar` · `bootstrap/build/libs/*.jar` 사용. `settings.gradle`은 6-module only. `README.md` 모듈 설명 6-module 반영. 2026-04-19 전체 `./gradlew test` + `useCaseTest` + `policyTest` 208 tests green으로 Step 2~4 런타임 회귀 없음 확인 |
 
 ### Step 3에서 수행된 작업 요약 (2026-04-19)
 
@@ -57,13 +57,26 @@ test-support/                 java-test-fixtures (Step 4)
 - `adapter-in-web/build.gradle` testImplementation 전면 신설: `testFixtures(project(":application"))` + `:adapter-out-persistence` + `:adapter-out-external` + `spring-boot-starter-test` + `starter-webmvc-test` + `starter-data-jpa` + testcontainers 3종 + awaitility + junit-platform-launcher
 - 최종 검증: `./gradlew compileTestJava` 전체 BUILD SUCCESSFUL (`:application:compileTestFixturesJava`, `:application:compileTestJava`, `:adapter-in-web:compileTestJava` 포함)
 
-### Step 5 진입 시 바로 확인할 것
+### Step 5 완료 항목 (2026-04-19)
 
-- `application/src/test/java/com/personal/happygallery/policy/LayerDependencyArchTest` (옛 3-module 구조 기준)를 6-module 경계로 리라이트
-  - 규칙 후보: `domain`은 외부 모듈 import 금지, `application`은 `adapter.*` import 금지, `adapter.in.web`은 `adapter.out.*` port 구현체 직접 import 금지 등
-- `Dockerfile`, `Dockerfile.deploy`, `.github/workflows/deploy.yml`의 `:app:bootJar` → `:bootstrap:bootJar` 치환 (실제 현재 상태 확인 후)
-- `README.md` 모듈 설명 업데이트
-- 실제 테스트 실행(`./gradlew test`, `./gradlew :application:useCaseTest`)으로 Step 2~4 리팩토링의 런타임 회귀 없음 확인
+- [x] `LayerDependencyArchTest` 6-module 경계로 리라이트 완료 — 9개 룰:
+  - `domain` → `application` / `adapter` / `bootstrap` import 금지 3종
+  - `application` → `adapter` / `bootstrap` import 금지 2종
+  - `adapter.in.web` → `adapter.out.*` 직접 import 금지, `..port.out..` 직접 import 금지 2종
+  - `adapter.out.persistence` ↔ `adapter.out.external` 상호 및 `adapter.in.web` import 금지 2종
+  - `@Tag("policy")`로 `:application:policyTest`에서 실행, 2026-04-19 green
+- [x] `Dockerfile` (line 11) / `Dockerfile.deploy` (line 3) / `.github/workflows/deploy.yml` (line 75) 모두 `:bootstrap:bootJar` · `bootstrap/build/libs/*.jar` 기준으로 이미 전환
+- [x] `settings.gradle`은 6-module (`application`, `adapter-in-web`, `adapter-out-persistence`, `adapter-out-external`, `domain`, `bootstrap`) 만 include
+- [x] `README.md` 모듈 설명 (line 8 / 18 / 181~198)이 6-module 구조 + `bootstrap → adapter-in-web/out-* → application → domain` 의존 방향 + ArchUnit 강제 규칙을 포함
+- [x] `./gradlew test` (208 tests / 0 failure / 0 error / 0 skipped) + `:application:useCaseTest` + `:application:policyTest` 모두 green — Step 2~4 런타임 회귀 없음 확인
+
+### 다음 세션이 이어받을 수 있는 후속 트랙 후보
+
+Step 5로 헥사고날 풀-스플릿 마이그레이션은 종료. 다음 작업은 `plan.md` 핵심 트랙 기준:
+
+1. **관측성 스택 고도화** — Prometheus/Grafana 대시보드 확장, alert rule tuning
+2. **guest/member 운영 정책 리뷰** — `/guest` 보조 경로 사용량/문의 유형을 2~4주 관찰한 뒤 축소 여부 결정
+3. **테스트 구조 정리(옵션)** — `application/src/test/java/.../adapter/out/{external|persistence}/**`에 남아 있는 3개 어댑터 테스트(`CircuitBreakerPaymentProviderTest`, `FakePaymentProviderTest`, `MyBatisSalesStatsAdapterTest`)를 각 adapter 모듈의 `src/test/java`로 이관하면 모듈 경계가 더 깔끔해짐. 현재는 `application` test classpath가 두 어댑터 모듈을 의존하고 있어 동작에는 문제 없음.
 
 ### Step 2에서 다음 세션이 이어받아야 할 잔여 작업 (Task ID는 현재 TaskList 기준)
 
@@ -349,7 +362,7 @@ print(best)
 - `@UseCaseIT`는 현재 `@AutoConfigureMockMvc(addFilters = false)` 기반으로 유지 중
 - `@UseCaseIT`의 `test` 컨텍스트는 `TestcontainersConfig`에서 Asia/Seoul 고정 `Clock`을 `@Primary`로 제공한다. 시간 관련 테스트 데이터는 `LocalDateTime.now(clock)` 또는 `LocalDate.now(clock)` 기준으로 맞추는 편이 안전하다.
 - `@SpringBootTest` 컨텍스트에서 `ObjectMapper` autowire 불가 → JSON 문자열 직접 구성
-- Codex 샌드박스에서는 Gradle JVM 명령이 `FileLockContentionHandler` 소켓 생성 제한에 걸릴 수 있어, 테스트와 `:app:bootRun`은 처음부터 권한 상승 실행으로 처리하는 편이 안정적
+- Codex 샌드박스에서는 Gradle JVM 명령이 `FileLockContentionHandler` 소켓 생성 제한에 걸릴 수 있어, 테스트와 `:bootstrap:bootRun`은 처음부터 권한 상승 실행으로 처리하는 편이 안정적
 - 동일하게 `gh pr *`, 원격 `git fetch/push/pull`, Docker 컨테이너 제어, Playwright 브라우저 설치/실행, 워크스페이스 밖 경로 쓰기처럼 반복적으로 막혔던 작업도 샌드박스 재시도 없이 처음부터 권한 상승 실행으로 처리한다.
 
 ### 프론트 공통 패턴
@@ -391,7 +404,7 @@ print(best)
 - `BookingFormStep`의 결제 방식 라디오는 명시적 `id`를 써서 라벨 접근성을 보장
 
 ### 로컬 실행 메모
-- `local` 프로필 `:app:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
+- `local` 프로필 `:bootstrap:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
 - 로컬 부팅이나 `docker compose up -d` 전에 Redis(`localhost:6379`)가 필요하다. compose에는 `redis` 서비스가 추가되어 있고, 통합 테스트는 Testcontainers Redis를 함께 기동한다.
 - `docker compose up -d --build` 뒤에는 `nginx`가 `http://localhost` 에서 frontend `dist` 정적 파일을 서빙하고 `/api` 요청을 app 컨테이너로 프록시한다.
 - `local` 프로필에서 `http://localhost:8080/actuator/prometheus` 로 JVM/HTTP 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 함께 노출한다.
@@ -408,10 +421,10 @@ print(best)
 
 ```bash
 ./gradlew test
-./gradlew :app:test --tests "*.SomeIT"
-./gradlew :app:policyTest
-./gradlew --no-daemon :app:useCaseTest
-./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.admin.AdminSlotUseCaseIT
+./gradlew :application:test --tests "*.SomeIT"
+./gradlew :application:policyTest
+./gradlew --no-daemon :application:useCaseTest
+./gradlew --no-daemon :adapter-in-web:test --tests com.personal.happygallery.adapter.in.web.admin.AdminSlotUseCaseIT
 cd frontend && npm run build
 cd frontend && npm run e2e:install
 cd frontend && npm run e2e
@@ -419,7 +432,7 @@ cd frontend && npm run e2e
 
 ### 미해결 과제
 - 로컬 `bootRun` 전 `happygallery-app` 컨테이너가 떠 있으면 8080 충돌 발생
-- 현재 `:app:bootJar`는 `common`, `domain`은 포함하지만 `infra`는 포함하지 않는다. `app` 단독 실행 산출물로 유지할지, bootstrap 모듈을 분리해 최종 조립을 맡길지 검토 필요 (`docs/Idea/0025_bootJar_패키징과_Bootstrap_모듈_분리/idea.md`)
+- ~~현재 `:app:bootJar`는 `common`, `domain`은 포함하지만 `infra`는 포함하지 않는다. `app` 단독 실행 산출물로 유지할지, bootstrap 모듈을 분리해 최종 조립을 맡길지 검토 필요~~ (헥사고날 풀-스플릿 Step 1~5로 해결됨. 실행 산출물은 `:bootstrap:bootJar` 하나로 조립되며 `adapter-in-web` / `adapter-out-persistence` / `adapter-out-external` / `application` / `domain`을 모두 포함한다. 배경 메모: `docs/Idea/0025_bootJar_패키징과_Bootstrap_모듈_분리/idea.md`)
 - PG 환불 패턴 중복 → 실 PG 연동 시 RefundExecutor로 통합 예정
 - ~~공개 주문 상세 `fulfillment.status` 계약 drift 정리 필요~~ (CR-P6에서 FE/BE 정합)
 - ~~`X-Admin-Id` 헤더 의존 제거 전까지 운영 이력의 admin 식별자가 null/위조 가능~~ (CR-P6에서 Bearer 세션 attribute 기반으로 전환)
