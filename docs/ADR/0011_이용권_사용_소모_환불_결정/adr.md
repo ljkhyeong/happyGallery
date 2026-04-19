@@ -71,10 +71,9 @@
 | 파일 | 역할 |
 |------|------|
 | `domain/Booking.java` | `passPurchase` FK 필드, `markNoShow()`, `isPassBooking()` |
-| `app/PassNoShowService.java` | 결석 처리 |
-| `app/PassRefundService.java` | 정산 환불 + 미래 예약 자동 취소 |
-| `app/BookingCancelService.java` | D-1 이후 취소 시 크레딧 소멸 유지 분기 |
-| `infra/BookingRepository.java` | `findFuturePassBookings()` JPQL 쿼리 |
-| `web/AdminBookingController.java` | `POST /admin/bookings/{id}/no-show` |
-| `web/AdminPassController.java` | `POST /admin/passes/{id}/refund` |
-| `db/V5__add_pass_booking_link.sql` | bookings.pass_purchase_id FK, pass_purchases.total_price |
+| `application/.../booking/DefaultBookingNoShowService.java` | 결석 처리 |
+| `application/.../pass/DefaultPassRefundService.java` | 정산 환불 + 미래 예약 자동 취소 |
+| `application/.../booking/DefaultBookingCancelService.java` | D-1 이후 취소 시 크레딧 소멸 유지 분기 |
+| `adapter-out-persistence/.../booking/BookingRepository.java` | `findFuturePassBookings()` JPQL 쿼리 |
+| `adapter-in-web/.../admin/AdminBookingController.java` | `POST /admin/bookings/{id}/no-show` |
+| `bootstrap/src/main/resources/db/migration/V5__add_pass_booking_link.sql` | bookings.pass_purchase_id FK, pass_purchases.total_price |

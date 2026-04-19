@@ -3,14 +3,14 @@
 - **상태**: 확정
 - **날짜**: 2026-02-22
 - **관련 파일**:
-  - `infra/booking/SlotRepository.java` — `findByIdWithLock()`
-  - `app/booking/SlotManagementService.java` — `confirmBooking()`
+  - `adapter-out-persistence/src/main/java/com/personal/happygallery/adapter/out/persistence/booking/SlotRepository.java` — `findByIdWithLock()`
+  - `application/src/main/java/com/personal/happygallery/application/booking/DefaultSlotManagementService.java` — `confirmBooking()`
   - `domain/booking/Slot.java` — `incrementBookedCount()`
   - `domain/booking/SlotCapacity.java` — `checkAvailable(int)`
 
 ---
 
-## Context
+## 배경
 
 `slots.booked_count` 증가는 동시성 핵심 구간이다(spec.md §8.2).
 ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보했지만,
@@ -22,7 +22,7 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 
 ---
 
-## Decision
+## 결정
 
 슬롯 정원(capacity=8) 강제에는 **비관적 쓰기 락(SELECT FOR UPDATE)** 을 사용한다.
 
@@ -60,7 +60,7 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 
 ---
 
-## Consequences
+## 결과
 
 **긍정**
 - 정원 강제 로직이 단일 트랜잭션 + 단일 row 잠금으로 단순화.

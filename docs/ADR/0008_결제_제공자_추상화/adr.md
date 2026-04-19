@@ -11,13 +11,11 @@
 
 ---
 
-## 결정 1 — `PaymentProvider` 인터페이스는 `infra` 모듈에 둔다
+## 결정 1 — `PaymentProvider`는 외부 결제 어댑터 모듈에 둔다
 
-**선택**: `infra/payment/PaymentProvider.java`
+**선택**: `adapter-out-external/.../payment/PaymentProvider.java`
 
-**이유**: 모듈 의존성 방향이 `app → infra`이므로, 인터페이스를 `infra`에 두면 순환 없이 `app`이 사용 가능하다. PG는 외부 연동 구현체이므로 `infra` 패키지가 의미상으로도 적절하다.
-
-**탈락 대안**: `common`에 두는 방식 — 결제는 도메인 공통 유틸이 아니어서 부적합.
+**이유**: 현재 구조에서는 결제 구현이 외부 연동 어댑터 모듈에 있고, 애플리케이션은 `PaymentPort`를 통해 사용한다. `PaymentProvider`는 외부 결제 구현을 묶는 어댑터 쪽 타입으로 두는 편이 현재 구조와 맞다.
 
 ---
 
@@ -31,7 +29,7 @@
 
 ## 결정 3 — 환불 실패 시 `FAILED`로 저장하고 예외를 삼킨다
 
-**선택**: `BookingCancelService`에서 `paymentProvider.refund()` 호출 후 실패/예외 시 `refund.markFailed(reason)`으로 상태 업데이트 후 저장. 예외를 밖으로 전파하지 않는다.
+**선택**: `DefaultBookingCancelService`에서 `paymentProvider.refund()` 호출 후 실패/예외 시 `refund.markFailed(reason)`으로 상태 업데이트 후 저장한다. 예외를 밖으로 전파하지 않는다.
 
 **이유**: 예약 취소 자체(`booking.cancel()`, 슬롯 반납)는 성공해야 한다. PG 환불 실패가 취소 트랜잭션을 롤백시키면 슬롯은 묶인 채 예약자는 취소할 수 없는 상태가 된다. 환불 실패는 FAILED 레코드로 남기고 운영자가 재시도한다.
 
@@ -41,7 +39,7 @@
 
 ## 결정 4 — 운영자 재시도 API: `POST /admin/refunds/{id}/retry`
 
-**선택**: `RefundRetryService.retry(refundId)` + `AdminRefundController`
+**선택**: `DefaultRefundRetryService.retry(refundId)` + `AdminRefundController`
 
 **이유**: FAILED 레코드를 DB에서 직접 수정하는 것은 감사 추적을 남기지 않는다. API를 통해 재시도하면 성공/실패 상태가 다시 기록되어 추적 가능.
 
@@ -67,11 +65,11 @@
 
 | 파일 | 역할 |
 |------|------|
-| `infra/payment/PaymentProvider.java` | 포트 인터페이스 |
-| `infra/payment/RefundResult.java` | 환불 결과 VO (success/pgRef/failReason) |
-| `infra/payment/FakePaymentProvider.java` | 개발용 항상-성공 어댑터 |
+| `adapter-out-external/.../payment/PaymentProvider.java` | 외부 결제 어댑터 인터페이스 |
+| `application/.../payment/port/out/RefundResult.java` | 환불 결과 VO (success/pgRef/failReason) |
+| `adapter-out-external/.../payment/FakePaymentProvider.java` | 개발용 항상-성공 어댑터 |
 | `domain/booking/Refund.java` | `markSucceeded()` / `markFailed()` 추가 |
-| `app/booking/BookingCancelService.java` | Provider 호출, 실패 시 FAILED 저장 |
-| `app/booking/RefundRetryService.java` | FAILED 재시도 서비스 |
-| `app/web/admin/AdminRefundController.java` | `GET /admin/refunds/failed`, `POST /admin/refunds/{id}/retry` |
-| `app/web/admin/dto/FailedRefundResponse.java` | `bookingId`/`orderId` nullable 응답 모델 |
+| `application/.../booking/DefaultBookingCancelService.java` | Provider 호출, 실패 시 FAILED 저장 |
+| `application/.../payment/DefaultRefundRetryService.java` | FAILED 재시도 서비스 |
+| `adapter-in-web/.../admin/AdminRefundController.java` | `GET /admin/refunds/failed`, `POST /admin/refunds/{id}/retry` |
+| `adapter-in-web/.../admin/dto/FailedRefundResponse.java` | `bookingId`/`orderId` nullable 응답 모델 |

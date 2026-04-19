@@ -15,7 +15,7 @@
 
 - 모든 pass 관련 쿼리에서 `WHERE user_id = ? OR guest_id = ?` 분기
 - 비회원 8회권 구매 시 전화번호 인증 흐름 (`VerifiedGuestResolver`)
-- 비회원 8회권을 회원으로 이전하는 guest claim 흐름
+- 비회원 8회권을 회원으로 이전하는 비회원 이력 가져오기(claim) 흐름
 - 만료 리마인더 등 알림 대상 식별의 이중 경로
 
 반면 주문(order)과 예약(booking)은 단건/단기 거래로 비회원 경로의 운영 부담이 상대적으로 적다.

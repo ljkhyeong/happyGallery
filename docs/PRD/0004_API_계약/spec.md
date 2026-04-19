@@ -1,5 +1,4 @@
-# spec.md
-happyGallery API 계약
+# happyGallery API 계약
 
 이 문서는 현재 구현 기준의 요청/응답 계약과 운영용 에러 코드를 정리한다.
 비즈니스 규칙 원문은 `docs/PRD/0001_기준_스펙/spec.md`, 설계 배경은 `docs/ADR/`를 먼저 본다.
@@ -9,7 +8,7 @@ happyGallery API 계약
 ## 0. 문서 목적
 
 - 클라이언트와 서버가 맞춰야 하는 HTTP 계약을 한 곳에 모은다.
-- core PRD에서 분리된 요청/응답 예시와 에러 포맷을 유지한다.
+- 기준 PRD에서 분리된 요청/응답 예시와 에러 포맷을 유지한다.
 - 현재 운영 중인 v1 기준 API의 기본 계약을 문서화한다.
 
 ---
@@ -24,11 +23,11 @@ happyGallery API 계약
 - 호환 정책:
   - 기존 무버전 경로(`/bookings`, `/passes`, `/products`, `/admin/**`)는 구버전 클라이언트 호환을 위해 한시 유지한다.
   - 신규 기능 추가와 문서화는 `/api/v1/**`를 기준으로 한다.
-  - 브레이킹 변경은 `/api/v2/**`로 분리하고, `/api/v1/**`는 공지된 deprecate 기간 이후 제거한다.
+  - 브레이킹 변경은 `/api/v2/**`로 분리하고, `/api/v1/**`는 공지한 지원 종료 기간 이후 제거한다.
 
 ### 1.2 관리자 인증 정책
 
-#### 프로덕션 인증
+#### 운영 환경 인증
 
 - 관리자 로그인 API를 통해 사용자명/비밀번호 기반으로 인증한다.
 - 로그인 성공 시 UUID 세션 토큰을 발급하고, 이후 요청에 `Authorization: Bearer {token}` 헤더를 사용한다.
@@ -59,11 +58,11 @@ Authorization: Bearer {token}
 
 - 성공: `204 No Content`
 
-#### 최초 관리자 bootstrap setup
+#### 최초 관리자 계정 생성
 
 - `admin_user`가 비어 있고 `app.admin.setup.token`(`ADMIN_SETUP_TOKEN`)이 설정된 동안에만 노출된다.
-- setup 경로는 관리자 Bearer 인증 없이 호출할 수 있지만, `RateLimitFilter`의 `admin-setup-per-minute` 별도 제한(기본 5/min)을 적용한다.
-- setup 토큰이 비어 있거나 이미 관리자 계정이 생성된 뒤에는 엔드포인트를 `404 NOT_FOUND`로 숨긴다.
+- 최초 관리자 계정 생성 경로는 관리자 Bearer 인증 없이 호출할 수 있지만, `RateLimitFilter`의 `admin-setup-per-minute` 별도 제한(기본 5/min)을 적용한다.
+- 초기 설정 토큰이 비어 있거나 이미 관리자 계정이 생성된 뒤에는 엔드포인트를 `404 NOT_FOUND`로 숨긴다.
 
 ```http
 GET /api/v1/admin/setup/status
@@ -88,12 +87,12 @@ Content-Type: application/json
 
 - 성공: `201 Created`
 - 실패:
-  - `401 UNAUTHORIZED` — setup 토큰 불일치
-  - `404 NOT_FOUND` — setup 비활성(토큰 없음 또는 이미 관리자 계정 존재)
+  - `401 UNAUTHORIZED` — 초기 설정 토큰 불일치
+  - `404 NOT_FOUND` — 초기 관리자 계정 생성 비활성(토큰 없음 또는 이미 관리자 계정 존재)
   - `409 EMAIL_ALREADY_EXISTS` — 같은 username이 이미 존재
 - 운영 규칙:
   - 계정 생성 직후 `status.required`는 `false`가 된다.
-  - 운영자는 setup 완료 후 즉시 `ADMIN_SETUP_TOKEN`을 제거한다.
+  - 운영자는 최초 관리자 계정 생성이 끝나면 즉시 `ADMIN_SETUP_TOKEN`을 제거한다.
 
 #### API Key 폴백
 
@@ -494,7 +493,7 @@ X-Access-Token: {accessToken}
 #### ~~2.5.1 게스트 8회권 구매~~ (2026-03-19 제거)
 
 > 8회권 구매는 회원 전용으로 전환됨. `POST /api/v1/me/passes` 참조.
-> guest 소유 8회권 상태는 지원하지 않는다.
+> 비회원 소유 8회권 상태는 지원하지 않는다.
 
 #### ~~2.5.2 휴대폰 인증 기반 8회권 구매~~ (2026-03-19 제거)
 
@@ -940,7 +939,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - `bookerType`은 `GUEST` 또는 `MEMBER`로 구분한다.
-  - guest claim 이후 `userId`가 설정된 예약은 `MEMBER`로 표시한다.
+  - 비회원 이력 가져오기(claim) 이후 `userId`가 설정된 예약은 `MEMBER`로 표시한다.
   - User 정보는 batch fetch(`UserReaderPort.findAllById`)로 조합한다.
   - `date` 필수, `status`는 선택(미입력 시 전체).
 

@@ -2,18 +2,18 @@
 
 - **상태**: 확정
 - **날짜**: 2026-02-21
-- **관련 파일**: `app/src/main/resources/db/migration/V2__core_tables.sql`
+- **관련 파일**: `bootstrap/src/main/resources/db/migration/V2__core_tables.sql`
 
 ---
 
-## Context
+## 배경
 
 spec.md 기반으로 MVP를 구현하기 위한 최초 DB 스키마가 필요했다.
 "완벽한 ERD보다 스펙을 구현하는 최소 테이블을 먼저" 원칙 하에 단일 마이그레이션(V2)으로 핵심 테이블 전체를 생성했다.
 
 ---
 
-## Decision
+## 결정
 
 ### 테이블 구성 (16개)
 
@@ -64,7 +64,7 @@ spec.md 기반으로 MVP를 구현하기 위한 최초 DB 스키마가 필요했
 
 ---
 
-## Consequences
+## 결과
 
 **긍정**
 - 단일 마이그레이션으로 전체 핵심 스키마 파악 가능 (가독성, 리뷰 용이).

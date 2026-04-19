@@ -6,12 +6,12 @@
   - `domain/order/OrderStatus.java`
   - `domain/booking/SlotCapacity.java`
   - `domain/product/InventoryPolicy.java`
-  - `common/error/` (ErrorCode, HappyGalleryException, ErrorResponse, 개별 예외)
-  - `app/web/GlobalExceptionHandler.java`
+  - `domain/error/` (ErrorCode, HappyGalleryException, 개별 예외)
+  - `adapter-in-web/.../GlobalExceptionHandler.java`
 
 ---
 
-## Context
+## 배경
 
 상태 전이 실패(이미 환불된 주문 승인 시도, 정원 초과, 재고 부족)를
 일관된 예외로 처리할 기반이 필요했다.
@@ -19,7 +19,7 @@
 
 ---
 
-## Decision
+## 결정
 
 ### 가드 위치: 도메인 객체/정책 클래스
 
@@ -33,7 +33,7 @@
 
 ```
 RuntimeException
-  └── HappyGalleryException(ErrorCode)   ← common/error
+  └── HappyGalleryException(ErrorCode)   ← domain/error
         ├── AlreadyRefundedException      (409)
         ├── InventoryNotEnoughException   (409)
         ├── CapacityExceededException     (409)
@@ -64,7 +64,7 @@ RuntimeException
 
 ---
 
-## Consequences
+## 결과
 
 **긍정**
 - 상태 전이 가드가 도메인 객체에 응집 → 서비스 레이어 코드 단순화 예정

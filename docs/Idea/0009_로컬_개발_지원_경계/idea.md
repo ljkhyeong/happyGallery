@@ -1,7 +1,7 @@
 # 로컬 전용 코드의 위치와 경계
 
 **날짜**: 2026-03-18
-**상태**: Working note (현재 `@Profile("local")` + `src/main` 유지, 개선 방향 기록)
+**상태**: 검토 메모 (현재 `@Profile("local")` + `src/main` 유지, 개선 방향 기록)
 
 ---
 
