@@ -1,170 +1,109 @@
-# ADR-0021: 기존 app/domain/infra 구조 위에서 단계적으로 헥사고날 구조를 도입한다
+# ADR-0021: 현재 저장소는 포트/어댑터 구조를 기준으로 유지한다
 
 **날짜**: 2026-03-15  
 **상태**: Accepted
 
 ---
 
-## 컨텍스트
+## 왜 이 문서가 필요한가
 
-현재 `happyGallery`는 `app / domain / infra / common` 모듈로 나뉘어 있다.
-레이어 책임도 어느 정도 분리돼 있지만, 애플리케이션 서비스가 Spring Data repository나 외부 연동 구현을 직접 아는 구간이 아직 많다.
+주문, 예약, 결제, 알림, 인증 기능이 커지면서 웹 진입점, DB 접근, 외부 연동이 한 방향으로만 정리되지 않으면 수정 범위가 빠르게 커진다.
 
-그 결과:
+특히 아래 문제가 반복됐다.
 
-- `app`이 `infra` 기술 세부사항에 직접 묶이는 구간이 존재한다.
-- controller / batch / scheduler가 호출하는 유스케이스 경계가 명시적으로 드러나지 않는 경우가 있다.
-- 외부 연동 교체, 세션 저장소 변경, 모니터링 방식 전환 시 영향 범위가 넓어진다.
-- 테스트에서도 “기술 구현을 모른 채 유스케이스만 검증”하기가 어려운 구간이 남는다.
+- 컨트롤러나 배치가 바로 저장소나 외부 구현을 알게 된다.
+- 유스케이스 경계가 코드에서 바로 드러나지 않는다.
+- 외부 연동 교체나 세션 저장소 변경 때 영향 범위가 넓어진다.
+- 테스트가 기술 구현에 쉽게 묶인다.
 
-현재 구조는 이미 운영 중이고, 기능 흐름과 통합 테스트도 충분히 쌓여 있다.
-그래서 전체 구조를 한 번에 다시 쓰는 방식으로 헥사고날 구조를 강제하는 것은 위험이 크다.
-
-따라서 전면 재작성 대신, 기존 모듈 구조를 유지한 채 `port / adapter`를 단계적으로 도입한다.
+한 번에 전체 구조를 다시 쓰는 방식은 운영 중인 서비스에 부담이 크다. 그래서 현재 저장소는 6개 모듈과 포트/어댑터 구조를 기준으로 유지한다.
 
 ---
 
-## 결정 사항
+## 결정
 
-### 1. 기존 모듈 구조는 유지하고, 내부 경계를 헥사고날 방식으로 강화한다
+### 1. 백엔드는 6개 모듈로 나눈다
 
-- `domain`: 순수 비즈니스 규칙과 상태 전이
-- `app`: 유스케이스 orchestration + `port` 정의
-- `infra`: DB, 외부 연동, 세션, 메시징, 모니터링 등 구현체
-- `common`: 공통 에러, 시간, 유틸
+- `bootstrap`: 앱 시작점, 환경 설정, Flyway, 로깅
+- `adapter-in-web`: HTTP API, 필터, 요청/응답 처리
+- `adapter-out-persistence`: JPA, MyBatis, DB 접근
+- `adapter-out-external`: 결제, 알림, OAuth, Redis 세션, 외부 HTTP
+- `application`: 유스케이스, 업무 로직, 배치, 포트 정의
+- `domain`: 핵심 도메인 모델과 규칙
 
-즉, 모듈을 다시 나누지 않고 `app` 안에 `port/in`, `port/out`를 두는 방식으로 바꾼다.
+의존 방향은 `bootstrap -> adapter-in-web/out-* -> application -> domain` 으로 고정한다.
 
-### 2. inbound port는 `...UseCase`, outbound port는 `...Port`로 명명한다
+### 2. `application`이 유스케이스와 포트를 정의한다
 
-- inbound port:
-  - `CreateGuestBookingUseCase`
-  - `ApproveOrderUseCase`
-  - `LoginCustomerUseCase`
-- outbound port:
-  - `PaymentPort`
-  - `NotificationPort`
-  - `CustomerSessionPort`
-  - `OrderReaderPort`
-  - `OrderStorePort`
+- 외부에서 호출하는 진입점은 `...UseCase`
+- 외부 구현이 채워 넣는 경계는 `...Port`
 
-### 3. 모든 service를 인터페이스화하지 않는다
+예시:
 
-다음 경우에만 인터페이스를 만든다.
+- inbound: `ApproveOrderUseCase`, `GuestClaimUseCase`
+- outbound: `OrderReaderPort`, `PaymentPort`, `NotificationPort`
 
-- controller / batch / scheduler / manual trigger가 호출하는 명시적 유스케이스 경계
-- persistence, 결제, 알림, 세션, 외부 API 등 교체 가능성이 있는 outbound 경계
+### 3. 웹과 배치는 유스케이스만 호출한다
 
-다음은 구현 클래스로 둘 수 있다.
+- 컨트롤러는 요청 검증과 변환만 담당한다.
+- 배치와 수동 트리거도 `UseCase`를 호출한다.
+- 웹 모듈이 DB 어댑터나 외부 연동 구현을 직접 알지 않게 유지한다.
 
-- feature 내부 전용 조립 도우미
-- 하나의 유스케이스 안에서만 쓰는 조립/검증 도우미
-- domain policy를 보조하는 내부 계산 서비스
+### 4. 모든 서비스에 인터페이스를 만들지는 않는다
 
-즉, `서비스 = 무조건 interface + 구현체` 규칙은 쓰지 않는다.
+인터페이스는 경계가 분명한 경우에만 만든다.
 
-### 4. 구현체 접미사 `Impl`은 사용하지 않고 `Default` 접두사를 사용한다
+- 컨트롤러, 배치, 수동 트리거가 호출하는 유스케이스
+- DB, 결제, 알림, 세션, 외부 API 같은 교체 가능한 경계
 
-구현체 네이밍 규칙:
+다음은 구현 클래스로 둔다.
 
-- 새로 분리하거나 rename하는 유스케이스/애플리케이션 서비스 구현체:
-  - `DefaultCreateGuestBookingUseCase`
-  - `DefaultLoginCustomerUseCase`
-  - `DefaultGuestClaimUseCase`
-- 기술 adapter 구현체:
-  - `JpaOrderPersistenceAdapter`
-  - `JpaCustomerSessionAdapter`
-  - `PgPaymentAdapter`
-  - `FakeNotificationAdapter`
+- feature 내부 전용 조립 로직
+- 하나의 유스케이스 안에서만 쓰는 계산/검증 도우미
 
-금지:
+### 5. 이름은 역할이 보이게 적는다
 
-- `FooServiceImpl`
-- `BarRepositoryImpl`
+- 유스케이스 구현체: `Default*`
+- 영속성 어댑터: `Jpa*Adapter`, `MyBatis*Adapter`, `*Repository`
+- 외부 연동 어댑터: `*Sender`, `*PaymentProvider`, `*SessionStore`
 
-초기 도입 단계에서는 기존 서비스명을 한꺼번에 바꾸지 않는다.
-우선순위는 이름 변경보다 의존 방향 정리다. 이미 널리 쓰이는 서비스는 아래처럼 기존 이름을 유지한 채 포트를 구현할 수 있다.
+`Impl` 접미사는 기본 규칙으로 쓰지 않는다.
 
-- `CustomerAuthService implements CustomerAuthUseCase`
-- `GuestClaimService implements GuestClaimUseCase`
+### 6. 모듈 경계는 테스트로 고정한다
 
-이후 해당 구현체를 별도 use case 클래스로 분리하거나 rename할 때 `Default*` 규칙을 적용한다.
+`LayerDependencyArchTest`가 아래 규칙을 검증한다.
 
-### 5. Spring Data `JpaRepository` 자체를 port로 보지 않는다
-
-`JpaRepository`는 기술 인터페이스다.
-헥사고날 전환에서 필요한 것은 애플리케이션 관점의 포트다.
-
-따라서 다음처럼 유스케이스 관점으로 포트를 나눈다.
-
-- `UserReaderPort`
-- `UserStorePort`
-- `GuestClaimQueryPort`
-- `OrderReaderPort`
-- `OrderStorePort`
-
-즉, `app`은 `infra.*Repository`가 아니라 `app.port.out.*`를 의존해야 한다.
-
-### 6. 전환 순서는 외부 연동 -> 저장소 분리 -> inbound 유스케이스 명시화 순으로 잡는다
-
-우선순위:
-
-1. 결제 / 알림 / 세션 저장소 같은 외부 경계 추출
-2. `customer auth + guest claim` 도메인에서 저장소 분리를 먼저 적용
-3. controller / batch / scheduler가 `UseCase` 인터페이스를 호출하도록 정리
-4. order / booking / pass / product 도메인으로 확장
-
-이 순서를 택하는 이유:
-
-- 외부 연동은 교체 가능성이 높고 어디가 경계인지도 분명하다.
-- persistence 전체를 먼저 건드리면 JPA / 테스트 영향 범위가 너무 넓다.
-- `customer auth + guest claim`은 최근 member store 전환과 직접 맞물려 구조 개선 효과가 즉시 보인다.
+- `domain`은 상위 계층을 참조하지 않는다.
+- `application`은 어댑터와 `bootstrap`을 참조하지 않는다.
+- `adapter-in-web`은 `adapter-out-*`를 직접 참조하지 않는다.
+- `adapter-out-persistence`와 `adapter-out-external`은 서로 직접 의존하지 않는다.
 
 ---
 
-## 결과 (트레이드오프)
+## 결과
 
-| 항목 | 내용 |
-|------|------|
-| 장점 | 외부 연동 교체, 세션 저장 전략 변경, 모니터링 방식 변경이 쉬워진다 |
-| 장점 | controller / batch / scheduler가 같은 use case를 호출하게 되어 진입점 중복이 줄어든다 |
-| 장점 | 테스트에서 기술 구현 대신 포트를 대체해 유스케이스 검증이 쉬워진다 |
-| 장점 | `app`과 `infra`의 의존 방향이 더 명확해진다 |
-| 단점 | 포트/어댑터/구현체가 늘어 보일 수 있어 보일러플레이트가 증가한다 |
-| 단점 | 잘못 적용하면 `interface + Default + adapter`만 늘고 실익이 없는 구조가 될 수 있다 |
-| 대응 | 모든 service를 인터페이스화하지 않고, 경계가 있는 의존성에만 port를 도입한다 |
+### 장점
+
+- 웹, 배치, DB, 외부 연동의 책임이 분명해진다.
+- 유스케이스 경계가 코드에서 바로 보인다.
+- 외부 연동이나 저장소 구현을 바꿀 때 영향 범위를 줄일 수 있다.
+- 테스트에서 경계를 대체하기 쉬워진다.
+
+### 단점
+
+- 타입과 클래스 수가 늘어난다.
+- 경계가 불필요한 곳까지 나누면 보일러플레이트만 늘 수 있다.
+
+### 대응
+
+- 인터페이스는 경계가 있는 경우에만 만든다.
+- 이름 변경보다 의존 방향 정리를 우선한다.
 
 ---
 
 ## 구현 반영
 
-- 기준 플랜: `plan.md`의 `Hexagonal Architecture Transition` 섹션
-- 패키지 규칙:
-  - `app/.../port/in`
-  - `app/.../port/out`
-  - `app/.../usecase` 또는 feature 패키지 안의 `Default*`
-  - `infra/.../adapter`, `infra/.../persistence`, `infra/.../external`
-- 네이밍 규칙:
-  - inbound port: `...UseCase`
-  - outbound port: `...Port`
-  - 구현체: `Default*`
-  - 기술 adapter: `Jpa*Adapter`, `Pg*Adapter`, `Fake*Adapter`
-
-초기 적용 권장 범위:
-
-- `customer auth`
-- `guest claim`
-- `customer/admin session`
-- `payment`
-- `notification`
-
-### 2차 확산 (Track 5 완료)
-
-product, notification, payment, booking, order 도메인으로 확장:
-
-- **product**: `ProductReaderPort`(확장) + `ProductStorePort` + `InventoryReaderPort` + `InventoryStorePort` 도입, `ProductPersistencePortAdapter`/`InventoryPersistencePortAdapter`로 3개 서비스의 infra 직접 의존 제거
-- **notification**: `NotificationLogStorePort` + `NotificationLogPersistencePortAdapter`로 `NotificationService`의 마지막 infra 의존 제거
-- **payment**: `RefundExecutionService`/`RefundRetryService`/`RefundPort`를 `app.booking`에서 `app.payment`로 옮겨 주문과 예약이 같은 환불 호출 경로를 쓰게 한다
-- **booking**: `BookingCreationSupport` 추출 — guest/member 예약 생성의 공통 orchestration (슬롯검증/락/8회권차감/예약금검증/저장+이력+알림)
-- **order**: `OrderCreationService.createMemberOrder()` 추가 — 컨트롤러의 가격 조회 책임을 서비스 레이어로 이동
-- **admin query**: `AdminBookingQueryService`/`AdminOrderQueryService` 도입 — 컨트롤러가 infra를 직접 보지 않게 하고, User batch fetch로 예약자/주문자 정보를 합쳐 만든다
+- `settings.gradle`의 6개 모듈 구조
+- `application/**/port/in`, `application/**/port/out`
+- `adapter-in-web/**`, `adapter-out-persistence/**`, `adapter-out-external/**`
+- `application/src/test/java/com/personal/happygallery/policy/LayerDependencyArchTest.java`

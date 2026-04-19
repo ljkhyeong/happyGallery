@@ -39,6 +39,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
     private static final String LEGACY_ADMIN_PATH_PREFIX = "/admin/";
     private static final String VERSIONED_ADMIN_PATH_PREFIX = "/api/v1/admin/";
     private static final String AUTH_PATH_SUFFIX = "/auth/";
+    private static final String SETUP_PATH_SUFFIX = "/setup";
 
     private final AdminProperties adminProperties;
     private final AdminAuthUseCase adminAuthUseCase;
@@ -56,7 +57,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws IOException, ServletException {
         String uri = httpRequest.getRequestURI();
 
-        if (isAdminPath(uri) && !isAuthPath(uri)) {
+        if (isAdminPath(uri) && !isAuthPath(uri) && !isSetupPath(uri)) {
             if (!isAuthenticated(httpRequest)) {
                 FilterErrorResponseWriter.write(httpResponse, objectMapper, ErrorCode.UNAUTHORIZED);
                 return;
@@ -103,5 +104,12 @@ public class AdminAuthFilter extends OncePerRequestFilter {
     private boolean isAuthPath(String uri) {
         return uri.startsWith(VERSIONED_ADMIN_PATH_PREFIX + "auth/")
                 || uri.startsWith(LEGACY_ADMIN_PATH_PREFIX + "auth/");
+    }
+
+    private boolean isSetupPath(String uri) {
+        return uri.equals(VERSIONED_ADMIN_PATH_PREFIX + "setup")
+                || uri.startsWith(VERSIONED_ADMIN_PATH_PREFIX + "setup/")
+                || uri.equals(LEGACY_ADMIN_PATH_PREFIX + "setup")
+                || uri.startsWith(LEGACY_ADMIN_PATH_PREFIX + "setup/");
     }
 }

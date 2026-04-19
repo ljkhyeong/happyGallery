@@ -11,4 +11,6 @@ public interface AdminUserPort {
     Optional<AdminUser> findByUsername(String username);
 
     AdminUser save(AdminUser adminUser);
+
+    long count();
 }

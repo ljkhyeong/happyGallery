@@ -1,14 +1,14 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
 > 작성 시점: 2026-04-07 (AWS 배포 설정 베이스라인/booking support naming 반영 상태)
-> 갱신 시점: 2026-04-19 (Step 5 검증 완료 — 전체 `test` / `useCaseTest` / `policyTest` green, 208 tests / 0 failure. Step 5 예정 작업은 Step 3/4 과정에서 연쇄 반영되어 실제 파일 상태가 이미 6-module 기준임을 스캔으로 확인)
+> 갱신 시점: 2026-04-19 (Step 5 검증 완료 + 최초 관리자 setup bootstrap / 테스트 probe read-only 정리 반영)
 
 ---
 
-## 🚧 현재 진행 중: 헥사고날 풀-스플릿 (Option B) 마이그레이션
+## 현재 상태: 6개 모듈 구조 정리 완료
 
 **브랜치**: `codexReview`
-**원본 플랜**: 이전 세션 `~/.claude/projects/-Users-lim-Desktop-devProject-personal-happyGallery/6613d378-e386-41ef-826f-c2639e374084.jsonl`의 `ExitPlanMode` 승인본. 요점은 아래 요약 참고.
+**원본 플랜**: 이전 세션 `~/.claude/projects/-Users-lim-Desktop-devProject-personal-happyGallery/6613d378-e386-41ef-826f-c2639e374084.jsonl`의 승인본. 아래는 현재 코드 기준으로 다시 정리한 요약이다.
 
 ### 최종 목표 모듈 구조 (플랜)
 
@@ -72,7 +72,7 @@ test-support/                 java-test-fixtures (Step 4)
 
 ### 다음 세션이 이어받을 수 있는 후속 트랙 후보
 
-Step 5로 헥사고날 풀-스플릿 마이그레이션은 종료. 다음 작업은 `plan.md` 핵심 트랙 기준:
+Step 5로 6개 모듈 구조 정리 작업은 종료됐다. 다음 작업은 `plan.md` 핵심 트랙 기준:
 
 1. **관측성 스택 고도화** — Prometheus/Grafana 대시보드 확장, alert rule tuning
 2. **guest/member 운영 정책 리뷰** — `/guest` 보조 경로 사용량/문의 유형을 2~4주 관찰한 뒤 축소 여부 결정
@@ -209,6 +209,8 @@ print(best)
   - BatchExecutor 정리 — `executePaginated`의 `fresh` 생성부를 stream 기반 중복 필터로 간단히 정리했고, `seenIds` 기반 무한 루프 방지 의미는 그대로 유지했다
   - 서울 시간대 날짜 경계 변환 추출 — 반복되던 MyBatis 조회용 UTC 변환을 `SeoulDateTimeRangeConverter`로 공통화했고, 판매/대시보드/관리자 주문 검색 adapter는 이 유틸을 사용하도록 정리했다
   - 대시보드 MyBatis 시간 처리 정리 — `MyBatisSalesStatsAdapter`가 `Clock` 주입 기준으로 오늘 서울 시간대 범위를 계산하도록 바꿨고, 대시보드/관리자 검색 adapter의 서울 시간대 상수는 `Clocks.SEOUL`로 통일했다
+  - 최초 관리자 bootstrap 추가 — `ADMIN_SETUP_TOKEN`이 설정되고 `admin_user`가 비어 있을 때만 `/api/v1/admin/setup{,/status}` 와 레거시 `/admin/setup{,/status}`를 열어 one-time 계정 생성을 허용한다. `AdminAuthFilter`는 setup 경로를 인증 예외로 두고, `RateLimitFilter`는 `admin-setup-per-minute` 별도 버킷(기본 5/min)을 적용한다. 계정 생성 후에는 즉시 setup이 닫히며 운영자는 token env를 제거해야 한다
+  - 테스트 probe read-only 정리 — `OrderStateProbe`에서 `deleteInventory()`를 제거해 probe를 조회 전용으로 되돌렸고, `PickupExpireBatchUseCaseIT`의 실패 유도는 `InventoryStorePort`를 직접 사용하도록 바꿨다
   - 인덱스 정리 — `V30`에서 `notification_log`의 단일 `sent_at` 인덱스를 제거하고 `/api/v1/me/notifications` 목록 패턴에 맞춰 `(user_id, sent_at DESC)`, `(guest_id, sent_at DESC)` 인덱스를 추가했다. `orders`의 `(status, created_at)`는 `(status, created_at, id)` 커서 인덱스로 흡수되도록 제거했다
   - Google 소셜 로그인 추가 — `users`에 `provider`/`provider_id` 컬럼(V29)과 Google OAuth 교환 클라이언트를 추가했고, `/api/v1/auth/social/google{,/url}` API와 `/auth/callback/google` 프론트 콜백, 소셜 로그인 rate limit(분당 10회)를 연결했다
   - 회원 장바구니/알림함 추가 — `cart_items` 테이블(V27)과 `/api/v1/me/cart` 장바구니 API, `notification_log.read_at` 컬럼(V28)과 `/api/v1/me/notifications` 조회·읽음 API를 추가했고, 프론트에는 `/cart`, 상품 상세 장바구니 담기, 상단 알림 벨을 연결했다
