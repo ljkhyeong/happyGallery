@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.personal.happygallery.adapter.out.persistence.dashboard.mapper.AdminOrderSearchMapper">
+
+    <!-- search / count 공유 WHERE 프래그먼트 -->
+    <sql id="searchConditions">
+        <where>
+            <if test="status != null">
+                AND o.status = #{status}
+            </if>
+            <if test="dateFrom != null">
+                AND o.created_at &gt;= #{dateFrom}
+            </if>
+            <if test="dateTo != null">
+                AND o.created_at &lt; #{dateTo}
+            </if>
+        </where>
+    </sql>
+
+    <sql id="keywordConditions">
+        <if test="keyword != null and keyword != ''">
+            AND (
+                CAST(o.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                OR u.name LIKE CONCAT('%', #{keyword}, '%')
+                OR g.name LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+    </sql>
+
+    <!--
+        지연 조인(Deferred Join):
+        서브쿼리에서 커버링 인덱스로 ID만 페이징한 뒤,
+        외부 쿼리에서 실제 데이터를 JOIN으로 가져온다.
+    -->
+    <select id="search" resultType="com.personal.happygallery.application.search.dto.AdminOrderSearchRow">
+        SELECT
+            o.id                                    AS orderId,
+            CONCAT('ORD-', LPAD(o.id, 8, '0'))      AS orderNumber,
+            o.status                                AS status,
+            o.total_amount                          AS totalAmount,
+            COALESCE(u.name, g.name, '(알 수 없음)')  AS buyerName,
+            COALESCE(u.phone, g.phone, '')           AS buyerPhone,
+            o.paid_at                               AS paidAt,
+            o.approval_deadline_at                  AS approvalDeadlineAt,
+            o.created_at                            AS createdAt
+        FROM orders o
+        INNER JOIN (
+            SELECT o.id
+            FROM orders o
+            <if test="keyword != null and keyword != ''">
+                LEFT JOIN users u ON o.user_id = u.id
+                LEFT JOIN guests g ON o.guest_id = g.id
+            </if>
+            <include refid="searchConditions"/>
+            <include refid="keywordConditions"/>
+            ORDER BY o.created_at DESC
+            LIMIT #{size} OFFSET #{offset}
+        ) sub ON o.id = sub.id
+        LEFT JOIN users u ON o.user_id = u.id
+        LEFT JOIN guests g ON o.guest_id = g.id
+        ORDER BY o.created_at DESC
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM orders o
+        <if test="keyword != null and keyword != ''">
+            LEFT JOIN users u ON o.user_id = u.id
+            LEFT JOIN guests g ON o.guest_id = g.id
+        </if>
+        <include refid="searchConditions"/>
+        <include refid="keywordConditions"/>
+    </select>
+
+</mapper>

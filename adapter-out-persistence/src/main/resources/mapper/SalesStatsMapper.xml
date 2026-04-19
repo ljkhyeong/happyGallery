@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.personal.happygallery.adapter.out.persistence.dashboard.mapper.SalesStatsMapper">
+
+    <!-- 환불/거절/만료 등 실 매출에서 제외할 상태 (OrderStatus.isRefunded 참조) -->
+    <sql id="excludedOrderStatuses">
+        'REJECTED', 'AUTO_REFUND_TIMEOUT', 'PICKUP_EXPIRED'
+    </sql>
+
+    <select id="findOverview" resultType="com.personal.happygallery.application.dashboard.dto.DashboardOverview">
+        SELECT
+            COALESCE(ord.todayRevenue, 0)   AS todayRevenue,
+            COALESCE(ord.todayOrderCount, 0) AS todayOrderCount,
+            COALESCE(pending.cnt, 0)         AS pendingApprovalCount,
+            COALESCE(today_bk.cnt, 0)        AS todayBookingCount,
+            COALESCE(ord.monthRevenue, 0)    AS monthRevenue,
+            COALESCE(ord.monthOrderCount, 0) AS monthOrderCount
+        FROM
+            (SELECT
+                 SUM(CASE WHEN paid_at >= #{todayFrom} AND paid_at &lt; #{todayTo}
+                          THEN total_amount END) AS todayRevenue,
+                 SUM(CASE WHEN paid_at >= #{todayFrom} AND paid_at &lt; #{todayTo}
+                          THEN 1 ELSE 0 END)     AS todayOrderCount,
+                 SUM(total_amount)                AS monthRevenue,
+                 COUNT(*)                         AS monthOrderCount
+             FROM orders
+             WHERE paid_at IS NOT NULL
+               AND status NOT IN (<include refid="excludedOrderStatuses"/>)
+               AND paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}
+            ) ord,
+            (SELECT COUNT(*) AS cnt
+             FROM orders
+             WHERE status = 'PAID_APPROVAL_PENDING'
+            ) pending,
+            (SELECT COUNT(*) AS cnt
+             FROM bookings
+             WHERE status = 'BOOKED'
+               AND created_at >= #{todayFrom} AND created_at &lt; #{todayTo}
+            ) today_bk
+    </select>
+
+    <select id="findSalesSummary" resultType="com.personal.happygallery.application.dashboard.dto.PeriodSalesSummary">
+        SELECT
+            <choose>
+                <when test="granularity == 'DAILY'">
+                    DATE_FORMAT(CONVERT_TZ(o.paid_at, '+00:00', '+09:00'), '%Y-%m-%d')
+                </when>
+                <when test="granularity == 'WEEKLY'">
+                    DATE_FORMAT(CONVERT_TZ(o.paid_at, '+00:00', '+09:00'), '%x-W%v')
+                </when>
+                <when test="granularity == 'MONTHLY'">
+                    DATE_FORMAT(CONVERT_TZ(o.paid_at, '+00:00', '+09:00'), '%Y-%m')
+                </when>
+            </choose> AS periodLabel,
+            COALESCE(SUM(o.total_amount), 0) AS totalRevenue,
+            COUNT(*)                         AS orderCount,
+            COALESCE(AVG(o.total_amount), 0) AS avgOrderValue
+        FROM orders o
+        WHERE o.paid_at IS NOT NULL
+          AND o.status NOT IN (<include refid="excludedOrderStatuses"/>)
+          AND o.paid_at >= #{rangeFrom} AND o.paid_at &lt; #{rangeTo}
+        GROUP BY periodLabel
+        ORDER BY periodLabel
+    </select>
+
+    <select id="findRevenueBreakdown" resultType="com.personal.happygallery.application.dashboard.dto.RevenueBreakdown">
+        SELECT
+            COALESCE(ord.rev, 0)  AS orderRevenue,
+            COALESCE(dep.rev, 0)  AS bookingDepositRevenue,
+            COALESCE(bal.rev, 0)  AS bookingBalanceRevenue,
+            COALESCE(pp.rev, 0)   AS passPurchaseRevenue,
+            (COALESCE(ord.rev, 0) + COALESCE(dep.rev, 0)
+                + COALESCE(bal.rev, 0) + COALESCE(pp.rev, 0)) AS totalRevenue
+        FROM
+            (SELECT SUM(total_amount) AS rev
+             FROM orders
+             WHERE paid_at IS NOT NULL
+               AND status NOT IN (<include refid="excludedOrderStatuses"/>)
+               AND paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}
+            ) ord,
+            (SELECT SUM(deposit_amount) AS rev
+             FROM bookings
+             WHERE status != 'CANCELED'
+               AND deposit_paid_at IS NOT NULL
+               AND deposit_paid_at >= #{rangeFrom} AND deposit_paid_at &lt; #{rangeTo}
+            ) dep,
+            (SELECT SUM(balance_amount) AS rev
+             FROM bookings
+             WHERE balance_status = 'PAID'
+               AND created_at >= #{rangeFrom} AND created_at &lt; #{rangeTo}
+            ) bal,
+            (SELECT SUM(total_price) AS rev
+             FROM pass_purchases
+             WHERE purchased_at >= #{rangeFrom} AND purchased_at &lt; #{rangeTo}
+            ) pp
+    </select>
+
+    <select id="findOrderStatusDistribution" resultType="com.personal.happygallery.application.dashboard.dto.StatusCount">
+        SELECT status, COUNT(*) AS count
+        FROM orders
+        GROUP BY status
+        ORDER BY count DESC
+    </select>
+
+    <select id="findRefundStats" resultType="com.personal.happygallery.application.dashboard.dto.RefundStats">
+        SELECT
+            COUNT(*)                         AS totalRefundCount,
+            COALESCE(SUM(r.amount), 0)       AS totalRefundedAmount,
+            ROUND(
+                COUNT(*) / NULLIF(
+                    (SELECT COUNT(*) FROM orders
+                     WHERE paid_at IS NOT NULL
+                       AND paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}
+                    ), 0
+                ), 4
+            ) AS refundRate
+        FROM refunds r
+        WHERE r.status = 'SUCCEEDED'
+          AND r.created_at >= #{rangeFrom} AND r.created_at &lt; #{rangeTo}
+    </select>
+
+    <select id="findTopProducts" resultType="com.personal.happygallery.application.dashboard.dto.TopProduct">
+        SELECT
+            p.id                        AS productId,
+            p.name                      AS productName,
+            p.type                      AS productType,
+            SUM(oi.unit_price * oi.qty) AS totalRevenue,
+            SUM(oi.qty)                 AS totalQuantity
+        FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            JOIN products p ON oi.product_id = p.id
+        WHERE o.paid_at IS NOT NULL
+          AND o.status NOT IN (<include refid="excludedOrderStatuses"/>)
+          AND o.paid_at >= #{rangeFrom} AND o.paid_at &lt; #{rangeTo}
+        GROUP BY p.id, p.name, p.type
+        ORDER BY
+            <choose>
+                <when test="sort == 'REVENUE'">totalRevenue DESC</when>
+                <when test="sort == 'QUANTITY'">totalQuantity DESC</when>
+            </choose>
+        LIMIT #{limit}
+    </select>
+
+</mapper>

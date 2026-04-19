@@ -36,6 +36,12 @@ subprojects {
 		}
 	}
 
+	// Spring MVC 의 @PathVariable / @RequestParam 이 reflection 으로 파라미터 이름을 읽으므로,
+	// boot 플러그인이 없는 모듈에도 -parameters 를 명시적으로 켠다.
+	tasks.withType(JavaCompile).configureEach {
+		options.compilerArgs << '-parameters'
+	}
+
 	tasks.named('test') {
 		useJUnitPlatform()
 	}

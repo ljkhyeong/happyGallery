@@ -1,6 +1,9 @@
 .git
 .gradle
 **/build
+!bootstrap/build/
+!bootstrap/build/libs/
+!bootstrap/build/libs/*.jar
 frontend/node_modules
 frontend/dist
 .env

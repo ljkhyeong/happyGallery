@@ -1,6 +1,159 @@
 # HANDOFF.md
 > 다음 세션을 위한 인수인계 문서.
-> 작성 시점: 2026-04-05 (스토어 UI 리프레시/웹 인증 resolver 정리 반영 상태)
+> 작성 시점: 2026-04-07 (AWS 배포 설정 베이스라인/booking support naming 반영 상태)
+> 갱신 시점: 2026-04-19 (Step 5 검증 완료 — 전체 `test` / `useCaseTest` / `policyTest` green, 208 tests / 0 failure. Step 5 예정 작업은 Step 3/4 과정에서 연쇄 반영되어 실제 파일 상태가 이미 6-module 기준임을 스캔으로 확인)
+
+---
+
+## 🚧 현재 진행 중: 헥사고날 풀-스플릿 (Option B) 마이그레이션
+
+**브랜치**: `codexReview`
+**원본 플랜**: 이전 세션 `~/.claude/projects/-Users-lim-Desktop-devProject-personal-happyGallery/6613d378-e386-41ef-826f-c2639e374084.jsonl`의 `ExitPlanMode` 승인본. 요점은 아래 요약 참고.
+
+### 최종 목표 모듈 구조 (플랜)
+
+```
+domain/                       순수 도메인
+application/                  use case + port(in/out) + application service + batch
+adapter-in-web/               Controller · Filter · Resolver · Web config
+adapter-out-persistence/      JPA Repository · MyBatis Mapper · persistence-only config  (Step 3)
+adapter-out-external/         Payment · OAuth · Notification · HTTP pool · Redis session  (Step 3)
+bootstrap/                    @SpringBootApplication · application*.yml · db/migration · logback
+test-support/                 java-test-fixtures (Step 4)
+```
+
+의존 방향: `bootstrap → adapter-in-web/out-* → application → domain`
+
+### 진행 상태 요약
+
+| Step | 상태 | 메모 |
+|------|------|------|
+| Step 1 — bootstrap 정리 (yml/logback/migrations/config/Masking* 이동, 중복 `@SpringBootApplication` 제거) | ✅ 완료 | — |
+| Step 2 — app → application + adapter-in-web 추출 | ✅ 완료 | main 소스 컴파일 / `:bootstrap:bootJar -x test` green. 테스트 컴파일은 Step 4 |
+| Step 3 — infra → adapter-out-persistence + adapter-out-external | ✅ 완료 | `infra/`, `app/` 디렉토리/`include` 모두 제거. `settings.gradle`은 `application/adapter-in-web/adapter-out-persistence/adapter-out-external/domain/bootstrap` 6개 모듈. `:bootstrap:bootJar -x test` green |
+| Step 4 — `test-support` (java-test-fixtures) | ✅ 완료 | `application`에 `java-test-fixtures` 플러그인 적용, `application/src/test/java/.../support/` → `application/src/testFixtures/java/.../support/` 이동. `adapter-in-web`는 `testImplementation testFixtures(project(":application"))`로 consume. 전체 `compileTestJava` BUILD SUCCESSFUL. 실제 테스트 실행은 미검증 |
+| Step 5 — ArchUnit 모듈 규칙 리라이트 + 문서/Dockerfile 갱신 | ✅ 완료 | Step 3/4 연쇄 반영으로 별도 작업 없이 현실 상태가 6-module 기준. `LayerDependencyArchTest`는 6-module 경계 9개 룰로 리라이트 완료(`@Tag("policy")`, `policyTest` green). `Dockerfile` / `Dockerfile.deploy` / `.github/workflows/deploy.yml` 모두 `:bootstrap:bootJar` · `bootstrap/build/libs/*.jar` 사용. `settings.gradle`은 6-module only. `README.md` 모듈 설명 6-module 반영. 2026-04-19 전체 `./gradlew test` + `useCaseTest` + `policyTest` 208 tests green으로 Step 2~4 런타임 회귀 없음 확인 |
+
+### Step 3에서 수행된 작업 요약 (2026-04-19)
+
+- `adapter-out-persistence`, `adapter-out-external` 두 모듈 신설 (`settings.gradle`, 각 `build.gradle`)
+- 구 `infra/src/main/java/com/personal/happygallery/infra/**` 전체 이동:
+  - **persistence**: `booking/`, `cart/`, `customer/`, `dashboard/` (adapter+mapper+config), `inquiry/`, `notice/`, `order/`, `pass/`, `product/`, `qna/`, `time/`, `user/`, `admin/AdminUserRepository`, `notification/NotificationLogRepository`
+  - **external**: `http/`, `notification/` (Kakao/SMS sender + config + properties + dto), `oauth/`, `payment/`, `admin/AdminSessionStore`
+- MyBatis XML mapper 4종 + namespace → `adapter-out-persistence/src/main/resources/mapper/`, `com.personal.happygallery.adapter.out.persistence.dashboard.mapper.*`
+- 모든 `com.personal.happygallery.infra.*` 참조를 새 패키지로 sed 교체 — 메인 코드에는 존재하지 않았고 `application/src/test/java`의 7개 IT + `TestDataCleaner` + `TestCleanupSupport`에만 있었음
+- 구 `infra/` 경로에 있던 3개 어댑터 테스트(`CircuitBreakerPaymentProviderTest`, `FakePaymentProviderTest`, `MyBatisSalesStatsAdapterTest`)는 `application/src/test/java/com/personal/happygallery/adapter/out/{external|persistence}/**`로 물리 이동
+- `bootstrap/build.gradle`: `:infra` → `:adapter-out-persistence` + `:adapter-out-external`, `spring-boot-starter-flyway` + `flyway-mysql` 추가 (마이그레이션 리소스가 bootstrap에 있으므로)
+- `application/build.gradle`: `testImplementation project(":infra")` → `adapter-out-persistence` + `adapter-out-external`
+- 빈 `app/`, `infra/` 디렉토리 삭제, `settings.gradle`에서 두 include 제거
+- 최종 검증: `:adapter-out-persistence:compileJava`, `:adapter-out-external:compileJava`, `:adapter-in-web:compileJava`, `:bootstrap:compileJava`, `:bootstrap:bootJar -x test` 모두 BUILD SUCCESSFUL
+
+### Step 4에서 수행된 작업 요약 (2026-04-19)
+
+- `application/build.gradle`에 `plugins { id 'java-test-fixtures' }` 추가. 이 플러그인은 내부적으로 `java-library`까지 적용해주므로 `testFixturesApi` 스코프가 바로 사용 가능
+- `application/src/test/java/com/personal/happygallery/support/**` 전체를 `application/src/testFixtures/java/com/personal/happygallery/support/**`로 이동 (`UseCaseIT`, `TestcontainersConfig`, `TestCleanupSupport`, `TestDataCleaner`, `TestFixtures`, `BookingTestHelper`, `OrderTestHelper`, `NotificationLogTestHelper`, `BookingStateProbe`, `OrderStateProbe`, `NotificationLogProbe`)
+- `application/build.gradle` testFixturesApi 선언: `:domain`, `:adapter-out-persistence`, `:adapter-in-web`, `spring-boot-starter-test`, `spring-boot-starter-data-jpa`, `spring-boot-starter-webmvc-test`, `spring-boot-testcontainers`, `testcontainers-mysql`, `testcontainers`, `awaitility` — consumer 모듈도 testFixtures를 consume하면 이 deps가 전이됨
+- `application/build.gradle` testImplementation에 `spring-boot-starter-data-jpa` 직접 선언 추가 (adapter-out-persistence의 JPA 스타터가 implementation 스코프라 자기 test 소스셋엔 전이되지 않는 Gradle 특성 보완)
+- `adapter-in-web/build.gradle` testImplementation 전면 신설: `testFixtures(project(":application"))` + `:adapter-out-persistence` + `:adapter-out-external` + `spring-boot-starter-test` + `starter-webmvc-test` + `starter-data-jpa` + testcontainers 3종 + awaitility + junit-platform-launcher
+- 최종 검증: `./gradlew compileTestJava` 전체 BUILD SUCCESSFUL (`:application:compileTestFixturesJava`, `:application:compileTestJava`, `:adapter-in-web:compileTestJava` 포함)
+
+### Step 5 완료 항목 (2026-04-19)
+
+- [x] `LayerDependencyArchTest` 6-module 경계로 리라이트 완료 — 9개 룰:
+  - `domain` → `application` / `adapter` / `bootstrap` import 금지 3종
+  - `application` → `adapter` / `bootstrap` import 금지 2종
+  - `adapter.in.web` → `adapter.out.*` 직접 import 금지, `..port.out..` 직접 import 금지 2종
+  - `adapter.out.persistence` ↔ `adapter.out.external` 상호 및 `adapter.in.web` import 금지 2종
+  - `@Tag("policy")`로 `:application:policyTest`에서 실행, 2026-04-19 green
+- [x] `Dockerfile` (line 11) / `Dockerfile.deploy` (line 3) / `.github/workflows/deploy.yml` (line 75) 모두 `:bootstrap:bootJar` · `bootstrap/build/libs/*.jar` 기준으로 이미 전환
+- [x] `settings.gradle`은 6-module (`application`, `adapter-in-web`, `adapter-out-persistence`, `adapter-out-external`, `domain`, `bootstrap`) 만 include
+- [x] `README.md` 모듈 설명 (line 8 / 18 / 181~198)이 6-module 구조 + `bootstrap → adapter-in-web/out-* → application → domain` 의존 방향 + ArchUnit 강제 규칙을 포함
+- [x] `./gradlew test` (208 tests / 0 failure / 0 error / 0 skipped) + `:application:useCaseTest` + `:application:policyTest` 모두 green — Step 2~4 런타임 회귀 없음 확인
+
+### 다음 세션이 이어받을 수 있는 후속 트랙 후보
+
+Step 5로 헥사고날 풀-스플릿 마이그레이션은 종료. 다음 작업은 `plan.md` 핵심 트랙 기준:
+
+1. **관측성 스택 고도화** — Prometheus/Grafana 대시보드 확장, alert rule tuning
+2. **guest/member 운영 정책 리뷰** — `/guest` 보조 경로 사용량/문의 유형을 2~4주 관찰한 뒤 축소 여부 결정
+3. **테스트 구조 정리(옵션)** — `application/src/test/java/.../adapter/out/{external|persistence}/**`에 남아 있는 3개 어댑터 테스트(`CircuitBreakerPaymentProviderTest`, `FakePaymentProviderTest`, `MyBatisSalesStatsAdapterTest`)를 각 adapter 모듈의 `src/test/java`로 이관하면 모듈 경계가 더 깔끔해짐. 현재는 `application` test classpath가 두 어댑터 모듈을 의존하고 있어 동작에는 문제 없음.
+
+### Step 2에서 다음 세션이 이어받아야 할 잔여 작업 (Task ID는 현재 TaskList 기준)
+
+- [x] Task #6 — 기계적 package/import 리네임 (`com.personal.happygallery.app.*` → `application.*` / `adapter.in.web.*`, `com.personal.happygallery.config.*` → `bootstrap.config.*`, Masking* 는 `bootstrap.logging`, `logback-spring.xml` FQN 포함). 스크립트: `/tmp/claude/rename_packages.py`, `/tmp/claude/rename_config.py`
+- [x] Task #4 — Properties 경로 정리 (컨슈머 근접 배치)
+  - `GuestTokenProperties` → `application/src/.../application/token/GuestTokenProperties.java` (패키지 `application.token`)
+  - `RateLimitProperties` → `adapter-in-web/src/.../adapter/in/web/config/properties/RateLimitProperties.java`
+  - `AdminProperties` → 동일 경로
+  - `GuestTokenService`, `RateLimitFilter`, `AdminAuthFilter`, 해당 테스트 2종 import 갱신 완료
+- [x] Task #2 — pagination 타입을 application으로 이동
+  - `CursorPage`, `OffsetPage`, `CursorUtils` → `application/.../application/shared/page/` 로 이동 완료
+  - 9개 참조 파일 import 전수 갱신 (Controller 2, port.in 3, 서비스 4)
+- [x] Task #3 — admin query DTO application으로 이동
+  - `AdminOrderResponse`, `OrderHistoryResponse` → `application/.../application/order/port/in/`
+  - `AdminBookingResponse` → `application/.../application/booking/port/in/`
+  - 관련 UseCase/Service/Controller/Test 전부 import 갱신
+- [x] Task #1 — `application/build.gradle` 의존성 보강
+  - `spring-data-commons`, `spring-security-crypto`, `spring-orm` 추가, `aspectjweaver`를 runtimeOnly → implementation 전환
+- [x] Task #5 — 전체 컴파일 검증
+  - `:application:compileJava` / `:adapter-in-web:compileJava` / `:bootstrap:compileJava` / `:bootstrap:bootJar -x test` 모두 BUILD SUCCESSFUL
+  - ⚠️ `compileTestJava`는 adapter-in-web testImplementation 의존 부재로 깨짐 — Step 4에서 처리
+
+### 주요 구조 변경 요약 (이미 적용된 것)
+
+1. `app/src/main/java/com/personal/happygallery/HappygalleryApplication.java` **삭제됨** (중복 제거). 유일 엔트리는 `bootstrap/src/main/java/com/personal/happygallery/HappygalleryApplication.java`
+2. `application*.yml`, `logback-spring.xml`, `db/migration/V*.sql` → `bootstrap/src/main/resources/`로 이동 완료
+3. `MaskingPatternLayout`, `MaskingMessageJsonProvider` → `com.personal.happygallery.bootstrap.logging` 로 이동 + `logback-spring.xml`의 FQN 갱신 완료
+4. bootstrap 내 config 및 properties 패키지 선언이 전부 `com.personal.happygallery.bootstrap.config.*`로 정합화됨 (이전엔 `com.personal.happygallery.config.*`)
+5. `settings.gradle`: `include 'app'`, `'application'`, `'adapter-in-web'`, `'domain'`, `'infra'`, `'bootstrap'` — `app`은 아직 남아 있으나 source는 비어 있음. Step 3 완료 시 `infra`와 함께 정리 예정
+6. **Step 2 완료 추가 조치**:
+   - `RetryPolicy`(상수) → `application/config/`, `RetryConfig`(@EnableRetry)은 bootstrap에 남김 — `OptimisticLockRetryable` 어노테이션이 application → bootstrap 역방향 참조하던 문제 해소
+   - `CustomerAuthFilter.COOKIE_NAME`은 리터럴 `"HG_SESSION"`로 인라인 — adapter→bootstrap 역방향 의존 제거
+   - `infra/build.gradle`: `:app` → `:application` + `:adapter-in-web` 의존으로 변경
+   - `bootstrap/build.gradle`: `:domain`, `:application`, `:adapter-in-web`, `:infra` 명시 + spring-session-data-redis, spring-retry, spring-security-crypto, micrometer-core, jackson-json, logstash-encoder, starter-validation 보강
+   - `OptimisticLockRetryable`을 참조하던 6개 서비스(Approval/Pickup/Production/Shipping/PickupExpire/AutoRefund) 의 import 경로 `application.config.*`로 수정
+
+### 추가로 조심해야 할 포인트
+
+- `bootstrap/src/main/java/com/personal/happygallery/bootstrap/config/AppPropertiesConfig.java`는 `@ConfigurationPropertiesScan("com.personal.happygallery")` 이므로 properties 클래스 위치가 application/adapter-in-web으로 흩어져도 바인딩 자체는 문제없음
+- `adapter-in-web/build.gradle`, `application/build.gradle`이 현재 플랜과 일치하는지 전수 대조 필요 (특히 application에 아직 남아 있는 `spring-boot-starter-webmvc` 같은 어댑터 전용 의존이 있는지 확인)
+- `GuestTokenService` 최상단의 중복 self-import (`com.personal.happygallery.application.token.AccessTokenHasher` 등 3종)는 자기 자신 패키지 import이므로 컴파일은 되지만 불필요. 정리해도 좋음
+- `@SpringBootApplication`의 `scanBasePackages`가 현재 어떻게 설정돼 있는지 확인 필요 (플랜상 `application`, `adapter`, `bootstrap`만 명시)
+- `EntityScan` / `EnableJpaRepositories` 의 base package 지정이 아직 안 들어갔을 가능성 높음 → `:bootstrap:bootRun` 시 런타임 에러로 드러남. Step 3에서 adapter-out-persistence 분리하며 같이 처리
+- `app/build.gradle`, `app/src/` 는 Step 3 끝날 때까지 남겨둬도 무방하지만 `settings.gradle`의 `include 'app'`을 언제 끊을지는 Step 2 말미에 컴파일 green 확인 후 판단
+
+### 다음 세션이 바로 실행할 수 있는 검증 명령
+
+```bash
+./gradlew --no-daemon :application:compileJava 2>&1 | tail -40
+./gradlew --no-daemon :adapter-in-web:compileJava 2>&1 | tail -40
+./gradlew --no-daemon :bootstrap:bootJar -x test 2>&1 | tail -40
+```
+
+에러 패턴별 대응:
+- `package com.personal.happygallery.app.* does not exist` → 리네임 스크립트 미적용 파일. `/tmp/claude/rename_packages.py --apply` 재실행 시 멱등.
+- `cannot find symbol CursorPage/OffsetPage/AdminOrderResponse/...` → Task #2/#3 미완. 해당 파일 application 이동 + import 갱신.
+- `cannot find symbol Pageable/PageRequest/PasswordEncoder/ObjectOptimisticLockingFailureException/ProceedingJoinPoint` → Task #1 미완. application/build.gradle 의존성 추가.
+
+### 참고: 원본 플랜 전문 추출 방법
+
+```bash
+python3 -c "
+import json
+p = '/Users/lim/.claude/projects/-Users-lim-Desktop-devProject-personal-happyGallery/6613d378-e386-41ef-826f-c2639e374084.jsonl'
+best = ''
+with open(p) as f:
+    for line in f:
+        try:
+            obj = json.loads(line)
+            for item in obj.get('message', {}).get('content', []) or []:
+                if isinstance(item, dict) and item.get('name') == 'ExitPlanMode':
+                    plan = item.get('input', {}).get('plan', '')
+                    if len(plan) > len(best): best = plan
+        except: pass
+print(best)
+"
+```
 
 ---
 
@@ -22,6 +175,7 @@
 
 - 권장 작업 브랜치: `codex/work-20260321-guest-pass-cleanup`
 - 최근 작업:
+  - booking support naming 정리 — `BookingSlotSupport`와 관련 use case test에서 `slotBookingCoordinator` 필드명을 실제 타입명에 맞춰 `slotBookingSupport`로 통일했다
   - 레이어 경계 정리 — 관리자/고객 인증 서비스와 관리자 세션 DTO를 `app` 계층으로 옮기고, Redis 기반 관리자 세션 저장소는 `infra` 구현으로 분리했다. `AdminAuthFilter`는 세션 저장소 대신 `AdminAuthUseCase`를 보도록 바꿨다
   - 로컬 dev 보조 API 정리 — 최신 휴대폰 인증번호 조회와 다음 환불 실패 arm 기능을 controller가 port.out에 직접 붙지 않도록 각각 `DevPhoneVerificationQueryUseCase`, `DevRefundFailureUseCase`를 거치게 정리했다
   - 포트/지원 클래스 이름 정리 — `BookingCancellationPort`/`PassCreditPort`를 `*UseCase`로 맞추고, 슬롯 점유/반납 helper는 `SlotBookingSupport` 이름으로 바로잡았다
@@ -37,6 +191,7 @@
   - 외부 HTTP 풀링 기준선 추가 — `prod` 프로필의 Kakao/SMS/Google OAuth `RestClient`를 서비스별 Apache HttpClient 5 풀로 분리했다. 기본값은 `acquire 1s`, `connect 2s`, `read 5s`, `keep-alive 30s`이며, 알림은 max 20, Google OAuth는 max 10으로 시작한다. 상세 의사결정은 ADR-0029를 참고한다
   - timeout 기준선 정리 — 프론트 fetch timeout을 35초, nginx `proxy_read_timeout`을 30초, Hikari acquire timeout을 2초, 기본 트랜잭션 timeout을 10초, JPA query timeout을 5초, MySQL `innodb_lock_wait_timeout` 세션값을 3초로 맞췄다. 외부 알림/OAuth 호출은 read 5초를 유지하면서 acquire 1초, connect 2초, keep-alive 30초, 서비스별 max connections 기준을 추가했고, 동기 MVC 전체 요청 deadline은 별도 필터/컨테이너 커스터마이저 후보로 남겼다. 상세 의사결정은 ADR-0030과 ADR-0029를 참고한다
   - ingress keep-alive 기준선 추가 — `nginx`는 `client -> nginx keepalive_timeout 15s`를 명시하고, `nginx -> app`은 upstream keep-alive를 켰다. 이 hop에서는 caller가 먼저 연결을 정리하고 callee가 더 오래 유지하도록 시작값을 맞춘다. 상세 의사결정은 ADR-0030을 참고한다
+  - AWS 배포 설정 문서 추가 — `docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md`에 ECR repository 기본값, lifecycle policy, GitHub Actions OIDC role trust/permission policy, GitHub Secrets / Variables 기준선을 한곳에 모았다
   - 서비스/테스트 경계 정리 — `BookingSlotSupport`의 슬롯 점유/반납 책임을 `SlotBookingCoordinator`로 분리했고, `DefaultGuestClaimService`는 `DefaultClientMonitoringService` 대신 `ClientMonitoringUseCase`를 의존하도록 바꿨다. 테스트 쪽은 `TestRepositoryHelper`를 완전히 제거했고, 시드 저장/조회는 `ReaderPort`/`StorePort`/`UseCase`를 직접 주입하며, 정리·삭제만 `TestCleanupSupport`에 남기고, 영속 확인은 `BookingStateProbe`/`OrderStateProbe`/`NotificationLogProbe` 같은 좁은 probe로 나눴다. `PassCreditUsageUseCaseIT`는 HTTP 계약용 `PassCreditUsageWebUseCaseIT`와 영속 효과 검증용 `PassCreditUsagePersistenceUseCaseIT`로 분리했다. app 테스트에서 direct infra repository import를 의도적으로 유지하는 파일은 `ConcurrentBookingUseCaseIT`, `RefundExecutionServiceUseCaseIT`, `SlotBookingCapacityUseCaseIT`, `ProductInventoryUseCaseIT` 네 개뿐이다
   - PassCreditUsage 테스트 조합 전환 — `PassCreditUsageWebUseCaseIT`, `PassCreditUsagePersistenceUseCaseIT`는 더 이상 `PassCreditUsageTestSupport`를 상속하지 않고, 공통 준비를 `PassCreditUsageFixture` 조합 객체로 사용한다. 현재 `app/src/test/java` 기준 test support 상속 패턴은 이 케이스 외에는 남아 있지 않다
   - 테스트 probe 경계 정리 — `BookingStateProbe`, `OrderStateProbe`, `NotificationLogProbe`는 더 이상 `infra` repository를 직접 잡지 않고 `ReaderPort`/`StorePort`/`HistoryPort`/`RefundPort`/`FulfillmentPort`를 사용한다. 반면 `TestCleanupSupport`는 테스트 정리 인프라이므로 concrete repository 의존을 유지한다
@@ -207,7 +362,7 @@
 - `@UseCaseIT`는 현재 `@AutoConfigureMockMvc(addFilters = false)` 기반으로 유지 중
 - `@UseCaseIT`의 `test` 컨텍스트는 `TestcontainersConfig`에서 Asia/Seoul 고정 `Clock`을 `@Primary`로 제공한다. 시간 관련 테스트 데이터는 `LocalDateTime.now(clock)` 또는 `LocalDate.now(clock)` 기준으로 맞추는 편이 안전하다.
 - `@SpringBootTest` 컨텍스트에서 `ObjectMapper` autowire 불가 → JSON 문자열 직접 구성
-- Codex 샌드박스에서는 Gradle JVM 명령이 `FileLockContentionHandler` 소켓 생성 제한에 걸릴 수 있어, 테스트와 `:app:bootRun`은 처음부터 권한 상승 실행으로 처리하는 편이 안정적
+- Codex 샌드박스에서는 Gradle JVM 명령이 `FileLockContentionHandler` 소켓 생성 제한에 걸릴 수 있어, 테스트와 `:bootstrap:bootRun`은 처음부터 권한 상승 실행으로 처리하는 편이 안정적
 - 동일하게 `gh pr *`, 원격 `git fetch/push/pull`, Docker 컨테이너 제어, Playwright 브라우저 설치/실행, 워크스페이스 밖 경로 쓰기처럼 반복적으로 막혔던 작업도 샌드박스 재시도 없이 처음부터 권한 상승 실행으로 처리한다.
 
 ### 프론트 공통 패턴
@@ -249,7 +404,7 @@
 - `BookingFormStep`의 결제 방식 라디오는 명시적 `id`를 써서 라벨 접근성을 보장
 
 ### 로컬 실행 메모
-- `local` 프로필 `:app:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
+- `local` 프로필 `:bootstrap:bootRun`은 `classes` 테이블이 비어 있으면 향수/우드/니트 기본 클래스 3종을 seed한다.
 - 로컬 부팅이나 `docker compose up -d` 전에 Redis(`localhost:6379`)가 필요하다. compose에는 `redis` 서비스가 추가되어 있고, 통합 테스트는 Testcontainers Redis를 함께 기동한다.
 - `docker compose up -d --build` 뒤에는 `nginx`가 `http://localhost` 에서 frontend `dist` 정적 파일을 서빙하고 `/api` 요청을 app 컨테이너로 프록시한다.
 - `local` 프로필에서 `http://localhost:8080/actuator/prometheus` 로 JVM/HTTP 메트릭과 `happygallery.funnel.*` 커스텀 메트릭을 함께 노출한다.
@@ -257,6 +412,7 @@
 - Grafana 로그인은 `GRAFANA_ADMIN_USER`/`GRAFANA_ADMIN_PASSWORD` 환경 변수를 사용하고, 사용자명 기본값은 `admin`이다.
 - Sentry는 backend `SENTRY_DSN/SENTRY_ENVIRONMENT/SENTRY_RELEASE`, frontend `VITE_SENTRY_DSN/VITE_SENTRY_ENVIRONMENT/VITE_SENTRY_RELEASE` 환경 변수를 사용한다.
 - 알림 sender는 `!prod`에서 fake sender, `prod`에서 카카오 알림톡/NHN SMS 실제 sender를 사용한다. 실제 운영 발송에는 `KAKAO_*`, `SMS_*` 환경 변수가 필요하다.
+- AWS 운영 배포 설정은 `docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md`를 기준으로 보고, ECR lifecycle policy, GitHub OIDC role, GitHub Actions variable/secret 변경도 같은 문서에 누적한다.
 - clean DB 기준으로도 P8 guest/member 핵심 브라우저 시나리오 1~9를 바로 실행할 수 있다.
 - `DELETE /api/v1/admin/dev/payment/refunds/fail-next`로 훅을 비우고, `POST /api/v1/admin/dev/payment/refunds/fail-next`로 다음 환불 1회 실패를 arm할 수 있다.
   요청 바디에 `orderId`를 넣으면 특정 주문으로 범위를 좁힐 수 있다.
@@ -265,10 +421,10 @@
 
 ```bash
 ./gradlew test
-./gradlew :app:test --tests "*.SomeIT"
-./gradlew :app:policyTest
-./gradlew --no-daemon :app:useCaseTest
-./gradlew --no-daemon :app:test --tests com.personal.happygallery.app.web.admin.AdminSlotUseCaseIT
+./gradlew :application:test --tests "*.SomeIT"
+./gradlew :application:policyTest
+./gradlew --no-daemon :application:useCaseTest
+./gradlew --no-daemon :adapter-in-web:test --tests com.personal.happygallery.adapter.in.web.admin.AdminSlotUseCaseIT
 cd frontend && npm run build
 cd frontend && npm run e2e:install
 cd frontend && npm run e2e
@@ -276,7 +432,7 @@ cd frontend && npm run e2e
 
 ### 미해결 과제
 - 로컬 `bootRun` 전 `happygallery-app` 컨테이너가 떠 있으면 8080 충돌 발생
-- 현재 `:app:bootJar`는 `common`, `domain`은 포함하지만 `infra`는 포함하지 않는다. `app` 단독 실행 산출물로 유지할지, bootstrap 모듈을 분리해 최종 조립을 맡길지 검토 필요 (`docs/Idea/0025_bootJar_패키징과_Bootstrap_모듈_분리/idea.md`)
+- ~~현재 `:app:bootJar`는 `common`, `domain`은 포함하지만 `infra`는 포함하지 않는다. `app` 단독 실행 산출물로 유지할지, bootstrap 모듈을 분리해 최종 조립을 맡길지 검토 필요~~ (헥사고날 풀-스플릿 Step 1~5로 해결됨. 실행 산출물은 `:bootstrap:bootJar` 하나로 조립되며 `adapter-in-web` / `adapter-out-persistence` / `adapter-out-external` / `application` / `domain`을 모두 포함한다. 배경 메모: `docs/Idea/0025_bootJar_패키징과_Bootstrap_모듈_분리/idea.md`)
 - PG 환불 패턴 중복 → 실 PG 연동 시 RefundExecutor로 통합 예정
 - ~~공개 주문 상세 `fulfillment.status` 계약 drift 정리 필요~~ (CR-P6에서 FE/BE 정합)
 - ~~`X-Admin-Id` 헤더 의존 제거 전까지 운영 이력의 admin 식별자가 null/위조 가능~~ (CR-P6에서 Bearer 세션 attribute 기반으로 전환)
