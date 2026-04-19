@@ -58,6 +58,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "CUSTOMER_SIGNUP", "POST", null, "/api/v1/auth/signup");
     private static final LimitRule ADMIN_LOGIN_RULE = new LimitRule(
             "ADMIN_LOGIN", "POST", "/admin/auth/login", "/api/v1/admin/auth/login");
+    private static final LimitRule ADMIN_SETUP_RULE = new LimitRule(
+            "ADMIN_SETUP", "POST", "/admin/setup", "/api/v1/admin/setup");
     private static final LimitRule SOCIAL_LOGIN_RULE = new LimitRule(
             "SOCIAL_LOGIN", "POST", null, "/api/v1/auth/social/google");
     private static final LimitRule ADMIN_API_RULE = new LimitRule("ADMIN_API", null, null, null);
@@ -124,6 +126,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if (matches(request, ADMIN_LOGIN_RULE)) {
             return new ResolvedRule(ADMIN_LOGIN_RULE, properties.adminLoginPerMinute(), Duration.ofMinutes(1));
+        }
+        if (matches(request, ADMIN_SETUP_RULE)) {
+            return new ResolvedRule(ADMIN_SETUP_RULE, properties.adminSetupPerMinute(), Duration.ofMinutes(1));
         }
         String uri = request.getRequestURI();
         if (isAdminPath(uri)) {

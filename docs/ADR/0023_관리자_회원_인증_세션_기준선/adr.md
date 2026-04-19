@@ -43,7 +43,15 @@
 - 기본 관리자 계정은 Flyway migration에 포함하지 않고, `LocalAdminSeedService`(`@Profile("local")`)로 local 환경에서만 seed한다.
 - Bearer 세션 경로는 검증된 관리자 ID를 이력에 남기고, API Key 폴백 경로와 배치 이력은 `null`일 수 있다.
 
-### 4. 인증 외 운영 기준은 전용 ADR을 기준으로 본다
+### 4. 최초 관리자 계정은 one-time setup token으로만 bootstrap 한다
+
+- 운영/개발 공통으로 기본 관리자 계정을 migration이나 seed로 자동 생성하지 않는다.
+- `admin_user` 테이블이 비어 있고 `ADMIN_SETUP_TOKEN`이 설정된 동안에만 `/api/v1/admin/setup`과 `/api/v1/admin/setup/status`를 연다.
+- setup 경로는 `AdminAuthFilter` 인증 예외로 두되, `RateLimitFilter`의 `admin-setup-per-minute` 별도 버킷(기본 5/min)을 적용한다.
+- setup 토큰이 비어 있거나 이미 관리자 계정이 하나 이상 존재하면 setup 엔드포인트는 `404`로 숨긴다.
+- 성공적으로 계정을 만든 뒤에는 운영자가 즉시 `ADMIN_SETUP_TOKEN` 환경 변수를 제거한다.
+
+### 5. 인증 외 운영 기준은 전용 ADR을 기준으로 본다
 
 - requestId, JSON 로그, 에러 응답 추적은 `ADR-0015`와 API 계약 문서를 따른다.
 - 필터 기반 처리율 제한은 `ADR-0017`을 따른다.
@@ -59,6 +67,7 @@
 ### 장점
 
 - `ADR-0023`만 봐도 인증/세션 결정 범위를 바로 파악할 수 있다.
+- 최초 관리자 bootstrap 경로가 운영 상수와 함께 한 문서에 정리된다.
 - 인증 모델과 운영 기준 문서의 책임 경계가 분명해진다.
 - 제목과 실제 내용이 더 잘 맞는다.
 

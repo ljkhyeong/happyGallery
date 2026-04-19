@@ -107,6 +107,19 @@ class AdminAuthFilterTest {
         assertThat(response.getStatus()).isEqualTo(200);
     }
 
+    @DisplayName("최초 관리자 setup 경로(/api/v1/admin/setup)는 인증 없이 통과한다")
+    @Test
+    void passes_setupPathWithoutAuthentication() throws Exception {
+        AdminAuthFilter filter = createFilter(properties("dev-admin-key", false));
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/setup");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
     @DisplayName("회원 경로(/api/v1/me/)는 인증 없이 AdminAuthFilter를 통과한다")
     @Test
     void passes_customerMePath_withoutAuthentication() throws Exception {

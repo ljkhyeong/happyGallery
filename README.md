@@ -140,6 +140,7 @@
   - 비회원 성공 화면에서 회원가입/로그인 후 `/my` claim으로 바로 이어지는 CTA
   - 로그인/회원가입 페이지에서 `redirect`, `claim`, `name`, `phone` 문맥 유지
 - 관리자 흐름
+  - 최초 관리자 계정 셋업 (`/api/v1/admin/setup`, `/api/v1/admin/setup/status`)
   - 상품 등록/조회
   - 슬롯 생성/비활성화
   - 예약 목록 조회/검색/노쇼 처리
@@ -208,7 +209,7 @@
 ### 2. 주요 환경 변수 / 설정
 
 - DB: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `MYSQL_USER`, `MYSQL_PASSWORD`, `DB_HIKARI_CONNECTION_TIMEOUT_MS`, `DB_CONNECT_TIMEOUT_MS`, `DB_SOCKET_TIMEOUT_MS`, `DB_QUERY_TIMEOUT_MS`, `DB_LOCK_WAIT_TIMEOUT_SECONDS`
-- 관리자 local/dev: `ADMIN_API_KEY`, `ADMIN_ENABLE_API_KEY_AUTH`
+- 관리자 local/dev: `ADMIN_API_KEY`, `ADMIN_ENABLE_API_KEY_AUTH`, `ADMIN_SETUP_TOKEN`
 - 결제: `PAYMENT_TIMEOUT_MILLIS`, `PAYMENT_CB_*`
 - 트랜잭션: `TX_DEFAULT_TIMEOUT`
 - 요청 제한 / Actuator: `RATE_LIMIT_TRUST_FORWARDED`, `ACTUATOR_HEALTH_SHOW_DETAILS`
@@ -220,6 +221,7 @@
 
 기본 프로필은 `local`이다.
 - `local` 프로필은 샘플 필드 암호화 키를 기본 제공하지만, `dev`/`prod`는 직접 설정해야 한다.
+- `admin_user`가 비어 있을 때만 `ADMIN_SETUP_TOKEN`을 잠깐 주입해 `/api/v1/admin/setup`으로 최초 관리자 계정을 만들 수 있다. 완료 후에는 토큰을 제거한다.
 - timeout 기준선 기본값은 `frontend 35s > nginx read 30s > transaction 10s > DB query 5s > lock wait 3s > DB/Hikari acquire 2s` 순서를 따른다. 상세 원칙은 `ADR-0030`을 따른다.
 - ingress keep-alive 기준선은 `client -> nginx keepalive_timeout 15s`, `nginx -> app` upstream keep-alive 활성화로 시작한다. caller가 먼저 연결을 버리고 callee가 나중에 닫도록 유지해 stale connection 재사용 가능성을 줄인다. 상세 원칙은 `ADR-0030`을 따른다.
 - `prod` 프로필의 외부 알림/Google OAuth `RestClient`는 downstream별 Apache HttpClient 5 커넥션 풀을 사용한다. 기본값은 `acquire 1s`, `connect 2s`, `read 5s`, `keep-alive 30s`이며, 알림 풀은 최대 20개, Google OAuth 풀은 최대 10개다.
