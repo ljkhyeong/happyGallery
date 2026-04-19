@@ -5,10 +5,10 @@
 
 ---
 
-## 🚧 현재 진행 중: 헥사고날 풀-스플릿 (Option B) 마이그레이션
+## 현재 상태: 6개 모듈 구조 정리 완료
 
 **브랜치**: `codexReview`
-**원본 플랜**: 이전 세션 `~/.claude/projects/-Users-lim-Desktop-devProject-personal-happyGallery/6613d378-e386-41ef-826f-c2639e374084.jsonl`의 `ExitPlanMode` 승인본. 요점은 아래 요약 참고.
+**원본 플랜**: 이전 세션 `~/.claude/projects/-Users-lim-Desktop-devProject-personal-happyGallery/6613d378-e386-41ef-826f-c2639e374084.jsonl`의 승인본. 아래는 현재 코드 기준으로 다시 정리한 요약이다.
 
 ### 최종 목표 모듈 구조 (플랜)
 
@@ -72,7 +72,7 @@ test-support/                 java-test-fixtures (Step 4)
 
 ### 다음 세션이 이어받을 수 있는 후속 트랙 후보
 
-Step 5로 헥사고날 풀-스플릿 마이그레이션은 종료. 다음 작업은 `plan.md` 핵심 트랙 기준:
+Step 5로 6개 모듈 구조 정리 작업은 종료됐다. 다음 작업은 `plan.md` 핵심 트랙 기준:
 
 1. **관측성 스택 고도화** — Prometheus/Grafana 대시보드 확장, alert rule tuning
 2. **guest/member 운영 정책 리뷰** — `/guest` 보조 경로 사용량/문의 유형을 2~4주 관찰한 뒤 축소 여부 결정
