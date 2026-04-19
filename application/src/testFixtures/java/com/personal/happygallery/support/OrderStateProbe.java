@@ -10,7 +10,6 @@ import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
-import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -20,20 +19,17 @@ public class OrderStateProbe {
 
     private final OrderReaderPort orderReaderPort;
     private final InventoryReaderPort inventoryReaderPort;
-    private final InventoryStorePort inventoryStorePort;
     private final RefundPort refundPort;
     private final OrderHistoryPort orderHistoryPort;
     private final FulfillmentPort fulfillmentPort;
 
     public OrderStateProbe(OrderReaderPort orderReaderPort,
                            InventoryReaderPort inventoryReaderPort,
-                           InventoryStorePort inventoryStorePort,
                            RefundPort refundPort,
                            OrderHistoryPort orderHistoryPort,
                            FulfillmentPort fulfillmentPort) {
         this.orderReaderPort = orderReaderPort;
         this.inventoryReaderPort = inventoryReaderPort;
-        this.inventoryStorePort = inventoryStorePort;
         this.refundPort = refundPort;
         this.orderHistoryPort = orderHistoryPort;
         this.fulfillmentPort = fulfillmentPort;
@@ -69,9 +65,5 @@ public class OrderStateProbe {
 
     public List<Fulfillment> fulfillments() {
         return fulfillmentPort.findAll();
-    }
-
-    public void deleteInventory(Long inventoryId) {
-        inventoryStorePort.deleteById(inventoryId);
     }
 }

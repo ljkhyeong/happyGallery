@@ -129,6 +129,27 @@ class RateLimitFilterTest {
         });
     }
 
+    @DisplayName("최초 관리자 setup 경로는 일반 admin API보다 별도 rate limit이 적용된다")
+    @Test
+    void returns429_whenAdminSetupLimitExceeded() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, false, 10, 10, 10, 100, 1, 100), mockRedis());
+
+        MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/admin/setup");
+        first.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse firstResponse = new MockHttpServletResponse();
+        filter.doFilter(first, firstResponse, new MockFilterChain());
+
+        MockHttpServletRequest second = new MockHttpServletRequest("POST", "/api/v1/admin/setup");
+        second.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse secondResponse = new MockHttpServletResponse();
+        filter.doFilter(second, secondResponse, new MockFilterChain());
+
+        assertSoftly(softly -> {
+            softly.assertThat(firstResponse.getStatus()).isEqualTo(200);
+            softly.assertThat(secondResponse.getStatus()).isEqualTo(429);
+        });
+    }
+
     @SuppressWarnings("unchecked")
     private static StringRedisTemplate mockRedis() {
         ConcurrentHashMap<String, AtomicLong> counters = new ConcurrentHashMap<>();
@@ -158,6 +179,18 @@ class RateLimitFilterTest {
                                                   long passPurchasePerMinute,
                                                   long adminLoginPerMinute,
                                                   long adminApiPerMinute) {
+        return properties(enabled, trustForwardedHeaders, phoneVerificationPerSecond, bookingCreatePerMinute,
+                passPurchasePerMinute, adminLoginPerMinute, 5, adminApiPerMinute);
+    }
+
+    private static RateLimitProperties properties(boolean enabled,
+                                                  boolean trustForwardedHeaders,
+                                                  long phoneVerificationPerSecond,
+                                                  long bookingCreatePerMinute,
+                                                  long passPurchasePerMinute,
+                                                  long adminLoginPerMinute,
+                                                  long adminSetupPerMinute,
+                                                  long adminApiPerMinute) {
         return new RateLimitProperties(
                 enabled,
                 trustForwardedHeaders,
@@ -167,6 +200,7 @@ class RateLimitFilterTest {
                 10,
                 5,
                 adminLoginPerMinute,
+                adminSetupPerMinute,
                 adminApiPerMinute,
                 10
         );

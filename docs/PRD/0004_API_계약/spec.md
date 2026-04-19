@@ -1,10 +1,8 @@
 # spec.md
-happyGallery API 계약 기준 문서
+happyGallery API 계약
 
-상태:
-- 현재 구현 기준의 요청/응답 계약과 운영용 에러 코드를 정리한다.
-- 비즈니스 규칙 원문은 `docs/PRD/0001_기준_스펙/spec.md`를 우선 기준으로 본다.
-- 기술 결정 배경은 `docs/ADR/` 문서를 우선 기준으로 본다.
+이 문서는 현재 구현 기준의 요청/응답 계약과 운영용 에러 코드를 정리한다.
+비즈니스 규칙 원문은 `docs/PRD/0001_기준_스펙/spec.md`, 설계 배경은 `docs/ADR/`를 먼저 본다.
 
 ---
 
@@ -60,6 +58,42 @@ Authorization: Bearer {token}
 ```
 
 - 성공: `204 No Content`
+
+#### 최초 관리자 bootstrap setup
+
+- `admin_user`가 비어 있고 `app.admin.setup.token`(`ADMIN_SETUP_TOKEN`)이 설정된 동안에만 노출된다.
+- setup 경로는 관리자 Bearer 인증 없이 호출할 수 있지만, `RateLimitFilter`의 `admin-setup-per-minute` 별도 제한(기본 5/min)을 적용한다.
+- setup 토큰이 비어 있거나 이미 관리자 계정이 생성된 뒤에는 엔드포인트를 `404 NOT_FOUND`로 숨긴다.
+
+```http
+GET /api/v1/admin/setup/status
+```
+
+```json
+{ "required": true }
+```
+
+- 성공: `200 OK`
+
+```http
+POST /api/v1/admin/setup
+Content-Type: application/json
+
+{
+  "token": "one-time-setup-token",
+  "username": "admin",
+  "password": "admin123456"
+}
+```
+
+- 성공: `201 Created`
+- 실패:
+  - `401 UNAUTHORIZED` — setup 토큰 불일치
+  - `404 NOT_FOUND` — setup 비활성(토큰 없음 또는 이미 관리자 계정 존재)
+  - `409 EMAIL_ALREADY_EXISTS` — 같은 username이 이미 존재
+- 운영 규칙:
+  - 계정 생성 직후 `status.required`는 `false`가 된다.
+  - 운영자는 setup 완료 후 즉시 `ADMIN_SETUP_TOKEN`을 제거한다.
 
 #### API Key 폴백
 
