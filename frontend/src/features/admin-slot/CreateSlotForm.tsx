@@ -47,7 +47,8 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
   });
 
   const timeValid = startAt && endAt && startAt < endAt;
-  const valid = Number(classId) > 0 && timeValid;
+  const hasClasses = (classes?.length ?? 0) > 0;
+  const valid = hasClasses && Number(classId) > 0 && timeValid;
 
   const showEndError = touched.endAt && endAt && startAt && endAt <= startAt;
 
@@ -66,23 +67,22 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
         <Col xs={12} md={3}>
           <Form.Group controlId="admin-slot-class">
             <Form.Label>클래스</Form.Label>
-            {classes?.length ? (
-              <Form.Select value={classId} onChange={(e) => setClassId(e.target.value)}>
-                <option value="">선택...</option>
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.durationMin}분)
-                  </option>
-                ))}
-              </Form.Select>
-            ) : (
-              <Form.Control
-                type="number"
-                min={1}
-                value={classId}
-                onChange={(e) => setClassId(e.target.value)}
-                placeholder="클래스 ID"
-              />
+            <Form.Select
+              value={classId}
+              onChange={(e) => setClassId(e.target.value)}
+              disabled={!hasClasses}
+            >
+              <option value="">{hasClasses ? "선택..." : "먼저 클래스를 생성하세요"}</option>
+              {classes?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.durationMin}분)
+                </option>
+              ))}
+            </Form.Select>
+            {!hasClasses && (
+              <Form.Text className="text-muted">
+                등록된 클래스가 없습니다. 위에서 클래스를 먼저 생성해 주세요.
+              </Form.Text>
             )}
           </Form.Group>
         </Col>
