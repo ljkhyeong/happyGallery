@@ -57,6 +57,7 @@
 - 운영 배포 구조는 `CloudFront + S3 + ALB + ECS Fargate + RDS + ElastiCache Redis`다.
 - `local`에서는 기본 관리자 `admin / admin1234`가 자동 생성된다.
 - `local`이 아닌 환경에서는 `ADMIN_SETUP_TOKEN`으로 `/api/v1/admin/setup`을 통해 최초 관리자 계정을 만든다.
+- 운영 환경에서는 클래스가 자동 생성되지 않는다. 관리자 화면에서 클래스를 먼저 등록한 뒤 슬롯을 생성한다.
 
 ## 현재 활성 목표
 

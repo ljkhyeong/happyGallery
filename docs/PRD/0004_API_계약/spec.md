@@ -117,9 +117,40 @@ Content-Type: application/json
 
 ## 2. API 카탈로그
 
-### 2.1 Admin API — 슬롯 관리
+### 2.1 Admin API — 클래스/슬롯 관리
 
-#### 2.1.1 슬롯 생성
+#### 2.1.1 클래스 생성
+
+```http
+POST /api/v1/admin/classes
+Content-Type: application/json
+Authorization: Bearer {token}
+
+{
+  "name": "향수 원데이",
+  "category": "PERFUME",
+  "durationMin": 120,
+  "price": 50000,
+  "bufferMin": 30
+}
+```
+
+```json
+{
+  "id": 1,
+  "name": "향수 원데이",
+  "category": "PERFUME",
+  "durationMin": 120,
+  "price": 50000,
+  "bufferMin": 30
+}
+```
+
+- 성공: `201 Created`
+- 에러:
+  - `400 INVALID_INPUT` — 이름/카테고리 공란, durationMin/price/bufferMin 형식 오류
+
+#### 2.1.2 슬롯 생성
 
 ```http
 POST /api/v1/admin/slots
@@ -150,7 +181,7 @@ Authorization: Bearer {token}
   - `404 NOT_FOUND` — classId에 해당하는 클래스 없음
   - `400 INVALID_INPUT` — 동일 classId + startAt 슬롯 이미 존재
 
-#### 2.1.2 슬롯 비활성화
+#### 2.1.3 슬롯 비활성화
 
 ```http
 PATCH /api/v1/admin/slots/{id}/deactivate
