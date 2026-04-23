@@ -23,6 +23,7 @@ import static com.personal.happygallery.support.BookingTestHelper.extractBooking
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -108,7 +109,7 @@ class GuestBookingUseCaseIT {
                                 """.formatted(PHONE, code, slotId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.bookingId").isNumber())
-                .andExpect(jsonPath("$.bookingNumber").value(org.hamcrest.Matchers.startsWith("BK-")))
+                .andExpect(jsonPath("$.bookingNumber").value(startsWith("BK-")))
                 .andExpect(jsonPath("$.accessToken").isString())
                 .andExpect(jsonPath("$.status").value("BOOKED"))
                 .andExpect(jsonPath("$.depositAmount").value(5000))

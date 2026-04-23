@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -34,7 +35,7 @@ class LocalBookingClassSeedServiceTest {
 
         service.seedIfEmpty();
 
-        verify(classStorePort, never()).saveAll(org.mockito.ArgumentMatchers.<List<BookingClass>>any());
+        verify(classStorePort, never()).saveAll(any());
     }
 
     @DisplayName("클래스가 비어 있으면 로컬 기본 클래스를 생성한다")

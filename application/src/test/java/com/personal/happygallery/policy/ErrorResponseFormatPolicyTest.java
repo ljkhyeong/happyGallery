@@ -22,7 +22,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
  * </pre>
  */
 @Tag("policy")
-class ErrorResponseFormatTest {
+class ErrorResponseFormatPolicyTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 

@@ -3,6 +3,71 @@
 이 파일은 다음 **AI 에이전트용 인수인계 문서**다.  
 사람용 긴 변경 이력은 두지 않는다. 현재 상태, 우선순위, 작업 규칙만 짧게 유지한다.
 
+## 🚧 진행 중: 돈·신원 경로 복원 플랜 (Phase 1 인프라 완료)
+
+**갱신 시점**: 2026-04-22
+**브랜치**: `payment-integration` (이미 분기됨)
+**플랜 전문**: `~/.claude/plans/imperative-greeting-barto.md` — **반드시 먼저 읽는다.** 경로는 세션마다 고정.
+
+### 배경
+
+`plan.md`의 Track 1~5는 전부 완료. 2026-04-19 세션에서 운영 애로 전수 점검 후 3-Phase 플랜으로 확정. 현재 남은 구조적 애로:
+
+1. **결제 없이 구매 성공** — Order/Booking/PassPurchase가 PG 호출 없이 바로 저장. `FakePaymentProvider`가 `@Primary`/`@Profile` 없이 상시 동작.
+2. **SMS 인증 미발송** — `DefaultGuestBookingService.sendVerificationCode`가 로그만 남김.
+3. **회원 가입 휴대폰 소유 확인 없음** — `DefaultCustomerAuthService.signup`이 전화번호 문자열 그대로 저장.
+
+### 선택된 접근
+
+- **PG**: Toss Payments 직결 (PortOne 아닌 단일 PG)
+- **결제 패턴**: prepare/confirm 분리 — 서버가 orderId와 amount를 쥐는 표준 패턴
+- **SMS**: `PhoneVerificationSender` 전용 포트 (`NotificationEventType` 체인과 별도)
+- **회원 가입**: `PhoneOwnershipVerificationUseCase` 신규 (기존 `VerifiedGuestResolver`는 Guest upsert까지 해서 재사용 불가)
+
+### 예약금 정책 (확정됨)
+
+- 규칙: `DepositCalculator.of(slot) = slot.getBookingClass().getPrice() * 10 / 100`
+- 근거: `docs/PRD/0001_기준_스펙/spec.md:106` — "예약금: 클래스 가격의 **10%**"
+- 현재 코드(`DefaultGuest|MemberBookingService`)는 클라이언트가 `depositAmount`를 보내는 구조 → `BookingPreparer`가 서버에서 산출하도록 전환 (Task #6에서).
+
+### 진행도
+
+- **Phase 1 (Toss 결제)**: **인프라 완료**, 유스케이스/컨트롤러/프론트 미착수
+  - ✅ `PaymentPort.confirm(paymentKey, orderId, amount)` 시그니처 + `PaymentConfirmResult` record
+  - ✅ 도메인: `PaymentAttempt`, `PaymentContext` (ORDER/BOOKING/PASS), `PaymentAttemptStatus` (PENDING/CONFIRMED/FAILED/CANCELED) — 금액 변조 방어는 `PaymentAttempt.requireConfirmable(expectedAmount)`에 응집
+  - ✅ `V32__add_payment_attempt.sql`, `V33__add_payment_key_columns.sql` — **V31이 이미 `cleanup_redundant_indexes`로 점유되어 플랜의 V31/V32를 V32/V33로 shift**. 이 번호 규약을 다음 세션에서도 유지.
+  - ✅ `PaymentAttemptReaderPort`, `PaymentAttemptStorePort`, `PaymentAttemptRepository` (Repository-as-Adapter)
+  - ✅ `TossPaymentsProvider` (`@Profile("prod")`), `TossPaymentsProperties`, `TossPaymentsRestClientConfig` — Basic Auth(secretKey+":") base64, `/v1/payments/confirm` · `/v1/payments/{paymentKey}/cancel`
+  - ✅ `FakePaymentProvider` — `@Profile("!prod")` + `confirm()` 구현
+  - ✅ `CircuitBreakerPaymentProvider.confirm()` wrapping — 서킷 브레이커 + 3초 타임아웃 자동 적용
+  - ✅ 테스트 보강 — `PaymentAttempt` 금액/상태 guard, Fake/Toss confirm, CircuitBreaker confirm 보호 경계 검증 추가. `@UseCaseIT`/`@Tag("policy")` 네이밍도 테스트 지침에 맞게 정리.
+  - ✅ 컴파일 검증 통과 (`:domain`, `:application`, `:adapter-out-persistence`, `:adapter-out-external`)
+  - 🚧 **남은 Task (다음 세션 진입점)**:
+    - `#5` PaymentPrepare/Confirm UseCase + Order/Booking/Pass Preparer·Fulfiller (8+ 신규 파일)
+    - `#6` OrderService / DefaultGuest|MemberBookingService / DefaultPassPurchaseService 진입점 전환 + `PassPriceProperties` 신규 + `DepositCalculator` 규칙(10%) 구현
+    - `#7` `PaymentController` 신규 + 기존 `POST /api/v1/orders` / `/api/v1/bookings` / `/api/v1/me/passes` **제거** (플랜: alias 금지, backend+frontend 동시 머지)
+    - `#8` 프론트 `features/payment/TossCheckout.tsx` + api + `/payments/success`·`/payments/fail` 라우트 + 3개 결제 페이지 전환
+    - `#9` 최종 빌드 + FakePaymentProvider로 3개 페이지 end-to-end
+- **Phase 2 (SMS 실발송)**: 0%
+- **Phase 3 (회원가입 휴대폰 소유 확인)**: 0%
+
+### 플랜 밖으로 미룬 것
+
+HTTPS 구성, 비밀번호 복잡도, Grafana/Prometheus 인증, ADMIN 링크 UX, FakePaymentProvider `@Profile` 게이트(Phase 1에서 자연 해소), Google OAuth state 서버 검증, phone-key rate limit — 별도 트랙.
+
+### 환경 변수 신규
+
+- `TOSS_SECRET_KEY` (백엔드)
+- `VITE_TOSS_CLIENT_KEY` (프론트)
+- `PASS_TOTAL_PRICE` (기본 240000)
+
+### 이 섹션 유지 규칙
+
+- Phase 3 완료 시까지 이 섹션을 삭제하지 않는다.
+- "표현 정리" 명목으로도 덮지 않는다. 내용 정리는 `~/.claude/plans/imperative-greeting-barto.md`에서 한다.
+
+---
+
 ## 이 파일의 목적
 
 - 다음 AI 에이전트가 세션 시작 직후 가장 먼저 읽는 문서다.
