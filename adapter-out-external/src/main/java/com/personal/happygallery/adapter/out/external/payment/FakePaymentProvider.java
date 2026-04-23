@@ -1,14 +1,19 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
+import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * 개발용 가짜 PG 어댑터. 항상 성공 응답을 반환한다.
+ * 개발·테스트용 가짜 PG 어댑터.
+ * prod 프로필에서는 {@link TossPaymentsProvider}가 대신 빈으로 등록된다.
  */
 @Component("paymentProviderDelegate")
+@Profile("!prod")
 public class FakePaymentProvider implements PaymentProvider {
 
     private LocalRefundFailureScript localRefundFailureScript;
@@ -23,6 +28,14 @@ public class FakePaymentProvider implements PaymentProvider {
     @Autowired(required = false)
     void setLocalRefundFailureScript(LocalRefundFailureScript localRefundFailureScript) {
         this.localRefundFailureScript = localRefundFailureScript;
+    }
+
+    @Override
+    public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount) {
+        return PaymentConfirmResult.success(
+                "FAKE-PG-" + UUID.randomUUID(),
+                "FAKE_PG",
+                OffsetDateTime.now().toString());
     }
 
     @Override

@@ -71,7 +71,7 @@
 
 ### 6. 모듈 경계는 테스트로 고정한다
 
-`LayerDependencyArchTest`가 아래 규칙을 검증한다.
+`LayerDependencyPolicyTest`가 아래 규칙을 검증한다.
 
 - `domain`은 상위 계층을 참조하지 않는다.
 - `application`은 어댑터와 `bootstrap`을 참조하지 않는다.
@@ -106,4 +106,4 @@
 - `settings.gradle`의 6개 모듈 구조
 - `application/**/port/in`, `application/**/port/out`
 - `adapter-in-web/**`, `adapter-out-persistence/**`, `adapter-out-external/**`
-- `application/src/test/java/com/personal/happygallery/policy/LayerDependencyArchTest.java`
+- `application/src/test/java/com/personal/happygallery/policy/LayerDependencyPolicyTest.java`

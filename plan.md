@@ -7,20 +7,20 @@
 
 ## Active Goal
 
-전수점검에서 확인된 보안 취약점, 운영 오동작, 테스트 공백, 구조 불일치를 우선순위대로 정리한다.
+**(2026-04-21 갱신)** Track 1~5는 모두 완료. 현재 활성 목표는 **Track 6 — 돈·신원 경로 복원**.
+플랜 전문: `~/.claude/plans/imperative-greeting-barto.md`
 
-핵심 목표:
-- 공개 인증과 관리자 인증의 unsafe default 제거
-- member/claim 이후에도 운영 기능이 깨지지 않도록 조회/배치 경로 정합화
-- guest access token 취급을 안전한 형태로 재설계
-- `me/*`, 환불/알림, 운영 필터 계층의 회귀 테스트 보강
-- 현재 ADR과 실제 코드 경계의 불일치를 줄여 중간 상태 비용 해소
+운영에 남은 구조적 애로 3건을 복원한다:
+- 결제 없이 구매가 성공(PG 호출 없음)
+- SMS 인증 코드가 실제 발송되지 않음(로그만)
+- 회원 가입 시 휴대폰 소유 확인 없음
+
+접근: Toss Payments 직결(prepare/confirm) + `PhoneVerificationSender` 전용 포트 + `PhoneOwnershipVerificationUseCase` 신규.
 
 우선순위:
-1. 외부 노출 보안 취약점 차단
-2. 실제 운영 기능 누락 복구
-3. 테스트 공백 보강
-4. 구조 정리와 문서 동기화
+1. Phase 1 — Toss 결제 연동
+2. Phase 2 — SMS 실발송
+3. Phase 3 — 회원가입 소유 확인
 
 ---
 
@@ -143,14 +143,62 @@
 
 ---
 
+## Track 6. Payment/Identity Path Recovery (ACTIVE)
+
+플랜 참조: `~/.claude/plans/imperative-greeting-barto.md`. 이 Track은 해당 플랜의 Phase 1~3을 실제 체크리스트로 추적한다.
+
+**마이그레이션 번호 주의**: 플랜 원문의 V31/V32는 이미 `V31__cleanup_redundant_indexes.sql`이 점유 → **V32/V33으로 shift**.
+
+### Phase 1 — Toss Payments 실결제 연동
+
+| Task | 상태 | 범위 | 완료 기준 |
+|------|------|------|-----------|
+| `P1-T1` | progress | port 시그니처 | `PaymentPort.confirm(paymentKey, orderId, amount)` 추가, `PaymentConfirmResult` record (scaffolding 됨, 미커밋) |
+| `P1-T2` | todo | 도메인 | `PaymentAttempt` entity (orderIdExternal UNIQUE, context/status state machine, `requireConfirmable`/`markConfirmed`) |
+| `P1-T3` | todo | DB | V32 `payment_attempt`, V33 `orders/bookings/pass_purchases.payment_key` |
+| `P1-T4` | todo | 영속 어댑터 | `PaymentAttemptJpaRepository` + Store/Reader port + adapter |
+| `P1-T5` | todo | PG 어댑터 | `TossPaymentsProvider` `@Profile("prod")`, `FakePaymentProvider` `@Profile("!prod")` + `.confirm()`, `CircuitBreakerPaymentProvider.confirm()` wrapping |
+| `P1-T6` | todo | UseCase | `PaymentPrepareUseCase`/`PaymentConfirmUseCase` + Order/Booking/Pass Preparer·Fulfiller |
+| `P1-T7` | todo | 서비스 리팩토링 | `OrderService.createPaidOrder`/`DefaultGuest|MemberBookingService`/`DefaultPassPurchaseService` entry 전환, `PassPriceProperties` 신규, `DepositCalculator` 규칙 확정 |
+| `P1-T8` | todo | 컨트롤러 | `PaymentController` 신규 + 기존 `POST /api/v1/orders` / `POST /api/v1/bookings` / `POST /api/v1/me/passes` 제거 |
+| `P1-T9` | todo | 프론트 | `frontend/src/features/payment/TossCheckout.tsx`+api, success/fail 라우트, 3개 페이지 전환 |
+| `P1-T10` | todo | 빌드 | `./gradlew test` + `:application:useCaseTest` + `:application:policyTest` + `:bootstrap:bootJar -x test` 모두 green |
+
+### Phase 2 — SMS 인증 실발송
+
+| Task | 상태 | 범위 |
+|------|------|------|
+| `P2-T1` | todo | `PhoneVerificationSender` port + Real/Fake adapter + `DefaultGuestBookingService.sendVerificationCode` 연결 |
+
+### Phase 3 — 회원가입 휴대폰 소유 확인
+
+| Task | 상태 | 범위 |
+|------|------|------|
+| `P3-T1` | todo | `PhoneOwnershipVerificationUseCase`/`DefaultPhoneOwnershipVerificationService`, `SignupCommand`/`SignupRequest`에 `verificationCode`, `SignupPage`에 `PhoneVerificationStep` 삽입 |
+
+### 환경 변수 신규
+
+- `TOSS_SECRET_KEY` (백엔드)
+- `VITE_TOSS_CLIENT_KEY` (프론트)
+- `PASS_TOTAL_PRICE` (기본 240000)
+
+### 검증 (원본 플랜 기준)
+
+- `RefundExecutionService`가 새 `pg_ref` (Toss paymentKey) 기반으로 정상 호출
+- `/guest` 조회 회귀 없음
+- Toss 테스트 가맹점 key로 샘플 결제 + 중복 confirm 거부 확인
+
+### 플랜 밖으로 미룬 것
+
+HTTPS 구성, 비밀번호 복잡도, Grafana/Prometheus 인증, ADMIN 링크 UX, Google OAuth state 서버 검증, phone-key rate limit — 별도 트랙.
+
+---
+
 ## Execution Order
 
-1. `Track 1`의 `S1-T1`~`S1-T7`
-2. `Track 2`의 `B1-T1`~`B1-T5`
-3. `Track 4`의 `Q1-T1`~`Q1-T7`
-4. `Track 3`의 `T1-T1`~`T1-T6`
-5. `Track 5`의 `A1-T1`~`A1-T10`
-6. 각 track 종료 시 문서 동기화
+1. `Track 1`~`Track 5`: 완료 (2026-04 이전)
+2. **`Track 6` Phase 1 → Phase 2 → Phase 3** (현재)
+3. 각 Phase 종료 시 문서 동기화 (HANDOFF + PRD-0001 + PRD-0004 + ADR-0008/0020/0031(신규))
 
 이 순서를 택하는 이유:
 - 외부 노출 취약점과 운영 누락을 먼저 막아야 한다.
