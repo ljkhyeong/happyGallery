@@ -25,7 +25,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * </ul>
  */
 @Tag("policy")
-class LayerDependencyArchTest {
+class LayerDependencyPolicyTest {
 
     private static final String ROOT = "com.personal.happygallery";
     private static JavaClasses classes;

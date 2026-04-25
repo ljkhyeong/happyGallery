@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @Tag("policy")
-class MyBatisSalesStatsAdapterTest {
+class MyBatisSalesStatsAdapterPolicyTest {
 
     @Test
     @DisplayName("개요 조회는 주입된 Clock 기준 오늘 서울 시간대 범위를 사용한다")

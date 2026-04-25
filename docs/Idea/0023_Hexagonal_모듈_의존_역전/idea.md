@@ -48,7 +48,7 @@ bootstrap
 - `application`은 `UseCase`, `Port` 같은 경계를 정의한다.
 - 웹과 배치는 유스케이스만 호출한다.
 - 영속성과 외부 연동 구현은 각 어댑터 모듈에 둔다.
-- 모듈 경계는 `LayerDependencyArchTest`로 검증한다.
+- 모듈 경계는 `LayerDependencyPolicyTest`로 검증한다.
 
 ## 이번 범위에 넣지 않은 것
 
