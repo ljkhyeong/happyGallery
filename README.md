@@ -1,6 +1,6 @@
 # happyGallery
 
-`happyGallery`는 오프라인 공방의 상품 주문, 클래스 예약, 8회권, 관리자 운영을 다루는 서비스다.  
+`happyGallery`는 오프라인 공방의 상품 주문, 클래스 예약, 8회권, 관리자 운영을 다루는 서비스다.
 백엔드는 Spring Boot 기반 멀티 모듈 애플리케이션이고, 프론트엔드는 Vite + React SPA로 구성되어 있다.
 
 ## 한눈에 보기
@@ -10,6 +10,14 @@
 - 8회권: 회원 전용이다. 결제일 기준 90일 유효하며, 환불 시 미래 예약을 자동 취소한다.
 - 결제: 주문/예약/8회권 모두 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm` 2단계 진입점을 사용한다. 서버가 `amount`를 확정해 `payment_attempt`로 보관하고, Toss Payments confirm 성공 시 도메인을 저장한다.
 - 인증: 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
+
+### 사용자별 주요 기능
+
+| 사용자 | 주요 기능 |
+| --- | --- |
+| 비회원 | 휴대폰 인증 기반 주문/예약 생성, 토큰 기반 조회, 회원가입 후 기존 이력 가져오기 |
+| 회원 | 상품 주문, 클래스 예약, 8회권 구매/사용, 장바구니, 알림함, 마이페이지 |
+| 관리자 | 상품/클래스/슬롯 관리, 주문 승인/거절/배송/픽업, 예약 운영, 대시보드, 환불 재시도, Q&A/문의 답변 |
 
 ## 운영 환경
 
@@ -40,7 +48,7 @@
 `main` 브랜치에 push되면 GitHub Actions가 자동으로 배포를 수행한다.
 
 - 프론트엔드: `frontend` 빌드 -> S3 동기화 -> CloudFront 캐시 무효화
-- 백엔드: `:bootstrap:bootJar` -> Docker 이미지 빌드 -> ECR 업로드 -> ECS 서비스 업데이트
+- 백엔드: `:bootstrap:bootJar` -> `linux/arm64` Docker 이미지 빌드 -> ECR 업로드 -> 현재 ECS task definition 기반 새 revision 등록 -> ECS 배포
 
 관련 문서:
 - [docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md)
@@ -71,6 +79,8 @@
 - 프론트엔드: Vite, React 19, TypeScript
 - 데이터베이스: MySQL 8, Flyway
 - 세션과 캐시: Redis, Spring Session
+- 쿼리: JPA, MyBatis
+- 인프라: AWS CloudFront, S3, ALB, ECS Fargate, RDS, ElastiCache
 - 모니터링: Actuator, Prometheus, Grafana, Sentry
 - 테스트: JUnit 5, Testcontainers, Playwright
 
@@ -180,6 +190,8 @@ docker compose up -d --build
 
 ## 문서 진입점
 
+- 로컬 설정 기준: [application-local.yml](bootstrap/src/main/resources/application-local.yml)
+- 공통 설정 기준: [application.yml](bootstrap/src/main/resources/application.yml)
 - 요구사항 기준 문서: [docs/PRD/0001_기준_스펙/spec.md](docs/PRD/0001_기준_스펙/spec.md)
 - API 계약: [docs/PRD/0004_API_계약/spec.md](docs/PRD/0004_API_계약/spec.md)
 - 설계 결정: [docs/ADR](docs/ADR/)
