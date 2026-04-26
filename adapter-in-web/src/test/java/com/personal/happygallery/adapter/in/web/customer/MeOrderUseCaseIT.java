@@ -1,11 +1,13 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.application.notification.NotificationService;
+import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
@@ -38,12 +40,14 @@ class MeOrderUseCaseIT {
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
+    @Autowired UserReaderPort userReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
     Long productId;
     Cookie sessionCookie;
+    Long userId;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -57,6 +61,7 @@ class MeOrderUseCaseIT {
         productId = product.getId();
 
         sessionCookie = signupAndGetSessionCookie("order@test.com", "010-3333-4444");
+        userId = userReaderPort.findByEmail("order@test.com").orElseThrow().getId();
     }
 
     @AfterEach
@@ -72,17 +77,12 @@ class MeOrderUseCaseIT {
     @DisplayName("회원 주문 생성이 성공한다")
     @Test
     void createMemberOrder_success() throws Exception {
-        mockMvc.perform(post("/api/v1/me/orders")
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "items": [
-                                    { "productId": %d, "qty": 1 }
-                                  ]
-                                }
-                                """.formatted(productId)))
-                .andExpect(status().isCreated())
+        Long orderId = PaymentTestHelper.createMemberOrder(mockMvc, sessionCookie, userId, productId, 1)
+                .domainId();
+
+        mockMvc.perform(get("/api/v1/me/orders/{id}", orderId)
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.orderId").isNumber())
                 .andExpect(jsonPath("$.status").value("PAID_APPROVAL_PENDING"))
                 .andExpect(jsonPath("$.totalAmount").value(29000));
@@ -121,19 +121,8 @@ class MeOrderUseCaseIT {
     }
 
     private Long createOrder() throws Exception {
-        String response = mockMvc.perform(post("/api/v1/me/orders")
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "items": [
-                                    { "productId": %d, "qty": 1 }
-                                  ]
-                                }
-                                """.formatted(productId)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return ((Number) com.jayway.jsonpath.JsonPath.read(response, "$.orderId")).longValue();
+        return PaymentTestHelper.createMemberOrder(mockMvc, sessionCookie, userId, productId, 1)
+                .domainId();
     }
 
     private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {

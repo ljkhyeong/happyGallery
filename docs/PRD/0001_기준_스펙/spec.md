@@ -37,10 +37,10 @@
 ## 3. 비즈니스 규칙(확정)
 ### 3.1 공예품 주문(온라인/오프라인 재고 공유)
 - 주문 주체: **회원** 또는 **비회원(휴대폰 인증)**
-  - 회원·비회원 모두 `/api/v1/payments/prepare` (`context=ORDER`) → `/api/v1/payments/confirm`으로 결제·생성한다. 회원/비회원 구분은 `HG_SESSION` 세션 유무로 결정한다.
+  - 표준 생성 경로는 회원·비회원 모두 `/api/v1/payments/prepare` (`context=ORDER`) → `/api/v1/payments/confirm`이다. 회원/비회원 구분은 `HG_SESSION` 세션 유무로 결정한다.
   - 회원 주문은 추가 토큰 없이 세션 기반으로 조회한다.
   - 비회원 주문은 confirm 응답으로 받은 접근 토큰(`X-Access-Token` 헤더)으로 조회한다.
-- 회원은 장바구니에 여러 상품을 담아 한 번에 주문으로 전환할 수 있다.
+- 회원은 장바구니에 여러 상품을 담아 한 번에 주문으로 전환할 수 있다. 현재 `POST /api/v1/me/cart/checkout`은 결제 API 우회 경로로 남아 있으며 `plan.md`의 `P1R-T1`에서 결제 API로 전환하거나 별도 후불 계약으로 분리한다.
 - 재고는 온라인/오프라인 **하나로 공유**한다.
 - 재고 차감 타이밍: **결제 완료 시 즉시 차감**
 - 오프라인 우선권:
@@ -173,7 +173,7 @@
 - 동일 전화번호로 동일 슬롯 중복 예약은 방지
 
 ## 8.1 결제 진입점 (prepare/confirm)
-- 모든 도메인(`ORDER`, `BOOKING`, `PASS`) 결제는 `/api/v1/payments/prepare` → `/api/v1/payments/confirm` 단일 진입점을 사용한다.
+- 표준 결제 생성 경로는 모든 도메인(`ORDER`, `BOOKING`, `PASS`)에서 `/api/v1/payments/prepare` → `/api/v1/payments/confirm` 단일 진입점을 사용한다. 회원 장바구니 checkout 등 남은 우회 경로는 `plan.md`의 `P1R-T1` 후속 작업으로 닫는다.
 - prepare 단계에서 서버가 `orderId(UUID)`와 `amount`를 확정해 `payment_attempt`(`PENDING`)로 저장한다. 클라이언트가 보낸 amount는 신뢰하지 않는다.
 - 산출 규칙:
     - 주문: 항목별 `productId.price × qty` 합계 (단가는 서버 재조회)
@@ -181,6 +181,7 @@
     - 8회권: `app.pass.total-price` 환경 변수 (`PASS_TOTAL_PRICE`, 기본 240,000원)
 - confirm 단계에서 PG `paymentKey`와 `amount`가 prepare 시점 amount와 다르면 거절한다.
 - 8회권 사용 예약은 prepare에서 `amount=0`을 받고 PG 호출 없이 confirm을 직접 호출한다.
+- PG confirm 성공 시 원결제 참조값은 `payment_attempt.pg_ref`와 생성된 주문/예약/8회권의 `payment_key`에 저장하고, 환불 시 PG cancel 호출에 사용한다.
 
 ---
 

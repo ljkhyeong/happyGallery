@@ -91,7 +91,7 @@ app:
         wait-duration-open-seconds: ${PAYMENT_CB_WAIT_OPEN_SECONDS:30}
         permitted-calls-in-half-open-state: ${PAYMENT_CB_HALF_OPEN_CALLS:3}
       toss:
-        # prod 프로필에서만 실제 키 주입 — 비어 있으면 FakePaymentProvider 경로
+        # prod 프로필에서만 실제 키 주입. FakePaymentProvider는 !prod 프로필에서만 등록된다.
         secret-key: ${TOSS_SECRET_KEY:}
         base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
         timeout-millis: ${TOSS_TIMEOUT_MILLIS:5000}
@@ -105,7 +105,7 @@ app:
   pass:
     total-price: ${PASS_TOTAL_PRICE:240000}
   rate-limit:
-    enabled: true
+    enabled: ${RATE_LIMIT_ENABLED:true}
     trust-forwarded-headers: ${RATE_LIMIT_TRUST_FORWARDED:false}
     phone-verification-per-second: 10
     booking-create-per-minute: 30

@@ -5,6 +5,7 @@ import {
   fetchClasses,
   findUniqueSlotWindow,
   formatTimeTokenForUi,
+  installTossPaymentStub,
   loginAdmin,
   loginCustomer,
   logoutCustomer,
@@ -17,6 +18,8 @@ import {
 } from "./support";
 
 test("P8-6 회원 가입 후 상품 상세에서 주문하고 내 주문 상세를 확인할 수 있다", async ({ page, request }) => {
+  await installTossPaymentStub(page);
+
   const productName = makeUniqueLabel("P8-회원주문");
 
   await loginAdmin(page);
@@ -33,8 +36,10 @@ test("P8-6 회원 가입 후 상품 상세에서 주문하고 내 주문 상세�
 
   await page.goto(`/products/${product.id}`);
   await page.getByRole("spinbutton", { name: "수량" }).fill("2");
-  await page.getByRole("button", { name: "구매하기" }).click();
+  await page.getByRole("button", { name: "BUY NOW" }).click();
 
+  await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
+  await page.getByRole("button", { name: "내 주문 상세 보기" }).click();
   await expect(page).toHaveURL(/\/my\/orders\/\d+$/);
   const orderId = Number(page.url().match(/\/my\/orders\/(\d+)$/)?.[1]);
   await expect(page.getByRole("heading", { name: "주문 상품" })).toBeVisible();
@@ -53,6 +58,8 @@ test("P8-6 회원 가입 후 상품 상세에서 주문하고 내 주문 상세�
 });
 
 test("P8-7 회원은 8회권 구매와 예약 생성 후 내 정보에서 바로 확인할 수 있다", async ({ page, request }) => {
+  await installTossPaymentStub(page);
+
   const classes = await fetchClasses(request);
   test.skip(classes.length === 0, "P8 member booking flow requires at least one class in the local DB");
   const bookingClass = classes[0]!;
@@ -77,8 +84,8 @@ test("P8-7 회원은 8회권 구매와 예약 생성 후 내 정보에서 바로
   await signupCustomer(page, "p8-member-booking");
 
   await page.goto("/passes/purchase");
-  await page.getByLabel("결제 금액 (원)").fill("120000");
-  await page.getByRole("button", { name: /8회권 구매/ }).click();
+  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await expect(page.getByRole("button", { name: "내 8회권 확인하기" })).toBeVisible();
   await page.getByRole("button", { name: "내 8회권 확인하기" }).click();
   await expect(page).toHaveURL(/\/my\/passes$/);
@@ -96,8 +103,8 @@ test("P8-7 회원은 8회권 구매와 예약 생성 후 내 정보에서 바로
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
   await page.getByLabel("날짜").fill(slotDate);
   await page.locator(".list-group-item").filter({ hasText: formatTimeTokenForUi(slot.startAt) }).first().click();
-  await page.getByLabel("예약금 (원)").fill("30000");
-  await page.getByRole("button", { name: /예약하기/ }).click();
+  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await expect(page.getByRole("button", { name: "내 예약 상세 보기" })).toBeVisible();
   await page.getByRole("button", { name: "내 예약 상세 보기" }).click();
 

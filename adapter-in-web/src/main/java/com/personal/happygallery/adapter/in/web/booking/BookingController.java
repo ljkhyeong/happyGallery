@@ -47,7 +47,7 @@ public class BookingController {
         this.bookingCancelUseCase = bookingCancelUseCase;
     }
 
-    /** 휴대폰 인증 코드 발송 (MVP: 응답에 code 포함) */
+    /** 휴대폰 인증 코드 발송. 응답에는 인증 코드를 포함하지 않는다. */
     @PostMapping("/phone-verifications")
     public SendVerificationResponse sendVerification(
             @RequestBody @Valid SendVerificationRequest request) {

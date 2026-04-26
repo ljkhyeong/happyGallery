@@ -314,7 +314,7 @@ class OrderApprovalUseCaseIT {
         Order order = orderHelper.createReadyStockPaidOrder("주문환불실패 상품", 90000L).order();
 
         // 주문 환불 FAILED 직접 생성 (booking 없는 refund)
-        var refund = Refund.forOrder(order.getId(), 90000L);
+        var refund = Refund.forOrder(order.getId(), 90000L, "pg-ref");
         refund.markFailed("PG 점검중");
         refundPort.save(refund);
 

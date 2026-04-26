@@ -17,6 +17,7 @@ import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerReposito
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
 import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
@@ -99,17 +100,8 @@ class PassCreditUsageUseCaseIT {
     void book_with_pass_consumes_credit() throws Exception {
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        mockMvc.perform(post("/api/v1/me/bookings")
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "slotId": %d,
-                                  "passId": %d
-                                }
-                                """.formatted(slot.getId(), pass.getId())))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("BOOKED"));
+        PaymentTestHelper.ConfirmedPayment confirmed = PaymentTestHelper.createMemberPassBooking(
+                mockMvc, sessionCookie, pass.getUserId(), slot.getId(), pass.getId());
 
         // Proof: USE ledger 1건, amount=1
         var ledgers = passLedgerRepository.findByPassPurchaseId(pass.getId());
@@ -124,6 +116,7 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
             softly.assertThat(bookings).hasSize(1);
             if (!bookings.isEmpty()) {
+                softly.assertThat(bookings.get(0).getId()).isEqualTo(confirmed.domainId());
                 softly.assertThat(bookings.get(0).isPassBooking()).isTrue();
             }
         });
@@ -268,34 +261,32 @@ class PassCreditUsageUseCaseIT {
 
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        mockMvc.perform(post("/api/v1/me/bookings")
+        PaymentTestHelper.PreparedPayment prepared = PaymentTestHelper.preparePayment(mockMvc, "BOOKING", """
+                {
+                  "type": "BOOKING",
+                  "userId": %d,
+                  "slotId": %d,
+                  "passId": %d
+                }
+                """.formatted(pass.getUserId(), slot.getId(), pass.getId()), sessionCookie);
+
+        mockMvc.perform(post("/api/v1/payments/confirm")
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "slotId": %d,
-                                  "passId": %d
+                                  "paymentKey": null,
+                                  "orderId": "%s",
+                                  "amount": %d
                                 }
-                                """.formatted(slot.getId(), pass.getId())))
+                                """.formatted(prepared.orderId(), prepared.amount())))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("PASS_CREDIT_INSUFFICIENT"));
     }
 
     private Long createPassBooking(Long slotId) throws Exception {
-        String response = mockMvc.perform(post("/api/v1/me/bookings")
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "slotId": %d,
-                                  "passId": %d
-                                }
-                                """.formatted(slotId, pass.getId())))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-        return BookingTestHelper.extractBookingId(response);
+        return PaymentTestHelper.createMemberPassBooking(mockMvc, sessionCookie, pass.getUserId(), slotId, pass.getId())
+                .domainId();
     }
 
     private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {

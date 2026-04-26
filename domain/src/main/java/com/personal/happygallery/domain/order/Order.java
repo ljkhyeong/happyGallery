@@ -39,6 +39,9 @@ public class Order {
     @Column(name = "access_token", length = 64)
     private String accessToken;
 
+    @Column(name = "payment_key", length = 200)
+    private String paymentKey;
+
     @Column(name = "total_amount", nullable = false)
     private long totalAmount;
 
@@ -213,10 +216,16 @@ public class Order {
         this.guestId = null;
     }
 
+    /** 결제 confirm 성공 후 PG 원결제 참조값을 저장한다. */
+    public void recordPaymentKey(String paymentKey) {
+        this.paymentKey = paymentKey;
+    }
+
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Long getGuestId() { return guestId; }
     public String getAccessToken() { return accessToken; }
+    public String getPaymentKey() { return paymentKey; }
     public OrderStatus getStatus() { return status; }
     public long getTotalAmount() { return totalAmount; }
     public LocalDateTime getPaidAt() { return paidAt; }

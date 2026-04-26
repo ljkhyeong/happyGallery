@@ -22,9 +22,10 @@ public interface PaymentFulfiller {
      * @param attempt 확정 직전 상태의 PaymentAttempt — 호출 전 amount/상태 검증 완료
      * @param payload 역직렬화된 prepare payload
      * @param auth 호출자 인증 정보 (payload와 일치 여부는 fulfiller가 검증)
+     * @param pgRef PG 원결제 참조값. amount=0 경로는 null.
      * @return 생성된 도메인 ID + 비회원 access token (있으면)
      */
-    FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth);
+    FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String pgRef);
 
     record FulfillResult(Long domainId, String rawAccessToken) {}
 }

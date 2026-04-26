@@ -16,6 +16,7 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
+import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.BookingStateProbe;
@@ -44,6 +45,8 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -73,6 +76,8 @@ class BookingCancelUseCaseIT {
     void setUp() {
         helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort);
         // 기본: PaymentProvider 성공
+        when(paymentProvider.confirm(any(), any(), anyLong()))
+                .thenReturn(PaymentConfirmResult.success("FAKE-TEST-PG", "CARD", "2026-04-26T12:00:00+09:00"));
         when(paymentProvider.refund(any(), anyLong()))
                 .thenReturn(RefundResult.success("FAKE-TEST-REF"));
         cleanupSupport.clearBookingWithPassAndRefundData();
@@ -122,6 +127,7 @@ class BookingCancelUseCaseIT {
                             NotificationEventType.BOOKING_CANCELED,
                             NotificationEventType.DEPOSIT_REFUNDED);
         });
+        verify(paymentProvider).refund(eq("FAKE-TEST-PG"), eq(5000L));
     }
 
     // -----------------------------------------------------------------------
@@ -158,6 +164,7 @@ class BookingCancelUseCaseIT {
             softly.assertThat(logs).extracting(NotificationLog::getEventType)
                     .containsExactly(NotificationEventType.BOOKING_CANCELED);
         });
+        verify(paymentProvider).refund(eq("FAKE-TEST-PG"), eq(5000L));
     }
 
     @DisplayName("환불 실패 목록 관리자 API는 DTO 응답을 반환한다")

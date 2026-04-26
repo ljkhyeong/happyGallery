@@ -37,6 +37,12 @@
 - 타임아웃: 지연 실패 응답
 - 기타 예외: 예외 메시지 기반 실패 응답
 
+### 4. 결제 confirm도 같은 보호 경계를 통과한다
+
+- `CircuitBreakerPaymentProvider.confirm(paymentKey, orderId, amount)`를 추가한다.
+- 서킷 오픈, 타임아웃, 예외는 `PaymentConfirmResult.failure`로 표준화한다.
+- 애플리케이션은 confirm 실패를 `PAYMENT_FAILED`로 매핑하고 도메인 저장을 진행하지 않는다.
+
 ---
 
 ## 결과 (트레이드오프)
@@ -54,5 +60,6 @@
 
 - `adapter-out-external/.../payment/CircuitBreakerPaymentProvider` 추가
 - `adapter-out-external/.../payment/FakePaymentProvider` 빈 이름 분리 (`paymentProviderDelegate`)
+- `PaymentProvider.confirm` 경로도 `CircuitBreaker + TimeLimiter` 보호 적용
 - `adapter-out-external/build.gradle`에 Resilience4j 의존성 추가
 - `bootstrap/src/main/resources/application.yml`에 `app.external.payment.*` 설정 추가

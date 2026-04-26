@@ -36,7 +36,7 @@ public class BookingFulfiller implements PaymentFulfiller {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth) {
+    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String pgRef) {
         if (!(payload instanceof BookingPayload bp)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "예약 결제 payload가 아닙니다.");
         }
@@ -47,12 +47,14 @@ public class BookingFulfiller implements PaymentFulfiller {
             }
             Booking booking = memberBookingUseCase.createMemberBooking(
                     auth.userId(), bp.slotId(), bp.paymentMethod(), bp.passId());
+            booking.recordPaymentKey(pgRef);
             return new FulfillResult(booking.getId(), null);
         }
 
         GuestBookingResult result = guestBookingUseCase.createGuestBooking(
                 new CreateGuestBookingCommand(bp.phone(), bp.verificationCode(), bp.name(),
                         bp.slotId(), bp.paymentMethod()));
+        result.booking().recordPaymentKey(pgRef);
         return new FulfillResult(result.booking().getId(), result.rawAccessToken());
     }
 }

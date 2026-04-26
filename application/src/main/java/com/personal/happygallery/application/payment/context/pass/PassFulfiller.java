@@ -30,7 +30,7 @@ public class PassFulfiller implements PaymentFulfiller {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth) {
+    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String pgRef) {
         if (!(payload instanceof PassPayload pp)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 결제 payload가 아닙니다.");
         }
@@ -38,6 +38,7 @@ public class PassFulfiller implements PaymentFulfiller {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 구매는 회원 인증이 필요합니다.");
         }
         PassPurchase purchase = passPurchaseUseCase.purchaseForMember(auth.userId());
+        purchase.recordPaymentKey(pgRef);
         return new FulfillResult(purchase.getId(), null);
     }
 }

@@ -16,8 +16,6 @@
    - PRD §6에 정의되어 있으나 1차 배포에서 제외한다. 스키마(`orders.bundle_id nullable`)는 준비 완료.
 5. 이메일/앱 푸시 알림 채널
    - PRD §7의 3·4순위 채널. 1차 배포는 카카오 알림톡 + SMS fallback만 운영한다.
-6. PG 실 연동
-   - `FakePaymentProvider`를 유지한다. CircuitBreaker/timeout 설정은 프로덕션 준비 완료.
 
 ---
 

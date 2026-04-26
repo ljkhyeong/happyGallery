@@ -103,6 +103,8 @@
 - `/api/v1/me/orders`
 - `/api/v1/me/bookings`
 - `/api/v1/me/passes`
+- `/api/v1/payments/prepare`
+- `/api/v1/payments/confirm`
 
 ### 4.4 비회원 경로
 
@@ -225,32 +227,33 @@
 - 세션: Spring Session + Redis, 7일 동안 유지
 - 쿠키: `HG_SESSION`, HttpOnly, SameSite=Lax, Path=/
 
-### 8.2 회원 전용 조회 / 생성
+### 8.2 회원 전용 조회 / 변경
 
 - `GET /api/v1/me/orders`
 - `GET /api/v1/me/orders/{id}`
-- `POST /api/v1/me/orders`
 - `GET /api/v1/me/bookings`
 - `GET /api/v1/me/bookings/{id}`
-- `POST /api/v1/me/bookings`
 - `PATCH /api/v1/me/bookings/{id}/reschedule`
 - `DELETE /api/v1/me/bookings/{id}`
 - `GET /api/v1/me/passes`
 - `GET /api/v1/me/passes/{id}`
-- `POST /api/v1/me/passes`
 - `GET /api/v1/me/guest-claims/preview`
 - `POST /api/v1/me/guest-claims/verify`
 - `POST /api/v1/me/guest-claims`
+
+주문 생성, 예약 생성, 8회권 구매는 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm` 결제 API로 진입한다.
 
 ### 8.3 비회원 조회 유지
 
 - 기존 주문/예약 토큰 조회 API를 유지한다.
 - 화면 표준 경로는 `/guest/orders`, `/guest/bookings`를 사용한다.
 
-### 8.4 생성 API
+### 8.4 결제 기반 생성 API
 
-- 주문과 예약 API는 로그인 사용자와 비회원 요청 본문을 모두 지원한다. 8회권 구매는 회원 전용(`POST /api/v1/me/passes`)이다.
-- 로그인 사용자가 있으면 `user_id`를 우선 사용한다.
+- 주문과 예약, 8회권 구매는 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm`으로 생성한다.
+- 로그인 사용자는 `HG_SESSION` 쿠키와 payload의 `userId`가 일치해야 한다.
+- 비회원 주문/예약은 payload의 `phone`, `verificationCode`, `name`으로 confirm 단계에서 휴대폰 인증을 검증한다.
+- 8회권 구매는 회원 전용이며 `context=PASS` payload로 결제한다.
 
 ---
 
@@ -282,11 +285,12 @@
 
 ---
 
-## 10. 범위 밖
+## 10. 당시 범위 밖과 현재 반영 상태
 
-- 장바구니
-- 리뷰/별점/Q&A
-- 소셜 로그인
+- 장바구니: 현재 구현됨. 다만 `POST /api/v1/me/cart/checkout`은 결제 API 우회 경로라 `plan.md`의 `P1R-T1`에서 전환 또는 별도 계약 분리가 필요하다.
+- 리뷰/별점: 미구현.
+- Q&A: Product Q&A와 1:1 문의는 현재 구현됨.
+- 소셜 로그인: Google 로그인은 현재 구현됨. 서버 측 `state` 검증 강화는 `simple-idea.md` 후속 항목.
 - 네이버페이/스마트스토어 API 연동
 - 쿠폰/적립금/찜
 - 상품 이미지 CMS

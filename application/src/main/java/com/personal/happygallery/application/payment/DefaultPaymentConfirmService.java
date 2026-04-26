@@ -83,7 +83,7 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지원하지 않는 결제 컨텍스트입니다.");
         }
         PaymentPayload payload = deserialize(attempt.getPayloadJson());
-        PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(attempt, payload, command.auth());
+        PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(attempt, payload, command.auth(), pgRef);
 
         attempt.markConfirmed(paymentKey, pgRef, LocalDateTime.now(clock));
         attemptStore.saveAndFlush(attempt);

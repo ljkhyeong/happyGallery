@@ -14,6 +14,7 @@ import com.personal.happygallery.adapter.out.persistence.order.OrderItemReposito
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
+import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptRepository;
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
@@ -36,6 +37,7 @@ public class TestCleanupSupport {
     private final OrderRepository orderRepository;
     private final PassLedgerRepository passLedgerRepository;
     private final PassPurchaseRepository passPurchaseRepository;
+    private final PaymentAttemptRepository paymentAttemptRepository;
     private final InventoryRepository inventoryRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
@@ -54,6 +56,7 @@ public class TestCleanupSupport {
                               OrderRepository orderRepository,
                               PassLedgerRepository passLedgerRepository,
                               PassPurchaseRepository passPurchaseRepository,
+                              PaymentAttemptRepository paymentAttemptRepository,
                               InventoryRepository inventoryRepository,
                               ProductRepository productRepository,
                               UserRepository userRepository) {
@@ -71,12 +74,14 @@ public class TestCleanupSupport {
         this.orderRepository = orderRepository;
         this.passLedgerRepository = passLedgerRepository;
         this.passPurchaseRepository = passPurchaseRepository;
+        this.paymentAttemptRepository = paymentAttemptRepository;
         this.inventoryRepository = inventoryRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
     }
 
     public void clearBookingWithPassAndRefundData() {
+        paymentAttemptRepository.deleteAllInBatch();
         TestDataCleaner.clearBookingWithPassAndRefundData(
                 passLedgerRepository,
                 refundRepository,
@@ -90,6 +95,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingReminderData() {
+        paymentAttemptRepository.deleteAllInBatch();
         TestDataCleaner.clearBookingReminderData(
                 passLedgerRepository,
                 passPurchaseRepository,
@@ -102,6 +108,7 @@ public class TestCleanupSupport {
     }
 
     public void clearOrderData() {
+        paymentAttemptRepository.deleteAllInBatch();
         TestDataCleaner.clearOrderData(
                 refundRepository,
                 fulfillmentRepository,
@@ -113,11 +120,13 @@ public class TestCleanupSupport {
     }
 
     public void clearPassData() {
+        paymentAttemptRepository.deleteAllInBatch();
         passLedgerRepository.deleteAllInBatch();
         passPurchaseRepository.deleteAllInBatch();
     }
 
     public void clearBookingData() {
+        paymentAttemptRepository.deleteAllInBatch();
         TestDataCleaner.clearBookingData(
                 bookingHistoryRepository,
                 bookingRepository,

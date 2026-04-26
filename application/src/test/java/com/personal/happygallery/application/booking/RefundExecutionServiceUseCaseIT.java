@@ -45,7 +45,7 @@ class RefundExecutionServiceUseCaseIT {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
         assertThatThrownBy(() -> transactionTemplate.executeWithoutResult(status -> {
-            refundExecutionService.processOrderRefund(order.getId(), 55_000L);
+            refundExecutionService.processOrderRefund(order.getId(), 55_000L, "pg-ref");
             throw new RuntimeException("outer rollback");
         }))
                 .isInstanceOf(RuntimeException.class)

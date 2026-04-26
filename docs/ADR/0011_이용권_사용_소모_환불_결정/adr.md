@@ -44,25 +44,25 @@
 
 ## 결정 4: 정산 환불 — PG 자동 처리 없음
 
-**결정**: `PassRefundService.refundPass()`는 잔여 크레딧 소멸 + REFUND ledger 기록 + 미래 예약 취소까지만 수행. 실제 PG 환불은 `refundAmount` 계산값을 응답에 포함하고 관리자가 수동 처리.
+**결정**: `PassRefundService.refundPass()`는 잔여 크레딧 소멸 + REFUND ledger 기록 + 미래 예약 취소까지만 수행한다. 현재 8회권 구매는 결제 API로 생성되지만, 8회권 전체 환불 엔드포인트는 아직 PG 자동 환불을 호출하지 않고 `refundAmount` 계산값을 응답에 포함해 관리자가 처리한다.
 
 **이유**:
-- 8회권 결제 자체가 PG 추상화(`PaymentProvider`) 밖에서 직접 처리 중 (MVP)
+- 8회권 환불은 잔여 크레딧 정산, 미래 예약 취소, 운영자 확인이 함께 필요한 관리자 액션이다.
 - `refundAmount = remainingCredits × (totalPrice / totalCredits)` 로 단순 계산
 
 **리스크**:
 - 관리자 수동 처리이므로 환불 누락 위험 → 운영 프로세스로 보완 필요
-- `totalPrice`가 0이면 환불액도 0 (MVP에서 totalPrice 미입력 허용으로 발생 가능)
+- 결제 API 도입 후 `totalPrice`는 서버 설정 `PASS_TOTAL_PRICE`로 확정되지만, 기존 데이터에 `totalPrice=0`이 있으면 환불액도 0으로 계산된다.
 
 ---
 
 ## 결정 5: `PurchasePassRequest.totalPrice` — nullable Long
 
-**결정**: 기존 테스트 호환성 유지를 위해 `long → Long` (nullable). null이면 컨트롤러에서 0으로 폴백.
+**결정**: 2026-04-26 결제 API 도입 후 구매 생성 요청에서 `totalPrice`를 받지 않는다. 가격은 `app.pass.total-price` (`PASS_TOTAL_PRICE`, 기본 240000)로 서버가 확정한다.
 
-**이유**: §7.1 구현 당시 기존 테스트가 `totalPrice` 없이 `guestId`만 보내는 패턴을 사용. primitive `long` 타입 시 Jackson이 null 파싱 실패(400).
+**이유**: 클라이언트 금액 변조를 막고, prepare 단계의 서버 산출 금액과 confirm 금액을 일치시켜야 한다.
 
-**리스크**: `totalPrice=0`이면 정산 환불 계산 불가 → 실제 PG 연동 시 필수값으로 전환 필요
+**리스크**: 운영 가격 변경 시 환경 변수와 안내 문구가 함께 맞아야 한다.
 
 ---
 

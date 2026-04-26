@@ -3,10 +3,12 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
@@ -41,6 +43,7 @@ class MeBookingUseCaseIT {
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
+    @Autowired UserReaderPort userReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean NotificationService notificationService;
 
@@ -48,6 +51,7 @@ class MeBookingUseCaseIT {
     Long slotId;
     Long slot2Id;
     Cookie sessionCookie;
+    Long userId;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -63,6 +67,7 @@ class MeBookingUseCaseIT {
         slot2Id = s2.getId();
 
         sessionCookie = signupAndGetSessionCookie("member@test.com", "010-1111-2222");
+        userId = userReaderPort.findByEmail("member@test.com").orElseThrow().getId();
     }
 
     @AfterEach
@@ -78,17 +83,12 @@ class MeBookingUseCaseIT {
     @DisplayName("회원 예약금 예약 생성이 성공한다")
     @Test
     void createMemberBooking_success() throws Exception {
-        mockMvc.perform(post("/api/v1/me/bookings")
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "slotId": %d,
-                                  "depositAmount": 5000,
-                                  "paymentMethod": "CARD"
-                                }
-                                """.formatted(slotId)))
-                .andExpect(status().isCreated())
+        Long bookingId = PaymentTestHelper.createMemberDepositBooking(mockMvc, sessionCookie, userId, slotId)
+                .domainId();
+
+        mockMvc.perform(get("/api/v1/me/bookings/{id}", bookingId)
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").isNumber())
                 .andExpect(jsonPath("$.status").value("BOOKED"))
                 .andExpect(jsonPath("$.className").value("향수 클래스"))
@@ -159,19 +159,8 @@ class MeBookingUseCaseIT {
     }
 
     private Long createBooking(Long targetSlotId) throws Exception {
-        String response = mockMvc.perform(post("/api/v1/me/bookings")
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "slotId": %d,
-                                  "depositAmount": 5000,
-                                  "paymentMethod": "CARD"
-                                }
-                                """.formatted(targetSlotId)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return ((Number) com.jayway.jsonpath.JsonPath.read(response, "$.bookingId")).longValue();
+        return PaymentTestHelper.createMemberDepositBooking(mockMvc, sessionCookie, userId, targetSlotId)
+                .domainId();
     }
 
     private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {

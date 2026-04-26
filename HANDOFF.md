@@ -27,7 +27,7 @@
 
 ---
 
-## 🚧 진행 중: 돈·신원 경로 복원 플랜 (Phase 1 백엔드 전환 구현됨)
+## 🚧 진행 중: 돈·신원 경로 복원 플랜 (Phase 1 결제 경로 전환·테스트 보강됨)
 
 **갱신 시점**: 2026-04-26
 **브랜치**: `payment-integration`
@@ -36,19 +36,16 @@
 ### 이번 세션에서만 결정된 사실 (다른 문서에 없음)
 - **Flyway 번호 shift**: V31이 이미 `cleanup_redundant_indexes`로 점유되어, 플랜의 V31/V32 → **V32/V33** 으로 shift. 다음 세션도 이 규약 유지.
 - **8회권 사용 예약**: amount=0 → PG 우회, `confirm` 직호출. 프론트가 이 분기를 처리.
-- **빌드 검증 (2026-04-26)**: `:application:policyTest` PASS, `:bootstrap:bootJar -x test` BUILD SUCCESSFUL.
+- **테스트 보강 (2026-04-26)**: 기존 예약/주문/8회권 생성 테스트를 `/api/v1/payments/prepare` + `/confirm` 경로로 전환. `PaymentPrepareUseCaseTest`, `PaymentConfirmUseCaseIT` 추가.
+- **환불 참조값 연결 (2026-04-26)**: confirm 성공 시 `PaymentAttempt.pgRef`와 도메인 `payment_key`를 저장하고, 예약/주문 환불 생성 시 원결제 참조값을 `Refund.pgRef` 초기값으로 사용.
+- **프론트 결제 흐름 보강 (2026-04-26)**: `ProductDetailPage` 회원 BUY NOW를 Toss prepare/confirm 경로로 전환. P8 E2E는 Toss stub 기반 현재 UI selector로 갱신.
+- **로컬 E2E 설정 (2026-04-26)**: 반복 smoke에서는 `RATE_LIMIT_ENABLED=false`로 bootRun. 관리자 예약 목록의 guest-only NPE는 `DefaultAdminBookingQueryService`에서 null userId 방어.
+- **검증 (2026-04-26)**: `./gradlew --no-daemon test` PASS, `frontend npm run build` PASS, `frontend P8-2~P8-9 Playwright smoke` PASS, `git diff --check` PASS.
 
 ### 다음 세션 진입점 (남은 Task)
 
-1. **테스트 마이그레이션 (테스트 에이전트 담당)** — `:application:test` 35건 실패. 제거된 엔드포인트(`POST /api/v1/me/bookings`, `/api/v1/me/orders`, `/api/v1/orders`, `/api/v1/bookings/guest`, `/api/v1/me/passes`)를 호출하는 6개 파일을 `/api/v1/payments/prepare` + `/confirm` 흐름으로 재작성:
-   - `application/src/test/java/.../application/pass/PassCreditUsageWebUseCaseIT.java`
-   - `application/src/test/java/.../application/pass/PassCreditUsageUseCaseIT.java`
-   - `application/src/test/java/.../application/pass/PassCreditUsageFixture.java`
-   - `adapter-in-web/src/test/java/.../adapter/in/web/customer/MePassUseCaseIT.java`
-   - `adapter-in-web/src/test/java/.../adapter/in/web/customer/MeOrderUseCaseIT.java`
-   - `adapter-in-web/src/test/java/.../adapter/in/web/customer/MeBookingUseCaseIT.java`
-2. **신규 결제 통합 테스트 (테스트 에이전트 담당)** — `application/src/test/java/.../application/payment/`에 `PaymentPrepareUseCaseTest`, `PaymentConfirmUseCaseIT`(Fake confirm → 도메인 저장 + 금액 변조 거부) 작성.
-3. **운영 수동 검증** — docker compose mysql/redis 기동 → `:bootstrap:bootRun` → 프론트에서 8회권 구매 / 주문 / 예약(예약금 + 8회권 사용) 결제 흐름 1회씩.
+1. **Phase 1 후속 잔여** — `plan.md`의 `P1R-T1b`, `P1R-T2`, `P1R-T4`, `P1R-T5`, `P1R-T6`, `P1R-T7`, `P1R-T8b` 확인.
+2. **Phase 2 착수** — SMS 인증 실발송: `~/.claude/plans/imperative-greeting-barto.md`의 Phase 2와 notification 관련 스킬/문서 먼저 확인.
 
 ### Phase 진행도 / 환경 변수 / 플랜 밖 미룬 항목
 → `~/.claude/plans/imperative-greeting-barto.md` 참조. 여기엔 옮기지 않는다.

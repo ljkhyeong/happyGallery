@@ -147,11 +147,12 @@ docker compose up -d --build
 
 | 이름 | 적용 위치 | 기본값 | 설명 |
 | --- | --- | --- | --- |
-| `TOSS_SECRET_KEY` | 백엔드 (`prod` 프로필) | (없음) | Toss Payments secret key. 비어 있으면 `FakePaymentProvider`가 동작한다. |
+| `TOSS_SECRET_KEY` | 백엔드 (`prod` 프로필) | (없음) | Toss Payments secret key. 운영에서는 반드시 주입한다. `!prod` 프로필에서만 `FakePaymentProvider`가 동작한다. |
 | `TOSS_BASE_URL` | 백엔드 | `https://api.tosspayments.com` | Toss API base URL. |
 | `TOSS_TIMEOUT_MILLIS` | 백엔드 | `5000` | Toss confirm/cancel HTTP 타임아웃. |
 | `VITE_TOSS_CLIENT_KEY` | 프론트 | (없음) | Toss SDK client key. 운영 빌드에 주입한다. |
 | `PASS_TOTAL_PRICE` | 백엔드 | `240000` | 8회권 결제 금액(원). prepare 단계에서 서버가 사용한다. |
+| `RATE_LIMIT_ENABLED` | 백엔드 | `true` | 처리율 제한 전체 on/off. 반복 E2E smoke처럼 같은 IP에서 짧게 많은 요청을 보내는 로컬 검증에서는 `false`로 끌 수 있다. |
 
 ## 자주 쓰는 명령어
 
@@ -174,6 +175,7 @@ docker compose up -d --build
 
 - `@UseCaseIT`는 MySQL/Redis Testcontainers와 고정 `Clock`을 사용한다.
 - Playwright 실행 전 백엔드는 `http://localhost:8080`에서 실행 중이어야 한다.
+- 결제/회원 E2E smoke를 반복 실행할 때는 백엔드에 `RATE_LIMIT_ENABLED=false`를 주입해 관리자 로그인·휴대폰 인증 제한이 테스트 순서에 영향을 주지 않게 한다.
 - Playwright 관리자 기본 로그인은 `admin / admin1234`다. 필요하면 환경 변수로 덮어쓴다.
 
 ## 문서 진입점

@@ -46,7 +46,7 @@ public class OrderFulfiller implements PaymentFulfiller {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth) {
+    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String pgRef) {
         if (!(payload instanceof OrderPayload op)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 결제 payload가 아닙니다.");
         }
@@ -58,11 +58,13 @@ public class OrderFulfiller implements PaymentFulfiller {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "회원 정보가 인증과 일치하지 않습니다.");
             }
             Order order = orderService.createMemberOrder(auth.userId(), orderItems);
+            order.recordPaymentKey(pgRef);
             return new FulfillResult(order.getId(), null);
         }
 
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(op.phone(), op.verificationCode(), op.name());
         OrderCreationResult result = orderService.createPaidOrder(guest.getId(), orderItems);
+        result.order().recordPaymentKey(pgRef);
         return new FulfillResult(result.order().getId(), result.rawAccessToken());
     }
 

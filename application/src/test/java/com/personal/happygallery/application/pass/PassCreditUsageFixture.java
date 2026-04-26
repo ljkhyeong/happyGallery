@@ -9,6 +9,7 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
@@ -102,20 +103,9 @@ final class PassCreditUsageFixture {
     }
 
     Long createPassBooking(Long slotId) throws Exception {
-        String response = mockMvc.perform(post("/api/v1/me/bookings")
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "slotId": %d,
-                                  "passId": %d
-                                }
-                                """.formatted(slotId, pass.getId())))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-        return BookingTestHelper.extractBookingId(response);
+        Long userId = pass.getUserId();
+        return PaymentTestHelper.createMemberPassBooking(mockMvc, sessionCookie, userId, slotId, pass.getId())
+                .domainId();
     }
 
     private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {

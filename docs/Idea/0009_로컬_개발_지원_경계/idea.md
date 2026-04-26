@@ -20,8 +20,9 @@
 | `LocalAdminSeedService` | 로컬 관리자 계정 seed | 동일 |
 | `LocalBookingClassSeedService` | 로컬 예약 클래스 데이터 seed | 동일 |
 | `LocalPhoneVerificationController` | 인증 코드 DB 직접 조회 API | **대체 불가** — 로컬에 SMS가 없으므로 프론트 E2E 인증 흐름 테스트에 필수 |
+| `LocalRefundFailureController` | 다음 환불 1건 실패 재현 API | 로컬 smoke/E2E에서 환불 실패와 관리자 재시도 흐름을 재현할 때 사용 |
 
-`LocalRefundFailureController`는 `RefundExecutionServiceUseCaseIT`가 동일 시나리오를 커버하고 프론트 E2E에서 사용되지 않아 삭제했다.
+현재 local dev 훅은 모두 `@Profile("local")`로 운영 프로필에서 제외한다.
 
 ---
 

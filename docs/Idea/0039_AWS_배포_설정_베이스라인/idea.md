@@ -480,6 +480,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 | `RATE_LIMIT_TRUST_FORWARDED=true` | ALB/CloudFront 뒤 실제 IP 기준 처리율 제한 유지 |
 | `SENTRY_ENVIRONMENT=production` | 백엔드 Sentry 환경값 |
 | `SENTRY_RELEASE` | 백엔드 배포 버전/commit 추적 |
+| `PASS_TOTAL_PRICE=240000` | 8회권 결제 금액. 운영 가격 변경 시 명시 주입 |
 
 ### 필수 비밀값
 
@@ -489,6 +490,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 | `APP_FIELD_ENCRYPTION_ENCRYPT_KEY` | 개인정보 필드 암호화 키 |
 | `APP_FIELD_ENCRYPTION_HMAC_KEY` | blind index / 검증용 HMAC 키 |
 | `SENTRY_DSN` | 백엔드 Sentry DSN |
+| `TOSS_SECRET_KEY` | Toss Payments secret key |
 
 ### 외부 연동 사용 시 필수값
 
@@ -528,6 +530,12 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 | `SMS_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
 | `SMS_MAX_CONNECTIONS` | `20` |
 | `SMS_KEEP_ALIVE_MILLIS` | `30000` |
+| `TOSS_BASE_URL` | `https://api.tosspayments.com` |
+| `TOSS_TIMEOUT_MILLIS` | `5000` |
+| `TOSS_CONNECT_TIMEOUT_MILLIS` | `2000` |
+| `TOSS_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
+| `TOSS_MAX_CONNECTIONS` | `10` |
+| `TOSS_KEEP_ALIVE_MILLIS` | `30000` |
 
 ### 메모
 
@@ -574,6 +582,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 |------|------|
 | `AWS_ROLE_TO_ASSUME` | GitHub Actions OIDC가 맡을 IAM 역할 ARN |
 | `VITE_SENTRY_DSN` | 프론트엔드 production build 시 주입하는 Sentry DSN |
+| `VITE_TOSS_CLIENT_KEY` | 프론트엔드 production build 시 주입하는 Toss client key |
 
 ### Variables
 
@@ -729,6 +738,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 - `app.field-encryption.encrypt-key`
 - `app.field-encryption.hmac-key`
 - `KAKAO_*`, `SMS_*`, `GOOGLE_OAUTH_*`
+- `TOSS_SECRET_KEY`
 - 백엔드 `SENTRY_DSN`
 
 ## 15. 다음에 이 문서에 이어서 넣을 항목

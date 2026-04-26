@@ -486,12 +486,12 @@ X-Access-Token: {accessToken}
 
 #### ~~2.5.1 게스트 8회권 구매~~ (2026-03-19 제거)
 
-> 8회권 구매는 회원 전용으로 전환됨. `POST /api/v1/me/passes` 참조.
+> 8회권 구매는 회원 전용으로 전환됨. 현재 구매 생성은 `POST /api/v1/payments/prepare` (`context=PASS`) → `POST /api/v1/payments/confirm`으로 처리한다. 2.15 결제 API 참조.
 > 비회원 소유 8회권 상태는 지원하지 않는다.
 
 #### ~~2.5.2 휴대폰 인증 기반 8회권 구매~~ (2026-03-19 제거)
 
-> 상동. 회원 8회권 구매는 `POST /api/v1/me/passes`로 단일화.
+> 상동. 회원 8회권 구매는 결제 API `context=PASS`로 단일화.
 
 #### 2.5.3 결석 처리
 
@@ -1191,6 +1191,7 @@ Cookie: HG_SESSION={sessionToken}
   - 응답: `204 No Content`
 - `POST /api/v1/me/cart/checkout`
   - 응답: 회원 주문 생성 응답(`MyOrderSummary`)과 동일
+  - 현재 결제 API 우회 경로다. `plan.md`의 `P1R-T1`에서 Toss `prepare/confirm` 경로로 전환하거나 명시적 후불 계약으로 분리한다.
 
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
@@ -1286,9 +1287,10 @@ POST /api/v1/products/{productId}/qna/{id}/verify
 
 ### 2.15 결제 API (`/api/v1/payments`)
 
-주문/예약/8회권 결제는 모두 단일 진입점 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm`으로 처리한다.
+주문/예약/8회권의 표준 결제 생성 경로는 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm`이다.
 서버가 `prepare` 단계에서 `orderId(UUID)`와 `amount`를 확정해 `payment_attempt` 레코드(`PENDING`)로 저장하고,
 프론트가 Toss 결제창을 통과한 뒤 `confirm`이 동일 `amount` 일치를 강제한 뒤 도메인 저장(주문/예약/8회권)을 수행한다.
+회원 장바구니 checkout 등 남은 우회 경로는 `plan.md`의 `P1R-T1` 후속 작업으로 닫는다.
 
 회원/비회원 구분은 요청 본문이 아니라 인증 컨텍스트(`HG_SESSION` 쿠키 유무)로 결정한다.
 8회권 사용 예약처럼 amount가 0이면 응답된 `amount=0`을 보고 프론트가 PG 호출 없이 `confirm`을 직접 호출한다.
@@ -1408,9 +1410,51 @@ Content-Type: application/json
   - `paymentKey`는 amount > 0 결제만 필수다. 8회권 사용 예약처럼 `payment_attempt.amount=0`인 경우 `paymentKey`는 비워서 보내고 PG 호출은 생략된다.
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
   - PG `confirm` 성공 후에만 도메인 저장(주문/예약/8회권 구매)이 수행되며, 단일 트랜잭션 안에서 처리된다.
+  - PG 원결제 참조값(`pgRef`, Toss는 `paymentKey`)은 `payment_attempt.pg_ref`와 생성된 도메인 레코드의 `payment_key`에 저장한다. 이후 환불은 해당 값을 PG cancel 호출의 원결제 식별자로 사용한다.
   - 비회원 경로의 `accessToken`(32자 hex)은 confirm 응답에서 1회만 반환되며 DB에는 SHA-256 해시만 저장된다. 회원 경로는 `accessToken=null`.
   - `domainId`는 context에 따라 `orderId`(`ORDER`), `bookingId`(`BOOKING`), `passId`(`PASS`)다.
   - 비회원 휴대폰 인증 실패는 confirm 단계에서 fulfillment가 호출하는 `VerifiedGuestResolver`가 던지는 `400 PHONE_VERIFICATION_FAILED`로 매핑된다.
+
+---
+
+### 2.16 클라이언트 모니터링 API
+
+프론트 전환 퍼널과 비회원 -> 회원 전환 CTA를 best-effort 로그로 남기는 API다.
+
+```http
+POST /api/v1/monitoring/client-events
+Content-Type: application/json
+
+{
+  "event": "GUEST_LOOKUP_ENTRY",
+  "path": "/guest",
+  "source": "home_lookup_panel",
+  "target": "guest_orders"
+}
+```
+
+- 성공: `204 No Content`
+- 정책:
+  - 인증은 선택이다. `HG_SESSION`이 있으면 `userId`를 함께 기록한다.
+  - `path`는 필수이며 최대 120자다.
+  - `source`, `target`은 선택이며 최대 80자다.
+  - 모니터링 실패는 사용자 핵심 플로우를 막지 않는 best-effort 성격으로 다룬다.
+
+### 2.17 local 전용 Dev API
+
+`local` 프로필에서만 등록되는 관리자 dev API다. 운영 프로필에서는 빈이 등록되지 않는다.
+
+#### 2.17.1 환불 실패 재현 훅
+
+- `POST /api/v1/admin/dev/payment/refunds/fail-next`
+  - 요청: `{ "reason": "로컬 smoke 강제 환불 실패" }` (본문 생략 가능)
+  - 응답: `{ "status": "ARMED", "reason": "..." }`
+- `DELETE /api/v1/admin/dev/payment/refunds/fail-next`
+  - 응답: `204 No Content`
+
+정책:
+- 관리자 Bearer 인증을 통과해야 한다.
+- 다음 PG 환불 1건만 실패시키고, 실패 사유는 재시도 검증에 사용한다.
 
 ---
 
