@@ -19,22 +19,26 @@ public class DefaultPassPurchaseService implements PassPurchaseUseCase {
 
     private final PassPurchaseStorePort passPurchaseStore;
     private final PassLedgerStorePort passLedgerStore;
+    private final PassPriceProperties priceProperties;
     private final Clock clock;
 
     public DefaultPassPurchaseService(PassPurchaseStorePort passPurchaseStore,
                                PassLedgerStorePort passLedgerStore,
+                               PassPriceProperties priceProperties,
                                Clock clock) {
         this.passPurchaseStore = passPurchaseStore;
         this.passLedgerStore = passLedgerStore;
+        this.priceProperties = priceProperties;
         this.clock = clock;
     }
 
-    /** 회원 8회권 구매. */
-    public PassPurchase purchaseForMember(Long userId, long totalPrice) {
+    /** 회원 8회권 구매. 가격은 서버 설정에서 주입. */
+    public PassPurchase purchaseForMember(Long userId) {
         ZonedDateTime now = ZonedDateTime.now(clock);
         LocalDateTime expiresAt = TimeBoundary.passExpiresAtLocal(now);
 
-        PassPurchase purchase = passPurchaseStore.save(PassPurchase.forMember(userId, expiresAt, totalPrice));
+        PassPurchase purchase = passPurchaseStore.save(
+                PassPurchase.forMember(userId, expiresAt, priceProperties.totalPrice()));
         passLedgerStore.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));
 
         return purchase;

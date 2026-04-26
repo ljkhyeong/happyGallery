@@ -72,6 +72,9 @@ public class Booking {
     @Column(name = "access_token", length = 64)
     private String accessToken;
 
+    @Column(name = "payment_key", length = 200)
+    private String paymentKey;
+
     /** 8회권 결제 연결 (V5에서 추가). null이면 예약금 결제. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pass_purchase_id")
@@ -144,6 +147,11 @@ public class Booking {
         this.guest = null;
     }
 
+    /** 결제 confirm 성공 후 PG 원결제 참조값을 저장한다. */
+    public void recordPaymentKey(String paymentKey) {
+        this.paymentKey = paymentKey;
+    }
+
     /** 8회권으로 결제된 예약인지 여부. */
     public boolean isPassBooking() {
         return passPurchase != null;
@@ -163,6 +171,7 @@ public class Booking {
     public long getVersion() { return version; }
     public DepositPaymentMethod getPaymentMethod() { return paymentMethod; }
     public String getAccessToken() { return accessToken; }
+    public String getPaymentKey() { return paymentKey; }
     public PassPurchase getPassPurchase() { return passPurchase; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

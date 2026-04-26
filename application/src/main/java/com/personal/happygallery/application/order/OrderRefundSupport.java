@@ -51,7 +51,8 @@ class OrderRefundSupport {
             inventoryService.restore(item.getProductId(), item.getQty());
         }
 
-        Refund refund = refundExecutionService.processOrderRefund(order.getId(), order.getTotalAmount());
+        Refund refund = refundExecutionService.processOrderRefund(
+                order.getId(), order.getTotalAmount(), order.getPaymentKey());
         if (refund.getStatus() == RefundStatus.SUCCEEDED) {
             eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(order.getGuestId(), NotificationEventType.ORDER_REFUNDED));
         }

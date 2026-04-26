@@ -1,57 +1,30 @@
-import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Container, Card, Form, Row, Col, Button } from "react-bootstrap";
+import { Container, Card, Button } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
-import { api } from "@/shared/api";
-import { ErrorAlert, useToast } from "@/shared/ui";
-import { formatKRW } from "@/shared/lib";
-
-interface MemberPassResponse {
-  passId: number;
-  purchasedAt: string;
-  expiresAt: string;
-  totalCredits: number;
-  remainingCredits: number;
-  totalPrice: number;
-}
+import { preparePayment, requestTossPayment, storePaymentReturnHint } from "@/features/payment";
+import { ErrorAlert } from "@/shared/ui";
 
 export function PassPurchasePage() {
-  const toast = useToast();
-  const { isAuthenticated } = useCustomerAuth();
+  const { isAuthenticated, user } = useCustomerAuth();
 
-  const [totalPrice, setTotalPrice] = useState("");
-  const [memberDone, setMemberDone] = useState(false);
-
-  const memberMutation = useMutation({
-    mutationFn: () =>
-      api<MemberPassResponse>("/me/passes", {
-        method: "POST",
-        body: { totalPrice: Number(totalPrice) || 0 },
-      }),
-    onSuccess: () => {
-      toast.show("8회권이 구매되었습니다!");
-      setMemberDone(true);
+  const purchaseMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("로그인이 필요합니다.");
+      const prep = await preparePayment("PASS", { type: "PASS", userId: user.id });
+      storePaymentReturnHint({ customerName: user.name, customerPhone: user.phone });
+      await requestTossPayment({
+        orderId: prep.orderId,
+        amount: prep.amount,
+        orderName: "8회권",
+        customerKey: `member_${user.id}`,
+        customerName: user.name,
+        customerMobilePhone: user.phone || undefined,
+      });
     },
   });
 
-  const priceValid = totalPrice === "" || Number(totalPrice) >= 0;
-
   const loginHref = buildAuthPageHref("/login", { redirectTo: "/passes/purchase" });
-
-  if (memberDone) {
-    return (
-      <Container className="page-container" style={{ maxWidth: 540 }}>
-        <h4 className="mb-4">구매 완료</h4>
-        <div className="text-center">
-          <p className="mb-3">8회권이 구매되었습니다.</p>
-          <Button as={"a" as any} href="/my/passes" variant="primary">
-            내 8회권 확인하기
-          </Button>
-        </div>
-      </Container>
-    );
-  }
 
   return (
     <Container className="page-container" style={{ maxWidth: 540 }}>
@@ -68,40 +41,23 @@ export function PassPurchasePage() {
 
       <Card className="mb-4">
         <Card.Body>
-          <h6 className="mb-3">구매 정보</h6>
-          <Row className="g-2 align-items-end">
-            <Col xs={8}>
-              <Form.Group controlId="pass-total-price">
-                <Form.Label>결제 금액 (원)</Form.Label>
-                <Form.Control
-                  type="number" min={0} value={totalPrice}
-                  onChange={(e) => setTotalPrice(e.target.value)}
-                  placeholder="0"
-                  isInvalid={totalPrice !== "" && Number(totalPrice) < 0}
-                />
-                <Form.Control.Feedback type="invalid">
-                  금액은 0원 이상이어야 합니다.
-                </Form.Control.Feedback>
-                <Form.Text className="text-muted">
-                  환불 시 잔여 횟수 기준으로 정산됩니다.
-                </Form.Text>
-              </Form.Group>
-            </Col>
-          </Row>
+          <h6 className="mb-2">결제 정보</h6>
+          <p className="text-muted-soft small mb-0">
+            결제 금액은 서버에서 확정되며, 다음 단계에서 토스 결제창으로 이동합니다.
+            환불 시 잔여 횟수 기준으로 정산됩니다.
+          </p>
         </Card.Body>
       </Card>
 
-      <ErrorAlert error={memberMutation.error} />
+      <ErrorAlert error={purchaseMutation.error} />
 
       {isAuthenticated ? (
         <Button
           variant="primary" size="lg" className="w-100"
-          disabled={!priceValid || memberMutation.isPending}
-          onClick={() => memberMutation.mutate()}
+          disabled={purchaseMutation.isPending}
+          onClick={() => purchaseMutation.mutate()}
         >
-          {memberMutation.isPending
-            ? "구매 처리 중..."
-            : `8회권 구매${totalPrice ? ` (${formatKRW(Number(totalPrice))})` : ""}`}
+          {purchaseMutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
         </Button>
       ) : (
         <Button

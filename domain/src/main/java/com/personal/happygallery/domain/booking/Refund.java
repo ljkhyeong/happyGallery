@@ -48,21 +48,22 @@ public class Refund {
 
     protected Refund() {}
 
-    private Refund(Booking booking, Long orderId, long amount) {
+    private Refund(Booking booking, Long orderId, long amount, String pgRef) {
         this.booking = booking;
         this.orderId = orderId;
         this.amount = amount;
+        this.pgRef = pgRef;
         this.status = RefundStatus.REQUESTED;
     }
 
-    /** 예약금 환불 요청 생성 (booking 취소 시). order_id, pg_ref는 null. */
+    /** 예약금 환불 요청 생성 (booking 취소 시). */
     public static Refund forBooking(Booking booking, long amount) {
-        return new Refund(booking, null, amount);
+        return new Refund(booking, null, amount, booking.getPaymentKey());
     }
 
     /** 주문 환불 요청 생성 (주문 거절/자동환불 시). booking은 null. */
-    public static Refund forOrder(Long orderId, long amount) {
-        return new Refund(null, orderId, amount);
+    public static Refund forOrder(Long orderId, long amount, String pgRef) {
+        return new Refund(null, orderId, amount, pgRef);
     }
 
     /** PG 환불 성공 처리 */

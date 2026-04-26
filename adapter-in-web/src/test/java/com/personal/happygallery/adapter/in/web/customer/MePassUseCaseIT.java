@@ -1,7 +1,9 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.application.notification.NotificationService;
+import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
+import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
@@ -30,11 +32,13 @@ class MePassUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
+    @Autowired UserReaderPort userReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
     Cookie sessionCookie;
+    Long userId;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -43,6 +47,7 @@ class MePassUseCaseIT {
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
         sessionCookie = signupAndGetSessionCookie("pass@test.com", "010-5555-6666");
+        userId = userReaderPort.findByEmail("pass@test.com").orElseThrow().getId();
     }
 
     @AfterEach
@@ -58,17 +63,15 @@ class MePassUseCaseIT {
     @DisplayName("회원 8회권 구매가 성공한다")
     @Test
     void purchaseMemberPass_success() throws Exception {
-        mockMvc.perform(post("/api/v1/me/passes")
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "totalPrice": 120000 }
-                                """))
-                .andExpect(status().isCreated())
+        Long passId = PaymentTestHelper.purchaseMemberPass(mockMvc, sessionCookie, userId).domainId();
+
+        mockMvc.perform(get("/api/v1/me/passes/{id}", passId)
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.passId").isNumber())
                 .andExpect(jsonPath("$.totalCredits").value(8))
                 .andExpect(jsonPath("$.remainingCredits").value(8))
-                .andExpect(jsonPath("$.totalPrice").value(120000));
+                .andExpect(jsonPath("$.totalPrice").value(240000));
     }
 
     @DisplayName("회원 8회권 목록을 조회한다")
@@ -94,7 +97,7 @@ class MePassUseCaseIT {
                 .andExpect(jsonPath("$.passId").value(passId))
                 .andExpect(jsonPath("$.totalCredits").value(8))
                 .andExpect(jsonPath("$.remainingCredits").value(8))
-                .andExpect(jsonPath("$.totalPrice").value(120000));
+                .andExpect(jsonPath("$.totalPrice").value(240000));
     }
 
     @DisplayName("인증 없이 회원 8회권 목록을 조회하면 401을 반환한다")
@@ -105,15 +108,7 @@ class MePassUseCaseIT {
     }
 
     private Long purchasePass() throws Exception {
-        String response = mockMvc.perform(post("/api/v1/me/passes")
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "totalPrice": 120000 }
-                                """))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return ((Number) com.jayway.jsonpath.JsonPath.read(response, "$.passId")).longValue();
+        return PaymentTestHelper.purchaseMemberPass(mockMvc, sessionCookie, userId).domainId();
     }
 
     private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {

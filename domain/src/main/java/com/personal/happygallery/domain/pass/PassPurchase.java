@@ -38,6 +38,9 @@ public class PassPurchase {
     @Column(name = "total_price", nullable = false)
     private long totalPrice;
 
+    @Column(name = "payment_key", length = 200)
+    private String paymentKey;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -117,6 +120,11 @@ public class PassPurchase {
         return (long) remainingCredits * unitPrice();
     }
 
+    /** 결제 confirm 성공 후 PG 원결제 참조값을 저장한다. */
+    public void recordPaymentKey(String paymentKey) {
+        this.paymentKey = paymentKey;
+    }
+
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public LocalDateTime getPurchasedAt() { return purchasedAt; }
@@ -124,5 +132,6 @@ public class PassPurchase {
     public int getTotalCredits() { return totalCredits; }
     public int getRemainingCredits() { return remainingCredits; }
     public long getTotalPrice() { return totalPrice; }
+    public String getPaymentKey() { return paymentKey; }
     public long getVersion() { return version; }
 }

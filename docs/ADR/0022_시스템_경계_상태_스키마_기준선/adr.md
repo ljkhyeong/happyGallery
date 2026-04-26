@@ -90,7 +90,7 @@
 - `orders`
   - `id`, `user_id nullable`, `guest_id nullable`
   - `access_token VARCHAR(64)` — SHA-256 hex 해시 저장
-  - `status`, `total_amount`, `paid_at`, `approval_deadline_at`, `bundle_id nullable`, `version`
+  - `status`, `total_amount`, `paid_at`, `approval_deadline_at`, `bundle_id nullable`, `payment_key nullable`, `version`
 - `order_items`
   - `id`, `order_id`, `product_id`, `qty`, `unit_price`
 - `order_approvals`
@@ -99,6 +99,9 @@
   - `id`, `order_id(unique)`, `type(SHIPPING|PICKUP)`, `expected_ship_date`, `pickup_deadline_at`, `version`
 - `refunds`
   - `id`, `order_id nullable`, `booking_id nullable`, `amount`, `status`, `pg_ref`, `fail_reason`, `created_at`
+- `payment_attempt`
+  - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
+  - `payment_key nullable`, `pg_ref nullable`, `payload_json`, `created_at`, `confirmed_at nullable`, `version`
 
 #### 클래스, 슬롯, 예약
 
@@ -110,7 +113,7 @@
   - `id`, `user_id nullable`, `guest_id nullable`
   - `access_token VARCHAR(64)` — 게스트 예약 조회용 SHA-256 hex 해시 저장
   - `class_id`, `slot_id`, `status`
-  - `deposit_amount`, `deposit_paid_at`
+  - `deposit_amount`, `deposit_paid_at`, `payment_key nullable`
   - `balance_amount`, `balance_status`, `arrears_flag`, `version`
 - `booking_history`
   - `id`, `booking_id`, `action`, `from_slot_id`, `to_slot_id`, `actor`, `reason`, `created_at`
@@ -129,13 +132,15 @@
 #### 8회권
 
 - `pass_purchases`
-  - `id`, `user_id`, `purchased_at`, `expires_at`, `total_credits=8`, `remaining_credits`, `total_price`, `version`
+  - `id`, `user_id`, `purchased_at`, `expires_at`, `total_credits=8`, `remaining_credits`, `total_price`, `payment_key nullable`, `version`
 - `pass_ledger`
   - `id`, `pass_purchase_id`, `type(EARN|USE|REFUND|EXPIRE)`, `amount`, `related_booking_id nullable`, `created_at`
 
 #### 주요 인덱스
 
 - `orders(status, created_at, id)` 커서 조회
+- `payment_attempt(order_id_external)` UNIQUE
+- `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
 - `inventory(product_id, version)`
 - `notification_log(user_id, sent_at DESC)`
 - `notification_log(guest_id, sent_at DESC)`

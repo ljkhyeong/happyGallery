@@ -4,6 +4,7 @@ import com.personal.happygallery.application.booking.port.in.MemberBookingUseCas
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.DepositCalculator;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -29,14 +30,14 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
 
     /**
      * 회원 예약을 생성한다. {@code passId}가 있으면 8회권 결제, 없으면 예약금 결제.
+     * 예약금은 서버가 슬롯 클래스 가격의 10%로 직접 산출한다.
      *
      * @param userId        인증된 회원 ID
      * @param slotId        예약 슬롯 ID
-     * @param depositAmount 예약금 (passId가 null일 때)
      * @param paymentMethod 결제 수단 (passId가 null일 때)
      * @param passId        8회권 ID (null이면 예약금 결제)
      */
-    public Booking createMemberBooking(Long userId, Long slotId, long depositAmount,
+    public Booking createMemberBooking(Long userId, Long slotId,
                                         DepositPaymentMethod paymentMethod, Long passId) {
 
         // 1. 슬롯 활성 여부 확인
@@ -56,6 +57,7 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
             booking = Booking.forMemberPass(userId, slot, pass);
         } else {
             creationSupport.requireValidDeposit(paymentMethod);
+            long depositAmount = DepositCalculator.of(slot);
             long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
             booking = Booking.forMemberDeposit(userId, slot, depositAmount, balanceAmount, paymentMethod);
         }

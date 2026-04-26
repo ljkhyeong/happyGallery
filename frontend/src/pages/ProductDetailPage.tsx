@@ -5,7 +5,12 @@ import { Container, Card, Badge, Button, Form, Row, Col } from "react-bootstrap"
 import { fetchProduct } from "@/features/product/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { api } from "@/shared/api";
+import {
+  preparePayment,
+  requestTossPayment,
+  storePaymentReturnHint,
+  type OrderPayload,
+} from "@/features/payment";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
 import { formatKRW, PRODUCT_TYPE_LABEL, PRODUCT_FULFILLMENT_LABEL } from "@/shared/lib";
@@ -14,20 +19,12 @@ import { useCart } from "@/features/cart/useCart";
 
 const MAX_QTY = 99;
 
-interface MemberOrderResponse {
-  orderId: number;
-  status: string;
-  totalAmount: number;
-  paidAt: string;
-  createdAt: string;
-}
-
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const productId = Number(id);
   const navigate = useNavigate();
   const toast = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useCustomerAuth();
 
   const [qty, setQty] = useState(1);
   const { addItem: addToCart } = useCart();
@@ -40,14 +37,24 @@ export function ProductDetailPage() {
   });
 
   const orderMutation = useMutation({
-    mutationFn: () =>
-      api<MemberOrderResponse>("/me/orders", {
-        method: "POST",
-        body: { items: [{ productId, qty }] },
-      }),
-    onSuccess: (order) => {
-      toast.show("주문이 완료되었습니다!");
-      navigate(`/my/orders/${order.orderId}`);
+    mutationFn: async () => {
+      if (!user) throw new Error("로그인이 필요합니다.");
+      const payload: OrderPayload = {
+        type: "ORDER",
+        userId: user.id,
+        name: user.name,
+        items: [{ productId, qty }],
+      };
+      const prep = await preparePayment("ORDER", payload);
+      storePaymentReturnHint({ customerName: user.name, customerPhone: user.phone });
+      await requestTossPayment({
+        orderId: prep.orderId,
+        amount: prep.amount,
+        orderName: product ? `${product.name} (${qty}개)` : `상품 주문 (${qty}개)`,
+        customerKey: `member_${user.id}`,
+        customerName: user.name,
+        customerMobilePhone: user.phone || undefined,
+      });
     },
   });
 
@@ -211,7 +218,7 @@ export function ProductDetailPage() {
                     ADD TO CART
                   </Button>
                   <p className="store-purchase-helper mb-0">
-                    주문이 완료되면 바로 내 주문 상세로 이동합니다.
+                    결제가 완료되면 바로 내 주문 상세로 이동합니다.
                   </p>
                 </>
               ) : !authLoading ? (

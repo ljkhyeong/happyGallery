@@ -32,8 +32,8 @@ public class RefundExecutionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Refund processOrderRefund(Long orderId, long amount) {
-        Refund refund = refundPort.save(Refund.forOrder(orderId, amount));
+    public Refund processOrderRefund(Long orderId, long amount, String pgRef) {
+        Refund refund = refundPort.save(Refund.forOrder(orderId, amount, pgRef));
         return executeRefund(refund, "orderId=" + orderId);
     }
 

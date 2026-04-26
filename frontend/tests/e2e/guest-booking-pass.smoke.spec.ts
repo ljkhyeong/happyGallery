@@ -2,21 +2,24 @@ import { expect, test } from "@playwright/test";
 import {
   adminCard,
   completeGuestAuthGate,
+  extractFirstNumber,
   fetchClasses,
   findUniqueSlotWindow,
   formatTimeTokenForUi,
+  installTossPaymentStub,
   loginAdmin,
   makePhoneNumber,
   makeUniqueLabel,
+  readRouterState,
   signupCustomer,
   toDateInput,
   toDateTimeLocalInput,
-  waitForBookingByPhone,
   waitForSlot,
 } from "./support";
-import { extractCodeText, successAlert } from "./ui-support";
 
 test("P8-2 슬롯 생성 후 예약 생성, 변경, 취소를 완주할 수 있다", async ({ page, request }) => {
+  await installTossPaymentStub(page);
+
   const classes = await fetchClasses(request);
   test.skip(classes.length === 0, "P8 booking flow requires at least one class in the local DB");
   const bookingClass = classes[0]!;
@@ -45,21 +48,18 @@ test("P8-2 슬롯 생성 후 예약 생성, 변경, 취소를 완주할 수 있�
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
   await page.getByLabel("날짜").fill(bookingDate);
   await page.locator(".list-group-item").filter({ hasText: formatTimeTokenForUi(firstSlot.startAt) }).first().click();
-  await page.getByLabel("예약금 (원)").fill("30000");
-  await page.getByRole("button", { name: /예약하기/ }).click();
+  await page.getByRole("button", { name: "결제 진행하기" }).click();
   await completeGuestAuthGate(page, phone, guestName);
 
-  await expect(successAlert(page, "예약이 완료되었습니다!")).toBeVisible();
-  const bookingToken = await extractCodeText(page);
-  const booking = await waitForBookingByPhone(request, bookingDate, phone);
+  await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
+  await page.getByRole("button", { name: "비회원 예약 확인하기" }).click();
+  const guestBookingState = await readRouterState<{ bookingId: number; token: string }>(page);
+  if (!guestBookingState?.bookingId) {
+    throw new Error("Guest booking id should be kept in router state");
+  }
+  expect(guestBookingState?.token, "Guest booking token should be kept in router state").toBeTruthy();
 
-  await page.goto("/guest");
-  await page.getByRole("link", { name: "비회원 예약 조회" }).click();
-  await page.getByLabel("예약 번호").fill(String(booking.bookingId));
-  await page.getByLabel("인증 토큰").fill(bookingToken);
-  await page.getByRole("button", { name: "예약 조회" }).click();
-
-  await expect(page.getByText(booking.bookingNumber)).toBeVisible();
+  await expect(page.getByText(bookingClass.name)).toBeVisible();
   await page.getByLabel("새 슬롯 ID").fill(String(secondSlot.id));
   await page.getByRole("button", { name: "예약 변경" }).click();
   await expect(page.getByText(`현재 슬롯: #${secondSlot.id}`)).toBeVisible();
@@ -70,6 +70,8 @@ test("P8-2 슬롯 생성 후 예약 생성, 변경, 취소를 완주할 수 있�
 });
 
 test("P8-3 회원은 8회권 구매 후 8회권으로 예약할 수 있다", async ({ page, request }) => {
+  await installTossPaymentStub(page);
+
   const classes = await fetchClasses(request);
   test.skip(classes.length === 0, "P8 pass flow requires at least one class in the local DB");
   const bookingClass = classes[0]!;
@@ -89,19 +91,24 @@ test("P8-3 회원은 8회권 구매 후 8회권으로 예약할 수 있다", asy
   await signupCustomer(page, "p8-pass-member");
 
   await page.goto("/passes/purchase");
-  await page.getByLabel("결제 금액 (원)").fill("120000");
-  await page.getByRole("button", { name: /8회권 구매/ }).click();
-  await expect(page.getByText("8회권 구매가 완료되었습니다!")).toBeVisible();
+  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
+  await page.getByRole("button", { name: "내 8회권 확인하기" }).click();
+  await expect(page).toHaveURL(/\/my\/passes$/);
+  const passCardText = await page.locator(".my-list-card").first().textContent();
+  if (!passCardText) {
+    throw new Error("Member pass list text was empty");
+  }
+  const passId = extractFirstNumber(passCardText, "8회권 #");
 
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
   await page.getByLabel("날짜").fill(slotDate);
   await page.locator(".list-group-item").filter({ hasText: formatTimeTokenForUi(slot.startAt) }).first().click();
   await page.getByLabel("8회권 사용").check();
-  await page.getByRole("button", { name: "예약하기" }).click();
+  await page.getByLabel("8회권 ID").fill(String(passId));
+  await page.getByRole("button", { name: "8회권으로 예약하기" }).click();
 
-  await expect(successAlert(page, "예약이 완료되었습니다!")).toBeVisible();
-  await page.getByRole("button", { name: "내 예약 상세 보기" }).click();
   await expect(page).toHaveURL(/\/my\/bookings\/\d+$/);
   await expect(page.getByText("8회권 사용")).toBeVisible();
 });

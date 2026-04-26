@@ -7,6 +7,7 @@ import com.personal.happygallery.application.customer.port.out.PhoneVerification
 import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.DepositCalculator;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
@@ -88,11 +89,12 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         String accessToken = issued.tokenHash();
 
         creationSupport.requireValidDeposit(command.paymentMethod());
-        long balanceAmount = slot.getBookingClass().getPrice() - command.depositAmount();
+        long depositAmount = DepositCalculator.of(slot);
+        long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
         Booking booking = Booking.forGuestDeposit(
                 guest,
                 slot,
-                command.depositAmount(),
+                depositAmount,
                 balanceAmount,
                 command.paymentMethod(),
                 accessToken);

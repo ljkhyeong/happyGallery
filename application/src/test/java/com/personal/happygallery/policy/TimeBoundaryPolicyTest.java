@@ -2,13 +2,16 @@ package com.personal.happygallery.policy;
 
 import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.domain.time.TimeBoundary;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
-
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,49 +28,24 @@ class TimeBoundaryPolicyTest {
 
     // ── D-1 환불 경계 ─────────────────────────────────────────────────────────
 
-    @DisplayName("체험일 자정 1분 전까지는 환불이 가능하다")
-    @Test
-    void refund_oneMinuteBefore_allowed() {
+    @DisplayName("체험일 자정 경계에 따라 환불 가능 여부가 달라진다")
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("refundBoundaryCases")
+    void refund_boundary(String caseName, Clock clock, boolean expected) {
         LocalDate experienceDate = LocalDate.of(2026, 3, 1);
-        ZonedDateTime deadline = experienceDate.atStartOfDay(Clocks.SEOUL); // 2026-03-01T00:00+09:00
 
-        Clock clock = Clock.fixed(deadline.minusMinutes(1).toInstant(), Clocks.SEOUL);
-
-        assertThat(TimeBoundary.isRefundable(experienceDate, clock)).isTrue();
-    }
-
-    @DisplayName("체험일 자정부터는 환불이 불가능하다")
-    @Test
-    void refund_atMidnight_notAllowed() {
-        LocalDate experienceDate = LocalDate.of(2026, 3, 1);
-        ZonedDateTime deadline = experienceDate.atStartOfDay(Clocks.SEOUL);
-
-        Clock clock = Clock.fixed(deadline.toInstant(), Clocks.SEOUL);
-
-        assertThat(TimeBoundary.isRefundable(experienceDate, clock)).isFalse();
+        assertThat(TimeBoundary.isRefundable(experienceDate, clock)).isEqualTo(expected);
     }
 
     // ── 당일 변경 경계 ────────────────────────────────────────────────────────
 
-    @DisplayName("체험 61분 전에는 예약 변경이 가능하다")
-    @Test
-    void change_61MinutesBefore_allowed() {
+    @DisplayName("체험 시작 1시간 경계에 따라 예약 변경 가능 여부가 달라진다")
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("changeBoundaryCases")
+    void change_boundary(String caseName, Clock clock, boolean expected) {
         ZonedDateTime slotStart = ZonedDateTime.of(2026, 3, 1, 14, 0, 0, 0, Clocks.SEOUL);
 
-        Clock clock = Clock.fixed(slotStart.minusMinutes(61).toInstant(), Clocks.SEOUL);
-
-        assertThat(TimeBoundary.isChangeable(slotStart, clock)).isTrue();
-    }
-
-    @DisplayName("체험 1시간 전 시점에는 예약 변경이 불가능하다")
-    @Test
-    void change_atOneHourBefore_notAllowed() {
-        ZonedDateTime slotStart = ZonedDateTime.of(2026, 3, 1, 14, 0, 0, 0, Clocks.SEOUL);
-        ZonedDateTime deadline = slotStart.minusHours(1); // 13:00
-
-        Clock clock = Clock.fixed(deadline.toInstant(), Clocks.SEOUL);
-
-        assertThat(TimeBoundary.isChangeable(slotStart, clock)).isFalse();
+        assertThat(TimeBoundary.isChangeable(slotStart, clock)).isEqualTo(expected);
     }
 
     // ── 8회권 90일 만료 ───────────────────────────────────────────────────────
@@ -90,5 +68,40 @@ class TimeBoundaryPolicyTest {
 
         assertThat(TimeBoundary.passNotificationAt(expiresAt))
                 .isEqualTo(ZonedDateTime.of(2026, 3, 25, 12, 0, 0, 0, Clocks.SEOUL));
+    }
+
+    private static Stream<Arguments> refundBoundaryCases() {
+        LocalDate experienceDate = LocalDate.of(2026, 3, 1);
+        ZonedDateTime deadline = experienceDate.atStartOfDay(Clocks.SEOUL);
+
+        return Stream.of(
+                Arguments.of(
+                        "체험일 자정 1분 전까지는 환불이 가능하다",
+                        Clock.fixed(deadline.minusMinutes(1).toInstant(), Clocks.SEOUL),
+                        true
+                ),
+                Arguments.of(
+                        "체험일 자정부터는 환불이 불가능하다",
+                        Clock.fixed(deadline.toInstant(), Clocks.SEOUL),
+                        false
+                )
+        );
+    }
+
+    private static Stream<Arguments> changeBoundaryCases() {
+        ZonedDateTime slotStart = ZonedDateTime.of(2026, 3, 1, 14, 0, 0, 0, Clocks.SEOUL);
+
+        return Stream.of(
+                Arguments.of(
+                        "체험 61분 전에는 예약 변경이 가능하다",
+                        Clock.fixed(slotStart.minusMinutes(61).toInstant(), Clocks.SEOUL),
+                        true
+                ),
+                Arguments.of(
+                        "체험 1시간 전 시점에는 예약 변경이 불가능하다",
+                        Clock.fixed(slotStart.minusHours(1).toInstant(), Clocks.SEOUL),
+                        false
+                )
+        );
     }
 }

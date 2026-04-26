@@ -9,6 +9,7 @@
 
 알림 발송과 Google OAuth 호출은 모두 외부 HTTP 의존성이 있다.  
 연결 풀 없이 호출하면 느린 외부 서비스 하나가 다른 호출까지 쉽게 끌어내린다.
+Toss Payments confirm/cancel 호출도 같은 외부 HTTP 경계에 포함된다.
 
 ---
 
@@ -22,6 +23,7 @@
   - Kakao 알림톡
   - NHN SMS
   - Google OAuth
+  - Toss Payments
 
 ### 2. 타임아웃과 풀 크기는 서비스별 프로퍼티로 관리한다
 
@@ -33,6 +35,7 @@
 - keep-alive: 30초
 - 알림(Kakao, SMS) max connections: 20
 - Google OAuth max connections: 10
+- Toss Payments max connections: 10
 
 ### 3. 외부 HTTP 설정도 전체 타임아웃 계층 안에서 정렬한다
 

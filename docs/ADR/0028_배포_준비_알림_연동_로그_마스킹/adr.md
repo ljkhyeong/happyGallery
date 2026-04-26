@@ -21,7 +21,7 @@
 - 기존 `FakeKakaoSender`/`FakeSmsSender`에 `@Profile("!prod")`를 추가해 비운영 전용으로 격리.
 - `KakaoAlimtalkSender`(`@Order(1)`, `@Profile("prod")`)와 `RealSmsSender`(`@Order(2)`, `@Profile("prod")`)를 신규 추가.
 - 기존 `NotificationSenderPort` + `@Order` fallback 체인을 그대로 활용해 서비스 계층 변경 없음.
-- infra 모듈에 `spring-web` 의존성을 추가하지 않기 위해 `java.net.http.HttpClient`를 사용.
+- `RestClient` + Apache HttpClient 5 연결 풀을 사용한다. 서비스별 풀 기준은 `ADR-0029`를 따른다.
 - 외부 설정: `app.external.kakao.*`, `app.external.sms.*` (`application.yml`에 환경변수 바인딩).
 - `KakaoNotificationProperties`, `SmsNotificationProperties`를 `@ConfigurationProperties` record로 정의.
 
@@ -64,8 +64,12 @@
 
 - **번들 결제** (PRD §6): 스키마 준비 완료(`bundle_id nullable`), 구현은 Phase 2.
 - **Email/Push 알림 채널** (PRD §7): `NotificationChannel` enum에 값 존재, 어댑터 미구현.
-- **PG 실 연동**: `FakePaymentProvider` 유지. CircuitBreaker/timeout은 프로덕션 준비 완료.
 - **Tomcat internal-proxies**: Nginx 앞에 ALB 등 외부 프록시가 추가되면 설정 필요 (`docs/Idea/0027`).
+
+## Update (2026-04-26)
+
+- PG 실 연동 제외 항목은 해소됐다. 운영(`prod`)은 `TossPaymentsProvider`, 비운영(`!prod`)은 `FakePaymentProvider`를 사용한다.
+- Toss confirm/cancel도 `CircuitBreakerPaymentProvider`와 전용 pooled `RestClient` 경계를 통과한다.
 
 ## 참고
 

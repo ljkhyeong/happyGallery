@@ -4,8 +4,6 @@ import type {
   PublicSlotResponse,
   SendVerificationRequest,
   SendVerificationResponse,
-  CreateGuestBookingRequest,
-  BookingResponse,
 } from "@/shared/types";
 
 export function fetchClasses(): Promise<ClassResponse[]> {
@@ -21,8 +19,4 @@ export function sendVerification(body: SendVerificationRequest): Promise<SendVer
     method: "POST",
     body,
   });
-}
-
-export function createGuestBooking(body: CreateGuestBookingRequest): Promise<BookingResponse> {
-  return api<BookingResponse>("/bookings/guest", { method: "POST", body });
 }

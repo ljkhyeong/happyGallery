@@ -98,6 +98,23 @@ class AdminBookingQueryUseCaseIT {
         });
     }
 
+    @DisplayName("관리자 예약 목록은 회원 예약이 없는 날의 비회원 예약도 조회한다")
+    @Test
+    void listBookings_guestOnly_returnsGuestBookings() {
+        LocalDate targetDate = LocalDate.now(clock).plusDays(2);
+        LocalDateTime slotStart = targetDate.atTime(10, 0);
+
+        saveGuestBooking(slotStart, "게스트전용 클래스", "GUEST_ONLY", "게스트", "01012121212");
+
+        List<AdminBookingResponse> responses = adminBookingQueryService.listBookings(targetDate, null);
+
+        assertSoftly(softly -> {
+            softly.assertThat(responses).hasSize(1);
+            softly.assertThat(responses.getFirst().bookerType()).isEqualTo("GUEST");
+            softly.assertThat(responses.getFirst().bookerPhone()).isEqualTo("01012121212");
+        });
+    }
+
     // ── reminder batch: claimed booking ──────────────────────
 
     @DisplayName("D-1 리마인드 배치는 claimed 예약에도 알림을 발송한다")

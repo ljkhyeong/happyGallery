@@ -7,18 +7,19 @@
 
 ## Active Goal
 
-**(2026-04-21 갱신)** Track 1~5는 모두 완료. 현재 활성 목표는 **Track 6 — 돈·신원 경로 복원**.
+**(2026-04-26 갱신)** Track 1~5는 모두 완료. **Track 6 Phase 1 — Toss 결제 전환 복구는 완료**했고, 현재 활성 목표는 결제 전환 후 남은 우회 경로·운영 설정·테스트 공백을 닫은 뒤 Phase 2/3 신원 경로를 진행하는 것이다.
 플랜 전문: `~/.claude/plans/imperative-greeting-barto.md`
 
-운영에 남은 구조적 애로 3건을 복원한다:
-- 결제 없이 구매가 성공(PG 호출 없음)
+남은 구조적 애로:
+- cart checkout 기반 결제 우회 주문 경로가 일부 남아 있음
+- 결제 엔드포인트 기준 rate limit/운영 배포 설정이 완전히 전환되지 않음
 - SMS 인증 코드가 실제 발송되지 않음(로그만)
 - 회원 가입 시 휴대폰 소유 확인 없음
 
-접근: Toss Payments 직결(prepare/confirm) + `PhoneVerificationSender` 전용 포트 + `PhoneOwnershipVerificationUseCase` 신규.
+접근: 결제 전환 후속 리팩토링을 짧게 닫고, `PhoneVerificationSender` 전용 포트와 `PhoneOwnershipVerificationUseCase`를 순차 도입한다.
 
 우선순위:
-1. Phase 1 — Toss 결제 연동
+1. Phase 1 후속 — 결제 전환 우회 경로/운영/E2E 정리
 2. Phase 2 — SMS 실발송
 3. Phase 3 — 회원가입 소유 확인
 
@@ -149,20 +150,35 @@
 
 **마이그레이션 번호 주의**: 플랜 원문의 V31/V32는 이미 `V31__cleanup_redundant_indexes.sql`이 점유 → **V32/V33으로 shift**.
 
-### Phase 1 — Toss Payments 실결제 연동
+### Phase 1 — Toss Payments 실결제 연동 (DONE)
 
 | Task | 상태 | 범위 | 완료 기준 |
 |------|------|------|-----------|
-| `P1-T1` | progress | port 시그니처 | `PaymentPort.confirm(paymentKey, orderId, amount)` 추가, `PaymentConfirmResult` record (scaffolding 됨, 미커밋) |
-| `P1-T2` | todo | 도메인 | `PaymentAttempt` entity (orderIdExternal UNIQUE, context/status state machine, `requireConfirmable`/`markConfirmed`) |
-| `P1-T3` | todo | DB | V32 `payment_attempt`, V33 `orders/bookings/pass_purchases.payment_key` |
-| `P1-T4` | todo | 영속 어댑터 | `PaymentAttemptJpaRepository` + Store/Reader port + adapter |
-| `P1-T5` | todo | PG 어댑터 | `TossPaymentsProvider` `@Profile("prod")`, `FakePaymentProvider` `@Profile("!prod")` + `.confirm()`, `CircuitBreakerPaymentProvider.confirm()` wrapping |
-| `P1-T6` | todo | UseCase | `PaymentPrepareUseCase`/`PaymentConfirmUseCase` + Order/Booking/Pass Preparer·Fulfiller |
-| `P1-T7` | todo | 서비스 리팩토링 | `OrderService.createPaidOrder`/`DefaultGuest|MemberBookingService`/`DefaultPassPurchaseService` entry 전환, `PassPriceProperties` 신규, `DepositCalculator` 규칙 확정 |
-| `P1-T8` | todo | 컨트롤러 | `PaymentController` 신규 + 기존 `POST /api/v1/orders` / `POST /api/v1/bookings` / `POST /api/v1/me/passes` 제거 |
-| `P1-T9` | todo | 프론트 | `frontend/src/features/payment/TossCheckout.tsx`+api, success/fail 라우트, 3개 페이지 전환 |
-| `P1-T10` | todo | 빌드 | `./gradlew test` + `:application:useCaseTest` + `:application:policyTest` + `:bootstrap:bootJar -x test` 모두 green |
+| `P1-T1` | done | port 시그니처 | `PaymentPort.confirm(paymentKey, orderId, amount)` 추가, `PaymentConfirmResult` record |
+| `P1-T2` | done | 도메인 | `PaymentAttempt` entity (orderIdExternal UNIQUE, context/status state machine, `requireConfirmable`/`markConfirmed`) |
+| `P1-T3` | done | DB | V32 `payment_attempt`, V33 `orders/bookings/pass_purchases.payment_key` |
+| `P1-T4` | done | 영속 어댑터 | `PaymentAttemptRepository` + Store/Reader port |
+| `P1-T5` | done | PG 어댑터 | `TossPaymentsProvider` `@Profile("prod")`, `FakePaymentProvider` `@Profile("!prod")` + `.confirm()`, `CircuitBreakerPaymentProvider.confirm()` wrapping |
+| `P1-T6` | done | UseCase | `PaymentPrepareUseCase`/`PaymentConfirmUseCase` + Order/Booking/Pass Preparer·Fulfiller |
+| `P1-T7` | done | 서비스 리팩토링 | 생성 진입점은 confirm 경로로 전환, `PassPriceProperties` 신규, `DepositCalculator` 규칙 확정, 도메인 `payment_key` 저장과 환불 참조값 연결 |
+| `P1-T8` | done | 컨트롤러 | `PaymentController` 신규 + 기존 생성 POST 제거 |
+| `P1-T9` | done | 프론트 | `frontend/src/features/payment/TossCheckout.ts`+api, success/fail 라우트, 3개 페이지 전환 |
+| `P1-T10` | done | 빌드 | 2026-04-26 `:application:test`, `:application:useCaseTest`, `:adapter-in-web:test`, `:application:policyTest`, `:bootstrap:bootJar -x test`, `./gradlew --no-daemon test`, `frontend npm run build` PASS |
+
+### Phase 1 후속 — 결제 전환 리팩토링 태스크
+
+| Task | 상태 | 범위 | 완료 기준 |
+|------|------|------|-----------|
+| `P1R-T1a` | done | ProductDetail 회원 즉시 주문 | `ProductDetailPage`의 `/me/orders` 직접 POST를 Toss `prepare/confirm` 경로로 전환 |
+| `P1R-T1b` | todo | cart checkout 경로 정리 | `/me/cart/checkout` 기반 즉시 주문을 Toss `prepare/confirm` 경로로 전환하거나, 정책상 유지할 경로라면 명시적 무결제/후불 계약으로 분리하고 문서화 |
+| `P1R-T2` | todo | rate limit 정책 전환 | `RateLimitFilter`의 구 booking/pass 생성 rule을 `/payments/prepare`, `/payments/confirm` 중심으로 재설계하고 테스트 갱신 |
+| `P1R-T3` | done | 프론트 E2E 갱신 | Toss SDK stub 기반으로 P8-2~P8-9 smoke flow를 현재 prepare/confirm UI에 맞게 갱신 |
+| `P1R-T4` | todo | confirm 멱등성/동시성 보강 | `PaymentAttempt` confirm 조회에 잠금 또는 claim 상태를 도입하고, 중복 confirm/동시 confirm 회귀 테스트 추가 |
+| `P1R-T5` | todo | 금액 스냅샷 불변식 점검 | prepare 시 확정한 금액과 fulfill 시 생성되는 도메인 금액이 어긋나지 않도록 snapshot/assertion을 보강 |
+| `P1R-T6` | todo | stale DTO/type 정리 | 제거된 생성 POST용 request DTO와 프론트 타입을 실제 사용 여부 기준으로 삭제하거나 이름/용도를 갱신 |
+| `P1R-T7` | todo | 운영 배포 설정 반영 | GitHub Actions frontend build에 `VITE_TOSS_CLIENT_KEY` 주입, ECS task definition/secret에 `TOSS_SECRET_KEY` 반영 여부 확인 |
+| `P1R-T8a` | done | 로컬 결제 smoke 검증 | Docker MySQL/Redis + bootRun + HTTP/manual 및 Playwright P8 smoke로 주문/예약/8회권 결제와 환불 실패 재시도 확인 |
+| `P1R-T8b` | todo | 결제 경계 추가 수동 검증 | 중복 confirm 거부와 운영 Toss 테스트 key 기반 샘플 결제 확인 |
 
 ### Phase 2 — SMS 인증 실발송
 
@@ -197,11 +213,11 @@ HTTPS 구성, 비밀번호 복잡도, Grafana/Prometheus 인증, ADMIN 링크 UX
 ## Execution Order
 
 1. `Track 1`~`Track 5`: 완료 (2026-04 이전)
-2. **`Track 6` Phase 1 → Phase 2 → Phase 3** (현재)
+2. **`Track 6` Phase 1 후속 → Phase 2 → Phase 3** (현재)
 3. 각 Phase 종료 시 문서 동기화 (HANDOFF + PRD-0001 + PRD-0004 + ADR-0008/0020/0031(신규))
 
 이 순서를 택하는 이유:
-- 외부 노출 취약점과 운영 누락을 먼저 막아야 한다.
+- 결제 우회 경로와 운영 누락을 먼저 막아야 한다.
 - token 계약과 구조 리팩토링은 영향 범위가 넓으므로, 안전망 테스트를 먼저 늘려야 한다.
 - ADR/문서 정리는 구현 방향이 확정된 뒤 한 번에 맞추는 편이 비용이 낮다.
 

@@ -2,9 +2,13 @@ package com.personal.happygallery.policy;
 
 import com.personal.happygallery.domain.booking.SlotBufferPolicy;
 import java.time.LocalDateTime;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,50 +36,27 @@ class SlotBufferPolicyTest {
                 .isEqualTo(END_AT.plusMinutes(BUFFER_MIN));
     }
 
-    @DisplayName("슬롯 시작 시각이 종료 시각과 같으면 버퍼 구간에 포함된다")
-    @Test
-    void slotAtEndAt_isInsideWindow() {
-        // start_at == end_at → 포함(inclusive)
-        LocalDateTime candidateStart = END_AT;
+    @DisplayName("슬롯 시작 시각에 따라 버퍼 구간 포함 여부가 달라진다")
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("bufferWindowMembershipCases")
+    void bufferWindowMembership(String caseName, LocalDateTime candidateStart, boolean expected) {
         LocalDateTime windowStart = SlotBufferPolicy.bufferWindowStart(END_AT);
-        LocalDateTime windowEnd   = SlotBufferPolicy.bufferWindowEnd(END_AT, BUFFER_MIN);
+        LocalDateTime windowEnd = SlotBufferPolicy.bufferWindowEnd(END_AT, BUFFER_MIN);
 
-        assertThat(isInWindow(candidateStart, windowStart, windowEnd)).isTrue();
-    }
-
-    @DisplayName("슬롯 시작 시각이 종료 1분 후면 버퍼 구간에 포함된다")
-    @Test
-    void slotOneMinuteAfterEndAt_isInsideWindow() {
-        LocalDateTime candidateStart = END_AT.plusMinutes(1);
-        LocalDateTime windowStart = SlotBufferPolicy.bufferWindowStart(END_AT);
-        LocalDateTime windowEnd   = SlotBufferPolicy.bufferWindowEnd(END_AT, BUFFER_MIN);
-
-        assertThat(isInWindow(candidateStart, windowStart, windowEnd)).isTrue();
-    }
-
-    @DisplayName("슬롯 시작 시각이 버퍼 종료 시각과 같으면 버퍼 구간에서 제외된다")
-    @Test
-    void slotAtWindowEnd_isOutsideWindow() {
-        // start_at == end_at + bufferMin → 미포함(exclusive)
-        LocalDateTime candidateStart = END_AT.plusMinutes(BUFFER_MIN);
-        LocalDateTime windowStart = SlotBufferPolicy.bufferWindowStart(END_AT);
-        LocalDateTime windowEnd   = SlotBufferPolicy.bufferWindowEnd(END_AT, BUFFER_MIN);
-
-        assertThat(isInWindow(candidateStart, windowStart, windowEnd)).isFalse();
-    }
-
-    @DisplayName("슬롯 시작 시각이 종료 시각보다 이르면 버퍼 구간에서 제외된다")
-    @Test
-    void slotBeforeEndAt_isOutsideWindow() {
-        LocalDateTime candidateStart = END_AT.minusMinutes(1);
-        LocalDateTime windowStart = SlotBufferPolicy.bufferWindowStart(END_AT);
-        LocalDateTime windowEnd   = SlotBufferPolicy.bufferWindowEnd(END_AT, BUFFER_MIN);
-
-        assertThat(isInWindow(candidateStart, windowStart, windowEnd)).isFalse();
+        assertThat(isInWindow(candidateStart, windowStart, windowEnd)).isEqualTo(expected);
     }
 
     /** Repository 쿼리 조건과 동일: start >= windowStart AND start < windowEnd */
     private boolean isInWindow(LocalDateTime start, LocalDateTime windowStart, LocalDateTime windowEnd) {
         return !start.isBefore(windowStart) && start.isBefore(windowEnd);
+    }
+
+    private static Stream<Arguments> bufferWindowMembershipCases() {
+        return Stream.of(
+                Arguments.of("슬롯 시작 시각이 종료 시각과 같으면 버퍼 구간에 포함된다", END_AT, true),
+                Arguments.of("슬롯 시작 시각이 종료 1분 후면 버퍼 구간에 포함된다", END_AT.plusMinutes(1), true),
+                Arguments.of("슬롯 시작 시각이 버퍼 종료 시각과 같으면 버퍼 구간에서 제외된다", END_AT.plusMinutes(BUFFER_MIN), false),
+                Arguments.of("슬롯 시작 시각이 종료 시각보다 이르면 버퍼 구간에서 제외된다", END_AT.minusMinutes(1), false)
+        );
     }
 }

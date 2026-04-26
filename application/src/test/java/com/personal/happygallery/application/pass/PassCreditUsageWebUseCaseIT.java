@@ -6,6 +6,7 @@ import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
 import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
@@ -59,16 +60,17 @@ class PassCreditUsageWebUseCaseIT {
     void bookWithPass_returnsBookedResponse() throws Exception {
         var slot = fixture.createFutureSlot();
 
-        fixture.mockMvc().perform(post("/api/v1/me/bookings")
-                        .cookie(fixture.sessionCookie())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "slotId": %d,
-                                  "passId": %d
-                                }
-                                """.formatted(slot.getId(), fixture.pass().getId())))
-                .andExpect(status().isCreated())
+        PaymentTestHelper.ConfirmedPayment confirmed = PaymentTestHelper.createMemberPassBooking(
+                fixture.mockMvc(),
+                fixture.sessionCookie(),
+                fixture.pass().getUserId(),
+                slot.getId(),
+                fixture.pass().getId());
+
+        fixture.mockMvc().perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                        "/api/v1/me/bookings/{id}", confirmed.domainId())
+                        .cookie(fixture.sessionCookie()))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("BOOKED"));
     }
 
@@ -127,15 +129,26 @@ class PassCreditUsageWebUseCaseIT {
         fixture.pass().expire();
         passPurchaseStorePort.save(fixture.pass());
 
-        fixture.mockMvc().perform(post("/api/v1/me/bookings")
+        PaymentTestHelper.PreparedPayment prepared = PaymentTestHelper.preparePayment(fixture.mockMvc(), "BOOKING", """
+                {
+                  "type": "BOOKING",
+                  "userId": %d,
+                  "slotId": %d,
+                  "passId": %d
+                }
+                """.formatted(fixture.pass().getUserId(), fixture.createFutureSlot().getId(), fixture.pass().getId()),
+                fixture.sessionCookie());
+
+        fixture.mockMvc().perform(post("/api/v1/payments/confirm")
                         .cookie(fixture.sessionCookie())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "slotId": %d,
-                                  "passId": %d
+                                  "paymentKey": null,
+                                  "orderId": "%s",
+                                  "amount": %d
                                 }
-                                """.formatted(fixture.createFutureSlot().getId(), fixture.pass().getId())))
+                                """.formatted(prepared.orderId(), prepared.amount())))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("PASS_CREDIT_INSUFFICIENT"));
     }
