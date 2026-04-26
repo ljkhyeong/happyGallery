@@ -37,8 +37,9 @@
 ## 3. 비즈니스 규칙(확정)
 ### 3.1 공예품 주문(온라인/오프라인 재고 공유)
 - 주문 주체: **회원** 또는 **비회원(휴대폰 인증)**
-  - 회원 주문: `/api/v1/me/orders`로 생성, 추가 토큰 없이 세션 기반 조회
-  - 비회원 주문: `/api/v1/orders`로 생성, 접근 토큰으로 조회
+  - 회원·비회원 모두 `/api/v1/payments/prepare` (`context=ORDER`) → `/api/v1/payments/confirm`으로 결제·생성한다. 회원/비회원 구분은 `HG_SESSION` 세션 유무로 결정한다.
+  - 회원 주문은 추가 토큰 없이 세션 기반으로 조회한다.
+  - 비회원 주문은 confirm 응답으로 받은 접근 토큰(`X-Access-Token` 헤더)으로 조회한다.
 - 회원은 장바구니에 여러 상품을 담아 한 번에 주문으로 전환할 수 있다.
 - 재고는 온라인/오프라인 **하나로 공유**한다.
 - 재고 차감 타이밍: **결제 완료 시 즉시 차감**
@@ -83,8 +84,10 @@
 ## 4. 체험(예약) 규칙(확정)
 ### 4.1 슬롯/정원
 - 예약 주체: **회원** 또는 **비회원(휴대폰 인증)**
-  - 회원 예약: `/api/v1/me/bookings`로 생성, 추가 토큰 없이 세션 기반 조회/변경/취소
-  - 비회원 예약: `/api/v1/bookings/guest`로 생성, `X-Access-Token` 헤더로 조회/변경/취소
+  - 회원·비회원 모두 `/api/v1/payments/prepare` (`context=BOOKING`) → `/api/v1/payments/confirm`으로 결제·생성한다. 회원/비회원 구분은 `HG_SESSION` 세션 유무로 결정한다.
+  - 회원 8회권 사용 예약은 `payload.passId`를 채워 prepare 단계에서 `amount=0`을 받고, PG 호출 없이 confirm을 직접 호출한다.
+  - 회원 예약은 추가 토큰 없이 세션 기반으로 조회/변경/취소한다.
+  - 비회원 예약은 confirm 응답으로 받은 접근 토큰(`X-Access-Token` 헤더)으로 조회/변경/취소한다.
   - 비회원이 회원가입 후 기존 이력 가져오기(claim)로 예약을 이전하면 `bookings.user_id`가 설정된다.
 - 관리자 운영(예약 목록, 리마인더 배치)은 비회원, 회원, 이전 완료 예약을 모두 포함한다.
 - 관리자는 날짜별 예약 목록 외에 상태/기간/키워드 검색으로 운영 대상을 찾을 수 있다.
@@ -168,6 +171,16 @@
 - 비회원 예약/주문 생성 시 접근 토큰(32자 hex)을 1회 발급하고, DB에는 SHA-256 해시만 저장한다 ([ADR-0024](../../ADR/0024_비회원_토큰_강화/adr.md))
 - 조회/변경/취소는 `X-Access-Token` 헤더로 토큰 전달 (URL 노출 방지)
 - 동일 전화번호로 동일 슬롯 중복 예약은 방지
+
+## 8.1 결제 진입점 (prepare/confirm)
+- 모든 도메인(`ORDER`, `BOOKING`, `PASS`) 결제는 `/api/v1/payments/prepare` → `/api/v1/payments/confirm` 단일 진입점을 사용한다.
+- prepare 단계에서 서버가 `orderId(UUID)`와 `amount`를 확정해 `payment_attempt`(`PENDING`)로 저장한다. 클라이언트가 보낸 amount는 신뢰하지 않는다.
+- 산출 규칙:
+    - 주문: 항목별 `productId.price × qty` 합계 (단가는 서버 재조회)
+    - 예약금: `slot.bookingClass.price × 10%`
+    - 8회권: `app.pass.total-price` 환경 변수 (`PASS_TOTAL_PRICE`, 기본 240,000원)
+- confirm 단계에서 PG `paymentKey`와 `amount`가 prepare 시점 amount와 다르면 거절한다.
+- 8회권 사용 예약은 prepare에서 `amount=0`을 받고 PG 호출 없이 confirm을 직접 호출한다.
 
 ---
 

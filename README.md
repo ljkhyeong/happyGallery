@@ -8,6 +8,7 @@
 - 주문: 온라인과 오프라인이 같은 재고를 공유한다. 결제 시 재고를 차감하고, 관리자가 24시간 안에 승인 또는 거절한다. 미처리 주문은 자동 환불된다.
 - 예약: 클래스와 시간 슬롯, 정원을 관리한다. 예약금은 클래스 가격의 10%이며, 전날 00:00 이후에는 환불할 수 없고 시작 1시간 전까지만 변경할 수 있다.
 - 8회권: 회원 전용이다. 결제일 기준 90일 유효하며, 환불 시 미래 예약을 자동 취소한다.
+- 결제: 주문/예약/8회권 모두 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm` 2단계 진입점을 사용한다. 서버가 `amount`를 확정해 `payment_attempt`로 보관하고, Toss Payments confirm 성공 시 도메인을 저장한다.
 - 인증: 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
 
 ## 운영 환경
@@ -141,6 +142,16 @@ docker compose up -d --build
 - `local`이 아닌 환경에서 관리자 계정이 없으면 `ADMIN_SETUP_TOKEN`을 주입한 뒤 `/api/v1/admin/setup`으로 최초 계정을 만든다.
 - 계정 생성 가능 여부는 `/api/v1/admin/setup/status`에서 확인할 수 있다.
 - 최초 관리자 계정 생성이 끝나면 `ADMIN_SETUP_TOKEN`은 제거한다.
+
+### 결제 환경 변수
+
+| 이름 | 적용 위치 | 기본값 | 설명 |
+| --- | --- | --- | --- |
+| `TOSS_SECRET_KEY` | 백엔드 (`prod` 프로필) | (없음) | Toss Payments secret key. 비어 있으면 `FakePaymentProvider`가 동작한다. |
+| `TOSS_BASE_URL` | 백엔드 | `https://api.tosspayments.com` | Toss API base URL. |
+| `TOSS_TIMEOUT_MILLIS` | 백엔드 | `5000` | Toss confirm/cancel HTTP 타임아웃. |
+| `VITE_TOSS_CLIENT_KEY` | 프론트 | (없음) | Toss SDK client key. 운영 빌드에 주입한다. |
+| `PASS_TOTAL_PRICE` | 백엔드 | `240000` | 8회권 결제 금액(원). prepare 단계에서 서버가 사용한다. |
 
 ## 자주 쓰는 명령어
 
