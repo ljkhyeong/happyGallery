@@ -4,23 +4,24 @@ import {
   completeGuestAuthGate,
   completeLockedPhoneVerification,
   completePhoneVerification,
-  extractFirstNumber,
   fetchClasses,
   findUniqueSlotWindow,
   formatTimeTokenForUi,
+  installTossPaymentStub,
   loginAdmin,
   makePhoneNumber,
   makeUniqueLabel,
+  readRouterState,
   signupCustomer,
   toDateInput,
   toDateTimeLocalInput,
-  waitForBookingByPhone,
   waitForProduct,
   waitForSlot,
 } from "./support";
-import { navLoginLink, navLogoutButton, successAlert } from "./ui-support";
 
 test("P8-8 회원은 같은 번호의 비회원 주문과 예약을 claim 할 수 있다", async ({ page, request }) => {
+  await installTossPaymentStub(page);
+
   const productName = makeUniqueLabel("P8-claim-order");
   const classes = await fetchClasses(request);
   test.skip(classes.length === 0, "P8 guest claim flow requires at least one class in the local DB");
@@ -56,23 +57,28 @@ test("P8-8 회원은 같은 번호의 비회원 주문과 예약을 claim 할 �
   await page.getByLabel("상품").selectOption(String(product.id));
   await page.getByLabel("수량").fill("1");
   await page.getByRole("button", { name: "추가" }).click();
-  await page.getByRole("button", { name: "주문하기", exact: true }).click();
-  await expect(successAlert(page, "주문이 완료되었습니다!")).toBeVisible();
-  const orderCardText = await page.locator(".card").last().textContent();
-  if (!orderCardText) {
-    throw new Error("Order success card text was empty");
+  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
+  await page.getByRole("button", { name: "비회원 주문 확인하기" }).click();
+  const guestOrderState = await readRouterState<{ orderId: number; token: string }>(page);
+  const orderId = guestOrderState?.orderId;
+  if (!orderId) {
+    throw new Error("Guest order id should be kept in router state");
   }
-  const orderId = extractFirstNumber(orderCardText, "주문 #");
 
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
   await page.getByLabel("날짜").fill(slotDate);
   await page.locator(".list-group-item").filter({ hasText: formatTimeTokenForUi(slot.startAt) }).first().click();
-  await page.getByLabel("예약금 (원)").fill("30000");
-  await page.getByRole("button", { name: /예약하기/ }).click();
+  await page.getByRole("button", { name: "결제 진행하기" }).click();
   await completeGuestAuthGate(page, guestPhone, guestName);
-  await expect(successAlert(page, "예약이 완료되었습니다!")).toBeVisible();
-  const booking = await waitForBookingByPhone(request, slotDate, guestPhone);
+  await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
+  await page.getByRole("button", { name: "비회원 예약 확인하기" }).click();
+  const guestBookingState = await readRouterState<{ bookingId: number; token: string }>(page);
+  const bookingId = guestBookingState?.bookingId;
+  if (!bookingId) {
+    throw new Error("Guest booking id should be kept in router state");
+  }
 
   await signupCustomer(page, "p8-member-claim", { phone: memberPhone });
   await page.goto("/my");
@@ -85,7 +91,7 @@ test("P8-8 회원은 같은 번호의 비회원 주문과 예약을 claim 할 �
 
   await expect(claimDialog.getByText("확인 완료")).toBeVisible();
   await expect(claimDialog.getByText(`주문 #${orderId}`)).toBeVisible();
-  await expect(claimDialog.getByText(`${bookingClass.name} #${booking.bookingId}`)).toBeVisible();
+  await expect(claimDialog.getByText(`${bookingClass.name} #${bookingId}`)).toBeVisible();
   await claimDialog.getByRole("button", { name: "선택한 이력 가져오기" }).click();
 
   await expect(page.getByText("휴대폰 인증 완료")).toBeVisible();
@@ -93,7 +99,9 @@ test("P8-8 회원은 같은 번호의 비회원 주문과 예약을 claim 할 �
   await expect(page.getByText(bookingClass.name)).toBeVisible();
 });
 
-test("P8-9 비회원 성공 화면에서 회원가입 후 claim 모달을 바로 열 수 있다", async ({ page, request }) => {
+test("P8-9 비회원 주문 결제 후 조회 화면에서 회원 전환 안내를 볼 수 있다", async ({ page, request }) => {
+  await installTossPaymentStub(page);
+
   const productName = makeUniqueLabel("P8-claim-signup");
   const guestPhone = makePhoneNumber(makeUniqueLabel("p8-claim-signup"));
   const guestName = makeUniqueLabel("P8 전환");
@@ -115,36 +123,13 @@ test("P8-9 비회원 성공 화면에서 회원가입 후 claim 모달을 바로
   await page.getByLabel("상품").selectOption(String(product.id));
   await page.getByLabel("수량").fill("1");
   await page.getByRole("button", { name: "추가" }).click();
-  await page.getByRole("button", { name: "주문하기", exact: true }).click();
+  await page.getByRole("button", { name: "결제 진행하기" }).click();
 
-  await expect(successAlert(page, "주문이 완료되었습니다!")).toBeVisible();
-  await page.getByRole("link", { name: "회원가입하고 내 정보로 가져오기" }).click();
+  await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
+  await page.getByRole("button", { name: "비회원 주문 확인하기" }).click();
 
-  await expect(page).toHaveURL(/\/signup\?/);
-  await expect(page.getByLabel("전화번호")).toHaveValue(guestPhone);
-  await expect(page.getByLabel("이름")).toHaveValue(guestName);
-  await expect(page.getByText("같은 휴대폰 번호로 가입하면")).toBeVisible();
-
-  const signupSeed = makeUniqueLabel("p8-success-claim");
-  await page.getByLabel("이메일").fill(`${signupSeed}@example.com`);
-  await page.getByLabel("비밀번호").fill("password123");
-  await page.getByRole("button", { name: "회원가입" }).click();
-
-  await expect(page).toHaveURL(/\/my$/);
-  await expect(navLogoutButton(page)).toBeVisible();
-  const claimDialog = page.getByRole("dialog").filter({ hasText: "비회원 이력 가져오기" }).first();
-  await expect(claimDialog).toBeVisible();
-  await expect(claimDialog.getByText("휴대폰 재인증")).toBeVisible();
-
-  await claimDialog.getByRole("button", { name: "닫기" }).click();
-  await navLogoutButton(page).click();
-  await expect(navLoginLink(page)).toBeVisible();
-
-  await page.goto("/login?redirect=/my");
-  await page.getByLabel("이메일").fill(`${signupSeed}@example.com`);
-  await page.getByLabel("비밀번호").fill("password123");
-  await page.getByRole("button", { name: "로그인" }).click();
-
-  await expect(page).toHaveURL(/\/my$/);
-  await expect(navLogoutButton(page)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "비회원 주문 조회" })).toBeVisible();
+  await expect(page.locator(".card").filter({ hasText: /주문 #\d+/ }).last()).toBeVisible();
+  await expect(page.getByRole("button", { name: "회원가입" })).toBeVisible();
+  await expect(page.getByText("비회원 주문은 토큰으로 조회하고")).toBeVisible();
 });

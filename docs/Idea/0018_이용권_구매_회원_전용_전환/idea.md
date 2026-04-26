@@ -24,7 +24,7 @@
 
 **8회권 구매를 회원 전용으로 전환한다.**
 
-- 구매 엔드포인트: `POST /api/v1/me/passes` (기존 회원 경로) 단일화
+- 구매 엔드포인트: `POST /api/v1/payments/prepare` (`context=PASS`) → `POST /api/v1/payments/confirm` 단일화
 - 비회원 구매 엔드포인트 제거: `POST /passes/guest`, `POST /passes/purchase`
 - 프론트: `/passes/purchase` 페이지에서 비로그인 시 로그인 리다이렉트
 

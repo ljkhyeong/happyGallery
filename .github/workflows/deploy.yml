@@ -36,6 +36,7 @@ jobs:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_SENTRY_ENVIRONMENT: production
           VITE_SENTRY_RELEASE: happygallery@${{ github.sha }}
+          VITE_TOSS_CLIENT_KEY: ${{ secrets.VITE_TOSS_CLIENT_KEY }}
         run: |
           npm ci
           npm run build

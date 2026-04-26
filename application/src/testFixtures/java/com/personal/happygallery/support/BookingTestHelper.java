@@ -43,16 +43,7 @@ public final class BookingTestHelper {
     }
 
     public String createBooking(String phone, String code, Long slotId, long deposit) throws Exception {
-        return postGuestBooking("""
-                {
-                  "phone": "%s",
-                  "verificationCode": "%s",
-                  "name": "홍길동",
-                  "slotId": %d,
-                  "depositAmount": %d,
-                  "paymentMethod": "CARD"
-                }
-                """.formatted(phone, code, slotId, deposit));
+        return PaymentTestHelper.createGuestBooking(mockMvc, phone, code, "홍길동", slotId).responseBody();
     }
 
     public CreatedBooking createVerifiedCardBooking(String phone, Long slotId, long deposit) throws Exception {
@@ -61,29 +52,17 @@ public final class BookingTestHelper {
 
     public CreatedBooking createVerifiedCardBooking(String phone, String name, Long slotId, long deposit) throws Exception {
         String code = sendVerificationAndGetCode(phone);
-        String response = postGuestBooking("""
-                {
-                  "phone": "%s",
-                  "verificationCode": "%s",
-                  "name": "%s",
-                  "slotId": %d,
-                  "depositAmount": %d,
-                  "paymentMethod": "CARD"
-                }
-                """.formatted(phone, code, name, slotId, deposit));
-        return new CreatedBooking(extractBookingId(response), extractAccessToken(response), response);
-    }
-
-    private String postGuestBooking(String requestBody) throws Exception {
-        return mockMvc.perform(post("/bookings/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        PaymentTestHelper.ConfirmedPayment confirmed =
+                PaymentTestHelper.createGuestBooking(mockMvc, phone, code, name, slotId);
+        return new CreatedBooking(confirmed.domainId(), confirmed.accessToken(), confirmed.responseBody());
     }
 
     public static Long extractBookingId(String json) {
-        return ((Number) JsonPath.read(json, "$.bookingId")).longValue();
+        try {
+            return ((Number) JsonPath.read(json, "$.bookingId")).longValue();
+        } catch (com.jayway.jsonpath.PathNotFoundException ignored) {
+            return ((Number) JsonPath.read(json, "$.domainId")).longValue();
+        }
     }
 
     public static String extractAccessToken(String json) {

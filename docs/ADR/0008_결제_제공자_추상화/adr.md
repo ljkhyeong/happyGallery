@@ -73,3 +73,13 @@
 | `application/.../payment/DefaultRefundRetryService.java` | FAILED 재시도 서비스 |
 | `adapter-in-web/.../admin/AdminRefundController.java` | `GET /admin/refunds/failed`, `POST /admin/refunds/{id}/retry` |
 | `adapter-in-web/.../admin/dto/FailedRefundResponse.java` | `bookingId`/`orderId` nullable 응답 모델 |
+
+## Update (2026-04-26)
+
+Toss Payments 연동을 위해 결제 경계를 환불 전용에서 `prepare/confirm + refund`로 확장했다.
+
+- `PaymentPort.confirm(paymentKey, orderId, amount)`와 `PaymentConfirmResult`를 추가했다.
+- `POST /api/v1/payments/prepare`에서 서버가 `payment_attempt.order_id_external`과 `amount`를 확정한다.
+- `POST /api/v1/payments/confirm`에서 PG confirm 성공 후 주문/예약/8회권 도메인 저장을 수행한다.
+- confirm 성공 시 PG 원결제 참조값을 `payment_attempt.pg_ref`와 도메인 레코드의 `payment_key`에 저장해 환불 cancel 호출의 입력으로 사용한다.
+- `FakePaymentProvider`는 local/test에서 confirm 성공 응답을 돌려주고, `TossPaymentsProvider`는 prod 프로필에서 Toss `/v1/payments/confirm`을 호출한다.

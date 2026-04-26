@@ -1,43 +1,38 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Form, Row, Col, Button } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
-import { BookingSuccessCard } from "@/features/booking-create/BookingSuccessCard";
 import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { createGuestBooking } from "@/features/booking-create/api";
-import { api } from "@/shared/api";
+import {
+  confirmPayment,
+  preparePayment,
+  requestTossPayment,
+  storePaymentReturnHint,
+  type BookingPayload,
+} from "@/features/payment";
 import { ErrorAlert, useToast } from "@/shared/ui";
-import { formatKRW } from "@/shared/lib";
-import type { BookingResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
+import type { DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
 
 type PaymentPath = "deposit" | "pass";
 
-interface MemberBookingResponse {
-  bookingId: number;
-  status: string;
-  className: string;
-  startAt: string;
-  endAt: string;
-  depositAmount: number;
+interface GuestInfo {
+  phone: string;
+  verificationCode: string;
+  name: string;
 }
 
 export function BookingCreatePage() {
   const toast = useToast();
-  const { isAuthenticated } = useCustomerAuth();
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useCustomerAuth();
 
   const [selectedSlot, setSelectedSlot] = useState<PublicSlotResponse | null>(null);
   const [paymentPath, setPaymentPath] = useState<PaymentPath>("deposit");
-  const [depositAmount, setDepositAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<DepositPaymentMethod>("CARD");
   const [passId, setPassId] = useState("");
-
   const [showGate, setShowGate] = useState(false);
-  const [result, setResult] = useState<BookingResponse | null>(null);
-  const [memberResult, setMemberResult] = useState<MemberBookingResponse | null>(null);
-  const [guestPhone, setGuestPhone] = useState("");
-  const [guestName, setGuestName] = useState("");
 
   useEffect(() => {
     if (!isAuthenticated && paymentPath === "pass") {
@@ -45,73 +40,68 @@ export function BookingCreatePage() {
     }
   }, [isAuthenticated, paymentPath]);
 
-  const guestMutation = useMutation({
-    mutationFn: (guestInfo: { phone: string; verificationCode: string; name: string }) =>
-      createGuestBooking({
-          phone: guestInfo.phone,
-          verificationCode: guestInfo.verificationCode,
-          name: guestInfo.name,
-          slotId: selectedSlot!.id,
-          depositAmount: Number(depositAmount),
-          paymentMethod,
-      }),
-    onSuccess: (booking) => {
-      toast.show("예약이 완료되었습니다!");
-      setResult(booking);
-      setShowGate(false);
-    },
-  });
-
-  const memberMutation = useMutation({
-    mutationFn: () => {
-      const body: Record<string, unknown> = { slotId: selectedSlot!.id };
-      if (paymentPath === "pass") {
-        body.passId = Number(passId);
-      } else {
-        body.depositAmount = Number(depositAmount);
-        body.paymentMethod = paymentMethod;
-      }
-      return api<MemberBookingResponse>("/me/bookings", { method: "POST", body });
-    },
-    onSuccess: (booking) => {
-      toast.show("예약이 완료되었습니다!");
-      setMemberResult(booking);
-      setShowGate(false);
-    },
-  });
-
-  const depositValid = paymentPath === "deposit" ? Number(depositAmount) > 0 : true;
   const passValid = isAuthenticated && paymentPath === "pass" ? Number(passId) > 0 : true;
-  const formReady = selectedSlot !== null && depositValid && passValid;
+  const formReady = selectedSlot !== null && passValid;
 
-  if (result) {
-    return (
-        <Container className="page-container" style={{ maxWidth: 640 }}>
-          <h4 className="mb-4">예약 완료</h4>
-        <BookingSuccessCard booking={result} guestPhone={guestPhone} guestName={guestName} />
-        </Container>
-      );
-  }
+  const startPayment = useMutation({
+    mutationFn: async (guest?: GuestInfo) => {
+      const payload: BookingPayload =
+        guest
+          ? {
+              type: "BOOKING",
+              phone: guest.phone,
+              verificationCode: guest.verificationCode,
+              name: guest.name,
+              slotId: selectedSlot!.id,
+              paymentMethod,
+            }
+          : {
+              type: "BOOKING",
+              userId: user!.id,
+              slotId: selectedSlot!.id,
+              passId: paymentPath === "pass" ? Number(passId) : undefined,
+              paymentMethod: paymentPath === "pass" ? undefined : paymentMethod,
+            };
 
-  if (memberResult) {
-    return (
-      <Container className="page-container" style={{ maxWidth: 640 }}>
-        <h4 className="mb-4">예약 완료</h4>
-        <div className="text-center">
-          <p className="mb-3">예약이 완료되었습니다.</p>
-          <Button as={Link as any} to={`/my/bookings/${memberResult.bookingId}`} variant="primary">
-            내 예약 상세 보기
-          </Button>
-        </div>
-      </Container>
-    );
-  }
+      const prep = await preparePayment("BOOKING", payload);
+
+      // 8회권 사용 예약 — amount=0이면 PG 우회하고 바로 confirm
+      if (prep.amount === 0) {
+        const result = await confirmPayment({
+          paymentKey: null,
+          orderId: prep.orderId,
+          amount: 0,
+        });
+        toast.show("예약이 완료되었습니다!");
+        if (result.accessToken) {
+          navigate("/guest/bookings", {
+            state: { bookingId: result.domainId, token: result.accessToken },
+          });
+        } else {
+          navigate(`/my/bookings/${result.domainId}`);
+        }
+        return;
+      }
+
+      storePaymentReturnHint({
+        customerName: guest?.name ?? user?.name,
+        customerPhone: guest?.phone ?? user?.phone,
+      });
+      await requestTossPayment({
+        orderId: prep.orderId,
+        amount: prep.amount,
+        orderName: `예약 — ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
+        customerKey: user ? `member_${user.id}` : undefined,
+        customerName: guest?.name ?? user?.name,
+        customerMobilePhone: guest?.phone ?? user?.phone,
+      });
+    },
+  });
 
   return (
     <Container className="page-container" style={{ maxWidth: 640 }}>
       <h4 className="mb-4">체험 예약</h4>
 
-      {/* 1. 슬롯 선택 */}
       <Card className="mb-4">
         <Card.Body>
           <SlotSelectionStep
@@ -122,7 +112,6 @@ export function BookingCreatePage() {
         </Card.Body>
       </Card>
 
-      {/* 2. 결제 정보 */}
       {selectedSlot && (
         <Card className="mb-4">
           <Card.Body>
@@ -151,17 +140,7 @@ export function BookingCreatePage() {
 
             {paymentPath === "deposit" ? (
               <Row className="g-2 mb-3">
-                <Col xs={6}>
-                  <Form.Group controlId="booking-deposit">
-                    <Form.Label>예약금 (원)</Form.Label>
-                    <Form.Control
-                      type="number" min={1} value={depositAmount}
-                      onChange={(e) => setDepositAmount(e.target.value)}
-                      placeholder="30000"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col xs={6}>
+                <Col xs={12}>
                   <Form.Group controlId="booking-method">
                     <Form.Label>결제 수단</Form.Label>
                     <Form.Select
@@ -171,6 +150,9 @@ export function BookingCreatePage() {
                       <option value="CARD">카드</option>
                       <option value="EASY_PAY">간편결제</option>
                     </Form.Select>
+                    <Form.Text className="text-muted">
+                      예약금은 클래스 가격의 10%로 자동 산출됩니다.
+                    </Form.Text>
                   </Form.Group>
                 </Col>
               </Row>
@@ -182,6 +164,9 @@ export function BookingCreatePage() {
                   onChange={(e) => setPassId(e.target.value)}
                   placeholder="8회권 ID"
                 />
+                <Form.Text className="text-muted">
+                  잔여 횟수에서 1회가 차감되며 결제창은 열리지 않습니다.
+                </Form.Text>
               </Form.Group>
             )}
             {!isAuthenticated && (
@@ -193,33 +178,34 @@ export function BookingCreatePage() {
         </Card>
       )}
 
-      {/* 3. 예약 버튼 */}
-      <ErrorAlert error={guestMutation.error ?? memberMutation.error} />
+      <ErrorAlert error={startPayment.error} />
 
       <Button
         variant="primary" size="lg" className="w-100"
-        disabled={!formReady || guestMutation.isPending || memberMutation.isPending}
+        disabled={!formReady || startPayment.isPending}
         onClick={() => {
           if (isAuthenticated) {
-            memberMutation.mutate();
+            startPayment.mutate(undefined);
           } else {
             setShowGate(true);
           }
         }}
       >
-        {guestMutation.isPending || memberMutation.isPending
-          ? "예약 처리 중..."
-          : `예약하기${paymentPath === "deposit" && depositAmount ? ` (${formatKRW(Number(depositAmount))})` : ""}`}
+        {startPayment.isPending
+          ? paymentPath === "pass" ? "예약 처리 중..." : "결제창 여는 중..."
+          : paymentPath === "pass" ? "8회권으로 예약하기" : "결제 진행하기"}
       </Button>
 
       <AuthGateModal
         show={showGate}
         onClose={() => setShowGate(false)}
-        onMemberConfirm={() => memberMutation.mutate()}
+        onMemberConfirm={() => {
+          setShowGate(false);
+          startPayment.mutate(undefined);
+        }}
         onGuestConfirm={(info) => {
-          setGuestPhone(info.phone);
-          setGuestName(info.name);
-          guestMutation.mutate(info);
+          setShowGate(false);
+          startPayment.mutate(info);
         }}
       />
     </Container>

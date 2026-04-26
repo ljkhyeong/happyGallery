@@ -70,6 +70,12 @@ export interface AdminFailedRefund {
   createdAt: string;
 }
 
+interface CursorPage<T> {
+  content: T[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 export interface CustomerCredentials {
   email: string;
   password: string;
@@ -87,6 +93,21 @@ interface SignupOverrides {
 interface ApiOptions {
   admin?: boolean;
   query?: Record<string, number | string | undefined>;
+}
+
+interface TossPaymentRequest {
+  amount: { value: number };
+  orderId: string;
+  successUrl: string;
+}
+
+interface BrowserGlobalWithToss {
+  location: { assign(url: string): void };
+  TossPayments?: (clientKey: string) => {
+    payment(opts: { customerKey: string }): {
+      requestPayment(opts: TossPaymentRequest): Promise<void>;
+    };
+  };
 }
 
 const timeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -190,6 +211,33 @@ export function extractAccessToken(text: string): string {
   return match[1];
 }
 
+export async function installTossPaymentStub(page: Page) {
+  const install = () => {
+    const browserGlobal = globalThis as unknown as BrowserGlobalWithToss;
+    browserGlobal.TossPayments = () => ({
+      payment: () => ({
+        requestPayment: async (opts: TossPaymentRequest) => {
+          const separator = opts.successUrl.includes("?") ? "&" : "?";
+          const url = `${opts.successUrl}${separator}paymentKey=e2e-${encodeURIComponent(opts.orderId)}&orderId=${encodeURIComponent(opts.orderId)}&amount=${opts.amount.value}`;
+          browserGlobal.location.assign(url);
+        },
+      }),
+    });
+  };
+
+  await page.addInitScript(install);
+  await page.evaluate(install);
+}
+
+export async function readRouterState<T>(page: Page): Promise<T | null> {
+  return page.evaluate(() => {
+    const browserGlobal = globalThis as unknown as {
+      history?: { state?: { usr?: unknown } };
+    };
+    return (browserGlobal.history?.state?.usr ?? null) as T | null;
+  });
+}
+
 export async function loginAdmin(page: Page) {
   if (!cachedAdminToken) {
     const response = await page.request.post(`${BACKEND_BASE_URL}/admin/auth/login`, {
@@ -214,6 +262,7 @@ export async function loginAdmin(page: Page) {
 async function fetchVerificationCode(page: Page, phone: string): Promise<string> {
   const res = await page.request.get(
     `${BACKEND_BASE_URL}/admin/dev/phone-verifications/latest?phone=${phone}`,
+    { headers: { "X-Admin-Key": ADMIN_KEY } },
   );
   expect(res.ok(), "Dev phone-verification lookup should succeed").toBeTruthy();
   const body = (await res.json()) as { code: string };
@@ -254,7 +303,7 @@ export async function loginCustomer(page: Page, credentials: CustomerCredentials
 }
 
 export async function logoutCustomer(page: Page) {
-  const logoutButton = page.getByRole("button", { name: "로그아웃" }).first();
+  const logoutButton = page.getByRole("button", { name: /로그아웃|LOGOUT/ }).first();
   if (await logoutButton.isVisible()) {
     await logoutButton.click();
   }
@@ -263,6 +312,7 @@ export async function logoutCustomer(page: Page) {
 export async function completePhoneVerification(page: Page, phone: string) {
   await page.getByLabel("휴대폰 번호").fill(phone);
   await page.getByRole("button", { name: "인증코드 발송" }).click();
+  await expect(page.getByLabel("인증코드")).toBeVisible();
   const code = await fetchVerificationCode(page, phone);
   await page.getByLabel("인증코드").fill(code);
   await page.getByRole("button", { name: "확인" }).click();
@@ -275,6 +325,7 @@ export async function completeLockedPhoneVerification(
   confirmLabel = "확인",
 ) {
   await root.getByRole("button", { name: "인증코드 발송" }).click();
+  await expect(root.getByLabel("인증코드")).toBeVisible();
   const code = await fetchVerificationCode(page, phone);
   await root.getByLabel("인증코드").fill(code);
   await root.getByRole("button", { name: confirmLabel }).click();
@@ -386,10 +437,11 @@ export async function fetchAdminOrders(
   request: APIRequestContext,
   status?: string,
 ): Promise<AdminOrder[]> {
-  return apiGet<AdminOrder[]>(request, "/admin/orders", {
+  const page = await apiGet<CursorPage<AdminOrder>>(request, "/admin/orders", {
     admin: true,
     query: { status },
   });
+  return page.content;
 }
 
 export async function fetchFailedRefunds(request: APIRequestContext): Promise<AdminFailedRefund[]> {

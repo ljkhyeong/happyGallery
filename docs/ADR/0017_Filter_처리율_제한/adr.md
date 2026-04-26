@@ -10,7 +10,7 @@
 무제한 API 호출을 허용하면 특정 IP나 봇 트래픽이 애플리케이션과 DB 자원을 고갈시킬 수 있다.
 그러면 정상 사용자 요청도 함께 장애 영향을 받는다.
 
-특히 인증코드 발송, 회원 로그인/회원가입, 게스트 예약 생성, 이용권 구매, 관리자 운영 API는 짧은 시간에 대량 호출될 가능성이 높다. 선제적인 요청 제한이 필요하다.
+특히 인증코드 발송, 회원 로그인/회원가입, 결제 준비/확정, 관리자 운영 API는 짧은 시간에 대량 호출될 가능성이 높다. 선제적인 요청 제한이 필요하다.
 
 처음에는 서버 메모리 기반 제한도 가능했다.
 하지만 지금 운영 환경은 Redis를 사용하므로 인스턴스 간 카운터를 공유하는 방식을 기준으로 잡는다.
@@ -29,15 +29,20 @@
 
 - 키: 기본적으로 클라이언트 IP(`remoteAddr`)
 - `app.rate-limit.trust-forwarded-headers=true` 일 때만 `X-Forwarded-For`의 첫 번째 IP를 신뢰한다.
+- `app.rate-limit.enabled=false`이면 필터가 제한 계산을 건너뛴다. 기본값은 `true`이며, 로컬 반복 E2E처럼 같은 IP에서 짧게 많은 인증/관리 요청을 보내는 검증에서만 끈다.
 - Redis 키 패턴은 `rate:{RULE_ID}:{clientIP}` 를 사용한다.
 - 기본 한도:
   - 인증코드 발송: 10 req/sec/IP
   - 회원 로그인: 10 req/min/IP
   - 회원 회원가입: 5 req/min/IP
-  - 게스트 예약 생성: 30 req/min/IP
-  - 이용권 구매: 20 req/min/IP
+  - 게스트 예약 생성: 30 req/min/IP (구 생성 API 기준, 결제 전환 후 `/payments/prepare`로 이전 필요)
+  - 이용권 구매: 20 req/min/IP (구 생성 API 기준, 결제 전환 후 `/payments/prepare`로 이전 필요)
   - 관리자 로그인: 5 req/min/IP
   - Admin API: 120 req/min/IP
+
+### Update (2026-04-26)
+
+주문/예약/8회권 생성은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm`로 전환됐다. 현재 필터 구현에는 아직 구 `BOOKING_CREATE`, `PASS_PURCHASE` 경로 규칙이 남아 있으므로 `plan.md`의 `P1R-T2`에서 결제 API 기준 rate limit으로 이전한다.
 
 ### 3. Redis 증분과 TTL 설정은 Lua script로 원자적으로 처리한다
 

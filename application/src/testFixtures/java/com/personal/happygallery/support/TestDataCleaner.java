@@ -84,9 +84,9 @@ public final class TestDataCleaner {
                                                 ClassRepository classRepository,
                                                 NotificationLogRepository notificationLogRepository) {
         passLedgerRepository.deleteAllInBatch();
-        passPurchaseRepository.deleteAllInBatch();
         bookingHistoryRepository.deleteAllInBatch();
         bookingRepository.deleteAllInBatch();
+        passPurchaseRepository.deleteAllInBatch();
         guestRepository.deleteAllInBatch();
         slotRepository.deleteAllInBatch();
         classRepository.deleteAllInBatch();
@@ -107,9 +107,9 @@ public final class TestDataCleaner {
         refundRepository.deleteAllInBatch();
         bookingHistoryRepository.deleteAllInBatch();
         bookingRepository.deleteAllInBatch();
-        passPurchaseRepository.deleteAllInBatch();
         phoneVerificationRepository.deleteAllInBatch();
         notificationLogRepository.deleteAllInBatch();
+        passPurchaseRepository.deleteAllInBatch();
         guestRepository.deleteAllInBatch();
         slotRepository.deleteAllInBatch();
         classRepository.deleteAllInBatch();

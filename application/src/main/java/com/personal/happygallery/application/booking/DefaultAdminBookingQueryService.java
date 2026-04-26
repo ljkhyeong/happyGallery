@@ -42,8 +42,13 @@ public class DefaultAdminBookingQueryService implements AdminBookingQueryUseCase
 
         return bookings.stream()
                 .filter(b -> status == null || b.getStatus() == status)
-                .map(b -> AdminBookingResponse.from(b, userMap.get(b.getUserId())))
+                .map(b -> AdminBookingResponse.from(b, userFor(b, userMap)))
                 .toList();
+    }
+
+    private User userFor(Booking booking, Map<Long, User> userMap) {
+        Long userId = booking.getUserId();
+        return userId == null ? null : userMap.get(userId);
     }
 
     private Map<Long, User> resolveUsers(List<Booking> bookings) {

@@ -111,6 +111,14 @@
 8회권 구매를 회원 전용으로 전환했다 (Idea-0018).
 
 - guest 구매 엔드포인트 제거: `POST /passes/guest`, `POST /passes/purchase`
-- 회원 구매 엔드포인트로 단일화: `POST /api/v1/me/passes`
+- 당시 회원 구매 엔드포인트로 단일화: `POST /api/v1/me/passes` (2026-04-26 결제 API 도입으로 아래 Update 기준으로 대체)
 - 신규 guest 구매 진입점은 제거
 - guest 소유 8회권 상태와 claim 흐름도 함께 제거
+
+## Update (2026-04-26)
+
+결제 진입점 도입으로 회원 8회권 구매 생성 경로를 다시 일원화했다.
+
+- 구매 생성: `POST /api/v1/payments/prepare` (`context=PASS`) → `POST /api/v1/payments/confirm`
+- `GET /api/v1/me/passes`, `GET /api/v1/me/passes/{id}`는 회원 8회권 조회 전용으로 유지한다.
+- 가격은 클라이언트가 보내지 않고 서버 설정 `app.pass.total-price` (`PASS_TOTAL_PRICE`, 기본 240000)으로 확정한다.

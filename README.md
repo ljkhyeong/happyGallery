@@ -8,6 +8,7 @@
 - 주문: 온라인과 오프라인이 같은 재고를 공유한다. 결제 시 재고를 차감하고, 관리자가 24시간 안에 승인 또는 거절한다. 미처리 주문은 자동 환불된다.
 - 예약: 클래스와 시간 슬롯, 정원을 관리한다. 예약금은 클래스 가격의 10%이며, 전날 00:00 이후에는 환불할 수 없고 시작 1시간 전까지만 변경할 수 있다.
 - 8회권: 회원 전용이다. 결제일 기준 90일 유효하며, 환불 시 미래 예약을 자동 취소한다.
+- 결제: 주문/예약/8회권 모두 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm` 2단계 진입점을 사용한다. 서버가 `amount`를 확정해 `payment_attempt`로 보관하고, Toss Payments confirm 성공 시 도메인을 저장한다.
 - 인증: 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
 
 ## 운영 환경
@@ -142,6 +143,17 @@ docker compose up -d --build
 - 계정 생성 가능 여부는 `/api/v1/admin/setup/status`에서 확인할 수 있다.
 - 최초 관리자 계정 생성이 끝나면 `ADMIN_SETUP_TOKEN`은 제거한다.
 
+### 결제 환경 변수
+
+| 이름 | 적용 위치 | 기본값 | 설명 |
+| --- | --- | --- | --- |
+| `TOSS_SECRET_KEY` | 백엔드 (`prod` 프로필) | (없음) | Toss Payments secret key. 운영에서는 반드시 주입한다. `!prod` 프로필에서만 `FakePaymentProvider`가 동작한다. |
+| `TOSS_BASE_URL` | 백엔드 | `https://api.tosspayments.com` | Toss API base URL. |
+| `TOSS_TIMEOUT_MILLIS` | 백엔드 | `5000` | Toss confirm/cancel HTTP 타임아웃. |
+| `VITE_TOSS_CLIENT_KEY` | 프론트 | (없음) | Toss SDK client key. 운영 빌드에 주입한다. |
+| `PASS_TOTAL_PRICE` | 백엔드 | `240000` | 8회권 결제 금액(원). prepare 단계에서 서버가 사용한다. |
+| `RATE_LIMIT_ENABLED` | 백엔드 | `true` | 처리율 제한 전체 on/off. 반복 E2E smoke처럼 같은 IP에서 짧게 많은 요청을 보내는 로컬 검증에서는 `false`로 끌 수 있다. |
+
 ## 자주 쓰는 명령어
 
 ### 백엔드
@@ -163,6 +175,7 @@ docker compose up -d --build
 
 - `@UseCaseIT`는 MySQL/Redis Testcontainers와 고정 `Clock`을 사용한다.
 - Playwright 실행 전 백엔드는 `http://localhost:8080`에서 실행 중이어야 한다.
+- 결제/회원 E2E smoke를 반복 실행할 때는 백엔드에 `RATE_LIMIT_ENABLED=false`를 주입해 관리자 로그인·휴대폰 인증 제한이 테스트 순서에 영향을 주지 않게 한다.
 - Playwright 관리자 기본 로그인은 `admin / admin1234`다. 필요하면 환경 변수로 덮어쓴다.
 
 ## 문서 진입점

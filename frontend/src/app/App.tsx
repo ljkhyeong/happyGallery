@@ -69,6 +69,12 @@ const GoogleCallbackPage = lazy(() =>
 const NotFoundPage = lazy(() =>
   import("@/pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })),
 );
+const PaymentSuccessPage = lazy(() =>
+  import("@/pages/PaymentSuccessPage").then((module) => ({ default: module.PaymentSuccessPage })),
+);
+const PaymentFailPage = lazy(() =>
+  import("@/pages/PaymentFailPage").then((module) => ({ default: module.PaymentFailPage })),
+);
 
 function RouteFallback() {
   return (
@@ -114,6 +120,8 @@ export function App() {
                 <Route path="/login" element={<LazyRoute><LoginPage /></LazyRoute>} />
                 <Route path="/signup" element={<LazyRoute><SignupPage /></LazyRoute>} />
                 <Route path="/admin" element={<LazyRoute><AdminPage /></LazyRoute>} />
+                <Route path="/payments/success" element={<LazyRoute><PaymentSuccessPage /></LazyRoute>} />
+                <Route path="/payments/fail" element={<LazyRoute><PaymentFailPage /></LazyRoute>} />
                 <Route path="*" element={<LazyRoute><NotFoundPage /></LazyRoute>} />
               </Route>
             </Routes>

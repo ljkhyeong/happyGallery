@@ -16,7 +16,7 @@ public interface GuestBookingUseCase {
     record GuestBookingResult(Booking booking, String rawAccessToken) {}
 
     record CreateGuestBookingCommand(String phone, String code, String name,
-                                     Long slotId, long depositAmount,
+                                     Long slotId,
                                      DepositPaymentMethod paymentMethod) {}
 
     GuestBookingResult createGuestBooking(CreateGuestBookingCommand command);

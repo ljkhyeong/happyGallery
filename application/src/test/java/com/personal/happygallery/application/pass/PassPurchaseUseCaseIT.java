@@ -54,7 +54,7 @@ class PassPurchaseUseCaseIT {
     @Test
     void purchase_success_remainingCredits8_earnLedgerCreated() {
         User user = userStorePort.save(new User("pass@example.com", "hashed-password", "회원", "01012345678"));
-        PassPurchase purchased = passPurchaseUseCase.purchaseForMember(user.getId(), 120_000L);
+        PassPurchase purchased = passPurchaseUseCase.purchaseForMember(user.getId());
         Long passId = purchased.getId();
 
         // Proof: EARN ledger 1건, amount=8
