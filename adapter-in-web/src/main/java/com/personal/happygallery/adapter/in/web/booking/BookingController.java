@@ -5,9 +5,7 @@ import com.personal.happygallery.application.booking.port.in.BookingRescheduleUs
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.adapter.in.web.booking.dto.BookingDetailResponse;
-import com.personal.happygallery.adapter.in.web.booking.dto.BookingResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.CancelResponse;
-import com.personal.happygallery.adapter.in.web.booking.dto.CreateGuestBookingRequest;
 import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleRequest;
 import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequest;
@@ -15,7 +13,6 @@ import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationResp
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -24,9 +21,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 예약 조회/변경/취소 API.
+ *
+ * <p>예약 생성은 {@code POST /api/v1/payments/prepare} → {@code /confirm} 경로로 일원화됨.
+ */
 @RestController
 @RequestMapping({"/api/v1/bookings", "/bookings"})
 public class BookingController {
@@ -52,22 +53,6 @@ public class BookingController {
             @RequestBody @Valid SendVerificationRequest request) {
         PhoneVerification pv = guestBookingUseCase.sendVerificationCode(request.phone());
         return SendVerificationResponse.from(pv);
-    }
-
-    /** 게스트 예약 생성 */
-    @PostMapping("/guest")
-    @ResponseStatus(HttpStatus.CREATED)
-    public BookingResponse createGuestBooking(
-            @RequestBody @Valid CreateGuestBookingRequest request) {
-        var result = guestBookingUseCase.createGuestBooking(
-                new GuestBookingUseCase.CreateGuestBookingCommand(
-                        request.phone(),
-                        request.verificationCode(),
-                        request.name(),
-                        request.slotId(),
-                        request.depositAmount() != null ? request.depositAmount() : 0L,
-                        request.paymentMethod()));
-        return BookingResponse.from(result.booking(), result.rawAccessToken());
     }
 
     /** 비회원 예약 조회 — bookingId + X-Access-Token 헤더 검증 */

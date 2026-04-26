@@ -93,6 +93,8 @@ app:
   guest-token:
     hmac-secret: ${GUEST_TOKEN_HMAC_SECRET:}
     expiry-hours: ${GUEST_TOKEN_EXPIRY_HOURS:168}
+  pass:
+    total-price: ${PASS_TOTAL_PRICE:240000}
   rate-limit:
     enabled: true
     trust-forwarded-headers: ${RATE_LIMIT_TRUST_FORWARDED:false}
