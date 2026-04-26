@@ -5,25 +5,29 @@ import { Link, useSearchParams } from "react-router-dom";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
 import { OrderItemsForm } from "@/features/order/OrderItemsForm";
-import { OrderSuccessCard } from "@/features/order/OrderSuccessCard";
-import { createOrder } from "@/features/order/api";
-import { ErrorAlert, useToast } from "@/shared/ui";
-import type { OrderItemInput, OrderResponse } from "@/shared/types";
+import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import {
+  preparePayment,
+  requestTossPayment,
+  storePaymentReturnHint,
+  type OrderPayload,
+} from "@/features/payment";
+import { ErrorAlert } from "@/shared/ui";
+import type { OrderItemInput } from "@/shared/types";
 
-type Step = "verify" | "items" | "done";
+type Step = "verify" | "items";
 const MAX_QTY = 99;
 
 export function OrderCreatePage() {
-  const toast = useToast();
   const [searchParams] = useSearchParams();
-  const [step, setStep] = useState<Step>("verify");
+  const { user } = useCustomerAuth();
+  const [step, setStep] = useState<Step>(user ? "items" : "verify");
   const [manualEntryConfirmed, setManualEntryConfirmed] = useState(false);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(user?.name ?? "");
   const [nameTouched, setNameTouched] = useState(false);
   const [items, setItems] = useState<OrderItemInput[]>([]);
-  const [result, setResult] = useState<OrderResponse | null>(null);
 
   const prefilledProductId = Number(searchParams.get("productId"));
   const requestedQty = Number(searchParams.get("qty") ?? "1");
@@ -31,7 +35,7 @@ export function OrderCreatePage() {
   const normalizedPrefilledQty = Number.isInteger(requestedQty) && requestedQty >= 1
     ? Math.min(requestedQty, MAX_QTY)
     : 1;
-  const shouldShowManualEntryGate = !hasPrefilledItem && !manualEntryConfirmed;
+  const shouldShowManualEntryGate = !user && !hasPrefilledItem && !manualEntryConfirmed;
 
   useEffect(() => {
     if (hasPrefilledItem) {
@@ -43,22 +47,24 @@ export function OrderCreatePage() {
   }, [hasPrefilledItem, normalizedPrefilledQty, prefilledProductId]);
 
   const mutation = useMutation({
-    mutationFn: () => createOrder({ phone, verificationCode: code, name, items }),
-    onSuccess: (order) => {
-      toast.show("주문이 완료되었습니다!");
-      setResult(order);
-      setStep("done");
+    mutationFn: async () => {
+      const payload: OrderPayload = user
+        ? { type: "ORDER", userId: user.id, name: name || user.name, items }
+        : { type: "ORDER", phone, verificationCode: code, name, items };
+      const prep = await preparePayment("ORDER", payload);
+      storePaymentReturnHint({ customerName: name, customerPhone: phone });
+      await requestTossPayment({
+        orderId: prep.orderId,
+        amount: prep.amount,
+        orderName: items.length === 1 && items[0]
+          ? `상품 주문 (${items[0].qty}개)`
+          : `상품 주문 ${items.length}건`,
+        customerKey: user ? `member_${user.id}` : undefined,
+        customerName: name,
+        customerMobilePhone: phone || undefined,
+      });
     },
   });
-
-  if (step === "done" && result) {
-    return (
-        <Container className="page-container" style={{ maxWidth: 640 }}>
-          <h4 className="mb-4">주문 완료</h4>
-        <OrderSuccessCard order={result} guestPhone={phone} guestName={name} />
-        </Container>
-      );
-  }
 
   return (
     <Container className="page-container" style={{ maxWidth: 640 }}>
@@ -73,9 +79,11 @@ export function OrderCreatePage() {
           <Button as={Link as any} to="/products" variant="dark" size="sm">
             상품 보러가기
           </Button>
-          <Button as={Link as any} to="/login" variant="outline-secondary" size="sm">
-            로그인 후 주문하기
-          </Button>
+          {!user && (
+            <Button as={Link as any} to="/login" variant="outline-secondary" size="sm">
+              로그인 후 주문하기
+            </Button>
+          )}
         </div>
         {hasPrefilledItem && (
           <Alert variant="info" className="mt-3 mb-0">
@@ -133,7 +141,7 @@ export function OrderCreatePage() {
             </div>
           </Card.Body>
         </Card>
-      ) : (
+      ) : !user ? (
         <Card className="mb-4">
           <Card.Body>
             <div className="legacy-order-step-label">1. 휴대폰 인증</div>
@@ -146,13 +154,13 @@ export function OrderCreatePage() {
             />
           </Card.Body>
         </Card>
-      )}
+      ) : null}
 
       {step === "items" && (
         <>
           <Card className="mb-4">
             <Card.Body>
-              <div className="legacy-order-step-label">2. 주문자 정보</div>
+              <div className="legacy-order-step-label">{user ? "1." : "2."} 주문자 정보</div>
               <Form.Group controlId="order-create-name">
                 <Form.Label>주문자 이름</Form.Label>
                 <Form.Control
@@ -170,7 +178,7 @@ export function OrderCreatePage() {
           </Card>
 
           <Card className="mb-4">
-            <Card.Header>3. 상품 선택</Card.Header>
+            <Card.Header>{user ? "2." : "3."} 상품 선택</Card.Header>
             <Card.Body>
               <OrderItemsForm items={items} onChange={setItems} />
             </Card.Body>
@@ -182,7 +190,7 @@ export function OrderCreatePage() {
             variant="primary" size="lg" className="w-100"
             disabled={!name.trim() || items.length === 0 || mutation.isPending}
             onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
-            {mutation.isPending ? "주문 처리 중..." : "주문하기"}
+            {mutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
           </Button>
         </>
       )}

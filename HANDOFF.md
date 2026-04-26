@@ -3,7 +3,7 @@
 이 파일은 다음 **AI 에이전트용 인수인계 문서**다.  
 사람용 긴 변경 이력은 두지 않는다. 현재 상태, 우선순위, 작업 규칙만 짧게 유지한다.
 
-## 🚧 진행 중: 돈·신원 경로 복원 플랜 (Phase 1 인프라 완료)
+## 🚧 진행 중: 돈·신원 경로 복원 플랜 (Phase 1 백엔드 전환 구현됨)
 
 **갱신 시점**: 2026-04-22
 **브랜치**: `payment-integration` (이미 분기됨)
@@ -32,7 +32,7 @@
 
 ### 진행도
 
-- **Phase 1 (Toss 결제)**: **인프라 완료**, 유스케이스/컨트롤러/프론트 미착수
+- **Phase 1 (Toss 결제)**: **백엔드 + 프론트 전환 완료**, 운영 검증 대기
   - ✅ `PaymentPort.confirm(paymentKey, orderId, amount)` 시그니처 + `PaymentConfirmResult` record
   - ✅ 도메인: `PaymentAttempt`, `PaymentContext` (ORDER/BOOKING/PASS), `PaymentAttemptStatus` (PENDING/CONFIRMED/FAILED/CANCELED) — 금액 변조 방어는 `PaymentAttempt.requireConfirmable(expectedAmount)`에 응집
   - ✅ `V32__add_payment_attempt.sql`, `V33__add_payment_key_columns.sql` — **V31이 이미 `cleanup_redundant_indexes`로 점유되어 플랜의 V31/V32를 V32/V33로 shift**. 이 번호 규약을 다음 세션에서도 유지.
@@ -41,13 +41,15 @@
   - ✅ `FakePaymentProvider` — `@Profile("!prod")` + `confirm()` 구현
   - ✅ `CircuitBreakerPaymentProvider.confirm()` wrapping — 서킷 브레이커 + 3초 타임아웃 자동 적용
   - ✅ 테스트 보강 — `PaymentAttempt` 금액/상태 guard, Fake/Toss confirm, CircuitBreaker confirm 보호 경계 검증 추가. `@UseCaseIT`/`@Tag("policy")` 네이밍도 테스트 지침에 맞게 정리.
-  - ✅ 컴파일 검증 통과 (`:domain`, `:application`, `:adapter-out-persistence`, `:adapter-out-external`)
+  - ✅ `PaymentPrepareUseCase` / `PaymentConfirmUseCase`, context별 `PaymentPreparer` / `PaymentFulfiller` 구현
+  - ✅ `BookingPreparer`가 서버 기준 예약금 10%를 산출하고, `PassPriceProperties`가 8회권 금액을 설정값으로 받음
+  - ✅ `PaymentController` 신규 진입점(`/api/v1/payments/prepare`, `/api/v1/payments/confirm`) 추가
+  - ✅ 기존 생성 엔드포인트 `POST /api/v1/orders`, `POST /api/v1/bookings`, `POST /api/v1/me/passes` 제거
+  - ✅ 프론트 결제 전환: `frontend/src/features/payment/` (api · TossCheckout SDK 동적 로드 · types · session) + `/payments/success`·`/payments/fail` 라우트 + Pass·Order·Booking 페이지 전환 (8회권 사용 예약은 amount=0 → confirm 직호출로 PG 우회). 죽은 컴포넌트(`BookingFormStep`/`BookingSuccessCard`/`OrderSuccessCard`) 정리.
+  - ✅ `application.yml`의 `app.external.payment.toss.*` 바인딩 추가 — `TOSS_SECRET_KEY` 환경변수 + base-url/타임아웃 기본값
   - 🚧 **남은 Task (다음 세션 진입점)**:
-    - `#5` PaymentPrepare/Confirm UseCase + Order/Booking/Pass Preparer·Fulfiller (8+ 신규 파일)
-    - `#6` OrderService / DefaultGuest|MemberBookingService / DefaultPassPurchaseService 진입점 전환 + `PassPriceProperties` 신규 + `DepositCalculator` 규칙(10%) 구현
-    - `#7` `PaymentController` 신규 + 기존 `POST /api/v1/orders` / `/api/v1/bookings` / `/api/v1/me/passes` **제거** (플랜: alias 금지, backend+frontend 동시 머지)
-    - `#8` 프론트 `features/payment/TossCheckout.tsx` + api + `/payments/success`·`/payments/fail` 라우트 + 3개 결제 페이지 전환
-    - `#9` 최종 빌드 + FakePaymentProvider로 3개 페이지 end-to-end
+    - 결제 전환 후 문서 동기화 필요: `README.md`, `docs/PRD/0001_기준_스펙/spec.md`, `docs/PRD/0004_API_계약/spec.md`
+    - 최종 빌드 + FakePaymentProvider로 주문/예약/8회권 결제 경로 end-to-end 검증 필요
 - **Phase 2 (SMS 실발송)**: 0%
 - **Phase 3 (회원가입 휴대폰 소유 확인)**: 0%
 
@@ -57,7 +59,7 @@ HTTPS 구성, 비밀번호 복잡도, Grafana/Prometheus 인증, ADMIN 링크 UX
 
 ### 환경 변수 신규
 
-- `TOSS_SECRET_KEY` (백엔드)
+- `TOSS_SECRET_KEY` (백엔드, 현재 `application.yml` 바인딩 정리 필요)
 - `VITE_TOSS_CLIENT_KEY` (프론트)
 - `PASS_TOTAL_PRICE` (기본 240000)
 

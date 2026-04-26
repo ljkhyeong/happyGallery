@@ -90,6 +90,15 @@ app:
         minimum-number-of-calls: ${PAYMENT_CB_MINIMUM_CALLS:10}
         wait-duration-open-seconds: ${PAYMENT_CB_WAIT_OPEN_SECONDS:30}
         permitted-calls-in-half-open-state: ${PAYMENT_CB_HALF_OPEN_CALLS:3}
+      toss:
+        # prod 프로필에서만 실제 키 주입 — 비어 있으면 FakePaymentProvider 경로
+        secret-key: ${TOSS_SECRET_KEY:}
+        base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
+        timeout-millis: ${TOSS_TIMEOUT_MILLIS:5000}
+        connect-timeout-millis: ${TOSS_CONNECT_TIMEOUT_MILLIS:2000}
+        acquire-timeout-millis: ${TOSS_ACQUIRE_TIMEOUT_MILLIS:1000}
+        max-connections: ${TOSS_MAX_CONNECTIONS:10}
+        keep-alive-millis: ${TOSS_KEEP_ALIVE_MILLIS:30000}
   guest-token:
     hmac-secret: ${GUEST_TOKEN_HMAC_SECRET:}
     expiry-hours: ${GUEST_TOKEN_EXPIRY_HOURS:168}
