@@ -30,7 +30,7 @@
 ## 🚧 진행 중: 돈·신원 경로 복원 플랜 (Phase 1 결제 경로 전환·테스트 보강됨)
 
 **갱신 시점**: 2026-04-26
-**브랜치**: `payment-integration`
+**브랜치**: `main` 기준으로 다음 작업 브랜치 생성
 **플랜 전문**: `~/.claude/plans/imperative-greeting-barto.md` — **반드시 먼저 읽는다.**
 
 ### 이번 세션에서만 결정된 사실 (다른 문서에 없음)
@@ -39,8 +39,10 @@
 - **테스트 보강 (2026-04-26)**: 기존 예약/주문/8회권 생성 테스트를 `/api/v1/payments/prepare` + `/confirm` 경로로 전환. `PaymentPrepareUseCaseTest`, `PaymentConfirmUseCaseIT` 추가.
 - **환불 참조값 연결 (2026-04-26)**: confirm 성공 시 `PaymentAttempt.pgRef`와 도메인 `payment_key`를 저장하고, 예약/주문 환불 생성 시 원결제 참조값을 `Refund.pgRef` 초기값으로 사용.
 - **프론트 결제 흐름 보강 (2026-04-26)**: `ProductDetailPage` 회원 BUY NOW를 Toss prepare/confirm 경로로 전환. P8 E2E는 Toss stub 기반 현재 UI selector로 갱신.
+- **E2E 실행 단위 (2026-04-26)**: `frontend npm run e2e`는 `@smoke` 4개만 실행. 전체는 `npm run e2e:full`, 도메인별은 README의 프론트엔드 명령 참조. 운영 기준은 `docs/ADR/0027_테스트_전략과_최소_테스트_세트_기준선/adr.md`, 회고는 `docs/Retrospective/0009_프론트_E2E_실행_시간_슬림화/retrospective.md`.
 - **로컬 E2E 설정 (2026-04-26)**: 반복 smoke에서는 `RATE_LIMIT_ENABLED=false`로 bootRun. 관리자 예약 목록의 guest-only NPE는 `DefaultAdminBookingQueryService`에서 null userId 방어.
-- **검증 (2026-04-26)**: `./gradlew --no-daemon test` PASS, `frontend npm run build` PASS, `frontend P8-2~P8-9 Playwright smoke` PASS, `git diff --check` PASS.
+- **검증 (2026-04-26)**: E2E 슬림화 변경은 `frontend npx tsc -p tsconfig.node.json`, `frontend npm run build`, `frontend npm run e2e`(4 passed, 21.8s), `frontend npm run e2e:full`(9 passed, 34.6s), `git diff --check` PASS. 백엔드 bootRun은 중지했고 8080 리스너 없음.
+- **API 계약 문서화 (2026-04-26)**: `adapter-in-web`에 Spring REST Docs 기반 `restDocsTest` 태스크와 공개/회원/관리자 API 계약 테스트를 추가. `./gradlew --no-daemon :adapter-in-web:restDocsTest`, `./gradlew --no-daemon :adapter-in-web:test` PASS.
 
 ### 다음 세션 진입점 (남은 Task)
 

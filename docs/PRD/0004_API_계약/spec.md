@@ -10,6 +10,8 @@
 - 클라이언트와 서버가 맞춰야 하는 HTTP 계약을 한 곳에 모은다.
 - 기준 PRD에서 분리된 요청/응답 예시와 에러 포맷을 유지한다.
 - 현재 운영 중인 v1 기준 API의 기본 계약을 문서화한다.
+- 상세 요청/응답 스니펫은 `./gradlew --no-daemon :adapter-in-web:restDocsTest`로 생성되는 Spring REST Docs 결과(`adapter-in-web/build/generated-snippets`)를 기준으로 검증한다.
+- 신규 또는 변경 API는 REST Docs 테스트를 함께 갱신하고, 이 문서는 카탈로그와 정책 설명의 기준점으로 유지한다.
 
 ---
 
