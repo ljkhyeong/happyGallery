@@ -1,90 +1,21 @@
 # happyGallery
 
 `happyGallery`는 오프라인 공방의 상품 주문, 클래스 예약, 8회권, 관리자 운영을 다루는 서비스다.
-백엔드는 Spring Boot 기반 멀티 모듈 애플리케이션이고, 프론트엔드는 Vite + React SPA로 구성되어 있다.
+백엔드는 Spring Boot 멀티 모듈 애플리케이션이고, 프론트엔드는 Vite + React SPA다.
 
 ## 한눈에 보기
-
-- 주문: 온라인과 오프라인이 같은 재고를 공유한다. 결제 시 재고를 차감하고, 관리자가 24시간 안에 승인 또는 거절한다. 미처리 주문은 자동 환불된다.
-- 예약: 클래스와 시간 슬롯, 정원을 관리한다. 예약금은 클래스 가격의 10%이며, 전날 00:00 이후에는 환불할 수 없고 시작 1시간 전까지만 변경할 수 있다.
-- 8회권: 회원 전용이다. 결제일 기준 90일 유효하며, 환불 시 미래 예약을 자동 취소한다.
-- 결제: 주문/예약/8회권 모두 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm` 2단계 진입점을 사용한다. 서버가 `amount`를 확정해 `payment_attempt`로 보관하고, Toss Payments confirm 성공 시 도메인을 저장한다.
-- 인증: 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
-
-### 사용자별 주요 기능
 
 | 사용자 | 주요 기능 |
 | --- | --- |
 | 비회원 | 휴대폰 인증 기반 주문/예약 생성, 토큰 기반 조회, 회원가입 후 기존 이력 가져오기 |
 | 회원 | 상품 주문, 클래스 예약, 8회권 구매/사용, 장바구니, 알림함, 마이페이지 |
-| 관리자 | 상품/클래스/슬롯 관리, 주문 승인/거절/배송/픽업, 예약 운영, 대시보드, 환불 재시도, Q&A/문의 답변 |
+| 관리자 | 상품/클래스/슬롯 관리, 주문 승인/거절/배송/픽업, 예약 운영, 환불 재시도, Q&A/문의 답변 |
 
-## 운영 환경
+- 주문/예약/8회권은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm` 표준 결제 경로를 사용한다.
+- 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
+- 상세 요구사항은 [기준 스펙](docs/PRD/0001_기준_스펙/spec.md), HTTP 계약은 [API 계약](docs/PRD/0004_API_계약/spec.md)을 기준으로 본다.
 
-- 운영 주소: `https://d36l7yi27358tl.cloudfront.net/`
-- 주요 경로: `/products`, `/bookings/new`, `/passes/purchase`, `/my`, `/guest`, `/admin`
-
-### 배포 아키텍처
-
-현재 운영 환경은 `CloudFront + S3 + ALB + ECS Fargate + RDS MySQL + Redis` 구조다.
-
-```text
-사용자 브라우저
-  -> CloudFront
-       -> S3 (프론트엔드 정적 파일)
-       -> /api/* -> ALB
-                     -> ECS Fargate (Spring Boot 앱)
-                          -> RDS MySQL
-                          -> Redis
-```
-
-- CloudFront가 단일 진입점 역할을 한다.
-- 프론트엔드 정적 파일은 S3에서 제공한다.
-- `/api/*` 요청은 ALB를 거쳐 ECS Fargate의 Spring Boot 애플리케이션으로 전달한다.
-- 운영 데이터는 RDS MySQL에 저장하고, 세션과 캐시는 Redis를 사용한다.
-
-### 배포 파이프라인
-
-`main` 브랜치에 push되면 GitHub Actions가 자동으로 배포를 수행한다.
-
-- 프론트엔드: `frontend` 빌드 -> S3 동기화 -> CloudFront 캐시 무효화
-- 백엔드: `:bootstrap:bootJar` -> `linux/arm64` Docker 이미지 빌드 -> ECR 업로드 -> 현재 ECS task definition 기반 새 revision 등록 -> ECS 배포
-
-관련 문서:
-- [docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md)
-- [docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md)
-- [docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)
-
-## 저장소 구조
-
-이 저장소는 포트/어댑터 구조를 따르는 6개 백엔드 모듈과 별도 프론트엔드 앱으로 구성된다.
-
-| 경로 | 역할 |
-| --- | --- |
-| `bootstrap/` | 애플리케이션 시작점, 공통 설정, Flyway, 로깅 |
-| `adapter-in-web/` | HTTP API, 필터, 요청/응답 처리 |
-| `adapter-out-persistence/` | JPA, MyBatis, 데이터베이스 연동 |
-| `adapter-out-external/` | 결제, 알림, OAuth, Redis 세션, 외부 API 연동 |
-| `application/` | 유스케이스, 서비스, 배치, 포트 정의 |
-| `domain/` | 도메인 모델, 정책, 예외 |
-| `frontend/` | React 기반 사용자 화면과 관리자 화면 |
-| `monitoring/` | Prometheus, Grafana, Alertmanager 설정 |
-
-- 의존 방향: `bootstrap -> adapter-in-web/out-* -> application -> domain`
-- 일반 조회와 저장은 JPA를 사용하고, 관리자 검색과 대시보드 집계는 MyBatis를 사용한다.
-
-## 기술 스택
-
-- 백엔드: Spring Boot 4.0.2, Java 21, Gradle
-- 프론트엔드: Vite, React 19, TypeScript
-- 데이터베이스: MySQL 8, Flyway
-- 세션과 캐시: Redis, Spring Session
-- 쿼리: JPA, MyBatis
-- 인프라: AWS CloudFront, S3, ALB, ECS Fargate, RDS, ElastiCache
-- 모니터링: Actuator, Prometheus, Grafana, Sentry
-- 테스트: JUnit 5, Testcontainers, Playwright
-
-## 로컬 개발
+## 빠른 시작
 
 ### 요구사항
 
@@ -92,7 +23,7 @@
 - Node.js 20+
 - Docker / Docker Compose
 
-### 빠른 시작
+### 실행
 
 1. MySQL과 Redis 실행
 
@@ -120,18 +51,15 @@ npm run dev
 - 백엔드: `http://localhost:8080`
 - 헬스 체크: `http://localhost:8080/actuator/health`
 
-### 로컬 기본 동작
+## 로컬 기본값
 
-- `local` 프로필에서는 DB가 비어 있으면 기본 클래스 3종을 자동 생성한다.
-- 운영 환경에서는 기본 클래스가 자동 생성되지 않으므로, 관리자 화면에서 클래스를 먼저 등록하고 클래스 목록 드롭다운에서 선택해 슬롯을 생성한다.
-- `local` 프로필에서는 관리자 계정이 없으면 `admin / admin1234`를 자동 생성한다.
+- `local` 프로필에서는 DB가 비어 있으면 기본 클래스 3종과 관리자 계정 `admin / admin1234`를 자동 생성한다.
 - 로컬과 개발 환경에서는 `X-Admin-Key: dev-admin-key`를 사용할 수 있다.
-- `prod`가 아닌 환경에서는 실제 알림 발송 대신 테스트용 발송기를 사용한다.
+- `prod`가 아닌 환경에서는 실제 알림/결제 대신 테스트용 발송기와 `FakePaymentProvider`를 사용한다.
+- `local`이 아닌 환경에서 최초 관리자 계정이 필요하면 `ADMIN_SETUP_TOKEN`을 주입하고 `/api/v1/admin/setup`을 호출한다.
+- 반복 E2E처럼 짧은 시간에 인증/관리 요청이 몰리는 로컬 검증에서는 `RATE_LIMIT_ENABLED=false`를 사용할 수 있다.
 
-### Docker로 전체 스택 실행
-
-로컬 Docker 구성은 `nginx + app + mysql + redis + monitoring` 조합이다.  
-프론트엔드 정적 파일은 `frontend/dist`를 nginx가 서빙하므로 먼저 빌드가 필요하다.
+전체 로컬 스택이 필요하면 프론트 빌드 후 Docker Compose를 실행한다.
 
 ```bash
 cd frontend
@@ -141,30 +69,12 @@ cd ..
 docker compose up -d --build
 ```
 
-- `http://localhost`: nginx + 프론트엔드 정적 파일 + `/api` 프록시
+- `http://localhost`: nginx + 프론트 정적 파일 + `/api` 프록시
 - `http://localhost:9090`: Prometheus
 - `http://localhost:9093`: Alertmanager
 - `http://localhost:3001`: Grafana
 
-### 최초 관리자 계정 생성
-
-- `local` 프로필에서는 기본 관리자 계정이 자동 생성되므로 별도 작업이 필요 없다.
-- `local`이 아닌 환경에서 관리자 계정이 없으면 `ADMIN_SETUP_TOKEN`을 주입한 뒤 `/api/v1/admin/setup`으로 최초 계정을 만든다.
-- 계정 생성 가능 여부는 `/api/v1/admin/setup/status`에서 확인할 수 있다.
-- 최초 관리자 계정 생성이 끝나면 `ADMIN_SETUP_TOKEN`은 제거한다.
-
-### 결제 환경 변수
-
-| 이름 | 적용 위치 | 기본값 | 설명 |
-| --- | --- | --- | --- |
-| `TOSS_SECRET_KEY` | 백엔드 (`prod` 프로필) | (없음) | Toss Payments secret key. 운영에서는 반드시 주입한다. `!prod` 프로필에서만 `FakePaymentProvider`가 동작한다. |
-| `TOSS_BASE_URL` | 백엔드 | `https://api.tosspayments.com` | Toss API base URL. |
-| `TOSS_TIMEOUT_MILLIS` | 백엔드 | `5000` | Toss confirm/cancel HTTP 타임아웃. |
-| `VITE_TOSS_CLIENT_KEY` | 프론트 | (없음) | Toss SDK client key. 운영 빌드에 주입한다. |
-| `PASS_TOTAL_PRICE` | 백엔드 | `240000` | 8회권 결제 금액(원). prepare 단계에서 서버가 사용한다. |
-| `RATE_LIMIT_ENABLED` | 백엔드 | `true` | 처리율 제한 전체 on/off. 반복 E2E smoke처럼 같은 IP에서 짧게 많은 요청을 보내는 로컬 검증에서는 `false`로 끌 수 있다. |
-
-## 자주 쓰는 명령어
+## 주요 명령어
 
 ### 백엔드
 
@@ -172,6 +82,7 @@ docker compose up -d --build
 - 전체 테스트: `./gradlew test`
 - 정책 테스트: `./gradlew :application:policyTest`
 - 통합 테스트: `./gradlew --no-daemon :application:useCaseTest`
+- API 계약 문서 테스트: `./gradlew --no-daemon :adapter-in-web:restDocsTest`
 - 앱 실행: `./gradlew :bootstrap:bootRun`
 
 ### 프론트엔드
@@ -179,22 +90,76 @@ docker compose up -d --build
 - 개발 서버: `cd frontend && npm run dev`
 - 프로덕션 빌드: `cd frontend && npm run build`
 - E2E 브라우저 설치: `cd frontend && npm run e2e:install`
-- E2E 실행: `cd frontend && npm run e2e`
+- E2E smoke: `cd frontend && npm run e2e`
+- E2E 도메인별 실행: `cd frontend && npm run e2e:payment`, `npm run e2e:identity`, `npm run e2e:admin`
+- E2E 전체 실행: `cd frontend && npm run e2e:full`
 
-## 테스트 메모
+## 테스트 기준
 
 - `@UseCaseIT`는 MySQL/Redis Testcontainers와 고정 `Clock`을 사용한다.
+- REST Docs 스니펫은 `:adapter-in-web:restDocsTest`가 `adapter-in-web/build/generated-snippets`에 생성한다.
 - Playwright 실행 전 백엔드는 `http://localhost:8080`에서 실행 중이어야 한다.
-- 결제/회원 E2E smoke를 반복 실행할 때는 백엔드에 `RATE_LIMIT_ENABLED=false`를 주입해 관리자 로그인·휴대폰 인증 제한이 테스트 순서에 영향을 주지 않게 한다.
-- Playwright 관리자 기본 로그인은 `admin / admin1234`다. 필요하면 환경 변수로 덮어쓴다.
+- 기본 E2E는 `@smoke` 대표 경로만 실행한다. 전체 P8 회귀는 `e2e:full` 또는 도메인별 스크립트로 실행한다.
+
+테스트 선택 기준은 [ADR-0027](docs/ADR/0027_테스트_전략과_최소_테스트_세트_기준선/adr.md), E2E 실행 시간 조정 배경은 [Retrospective-0009](docs/Retrospective/0009_프론트_E2E_실행_시간_슬림화/retrospective.md)에 남긴다.
+
+## 저장소 구조
+
+| 경로 | 역할 |
+| --- | --- |
+| `bootstrap/` | 애플리케이션 시작점, 공통 설정, Flyway, 로깅 |
+| `adapter-in-web/` | HTTP API, 필터, 요청/응답 처리 |
+| `adapter-out-persistence/` | JPA, MyBatis, 데이터베이스 연동 |
+| `adapter-out-external/` | 결제, 알림, OAuth, Redis 세션, 외부 API 연동 |
+| `application/` | 유스케이스, 서비스, 배치, 포트 정의 |
+| `domain/` | 도메인 모델, 정책, 예외 |
+| `frontend/` | React 기반 사용자 화면과 관리자 화면 |
+| `monitoring/` | Prometheus, Grafana, Alertmanager 설정 |
+
+- 의존 방향: `bootstrap -> adapter-in-web/out-* -> application -> domain`
+- 일반 조회와 저장은 JPA, 관리자 검색과 대시보드 집계는 MyBatis를 사용한다.
+
+## 기술 스택
+
+- 백엔드: Spring Boot 4.0.2, Java 21, Gradle
+- 프론트엔드: Vite, React 19, TypeScript
+- 데이터베이스: MySQL 8, Flyway
+- 세션과 캐시: Redis, Spring Session
+- 인프라: AWS CloudFront, S3, ALB, ECS Fargate, RDS, ElastiCache
+- 모니터링: Actuator, Prometheus, Grafana, Sentry
+- 테스트: JUnit 5, Testcontainers, Spring REST Docs, Playwright
+
+## 운영/배포
+
+- 운영 주소: `https://d36l7yi27358tl.cloudfront.net/`
+- 주요 경로: `/products`, `/bookings/new`, `/passes/purchase`, `/my`, `/guest`, `/admin`
+- 배포 구조: `CloudFront -> S3`로 프론트 정적 파일을 제공하고, `/api/*`는 `CloudFront -> ALB -> ECS Fargate -> RDS/Redis`로 전달한다.
+- 배포 파이프라인: `main` push 시 GitHub Actions가 프론트는 S3/CloudFront로, 백엔드는 ECR/ECS로 배포한다.
+
+운영 배경과 설정 기준:
+
+- [CloudFront + S3 + ALB 배포 구조](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md)
+- [GitHub Actions CI/CD 배포 Fargate](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md)
+- [AWS 배포 설정 베이스라인](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)
+
+## 주요 환경 변수
+
+| 이름 | 위치 | 설명 |
+| --- | --- | --- |
+| `TOSS_SECRET_KEY` | 백엔드 `prod` | Toss Payments secret key |
+| `VITE_TOSS_CLIENT_KEY` | 프론트 빌드 | Toss SDK client key |
+| `PASS_TOTAL_PRICE` | 백엔드 | 8회권 결제 금액 |
+| `RATE_LIMIT_ENABLED` | 백엔드 | 로컬 반복 검증 시 처리율 제한 off 가능 |
+| `ADMIN_SETUP_TOKEN` | 백엔드 | 최초 관리자 계정 생성용 일회성 토큰 |
+
+환경별 전체 설정은 [application.yml](bootstrap/src/main/resources/application.yml)과 [application-local.yml](bootstrap/src/main/resources/application-local.yml)을 기준으로 확인한다.
 
 ## 문서 진입점
 
-- 로컬 설정 기준: [application-local.yml](bootstrap/src/main/resources/application-local.yml)
-- 공통 설정 기준: [application.yml](bootstrap/src/main/resources/application.yml)
-- 요구사항 기준 문서: [docs/PRD/0001_기준_스펙/spec.md](docs/PRD/0001_기준_스펙/spec.md)
+- 요구사항 기준: [docs/PRD/0001_기준_스펙/spec.md](docs/PRD/0001_기준_스펙/spec.md)
 - API 계약: [docs/PRD/0004_API_계약/spec.md](docs/PRD/0004_API_계약/spec.md)
 - 설계 결정: [docs/ADR](docs/ADR/)
 - 배경 메모와 검토 기록: [docs/Idea](docs/Idea/)
+- 회고와 트러블슈팅 기록: [docs/Retrospective](docs/Retrospective/)
 
 `docs/Idea`는 배경 메모다. 현재 동작과 운영 기준은 PRD와 ADR을 먼저 본다.

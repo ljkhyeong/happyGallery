@@ -418,8 +418,49 @@ export async function fetchAdminProducts(request: APIRequestContext): Promise<Ad
   return apiGet<AdminProduct[]>(request, "/admin/products", { admin: true });
 }
 
+export async function createAdminProduct(
+  request: APIRequestContext,
+  body: { name: string; type?: string; price: number; quantity: number },
+): Promise<AdminProduct> {
+  const product = await apiPost<AdminProduct>(
+    request,
+    "/admin/products",
+    {
+      name: body.name,
+      type: body.type ?? "READY_STOCK",
+      price: body.price,
+      quantity: body.quantity,
+    },
+    { admin: true },
+  );
+  if (!product) {
+    throw new Error("Admin product create response was empty");
+  }
+  return product;
+}
+
 export async function fetchAdminSlots(request: APIRequestContext, classId: number): Promise<AdminSlot[]> {
   return apiGet<AdminSlot[]>(request, "/admin/slots", { admin: true, query: { classId } });
+}
+
+export async function createAdminSlot(
+  request: APIRequestContext,
+  body: { classId: number; startAt: Date; endAt: Date },
+): Promise<AdminSlot> {
+  const slot = await apiPost<AdminSlot>(
+    request,
+    "/admin/slots",
+    {
+      classId: body.classId,
+      startAt: toDateTimeLocalInput(body.startAt),
+      endAt: toDateTimeLocalInput(body.endAt),
+    },
+    { admin: true },
+  );
+  if (!slot) {
+    throw new Error("Admin slot create response was empty");
+  }
+  return slot;
 }
 
 export async function fetchAdminBookings(
