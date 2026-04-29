@@ -82,7 +82,7 @@
 
 ### 4. PG timeout용 `ExecutorService`는 빠른 정리를 우선한다
 
-`CircuitBreakerPaymentProvider` 내부 executor는 `@PreDestroy`에서 다음 순서로 종료한다.
+`ResilientPaymentProvider` 내부 executor는 `@PreDestroy`에서 다음 순서로 종료한다.
 
 1. `executor.shutdown()`
 2. 최대 2초 `awaitTermination`
@@ -118,7 +118,7 @@
 - `bootstrap/src/main/java/com/personal/happygallery/bootstrap/config/AsyncConfig.java`
   - `notificationExecutor`에 shutdown drain 설정 적용
   - `TaskDecorator`로 MDC 복사/주입/정리 적용
-- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/CircuitBreakerPaymentProvider.java`
+- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/ResilientPaymentProvider.java`
   - `@PreDestroy` 기반 executor 종료 로직 적용
 
 ---
@@ -154,4 +154,4 @@
 - `docs/ADR/0030_타임아웃_계층과_ingress_keep_alive_기준선/adr.md`
 - `bootstrap/src/main/resources/application.yml`
 - `bootstrap/src/main/java/com/personal/happygallery/bootstrap/config/AsyncConfig.java`
-- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/CircuitBreakerPaymentProvider.java`
+- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/ResilientPaymentProvider.java`

@@ -4,7 +4,6 @@ import com.personal.happygallery.application.payment.port.out.PaymentConfirmResu
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -18,7 +17,7 @@ import org.springframework.web.client.RestClient;
  *
  * <p>{@code /v1/payments/confirm}으로 결제 확정, {@code /v1/payments/{paymentKey}/cancel}로 환불.
  * 인증은 Basic Auth (secretKey + ":" base64 인코딩). 보호 계층(서킷 브레이커·타임아웃)은
- * {@link CircuitBreakerPaymentProvider}가 상위에서 씌운다.
+ * {@link ResilientPaymentProvider}가 상위에서 씌운다.
  */
 @Component("paymentProviderDelegate")
 @Profile("prod")
@@ -39,10 +38,7 @@ public class TossPaymentsProvider implements PaymentProvider {
     @Override
     public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount) {
         try {
-            Map<String, Object> body = Map.of(
-                    "paymentKey", paymentKey,
-                    "orderId", orderId,
-                    "amount", amount);
+            ConfirmRequest body = new ConfirmRequest(paymentKey, orderId, amount);
             ConfirmResponse response = restClient.post()
                     .uri("/v1/payments/confirm")
                     .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
@@ -68,9 +64,7 @@ public class TossPaymentsProvider implements PaymentProvider {
     @Override
     public RefundResult refund(String pgRef, long amount) {
         try {
-            Map<String, Object> body = Map.of(
-                    "cancelReason", "요청에 의한 환불",
-                    "cancelAmount", amount);
+            RefundRequest body = new RefundRequest("요청에 의한 환불", amount);
             RefundResponse response = restClient.post()
                     .uri("/v1/payments/{paymentKey}/cancel", pgRef)
                     .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
@@ -90,7 +84,11 @@ public class TossPaymentsProvider implements PaymentProvider {
         }
     }
 
+    private record ConfirmRequest(String paymentKey, String orderId, long amount) {}
+
     private record ConfirmResponse(String paymentKey, String orderId, String method, String approvedAt) {}
+
+    private record RefundRequest(String cancelReason, long cancelAmount) {}
 
     private record RefundResponse(String paymentKey) {}
 }

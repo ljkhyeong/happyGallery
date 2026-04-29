@@ -69,7 +69,7 @@
 ## Update (2026-04-26)
 
 - PG 실 연동 제외 항목은 해소됐다. 운영(`prod`)은 `TossPaymentsProvider`, 비운영(`!prod`)은 `FakePaymentProvider`를 사용한다.
-- Toss confirm/cancel도 `CircuitBreakerPaymentProvider`와 전용 pooled `RestClient` 경계를 통과한다.
+- Toss confirm/cancel도 `ResilientPaymentProvider`와 전용 pooled `RestClient` 경계를 통과한다.
 
 ## 참고
 

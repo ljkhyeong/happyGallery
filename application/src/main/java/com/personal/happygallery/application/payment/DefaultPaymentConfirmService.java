@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.payment;
 
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
@@ -92,10 +91,6 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
     }
 
     private PaymentPayload deserialize(String json) {
-        try {
-            return objectMapper.readValue(json, PaymentPayload.class);
-        } catch (JacksonException e) {
-            throw new IllegalStateException("결제 payload 역직렬화 실패", e);
-        }
+        return objectMapper.readValue(json, PaymentPayload.class);
     }
 }
