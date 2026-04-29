@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.payment;
 
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.personal.happygallery.application.payment.context.PaymentPreparer;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
@@ -56,10 +55,6 @@ public class DefaultPaymentPrepareService implements PaymentPrepareUseCase {
     }
 
     private String serialize(Object payload) {
-        try {
-            return objectMapper.writeValueAsString(payload);
-        } catch (JacksonException e) {
-            throw new IllegalStateException("결제 payload 직렬화 실패", e);
-        }
+        return objectMapper.writeValueAsString(payload);
     }
 }

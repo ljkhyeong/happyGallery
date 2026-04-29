@@ -94,4 +94,5 @@
 - 작업 브랜치는 `codex/work-*`
 - 기본 흐름: `codex/work-*` → `codexReview` Draft PR → `codexReview` merge → `main` PR → `main` merge
 - PR 제목/본문은 특별한 이유가 없으면 한글
+- GitHub 코드 리뷰 본문과 inline comment는 특별한 이유가 없으면 한글로 작성
 - PR 본문에는 문제, 핵심 설계 판단, 실행한 테스트, 문서 반영 여부 포함

@@ -1401,12 +1401,13 @@ Content-Type: application/json
 
 - 성공: `200 OK`
 - 에러:
-  - `400 INVALID_INPUT` — `orderId` 미존재, prepare 시점 amount와 불일치, payload 변환 실패, payload 인증 정보 불일치
+  - `400 INVALID_INPUT` — prepare 시점 amount와 불일치, payload 인증 정보 불일치
   - `404 NOT_FOUND` — `payment_attempt` 미존재
   - `409 INVENTORY_NOT_ENOUGH` — 결제 직전 재고 부족
   - `409 CAPACITY_EXCEEDED` — 결제 직전 슬롯 정원 초과
   - `409 DUPLICATE_BOOKING` — 동일 전화번호 + 동일 슬롯 중복
   - `409 SLOT_NOT_AVAILABLE` — 결제 직전 비활성 슬롯
+  - `500 INTERNAL_ERROR` — 저장된 결제 payload 직렬화/역직렬화 실패
   - `502 PAYMENT_FAILED` — PG가 결제 확정 거절 (서킷 브레이커 OPEN/타임아웃 포함)
 - 정책:
   - `paymentKey`는 amount > 0 결제만 필수다. 8회권 사용 예약처럼 `payment_attempt.amount=0`인 경우 `paymentKey`는 비워서 보내고 PG 호출은 생략된다.
@@ -1479,7 +1480,7 @@ Content-Type: application/json
 
 | HTTP | 에러 코드 | 발생 상황 |
 |------|----------|----------|
-| 400 | `INVALID_INPUT` | 요청 바디/파라미터 검증 실패 |
+| 400 | `INVALID_INPUT` | 요청 바디/파라미터 검증 실패 또는 요청 JSON 형식 오류 |
 | 400 | `PHONE_VERIFICATION_FAILED` | 인증 코드 불일치 또는 만료 |
 | 404 | `NOT_FOUND` | 주문·예약·이용권·상품 미존재 |
 | 409 | `ALREADY_REFUNDED` | 이미 자동환불된 주문에 승인 시도 |
@@ -1496,6 +1497,7 @@ Content-Type: application/json
 | 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 시도 |
 | 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 크레딧 0인 8회권으로 예약 시도 |
 | 422 | `PAYMENT_METHOD_NOT_ALLOWED` | 계좌이체(`BANK_TRANSFER`)로 예약금 결제 시도 |
+| 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 거절 (서킷 브레이커 OPEN/타임아웃 포함) |
 
 ---

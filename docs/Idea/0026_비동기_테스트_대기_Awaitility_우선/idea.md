@@ -78,4 +78,4 @@ await()
 - timeout 시 진단 메시지가 더 직접적이다.
 - 기존 테스트 본문은 유지하면서 비동기 대기 정책만 공통화할 수 있다.
 
-반면 `CircuitBreakerPaymentProviderTest`의 `Thread.sleep`은 외부 PG timeout을 일부러 만들기 위한 테스트용 지연 장치이므로 Awaitility로 바꾸지 않는다.
+반면 `ResilientPaymentProviderTest`의 `Thread.sleep`은 외부 PG timeout을 일부러 만들기 위한 테스트용 지연 장치이므로 Awaitility로 바꾸지 않는다.

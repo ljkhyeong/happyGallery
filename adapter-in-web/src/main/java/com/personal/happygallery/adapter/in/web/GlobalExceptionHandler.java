@@ -4,11 +4,13 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.sentry.Sentry;
+import tools.jackson.core.JacksonException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -39,6 +41,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(400)
                 .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, message, requestId()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT.httpStatus)
+                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, "요청 JSON 형식이 올바르지 않습니다.", requestId()));
+    }
+
+    /**
+     * 서버 내부 직렬화/역직렬화 실패.
+     * 요청 JSON 파싱 오류는 Spring의 HttpMessageNotReadableException 경로에서 400으로 처리한다.
+     */
+    @ExceptionHandler(JacksonException.class)
+    public ResponseEntity<ErrorResponse> handleJacksonException(JacksonException e) {
+        log.error("JSON 처리 중 내부 오류", e);
+        Sentry.captureException(e);
+        return ResponseEntity
+                .status(ErrorCode.INTERNAL_ERROR.httpStatus)
+                .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
     }
 
     /**

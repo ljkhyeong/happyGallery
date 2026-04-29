@@ -9,9 +9,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
-class CircuitBreakerPaymentProviderTest {
+class ResilientPaymentProviderTest {
 
-    private CircuitBreakerPaymentProvider provider;
+    private ResilientPaymentProvider provider;
     private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @AfterEach
@@ -29,7 +29,7 @@ class CircuitBreakerPaymentProviderTest {
             throw new RuntimeException("PG error");
         });
 
-        provider = new CircuitBreakerPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3), meterRegistry);
+        provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3), meterRegistry);
 
         RefundResult result = provider.refund("pg-ref", 10_000);
 
@@ -51,7 +51,7 @@ class CircuitBreakerPaymentProviderTest {
             return RefundResult.success("late-ref");
         });
 
-        provider = new CircuitBreakerPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3), meterRegistry);
+        provider = new ResilientPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3), meterRegistry);
 
         RefundResult result = provider.refund("pg-ref", 10_000);
 
@@ -68,7 +68,7 @@ class CircuitBreakerPaymentProviderTest {
             throw new RuntimeException("PG down");
         });
 
-        provider = new CircuitBreakerPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1), meterRegistry);
+        provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1), meterRegistry);
 
         provider.refund("pg-ref", 10_000);
         provider.refund("pg-ref", 10_000);
@@ -87,7 +87,7 @@ class CircuitBreakerPaymentProviderTest {
             throw new RuntimeException("PG confirm error");
         });
 
-        provider = new CircuitBreakerPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3), meterRegistry);
+        provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3), meterRegistry);
 
         PaymentConfirmResult result = provider.confirm("payment-key", "order-id", 10_000);
 
@@ -109,7 +109,7 @@ class CircuitBreakerPaymentProviderTest {
             return PaymentConfirmResult.success("late-ref", "CARD", "2026-04-23T10:00:00+09:00");
         });
 
-        provider = new CircuitBreakerPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3), meterRegistry);
+        provider = new ResilientPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3), meterRegistry);
 
         PaymentConfirmResult result = provider.confirm("payment-key", "order-id", 10_000);
 
@@ -126,7 +126,7 @@ class CircuitBreakerPaymentProviderTest {
             throw new RuntimeException("PG confirm down");
         });
 
-        provider = new CircuitBreakerPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1), meterRegistry);
+        provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1), meterRegistry);
 
         provider.confirm("payment-key", "order-id", 10_000);
         provider.confirm("payment-key", "order-id", 10_000);

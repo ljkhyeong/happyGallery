@@ -4,10 +4,13 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.order.Order;
+import tools.jackson.core.JacksonException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,5 +56,36 @@ class GlobalExceptionHandlerTest {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(400);
             softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.INVALID_INPUT));
         });
+    }
+
+    @DisplayName("요청 JSON 파싱 실패는 INVALID_INPUT으로 매핑된다")
+    @Test
+    void httpMessageNotReadable_mapsToInvalidInput() {
+        ResponseEntity<ErrorResponse> response = handler.handleHttpMessageNotReadable(
+                new HttpMessageNotReadableException("JSON parse error", new MockHttpInputMessage(new byte[0])));
+
+        assertSoftly(softly -> {
+            softly.assertThat(response.getStatusCode().value()).isEqualTo(400);
+            softly.assertThat(response.getBody()).isEqualTo(
+                    ErrorResponse.of(ErrorCode.INVALID_INPUT, "요청 JSON 형식이 올바르지 않습니다."));
+        });
+    }
+
+    @DisplayName("내부 Jackson 처리 오류는 INTERNAL_ERROR로 매핑된다")
+    @Test
+    void jacksonException_mapsToInternalError() {
+        ResponseEntity<ErrorResponse> response = handler.handleJacksonException(
+                new TestJacksonException("결제 payload 역직렬화 실패"));
+
+        assertSoftly(softly -> {
+            softly.assertThat(response.getStatusCode().value()).isEqualTo(500);
+            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
+        });
+    }
+
+    private static class TestJacksonException extends JacksonException {
+        TestJacksonException(String message) {
+            super(message);
+        }
     }
 }

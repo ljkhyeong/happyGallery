@@ -19,7 +19,7 @@
 
 ### 1. `PaymentProvider` 경계에 데코레이터를 적용한다
 
-- `CircuitBreakerPaymentProvider`를 `@Primary` 빈으로 등록한다.
+- `ResilientPaymentProvider`를 `@Primary` 빈으로 등록한다.
 - 실제 호출 구현체는 `paymentProviderDelegate`로 분리해 주입한다.
 
 ### 2. `CircuitBreaker + TimeLimiter`를 조합한다
@@ -39,7 +39,7 @@
 
 ### 4. 결제 confirm도 같은 보호 경계를 통과한다
 
-- `CircuitBreakerPaymentProvider.confirm(paymentKey, orderId, amount)`를 추가한다.
+- `ResilientPaymentProvider.confirm(paymentKey, orderId, amount)`를 추가한다.
 - 서킷 오픈, 타임아웃, 예외는 `PaymentConfirmResult.failure`로 표준화한다.
 - 애플리케이션은 confirm 실패를 `PAYMENT_FAILED`로 매핑하고 도메인 저장을 진행하지 않는다.
 
@@ -58,7 +58,7 @@
 
 ## 구현 반영
 
-- `adapter-out-external/.../payment/CircuitBreakerPaymentProvider` 추가
+- `adapter-out-external/.../payment/ResilientPaymentProvider` 추가
 - `adapter-out-external/.../payment/FakePaymentProvider` 빈 이름 분리 (`paymentProviderDelegate`)
 - `PaymentProvider.confirm` 경로도 `CircuitBreaker + TimeLimiter` 보호 적용
 - `adapter-out-external/build.gradle`에 Resilience4j 의존성 추가
