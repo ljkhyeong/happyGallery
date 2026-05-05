@@ -7,9 +7,7 @@ import { trackClientEvent } from "@/features/monitoring/api";
 import { OrderItemsForm } from "@/features/order/OrderItemsForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
-  preparePayment,
-  requestTossPayment,
-  storePaymentReturnHint,
+  executePaymentFlow,
   type OrderPayload,
 } from "@/features/payment";
 import { ErrorAlert } from "@/shared/ui";
@@ -51,17 +49,16 @@ export function OrderCreatePage() {
       const payload: OrderPayload = user
         ? { type: "ORDER", userId: user.id, name: name || user.name, items }
         : { type: "ORDER", phone, verificationCode: code, name, items };
-      const prep = await preparePayment("ORDER", payload);
-      storePaymentReturnHint({ customerName: name, customerPhone: phone });
-      await requestTossPayment({
-        orderId: prep.orderId,
-        amount: prep.amount,
+      await executePaymentFlow({
+        context: "ORDER",
+        payload,
         orderName: items.length === 1 && items[0]
           ? `상품 주문 (${items[0].qty}개)`
           : `상품 주문 ${items.length}건`,
         customerKey: user ? `member_${user.id}` : undefined,
         customerName: name,
-        customerMobilePhone: phone || undefined,
+        customerPhone: phone || undefined,
+        returnHint: { customerName: name, customerPhone: phone },
       });
     },
   });

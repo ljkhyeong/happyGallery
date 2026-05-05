@@ -27,9 +27,7 @@ public class MePassController {
 
     @GetMapping
     public List<MyPassSummary> myPasses(@CustomerUserId Long userId) {
-        return passQueryUseCase.listMyPasses(userId).stream()
-                .map(MyPassSummary::from)
-                .toList();
+        return MyPassSummary.fromAll(passQueryUseCase.listMyPasses(userId));
     }
 
     @GetMapping("/{id}")

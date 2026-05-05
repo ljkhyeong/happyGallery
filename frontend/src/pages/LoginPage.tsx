@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation, useSearchParams } from "react-router-do
 import { api } from "@/shared/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 
 export function LoginPage() {
   const { login } = useCustomerAuth();
@@ -116,13 +117,13 @@ export function LoginPage() {
                 variant="outline-dark"
                 className="w-100"
                 onClick={async () => {
-                  sessionStorage.setItem("social_login_return_to", returnTo);
+                  sessionStorage.setItem(SESSION_KEYS.socialLoginReturnTo, returnTo);
                   const redirectUri = window.location.origin + "/auth/callback/google";
                   try {
                     const data = await api<{ url: string; state: string }>(
                       `/auth/social/google/url?redirectUri=${encodeURIComponent(redirectUri)}`,
                     );
-                    sessionStorage.setItem("google_oauth_state", data.state);
+                    sessionStorage.setItem(SESSION_KEYS.googleOauthState, data.state);
                     window.location.href = data.url;
                   } catch {
                     setError("Google 로그인 준비에 실패했습니다.");

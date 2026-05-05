@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal, Button, Form, Alert, Nav } from "react-bootstrap";
 import { useCustomerAuth } from "./useCustomerAuth";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
+import { normalizePhone } from "@/shared/validation/phone";
 
 type AuthPath = "login" | "signup" | "guest";
 
@@ -157,7 +158,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
               <Form.Label className="small">전화번호</Form.Label>
               <Form.Control
                 size="sm" value={signupPhone}
-                onChange={(e) => setSignupPhone(e.target.value.replace(/\D/g, ""))}
+                onChange={(e) => setSignupPhone(normalizePhone(e.target.value))}
                 placeholder="01012345678" maxLength={11} required
               />
             </Form.Group>

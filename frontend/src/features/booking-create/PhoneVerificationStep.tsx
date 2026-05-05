@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
 import { sendVerification } from "./api";
 import { ErrorAlert } from "@/shared/ui";
+import { isValidPhone, normalizePhone } from "@/shared/validation/phone";
 
 interface Props {
   onVerified: (phone: string, code: string) => void;
@@ -21,13 +22,13 @@ export function PhoneVerificationStep({
   lockPhone = false,
   confirmLabel = "확인",
 }: Props) {
-  const [phone, setPhone] = useState(initialPhone.replace(/\D/g, ""));
+  const [phone, setPhone] = useState(normalizePhone(initialPhone));
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [touched, setTouched] = useState(false);
 
   useEffect(() => {
-    setPhone(initialPhone.replace(/\D/g, ""));
+    setPhone(normalizePhone(initialPhone));
   }, [initialPhone]);
 
   const sendMutation = useMutation({
@@ -37,7 +38,7 @@ export function PhoneVerificationStep({
     },
   });
 
-  const phoneValid = /^01[0-9]{8,9}$/.test(phone);
+  const phoneValid = isValidPhone(phone);
   const showPhoneError = touched && phone.length > 0 && !phoneValid;
 
   return (
@@ -52,7 +53,7 @@ export function PhoneVerificationStep({
             <Form.Label>휴대폰 번호</Form.Label>
             <Form.Control
               value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => setPhone(normalizePhone(e.target.value))}
               onBlur={() => setTouched(true)}
               placeholder="01012345678"
               maxLength={11}

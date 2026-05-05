@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Container, Alert } from "react-bootstrap";
 import { LoadingSpinner } from "@/shared/ui";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 
 export function GoogleCallbackPage() {
   const [searchParams] = useSearchParams();
@@ -13,7 +14,7 @@ export function GoogleCallbackPage() {
   useEffect(() => {
     const code = searchParams.get("code");
     const returnedState = searchParams.get("state");
-    const savedState = sessionStorage.getItem("google_oauth_state");
+    const savedState = sessionStorage.getItem(SESSION_KEYS.googleOauthState);
 
     if (!code) {
       setError("인가 코드가 없습니다. 다시 시도해주세요.");
@@ -28,7 +29,7 @@ export function GoogleCallbackPage() {
     const redirectUri = window.location.origin + "/auth/callback/google";
 
     socialLogin(code, redirectUri).then(async (result) => {
-      sessionStorage.removeItem("google_oauth_state");
+      sessionStorage.removeItem(SESSION_KEYS.googleOauthState);
 
       if (!result.ok) {
         setError("소셜 로그인에 실패했습니다. 다시 시도해주세요.");
@@ -37,8 +38,8 @@ export function GoogleCallbackPage() {
 
       await refresh();
 
-      const returnTo = sessionStorage.getItem("social_login_return_to") ?? "/";
-      sessionStorage.removeItem("social_login_return_to");
+      const returnTo = sessionStorage.getItem(SESSION_KEYS.socialLoginReturnTo) ?? "/";
+      sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
 
       if (result.newUser) {
         navigate("/my", { state: { phoneOnboarding: true } });

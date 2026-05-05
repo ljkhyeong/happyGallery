@@ -4,6 +4,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "@/shared/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { normalizePhone } from "@/shared/validation/phone";
+import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 
 export function SignupPage() {
   const { signup } = useCustomerAuth();
@@ -18,7 +20,7 @@ export function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState(searchParams.get("name") ?? "");
-  const [phone, setPhone] = useState((searchParams.get("phone") ?? "").replace(/\D/g, ""));
+  const [phone, setPhone] = useState(normalizePhone(searchParams.get("phone") ?? ""));
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -126,7 +128,7 @@ export function SignupPage() {
                   <Form.Control
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                    onChange={(e) => setPhone(normalizePhone(e.target.value))}
                     required
                     placeholder="01012345678"
                     maxLength={11}
@@ -145,13 +147,13 @@ export function SignupPage() {
                 variant="outline-dark"
                 className="w-100"
                 onClick={async () => {
-                  sessionStorage.setItem("social_login_return_to", redirectTo);
+                  sessionStorage.setItem(SESSION_KEYS.socialLoginReturnTo, redirectTo);
                   const redirectUri = window.location.origin + "/auth/callback/google";
                   try {
                     const data = await api<{ url: string; state: string }>(
                       `/auth/social/google/url?redirectUri=${encodeURIComponent(redirectUri)}`,
                     );
-                    sessionStorage.setItem("google_oauth_state", data.state);
+                    sessionStorage.setItem(SESSION_KEYS.googleOauthState, data.state);
                     window.location.href = data.url;
                   } catch {
                     setError("Google 로그인 준비에 실패했습니다.");

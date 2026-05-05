@@ -7,6 +7,7 @@ import { trackClientEvent } from "@/features/monitoring/api";
 import { queryClient } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { normalizePhone } from "@/shared/validation/phone";
 
 interface Props {
   show: boolean;
@@ -15,10 +16,6 @@ interface Props {
   phoneVerified: boolean;
   onPhoneVerified: () => Promise<void>;
   monitoringSource?: string | null;
-}
-
-function toDigits(phone: string) {
-  return phone.replace(/\D/g, "");
 }
 
 export function GuestClaimModal({
@@ -128,7 +125,7 @@ export function GuestClaimModal({
           <PhoneVerificationStep
             title="휴대폰 재인증"
             description="회원 조회는 로그인으로 가능하지만, 기존 비회원 이력을 가져오려면 같은 번호인지 한 번 더 확인합니다."
-            initialPhone={toDigits(phone)}
+            initialPhone={normalizePhone(phone)}
             lockPhone
             confirmLabel="인증하고 불러오기"
             onVerified={(_, verificationCode) => verifyMutation.mutate(verificationCode)}

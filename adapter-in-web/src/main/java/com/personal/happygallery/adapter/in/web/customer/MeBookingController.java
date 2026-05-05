@@ -42,9 +42,7 @@ public class MeBookingController {
 
     @GetMapping
     public List<MyBookingSummary> myBookings(@CustomerUserId Long userId) {
-        return bookingQueryUseCase.listMyBookings(userId).stream()
-                .map(MyBookingSummary::from)
-                .toList();
+        return MyBookingSummary.fromAll(bookingQueryUseCase.listMyBookings(userId));
     }
 
     @GetMapping("/{id}")

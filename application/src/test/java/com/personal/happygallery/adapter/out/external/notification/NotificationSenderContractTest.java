@@ -21,7 +21,7 @@ class NotificationSenderContractTest {
     void kakao_send_sendsTemplatePayload() {
         RestClient.Builder builder = RestClient.builder().baseUrl("https://bizapi.kakao.com");
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        KakaoAlimtalkSender sender = new KakaoAlimtalkSender(kakaoProperties(), builder.build());
+        KakaoAlimtalkSender sender = new KakaoAlimtalkSender(kakaoProperties(), builder.build(), new KakaoTemplateCatalog());
 
         server.expect(requestTo("https://bizapi.kakao.com/v1/api/talk/friends/message/default/send"))
                 .andExpect(method(HttpMethod.POST))
@@ -48,7 +48,7 @@ class NotificationSenderContractTest {
     void sms_send_sendsMessagePayload() {
         RestClient.Builder builder = RestClient.builder().baseUrl("https://api-sms.cloud.toast.com");
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        RealSmsSender sender = new RealSmsSender(smsProperties(), builder.build());
+        RealSmsSender sender = new RealSmsSender(smsProperties(), builder.build(), new SmsMessageCatalog());
 
         server.expect(requestTo("https://api-sms.cloud.toast.com/sms/v3.0/appKeys/api-key/sender/sms"))
                 .andExpect(method(HttpMethod.POST))
