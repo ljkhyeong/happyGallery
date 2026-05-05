@@ -6,9 +6,7 @@ import { fetchProduct } from "@/features/product/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
-  preparePayment,
-  requestTossPayment,
-  storePaymentReturnHint,
+  executePaymentFlow,
   type OrderPayload,
 } from "@/features/payment";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
@@ -45,15 +43,14 @@ export function ProductDetailPage() {
         name: user.name,
         items: [{ productId, qty }],
       };
-      const prep = await preparePayment("ORDER", payload);
-      storePaymentReturnHint({ customerName: user.name, customerPhone: user.phone });
-      await requestTossPayment({
-        orderId: prep.orderId,
-        amount: prep.amount,
+      await executePaymentFlow({
+        context: "ORDER",
+        payload,
         orderName: product ? `${product.name} (${qty}개)` : `상품 주문 (${qty}개)`,
         customerKey: `member_${user.id}`,
         customerName: user.name,
-        customerMobilePhone: user.phone || undefined,
+        customerPhone: user.phone || undefined,
+        returnHint: { customerName: user.name, customerPhone: user.phone },
       });
     },
   });

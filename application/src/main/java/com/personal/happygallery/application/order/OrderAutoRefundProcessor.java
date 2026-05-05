@@ -4,7 +4,6 @@ import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
@@ -33,8 +32,7 @@ public class OrderAutoRefundProcessor {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @OptimisticLockRetryable
     public boolean process(Long orderId, LocalDateTime now) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         if (!order.canAutoRefund(now)) {
             return false;
         }

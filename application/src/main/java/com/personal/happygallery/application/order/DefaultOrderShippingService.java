@@ -6,7 +6,6 @@ import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
@@ -49,8 +48,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
      */
     @OptimisticLockRetryable
     public ShippingResult prepareShipping(Long orderId, Long adminId) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.markShippingPreparing();
 
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
@@ -69,16 +67,14 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
      */
     @OptimisticLockRetryable
     public ShippingResult markShipped(Long orderId, Long adminId) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.markShipped();
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.SHIP, adminId, null));
         orderStore.save(order);
 
-        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(NotFoundException.supplier("이행 정보"));
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         return ShippingResult.of(order, fulfillment);
     }
 
@@ -87,16 +83,14 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
      */
     @OptimisticLockRetryable
     public ShippingResult markDelivered(Long orderId, Long adminId) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.markDelivered();
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELIVER, adminId, null));
         orderStore.save(order);
 
-        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(NotFoundException.supplier("이행 정보"));
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         return ShippingResult.of(order, fulfillment);
     }
 }

@@ -27,9 +27,7 @@ public class MeOrderController {
 
     @GetMapping
     public List<MyOrderSummary> myOrders(@CustomerUserId Long userId) {
-        return orderQueryUseCase.listMyOrders(userId).stream()
-                .map(MyOrderSummary::from)
-                .toList();
+        return MyOrderSummary.fromAll(orderQueryUseCase.listMyOrders(userId));
     }
 
     @GetMapping("/{id}")

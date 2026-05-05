@@ -1,5 +1,6 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api } from "@/shared/api";
+import { normalizePhone } from "@/shared/validation/phone";
 
 interface CustomerUserResponse {
   id: number;
@@ -36,10 +37,6 @@ interface CustomerAuthContextValue {
 }
 
 const CustomerAuthContext = createContext<CustomerAuthContextValue | null>(null);
-
-function normalizePhone(phone: string) {
-  return phone.replace(/\D/g, "");
-}
 
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CustomerUser | null>(null);

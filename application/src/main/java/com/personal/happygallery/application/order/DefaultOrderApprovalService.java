@@ -7,7 +7,6 @@ import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -74,8 +73,7 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
 
     @OptimisticLockRetryable
     public Order approve(Long orderId, Long adminId) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
 
         boolean isMadeToOrder = isMadeToOrderOrder(order);
         if (isMadeToOrder) {
@@ -114,8 +112,7 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
 
     @OptimisticLockRetryable
     public Order reject(Long orderId, Long adminId) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.reject();
 
         orderRefundSupport.refundOrder(order);

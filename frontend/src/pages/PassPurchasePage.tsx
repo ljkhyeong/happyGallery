@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Button } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
-import { preparePayment, requestTossPayment, storePaymentReturnHint } from "@/features/payment";
+import { executePaymentFlow } from "@/features/payment";
 import { ErrorAlert } from "@/shared/ui";
 
 export function PassPurchasePage() {
@@ -11,15 +11,14 @@ export function PassPurchasePage() {
   const purchaseMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("로그인이 필요합니다.");
-      const prep = await preparePayment("PASS", { type: "PASS", userId: user.id });
-      storePaymentReturnHint({ customerName: user.name, customerPhone: user.phone });
-      await requestTossPayment({
-        orderId: prep.orderId,
-        amount: prep.amount,
+      await executePaymentFlow({
+        context: "PASS",
+        payload: { type: "PASS", userId: user.id },
         orderName: "8회권",
         customerKey: `member_${user.id}`,
         customerName: user.name,
-        customerMobilePhone: user.phone || undefined,
+        customerPhone: user.phone || undefined,
+        returnHint: { customerName: user.name, customerPhone: user.phone },
       });
     },
   });

@@ -1,5 +1,6 @@
 export { preparePayment, confirmPayment } from "./api";
 export { requestTossPayment } from "./TossCheckout";
+export { executePaymentFlow } from "./flow";
 export type {
   PaymentContext,
   PaymentPayload,

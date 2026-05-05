@@ -3,7 +3,6 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.AuthorizationUrlResult;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLoginResult;
-import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
 import com.personal.happygallery.adapter.in.web.customer.dto.CustomerUserResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.GoogleAuthUrlResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.SocialLoginRequest;
@@ -22,9 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class SocialLoginController {
 
     private final SocialAuthUseCase socialAuth;
+    private final AuthSessionWriter authSessionWriter;
 
-    public SocialLoginController(SocialAuthUseCase socialAuth) {
+    public SocialLoginController(SocialAuthUseCase socialAuth,
+                                 AuthSessionWriter authSessionWriter) {
         this.socialAuth = socialAuth;
+        this.authSessionWriter = authSessionWriter;
     }
 
     @GetMapping("/google/url")
@@ -38,8 +40,7 @@ public class SocialLoginController {
                                            HttpServletRequest httpRequest) {
         SocialLoginResult result = socialAuth.socialLogin(
                 new SocialAuthUseCase.SocialLoginCommand(request.code(), request.redirectUri()));
-        httpRequest.getSession(true)
-                .setAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR, result.user().getId());
+        authSessionWriter.bind(httpRequest, result.user().getId());
         return new SocialLoginResponse(
                 CustomerUserResponse.from(result.user()),
                 result.newUser());

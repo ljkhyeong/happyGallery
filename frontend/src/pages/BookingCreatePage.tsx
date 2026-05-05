@@ -7,9 +7,7 @@ import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   confirmPayment,
-  preparePayment,
-  requestTossPayment,
-  storePaymentReturnHint,
+  executePaymentFlow,
   type BookingPayload,
 } from "@/features/payment";
 import { ErrorAlert, useToast } from "@/shared/ui";
@@ -63,37 +61,32 @@ export function BookingCreatePage() {
               paymentMethod: paymentPath === "pass" ? undefined : paymentMethod,
             };
 
-      const prep = await preparePayment("BOOKING", payload);
-
-      // 8회권 사용 예약 — amount=0이면 PG 우회하고 바로 confirm
-      if (prep.amount === 0) {
-        const result = await confirmPayment({
-          paymentKey: null,
-          orderId: prep.orderId,
-          amount: 0,
-        });
-        toast.show("예약이 완료되었습니다!");
-        if (result.accessToken) {
-          navigate("/guest/bookings", {
-            state: { bookingId: result.domainId, token: result.accessToken },
-          });
-        } else {
-          navigate(`/my/bookings/${result.domainId}`);
-        }
-        return;
-      }
-
-      storePaymentReturnHint({
-        customerName: guest?.name ?? user?.name,
-        customerPhone: guest?.phone ?? user?.phone,
-      });
-      await requestTossPayment({
-        orderId: prep.orderId,
-        amount: prep.amount,
+      await executePaymentFlow({
+        context: "BOOKING",
+        payload,
         orderName: `예약 — ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
         customerKey: user ? `member_${user.id}` : undefined,
         customerName: guest?.name ?? user?.name,
-        customerMobilePhone: guest?.phone ?? user?.phone,
+        customerPhone: guest?.phone ?? user?.phone,
+        returnHint: {
+          customerName: guest?.name ?? user?.name,
+          customerPhone: guest?.phone ?? user?.phone,
+        },
+        onZeroAmount: async (prep) => {
+          const result = await confirmPayment({
+            paymentKey: null,
+            orderId: prep.orderId,
+            amount: 0,
+          });
+          toast.show("예약이 완료되었습니다!");
+          if (result.accessToken) {
+            navigate("/guest/bookings", {
+              state: { bookingId: result.domainId, token: result.accessToken },
+            });
+          } else {
+            navigate(`/my/bookings/${result.domainId}`);
+          }
+        },
       });
     },
   });

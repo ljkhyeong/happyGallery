@@ -1,3 +1,5 @@
+import { normalizePhone } from "@/shared/validation/phone";
+
 interface BuildAuthPageHrefOptions {
   redirectTo?: string;
   claim?: boolean;
@@ -21,7 +23,7 @@ export function buildAuthPageHref(
 
   if (path === "/signup") {
     if (options.phone) {
-      searchParams.set("phone", options.phone.replace(/\D/g, ""));
+      searchParams.set("phone", normalizePhone(options.phone));
     }
     if (options.name) {
       searchParams.set("name", options.name);

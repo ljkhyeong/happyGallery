@@ -51,8 +51,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     /** 토큰 기반 주문 상세 조회 — 입력 토큰을 SHA-256 해시 후 비교 */
     public OrderDetail getOrderByToken(Long orderId, String rawToken) {
         String tokenHash = guestTokenService.resolveTokenHash(rawToken);
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         if (!Objects.equals(order.getAccessToken(), tokenHash)) {
             throw new NotFoundException("주문");
         }

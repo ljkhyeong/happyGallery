@@ -6,7 +6,11 @@ import com.personal.happygallery.adapter.in.web.admin.AdminDashboardController;
 import com.personal.happygallery.adapter.in.web.admin.AdminInquiryController;
 import com.personal.happygallery.adapter.in.web.admin.AdminLoginController;
 import com.personal.happygallery.adapter.in.web.admin.AdminNoticeController;
-import com.personal.happygallery.adapter.in.web.admin.AdminOrderController;
+import com.personal.happygallery.adapter.in.web.admin.AdminOrderApprovalController;
+import com.personal.happygallery.adapter.in.web.admin.AdminOrderPickupController;
+import com.personal.happygallery.adapter.in.web.admin.AdminOrderProductionController;
+import com.personal.happygallery.adapter.in.web.admin.AdminOrderQueryController;
+import com.personal.happygallery.adapter.in.web.admin.AdminOrderShippingController;
 import com.personal.happygallery.adapter.in.web.admin.AdminPassController;
 import com.personal.happygallery.adapter.in.web.admin.AdminProductController;
 import com.personal.happygallery.adapter.in.web.admin.AdminProductQnaController;
@@ -212,8 +216,11 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 new AdminClassController(classManagementUseCase),
                 new AdminSlotController(slotManagementUseCase, slotQueryUseCase),
                 new AdminBookingController(adminBookingQueryUseCase, adminBookingSearchUseCase, bookingNoShowUseCase),
-                new AdminOrderController(adminOrderQueryUseCase, adminOrderSearchUseCase, orderApprovalUseCase,
-                        orderProductionUseCase, orderPickupUseCase, orderShippingUseCase, pickupExpireBatchUseCase),
+                new AdminOrderQueryController(adminOrderQueryUseCase, adminOrderSearchUseCase),
+                new AdminOrderApprovalController(orderApprovalUseCase),
+                new AdminOrderProductionController(orderProductionUseCase),
+                new AdminOrderPickupController(orderPickupUseCase, pickupExpireBatchUseCase),
+                new AdminOrderShippingController(orderShippingUseCase),
                 new AdminDashboardController(dashboardQueryUseCase),
                 new AdminNoticeController(noticeAdminUseCase, noticeQueryUseCase),
                 new AdminRefundController(refundRetryUseCase),

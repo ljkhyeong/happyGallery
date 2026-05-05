@@ -6,7 +6,6 @@ import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -55,11 +54,9 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      */
     @OptimisticLockRetryable
     public ProductionResult setExpectedShipDate(Long orderId, LocalDate expectedShipDate) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.getStatus().requireExpectedShipDateWritable();
-        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(NotFoundException.supplier("이행 정보"));
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         fulfillment.requireShippingType();
 
         fulfillment.setExpectedShipDate(expectedShipDate);
@@ -77,12 +74,10 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      */
     @OptimisticLockRetryable
     public ProductionResult requestDelay(Long orderId) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.requestDelay();
 
-        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(NotFoundException.supplier("이행 정보"));
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
 
         orderHistoryPort.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELAY));
         orderStore.save(order);
@@ -95,12 +90,10 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      */
     @OptimisticLockRetryable
     public ProductionResult resumeProduction(Long orderId, Long adminId) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.resumeProduction();
 
-        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(NotFoundException.supplier("이행 정보"));
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.RESUME_PRODUCTION, adminId, null));
@@ -115,12 +108,10 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      */
     @OptimisticLockRetryable
     public ProductionResult completeProduction(Long orderId, Long adminId) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.completeProduction();
 
-        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(NotFoundException.supplier("이행 정보"));
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PRODUCTION_COMPLETE, adminId, null));

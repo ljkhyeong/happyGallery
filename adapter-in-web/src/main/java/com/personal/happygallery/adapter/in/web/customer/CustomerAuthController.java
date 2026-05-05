@@ -9,6 +9,7 @@ import com.personal.happygallery.domain.user.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,9 +23,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class CustomerAuthController {
 
     private final CustomerAuthUseCase customerAuth;
+    private final AuthSessionWriter authSessionWriter;
 
-    public CustomerAuthController(CustomerAuthUseCase customerAuth) {
+    public CustomerAuthController(CustomerAuthUseCase customerAuth,
+                                  AuthSessionWriter authSessionWriter) {
         this.customerAuth = customerAuth;
+        this.authSessionWriter = authSessionWriter;
     }
 
     @PostMapping("/auth/signup")
@@ -37,7 +41,7 @@ public class CustomerAuthController {
                         request.password(),
                         request.name(),
                         request.phone()));
-        httpRequest.getSession(true).setAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR, user.getId());
+        authSessionWriter.bind(httpRequest, user.getId());
         return CustomerUserResponse.from(user);
     }
 
@@ -48,7 +52,7 @@ public class CustomerAuthController {
                 new CustomerAuthUseCase.LoginCommand(
                         request.email(),
                         request.password()));
-        httpRequest.getSession(true).setAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR, user.getId());
+        authSessionWriter.bind(httpRequest, user.getId());
         return CustomerUserResponse.from(user);
     }
 

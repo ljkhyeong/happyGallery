@@ -5,7 +5,6 @@ import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -47,8 +46,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
      */
     @OptimisticLockRetryable
     public PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.markPickupReady();
 
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
@@ -71,12 +69,10 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
      */
     @OptimisticLockRetryable
     public PickupResult confirmPickup(Long orderId) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.confirmPickup();
 
-        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(NotFoundException.supplier("이행 정보"));
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         fulfillmentPort.save(fulfillment);
         orderStore.save(order);
 

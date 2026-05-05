@@ -4,7 +4,6 @@ import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -33,14 +32,12 @@ public class PickupExpireProcessor {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @OptimisticLockRetryable
     public boolean process(Long orderId, LocalDateTime now) {
-        Order order = orderReader.findById(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         if (order.getStatus() != OrderStatus.PICKUP_READY) {
             return false;
         }
 
-        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseThrow(NotFoundException.supplier("이행 정보"));
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         if (fulfillment.getPickupDeadlineAt() == null || !fulfillment.getPickupDeadlineAt().isBefore(now)) {
             return false;
         }
