@@ -131,6 +131,7 @@ docker compose up -d --build
 
 ## 운영/배포
 
+- 현재 운영 서버는 AWS 비용 점검과 절감을 위해 2026-05-05 기준 임시 중지 상태다. 재가동 전까지 운영 주소와 `/api/*` 경로는 접속되지 않을 수 있다.
 - 운영 주소: `https://d36l7yi27358tl.cloudfront.net/`
 - 주요 경로: `/products`, `/bookings/new`, `/passes/purchase`, `/my`, `/guest`, `/admin`
 - 배포 구조: `CloudFront -> S3`로 프론트 정적 파일을 제공하고, `/api/*`는 `CloudFront -> ALB -> ECS Fargate -> RDS/Redis`로 전달한다.
