@@ -19,6 +19,17 @@ tasks.register('policyTest', Test) {
 	useJUnitPlatform { includeTags 'policy' }
 }
 
+// 테스트 로깅
+tasks.withType(Test).configureEach {
+	useJUnitPlatform()
+
+	testLogging {
+		events "passed", "skipped", "failed"
+		exceptionFormat "full"
+		showStandardStreams = false
+	}
+}
+
 dependencies {
 	implementation project(":domain")
 

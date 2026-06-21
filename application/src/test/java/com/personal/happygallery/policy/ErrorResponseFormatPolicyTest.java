@@ -48,7 +48,7 @@ class ErrorResponseFormatPolicyTest {
         JsonNode node = objectMapper.valueToTree(response);
 
         assertSoftly(softly -> {
-            softly.assertThat(node.get("code").asText()).isEqualTo("ALREADY_REFUNDED");
+            softly.assertThat(node.get("code").asText()).isEqualTo(ErrorCode.ALREADY_REFUNDED.name());
             softly.assertThat(node.get("message").asText()).isEqualTo(ErrorCode.ALREADY_REFUNDED.message);
         });
     }
@@ -61,7 +61,7 @@ class ErrorResponseFormatPolicyTest {
         JsonNode node = objectMapper.valueToTree(response);
 
         assertSoftly(softly -> {
-            softly.assertThat(node.get("code").asText()).isEqualTo("NOT_FOUND");
+            softly.assertThat(node.get("code").asText()).isEqualTo(ErrorCode.NOT_FOUND.name());
             softly.assertThat(node.get("message").asText()).isEqualTo("주문을 찾을 수 없습니다.");
         });
     }
