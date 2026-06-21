@@ -35,3 +35,4 @@ memory/
 
 ## CODEX
 .gradle-codex/
+.codex/
