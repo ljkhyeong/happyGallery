@@ -21,8 +21,8 @@ public record AdminBookingResponse(
 
     public static AdminBookingResponse from(Booking booking, User user) {
         boolean isMember = booking.getUserId() != null;
-        String name;
-        String phone;
+        String name = "(알 수 없음)";
+        String phone = "";
 
         if (isMember && user != null) {
             name = user.getName();
@@ -30,9 +30,6 @@ public record AdminBookingResponse(
         } else if (booking.getGuest() != null) {
             name = booking.getGuest().getName();
             phone = booking.getGuest().getPhone();
-        } else {
-            name = "(알 수 없음)";
-            phone = "";
         }
 
         return new AdminBookingResponse(
