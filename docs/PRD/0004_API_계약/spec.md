@@ -690,6 +690,15 @@ Authorization: Bearer {token}
   - 응답: `{ "orderId": 5, "status": "DELAY_REQUESTED", "expectedShipDate": "2026-04-15" }`
   - 정책:
     - `IN_PRODUCTION`에서만 지연 요청 가능
+    - 고객이 지연을 수락한 뒤 호출하는 운영 액션이다.
+- `POST /api/v1/admin/orders/{id}/cancel-for-delay-rejection`
+  - 응답: `{ "orderId": 5, "status": "DELAY_REJECTED_CANCELED", "expectedShipDate": "2026-04-15" }`
+  - 정책:
+    - 고객이 제안된 지연을 수락하기 전에 거절한 경우 사용한다.
+    - `IN_PRODUCTION`에서만 지연 거절 취소 가능
+    - 재고 복구 + 환불 실행 + `DELAY_REJECTED_CANCELED` 전이
+    - 이력은 `DELAY_CANCEL`로 기록하고 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
+    - `DELAY_REQUESTED`는 이미 지연을 수락한 상태이므로 400으로 거절한다.
 - `POST /api/v1/admin/orders/{id}/resume-production`
   - 응답: `{ "orderId": 5, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
   - 정책:
@@ -705,7 +714,7 @@ Authorization: Bearer {token}
 - `401 UNAUTHORIZED` — 관리자 인증 실패
 - `404 NOT_FOUND` — orderId 또는 관련 fulfillment 미존재
 - `400 INVALID_INPUT` — 허용되지 않은 상태 전이
-- `409 ALREADY_REFUNDED` — 자동환불/거절 완료 주문에 대한 승인·거절 재시도
+- `409 ALREADY_REFUNDED` — 이미 환불된 주문에 대한 승인·거절 재시도
 
 #### 2.7.4 픽업 만료 배치 수동 트리거
 
@@ -1483,7 +1492,7 @@ Content-Type: application/json
 | 400 | `INVALID_INPUT` | 요청 바디/파라미터 검증 실패 또는 요청 JSON 형식 오류 |
 | 400 | `PHONE_VERIFICATION_FAILED` | 인증 코드 불일치 또는 만료 |
 | 404 | `NOT_FOUND` | 주문·예약·이용권·상품 미존재 |
-| 409 | `ALREADY_REFUNDED` | 이미 자동환불된 주문에 승인 시도 |
+| 409 | `ALREADY_REFUNDED` | 이미 환불된 주문에 승인·거절 시도 |
 | 409 | `INVENTORY_NOT_ENOUGH` | 재고 차감 시 수량 부족 |
 | 409 | `CAPACITY_EXCEEDED` | 슬롯 정원(8명) 초과 예약 시도 |
 | 409 | `DUPLICATE_BOOKING` | 동일 전화번호 + 동일 슬롯 중복 예약 |
@@ -1492,7 +1501,7 @@ Content-Type: application/json
 | 409 | `CONFLICT` | 주문 승인/픽업/배치 등 비예약 운영 액션의 충돌 |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 |
 | 422 | `REFUND_NOT_ALLOWED` | D-1 00:00 이후 환불 요청 |
-| 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/환불 시도 |
+| 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/일반 환불 시도 |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 |
 | 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 시도 |
 | 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 크레딧 0인 8회권으로 예약 시도 |

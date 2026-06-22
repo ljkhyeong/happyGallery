@@ -15,7 +15,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * [PolicyTest] 주문 상태 전이 가드 검증.
  *
  * <p>이미 환불된 주문({@code REJECTED}, {@code AUTO_REFUND_TIMEOUT},
- * {@code PICKUP_EXPIRED})에 승인을 시도하면 {@link AlreadyRefundedException}이 발생한다.
+ * {@code PICKUP_EXPIRED}, {@code DELAY_REJECTED_CANCELED})에 승인을 시도하면
+ * {@link AlreadyRefundedException}이 발생한다.
  */
 @Tag("policy")
 class OrderStatusTransitionPolicyTest {
@@ -48,6 +49,13 @@ class OrderStatusTransitionPolicyTest {
                 .isInstanceOf(AlreadyRefundedException.class);
     }
 
+    @DisplayName("DELAY_REJECTED_CANCELED 상태는 승인 가능 검증에서 예외가 발생한다")
+    @Test
+    void requireApprovable_whenDelayRejectedCanceled_throws() {
+        assertThatThrownBy(() -> OrderStatus.DELAY_REJECTED_CANCELED.requireApprovable())
+                .isInstanceOf(AlreadyRefundedException.class);
+    }
+
     // -----------------------------------------------------------------------
     // requireDelayRequested() — 제작 재개 가드
     // -----------------------------------------------------------------------
@@ -63,6 +71,24 @@ class OrderStatusTransitionPolicyTest {
     @Test
     void requireDelayRequested_whenInProduction_throws() {
         assertThatThrownBy(() -> OrderStatus.IN_PRODUCTION.requireDelayRequested())
+                .isInstanceOf(HappyGalleryException.class);
+    }
+
+    // -----------------------------------------------------------------------
+    // requireDelayRejectionCancelable() — 고객 지연 거절 취소 가드
+    // -----------------------------------------------------------------------
+
+    @DisplayName("IN_PRODUCTION 상태는 지연 거절 취소 검증에서 예외가 발생하지 않는다")
+    @Test
+    void requireDelayRejectionCancelable_whenInProduction_noException() {
+        assertThatCode(() -> OrderStatus.IN_PRODUCTION.requireDelayRejectionCancelable())
+                .doesNotThrowAnyException();
+    }
+
+    @DisplayName("DELAY_REQUESTED 상태는 지연 거절 취소 검증에서 예외가 발생한다")
+    @Test
+    void requireDelayRejectionCancelable_whenDelayRequested_throws() {
+        assertThatThrownBy(() -> OrderStatus.DELAY_REQUESTED.requireDelayRejectionCancelable())
                 .isInstanceOf(HappyGalleryException.class);
     }
 

@@ -8,8 +8,8 @@
 ## 컨텍스트
 
 spec.md §3.2: MADE_TO_ORDER 상품 주문이 승인되면 즉시 제작 시작(IN_PRODUCTION).
-제작 시작 이후 환불 불가. 예상 출고일을 관리자가 설정·노출.
-고객 동의 시 DELAY_REQUESTED 상태로 전환 가능.
+제작 시작 이후 일반 취소/거절 환불은 불가하다. 예상 출고일을 관리자가 설정·노출한다.
+고객 동의 시 DELAY_REQUESTED 상태로 전환하고, 고객이 지연을 수락하기 전에 거절하면 별도 취소 상태로 전환한다.
 제작이 완료되면 주문은 픽업/배송 공통 이행 흐름(APPROVED_FULFILLMENT_PENDING)으로 다시 합류해야 한다.
 
 ---
@@ -25,6 +25,9 @@ PAID_APPROVAL_PENDING
     ↓ 관리자 승인 (approve)
 IN_PRODUCTION          ← 환불 불가 시작점
     ├─ 예상 출고일 설정 (setExpectedShipDate) → 상태 변화 없음
+    ├─ 고객 지연 거절 취소 (cancelForDelayRejection)
+           ↓
+    DELAY_REJECTED_CANCELED
     ├─ 고객 동의 지연 (requestDelay)
            ↓
     DELAY_REQUESTED
@@ -66,10 +69,15 @@ READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업
 
 `Order.reject()`에 이 가드를 추가하여 제작 중 거절을 차단한다.
 
+고객이 지연을 수락하기 전에 거절한 경우는 일반 취소가 아니라 지연 거절 취소로 다룬다.
+`OrderStatus.requireDelayRejectionCancelable()`은 `IN_PRODUCTION`에서만 통과하고,
+서비스는 주문을 `DELAY_REJECTED_CANCELED`로 전이한 뒤 환불·재고 복구를 수행한다.
+이미 `DELAY_REQUESTED`로 전이된 주문은 고객이 지연을 수락한 상태이므로 이 경로를 허용하지 않는다.
+
 ### 5. 서비스 분리
 
 - `OrderApprovalService`: approve (MADE_TO_ORDER 감지 포함) / reject
-- `OrderProductionService`: setExpectedShipDate / requestDelay
+- `OrderProductionService`: setExpectedShipDate / requestDelay / cancelForDelayRejection
 - `OrderShippingService`: prepareShipping / markShipped / markDelivered
 
 ### 6. API
@@ -78,6 +86,7 @@ READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업
 |---------|-----------------------------------------|-----------------------------|
 | `PATCH` | `/admin/orders/{id}/expected-ship-date` | 예상 출고일 설정/갱신        |
 | `POST`  | `/admin/orders/{id}/delay`              | 배송 지연 상태 전환 (고객 동의) |
+| `POST`  | `/admin/orders/{id}/cancel-for-delay-rejection` | 고객 지연 거절 취소 (IN_PRODUCTION → DELAY_REJECTED_CANCELED) |
 | `POST`  | `/admin/orders/{id}/resume-production`  | 지연 → 제작 재개 (DELAY_REQUESTED → IN_PRODUCTION) |
 | `POST`  | `/admin/orders/{id}/complete-production`| 제작 완료 → 이행 대기 상태 복귀 |
 | `POST`  | `/admin/orders/{id}/prepare-shipping`   | 배송 준비 시작 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) |

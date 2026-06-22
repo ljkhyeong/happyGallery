@@ -33,6 +33,10 @@ export function requestDelay(adminKey: string, id: number): Promise<OrderProduct
   return api(`/admin/orders/${id}/delay`, { method: "POST", headers: h(adminKey) });
 }
 
+export function cancelForDelayRejection(adminKey: string, id: number): Promise<OrderProductionResponse> {
+  return api(`/admin/orders/${id}/cancel-for-delay-rejection`, { method: "POST", headers: h(adminKey) });
+}
+
 export function resumeProduction(adminKey: string, id: number): Promise<OrderProductionResponse> {
   return api(`/admin/orders/${id}/resume-production`, { method: "POST", headers: h(adminKey) });
 }

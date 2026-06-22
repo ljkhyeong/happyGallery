@@ -21,9 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li>{@link #setExpectedShipDate(Long, LocalDate)} — 예상 출고일 설정/갱신</li>
  *   <li>{@link #requestDelay(Long)} — 고객 동의 후 {@link OrderStatus#DELAY_REQUESTED}으로 전환</li>
+ *   <li>{@link #cancelForDelayRejection(Long, Long)} — 고객 지연 거절 후 환불 취소</li>
  * </ul>
  *
- * <p>두 메서드 모두 컨트롤러가 추가 조회 없이 응답을 구성할 수 있도록
+ * <p>각 메서드는 컨트롤러가 추가 조회 없이 응답을 구성할 수 있도록
  * {@link ProductionResult}를 반환한다.
  */
 @Service
@@ -34,15 +35,18 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
     private final OrderStorePort orderStore;
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
+    private final OrderRefundSupport orderRefundSupport;
 
     public DefaultOrderProductionService(OrderReaderPort orderReader,
                                          OrderStorePort orderStore,
                                          FulfillmentPort fulfillmentPort,
-                                         OrderHistoryPort orderHistoryPort) {
+                                         OrderHistoryPort orderHistoryPort,
+                                         OrderRefundSupport orderRefundSupport) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
+        this.orderRefundSupport = orderRefundSupport;
     }
 
     /**
@@ -80,6 +84,24 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
 
         orderHistoryPort.save(new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELAY));
+        orderStore.save(order);
+        return ProductionResult.of(order, fulfillment);
+    }
+
+    /**
+     * 고객이 제작 지연을 거절한 경우 주문을 취소하고 환불·재고 복구를 수행한다.
+     * 지연 수락 전 {@link OrderStatus#IN_PRODUCTION} 상태에서만 허용한다.
+     */
+    @OptimisticLockRetryable
+    public ProductionResult cancelForDelayRejection(Long orderId, Long adminId) {
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
+
+        order.cancelForDelayRejection();
+        orderRefundSupport.refundOrder(order);
+
+        orderHistoryPort.save(
+                new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELAY_CANCEL, adminId, null));
         orderStore.save(order);
         return ProductionResult.of(order, fulfillment);
     }

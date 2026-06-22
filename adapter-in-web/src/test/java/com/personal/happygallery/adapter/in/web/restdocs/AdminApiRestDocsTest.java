@@ -187,6 +187,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(production(OrderStatus.APPROVED_FULFILLMENT_PENDING));
         when(orderProductionUseCase.setExpectedShipDate(eq(200L), any())).thenReturn(production(OrderStatus.IN_PRODUCTION));
         when(orderProductionUseCase.requestDelay(200L)).thenReturn(production(OrderStatus.DELAY_REQUESTED));
+        when(orderProductionUseCase.cancelForDelayRejection(200L, ADMIN_USER_ID))
+                .thenReturn(production(OrderStatus.DELAY_REJECTED_CANCELED));
         when(orderPickupUseCase.markPickupReady(eq(200L), any())).thenReturn(pickup(OrderStatus.PICKUP_READY));
         when(orderPickupUseCase.confirmPickup(200L)).thenReturn(pickup(OrderStatus.PICKED_UP));
         when(orderShippingUseCase.prepareShipping(200L, ADMIN_USER_ID)).thenReturn(shipping(OrderStatus.SHIPPING_PREPARING));
@@ -466,6 +468,15 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("관리자 주문 배송 지연 요청 API를 문서화한다")
     void admin_request_order_delay() throws Exception {
         mockMvc.perform(post("/api/v1/admin/orders/{id}/delay", 200L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 주문 지연 거절 취소 API를 문서화한다")
+    void admin_cancel_order_for_delay_rejection() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/cancel-for-delay-rejection", 200L)
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk());

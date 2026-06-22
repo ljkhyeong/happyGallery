@@ -15,6 +15,7 @@ public enum OrderStatus {
 	// 제작 및 지연
 	IN_PRODUCTION,
 	DELAY_REQUESTED,
+	DELAY_REJECTED_CANCELED,
 
 	// 이행: 배송
 	SHIPPING_PREPARING,
@@ -33,7 +34,8 @@ public enum OrderStatus {
 	public void requireApprovable() {
 		if (this == REJECTED
 				|| this == AUTO_REFUND_TIMEOUT
-				|| this == PICKUP_EXPIRED) {
+				|| this == PICKUP_EXPIRED
+				|| this == DELAY_REJECTED_CANCELED) {
 			throw new AlreadyRefundedException();
 		}
 	}
@@ -72,6 +74,13 @@ public enum OrderStatus {
 	public void requireDelayRequested() {
 		if (this != DELAY_REQUESTED) {
 			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지연 요청 상태에서만 가능합니다.");
+		}
+	}
+
+	/** 고객이 제작 지연을 거절해 취소할 수 있는 상태인지 확인한다. */
+	public void requireDelayRejectionCancelable() {
+		if (this != IN_PRODUCTION) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "제작 중 상태에서만 지연 거절 취소가 가능합니다.");
 		}
 	}
 

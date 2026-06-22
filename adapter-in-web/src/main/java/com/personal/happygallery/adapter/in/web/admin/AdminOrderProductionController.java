@@ -56,4 +56,13 @@ public class AdminOrderProductionController {
         OrderProductionUseCase.ProductionResult result = orderProductionUseCase.requestDelay(id);
         return OrderProductionResponse.from(result);
     }
+
+    /** POST /admin/orders/{id}/cancel-for-delay-rejection — 고객 지연 거절로 취소 */
+    @PostMapping("/{id}/cancel-for-delay-rejection")
+    @ResponseStatus(HttpStatus.OK)
+    public OrderProductionResponse cancelForDelayRejection(@PathVariable Long id, @AdminUserId Long adminId) {
+        OrderProductionUseCase.ProductionResult result =
+                orderProductionUseCase.cancelForDelayRejection(id, adminId);
+        return OrderProductionResponse.from(result);
+    }
 }

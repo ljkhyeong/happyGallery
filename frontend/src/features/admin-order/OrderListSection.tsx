@@ -21,6 +21,7 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "APPROVED_FULFILLMENT_PENDING", label: "이행 대기" },
   { value: "IN_PRODUCTION", label: "제작 중" },
   { value: "DELAY_REQUESTED", label: "지연 요청" },
+  { value: "DELAY_REJECTED_CANCELED", label: "지연 거절 취소" },
   { value: "SHIPPING_PREPARING", label: "배송 준비" },
   { value: "SHIPPED", label: "배송 중" },
   { value: "DELIVERED", label: "배송 완료" },

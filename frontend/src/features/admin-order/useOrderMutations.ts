@@ -4,7 +4,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useToast } from "@/shared/ui";
 import {
   approveOrder, rejectOrder, completeProduction,
-  requestDelay, resumeProduction, preparePickup, completePickup,
+  requestDelay, cancelForDelayRejection, resumeProduction, preparePickup, completePickup,
   setExpectedShipDate, expirePickups,
   prepareShipping, markShipped, markDelivered,
 } from "./api";
@@ -42,6 +42,7 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
   const reject = mut((id) => rejectOrder(adminKey, id), "거절 완료");
   const completeProduction_ = mut((id) => completeProduction(adminKey, id), "제작 완료");
   const delay = mut((id) => requestDelay(adminKey, id), "지연 요청");
+  const delayCancel = mut((id) => cancelForDelayRejection(adminKey, id), "지연 거절 취소 완료");
   const resumeProduction_ = mut((id) => resumeProduction(adminKey, id), "제작 재개");
   const prepareShipping_ = mut((id) => prepareShipping(adminKey, id), "배송 준비");
   const shipped = mut((id) => markShipped(adminKey, id), "배송 출발");
@@ -68,12 +69,12 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
   });
 
   const lastError = approve.error || reject.error || completeProduction_.error
-    || delay.error || resumeProduction_.error || pickup.error || pickupDone.error || shipDate.error
+    || delay.error || delayCancel.error || resumeProduction_.error || pickup.error || pickupDone.error || shipDate.error
     || prepareShipping_.error || shipped.error || delivered.error || expire.error;
 
   return {
     pendingId,
-    approve, reject, completeProduction: completeProduction_, delay, resumeProduction: resumeProduction_,
+    approve, reject, completeProduction: completeProduction_, delay, delayCancel, resumeProduction: resumeProduction_,
     prepareShipping: prepareShipping_, shipped, delivered, pickup, pickupDone, shipDate, expire,
     lastError,
   } as const;

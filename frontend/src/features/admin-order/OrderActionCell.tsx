@@ -44,6 +44,12 @@ export function OrderActionCell({ orderId, status, mutations }: Props) {
               {pending ? "..." : "지연"}
             </Button>
           )}
+          {status === "IN_PRODUCTION" && (
+            <Button size="sm" variant="outline-danger" disabled={disabled}
+              onClick={() => mutations.delayCancel.mutate(orderId)}>
+              {pending ? "..." : "지연 거절 취소"}
+            </Button>
+          )}
           {status === "DELAY_REQUESTED" && (
             <Button size="sm" variant="outline-success" disabled={disabled}
               onClick={() => mutations.resumeProduction.mutate(orderId)}>

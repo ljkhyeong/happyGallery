@@ -22,6 +22,8 @@ public interface OrderProductionUseCase {
 
     ProductionResult requestDelay(Long orderId);
 
+    ProductionResult cancelForDelayRejection(Long orderId, Long adminId);
+
     ProductionResult resumeProduction(Long orderId, Long adminId);
 
     ProductionResult completeProduction(Long orderId, Long adminId);

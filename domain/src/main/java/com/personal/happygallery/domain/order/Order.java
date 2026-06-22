@@ -126,6 +126,15 @@ public class Order {
     }
 
     /**
+     * 고객이 제작 지연을 거절해 주문을 취소한다.
+     * {@link OrderStatus#IN_PRODUCTION} 상태에서만 허용한다.
+     */
+    public void cancelForDelayRejection() {
+        this.status.requireDelayRejectionCancelable();
+        this.status = OrderStatus.DELAY_REJECTED_CANCELED;
+    }
+
+    /**
      * 지연 요청 상태에서 제작을 재개한다.
      * {@link OrderStatus#DELAY_REQUESTED} 상태가 아니면 400을 던진다.
      */

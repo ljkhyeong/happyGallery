@@ -54,7 +54,14 @@ export function MyOrdersPage() {
     }
   });
   const activeCount = (orders ?? []).filter((order) =>
-    !["PICKED_UP", "DELIVERED", "REJECTED", "AUTO_REFUND_TIMEOUT", "PICKUP_EXPIRED"].includes(order.status),
+    ![
+      "PICKED_UP",
+      "DELIVERED",
+      "REJECTED",
+      "AUTO_REFUND_TIMEOUT",
+      "PICKUP_EXPIRED",
+      "DELAY_REJECTED_CANCELED",
+    ].includes(order.status),
   ).length;
   const completedCount = (orders ?? []).filter((order) =>
     ["PICKED_UP", "DELIVERED"].includes(order.status),

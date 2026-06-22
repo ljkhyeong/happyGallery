@@ -153,6 +153,64 @@ class OrderProductionUseCaseIT {
         });
     }
 
+    @DisplayName("고객이 배송 지연을 거절하면 주문이 DELAY_REJECTED_CANCELED로 전이되고 환불과 재고 복구가 수행된다")
+    @Test
+    void cancelForDelayRejection_refundsAndRestoresInventory() {
+        OrderTestHelper.OrderFixture fixture =
+                orderHelper.createMadeToOrderPaidOrder("지연 거절 취소 상품", 180000L);
+        Order order = fixture.order();
+        orderApprovalService.approve(order.getId());
+
+        orderProductionService.cancelForDelayRejection(order.getId(), 1L);
+
+        Order updated = orderStateProbe.getOrder(order.getId());
+        var histories = orderStateProbe.orderApprovalHistory(order.getId());
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_REJECTED_CANCELED);
+            softly.assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity())
+                    .isEqualTo(1);
+            softly.assertThat(orderStateProbe.refunds()).hasSize(1);
+            softly.assertThat(orderStateProbe.refunds().get(0).getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(histories)
+                    .extracting("decision")
+                    .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY_CANCEL);
+            softly.assertThat(histories.get(1).getDecidedByAdminId()).isEqualTo(1L);
+        });
+    }
+
+    @DisplayName("지연 요청 상태에서는 지연 거절 취소를 할 수 없다")
+    @Test
+    void cancelForDelayRejection_afterDelayAccepted_throwsInvalidInput() {
+        Order order = orderHelper.createMadeToOrderPaidOrder("지연 수락 후 취소 불가 상품", 180000L).order();
+        orderApprovalService.approve(order.getId());
+        orderProductionService.requestDelay(order.getId());
+
+        assertThatThrownBy(() -> orderProductionService.cancelForDelayRejection(order.getId(), 1L))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("지연 거절 취소");
+
+        assertSoftly(softly -> {
+            softly.assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
+                    .isEqualTo(OrderStatus.DELAY_REQUESTED);
+            softly.assertThat(orderStateProbe.refunds()).isEmpty();
+        });
+    }
+
+    @DisplayName("POST /admin/orders/{id}/cancel-for-delay-rejection 호출 시 DELAY_REJECTED_CANCELED를 반환한다")
+    @Test
+    void cancelForDelayRejection_httpEndpoint_returnsCanceledStatus() throws Exception {
+        OrderTestHelper.OrderFixture fixture =
+                orderHelper.createMadeToOrderPaidOrder("HTTP 지연 거절 취소 상품", 180000L);
+        Order order = fixture.order();
+        orderApprovalService.approve(order.getId());
+
+        mockMvc.perform(post("/admin/orders/{id}/cancel-for-delay-rejection", order.getId())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId").value(order.getId()))
+                .andExpect(jsonPath("$.status").value("DELAY_REJECTED_CANCELED"));
+    }
+
     // -----------------------------------------------------------------------
     // Proof (DoD §8.3): IN_PRODUCTION 상태에서 reject → 422 (환불 불가)
     // -----------------------------------------------------------------------
