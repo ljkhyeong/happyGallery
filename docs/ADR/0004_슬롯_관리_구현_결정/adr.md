@@ -18,23 +18,31 @@
 
 ---
 
-## Decision 1: `app` 모듈에 `spring-boot-starter-data-jpa` 직접 선언
+## Decision 1: `application` 모듈은 필요한 Spring 데이터 타입만 직접 선언
 
 ### 배경
 `application` 모듈에서 `@Transactional`을 사용하려면 `spring-tx`가 필요하다.
-`adapter-out-persistence` 모듈이 `spring-boot-starter-data-jpa`를 `implementation` 스코프로 가지고 있지만,
-Gradle `implementation`은 소비자(`application`)에게 전이되지 않는다.
+또한 일부 outbound port는 `Pageable`을 공개 시그니처로 사용한다.
+`adapter-out-persistence` 모듈의 JPA 스타터는 영속성 구현 세부이므로 `application`이 그 전이에 기대지 않는다.
 
 ### 결정
-`application/build.gradle`에 `spring-boot-starter-data-jpa`를 직접 추가한다.
+`application/build.gradle`에는 필요한 컴파일 타입만 직접 추가한다.
+
+- `spring-tx`, `spring-orm`: 트랜잭션과 낙관 락 예외 처리 구현에 필요한 `implementation`
+- `spring-data-commons`: port 공개 시그니처의 `Pageable` 때문에 `api`
+- JPA 스타터: `adapter-out-persistence` 구현 의존성으로 유지
 
 ### 대안
-- `adapter-out-persistence/build.gradle`에서 `api` 스코프로 변경 → 전이 가능하나, JPA 구현 세부를 `application`에 노출하는 것이 명시적이지 않음
-- `spring-tx`만 별도 선언 → 버전 관리가 분산됨. Spring Boot BOM 활용 위해 스타터 전체 사용이 편리
+- `adapter-out-persistence/build.gradle`에서 JPA 스타터를 `api` 스코프로 변경 → 전이 가능하나, JPA 구현 세부를 `application`에 노출한다.
+- `spring-boot-starter-data-jpa`를 `application`에 직접 선언 → 필요한 범위보다 큰 JPA 구현 의존성을 애플리케이션 경계에 둔다.
 
 ### 트레이드오프 / 위험
-- `infra`와 `app` 모두 JPA 스타터 보유. Spring Boot는 단일 `EntityManagerFactory`로 통합하므로 런타임 충돌 없음.
+- `application` port가 `Pageable`에 묶여 있어 Spring Data Commons는 공개 API로 남는다.
 - JPA 관련 설정(`spring.jpa.*`)은 `bootstrap` 모듈의 `application.yml`에서 관리한다.
+
+### 업데이트
+
+- 2026-06-22: `java-library`를 적용하고, 공개 API에 드러나는 의존성은 `api`, 구현 전용 의존성은 `implementation`으로 정리했다.
 
 ---
 

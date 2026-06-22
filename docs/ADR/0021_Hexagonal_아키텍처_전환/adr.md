@@ -33,6 +33,9 @@
 
 의존 방향은 `bootstrap -> adapter-in-web/out-* -> application -> domain` 으로 고정한다.
 
+Gradle은 `java-library` 기준으로 구성한다. 공개 포트와 DTO 시그니처에 드러나는 하위 모듈·라이브러리는
+`api`로 선언하고, 서비스 구현·어댑터 구현에서만 쓰는 Spring/Jackson/Redis/JPA 의존성은 `implementation`으로 둔다.
+
 ### 2. `application`이 유스케이스와 포트를 정의한다
 
 - 외부에서 호출하는 진입점은 `...UseCase`
@@ -104,6 +107,7 @@
 ## 구현 반영
 
 - `settings.gradle`의 6개 모듈 구조
+- `build.gradle`의 `java-library` 공통 적용과 모듈별 `api`/`implementation` 의존성 분리
 - `application/**/port/in`, `application/**/port/out`
 - `adapter-in-web/**`, `adapter-out-persistence/**`, `adapter-out-external/**`
 - `application/src/test/java/com/personal/happygallery/policy/LayerDependencyPolicyTest.java`

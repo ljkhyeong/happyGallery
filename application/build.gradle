@@ -31,7 +31,9 @@ tasks.withType(Test).configureEach {
 }
 
 dependencies {
-	implementation project(":domain")
+	api project(":domain")
+	api 'com.fasterxml.jackson.core:jackson-annotations'
+	api 'org.springframework.data:spring-data-commons'
 
 	implementation 'org.springframework.boot:spring-boot-starter'
 	implementation 'org.springframework.boot:spring-boot-starter-json'
@@ -41,7 +43,6 @@ dependencies {
 	implementation 'org.springframework:spring-aop'
 	implementation 'org.springframework:spring-tx'
 	implementation 'org.springframework:spring-orm'
-	implementation 'org.springframework.data:spring-data-commons'
 	implementation 'org.springframework.security:spring-security-crypto'
 	implementation 'org.aspectj:aspectjweaver'
 
