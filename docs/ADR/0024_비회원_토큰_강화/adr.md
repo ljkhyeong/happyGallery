@@ -31,8 +31,8 @@ Accepted
 ### 후속 (구현 완료)
 **HMAC-SHA256 서명 + 만료 타임스탬프.**
 
-- `AccessTokenSigner` 유틸: `sign(expiry, secretKey)` → 서명 토큰, `verify(token, secretKey, now)` → 클레임 검증
-- 토큰 형식: `base64url(nonce:expiryEpochSeconds).base64url(hmac)` — nonce는 16바이트 랜덤 hex
+- `AccessTokenSigner` 유틸: `sign(expiry, hmacSecret)` → 서명 토큰, `verify(token, hmacSecret, now)` → 클레임 검증
+- 토큰 형식: `base64url(nonce:expiryEpochSeconds).base64url(signature)` — nonce는 16바이트 랜덤 hex
 - DB에는 nonce의 SHA-256 해시를 저장 (기존 VARCHAR(64) 컬럼 재사용, 스키마 변경 없음)
 - 기본 만료: 7일 (`app.guest-token.expiry-hours: 168`)
 - HMAC 비밀키: `app.guest-token.hmac-secret` 환경변수로 주입
