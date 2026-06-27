@@ -2,8 +2,8 @@ package com.personal.happygallery.application.payment.context.order;
 
 import com.personal.happygallery.application.customer.VerifiedGuestResolver;
 import com.personal.happygallery.application.order.OrderService;
+import com.personal.happygallery.application.order.OrderService.OrderCreationResult;
 import com.personal.happygallery.application.order.OrderService.OrderItemRequest;
-import com.personal.happygallery.application.order.port.in.OrderCreationUseCase.OrderCreationResult;
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;

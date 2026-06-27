@@ -1,45 +1,28 @@
 package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.in.OrderCreationUseCase;
-import com.personal.happygallery.application.customer.VerifiedGuestResolver;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
-import com.personal.happygallery.domain.booking.Guest;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.error.NotFoundException;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 공개 주문 생성 — 휴대폰 인증 기반.
+ * 회원 장바구니 주문 생성 조합 서비스.
  */
 @Service
 @Transactional
 public class DefaultOrderCreationService implements OrderCreationUseCase {
 
-    private final VerifiedGuestResolver verifiedGuestResolver;
     private final ProductReaderPort productReader;
     private final OrderService orderService;
 
-    public DefaultOrderCreationService(VerifiedGuestResolver verifiedGuestResolver,
-                                       ProductReaderPort productReader,
+    public DefaultOrderCreationService(ProductReaderPort productReader,
                                        OrderService orderService) {
-        this.verifiedGuestResolver = verifiedGuestResolver;
         this.productReader = productReader;
         this.orderService = orderService;
-    }
-
-    /**
-     * 휴대폰 인증 기반 주문 생성.
-     */
-    public OrderCreationResult createOrderByPhone(CreateOrderByPhoneCommand command) {
-        Guest guest = verifiedGuestResolver.resolveVerifiedGuest(
-                command.phone(),
-                command.verificationCode(),
-                command.name());
-        List<OrderService.OrderItemRequest> orderItems = resolveItemPrices(command.items());
-        return orderService.createPaidOrder(guest.getId(), orderItems);
     }
 
     /**

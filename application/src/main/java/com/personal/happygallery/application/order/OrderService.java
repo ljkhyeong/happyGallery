@@ -1,14 +1,13 @@
 package com.personal.happygallery.application.order;
 
-import com.personal.happygallery.application.order.port.in.OrderCreationUseCase.OrderCreationResult;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
+import com.personal.happygallery.application.product.InventoryService;
+import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
-import com.personal.happygallery.application.product.InventoryService;
-import com.personal.happygallery.application.token.GuestTokenService;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -99,4 +98,6 @@ public class OrderService {
     }
 
     public record OrderItemRequest(Long productId, int qty, long unitPrice) {}
+
+    public record OrderCreationResult(Order order, String rawAccessToken) {}
 }
