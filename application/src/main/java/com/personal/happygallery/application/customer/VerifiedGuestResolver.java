@@ -3,8 +3,6 @@ package com.personal.happygallery.application.customer;
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
-import com.personal.happygallery.domain.crypto.BlindIndexer;
-import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
@@ -24,21 +22,18 @@ public class VerifiedGuestResolver {
     private final PhoneVerificationReaderPort phoneVerificationReader;
     private final GuestReaderPort guestReader;
     private final GuestStorePort guestStore;
-    private final FieldEncryptor fieldEncryptor;
-    private final BlindIndexer blindIndexer;
+    private final GuestPhoneProtector guestPhoneProtector;
     private final Clock clock;
 
     public VerifiedGuestResolver(PhoneVerificationReaderPort phoneVerificationReader,
                                   GuestReaderPort guestReader,
                                   GuestStorePort guestStore,
-                                  FieldEncryptor fieldEncryptor,
-                                  BlindIndexer blindIndexer,
+                                  GuestPhoneProtector guestPhoneProtector,
                                   Clock clock) {
         this.phoneVerificationReader = phoneVerificationReader;
         this.guestReader = guestReader;
         this.guestStore = guestStore;
-        this.fieldEncryptor = fieldEncryptor;
-        this.blindIndexer = blindIndexer;
+        this.guestPhoneProtector = guestPhoneProtector;
         this.clock = clock;
     }
 
@@ -54,15 +49,9 @@ public class VerifiedGuestResolver {
                 .orElseThrow(PhoneVerificationFailedException::new);
         pv.markVerified();
 
-        Guest guest = guestReader.findByPhone(phone)
-                .orElseGet(() -> {
-                    Guest g = new Guest(name, phone);
-                    g.applyEncryption(fieldEncryptor.encrypt(phone), blindIndexer.index(phone));
-                    return guestStore.save(g);
-                });
-        if (guest.getPhoneHmac() == null) {
-            guest.applyEncryption(fieldEncryptor.encrypt(phone), blindIndexer.index(phone));
-        }
+        String phoneHmac = guestPhoneProtector.index(phone);
+        Guest guest = guestReader.findByPhoneHmac(phoneHmac)
+                .orElseGet(() -> guestStore.save(guestPhoneProtector.newGuest(name, phone)));
         guest.markPhoneVerified();
 
         return guest;

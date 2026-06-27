@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.notification;
 
+import com.personal.happygallery.application.customer.GuestPhoneProtector;
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
@@ -33,17 +34,20 @@ public class NotificationService {
     private final NotificationLogStorePort notificationLogStore;
     private final GuestReaderPort guestReader;
     private final UserReaderPort userReader;
+    private final GuestPhoneProtector guestPhoneProtector;
     private final Clock clock;
 
     public NotificationService(List<NotificationSenderPort> senders,
                                NotificationLogStorePort notificationLogStore,
                                GuestReaderPort guestReader,
                                UserReaderPort userReader,
+                               GuestPhoneProtector guestPhoneProtector,
                                Clock clock) {
         this.senders = List.copyOf(senders);
         this.notificationLogStore = notificationLogStore;
         this.guestReader = guestReader;
         this.userReader = userReader;
+        this.guestPhoneProtector = guestPhoneProtector;
         this.clock = clock;
     }
 
@@ -59,7 +63,7 @@ public class NotificationService {
             return;
         }
         guestReader.findById(guestId).ifPresentOrElse(
-                guest -> sendToGuest(guest.getId(), guest.getPhone(), guest.getName(), eventType),
+                guest -> sendToGuest(guest.getId(), guestPhoneProtector.decrypt(guest), guest.getName(), eventType),
                 () -> log.warn("[알림] 게스트 미존재 [guestId={}]", guestId)
         );
     }

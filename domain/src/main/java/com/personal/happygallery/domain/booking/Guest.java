@@ -20,13 +20,10 @@ public class Guest {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = false, length = 20)
-    private String phone;
-
-    @Column(name = "phone_enc")
+    @Column(name = "phone_enc", nullable = false)
     private String phoneEnc;
 
-    @Column(name = "phone_hmac", length = 64)
+    @Column(name = "phone_hmac", nullable = false, length = 64)
     private String phoneHmac;
 
     @Column(name = "phone_verified", nullable = false)
@@ -37,9 +34,10 @@ public class Guest {
 
     protected Guest() {}
 
-    public Guest(String name, String phone) {
+    public Guest(String name, String phoneEnc, String phoneHmac) {
         this.name = name;
-        this.phone = phone;
+        this.phoneEnc = phoneEnc;
+        this.phoneHmac = phoneHmac;
         this.phoneVerified = false;
     }
 
@@ -48,14 +46,8 @@ public class Guest {
         this.phoneVerified = true;
     }
 
-    public void applyEncryption(String phoneEnc, String phoneHmac) {
-        this.phoneEnc = phoneEnc;
-        this.phoneHmac = phoneHmac;
-    }
-
     public Long getId() { return id; }
     public String getName() { return name; }
-    public String getPhone() { return phone; }
     public String getPhoneEnc() { return phoneEnc; }
     public String getPhoneHmac() { return phoneHmac; }
     public boolean isPhoneVerified() { return phoneVerified; }

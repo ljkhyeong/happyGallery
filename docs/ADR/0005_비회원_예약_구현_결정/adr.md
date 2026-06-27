@@ -11,14 +11,15 @@
 
 ---
 
-## 결정 1 — Guest upsert by phone
+## 결정 1 — Guest upsert by phone_hmac
 
-**선택**: 동일 전화번호가 존재하면 기존 Guest 재사용 (upsert 패턴)
+**선택**: 동일 전화번호의 HMAC(`phone_hmac`)이 존재하면 기존 Guest 재사용 (upsert 패턴)
 
 **이유**:
 - 재예약 시 guest row 중복 생성 방지
 - `(slot_id, guest_id)` 쌍으로 중복 예약 차단이 가능해짐 (BookingRepository.existsBySlotIdAndGuestId)
 - 한 게스트의 예약 이력 조회가 단순해짐
+- `guests.phone` 평문 컬럼 없이도 동일 전화번호 동등 검색을 유지할 수 있음
 
 **트레이드오프**: 전화번호 변경 시 기존 guest row를 재사용하게 됨 — MVP에서 허용 가능한 수준.
 

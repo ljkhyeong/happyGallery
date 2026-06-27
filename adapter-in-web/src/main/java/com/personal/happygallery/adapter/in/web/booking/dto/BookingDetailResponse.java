@@ -18,9 +18,8 @@ public record BookingDetailResponse(
         String guestName,
         String guestPhone  // 마스킹: 010****5678
 ) {
-    public static BookingDetailResponse from(Booking booking) {
-        String rawPhone = booking.getGuest().getPhone();
-        String maskedPhone = maskPhoneMiddle(rawPhone);
+    public static BookingDetailResponse from(Booking booking, String guestPhone) {
+        String maskedPhone = maskPhoneMiddle(guestPhone);
         return new BookingDetailResponse(
                 booking.getId(),
                 "BK-%08d".formatted(booking.getId()),

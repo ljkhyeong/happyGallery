@@ -1,9 +1,10 @@
 package com.personal.happygallery.adapter.in.web.booking;
 
+import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
-import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
+import com.personal.happygallery.application.customer.GuestPhoneProtector;
 import com.personal.happygallery.adapter.in.web.booking.dto.BookingDetailResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.CancelResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleRequest;
@@ -36,15 +37,18 @@ public class BookingController {
     private final BookingQueryUseCase bookingQueryUseCase;
     private final BookingRescheduleUseCase bookingRescheduleUseCase;
     private final BookingCancelUseCase bookingCancelUseCase;
+    private final GuestPhoneProtector guestPhoneProtector;
 
     public BookingController(GuestBookingUseCase guestBookingUseCase,
                              BookingQueryUseCase bookingQueryUseCase,
                              BookingRescheduleUseCase bookingRescheduleUseCase,
-                             BookingCancelUseCase bookingCancelUseCase) {
+                             BookingCancelUseCase bookingCancelUseCase,
+                             GuestPhoneProtector guestPhoneProtector) {
         this.guestBookingUseCase = guestBookingUseCase;
         this.bookingQueryUseCase = bookingQueryUseCase;
         this.bookingRescheduleUseCase = bookingRescheduleUseCase;
         this.bookingCancelUseCase = bookingCancelUseCase;
+        this.guestPhoneProtector = guestPhoneProtector;
     }
 
     /** 휴대폰 인증 코드 발송. 응답에는 인증 코드를 포함하지 않는다. */
@@ -61,7 +65,7 @@ public class BookingController {
             @PathVariable Long bookingId,
             @RequestHeader("X-Access-Token") String token) {
         Booking booking = bookingQueryUseCase.getBookingByToken(bookingId, token);
-        return BookingDetailResponse.from(booking);
+        return BookingDetailResponse.from(booking, guestPhoneProtector.decrypt(booking.getGuest()));
     }
 
     /** 비회원 예약 변경 — 슬롯 교체, 이력 누적 */

@@ -19,7 +19,7 @@ public record AdminBookingResponse(
         boolean passBooking
 ) {
 
-    public static AdminBookingResponse from(Booking booking, User user) {
+    public static AdminBookingResponse from(Booking booking, User user, String guestPhone) {
         boolean isMember = booking.getUserId() != null;
         String name = "(알 수 없음)";
         String phone = "";
@@ -29,7 +29,7 @@ public record AdminBookingResponse(
             phone = user.getPhone();
         } else if (booking.getGuest() != null) {
             name = booking.getGuest().getName();
-            phone = booking.getGuest().getPhone();
+            phone = guestPhone;
         }
 
         return new AdminBookingResponse(

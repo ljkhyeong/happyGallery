@@ -98,7 +98,7 @@ class CustomerGuestClaimUseCaseIT {
     @Test
     void verifyAndClaimGuestRecords() throws Exception {
         String email = "member@example.com";
-        Guest guest = guestStorePort.save(new Guest("비회원", "01012345678"));
+        Guest guest = guestStorePort.save(TestFixtures.guest("비회원", "01012345678"));
 
         Product product = productStorePort.save(new Product("테스트 상품", ProductType.READY_STOCK, 29_000L));
         inventoryStorePort.save(new Inventory(product, 5));

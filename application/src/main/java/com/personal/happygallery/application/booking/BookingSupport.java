@@ -2,12 +2,13 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.out.BookingHistoryPort;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
-import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.application.customer.GuestPhoneProtector;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.util.Objects;
@@ -23,15 +24,18 @@ class BookingSupport {
     private final BookingHistoryPort bookingHistoryPort;
     private final ApplicationEventPublisher eventPublisher;
     private final GuestTokenService guestTokenService;
+    private final GuestPhoneProtector guestPhoneProtector;
 
     BookingSupport(BookingReaderPort bookingReaderPort,
                    BookingHistoryPort bookingHistoryPort,
                    ApplicationEventPublisher eventPublisher,
-                   GuestTokenService guestTokenService) {
+                   GuestTokenService guestTokenService,
+                   GuestPhoneProtector guestPhoneProtector) {
         this.bookingReaderPort = bookingReaderPort;
         this.bookingHistoryPort = bookingHistoryPort;
         this.eventPublisher = eventPublisher;
         this.guestTokenService = guestTokenService;
+        this.guestPhoneProtector = guestPhoneProtector;
     }
 
     Booking findByToken(Long bookingId, String rawAccessToken) {
@@ -60,7 +64,7 @@ class BookingSupport {
         } else if (booking.getGuest() != null) {
             eventPublisher.publishEvent(NotificationRequestedEvent.forGuestWithContact(
                     booking.getGuest().getId(),
-                    booking.getGuest().getPhone(),
+                    guestPhoneProtector.decrypt(booking.getGuest()),
                     booking.getGuest().getName(),
                     eventType));
         }

@@ -5,17 +5,29 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.crypto.BlindIndexer;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.UUID;
 
 /**
  * 테스트 엔티티 생성 유틸.
  */
 public final class TestFixtures {
+
+    private static final String TEST_ENCRYPT_KEY =
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    private static final String TEST_HMAC_KEY =
+            "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+    private static final FieldEncryptor TEST_FIELD_ENCRYPTOR =
+            new FieldEncryptor(HexFormat.of().parseHex(TEST_ENCRYPT_KEY));
+    private static final BlindIndexer TEST_BLIND_INDEXER =
+            new BlindIndexer(HexFormat.of().parseHex(TEST_HMAC_KEY));
 
     private TestFixtures() {
     }
@@ -33,7 +45,7 @@ public final class TestFixtures {
     }
 
     public static Guest guest(String name, String phone) {
-        return new Guest(name, phone);
+        return new Guest(name, TEST_FIELD_ENCRYPTOR.encrypt(phone), TEST_BLIND_INDEXER.index(phone));
     }
 
     public static Booking booking(Guest guest,

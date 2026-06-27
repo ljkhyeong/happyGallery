@@ -76,7 +76,8 @@
 - `users`
   - `id`, `email`, `password_hash`, `name`, `phone`, `provider`, `provider_id`, `created_at`
 - `guests`
-  - `id`, `name`, `phone`, `phone_verified`, `created_at`
+  - `id`, `name`, `phone_enc`, `phone_hmac`, `phone_verified`, `created_at`
+  - 비회원 전화번호 평문 컬럼은 두지 않는다. 표시는 `phone_enc` 복호화, 동등 검색은 `phone_hmac`로 처리한다.
 
 #### 상품과 재고
 

@@ -1,9 +1,10 @@
 package com.personal.happygallery.application.booking;
 
+import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.application.customer.GuestPhoneProtector;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
-import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.user.User;
@@ -23,11 +24,14 @@ public class DefaultAdminBookingQueryService implements AdminBookingQueryUseCase
 
     private final BookingReaderPort bookingReaderPort;
     private final UserReaderPort userReaderPort;
+    private final GuestPhoneProtector guestPhoneProtector;
 
     public DefaultAdminBookingQueryService(BookingReaderPort bookingReaderPort,
-                                     UserReaderPort userReaderPort) {
+                                     UserReaderPort userReaderPort,
+                                     GuestPhoneProtector guestPhoneProtector) {
         this.bookingReaderPort = bookingReaderPort;
         this.userReaderPort = userReaderPort;
+        this.guestPhoneProtector = guestPhoneProtector;
     }
 
     /**
@@ -42,8 +46,14 @@ public class DefaultAdminBookingQueryService implements AdminBookingQueryUseCase
 
         return bookings.stream()
                 .filter(b -> status == null || b.getStatus() == status)
-                .map(b -> AdminBookingResponse.from(b, userFor(b, userMap)))
+                .map(b -> AdminBookingResponse.from(b, userFor(b, userMap), guestPhoneFor(b)))
                 .toList();
+    }
+
+    private String guestPhoneFor(Booking booking) {
+        return booking.getUserId() != null || booking.getGuest() == null
+                ? ""
+                : guestPhoneProtector.decrypt(booking.getGuest());
     }
 
     private User userFor(Booking booking, Map<Long, User> userMap) {

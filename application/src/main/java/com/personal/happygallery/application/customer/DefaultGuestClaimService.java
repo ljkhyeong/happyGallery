@@ -41,19 +41,22 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     private final GuestClaimQueryPort claimQuery;
     private final Clock clock;
     private final ClientMonitoringUseCase clientMonitoringService;
+    private final GuestPhoneProtector guestPhoneProtector;
 
     public DefaultGuestClaimService(UserReaderPort userReader,
                              GuestReaderPort guestReader,
                              PhoneVerificationReaderPort phoneVerificationReader,
                              GuestClaimQueryPort claimQuery,
                              Clock clock,
-                             ClientMonitoringUseCase clientMonitoringService) {
+                             ClientMonitoringUseCase clientMonitoringService,
+                             GuestPhoneProtector guestPhoneProtector) {
         this.userReader = userReader;
         this.guestReader = guestReader;
         this.phoneVerificationReader = phoneVerificationReader;
         this.claimQuery = claimQuery;
         this.clock = clock;
         this.clientMonitoringService = clientMonitoringService;
+        this.guestPhoneProtector = guestPhoneProtector;
     }
 
     @Transactional(readOnly = true)
@@ -159,7 +162,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
     private Optional<Guest> findGuestByAnyPhoneFormat(String phone) {
         for (String candidatePhone : candidatePhones(phone)) {
-            Optional<Guest> guest = guestReader.findByPhone(candidatePhone);
+            Optional<Guest> guest = guestReader.findByPhoneHmac(guestPhoneProtector.index(candidatePhone));
             if (guest.isPresent()) {
                 return guest;
             }

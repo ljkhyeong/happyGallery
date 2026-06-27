@@ -10,7 +10,5 @@ public interface GuestReaderPort {
 
     Optional<Guest> findById(Long id);
 
-    Optional<Guest> findByPhone(String phone);
-
     Optional<Guest> findByPhoneHmac(String phoneHmac);
 }
