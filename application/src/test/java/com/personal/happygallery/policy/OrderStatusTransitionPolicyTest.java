@@ -8,8 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
  * [PolicyTest] 주문 상태 전이 가드 검증.
@@ -21,106 +20,82 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Tag("policy")
 class OrderStatusTransitionPolicyTest {
 
-    @DisplayName("PAID_APPROVAL_PENDING 상태는 승인 가능 검증에서 예외가 발생하지 않는다")
+    @DisplayName("승인 가능 검증은 대기 상태만 허용하고 환불성 상태를 거절한다")
     @Test
-    void requireApprovable_whenPaidPending_noException() {
-        assertThatCode(() -> OrderStatus.PAID_APPROVAL_PENDING.requireApprovable())
-                .doesNotThrowAnyException();
-    }
-
-    @DisplayName("AUTO_REFUND_TIMEOUT 상태는 승인 가능 검증에서 예외가 발생한다")
-    @Test
-    void requireApprovable_whenAutoRefundTimeout_throws() {
-        assertThatThrownBy(() -> OrderStatus.AUTO_REFUND_TIMEOUT.requireApprovable())
-                .isInstanceOf(AlreadyRefundedException.class);
-    }
-
-    @DisplayName("REJECTED 상태는 승인 가능 검증에서 예외가 발생한다")
-    @Test
-    void requireApprovable_whenRejected_throws() {
-        assertThatThrownBy(() -> OrderStatus.REJECTED.requireApprovable())
-                .isInstanceOf(AlreadyRefundedException.class);
-    }
-
-    @DisplayName("PICKUP_EXPIRED 상태는 승인 가능 검증에서 예외가 발생한다")
-    @Test
-    void requireApprovable_whenPickupExpired_throws() {
-        assertThatThrownBy(() -> OrderStatus.PICKUP_EXPIRED.requireApprovable())
-                .isInstanceOf(AlreadyRefundedException.class);
-    }
-
-    @DisplayName("DELAY_REJECTED_CANCELED 상태는 승인 가능 검증에서 예외가 발생한다")
-    @Test
-    void requireApprovable_whenDelayRejectedCanceled_throws() {
-        assertThatThrownBy(() -> OrderStatus.DELAY_REJECTED_CANCELED.requireApprovable())
-                .isInstanceOf(AlreadyRefundedException.class);
+    void requireApprovable_validatesApprovalPolicy() {
+        assertSoftly(softly -> {
+            softly.assertThatCode(() -> OrderStatus.PAID_APPROVAL_PENDING.requireApprovable())
+                    .as("PAID_APPROVAL_PENDING은 승인 가능")
+                    .doesNotThrowAnyException();
+            softly.assertThatThrownBy(() -> OrderStatus.AUTO_REFUND_TIMEOUT.requireApprovable())
+                    .as("AUTO_REFUND_TIMEOUT은 이미 환불된 주문")
+                    .isInstanceOf(AlreadyRefundedException.class);
+            softly.assertThatThrownBy(() -> OrderStatus.REJECTED.requireApprovable())
+                    .as("REJECTED는 이미 환불된 주문")
+                    .isInstanceOf(AlreadyRefundedException.class);
+            softly.assertThatThrownBy(() -> OrderStatus.PICKUP_EXPIRED.requireApprovable())
+                    .as("PICKUP_EXPIRED는 이미 환불된 주문")
+                    .isInstanceOf(AlreadyRefundedException.class);
+            softly.assertThatThrownBy(() -> OrderStatus.DELAY_REJECTED_CANCELED.requireApprovable())
+                    .as("DELAY_REJECTED_CANCELED는 이미 환불된 주문")
+                    .isInstanceOf(AlreadyRefundedException.class);
+        });
     }
 
     // -----------------------------------------------------------------------
     // requireDelayRequested() — 제작 재개 가드
     // -----------------------------------------------------------------------
 
-    @DisplayName("DELAY_REQUESTED 상태는 재개 가능 검증에서 예외가 발생하지 않는다")
+    @DisplayName("제작 재개 검증은 지연 요청 상태만 허용한다")
     @Test
-    void requireDelayRequested_whenDelayRequested_noException() {
-        assertThatCode(() -> OrderStatus.DELAY_REQUESTED.requireDelayRequested())
-                .doesNotThrowAnyException();
-    }
-
-    @DisplayName("IN_PRODUCTION 상태는 재개 가능 검증에서 예외가 발생한다")
-    @Test
-    void requireDelayRequested_whenInProduction_throws() {
-        assertThatThrownBy(() -> OrderStatus.IN_PRODUCTION.requireDelayRequested())
-                .isInstanceOf(HappyGalleryException.class);
+    void requireDelayRequested_validatesResumePolicy() {
+        assertSoftly(softly -> {
+            softly.assertThatCode(() -> OrderStatus.DELAY_REQUESTED.requireDelayRequested())
+                    .as("DELAY_REQUESTED는 제작 재개 가능")
+                    .doesNotThrowAnyException();
+            softly.assertThatThrownBy(() -> OrderStatus.IN_PRODUCTION.requireDelayRequested())
+                    .as("IN_PRODUCTION은 지연 요청 상태가 아님")
+                    .isInstanceOf(HappyGalleryException.class);
+        });
     }
 
     // -----------------------------------------------------------------------
     // requireDelayRejectionCancelable() — 고객 지연 거절 취소 가드
     // -----------------------------------------------------------------------
 
-    @DisplayName("IN_PRODUCTION 상태는 지연 거절 취소 검증에서 예외가 발생하지 않는다")
+    @DisplayName("지연 거절 취소 검증은 제작 중 상태만 허용한다")
     @Test
-    void requireDelayRejectionCancelable_whenInProduction_noException() {
-        assertThatCode(() -> OrderStatus.IN_PRODUCTION.requireDelayRejectionCancelable())
-                .doesNotThrowAnyException();
-    }
-
-    @DisplayName("DELAY_REQUESTED 상태는 지연 거절 취소 검증에서 예외가 발생한다")
-    @Test
-    void requireDelayRejectionCancelable_whenDelayRequested_throws() {
-        assertThatThrownBy(() -> OrderStatus.DELAY_REQUESTED.requireDelayRejectionCancelable())
-                .isInstanceOf(HappyGalleryException.class);
+    void requireDelayRejectionCancelable_validatesDelayRejectionPolicy() {
+        assertSoftly(softly -> {
+            softly.assertThatCode(() -> OrderStatus.IN_PRODUCTION.requireDelayRejectionCancelable())
+                    .as("IN_PRODUCTION은 지연 거절 취소 가능")
+                    .doesNotThrowAnyException();
+            softly.assertThatThrownBy(() -> OrderStatus.DELAY_REQUESTED.requireDelayRejectionCancelable())
+                    .as("DELAY_REQUESTED는 이미 고객 동의 대기 상태")
+                    .isInstanceOf(HappyGalleryException.class);
+        });
     }
 
     // -----------------------------------------------------------------------
     // requireCancellable() — 제작 중 취소 불가 (§8.3)
     // -----------------------------------------------------------------------
 
-    @DisplayName("IN_PRODUCTION 상태는 취소 가능 검증에서 예외가 발생한다")
+    @DisplayName("취소 가능 검증은 제작 중 상태를 거절하고 대기 상태를 허용한다")
     @Test
-    void requireCancellable_whenInProduction_throws() {
-        assertThatThrownBy(() -> OrderStatus.IN_PRODUCTION.requireCancellable())
-                .isInstanceOf(ProductionRefundNotAllowedException.class);
-    }
-
-    @DisplayName("DELAY_REQUESTED 상태는 취소 가능 검증에서 예외가 발생한다")
-    @Test
-    void requireCancellable_whenDelayRequested_throws() {
-        assertThatThrownBy(() -> OrderStatus.DELAY_REQUESTED.requireCancellable())
-                .isInstanceOf(ProductionRefundNotAllowedException.class);
-    }
-
-    @DisplayName("PAID_APPROVAL_PENDING 상태는 취소 가능 검증에서 예외가 발생하지 않는다")
-    @Test
-    void requireCancellable_whenPaidPending_noException() {
-        assertThatCode(() -> OrderStatus.PAID_APPROVAL_PENDING.requireCancellable())
-                .doesNotThrowAnyException();
-    }
-
-    @DisplayName("APPROVED_FULFILLMENT_PENDING 상태는 취소 가능 검증에서 예외가 발생하지 않는다")
-    @Test
-    void requireCancellable_whenApprovedFulfillmentPending_noException() {
-        assertThatCode(() -> OrderStatus.APPROVED_FULFILLMENT_PENDING.requireCancellable())
-                .doesNotThrowAnyException();
+    void requireCancellable_validatesProductionCancelPolicy() {
+        assertSoftly(softly -> {
+            softly.assertThatThrownBy(() -> OrderStatus.IN_PRODUCTION.requireCancellable())
+                    .as("IN_PRODUCTION은 제작 중 환불 불가")
+                    .isInstanceOf(ProductionRefundNotAllowedException.class);
+            softly.assertThatThrownBy(() -> OrderStatus.DELAY_REQUESTED.requireCancellable())
+                    .as("DELAY_REQUESTED는 제작 중 환불 불가")
+                    .isInstanceOf(ProductionRefundNotAllowedException.class);
+            softly.assertThatCode(() -> OrderStatus.PAID_APPROVAL_PENDING.requireCancellable())
+                    .as("PAID_APPROVAL_PENDING은 취소 가능")
+                    .doesNotThrowAnyException();
+            softly.assertThatCode(() -> OrderStatus.APPROVED_FULFILLMENT_PENDING.requireCancellable())
+                    .as("APPROVED_FULFILLMENT_PENDING은 취소 가능")
+                    .doesNotThrowAnyException();
+        });
     }
 }
