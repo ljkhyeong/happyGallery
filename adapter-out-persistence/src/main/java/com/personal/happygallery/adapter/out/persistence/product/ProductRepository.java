@@ -31,10 +31,11 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
     /** 필터 조건에 따른 ACTIVE 상품 목록 조회. */
     @Override
     default List<Product> findActiveByFilter(ProductFilter filter) {
-        Specification<Product> spec = Specification.where(ProductSpecifications.isActive())
-                .and(ProductSpecifications.hasType(filter.type()))
-                .and(ProductSpecifications.hasCategory(filter.category()))
-                .and(ProductSpecifications.nameContains(filter.keyword()));
+        Specification<Product> spec = andIfPresent(
+                ProductSpecifications.isActive(),
+                ProductSpecifications.hasType(filter.type()));
+        spec = andIfPresent(spec, ProductSpecifications.hasCategory(filter.category()));
+        spec = andIfPresent(spec, ProductSpecifications.nameContains(filter.keyword()));
 
         Sort sort = switch (filter.sort()) {
             case PRICE_ASC -> Sort.by("price").ascending();
@@ -43,5 +44,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
         };
 
         return findAll(spec, sort);
+    }
+
+    private static Specification<Product> andIfPresent(Specification<Product> spec,
+                                                       Specification<Product> optionalSpec) {
+        return optionalSpec == null ? spec : spec.and(optionalSpec);
     }
 }

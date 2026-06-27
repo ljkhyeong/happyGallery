@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.booking;
 
+import com.personal.happygallery.domain.category.CategoryName;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -42,7 +43,7 @@ public class BookingClass {
 
     public BookingClass(String name, String category, int durationMin, long price, int bufferMin) {
         this.name = name;
-        this.category = category;
+        this.category = CategoryName.required(category);
         this.durationMin = durationMin;
         this.price = price;
         this.bufferMin = bufferMin;

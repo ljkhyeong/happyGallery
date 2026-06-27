@@ -151,6 +151,8 @@ Authorization: Bearer {token}
 - 성공: `201 Created`
 - 에러:
   - `400 INVALID_INPUT` — 이름/카테고리 공란, durationMin/price/bufferMin 형식 오류
+- 정책:
+  - `category`는 앞뒤 공백을 제거하고 대문자 토큰으로 정규화해 저장·응답한다.
 
 #### 2.1.2 슬롯 생성
 
@@ -220,6 +222,7 @@ GET /api/v1/products
     "id": 1,
     "name": "시그니처 캔들",
     "type": "READY_STOCK",
+    "category": "CANDLE",
     "price": 39000,
     "available": true
   }
@@ -323,6 +326,7 @@ Content-Type: application/json
 {
   "name": "시그니처 캔들",
   "type": "READY_STOCK",
+  "category": "CANDLE",
   "price": 39000,
   "quantity": 5
 }
@@ -333,6 +337,7 @@ Content-Type: application/json
   "id": 1,
   "name": "시그니처 캔들",
   "type": "READY_STOCK",
+  "category": "CANDLE",
   "price": 39000,
   "status": "ACTIVE",
   "available": true,
@@ -344,6 +349,9 @@ Content-Type: application/json
 - 에러:
   - `400 INVALID_INPUT` — 이름/유형/가격/수량 검증 실패
   - `401 UNAUTHORIZED` — 관리자 인증 실패
+- 정책:
+  - `category`는 선택값이며, 입력하면 앞뒤 공백을 제거하고 대문자 토큰으로 정규화해 저장·응답한다.
+  - 공백 카테고리는 미입력과 동일하게 처리한다.
 
 #### 2.3.2 ACTIVE 상품 목록 조회
 

@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.product;
 
+import com.personal.happygallery.domain.category.CategoryName;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -63,7 +64,7 @@ public class Product {
     public Product(String name, ProductType type, String category, long price) {
         this.name = name;
         this.type = type;
-        this.category = category;
+        this.category = CategoryName.optional(category);
         this.price = price;
         this.status = ProductStatus.ACTIVE;
     }

@@ -81,7 +81,7 @@
 #### 상품과 재고
 
 - `products`
-  - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `price`, `status(ACTIVE|INACTIVE)`
+  - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `category nullable`, `price`, `status(ACTIVE|INACTIVE)`
 - `inventory`
   - `product_id(PK/FK)`, `quantity`, `version`, `updated_at`
 - `made_to_order_spec`
@@ -119,6 +119,9 @@
   - `balance_amount`, `balance_status`, `arrears_flag`, `version`
 - `booking_history`
   - `id`, `booking_id`, `action`, `from_slot_id`, `to_slot_id`, `actor`, `reason`, `created_at`
+
+카테고리는 정책 분기를 만들지 않는 표시·필터용 값이므로 enum이 아니라 문자열로 저장한다.
+저장·조회 필터 기준은 앞뒤 공백을 제거한 대문자 토큰이다.
 
 #### Q&A와 문의
 

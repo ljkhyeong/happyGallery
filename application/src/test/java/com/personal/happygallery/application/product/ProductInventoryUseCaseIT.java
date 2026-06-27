@@ -57,6 +57,7 @@ class ProductInventoryUseCaseIT {
                                 {
                                   "name": "나무 수납함",
                                   "type": "READY_STOCK",
+                                  "category": " wood ",
                                   "price": 35000,
                                   "quantity": 1
                                 }
@@ -65,6 +66,7 @@ class ProductInventoryUseCaseIT {
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.name").value("나무 수납함"))
                 .andExpect(jsonPath("$.type").value("READY_STOCK"))
+                .andExpect(jsonPath("$.category").value("WOOD"))
                 .andExpect(jsonPath("$.price").value(35000))
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.available").value(true))
@@ -78,7 +80,13 @@ class ProductInventoryUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(inventory.getQuantity()).isEqualTo(1);
             softly.assertThat(inventory.isAvailable()).isTrue();
+            softly.assertThat(productRepository.findById(productId).orElseThrow().getCategory()).isEqualTo("WOOD");
         });
+
+        mockMvc.perform(get("/products").param("category", "wood"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(productId))
+                .andExpect(jsonPath("$[0].category").value("WOOD"));
     }
 
     // -----------------------------------------------------------------------

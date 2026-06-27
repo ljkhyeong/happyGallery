@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.product;
 
+import com.personal.happygallery.domain.category.CategoryName;
 import com.personal.happygallery.domain.product.ProductType;
 
 /**
@@ -18,6 +19,13 @@ public record ProductFilter(
         String keyword,
         ProductSortOrder sort
 ) {
+    public ProductFilter {
+        category = CategoryName.optional(category);
+        if (sort == null) {
+            sort = ProductSortOrder.NEWEST;
+        }
+    }
+
     public enum ProductSortOrder {
         NEWEST, PRICE_ASC, PRICE_DESC;
 
