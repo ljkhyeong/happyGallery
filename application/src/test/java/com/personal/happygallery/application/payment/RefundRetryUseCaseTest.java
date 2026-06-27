@@ -37,8 +37,8 @@ class RefundRetryUseCaseTest {
     @DisplayName("FAILED가 아닌 환불을 재시도하면 INVALID_INPUT 예외가 발생한다")
     @Test
     void retry_nonFailedRefund_throwsInvalidInput() {
-        Refund succeededRefund = Refund.forOrder(10L, 5_000L, "pg-ref");
-        succeededRefund.markSucceeded("pg-ref");
+        Refund succeededRefund = Refund.forOrder(10L, 5_000L, "original-pg-ref");
+        succeededRefund.markSucceeded("refund-pg-ref");
         RefundPort refundPort = mock(RefundPort.class);
         RefundExecutionService refundExecutionService = mock(RefundExecutionService.class);
         DefaultRefundRetryService service = new DefaultRefundRetryService(refundPort, refundExecutionService);
@@ -71,7 +71,7 @@ class RefundRetryUseCaseTest {
     }
 
     private static Refund failedRefund() {
-        Refund refund = Refund.forOrder(10L, 5_000L, "pg-ref");
+        Refund refund = Refund.forOrder(10L, 5_000L, "original-pg-ref");
         refund.markFailed("PG timeout");
         return refund;
     }

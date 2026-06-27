@@ -56,6 +56,8 @@ class RefundExecutionServiceUseCaseIT {
             softly.assertThat(refunds).hasSize(1);
             softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
             softly.assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.FAILED);
+            softly.assertThat(refunds.get(0).getOriginalPgRef()).isEqualTo("pg-ref");
+            softly.assertThat(refunds.get(0).getRefundPgRef()).isNull();
             softly.assertThat(refunds.get(0).getFailReason()).contains("PG timeout");
         });
     }

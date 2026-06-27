@@ -120,6 +120,8 @@ class BookingCancelUseCaseIT {
             softly.assertThat(refunds).hasSize(1);
             if (!refunds.isEmpty()) {
                 softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("SUCCEEDED");
+                softly.assertThat(refunds.get(0).getOriginalPgRef()).isEqualTo("FAKE-TEST-PG");
+                softly.assertThat(refunds.get(0).getRefundPgRef()).isEqualTo("FAKE-TEST-REF");
             }
             softly.assertThat(updatedSlot.getBookedCount()).isEqualTo(0);
             softly.assertThat(logs).extracting(NotificationLog::getEventType)
@@ -160,6 +162,8 @@ class BookingCancelUseCaseIT {
             if (!refunds.isEmpty()) {
                 softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("FAILED");
                 softly.assertThat(refunds.get(0).getFailReason()).isEqualTo("PG 타임아웃");
+                softly.assertThat(refunds.get(0).getOriginalPgRef()).isEqualTo("FAKE-TEST-PG");
+                softly.assertThat(refunds.get(0).getRefundPgRef()).isNull();
             }
             softly.assertThat(logs).extracting(NotificationLog::getEventType)
                     .containsExactly(NotificationEventType.BOOKING_CANCELED);

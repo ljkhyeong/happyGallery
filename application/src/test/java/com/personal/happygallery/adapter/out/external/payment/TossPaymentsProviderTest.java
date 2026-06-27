@@ -117,7 +117,7 @@ class TossPaymentsProviderTest {
         server.verify();
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isTrue();
-            softly.assertThat(result.pgRef()).isEqualTo("payment-key");
+            softly.assertThat(result.refundPgRef()).isEqualTo("payment-key");
             softly.assertThat(result.failReason()).isNull();
         });
     }
@@ -145,7 +145,7 @@ class TossPaymentsProviderTest {
         server.verify();
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
-            softly.assertThat(result.pgRef()).isNull();
+            softly.assertThat(result.refundPgRef()).isNull();
             softly.assertThat(result.failReason()).isNotBlank();
         });
     }

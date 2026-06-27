@@ -32,8 +32,8 @@ public class RefundExecutionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Refund processOrderRefund(Long orderId, long amount, String pgRef) {
-        Refund refund = refundPort.save(Refund.forOrder(orderId, amount, pgRef));
+    public Refund processOrderRefund(Long orderId, long amount, String originalPgRef) {
+        Refund refund = refundPort.save(Refund.forOrder(orderId, amount, originalPgRef));
         return executeRefund(refund, "orderId=" + orderId);
     }
 
@@ -45,9 +45,9 @@ public class RefundExecutionService {
 
     public Refund executeRefund(Refund refund, String target) {
         try {
-            RefundResult result = paymentPort.refund(refund.getPgRef(), refund.getAmount());
+            RefundResult result = paymentPort.refund(refund.getOriginalPgRef(), refund.getAmount());
             if (result.success()) {
-                refund.markSucceeded(result.pgRef());
+                refund.markSucceeded(result.refundPgRef());
             } else {
                 log.warn("환불 실패 [{} refundId={}] reason={}", target, refund.getId(), result.failReason());
                 refund.markFailed(result.failReason());

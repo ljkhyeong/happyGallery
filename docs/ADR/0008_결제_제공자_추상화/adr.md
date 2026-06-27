@@ -66,7 +66,7 @@
 | 파일 | 역할 |
 |------|------|
 | `adapter-out-external/.../payment/PaymentProvider.java` | 외부 결제 어댑터 인터페이스 |
-| `application/.../payment/port/out/RefundResult.java` | 환불 결과 VO (success/pgRef/failReason) |
+| `application/.../payment/port/out/RefundResult.java` | 환불 결과 VO (success/refundPgRef/failReason) |
 | `adapter-out-external/.../payment/FakePaymentProvider.java` | 개발용 항상-성공 어댑터 |
 | `domain/booking/Refund.java` | `markSucceeded()` / `markFailed()` 추가 |
 | `application/.../booking/DefaultBookingCancelService.java` | Provider 호출, 실패 시 FAILED 저장 |
@@ -82,4 +82,5 @@ Toss Payments 연동을 위해 결제 경계를 환불 전용에서 `prepare/con
 - `POST /api/v1/payments/prepare`에서 서버가 `payment_attempt.order_id_external`과 `amount`를 확정한다.
 - `POST /api/v1/payments/confirm`에서 PG confirm 성공 후 주문/예약/8회권 도메인 저장을 수행한다.
 - confirm 성공 시 PG 원결제 참조값을 `payment_attempt.pg_ref`와 도메인 레코드의 `payment_key`에 저장해 환불 cancel 호출의 입력으로 사용한다.
+- `refunds.pg_ref`는 환불 재시도에 필요한 원결제 참조값으로 유지하고, 환불 성공 결과 참조값은 `refunds.refund_pg_ref`에 별도로 저장한다.
 - `FakePaymentProvider`는 local/test에서 confirm 성공 응답을 돌려주고, `TossPaymentsProvider`는 prod 프로필에서 Toss `/v1/payments/confirm`을 호출한다.

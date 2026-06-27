@@ -14,7 +14,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
-/** 환불 요청 — refunds 테이블 (V2 기존 테이블, PG 연동 전 REQUESTED 상태로만 기록) */
+/** 환불 요청 — 원결제 참조와 환불 결과 참조를 분리해 재시도 가능성을 보존한다. */
 @Entity
 @Table(name = "refunds")
 public class Refund {
@@ -38,7 +38,10 @@ public class Refund {
     private RefundStatus status;
 
     @Column(name = "pg_ref", length = 255)
-    private String pgRef;
+    private String originalPgRef;
+
+    @Column(name = "refund_pg_ref", length = 255)
+    private String refundPgRef;
 
     @Column(name = "fail_reason", length = 500)
     private String failReason;
@@ -48,11 +51,11 @@ public class Refund {
 
     protected Refund() {}
 
-    private Refund(Booking booking, Long orderId, long amount, String pgRef) {
+    private Refund(Booking booking, Long orderId, long amount, String originalPgRef) {
         this.booking = booking;
         this.orderId = orderId;
         this.amount = amount;
-        this.pgRef = pgRef;
+        this.originalPgRef = originalPgRef;
         this.status = RefundStatus.REQUESTED;
     }
 
@@ -62,14 +65,14 @@ public class Refund {
     }
 
     /** 주문 환불 요청 생성 (주문 거절/자동환불 시). booking은 null. */
-    public static Refund forOrder(Long orderId, long amount, String pgRef) {
-        return new Refund(null, orderId, amount, pgRef);
+    public static Refund forOrder(Long orderId, long amount, String originalPgRef) {
+        return new Refund(null, orderId, amount, originalPgRef);
     }
 
     /** PG 환불 성공 처리 */
-    public void markSucceeded(String pgRef) {
+    public void markSucceeded(String refundPgRef) {
         this.status = RefundStatus.SUCCEEDED;
-        this.pgRef = pgRef;
+        this.refundPgRef = refundPgRef;
     }
 
     /** PG 환불 실패 처리 — 레코드는 삭제하지 않고 FAILED 로 유지 (운영자 재시도 대상) */
@@ -83,7 +86,8 @@ public class Refund {
     public Long getOrderId() { return orderId; }
     public long getAmount() { return amount; }
     public RefundStatus getStatus() { return status; }
-    public String getPgRef() { return pgRef; }
+    public String getOriginalPgRef() { return originalPgRef; }
+    public String getRefundPgRef() { return refundPgRef; }
     public String getFailReason() { return failReason; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

@@ -22,7 +22,7 @@ public interface PaymentPort {
      *
      * @param pgRef  원결제 PG 참조값 (없으면 null)
      * @param amount 환불 금액 (원)
-     * @return 성공 시 success=true + pgRef, 실패 시 success=false + failReason
+     * @return 성공 시 success=true + refundPgRef, 실패 시 success=false + failReason
      */
     RefundResult refund(String pgRef, long amount);
 }

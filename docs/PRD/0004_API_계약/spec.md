@@ -1431,6 +1431,7 @@ Content-Type: application/json
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
   - PG `confirm` 성공 후에만 도메인 저장(주문/예약/8회권 구매)이 수행되며, 단일 트랜잭션 안에서 처리된다.
   - PG 원결제 참조값(`pgRef`, Toss는 `paymentKey`)은 `payment_attempt.pg_ref`와 생성된 도메인 레코드의 `payment_key`에 저장한다. 이후 환불은 해당 값을 PG cancel 호출의 원결제 식별자로 사용한다.
+  - 환불 이력은 원결제 참조값을 `refunds.pg_ref`, 환불 성공 결과 참조값을 `refunds.refund_pg_ref`에 분리해 저장한다. 실패 환불 재시도는 `refunds.pg_ref`를 다시 사용한다.
   - 비회원 경로의 `accessToken`(32자 hex)은 confirm 응답에서 1회만 반환되며 DB에는 SHA-256 해시만 저장된다. 회원 경로는 `accessToken=null`.
   - `domainId`는 context에 따라 `orderId`(`ORDER`), `bookingId`(`BOOKING`), `passId`(`PASS`)다.
   - 비회원 휴대폰 인증 실패는 confirm 단계에서 fulfillment가 호출하는 `VerifiedGuestResolver`가 던지는 `400 PHONE_VERIFICATION_FAILED`로 매핑된다.

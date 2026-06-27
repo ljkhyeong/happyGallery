@@ -101,7 +101,7 @@
 - `fulfillments`
   - `id`, `order_id(unique)`, `type(SHIPPING|PICKUP)`, `expected_ship_date`, `pickup_deadline_at`, `version`
 - `refunds`
-  - `id`, `order_id nullable`, `booking_id nullable`, `amount`, `status`, `pg_ref`, `fail_reason`, `created_at`
+  - `id`, `order_id nullable`, `booking_id nullable`, `amount`, `status`, `pg_ref`, `refund_pg_ref`, `fail_reason`, `created_at`
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
   - `payment_key nullable`, `pg_ref nullable`, `payload_json`, `created_at`, `confirmed_at nullable`, `version`

@@ -40,7 +40,7 @@ class FakePaymentProviderTest {
             softly.assertThat(failed.success()).isFalse();
             softly.assertThat(failed.failReason()).isEqualTo("PG 강제 실패");
             softly.assertThat(succeeded.success()).isTrue();
-            softly.assertThat(succeeded.pgRef()).startsWith("FAKE-REFUND-");
+            softly.assertThat(succeeded.refundPgRef()).startsWith("FAKE-REFUND-");
         });
     }
 }
