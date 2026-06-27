@@ -59,6 +59,7 @@ MADE_TO_ORDER 승인 시 `fulfillments` 테이블에 레코드를 생성한다.
 - `expected_ship_date = null` (관리자가 별도 설정)
 - Fulfillment에 별도 `status` 컬럼은 없다 — 주문 상태는 `Order.status`가 단일 소스
 - `order_id`는 unique로 유지해 주문당 fulfillment 1건 불변식을 보장한다
+- `Fulfillment` 생성은 `shipping(orderId)`, `pickup(orderId, pickupDeadlineAt)` 팩토리로만 수행해 type 선정 책임을 도메인에 둔다
 
 READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업에서 처리 예정).
 

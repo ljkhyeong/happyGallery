@@ -13,6 +13,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * 주문 이행 정보 — fulfillments 테이블.
@@ -50,27 +51,23 @@ public class Fulfillment {
 
     protected Fulfillment() {}
 
-    /**
-     * 제작 이행 레코드 생성 (SHIPPING).
-     *
-     * @param orderId 주문 ID
-     * @param type    이행 유형 (SHIPPING | PICKUP)
-     */
-    public Fulfillment(Long orderId, FulfillmentType type) {
-        this.orderId = orderId;
-        this.type = type;
+    private Fulfillment(Long orderId) {
+        this.orderId = Objects.requireNonNull(orderId, "orderId must not be null");
     }
 
-    /**
-     * 픽업 이행 레코드 생성 (PICKUP).
-     *
-     * @param orderId          주문 ID
-     * @param pickupDeadlineAt 픽업 마감 시각
-     */
-    public Fulfillment(Long orderId, LocalDateTime pickupDeadlineAt) {
-        this.orderId = orderId;
-        this.type = FulfillmentType.PICKUP;
-        this.pickupDeadlineAt = pickupDeadlineAt;
+    /** 배송 이행 레코드를 생성한다. */
+    public static Fulfillment shipping(Long orderId) {
+        Fulfillment fulfillment = new Fulfillment(orderId);
+        fulfillment.type = FulfillmentType.SHIPPING;
+        return fulfillment;
+    }
+
+    /** 픽업 이행 레코드를 생성한다. */
+    public static Fulfillment pickup(Long orderId, LocalDateTime pickupDeadlineAt) {
+        Fulfillment fulfillment = new Fulfillment(orderId);
+        fulfillment.type = FulfillmentType.PICKUP;
+        fulfillment.pickupDeadlineAt = requirePickupDeadlineAt(pickupDeadlineAt);
+        return fulfillment;
     }
 
     /** 예상 출고일을 갱신한다. */
@@ -91,7 +88,14 @@ public class Fulfillment {
     public void convertToPickup(LocalDateTime pickupDeadlineAt) {
         this.type = FulfillmentType.PICKUP;
         this.expectedShipDate = null;
-        this.pickupDeadlineAt = pickupDeadlineAt;
+        this.pickupDeadlineAt = requirePickupDeadlineAt(pickupDeadlineAt);
+    }
+
+    private static LocalDateTime requirePickupDeadlineAt(LocalDateTime pickupDeadlineAt) {
+        if (pickupDeadlineAt == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "픽업 마감 시각은 필수입니다.");
+        }
+        return pickupDeadlineAt;
     }
 
     public Long getId() { return id; }

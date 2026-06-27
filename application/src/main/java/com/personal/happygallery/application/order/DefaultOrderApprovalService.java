@@ -10,7 +10,6 @@ import com.personal.happygallery.application.config.OptimisticLockRetryable;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
-import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.product.ProductType;
 import org.slf4j.Logger;
@@ -78,8 +77,7 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
         boolean isMadeToOrder = isMadeToOrderOrder(order);
         if (isMadeToOrder) {
             order.approveAsProduction();
-            fulfillmentPort.save(
-                    new Fulfillment(order.getId(), FulfillmentType.SHIPPING));
+            fulfillmentPort.save(Fulfillment.shipping(order.getId()));
         } else {
             order.approve();
         }

@@ -7,7 +7,6 @@ import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
 import com.personal.happygallery.domain.order.Fulfillment;
-import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
@@ -52,7 +51,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
         order.markShippingPreparing();
 
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseGet(() -> new Fulfillment(orderId, FulfillmentType.SHIPPING));
+                .orElseGet(() -> Fulfillment.shipping(orderId));
         fulfillmentPort.save(fulfillment);
 
         orderHistoryPort.save(

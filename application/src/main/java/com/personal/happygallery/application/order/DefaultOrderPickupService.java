@@ -54,7 +54,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
                     existing.convertToPickup(pickupDeadlineAt);
                     return existing;
                 })
-                .orElseGet(() -> new Fulfillment(orderId, pickupDeadlineAt));
+                .orElseGet(() -> Fulfillment.pickup(orderId, pickupDeadlineAt));
         fulfillmentPort.save(fulfillment);
         orderStore.save(order);
 
