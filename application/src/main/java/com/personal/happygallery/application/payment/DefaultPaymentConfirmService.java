@@ -84,7 +84,8 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
         PaymentPayload payload = deserialize(attempt.getPayloadJson());
         PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(attempt, payload, command.auth(), pgRef);
 
-        attempt.markConfirmed(paymentKey, pgRef, LocalDateTime.now(clock));
+        LocalDateTime confirmedAt = LocalDateTime.now(clock);
+        attempt.markConfirmed(paymentKey, pgRef, confirmedAt);
         attemptStore.saveAndFlush(attempt);
 
         return new ConfirmResult(attempt.getContext(), fulfilled.domainId(), fulfilled.rawAccessToken());

@@ -63,12 +63,12 @@ public class PassPurchase {
     /**
      * 만료/잔여 크레딧 검증. 사용 전 호출한다.
      *
-     * @param now 현재 시각
+     * @param usedAt 이용권 사용 시각
      * @throws PassExpiredException          만료된 이용권
      * @throws PassCreditInsufficientException 잔여 크레딧 없음
      */
-    public void requireUsable(LocalDateTime now) {
-        if (expiresAt.isBefore(now)) {
+    public void requireUsable(LocalDateTime usedAt) {
+        if (expiresAt.isBefore(usedAt)) {
             throw new PassExpiredException();
         }
         if (!hasRemainingCredits()) {

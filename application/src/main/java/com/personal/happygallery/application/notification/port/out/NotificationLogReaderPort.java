@@ -27,9 +27,9 @@ public interface NotificationLogReaderPort {
 
     long countUnreadByGuestId(Long guestId);
 
-    void markAllReadByUserId(Long userId, LocalDateTime now);
+    void markAllReadByUserId(Long userId, LocalDateTime readAt);
 
-    void markAllReadByGuestId(Long guestId, LocalDateTime now);
+    void markAllReadByGuestId(Long guestId, LocalDateTime readAt);
 
     List<NotificationLog> findAll();
 }

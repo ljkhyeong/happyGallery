@@ -76,19 +76,20 @@ public class DefaultCartService implements CartUseCase {
     public void addItem(Long userId, Long productId, int qty) {
         productReader.findById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
-        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime changedAt = LocalDateTime.now(clock);
 
         cartItemReader.findByUserIdAndProductId(userId, productId)
                 .ifPresentOrElse(
-                        existing -> existing.addQty(qty, now),
-                        () -> cartItemStore.save(new CartItem(userId, productId, qty, now)));
+                        existing -> existing.addQty(qty, changedAt),
+                        () -> cartItemStore.save(new CartItem(userId, productId, qty, changedAt)));
     }
 
     @Override
     public void updateItemQty(Long userId, Long productId, int qty) {
         CartItem item = cartItemReader.findByUserIdAndProductId(userId, productId)
                 .orElseThrow(NotFoundException.supplier("장바구니 항목"));
-        item.updateQty(qty, LocalDateTime.now(clock));
+        LocalDateTime updatedAt = LocalDateTime.now(clock);
+        item.updateQty(qty, updatedAt);
     }
 
     @Override

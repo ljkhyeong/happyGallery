@@ -45,13 +45,13 @@ public class Inquiry {
         this.content = content;
     }
 
-    public void reply(String replyContent, Long adminId, LocalDateTime now) {
+    public void reply(String replyContent, Long adminId, LocalDateTime repliedAt) {
         if (this.replyContent != null) {
             throw new IllegalStateException("이미 답변이 등록된 문의입니다.");
         }
         this.replyContent = replyContent;
         this.repliedBy = adminId;
-        this.repliedAt = now;
+        this.repliedAt = repliedAt;
     }
 
     public boolean hasReply() {

@@ -60,11 +60,11 @@ public class DefaultNotificationQueryService implements NotificationQueryUseCase
     @Override
     @Transactional
     public void markAllAsRead(Long userId, Long guestId) {
-        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime readAt = LocalDateTime.now(clock);
         if (userId != null) {
-            logReader.markAllReadByUserId(userId, now);
+            logReader.markAllReadByUserId(userId, readAt);
         } else {
-            logReader.markAllReadByGuestId(guestId, now);
+            logReader.markAllReadByGuestId(guestId, readAt);
         }
     }
 }

@@ -43,7 +43,8 @@ class DefaultPassCreditService implements PassCreditUseCase {
             throw new NotFoundException("8회권");
         }
 
-        pass.requireUsable(LocalDateTime.now(clock));
+        LocalDateTime usedAt = LocalDateTime.now(clock);
+        pass.requireUsable(usedAt);
         passLedgerStore.save(new PassLedger(pass, PassLedgerType.USE, 1));
         pass.useCredit();
         passPurchaseStore.save(pass);

@@ -45,12 +45,12 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
     long countByGuestIdAndReadAtIsNull(Long guestId);
 
     @Modifying
-    @Query("UPDATE NotificationLog n SET n.readAt = :now WHERE n.userId = :userId AND n.readAt IS NULL")
-    void markAllReadByUserId(@Param("userId") Long userId, @Param("now") LocalDateTime now);
+    @Query("UPDATE NotificationLog n SET n.readAt = :readAt WHERE n.userId = :userId AND n.readAt IS NULL")
+    void markAllReadByUserId(@Param("userId") Long userId, @Param("readAt") LocalDateTime readAt);
 
     @Modifying
-    @Query("UPDATE NotificationLog n SET n.readAt = :now WHERE n.guestId = :guestId AND n.readAt IS NULL")
-    void markAllReadByGuestId(@Param("guestId") Long guestId, @Param("now") LocalDateTime now);
+    @Query("UPDATE NotificationLog n SET n.readAt = :readAt WHERE n.guestId = :guestId AND n.readAt IS NULL")
+    void markAllReadByGuestId(@Param("guestId") Long guestId, @Param("readAt") LocalDateTime readAt);
 
     @Override
     default boolean existsSentNotification(Long guestId, NotificationEventType eventType,

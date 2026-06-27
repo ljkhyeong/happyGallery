@@ -77,9 +77,9 @@ public class NotificationLog {
         return log;
     }
 
-    public void markRead(LocalDateTime now) {
+    public void markRead(LocalDateTime readAt) {
         if (this.readAt == null) {
-            this.readAt = now;
+            this.readAt = readAt;
         }
     }
 
