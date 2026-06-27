@@ -5,6 +5,7 @@ import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
+import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import java.time.Clock;
@@ -27,6 +28,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class NotificationService {
+
+    private static final String RECIPIENT_NOT_FOUND = "RECIPIENT_NOT_FOUND";
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
@@ -64,7 +67,7 @@ public class NotificationService {
         }
         guestReader.findById(guestId).ifPresentOrElse(
                 guest -> sendToGuest(guest.getId(), guestPhoneProtector.decrypt(guest), guest.getName(), eventType),
-                () -> log.warn("[알림] 게스트 미존재 [guestId={}]", guestId)
+                () -> logRecipientNotFound(guestId, null, eventType)
         );
     }
 
@@ -74,7 +77,7 @@ public class NotificationService {
         }
         userReader.findById(userId).ifPresentOrElse(
                 user -> sendToUser(userId, user.getPhone(), user.getName(), eventType),
-                () -> log.warn("[알림] 회원 미존재 [userId={}]", userId)
+                () -> logRecipientNotFound(null, userId, eventType)
         );
     }
 
@@ -103,6 +106,20 @@ public class NotificationService {
             }
         }
         log.error("[알림] 모든 채널 실패 [{}={} event={}]", recipientLabel, recipientId, eventType);
+    }
+
+    private void logRecipientNotFound(Long guestId, Long userId, NotificationEventType eventType) {
+        Long recipientId = guestId != null ? guestId : userId;
+        String recipientLabel = guestId != null ? "guestId" : "userId";
+        log.warn("[알림] 수신자 미존재 [{}={} event={}]", recipientLabel, recipientId, eventType);
+        save(NotificationLog.failed(
+                guestId,
+                userId,
+                NotificationChannel.SYSTEM,
+                eventType,
+                RECIPIENT_NOT_FOUND,
+                LocalDateTime.now(clock)
+        ));
     }
 
     private void save(NotificationLog entry) {
