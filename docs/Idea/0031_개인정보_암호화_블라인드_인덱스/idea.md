@@ -40,7 +40,8 @@ BCrypt는 저장된 한 건의 해시와 평문을 대조하는 비밀번호 검
 
 ### IV 생성 난수원 선택
 
-- `FieldEncryptor`의 GCM IV(12바이트)는 `SecureRandom`으로 생성한다.
+- 양방향 암호화는 Spring Security Crypto의 `AesBytesEncryptor` AES-GCM 구현체를 사용한다.
+- GCM IV(12바이트)는 Spring Security Crypto의 `KeyGenerators.secureRandom(12)`로 생성한다.
 - `java.util.Random`은 시드와 알고리즘 특성상 출력 예측 가능성이 있어, IV처럼 재사용/예측되면 안 되는 값에 적합하지 않다.
 - AES-GCM은 IV 품질이 직접 보안성에 영향을 주므로, 암호학적 난수원인 `SecureRandom`을 기본값으로 유지한다.
 
@@ -78,7 +79,7 @@ BCrypt는 저장된 한 건의 해시와 평문을 대조하는 비밀번호 검
 | 단계 | 내용 |
 |------|------|
 | 0단계 | TDE 선적용 (코드 변경 없이 DB 설정) — 선택 |
-| 1단계 | 암호화 유틸리티 + JPA AttributeConverter 구현 |
+| 1단계 | Spring Security Crypto 기반 필드 암호화 구현체 + JPA AttributeConverter 구현 |
 | 2단계 | Flyway 마이그레이션 + 엔티티 변경 |
 | 3단계 | 리포지토리 검색을 HMAC 컬럼으로 전환 |
 | 4단계 | 기존 데이터 백필 배치 |

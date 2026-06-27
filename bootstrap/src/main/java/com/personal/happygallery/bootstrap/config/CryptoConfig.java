@@ -1,5 +1,6 @@
 package com.personal.happygallery.bootstrap.config;
 
+import com.personal.happygallery.application.crypto.SpringSecurityFieldEncryptor;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.bootstrap.config.properties.FieldEncryptionProperties;
@@ -19,7 +20,7 @@ public class CryptoConfig {
 
     @Bean
     public FieldEncryptor fieldEncryptor(FieldEncryptionProperties props) {
-        return new FieldEncryptor(HexFormat.of().parseHex(props.encryptKey()));
+        return new SpringSecurityFieldEncryptor(HexFormat.of().parseHex(props.encryptKey()));
     }
 
     @Bean
