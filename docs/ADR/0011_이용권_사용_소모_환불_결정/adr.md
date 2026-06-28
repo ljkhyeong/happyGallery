@@ -15,10 +15,14 @@
 ## 결정 1: 예약–8회권 연결 (`pass_purchase_id` FK)
 
 **결정**: `bookings` 테이블에 `pass_purchase_id BIGINT NULL FK` 추가 (V5 마이그레이션).
+8회권 예약 생성 시 `USE` 원장은 저장된 `booking_id`를 `pass_ledger.related_booking_id`에 남긴다.
+예약 취소로 1크레딧을 복구하는 `REFUND` 원장도 같은 예약 ID를 남긴다.
+8회권 전체 환불처럼 단일 예약이 원인이 아닌 원장은 `related_booking_id`를 비운다.
 
 **이유**:
 - `isPassBooking()` 판별, 환불 시 미래 예약 조회 `findFuturePassBookings()` 모두 이 FK에 의존
 - nullable: 기존 예약금 결제 예약과의 하위 호환성 유지
+- 크레딧 사용/복구 원장과 원인 예약을 양방향으로 추적할 수 있어 운영 감사와 장애 대응이 쉬워진다.
 
 **리스크**: 예약 생성 시 passId/depositAmount 경로 분기가 서비스 레이어에 집중됨 → 단일 책임 위반 소지
 

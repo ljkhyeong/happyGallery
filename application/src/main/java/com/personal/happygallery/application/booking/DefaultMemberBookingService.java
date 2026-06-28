@@ -53,8 +53,11 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
 
         Booking booking;
         if (passId != null) {
-            PassPurchase pass = creationSupport.deductPassCredit(passId, userId);
+            PassPurchase pass = creationSupport.requireUsablePass(passId, userId);
             booking = Booking.forMemberPass(userId, slot, pass);
+            booking = creationSupport.save(booking);
+            creationSupport.deductPassCredit(passId, userId, booking.getId());
+            return creationSupport.complete(booking, slot);
         } else {
             creationSupport.requireValidDeposit(paymentMethod);
             long depositAmount = DepositCalculator.of(slot);

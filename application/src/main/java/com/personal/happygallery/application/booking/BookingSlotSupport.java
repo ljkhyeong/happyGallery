@@ -70,15 +70,28 @@ class BookingSlotSupport {
     }
 
     /**
-     * 8회권 크레딧 차감을 PassCreditUseCase에 위임한다.
+     * 예약 생성 전 8회권 사용 가능 여부를 PassCreditUseCase에 위임한다.
      *
      * @param passId       8회권 ID
      * @param ownerUserId  소유자 회원 ID (회원 예약일 때 non-null, 게스트 예약일 때 null)
+     * @return 사용 가능한 PassPurchase
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    PassPurchase requireUsablePass(Long passId, Long ownerUserId) {
+        return passCreditPort.requireUsable(passId, ownerUserId);
+    }
+
+    /**
+     * 예약 저장 후 8회권 크레딧 차감을 PassCreditUseCase에 위임한다.
+     *
+     * @param passId       8회권 ID
+     * @param ownerUserId  소유자 회원 ID (회원 예약일 때 non-null, 게스트 예약일 때 null)
+     * @param bookingId    차감 사유가 된 예약 ID
      * @return 차감된 PassPurchase
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    PassPurchase deductPassCredit(Long passId, Long ownerUserId) {
-        return passCreditPort.deductCredit(passId, ownerUserId);
+    PassPurchase deductPassCredit(Long passId, Long ownerUserId, Long bookingId) {
+        return passCreditPort.deductCredit(passId, ownerUserId, bookingId);
     }
 
     /** 예약금 결제 수단 검증 — 계좌이체 차단. */
@@ -88,12 +101,24 @@ class BookingSlotSupport {
         }
     }
 
-    /** 예약 저장 → BOOKED 이력 기록 → 예약 완료 알림. */
+    /** 예약 저장. */
     @Transactional(propagation = Propagation.MANDATORY)
-    Booking saveAndComplete(Booking booking, Slot slot) {
-        booking = bookingStorePort.save(booking);
+    Booking save(Booking booking) {
+        return bookingStorePort.save(booking);
+    }
+
+    /** BOOKED 이력 기록 → 예약 완료 알림. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    Booking complete(Booking booking, Slot slot) {
         bookingSupport.recordHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null);
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CONFIRMED);
         return booking;
+    }
+
+    /** 예약 저장 → BOOKED 이력 기록 → 예약 완료 알림. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    Booking saveAndComplete(Booking booking, Slot slot) {
+        booking = save(booking);
+        return complete(booking, slot);
     }
 }

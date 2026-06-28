@@ -78,6 +78,7 @@ class PassCreditUsagePersistenceUseCaseIT {
             softly.assertThat(ledgers).hasSize(1);
             softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
             softly.assertThat(ledgers.get(0).getAmount()).isEqualTo(1);
+            softly.assertThat(ledgers.get(0).getRelatedBookingId()).isEqualTo(bookingId);
             softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(7);
             softly.assertThat(bookings).hasSize(1);
             softly.assertThat(bookings.get(0).isPassBooking()).isTrue();
@@ -99,8 +100,14 @@ class PassCreditUsagePersistenceUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(ledgers).hasSize(2);
-            softly.assertThat(ledgers.stream().filter(ledger -> ledger.getType() == PassLedgerType.REFUND).count())
-                    .isEqualTo(1);
+            softly.assertThat(ledgers.stream()
+                            .filter(ledger -> ledger.getType() == PassLedgerType.USE)
+                            .map(ledger -> ledger.getRelatedBookingId()))
+                    .containsExactly(bookingId);
+            softly.assertThat(ledgers.stream()
+                            .filter(ledger -> ledger.getType() == PassLedgerType.REFUND)
+                            .map(ledger -> ledger.getRelatedBookingId()))
+                    .containsExactly(bookingId);
             softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(8);
         });
     }
@@ -121,6 +128,7 @@ class PassCreditUsagePersistenceUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(ledgers).hasSize(1);
             softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
+            softly.assertThat(ledgers.get(0).getRelatedBookingId()).isEqualTo(bookingId);
             softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(7);
         });
     }
@@ -141,6 +149,7 @@ class PassCreditUsagePersistenceUseCaseIT {
                     .isEqualTo(BookingStatus.NO_SHOW);
             softly.assertThat(ledgers).hasSize(1);
             softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
+            softly.assertThat(ledgers.get(0).getRelatedBookingId()).isEqualTo(bookingId);
             softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(7);
         });
     }
@@ -167,6 +176,7 @@ class PassCreditUsagePersistenceUseCaseIT {
             softly.assertThat(bookings).allMatch(booking -> booking.getStatus() == BookingStatus.CANCELED);
             softly.assertThat(refundLedgers).hasSize(1);
             softly.assertThat(refundLedgers.get(0).getAmount()).isEqualTo(6);
+            softly.assertThat(refundLedgers.get(0).getRelatedBookingId()).isNull();
             softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(0);
             softly.assertThat(slotReaderPort.findById(firstSlot.getId()).orElseThrow().getBookedCount()).isEqualTo(0);
             softly.assertThat(slotReaderPort.findById(secondSlot.getId()).orElseThrow().getBookedCount()).isEqualTo(0);

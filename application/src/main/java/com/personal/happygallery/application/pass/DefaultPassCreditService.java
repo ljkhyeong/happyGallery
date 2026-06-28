@@ -35,7 +35,7 @@ class DefaultPassCreditService implements PassCreditUseCase {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public PassPurchase deductCredit(Long passId, Long ownerUserId) {
+    public PassPurchase requireUsable(Long passId, Long ownerUserId) {
         PassPurchase pass = passPurchaseReader.findById(passId)
                 .orElseThrow(NotFoundException.supplier("8회권"));
 
@@ -45,7 +45,14 @@ class DefaultPassCreditService implements PassCreditUseCase {
 
         LocalDateTime usedAt = LocalDateTime.now(clock);
         pass.requireUsable(usedAt);
-        passLedgerStore.save(new PassLedger(pass, PassLedgerType.USE, 1));
+        return pass;
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public PassPurchase deductCredit(Long passId, Long ownerUserId, Long bookingId) {
+        PassPurchase pass = requireUsable(passId, ownerUserId);
+        passLedgerStore.save(new PassLedger(pass, PassLedgerType.USE, 1, bookingId));
         pass.useCredit();
         passPurchaseStore.save(pass);
         return pass;

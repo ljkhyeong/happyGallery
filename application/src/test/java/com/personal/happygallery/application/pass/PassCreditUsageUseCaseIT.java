@@ -112,6 +112,7 @@ class PassCreditUsageUseCaseIT {
             if (!ledgers.isEmpty()) {
                 softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
                 softly.assertThat(ledgers.get(0).getAmount()).isEqualTo(1);
+                softly.assertThat(ledgers.get(0).getRelatedBookingId()).isEqualTo(confirmed.domainId());
             }
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
             softly.assertThat(bookings).hasSize(1);

@@ -41,14 +41,14 @@ public class PassLedger {
 
     protected PassLedger() {}
 
-    /** EARN / EXPIRE — booking 없는 원장 기록 */
+    /** EARN / EXPIRE / 전체 환불 REFUND — 단일 booking 없는 원장 기록 */
     public PassLedger(PassPurchase passPurchase, PassLedgerType type, int amount) {
         this.passPurchase = passPurchase;
         this.type = type;
         this.amount = amount;
     }
 
-    /** USE / REFUND — booking 연결 원장 기록 */
+    /** USE / 예약 취소 REFUND — 단일 booking 연결 원장 기록 */
     public PassLedger(PassPurchase passPurchase, PassLedgerType type, int amount, Long relatedBookingId) {
         this(passPurchase, type, amount);
         this.relatedBookingId = relatedBookingId;
