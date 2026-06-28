@@ -97,8 +97,8 @@ public class PaymentAttempt {
     }
 
     /** PG confirm 성공 시 호출. PENDING → CONFIRMED. */
-    public void markConfirmed(String paymentKey, String pgRef, LocalDateTime confirmedAt) {
-        this.status.requireConfirmable();
+    public void markConfirmed(String paymentKey, String pgRef, LocalDateTime confirmedAt, long expectedAmount) {
+        requireConfirmable(expectedAmount);
         this.status = PaymentAttemptStatus.CONFIRMED;
         this.paymentKey = paymentKey;
         this.pgRef = pgRef;

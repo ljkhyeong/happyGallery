@@ -25,7 +25,7 @@ class PaymentAttemptPolicyTest {
 
         assertThatCode(() -> attempt.requireConfirmable(10_000L))
                 .doesNotThrowAnyException();
-        attempt.markConfirmed("payment-key", "pg-ref", confirmedAt);
+        attempt.markConfirmed("payment-key", "pg-ref", confirmedAt, 10_000L);
 
         assertSoftly(softly -> {
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
@@ -47,6 +47,28 @@ class PaymentAttemptPolicyTest {
                         softly.assertThat(exception.getMessage()).isEqualTo("결제 금액이 일치하지 않습니다.");
                     });
                 });
+    }
+
+    @DisplayName("결제 확정 전이는 금액이 다르면 상태를 변경하지 않는다")
+    @Test
+    void markConfirmed_rejectsConfirm_whenAmountDiffers() {
+        PaymentAttempt attempt = PaymentAttempt.start("order-id", PaymentContext.BOOKING, 10_000L, "{}");
+        LocalDateTime confirmedAt = LocalDateTime.of(2026, 4, 23, 10, 0);
+
+        assertThatThrownBy(() -> attempt.markConfirmed("payment-key", "pg-ref", confirmedAt, 9_000L))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {
+                    assertSoftly(softly -> {
+                        softly.assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+                        softly.assertThat(exception.getMessage()).isEqualTo("결제 금액이 일치하지 않습니다.");
+                    });
+                });
+
+        assertSoftly(softly -> {
+            softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PENDING);
+            softly.assertThat(attempt.getPaymentKey()).isNull();
+            softly.assertThat(attempt.getPgRef()).isNull();
+            softly.assertThat(attempt.getConfirmedAt()).isNull();
+        });
     }
 
     @DisplayName("실패 처리된 결제 시도는 다시 확정할 수 없다")
