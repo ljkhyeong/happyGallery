@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.booking;
 
-import com.personal.happygallery.application.booking.port.in.BookingCancellationUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
@@ -19,11 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
  * Pass 환불 시 연동 예약 일괄 취소를 처리하는 도메인 서비스.
  *
  * <p>Pass 도메인이 Booking 내부 Port를 직접 참조하지 않도록
- * {@link BookingCancellationUseCase}를 구현한다.
+ * {@link BookingCancellationService}를 구현한다.
  */
 @Service
 @Transactional
-class DefaultBookingCancellationService implements BookingCancellationUseCase {
+class DefaultBookingCancellationService implements BookingCancellationService {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultBookingCancellationService.class);
 

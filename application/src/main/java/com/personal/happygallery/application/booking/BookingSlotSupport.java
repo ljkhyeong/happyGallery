@@ -2,7 +2,7 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
-import com.personal.happygallery.application.pass.port.in.PassCreditUseCase;
+import com.personal.happygallery.application.pass.PassCreditService;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.PaymentMethodNotAllowedException;
 import com.personal.happygallery.domain.error.SlotNotAvailableException;
@@ -29,20 +29,20 @@ class BookingSlotSupport {
     private final SlotReaderPort slotReaderPort;
     private final SlotBookingSupport slotBookingSupport;
     private final BookingStorePort bookingStorePort;
-    private final PassCreditUseCase passCreditPort;
+    private final PassCreditService passCreditService;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     BookingSlotSupport(SlotReaderPort slotReaderPort,
                        SlotBookingSupport slotBookingSupport,
                        BookingStorePort bookingStorePort,
-                       PassCreditUseCase passCreditPort,
+                       PassCreditService passCreditService,
                        BookingSupport bookingSupport,
                        Clock clock) {
         this.slotReaderPort = slotReaderPort;
         this.slotBookingSupport = slotBookingSupport;
         this.bookingStorePort = bookingStorePort;
-        this.passCreditPort = passCreditPort;
+        this.passCreditService = passCreditService;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
@@ -70,7 +70,7 @@ class BookingSlotSupport {
     }
 
     /**
-     * 예약 생성 전 8회권 사용 가능 여부를 PassCreditUseCase에 위임한다.
+     * 예약 생성 전 8회권 사용 가능 여부를 PassCreditService에 위임한다.
      *
      * @param passId       8회권 ID
      * @param ownerUserId  소유자 회원 ID (회원 예약일 때 non-null, 게스트 예약일 때 null)
@@ -78,11 +78,11 @@ class BookingSlotSupport {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     PassPurchase requireUsablePass(Long passId, Long ownerUserId) {
-        return passCreditPort.requireUsable(passId, ownerUserId);
+        return passCreditService.requireUsable(passId, ownerUserId);
     }
 
     /**
-     * 예약 저장 후 8회권 크레딧 차감을 PassCreditUseCase에 위임한다.
+     * 예약 저장 후 8회권 크레딧 차감을 PassCreditService에 위임한다.
      *
      * @param passId       8회권 ID
      * @param ownerUserId  소유자 회원 ID (회원 예약일 때 non-null, 게스트 예약일 때 null)
@@ -91,7 +91,7 @@ class BookingSlotSupport {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     PassPurchase deductPassCredit(Long passId, Long ownerUserId, Long bookingId) {
-        return passCreditPort.deductCredit(passId, ownerUserId, bookingId);
+        return passCreditService.deductCredit(passId, ownerUserId, bookingId);
     }
 
     /** 예약금 결제 수단 검증 — 계좌이체 차단. */

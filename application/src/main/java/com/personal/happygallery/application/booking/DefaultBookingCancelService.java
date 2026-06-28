@@ -2,7 +2,7 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
-import com.personal.happygallery.application.pass.port.in.PassCreditUseCase;
+import com.personal.happygallery.application.pass.PassCreditService;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.domain.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
@@ -21,20 +21,20 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
 
     private final BookingStorePort bookingStorePort;
     private final RefundExecutionService refundExecutionService;
-    private final PassCreditUseCase passCreditPort;
+    private final PassCreditService passCreditService;
     private final BookingSlotSupport creationSupport;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     public DefaultBookingCancelService(BookingStorePort bookingStorePort,
                                 RefundExecutionService refundExecutionService,
-                                PassCreditUseCase passCreditPort,
+                                PassCreditService passCreditService,
                                 BookingSlotSupport creationSupport,
                                 BookingSupport bookingSupport,
                                 Clock clock) {
         this.bookingStorePort = bookingStorePort;
         this.refundExecutionService = refundExecutionService;
-        this.passCreditPort = passCreditPort;
+        this.passCreditService = passCreditService;
         this.creationSupport = creationSupport;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
@@ -104,7 +104,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
     }
 
     private void restorePassCredit(Booking booking) {
-        passCreditPort.restoreCredit(booking.getPassPurchase().getId(), booking.getId());
+        passCreditService.restoreCredit(booking.getPassPurchase().getId(), booking.getId());
     }
 
     private record CancellationCompensation(boolean refundable, boolean depositRefundSucceeded) {}

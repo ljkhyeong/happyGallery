@@ -1,14 +1,11 @@
-package com.personal.happygallery.application.pass.port.in;
+package com.personal.happygallery.application.pass;
 
 import com.personal.happygallery.domain.pass.PassPurchase;
 
 /**
- * Booking 도메인이 Pass 크레딧을 차감/복구할 때 사용하는 인바운드 포트.
- *
- * <p>Booking이 Pass 내부 구현(PassLedger, PassPurchaseStorePort)을
- * 직접 알지 않아도 크레딧 조작이 가능하도록 추상화한다.
+ * Booking 흐름이 Pass 내부 저장 포트를 직접 알지 않고 8회권 크레딧을 검증·차감·복구하게 하는 내부 협력 서비스.
  */
-public interface PassCreditUseCase {
+public interface PassCreditService {
 
     /**
      * 8회권 사용 가능 여부를 검증하고 예약 생성에 연결할 8회권을 반환한다.

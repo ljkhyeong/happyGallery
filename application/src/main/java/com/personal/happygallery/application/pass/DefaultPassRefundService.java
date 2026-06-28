@@ -1,6 +1,6 @@
 package com.personal.happygallery.application.pass;
 
-import com.personal.happygallery.application.booking.port.in.BookingCancellationUseCase;
+import com.personal.happygallery.application.booking.BookingCancellationService;
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase;
 import com.personal.happygallery.application.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
@@ -23,16 +23,16 @@ public class DefaultPassRefundService implements PassRefundUseCase {
     private final PassPurchaseReaderPort passPurchaseReader;
     private final PassPurchaseStorePort passPurchaseStore;
     private final PassLedgerStorePort passLedgerStore;
-    private final BookingCancellationUseCase bookingCancellationPort;
+    private final BookingCancellationService bookingCancellationService;
 
     public DefaultPassRefundService(PassPurchaseReaderPort passPurchaseReader,
                              PassPurchaseStorePort passPurchaseStore,
                              PassLedgerStorePort passLedgerStore,
-                             BookingCancellationUseCase bookingCancellationPort) {
+                             BookingCancellationService bookingCancellationService) {
         this.passPurchaseReader = passPurchaseReader;
         this.passPurchaseStore = passPurchaseStore;
         this.passLedgerStore = passLedgerStore;
-        this.bookingCancellationPort = bookingCancellationPort;
+        this.bookingCancellationService = bookingCancellationService;
     }
 
     /**
@@ -53,7 +53,7 @@ public class DefaultPassRefundService implements PassRefundUseCase {
                 .orElseThrow(NotFoundException.supplier("8회권"));
 
         // 1. 미래 BOOKED 예약 자동 취소
-        int cancelledCount = bookingCancellationPort.cancelLinkedBookings(passId);
+        int cancelledCount = bookingCancellationService.cancelLinkedBookings(passId);
 
         // 2. REFUND ledger 기록 (잔여 크레딧 전체)
         int refundCredits = pass.getRemainingCredits();

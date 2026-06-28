@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.order;
 
-import com.personal.happygallery.application.order.port.in.OrderCreationUseCase;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
@@ -14,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-public class DefaultOrderCreationService implements OrderCreationUseCase {
+public class DefaultOrderCreationService implements OrderCreationService {
 
     private final ProductReaderPort productReader;
     private final OrderService orderService;

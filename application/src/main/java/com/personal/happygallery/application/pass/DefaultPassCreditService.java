@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.pass;
 
-import com.personal.happygallery.application.pass.port.in.PassCreditUseCase;
 import com.personal.happygallery.application.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
@@ -16,7 +15,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-class DefaultPassCreditService implements PassCreditUseCase {
+class DefaultPassCreditService implements PassCreditService {
 
     private final PassPurchaseReaderPort passPurchaseReader;
     private final PassPurchaseStorePort passPurchaseStore;
