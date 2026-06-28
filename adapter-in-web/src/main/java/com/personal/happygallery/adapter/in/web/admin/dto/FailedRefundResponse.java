@@ -15,7 +15,7 @@ public record FailedRefundResponse(
     public static FailedRefundResponse from(Refund refund) {
         return new FailedRefundResponse(
                 refund.getId(),
-                refund.getBooking() != null ? refund.getBooking().getId() : null,
+                refund.getBookingId(),
                 refund.getOrderId(),
                 refund.getAmount(),
                 refund.getFailReason() != null ? refund.getFailReason() : "",

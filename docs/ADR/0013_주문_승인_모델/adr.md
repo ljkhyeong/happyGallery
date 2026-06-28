@@ -66,7 +66,7 @@ PG 호출 실패 시 환불 레코드가 FAILED로 남아 운영자 재처리 �
 ### 6. 환불 엔티티 재사용
 
 주문 환불은 기존 `Refund` 엔티티(refunds 테이블)에 `orderId` 필드를 통해 기록한다.
-별도 엔티티 없이 `Refund(Long orderId, long amount)` 생성자를 추가하는 것으로 충분하다.
+별도 엔티티 없이 `Refund.forOrder(orderId, amount, originalPgRef)` 팩토리로 기록한다.
 
 ### 7. 승인 이력에 관리자 식별자 기록
 

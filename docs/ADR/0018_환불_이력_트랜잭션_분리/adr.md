@@ -22,6 +22,8 @@
   - `processOrderRefund(orderId, amount)`
   - `processBookingRefund(bookingId, amount)`
 - 부모 트랜잭션은 환불 처리 결과를 사용하되, 환불 이력 커밋 여부는 독립적으로 보장한다.
+- `Refund`는 `bookingId`/`orderId`를 모두 id-only 참조로 저장한다. 환불 이력은 재시도·운영 추적용 레코드이며,
+  예약이나 주문 객체를 탐색하거나 상태를 변경하지 않는다.
 
 ---
 

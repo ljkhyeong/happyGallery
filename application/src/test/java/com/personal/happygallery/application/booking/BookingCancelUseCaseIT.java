@@ -119,6 +119,8 @@ class BookingCancelUseCaseIT {
             softly.assertThat(bookingStateProbe.bookingHistoryCountByBookingId(bookingId)).isEqualTo(2L);
             softly.assertThat(refunds).hasSize(1);
             if (!refunds.isEmpty()) {
+                softly.assertThat(refunds.get(0).getBookingId()).isEqualTo(bookingId);
+                softly.assertThat(refunds.get(0).getOrderId()).isNull();
                 softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("SUCCEEDED");
                 softly.assertThat(refunds.get(0).getOriginalPgRef()).isEqualTo("FAKE-TEST-PG");
                 softly.assertThat(refunds.get(0).getRefundPgRef()).isEqualTo("FAKE-TEST-REF");
@@ -160,6 +162,8 @@ class BookingCancelUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(refunds).hasSize(1);
             if (!refunds.isEmpty()) {
+                softly.assertThat(refunds.get(0).getBookingId()).isEqualTo(booking.bookingId());
+                softly.assertThat(refunds.get(0).getOrderId()).isNull();
                 softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("FAILED");
                 softly.assertThat(refunds.get(0).getFailReason()).isEqualTo("PG 타임아웃");
                 softly.assertThat(refunds.get(0).getOriginalPgRef()).isEqualTo("FAKE-TEST-PG");
