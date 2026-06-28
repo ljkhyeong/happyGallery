@@ -21,9 +21,10 @@
 - `RefundExecutionService` 메서드는 `@Transactional(propagation = REQUIRES_NEW)`를 사용한다.
   - `processOrderRefund(orderId, amount)`
   - `processBookingRefund(bookingId, amount)`
+  - `processPassRefund(passPurchaseId, amount, originalPgRef)`
 - 부모 트랜잭션은 환불 처리 결과를 사용하되, 환불 이력 커밋 여부는 독립적으로 보장한다.
-- `Refund`는 `bookingId`/`orderId`를 모두 id-only 참조로 저장한다. 환불 이력은 재시도·운영 추적용 레코드이며,
-  예약이나 주문 객체를 탐색하거나 상태를 변경하지 않는다.
+- `Refund`는 `bookingId`/`orderId`/`passPurchaseId`를 모두 id-only 참조로 저장한다. 환불 이력은 재시도·운영 추적용 레코드이며,
+  예약, 주문, 8회권 객체를 탐색하거나 상태를 변경하지 않는다.
 
 ---
 
@@ -43,5 +44,6 @@
 - `app/booking/RefundExecutionService` 추가
 - `OrderApprovalService#processRefund` → `RefundExecutionService` 위임
 - `BookingCancelService` 예약금 환불 경로 → `RefundExecutionService` 위임
+- `PassRefundService` 8회권 환불 경로 → `RefundExecutionService` 위임
 - 롤백 상황 보장 테스트 추가:
   - `RefundExecutionServiceUseCaseIT`

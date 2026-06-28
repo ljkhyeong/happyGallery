@@ -535,7 +535,9 @@ Authorization: Bearer {token}
 {
   "canceledBookings": 2,
   "refundCredits": 6,
-  "refundAmount": 240000
+  "refundAmount": 240000,
+  "refundId": 42,
+  "refundStatus": "SUCCEEDED"
 }
 ```
 
@@ -545,7 +547,8 @@ Authorization: Bearer {token}
 - 정책:
   - 미래 `BOOKED` 예약 자동 취소
   - `REFUND` ledger 기록 후 `remaining_credits = 0`
-  - 실제 PG 환불은 `refundAmount`를 참고해 관리자가 수동 처리
+  - `payment_key` 기반 PG 환불 요청 후 `refunds`에 이력을 남김
+  - PG 실패 시 응답의 `refundStatus`는 `FAILED`, 운영자는 환불 실패 목록에서 재시도 가능
   - 단가 = `totalPrice / totalCredits`
 
 #### 2.5.5 만료 배치 수동 트리거
@@ -1025,6 +1028,7 @@ Authorization: Bearer {token}
     "refundId": 42,
     "bookingId": 15,
     "orderId": null,
+    "passPurchaseId": null,
     "amount": 5000,
     "failReason": "PG 타임아웃",
     "createdAt": "2026-03-01T14:30:00"

@@ -75,7 +75,9 @@ final class PassCreditUsageFixture {
         bookingClass = classStorePort.save(defaultBookingClass());
         sessionCookie = signupAndGetSessionCookie("pass-member@example.com", "01099990001");
         Long userId = userReaderPort.findByEmail("pass-member@example.com").orElseThrow().getId();
-        pass = passPurchaseStorePort.save(passPurchase(userId, FUTURE.plusDays(90), 320_000L));
+        PassPurchase newPass = passPurchase(userId, FUTURE.plusDays(90), 320_000L);
+        newPass.recordPaymentKey("test-pass-payment-key");
+        pass = passPurchaseStorePort.save(newPass);
     }
 
     MockMvc mockMvc() {

@@ -120,7 +120,9 @@ class PassCreditUsageWebUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(2))
                 .andExpect(jsonPath("$.refundCredits").value(6))
-                .andExpect(jsonPath("$.refundAmount").value(240_000));
+                .andExpect(jsonPath("$.refundAmount").value(240_000))
+                .andExpect(jsonPath("$.refundId").exists())
+                .andExpect(jsonPath("$.refundStatus").value("SUCCEEDED"));
     }
 
     @DisplayName("잔여 크레딧이 없으면 8회권 예약 시 422를 반환한다")

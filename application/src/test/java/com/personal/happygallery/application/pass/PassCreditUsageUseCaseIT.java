@@ -16,6 +16,9 @@ import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
+import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
+import com.personal.happygallery.application.payment.port.out.RefundResult;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.UseCaseIT;
@@ -29,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -38,9 +42,15 @@ import static com.personal.happygallery.support.TestDataCleaner.clearBookingWith
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.TestFixtures.slot;
+import static org.hamcrest.Matchers.nullValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -63,6 +73,7 @@ class PassCreditUsageUseCaseIT {
     @Autowired ClassRepository classRepository;
     @Autowired UserRepository userRepository;
     @Autowired Clock clock;
+    @MockitoBean PaymentProvider paymentProvider;
 
     BookingClass cls;
     PassPurchase pass;
@@ -86,9 +97,13 @@ class PassCreditUsageUseCaseIT {
 
         cls = classRepository.save(defaultBookingClass());
         userRepository.deleteAllInBatch();
+        when(paymentProvider.refund(any(), anyLong()))
+                .thenReturn(RefundResult.success("FAKE-TEST-PASS-REF"));
         sessionCookie = signupAndGetSessionCookie("pass-member@example.com", "01099990001");
         Long userId = userRepository.findByEmail("pass-member@example.com").orElseThrow().getId();
-        pass = passPurchaseRepository.save(passPurchase(userId, FUTURE.plusDays(90), 320_000L));
+        pass = passPurchase(userId, FUTURE.plusDays(90), 320_000L);
+        pass.recordPaymentKey("test-pass-payment-key");
+        pass = passPurchaseRepository.save(pass);
     }
 
     // -----------------------------------------------------------------------
@@ -231,13 +246,25 @@ class PassCreditUsageUseCaseIT {
         var bookings = bookingRepository.findAll();
         var refundLedgers = passLedgerRepository.findByPassPurchaseId(pass.getId())
                 .stream().filter(l -> l.getType() == PassLedgerType.REFUND).toList();
+        var refunds = refundRepository.findAll();
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         Slot reloadedSlot1 = slotRepository.findById(slot1.getId()).orElseThrow();
         Slot reloadedSlot2 = slotRepository.findById(slot2.getId()).orElseThrow();
         long historyCount = bookingHistoryRepository.count();
+        verify(paymentProvider).refund("test-pass-payment-key", 240_000L);
         assertSoftly(softly -> {
             softly.assertThat(bookings).hasSize(2);
             softly.assertThat(bookings).allMatch(b -> b.getStatus() == BookingStatus.CANCELED);
+            softly.assertThat(refunds).hasSize(1);
+            if (!refunds.isEmpty()) {
+                softly.assertThat(refunds.get(0).getBookingId()).isNull();
+                softly.assertThat(refunds.get(0).getOrderId()).isNull();
+                softly.assertThat(refunds.get(0).getPassPurchaseId()).isEqualTo(pass.getId());
+                softly.assertThat(refunds.get(0).getAmount()).isEqualTo(240_000L);
+                softly.assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
+                softly.assertThat(refunds.get(0).getOriginalPgRef()).isEqualTo("test-pass-payment-key");
+                softly.assertThat(refunds.get(0).getRefundPgRef()).isEqualTo("FAKE-TEST-PASS-REF");
+            }
             softly.assertThat(refundLedgers).hasSize(1);
             softly.assertThat(refundLedgers.get(0).getAmount()).isEqualTo(6);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
@@ -246,6 +273,48 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(reloadedSlot2.getBookedCount()).as("slot2 bookedCount").isEqualTo(0);
             // Q1-T4: BookingHistory 적재 확인 (BOOKED×2 + CANCELED×2 = 4)
             softly.assertThat(historyCount).as("booking history count").isEqualTo(4L);
+        });
+    }
+
+    @DisplayName("8회권 전체 환불 PG 실패 시 FAILED 환불 이력을 남긴다")
+    @Test
+    void refund_pass_pgFailure_recordsFailedRefund() throws Exception {
+        when(paymentProvider.refund(any(), anyLong()))
+                .thenReturn(RefundResult.failure("PG 타임아웃"));
+
+        mockMvc.perform(post("/admin/passes/{passId}/refund", pass.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.canceledBookings").value(0))
+                .andExpect(jsonPath("$.refundCredits").value(8))
+                .andExpect(jsonPath("$.refundAmount").value(320_000))
+                .andExpect(jsonPath("$.refundStatus").value("FAILED"));
+
+        var refunds = refundRepository.findAll();
+        PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
+        verify(paymentProvider).refund("test-pass-payment-key", 320_000L);
+
+        mockMvc.perform(get("/admin/refunds/failed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].passPurchaseId").value(pass.getId()))
+                .andExpect(jsonPath("$[0].bookingId").value(nullValue()))
+                .andExpect(jsonPath("$[0].orderId").value(nullValue()));
+
+        assertSoftly(softly -> {
+            softly.assertThat(refunds).hasSize(1);
+            if (!refunds.isEmpty()) {
+                softly.assertThat(refunds.get(0).getPassPurchaseId()).isEqualTo(pass.getId());
+                softly.assertThat(refunds.get(0).getAmount()).isEqualTo(320_000L);
+                softly.assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.FAILED);
+                softly.assertThat(refunds.get(0).getOriginalPgRef()).isEqualTo("test-pass-payment-key");
+                softly.assertThat(refunds.get(0).getRefundPgRef()).isNull();
+                softly.assertThat(refunds.get(0).getFailReason()).isEqualTo("PG 타임아웃");
+            }
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
+            softly.assertThat(passLedgerRepository.findByPassPurchaseId(pass.getId()))
+                    .anySatisfy(ledger -> {
+                        softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.REFUND);
+                        softly.assertThat(ledger.getAmount()).isEqualTo(8);
+                    });
         });
     }
 

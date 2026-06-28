@@ -66,6 +66,7 @@ import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
@@ -208,7 +209,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(inquiryUseCase.findByIdForAdmin(9L)).thenReturn(inquiry);
         when(inquiryUseCase.replyAndGet(eq(9L), any(), eq(ADMIN_USER_ID))).thenReturn(inquiry);
         when(passExpiryBatchUseCase.expireAll()).thenReturn(batchResult());
-        when(passRefundUseCase.refundPass(300L)).thenReturn(new PassRefundUseCase.PassRefundResult(1, 7, 210000L));
+        when(passRefundUseCase.refundPass(300L))
+                .thenReturn(new PassRefundUseCase.PassRefundResult(1, 7, 210000L, 900L, RefundStatus.SUCCEEDED));
         when(phoneVerificationQueryUseCase.findLatestUnverifiedCode("01012345678")).thenReturn(Optional.of("123456"));
 
         mockMvc = mockMvc(restDocumentation,

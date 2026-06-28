@@ -27,6 +27,9 @@ public class Refund {
     @Column(name = "order_id")
     private Long orderId;
 
+    @Column(name = "pass_purchase_id")
+    private Long passPurchaseId;
+
     @Column(nullable = false)
     private long amount;
 
@@ -48,9 +51,10 @@ public class Refund {
 
     protected Refund() {}
 
-    private Refund(Long bookingId, Long orderId, long amount, String originalPgRef) {
+    private Refund(Long bookingId, Long orderId, Long passPurchaseId, long amount, String originalPgRef) {
         this.bookingId = bookingId;
         this.orderId = orderId;
+        this.passPurchaseId = passPurchaseId;
         this.amount = amount;
         this.originalPgRef = originalPgRef;
         this.status = RefundStatus.REQUESTED;
@@ -60,12 +64,23 @@ public class Refund {
     public static Refund forBooking(Booking booking, long amount) {
         Objects.requireNonNull(booking, "booking must not be null");
         Long bookingId = Objects.requireNonNull(booking.getId(), "bookingId must not be null");
-        return new Refund(bookingId, null, amount, booking.getPaymentKey());
+        return new Refund(bookingId, null, null, amount, booking.getPaymentKey());
     }
 
     /** 주문 환불 요청 생성 (주문 거절/자동환불 시). bookingId는 null. */
     public static Refund forOrder(Long orderId, long amount, String originalPgRef) {
-        return new Refund(null, Objects.requireNonNull(orderId, "orderId must not be null"), amount, originalPgRef);
+        return new Refund(
+                null,
+                Objects.requireNonNull(orderId, "orderId must not be null"),
+                null,
+                amount,
+                originalPgRef);
+    }
+
+    /** 8회권 환불 요청 생성. bookingId/orderId는 null. */
+    public static Refund forPass(Long passPurchaseId, long amount, String originalPgRef) {
+        return new Refund(null, null, Objects.requireNonNull(passPurchaseId, "passPurchaseId must not be null"),
+                amount, originalPgRef);
     }
 
     /** PG 환불 성공 처리 */
@@ -83,6 +98,7 @@ public class Refund {
     public Long getId() { return id; }
     public Long getBookingId() { return bookingId; }
     public Long getOrderId() { return orderId; }
+    public Long getPassPurchaseId() { return passPurchaseId; }
     public long getAmount() { return amount; }
     public RefundStatus getStatus() { return status; }
     public String getOriginalPgRef() { return originalPgRef; }

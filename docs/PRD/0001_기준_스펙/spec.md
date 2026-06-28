@@ -143,6 +143,7 @@
 ### 5.3 환불
 - 남은 횟수 정산 환불 가능(잔여 크레딧 기반)
 - 환불 시 고객의 **미래 예약은 자동 취소**
+- PG 결제된 8회권은 저장된 `payment_key`로 PG 환불을 요청하고, 실패 시 `refunds`에 `FAILED` 이력을 남겨 운영자가 재시도한다.
 
 ---
 
@@ -187,7 +188,7 @@
     - 8회권: `app.pass.total-price` 환경 변수 (`PASS_TOTAL_PRICE`, 기본 240,000원)
 - confirm 단계에서 PG `paymentKey`와 `amount`가 prepare 시점 amount와 다르면 거절한다.
 - 8회권 사용 예약은 prepare에서 `amount=0`을 받고 PG 호출 없이 confirm을 직접 호출한다.
-- PG confirm 성공 시 원결제 참조값은 `payment_attempt.pg_ref`와 생성된 주문/예약/8회권의 `payment_key`에 저장하고, 환불 시 PG cancel 호출에 사용한다. 환불 이력은 원결제 참조값을 `refunds.pg_ref`, 환불 성공 결과 참조값을 `refunds.refund_pg_ref`에 분리해 저장한다.
+- PG confirm 성공 시 원결제 참조값은 `payment_attempt.pg_ref`와 생성된 주문/예약/8회권의 `payment_key`에 저장하고, 환불 시 PG cancel 호출에 사용한다. 환불 이력은 원결제 참조값을 `refunds.pg_ref`, 환불 성공 결과 참조값을 `refunds.refund_pg_ref`에 분리해 저장하며, 8회권 환불은 `refunds.pass_purchase_id`로 추적한다.
 
 ---
 
