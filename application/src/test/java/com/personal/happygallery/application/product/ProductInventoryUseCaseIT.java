@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static com.personal.happygallery.support.TestDataCleaner.clearProductData;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
@@ -153,11 +154,13 @@ class ProductInventoryUseCaseIT {
         inventoryService.deduct(product.getId(), 1);
 
         // 두 번째 차감 실패 — 재고 없음
-        assertThatThrownBy(() -> inventoryService.deduct(product.getId(), 1))
-                .isInstanceOf(InventoryNotEnoughException.class);
+        assertSoftly(softly -> {
+            softly.assertThatThrownBy(() -> inventoryService.deduct(product.getId(), 1))
+                    .isInstanceOf(InventoryNotEnoughException.class);
 
-        // 재고가 0으로 유지됨 (음수로 내려가지 않음)
-        Inventory inv = inventoryRepository.findByProductId(product.getId()).orElseThrow();
-        assertThat(inv.getQuantity()).isEqualTo(0);
+            // 재고가 0으로 유지됨 (음수로 내려가지 않음)
+            Inventory inv = inventoryRepository.findByProductId(product.getId()).orElseThrow();
+            softly.assertThat(inv.getQuantity()).isEqualTo(0);
+        });
     }
 }

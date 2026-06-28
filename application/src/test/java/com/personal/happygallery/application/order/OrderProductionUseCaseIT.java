@@ -222,12 +222,14 @@ class OrderProductionUseCaseIT {
         orderApprovalService.approve(order.getId());
 
         // IN_PRODUCTION 상태에서 reject → ProductionRefundNotAllowedException
-        assertThatThrownBy(() -> orderApprovalService.reject(order.getId()))
-                .isInstanceOf(ProductionRefundNotAllowedException.class);
+        assertSoftly(softly -> {
+            softly.assertThatThrownBy(() -> orderApprovalService.reject(order.getId()))
+                    .isInstanceOf(ProductionRefundNotAllowedException.class);
 
-        // 상태 변경 없음 확인
-        Order unchanged = orderStateProbe.getOrder(order.getId());
-        assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+            // 상태 변경 없음 확인
+            Order unchanged = orderStateProbe.getOrder(order.getId());
+            softly.assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
+        });
     }
 
     // -----------------------------------------------------------------------

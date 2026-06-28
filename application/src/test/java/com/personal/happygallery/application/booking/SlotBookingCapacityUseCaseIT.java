@@ -23,6 +23,7 @@ import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
  * [UseCaseIT] 슬롯 정원(8명) 강제 + 뒤쪽 버퍼 비활성화 검증.
@@ -76,12 +77,14 @@ class SlotBookingCapacityUseCaseIT {
             confirmBookingInTx(mainSlot.getId());
         }
 
-        assertThatThrownBy(() -> confirmBookingInTx(mainSlot.getId()))
-                .isInstanceOf(CapacityExceededException.class);
+        assertSoftly(softly -> {
+            softly.assertThatThrownBy(() -> confirmBookingInTx(mainSlot.getId()))
+                    .isInstanceOf(CapacityExceededException.class);
 
-        // booked_count 변경 없음 확인
-        Slot updated = slotRepository.findById(mainSlot.getId()).orElseThrow();
-        assertThat(updated.getBookedCount()).isEqualTo(SlotCapacity.MAX);
+            // booked_count 변경 없음 확인
+            Slot updated = slotRepository.findById(mainSlot.getId()).orElseThrow();
+            softly.assertThat(updated.getBookedCount()).isEqualTo(SlotCapacity.MAX);
+        });
     }
 
     @DisplayName("예약 확정 시 버퍼 구간 슬롯이 비활성화된다")

@@ -98,9 +98,11 @@ class PassExpiryNotificationUseCaseIT {
 
         BatchResult result = passExpiryBatchService.sendExpiryNotifications();
 
-        assertThat(result.successCount()).isEqualTo(0);
-        assertThat(result.failureCount()).isZero();
-        assertThat(notificationLogProbe.all()).isEmpty();
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(0);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(notificationLogProbe.all()).isEmpty();
+        });
     }
 
     @DisplayName("8회권 만료 알림 배치를 같은 날 두 번 실행하면 중복 발송을 건너뛴다")

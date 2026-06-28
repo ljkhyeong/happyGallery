@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @Tag("policy")
 class CategoryNamePolicyTest {
@@ -21,8 +22,10 @@ class CategoryNamePolicyTest {
     @DisplayName("선택 카테고리가 null 또는 공백이면 null로 정규화한다")
     @Test
     void optional_whenBlank_returnsNull() {
-        assertThat(CategoryName.optional(null)).isNull();
-        assertThat(CategoryName.optional("   ")).isNull();
+        assertSoftly(softly -> {
+            softly.assertThat(CategoryName.optional(null)).isNull();
+            softly.assertThat(CategoryName.optional("   ")).isNull();
+        });
     }
 
     @DisplayName("필수 카테고리가 공백이면 예외가 발생한다")

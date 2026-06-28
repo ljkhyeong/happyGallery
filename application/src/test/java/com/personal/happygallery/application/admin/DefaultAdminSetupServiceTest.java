@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -45,8 +46,10 @@ class DefaultAdminSetupServiceTest {
 
         ArgumentCaptor<AdminUser> captor = ArgumentCaptor.forClass(AdminUser.class);
         verify(adminUserPort).save(captor.capture());
-        assertThat(captor.getValue().getUsername()).isEqualTo("admin");
-        assertThat(captor.getValue().getPasswordHash()).isEqualTo("encoded-password");
+        assertSoftly(softly -> {
+            softly.assertThat(captor.getValue().getUsername()).isEqualTo("admin");
+            softly.assertThat(captor.getValue().getPasswordHash()).isEqualTo("encoded-password");
+        });
     }
 
     @DisplayName("이미 관리자 계정이 있으면 최초 관리자 계정 생성을 막는다")

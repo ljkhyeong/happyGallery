@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
  * [PolicyTest] Slot 도메인 메서드 검증.
@@ -63,8 +64,10 @@ class SlotDomainPolicyTest {
         for (int i = 0; i < SlotCapacity.MAX - 1; i++) {
             slot.incrementBookedCount();
         }
-        assertThatCode(slot::incrementBookedCount).doesNotThrowAnyException();
-        assertThat(slot.getBookedCount()).isEqualTo(SlotCapacity.MAX);
+        assertSoftly(softly -> {
+            softly.assertThatCode(slot::incrementBookedCount).doesNotThrowAnyException();
+            softly.assertThat(slot.getBookedCount()).isEqualTo(SlotCapacity.MAX);
+        });
     }
 
     @DisplayName("슬롯 예약 인원 증가 시 정원에 도달하면 예외가 발생한다")
@@ -74,8 +77,10 @@ class SlotDomainPolicyTest {
         for (int i = 0; i < SlotCapacity.MAX; i++) {
             slot.incrementBookedCount();
         }
-        assertThatThrownBy(slot::incrementBookedCount)
-                .isInstanceOf(CapacityExceededException.class);
-        assertThat(slot.getBookedCount()).isEqualTo(SlotCapacity.MAX); // 롤백 미발생 케이스 — count 불변 확인
+        assertSoftly(softly -> {
+            softly.assertThatThrownBy(slot::incrementBookedCount)
+                    .isInstanceOf(CapacityExceededException.class);
+            softly.assertThat(slot.getBookedCount()).isEqualTo(SlotCapacity.MAX); // 롤백 미발생 케이스 — count 불변 확인
+        });
     }
 }

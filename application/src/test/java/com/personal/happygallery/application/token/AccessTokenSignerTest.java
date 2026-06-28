@@ -2,6 +2,7 @@ package com.personal.happygallery.application.token;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import java.time.Instant;
@@ -21,8 +22,10 @@ class AccessTokenSignerTest {
         AccessTokenSigner.TokenClaims claims = AccessTokenSigner.verify(
                 signed.rawToken(), SECRET, Instant.parse("2026-04-30T00:00:00Z"));
 
-        assertThat(claims.expiry()).isEqualTo(expiry);
-        assertThat(claims.nonceHash()).isEqualTo(signed.nonceHash());
+        assertSoftly(softly -> {
+            softly.assertThat(claims.expiry()).isEqualTo(expiry);
+            softly.assertThat(claims.nonceHash()).isEqualTo(signed.nonceHash());
+        });
     }
 
     @DisplayName("서명이 변조된 토큰은 InvalidTokenException으로 거절한다")
@@ -43,8 +46,10 @@ class AccessTokenSignerTest {
     void sign_invalidSecret_throwsTokenSigningException() {
         assertThatThrownBy(() -> AccessTokenSigner.sign(Instant.parse("2026-05-01T00:00:00Z"), ""))
                 .isInstanceOfSatisfying(TokenSigningException.class, exception -> {
-                    assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INTERNAL_ERROR);
-                    assertThat(exception.getStackTrace()).isEmpty();
+                    assertSoftly(softly -> {
+                        softly.assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INTERNAL_ERROR);
+                        softly.assertThat(exception.getStackTrace()).isEmpty();
+                    });
                 });
     }
 }
