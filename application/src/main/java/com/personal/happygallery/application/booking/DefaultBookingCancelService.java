@@ -7,10 +7,8 @@ import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.domain.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
-import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.domain.payment.RefundStatus;
 import java.time.Clock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,11 +76,8 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
         // 4. 예약 취소 저장
         bookingStorePort.save(booking);
 
-        // 5. 취소 알림 (+ 실제 예약금 환불 성공 시 환불 알림)
+        // 5. 취소 알림. 실제 예약금 환불 성공 알림은 커밋 이후 RefundExecutionService가 발행한다.
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CANCELED);
-        if (compensation.depositRefundSucceeded()) {
-            bookingSupport.notifyBooker(booking, NotificationEventType.DEPOSIT_REFUNDED);
-        }
 
         return new CancelResult(booking, compensation.refundable());
     }
@@ -90,22 +85,21 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
     private CancellationCompensation applyCancellationCompensation(Booking booking, Slot slot) {
         boolean refundable = TimeBoundary.isRefundable(slot.getStartAt(), clock);
         if (!refundable) {
-            return new CancellationCompensation(false, false);
+            return new CancellationCompensation(false);
         }
 
         if (booking.isPassBooking()) {
             restorePassCredit(booking);
-            return new CancellationCompensation(true, false);
+            return new CancellationCompensation(true);
         }
 
-        Refund refund = refundExecutionService.processBookingRefund(booking, booking.getDepositAmount());
-        boolean depositRefundSucceeded = refund.getStatus() == RefundStatus.SUCCEEDED;
-        return new CancellationCompensation(true, depositRefundSucceeded);
+        refundExecutionService.processBookingRefund(booking, booking.getDepositAmount());
+        return new CancellationCompensation(true);
     }
 
     private void restorePassCredit(Booking booking) {
         passCreditService.restoreCredit(booking.getPassPurchase().getId(), booking.getId());
     }
 
-    private record CancellationCompensation(boolean refundable, boolean depositRefundSucceeded) {}
+    private record CancellationCompensation(boolean refundable) {}
 }

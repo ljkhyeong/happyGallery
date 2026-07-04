@@ -210,7 +210,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(inquiryUseCase.replyAndGet(eq(9L), any(), eq(ADMIN_USER_ID))).thenReturn(inquiry);
         when(passExpiryBatchUseCase.expireAll()).thenReturn(batchResult());
         when(passRefundUseCase.refundPass(300L))
-                .thenReturn(new PassRefundUseCase.PassRefundResult(1, 7, 210000L, 900L, RefundStatus.SUCCEEDED));
+                .thenReturn(new PassRefundUseCase.PassRefundResult(1, 7, 210000L, 900L, RefundStatus.REQUESTED));
         when(phoneVerificationQueryUseCase.findLatestUnverifiedCode("01012345678")).thenReturn(Optional.of("123456"));
 
         mockMvc = mockMvc(restDocumentation,

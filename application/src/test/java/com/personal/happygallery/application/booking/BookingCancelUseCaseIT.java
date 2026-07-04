@@ -15,6 +15,7 @@ import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
@@ -26,6 +27,7 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +42,7 @@ import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.guest;
 import static com.personal.happygallery.support.TestFixtures.slot;
+import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.hamcrest.Matchers.nullValue;
@@ -110,21 +113,18 @@ class BookingCancelUseCaseIT {
                 .andExpect(jsonPath("$.refundAmount").value(5000));
 
         Booking booking = bookingStateProbe.getBooking(bookingId);
-        var refunds = bookingStateProbe.refunds();
+        Refund refund = awaitRefundStatus(RefundStatus.SUCCEEDED);
         Slot updatedSlot = bookingStateProbe.getSlot(slot.getId());
         List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 2);
 
         assertSoftly(softly -> {
             softly.assertThat(booking.getStatus().name()).isEqualTo("CANCELED");
             softly.assertThat(bookingStateProbe.bookingHistoryCountByBookingId(bookingId)).isEqualTo(2L);
-            softly.assertThat(refunds).hasSize(1);
-            if (!refunds.isEmpty()) {
-                softly.assertThat(refunds.get(0).getBookingId()).isEqualTo(bookingId);
-                softly.assertThat(refunds.get(0).getOrderId()).isNull();
-                softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("SUCCEEDED");
-                softly.assertThat(refunds.get(0).getPaymentKey()).isEqualTo("FAKE-TEST-PG");
-                softly.assertThat(refunds.get(0).getRefundTransactionKey()).isEqualTo("FAKE-TEST-REF");
-            }
+            softly.assertThat(refund.getBookingId()).isEqualTo(bookingId);
+            softly.assertThat(refund.getOrderId()).isNull();
+            softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
+            softly.assertThat(refund.getPaymentKey()).isEqualTo("FAKE-TEST-PG");
+            softly.assertThat(refund.getRefundTransactionKey()).isEqualTo("FAKE-TEST-REF");
             softly.assertThat(updatedSlot.getBookedCount()).isEqualTo(0);
             softly.assertThat(logs).extracting(NotificationLog::getEventType)
                     .containsExactlyInAnyOrder(
@@ -157,18 +157,15 @@ class BookingCancelUseCaseIT {
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(true));
 
-        var refunds = bookingStateProbe.refunds();
+        Refund refund = awaitRefundStatus(RefundStatus.FAILED);
         List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
         assertSoftly(softly -> {
-            softly.assertThat(refunds).hasSize(1);
-            if (!refunds.isEmpty()) {
-                softly.assertThat(refunds.get(0).getBookingId()).isEqualTo(booking.bookingId());
-                softly.assertThat(refunds.get(0).getOrderId()).isNull();
-                softly.assertThat(refunds.get(0).getStatus().name()).isEqualTo("FAILED");
-                softly.assertThat(refunds.get(0).getFailReason()).isEqualTo("PG 타임아웃");
-                softly.assertThat(refunds.get(0).getPaymentKey()).isEqualTo("FAKE-TEST-PG");
-                softly.assertThat(refunds.get(0).getRefundTransactionKey()).isNull();
-            }
+            softly.assertThat(refund.getBookingId()).isEqualTo(booking.bookingId());
+            softly.assertThat(refund.getOrderId()).isNull();
+            softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.FAILED);
+            softly.assertThat(refund.getFailReason()).isEqualTo("PG 타임아웃");
+            softly.assertThat(refund.getPaymentKey()).isEqualTo("FAKE-TEST-PG");
+            softly.assertThat(refund.getRefundTransactionKey()).isNull();
             softly.assertThat(logs).extracting(NotificationLog::getEventType)
                     .containsExactly(NotificationEventType.BOOKING_CANCELED);
         });
@@ -262,6 +259,17 @@ class BookingCancelUseCaseIT {
                         .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    private Refund awaitRefundStatus(RefundStatus status) {
+        await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(25, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> {
+                    var refunds = bookingStateProbe.refunds();
+                    assertThat(refunds).hasSize(1);
+                    assertThat(refunds.get(0).getStatus()).isEqualTo(status);
+                });
+        return bookingStateProbe.refunds().get(0);
     }
 
 }

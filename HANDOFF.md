@@ -38,6 +38,7 @@
 - **8회권 사용 예약**: amount=0 → PG 우회, `confirm` 직호출. 프론트가 이 분기를 처리.
 - **테스트 보강 (2026-04-26)**: 기존 예약/주문/8회권 생성 테스트를 `/api/v1/payments/prepare` + `/confirm` 경로로 전환. `PaymentPrepareUseCaseTest`, `PaymentConfirmUseCaseIT` 추가.
 - **환불 참조값 연결 (2026-04-26, 2026-07-04 갱신)**: confirm 성공 시 `PaymentAttempt.pgRef`와 도메인 `payment_key`를 저장하고, 예약/주문/8회권 환불 생성 시 원결제 Toss `paymentKey`를 `refunds.payment_key`, 환불 성공 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리 저장.
+- **환불 PG 호출 경계 (2026-07-04)**: 환불 요청 레코드는 부모 트랜잭션에 참여하고, 실제 PG refund 호출은 부모 커밋 이후 `refundExecutor`에서 실행한다. 결과 업데이트와 재시도 검증은 `RefundTransactionService`의 짧은 `REQUIRES_NEW` 어노테이션 트랜잭션으로 처리한다.
 - **프론트 결제 흐름 보강 (2026-04-26)**: `ProductDetailPage` 회원 BUY NOW를 Toss prepare/confirm 경로로 전환. P8 E2E는 Toss stub 기반 현재 UI selector로 갱신.
 - **E2E 실행 단위 (2026-04-26)**: `frontend npm run e2e`는 `@smoke` 4개만 실행. 전체는 `npm run e2e:full`, 도메인별은 README의 프론트엔드 명령 참조. 운영 기준은 `docs/ADR/0027_테스트_전략과_최소_테스트_세트_기준선/adr.md`, 회고는 `docs/Retrospective/0009_프론트_E2E_실행_시간_슬림화/retrospective.md`.
 - **로컬 E2E 설정 (2026-04-26)**: 반복 smoke에서는 `RATE_LIMIT_ENABLED=false`로 bootRun. 관리자 예약 목록의 guest-only NPE는 `DefaultAdminBookingQueryService`에서 null userId 방어.

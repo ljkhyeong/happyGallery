@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.pass;
 
 import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Slot;
@@ -26,6 +27,7 @@ import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,7 @@ import static com.personal.happygallery.support.TestDataCleaner.clearBookingWith
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.TestFixtures.slot;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.nullValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -246,7 +249,7 @@ class PassCreditUsageUseCaseIT {
         var bookings = bookingRepository.findAll();
         var refundLedgers = passLedgerRepository.findByPassPurchaseId(pass.getId())
                 .stream().filter(l -> l.getType() == PassLedgerType.REFUND).toList();
-        var refunds = refundRepository.findAll();
+        Refund refund = awaitRefundStatus(RefundStatus.SUCCEEDED);
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         Slot reloadedSlot1 = slotRepository.findById(slot1.getId()).orElseThrow();
         Slot reloadedSlot2 = slotRepository.findById(slot2.getId()).orElseThrow();
@@ -255,16 +258,13 @@ class PassCreditUsageUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(bookings).hasSize(2);
             softly.assertThat(bookings).allMatch(b -> b.getStatus() == BookingStatus.CANCELED);
-            softly.assertThat(refunds).hasSize(1);
-            if (!refunds.isEmpty()) {
-                softly.assertThat(refunds.get(0).getBookingId()).isNull();
-                softly.assertThat(refunds.get(0).getOrderId()).isNull();
-                softly.assertThat(refunds.get(0).getPassPurchaseId()).isEqualTo(pass.getId());
-                softly.assertThat(refunds.get(0).getAmount()).isEqualTo(240_000L);
-                softly.assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
-                softly.assertThat(refunds.get(0).getPaymentKey()).isEqualTo("test-pass-payment-key");
-                softly.assertThat(refunds.get(0).getRefundTransactionKey()).isEqualTo("FAKE-TEST-PASS-REF");
-            }
+            softly.assertThat(refund.getBookingId()).isNull();
+            softly.assertThat(refund.getOrderId()).isNull();
+            softly.assertThat(refund.getPassPurchaseId()).isEqualTo(pass.getId());
+            softly.assertThat(refund.getAmount()).isEqualTo(240_000L);
+            softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
+            softly.assertThat(refund.getPaymentKey()).isEqualTo("test-pass-payment-key");
+            softly.assertThat(refund.getRefundTransactionKey()).isEqualTo("FAKE-TEST-PASS-REF");
             softly.assertThat(refundLedgers).hasSize(1);
             softly.assertThat(refundLedgers.get(0).getAmount()).isEqualTo(6);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
@@ -287,9 +287,9 @@ class PassCreditUsageUseCaseIT {
                 .andExpect(jsonPath("$.canceledBookings").value(0))
                 .andExpect(jsonPath("$.refundCredits").value(8))
                 .andExpect(jsonPath("$.refundAmount").value(320_000))
-                .andExpect(jsonPath("$.refundStatus").value("FAILED"));
+                .andExpect(jsonPath("$.refundStatus").value("REQUESTED"));
 
-        var refunds = refundRepository.findAll();
+        Refund refund = awaitRefundStatus(RefundStatus.FAILED);
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         verify(paymentProvider).refund("test-pass-payment-key", 320_000L);
 
@@ -300,15 +300,12 @@ class PassCreditUsageUseCaseIT {
                 .andExpect(jsonPath("$[0].orderId").value(nullValue()));
 
         assertSoftly(softly -> {
-            softly.assertThat(refunds).hasSize(1);
-            if (!refunds.isEmpty()) {
-                softly.assertThat(refunds.get(0).getPassPurchaseId()).isEqualTo(pass.getId());
-                softly.assertThat(refunds.get(0).getAmount()).isEqualTo(320_000L);
-                softly.assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.FAILED);
-                softly.assertThat(refunds.get(0).getPaymentKey()).isEqualTo("test-pass-payment-key");
-                softly.assertThat(refunds.get(0).getRefundTransactionKey()).isNull();
-                softly.assertThat(refunds.get(0).getFailReason()).isEqualTo("PG 타임아웃");
-            }
+            softly.assertThat(refund.getPassPurchaseId()).isEqualTo(pass.getId());
+            softly.assertThat(refund.getAmount()).isEqualTo(320_000L);
+            softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.FAILED);
+            softly.assertThat(refund.getPaymentKey()).isEqualTo("test-pass-payment-key");
+            softly.assertThat(refund.getRefundTransactionKey()).isNull();
+            softly.assertThat(refund.getFailReason()).isEqualTo("PG 타임아웃");
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
             softly.assertThat(passLedgerRepository.findByPassPurchaseId(pass.getId()))
                     .anySatisfy(ledger -> {
@@ -375,6 +372,17 @@ class PassCreditUsageUseCaseIT {
         Cookie cookie = result.getResponse().getCookie("HG_SESSION");
         assertThat(cookie).isNotNull();
         return cookie;
+    }
+
+    private Refund awaitRefundStatus(RefundStatus status) {
+        await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(25, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> {
+                    var refunds = refundRepository.findAll();
+                    assertThat(refunds).hasSize(1);
+                    assertThat(refunds.get(0).getStatus()).isEqualTo(status);
+                });
+        return refundRepository.findAll().get(0);
     }
 
 }

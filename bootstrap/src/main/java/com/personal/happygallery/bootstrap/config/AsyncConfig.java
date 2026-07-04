@@ -48,6 +48,32 @@ public class AsyncConfig implements AsyncConfigurer {
         return executor;
     }
 
+    @Bean
+    public Executor refundExecutor(MeterRegistry meterRegistry) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(4);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("refund-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
+        executor.setTaskDecorator(runnable -> {
+            Map<String, String> ctx = MDC.getCopyOfContextMap();
+            return () -> {
+                if (ctx != null) MDC.setContextMap(ctx);
+                try { runnable.run(); }
+                finally { MDC.clear(); }
+            };
+        });
+        executor.initialize();
+        ExecutorServiceMetrics.monitor(
+                meterRegistry,
+                executor.getThreadPoolExecutor(),
+                "executor",
+                Tags.of("name", "refundExecutor"));
+        return executor;
+    }
+
     @Override
     public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
         return (Throwable ex, Method method, Object... params) ->

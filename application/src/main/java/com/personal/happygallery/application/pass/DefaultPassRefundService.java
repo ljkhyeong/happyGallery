@@ -45,12 +45,12 @@ public class DefaultPassRefundService implements PassRefundUseCase {
      *
      * <ol>
      *   <li>미래 BOOKED 예약 자동 취소 (슬롯 booked_count--, 이력 기록)</li>
-     *   <li>PG 환불 요청 및 환불 이력 기록</li>
+     *   <li>PG 환불 요청 이력 기록 및 커밋 이후 환불 실행 예약</li>
      *   <li>REFUND ledger 기록 (amount = remaining_credits)</li>
      *   <li>remaining_credits = 0 (expire() 재활용)</li>
      * </ol>
      *
-     * <p>PG 환불 실패 시에도 환불 이력은 FAILED로 남아 운영자 재시도 대상이 된다.
+     * <p>PG 환불 실패 시 환불 이력은 비동기로 FAILED가 되어 운영자 재시도 대상이 된다.
      *
      * @return 처리 결과 (취소된 예약 수, 환불 크레딧, 환불 금액, 환불 이력)
      */
