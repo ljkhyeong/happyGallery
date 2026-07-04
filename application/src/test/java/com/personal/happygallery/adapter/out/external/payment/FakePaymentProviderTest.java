@@ -18,7 +18,7 @@ class FakePaymentProviderTest {
 
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isTrue();
-            softly.assertThat(result.pgRef()).startsWith("FAKE-PG-");
+            softly.assertThat(result.paymentKey()).startsWith("FAKE-PG-");
             softly.assertThat(result.method()).isEqualTo("FAKE_PG");
             softly.assertThat(result.approvedAt()).isNotBlank();
             softly.assertThat(result.failReason()).isNull();
@@ -40,7 +40,7 @@ class FakePaymentProviderTest {
             softly.assertThat(failed.success()).isFalse();
             softly.assertThat(failed.failReason()).isEqualTo("PG 강제 실패");
             softly.assertThat(succeeded.success()).isTrue();
-            softly.assertThat(succeeded.refundPgRef()).startsWith("FAKE-REFUND-");
+            softly.assertThat(succeeded.refundTransactionKey()).startsWith("FAKE-REFUND-");
         });
     }
 }

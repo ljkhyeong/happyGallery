@@ -99,9 +99,9 @@ public class ResilientPaymentProvider implements PaymentProvider {
     }
 
     @Override
-    public RefundResult refund(String pgRef, long amount) {
+    public RefundResult refund(String paymentKey, long amount) {
         try {
-            return circuitBreaker.executeCallable(() -> executeRefundWithTimeout(pgRef, amount));
+            return circuitBreaker.executeCallable(() -> executeRefundWithTimeout(paymentKey, amount));
         } catch (CallNotPermittedException e) {
             log.warn("PG 환불 호출 차단 (circuit open) [state={}]", circuitBreaker.getState());
             return RefundResult.failure("PG 장애로 환불 처리가 일시 차단되었습니다. 잠시 후 재시도해주세요.");
@@ -124,9 +124,9 @@ public class ResilientPaymentProvider implements PaymentProvider {
                 () -> CompletableFuture.supplyAsync(() -> delegate.confirm(paymentKey, orderId, amount), executor));
     }
 
-    private RefundResult executeRefundWithTimeout(String pgRef, long amount) throws Exception {
+    private RefundResult executeRefundWithTimeout(String paymentKey, long amount) throws Exception {
         return timeLimiter.executeFutureSupplier(
-                () -> CompletableFuture.supplyAsync(() -> delegate.refund(pgRef, amount), executor));
+                () -> CompletableFuture.supplyAsync(() -> delegate.refund(paymentKey, amount), executor));
     }
 
     private Throwable rootCause(Throwable throwable) {

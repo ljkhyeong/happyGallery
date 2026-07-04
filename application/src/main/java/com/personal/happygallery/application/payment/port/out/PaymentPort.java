@@ -13,16 +13,16 @@ public interface PaymentPort {
      * @param paymentKey PG가 발급한 결제 키 (Toss paymentKey 등)
      * @param orderId    서버가 prepare 단계에 생성한 외부 주문 식별자 (UUID)
      * @param amount     확정 금액 (원) — prepare 단계 금액과 일치해야 한다
-     * @return 성공 시 success=true + pgRef/method/approvedAt, 실패 시 success=false + failReason
+     * @return 성공 시 success=true + paymentKey/method/approvedAt, 실패 시 success=false + failReason
      */
     PaymentConfirmResult confirm(String paymentKey, String orderId, long amount);
 
     /**
      * 환불을 실행한다.
      *
-     * @param pgRef  원결제 PG 참조값 (없으면 null)
+     * @param paymentKey 원결제 paymentKey (없으면 null)
      * @param amount 환불 금액 (원)
-     * @return 성공 시 success=true + refundPgRef, 실패 시 success=false + failReason
+     * @return 성공 시 success=true + refundTransactionKey, 실패 시 success=false + failReason
      */
-    RefundResult refund(String pgRef, long amount);
+    RefundResult refund(String paymentKey, long amount);
 }

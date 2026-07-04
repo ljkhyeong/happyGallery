@@ -4,6 +4,7 @@ import com.personal.happygallery.application.payment.port.out.PaymentConfirmResu
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -62,23 +63,24 @@ public class TossPaymentsProvider implements PaymentProvider {
     }
 
     @Override
-    public RefundResult refund(String pgRef, long amount) {
+    public RefundResult refund(String paymentKey, long amount) {
         try {
             RefundRequest body = new RefundRequest("요청에 의한 환불", amount);
             RefundResponse response = restClient.post()
-                    .uri("/v1/payments/{paymentKey}/cancel", pgRef)
+                    .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
                     .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
                     .body(RefundResponse.class);
-            if (response == null || response.paymentKey() == null) {
-                log.warn("Toss refund: null response pgRef={}", pgRef);
-                return RefundResult.failure("PG 응답이 비어 있습니다.");
+            String refundTransactionKey = refundTransactionKey(response);
+            if (refundTransactionKey == null) {
+                log.warn("Toss refund: missing refund transactionKey paymentKey={}", paymentKey);
+                return RefundResult.failure("PG 환불 거래 키가 비어 있습니다.");
             }
-            return RefundResult.success(response.paymentKey());
+            return RefundResult.success(refundTransactionKey);
         } catch (Exception e) {
-            log.warn("Toss refund 예외 pgRef={}", pgRef, e);
+            log.warn("Toss refund 예외 paymentKey={}", paymentKey, e);
             return RefundResult.failure(
                     e.getMessage() != null ? e.getMessage() : "PG 호출 중 오류");
         }
@@ -90,5 +92,30 @@ public class TossPaymentsProvider implements PaymentProvider {
 
     private record RefundRequest(String cancelReason, long cancelAmount) {}
 
-    private record RefundResponse(String paymentKey) {}
+    private String refundTransactionKey(RefundResponse response) {
+        if (response == null) {
+            return null;
+        }
+        if (hasText(response.lastTransactionKey())) {
+            return response.lastTransactionKey();
+        }
+        if (response.cancels() == null || response.cancels().isEmpty()) {
+            return null;
+        }
+        for (int index = response.cancels().size() - 1; index >= 0; index--) {
+            String transactionKey = response.cancels().get(index).transactionKey();
+            if (hasText(transactionKey)) {
+                return transactionKey;
+            }
+        }
+        return null;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private record RefundResponse(String paymentKey, String lastTransactionKey, List<CancelResponse> cancels) {}
+
+    private record CancelResponse(String transactionKey) {}
 }

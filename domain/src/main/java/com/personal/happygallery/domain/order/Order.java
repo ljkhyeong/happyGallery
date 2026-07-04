@@ -225,7 +225,7 @@ public class Order {
         this.guestId = null;
     }
 
-    /** 결제 confirm 성공 후 PG 원결제 참조값을 저장한다. */
+    /** 결제 confirm 성공 후 원결제 paymentKey를 저장한다. */
     public void recordPaymentKey(String paymentKey) {
         this.paymentKey = paymentKey;
     }

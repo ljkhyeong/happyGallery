@@ -25,13 +25,13 @@ class ResilientPaymentProviderTest {
     @DisplayName("외부 호출 예외가 발생하면 실패 결과를 반환한다")
     @Test
     void refund_delegateThrows_returnsFailure() {
-        PaymentProvider delegate = refundOnlyDelegate((pgRef, amount) -> {
+        PaymentProvider delegate = refundOnlyDelegate((paymentKey, amount) -> {
             throw new RuntimeException("PG error");
         });
 
         provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3), meterRegistry);
 
-        RefundResult result = provider.refund("pg-ref", 10_000);
+        RefundResult result = provider.refund("payment-key", 10_000);
 
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
@@ -42,7 +42,7 @@ class ResilientPaymentProviderTest {
     @DisplayName("외부 호출이 타임아웃을 초과하면 실패 결과를 반환한다")
     @Test
     void refund_delegateTimeout_returnsFailure() {
-        PaymentProvider delegate = refundOnlyDelegate((pgRef, amount) -> {
+        PaymentProvider delegate = refundOnlyDelegate((paymentKey, amount) -> {
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -53,7 +53,7 @@ class ResilientPaymentProviderTest {
 
         provider = new ResilientPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3), meterRegistry);
 
-        RefundResult result = provider.refund("pg-ref", 10_000);
+        RefundResult result = provider.refund("payment-key", 10_000);
 
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
@@ -64,15 +64,15 @@ class ResilientPaymentProviderTest {
     @DisplayName("실패가 누적되면 서킷이 열려 빠른 실패를 반환한다")
     @Test
     void refund_failuresAccumulate_circuitOpenFastFail() {
-        PaymentProvider delegate = refundOnlyDelegate((pgRef, amount) -> {
+        PaymentProvider delegate = refundOnlyDelegate((paymentKey, amount) -> {
             throw new RuntimeException("PG down");
         });
 
         provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1), meterRegistry);
 
-        provider.refund("pg-ref", 10_000);
-        provider.refund("pg-ref", 10_000);
-        RefundResult result = provider.refund("pg-ref", 10_000);
+        provider.refund("payment-key", 10_000);
+        provider.refund("payment-key", 10_000);
+        RefundResult result = provider.refund("payment-key", 10_000);
 
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
@@ -158,8 +158,8 @@ class ResilientPaymentProviderTest {
             }
 
             @Override
-            public RefundResult refund(String pgRef, long amount) {
-                return refundBehavior.refund(pgRef, amount);
+            public RefundResult refund(String paymentKey, long amount) {
+                return refundBehavior.refund(paymentKey, amount);
             }
         };
     }
@@ -172,7 +172,7 @@ class ResilientPaymentProviderTest {
             }
 
             @Override
-            public RefundResult refund(String pgRef, long amount) {
+            public RefundResult refund(String paymentKey, long amount) {
                 throw new UnsupportedOperationException();
             }
         };
@@ -180,7 +180,7 @@ class ResilientPaymentProviderTest {
 
     @FunctionalInterface
     private interface RefundBehavior {
-        RefundResult refund(String pgRef, long amount);
+        RefundResult refund(String paymentKey, long amount);
     }
 
     @FunctionalInterface

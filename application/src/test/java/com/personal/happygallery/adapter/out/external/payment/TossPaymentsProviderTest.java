@@ -55,7 +55,7 @@ class TossPaymentsProviderTest {
         server.verify();
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isTrue();
-            softly.assertThat(result.pgRef()).isEqualTo("payment-key");
+            softly.assertThat(result.paymentKey()).isEqualTo("payment-key");
             softly.assertThat(result.method()).isEqualTo("카드");
             softly.assertThat(result.approvedAt()).isEqualTo("2026-04-23T10:00:00+09:00");
             softly.assertThat(result.failReason()).isNull();
@@ -84,7 +84,7 @@ class TossPaymentsProviderTest {
         server.verify();
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
-            softly.assertThat(result.pgRef()).isNull();
+            softly.assertThat(result.paymentKey()).isNull();
             softly.assertThat(result.failReason()).isNotBlank();
         });
     }
@@ -108,7 +108,14 @@ class TossPaymentsProviderTest {
                         """))
                 .andRespond(withSuccess("""
                         {
-                          "paymentKey": "payment-key"
+                          "paymentKey": "payment-key",
+                          "lastTransactionKey": "refund-transaction-key",
+                          "cancels": [
+                            {
+                              "transactionKey": "refund-transaction-key",
+                              "cancelStatus": "DONE"
+                            }
+                          ]
                         }
                         """, MediaType.APPLICATION_JSON));
 
@@ -117,8 +124,33 @@ class TossPaymentsProviderTest {
         server.verify();
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isTrue();
-            softly.assertThat(result.refundPgRef()).isEqualTo("payment-key");
+            softly.assertThat(result.refundTransactionKey()).isEqualTo("refund-transaction-key");
             softly.assertThat(result.failReason()).isNull();
+        });
+    }
+
+    @DisplayName("Toss 환불 응답에 취소 거래 키가 없으면 실패 결과로 변환된다")
+    @Test
+    void refund_withoutTransactionKey_returnsFailure() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://api.tosspayments.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build(), properties("test_secret"));
+
+        server.expect(requestTo("https://api.tosspayments.com/v1/payments/payment-key/cancel"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("""
+                        {
+                          "paymentKey": "payment-key"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        RefundResult result = provider.refund("payment-key", 5_000L);
+
+        server.verify();
+        assertSoftly(softly -> {
+            softly.assertThat(result.success()).isFalse();
+            softly.assertThat(result.refundTransactionKey()).isNull();
+            softly.assertThat(result.failReason()).isEqualTo("PG 환불 거래 키가 비어 있습니다.");
         });
     }
 
@@ -145,7 +177,7 @@ class TossPaymentsProviderTest {
         server.verify();
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
-            softly.assertThat(result.refundPgRef()).isNull();
+            softly.assertThat(result.refundTransactionKey()).isNull();
             softly.assertThat(result.failReason()).isNotBlank();
         });
     }

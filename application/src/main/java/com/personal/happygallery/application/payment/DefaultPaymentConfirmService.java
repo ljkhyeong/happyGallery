@@ -60,7 +60,7 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
         attempt.requireConfirmable(command.amount());
 
         String paymentKey = command.paymentKey();
-        String pgRef = null;
+        String confirmedPaymentKey = null;
         if (attempt.getAmount() > 0) {
             if (paymentKey == null || paymentKey.isBlank()) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "paymentKey가 누락되었습니다.");
@@ -72,7 +72,7 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                 throw new HappyGalleryException(ErrorCode.PAYMENT_FAILED,
                         pg.failReason() != null ? pg.failReason() : "결제 확정에 실패했습니다.");
             }
-            pgRef = pg.pgRef();
+            confirmedPaymentKey = pg.paymentKey();
         } else {
             log.debug("amount=0 결제 — PG 호출 생략 [orderId={}, context={}]", command.orderId(), attempt.getContext());
         }
@@ -82,10 +82,11 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지원하지 않는 결제 컨텍스트입니다.");
         }
         PaymentPayload payload = deserialize(attempt.getPayloadJson());
-        PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(attempt, payload, command.auth(), pgRef);
+        PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(
+                attempt, payload, command.auth(), confirmedPaymentKey);
 
         LocalDateTime confirmedAt = LocalDateTime.now(clock);
-        attempt.markConfirmed(paymentKey, pgRef, confirmedAt, command.amount());
+        attempt.markConfirmed(paymentKey, confirmedPaymentKey, confirmedAt, command.amount());
         attemptStore.saveAndFlush(attempt);
 
         return new ConfirmResult(attempt.getContext(), fulfilled.domainId(), fulfilled.rawAccessToken());

@@ -32,8 +32,8 @@ public class RefundExecutionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Refund processOrderRefund(Long orderId, long amount, String originalPgRef) {
-        Refund refund = refundPort.save(Refund.forOrder(orderId, amount, originalPgRef));
+    public Refund processOrderRefund(Long orderId, long amount, String paymentKey) {
+        Refund refund = refundPort.save(Refund.forOrder(orderId, amount, paymentKey));
         return executeRefund(refund, "orderId=" + orderId);
     }
 
@@ -44,21 +44,21 @@ public class RefundExecutionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Refund processPassRefund(Long passPurchaseId, long amount, String originalPgRef) {
-        Refund refund = refundPort.save(Refund.forPass(passPurchaseId, amount, originalPgRef));
+    public Refund processPassRefund(Long passPurchaseId, long amount, String paymentKey) {
+        Refund refund = refundPort.save(Refund.forPass(passPurchaseId, amount, paymentKey));
         return executeRefund(refund, "passPurchaseId=" + passPurchaseId);
     }
 
     public Refund executeRefund(Refund refund, String target) {
         try {
-            if (refund.getOriginalPgRef() == null || refund.getOriginalPgRef().isBlank()) {
-                log.warn("환불 실패 [{} refundId={}] reason=원결제 참조값 없음", target, refund.getId());
-                refund.markFailed("원결제 참조값이 없어 PG 환불을 실행할 수 없습니다.");
+            if (refund.getPaymentKey() == null || refund.getPaymentKey().isBlank()) {
+                log.warn("환불 실패 [{} refundId={}] reason=paymentKey 없음", target, refund.getId());
+                refund.markFailed("paymentKey가 없어 PG 환불을 실행할 수 없습니다.");
                 return refundPort.save(refund);
             }
-            RefundResult result = paymentPort.refund(refund.getOriginalPgRef(), refund.getAmount());
+            RefundResult result = paymentPort.refund(refund.getPaymentKey(), refund.getAmount());
             if (result.success()) {
-                refund.markSucceeded(result.refundPgRef());
+                refund.markSucceeded(result.refundTransactionKey());
             } else {
                 log.warn("환불 실패 [{} refundId={}] reason={}", target, refund.getId(), result.failReason());
                 refund.markFailed(result.failReason());

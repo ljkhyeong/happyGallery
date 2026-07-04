@@ -39,7 +39,7 @@ public class FakePaymentProvider implements PaymentProvider {
     }
 
     @Override
-    public RefundResult refund(String pgRef, long amount) {
+    public RefundResult refund(String paymentKey, long amount) {
         if (localRefundFailureScript != null) {
             var reason = localRefundFailureScript.consumeNextFailureReason();
             if (reason.isPresent()) {

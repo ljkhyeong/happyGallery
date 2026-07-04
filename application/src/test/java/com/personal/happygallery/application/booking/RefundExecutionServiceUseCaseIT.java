@@ -45,7 +45,7 @@ class RefundExecutionServiceUseCaseIT {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
         assertThatThrownBy(() -> transactionTemplate.executeWithoutResult(status -> {
-            refundExecutionService.processOrderRefund(order.getId(), 55_000L, "pg-ref");
+            refundExecutionService.processOrderRefund(order.getId(), 55_000L, "payment-key");
             throw new RuntimeException("outer rollback");
         }))
                 .isInstanceOf(RuntimeException.class)
@@ -56,8 +56,8 @@ class RefundExecutionServiceUseCaseIT {
             softly.assertThat(refunds).hasSize(1);
             softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
             softly.assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.FAILED);
-            softly.assertThat(refunds.get(0).getOriginalPgRef()).isEqualTo("pg-ref");
-            softly.assertThat(refunds.get(0).getRefundPgRef()).isNull();
+            softly.assertThat(refunds.get(0).getPaymentKey()).isEqualTo("payment-key");
+            softly.assertThat(refunds.get(0).getRefundTransactionKey()).isNull();
             softly.assertThat(refunds.get(0).getFailReason()).contains("PG timeout");
         });
     }

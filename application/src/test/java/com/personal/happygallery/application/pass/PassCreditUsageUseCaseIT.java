@@ -262,8 +262,8 @@ class PassCreditUsageUseCaseIT {
                 softly.assertThat(refunds.get(0).getPassPurchaseId()).isEqualTo(pass.getId());
                 softly.assertThat(refunds.get(0).getAmount()).isEqualTo(240_000L);
                 softly.assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
-                softly.assertThat(refunds.get(0).getOriginalPgRef()).isEqualTo("test-pass-payment-key");
-                softly.assertThat(refunds.get(0).getRefundPgRef()).isEqualTo("FAKE-TEST-PASS-REF");
+                softly.assertThat(refunds.get(0).getPaymentKey()).isEqualTo("test-pass-payment-key");
+                softly.assertThat(refunds.get(0).getRefundTransactionKey()).isEqualTo("FAKE-TEST-PASS-REF");
             }
             softly.assertThat(refundLedgers).hasSize(1);
             softly.assertThat(refundLedgers.get(0).getAmount()).isEqualTo(6);
@@ -305,8 +305,8 @@ class PassCreditUsageUseCaseIT {
                 softly.assertThat(refunds.get(0).getPassPurchaseId()).isEqualTo(pass.getId());
                 softly.assertThat(refunds.get(0).getAmount()).isEqualTo(320_000L);
                 softly.assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.FAILED);
-                softly.assertThat(refunds.get(0).getOriginalPgRef()).isEqualTo("test-pass-payment-key");
-                softly.assertThat(refunds.get(0).getRefundPgRef()).isNull();
+                softly.assertThat(refunds.get(0).getPaymentKey()).isEqualTo("test-pass-payment-key");
+                softly.assertThat(refunds.get(0).getRefundTransactionKey()).isNull();
                 softly.assertThat(refunds.get(0).getFailReason()).isEqualTo("PG 타임아웃");
             }
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
