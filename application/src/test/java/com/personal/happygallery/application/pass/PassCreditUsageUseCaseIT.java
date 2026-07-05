@@ -145,7 +145,7 @@ class PassCreditUsageUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof 2: D-1 이전 취소 → REFUND ledger(+1), remaining=8 복구
+    // Proof 2: 취소 보상 마감 이전 취소 → REFUND ledger(+1), remaining=8 복구
     // -----------------------------------------------------------------------
 
     @DisplayName("8회권 예약을 기한 내 취소하면 크레딧이 환불된다")
@@ -155,7 +155,7 @@ class PassCreditUsageUseCaseIT {
 
         Long bookingId = createPassBooking(slot.getId());
 
-        // 취소 (FUTURE = 2030년 → D-1 이전이므로 환불 가능)
+        // 취소 (FUTURE = 2030년 → 취소 보상 마감 이전이므로 환불 가능)
         mockMvc.perform(delete("/api/v1/me/bookings/{id}", bookingId)
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
@@ -174,13 +174,13 @@ class PassCreditUsageUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof 3: D-1 이후 취소 → 크레딧 소멸 유지 (remaining=7)
+    // Proof 3: 취소 보상 마감 이후 취소 → 크레딧 소멸 유지 (remaining=7)
     // -----------------------------------------------------------------------
 
     @DisplayName("8회권 예약을 늦게 취소하면 크레딧이 소멸된다")
     @Test
     void cancel_pass_booking_late_loses_credit() throws Exception {
-        // 오늘 14:00 시작 슬롯 — D-1 deadline(오늘 00:00) 이미 지남
+        // 오늘 14:00 시작 슬롯 — 취소 보상 마감(오늘 00:00) 이미 지남
         LocalDateTime today14 = LocalDateTime.now(clock).toLocalDate().atTime(14, 0);
         Slot slot = slotRepository.save(slot(cls, today14, today14.plusHours(2)));
 

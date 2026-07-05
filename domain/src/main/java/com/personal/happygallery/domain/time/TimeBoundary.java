@@ -13,20 +13,30 @@ public final class TimeBoundary {
 
     private TimeBoundary() {}
 
-    // ── D-1 환불 경계 ──────────────────────────────────────────────────────────
+    // ── 취소 보상 경계 ─────────────────────────────────────────────────────────
 
     /**
-     * D-1 환불 가능 여부.
-     * 체험일 전날 00:00 Asia/Seoul 이전이면 환불 가능.
+     * 환불 가능 여부.
+     * 체험일 00:00 Asia/Seoul 이전이면 환불 가능.
      */
     public static boolean isRefundable(LocalDate experienceDate, Clock clock) {
-        ZonedDateTime deadline = experienceDate.atStartOfDay(Clocks.SEOUL);
+        ZonedDateTime deadline = refundDeadlineAt(experienceDate);
         return ZonedDateTime.now(clock).isBefore(deadline);
     }
 
     /** 슬롯 시작 시각(LocalDateTime) 기반 환불 가능 여부. 날짜 변환을 내부에서 처리한다. */
     public static boolean isRefundable(LocalDateTime slotStartAt, Clock clock) {
         return isRefundable(slotStartAt.toLocalDate(), clock);
+    }
+
+    /** 체험일 기준 환불 가능 마감 시각. */
+    public static ZonedDateTime refundDeadlineAt(LocalDate experienceDate) {
+        return experienceDate.atStartOfDay(Clocks.SEOUL);
+    }
+
+    /** 슬롯 시작 시각(LocalDateTime) 기반 환불 가능 마감 시각. */
+    public static LocalDateTime refundDeadlineAt(LocalDateTime slotStartAt) {
+        return refundDeadlineAt(slotStartAt.toLocalDate()).toLocalDateTime();
     }
 
     // ── 당일 변경 경계 ─────────────────────────────────────────────────────────

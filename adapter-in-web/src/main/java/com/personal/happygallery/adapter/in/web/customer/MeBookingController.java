@@ -10,6 +10,7 @@ import com.personal.happygallery.adapter.in.web.customer.dto.MyBookingSummary;
 import com.personal.happygallery.adapter.in.web.resolver.CustomerUserId;
 import com.personal.happygallery.domain.booking.Booking;
 import jakarta.validation.Valid;
+import java.time.Clock;
 import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,13 +32,16 @@ public class MeBookingController {
     private final BookingQueryUseCase bookingQueryUseCase;
     private final BookingRescheduleUseCase bookingRescheduleUseCase;
     private final BookingCancelUseCase bookingCancelUseCase;
+    private final Clock clock;
 
     public MeBookingController(BookingQueryUseCase bookingQueryUseCase,
                                 BookingRescheduleUseCase bookingRescheduleUseCase,
-                                BookingCancelUseCase bookingCancelUseCase) {
+                                BookingCancelUseCase bookingCancelUseCase,
+                                Clock clock) {
         this.bookingQueryUseCase = bookingQueryUseCase;
         this.bookingRescheduleUseCase = bookingRescheduleUseCase;
         this.bookingCancelUseCase = bookingCancelUseCase;
+        this.clock = clock;
     }
 
     @GetMapping
@@ -48,7 +52,7 @@ public class MeBookingController {
     @GetMapping("/{id}")
     public MyBookingDetail myBooking(@PathVariable Long id, @CustomerUserId Long userId) {
         Booking booking = bookingQueryUseCase.findMyBooking(id, userId);
-        return MyBookingDetail.from(booking);
+        return MyBookingDetail.from(booking, clock);
     }
 
     @PatchMapping("/{id}/reschedule")

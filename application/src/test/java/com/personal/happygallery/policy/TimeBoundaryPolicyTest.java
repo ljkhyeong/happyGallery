@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.domain.time.TimeBoundary;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -26,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Tag("policy")
 class TimeBoundaryPolicyTest {
 
-    // ── D-1 환불 경계 ─────────────────────────────────────────────────────────
+    // ── 취소 보상 경계 ────────────────────────────────────────────────────────
 
     @DisplayName("체험일 자정 경계에 따라 환불 가능 여부가 달라진다")
     @ParameterizedTest(name = "{0}")
@@ -35,6 +36,15 @@ class TimeBoundaryPolicyTest {
         LocalDate experienceDate = LocalDate.of(2026, 3, 1);
 
         assertThat(TimeBoundary.isRefundable(experienceDate, clock)).isEqualTo(expected);
+    }
+
+    @DisplayName("환불 마감 시각은 체험일 00시다")
+    @Test
+    void refund_deadlineAt_startOfExperienceDate() {
+        LocalDateTime slotStartAt = LocalDateTime.of(2026, 3, 1, 14, 0);
+
+        assertThat(TimeBoundary.refundDeadlineAt(slotStartAt))
+                .isEqualTo(LocalDateTime.of(2026, 3, 1, 0, 0));
     }
 
     // ── 당일 변경 경계 ────────────────────────────────────────────────────────

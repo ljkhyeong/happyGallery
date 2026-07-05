@@ -119,7 +119,10 @@ class MeBookingUseCaseIT {
                 .andExpect(jsonPath("$.status").value("BOOKED"))
                 .andExpect(jsonPath("$.className").value("향수 클래스"))
                 .andExpect(jsonPath("$.balanceStatus").value("UNPAID"))
-                .andExpect(jsonPath("$.passBooking").value(false));
+                .andExpect(jsonPath("$.passBooking").value(false))
+                .andExpect(jsonPath("$.cancelPolicy.refundable").value(true))
+                .andExpect(jsonPath("$.cancelPolicy.deadlineAt").value("2030-01-01T00:00:00"))
+                .andExpect(jsonPath("$.cancelPolicy.passCreditRestorable").value(false));
     }
 
     @DisplayName("회원 예약 슬롯을 변경한다")

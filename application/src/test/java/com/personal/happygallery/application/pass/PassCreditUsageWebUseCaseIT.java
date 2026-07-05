@@ -21,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.context.WebApplicationContext;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -67,11 +68,14 @@ class PassCreditUsageWebUseCaseIT {
                 slot.getId(),
                 fixture.pass().getId());
 
-        fixture.mockMvc().perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
-                        "/api/v1/me/bookings/{id}", confirmed.domainId())
+        fixture.mockMvc().perform(get("/api/v1/me/bookings/{id}", confirmed.domainId())
                         .cookie(fixture.sessionCookie()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("BOOKED"));
+                .andExpect(jsonPath("$.status").value("BOOKED"))
+                .andExpect(jsonPath("$.passBooking").value(true))
+                .andExpect(jsonPath("$.cancelPolicy.refundable").value(true))
+                .andExpect(jsonPath("$.cancelPolicy.deadlineAt").value("2030-01-01T00:00:00"))
+                .andExpect(jsonPath("$.cancelPolicy.passCreditRestorable").value(true));
     }
 
     @DisplayName("8회권 예약을 기한 내 취소하면 refundable=true를 반환한다")
@@ -91,6 +95,15 @@ class PassCreditUsageWebUseCaseIT {
     void cancelPassBookingLate_returnsRefundableFalse() throws Exception {
         LocalDateTime today14 = LocalDateTime.now(fixture.clock()).toLocalDate().atTime(14, 0);
         Long bookingId = fixture.createPassBooking(fixture.createFutureSlot(today14).getId());
+
+        fixture.mockMvc().perform(get("/api/v1/me/bookings/{id}", bookingId)
+                        .cookie(fixture.sessionCookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cancelPolicy.refundable").value(false))
+                .andExpect(jsonPath("$.cancelPolicy.deadlineAt").value("2026-03-01T00:00:00"))
+                .andExpect(jsonPath("$.cancelPolicy.passCreditRestorable").value(false))
+                .andExpect(jsonPath("$.cancelPolicy.warningCode")
+                        .value("PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE"));
 
         fixture.mockMvc().perform(delete("/api/v1/me/bookings/{id}", bookingId)
                         .cookie(fixture.sessionCookie()))

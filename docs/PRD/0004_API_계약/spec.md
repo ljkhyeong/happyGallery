@@ -423,13 +423,22 @@ X-Access-Token: {accessToken}
   "depositAmount": 5000,
   "balanceAmount": 45000,
   "guestName": "홍길동",
-  "guestPhone": "010****5678"
+  "guestPhone": "010****5678",
+  "cancelPolicy": {
+    "refundable": true,
+    "deadlineAt": "2026-03-01T00:00:00",
+    "passCreditRestorable": false,
+    "warningCode": null
+  }
 }
 ```
 
 - 성공: `200 OK`
 - 에러:
   - `404 NOT_FOUND` — bookingId 미존재 또는 token 불일치
+- `cancelPolicy.refundable`은 지금 취소하면 예약금 환불 또는 8회권 크레딧 복구가 가능한지를 뜻한다.
+- `cancelPolicy.deadlineAt`은 체험일 00:00 KST 기준 취소 보상 마감 시각이다.
+- 8회권 예약에서 마감이 지났으면 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`을 내려 취소 전 경고를 표시할 수 있다.
 
 #### 2.4.4 예약 변경
 
@@ -1132,9 +1141,33 @@ POST /api/v1/auth/social/google
 - `GET /api/v1/me/passes` — 회원 8회권 목록
 - `GET /api/v1/me/passes/{id}` — 회원 8회권 상세
 
+회원 예약 상세 응답은 `passBooking`과 `cancelPolicy`를 포함한다.
+
+```json
+{
+  "bookingId": 1,
+  "slotId": 42,
+  "status": "BOOKED",
+  "className": "향수 클래스",
+  "startAt": "2026-03-01T10:00:00",
+  "endAt": "2026-03-01T12:00:00",
+  "depositAmount": 0,
+  "balanceAmount": 0,
+  "balanceStatus": "PAID",
+  "passBooking": true,
+  "cancelPolicy": {
+    "refundable": false,
+    "deadlineAt": "2026-03-01T00:00:00",
+    "passCreditRestorable": false,
+    "warningCode": "PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE"
+  }
+}
+```
+
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 다른 회원의 리소스 접근 시 `404 NOT_FOUND`
+- 8회권 예약에서 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`이면 취소해도 크레딧이 복구되지 않는다.
 
 #### 2.12.4 회원 상품 Q&A 작성
 
@@ -1513,7 +1546,7 @@ Content-Type: application/json
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌에 의한 동시 변경 요청 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치 등 비예약 운영 액션의 충돌 |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 |
-| 422 | `REFUND_NOT_ALLOWED` | D-1 00:00 이후 환불 요청 |
+| 422 | `REFUND_NOT_ALLOWED` | 취소 보상 마감 이후 환불 요청 |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/일반 환불 시도 |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 |
 | 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 시도 |

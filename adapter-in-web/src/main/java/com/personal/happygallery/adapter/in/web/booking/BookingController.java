@@ -14,6 +14,7 @@ import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationResp
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import jakarta.validation.Valid;
+import java.time.Clock;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -38,17 +39,20 @@ public class BookingController {
     private final BookingRescheduleUseCase bookingRescheduleUseCase;
     private final BookingCancelUseCase bookingCancelUseCase;
     private final GuestPhoneProtector guestPhoneProtector;
+    private final Clock clock;
 
     public BookingController(GuestBookingUseCase guestBookingUseCase,
                              BookingQueryUseCase bookingQueryUseCase,
                              BookingRescheduleUseCase bookingRescheduleUseCase,
                              BookingCancelUseCase bookingCancelUseCase,
-                             GuestPhoneProtector guestPhoneProtector) {
+                             GuestPhoneProtector guestPhoneProtector,
+                             Clock clock) {
         this.guestBookingUseCase = guestBookingUseCase;
         this.bookingQueryUseCase = bookingQueryUseCase;
         this.bookingRescheduleUseCase = bookingRescheduleUseCase;
         this.bookingCancelUseCase = bookingCancelUseCase;
         this.guestPhoneProtector = guestPhoneProtector;
+        this.clock = clock;
     }
 
     /** 휴대폰 인증 코드 발송. 응답에는 인증 코드를 포함하지 않는다. */
@@ -65,7 +69,7 @@ public class BookingController {
             @PathVariable Long bookingId,
             @RequestHeader("X-Access-Token") String token) {
         Booking booking = bookingQueryUseCase.getBookingByToken(bookingId, token);
-        return BookingDetailResponse.from(booking, guestPhoneProtector.decrypt(booking.getGuest()));
+        return BookingDetailResponse.from(booking, guestPhoneProtector.decrypt(booking.getGuest()), clock);
     }
 
     /** 비회원 예약 변경 — 슬롯 교체, 이력 누적 */

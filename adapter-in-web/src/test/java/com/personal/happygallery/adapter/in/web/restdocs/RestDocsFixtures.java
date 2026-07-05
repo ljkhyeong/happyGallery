@@ -22,8 +22,10 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.qna.ProductQna;
+import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.domain.user.AuthProvider;
 import com.personal.happygallery.domain.user.User;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,6 +38,10 @@ final class RestDocsFixtures {
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 1, 21, 0);
 
     private RestDocsFixtures() {
+    }
+
+    static Clock clock() {
+        return Clock.fixed(NOW.atZone(Clocks.SEOUL).toInstant(), Clocks.SEOUL);
     }
 
     static ProductQueryUseCase.ProductWithInventory productWithInventory() {
