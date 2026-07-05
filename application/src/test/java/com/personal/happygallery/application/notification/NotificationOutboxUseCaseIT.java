@@ -28,6 +28,7 @@ class NotificationOutboxUseCaseIT {
 
     @Autowired ApplicationEventPublisher eventPublisher;
     @Autowired NotificationOutboxRepository outboxRepository;
+    @Autowired NotificationOutboxDispatcher outboxDispatcher;
     @Autowired UserRepository userRepository;
     @Autowired NotificationLogProbe notificationLogProbe;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -83,5 +84,14 @@ class NotificationOutboxUseCaseIT {
                     assertThat(outboxRepository.findAll()).isEmpty();
                     assertThat(notificationLogProbe.all()).isEmpty();
                 });
+    }
+
+    @DisplayName("알림 outbox dispatch는 활성 트랜잭션 안에서 실행하지 않는다")
+    @Test
+    void dispatchPending_insideTransaction_throwsException() {
+        assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                outboxDispatcher.dispatchPending()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("트랜잭션 밖");
     }
 }

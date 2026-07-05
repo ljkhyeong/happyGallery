@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class NotificationOutboxDispatcher {
@@ -42,6 +43,7 @@ public class NotificationOutboxDispatcher {
     }
 
     public BatchResult dispatchPending() {
+        assertNoActiveTransaction();
         List<Long> outboxIds = transactionService.reserveDispatchableIds(
                 DISPATCH_LIMIT, PROCESSING_TIMEOUT_MINUTES);
         int successCount = 0;
@@ -76,5 +78,11 @@ public class NotificationOutboxDispatcher {
         }
         transactionService.markDeliveryFailed(outboxId, ALL_CHANNELS_FAILED, MAX_ATTEMPTS);
         return false;
+    }
+
+    private void assertNoActiveTransaction() {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("알림 outbox dispatch는 트랜잭션 밖에서 실행해야 합니다.");
+        }
     }
 }

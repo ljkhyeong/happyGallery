@@ -8,6 +8,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -21,7 +22,7 @@ class NotificationOutboxTransactionService {
         this.clock = clock;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<Long> reserveDispatchableIds(int limit, int processingTimeoutMinutes) {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime staleBefore = now.minusMinutes(processingTimeoutMinutes);
@@ -45,13 +46,13 @@ class NotificationOutboxTransactionService {
                 outbox.getEventType());
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markSent(Long outboxId) {
         NotificationOutbox outbox = findOutbox(outboxId);
         outbox.markSent(LocalDateTime.now(clock));
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markDeliveryFailed(Long outboxId, String reason, int maxAttempts) {
         NotificationOutbox outbox = findOutbox(outboxId);
         LocalDateTime now = LocalDateTime.now(clock);
