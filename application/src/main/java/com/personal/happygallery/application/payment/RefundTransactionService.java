@@ -42,13 +42,17 @@ class RefundTransactionService {
         this.eventPublisher = eventPublisher;
     }
 
-    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
-    public RefundCall loadRefundCall(Long refundId) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public RefundCall prepareRefundCall(Long refundId, String missingPaymentKeyReason) {
         Refund refund = findRefund(refundId);
-        return new RefundCall(refund.getId(), refund.getPaymentKey(), refund.getAmount());
+        if (refund.getPaymentKey() == null || refund.getPaymentKey().isBlank()) {
+            refund.markFailed(missingPaymentKeyReason);
+            return RefundCall.failed(refundPort.save(refund));
+        }
+        return RefundCall.ready(refund.getId(), refund.getPaymentKey(), refund.getAmount());
     }
 
-    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    @Transactional(readOnly = true)
     public Refund find(Long refundId) {
         return findRefund(refundId);
     }
@@ -134,5 +138,18 @@ class RefundTransactionService {
         });
     }
 
-    record RefundCall(Long refundId, String paymentKey, long amount) {}
+    record RefundCall(Long refundId, String paymentKey, long amount, Refund failedRefund) {
+
+        static RefundCall ready(Long refundId, String paymentKey, long amount) {
+            return new RefundCall(refundId, paymentKey, amount, null);
+        }
+
+        static RefundCall failed(Refund refund) {
+            return new RefundCall(refund.getId(), null, refund.getAmount(), refund);
+        }
+
+        boolean failedBeforePgCall() {
+            return failedRefund != null;
+        }
+    }
 }

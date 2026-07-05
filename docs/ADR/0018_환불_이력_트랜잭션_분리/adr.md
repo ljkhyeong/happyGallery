@@ -20,11 +20,12 @@
 
 - 환불 실행/이력 저장 로직을 `RefundExecutionService`로 분리한다.
 - 환불 요청 레코드 생성은 호출 유스케이스의 부모 트랜잭션에 참여한다.
-  - `processOrderRefund(orderId, amount, paymentKey)`
-  - `processBookingRefund(bookingId, amount)`
-  - `processPassRefund(passPurchaseId, amount, paymentKey)`
+  - `requestOrderRefund(orderId, amount, paymentKey)`
+  - `requestBookingRefund(bookingId, amount)`
+  - `requestPassRefund(passPurchaseId, amount, paymentKey)`
 - `RefundExecutionService`는 부모 트랜잭션이 커밋된 뒤 `refundExecutor`에서 PG 환불 API를 호출한다.
 - PG 환불 API 호출 전 입력 조회와 호출 후 결과 업데이트만 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다.
+  단, 원결제 `paymentKey`가 없어 PG 호출 자체가 불가능한 경우에는 입력 조회 트랜잭션 안에서 즉시 `FAILED`로 저장한다.
 - 부모 트랜잭션이 롤백되면 환불 요청 레코드와 PG 환불 호출도 발생하지 않는다.
 - PG 호출 실패는 커밋된 환불 요청 레코드를 `FAILED`로 갱신해 운영자 재시도 대상으로 남긴다.
 - 재시도 호출이 이미 트랜잭션 안에서 발생하면 커밋 이후 실행으로 예약하고, 트랜잭션이 없으면 즉시 실행한다.
@@ -49,7 +50,9 @@
 ## 구현 반영
 
 - `application/payment/RefundExecutionService`는 커밋 이후 PG 호출 스케줄링과 PG 호출을 담당
-- `application/payment/RefundTransactionService`는 `REQUIRES_NEW`가 필요한 조회·검증·결과 업데이트를 어노테이션 트랜잭션으로 담당
+- `application/payment/RefundTransactionService`는 `REQUIRES_NEW`가 필요한 PG 실행 준비·재시도 검증·결과 업데이트를 어노테이션 트랜잭션으로 담당
+- 응답 반환용 단순 조회인 `find`는 호출 중인 트랜잭션이 있으면 참여하는 `readOnly` 기본 전파를 사용
+- `paymentKey` 누락처럼 PG 호출 전 확정 가능한 실패는 `prepareRefundCall` 안에서 조회와 `FAILED` 저장을 한 트랜잭션으로 처리
 - `OrderApprovalService#processRefund` → `RefundExecutionService` 위임
 - `BookingCancelService` 예약금 환불 경로 → `RefundExecutionService` 위임
 - `PassRefundService` 8회권 환불 경로 → `RefundExecutionService` 위임

@@ -67,7 +67,7 @@ public class DefaultPassRefundService implements PassRefundUseCase {
         Refund refund = null;
 
         if (refundAmount > 0) {
-            refund = refundExecutionService.processPassRefund(pass.getId(), refundAmount, pass.getPaymentKey());
+            refund = refundExecutionService.requestPassRefund(pass.getId(), refundAmount, pass.getPaymentKey());
         }
 
         // 3. REFUND ledger 기록 (잔여 크레딧 전체)

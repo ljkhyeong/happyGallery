@@ -42,6 +42,6 @@ class OrderRefundSupport {
             inventoryService.restore(item.getProductId(), item.getQty());
         }
 
-        refundExecutionService.processOrderRefund(order.getId(), order.getTotalAmount(), order.getPaymentKey());
+        refundExecutionService.requestOrderRefund(order.getId(), order.getTotalAmount(), order.getPaymentKey());
     }
 }

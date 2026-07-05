@@ -93,7 +93,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
             return new CancellationCompensation(true);
         }
 
-        refundExecutionService.processBookingRefund(booking, booking.getDepositAmount());
+        refundExecutionService.requestBookingRefund(booking, booking.getDepositAmount());
         return new CancellationCompensation(true);
     }
 

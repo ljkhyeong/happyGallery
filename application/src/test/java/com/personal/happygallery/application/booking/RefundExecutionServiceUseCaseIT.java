@@ -55,7 +55,7 @@ class RefundExecutionServiceUseCaseIT {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
         assertThatThrownBy(() -> transactionTemplate.executeWithoutResult(status -> {
-            refundExecutionService.processOrderRefund(order.getId(), 55_000L, "payment-key");
+            refundExecutionService.requestOrderRefund(order.getId(), 55_000L, "payment-key");
             throw new RuntimeException("outer rollback");
         }))
                 .isInstanceOf(RuntimeException.class)
@@ -67,7 +67,7 @@ class RefundExecutionServiceUseCaseIT {
 
     @DisplayName("PG 환불 호출은 부모 커밋 이후 별도 스레드에서 실행되고 결과만 별도 트랜잭션으로 저장된다")
     @Test
-    void processOrderRefund_callsPaymentAfterCommitOnRefundExecutor() {
+    void requestOrderRefund_callsPaymentAfterCommitOnRefundExecutor() {
         refundRepository.deleteAllInBatch();
 
         LocalDateTime paidAt = LocalDateTime.now(clock);
@@ -83,7 +83,7 @@ class RefundExecutionServiceUseCaseIT {
 
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         Refund result = transactionTemplate.execute(status ->
-                refundExecutionService.processOrderRefund(order.getId(), 55_000L, "payment-key"));
+                refundExecutionService.requestOrderRefund(order.getId(), 55_000L, "payment-key"));
 
         await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
@@ -104,6 +104,34 @@ class RefundExecutionServiceUseCaseIT {
             softly.assertThat(refunds).hasSize(1);
             softly.assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
             softly.assertThat(refunds.get(0).getRefundTransactionKey()).isEqualTo("refund-transaction-key");
+        });
+    }
+
+    @DisplayName("paymentKey가 없으면 PG 호출 없이 FAILED로 저장한다")
+    @Test
+    void requestOrderRefund_withoutPaymentKey_marksFailedWithoutPaymentCall() {
+        refundRepository.deleteAllInBatch();
+
+        LocalDateTime paidAt = LocalDateTime.now(clock);
+        Order order = orderRepository.save(Order.forGuest(null, null, 55_000L, paidAt, paidAt.plusHours(24)));
+
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        Refund result = transactionTemplate.execute(status ->
+                refundExecutionService.requestOrderRefund(order.getId(), 55_000L, null));
+
+        await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(25, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> {
+                    var refunds = refundRepository.findAll();
+                    assertThat(refunds).hasSize(1);
+                    assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.FAILED);
+                    assertThat(refunds.get(0).getFailReason()).contains("paymentKey");
+                });
+
+        verify(paymentProvider, after(300).never()).refund(any(), anyLong());
+        assertSoftly(softly -> {
+            softly.assertThat(result).isNotNull();
+            softly.assertThat(result.getStatus()).isEqualTo(RefundStatus.REQUESTED);
         });
     }
 

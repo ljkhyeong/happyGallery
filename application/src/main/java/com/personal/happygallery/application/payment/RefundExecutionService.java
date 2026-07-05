@@ -15,7 +15,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * 환불 실행/이력 저장 서비스.
+ * 환불 요청 이력 저장 및 실행 예약 서비스.
  *
  * <p>환불 요청 레코드는 호출 유스케이스 트랜잭션에 참여하고, PG 환불 호출은 커밋 이후
  * 전용 executor에서 실행한다. 결과 업데이트는 짧은 REQUIRES_NEW 트랜잭션으로 저장한다.
@@ -25,6 +25,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class RefundExecutionService {
 
     private static final Logger log = LoggerFactory.getLogger(RefundExecutionService.class);
+    private static final String MISSING_PAYMENT_KEY_REASON = "paymentKey가 없어 PG 환불을 실행할 수 없습니다.";
 
     private final RefundPort refundPort;
     private final PaymentPort paymentPort;
@@ -41,19 +42,22 @@ public class RefundExecutionService {
         this.refundExecutor = refundExecutor;
     }
 
-    public Refund processOrderRefund(Long orderId, long amount, String paymentKey) {
+    /** 환불 요청 이력을 저장하고 커밋 이후 PG 환불 실행을 예약한다. 반환값은 PG 결과 반영 전 요청 이력이다. */
+    public Refund requestOrderRefund(Long orderId, long amount, String paymentKey) {
         Refund refund = refundPort.save(Refund.forOrder(orderId, amount, paymentKey));
         scheduleAfterCommit(refund.getId(), "orderId=" + orderId);
         return refund;
     }
 
-    public Refund processBookingRefund(Booking booking, long amount) {
+    /** 환불 요청 이력을 저장하고 커밋 이후 PG 환불 실행을 예약한다. 반환값은 PG 결과 반영 전 요청 이력이다. */
+    public Refund requestBookingRefund(Booking booking, long amount) {
         Refund refund = refundPort.save(Refund.forBooking(booking, amount));
         scheduleAfterCommit(refund.getId(), "bookingId=" + booking.getId());
         return refund;
     }
 
-    public Refund processPassRefund(Long passPurchaseId, long amount, String paymentKey) {
+    /** 환불 요청 이력을 저장하고 커밋 이후 PG 환불 실행을 예약한다. 반환값은 PG 결과 반영 전 요청 이력이다. */
+    public Refund requestPassRefund(Long passPurchaseId, long amount, String paymentKey) {
         Refund refund = refundPort.save(Refund.forPass(passPurchaseId, amount, paymentKey));
         scheduleAfterCommit(refund.getId(), "passPurchaseId=" + passPurchaseId);
         return refund;
@@ -84,10 +88,10 @@ public class RefundExecutionService {
     }
 
     private Refund executeRefund(Long refundId, String target) {
-        RefundCall refundCall = refundTransactionService.loadRefundCall(refundId);
-        if (refundCall.paymentKey() == null || refundCall.paymentKey().isBlank()) {
+        RefundCall refundCall = refundTransactionService.prepareRefundCall(refundId, MISSING_PAYMENT_KEY_REASON);
+        if (refundCall.failedBeforePgCall()) {
             log.warn("환불 실패 [{} refundId={}] reason=paymentKey 없음", target, refundId);
-            return refundTransactionService.markFailed(refundId, "paymentKey가 없어 PG 환불을 실행할 수 없습니다.");
+            return refundCall.failedRefund();
         }
 
         RefundResult result = callPayment(refundCall, target);
