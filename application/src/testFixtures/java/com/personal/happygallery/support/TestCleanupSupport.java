@@ -8,6 +8,7 @@ import com.personal.happygallery.adapter.out.persistence.booking.PhoneVerificati
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationLogRepository;
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.adapter.out.persistence.order.FulfillmentRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderItemRepository;
@@ -31,6 +32,7 @@ public class TestCleanupSupport {
     private final RefundRepository refundRepository;
     private final SlotRepository slotRepository;
     private final NotificationLogRepository notificationLogRepository;
+    private final NotificationOutboxRepository notificationOutboxRepository;
     private final FulfillmentRepository fulfillmentRepository;
     private final OrderApprovalHistoryRepository orderApprovalHistoryRepository;
     private final OrderItemRepository orderItemRepository;
@@ -50,6 +52,7 @@ public class TestCleanupSupport {
                               RefundRepository refundRepository,
                               SlotRepository slotRepository,
                               NotificationLogRepository notificationLogRepository,
+                              NotificationOutboxRepository notificationOutboxRepository,
                               FulfillmentRepository fulfillmentRepository,
                               OrderApprovalHistoryRepository orderApprovalHistoryRepository,
                               OrderItemRepository orderItemRepository,
@@ -68,6 +71,7 @@ public class TestCleanupSupport {
         this.refundRepository = refundRepository;
         this.slotRepository = slotRepository;
         this.notificationLogRepository = notificationLogRepository;
+        this.notificationOutboxRepository = notificationOutboxRepository;
         this.fulfillmentRepository = fulfillmentRepository;
         this.orderApprovalHistoryRepository = orderApprovalHistoryRepository;
         this.orderItemRepository = orderItemRepository;
@@ -82,6 +86,7 @@ public class TestCleanupSupport {
 
     public void clearBookingWithPassAndRefundData() {
         paymentAttemptRepository.deleteAllInBatch();
+        notificationOutboxRepository.deleteAllInBatch();
         TestDataCleaner.clearBookingWithPassAndRefundData(
                 passLedgerRepository,
                 refundRepository,
@@ -96,6 +101,7 @@ public class TestCleanupSupport {
 
     public void clearBookingReminderData() {
         paymentAttemptRepository.deleteAllInBatch();
+        notificationOutboxRepository.deleteAllInBatch();
         TestDataCleaner.clearBookingReminderData(
                 passLedgerRepository,
                 passPurchaseRepository,
@@ -109,6 +115,7 @@ public class TestCleanupSupport {
 
     public void clearOrderData() {
         paymentAttemptRepository.deleteAllInBatch();
+        notificationOutboxRepository.deleteAllInBatch();
         TestDataCleaner.clearOrderData(
                 refundRepository,
                 fulfillmentRepository,
@@ -121,12 +128,14 @@ public class TestCleanupSupport {
 
     public void clearPassData() {
         paymentAttemptRepository.deleteAllInBatch();
+        notificationOutboxRepository.deleteAllInBatch();
         passLedgerRepository.deleteAllInBatch();
         passPurchaseRepository.deleteAllInBatch();
     }
 
     public void clearBookingData() {
         paymentAttemptRepository.deleteAllInBatch();
+        notificationOutboxRepository.deleteAllInBatch();
         TestDataCleaner.clearBookingData(
                 bookingHistoryRepository,
                 bookingRepository,
@@ -139,6 +148,7 @@ public class TestCleanupSupport {
     }
 
     public void clearNotificationLogs() {
+        notificationOutboxRepository.deleteAllInBatch();
         notificationLogRepository.deleteAllInBatch();
     }
 }

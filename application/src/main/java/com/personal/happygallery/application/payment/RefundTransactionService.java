@@ -86,39 +86,50 @@ class RefundTransactionService {
     private void publishRefundSucceededNotification(Refund refund) {
         try {
             if (refund.getBookingId() != null) {
-                publishBookingRefunded(refund.getBookingId());
+                publishBookingRefunded(refund);
             } else if (refund.getOrderId() != null) {
-                publishOrderRefunded(refund.getOrderId());
+                publishOrderRefunded(refund);
             }
         } catch (Exception e) {
             log.warn("환불 성공 알림 발행 실패 [refundId={}]", refund.getId(), e);
         }
     }
 
-    private void publishBookingRefunded(Long bookingId) {
-        bookingReader.findById(bookingId).ifPresent(booking -> {
+    private void publishBookingRefunded(Refund refund) {
+        bookingReader.findById(refund.getBookingId()).ifPresent(booking -> {
             if (booking.getUserId() != null) {
                 eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                        booking.getUserId(), NotificationEventType.DEPOSIT_REFUNDED));
+                        booking.getUserId(),
+                        NotificationEventType.DEPOSIT_REFUNDED,
+                        "REFUND",
+                        refund.getId()));
             } else if (booking.getGuest() != null) {
                 Guest guest = booking.getGuest();
                 eventPublisher.publishEvent(NotificationRequestedEvent.forGuestWithContact(
                         guest.getId(),
                         guestPhoneProtector.decrypt(guest),
                         guest.getName(),
-                        NotificationEventType.DEPOSIT_REFUNDED));
+                        NotificationEventType.DEPOSIT_REFUNDED,
+                        "REFUND",
+                        refund.getId()));
             }
         });
     }
 
-    private void publishOrderRefunded(Long orderId) {
-        orderReader.findById(orderId).ifPresent(order -> {
+    private void publishOrderRefunded(Refund refund) {
+        orderReader.findById(refund.getOrderId()).ifPresent(order -> {
             if (order.getUserId() != null) {
                 eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                        order.getUserId(), NotificationEventType.ORDER_REFUNDED));
+                        order.getUserId(),
+                        NotificationEventType.ORDER_REFUNDED,
+                        "REFUND",
+                        refund.getId()));
             } else if (order.getGuestId() != null) {
                 eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
-                        order.getGuestId(), NotificationEventType.ORDER_REFUNDED));
+                        order.getGuestId(),
+                        NotificationEventType.ORDER_REFUNDED,
+                        "REFUND",
+                        refund.getId()));
             }
         });
     }

@@ -60,13 +60,33 @@ class BookingSupport {
     /** booking 의 guest/member 를 자동 판별하여 알림을 발송한다. */
     void notifyBooker(Booking booking, NotificationEventType eventType) {
         if (booking.getUserId() != null) {
-            eventPublisher.publishEvent(NotificationRequestedEvent.forUser(booking.getUserId(), eventType));
+            eventPublisher.publishEvent(bookerEventForUser(booking, eventType));
         } else if (booking.getGuest() != null) {
-            eventPublisher.publishEvent(NotificationRequestedEvent.forGuestWithContact(
+            eventPublisher.publishEvent(bookerEventForGuest(booking, eventType));
+        }
+    }
+
+    private NotificationRequestedEvent bookerEventForUser(Booking booking, NotificationEventType eventType) {
+        if (eventType == NotificationEventType.BOOKING_RESCHEDULED) {
+            return NotificationRequestedEvent.forUser(booking.getUserId(), eventType);
+        }
+        return NotificationRequestedEvent.forUser(booking.getUserId(), eventType, "BOOKING", booking.getId());
+    }
+
+    private NotificationRequestedEvent bookerEventForGuest(Booking booking, NotificationEventType eventType) {
+        if (eventType == NotificationEventType.BOOKING_RESCHEDULED) {
+            return NotificationRequestedEvent.forGuestWithContact(
                     booking.getGuest().getId(),
                     guestPhoneProtector.decrypt(booking.getGuest()),
                     booking.getGuest().getName(),
-                    eventType));
+                    eventType);
         }
+        return NotificationRequestedEvent.forGuestWithContact(
+                booking.getGuest().getId(),
+                guestPhoneProtector.decrypt(booking.getGuest()),
+                booking.getGuest().getName(),
+                eventType,
+                "BOOKING",
+                booking.getId());
     }
 }

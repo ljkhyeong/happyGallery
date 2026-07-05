@@ -73,14 +73,16 @@ public class DefaultPickupDeadlineReminderBatchService implements PickupDeadline
                 log.info("픽업 마감 알림 중복 스킵 [orderId={} userId={}]", orderId, order.getUserId());
                 return false;
             }
-            eventPublisher.publishEvent(NotificationRequestedEvent.forUser(order.getUserId(), eventType));
+            eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
+                    order.getUserId(), eventType, "ORDER", orderId));
         } else if (order.getGuestId() != null) {
             if (notificationLogReader.existsSentNotification(
                     order.getGuestId(), eventType, deduplicationStart, now)) {
                 log.info("픽업 마감 알림 중복 스킵 [orderId={} guestId={}]", orderId, order.getGuestId());
                 return false;
             }
-            eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(order.getGuestId(), eventType));
+            eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
+                    order.getGuestId(), eventType, "ORDER", orderId));
         } else {
             log.warn("픽업 마감 알림 대상 없음 [orderId={}]", orderId);
             return false;

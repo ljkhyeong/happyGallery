@@ -7,8 +7,9 @@
 
 ## 분석 결과
 
-락 보유 구간 내 작업이 모두 DB 쓰기이며, 외부 I/O(알림 발송)는
-`@Async("notificationExecutor")`로 트랜잭션 밖에서 비동기 실행된다.
+락 보유 구간 내 작업이 모두 DB 쓰기이며, 알림은 트랜잭션 안에서
+`notification_outbox` 저장까지만 수행한다. 실제 외부 I/O(알림 발송)는
+커밋 이후 `NotificationOutboxDispatcher`가 `notificationExecutor`에서 실행한다.
 따라서 **현재 구조에서 락 보유 시간은 이미 충분히 짧다.**
 
 ## Facade 도입 시나리오

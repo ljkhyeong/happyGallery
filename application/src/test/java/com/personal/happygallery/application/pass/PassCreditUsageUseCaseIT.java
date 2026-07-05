@@ -14,6 +14,7 @@ import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository
 import com.personal.happygallery.adapter.out.persistence.booking.PhoneVerificationRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
@@ -72,6 +73,7 @@ class PassCreditUsageUseCaseIT {
     @Autowired GuestRepository guestRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
     @Autowired RefundRepository refundRepository;
+    @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired ClassRepository classRepository;
     @Autowired UserRepository userRepository;
@@ -87,6 +89,7 @@ class PassCreditUsageUseCaseIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
+        notificationOutboxRepository.deleteAllInBatch();
         clearBookingWithPassAndRefundData(
                 passLedgerRepository,
                 refundRepository,

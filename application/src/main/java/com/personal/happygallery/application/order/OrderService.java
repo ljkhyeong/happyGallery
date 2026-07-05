@@ -74,7 +74,11 @@ public class OrderService {
             inventoryService.deduct(item.productId(), item.qty());
         }
 
-        eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(guestId, NotificationEventType.ORDER_PAID));
+        eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
+                guestId,
+                NotificationEventType.ORDER_PAID,
+                "ORDER",
+                order.getId()));
 
         return new OrderCreationResult(order, rawToken);
     }

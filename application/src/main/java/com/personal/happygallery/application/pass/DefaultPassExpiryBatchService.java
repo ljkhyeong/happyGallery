@@ -100,7 +100,11 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
                             sentEnd)) {
                         return false;
                     }
-                    eventPublisher.publishEvent(NotificationRequestedEvent.forUser(pass.getUserId(), NotificationEventType.PASS_EXPIRY_SOON));
+                    eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
+                            pass.getUserId(),
+                            NotificationEventType.PASS_EXPIRY_SOON,
+                            "PASS_PURCHASE",
+                            pass.getId()));
                     return true;
                 },
                 "8회권 만료 알림");

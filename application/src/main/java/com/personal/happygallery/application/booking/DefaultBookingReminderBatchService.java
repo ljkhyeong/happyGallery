@@ -74,11 +74,13 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
 
     private void sendReminder(Booking booking, NotificationEventType eventType) {
         if (booking.getUserId() != null) {
-            eventPublisher.publishEvent(NotificationRequestedEvent.forUser(booking.getUserId(), eventType));
+            eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
+                    booking.getUserId(), eventType, "BOOKING", booking.getId()));
             log.info("리마인드 발송 [bookingId={}, userId={}, type={}]",
                     booking.getId(), booking.getUserId(), eventType);
         } else if (booking.getGuest() != null) {
-            eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(booking.getGuest().getId(), eventType));
+            eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
+                    booking.getGuest().getId(), eventType, "BOOKING", booking.getId()));
             log.info("리마인드 발송 [bookingId={}, guestId={}, type={}]",
                     booking.getId(), booking.getGuest().getId(), eventType);
         } else {

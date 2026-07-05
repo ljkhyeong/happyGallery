@@ -4,8 +4,9 @@
 
 ## 배경
 
-알림 발송은 `NotificationService`의 `@Async("notificationExecutor")`를 통해 비동기로 실행된다.
-이 때문에 알림 배치/예약 취소/만료 알림 테스트는 도메인 동작 직후 `notification_log` 저장이 끝나지 않을 수 있다.
+알림 발송은 `notification_outbox` 저장 후 `NotificationOutboxDispatcher`가
+`notificationExecutor`에서 비동기로 실행한다. 이 때문에 알림 배치/예약 취소/만료 알림
+테스트는 도메인 동작 직후 `notification_log` 저장이 끝나지 않을 수 있다.
 
 기존 `NotificationLogTestHelper`는 `Thread.sleep` 기반 polling으로 로그 개수를 기다렸다.
 동작 자체는 단순했지만, timeout 시 마지막 조회 결과를 그대로 반환해 실패 원인이 테스트 본문으로 밀려났다.

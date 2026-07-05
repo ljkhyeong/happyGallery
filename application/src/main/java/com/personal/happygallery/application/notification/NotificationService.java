@@ -54,40 +54,44 @@ public class NotificationService {
         this.clock = clock;
     }
 
-    // -- 이벤트 리스너용 package-private 메서드 --
+    // -- outbox dispatcher 용 package-private 메서드 --
 
-    void sendToGuest(Long guestId, String phone, String name,
-                     NotificationEventType eventType) {
-        sendNotification(guestId, null, phone, name, eventType);
+    boolean sendToGuest(Long guestId, String phone, String name,
+                        NotificationEventType eventType) {
+        return sendNotification(guestId, null, phone, name, eventType);
     }
 
-    void sendByGuestId(Long guestId, NotificationEventType eventType) {
+    boolean sendByGuestId(Long guestId, NotificationEventType eventType) {
         if (guestId == null) {
-            return;
+            return true;
         }
-        guestReader.findById(guestId).ifPresentOrElse(
-                guest -> sendToGuest(guest.getId(), guestPhoneProtector.decrypt(guest), guest.getName(), eventType),
-                () -> logRecipientNotFound(guestId, null, eventType)
-        );
+        return guestReader.findById(guestId)
+                .map(guest -> sendToGuest(guest.getId(), guestPhoneProtector.decrypt(guest), guest.getName(), eventType))
+                .orElseGet(() -> {
+                    logRecipientNotFound(guestId, null, eventType);
+                    return true;
+                });
     }
 
-    void sendByUserId(Long userId, NotificationEventType eventType) {
+    boolean sendByUserId(Long userId, NotificationEventType eventType) {
         if (userId == null) {
-            return;
+            return true;
         }
-        userReader.findById(userId).ifPresentOrElse(
-                user -> sendToUser(userId, user.getPhone(), user.getName(), eventType),
-                () -> logRecipientNotFound(null, userId, eventType)
-        );
+        return userReader.findById(userId)
+                .map(user -> sendToUser(userId, user.getPhone(), user.getName(), eventType))
+                .orElseGet(() -> {
+                    logRecipientNotFound(null, userId, eventType);
+                    return true;
+                });
     }
 
-    void sendToUser(Long userId, String phone, String name,
-                    NotificationEventType eventType) {
-        sendNotification(null, userId, phone, name, eventType);
+    boolean sendToUser(Long userId, String phone, String name,
+                       NotificationEventType eventType) {
+        return sendNotification(null, userId, phone, name, eventType);
     }
 
-    private void sendNotification(Long guestId, Long userId, String phone, String name,
-                                  NotificationEventType eventType) {
+    private boolean sendNotification(Long guestId, Long userId, String phone, String name,
+                                     NotificationEventType eventType) {
         LocalDateTime sentAt = LocalDateTime.now(clock);
         Long recipientId = guestId != null ? guestId : userId;
         String recipientLabel = guestId != null ? "guestId" : "userId";
@@ -97,7 +101,7 @@ public class NotificationService {
                 boolean success = sender.send(phone, name, eventType);
                 if (success) {
                     save(NotificationLog.success(guestId, userId, sender.channel(), eventType, sentAt));
-                    return;
+                    return true;
                 }
                 save(NotificationLog.failed(guestId, userId, sender.channel(), eventType, "발송 실패", sentAt));
             } catch (Exception e) {
@@ -106,6 +110,7 @@ public class NotificationService {
             }
         }
         log.error("[알림] 모든 채널 실패 [{}={} event={}]", recipientLabel, recipientId, eventType);
+        return false;
     }
 
     private void logRecipientNotFound(Long guestId, Long userId, NotificationEventType eventType) {
