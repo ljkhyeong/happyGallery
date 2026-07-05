@@ -175,7 +175,7 @@ class PassCreditUsagePersistenceUseCaseIT {
             softly.assertThat(bookings).hasSize(2);
             softly.assertThat(bookings).allMatch(booking -> booking.getStatus() == BookingStatus.CANCELED);
             softly.assertThat(refundLedgers).hasSize(1);
-            softly.assertThat(refundLedgers.get(0).getAmount()).isEqualTo(6);
+            softly.assertThat(refundLedgers.get(0).getAmount()).isEqualTo(8);
             softly.assertThat(refundLedgers.get(0).getRelatedBookingId()).isNull();
             softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(0);
             softly.assertThat(slotReaderPort.findById(firstSlot.getId()).orElseThrow().getBookedCount()).isEqualTo(0);

@@ -131,7 +131,7 @@ class GuestBookingUseCaseIT {
                                   }
                                 }
                                 """.formatted(PHONE, code, slotId)))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("PAYMENT_METHOD_NOT_ALLOWED"));
 
         // Proof: 예약 레코드 미생성

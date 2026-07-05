@@ -132,8 +132,8 @@ class PassCreditUsageWebUseCaseIT {
         fixture.mockMvc().perform(post("/admin/passes/{passId}/refund", fixture.pass().getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(2))
-                .andExpect(jsonPath("$.refundCredits").value(6))
-                .andExpect(jsonPath("$.refundAmount").value(240_000))
+                .andExpect(jsonPath("$.refundCredits").value(8))
+                .andExpect(jsonPath("$.refundAmount").value(320_000))
                 .andExpect(jsonPath("$.refundId").exists())
                 .andExpect(jsonPath("$.refundStatus").value("REQUESTED"));
     }
@@ -164,7 +164,7 @@ class PassCreditUsageWebUseCaseIT {
                                   "amount": %d
                                 }
                                 """.formatted(prepared.orderId(), prepared.amount())))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("PASS_CREDIT_INSUFFICIENT"));
     }
 }

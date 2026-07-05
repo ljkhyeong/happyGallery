@@ -48,11 +48,11 @@
 
 ## 결정 4: 정산 환불 — PG 환불 이력과 재시도
 
-**결정**: `PassRefundService.refundPass()`는 미래 예약 취소, 잔여 크레딧 소멸, REFUND ledger 기록과 함께 `payment_key` 기반 PG 환불을 요청한다. 환불 이력은 `refunds.pass_purchase_id`로 8회권을 추적하며, 실패하면 `FAILED`로 남겨 운영자가 환불 재시도 API에서 처리한다.
+**결정**: `PassRefundService.refundPass()`는 미래 예약 취소, 잔여 크레딧 소멸, REFUND ledger 기록과 함께 `payment_key` 기반 PG 환불을 요청한다. 환불 이력은 `refunds.pass_purchase_id`로 8회권을 추적하며, 실패하면 `FAILED`로 남겨 운영자가 환불 재시도 API에서 처리한다. 자동 취소한 미래 예약은 아직 사용하지 않은 크레딧이므로 `refundCredits = remainingCredits + canceledFutureBookings`로 정산한다.
 
 **이유**:
 - 8회권 환불은 잔여 크레딧 정산, 미래 예약 취소, 운영자 확인이 함께 필요한 관리자 액션이다.
-- `refundAmount = remainingCredits × (totalPrice / totalCredits)` 로 단순 계산
+- `refundAmount = refundCredits × (totalPrice / totalCredits)` 로 단순 계산
 - 주문/예약 환불과 동일하게 PG 호출 실패를 durable한 환불 이력으로 남겨야 실제 금전 환불과 도메인 상태의 불일치를 운영자가 추적할 수 있다.
 
 **리스크**:

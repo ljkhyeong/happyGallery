@@ -238,7 +238,7 @@ class PassCreditUsageUseCaseIT {
         Slot slot1 = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
         Slot slot2 = slotRepository.save(slot(cls, FUTURE.plusDays(1), FUTURE.plusDays(1).plusHours(2)));
 
-        // 2회 예약 (remaining: 8 → 6)
+        // 2회 예약 (remaining: 8 → 6). 미래 예약은 아직 쓰지 않은 크레딧이므로 전체 환불에 포함한다.
         createPassBooking(slot1.getId());
         createPassBooking(slot2.getId());
 
@@ -246,8 +246,8 @@ class PassCreditUsageUseCaseIT {
         mockMvc.perform(post("/admin/passes/{passId}/refund", pass.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(2))
-                .andExpect(jsonPath("$.refundCredits").value(6))
-                .andExpect(jsonPath("$.refundAmount").value(240_000)); // 6 × (320000/8)
+                .andExpect(jsonPath("$.refundCredits").value(8))
+                .andExpect(jsonPath("$.refundAmount").value(320_000)); // 8 × (320000/8)
 
         var bookings = bookingRepository.findAll();
         var refundLedgers = passLedgerRepository.findByPassPurchaseId(pass.getId())
@@ -257,19 +257,19 @@ class PassCreditUsageUseCaseIT {
         Slot reloadedSlot1 = slotRepository.findById(slot1.getId()).orElseThrow();
         Slot reloadedSlot2 = slotRepository.findById(slot2.getId()).orElseThrow();
         long historyCount = bookingHistoryRepository.count();
-        verify(paymentProvider).refund("test-pass-payment-key", 240_000L);
+        verify(paymentProvider).refund("test-pass-payment-key", 320_000L);
         assertSoftly(softly -> {
             softly.assertThat(bookings).hasSize(2);
             softly.assertThat(bookings).allMatch(b -> b.getStatus() == BookingStatus.CANCELED);
             softly.assertThat(refund.getBookingId()).isNull();
             softly.assertThat(refund.getOrderId()).isNull();
             softly.assertThat(refund.getPassPurchaseId()).isEqualTo(pass.getId());
-            softly.assertThat(refund.getAmount()).isEqualTo(240_000L);
+            softly.assertThat(refund.getAmount()).isEqualTo(320_000L);
             softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
             softly.assertThat(refund.getPaymentKey()).isEqualTo("test-pass-payment-key");
             softly.assertThat(refund.getRefundTransactionKey()).isEqualTo("FAKE-TEST-PASS-REF");
             softly.assertThat(refundLedgers).hasSize(1);
-            softly.assertThat(refundLedgers.get(0).getAmount()).isEqualTo(6);
+            softly.assertThat(refundLedgers.get(0).getAmount()).isEqualTo(8);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
             // Q1-T4: slot bookedCount 복구 확인
             softly.assertThat(reloadedSlot1.getBookedCount()).as("slot1 bookedCount").isEqualTo(0);
@@ -350,7 +350,7 @@ class PassCreditUsageUseCaseIT {
                                   "amount": %d
                                 }
                                 """.formatted(prepared.orderId(), prepared.amount())))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("PASS_CREDIT_INSUFFICIENT"));
     }
 

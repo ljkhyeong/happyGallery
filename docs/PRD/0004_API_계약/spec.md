@@ -543,7 +543,7 @@ Authorization: Bearer {token}
 ```json
 {
   "canceledBookings": 2,
-  "refundCredits": 6,
+  "refundCredits": 8,
   "refundAmount": 240000,
   "refundId": 42,
   "refundStatus": "REQUESTED"
@@ -555,6 +555,8 @@ Authorization: Bearer {token}
   - `404 NOT_FOUND` — passId 미존재
 - 정책:
   - 미래 `BOOKED` 예약 자동 취소
+  - `refundCredits = remainingCredits + 자동 취소한 미래 예약 수`
+  - `refundAmount = refundCredits × (totalPrice / totalCredits)`
   - `REFUND` ledger 기록 후 `remaining_credits = 0`
   - `payment_key` 기반 PG 환불 요청 이력을 `refunds`에 `REQUESTED`로 남기고, 부모 트랜잭션 커밋 이후 PG 환불을 실행
   - PG 결과는 비동기로 `SUCCEEDED` 또는 `FAILED`에 반영되며, 실패 시 운영자는 환불 실패 목록에서 재시도 가능

@@ -61,9 +61,9 @@ public class DefaultPassRefundService implements PassRefundUseCase {
         // 1. 미래 BOOKED 예약 자동 취소
         int cancelledCount = bookingCancellationService.cancelLinkedBookings(passId);
 
-        // 2. PG 환불 요청
-        int refundCredits = pass.getRemainingCredits();
-        long refundAmount = pass.calculateRefundAmount();
+        // 2. PG 환불 요청. 자동 취소한 미래 예약은 아직 사용하지 않은 크레딧이므로 함께 정산한다.
+        int refundCredits = Math.min(pass.getTotalCredits(), pass.getRemainingCredits() + cancelledCount);
+        long refundAmount = pass.calculateRefundAmount(refundCredits);
         Refund refund = null;
 
         if (refundAmount > 0) {

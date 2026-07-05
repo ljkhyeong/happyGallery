@@ -117,7 +117,12 @@ public class PassPurchase {
 
     /** 잔여 크레딧 기반 환불 금액 계산 = remaining_credits * unit_price */
     public long calculateRefundAmount() {
-        return (long) remainingCredits * unitPrice();
+        return calculateRefundAmount(remainingCredits);
+    }
+
+    /** 지정 크레딧 기반 환불 금액 계산 = refund_credits * unit_price */
+    public long calculateRefundAmount(int refundCredits) {
+        return (long) refundCredits * unitPrice();
     }
 
     /** 결제 confirm 성공 후 원결제 paymentKey를 저장한다. */

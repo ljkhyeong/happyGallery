@@ -132,7 +132,7 @@ class BookingRescheduleUseCaseIT {
                                   "newSlotId": %d
                                 }
                                 """.formatted(targetSlot.getId())))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("CHANGE_NOT_ALLOWED"));
     }
 
