@@ -24,7 +24,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class SlotDomainPolicyTest {
 
     private static final LocalDateTime START = LocalDateTime.of(2026, 3, 1, 10, 0);
-    private static final LocalDateTime END   = LocalDateTime.of(2026, 3, 1, 12, 0);
+    private static final LocalDateTime END = LocalDateTime.of(2026, 3, 1, 12, 0);
 
     private Slot newSlot() {
         BookingClass cls = new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30);

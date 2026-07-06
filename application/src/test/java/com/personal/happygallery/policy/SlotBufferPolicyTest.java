@@ -20,8 +20,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Tag("policy")
 class SlotBufferPolicyTest {
 
-    private static final LocalDateTime END_AT     = LocalDateTime.of(2026, 3, 1, 12, 0);
-    private static final int           BUFFER_MIN = 30;
+    private static final LocalDateTime END_AT = LocalDateTime.of(2026, 3, 1, 12, 0);
+    private static final int BUFFER_MIN = 30;
 
     @DisplayName("버퍼 시작 시각은 수업 종료 시각과 같다")
     @Test
