@@ -42,7 +42,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
      * 만료된 8회권의 잔여 크레딧을 소멸시킨다.
      *
      * <ol>
-     *   <li>expires_at &lt; now AND remaining_credits &gt; 0 인 pass 조회</li>
+     *   <li>expires_at &lt;= now AND remaining_credits &gt; 0 인 pass 조회</li>
      *   <li>각 pass에 대해 EXPIRE ledger 기록 → expire() 호출</li>
      * </ol>
      *
@@ -55,7 +55,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
 
         return BatchExecutor.executePaginated(
                 () -> passPurchaseReader
-                        .findByExpiresAtBeforeAndRemainingCreditsGreaterThan(now, 0, PageRequest.ofSize(PAGE_SIZE)),
+                        .findByExpiresAtLessThanEqualAndRemainingCreditsGreaterThan(now, 0, PageRequest.ofSize(PAGE_SIZE)),
                 PassPurchase::getId,
                 pass -> passExpireProcessor.process(pass.getId()),
                 "8회권 만료");

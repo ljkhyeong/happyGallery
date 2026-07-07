@@ -61,6 +61,8 @@ class PassPurchaseUseCaseIT {
         var ledgers = passLedgerReaderPort.findByPassPurchaseId(passId);
         assertSoftly(softly -> {
             softly.assertThat(purchased.getUserId()).isEqualTo(user.getId());
+            softly.assertThat(purchased.getExpiresAt())
+                    .isEqualTo(LocalDateTime.now(clock).toLocalDate().plusDays(90).atStartOfDay());
             softly.assertThat(purchased.getRemainingCredits()).isEqualTo(8);
             softly.assertThat(ledgers).hasSize(1);
             softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.EARN);
@@ -76,9 +78,9 @@ class PassPurchaseUseCaseIT {
     @Test
     void expiry_batch_expiredPass_remainingZero_expireLedgerCreated() {
         User user = userStorePort.save(new User("expired-pass@example.com", "hashed-password", "회원", "01011112222"));
-        // 이미 만료된 pass 직접 생성 (expiresAt = 과거)
+        // 만료 경계에 도달한 pass 직접 생성 (expiresAt = now)
         PassPurchase expiredPass = passPurchaseStorePort.save(
-                passPurchase(user.getId(), LocalDateTime.now(clock).minusDays(1), 0L));
+                passPurchase(user.getId(), LocalDateTime.now(clock), 0L));
 
         BatchResult result = passExpiryBatchService.expireAll();
 
@@ -122,7 +124,7 @@ class PassPurchaseUseCaseIT {
     @Test
     void expiry_batch_adminApi_returnsBatchResponse() throws Exception {
         User user = userStorePort.save(new User("admin-pass@example.com", "hashed-password", "회원", "01033334444"));
-        passPurchaseStorePort.save(passPurchase(user.getId(), LocalDateTime.now(clock).minusDays(1), 0L));
+        passPurchaseStorePort.save(passPurchase(user.getId(), LocalDateTime.now(clock), 0L));
 
         mockMvc.perform(post("/admin/passes/expire"))
                 .andExpect(status().isOk())

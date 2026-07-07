@@ -579,7 +579,7 @@ Authorization: Bearer {token}
 
 - 성공: `200 OK`
 - 정책:
-  - 만료된 pass의 `remaining_credits = 0`, `EXPIRE` ledger 기록
+  - `expiresAt <= now`인 pass의 `remaining_credits = 0`, `EXPIRE` ledger 기록
   - `failureReasons`는 내부 예외명을 그대로 노출하지 않고 `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`로 정규화한다.
 
 ### 2.6 사용자 주문 API

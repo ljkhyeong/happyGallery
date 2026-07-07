@@ -354,6 +354,37 @@ class PassCreditUsageUseCaseIT {
                 .andExpect(jsonPath("$.code").value("PASS_CREDIT_INSUFFICIENT"));
     }
 
+    @DisplayName("만료 시각에 도달한 8회권으로 예약하면 422를 반환한다")
+    @Test
+    void book_with_pass_at_expiry_returns_422() throws Exception {
+        PassPurchase expiredPass = passPurchase(pass.getUserId(), LocalDateTime.now(clock), 320_000L);
+        expiredPass.recordPaymentKey("expired-pass-payment-key");
+        expiredPass = passPurchaseRepository.save(expiredPass);
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+
+        PaymentTestHelper.PreparedPayment prepared = PaymentTestHelper.preparePayment(mockMvc, "BOOKING", """
+                {
+                  "type": "BOOKING",
+                  "userId": %d,
+                  "slotId": %d,
+                  "passId": %d
+                }
+                """.formatted(expiredPass.getUserId(), slot.getId(), expiredPass.getId()), sessionCookie);
+
+        mockMvc.perform(post("/api/v1/payments/confirm")
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "paymentKey": null,
+                                  "orderId": "%s",
+                                  "amount": %d
+                                }
+                                """.formatted(prepared.orderId(), prepared.amount())))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("PASS_EXPIRED"));
+    }
+
     private Long createPassBooking(Long slotId) throws Exception {
         return PaymentTestHelper.createMemberPassBooking(mockMvc, sessionCookie, pass.getUserId(), slotId, pass.getId())
                 .domainId();

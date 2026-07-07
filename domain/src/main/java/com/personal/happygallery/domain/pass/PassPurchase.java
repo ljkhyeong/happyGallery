@@ -62,13 +62,14 @@ public class PassPurchase {
 
     /**
      * 만료/잔여 크레딧 검증. 사용 전 호출한다.
+     * expiresAt은 마지막 사용 가능일 다음날 00시를 나타내는 exclusive 만료 경계다.
      *
      * @param usedAt 이용권 사용 시각
      * @throws PassExpiredException          만료된 이용권
      * @throws PassCreditInsufficientException 잔여 크레딧 없음
      */
     public void requireUsable(LocalDateTime usedAt) {
-        if (expiresAt.isBefore(usedAt)) {
+        if (!usedAt.isBefore(expiresAt)) {
             throw new PassExpiredException();
         }
         if (!hasRemainingCredits()) {

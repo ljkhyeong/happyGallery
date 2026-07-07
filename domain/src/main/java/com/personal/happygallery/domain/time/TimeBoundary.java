@@ -58,10 +58,13 @@ public final class TimeBoundary {
     // ── 8회권 만료 ─────────────────────────────────────────────────────────────
 
     /**
-     * 8회권 만료 시점. 결제일로부터 90일.
+     * 8회권 만료 시점. 결제일 포함 90일의 다음날 00시를 exclusive 만료 경계로 둔다.
      */
     public static ZonedDateTime passExpiresAt(ZonedDateTime purchasedAt) {
-        return purchasedAt.plusDays(90);
+        return purchasedAt.withZoneSameInstant(Clocks.SEOUL)
+                .toLocalDate()
+                .plusDays(90)
+                .atStartOfDay(Clocks.SEOUL);
     }
 
     /** 8회권 만료 시점을 LocalDateTime으로 반환한다. */

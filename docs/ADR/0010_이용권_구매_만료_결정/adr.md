@@ -18,13 +18,13 @@
 
 ### 1. `expires_at` 저장 타입: `LocalDateTime`
 
-**결정**: DB 컬럼(`DATETIME(6)`)과 동일하게 `LocalDateTime` 사용. 시간대 변환 없이 서울 시간으로 계산해 저장.
+**결정**: DB 컬럼(`DATETIME(6)`)과 동일하게 `LocalDateTime` 사용. `expires_at`은 마지막 사용 가능일 다음날 00:00 KST를 나타내는 exclusive 만료 경계로 저장한다.
 
 **이유**:
 - 기존 `Booking`, `Slot` 등 도메인 엔티티가 모두 `LocalDateTime` 사용 — 일관성 유지
-- 계산은 `TimeBoundary.passExpiresAt(ZonedDateTime)` → `.toLocalDateTime()` 변환으로 서울 시간 기준 90일 보장
+- 계산은 `TimeBoundary.passExpiresAt(ZonedDateTime)` → `.toLocalDateTime()` 변환으로 결제일 포함 90일의 다음날 00:00 KST를 보장
 
-**위험**: 서버 타임존이 Asia/Seoul이 아닌 환경에서는 계산 오차 가능. `Clock`이 항상 `Clocks.SEOUL` 기반이므로 현 구성에서는 안전.
+**위험**: 서버 타임존이 Asia/Seoul이 아닌 환경에서는 계산 오차 가능. `TimeBoundary`가 입력 시각을 `Clocks.SEOUL` 날짜로 변환해 계산하므로 현 구성에서는 안전.
 
 ---
 
@@ -49,6 +49,9 @@
 - 다른 배치와 동일한 로깅/AOP 규약으로 묶을 수 있다
 
 **위험**: 수동 트리거와 스케줄러가 같은 날 중복 실행될 수 있으므로, 반환값은 `BatchResult`로 표준화하고 중복 발송/처리 여부를 건수로 관찰 가능하게 한다.
+
+**구현 메모**:
+- `expires_at <= now`이고 `remaining_credits > 0`인 이용권을 만료 배치 대상으로 본다.
 
 ---
 
