@@ -206,6 +206,7 @@
 
 - `orders`, `bookings` 는 `user_id` 또는 `guest_id` 중 하나만 가진다.
 - 둘 다 비어 있거나 둘 다 채워진 상태는 금지한다.
+- 이 규칙은 도메인 생성·claim 경로와 DB `CHECK` 제약에서 모두 강제한다.
 - `pass_purchases` 는 회원 전용이므로 `user_id`만 가진다.
 
 ### 7.4 비회원 이력 가져오기(claim)

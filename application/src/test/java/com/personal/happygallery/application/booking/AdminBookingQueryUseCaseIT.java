@@ -36,6 +36,7 @@ import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.guest;
 import static com.personal.happygallery.support.TestFixtures.slot;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
@@ -88,13 +89,16 @@ class AdminBookingQueryUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(responses).hasSize(3);
-
-            List<String> types = responses.stream().map(AdminBookingResponse::bookerType).toList();
-            softly.assertThat(types).contains("GUEST", "MEMBER");
-
-            // claimed booking 은 userId 가 있으므로 MEMBER 로 표시된다
-            long memberCount = types.stream().filter("MEMBER"::equals).count();
-            softly.assertThat(memberCount).as("member + claimed 합계").isEqualTo(2);
+            softly.assertThat(responses)
+                    .extracting(
+                            AdminBookingResponse::className,
+                            AdminBookingResponse::bookerType,
+                            AdminBookingResponse::bookerName,
+                            AdminBookingResponse::bookerPhone)
+                    .containsExactly(
+                            tuple("게스트 클래스", "GUEST", "게스트", "01011112222"),
+                            tuple("회원 클래스", "MEMBER", "회원", "01033334444"),
+                            tuple("클레임 클래스", "MEMBER", "클레이머", "01055556666"));
         });
     }
 

@@ -24,9 +24,11 @@ public record AdminBookingResponse(
         String name = "(알 수 없음)";
         String phone = "";
 
-        if (isMember && user != null) {
-            name = user.getName();
-            phone = user.getPhone();
+        if (isMember) {
+            if (user != null) {
+                name = user.getName();
+                phone = user.getPhone();
+            }
         } else if (booking.getGuest() != null) {
             name = booking.getGuest().getName();
             phone = guestPhone;

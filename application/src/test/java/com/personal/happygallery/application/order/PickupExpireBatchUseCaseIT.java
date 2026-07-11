@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.batch.BatchResult;
+import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
@@ -54,6 +55,7 @@ class PickupExpireBatchUseCaseIT {
     @Autowired InventoryReaderPort inventoryReaderPort;
     @Autowired OrderStorePort orderStorePort;
     @Autowired OrderItemPort orderItemPort;
+    @Autowired UserStorePort userStorePort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
@@ -63,7 +65,8 @@ class PickupExpireBatchUseCaseIT {
     void setUp() {
         cleanup();
         orderHelper = new OrderTestHelper(
-                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort, orderService, clock);
+                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort,
+                userStorePort, orderService, clock);
     }
 
     @AfterEach
@@ -73,6 +76,7 @@ class PickupExpireBatchUseCaseIT {
 
     private void cleanup() {
         cleanupSupport.clearOrderData();
+        cleanupSupport.clearUsers();
     }
 
     // -----------------------------------------------------------------------

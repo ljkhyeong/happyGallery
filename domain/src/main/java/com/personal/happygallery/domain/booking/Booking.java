@@ -14,6 +14,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /** 체험 예약 — bookings 테이블 */
 @Entity
@@ -104,18 +105,21 @@ public class Booking {
     /** 게스트 예약금 예약 생성. */
     public static Booking forGuestDeposit(Guest guest, Slot slot, long depositAmount, long balanceAmount,
                                           DepositPaymentMethod paymentMethod, String accessToken) {
-        return new Booking(guest, null, slot, depositAmount, balanceAmount, paymentMethod, null, accessToken);
+        return new Booking(Objects.requireNonNull(guest, "guest must not be null"), null,
+                slot, depositAmount, balanceAmount, paymentMethod, null, accessToken);
     }
 
     /** 회원 예약금 예약 생성. */
     public static Booking forMemberDeposit(Long userId, Slot slot, long depositAmount, long balanceAmount,
                                            DepositPaymentMethod paymentMethod) {
-        return new Booking(null, userId, slot, depositAmount, balanceAmount, paymentMethod, null, null);
+        return new Booking(null, Objects.requireNonNull(userId, "userId must not be null"),
+                slot, depositAmount, balanceAmount, paymentMethod, null, null);
     }
 
     /** 회원 8회권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null. */
     public static Booking forMemberPass(Long userId, Slot slot, PassPurchase passPurchase) {
-        return new Booking(null, userId, slot, 0, 0, null, passPurchase, null);
+        return new Booking(null, Objects.requireNonNull(userId, "userId must not be null"),
+                slot, 0, 0, null, passPurchase, null);
     }
 
     /**
@@ -143,7 +147,7 @@ public class Booking {
     }
 
     public void claimToUser(Long userId) {
-        this.userId = userId;
+        this.userId = Objects.requireNonNull(userId, "userId must not be null");
         this.guest = null;
     }
 

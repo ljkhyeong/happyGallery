@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.booking;
 
+import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.domain.booking.Refund;
@@ -7,15 +8,19 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.payment.RefundStatus;
+import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,9 +45,33 @@ class RefundExecutionServiceUseCaseIT {
     @Autowired RefundExecutionService refundExecutionService;
     @Autowired RefundRepository refundRepository;
     @Autowired OrderRepository orderRepository;
+    @Autowired UserStorePort userStorePort;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PlatformTransactionManager transactionManager;
     @Autowired Clock clock;
     @MockitoBean PaymentProvider paymentProvider;
+
+    @BeforeEach
+    void setUp() {
+        cleanup();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanup();
+    }
+
+    private void cleanup() {
+        cleanupSupport.clearOrderData();
+        cleanupSupport.clearUsers();
+    }
+
+    private Order saveMemberOrder(LocalDateTime paidAt) {
+        User member = userStorePort.save(new User(
+                "refund-owner@test.local", "password-hash", "환불 테스트 회원", "01099998888"));
+        return orderRepository.save(
+                Order.forMember(member.getId(), 55_000L, paidAt, paidAt.plusHours(24)));
+    }
 
     @DisplayName("외부 트랜잭션이 롤백되면 환불 PG 호출과 이력 생성이 실행되지 않는다")
     @Test
@@ -50,7 +79,7 @@ class RefundExecutionServiceUseCaseIT {
         refundRepository.deleteAllInBatch();
 
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        Order order = orderRepository.save(Order.forGuest(null, null, 55_000L, paidAt, paidAt.plusHours(24)));
+        Order order = saveMemberOrder(paidAt);
 
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
@@ -71,7 +100,7 @@ class RefundExecutionServiceUseCaseIT {
         refundRepository.deleteAllInBatch();
 
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        Order order = orderRepository.save(Order.forGuest(null, null, 55_000L, paidAt, paidAt.plusHours(24)));
+        Order order = saveMemberOrder(paidAt);
         AtomicBoolean transactionActiveDuringPaymentCall = new AtomicBoolean(true);
         AtomicReference<String> paymentCallThreadName = new AtomicReference<>();
         when(paymentProvider.refund(any(), anyLong()))
@@ -113,7 +142,7 @@ class RefundExecutionServiceUseCaseIT {
         refundRepository.deleteAllInBatch();
 
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        Order order = orderRepository.save(Order.forGuest(null, null, 55_000L, paidAt, paidAt.plusHours(24)));
+        Order order = saveMemberOrder(paidAt);
 
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         Refund result = transactionTemplate.execute(status ->
@@ -141,7 +170,7 @@ class RefundExecutionServiceUseCaseIT {
         refundRepository.deleteAllInBatch();
 
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        Order order = orderRepository.save(Order.forGuest(null, null, 55_000L, paidAt, paidAt.plusHours(24)));
+        Order order = saveMemberOrder(paidAt);
         Refund succeededRefund = Refund.forOrder(order.getId(), 55_000L, "payment-key");
         succeededRefund.markSucceeded("refund-transaction-key");
         Refund savedRefund = refundRepository.save(succeededRefund);

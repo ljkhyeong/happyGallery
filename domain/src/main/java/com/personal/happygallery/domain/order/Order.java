@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * 상품 주문 — orders 테이블.
@@ -74,13 +75,15 @@ public class Order {
     /** 비회원 주문 생성. 초기 상태는 {@link OrderStatus#PAID_APPROVAL_PENDING}. */
     public static Order forGuest(Long guestId, String accessToken, long totalAmount,
                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return new Order(null, guestId, accessToken, totalAmount, paidAt, approvalDeadlineAt);
+        return new Order(null, Objects.requireNonNull(guestId, "guestId must not be null"),
+                accessToken, totalAmount, paidAt, approvalDeadlineAt);
     }
 
     /** 회원 주문 생성. guest 대신 user_id를 설정한다. */
     public static Order forMember(Long userId, long totalAmount,
                                   LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return new Order(userId, null, null, totalAmount, paidAt, approvalDeadlineAt);
+        return new Order(Objects.requireNonNull(userId, "userId must not be null"), null,
+                null, totalAmount, paidAt, approvalDeadlineAt);
     }
 
     /**
@@ -221,7 +224,7 @@ public class Order {
     }
 
     public void claimToUser(Long userId) {
-        this.userId = userId;
+        this.userId = Objects.requireNonNull(userId, "userId must not be null");
         this.guestId = null;
     }
 

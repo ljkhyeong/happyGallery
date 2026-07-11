@@ -3,6 +3,8 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
+**갱신**: 2026-07-11
+
 ---
 
 ## 왜 이 문서가 필요한가
@@ -92,6 +94,7 @@
 
 - `orders`
   - `id`, `user_id nullable`, `guest_id nullable`
+  - `user_id`, `guest_id` 중 정확히 하나만 존재하도록 `chk_orders_exactly_one_owner` `CHECK` 제약으로 강제한다.
   - `access_token VARCHAR(64)` — SHA-256 hex 해시 저장
   - `status`, `total_amount`, `paid_at`, `approval_deadline_at`, `bundle_id nullable`, `payment_key nullable`, `version`
 - `order_items`
@@ -114,6 +117,7 @@
   - `id`, `class_id`, `start_at`, `end_at`, `capacity=8`, `booked_count`, `is_active`
 - `bookings`
   - `id`, `user_id nullable`, `guest_id nullable`
+  - `user_id`, `guest_id` 중 정확히 하나만 존재하도록 `chk_bookings_exactly_one_owner` `CHECK` 제약으로 강제한다.
   - `access_token VARCHAR(64)` — 게스트 예약 조회용 SHA-256 hex 해시 저장
   - `class_id`, `slot_id`, `status`
   - `deposit_amount`, `deposit_paid_at`, `payment_key nullable`
@@ -123,6 +127,25 @@
 
 카테고리는 정책 분기를 만들지 않는 표시·필터용 값이므로 enum이 아니라 문자열로 저장한다.
 저장·조회 필터 기준은 앞뒤 공백을 제거한 대문자 토큰이다.
+
+#### 주문·예약 소유자 제약 배포
+
+- MySQL DDL의 비트랜잭션 특성으로 인해 하나의 실패 마이그레이션 안에 첫 번째 `ALTER`만 남는 상태를 피하도록 예약과 주문 제약을 각각 `V39`, `V40` 마이그레이션으로 분리한다.
+- 기존 레코드가 소유자 규칙을 위반하면 `ALTER TABLE` 검증이 실패하여 배포를 중단한다.
+- 소유자를 추론해 자동 보정하지 않는다. 배포 전 아래 조회가 모두 0행인지 확인하고, 위반 레코드는 원본 이력을 기준으로 수동 복구한다.
+- 마이그레이션이 예상치 못하게 실패하면 데이터를 복구하고 제약이 부분 생성되지 않았는지 확인한 뒤, 실패한 Flyway 이력을 `repair`하고 재실행한다.
+
+```sql
+SELECT id, user_id, guest_id
+FROM bookings
+WHERE (user_id IS NULL AND guest_id IS NULL)
+   OR (user_id IS NOT NULL AND guest_id IS NOT NULL);
+
+SELECT id, user_id, guest_id
+FROM orders
+WHERE (user_id IS NULL AND guest_id IS NULL)
+   OR (user_id IS NOT NULL AND guest_id IS NOT NULL);
+```
 
 #### Q&A와 문의
 
