@@ -93,28 +93,6 @@ public final class TestDataCleaner {
         notificationLogRepository.deleteAllInBatch();
     }
 
-    public static void clearPassNotificationData(PassLedgerRepository passLedgerRepository,
-                                                 RefundRepository refundRepository,
-                                                 BookingHistoryRepository bookingHistoryRepository,
-                                                 BookingRepository bookingRepository,
-                                                 PassPurchaseRepository passPurchaseRepository,
-                                                 PhoneVerificationRepository phoneVerificationRepository,
-                                                 NotificationLogRepository notificationLogRepository,
-                                                 GuestRepository guestRepository,
-                                                 SlotRepository slotRepository,
-                                                 ClassRepository classRepository) {
-        passLedgerRepository.deleteAllInBatch();
-        refundRepository.deleteAllInBatch();
-        bookingHistoryRepository.deleteAllInBatch();
-        bookingRepository.deleteAllInBatch();
-        phoneVerificationRepository.deleteAllInBatch();
-        notificationLogRepository.deleteAllInBatch();
-        passPurchaseRepository.deleteAllInBatch();
-        guestRepository.deleteAllInBatch();
-        slotRepository.deleteAllInBatch();
-        classRepository.deleteAllInBatch();
-    }
-
     public static void clearOrderData(RefundRepository refundRepository,
                                       FulfillmentRepository fulfillmentRepository,
                                       OrderApprovalHistoryRepository orderApprovalHistoryRepository,

@@ -4,10 +4,9 @@ import com.personal.happygallery.domain.error.CapacityExceededException;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotCapacity;
-import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
-import com.personal.happygallery.adapter.out.persistence.booking.BookingRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
@@ -17,7 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import static com.personal.happygallery.support.TestDataCleaner.clearBookingData;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,8 +34,7 @@ class SlotBookingCapacityUseCaseIT {
     @Autowired DefaultSlotManagementService slotManagementService;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
-    @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired BookingRepository bookingRepository;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PlatformTransactionManager transactionManager;
 
     BookingClass bookingClass;
@@ -55,7 +52,7 @@ class SlotBookingCapacityUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        clearBookingData(bookingHistoryRepository, bookingRepository, slotRepository, classRepository);
+        cleanupSupport.clearBookingData();
         bookingClass = classRepository.save(defaultBookingClass());
         mainSlot = slotRepository.save(slot(bookingClass, MAIN_START, MAIN_END));
     }

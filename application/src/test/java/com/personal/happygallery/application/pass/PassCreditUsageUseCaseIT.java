@@ -10,11 +10,8 @@ import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
-import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
-import com.personal.happygallery.adapter.out.persistence.booking.PhoneVerificationRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
-import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
@@ -23,6 +20,7 @@ import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
@@ -41,7 +39,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
-import static com.personal.happygallery.support.TestDataCleaner.clearBookingWithPassAndRefundData;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.TestFixtures.slot;
@@ -71,13 +68,11 @@ class PassCreditUsageUseCaseIT {
     @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired BookingRepository bookingRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired GuestRepository guestRepository;
-    @Autowired PhoneVerificationRepository phoneVerificationRepository;
     @Autowired RefundRepository refundRepository;
-    @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired ClassRepository classRepository;
     @Autowired UserRepository userRepository;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
     @MockitoBean PaymentProvider paymentProvider;
 
@@ -90,20 +85,10 @@ class PassCreditUsageUseCaseIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
-        notificationOutboxRepository.deleteAllInBatch();
-        clearBookingWithPassAndRefundData(
-                passLedgerRepository,
-                refundRepository,
-                bookingHistoryRepository,
-                bookingRepository,
-                passPurchaseRepository,
-                phoneVerificationRepository,
-                guestRepository,
-                slotRepository,
-                classRepository);
+        cleanupSupport.clearBookingWithPassAndRefundData();
 
         cls = classRepository.save(defaultBookingClass());
-        userRepository.deleteAllInBatch();
+        cleanupSupport.clearUsers();
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("FAKE-TEST-PASS-REF"));
         sessionCookie = signupAndGetSessionCookie("pass-member@example.com", "01099990001");

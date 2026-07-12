@@ -4,10 +4,9 @@ import com.personal.happygallery.domain.error.CapacityExceededException;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotCapacity;
-import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
-import com.personal.happygallery.adapter.out.persistence.booking.BookingRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.util.concurrent.CountDownLatch;
@@ -23,7 +22,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import static com.personal.happygallery.support.TestDataCleaner.clearBookingData;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,8 +39,7 @@ class ConcurrentBookingUseCaseIT {
     @Autowired SlotCapacitySupport slotCapacitySupport;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
-    @Autowired BookingHistoryRepository bookingHistoryRepository;
-    @Autowired BookingRepository bookingRepository;
+    @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PlatformTransactionManager transactionManager;
 
     private static final LocalDateTime SLOT_START = LocalDateTime.of(2026, 6, 1, 10, 0);
@@ -59,7 +56,7 @@ class ConcurrentBookingUseCaseIT {
     }
 
     private void cleanup() {
-        clearBookingData(bookingHistoryRepository, bookingRepository, slotRepository, classRepository);
+        cleanupSupport.clearBookingData();
     }
 
     // -----------------------------------------------------------------------

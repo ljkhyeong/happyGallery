@@ -44,6 +44,13 @@
 - 공통 테스트 인프라는 `application/src/testFixtures/**`에 둔다.
 - `adapter-in-web`는 `testFixtures(project(":application"))`를 사용해 같은 설정을 재사용한다.
 
+### 6. DB 정리는 테스트가 사용하는 도메인 범위로 제한한다
+
+- 테스트 클래스는 Repository를 나열해 직접 삭제하지 않고 `TestCleanupSupport`의 도메인별 정리 메서드를 호출한다.
+- 기본적으로 `@BeforeEach`에서 필요한 범위만 한 번 정리한다.
+- 동시성, 비동기, `REQUIRES_NEW`처럼 테스트 트랜잭션 밖에서 커밋되는 흐름은 다음 테스트에 데이터를 남기지 않도록 `@AfterEach`에서도 같은 범위를 정리한다.
+- 모든 `@UseCaseIT` 실행 후 전체 테이블을 일괄 삭제하는 전역 정리는 사용하지 않는다.
+
 ---
 
 ## 결과
@@ -67,6 +74,7 @@
 ## 구현 반영
 
 - `application/src/testFixtures/java/com/personal/happygallery/support/UseCaseIT.java`
+- `application/src/testFixtures/java/com/personal/happygallery/support/TestCleanupSupport.java`
 - `application/src/testFixtures/java/com/personal/happygallery/support/TestcontainersConfig.java`
 - `application/src/testFixtures/resources/application-test.yml`
 - `adapter-in-web/src/test/java/**`

@@ -6,6 +6,7 @@ import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,8 +18,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static com.personal.happygallery.support.TestDataCleaner.clearProductData;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -39,10 +38,11 @@ class ProductInventoryUseCaseIT {
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
     @Autowired InventoryService inventoryService;
+    @Autowired TestCleanupSupport cleanupSupport;
 
     @BeforeEach
     void setUp() {
-        clearProductData(inventoryRepository, productRepository);
+        cleanupSupport.clearProductData();
     }
 
     // -----------------------------------------------------------------------
