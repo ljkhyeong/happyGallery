@@ -163,8 +163,7 @@ Authorization: Bearer {token}
 
 {
   "classId": 1,
-  "startAt": "2026-03-01T10:00:00",
-  "endAt": "2026-03-01T12:00:00"
+  "startAt": "2026-03-01T10:00:00"
 }
 ```
 
@@ -187,6 +186,8 @@ Authorization: Bearer {token}
   - `404 NOT_FOUND` — classId에 해당하는 클래스 없음
   - `400 INVALID_INPUT` — 동일 classId + startAt 슬롯 이미 존재
 - 정책:
+  - `endAt`은 요청받지 않고 `startAt + class.durationMin`으로 서버가 계산한다.
+  - 같은 클래스의 같은 `startAt`에는 종료 시각과 무관하게 슬롯을 하나만 생성할 수 있다.
   - 이미 예약된 같은 클래스 슬롯의 뒤쪽 버퍼에 포함되면 생성 응답의 `isActive`는 `false`다.
   - `adminActive`는 관리자 비활성화 여부, `bufferBlocked`는 예약 버퍼 차단 여부다.
   - `isActive`는 `adminActive=true`이고 `bufferBlocked=false`일 때만 `true`다.

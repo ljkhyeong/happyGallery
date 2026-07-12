@@ -4,7 +4,7 @@ import {
   createAdminSlot,
   extractFirstNumber,
   fetchClasses,
-  findUniqueSlotWindow,
+  findUniqueSlotStart,
   formatTimeTokenForUi,
   installTossPaymentStub,
   loginCustomer,
@@ -55,19 +55,17 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   test.skip(classes.length === 0, "P8 member booking flow requires at least one class in the local DB");
   const bookingClass = classes[0]!;
 
-  const firstSlotWindow = await findUniqueSlotWindow(request, bookingClass.id, 6, 15, 5, bookingClass.durationMin);
-  const secondSlotWindow = await findUniqueSlotWindow(request, bookingClass.id, 6, 18, 20, bookingClass.durationMin);
-  const slotDate = toDateInput(firstSlotWindow.start);
+  const firstSlotStart = await findUniqueSlotStart(request, bookingClass.id, 6, 15, 5);
+  const secondSlotStart = await findUniqueSlotStart(request, bookingClass.id, 6, 18, 20);
+  const slotDate = toDateInput(firstSlotStart);
 
   const slot = await createAdminSlot(request, {
     classId: bookingClass.id,
-    startAt: firstSlotWindow.start,
-    endAt: firstSlotWindow.end,
+    startAt: firstSlotStart,
   });
   const secondSlot = await createAdminSlot(request, {
     classId: bookingClass.id,
-    startAt: secondSlotWindow.start,
-    endAt: secondSlotWindow.end,
+    startAt: secondSlotStart,
   });
 
   await signupCustomer(page, "p8-member-booking");

@@ -143,13 +143,12 @@ export function plusDays(days: number, hour: number, minute: number, durationMin
   return { start, end };
 }
 
-export async function findUniqueSlotWindow(
+export async function findUniqueSlotStart(
   request: APIRequestContext,
   classId: number,
   days: number,
   hour: number,
   minute: number,
-  durationMin: number,
 ) {
   const existingSlots = await fetchAdminSlots(request, classId);
   const occupiedStarts = new Set(existingSlots.map((slot) => slot.startAt.slice(0, 16)));
@@ -163,13 +162,11 @@ export async function findUniqueSlotWindow(
     start.setMinutes(start.getMinutes() + 1);
     attempts += 1;
     if (attempts > 180) {
-      throw new Error(`Could not find a unique slot window for class=${classId}`);
+      throw new Error(`Could not find a unique slot start for class=${classId}`);
     }
   }
 
-  const end = new Date(start);
-  end.setMinutes(end.getMinutes() + durationMin);
-  return { start, end };
+  return start;
 }
 
 export function toDateInput(date: Date): string {
@@ -445,7 +442,7 @@ export async function fetchAdminSlots(request: APIRequestContext, classId: numbe
 
 export async function createAdminSlot(
   request: APIRequestContext,
-  body: { classId: number; startAt: Date; endAt: Date },
+  body: { classId: number; startAt: Date },
 ): Promise<AdminSlot> {
   const slot = await apiPost<AdminSlot>(
     request,
@@ -453,7 +450,6 @@ export async function createAdminSlot(
     {
       classId: body.classId,
       startAt: toDateTimeLocalInput(body.startAt),
-      endAt: toDateTimeLocalInput(body.endAt),
     },
     { admin: true },
   );

@@ -29,7 +29,6 @@ export interface SlotResponse {
 export interface CreateSlotRequest {
   classId: number;
   startAt: string;
-  endAt: string;
 }
 
 export interface BatchResponse {

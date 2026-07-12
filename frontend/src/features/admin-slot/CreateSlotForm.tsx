@@ -16,8 +16,6 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
   const toast = useToast();
   const [classId, setClassId] = useState("");
   const [startAt, setStartAt] = useState("");
-  const [endAt, setEndAt] = useState("");
-  const [touched, setTouched] = useState({ startAt: false, endAt: false });
 
   const { data: classes, isLoading: classesLoading } = useQuery({
     queryKey: ["classes"],
@@ -30,14 +28,11 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
       createSlot(adminKey, {
         classId: Number(classId),
         startAt,
-        endAt,
       }),
     onSuccess: (slot) => {
       toast.show(`슬롯 #${slot.id} 생성 완료`);
       queryClient.invalidateQueries({ queryKey: ["admin", "slots"] });
       setStartAt("");
-      setEndAt("");
-      setTouched({ startAt: false, endAt: false });
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 401) {
@@ -46,11 +41,8 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
     },
   });
 
-  const timeValid = startAt && endAt && startAt < endAt;
   const hasClasses = (classes?.length ?? 0) > 0;
-  const valid = hasClasses && Number(classId) > 0 && timeValid;
-
-  const showEndError = touched.endAt && endAt && startAt && endAt <= startAt;
+  const valid = hasClasses && Number(classId) > 0 && Boolean(startAt);
 
   if (classesLoading) return <LoadingSpinner text="클래스 목록 로딩 중..." />;
 
@@ -58,13 +50,12 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
     <Form
       onSubmit={(e) => {
         e.preventDefault();
-        setTouched({ startAt: true, endAt: true });
         if (valid) mutation.mutate();
       }}
     >
       <ErrorAlert error={mutation.error} />
       <Row className="g-2 align-items-end">
-        <Col xs={12} md={3}>
+        <Col xs={12} md={4}>
           <Form.Group controlId="admin-slot-class">
             <Form.Label>클래스</Form.Label>
             <Form.Select
@@ -86,33 +77,17 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
             )}
           </Form.Group>
         </Col>
-        <Col xs={12} md={3}>
+        <Col xs={12} md={4}>
           <Form.Group controlId="admin-slot-start-at">
             <Form.Label>시작 시각</Form.Label>
             <Form.Control
               type="datetime-local"
               value={startAt}
               onChange={(e) => setStartAt(e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, startAt: true }))}
             />
           </Form.Group>
         </Col>
-        <Col xs={12} md={3}>
-          <Form.Group controlId="admin-slot-end-at">
-            <Form.Label>종료 시각</Form.Label>
-            <Form.Control
-              type="datetime-local"
-              value={endAt}
-              onChange={(e) => setEndAt(e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, endAt: true }))}
-              isInvalid={!!showEndError}
-            />
-            <Form.Control.Feedback type="invalid">
-              종료 시각은 시작 시각 이후여야 합니다.
-            </Form.Control.Feedback>
-          </Form.Group>
-        </Col>
-        <Col xs={12} sm={6} md={3}>
+        <Col xs={12} sm={6} md={4}>
           <Button type="submit" variant="primary" className="w-100" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? "생성 중..." : "슬롯 생성"}
           </Button>

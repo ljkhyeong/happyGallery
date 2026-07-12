@@ -43,8 +43,7 @@ public class AdminSlotController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public SlotResponse createSlot(@RequestBody @Valid CreateSlotRequest request) {
-        Slot slot = slotManagementUseCase.createSlot(
-                request.classId(), request.startAt(), request.endAt());
+        Slot slot = slotManagementUseCase.createSlot(request.classId(), request.startAt());
         return SlotResponse.from(slot);
     }
 

@@ -154,7 +154,7 @@ class SlotBookingCapacityUseCaseIT {
 
         reserveCapacityInTx(mainSlot.getId());
         Slot targetSlot = slotManagementService.createSlot(
-                bookingClass.getId(), BUFFER_IN2, BUFFER_IN2.plusHours(2));
+                bookingClass.getId(), BUFFER_IN2);
         assertThat(targetSlot.isActive()).isFalse();
 
         reserveCapacityInTx(secondSourceSlot.getId());

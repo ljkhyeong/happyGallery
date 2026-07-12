@@ -44,6 +44,10 @@ public class Slot {
 
     protected Slot() {}
 
+    public Slot(BookingClass bookingClass, LocalDateTime startAt) {
+        this(bookingClass, startAt, startAt.plusMinutes(bookingClass.getDurationMin()));
+    }
+
     public Slot(BookingClass bookingClass, LocalDateTime startAt, LocalDateTime endAt) {
         this.bookingClass = bookingClass;
         this.startAt = startAt;

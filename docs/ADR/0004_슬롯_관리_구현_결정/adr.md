@@ -74,13 +74,16 @@ OSIV에 의존하지 않는 것을 전제로 한다.
 
 ---
 
-## Decision 3: `createSlot()` — 앱 레벨 중복 체크 + DB UNIQUE 이중 방어선
+## Decision 3: `createSlot()` — 종료 시각 서버 계산 + 중복 체크 이중 방어선
 
 ### 배경
-DB에 `UNIQUE(class_id, start_at)` 제약이 있지만, 충돌 시 `DataIntegrityViolationException`이 발생해 클라이언트에 `500`이 반환된다.
+같은 클래스가 같은 시각에 시작하면 종료 시각이 달라도 동일한 세션이다.
+클라이언트가 `endAt`을 정하면 클래스의 `durationMin`과 다른 슬롯을 만들 수 있고 버퍼 계산도 왜곡된다.
+또한 DB에 `UNIQUE(class_id, start_at)` 제약이 있지만, 충돌 시 `DataIntegrityViolationException`이 발생해 클라이언트에 `500`이 반환된다.
 
 ### 결정
-앱 레벨에서 `existsByBookingClassIdAndStartAt()`로 선행 검사 후, DB 제약을 최후 방어선으로 유지한다.
+- 슬롯 생성 요청은 `classId`, `startAt`만 받고 `Slot`이 `endAt = startAt + bookingClass.durationMin`으로 계산한다.
+- 앱 레벨에서 `existsByBookingClassIdAndStartAt()`로 선행 검사 후, DB 제약을 최후 방어선으로 유지한다.
 
 ```
 앱 레벨 체크  →  400 INVALID_INPUT  (명확한 에러 메시지)

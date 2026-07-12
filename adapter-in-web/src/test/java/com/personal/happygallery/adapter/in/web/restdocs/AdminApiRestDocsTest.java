@@ -173,7 +173,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(classManagementUseCase.createClass(any(), any(), anyInt(), anyLong(), anyInt()))
                 .thenReturn(bookingClass);
         when(slotQueryUseCase.listByClass(1L)).thenReturn(List.of(slot));
-        when(slotManagementUseCase.createSlot(any(), any(), any())).thenReturn(slot);
+        when(slotManagementUseCase.createSlot(any(), any())).thenReturn(slot);
         when(slotManagementUseCase.deactivateSlot(42L)).thenReturn(slot);
         when(adminBookingQueryUseCase.listBookings(any(), any())).thenReturn(List.of(adminBookingResponse()));
         when(adminBookingSearchUseCase.search(any(), any(), any(), any(), eq(0), eq(20)))
@@ -341,8 +341,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                         .content(json("""
                                 {
                                   "classId": 1,
-                                  "startAt": "2026-05-07T19:00:00",
-                                  "endAt": "2026-05-07T21:00:00"
+                                  "startAt": "2026-05-07T19:00:00"
                                 }
                                 """)))
                 .andExpect(status().isCreated());

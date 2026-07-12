@@ -4,7 +4,7 @@ import {
   createAdminSlot,
   extractFirstNumber,
   fetchClasses,
-  findUniqueSlotWindow,
+  findUniqueSlotStart,
   formatTimeTokenForUi,
   installTossPaymentStub,
   makePhoneNumber,
@@ -21,21 +21,19 @@ test("P8-2 @smoke @payment 슬롯 생성 후 예약 생성, 변경, 취소를 �
   test.skip(classes.length === 0, "P8 booking flow requires at least one class in the local DB");
   const bookingClass = classes[0]!;
 
-  const firstWindow = await findUniqueSlotWindow(request, bookingClass.id, 4, 10, 7, bookingClass.durationMin);
-  const secondWindow = await findUniqueSlotWindow(request, bookingClass.id, 4, 14, 37, bookingClass.durationMin);
-  const bookingDate = toDateInput(firstWindow.start);
+  const firstSlotStart = await findUniqueSlotStart(request, bookingClass.id, 4, 10, 7);
+  const secondSlotStart = await findUniqueSlotStart(request, bookingClass.id, 4, 14, 37);
+  const bookingDate = toDateInput(firstSlotStart);
   const phone = makePhoneNumber(makeUniqueLabel("p8-booking"));
   const guestName = makeUniqueLabel("P8 예약자");
 
   const firstSlot = await createAdminSlot(request, {
     classId: bookingClass.id,
-    startAt: firstWindow.start,
-    endAt: firstWindow.end,
+    startAt: firstSlotStart,
   });
   const secondSlot = await createAdminSlot(request, {
     classId: bookingClass.id,
-    startAt: secondWindow.start,
-    endAt: secondWindow.end,
+    startAt: secondSlotStart,
   });
 
   await page.goto("/bookings/new");
@@ -70,11 +68,10 @@ test("P8-3 @smoke @payment 회원은 8회권 구매 후 8회권으로 예약할 
   test.skip(classes.length === 0, "P8 pass flow requires at least one class in the local DB");
   const bookingClass = classes[0]!;
 
-  const slotWindow = await findUniqueSlotWindow(request, bookingClass.id, 5, 11, 11, bookingClass.durationMin);
+  const slotStart = await findUniqueSlotStart(request, bookingClass.id, 5, 11, 11);
   const slot = await createAdminSlot(request, {
     classId: bookingClass.id,
-    startAt: slotWindow.start,
-    endAt: slotWindow.end,
+    startAt: slotStart,
   });
   const slotDate = toDateInput(new Date(slot.startAt));
 

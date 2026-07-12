@@ -6,7 +6,7 @@ import {
   createAdminProduct,
   createAdminSlot,
   fetchClasses,
-  findUniqueSlotWindow,
+  findUniqueSlotStart,
   formatTimeTokenForUi,
   installTossPaymentStub,
   makePhoneNumber,
@@ -24,8 +24,8 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
   test.skip(classes.length === 0, "P8 guest claim flow requires at least one class in the local DB");
   const bookingClass = classes[0]!;
 
-  const slotWindow = await findUniqueSlotWindow(request, bookingClass.id, 7, 13, 5, bookingClass.durationMin);
-  const slotDate = toDateInput(slotWindow.start);
+  const slotStart = await findUniqueSlotStart(request, bookingClass.id, 7, 13, 5);
+  const slotDate = toDateInput(slotStart);
   const guestPhone = makePhoneNumber(makeUniqueLabel("p8-claim"));
   const guestName = makeUniqueLabel("P8 클레임");
   const memberPhone = `${guestPhone.slice(0, 3)}-${guestPhone.slice(3, 7)}-${guestPhone.slice(7)}`;
@@ -37,8 +37,7 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
   });
   const slot = await createAdminSlot(request, {
     classId: bookingClass.id,
-    startAt: slotWindow.start,
-    endAt: slotWindow.end,
+    startAt: slotStart,
   });
 
   await page.goto("/orders/new");

@@ -56,12 +56,12 @@ class AdminSlotUseCaseIT {
                         .content("""
                                 {
                                   "classId": %d,
-                                  "startAt": "2026-03-01T10:00:00",
-                                  "endAt":   "2026-03-01T12:00:00"
+                                  "startAt": "2026-03-01T10:00:00"
                                 }
                                 """.formatted(classId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.classId").value(classId))
+                .andExpect(jsonPath("$.endAt").value("2026-03-01T12:00:00"))
                 .andExpect(jsonPath("$.capacity").value(8))
                 .andExpect(jsonPath("$.adminActive").value(true))
                 .andExpect(jsonPath("$.bufferBlocked").value(false))
@@ -77,8 +77,7 @@ class AdminSlotUseCaseIT {
                         .content("""
                                 {
                                   "classId": %d,
-                                  "startAt": "2026-03-01T10:00:00",
-                                  "endAt":   "2026-03-01T12:00:00"
+                                  "startAt": "2026-03-01T10:00:00"
                                 }
                                 """.formatted(classId)))
                 .andExpect(status().isCreated())
@@ -90,8 +89,7 @@ class AdminSlotUseCaseIT {
                         .content("""
                                 {
                                   "classId": %d,
-                                  "startAt": "2026-03-02T10:00:00",
-                                  "endAt":   "2026-03-02T12:00:00"
+                                  "startAt": "2026-03-02T10:00:00"
                                 }
                                 """.formatted(classId)))
                 .andExpect(status().isCreated())
@@ -125,8 +123,7 @@ class AdminSlotUseCaseIT {
                         .content("""
                                 {
                                   "classId": %d,
-                                  "startAt": "2026-03-02T10:00:00",
-                                  "endAt":   "2026-03-02T12:00:00"
+                                  "startAt": "2026-03-02T10:00:00"
                                 }
                                 """.formatted(classId)))
                 .andExpect(status().isCreated())
@@ -155,8 +152,7 @@ class AdminSlotUseCaseIT {
                         .content("""
                                 {
                                   "classId": 99999,
-                                  "startAt": "2026-03-01T10:00:00",
-                                  "endAt":   "2026-03-01T12:00:00"
+                                  "startAt": "2026-03-01T10:00:00"
                                 }
                                 """))
                 .andExpect(status().isNotFound())
@@ -169,8 +165,7 @@ class AdminSlotUseCaseIT {
         String body = """
                 {
                   "classId": %d,
-                  "startAt": "2026-03-03T10:00:00",
-                  "endAt":   "2026-03-03T12:00:00"
+                  "startAt": "2026-03-03T10:00:00"
                 }
                 """.formatted(classId);
 
@@ -198,8 +193,7 @@ class AdminSlotUseCaseIT {
                         .content("""
                                 {
                                   "classId": %d,
-                                  "startAt": "2026-03-10T10:00:00",
-                                  "endAt":   "2026-03-10T12:00:00"
+                                  "startAt": "2026-03-10T10:00:00"
                                 }
                                 """.formatted(classId)))
                 .andExpect(status().isUnauthorized())
@@ -215,8 +209,7 @@ class AdminSlotUseCaseIT {
                         .content("""
                                 {
                                   "classId": %d,
-                                  "startAt": "2026-03-11T10:00:00",
-                                  "endAt":   "2026-03-11T12:00:00"
+                                  "startAt": "2026-03-11T10:00:00"
                                 }
                                 """.formatted(classId)))
                 .andExpect(status().isUnauthorized())
