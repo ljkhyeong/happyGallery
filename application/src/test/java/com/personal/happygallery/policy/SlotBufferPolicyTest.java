@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * [PolicyTest] 뒤쪽 버퍼 윈도우 경계 검증.
  *
- * <p>비활성화 대상 범위: {@code [endAt, endAt + bufferMin)} — 시작 포함, 끝 미포함.
+ * <p>차단 대상 범위: {@code [endAt, endAt + bufferMin)} — 시작 포함, 끝 미포함.
  */
 @Tag("policy")
 class SlotBufferPolicyTest {
@@ -40,15 +40,7 @@ class SlotBufferPolicyTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("bufferWindowMembershipCases")
     void bufferWindowMembership(String caseName, LocalDateTime candidateStart, boolean expected) {
-        LocalDateTime windowStart = SlotBufferPolicy.bufferWindowStart(END_AT);
-        LocalDateTime windowEnd = SlotBufferPolicy.bufferWindowEnd(END_AT, BUFFER_MIN);
-
-        assertThat(isInWindow(candidateStart, windowStart, windowEnd)).isEqualTo(expected);
-    }
-
-    /** Repository 쿼리 조건과 동일: start >= windowStart AND start < windowEnd */
-    private boolean isInWindow(LocalDateTime start, LocalDateTime windowStart, LocalDateTime windowEnd) {
-        return !start.isBefore(windowStart) && start.isBefore(windowEnd);
+        assertThat(SlotBufferPolicy.contains(END_AT, BUFFER_MIN, candidateStart)).isEqualTo(expected);
     }
 
     private static Stream<Arguments> bufferWindowMembershipCases() {

@@ -92,6 +92,11 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
             {slots.map((s) => {
               const pct = s.capacity > 0 ? Math.round((s.bookedCount / s.capacity) * 100) : 0;
               const variant = pct >= 80 ? "danger" : pct >= 50 ? "warning" : "success";
+              const status = !s.adminActive
+                ? { label: "관리자 비활성", variant: "secondary" }
+                : s.bufferBlocked
+                  ? { label: "버퍼 차단", variant: "warning" }
+                  : { label: "활성", variant: "success" };
               return (
                 <tr key={s.id}>
                   <td>{s.id}</td>
@@ -104,15 +109,16 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
                     </div>
                   </td>
                   <td>
-                    <Badge bg={s.isActive ? "success" : "secondary"}>
-                      {s.isActive ? "활성" : "비활성"}
+                    <Badge bg={status.variant} text={status.variant === "warning" ? "dark" : undefined}>
+                      {status.label}
                     </Badge>
                   </td>
                   <td>
-                    {s.isActive && (
+                    {s.adminActive && (
                       <Button
                         size="sm"
                         variant="outline-danger"
+                        style={{ minWidth: 84 }}
                         disabled={pendingId === s.id}
                         onClick={() => handleDeactivate(s.id)}
                       >

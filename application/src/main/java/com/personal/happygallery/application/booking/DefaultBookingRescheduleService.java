@@ -85,7 +85,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
         // 3. 새 슬롯 빠른 체크 (락 전 — fast-fail)
         Slot newSlot = slotCapacitySupport.loadActiveSlot(newSlotId);
 
-        // 4. 새 슬롯 확정 — 비관적 락 + isActive 재확인 + booked_count++ + 버퍼 비활성화
+        // 4. 새 슬롯 확정 — 비관적 락 + 활성 재확인 + 정원 확보 + 첫 예약이면 버퍼 차단
         slotCapacitySupport.reserveCapacity(newSlotId);
 
         // 5. 기존 슬롯 반납 — 비관적 락 + booked_count--

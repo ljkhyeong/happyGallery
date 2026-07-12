@@ -83,6 +83,8 @@ final class RestDocsFixtures {
         when(slot.getEndAt()).thenReturn(LocalDateTime.of(2026, 5, 7, 21, 0));
         when(slot.getCapacity()).thenReturn(8);
         when(slot.getBookedCount()).thenReturn(2);
+        when(slot.isAdminActive()).thenReturn(true);
+        when(slot.isBufferBlocked()).thenReturn(false);
         when(slot.isActive()).thenReturn(true);
         return slot;
     }

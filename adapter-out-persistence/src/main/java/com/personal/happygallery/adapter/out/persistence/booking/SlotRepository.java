@@ -20,9 +20,6 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     /** 중복 슬롯 검사 — (class_id, start_at) UNIQUE 제약 반영 */
     boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
 
-    /** 관리자 슬롯 목록 조회 — 활성 슬롯만 */
-    List<Slot> findByBookingClassIdAndIsActiveTrue(Long classId);
-
     /** 관리자 슬롯 전체 조회 — 활성/비활성 포함, 시작 시각 내림차순 */
     List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
 
@@ -30,7 +27,8 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     @Query("SELECT s FROM Slot s " +
            "WHERE s.bookingClass.id = :classId " +
            "AND s.startAt >= :dayStart AND s.startAt < :dayEnd " +
-           "AND s.isActive = true " +
+           "AND s.adminActive = true " +
+           "AND s.bufferBlockCount = 0 " +
            "AND s.bookedCount < s.capacity " +
            "ORDER BY s.startAt")
     List<Slot> findAvailableByClassAndDate(@Param("classId") Long classId,
@@ -43,14 +41,15 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     Optional<Slot> findByIdWithLock(@Param("id") Long id);
 
     /**
-     * 버퍼 범위 내 활성 슬롯 조회.
+     * 버퍼 범위 내 슬롯을 잠금과 함께 조회한다.
      * 범위: {@code start_at in [windowStart, windowEnd)} — 시작 포함, 끝 미포함.
      */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Slot s " +
            "WHERE s.bookingClass.id = :classId " +
            "AND s.startAt >= :windowStart AND s.startAt < :windowEnd " +
-           "AND s.isActive = true")
-    List<Slot> findActiveInBufferWindow(@Param("classId") Long classId,
-                                        @Param("windowStart") LocalDateTime windowStart,
-                                        @Param("windowEnd") LocalDateTime windowEnd);
+           "ORDER BY s.id")
+    List<Slot> findInBufferWindowWithLock(@Param("classId") Long classId,
+                                          @Param("windowStart") LocalDateTime windowStart,
+                                          @Param("windowEnd") LocalDateTime windowEnd);
 }

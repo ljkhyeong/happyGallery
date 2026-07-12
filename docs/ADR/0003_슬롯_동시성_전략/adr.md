@@ -38,8 +38,11 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 
 3. slotRepository.save(slot)                    // booked_count 커밋
 
-4. 버퍼 윈도우 [endAt, endAt + bufferMin) 내 활성 슬롯 deactivate
+4. booked_count가 0 → 1이면 버퍼 윈도우의 슬롯을 잠그고 buffer_block_count++
 ```
+
+예약 취소·변경의 `releaseCapacity()`는 `booked_count`가 1 → 0이 될 때 같은 버퍼 윈도우를 잠그고
+`buffer_block_count--`를 수행한다. 버퍼가 겹치는 슬롯은 차단 수가 0이 된 뒤에만 실제 활성 상태가 된다.
 
 ### 역할 분리
 
@@ -66,6 +69,7 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 - 정원 강제 로직이 단일 트랜잭션 + 단일 row 잠금으로 단순화.
 - 재시도 로직 불필요 → 서비스 레이어 코드 간결.
 - `CapacityExceededException` 발생 시 자동 롤백 → `booked_count` 불변 보장.
+- 첫 예약과 마지막 예약 전환에서만 버퍼 차단 수를 변경해 같은 슬롯의 여러 예약을 하나의 원인으로 취급한다.
 
 **부정 / 주의 사항**
 - `reserveCapacity()`는 반드시 **예약 엔티티(bookings) save와 동일 트랜잭션** 안에서 호출해야 한다.

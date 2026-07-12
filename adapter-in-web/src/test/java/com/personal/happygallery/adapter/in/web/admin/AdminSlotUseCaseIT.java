@@ -63,6 +63,8 @@ class AdminSlotUseCaseIT {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.classId").value(classId))
                 .andExpect(jsonPath("$.capacity").value(8))
+                .andExpect(jsonPath("$.adminActive").value(true))
+                .andExpect(jsonPath("$.bufferBlocked").value(false))
                 .andExpect(jsonPath("$.isActive").value(true));
     }
 

@@ -36,8 +36,11 @@ public class Slot {
     @Column(name = "booked_count", nullable = false)
     private int bookedCount = 0;
 
-    @Column(name = "is_active", nullable = false)
-    private boolean isActive = true;
+    @Column(name = "admin_active", nullable = false)
+    private boolean adminActive = true;
+
+    @Column(name = "buffer_block_count", nullable = false)
+    private int bufferBlockCount = 0;
 
     protected Slot() {}
 
@@ -47,12 +50,26 @@ public class Slot {
         this.endAt = endAt;
         this.capacity = SlotCapacity.MAX;
         this.bookedCount = 0;
-        this.isActive = true;
+        this.adminActive = true;
+        this.bufferBlockCount = 0;
     }
 
-    /** 운영자 또는 버퍼 정책에 의해 슬롯을 비활성화한다. */
+    /** 운영자가 슬롯을 비활성화한다. 버퍼 차단 해제와 무관하게 유지된다. */
     public void deactivate() {
-        this.isActive = false;
+        this.adminActive = false;
+    }
+
+    /** 다른 슬롯의 예약으로 인해 이 슬롯을 막는 버퍼가 하나 추가된다. */
+    public void incrementBufferBlockCount() {
+        this.bufferBlockCount++;
+    }
+
+    /** 원인 슬롯의 마지막 예약이 사라져 버퍼 차단 하나를 해제한다. */
+    public void decrementBufferBlockCount() {
+        if (this.bufferBlockCount <= 0) {
+            throw new IllegalStateException("buffer_block_count는 0 이하로 감소할 수 없습니다.");
+        }
+        this.bufferBlockCount--;
     }
 
     /**
@@ -82,5 +99,7 @@ public class Slot {
     public LocalDateTime getEndAt() { return endAt; }
     public int getCapacity() { return capacity; }
     public int getBookedCount() { return bookedCount; }
-    public boolean isActive() { return isActive; }
+    public boolean isAdminActive() { return adminActive; }
+    public boolean isBufferBlocked() { return bufferBlockCount > 0; }
+    public boolean isActive() { return adminActive && bufferBlockCount == 0; }
 }

@@ -176,6 +176,8 @@ Authorization: Bearer {token}
   "endAt": "2026-03-01T12:00:00",
   "capacity": 8,
   "bookedCount": 0,
+  "adminActive": true,
+  "bufferBlocked": false,
   "isActive": true
 }
 ```
@@ -184,6 +186,10 @@ Authorization: Bearer {token}
 - 에러:
   - `404 NOT_FOUND` — classId에 해당하는 클래스 없음
   - `400 INVALID_INPUT` — 동일 classId + startAt 슬롯 이미 존재
+- 정책:
+  - 이미 예약된 같은 클래스 슬롯의 뒤쪽 버퍼에 포함되면 생성 응답의 `isActive`는 `false`다.
+  - `adminActive`는 관리자 비활성화 여부, `bufferBlocked`는 예약 버퍼 차단 여부다.
+  - `isActive`는 `adminActive=true`이고 `bufferBlocked=false`일 때만 `true`다.
 
 #### 2.1.3 슬롯 비활성화
 
@@ -200,6 +206,8 @@ Authorization: Bearer {token}
   "endAt": "2026-03-01T12:00:00",
   "capacity": 8,
   "bookedCount": 0,
+  "adminActive": false,
+  "bufferBlocked": false,
   "isActive": false
 }
 ```
@@ -207,6 +215,8 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 에러:
   - `404 NOT_FOUND` — slotId에 해당하는 슬롯 없음
+- 정책:
+  - 관리자 비활성 상태는 예약 취소·변경으로 버퍼 차단이 자동 해제되어도 유지된다.
 
 ### 2.2 공개 조회 API
 
@@ -311,7 +321,7 @@ GET /api/v1/slots?classId=1&date=2026-03-01
   - `400 INVALID_INPUT` — `classId`, `date` 파라미터 누락 또는 형식 오류
 - 정책:
   - `classId` + `date` 기준으로 당일 슬롯만 조회한다.
-  - `is_active = true` 이고 `booked_count < capacity` 인 슬롯만 노출한다.
+  - `admin_active = true`, `buffer_block_count = 0`이고 `booked_count < capacity`인 슬롯만 노출한다.
   - 정렬은 `startAt` 오름차순이다.
 
 ### 2.3 관리자 상품 API

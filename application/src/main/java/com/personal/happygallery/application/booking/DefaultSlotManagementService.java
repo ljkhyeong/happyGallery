@@ -9,6 +9,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.SlotBufferPolicy;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +39,13 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미 동일 시간에 슬롯이 존재합니다.");
         }
 
-        return slotStorePort.save(new Slot(bookingClass, startAt, endAt));
+        Slot slot = new Slot(bookingClass, startAt, endAt);
+        slotReaderPort.findByBookingClassIdOrderByStartAtDesc(classId).stream()
+                .filter(existing -> existing.getBookedCount() > 0)
+                .filter(existing -> SlotBufferPolicy.contains(
+                        existing.getEndAt(), bookingClass.getBufferMin(), startAt))
+                .forEach(existing -> slot.incrementBufferBlockCount());
+        return slotStorePort.save(slot);
     }
 
     /** 슬롯을 비활성화한다. */

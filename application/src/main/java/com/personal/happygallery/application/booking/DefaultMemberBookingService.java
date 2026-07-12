@@ -51,7 +51,7 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
             throw new DuplicateBookingException();
         }
 
-        // 3. 비관적 락 + 정원 증가 + 버퍼 비활성화
+        // 3. 비관적 락 + 정원 증가 + 첫 예약이면 뒤쪽 버퍼 차단
         slotCapacitySupport.reserveCapacity(slotId);
 
         Booking booking;

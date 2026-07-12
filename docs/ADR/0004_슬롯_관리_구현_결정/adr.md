@@ -95,27 +95,28 @@ DB UNIQUE      →  DataIntegrityViolationException → 현재 미처리(500)
 
 ---
 
-## Decision 4: 버퍼 슬롯 비활성화 — 개별 `save()` (N+1 트레이드오프 수용)
+## Decision 4: 버퍼 차단 수 갱신 — 개별 `save()` (N+1 트레이드오프 수용)
 
 ### 배경
-`SlotCapacitySupport.reserveCapacity()`에서 버퍼 범위 슬롯을 `deactivate()`한 뒤 각각 `save()`한다.
+`SlotCapacitySupport`는 원인 슬롯의 첫 예약에서 버퍼 범위 슬롯의 `bufferBlockCount`를 증가시키고,
+마지막 예약 반납에서 감소시킨 뒤 각각 `save()`한다.
 
 ### 결정
-개별 `save()` 루프를 사용한다. 현재 `buffer_min=30`이고 슬롯 간격이 보통 30분 이상이므로 실제 비활성화 대상은 0~1개다.
+개별 `save()` 루프를 사용한다. 현재 `buffer_min=30`이고 슬롯 간격이 보통 30분 이상이므로 실제 차단 수 갱신 대상은 0~1개다.
 
 ### 대안
 ```java
-// 일괄 UPDATE (최적화)
+// 일괄 UPDATE (증가 예시)
 @Modifying
-@Query("UPDATE Slot s SET s.isActive = false " +
+@Query("UPDATE Slot s SET s.bufferBlockCount = s.bufferBlockCount + 1 " +
        "WHERE s.bookingClass.id = :classId " +
        "AND s.startAt >= :start AND s.startAt < :end")
-void deactivateInBufferWindow(...);
+void incrementBufferBlocks(...);
 ```
 
 ### 트레이드오프 / 위험
 - 슬롯을 빽빽하게 배치(예: 10분 간격)하면 buffer_min=30 범위에 최대 2개 슬롯 → N+1 발생.
-- **성능 기준 초과 시**: 위 `@Modifying @Query`로 교체. 단, `deactivate()` 도메인 메서드 호출 없이 직접 DB UPDATE → 도메인 로직 우회 주의.
+- **성능 기준 초과 시**: 원자적 증가·감소 `@Modifying` 쿼리로 교체. 단, 도메인 메서드를 우회하므로 0 미만 방지 조건을 DB 쿼리에도 유지한다.
 
 ---
 
@@ -134,5 +135,5 @@ void deactivateInBufferWindow(...);
 ## References
 
 - `docs/PRD/0001_기준_스펙/spec.md` §4.1 (슬롯 정원, 버퍼)
-- ADR-0003 (비관적 락 — confirmBooking 트랜잭션 계약)
+- ADR-0003 (비관적 락 — `reserveCapacity()` 트랜잭션 계약)
 - `application/src/main/java/com/personal/happygallery/application/booking/DefaultSlotManagementService.java`

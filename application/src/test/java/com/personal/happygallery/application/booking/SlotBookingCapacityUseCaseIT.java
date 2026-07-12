@@ -25,14 +25,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
- * [UseCaseIT] 슬롯 정원(8명) 강제 + 뒤쪽 버퍼 비활성화 검증.
+ * [UseCaseIT] 슬롯 정원(8명) 강제 + 뒤쪽 버퍼 차단·자동 해제 검증.
  *
- * <p>Proof (docs/PRD/0001_기준_스펙/spec.md §5.1): 같은 슬롯에 9번째 예약 시도는 실패로 귀결.
+ * <p>Proof (docs/PRD/0001_기준_스펙/spec.md §4.1): 같은 슬롯에 9번째 예약 시도는 실패로 귀결.
  */
 @UseCaseIT
 class SlotBookingCapacityUseCaseIT {
 
     @Autowired SlotCapacitySupport slotCapacitySupport;
+    @Autowired DefaultSlotManagementService slotManagementService;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
@@ -61,7 +62,7 @@ class SlotBookingCapacityUseCaseIT {
 
     @DisplayName("슬롯 정원 8명까지 예약 확정은 모두 성공한다")
     @Test
-    void confirmBooking_8times_allSucceed() {
+    void reserveCapacity_8times_allSucceed() {
         for (int i = 0; i < SlotCapacity.MAX; i++) {
             reserveCapacityInTx(mainSlot.getId());
         }
@@ -71,7 +72,7 @@ class SlotBookingCapacityUseCaseIT {
 
     @DisplayName("9번째 예약 확정 시 정원 초과 예외가 발생한다")
     @Test
-    void confirmBooking_9th_throwsCapacityExceeded() {
+    void reserveCapacity_9th_throwsCapacityExceeded() {
         for (int i = 0; i < SlotCapacity.MAX; i++) {
             reserveCapacityInTx(mainSlot.getId());
         }
@@ -86,9 +87,9 @@ class SlotBookingCapacityUseCaseIT {
         });
     }
 
-    @DisplayName("예약 확정 시 버퍼 구간 슬롯이 비활성화된다")
+    @DisplayName("예약 확정 시 버퍼 구간 슬롯이 차단된다")
     @Test
-    void confirmBooking_deactivatesBufferSlots() {
+    void reserveCapacity_blocksBufferSlots() {
         Slot bufferSlot1 = slotRepository.save(
                 slot(bookingClass, BUFFER_IN, BUFFER_IN.plusHours(2)));
         Slot bufferSlot2 = slotRepository.save(
@@ -102,9 +103,9 @@ class SlotBookingCapacityUseCaseIT {
         });
     }
 
-    @DisplayName("예약 확정 시 버퍼 외 슬롯은 비활성화되지 않는다")
+    @DisplayName("예약 확정 시 버퍼 외 슬롯은 차단되지 않는다")
     @Test
-    void confirmBooking_doesNotDeactivateSlotOutsideBuffer() {
+    void reserveCapacity_doesNotBlockSlotOutsideBuffer() {
         Slot outsideSlot = slotRepository.save(
                 slot(bookingClass, BUFFER_OUT, BUFFER_OUT.plusHours(2)));
 
@@ -113,8 +114,64 @@ class SlotBookingCapacityUseCaseIT {
         assertThat(slotRepository.findById(outsideSlot.getId()).orElseThrow().isActive()).isTrue();
     }
 
+    @DisplayName("마지막 예약을 반납하면 버퍼 슬롯만 자동 활성화되고 관리자 비활성 상태는 유지된다")
+    @Test
+    void releaseLastCapacity_reactivatesOnlyBufferBlockedSlot() {
+        Slot bufferSlot = slotRepository.save(
+                slot(bookingClass, BUFFER_IN, BUFFER_IN.plusHours(2)));
+        Slot manuallyDeactivatedSlot = slotRepository.save(
+                slot(bookingClass, BUFFER_IN2, BUFFER_IN2.plusHours(2)));
+        manuallyDeactivatedSlot.deactivate();
+        slotRepository.save(manuallyDeactivatedSlot);
+
+        reserveCapacityInTx(mainSlot.getId());
+        reserveCapacityInTx(mainSlot.getId());
+
+        releaseCapacityInTx(mainSlot.getId());
+        assertThat(slotRepository.findById(bufferSlot.getId()).orElseThrow().isActive()).isFalse();
+
+        releaseCapacityInTx(mainSlot.getId());
+
+        var availableSlotIds = slotRepository.findAvailableByClassAndDate(
+                        bookingClass.getId(), MAIN_START.toLocalDate().atStartOfDay(), MAIN_START.plusDays(1))
+                .stream()
+                .map(Slot::getId)
+                .toList();
+        assertSoftly(softly -> {
+            softly.assertThat(slotRepository.findById(bufferSlot.getId()).orElseThrow().isActive()).isTrue();
+            softly.assertThat(slotRepository.findById(manuallyDeactivatedSlot.getId()).orElseThrow().isActive())
+                    .isFalse();
+            softly.assertThat(availableSlotIds).contains(bufferSlot.getId());
+            softly.assertThat(availableSlotIds).doesNotContain(manuallyDeactivatedSlot.getId());
+        });
+    }
+
+    @DisplayName("여러 예약 슬롯의 버퍼가 겹치면 모든 원인 예약이 사라진 뒤 자동 활성화된다")
+    @Test
+    void overlappingBufferBlocks_reactivateAfterAllSourceBookingsReleased() {
+        Slot secondSourceSlot = slotRepository.save(
+                slot(bookingClass, MAIN_START.plusMinutes(15), MAIN_END.plusMinutes(15)));
+
+        reserveCapacityInTx(mainSlot.getId());
+        Slot targetSlot = slotManagementService.createSlot(
+                bookingClass.getId(), BUFFER_IN2, BUFFER_IN2.plusHours(2));
+        assertThat(targetSlot.isActive()).isFalse();
+
+        reserveCapacityInTx(secondSourceSlot.getId());
+        releaseCapacityInTx(mainSlot.getId());
+        assertThat(slotRepository.findById(targetSlot.getId()).orElseThrow().isActive()).isFalse();
+
+        releaseCapacityInTx(secondSourceSlot.getId());
+        assertThat(slotRepository.findById(targetSlot.getId()).orElseThrow().isActive()).isTrue();
+    }
+
     private void reserveCapacityInTx(Long slotId) {
         new TransactionTemplate(transactionManager)
                 .executeWithoutResult(status -> slotCapacitySupport.reserveCapacity(slotId));
+    }
+
+    private void releaseCapacityInTx(Long slotId) {
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(status -> slotCapacitySupport.releaseCapacity(slotId));
     }
 }

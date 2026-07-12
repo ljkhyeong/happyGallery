@@ -10,6 +10,8 @@ public record SlotResponse(
         LocalDateTime endAt,
         int capacity,
         int bookedCount,
+        boolean adminActive,
+        boolean bufferBlocked,
         boolean isActive
 ) {
     public static SlotResponse from(Slot slot) {
@@ -20,6 +22,8 @@ public record SlotResponse(
                 slot.getEndAt(),
                 slot.getCapacity(),
                 slot.getBookedCount(),
+                slot.isAdminActive(),
+                slot.isBufferBlocked(),
                 slot.isActive()
         );
     }

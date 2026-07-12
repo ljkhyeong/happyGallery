@@ -117,7 +117,8 @@
 - `classes`
   - `id`, `name`, `category`, `duration_min`, `price`, `buffer_unit=30`
 - `slots`
-  - `id`, `class_id`, `start_at`, `end_at`, `capacity=8`, `booked_count`, `is_active`
+  - `id`, `class_id`, `start_at`, `end_at`, `capacity=8`, `booked_count`, `admin_active`, `buffer_block_count`
+  - 실제 활성 상태는 `admin_active=true AND buffer_block_count=0`으로 판정한다.
 - `bookings`
   - `id`, `user_id nullable`, `guest_id nullable`
   - `user_id`, `guest_id` 중 정확히 하나만 존재하도록 `chk_bookings_exactly_one_owner` `CHECK` 제약으로 강제한다.

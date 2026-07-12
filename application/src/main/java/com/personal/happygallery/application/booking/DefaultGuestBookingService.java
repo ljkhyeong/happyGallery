@@ -84,7 +84,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
             throw new DuplicateBookingException();
         }
 
-        // 4. 비관적 락 + 정원 증가 + 버퍼 비활성화
+        // 4. 비관적 락 + 정원 증가 + 첫 예약이면 뒤쪽 버퍼 차단
         slotCapacitySupport.reserveCapacity(command.slotId());
 
         GuestTokenService.IssuedToken issued = guestTokenService.issue();

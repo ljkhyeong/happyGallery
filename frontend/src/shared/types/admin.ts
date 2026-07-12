@@ -21,6 +21,8 @@ export interface SlotResponse {
   endAt: string;
   capacity: number;
   bookedCount: number;
+  adminActive: boolean;
+  bufferBlocked: boolean;
   isActive: boolean;
 }
 
