@@ -1,39 +1,47 @@
 package com.personal.happygallery.support;
 
 import com.jayway.jsonpath.JsonPath;
+import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
+import com.personal.happygallery.adapter.in.web.payment.dto.PreparePaymentRequest;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.payment.PaymentContext;
 import jakarta.servlet.http.Cookie;
-import org.assertj.core.api.Assertions;
+import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import tools.jackson.databind.ObjectMapper;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * 결제 prepare/confirm 통합 테스트 헬퍼.
- */
+/** 결제 prepare/confirm 통합 테스트 헬퍼. */
 public final class PaymentTestHelper {
 
-    private PaymentTestHelper() {
+    private final MockMvc mockMvc;
+    private final ObjectMapper objectMapper;
+
+    public PaymentTestHelper(MockMvc mockMvc, ObjectMapper objectMapper) {
+        this.mockMvc = mockMvc;
+        this.objectMapper = objectMapper;
     }
 
-    public record PreparedPayment(String orderId, long amount, String responseBody) {}
+    public record PreparedPayment(String orderId, long amount) {}
 
-    public record ConfirmedPayment(Long domainId, String accessToken, String responseBody) {}
+    public record ConfirmedPayment(Long domainId, String accessToken) {}
 
-    public static PreparedPayment preparePayment(MockMvc mockMvc,
-                                                 String context,
-                                                 String payloadJson,
-                                                 Cookie... cookies) throws Exception {
+    public PreparedPayment preparePayment(PaymentContext context,
+                                          PaymentPayload payload,
+                                          Cookie... cookies) throws Exception {
         MockHttpServletRequestBuilder request = post("/api/v1/payments/prepare")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                                {
-                                  "context": "%s",
-                                  "payload": %s
-                                }
-                                """.formatted(context, payloadJson));
+                .content(objectMapper.writeValueAsString(new PreparePaymentRequest(context, payload)));
         if (cookies.length > 0) {
             request.cookie(cookies);
         }
@@ -44,25 +52,17 @@ public final class PaymentTestHelper {
                 .getContentAsString();
         return new PreparedPayment(
                 JsonPath.read(response, "$.orderId"),
-                ((Number) JsonPath.read(response, "$.amount")).longValue(),
-                response);
+                ((Number) JsonPath.read(response, "$.amount")).longValue());
     }
 
-    public static ConfirmedPayment confirmPayment(MockMvc mockMvc,
-                                                  String orderId,
-                                                  long amount,
-                                                  String paymentKey,
-                                                  Cookie... cookies) throws Exception {
-        String paymentKeyJson = paymentKey == null ? "null" : "\"" + paymentKey + "\"";
+    public ConfirmedPayment confirmPayment(String orderId,
+                                           long amount,
+                                           String paymentKey,
+                                           Cookie... cookies) throws Exception {
         MockHttpServletRequestBuilder request = post("/api/v1/payments/confirm")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                                {
-                                  "paymentKey": %s,
-                                  "orderId": "%s",
-                                  "amount": %d
-                                }
-                                """.formatted(paymentKeyJson, orderId, amount));
+                .content(objectMapper.writeValueAsString(
+                        new ConfirmPaymentRequest(paymentKey, orderId, amount)));
         if (cookies.length > 0) {
             request.cookie(cookies);
         }
@@ -73,86 +73,55 @@ public final class PaymentTestHelper {
                 .getContentAsString();
         return new ConfirmedPayment(
                 ((Number) JsonPath.read(response, "$.domainId")).longValue(),
-                JsonPath.read(response, "$.accessToken"),
-                response);
+                JsonPath.read(response, "$.accessToken"));
     }
 
-    public static ConfirmedPayment createMemberOrder(MockMvc mockMvc,
-                                                     Cookie sessionCookie,
-                                                     Long userId,
-                                                     Long productId,
-                                                     int qty) throws Exception {
-        PreparedPayment prepared = preparePayment(mockMvc, "ORDER", """
-                {
-                  "type": "ORDER",
-                  "userId": %d,
-                  "items": [
-                    { "productId": %d, "qty": %d }
-                  ]
-                }
-                """.formatted(userId, productId, qty), sessionCookie);
-        return confirmPayment(mockMvc, prepared.orderId(), prepared.amount(), "test-payment-key", sessionCookie);
+    public ConfirmedPayment createMemberOrder(Cookie sessionCookie,
+                                              Long userId,
+                                              Long productId,
+                                              int qty) throws Exception {
+        PreparedPayment prepared = preparePayment(
+                PaymentContext.ORDER,
+                new OrderPayload(userId, null, null, null, List.of(new OrderItemRef(productId, qty))),
+                sessionCookie);
+        return confirmPayment(prepared.orderId(), prepared.amount(), "test-payment-key", sessionCookie);
     }
 
-    public static ConfirmedPayment createMemberDepositBooking(MockMvc mockMvc,
-                                                              Cookie sessionCookie,
-                                                              Long userId,
-                                                              Long slotId) throws Exception {
-        PreparedPayment prepared = preparePayment(mockMvc, "BOOKING", """
-                {
-                  "type": "BOOKING",
-                  "userId": %d,
-                  "slotId": %d,
-                  "paymentMethod": "CARD"
-                }
-                """.formatted(userId, slotId), sessionCookie);
-        return confirmPayment(mockMvc, prepared.orderId(), prepared.amount(), "test-payment-key", sessionCookie);
+    public ConfirmedPayment createMemberDepositBooking(Cookie sessionCookie,
+                                                       Long userId,
+                                                       Long slotId) throws Exception {
+        PreparedPayment prepared = preparePayment(
+                PaymentContext.BOOKING,
+                new BookingPayload(userId, null, null, null, slotId, null, DepositPaymentMethod.CARD),
+                sessionCookie);
+        return confirmPayment(prepared.orderId(), prepared.amount(), "test-payment-key", sessionCookie);
     }
 
-    public static ConfirmedPayment createMemberPassBooking(MockMvc mockMvc,
-                                                           Cookie sessionCookie,
-                                                           Long userId,
-                                                           Long slotId,
-                                                           Long passId) throws Exception {
-        PreparedPayment prepared = preparePayment(mockMvc, "BOOKING", """
-                {
-                  "type": "BOOKING",
-                  "userId": %d,
-                  "slotId": %d,
-                  "passId": %d
-                }
-                """.formatted(userId, slotId, passId), sessionCookie);
-        Assertions.assertThat(prepared.amount()).isZero();
-        return confirmPayment(mockMvc, prepared.orderId(), prepared.amount(), null, sessionCookie);
+    public ConfirmedPayment createMemberPassBooking(Cookie sessionCookie,
+                                                    Long userId,
+                                                    Long slotId,
+                                                    Long passId) throws Exception {
+        PreparedPayment prepared = preparePayment(
+                PaymentContext.BOOKING,
+                new BookingPayload(userId, null, null, null, slotId, passId, null),
+                sessionCookie);
+        assertThat(prepared.amount()).isZero();
+        return confirmPayment(prepared.orderId(), prepared.amount(), null, sessionCookie);
     }
 
-    public static ConfirmedPayment purchaseMemberPass(MockMvc mockMvc,
-                                                      Cookie sessionCookie,
-                                                      Long userId) throws Exception {
-        PreparedPayment prepared = preparePayment(mockMvc, "PASS", """
-                {
-                  "type": "PASS",
-                  "userId": %d
-                }
-                """.formatted(userId), sessionCookie);
-        return confirmPayment(mockMvc, prepared.orderId(), prepared.amount(), "test-payment-key", sessionCookie);
+    public ConfirmedPayment purchaseMemberPass(Cookie sessionCookie, Long userId) throws Exception {
+        PreparedPayment prepared = preparePayment(PaymentContext.PASS, new PassPayload(userId), sessionCookie);
+        return confirmPayment(prepared.orderId(), prepared.amount(), "test-payment-key", sessionCookie);
     }
 
-    public static ConfirmedPayment createGuestBooking(MockMvc mockMvc,
-                                                      String phone,
-                                                      String verificationCode,
-                                                      String name,
-                                                      Long slotId) throws Exception {
-        PreparedPayment prepared = preparePayment(mockMvc, "BOOKING", """
-                {
-                  "type": "BOOKING",
-                  "phone": "%s",
-                  "verificationCode": "%s",
-                  "name": "%s",
-                  "slotId": %d,
-                  "paymentMethod": "CARD"
-                }
-                """.formatted(phone, verificationCode, name, slotId));
-        return confirmPayment(mockMvc, prepared.orderId(), prepared.amount(), "test-payment-key");
+    public ConfirmedPayment createGuestBooking(String phone,
+                                               String verificationCode,
+                                               String name,
+                                               Long slotId) throws Exception {
+        PreparedPayment prepared = preparePayment(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        null, phone, verificationCode, name, slotId, null, DepositPaymentMethod.CARD));
+        return confirmPayment(prepared.orderId(), prepared.amount(), "test-payment-key");
     }
 }

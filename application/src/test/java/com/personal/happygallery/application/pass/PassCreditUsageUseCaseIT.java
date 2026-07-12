@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.pass;
 
 import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
+import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingStatus;
@@ -17,8 +18,10 @@ import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseReposi
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
+import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
-import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -37,6 +40,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
@@ -74,17 +78,22 @@ class PassCreditUsageUseCaseIT {
     @Autowired UserRepository userRepository;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
+    @Autowired ObjectMapper objectMapper;
     @MockitoBean PaymentProvider paymentProvider;
 
     BookingClass cls;
     PassPurchase pass;
     Cookie sessionCookie;
+    PaymentTestHelper paymentHelper;
+    CustomerTestHelper customerHelper;
 
     @BeforeEach
     void setUp() throws Exception {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
+        paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
+        customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
         cleanupSupport.clearBookingWithPassAndRefundData();
 
         cls = classRepository.save(defaultBookingClass());
@@ -107,8 +116,8 @@ class PassCreditUsageUseCaseIT {
     void book_with_pass_consumes_credit() throws Exception {
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        PaymentTestHelper.ConfirmedPayment confirmed = PaymentTestHelper.createMemberPassBooking(
-                mockMvc, sessionCookie, pass.getUserId(), slot.getId(), pass.getId());
+        PaymentTestHelper.ConfirmedPayment confirmed = paymentHelper.createMemberPassBooking(
+                sessionCookie, pass.getUserId(), slot.getId(), pass.getId());
 
         // Proof: USE ledger 1건, amount=1
         var ledgers = passLedgerRepository.findByPassPurchaseId(pass.getId());
@@ -317,25 +326,15 @@ class PassCreditUsageUseCaseIT {
 
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        PaymentTestHelper.PreparedPayment prepared = PaymentTestHelper.preparePayment(mockMvc, "BOOKING", """
-                {
-                  "type": "BOOKING",
-                  "userId": %d,
-                  "slotId": %d,
-                  "passId": %d
-                }
-                """.formatted(pass.getUserId(), slot.getId(), pass.getId()), sessionCookie);
+        PaymentTestHelper.PreparedPayment prepared = paymentHelper.preparePayment(
+                PaymentContext.BOOKING,
+                passBookingPayload(pass, slot),
+                sessionCookie);
 
         mockMvc.perform(post("/api/v1/payments/confirm")
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "paymentKey": null,
-                                  "orderId": "%s",
-                                  "amount": %d
-                                }
-                                """.formatted(prepared.orderId(), prepared.amount())))
+                        .content(confirmRequest(prepared)))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("PASS_CREDIT_INSUFFICIENT"));
     }
@@ -348,50 +347,36 @@ class PassCreditUsageUseCaseIT {
         expiredPass = passPurchaseRepository.save(expiredPass);
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        PaymentTestHelper.PreparedPayment prepared = PaymentTestHelper.preparePayment(mockMvc, "BOOKING", """
-                {
-                  "type": "BOOKING",
-                  "userId": %d,
-                  "slotId": %d,
-                  "passId": %d
-                }
-                """.formatted(expiredPass.getUserId(), slot.getId(), expiredPass.getId()), sessionCookie);
+        PaymentTestHelper.PreparedPayment prepared = paymentHelper.preparePayment(
+                PaymentContext.BOOKING,
+                passBookingPayload(expiredPass, slot),
+                sessionCookie);
 
         mockMvc.perform(post("/api/v1/payments/confirm")
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "paymentKey": null,
-                                  "orderId": "%s",
-                                  "amount": %d
-                                }
-                                """.formatted(prepared.orderId(), prepared.amount())))
+                        .content(confirmRequest(prepared)))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("PASS_EXPIRED"));
     }
 
     private Long createPassBooking(Long slotId) throws Exception {
-        return PaymentTestHelper.createMemberPassBooking(mockMvc, sessionCookie, pass.getUserId(), slotId, pass.getId())
+        return paymentHelper.createMemberPassBooking(sessionCookie, pass.getUserId(), slotId, pass.getId())
                 .domainId();
     }
 
     private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
-        var result = mockMvc.perform(post("/api/v1/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "%s",
-                                  "password": "password123",
-                                  "name": "회원",
-                                  "phone": "%s"
-                                }
-                                """.formatted(email, phone)))
-                .andExpect(status().isCreated())
-                .andReturn();
-        Cookie cookie = result.getResponse().getCookie("HG_SESSION");
-        assertThat(cookie).isNotNull();
-        return cookie;
+        return customerHelper.signupAndGetSessionCookie(email, phone);
+    }
+
+    private BookingPayload passBookingPayload(PassPurchase passPurchase, Slot slot) {
+        return new BookingPayload(
+                passPurchase.getUserId(), null, null, null, slot.getId(), passPurchase.getId(), null);
+    }
+
+    private String confirmRequest(PaymentTestHelper.PreparedPayment prepared) throws Exception {
+        return objectMapper.writeValueAsString(
+                new ConfirmPaymentRequest(null, prepared.orderId(), prepared.amount()));
     }
 
     private Refund awaitRefundStatus(RefundStatus status) {

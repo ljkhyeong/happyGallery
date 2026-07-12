@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
+import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -14,15 +15,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.ObjectMapper;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -34,11 +33,14 @@ class MePassUseCaseIT {
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired UserReaderPort userReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired ObjectMapper objectMapper;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
     Cookie sessionCookie;
     Long userId;
+    PaymentTestHelper paymentHelper;
+    CustomerTestHelper customerHelper;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -46,6 +48,8 @@ class MePassUseCaseIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
+        paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
+        customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
         sessionCookie = signupAndGetSessionCookie("pass@test.com", "010-5555-6666");
         userId = userReaderPort.findByEmail("pass@test.com").orElseThrow().getId();
     }
@@ -63,7 +67,7 @@ class MePassUseCaseIT {
     @DisplayName("회원 8회권 구매가 성공한다")
     @Test
     void purchaseMemberPass_success() throws Exception {
-        Long passId = PaymentTestHelper.purchaseMemberPass(mockMvc, sessionCookie, userId).domainId();
+        Long passId = paymentHelper.purchaseMemberPass(sessionCookie, userId).domainId();
 
         mockMvc.perform(get("/api/v1/me/passes/{id}", passId)
                         .cookie(sessionCookie))
@@ -108,22 +112,10 @@ class MePassUseCaseIT {
     }
 
     private Long purchasePass() throws Exception {
-        return PaymentTestHelper.purchaseMemberPass(mockMvc, sessionCookie, userId).domainId();
+        return paymentHelper.purchaseMemberPass(sessionCookie, userId).domainId();
     }
 
     private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "%s",
-                                  "password": "password123",
-                                  "name": "회원",
-                                  "phone": "%s"
-                                }
-                                """.formatted(email, phone)))
-                .andExpect(status().isCreated())
-                .andReturn();
-        return result.getResponse().getCookie("HG_SESSION");
+        return customerHelper.signupAndGetSessionCookie(email, phone);
     }
 }

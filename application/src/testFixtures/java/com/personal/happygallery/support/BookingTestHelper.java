@@ -1,11 +1,11 @@
 package com.personal.happygallery.support;
 
+import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequest;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
-import com.jayway.jsonpath.JsonPath;
+import java.time.LocalDateTime;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.time.LocalDateTime;
+import tools.jackson.databind.ObjectMapper;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -17,55 +17,39 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 public final class BookingTestHelper {
 
-    public record CreatedBooking(Long bookingId, String accessToken, String responseBody) {}
+    public record CreatedBooking(Long bookingId, String accessToken) {}
 
     /** 충분히 먼 미래 슬롯 시작 시각 — isRefundable()/isChangeable() 항상 true */
     public static final LocalDateTime FUTURE = LocalDateTime.of(2030, 1, 1, 10, 0);
 
     private final MockMvc mockMvc;
     private final PhoneVerificationReaderPort phoneVerificationReaderPort;
+    private final ObjectMapper objectMapper;
+    private final PaymentTestHelper paymentTestHelper;
 
-    public BookingTestHelper(MockMvc mockMvc, PhoneVerificationReaderPort phoneVerificationReaderPort) {
+    public BookingTestHelper(MockMvc mockMvc,
+                             PhoneVerificationReaderPort phoneVerificationReaderPort,
+                             ObjectMapper objectMapper) {
         this.mockMvc = mockMvc;
         this.phoneVerificationReaderPort = phoneVerificationReaderPort;
+        this.objectMapper = objectMapper;
+        this.paymentTestHelper = new PaymentTestHelper(mockMvc, objectMapper);
     }
 
     public String sendVerificationAndGetCode(String phone) throws Exception {
         mockMvc.perform(post("/bookings/phone-verifications")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "phone": "%s" }
-                                """.formatted(phone)))
+                        .content(objectMapper.writeValueAsString(new SendVerificationRequest(phone))))
                 .andExpect(status().isOk());
         return phoneVerificationReaderPort.findLatestUnverifiedCode(phone)
                 .orElseThrow(() -> new AssertionError("No verification code found for " + phone))
                 .getCode();
     }
 
-    public String createBooking(String phone, String code, Long slotId, long deposit) throws Exception {
-        return PaymentTestHelper.createGuestBooking(mockMvc, phone, code, "홍길동", slotId).responseBody();
-    }
-
-    public CreatedBooking createVerifiedCardBooking(String phone, Long slotId, long deposit) throws Exception {
-        return createVerifiedCardBooking(phone, "홍길동", slotId, deposit);
-    }
-
-    public CreatedBooking createVerifiedCardBooking(String phone, String name, Long slotId, long deposit) throws Exception {
+    public CreatedBooking createVerifiedCardBooking(String phone, Long slotId) throws Exception {
         String code = sendVerificationAndGetCode(phone);
         PaymentTestHelper.ConfirmedPayment confirmed =
-                PaymentTestHelper.createGuestBooking(mockMvc, phone, code, name, slotId);
-        return new CreatedBooking(confirmed.domainId(), confirmed.accessToken(), confirmed.responseBody());
-    }
-
-    public static Long extractBookingId(String json) {
-        try {
-            return ((Number) JsonPath.read(json, "$.bookingId")).longValue();
-        } catch (com.jayway.jsonpath.PathNotFoundException ignored) {
-            return ((Number) JsonPath.read(json, "$.domainId")).longValue();
-        }
-    }
-
-    public static String extractAccessToken(String json) {
-        return JsonPath.read(json, "$.accessToken");
+                paymentTestHelper.createGuestBooking(phone, code, "홍길동", slotId);
+        return new CreatedBooking(confirmed.domainId(), confirmed.accessToken());
     }
 }

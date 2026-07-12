@@ -1,11 +1,13 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.AdminAuthFilter;
+import com.personal.happygallery.adapter.in.web.admin.dto.CreateSlotRequest;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +36,7 @@ class AdminSlotUseCaseIT {
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotReaderPort slotReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired ObjectMapper objectMapper;
 
     MockMvc mockMvc;
     Long classId;
@@ -53,12 +57,7 @@ class AdminSlotUseCaseIT {
         mockMvc.perform(post("/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": %d,
-                                  "startAt": "2026-03-01T10:00:00"
-                                }
-                                """.formatted(classId)))
+                        .content(slotRequest(classId, LocalDateTime.of(2026, 3, 1, 10, 0))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.classId").value(classId))
                 .andExpect(jsonPath("$.endAt").value("2026-03-01T12:00:00"))
@@ -74,24 +73,14 @@ class AdminSlotUseCaseIT {
         String firstResponse = mockMvc.perform(post("/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": %d,
-                                  "startAt": "2026-03-01T10:00:00"
-                                }
-                                """.formatted(classId)))
+                        .content(slotRequest(classId, LocalDateTime.of(2026, 3, 1, 10, 0))))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
         String secondResponse = mockMvc.perform(post("/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": %d,
-                                  "startAt": "2026-03-02T10:00:00"
-                                }
-                                """.formatted(classId)))
+                        .content(slotRequest(classId, LocalDateTime.of(2026, 3, 2, 10, 0))))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
@@ -120,12 +109,7 @@ class AdminSlotUseCaseIT {
         String response = mockMvc.perform(post("/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": %d,
-                                  "startAt": "2026-03-02T10:00:00"
-                                }
-                                """.formatted(classId)))
+                        .content(slotRequest(classId, LocalDateTime.of(2026, 3, 2, 10, 0))))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
@@ -149,12 +133,7 @@ class AdminSlotUseCaseIT {
         mockMvc.perform(post("/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": 99999,
-                                  "startAt": "2026-03-01T10:00:00"
-                                }
-                                """))
+                        .content(slotRequest(99999L, LocalDateTime.of(2026, 3, 1, 10, 0))))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
@@ -162,12 +141,7 @@ class AdminSlotUseCaseIT {
     @DisplayName("동일 클래스에 같은 시작 시각 슬롯을 생성하면 실패한다")
     @Test
     void createSlot_duplicateStartAt() throws Exception {
-        String body = """
-                {
-                  "classId": %d,
-                  "startAt": "2026-03-03T10:00:00"
-                }
-                """.formatted(classId);
+        String body = slotRequest(classId, LocalDateTime.of(2026, 3, 3, 10, 0));
 
         // 첫 번째 생성 — 성공
         mockMvc.perform(post("/admin/slots")
@@ -190,12 +164,7 @@ class AdminSlotUseCaseIT {
     void callAdminWithoutKey_returns401() throws Exception {
         mockMvc.perform(post("/admin/slots")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": %d,
-                                  "startAt": "2026-03-10T10:00:00"
-                                }
-                                """.formatted(classId)))
+                        .content(slotRequest(classId, LocalDateTime.of(2026, 3, 10, 10, 0))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
@@ -206,13 +175,12 @@ class AdminSlotUseCaseIT {
         mockMvc.perform(post("/admin/slots")
                         .header("X-Admin-Key", "wrong-key")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": %d,
-                                  "startAt": "2026-03-11T10:00:00"
-                                }
-                                """.formatted(classId)))
+                        .content(slotRequest(classId, LocalDateTime.of(2026, 3, 11, 10, 0))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    private String slotRequest(Long requestedClassId, LocalDateTime startAt) throws Exception {
+        return objectMapper.writeValueAsString(new CreateSlotRequest(requestedClassId, startAt));
     }
 }

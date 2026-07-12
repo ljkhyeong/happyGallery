@@ -13,6 +13,8 @@ import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.OrderService;
 import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
+import com.personal.happygallery.adapter.in.web.customer.dto.ClaimGuestRecordsRequest;
+import com.personal.happygallery.adapter.in.web.customer.dto.VerifyGuestClaimPhoneRequest;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
@@ -24,6 +26,7 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
@@ -38,9 +41,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -69,10 +72,12 @@ class CustomerGuestClaimUseCaseIT {
     @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired OrderService orderService;
+    @Autowired ObjectMapper objectMapper;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
     BookingTestHelper bookingHelper;
+    CustomerTestHelper customerHelper;
 
     @BeforeEach
     void setUp() {
@@ -80,7 +85,8 @@ class CustomerGuestClaimUseCaseIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
-        bookingHelper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort);
+        bookingHelper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort, objectMapper);
+        customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
     }
 
     @AfterEach
@@ -124,11 +130,8 @@ class CustomerGuestClaimUseCaseIT {
         mockMvc.perform(post("/api/v1/me/guest-claims/verify")
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "verificationCode": "%s"
-                                }
-                                """.formatted(verificationCode)))
+                        .content(objectMapper.writeValueAsString(
+                                new VerifyGuestClaimPhoneRequest(verificationCode))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phoneVerified").value(true))
                 .andExpect(jsonPath("$.orders[0].orderId").value(order.getId()))
@@ -139,12 +142,8 @@ class CustomerGuestClaimUseCaseIT {
         mockMvc.perform(post("/api/v1/me/guest-claims")
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "orderIds": [%d],
-                                  "bookingIds": [%d]
-                                }
-                                """.formatted(order.getId(), booking.getId())))
+                        .content(objectMapper.writeValueAsString(new ClaimGuestRecordsRequest(
+                                List.of(order.getId()), List.of(booking.getId())))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.claimedOrderCount").value(1))
                 .andExpect(jsonPath("$.claimedBookingCount").value(1));
@@ -181,18 +180,6 @@ class CustomerGuestClaimUseCaseIT {
     }
 
     private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "%s",
-                                  "password": "password123",
-                                  "name": "회원",
-                                  "phone": "%s"
-                                }
-                                """.formatted(email, phone)))
-                .andExpect(status().isCreated())
-                .andReturn();
-        return result.getResponse().getCookie("HG_SESSION");
+        return customerHelper.signupAndGetSessionCookie(email, phone);
     }
 }

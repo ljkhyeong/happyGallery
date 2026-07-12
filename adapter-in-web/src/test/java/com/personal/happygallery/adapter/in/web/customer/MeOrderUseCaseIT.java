@@ -7,6 +7,7 @@ import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -18,17 +19,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -42,12 +41,15 @@ class MeOrderUseCaseIT {
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired UserReaderPort userReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired ObjectMapper objectMapper;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
     Long productId;
     Cookie sessionCookie;
     Long userId;
+    PaymentTestHelper paymentHelper;
+    CustomerTestHelper customerHelper;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -55,6 +57,8 @@ class MeOrderUseCaseIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
+        paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
+        customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
 
         Product product = productStorePort.save(readyStockProduct("테스트 상품", 29_000L));
         inventoryStorePort.save(inventory(product, 10));
@@ -77,7 +81,7 @@ class MeOrderUseCaseIT {
     @DisplayName("회원 주문 생성이 성공한다")
     @Test
     void createMemberOrder_success() throws Exception {
-        Long orderId = PaymentTestHelper.createMemberOrder(mockMvc, sessionCookie, userId, productId, 1)
+        Long orderId = paymentHelper.createMemberOrder(sessionCookie, userId, productId, 1)
                 .domainId();
 
         mockMvc.perform(get("/api/v1/me/orders/{id}", orderId)
@@ -121,23 +125,11 @@ class MeOrderUseCaseIT {
     }
 
     private Long createOrder() throws Exception {
-        return PaymentTestHelper.createMemberOrder(mockMvc, sessionCookie, userId, productId, 1)
+        return paymentHelper.createMemberOrder(sessionCookie, userId, productId, 1)
                 .domainId();
     }
 
     private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "%s",
-                                  "password": "password123",
-                                  "name": "회원",
-                                  "phone": "%s"
-                                }
-                                """.formatted(email, phone)))
-                .andExpect(status().isCreated())
-                .andReturn();
-        return result.getResponse().getCookie("HG_SESSION");
+        return customerHelper.signupAndGetSessionCookie(email, phone);
     }
 }

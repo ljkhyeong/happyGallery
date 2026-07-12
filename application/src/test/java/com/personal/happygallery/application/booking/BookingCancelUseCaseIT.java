@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
@@ -57,6 +58,7 @@ class BookingCancelUseCaseIT {
     @Autowired NotificationLogProbe notificationLogProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
+    @Autowired ObjectMapper objectMapper;
     @MockitoBean PaymentProvider paymentProvider;
 
     BookingClass cls;
@@ -64,7 +66,7 @@ class BookingCancelUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort);
+        helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort, objectMapper);
         // 기본: PaymentProvider 성공
         when(paymentProvider.confirm(any(), any(), anyLong(), any()))
                 .thenReturn(PaymentConfirmResult.success("FAKE-TEST-PG", "CARD", "2026-04-26T12:00:00+09:00"));
@@ -85,7 +87,7 @@ class BookingCancelUseCaseIT {
     void cancel_refundable_success() throws Exception {
         Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        BookingTestHelper.CreatedBooking createdBooking = helper.createVerifiedCardBooking("01011110001", slot.getId(), 5_000L);
+        BookingTestHelper.CreatedBooking createdBooking = helper.createVerifiedCardBooking("01011110001", slot.getId());
         Long bookingId = createdBooking.bookingId();
         awaitLogCount(notificationLogProbe, 1);
         cleanupSupport.clearNotificationLogs();
@@ -133,7 +135,7 @@ class BookingCancelUseCaseIT {
 
         Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550005", slot.getId(), 5_000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550005", slot.getId());
         awaitLogCount(notificationLogProbe, 1);
         cleanupSupport.clearNotificationLogs();
 
@@ -170,7 +172,7 @@ class BookingCancelUseCaseIT {
         LocalDateTime today14 = LocalDateTime.now(clock).toLocalDate().atTime(14, 0);
         Slot slot = slotStorePort.save(slot(cls, today14, today14.plusHours(2)));
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01022220002", slot.getId(), 5_000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01022220002", slot.getId());
         Long bookingId = booking.bookingId();
 
         mockMvc.perform(delete("/bookings/{id}", bookingId)
@@ -195,7 +197,7 @@ class BookingCancelUseCaseIT {
     void cancel_wrongToken_returns404() throws Exception {
         Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330003", slot.getId(), 5_000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330003", slot.getId());
 
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
                         .header("X-Access-Token", "invalid-token"))
@@ -212,7 +214,7 @@ class BookingCancelUseCaseIT {
     void cancel_alreadyCanceled_returns400() throws Exception {
         Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01044440004", slot.getId(), 5_000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01044440004", slot.getId());
 
         // 첫 번째 취소 — 성공
         mockMvc.perform(delete("/bookings/{id}", booking.bookingId())

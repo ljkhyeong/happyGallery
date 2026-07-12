@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.booking;
 
+import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleRequest;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
@@ -19,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
@@ -42,13 +44,14 @@ class BookingRescheduleUseCaseIT {
     @Autowired SlotCapacitySupport slotCapacitySupport;
     @Autowired Clock clock;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired ObjectMapper objectMapper;
 
     BookingClass cls;
     BookingTestHelper helper;
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort);
+        helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort, objectMapper);
         cleanupSupport.clearBookingWithPassAndRefundData();
 
         cls = classStorePort.save(defaultBookingClass());
@@ -70,18 +73,14 @@ class BookingRescheduleUseCaseIT {
         }
 
         // 초기 예약 생성 (slots[0])
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01011110000", slots[0].getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01011110000", slots[0].getId());
 
         // 5번 연속 변경 (slots[1] → slots[2] → ... → slots[5])
         for (int i = 1; i <= 5; i++) {
-            mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+                    mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
                             .header("X-Access-Token", booking.accessToken())
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("""
-                                    {
-                                      "newSlotId": %d
-                                    }
-                                    """.formatted(slots[i].getId())))
+                            .content(rescheduleRequest(slots[i].getId())))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.bookingId").value(booking.bookingId()))
                     .andExpect(jsonPath("$.slotId").value(slots[i].getId()))
@@ -122,16 +121,12 @@ class BookingRescheduleUseCaseIT {
         Slot nearSlot = slotStorePort.save(slot(cls, soonStart, soonStart.plusHours(2)));
         Slot targetSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01022220001", nearSlot.getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01022220001", nearSlot.getId());
 
         mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "newSlotId": %d
-                                }
-                                """.formatted(targetSlot.getId())))
+                        .content(rescheduleRequest(targetSlot.getId())))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("CHANGE_NOT_ALLOWED"));
     }
@@ -145,16 +140,12 @@ class BookingRescheduleUseCaseIT {
     void reschedule_sameSlot_returns400() throws Exception {
         Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330001", slot.getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330001", slot.getId());
 
         mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "newSlotId": %d
-                                }
-                                """.formatted(slot.getId())))
+                        .content(rescheduleRequest(slot.getId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
@@ -170,16 +161,12 @@ class BookingRescheduleUseCaseIT {
         Slot inactiveSlot = slotStorePort.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
         slotManagementService.deactivateSlot(inactiveSlot.getId());
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01044440001", fromSlot.getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01044440001", fromSlot.getId());
 
         mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "newSlotId": %d
-                                }
-                                """.formatted(inactiveSlot.getId())))
+                        .content(rescheduleRequest(inactiveSlot.getId())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("SLOT_NOT_AVAILABLE"));
     }
@@ -199,16 +186,12 @@ class BookingRescheduleUseCaseIT {
             reserveCapacityInTx(fullSlot.getId());
         }
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550001", fromSlot.getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550001", fromSlot.getId());
 
         mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "newSlotId": %d
-                                }
-                                """.formatted(fullSlot.getId())))
+                        .content(rescheduleRequest(fullSlot.getId())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CAPACITY_EXCEEDED"));
     }
@@ -223,16 +206,12 @@ class BookingRescheduleUseCaseIT {
         Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
         Slot toSlot = slotStorePort.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01066660001", fromSlot.getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01066660001", fromSlot.getId());
 
         mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", "invalid-token")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "newSlotId": %d
-                                }
-                                """.formatted(toSlot.getId())))
+                        .content(rescheduleRequest(toSlot.getId())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
@@ -240,6 +219,10 @@ class BookingRescheduleUseCaseIT {
     private void reserveCapacityInTx(Long slotId) {
         new TransactionTemplate(transactionManager)
                 .executeWithoutResult(status -> slotCapacitySupport.reserveCapacity(slotId));
+    }
+
+    private String rescheduleRequest(Long newSlotId) throws Exception {
+        return objectMapper.writeValueAsString(new RescheduleRequest(newSlotId));
     }
 
 }

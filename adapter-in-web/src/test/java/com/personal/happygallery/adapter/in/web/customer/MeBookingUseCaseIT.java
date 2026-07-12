@@ -5,9 +5,11 @@ import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
+import com.personal.happygallery.adapter.in.web.customer.dto.MemberRescheduleRequest;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -22,16 +24,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -45,6 +46,7 @@ class MeBookingUseCaseIT {
     @Autowired SlotStorePort slotStorePort;
     @Autowired UserReaderPort userReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired ObjectMapper objectMapper;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
@@ -52,6 +54,8 @@ class MeBookingUseCaseIT {
     Long slot2Id;
     Cookie sessionCookie;
     Long userId;
+    PaymentTestHelper paymentHelper;
+    CustomerTestHelper customerHelper;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -59,6 +63,8 @@ class MeBookingUseCaseIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
+        paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
+        customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
 
         BookingClass cls = classStorePort.save(defaultBookingClass());
         Slot s1 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE, BookingTestHelper.FUTURE.plusHours(2)));
@@ -83,7 +89,7 @@ class MeBookingUseCaseIT {
     @DisplayName("회원 예약금 예약 생성이 성공한다")
     @Test
     void createMemberBooking_success() throws Exception {
-        Long bookingId = PaymentTestHelper.createMemberDepositBooking(mockMvc, sessionCookie, userId, slotId)
+        Long bookingId = paymentHelper.createMemberDepositBooking(sessionCookie, userId, slotId)
                 .domainId();
 
         mockMvc.perform(get("/api/v1/me/bookings/{id}", bookingId)
@@ -133,9 +139,7 @@ class MeBookingUseCaseIT {
         mockMvc.perform(patch("/api/v1/me/bookings/{id}/reschedule", bookingId)
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "newSlotId": %d }
-                                """.formatted(slot2Id)))
+                        .content(objectMapper.writeValueAsString(new MemberRescheduleRequest(slot2Id))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
                 .andExpect(jsonPath("$.status").value("BOOKED"));
@@ -162,23 +166,11 @@ class MeBookingUseCaseIT {
     }
 
     private Long createBooking(Long targetSlotId) throws Exception {
-        return PaymentTestHelper.createMemberDepositBooking(mockMvc, sessionCookie, userId, targetSlotId)
+        return paymentHelper.createMemberDepositBooking(sessionCookie, userId, targetSlotId)
                 .domainId();
     }
 
     private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "%s",
-                                  "password": "password123",
-                                  "name": "회원",
-                                  "phone": "%s"
-                                }
-                                """.formatted(email, phone)))
-                .andExpect(status().isCreated())
-                .andReturn();
-        return result.getResponse().getCookie("HG_SESSION");
+        return customerHelper.signupAndGetSessionCookie(email, phone);
     }
 }

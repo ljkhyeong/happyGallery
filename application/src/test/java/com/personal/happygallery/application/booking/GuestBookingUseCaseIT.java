@@ -1,16 +1,22 @@
 package com.personal.happygallery.application.booking;
 
+import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequest;
+import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
+import com.personal.happygallery.adapter.in.web.payment.dto.PreparePaymentRequest;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.support.BookingStateProbe;
+import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
-import com.personal.happygallery.support.PaymentTestHelper;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,9 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.ObjectMapper;
 
-import static com.personal.happygallery.support.BookingTestHelper.extractAccessToken;
-import static com.personal.happygallery.support.BookingTestHelper.extractBookingId;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,14 +45,17 @@ class GuestBookingUseCaseIT {
     @Autowired BookingReaderPort bookingReaderPort;
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired ObjectMapper objectMapper;
 
     Long slotId;
     static final String PHONE = "01012345678";
     BookingTestHelper helper;
+    PaymentTestHelper paymentHelper;
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort);
+        helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort, objectMapper);
+        paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
         cleanupSupport.clearBookingWithPassAndRefundData();
 
         BookingClass cls = classStorePort.save(defaultBookingClass());
@@ -66,9 +74,7 @@ class GuestBookingUseCaseIT {
     void sendVerification_success() throws Exception {
         mockMvc.perform(post("/bookings/phone-verifications")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "phone": "%s" }
-                                """.formatted(PHONE)))
+                        .content(objectMapper.writeValueAsString(new SendVerificationRequest(PHONE))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.verificationId").isNumber())
                 .andExpect(jsonPath("$.phone").value(PHONE))
@@ -94,7 +100,7 @@ class GuestBookingUseCaseIT {
     @DisplayName("게스트 예약 생성이 성공한다")
     @Test
     void createGuestBooking_success() throws Exception {
-        BookingTestHelper.CreatedBooking created = helper.createVerifiedCardBooking(PHONE, slotId, 5_000L);
+        BookingTestHelper.CreatedBooking created = helper.createVerifiedCardBooking(PHONE, slotId);
 
         mockMvc.perform(get("/bookings/{id}", created.bookingId())
                         .header("X-Access-Token", created.accessToken()))
@@ -118,19 +124,10 @@ class GuestBookingUseCaseIT {
 
         mockMvc.perform(post("/api/v1/payments/prepare")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "context": "BOOKING",
-                                  "payload": {
-                                    "type": "BOOKING",
-                                    "phone": "%s",
-                                    "verificationCode": "%s",
-                                    "name": "홍길동",
-                                    "slotId": %d,
-                                    "paymentMethod": "BANK_TRANSFER"
-                                  }
-                                }
-                                """.formatted(PHONE, code, slotId)))
+                        .content(objectMapper.writeValueAsString(new PreparePaymentRequest(
+                                PaymentContext.BOOKING,
+                                bookingPayload(PHONE, code, "홍길동", slotId,
+                                        DepositPaymentMethod.BANK_TRANSFER)))))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("PAYMENT_METHOD_NOT_ALLOWED"));
 
@@ -142,29 +139,16 @@ class GuestBookingUseCaseIT {
     @Test
     void createGuestBooking_duplicateBooking_returns409() throws Exception {
         // 첫 번째 예약 성공
-        helper.createVerifiedCardBooking(PHONE, slotId, 5_000L);
+        helper.createVerifiedCardBooking(PHONE, slotId);
 
         // 동일 전화번호 + 동일 슬롯 재예약 → 409
         String code2 = helper.sendVerificationAndGetCode(PHONE);
-        PaymentTestHelper.PreparedPayment prepared = PaymentTestHelper.preparePayment(mockMvc, "BOOKING", """
-                {
-                  "type": "BOOKING",
-                  "phone": "%s",
-                  "verificationCode": "%s",
-                  "name": "홍길동",
-                  "slotId": %d,
-                  "paymentMethod": "CARD"
-                }
-                """.formatted(PHONE, code2, slotId));
+        PaymentTestHelper.PreparedPayment prepared = paymentHelper.preparePayment(
+                PaymentContext.BOOKING,
+                bookingPayload(PHONE, code2, "홍길동", slotId, DepositPaymentMethod.CARD));
         mockMvc.perform(post("/api/v1/payments/confirm")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "paymentKey": "test-payment-key",
-                                  "orderId": "%s",
-                                  "amount": %d
-                                }
-                                """.formatted(prepared.orderId(), prepared.amount())))
+                        .content(confirmRequest(prepared, "test-payment-key")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("DUPLICATE_BOOKING"));
     }
@@ -174,25 +158,12 @@ class GuestBookingUseCaseIT {
     void createGuestBooking_wrongCode_returns400() throws Exception {
         helper.sendVerificationAndGetCode(PHONE); // 코드 발급 (소모 안 함)
 
-        PaymentTestHelper.PreparedPayment prepared = PaymentTestHelper.preparePayment(mockMvc, "BOOKING", """
-                {
-                  "type": "BOOKING",
-                  "phone": "%s",
-                  "verificationCode": "000000",
-                  "name": "홍길동",
-                  "slotId": %d,
-                  "paymentMethod": "CARD"
-                }
-                """.formatted(PHONE, slotId));
+        PaymentTestHelper.PreparedPayment prepared = paymentHelper.preparePayment(
+                PaymentContext.BOOKING,
+                bookingPayload(PHONE, "000000", "홍길동", slotId, DepositPaymentMethod.CARD));
         mockMvc.perform(post("/api/v1/payments/confirm")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "paymentKey": "test-payment-key",
-                                  "orderId": "%s",
-                                  "amount": %d
-                                }
-                                """.formatted(prepared.orderId(), prepared.amount())))
+                        .content(confirmRequest(prepared, "test-payment-key")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("PHONE_VERIFICATION_FAILED"));
     }
@@ -204,31 +175,18 @@ class GuestBookingUseCaseIT {
         for (int i = 0; i < 8; i++) {
             String phone = "0101234567" + i;
             String code = helper.sendVerificationAndGetCode(phone);
-            PaymentTestHelper.createGuestBooking(mockMvc, phone, code, "예약자%d".formatted(i), slotId);
+            paymentHelper.createGuestBooking(phone, code, "예약자%d".formatted(i), slotId);
         }
 
         // 9번째 예약 → 정원 초과
         String phone = "01099999999";
         String code = helper.sendVerificationAndGetCode(phone);
-        PaymentTestHelper.PreparedPayment prepared = PaymentTestHelper.preparePayment(mockMvc, "BOOKING", """
-                {
-                  "type": "BOOKING",
-                  "phone": "%s",
-                  "verificationCode": "%s",
-                  "name": "초과예약자",
-                  "slotId": %d,
-                  "paymentMethod": "CARD"
-                }
-                """.formatted(phone, code, slotId));
+        PaymentTestHelper.PreparedPayment prepared = paymentHelper.preparePayment(
+                PaymentContext.BOOKING,
+                bookingPayload(phone, code, "초과예약자", slotId, DepositPaymentMethod.CARD));
         mockMvc.perform(post("/api/v1/payments/confirm")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "paymentKey": "test-payment-key",
-                                  "orderId": "%s",
-                                  "amount": %d
-                                }
-                                """.formatted(prepared.orderId(), prepared.amount())))
+                        .content(confirmRequest(prepared, "test-payment-key")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CAPACITY_EXCEEDED"));
     }
@@ -240,7 +198,7 @@ class GuestBookingUseCaseIT {
     @DisplayName("토큰으로 예약 조회가 성공한다")
     @Test
     void getBooking_success() throws Exception {
-        BookingTestHelper.CreatedBooking created = helper.createVerifiedCardBooking(PHONE, slotId, 5_000L);
+        BookingTestHelper.CreatedBooking created = helper.createVerifiedCardBooking(PHONE, slotId);
 
         mockMvc.perform(get("/bookings/{id}", created.bookingId())
                         .header("X-Access-Token", created.accessToken()))
@@ -256,7 +214,7 @@ class GuestBookingUseCaseIT {
     @DisplayName("잘못된 토큰으로 예약 조회 시 404를 반환한다")
     @Test
     void getBooking_wrongToken_returns404() throws Exception {
-        BookingTestHelper.CreatedBooking created = helper.createVerifiedCardBooking(PHONE, slotId, 5_000L);
+        BookingTestHelper.CreatedBooking created = helper.createVerifiedCardBooking(PHONE, slotId);
 
         mockMvc.perform(get("/bookings/{id}", created.bookingId())
                         .header("X-Access-Token", "invalid-token"))
@@ -264,8 +222,17 @@ class GuestBookingUseCaseIT {
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
 
-    // -----------------------------------------------------------------------
-    // helper
-    // -----------------------------------------------------------------------
+    private BookingPayload bookingPayload(String phone,
+                                          String verificationCode,
+                                          String name,
+                                          Long requestedSlotId,
+                                          DepositPaymentMethod paymentMethod) {
+        return new BookingPayload(
+                null, phone, verificationCode, name, requestedSlotId, null, paymentMethod);
+    }
 
+    private String confirmRequest(PaymentTestHelper.PreparedPayment prepared, String paymentKey) throws Exception {
+        return objectMapper.writeValueAsString(
+                new ConfirmPaymentRequest(paymentKey, prepared.orderId(), prepared.amount()));
+    }
 }

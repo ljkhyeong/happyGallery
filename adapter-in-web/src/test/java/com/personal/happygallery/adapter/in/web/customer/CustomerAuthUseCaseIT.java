@@ -1,5 +1,7 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
+import com.personal.happygallery.adapter.in.web.customer.dto.CustomerLoginRequest;
+import com.personal.happygallery.adapter.in.web.customer.dto.SignupRequest;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.ObjectMapper;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
@@ -22,6 +25,7 @@ class CustomerAuthUseCaseIT {
 
     @Autowired WebApplicationContext context;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
+    @Autowired ObjectMapper objectMapper;
 
     MockMvc mockMvc;
 
@@ -37,14 +41,8 @@ class CustomerAuthUseCaseIT {
     void signup_success() throws Exception {
         mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "test@example.com",
-                                  "password": "password123",
-                                  "name": "테스트",
-                                  "phone": "010-1234-5678"
-                                }
-                                """))
+                        .content(objectMapper.writeValueAsString(new SignupRequest(
+                                "test@example.com", "password123", "테스트", "010-1234-5678"))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.email").value("test@example.com"))
@@ -58,14 +56,8 @@ class CustomerAuthUseCaseIT {
     @DisplayName("중복 이메일로 회원가입하면 409를 반환한다")
     @Test
     void signup_duplicateEmail_conflict() throws Exception {
-        String body = """
-                {
-                  "email": "dup@example.com",
-                  "password": "password123",
-                  "name": "테스트",
-                  "phone": "010-0000-0000"
-                }
-                """;
+        String body = objectMapper.writeValueAsString(new SignupRequest(
+                "dup@example.com", "password123", "테스트", "010-0000-0000"));
 
         mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -84,24 +76,14 @@ class CustomerAuthUseCaseIT {
     void login_success() throws Exception {
         mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "login@example.com",
-                                  "password": "password123",
-                                  "name": "로그인",
-                                  "phone": "010-1111-2222"
-                                }
-                                """))
+                        .content(objectMapper.writeValueAsString(new SignupRequest(
+                                "login@example.com", "password123", "로그인", "010-1111-2222"))))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "login@example.com",
-                                  "password": "password123"
-                                }
-                                """))
+                        .content(objectMapper.writeValueAsString(
+                                new CustomerLoginRequest("login@example.com", "password123"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("login@example.com"))
                 .andExpect(cookie().exists("HG_SESSION"));
@@ -112,24 +94,14 @@ class CustomerAuthUseCaseIT {
     void login_wrongPassword_unauthorized() throws Exception {
         mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "wrong@example.com",
-                                  "password": "password123",
-                                  "name": "테스트",
-                                  "phone": "010-3333-4444"
-                                }
-                                """))
+                        .content(objectMapper.writeValueAsString(new SignupRequest(
+                                "wrong@example.com", "password123", "테스트", "010-3333-4444"))))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "wrong@example.com",
-                                  "password": "wrongpassword"
-                                }
-                                """))
+                        .content(objectMapper.writeValueAsString(
+                                new CustomerLoginRequest("wrong@example.com", "wrongpassword"))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
     }
@@ -139,14 +111,8 @@ class CustomerAuthUseCaseIT {
     void logout_clearsCookie() throws Exception {
         var signupResult = mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "logout@example.com",
-                                  "password": "password123",
-                                  "name": "로그아웃",
-                                  "phone": "010-9999-0000"
-                                }
-                                """))
+                        .content(objectMapper.writeValueAsString(new SignupRequest(
+                                "logout@example.com", "password123", "로그아웃", "010-9999-0000"))))
                 .andExpect(status().isCreated())
                 .andReturn();
 
