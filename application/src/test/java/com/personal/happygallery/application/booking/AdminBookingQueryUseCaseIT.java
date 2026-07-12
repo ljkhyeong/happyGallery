@@ -135,12 +135,9 @@ class AdminBookingQueryUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
-            softly.assertThat(logs).hasSize(1);
-            if (!logs.isEmpty()) {
-                softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
-                softly.assertThat(logs.get(0).getUserId()).isEqualTo(claimer.getId());
-                softly.assertThat(logs.get(0).getGuestId()).isNull();
-            }
+            softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
+            softly.assertThat(logs.get(0).getUserId()).isEqualTo(claimer.getId());
+            softly.assertThat(logs.get(0).getGuestId()).isNull();
         });
     }
 
@@ -149,9 +146,10 @@ class AdminBookingQueryUseCaseIT {
     void sendSameDayReminders_allBookingTypes_sendsAll() {
         LocalDateTime slotStart = LocalDate.now(clock).atTime(14, 0);
 
-        saveGuestBooking(slotStart, "게스트", "G2", "게스트1", "01011111111");
-        saveMemberBooking(slotStart.plusHours(1), "회원", "M2", "m@test.com", "회원1", "01022222222");
-        saveClaimedBooking(slotStart.plusHours(2), "클레임", "C2",
+        Guest guest = saveGuestBooking(slotStart, "게스트", "G2", "게스트1", "01011111111");
+        User member = saveMemberBooking(
+                slotStart.plusHours(1), "회원", "M2", "m@test.com", "회원1", "01022222222");
+        User claimer = saveClaimedBooking(slotStart.plusHours(2), "클레임", "C2",
                 "원래게스트2", "01033333333", "c@test.com", "클레이머2");
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
@@ -159,7 +157,12 @@ class AdminBookingQueryUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(3);
-            softly.assertThat(logs).hasSize(3);
+            softly.assertThat(logs)
+                    .extracting(NotificationLog::getGuestId, NotificationLog::getUserId)
+                    .containsExactlyInAnyOrder(
+                            tuple(guest.getId(), null),
+                            tuple(null, member.getId()),
+                            tuple(null, claimer.getId()));
         });
     }
 
@@ -170,18 +173,20 @@ class AdminBookingQueryUseCaseIT {
         return slotStorePort.save(slot(cls, start, start.plusHours(1)));
     }
 
-    private void saveGuestBooking(LocalDateTime slotStart, String className, String category,
-                                  String guestName, String phone) {
+    private Guest saveGuestBooking(LocalDateTime slotStart, String className, String category,
+                                   String guestName, String phone) {
         Slot s = saveSlot(slotStart, className, category);
         Guest g = guestStorePort.save(guest(guestName, phone));
         bookingStorePort.save(booking(g, s, 10_000L, 20_000L, DepositPaymentMethod.CARD, accessToken()));
+        return g;
     }
 
-    private void saveMemberBooking(LocalDateTime slotStart, String className, String category,
+    private User saveMemberBooking(LocalDateTime slotStart, String className, String category,
                                    String email, String name, String phone) {
         Slot s = saveSlot(slotStart, className, category);
         User member = userStorePort.save(new User(email, "hash", name, phone));
         bookingStorePort.save(Booking.forMemberDeposit(member.getId(), s, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+        return member;
     }
 
     private User saveClaimedBooking(LocalDateTime slotStart, String className, String category,

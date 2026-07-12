@@ -77,7 +77,6 @@ class PassExpiryNotificationUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(2);
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(logs).hasSize(2);
             softly.assertThat(logs).allMatch(log -> log.getEventType() == NotificationEventType.PASS_EXPIRY_SOON);
             softly.assertThat(logs).extracting(NotificationLog::getUserId).containsExactlyInAnyOrder(user1.getId(), user2.getId());
         });
@@ -115,14 +114,13 @@ class PassExpiryNotificationUseCaseIT {
         BatchResult first = passExpiryBatchService.sendExpiryNotifications();
         awaitLogCount(notificationLogProbe, 1);
         BatchResult second = passExpiryBatchService.sendExpiryNotifications();
-        List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
+        awaitLogCount(notificationLogProbe, 1);
 
         assertSoftly(softly -> {
             softly.assertThat(first.successCount()).isEqualTo(1);
             softly.assertThat(first.failureCount()).isZero();
             softly.assertThat(second.successCount()).isEqualTo(0);
             softly.assertThat(second.failureCount()).isZero();
-            softly.assertThat(logs).hasSize(1);
         });
     }
 }

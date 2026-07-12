@@ -34,7 +34,7 @@ import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.guest;
 import static com.personal.happygallery.support.TestFixtures.slot;
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
@@ -88,11 +88,8 @@ class BookingReminderBatchUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(logs).hasSize(1);
-            if (!logs.isEmpty()) {
-                softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
-                softly.assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
-            }
+            softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
+            softly.assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
         });
     }
 
@@ -133,11 +130,8 @@ class BookingReminderBatchUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(logs).hasSize(1);
-            if (!logs.isEmpty()) {
-                softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_SAME_DAY);
-                softly.assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
-            }
+            softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_SAME_DAY);
+            softly.assertThat(logs.get(0).getGuestId()).isEqualTo(booking.getGuest().getId());
         });
     }
 
@@ -179,12 +173,9 @@ class BookingReminderBatchUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
-            softly.assertThat(logs).hasSize(1);
-            if (!logs.isEmpty()) {
-                softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
-                softly.assertThat(logs.get(0).getUserId()).isEqualTo(booking.getUserId());
-                softly.assertThat(logs.get(0).getGuestId()).isNull();
-            }
+            softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
+            softly.assertThat(logs.get(0).getUserId()).isEqualTo(booking.getUserId());
+            softly.assertThat(logs.get(0).getGuestId()).isNull();
         });
     }
 
@@ -193,19 +184,24 @@ class BookingReminderBatchUseCaseIT {
     void sendSameDayReminders_mixedBookings_sendsAll() {
         LocalDateTime slotStart = LocalDate.now(clock).atTime(14, 0);
 
-        createBooking(slotStart);
+        Booking guestBooking = createBooking(slotStart);
         BookingClass cls2 = classStorePort.save(
                 bookingClass("혼합 클래스", "MIX", 60, 30_000L, 30));
         Slot slot2 = slotStorePort.save(slot(cls2, slotStart.plusHours(1), slotStart.plusHours(2)));
         User user = userStorePort.save(new User("mixed@test.com", "hash", "혼합회원", "01088887777"));
-        bookingStorePort.save(Booking.forMemberDeposit(user.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+        Booking memberBooking = bookingStorePort.save(
+                Booking.forMemberDeposit(user.getId(), slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
         List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 2);
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(2);
-            softly.assertThat(logs).hasSize(2);
+            softly.assertThat(logs)
+                    .extracting(NotificationLog::getGuestId, NotificationLog::getUserId)
+                    .containsExactlyInAnyOrder(
+                            tuple(guestBooking.getGuest().getId(), null),
+                            tuple(null, memberBooking.getUserId()));
         });
     }
 
