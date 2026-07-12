@@ -57,7 +57,8 @@ class BookingSupport {
                 new BookingHistory(booking, action, oldSlot, newSlot, actor, reason));
     }
 
-    /** booking 의 guest/member 를 자동 판별하여 알림을 발송한다. */
+    /** 예약 트랜잭션 안에서 guest/member 알림 요청을 outbox 이벤트로 발행한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
     void notifyBooker(Booking booking, NotificationEventType eventType) {
         if (booking.getUserId() != null) {
             eventPublisher.publishEvent(bookerEventForUser(booking, eventType));

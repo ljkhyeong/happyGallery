@@ -17,8 +17,11 @@
 ## 결정 사항
 
 - 일반 알림 요청은 도메인 트랜잭션 안에서 `notification_outbox`에 먼저 저장한다.
-- `NotificationEventListener`는 외부 채널을 호출하지 않고 outbox 저장만 담당한다.
-- `NotificationOutboxDispatcher`는 커밋 이후 `notificationExecutor`에서 pending outbox를 발송한다.
+- `NotificationEventListener`의 동기 `@EventListener`는 외부 채널을 호출하지 않고 outbox 저장과
+  `NotificationOutboxEnqueuedEvent` 발행만 담당한다.
+- 내부 outbox 저장 이벤트는 `@TransactionalEventListener(AFTER_COMMIT)`에서 받아
+  `NotificationOutboxDispatcher`를 호출한다. 트랜잭션 밖 요청은 `fallbackExecution=true`로 즉시 dispatch한다.
+- `NotificationOutboxDispatcher`는 `notificationExecutor`에서 pending outbox를 발송한다.
 - `NotificationOutboxDispatcher#dispatchPending`은 활성 트랜잭션이 있으면 예외를 던져 외부 알림 호출 중 부모 트랜잭션 커넥션을 점유하지 않게 한다.
 - outbox 예약과 결과 갱신은 짧은 `REQUIRES_NEW` 트랜잭션으로 처리하고, 발송 요청 조회는 `readOnly` 기본 전파를 사용한다.
 - `NotificationOutboxScheduler`는 주기적으로 pending/stale processing outbox를 다시 dispatch해 즉시 dispatch 실패와 재시작 상황을 복구한다.
@@ -46,7 +49,7 @@
 - `notification_outbox` 테이블과 dispatch/unique 인덱스 추가
 - `NotificationOutbox`, `NotificationOutboxStatus`, `NotificationRecipientType` 추가
 - `NotificationOutboxService`, `NotificationOutboxDispatcher`, `NotificationOutboxTransactionService`, `NotificationOutboxScheduler` 추가
-- `NotificationEventListener`를 outbox 저장 전용 동기 이벤트 리스너로 변경
+- `NotificationEventListener`를 outbox 저장용 동기 리스너와 내부 이벤트의 `AFTER_COMMIT` dispatch 리스너로 분리
 - `NotificationRequestedEvent`에 aggregate/idempotency key 추가
 - outbox 트랜잭션 보장 테스트:
   - `NotificationOutboxUseCaseIT`
