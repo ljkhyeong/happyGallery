@@ -34,16 +34,16 @@ class BookingCreationSupport {
         this.bookingSupport = bookingSupport;
     }
 
-    /** 예약 생성 전 8회권 사용 가능 여부를 확인한다. */
+    /** 예약 생성 전 회원의 8회권 소유권을 확인한다. */
     @Transactional(propagation = Propagation.MANDATORY)
-    PassPurchase requireUsablePass(Long passId, Long ownerUserId) {
-        return passCreditService.requireUsable(passId, ownerUserId);
+    PassPurchase requireOwnedPass(Long passId, Long ownerUserId) {
+        return passCreditService.requireOwned(passId, ownerUserId);
     }
 
-    /** 예약 저장 후 사용한 8회권 크레딧을 차감한다. */
+    /** 예약 저장 후 사용 가능 여부를 검증하고 8회권 크레딧을 차감한다. */
     @Transactional(propagation = Propagation.MANDATORY)
-    PassPurchase deductPassCredit(Long passId, Long ownerUserId, Long bookingId) {
-        return passCreditService.deductCredit(passId, ownerUserId, bookingId);
+    PassPurchase deductPassCredit(PassPurchase pass, Long bookingId) {
+        return passCreditService.deductCredit(pass, bookingId);
     }
 
     /** 예약금 결제에서 허용하지 않는 계좌이체를 차단한다. */

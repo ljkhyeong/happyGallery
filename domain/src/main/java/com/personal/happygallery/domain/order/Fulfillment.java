@@ -72,11 +72,11 @@ public class Fulfillment {
 
     /** 예상 출고일을 갱신한다. */
     public void setExpectedShipDate(LocalDate expectedShipDate) {
+        requireShippingType();
         this.expectedShipDate = expectedShipDate;
     }
 
-    /** SHIPPING 타입인지 확인한다. 픽업 이행에서 출고일 갱신 시 호출. */
-    public void requireShippingType() {
+    private void requireShippingType() {
         if (this.type != FulfillmentType.SHIPPING) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT,

@@ -116,7 +116,6 @@ class PaymentConfirmTransactionService {
         }
         PaymentPayload payload = deserialize(attempt.getPayloadJson());
         PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
-        fulfiller.validate(payload, auth);
         PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(
                 attempt, payload, auth, attempt.getPgRef());
         attempt.markConfirmed();

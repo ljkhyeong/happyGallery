@@ -61,7 +61,6 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.getStatus().requireExpectedShipDateWritable();
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
-        fulfillment.requireShippingType();
 
         fulfillment.setExpectedShipDate(expectedShipDate);
         fulfillmentPort.save(fulfillment);

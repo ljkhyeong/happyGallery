@@ -40,6 +40,7 @@ Toss confirm은 활성 DB 트랜잭션이 없는 상태에서 호출한다.
 
 `PaymentConfirmTransactionService`의 각 변경은 `REQUIRES_NEW`로 실행한다. confirm 선점 조회에는
 비관적 쓰기 잠금을 사용한다. `PROCESSING`이 1분 이상 지속되면 같은 paymentKey 요청만 다시 선점할 수 있다.
+저장된 payload와 현재 인증 주체의 조합은 claim 단계에서 한 번 검증하며, 이후 fulfiller는 이 계약을 전제로 실행한다.
 
 ### 3. Toss 멱등키를 요청마다 고정한다
 

@@ -8,7 +8,7 @@
 ## 컨텍스트
 
 §7.2: 8회권 크레딧 소모(예약 연결), 결석 처리, 정산 환불 + 미래 예약 자동 취소를 구현해야 한다.
-"크레딧이 돈이다" 원칙 — ledger 선행 기록 → 잔액 변경 순서는 §7.1에서 확립된 규칙.
+"크레딧이 돈이다" 원칙에 따라 ledger와 잔액 변경은 항상 같은 트랜잭션에서 함께 커밋한다.
 
 ---
 
@@ -18,6 +18,8 @@
 8회권 예약 생성 시 `USE` 원장은 저장된 `booking_id`를 `pass_ledger.related_booking_id`에 남긴다.
 예약 취소로 1크레딧을 복구하는 `REFUND` 원장도 같은 예약 ID를 남긴다.
 8회권 전체 환불처럼 단일 예약이 원인이 아닌 원장은 `related_booking_id`를 비운다.
+예약 생성에서는 회원 소유권만 먼저 확인하고, `PassPurchase.useCredit(usedAt)`이 만료·잔여 크레딧 검증과
+차감을 한 번에 수행한다. 이후 `USE` 원장을 같은 트랜잭션에 저장하며, 어느 한쪽이라도 실패하면 모두 롤백한다.
 
 **이유**:
 - `isPassBooking()` 판별, 환불 시 미래 예약 조회 `findFuturePassBookings()` 모두 이 FK에 의존
@@ -77,6 +79,8 @@
 | 파일 | 역할 |
 |------|------|
 | `domain/Booking.java` | `passPurchase` FK 필드, `markNoShow()`, `isPassBooking()` |
+| `domain/pass/PassPurchase.java` | `useCredit(usedAt)`에서 사용 가능 검증과 차감 수행 |
+| `application/.../pass/DefaultPassCreditService.java` | 회원 소유권 확인, 크레딧 차감과 USE 원장 저장 |
 | `application/.../booking/DefaultBookingNoShowService.java` | 결석 처리 |
 | `application/.../pass/DefaultPassRefundService.java` | 정산 환불 + 미래 예약 자동 취소 |
 | `application/.../booking/DefaultBookingCancelService.java` | D-1 이후 취소 시 크레딧 소멸 유지 분기 |

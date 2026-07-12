@@ -97,6 +97,7 @@ READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업
 
 주문 결정 API는 Bearer 세션에서 검증된 admin id를 `order_approvals`에 기록한다.
 `setExpectedShipDate`는 `IN_PRODUCTION`, `DELAY_REQUESTED`, `SHIPPING_PREPARING` 상태의 SHIPPING fulfillment에서만 허용한다.
+`Fulfillment.setExpectedShipDate()`가 SHIPPING 타입을 직접 검증해 변경 메서드 밖의 중복 사전 검증을 두지 않는다.
 
 ---
 

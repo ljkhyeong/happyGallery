@@ -41,7 +41,6 @@ public class PassFulfiller implements PaymentFulfiller {
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String paymentKey) {
-        validate(payload, auth);
         PassPurchase purchase = passPurchaseUseCase.purchaseForMember(auth.userId());
         purchase.recordPaymentKey(paymentKey);
         return new FulfillResult(purchase.getId(), null);

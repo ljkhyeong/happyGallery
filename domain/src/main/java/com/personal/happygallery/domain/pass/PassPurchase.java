@@ -61,14 +61,14 @@ public class PassPurchase {
     }
 
     /**
-     * 만료/잔여 크레딧 검증. 사용 전 호출한다.
+     * 만료/잔여 크레딧을 사용 직전에 검증한다.
      * expiresAt은 마지막 사용 가능일 다음날 00시를 나타내는 exclusive 만료 경계다.
      *
      * @param usedAt 이용권 사용 시각
      * @throws PassExpiredException          만료된 이용권
      * @throws PassCreditInsufficientException 잔여 크레딧 없음
      */
-    public void requireUsable(LocalDateTime usedAt) {
+    private void requireUsable(LocalDateTime usedAt) {
         if (!usedAt.isBefore(expiresAt)) {
             throw new PassExpiredException();
         }
@@ -83,15 +83,13 @@ public class PassPurchase {
     }
 
     /**
-     * 예약 시 1크레딧 소모.
-     * 호출 전 USE ledger를 먼저 기록해야 한다.
+     * 예약 시 1크레딧을 소모한다. 만료와 잔여 크레딧을 변경 직전에 검증한다.
      *
+     * @throws PassExpiredException 만료된 이용권
      * @throws PassCreditInsufficientException 잔여 크레딧이 0일 때
      */
-    public void useCredit() {
-        if (!hasRemainingCredits()) {
-            throw new PassCreditInsufficientException();
-        }
+    public void useCredit(LocalDateTime usedAt) {
+        requireUsable(usedAt);
         this.remainingCredits--;
     }
 

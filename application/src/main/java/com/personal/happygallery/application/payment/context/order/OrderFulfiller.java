@@ -63,7 +63,6 @@ public class OrderFulfiller implements PaymentFulfiller {
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String paymentKey) {
-        validate(payload, auth);
         OrderPayload op = (OrderPayload) payload;
         List<OrderItemRequest> orderItems = resolveItemPrices(op.items());
 
