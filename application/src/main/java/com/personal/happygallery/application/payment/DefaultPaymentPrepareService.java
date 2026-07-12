@@ -28,7 +28,10 @@ public class DefaultPaymentPrepareService implements PaymentPrepareUseCase {
                                         ObjectMapper objectMapper) {
         this.preparers = new EnumMap<>(PaymentContext.class);
         for (PaymentPreparer preparer : preparers) {
-            this.preparers.put(preparer.context(), preparer);
+            PaymentContext context = preparer.context();
+            if (this.preparers.put(context, preparer) != null) {
+                throw new IllegalStateException("결제 준비 전략이 중복 등록되었습니다: " + context);
+            }
         }
         this.attemptStore = attemptStore;
         this.objectMapper = objectMapper;

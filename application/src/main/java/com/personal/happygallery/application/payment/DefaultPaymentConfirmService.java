@@ -47,7 +47,10 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
         this.paymentPort = paymentPort;
         this.fulfillers = new EnumMap<>(PaymentContext.class);
         for (PaymentFulfiller fulfiller : fulfillers) {
-            this.fulfillers.put(fulfiller.context(), fulfiller);
+            PaymentContext context = fulfiller.context();
+            if (this.fulfillers.put(context, fulfiller) != null) {
+                throw new IllegalStateException("결제 확정 전략이 중복 등록되었습니다: " + context);
+            }
         }
         this.objectMapper = objectMapper;
         this.clock = clock;
