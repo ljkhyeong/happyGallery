@@ -26,28 +26,41 @@ class RefundDispatcher {
 
     @Transactional(propagation = Propagation.NEVER)
     public Refund dispatch(Long refundId, String target) {
-        RefundCall refundCall = transactionService.prepareRefundCall(refundId, MISSING_PAYMENT_KEY_REASON);
-        if (refundCall.failedBeforePgCall()) {
-            log.warn("환불 실패 [{} refundId={}] reason=paymentKey 없음", target, refundId);
-            return refundCall.failedRefund();
+        RefundCall refundCall = transactionService.claimRefundCall(refundId, MISSING_PAYMENT_KEY_REASON);
+        if (!refundCall.readyForPgCall()) {
+            return refundCall.completedRefund();
         }
 
         RefundResult result = callPayment(refundCall, target);
-        if (result.success()) {
-            return transactionService.markSucceeded(refundId, result.refundTransactionKey());
-        }
-        log.warn("환불 실패 [{} refundId={}] reason={}", target, refundId, result.failReason());
-        return transactionService.markFailed(refundId, result.failReason());
+        return switch (result.outcome()) {
+            case SUCCESS -> transactionService.markSucceeded(
+                    refundId, refundCall.processingToken(), result.refundTransactionKey());
+            case FINAL_FAILURE -> {
+                log.warn("환불 최종 실패 [{} refundId={}] reason={}", target, refundId, result.failReason());
+                yield transactionService.markFailed(refundId, refundCall.processingToken(), result.failReason());
+            }
+            case RETRYABLE_FAILURE -> {
+                log.warn("환불 재시도 예약 [{} refundId={}] reason={}", target, refundId, result.failReason());
+                yield transactionService.markRetryable(refundId, refundCall.processingToken(), result.failReason());
+            }
+            case RECONCILIATION_REQUIRED -> {
+                log.warn("환불 상태 확인 필요 [{} refundId={}] reason={}", target, refundId, result.failReason());
+                yield transactionService.markReconciliationRequired(
+                        refundId, refundCall.processingToken(), result.failReason());
+            }
+        };
     }
 
     private RefundResult callPayment(RefundCall refundCall, String target) {
         try {
             RefundResult result = paymentPort.refund(
                     refundCall.paymentKey(), refundCall.amount(), refundCall.idempotencyKey());
-            return result != null ? result : RefundResult.failure("PG 응답이 비어 있습니다.");
+            return result != null
+                    ? result
+                    : RefundResult.reconciliationRequired("PG 응답이 비어 있어 환불 상태 확인이 필요합니다.");
         } catch (Exception e) {
             log.error("환불 호출 예외 [{} refundId={}]", target, refundCall.refundId(), e);
-            return RefundResult.failure(e.getMessage());
+            return RefundResult.reconciliationRequired(e.getMessage());
         }
     }
 }

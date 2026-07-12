@@ -27,13 +27,13 @@
 
 ---
 
-## 결정 3 — 환불 실패 시 `FAILED`로 저장하고 예외를 삼킨다
+## 결정 3 — 환불 요청을 먼저 저장하고 PG 결과를 상태별로 남긴다
 
-**선택**: `DefaultBookingCancelService`에서 `paymentProvider.refund()` 호출 후 실패/예외 시 `refund.markFailed(reason)`으로 상태 업데이트 후 저장한다. 예외를 밖으로 전파하지 않는다.
+**선택**: 취소 트랜잭션은 `RefundExecutionService`를 통해 `REQUESTED` 이력을 먼저 저장한다. 커밋 이후 PG를 호출하고 명시적 거절은 `FAILED`, 실행 전 일시 실패는 `RETRYABLE`, 반영 여부가 불명인 타임아웃·통신 단절은 `RECONCILIATION_REQUIRED`로 저장한다.
 
-**이유**: 예약 취소 자체(`booking.cancel()`, 슬롯 반납)는 성공해야 한다. PG 환불 실패가 취소 트랜잭션을 롤백시키면 슬롯은 묶인 채 예약자는 취소할 수 없는 상태가 된다. 환불 실패는 FAILED 레코드로 남기고 운영자가 재시도한다.
+**이유**: 예약 취소 자체(`booking.cancel()`, 슬롯 반납)는 성공해야 한다. PG 환불 실패가 취소 트랜잭션을 롤백시키면 슬롯은 묶인 채 예약자는 취소할 수 없는 상태가 된다. 미완료 이력은 같은 멱등키로 자동 복구하고 운영자가 재처리할 수 있다.
 
-**위험 포인트**: 예약은 취소됐으나 환불 금액이 실제로 지급되지 않은 상태가 존재. 운영자가 `GET /admin/refunds/failed`를 주기적으로 확인하거나 알림 배치(§배치 구현 시)를 추가해야 한다.
+**위험 포인트**: 예약은 취소됐으나 환불 금액이 아직 지급되지 않은 상태가 존재한다. 자동 복구와 `GET /admin/refunds/failed` 조치 필요 목록으로 추적한다. 상세 경계는 ADR-0018을 따른다.
 
 ---
 
@@ -41,23 +41,20 @@
 
 **선택**: `DefaultRefundRetryService.retry(refundId)` + `AdminRefundController`
 
-**이유**: FAILED 레코드를 DB에서 직접 수정하는 것은 감사 추적을 남기지 않는다. API를 통해 재시도하면 성공/실패 상태가 다시 기록되어 추적 가능.
+**이유**: 조치 필요 레코드를 DB에서 직접 수정하는 것은 감사 추적을 남기지 않는다. API를 통해 재처리하면 시도 횟수와 결과 상태가 기록되어 추적 가능하다.
 
 **현재 제약**: `/admin/**` 인증 미적용 (§11 이후 적용 예정, ADR-0007과 동일).
 
 ---
 
-## 결정 5 — 환불 실패 목록 응답은 `bookingId`/`orderId`를 함께 제공
+## 결정 5 — 조치 필요 환불 응답은 원천 식별자를 함께 제공
 
-**선택**: `GET /admin/refunds/failed` 응답에 `bookingId`, `orderId`를 모두 포함하고,
-유형에 따라 사용하지 않는 값은 `null`로 반환한다.
+**선택**: `GET /admin/refunds/failed` 응답에 `bookingId`, `orderId`, `passPurchaseId`, `paymentAttemptId`, 상태와 시도 횟수를 포함하고, 유형에 따라 사용하지 않는 식별자는 `null`로 반환한다.
 
 **이유**: 예약 취소 환불과 주문 환불이 동일 `refunds` 테이블을 공유하므로,
 운영자가 실패 건의 원천 엔터티를 즉시 식별할 수 있어야 한다.
 
-**구현 포인트**:
-- 조회 쿼리는 `booking` 연관이 없는 주문 환불도 누락되지 않도록 `LEFT JOIN FETCH`를 사용한다.
-- named parameter 쿼리는 `@Param`으로 바인딩을 명시해 런타임 바인딩 오류를 방지한다.
+**구현 포인트**: 조회는 `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 상태를 함께 반환한다.
 
 ---
 

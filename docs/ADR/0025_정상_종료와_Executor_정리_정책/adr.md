@@ -9,7 +9,7 @@
 
 현재 애플리케이션은 다음과 같은 비동기/백그라운드 실행 경로를 가진다.
 
-- Spring `ThreadPoolTaskExecutor` 기반 알림 비동기 실행
+- Spring `ThreadPoolTaskExecutor` 기반 알림·환불 비동기 실행
 - Resilience4j `TimeLimiter`를 위한 별도 `ExecutorService`
 - 웹 요청 종료와 별개로 drain이 필요한 Spring bean lifecycle
 
@@ -39,9 +39,9 @@
 
 이 값은 짧은 비동기 후처리 작업은 마무리할 기회를 주되, 배포 파이프라인이 너무 오래 멈추지 않게 하려는 운영 기준이다.
 
-### 2. 알림용 `ThreadPoolTaskExecutor`는 queued/running task drain을 우선한다
+### 2. 업무 후처리용 `ThreadPoolTaskExecutor`는 queued/running task drain을 우선한다
 
-`notificationExecutor`는 다음 정책을 따른다.
+`notificationExecutor`와 `refundExecutor`는 다음 정책을 따른다.
 
 - `setWaitForTasksToCompleteOnShutdown(true)`
 - `setAwaitTerminationSeconds(30)`
@@ -56,14 +56,15 @@
 
 이 executor에 이 정책을 적용한 이유:
 
-- 알림은 요청 본문 성공 이후 후속 작업이지만, 종료 시점에 임의 유실되면 운영 추적이 어렵다.
+- 알림과 환불 실행은 요청 본문 성공 이후 후속 작업이며, 종료 시점 유실을 줄여야 한다.
 - 현재 알림 작업은 장시간 CPU 작업이 아니라 비교적 짧은 외부 호출/후처리다.
 - 30초 drain이 현실적인 기본값이다.
 - 알림 작업 로그도 원 요청의 `requestId`와 함께 이어져야 장애 추적이 가능하다.
+- 환불 요청 자체는 DB에 먼저 커밋되므로 drain 실패나 큐 거절이 발생해도 복구 배치가 다시 실행한다.
 
 ### 3. 알림 비동기 작업은 `TaskDecorator`로 MDC를 전파한다
 
-`notificationExecutor`는 `TaskDecorator`에서 다음 순서를 따른다.
+`notificationExecutor`와 `refundExecutor`는 `TaskDecorator`에서 다음 순서를 따른다.
 
 1. 제출 시점의 `MDC.getCopyOfContextMap()`으로 문맥을 복사한다.
 2. 작업 실행 직전에 `MDC.setContextMap(ctx)`로 비동기 스레드에 주입한다.
@@ -77,7 +78,7 @@
 
 주의 사항:
 
-- 현재 MDC 전파는 `notificationExecutor`에 한정된다.
+- 현재 MDC 전파는 `notificationExecutor`와 `refundExecutor`에 적용한다.
 - 다른 executor를 추가할 때 request 추적이 필요하면 같은 수준의 decorator 정책을 별도로 적용해야 한다.
 
 ### 4. PG timeout용 `ExecutorService`는 빠른 정리를 우선한다
@@ -96,6 +97,7 @@
 - 이 executor는 독립 비즈니스 큐가 아니라 `TimeLimiter` 보조 실행기에 가깝다.
 - 외부 PG 호출은 이미 timeout/circuit-breaker 보호를 받는다.
 - 종료 시점에 이 thread pool을 오래 붙잡아둘 운영 가치가 상대적으로 낮다.
+- 실행기는 고정 크기 `ArrayBlockingQueue`와 `AbortPolicy`를 사용해 대기 작업 수에 상한을 두며, 거절된 환불은 DB 복구 대상 상태로 남는다.
 
 ### 5. 종료 대기 시간은 계층별 역할에 따라 다르게 둔다
 
@@ -103,6 +105,7 @@
 |------|------|------|
 | Spring application lifecycle | graceful shutdown | 30초 |
 | `notificationExecutor` | task completion 대기 | 30초 |
+| `refundExecutor` | task completion 대기, 미실행 건은 DB 복구 | 30초 |
 | PG timeout executor | 빠른 정리 후 강제 종료 허용 | 2초 |
 
 모든 executor에 같은 종료 정책을 쓰지 않는다.
@@ -117,9 +120,11 @@
   - `spring.lifecycle.timeout-per-shutdown-phase: 30s`
 - `bootstrap/src/main/java/com/personal/happygallery/bootstrap/config/AsyncConfig.java`
   - `notificationExecutor`에 shutdown drain 설정 적용
+  - `refundExecutor`에 shutdown drain·MDC 전파 설정 적용
   - `TaskDecorator`로 MDC 복사/주입/정리 적용
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/ResilientPaymentProvider.java`
   - `@PreDestroy` 기반 executor 종료 로직 적용
+  - 제한 큐와 즉시 거절 정책 적용
 
 ---
 

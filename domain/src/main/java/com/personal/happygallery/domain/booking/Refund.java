@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
@@ -38,8 +39,20 @@ public class Refund {
     private long amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
+    @Column(nullable = false, length = 30)
     private RefundStatus status;
+
+    @Column(name = "processing_at")
+    private LocalDateTime processingAt;
+
+    @Column(name = "processing_token", length = 64)
+    private String processingToken;
+
+    @Column(name = "attempt_count", nullable = false)
+    private int attemptCount;
+
+    @Column(name = "next_attempt_at")
+    private LocalDateTime nextAttemptAt;
 
     @Column(name = "payment_key", length = 255)
     private String paymentKey;
@@ -55,6 +68,13 @@ public class Refund {
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
+    private LocalDateTime updatedAt;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     protected Refund() {}
 
@@ -101,17 +121,104 @@ public class Refund {
                 amount, paymentKey);
     }
 
-    /** PG 환불 성공 처리 */
-    public void markSucceeded(String refundTransactionKey) {
+    /** 실행 가능한 환불을 선점한다. 선점할 수 없으면 null을 반환한다. */
+    public String startProcessing(LocalDateTime now, LocalDateTime staleBefore) {
+        if (!isClaimable(now, staleBefore)) {
+            return null;
+        }
+        this.status = RefundStatus.PROCESSING;
+        this.processingAt = now;
+        this.processingToken = UUID.randomUUID().toString();
+        this.attemptCount++;
+        this.nextAttemptAt = null;
+        return this.processingToken;
+    }
+
+    private boolean isClaimable(LocalDateTime now, LocalDateTime staleBefore) {
+        if (status == RefundStatus.PROCESSING) {
+            return processingAt != null && processingAt.isBefore(staleBefore);
+        }
+        if (status != RefundStatus.REQUESTED
+                && status != RefundStatus.RETRYABLE
+                && status != RefundStatus.RECONCILIATION_REQUIRED) {
+            return false;
+        }
+        return nextAttemptAt == null || !nextAttemptAt.isAfter(now);
+    }
+
+    /** PG 환불 성공 처리. 현재 선점 토큰과 일치하지 않는 오래된 결과는 무시한다. */
+    public boolean markSucceeded(String token, String refundTransactionKey) {
+        if (!ownsProcessing(token)) {
+            return false;
+        }
         this.status = RefundStatus.SUCCEEDED;
         this.refundTransactionKey = refundTransactionKey;
         this.failReason = null;
+        clearProcessing();
+        return true;
     }
 
-    /** PG 환불 실패 처리 — 레코드는 삭제하지 않고 FAILED 로 유지 (운영자 재시도 대상) */
-    public void markFailed(String reason) {
+    /** PG가 명시적으로 거절한 환불을 최종 실패로 처리한다. */
+    public boolean markFailed(String token, String reason) {
+        if (!ownsProcessing(token)) {
+            return false;
+        }
         this.status = RefundStatus.FAILED;
         this.failReason = reason;
+        clearProcessing();
+        return true;
+    }
+
+    /** PG 호출을 실행하지 못했거나 명시적인 일시 실패가 발생한 경우 재시도를 예약한다. */
+    public boolean markRetryable(String token, String reason, LocalDateTime nextAttemptAt) {
+        if (!ownsProcessing(token)) {
+            return false;
+        }
+        this.status = RefundStatus.RETRYABLE;
+        this.failReason = reason;
+        this.nextAttemptAt = nextAttemptAt;
+        clearProcessingToken();
+        return true;
+    }
+
+    /** 요청 처리 여부를 알 수 없는 경우 같은 멱등키로 결과 확인을 예약한다. */
+    public boolean markReconciliationRequired(String token, String reason, LocalDateTime nextAttemptAt) {
+        if (!ownsProcessing(token)) {
+            return false;
+        }
+        this.status = RefundStatus.RECONCILIATION_REQUIRED;
+        this.failReason = reason;
+        this.nextAttemptAt = nextAttemptAt;
+        clearProcessingToken();
+        return true;
+    }
+
+    /** 운영자가 조치 필요 환불을 즉시 재시도할 수 있도록 예약한다. */
+    public void requestRetry(LocalDateTime now) {
+        if (status != RefundStatus.FAILED
+                && status != RefundStatus.RETRYABLE
+                && status != RefundStatus.RECONCILIATION_REQUIRED) {
+            throw new IllegalStateException("재시도할 수 없는 환불 상태입니다. (현재: " + status + ")");
+        }
+        this.status = RefundStatus.RETRYABLE;
+        this.nextAttemptAt = now;
+        clearProcessingToken();
+    }
+
+    private boolean ownsProcessing(String token) {
+        return status == RefundStatus.PROCESSING
+                && token != null
+                && token.equals(processingToken);
+    }
+
+    private void clearProcessing() {
+        this.nextAttemptAt = null;
+        clearProcessingToken();
+    }
+
+    private void clearProcessingToken() {
+        this.processingAt = null;
+        this.processingToken = null;
     }
 
     public Long getId() { return id; }
@@ -121,9 +228,15 @@ public class Refund {
     public Long getPaymentAttemptId() { return paymentAttemptId; }
     public long getAmount() { return amount; }
     public RefundStatus getStatus() { return status; }
+    public LocalDateTime getProcessingAt() { return processingAt; }
+    public String getProcessingToken() { return processingToken; }
+    public int getAttemptCount() { return attemptCount; }
+    public LocalDateTime getNextAttemptAt() { return nextAttemptAt; }
     public String getPaymentKey() { return paymentKey; }
     public String getRefundTransactionKey() { return refundTransactionKey; }
     public String getIdempotencyKey() { return idempotencyKey; }
     public String getFailReason() { return failReason; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public long getVersion() { return version; }
 }

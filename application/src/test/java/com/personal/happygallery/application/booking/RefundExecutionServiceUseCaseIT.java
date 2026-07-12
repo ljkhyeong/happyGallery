@@ -2,6 +2,7 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.payment.RefundExecutionService;
+import com.personal.happygallery.application.payment.port.in.RefundRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -43,6 +44,7 @@ import static org.mockito.Mockito.when;
 class RefundExecutionServiceUseCaseIT {
 
     @Autowired RefundExecutionService refundExecutionService;
+    @Autowired RefundRecoveryUseCase refundRecoveryUseCase;
     @Autowired RefundRepository refundRepository;
     @Autowired OrderRepository orderRepository;
     @Autowired UserStorePort userStorePort;
@@ -164,7 +166,33 @@ class RefundExecutionServiceUseCaseIT {
         });
     }
 
-    @DisplayName("FAILED가 아닌 환불을 재시도하면 INVALID_INPUT 예외가 발생한다")
+    @DisplayName("복구 배치는 실행되지 못한 환불 요청을 같은 멱등키로 다시 처리한다")
+    @Test
+    void recoverPendingRefunds_requestedRefund_executesRefund() {
+        LocalDateTime paidAt = LocalDateTime.now(clock);
+        Order order = saveMemberOrder(paidAt);
+        Refund requestedRefund = refundRepository.save(
+                Refund.forOrder(order.getId(), 55_000L, "payment-key"));
+        when(paymentProvider.refund(any(), anyLong(), any()))
+                .thenReturn(RefundResult.success("refund-transaction-key"));
+
+        var result = refundRecoveryUseCase.recoverPendingRefunds();
+
+        Refund recovered = refundRepository.findById(requestedRefund.getId()).orElseThrow();
+        verify(paymentProvider).refund(
+                "payment-key",
+                55_000L,
+                requestedRefund.getIdempotencyKey());
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(recovered.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
+            softly.assertThat(recovered.getAttemptCount()).isEqualTo(1);
+            softly.assertThat(recovered.getRefundTransactionKey()).isEqualTo("refund-transaction-key");
+        });
+    }
+
+    @DisplayName("완료된 환불을 재시도하면 INVALID_INPUT 예외가 발생한다")
     @Test
     void retry_nonFailedRefund_throwsInvalidInput() {
         refundRepository.deleteAllInBatch();
@@ -172,14 +200,15 @@ class RefundExecutionServiceUseCaseIT {
         LocalDateTime paidAt = LocalDateTime.now(clock);
         Order order = saveMemberOrder(paidAt);
         Refund succeededRefund = Refund.forOrder(order.getId(), 55_000L, "payment-key");
-        succeededRefund.markSucceeded("refund-transaction-key");
+        String processingToken = succeededRefund.startProcessing(paidAt, paidAt.minusMinutes(1));
+        succeededRefund.markSucceeded(processingToken, "refund-transaction-key");
         Refund savedRefund = refundRepository.save(succeededRefund);
 
         assertThatThrownBy(() -> refundExecutionService.retryRefund(savedRefund.getId()))
                 .isInstanceOfSatisfying(HappyGalleryException.class, e ->
                         assertSoftly(softly -> {
                             softly.assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
-                            softly.assertThat(e.getMessage()).contains("FAILED 상태 환불만");
+                            softly.assertThat(e.getMessage()).contains("조치 필요 상태 환불만");
                         }));
     }
 }

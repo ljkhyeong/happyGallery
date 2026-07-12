@@ -130,7 +130,7 @@
     },
     {
       "id": 9,
-      "title": "Payment Timeout Executor Threads",
+      "title": "Payment Executor Threads & Queue",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
       "targets": [
@@ -145,6 +145,18 @@
         {
           "expr": "executor_pool_max_threads{application=\"happygallery\",name=\"paymentTimeoutExecutor\"}",
           "legendFormat": "max"
+        },
+        {
+          "expr": "executor_queued_tasks{application=\"happygallery\",name=\"paymentTimeoutExecutor\"}",
+          "legendFormat": "queued"
+        },
+        {
+          "expr": "executor_queue_remaining_tasks{application=\"happygallery\",name=\"paymentTimeoutExecutor\"}",
+          "legendFormat": "queue remaining"
+        },
+        {
+          "expr": "increase(happygallery_payment_executor_rejected_total{application=\"happygallery\"}[5m])",
+          "legendFormat": "rejected (5m)"
         }
       ]
     },

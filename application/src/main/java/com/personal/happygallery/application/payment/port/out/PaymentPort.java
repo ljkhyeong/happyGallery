@@ -24,7 +24,7 @@ public interface PaymentPort {
      * @param paymentKey 원결제 paymentKey (없으면 null)
      * @param amount 환불 금액 (원)
      * @param idempotencyKey 최초 환불과 재시도에서 동일하게 사용하는 PG 멱등키
-     * @return 성공 시 success=true + refundTransactionKey, 실패 시 success=false + failReason
+     * @return 성공, 최종 실패, 재시도 가능 실패, 상태 확인 필요 중 하나와 관련 상세값
      */
     RefundResult refund(String paymentKey, long amount, String idempotencyKey);
 }

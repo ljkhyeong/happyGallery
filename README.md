@@ -12,6 +12,7 @@
 | 관리자 | 상품/클래스/슬롯 관리, 주문 승인/거절/배송/픽업, 예약 운영, 환불 재시도, Q&A/문의 답변 |
 
 - 주문/예약/8회권은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm` 표준 결제 경로를 사용한다. confirm은 선점·PG 승인·도메인 저장 트랜잭션을 분리하고 Toss 멱등키와 실패 보상 환불을 사용한다.
+- 환불은 요청 이력을 먼저 커밋한 뒤 PG를 호출한다. 실행 유실·일시 실패·결과 불명 상태는 최초 멱등키를 유지한 채 매분 복구하며, PG 호출 실행기는 제한 큐와 즉시 거절 정책으로 보호한다.
 - 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
 - 상세 요구사항은 [기준 스펙](docs/PRD/0001_기준_스펙/spec.md), HTTP 계약은 [API 계약](docs/PRD/0004_API_계약/spec.md)을 기준으로 본다.
 
@@ -149,6 +150,8 @@ docker compose up -d --build
 | --- | --- | --- |
 | `TOSS_SECRET_KEY` | 백엔드 `prod` | Toss Payments secret key |
 | `VITE_TOSS_CLIENT_KEY` | 프론트 빌드 | Toss SDK client key |
+| `PAYMENT_EXECUTOR_POOL_SIZE` | 백엔드 | PG 호출 실행 스레드 수, 기본 `4` |
+| `PAYMENT_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | PG 호출 대기열 크기, 기본 `20` |
 | `PASS_TOTAL_PRICE` | 백엔드 | 8회권 결제 금액 |
 | `RATE_LIMIT_ENABLED` | 백엔드 | 로컬 반복 검증 시 처리율 제한 off 가능 |
 | `ADMIN_SETUP_TOKEN` | 백엔드 | 최초 관리자 계정 생성용 일회성 토큰 |

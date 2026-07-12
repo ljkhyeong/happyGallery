@@ -65,7 +65,11 @@ export interface AdminFailedRefund {
   refundId: number;
   bookingId: number | null;
   orderId: number | null;
+  passPurchaseId: number | null;
+  paymentAttemptId: number | null;
   amount: number;
+  status: "FAILED" | "RETRYABLE" | "RECONCILIATION_REQUIRED";
+  attemptCount: number;
   failReason: string;
   createdAt: string;
 }

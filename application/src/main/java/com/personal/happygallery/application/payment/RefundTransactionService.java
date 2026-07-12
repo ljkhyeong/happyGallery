@@ -13,7 +13,9 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
-import com.personal.happygallery.domain.payment.RefundStatus;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -25,6 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 class RefundTransactionService {
 
     private static final Logger log = LoggerFactory.getLogger(RefundTransactionService.class);
+    static final Duration PROCESSING_TIMEOUT = Duration.ofMinutes(1);
+    private static final Duration RETRY_DELAY = Duration.ofMinutes(1);
+    private static final int MAX_FAILURE_REASON_LENGTH = 500;
 
     private final RefundPort refundPort;
     private final PaymentAttemptReaderPort paymentAttemptReader;
@@ -33,6 +38,7 @@ class RefundTransactionService {
     private final OrderReaderPort orderReader;
     private final GuestPhoneProtector guestPhoneProtector;
     private final ApplicationEventPublisher eventPublisher;
+    private final Clock clock;
 
     RefundTransactionService(RefundPort refundPort,
                              PaymentAttemptReaderPort paymentAttemptReader,
@@ -40,7 +46,8 @@ class RefundTransactionService {
                              BookingReaderPort bookingReader,
                              OrderReaderPort orderReader,
                              GuestPhoneProtector guestPhoneProtector,
-                             ApplicationEventPublisher eventPublisher) {
+                             ApplicationEventPublisher eventPublisher,
+                             Clock clock) {
         this.refundPort = refundPort;
         this.paymentAttemptReader = paymentAttemptReader;
         this.paymentAttemptStore = paymentAttemptStore;
@@ -48,34 +55,45 @@ class RefundTransactionService {
         this.orderReader = orderReader;
         this.guestPhoneProtector = guestPhoneProtector;
         this.eventPublisher = eventPublisher;
+        this.clock = clock;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public RefundCall prepareRefundCall(Long refundId, String missingPaymentKeyReason) {
-        Refund refund = findRefund(refundId);
+    public RefundCall claimRefundCall(Long refundId, String missingPaymentKeyReason) {
+        Refund refund = findRefundForUpdate(refundId);
+        LocalDateTime now = LocalDateTime.now(clock);
+        String processingToken = refund.startProcessing(now, now.minus(PROCESSING_TIMEOUT));
+        if (processingToken == null) {
+            return RefundCall.completed(refund);
+        }
         if (refund.getPaymentKey() == null || refund.getPaymentKey().isBlank()) {
-            refund.markFailed(missingPaymentKeyReason);
+            refund.markFailed(processingToken, missingPaymentKeyReason);
             Refund failedRefund = refundPort.save(refund);
             markPaymentAttemptCompensationFailed(failedRefund, missingPaymentKeyReason);
-            return RefundCall.failed(failedRefund);
+            return RefundCall.completed(failedRefund);
         }
         return RefundCall.ready(
-                refund.getId(), refund.getPaymentKey(), refund.getAmount(), refund.getIdempotencyKey());
+                refund.getId(), refund.getPaymentKey(), refund.getAmount(), refund.getIdempotencyKey(), processingToken);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void validateRetryable(Long refundId) {
-        Refund refund = findRefund(refundId);
-        if (refund.getStatus() != RefundStatus.FAILED) {
+    public void requestManualRetry(Long refundId) {
+        Refund refund = findRefundForUpdate(refundId);
+        try {
+            refund.requestRetry(LocalDateTime.now(clock));
+        } catch (IllegalStateException e) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
-                    "FAILED 상태 환불만 재시도 가능합니다. (현재: " + refund.getStatus() + ")");
+                    "조치 필요 상태 환불만 재시도 가능합니다. (현재: " + refund.getStatus() + ")");
         }
+        refundPort.save(refund);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Refund markSucceeded(Long refundId, String refundTransactionKey) {
-        Refund refund = findRefund(refundId);
-        refund.markSucceeded(refundTransactionKey);
+    public Refund markSucceeded(Long refundId, String processingToken, String refundTransactionKey) {
+        Refund refund = findRefundForUpdate(refundId);
+        if (!refund.markSucceeded(processingToken, refundTransactionKey)) {
+            return refund;
+        }
         Refund savedRefund = refundPort.save(refund);
         markPaymentAttemptCompensated(savedRefund);
         publishRefundSucceededNotification(savedRefund);
@@ -83,17 +101,51 @@ class RefundTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Refund markFailed(Long refundId, String reason) {
-        Refund refund = findRefund(refundId);
-        refund.markFailed(reason);
+    public Refund markFailed(Long refundId, String processingToken, String reason) {
+        Refund refund = findRefundForUpdate(refundId);
+        String resolvedReason = failureReason(reason);
+        if (!refund.markFailed(processingToken, resolvedReason)) {
+            return refund;
+        }
         Refund savedRefund = refundPort.save(refund);
-        markPaymentAttemptCompensationFailed(savedRefund, reason);
+        markPaymentAttemptCompensationFailed(savedRefund, resolvedReason);
         return savedRefund;
     }
 
-    private Refund findRefund(Long refundId) {
-        return refundPort.findById(refundId)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Refund markRetryable(Long refundId, String processingToken, String reason) {
+        Refund refund = findRefundForUpdate(refundId);
+        if (!refund.markRetryable(
+                processingToken,
+                failureReason(reason),
+                LocalDateTime.now(clock).plus(RETRY_DELAY))) {
+            return refund;
+        }
+        return refundPort.save(refund);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Refund markReconciliationRequired(Long refundId, String processingToken, String reason) {
+        Refund refund = findRefundForUpdate(refundId);
+        if (!refund.markReconciliationRequired(
+                processingToken,
+                failureReason(reason),
+                LocalDateTime.now(clock).plus(RETRY_DELAY))) {
+            return refund;
+        }
+        return refundPort.save(refund);
+    }
+
+    private Refund findRefundForUpdate(Long refundId) {
+        return refundPort.findByIdForUpdate(refundId)
                 .orElseThrow(NotFoundException.supplier("환불"));
+    }
+
+    private String failureReason(String reason) {
+        String resolved = reason == null || reason.isBlank() ? "PG 환불 처리 결과를 확인할 수 없습니다." : reason;
+        return resolved.length() <= MAX_FAILURE_REASON_LENGTH
+                ? resolved
+                : resolved.substring(0, MAX_FAILURE_REASON_LENGTH);
     }
 
     private void markPaymentAttemptCompensated(Refund refund) {
@@ -168,19 +220,20 @@ class RefundTransactionService {
     }
 
     record RefundCall(Long refundId, String paymentKey, long amount,
-                      String idempotencyKey, Refund failedRefund) {
+                      String idempotencyKey, String processingToken, Refund completedRefund) {
 
-        static RefundCall ready(Long refundId, String paymentKey, long amount, String idempotencyKey) {
-            return new RefundCall(refundId, paymentKey, amount, idempotencyKey, null);
+        static RefundCall ready(Long refundId, String paymentKey, long amount,
+                                String idempotencyKey, String processingToken) {
+            return new RefundCall(refundId, paymentKey, amount, idempotencyKey, processingToken, null);
         }
 
-        static RefundCall failed(Refund refund) {
+        static RefundCall completed(Refund refund) {
             return new RefundCall(
-                    refund.getId(), null, refund.getAmount(), refund.getIdempotencyKey(), refund);
+                    refund.getId(), null, refund.getAmount(), refund.getIdempotencyKey(), null, refund);
         }
 
-        boolean failedBeforePgCall() {
-            return failedRefund != null;
+        boolean readyForPgCall() {
+            return completedRefund == null;
         }
     }
 }

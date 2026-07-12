@@ -66,7 +66,7 @@ public class RefundExecutionService {
     }
 
     public Refund retryRefund(Long refundId) {
-        refundTransactionService.validateRetryable(refundId);
+        refundTransactionService.requestManualRetry(refundId);
         return refundDispatcher.dispatch(refundId, "retry refundId=" + refundId);
     }
 

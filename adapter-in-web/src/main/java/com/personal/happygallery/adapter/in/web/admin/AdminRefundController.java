@@ -1,7 +1,7 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
-import com.personal.happygallery.application.payment.port.in.RefundRetryUseCase;
 import com.personal.happygallery.adapter.in.web.admin.dto.FailedRefundResponse;
+import com.personal.happygallery.application.payment.port.in.RefundRetryUseCase;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,7 +19,7 @@ public class AdminRefundController {
         this.refundRetryUseCase = refundRetryUseCase;
     }
 
-    /** FAILED 환불 목록 조회 */
+    /** 실패·재시도 대기·상태 확인 필요 환불 목록 조회 */
     @GetMapping("/failed")
     public List<FailedRefundResponse> listFailed() {
         return refundRetryUseCase.listFailed().stream()

@@ -105,7 +105,8 @@
   - `id`, `order_id(unique)`, `type(SHIPPING|PICKUP)`, `expected_ship_date`, `pickup_deadline_at`, `version`
 - `refunds`
   - `id`, `order_id nullable`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
-  - 네 참조 중 정확히 하나, `amount`, `status`, `payment_key`, `refund_transaction_key`, `idempotency_key UNIQUE`, `fail_reason`, `created_at`
+  - 네 참조 중 정확히 하나, `amount`, `payment_key`, `refund_transaction_key`, `idempotency_key UNIQUE`, `fail_reason`
+  - `status(REQUESTED|PROCESSING|RETRYABLE|RECONCILIATION_REQUIRED|SUCCEEDED|FAILED)`, `processing_at`, `processing_token`, `attempt_count`, `next_attempt_at`, `created_at`, `updated_at`, `version`
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
   - `processing_at nullable`, `payment_key nullable`, `pg_ref nullable`, `fail_reason nullable`
@@ -180,6 +181,8 @@ WHERE (user_id IS NULL AND guest_id IS NULL)
 - `notification_log(user_id, sent_at DESC)`
 - `notification_log(guest_id, sent_at DESC)`
 - `refunds(status, created_at)`
+- `refunds(status, next_attempt_at, created_at)`
+- `refunds(status, processing_at, created_at)`
 
 ---
 

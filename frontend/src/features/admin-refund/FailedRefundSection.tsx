@@ -33,7 +33,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
     mutationFn: (refundId: number) => retryRefund(adminKey, refundId),
     onMutate: (id) => setPendingId(id),
     onSuccess: () => {
-      toast.show("환불 재시도 완료");
+      toast.show("환불 재처리 요청 완료");
       queryClient.invalidateQueries({ queryKey: ["admin", "refunds", "failed"] });
     },
     onSettled: () => setPendingId(null),
@@ -46,7 +46,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
     if (error instanceof ApiError && error.status === 401) return null;
     return <ErrorAlert error={error} />;
   }
-  if (!refunds?.length) return <EmptyState message="실패한 환불이 없습니다." />;
+  if (!refunds?.length) return <EmptyState message="확인이 필요한 환불이 없습니다." />;
 
   return (
     <Table responsive hover size="sm">
@@ -55,6 +55,8 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
           <th>환불 ID</th>
           <th>대상</th>
           <th className="text-end">금액</th>
+          <th>상태</th>
+          <th className="text-end">시도</th>
           <th>사유</th>
           <th>발생일</th>
           <th></th>
@@ -66,13 +68,15 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
             <td>{r.refundId}</td>
             <td>{refundTarget(r)}</td>
             <td className="text-end">{formatKRW(r.amount)}</td>
+            <td>{refundStatusLabel(r.status)}</td>
+            <td className="text-end">{r.attemptCount}</td>
             <td className="small">{r.failReason}</td>
             <td className="small">{formatDateTime(r.createdAt)}</td>
             <td>
               <Button size="sm" variant="outline-warning"
                 disabled={pendingId === r.refundId}
                 onClick={() => handleRetry(r.refundId)}>
-                {pendingId === r.refundId ? "..." : "재시도"}
+                {pendingId === r.refundId ? "..." : "재처리"}
               </Button>
             </td>
           </tr>
@@ -80,6 +84,12 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
       </tbody>
     </Table>
   );
+}
+
+function refundStatusLabel(status: FailedRefundResponse["status"]): string {
+  if (status === "RECONCILIATION_REQUIRED") return "상태 확인 필요";
+  if (status === "RETRYABLE") return "재시도 대기";
+  return "실패 확정";
 }
 
 function refundTarget(refund: FailedRefundResponse): string {

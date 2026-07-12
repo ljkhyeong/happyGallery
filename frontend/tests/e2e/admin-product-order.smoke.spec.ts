@@ -104,7 +104,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   await expect(page.getByText("이행 정보")).toBeVisible();
 });
 
-test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재시도해 복구할 수 있다", async ({ page, request }) => {
+test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처리해 복구할 수 있다", async ({ page, request }) => {
   await installTossPaymentStub(page);
 
   const productName = makeUniqueLabel("P8-환불상품");
@@ -153,10 +153,10 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재시
     expect(failedRefund.failReason).toContain(failureReason);
 
     await page.reload();
-    const refundCard = adminCard(page, "환불 실패 목록");
+    const refundCard = adminCard(page, "환불 확인 필요");
     const refundRow = refundCard.locator("tbody tr").filter({ hasText: failureReason }).first();
     await expect(refundRow).toBeVisible();
-    await refundRow.getByRole("button", { name: "재시도" }).click();
+    await refundRow.getByRole("button", { name: "재처리" }).click();
 
     await waitForFailedRefundGone(request, failedRefund.refundId);
     await expect(refundCard.locator("tbody tr").filter({ hasText: failureReason })).toHaveCount(0);

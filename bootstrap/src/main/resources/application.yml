@@ -84,6 +84,9 @@ app:
     payment:
       # SI 운영 기본값: 외부 호출은 짧은 타임아웃 + 서킷 브레이커로 보호
       timeout-millis: ${PAYMENT_TIMEOUT_MILLIS:3000}
+      thread-pool:
+        pool-size: ${PAYMENT_EXECUTOR_POOL_SIZE:4}
+        queue-capacity: ${PAYMENT_EXECUTOR_QUEUE_CAPACITY:20}
       circuit-breaker:
         failure-rate-threshold: ${PAYMENT_CB_FAILURE_RATE_THRESHOLD:50}
         sliding-window-size: ${PAYMENT_CB_SLIDING_WINDOW_SIZE:20}

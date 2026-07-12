@@ -68,6 +68,6 @@
 
 **대안**: REJECTED 또는 NOT_REFUNDABLE 상태로 기록.
 
-**이유**: `RefundStatus`에는 REQUESTED / SUCCEEDED / FAILED만 존재. "환불 불가"는 이력 기록 대상이 아닌 정책 결과 — `booking_history`의 CANCELED 이력과 응답의 `refundable: false`로 충분히 추적 가능.
+**이유**: `RefundStatus`는 실제 PG 환불 요청의 실행 상태를 나타낸다. "환불 불가"는 실행 상태가 아니라 정책 결과이므로 `booking_history`의 CANCELED 이력과 응답의 `refundable: false`로 충분히 추적 가능하다.
 
 **위험**: 감사 목적으로 "환불 불가 사유"를 별도 기록해야 할 수 있음 — 운영 요건 확인 후 추가 고려.

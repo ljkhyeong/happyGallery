@@ -269,7 +269,7 @@ class PassCreditUsageUseCaseIT {
     @Test
     void refund_pass_pgFailure_recordsFailedRefund() throws Exception {
         when(paymentProvider.refund(any(), anyLong(), any()))
-                .thenReturn(RefundResult.failure("PG 타임아웃"));
+                .thenReturn(RefundResult.failure("PG가 환불을 거절했습니다."));
 
         mockMvc.perform(post("/admin/passes/{passId}/refund", pass.getId()))
                 .andExpect(status().isOk())
@@ -294,7 +294,7 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.FAILED);
             softly.assertThat(refund.getPaymentKey()).isEqualTo("test-pass-payment-key");
             softly.assertThat(refund.getRefundTransactionKey()).isNull();
-            softly.assertThat(refund.getFailReason()).isEqualTo("PG 타임아웃");
+            softly.assertThat(refund.getFailReason()).isEqualTo("PG가 환불을 거절했습니다.");
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
             softly.assertThat(passLedgerRepository.findByPassPurchaseId(pass.getId()))
                     .anySatisfy(ledger -> {

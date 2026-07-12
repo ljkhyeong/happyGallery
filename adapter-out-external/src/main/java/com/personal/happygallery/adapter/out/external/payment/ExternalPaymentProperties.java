@@ -10,8 +10,14 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "app.external.payment")
 public record ExternalPaymentProperties(
         @Min(1) @DefaultValue("3000") long timeoutMillis,
+        @Valid ThreadPool threadPool,
         @Valid CircuitBreaker circuitBreaker
 ) {
+    public record ThreadPool(
+            @Min(1) @DefaultValue("4") int poolSize,
+            @Min(1) @DefaultValue("20") int queueCapacity
+    ) {}
+
     public record CircuitBreaker(
             @Min(1) @DefaultValue("50") float failureRateThreshold,
             @Min(1) @DefaultValue("20") int slidingWindowSize,

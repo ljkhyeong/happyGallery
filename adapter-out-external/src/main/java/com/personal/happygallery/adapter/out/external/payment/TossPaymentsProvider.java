@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.ResourceAccessException;
 
 /**
  * Toss Payments 실결제 어댑터 — {@code paymentProviderDelegate} (prod).
@@ -61,7 +62,7 @@ public class TossPaymentsProvider implements PaymentProvider {
         } catch (RestClientResponseException e) {
             log.warn("Toss confirm 거절 orderId={} status={}", orderId, e.getStatusCode(), e);
             String reason = e.getMessage() != null ? e.getMessage() : "PG가 결제 확정을 거절했습니다.";
-            if (e.getStatusCode().value() == 409) {
+            if (isRetryableStatus(e)) {
                 return PaymentConfirmResult.retryableFailure(reason);
             }
             return PaymentConfirmResult.failure(reason);
@@ -87,13 +88,24 @@ public class TossPaymentsProvider implements PaymentProvider {
             String refundTransactionKey = refundTransactionKey(response);
             if (refundTransactionKey == null) {
                 log.warn("Toss refund: missing refund transactionKey paymentKey={}", paymentKey);
-                return RefundResult.failure("PG 환불 거래 키가 비어 있습니다.");
+                return RefundResult.reconciliationRequired("PG 환불 거래 키가 비어 있어 상태 확인이 필요합니다.");
             }
             return RefundResult.success(refundTransactionKey);
+        } catch (RestClientResponseException e) {
+            log.warn("Toss refund 거절 paymentKey={} status={}", paymentKey, e.getStatusCode(), e);
+            String reason = e.getMessage() != null ? e.getMessage() : "PG가 환불을 거절했습니다.";
+            if (isRetryableStatus(e)) {
+                return RefundResult.retryableFailure(reason);
+            }
+            return RefundResult.failure(reason);
+        } catch (ResourceAccessException e) {
+            log.warn("Toss refund 통신 결과 불명 paymentKey={}", paymentKey, e);
+            return RefundResult.reconciliationRequired(
+                    e.getMessage() != null ? e.getMessage() : "PG 통신 결과를 확인할 수 없습니다.");
         } catch (Exception e) {
             log.warn("Toss refund 예외 paymentKey={}", paymentKey, e);
-            return RefundResult.failure(
-                    e.getMessage() != null ? e.getMessage() : "PG 호출 중 오류");
+            return RefundResult.reconciliationRequired(
+                    e.getMessage() != null ? e.getMessage() : "PG 호출 결과를 확인할 수 없습니다.");
         }
     }
 
@@ -124,6 +136,12 @@ public class TossPaymentsProvider implements PaymentProvider {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean isRetryableStatus(RestClientResponseException exception) {
+        int status = exception.getStatusCode().value();
+        return status == 408 || status == 409 || status == 429
+                || exception.getStatusCode().is5xxServerError();
     }
 
     private record RefundResponse(String paymentKey, String lastTransactionKey, List<CancelResponse> cancels) {}

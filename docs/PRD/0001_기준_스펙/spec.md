@@ -154,7 +154,7 @@
 ### 5.3 환불
 - 남은 횟수 정산 환불 가능(잔여 크레딧 기반)
 - 환불 시 고객의 **미래 예약은 자동 취소**하고, 자동 취소한 미래 예약의 크레딧도 아직 쓰지 않은 크레딧으로 보아 환불 크레딧에 포함한다.
-- PG 결제된 8회권은 저장된 `payment_key`로 환불 요청 이력을 먼저 남기고, 부모 트랜잭션 커밋 이후 PG 환불을 실행한다. 실패 시 `refunds`에 `FAILED` 이력을 남겨 운영자가 재시도한다.
+- PG 결제된 8회권은 저장된 `payment_key`로 환불 요청 이력을 먼저 남기고, 부모 트랜잭션 커밋 이후 PG 환불을 실행한다. 명시적 거절은 `FAILED`, 실행 전 일시 실패는 `RETRYABLE`, 반영 여부가 불명인 타임아웃·통신 단절은 `RECONCILIATION_REQUIRED`로 남긴다. 미완료 건은 최초 멱등키를 유지해 자동 복구하고 운영자가 재처리할 수 있다.
 
 ---
 
@@ -202,8 +202,8 @@
 - confirm은 결제 시도를 `PROCESSING`으로 선점한 뒤 DB 트랜잭션 밖에서 PG를 호출한다. 동시 요청은 한 건만 PG 호출을 수행한다.
 - Toss confirm은 prepare의 `orderId`를 멱등키로 사용한다. 일시 실패는 `RETRYABLE`, 최종 거절은 `FAILED`로 별도 트랜잭션에 저장한다.
 - 8회권 사용 예약은 prepare에서 `amount=0`을 받고 PG 호출 없이 confirm을 직접 호출한다.
-- PG confirm 성공 시 원결제 참조값은 `payment_attempt.pg_ref`와 생성된 주문/예약/8회권의 `payment_key`에 저장하고, 환불 시 PG cancel 호출에 사용한다. 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장하며, 8회권 환불은 `refunds.pass_purchase_id`로 추적한다. PG 환불 호출은 환불 요청을 만든 부모 트랜잭션이 커밋된 뒤 별도 executor에서 실행한다.
-- PG 승인 후 도메인 생성이 실패하면 `refunds.payment_attempt_id`로 보상 환불을 남긴다. 보상 실패는 관리자 환불 재시도 대상이며, 모든 환불 재시도는 최초 `refunds.idempotency_key`를 재사용한다.
+- PG confirm 성공 시 원결제 참조값은 `payment_attempt.pg_ref`와 생성된 주문/예약/8회권의 `payment_key`에 저장하고, 환불 시 PG cancel 호출에 사용한다. 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장하며, 8회권 환불은 `refunds.pass_purchase_id`로 추적한다. PG 환불 호출은 환불 요청을 만든 부모 트랜잭션이 커밋된 뒤 별도 executor에서 실행한다. 실행되지 못한 `REQUESTED`, 재시도 시각이 지난 `RETRYABLE`·`RECONCILIATION_REQUIRED`, 1분 이상 멈춘 `PROCESSING`은 매분 최대 10건씩 자동 복구한다.
+- PG 승인 후 도메인 생성이 실패하면 `refunds.payment_attempt_id`로 보상 환불을 남긴다. 보상 환불의 일시 실패와 결과 불명 상태에서는 결제 시도를 `COMPENSATION_REQUESTED`로 유지하고, 명시적 최종 실패만 `COMPENSATION_FAILED`로 전이한다. 모든 환불 재처리는 최초 `refunds.idempotency_key`를 재사용한다.
 
 ---
 

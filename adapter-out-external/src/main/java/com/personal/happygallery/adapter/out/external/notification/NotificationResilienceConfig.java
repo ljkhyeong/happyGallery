@@ -5,7 +5,6 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
@@ -62,8 +61,7 @@ class NotificationResilienceConfig {
         return ExecutorServiceMetrics.monitor(
                 meterRegistry,
                 rawExecutor,
-                "executor",
-                Tags.of("name", "notificationTimeoutExecutor"));
+                "notificationTimeoutExecutor");
     }
 
     @Bean

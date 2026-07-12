@@ -50,7 +50,7 @@
 
 ## 결정 4: 정산 환불 — PG 환불 이력과 재시도
 
-**결정**: `PassRefundService.refundPass()`는 미래 예약 취소, 잔여 크레딧 소멸, REFUND ledger 기록과 함께 `payment_key` 기반 PG 환불을 요청한다. 환불 이력은 `refunds.pass_purchase_id`로 8회권을 추적하며, 실패하면 `FAILED`로 남겨 운영자가 환불 재시도 API에서 처리한다. 자동 취소한 미래 예약은 아직 사용하지 않은 크레딧이므로 `refundCredits = remainingCredits + canceledFutureBookings`로 정산한다.
+**결정**: `PassRefundService.refundPass()`는 미래 예약 취소, 잔여 크레딧 소멸, REFUND ledger 기록과 함께 `payment_key` 기반 PG 환불을 요청한다. 환불 이력은 `refunds.pass_purchase_id`로 8회권을 추적하며, 명시적 거절은 `FAILED`, 일시 실패와 결과 불명은 자동 복구 가능한 상태로 남긴다. 자동 취소한 미래 예약은 아직 사용하지 않은 크레딧이므로 `refundCredits = remainingCredits + canceledFutureBookings`로 정산한다.
 
 **이유**:
 - 8회권 환불은 잔여 크레딧 정산, 미래 예약 취소, 운영자 확인이 함께 필요한 관리자 액션이다.
@@ -58,7 +58,7 @@
 - 주문/예약 환불과 동일하게 PG 호출 실패를 durable한 환불 이력으로 남겨야 실제 금전 환불과 도메인 상태의 불일치를 운영자가 추적할 수 있다.
 
 **리스크**:
-- PG 환불이 실패해도 미래 예약 취소와 크레딧 소멸은 완료된다. 실패 이력과 재시도 API로 금전 환불을 보완한다.
+- PG 환불이 완료되지 않아도 미래 예약 취소와 크레딧 소멸은 완료된다. 자동 복구와 관리자 재처리 API로 금전 환불을 보완한다.
 - 결제 API 도입 후 `totalPrice`는 서버 설정 `PASS_TOTAL_PRICE`로 확정되지만, 기존 데이터에 `totalPrice=0`이 있으면 환불액도 0으로 계산된다.
 - 과거 데이터에 `payment_key`가 없으면 PG 환불을 실행할 수 없으므로 `FAILED` 이력으로 남긴 뒤 운영자가 수동 확인한다.
 

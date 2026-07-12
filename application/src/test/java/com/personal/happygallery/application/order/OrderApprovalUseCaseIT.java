@@ -22,6 +22,7 @@ import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -282,7 +283,9 @@ class OrderApprovalUseCaseIT {
 
         // 주문 환불 FAILED 직접 생성 (booking 없는 refund)
         var refund = Refund.forOrder(order.getId(), 90000L, "payment-key");
-        refund.markFailed("PG 점검중");
+        LocalDateTime now = LocalDateTime.now(clock);
+        String processingToken = refund.startProcessing(now, now.minusMinutes(1));
+        refund.markFailed(processingToken, "PG 점검중");
         refundPort.save(refund);
 
         mockMvc.perform(get("/admin/refunds/failed"))
@@ -291,6 +294,8 @@ class OrderApprovalUseCaseIT {
                 .andExpect(jsonPath("$[0].bookingId", nullValue()))
                 .andExpect(jsonPath("$[0].orderId").value(order.getId()))
                 .andExpect(jsonPath("$[0].amount").value(90000))
+                .andExpect(jsonPath("$[0].status").value("FAILED"))
+                .andExpect(jsonPath("$[0].attemptCount").value(1))
                 .andExpect(jsonPath("$[0].failReason").value("PG 점검중"));
     }
 }

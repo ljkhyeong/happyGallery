@@ -122,14 +122,14 @@ class BookingCancelUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof: PG 환불 실패 → refund FAILED 로 저장됨 (사라지지 않음)
+    // Proof: PG 환불 결과 불명 → 상태 확인 필요로 저장됨 (사라지지 않음)
     // -----------------------------------------------------------------------
 
-    @DisplayName("PG 환불 실패 시 환불 이력이 FAILED로 저장된다")
+    @DisplayName("PG 환불 타임아웃 시 환불 이력이 상태 확인 필요로 저장된다")
     @Test
-    void cancel_refundFailure_refundSavedAsFailed() throws Exception {
+    void cancel_refundTimeout_refundSavedAsReconciliationRequired() throws Exception {
         when(paymentProvider.refund(any(), anyLong(), any()))
-                .thenReturn(RefundResult.failure("PG 타임아웃"));
+                .thenReturn(RefundResult.reconciliationRequired("PG 타임아웃"));
 
         Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
@@ -144,12 +144,12 @@ class BookingCancelUseCaseIT {
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(true));
 
-        Refund refund = awaitRefundStatus(RefundStatus.FAILED);
+        Refund refund = awaitRefundStatus(RefundStatus.RECONCILIATION_REQUIRED);
         List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
         assertSoftly(softly -> {
             softly.assertThat(refund.getBookingId()).isEqualTo(booking.bookingId());
             softly.assertThat(refund.getOrderId()).isNull();
-            softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.FAILED);
+            softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.RECONCILIATION_REQUIRED);
             softly.assertThat(refund.getFailReason()).isEqualTo("PG 타임아웃");
             softly.assertThat(refund.getPaymentKey()).isEqualTo("FAKE-TEST-PG");
             softly.assertThat(refund.getRefundTransactionKey()).isNull();

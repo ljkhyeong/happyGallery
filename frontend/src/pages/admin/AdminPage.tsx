@@ -99,7 +99,7 @@ export function AdminPage() {
       </div>
 
       <Card className="mb-4">
-        <Card.Header>환불 실패 목록</Card.Header>
+        <Card.Header>환불 확인 필요</Card.Header>
         <Card.Body>
           <FailedRefundSection adminKey={adminKey} onAuthError={handleAuthError} />
         </Card.Body>

@@ -133,7 +133,7 @@ class TossPaymentsProviderTest {
         });
     }
 
-    @DisplayName("Toss 환불 응답에 취소 거래 키가 없으면 실패 결과로 변환된다")
+    @DisplayName("Toss 환불 응답에 취소 거래 키가 없으면 상태 확인 필요 결과로 변환된다")
     @Test
     void refund_withoutTransactionKey_returnsFailure() {
         RestClient.Builder builder = RestClient.builder().baseUrl("https://api.tosspayments.com");
@@ -153,8 +153,9 @@ class TossPaymentsProviderTest {
         server.verify();
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
+            softly.assertThat(result.reconciliationRequired()).isTrue();
             softly.assertThat(result.refundTransactionKey()).isNull();
-            softly.assertThat(result.failReason()).isEqualTo("PG 환불 거래 키가 비어 있습니다.");
+            softly.assertThat(result.failReason()).contains("상태 확인");
         });
     }
 
@@ -181,6 +182,8 @@ class TossPaymentsProviderTest {
         server.verify();
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
+            softly.assertThat(result.retryable()).isFalse();
+            softly.assertThat(result.reconciliationRequired()).isFalse();
             softly.assertThat(result.refundTransactionKey()).isNull();
             softly.assertThat(result.failReason()).isNotBlank();
         });

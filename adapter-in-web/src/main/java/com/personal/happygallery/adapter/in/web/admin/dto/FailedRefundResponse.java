@@ -10,6 +10,8 @@ public record FailedRefundResponse(
         Long passPurchaseId,
         Long paymentAttemptId,
         long amount,
+        String status,
+        int attemptCount,
         String failReason,
         LocalDateTime createdAt
 ) {
@@ -22,6 +24,8 @@ public record FailedRefundResponse(
                 refund.getPassPurchaseId(),
                 refund.getPaymentAttemptId(),
                 refund.getAmount(),
+                refund.getStatus().name(),
+                refund.getAttemptCount(),
                 refund.getFailReason() != null ? refund.getFailReason() : "",
                 refund.getCreatedAt()
         );

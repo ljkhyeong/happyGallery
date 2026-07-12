@@ -8,7 +8,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 환불 실패 재시도 — 운영자 수동 트리거 */
+/** 조치 필요 환불 재처리 — 운영자 수동 트리거 */
 @Service
 public class DefaultRefundRetryService implements RefundRetryUseCase {
 
@@ -21,14 +21,17 @@ public class DefaultRefundRetryService implements RefundRetryUseCase {
         this.refundExecutionService = refundExecutionService;
     }
 
-    /** FAILED 상태인 특정 환불을 재시도한다. */
+    /** 조치 필요 상태인 특정 환불을 재처리한다. */
     public void retry(Long refundId) {
         refundExecutionService.retryRefund(refundId);
     }
 
-    /** FAILED 상태인 환불 목록 조회 */
+    /** 실패·재시도 대기·상태 확인 필요 환불 목록 조회 */
     @Transactional(readOnly = true)
     public List<Refund> listFailed() {
-        return refundPort.findByStatus(RefundStatus.FAILED);
+        return refundPort.findByStatusIn(List.of(
+                RefundStatus.FAILED,
+                RefundStatus.RETRYABLE,
+                RefundStatus.RECONCILIATION_REQUIRED));
     }
 }

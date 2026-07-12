@@ -570,7 +570,7 @@ Authorization: Bearer {token}
   - `refundAmount = refundCredits × (totalPrice / totalCredits)`
   - `REFUND` ledger 기록 후 `remaining_credits = 0`
   - `payment_key` 기반 PG 환불 요청 이력을 `refunds`에 `REQUESTED`로 남기고, 부모 트랜잭션 커밋 이후 PG 환불을 실행
-  - PG 결과는 비동기로 `SUCCEEDED` 또는 `FAILED`에 반영되며, 실패 시 운영자는 환불 실패 목록에서 재시도 가능
+  - PG 결과는 비동기로 `SUCCEEDED`, `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 중 하나에 반영된다. 미완료 상태는 같은 멱등키로 자동 복구하며 운영자가 수동 재처리할 수도 있다.
   - 단가 = `totalPrice / totalCredits`
 
 #### 2.5.5 만료 배치 수동 트리거
@@ -1035,9 +1035,9 @@ Authorization: Bearer {token}
 - `top-products.sort` 기본값은 `REVENUE`이며 `REVENUE`, `QUANTITY`를 지원한다.
 - `order-status`는 전체 운영 상태 분포를 반환하고, 나머지 API는 `from`, `to`를 필수로 받는다.
 
-### 2.11 환불 실패 관리 Admin API
+### 2.11 환불 조치 관리 Admin API
 
-#### 2.11.1 환불 실패 목록 조회
+#### 2.11.1 조치 필요 환불 목록 조회
 
 ```http
 GET /api/v1/admin/refunds/failed
@@ -1053,13 +1053,16 @@ Authorization: Bearer {token}
     "passPurchaseId": null,
     "paymentAttemptId": null,
     "amount": 5000,
-    "failReason": "PG 타임아웃",
+    "status": "RECONCILIATION_REQUIRED",
+    "attemptCount": 1,
+    "failReason": "PG 응답 지연으로 환불 상태 확인이 필요합니다.",
     "createdAt": "2026-03-01T14:30:00"
   }
 ]
 ```
 
 - 성공: `200 OK`
+- `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 상태를 반환한다.
 
 #### 2.11.2 환불 재시도
 
@@ -1071,13 +1074,13 @@ Authorization: Bearer {token}
 - 성공: `200 OK` (본문 없음)
 - 에러:
   - `404 NOT_FOUND` — refundId 미존재
-  - `400 INVALID_INPUT` — `FAILED` 상태가 아닌 환불 재시도
+  - `400 INVALID_INPUT` — 조치 필요 상태가 아닌 환불 재시도
 - 정책:
-  - `FAILED` 상태 환불만 재시도 가능하다.
-  - 성공 시 `SUCCEEDED`, 재실패 시 `FAILED` 유지
-  - 환불 실행/실패 이력 저장은 부모 주문/예약 트랜잭션과 분리된 `REQUIRES_NEW` 트랜잭션으로 처리한다.
+  - `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 상태를 재처리할 수 있다.
+  - 성공 시 `SUCCEEDED`, 명시적 거절 시 `FAILED`, 실행 전 일시 실패 시 `RETRYABLE`, 결과 불명 시 `RECONCILIATION_REQUIRED`가 된다.
+  - PG 호출 전 선점과 호출 후 결과 저장은 부모 주문/예약 트랜잭션 및 PG 네트워크 구간과 분리된 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다.
   - `paymentAttemptId`가 있으면 PG 승인 후 주문·예약·8회권 생성에 실패한 결제의 보상 환불이다.
-  - 최초 환불과 재시도는 같은 `refunds.idempotency_key`를 Toss `Idempotency-Key` 헤더로 사용한다.
+  - 최초 환불과 자동·수동 재처리는 같은 `refunds.idempotency_key`를 Toss `Idempotency-Key` 헤더로 사용한다.
 
 ### 2.12 회원 API (`/api/v1/me`)
 
@@ -1487,9 +1490,9 @@ Content-Type: application/json
   - Toss `Idempotency-Key`는 prepare에서 생성한 `orderId`를 사용하며 같은 결제 재시도에서 변경하지 않는다.
   - PG 성공은 별도 트랜잭션으로 `APPROVED`에 저장하고, 이후 도메인 저장과 `CONFIRMED` 전이는 한 트랜잭션으로 처리한다.
   - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다.
-  - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 실패 환불 재시도 경로로 복구한다.
+  - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다.
   - PG 원결제 참조값(`pgRef`, Toss는 `paymentKey`)은 `payment_attempt.pg_ref`와 생성된 도메인 레코드의 `payment_key`에 저장한다. 이후 환불은 해당 값을 PG cancel 호출의 원결제 식별자로 사용한다.
-  - 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장한다. 실패 환불 재시도는 `refunds.payment_key`를 다시 사용한다.
+  - 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장한다. 자동·수동 재처리는 `refunds.payment_key`와 최초 `idempotency_key`를 다시 사용한다.
   - 비회원 경로의 `accessToken`(32자 hex)은 confirm 응답에서 1회만 반환되며 DB에는 SHA-256 해시만 저장된다. 회원 경로는 `accessToken=null`.
   - `domainId`는 context에 따라 `orderId`(`ORDER`), `bookingId`(`BOOKING`), `passId`(`PASS`)다.
   - 비회원 휴대폰 인증 실패는 confirm 단계에서 fulfillment가 호출하는 `VerifiedGuestResolver`가 던지는 `400 PHONE_VERIFICATION_FAILED`로 매핑된다.
