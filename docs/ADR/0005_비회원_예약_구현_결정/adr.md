@@ -64,13 +64,13 @@
 
 ---
 
-## 결정 5 — confirmBooking을 GuestBookingService 트랜잭션 내에서 호출
+## 결정 5 — reserveCapacity를 GuestBookingService 트랜잭션 내에서 호출
 
-**선택**: `@Transactional createGuestBooking()` 내에서 `slotManagementService.confirmBooking(slotId)` 호출
+**선택**: `@Transactional createGuestBooking()` 내에서 `SlotCapacitySupport.reserveCapacity(slotId)` 호출
 
 **이유**: ADR-0003 준수. `booked_count` 증가와 Booking 생성이 별도 트랜잭션이면 정원 초과 롤백 시 booking row 고아 발생.
 
-**구현**: `SlotManagementService`의 `@Transactional`은 호출자 트랜잭션에 참여(REQUIRED, 기본값).
+**구현**: `SlotCapacitySupport`는 `MANDATORY` 전파 속성으로 호출자 트랜잭션 참여를 강제한다.
 
 ---
 

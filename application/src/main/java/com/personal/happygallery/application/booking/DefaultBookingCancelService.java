@@ -20,20 +20,20 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
     private final BookingStorePort bookingStorePort;
     private final RefundExecutionService refundExecutionService;
     private final PassCreditService passCreditService;
-    private final BookingSlotSupport creationSupport;
+    private final SlotCapacitySupport slotCapacitySupport;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     public DefaultBookingCancelService(BookingStorePort bookingStorePort,
                                 RefundExecutionService refundExecutionService,
                                 PassCreditService passCreditService,
-                                BookingSlotSupport creationSupport,
+                                SlotCapacitySupport slotCapacitySupport,
                                 BookingSupport bookingSupport,
                                 Clock clock) {
         this.bookingStorePort = bookingStorePort;
         this.refundExecutionService = refundExecutionService;
         this.passCreditService = passCreditService;
-        this.creationSupport = creationSupport;
+        this.slotCapacitySupport = slotCapacitySupport;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
@@ -65,7 +65,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
         booking.cancel();
 
         // 1. 슬롯 반납 — 비관적 락 + booked_count--
-        Slot slot = creationSupport.releaseSlotCapacity(booking.getSlot().getId());
+        Slot slot = slotCapacitySupport.releaseCapacity(booking.getSlot().getId());
 
         // 2. CANCELED 이력 저장 (append-only)
         bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null);

@@ -61,9 +61,9 @@
 
 ## 결정 5 — 슬롯 락 순서: new 먼저, old 나중
 
-**선택**: `confirmBooking(newSlotId)` → `findByIdWithLock(oldSlotId)` 순서 고정.
+**선택**: `SlotCapacitySupport.reserveCapacity(newSlotId)` → `releaseCapacity(oldSlotId)` 순서 고정.
 
-**이유**: `confirmBooking`은 이미 구현된 API. 변경을 최소화.
+**이유**: 새 슬롯 정원을 먼저 확보한 뒤 기존 슬롯 정원을 반납하는 기존 순서를 유지한다.
 
 **알려진 위험 (deadlock)**:
 - 트랜잭션 1: A→B 변경 (new=B 락 → old=A 락)

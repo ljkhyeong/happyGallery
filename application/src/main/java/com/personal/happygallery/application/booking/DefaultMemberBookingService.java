@@ -20,11 +20,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class DefaultMemberBookingService implements MemberBookingUseCase {
 
     private final BookingReaderPort bookingReaderPort;
-    private final BookingSlotSupport creationSupport;
+    private final SlotCapacitySupport slotCapacitySupport;
+    private final BookingCreationSupport creationSupport;
 
     public DefaultMemberBookingService(BookingReaderPort bookingReaderPort,
-                                BookingSlotSupport creationSupport) {
+                                       SlotCapacitySupport slotCapacitySupport,
+                                       BookingCreationSupport creationSupport) {
         this.bookingReaderPort = bookingReaderPort;
+        this.slotCapacitySupport = slotCapacitySupport;
         this.creationSupport = creationSupport;
     }
 
@@ -41,7 +44,7 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
                                         DepositPaymentMethod paymentMethod, Long passId) {
 
         // 1. 슬롯 활성 여부 확인
-        Slot slot = creationSupport.loadActiveSlot(slotId);
+        Slot slot = slotCapacitySupport.loadActiveSlot(slotId);
 
         // 2. 중복 예약 확인
         if (bookingReaderPort.existsBySlotIdAndUserId(slotId, userId)) {
@@ -49,7 +52,7 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
         }
 
         // 3. 비관적 락 + 정원 증가 + 버퍼 비활성화
-        creationSupport.lockSlotCapacity(slotId);
+        slotCapacitySupport.reserveCapacity(slotId);
 
         Booking booking;
         if (passId != null) {

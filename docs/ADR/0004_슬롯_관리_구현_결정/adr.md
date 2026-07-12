@@ -98,7 +98,7 @@ DB UNIQUE      →  DataIntegrityViolationException → 현재 미처리(500)
 ## Decision 4: 버퍼 슬롯 비활성화 — 개별 `save()` (N+1 트레이드오프 수용)
 
 ### 배경
-`confirmBooking()` 내에서 버퍼 범위 슬롯을 `deactivate()` 후 각각 `save()` 호출한다.
+`SlotCapacitySupport.reserveCapacity()`에서 버퍼 범위 슬롯을 `deactivate()`한 뒤 각각 `save()`한다.
 
 ### 결정
 개별 `save()` 루프를 사용한다. 현재 `buffer_min=30`이고 슬롯 간격이 보통 30분 이상이므로 실제 비활성화 대상은 0~1개다.

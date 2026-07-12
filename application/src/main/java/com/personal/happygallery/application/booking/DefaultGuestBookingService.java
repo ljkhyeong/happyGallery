@@ -32,7 +32,8 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
     private final VerifiedGuestResolver verifiedGuestResolver;
     private final PhoneVerificationStorePort phoneVerificationStorePort;
     private final BookingReaderPort bookingReaderPort;
-    private final BookingSlotSupport creationSupport;
+    private final SlotCapacitySupport slotCapacitySupport;
+    private final BookingCreationSupport creationSupport;
     private final GuestTokenService guestTokenService;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
@@ -40,12 +41,14 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
     public DefaultGuestBookingService(VerifiedGuestResolver verifiedGuestResolver,
                                PhoneVerificationStorePort phoneVerificationStorePort,
                                BookingReaderPort bookingReaderPort,
-                               BookingSlotSupport creationSupport,
+                               SlotCapacitySupport slotCapacitySupport,
+                               BookingCreationSupport creationSupport,
                                GuestTokenService guestTokenService,
                                Clock clock) {
         this.verifiedGuestResolver = verifiedGuestResolver;
         this.phoneVerificationStorePort = phoneVerificationStorePort;
         this.bookingReaderPort = bookingReaderPort;
+        this.slotCapacitySupport = slotCapacitySupport;
         this.creationSupport = creationSupport;
         this.guestTokenService = guestTokenService;
         this.clock = clock;
@@ -74,7 +77,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
                 command.phone(), command.code(), command.name());
 
         // 2. 슬롯 활성 여부 확인 (락 전 빠른 체크)
-        Slot slot = creationSupport.loadActiveSlot(command.slotId());
+        Slot slot = slotCapacitySupport.loadActiveSlot(command.slotId());
 
         // 3. 중복 예약 확인
         if (bookingReaderPort.existsBySlotIdAndGuestId(command.slotId(), guest.getId())) {
@@ -82,7 +85,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         }
 
         // 4. 비관적 락 + 정원 증가 + 버퍼 비활성화
-        creationSupport.lockSlotCapacity(command.slotId());
+        slotCapacitySupport.reserveCapacity(command.slotId());
 
         GuestTokenService.IssuedToken issued = guestTokenService.issue();
         String rawToken = issued.rawToken();

@@ -28,18 +28,18 @@ class DefaultBookingCancellationService implements BookingCancellationService {
 
     private final BookingReaderPort bookingReader;
     private final BookingStorePort bookingStore;
-    private final BookingSlotSupport slotSupport;
+    private final SlotCapacitySupport slotCapacitySupport;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     DefaultBookingCancellationService(BookingReaderPort bookingReader,
                                       BookingStorePort bookingStore,
-                                      BookingSlotSupport slotSupport,
+                                      SlotCapacitySupport slotCapacitySupport,
                                       BookingSupport bookingSupport,
                                       Clock clock) {
         this.bookingReader = bookingReader;
         this.bookingStore = bookingStore;
-        this.slotSupport = slotSupport;
+        this.slotCapacitySupport = slotCapacitySupport;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
@@ -57,7 +57,7 @@ class DefaultBookingCancellationService implements BookingCancellationService {
     private void cancelOne(Booking booking, Long passId) {
         booking.cancel();
 
-        Slot slot = slotSupport.releaseSlotCapacity(booking.getSlot().getId());
+        Slot slot = slotCapacitySupport.releaseCapacity(booking.getSlot().getId());
 
         bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED,
                 slot, null, "ADMIN", null);

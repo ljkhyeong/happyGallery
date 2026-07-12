@@ -4,7 +4,7 @@
 - **날짜**: 2026-02-22
 - **관련 파일**:
   - `adapter-out-persistence/src/main/java/com/personal/happygallery/adapter/out/persistence/booking/SlotRepository.java` — `findByIdWithLock()`
-  - `application/src/main/java/com/personal/happygallery/application/booking/DefaultSlotManagementService.java` — `confirmBooking()`
+  - `application/src/main/java/com/personal/happygallery/application/booking/SlotCapacitySupport.java` — `reserveCapacity()`
   - `domain/booking/Slot.java` — `incrementBookedCount()`
   - `domain/booking/SlotCapacity.java` — `checkAvailable(int)`
 
@@ -26,7 +26,7 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 
 슬롯 정원(capacity=8) 강제에는 **비관적 쓰기 락(SELECT FOR UPDATE)** 을 사용한다.
 
-### 구현 흐름 (`SlotManagementService.confirmBooking()` 단일 트랜잭션)
+### 구현 흐름 (`SlotCapacitySupport.reserveCapacity()`을 포함하는 단일 트랜잭션)
 
 ```
 1. SlotRepository.findByIdWithLock(slotId)
@@ -68,9 +68,9 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 - `CapacityExceededException` 발생 시 자동 롤백 → `booked_count` 불변 보장.
 
 **부정 / 주의 사항**
-- `confirmBooking()`은 반드시 **예약 엔티티(bookings) save와 동일 트랜잭션** 안에서 호출해야 한다.
+- `reserveCapacity()`는 반드시 **예약 엔티티(bookings) save와 동일 트랜잭션** 안에서 호출해야 한다.
   - 이유: `booked_count` 증가와 `booking` 생성이 다른 트랜잭션이면, 정원 초과 롤백 시 `booking` row가 고아로 남는다.
-  - 구현 계약: §5.2 `BookingService`의 `@Transactional` 메서드 안에서 `confirmBooking()` 호출 → `bookingRepository.save()` 순서를 지킨다.
+  - 구현 계약: 예약 서비스의 `@Transactional` 메서드 안에서 `reserveCapacity()` 호출 → 예약 save 순서를 지킨다.
 - 단일 인스턴스 MySQL을 전제. 샤딩 환경에서는 재검토 필요(현재 MVP 범위 밖).
 
 ---

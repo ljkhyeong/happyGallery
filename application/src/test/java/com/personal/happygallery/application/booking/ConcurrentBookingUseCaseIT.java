@@ -38,7 +38,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class ConcurrentBookingUseCaseIT {
 
-    @Autowired SlotBookingSupport slotBookingSupport;
+    @Autowired SlotCapacitySupport slotCapacitySupport;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
@@ -75,7 +75,7 @@ class ConcurrentBookingUseCaseIT {
 
         // 슬롯을 MAX-1 상태로 채움
         for (int i = 0; i < SlotCapacity.MAX - 1; i++) {
-            confirmBookingInTx(slot.getId());
+            reserveCapacityInTx(slot.getId());
         }
         int beforeRaceBookedCount = slotRepository.findById(slot.getId()).orElseThrow().getBookedCount();
         assertThat(beforeRaceBookedCount).isEqualTo(SlotCapacity.MAX - 1);
@@ -90,7 +90,7 @@ class ConcurrentBookingUseCaseIT {
             exec.submit(() -> {
                 try {
                     startLatch.await();
-                    confirmBookingInTx(slot.getId());
+                    reserveCapacityInTx(slot.getId());
                     successes.incrementAndGet();
                 } catch (CapacityExceededException e) {
                     failures.incrementAndGet();
@@ -114,8 +114,8 @@ class ConcurrentBookingUseCaseIT {
         });
     }
 
-    private void confirmBookingInTx(Long slotId) {
+    private void reserveCapacityInTx(Long slotId) {
         new TransactionTemplate(transactionManager)
-                .executeWithoutResult(status -> slotBookingSupport.confirmBooking(slotId));
+                .executeWithoutResult(status -> slotCapacitySupport.reserveCapacity(slotId));
     }
 }

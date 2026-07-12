@@ -39,7 +39,7 @@ class BookingRescheduleUseCaseIT {
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired DefaultSlotManagementService slotManagementService;
-    @Autowired SlotBookingSupport slotBookingSupport;
+    @Autowired SlotCapacitySupport slotCapacitySupport;
     @Autowired Clock clock;
     @Autowired PlatformTransactionManager transactionManager;
 
@@ -196,7 +196,7 @@ class BookingRescheduleUseCaseIT {
 
         // fullSlot을 8명으로 채운다 (서비스 직접 호출)
         for (int i = 0; i < 8; i++) {
-            confirmBookingInTx(fullSlot.getId());
+            reserveCapacityInTx(fullSlot.getId());
         }
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550001", fromSlot.getId(), 5000L);
@@ -237,9 +237,9 @@ class BookingRescheduleUseCaseIT {
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
 
-    private void confirmBookingInTx(Long slotId) {
+    private void reserveCapacityInTx(Long slotId) {
         new TransactionTemplate(transactionManager)
-                .executeWithoutResult(status -> slotBookingSupport.confirmBooking(slotId));
+                .executeWithoutResult(status -> slotCapacitySupport.reserveCapacity(slotId));
     }
 
 }

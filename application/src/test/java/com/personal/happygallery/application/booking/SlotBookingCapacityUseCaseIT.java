@@ -23,7 +23,6 @@ import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
  * [UseCaseIT] 슬롯 정원(8명) 강제 + 뒤쪽 버퍼 비활성화 검증.
@@ -33,7 +32,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class SlotBookingCapacityUseCaseIT {
 
-    @Autowired SlotBookingSupport slotBookingSupport;
+    @Autowired SlotCapacitySupport slotCapacitySupport;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
@@ -64,7 +63,7 @@ class SlotBookingCapacityUseCaseIT {
     @Test
     void confirmBooking_8times_allSucceed() {
         for (int i = 0; i < SlotCapacity.MAX; i++) {
-            confirmBookingInTx(mainSlot.getId());
+            reserveCapacityInTx(mainSlot.getId());
         }
         Slot updated = slotRepository.findById(mainSlot.getId()).orElseThrow();
         assertThat(updated.getBookedCount()).isEqualTo(SlotCapacity.MAX);
@@ -74,11 +73,11 @@ class SlotBookingCapacityUseCaseIT {
     @Test
     void confirmBooking_9th_throwsCapacityExceeded() {
         for (int i = 0; i < SlotCapacity.MAX; i++) {
-            confirmBookingInTx(mainSlot.getId());
+            reserveCapacityInTx(mainSlot.getId());
         }
 
         assertSoftly(softly -> {
-            softly.assertThatThrownBy(() -> confirmBookingInTx(mainSlot.getId()))
+            softly.assertThatThrownBy(() -> reserveCapacityInTx(mainSlot.getId()))
                     .isInstanceOf(CapacityExceededException.class);
 
             // booked_count 변경 없음 확인
@@ -95,7 +94,7 @@ class SlotBookingCapacityUseCaseIT {
         Slot bufferSlot2 = slotRepository.save(
                 slot(bookingClass, BUFFER_IN2, BUFFER_IN2.plusHours(2)));
 
-        confirmBookingInTx(mainSlot.getId());
+        reserveCapacityInTx(mainSlot.getId());
 
         assertSoftly(softly -> {
             softly.assertThat(slotRepository.findById(bufferSlot1.getId()).orElseThrow().isActive()).isFalse();
@@ -109,13 +108,13 @@ class SlotBookingCapacityUseCaseIT {
         Slot outsideSlot = slotRepository.save(
                 slot(bookingClass, BUFFER_OUT, BUFFER_OUT.plusHours(2)));
 
-        confirmBookingInTx(mainSlot.getId());
+        reserveCapacityInTx(mainSlot.getId());
 
         assertThat(slotRepository.findById(outsideSlot.getId()).orElseThrow().isActive()).isTrue();
     }
 
-    private void confirmBookingInTx(Long slotId) {
+    private void reserveCapacityInTx(Long slotId) {
         new TransactionTemplate(transactionManager)
-                .executeWithoutResult(status -> slotBookingSupport.confirmBooking(slotId));
+                .executeWithoutResult(status -> slotCapacitySupport.reserveCapacity(slotId));
     }
 }
