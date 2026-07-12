@@ -3,18 +3,14 @@ package com.personal.happygallery.application.cart;
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.cart.port.out.CartItemReaderPort;
 import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
-import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
+import com.personal.happygallery.application.cart.port.out.CartQueryPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.cart.CartItem;
-import com.personal.happygallery.domain.product.Inventory;
-import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,47 +20,32 @@ public class DefaultCartService implements CartUseCase {
 
     private final CartItemReaderPort cartItemReader;
     private final CartItemStorePort cartItemStore;
+    private final CartQueryPort cartQuery;
     private final ProductReaderPort productReader;
-    private final InventoryReaderPort inventoryReader;
     private final Clock clock;
 
     public DefaultCartService(CartItemReaderPort cartItemReader,
-                       CartItemStorePort cartItemStore,
-                       ProductReaderPort productReader,
-                       InventoryReaderPort inventoryReader,
-                       Clock clock) {
+                              CartItemStorePort cartItemStore,
+                              CartQueryPort cartQuery,
+                              ProductReaderPort productReader,
+                              Clock clock) {
         this.cartItemReader = cartItemReader;
         this.cartItemStore = cartItemStore;
+        this.cartQuery = cartQuery;
         this.productReader = productReader;
-        this.inventoryReader = inventoryReader;
         this.clock = clock;
     }
 
     @Override
     @Transactional(readOnly = true)
     public CartView getCart(Long userId) {
-        List<CartItem> items = cartItemReader.findByUserId(userId);
-        if (items.isEmpty()) {
-            return new CartView(List.of(), 0);
-        }
-
-        List<Long> productIds = items.stream().map(CartItem::getProductId).toList();
-        Map<Long, Product> products = productIds.stream()
-                .map(pid -> productReader.findById(pid).orElse(null))
-                .filter(p -> p != null)
-                .collect(Collectors.toMap(Product::getId, p -> p));
-
-        Map<Long, Inventory> inventories = inventoryReader.findByProductIdIn(productIds).stream()
-                .collect(Collectors.toMap(Inventory::getProductId, i -> i));
-
-        List<CartItemView> views = items.stream()
-                .filter(ci -> products.containsKey(ci.getProductId()))
-                .map(ci -> {
-                    Product p = products.get(ci.getProductId());
-                    Inventory inv = inventories.get(ci.getProductId());
-                    boolean available = p.getStatus() == ProductStatus.ACTIVE
-                            && inv != null && inv.getQuantity() > 0;
-                    return new CartItemView(p.getId(), p.getName(), p.getPrice(), ci.getQty(), available);
+        List<CartItemView> views = cartQuery.findDetailsByUserId(userId).stream()
+                .map(item -> {
+                    boolean available = item.productStatus() == ProductStatus.ACTIVE
+                            && item.inventoryQuantity() != null
+                            && item.inventoryQuantity() > 0;
+                    return new CartItemView(
+                            item.productId(), item.productName(), item.price(), item.qty(), available);
                 })
                 .toList();
 

@@ -61,12 +61,18 @@ Optional<Inventory> findByProductIdWithLock(Long productId);
 
 `available: true/false` — `inventory.quantity > 0` 여부를 응답에 포함.
 
+### 6. 장바구니 조회 — 읽기 전용 projection JOIN
+
+- `CartItem`은 `productId`만 유지하고 `Product`, `Inventory` JPA 연관관계를 추가하지 않는다.
+- `GET /api/v1/me/cart`는 `CartQueryPort`를 통해 장바구니 항목, 상품, 재고를 한 번의 projection JOIN 쿼리로 조회한다.
+- 애플리케이션 서비스는 projection을 응답 모델로 변환하고 가용성과 합계만 계산한다.
+- 상품별 개별 조회와 여러 조회 결과를 ID `Map`으로 다시 조립하지 않는다.
+
 ---
 
 ## 위험 포인트
 
-- **N+1 위험**: `GET /admin/products` 목록 조회 시 products 루프에서 inventory 개별 조회 발생.
-  → 상품 수가 적은 초기 운영에서는 허용. 상품 증가 시 JOIN 쿼리로 전환 필요.
+- **목록 조회 N+1 위험**: 상품 목록은 재고를 `IN`으로 일괄 조회하고, 장바구니는 projection JOIN을 사용한다. 신규 목록 조회도 항목별 개별 조회를 만들지 않는다.
 - **비관적 락 데드락**: 여러 상품을 순서 없이 잠글 경우 데드락 가능.
   → §8.2 주문 생성 시 product_id 오름차순 정렬 후 lock 획득 권장.
 - **`restore()` 멱등성**: 환불 재시도 시 중복 복구 가능.
