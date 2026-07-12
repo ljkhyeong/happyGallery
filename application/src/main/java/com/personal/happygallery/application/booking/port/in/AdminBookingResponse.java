@@ -21,15 +21,13 @@ public record AdminBookingResponse(
 
     public static AdminBookingResponse from(Booking booking, User user, String guestPhone) {
         boolean isMember = booking.getUserId() != null;
-        String name = "(알 수 없음)";
-        String phone = "";
+        String name;
+        String phone;
 
         if (isMember) {
-            if (user != null) {
-                name = user.getName();
-                phone = user.getPhone();
-            }
-        } else if (booking.getGuest() != null) {
+            name = user.getName();
+            phone = user.getPhone();
+        } else {
             name = booking.getGuest().getName();
             phone = guestPhone;
         }

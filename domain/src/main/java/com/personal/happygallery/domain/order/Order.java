@@ -10,7 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 /**
  * 상품 주문 — orders 테이블.
@@ -63,6 +62,7 @@ public class Order {
 
     private Order(Long userId, Long guestId, String accessToken, long totalAmount,
                   LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
+        requireExactlyOneOwner(userId, guestId);
         this.userId = userId;
         this.guestId = guestId;
         this.accessToken = accessToken;
@@ -72,18 +72,22 @@ public class Order {
         this.status = OrderStatus.PAID_APPROVAL_PENDING;
     }
 
+    private static void requireExactlyOneOwner(Long userId, Long guestId) {
+        if ((userId == null) == (guestId == null)) {
+            throw new IllegalArgumentException("주문은 회원 또는 비회원 소유자 중 하나만 가져야 합니다.");
+        }
+    }
+
     /** 비회원 주문 생성. 초기 상태는 {@link OrderStatus#PAID_APPROVAL_PENDING}. */
     public static Order forGuest(Long guestId, String accessToken, long totalAmount,
                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return new Order(null, Objects.requireNonNull(guestId, "guestId must not be null"),
-                accessToken, totalAmount, paidAt, approvalDeadlineAt);
+        return new Order(null, guestId, accessToken, totalAmount, paidAt, approvalDeadlineAt);
     }
 
     /** 회원 주문 생성. guest 대신 user_id를 설정한다. */
     public static Order forMember(Long userId, long totalAmount,
                                   LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return new Order(Objects.requireNonNull(userId, "userId must not be null"), null,
-                null, totalAmount, paidAt, approvalDeadlineAt);
+        return new Order(userId, null, null, totalAmount, paidAt, approvalDeadlineAt);
     }
 
     /**
@@ -224,7 +228,8 @@ public class Order {
     }
 
     public void claimToUser(Long userId) {
-        this.userId = Objects.requireNonNull(userId, "userId must not be null");
+        requireExactlyOneOwner(userId, null);
+        this.userId = userId;
         this.guestId = null;
     }
 

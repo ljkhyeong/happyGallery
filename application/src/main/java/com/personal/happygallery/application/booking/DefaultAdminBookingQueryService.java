@@ -51,9 +51,7 @@ public class DefaultAdminBookingQueryService implements AdminBookingQueryUseCase
     }
 
     private String guestPhoneFor(Booking booking) {
-        return booking.getUserId() != null || booking.getGuest() == null
-                ? ""
-                : guestPhoneProtector.decrypt(booking.getGuest());
+        return booking.getUserId() != null ? "" : guestPhoneProtector.decrypt(booking.getGuest());
     }
 
     private User userFor(Booking booking, Map<Long, User> userMap) {
