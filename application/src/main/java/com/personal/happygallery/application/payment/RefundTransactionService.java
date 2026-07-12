@@ -63,11 +63,6 @@ class RefundTransactionService {
                 refund.getId(), refund.getPaymentKey(), refund.getAmount(), refund.getIdempotencyKey());
     }
 
-    @Transactional(readOnly = true)
-    public Refund find(Long refundId) {
-        return findRefund(refundId);
-    }
-
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void validateRetryable(Long refundId) {
         Refund refund = findRefund(refundId);

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -91,7 +92,6 @@ class NotificationOutboxUseCaseIT {
     void dispatchPending_insideTransaction_throwsException() {
         assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status ->
                 outboxDispatcher.dispatchPending()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("트랜잭션 밖");
+                .isInstanceOf(IllegalTransactionStateException.class);
     }
 }

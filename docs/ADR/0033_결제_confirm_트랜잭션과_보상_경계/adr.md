@@ -64,7 +64,8 @@ Toss confirm은 활성 DB 트랜잭션이 없는 상태에서 호출한다.
 
 - `refunds.payment_attempt_id`로 보상 대상 결제 시도를 식별한다.
 - 결제 시도 `COMPENSATION_REQUESTED`와 환불 `REQUESTED`를 한 트랜잭션으로 저장한다.
-- 커밋 이후 기존 `refundExecutor`에서 PG cancel을 실행한다.
+- 커밋 이후 `RefundExecutionEventListener`가 `refundExecutor`에서 `RefundDispatcher`를 호출하고,
+  `Propagation.NEVER`가 보장하는 비트랜잭션 구간에서 PG cancel을 실행한다.
 - 성공하면 결제 시도는 `COMPENSATED`, 실패하면 `COMPENSATION_FAILED`가 된다.
 - 실패한 보상 환불은 기존 관리자 실패 환불 목록과 재시도 API를 그대로 사용한다.
 

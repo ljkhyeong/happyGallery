@@ -4,12 +4,11 @@ import com.personal.happygallery.application.batch.BatchResult;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class NotificationOutboxDispatcher {
@@ -22,28 +21,15 @@ public class NotificationOutboxDispatcher {
 
     private final NotificationOutboxTransactionService transactionService;
     private final NotificationService notificationService;
-    private final Executor notificationExecutor;
 
     public NotificationOutboxDispatcher(NotificationOutboxTransactionService transactionService,
-                                        NotificationService notificationService,
-                                        @Qualifier("notificationExecutor") Executor notificationExecutor) {
+                                        NotificationService notificationService) {
         this.transactionService = transactionService;
         this.notificationService = notificationService;
-        this.notificationExecutor = notificationExecutor;
     }
 
-    public void dispatchAsync() {
-        notificationExecutor.execute(() -> {
-            try {
-                dispatchPending();
-            } catch (Exception e) {
-                log.warn("[알림 outbox] 비동기 dispatch 실패", e);
-            }
-        });
-    }
-
+    @Transactional(propagation = Propagation.NEVER)
     public BatchResult dispatchPending() {
-        assertNoActiveTransaction();
         List<Long> outboxIds = transactionService.reserveDispatchableIds(
                 DISPATCH_LIMIT, PROCESSING_TIMEOUT_MINUTES);
         int successCount = 0;
@@ -78,11 +64,5 @@ public class NotificationOutboxDispatcher {
         }
         transactionService.markDeliveryFailed(outboxId, ALL_CHANNELS_FAILED, MAX_ATTEMPTS);
         return false;
-    }
-
-    private void assertNoActiveTransaction() {
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            throw new IllegalStateException("알림 outbox dispatch는 트랜잭션 밖에서 실행해야 합니다.");
-        }
     }
 }
