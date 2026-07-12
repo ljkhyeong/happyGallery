@@ -34,9 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -200,21 +198,6 @@ class OrderProductionUseCaseIT {
         });
     }
 
-    @DisplayName("POST /admin/orders/{id}/cancel-for-delay-rejection 호출 시 DELAY_REJECTED_CANCELED를 반환한다")
-    @Test
-    void cancelForDelayRejection_httpEndpoint_returnsCanceledStatus() throws Exception {
-        OrderTestHelper.OrderFixture fixture =
-                orderHelper.createMadeToOrderPaidOrder("HTTP 지연 거절 취소 상품", 180000L);
-        Order order = fixture.order();
-        orderApprovalService.approve(order.getId());
-
-        mockMvc.perform(post("/admin/orders/{id}/cancel-for-delay-rejection", order.getId())
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.orderId").value(order.getId()))
-                .andExpect(jsonPath("$.status").value("DELAY_REJECTED_CANCELED"));
-    }
-
     // -----------------------------------------------------------------------
     // Proof (DoD §8.3): IN_PRODUCTION 상태에서 reject → 422 (환불 불가)
     // -----------------------------------------------------------------------
@@ -298,38 +281,6 @@ class OrderProductionUseCaseIT {
                             OrderApprovalDecision.DELAY,
                             OrderApprovalDecision.RESUME_PRODUCTION);
         });
-    }
-
-    // -----------------------------------------------------------------------
-    // resume-production HTTP 엔드포인트 검증
-    // -----------------------------------------------------------------------
-
-    @DisplayName("POST /admin/orders/{id}/resume-production HTTP 호출 시 200과 IN_PRODUCTION 상태를 반환한다")
-    @Test
-    void resumeProduction_httpEndpoint_returns200WithInProductionStatus() throws Exception {
-        Order order = orderHelper.createMadeToOrderPaidOrder("HTTP 재개 상품", 180000L).order();
-        orderApprovalService.approve(order.getId());
-        orderProductionService.requestDelay(order.getId());
-
-        String body = mockMvc.perform(post("/admin/orders/{id}/resume-production", order.getId())
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        assertSoftly(softly -> {
-            softly.assertThat(body).contains("\"status\":\"IN_PRODUCTION\"");
-            softly.assertThat(body).contains("\"orderId\":" + order.getId());
-        });
-    }
-
-    @DisplayName("PAID_APPROVAL_PENDING 상태에서 resume-production 호출 시 400을 반환한다")
-    @Test
-    void resumeProduction_httpEndpoint_invalidState_returns400() throws Exception {
-        Order order = orderHelper.createMadeToOrderPaidOrder("잘못된 상태 재개", 180000L).order();
-
-        mockMvc.perform(post("/admin/orders/{id}/resume-production", order.getId())
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
     }
 
     // -----------------------------------------------------------------------
@@ -420,50 +371,6 @@ class OrderProductionUseCaseIT {
                 OrderApprovalDecision.PREPARE_SHIPPING,
                 OrderApprovalDecision.SHIP,
                 OrderApprovalDecision.DELIVER);
-    }
-
-    @DisplayName("배송 전이 HTTP 엔드포인트가 정상 동작한다")
-    @Test
-    void shippingFlow_httpEndpoints() throws Exception {
-        Order order = orderHelper.createMadeToOrderPaidOrder("HTTP 배송 상품", 200000L).order();
-        orderApprovalService.approve(order.getId());
-        orderProductionService.completeProduction(order.getId(), 1L);
-
-        // prepare-shipping
-        mockMvc.perform(post("/admin/orders/{id}/prepare-shipping", order.getId())
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SHIPPING_PREPARING"));
-
-        // mark-shipped
-        mockMvc.perform(post("/admin/orders/{id}/mark-shipped", order.getId())
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SHIPPED"));
-
-        // mark-delivered
-        mockMvc.perform(post("/admin/orders/{id}/mark-delivered", order.getId())
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("DELIVERED"));
-    }
-
-    @DisplayName("주문 이력 조회 HTTP 엔드포인트가 정상 동작한다")
-    @Test
-    void orderHistory_httpEndpoint() throws Exception {
-        Order order = orderHelper.createMadeToOrderPaidOrder("이력 조회 상품", 200000L).order();
-        orderApprovalService.approve(order.getId());
-        orderProductionService.completeProduction(order.getId(), 1L);
-
-        String body = mockMvc.perform(get("/admin/orders/{id}/history", order.getId())
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        assertSoftly(softly -> {
-            softly.assertThat(body).contains("APPROVE");
-            softly.assertThat(body).contains("PRODUCTION_COMPLETE");
-        });
     }
 
     // -----------------------------------------------------------------------

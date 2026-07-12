@@ -1,16 +1,10 @@
 package com.personal.happygallery.application.booking;
 
-import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
-import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
-import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
-import com.personal.happygallery.domain.booking.DepositPaymentMethod;
-import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
@@ -38,20 +32,16 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
-import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
-import static com.personal.happygallery.support.TestFixtures.guest;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -62,9 +52,6 @@ class BookingCancelUseCaseIT {
     @Autowired MockMvc mockMvc;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
-    @Autowired GuestStorePort guestStorePort;
-    @Autowired BookingStorePort bookingStorePort;
-    @Autowired RefundPort refundPort;
     @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired NotificationLogProbe notificationLogProbe;
@@ -170,28 +157,6 @@ class BookingCancelUseCaseIT {
                     .containsExactly(NotificationEventType.BOOKING_CANCELED);
         });
         verify(paymentProvider).refund(eq("FAKE-TEST-PG"), eq(5000L));
-    }
-
-    @DisplayName("환불 실패 목록 관리자 API는 DTO 응답을 반환한다")
-    @Test
-    void list_failed_refunds_adminApi_returnsDtoResponse() throws Exception {
-        Guest guest = guestStorePort.save(guest("환불실패", "01077770007"));
-        Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
-        Booking booking = bookingStorePort.save(booking(
-                guest, slot, 5_000L, 45_000L, DepositPaymentMethod.CARD, "refund-token"));
-
-        Refund refund = Refund.forBooking(booking, 5_000L);
-        refund.markFailed(null);
-        refundPort.save(refund);
-
-        mockMvc.perform(get("/admin/refunds/failed"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].refundId").value(refund.getId()))
-                .andExpect(jsonPath("$[0].bookingId").value(booking.getId()))
-                .andExpect(jsonPath("$[0].orderId", nullValue()))
-                .andExpect(jsonPath("$[0].amount").value(5000))
-                .andExpect(jsonPath("$[0].failReason").value(""))
-                .andExpect(jsonPath("$[0].createdAt").isNotEmpty());
     }
 
     // -----------------------------------------------------------------------

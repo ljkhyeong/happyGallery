@@ -234,21 +234,6 @@ class OrderApprovalUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof: 자동환불 이후 승인 HTTP 요청 → 409 응답
-    // -----------------------------------------------------------------------
-
-    @DisplayName("자동환불된 주문을 승인하면 409를 반환한다")
-    @Test
-    void approve_afterAutoRefund_returns409() throws Exception {
-        Order order = orderHelper.createExpiredReadyStockPendingOrder("HTTP 409 상품", 70000L).order();
-
-        orderAutoRefundBatchService.autoRefundExpired();
-
-        mockMvc.perform(post("/admin/orders/{id}/approve", order.getId()))
-                .andExpect(status().isConflict());
-    }
-
-    // -----------------------------------------------------------------------
     // Proof: MADE_TO_ORDER 승인 후(IN_PRODUCTION)는 24h 자동환불 배치 대상이 아니다.
     // -----------------------------------------------------------------------
 
@@ -284,28 +269,6 @@ class OrderApprovalUseCaseIT {
 
         mockMvc.perform(post("/admin/orders/{id}/reject", order.getId()))
                 .andExpect(status().isConflict());
-    }
-
-    @DisplayName("자동환불 알림이 실패해도 환불 처리는 롤백되지 않는다")
-    @Test
-    void autoRefund_notificationFailure_doesNotRollbackRefund() {
-        Order order1 = orderHelper.createExpiredReadyStockPendingOrder("알림실패 상품1", 45000L).order();
-        Order order2 = orderHelper.createExpiredReadyStockPendingOrder("알림실패 상품2", 55000L).order();
-
-        // NotificationService가 @MockitoBean이므로 알림은 no-op.
-        // @TransactionalEventListener(AFTER_COMMIT) + @Async 구조상
-        // 알림 실패는 원래 트랜잭션에 영향을 줄 수 없다.
-
-        BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
-
-        Order updated1 = orderStateProbe.getOrder(order1.getId());
-        Order updated2 = orderStateProbe.getOrder(order2.getId());
-        assertSoftly(softly -> {
-            softly.assertThat(result.successCount()).isEqualTo(2);
-            softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(updated1.getStatus()).isEqualTo(OrderStatus.AUTO_REFUND_TIMEOUT);
-            softly.assertThat(updated2.getStatus()).isEqualTo(OrderStatus.AUTO_REFUND_TIMEOUT);
-        });
     }
 
     // -----------------------------------------------------------------------

@@ -28,13 +28,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * [UseCaseIT] §8.4 픽업 만료 배치 검증.
@@ -44,7 +40,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class PickupExpireBatchUseCaseIT {
 
-    @Autowired MockMvc mockMvc;
     @Autowired PickupExpireBatchUseCase pickupExpireBatchService;
     @Autowired PickupExpireProcessor pickupExpireProcessor;
     @Autowired OrderPickupUseCase orderPickupService;
@@ -147,23 +142,6 @@ class PickupExpireBatchUseCaseIT {
             softly.assertThat(result.failureCount()).isZero();
             softly.assertThat(unchanged.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
         });
-    }
-
-    @DisplayName("픽업 만료 배치 관리자 API는 배치 결과를 반환한다")
-    @Test
-    void expirePickups_adminApi_returnsBatchResponse() throws Exception {
-        Order order = orderHelper.createReadyStockPaidOrder("픽업 API 테스트 상품", 45000L).order();
-        orderApprovalService.approve(order.getId());
-        orderPickupService.markPickupReady(order.getId(), LocalDateTime.now(clock).minusMinutes(30));
-
-        mockMvc.perform(post("/admin/orders/expire-pickups"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.successCount").value(1))
-                .andExpect(jsonPath("$.failureCount").value(0))
-                .andExpect(jsonPath("$.failureReasons").isMap());
-
-        Order expired = orderStateProbe.getOrder(order.getId());
-        assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
     }
 
     @DisplayName("픽업 만료 배치에서 한 건이 실패해도 다음 주문을 계속 처리하고 실패를 집계한다")

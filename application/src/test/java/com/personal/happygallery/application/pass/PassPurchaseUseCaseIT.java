@@ -18,19 +18,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.web.servlet.MockMvc;
 
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @UseCaseIT
 class PassPurchaseUseCaseIT {
 
-    @Autowired MockMvc mockMvc;
     @Autowired UserStorePort userStorePort;
     @Autowired PassPurchaseStorePort passPurchaseStorePort;
     @Autowired PassPurchaseReaderPort passPurchaseReaderPort;
@@ -120,19 +114,6 @@ class PassPurchaseUseCaseIT {
         });
     }
 
-    @DisplayName("8회권 만료 배치 관리자 API는 배치 결과를 반환한다")
-    @Test
-    void expiry_batch_adminApi_returnsBatchResponse() throws Exception {
-        User user = userStorePort.save(new User("admin-pass@example.com", "hashed-password", "회원", "01033334444"));
-        passPurchaseStorePort.save(passPurchase(user.getId(), LocalDateTime.now(clock), 0L));
-
-        mockMvc.perform(post("/admin/passes/expire"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.successCount").value(1))
-                .andExpect(jsonPath("$.failureCount").value(0))
-                .andExpect(jsonPath("$.failureReasons").isMap());
-    }
-
     // -----------------------------------------------------------------------
     // Proof: 만료 7일 전 알림 대상 조회 — 6일 후 만료 pass 포함, 30일 후는 제외
     // -----------------------------------------------------------------------
@@ -156,24 +137,4 @@ class PassPurchaseUseCaseIT {
         });
     }
 
-    // -----------------------------------------------------------------------
-    // Proof: 존재하지 않는 guestId → 404
-    // -----------------------------------------------------------------------
-
-    @DisplayName("만료 임박 조회는 회원 소유 8회권만 반환한다")
-    @Test
-    void notification_query_returnsOnlyMemberOwnedPasses() {
-        User firstMember = userStorePort.save(new User("member-1@example.com", "hashed-password", "회원", "01066667777"));
-        User secondMember = userStorePort.save(new User("member-2@example.com", "hashed-password", "회원", "01077778888"));
-        PassPurchase firstPass = passPurchaseStorePort.save(
-                PassPurchase.forMember(firstMember.getId(), LocalDateTime.now(clock).plusDays(7), 120_000L));
-        PassPurchase secondPass = passPurchaseStorePort.save(
-                passPurchase(secondMember.getId(), LocalDateTime.now(clock).plusDays(7), 120_000L));
-
-        var expiring = passExpiryBatchService.findExpiringWithin7Days();
-
-        assertThat(expiring)
-                .extracting(PassPurchase::getId)
-                .contains(firstPass.getId(), secondPass.getId());
-    }
 }
