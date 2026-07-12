@@ -113,3 +113,95 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   await page.getByLabel("예약 검색").fill(String(bookingId));
   await expect(page.getByText(bookingClass.name)).toBeVisible();
 });
+
+test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미복구 경고를 한국어로 표시한다", async ({ page }) => {
+  const bookingId = 990001;
+  let canceled = false;
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.route(/\/api\/v1\/me\/cart$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ items: [], totalAmount: 0 }),
+    });
+  });
+
+  await page.route(/\/api\/v1\/me\/notifications\/unread-count$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ count: 0 }),
+    });
+  });
+
+  await page.route(/\/api\/v1\/me$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: 101,
+        email: "pass-warning@example.com",
+        name: "8회권 회원",
+        phone: "01012345678",
+        phoneVerified: true,
+        provider: "LOCAL",
+      }),
+    });
+  });
+
+  await page.route(new RegExp(`/api/v1/me/bookings/${bookingId}$`), async (route) => {
+    if (route.request().method() === "DELETE") {
+      canceled = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          bookingId,
+          status: "CANCELED",
+          refundable: false,
+          refundAmount: 0,
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        bookingId,
+        slotId: 88,
+        status: canceled ? "CANCELED" : "BOOKED",
+        className: "8회권 취소 경고 클래스",
+        startAt: "2026-07-12T18:00:00",
+        endAt: "2026-07-12T19:00:00",
+        depositAmount: 0,
+        balanceAmount: 0,
+        balanceStatus: "UNPAID",
+        passBooking: true,
+        cancelPolicy: {
+          refundable: false,
+          deadlineAt: "2026-07-12T00:00:00",
+          passCreditRestorable: false,
+          warningCode: "PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE",
+        },
+      }),
+    });
+  });
+
+  await page.goto(`/my/bookings/${bookingId}`);
+  await expect(page.getByText("8회권 취소 경고 클래스")).toBeVisible();
+
+  await page.getByRole("button", { name: "예약 취소" }).click();
+
+  await expect(page.getByText(
+    "취소 마감이 지나 8회권 크레딧은 복구되지 않습니다. 취소 후에도 사용 횟수는 차감된 상태로 유지됩니다.",
+  )).toBeVisible();
+  await expect(page.getByText("D-1(전날 00:00) 이후에는 예약금 환불이 불가합니다.")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "취소 확인" }).click();
+  await expect(page.getByText(
+    "예약이 취소되었습니다. 취소 마감이 지나 8회권 크레딧은 복구되지 않았습니다.",
+  )).toBeVisible();
+});

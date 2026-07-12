@@ -94,6 +94,7 @@ export function MyBookingDetailPage() {
             onSuccess={() => {
               void refetch();
             }}
+            cancelPolicy={booking.cancelPolicy}
           />
         </div>
       )}

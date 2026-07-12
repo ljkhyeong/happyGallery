@@ -1,6 +1,13 @@
 export type BookingStatus = "BOOKED" | "CANCELED" | "NO_SHOW" | "COMPLETED";
 export type DepositPaymentMethod = "CARD" | "EASY_PAY";
 
+export interface BookingCancelPolicy {
+  refundable: boolean;
+  deadlineAt: string;
+  passCreditRestorable: boolean;
+  warningCode: string | null;
+}
+
 export interface SendVerificationRequest {
   phone: string;
 }
@@ -42,6 +49,7 @@ export interface BookingDetailResponse {
   balanceAmount: number;
   guestName: string;
   guestPhone: string;
+  cancelPolicy: BookingCancelPolicy;
 }
 
 export interface MyBookingDetailResponse {
@@ -55,6 +63,7 @@ export interface MyBookingDetailResponse {
   balanceAmount: number;
   balanceStatus: string;
   passBooking: boolean;
+  cancelPolicy: BookingCancelPolicy;
 }
 
 export interface RescheduleRequest {

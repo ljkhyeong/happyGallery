@@ -157,6 +157,7 @@ export function BookingManagePage() {
                 <CancelButton
                   onCancel={() => cancelBooking(booking.bookingId, currentToken)}
                   onSuccess={refetch}
+                  cancelPolicy={booking.cancelPolicy}
                 />
               </Card.Body>
             </Card>

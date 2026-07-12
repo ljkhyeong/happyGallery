@@ -143,7 +143,7 @@
 - 8회권 예약 생성 시 `pass_ledger`의 `USE` 원장은 해당 `booking_id`를 `related_booking_id`에 남긴다.
 - 예약 취소로 1회권을 복구하는 `REFUND` 원장도 원인 예약의 `booking_id`를 남긴다. 8회권 전체 환불처럼 단일 예약이 원인이 아닌 원장은 `related_booking_id`를 비운다.
 - 예약 상세 응답은 `cancelPolicy`를 포함해 취소 가능 여부, 환불/크레딧 복구 마감 시각, 8회권 크레딧 복구 여부를 서버 기준으로 제공한다.
-- 8회권 예약의 취소 마감이 지난 경우 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`을 내려 고객에게 크레딧이 복구되지 않는다는 경고를 취소 전 표시할 수 있게 한다.
+- 8회권 예약의 취소 마감이 지난 경우 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`을 내린다. 프론트는 취소 확인창에 “취소 마감이 지나 8회권 크레딧은 복구되지 않습니다”라는 한국어 경고를 표시한다.
 
 ### 5.3 환불
 - 남은 횟수 정산 환불 가능(잔여 크레딧 기반)
