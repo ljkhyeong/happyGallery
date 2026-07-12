@@ -31,7 +31,7 @@ class ResilientPaymentProviderTest {
 
         provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3), meterRegistry);
 
-        RefundResult result = provider.refund("payment-key", 10_000);
+        RefundResult result = provider.refund("payment-key", 10_000, "refund-idempotency-key");
 
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
@@ -53,7 +53,7 @@ class ResilientPaymentProviderTest {
 
         provider = new ResilientPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3), meterRegistry);
 
-        RefundResult result = provider.refund("payment-key", 10_000);
+        RefundResult result = provider.refund("payment-key", 10_000, "refund-idempotency-key");
 
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
@@ -70,9 +70,9 @@ class ResilientPaymentProviderTest {
 
         provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1), meterRegistry);
 
-        provider.refund("payment-key", 10_000);
-        provider.refund("payment-key", 10_000);
-        RefundResult result = provider.refund("payment-key", 10_000);
+        provider.refund("payment-key", 10_000, "refund-idempotency-key");
+        provider.refund("payment-key", 10_000, "refund-idempotency-key");
+        RefundResult result = provider.refund("payment-key", 10_000, "refund-idempotency-key");
 
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
@@ -89,10 +89,12 @@ class ResilientPaymentProviderTest {
 
         provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3), meterRegistry);
 
-        PaymentConfirmResult result = provider.confirm("payment-key", "order-id", 10_000);
+        PaymentConfirmResult result = provider.confirm(
+                "payment-key", "order-id", 10_000, "confirm-idempotency-key");
 
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
+            softly.assertThat(result.retryable()).isTrue();
             softly.assertThat(result.failReason()).contains("PG confirm error");
         });
     }
@@ -111,10 +113,12 @@ class ResilientPaymentProviderTest {
 
         provider = new ResilientPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3), meterRegistry);
 
-        PaymentConfirmResult result = provider.confirm("payment-key", "order-id", 10_000);
+        PaymentConfirmResult result = provider.confirm(
+                "payment-key", "order-id", 10_000, "confirm-idempotency-key");
 
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
+            softly.assertThat(result.retryable()).isTrue();
             softly.assertThat(result.failReason()).contains("응답 지연");
         });
     }
@@ -128,12 +132,14 @@ class ResilientPaymentProviderTest {
 
         provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1), meterRegistry);
 
-        provider.confirm("payment-key", "order-id", 10_000);
-        provider.confirm("payment-key", "order-id", 10_000);
-        PaymentConfirmResult result = provider.confirm("payment-key", "order-id", 10_000);
+        provider.confirm("payment-key", "order-id", 10_000, "confirm-idempotency-key");
+        provider.confirm("payment-key", "order-id", 10_000, "confirm-idempotency-key");
+        PaymentConfirmResult result = provider.confirm(
+                "payment-key", "order-id", 10_000, "confirm-idempotency-key");
 
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
+            softly.assertThat(result.retryable()).isTrue();
             softly.assertThat(result.failReason()).contains("일시 차단");
         });
     }
@@ -153,12 +159,13 @@ class ResilientPaymentProviderTest {
     private static PaymentProvider refundOnlyDelegate(RefundBehavior refundBehavior) {
         return new PaymentProvider() {
             @Override
-            public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount) {
+            public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
+                                                String idempotencyKey) {
                 throw new UnsupportedOperationException();
             }
 
             @Override
-            public RefundResult refund(String paymentKey, long amount) {
+            public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
                 return refundBehavior.refund(paymentKey, amount);
             }
         };
@@ -167,12 +174,13 @@ class ResilientPaymentProviderTest {
     private static PaymentProvider confirmOnlyDelegate(ConfirmBehavior confirmBehavior) {
         return new PaymentProvider() {
             @Override
-            public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount) {
+            public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
+                                                String idempotencyKey) {
                 return confirmBehavior.confirm(paymentKey, orderId, amount);
             }
 
             @Override
-            public RefundResult refund(String paymentKey, long amount) {
+            public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
                 throw new UnsupportedOperationException();
             }
         };

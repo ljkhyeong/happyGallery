@@ -6,6 +6,7 @@ import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { formatKRW, formatDateTime } from "@/shared/lib";
+import type { FailedRefundResponse } from "@/shared/types";
 
 interface Props {
   adminKey: string;
@@ -52,7 +53,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
       <thead>
         <tr>
           <th>환불 ID</th>
-          <th>주문 ID</th>
+          <th>대상</th>
           <th className="text-end">금액</th>
           <th>사유</th>
           <th>발생일</th>
@@ -63,7 +64,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
         {refunds.map((r) => (
           <tr key={r.refundId}>
             <td>{r.refundId}</td>
-            <td>{r.orderId ?? r.bookingId ?? "-"}</td>
+            <td>{refundTarget(r)}</td>
             <td className="text-end">{formatKRW(r.amount)}</td>
             <td className="small">{r.failReason}</td>
             <td className="small">{formatDateTime(r.createdAt)}</td>
@@ -79,4 +80,12 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
       </tbody>
     </Table>
   );
+}
+
+function refundTarget(refund: FailedRefundResponse): string {
+  if (refund.orderId != null) return `주문 ${refund.orderId}`;
+  if (refund.bookingId != null) return `예약 ${refund.bookingId}`;
+  if (refund.passPurchaseId != null) return `8회권 ${refund.passPurchaseId}`;
+  if (refund.paymentAttemptId != null) return `결제 시도 ${refund.paymentAttemptId}`;
+  return "-";
 }

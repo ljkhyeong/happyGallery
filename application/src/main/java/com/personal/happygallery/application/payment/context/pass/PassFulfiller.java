@@ -29,14 +29,19 @@ public class PassFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String paymentKey) {
+    public void validate(PaymentPayload payload, AuthContext auth) {
         if (!(payload instanceof PassPayload pp)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 결제 payload가 아닙니다.");
         }
         if (!auth.isMember() || pp.userId() == null || !pp.userId().equals(auth.userId())) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 구매는 회원 인증이 필요합니다.");
         }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String paymentKey) {
+        validate(payload, auth);
         PassPurchase purchase = passPurchaseUseCase.purchaseForMember(auth.userId());
         purchase.recordPaymentKey(paymentKey);
         return new FulfillResult(purchase.getId(), null);

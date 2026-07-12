@@ -45,23 +45,33 @@ public class OrderFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String paymentKey) {
+    public void validate(PaymentPayload payload, AuthContext auth) {
         if (!(payload instanceof OrderPayload op)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 결제 payload가 아닙니다.");
         }
-
-        List<OrderItemRequest> orderItems = resolveItemPrices(op.items());
-
         if (auth.isMember()) {
             if (op.userId() == null || !op.userId().equals(auth.userId())) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "회원 정보가 인증과 일치하지 않습니다.");
             }
+            return;
+        }
+        if (op.phone() == null || op.verificationCode() == null || op.name() == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비회원 주문은 휴대폰 인증이 필요합니다.");
+        }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String paymentKey) {
+        validate(payload, auth);
+        OrderPayload op = (OrderPayload) payload;
+        List<OrderItemRequest> orderItems = resolveItemPrices(op.items());
+
+        if (auth.isMember()) {
             Order order = orderService.createMemberOrder(auth.userId(), orderItems);
             order.recordPaymentKey(paymentKey);
             return new FulfillResult(order.getId(), null);
         }
-
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(op.phone(), op.verificationCode(), op.name());
         OrderCreationResult result = orderService.createPaidOrder(guest.getId(), orderItems);
         result.order().recordPaymentKey(paymentKey);

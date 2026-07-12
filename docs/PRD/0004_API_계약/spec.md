@@ -1040,6 +1040,7 @@ Authorization: Bearer {token}
     "bookingId": 15,
     "orderId": null,
     "passPurchaseId": null,
+    "paymentAttemptId": null,
     "amount": 5000,
     "failReason": "PG 타임아웃",
     "createdAt": "2026-03-01T14:30:00"
@@ -1064,6 +1065,8 @@ Authorization: Bearer {token}
   - `FAILED` 상태 환불만 재시도 가능하다.
   - 성공 시 `SUCCEEDED`, 재실패 시 `FAILED` 유지
   - 환불 실행/실패 이력 저장은 부모 주문/예약 트랜잭션과 분리된 `REQUIRES_NEW` 트랜잭션으로 처리한다.
+  - `paymentAttemptId`가 있으면 PG 승인 후 주문·예약·8회권 생성에 실패한 결제의 보상 환불이다.
+  - 최초 환불과 재시도는 같은 `refunds.idempotency_key`를 Toss `Idempotency-Key` 헤더로 사용한다.
 
 ### 2.12 회원 API (`/api/v1/me`)
 
@@ -1463,12 +1466,17 @@ Content-Type: application/json
   - `409 CAPACITY_EXCEEDED` — 결제 직전 슬롯 정원 초과
   - `409 DUPLICATE_BOOKING` — 동일 전화번호 + 동일 슬롯 중복
   - `409 SLOT_NOT_AVAILABLE` — 결제 직전 비활성 슬롯
+  - `409 PAYMENT_CONFIRM_IN_PROGRESS` — 동일 결제 confirm 처리 중
   - `500 INTERNAL_ERROR` — 저장된 결제 payload 직렬화/역직렬화 실패
   - `502 PAYMENT_FAILED` — PG가 결제 확정 거절 (서킷 브레이커 OPEN/타임아웃 포함)
 - 정책:
   - `paymentKey`는 amount > 0 결제만 필수다. 8회권 사용 예약처럼 `payment_attempt.amount=0`인 경우 `paymentKey`는 비워서 보내고 PG 호출은 생략된다.
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
-  - PG `confirm` 성공 후에만 도메인 저장(주문/예약/8회권 구매)이 수행되며, 단일 트랜잭션 안에서 처리된다.
+  - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다.
+  - Toss `Idempotency-Key`는 prepare에서 생성한 `orderId`를 사용하며 같은 결제 재시도에서 변경하지 않는다.
+  - PG 성공은 별도 트랜잭션으로 `APPROVED`에 저장하고, 이후 도메인 저장과 `CONFIRMED` 전이는 한 트랜잭션으로 처리한다.
+  - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다.
+  - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 실패 환불 재시도 경로로 복구한다.
   - PG 원결제 참조값(`pgRef`, Toss는 `paymentKey`)은 `payment_attempt.pg_ref`와 생성된 도메인 레코드의 `payment_key`에 저장한다. 이후 환불은 해당 값을 PG cancel 호출의 원결제 식별자로 사용한다.
   - 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장한다. 실패 환불 재시도는 `refunds.payment_key`를 다시 사용한다.
   - 비회원 경로의 `accessToken`(32자 hex)은 confirm 응답에서 1회만 반환되며 DB에는 SHA-256 해시만 저장된다. 회원 경로는 `accessToken=null`.
@@ -1546,6 +1554,7 @@ Content-Type: application/json
 | 409 | `DUPLICATE_BOOKING` | 동일 전화번호 + 동일 슬롯 중복 예약 |
 | 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 |
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌에 의한 동시 변경 요청 |
+| 409 | `PAYMENT_CONFIRM_IN_PROGRESS` | 동일 결제의 confirm 요청이 이미 처리 중 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치 등 비예약 운영 액션의 충돌 |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 |
 | 422 | `REFUND_NOT_ALLOWED` | 취소 보상 마감 이후 환불 요청 |

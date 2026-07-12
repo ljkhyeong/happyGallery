@@ -104,10 +104,13 @@
 - `fulfillments`
   - `id`, `order_id(unique)`, `type(SHIPPING|PICKUP)`, `expected_ship_date`, `pickup_deadline_at`, `version`
 - `refunds`
-  - `id`, `order_id nullable`, `booking_id nullable`, `amount`, `status`, `payment_key`, `refund_transaction_key`, `fail_reason`, `created_at`
+  - `id`, `order_id nullable`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
+  - 네 참조 중 정확히 하나, `amount`, `status`, `payment_key`, `refund_transaction_key`, `idempotency_key UNIQUE`, `fail_reason`, `created_at`
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
-  - `payment_key nullable`, `pg_ref nullable`, `payload_json`, `created_at`, `confirmed_at nullable`, `version`
+  - `processing_at nullable`, `payment_key nullable`, `pg_ref nullable`, `fail_reason nullable`
+  - `payload_json`, `created_at`, `confirmed_at nullable`, `version`
+  - 상태: `PENDING | PROCESSING | RETRYABLE | APPROVED | CONFIRMED | FAILED | COMPENSATION_REQUESTED | COMPENSATION_FAILED | COMPENSATED | CANCELED`
 
 #### 클래스, 슬롯, 예약
 

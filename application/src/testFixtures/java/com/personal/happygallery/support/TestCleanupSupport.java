@@ -85,6 +85,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingWithPassAndRefundData() {
+        refundRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
         TestDataCleaner.clearBookingWithPassAndRefundData(
@@ -100,6 +101,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingReminderData() {
+        refundRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
         TestDataCleaner.clearBookingReminderData(
@@ -114,6 +116,7 @@ public class TestCleanupSupport {
     }
 
     public void clearOrderData() {
+        refundRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
         TestDataCleaner.clearOrderData(
@@ -127,6 +130,7 @@ public class TestCleanupSupport {
     }
 
     public void clearPassData() {
+        refundRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
         passLedgerRepository.deleteAllInBatch();
@@ -134,6 +138,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingData() {
+        refundRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
         TestDataCleaner.clearBookingData(

@@ -63,6 +63,13 @@ public class RefundExecutionService {
         return refund;
     }
 
+    /** PG 승인 후 도메인 생성 실패 결제를 기존 환불 재시도 경로로 보상한다. */
+    public Refund requestPaymentAttemptRefund(Long paymentAttemptId, long amount, String paymentKey) {
+        Refund refund = refundPort.save(Refund.forPaymentAttempt(paymentAttemptId, amount, paymentKey));
+        scheduleAfterCommit(refund.getId(), "paymentAttemptId=" + paymentAttemptId);
+        return refund;
+    }
+
     public Refund retryRefund(Long refundId) {
         refundTransactionService.validateRetryable(refundId);
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -104,7 +111,8 @@ public class RefundExecutionService {
 
     private RefundResult callPayment(RefundCall refundCall, String target) {
         try {
-            RefundResult result = paymentPort.refund(refundCall.paymentKey(), refundCall.amount());
+            RefundResult result = paymentPort.refund(
+                    refundCall.paymentKey(), refundCall.amount(), refundCall.idempotencyKey());
             return result != null ? result : RefundResult.failure("PG 응답이 비어 있습니다.");
         } catch (Exception e) {
             log.error("환불 호출 예외 [{} refundId={}]", target, refundCall.refundId(), e);

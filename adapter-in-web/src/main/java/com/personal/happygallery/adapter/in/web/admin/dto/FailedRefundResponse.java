@@ -8,6 +8,7 @@ public record FailedRefundResponse(
         Long bookingId,
         Long orderId,
         Long passPurchaseId,
+        Long paymentAttemptId,
         long amount,
         String failReason,
         LocalDateTime createdAt
@@ -19,6 +20,7 @@ public record FailedRefundResponse(
                 refund.getBookingId(),
                 refund.getOrderId(),
                 refund.getPassPurchaseId(),
+                refund.getPaymentAttemptId(),
                 refund.getAmount(),
                 refund.getFailReason() != null ? refund.getFailReason() : "",
                 refund.getCreatedAt()

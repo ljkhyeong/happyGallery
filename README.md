@@ -11,7 +11,7 @@
 | 회원 | 상품 주문, 클래스 예약, 8회권 구매/사용, 장바구니, 알림함, 마이페이지 |
 | 관리자 | 상품/클래스/슬롯 관리, 주문 승인/거절/배송/픽업, 예약 운영, 환불 재시도, Q&A/문의 답변 |
 
-- 주문/예약/8회권은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm` 표준 결제 경로를 사용한다.
+- 주문/예약/8회권은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm` 표준 결제 경로를 사용한다. confirm은 선점·PG 승인·도메인 저장 트랜잭션을 분리하고 Toss 멱등키와 실패 보상 환불을 사용한다.
 - 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
 - 상세 요구사항은 [기준 스펙](docs/PRD/0001_기준_스펙/spec.md), HTTP 계약은 [API 계약](docs/PRD/0004_API_계약/spec.md)을 기준으로 본다.
 

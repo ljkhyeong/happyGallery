@@ -6,9 +6,9 @@ import com.personal.happygallery.domain.payment.PaymentContext;
  * 결제 확정 유스케이스.
  *
  * <p>Toss 결제창 통과 후 프론트가 받은 paymentKey/orderId/amount를 서버로 보내면,
- * 서버가 {@link com.personal.happygallery.domain.payment.PaymentAttempt}와 amount 일치를 검증한 뒤
- * {@link com.personal.happygallery.application.payment.port.out.PaymentPort#confirm(String, String, long)}을 호출하고,
- * 성공 시 context별 fulfiller가 실제 도메인 저장을 수행한다.
+ * 서버가 {@link com.personal.happygallery.domain.payment.PaymentAttempt}와 amount 일치를 검증하고 선점한 뒤
+ * DB 트랜잭션 밖에서 PG confirm을 호출한다. 성공 시 context별 fulfiller가 실제 도메인 저장을 수행하며,
+ * PG 승인 후 로컬 저장 실패는 보상 환불로 연결한다.
  */
 public interface PaymentConfirmUseCase {
 

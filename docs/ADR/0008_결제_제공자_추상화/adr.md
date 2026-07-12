@@ -78,9 +78,14 @@
 
 Toss Payments 연동을 위해 결제 경계를 환불 전용에서 `prepare/confirm + refund`로 확장했다.
 
-- `PaymentPort.confirm(paymentKey, orderId, amount)`와 `PaymentConfirmResult`를 추가했다.
+- `PaymentPort.confirm(paymentKey, orderId, amount, idempotencyKey)`와 `PaymentConfirmResult`를 추가했다.
 - `POST /api/v1/payments/prepare`에서 서버가 `payment_attempt.order_id_external`과 `amount`를 확정한다.
 - `POST /api/v1/payments/confirm`에서 PG confirm 성공 후 주문/예약/8회권 도메인 저장을 수행한다.
 - confirm 성공 시 PG 원결제 참조값을 `payment_attempt.pg_ref`와 도메인 레코드의 `payment_key`에 저장해 환불 cancel 호출의 입력으로 사용한다.
 - `refunds.payment_key`는 환불 재시도에 필요한 원결제 Toss `paymentKey`로 유지하고, 환불 성공 거래 식별자인 Toss cancel `transactionKey`는 `refunds.refund_transaction_key`에 별도로 저장한다.
 - `FakePaymentProvider`는 local/test에서 confirm 성공 응답을 돌려주고, `TossPaymentsProvider`는 prod 프로필에서 Toss `/v1/payments/confirm`을 호출한다.
+
+## Update (2026-07-12)
+
+confirm의 트랜잭션 선점, Toss 멱등키, PG 승인 후 로컬 실패 보상 경계는
+[ADR-0033](../0033_결제_confirm_트랜잭션과_보상_경계/adr.md)에서 관리한다.

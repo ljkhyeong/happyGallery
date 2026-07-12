@@ -5,13 +5,19 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 
 public enum PaymentAttemptStatus {
     PENDING,
+    PROCESSING,
+    RETRYABLE,
+    APPROVED,
     CONFIRMED,
     FAILED,
+    COMPENSATION_REQUESTED,
+    COMPENSATION_FAILED,
+    COMPENSATED,
     CANCELED;
 
-    /** confirm 호출 시점에 PENDING 상태가 아니면 {@link ErrorCode#INVALID_INPUT}을 던진다. */
+    /** confirm 선점은 최초 요청이나 재시도 가능한 PG 실패에서만 허용한다. */
     public void requireConfirmable() {
-        if (this != PENDING) {
+        if (this != PENDING && this != RETRYABLE) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미 처리된 결제입니다.");
         }
     }

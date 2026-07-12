@@ -51,6 +51,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -103,7 +104,7 @@ class PassCreditUsageUseCaseIT {
 
         cls = classRepository.save(defaultBookingClass());
         userRepository.deleteAllInBatch();
-        when(paymentProvider.refund(any(), anyLong()))
+        when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("FAKE-TEST-PASS-REF"));
         sessionCookie = signupAndGetSessionCookie("pass-member@example.com", "01099990001");
         Long userId = userRepository.findByEmail("pass-member@example.com").orElseThrow().getId();
@@ -257,7 +258,7 @@ class PassCreditUsageUseCaseIT {
         Slot reloadedSlot1 = slotRepository.findById(slot1.getId()).orElseThrow();
         Slot reloadedSlot2 = slotRepository.findById(slot2.getId()).orElseThrow();
         long historyCount = bookingHistoryRepository.count();
-        verify(paymentProvider).refund("test-pass-payment-key", 320_000L);
+        verify(paymentProvider).refund(eq("test-pass-payment-key"), eq(320_000L), any());
         assertSoftly(softly -> {
             softly.assertThat(bookings).hasSize(2);
             softly.assertThat(bookings).allMatch(b -> b.getStatus() == BookingStatus.CANCELED);
@@ -282,7 +283,7 @@ class PassCreditUsageUseCaseIT {
     @DisplayName("8회권 전체 환불 PG 실패 시 FAILED 환불 이력을 남긴다")
     @Test
     void refund_pass_pgFailure_recordsFailedRefund() throws Exception {
-        when(paymentProvider.refund(any(), anyLong()))
+        when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.failure("PG 타임아웃"));
 
         mockMvc.perform(post("/admin/passes/{passId}/refund", pass.getId()))
@@ -294,7 +295,7 @@ class PassCreditUsageUseCaseIT {
 
         Refund refund = awaitRefundStatus(RefundStatus.FAILED);
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
-        verify(paymentProvider).refund("test-pass-payment-key", 320_000L);
+        verify(paymentProvider).refund(eq("test-pass-payment-key"), eq(320_000L), any());
 
         mockMvc.perform(get("/admin/refunds/failed"))
                 .andExpect(status().isOk())

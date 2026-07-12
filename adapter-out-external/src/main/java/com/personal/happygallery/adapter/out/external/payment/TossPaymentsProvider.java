@@ -12,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * Toss Payments 실결제 어댑터 — {@code paymentProviderDelegate} (prod).
@@ -25,6 +26,7 @@ import org.springframework.web.client.RestClient;
 public class TossPaymentsProvider implements PaymentProvider {
 
     private static final Logger log = LoggerFactory.getLogger(TossPaymentsProvider.class);
+    private static final String IDEMPOTENCY_KEY = "Idempotency-Key";
 
     private final RestClient restClient;
     private final String authorizationHeader;
@@ -37,38 +39,47 @@ public class TossPaymentsProvider implements PaymentProvider {
     }
 
     @Override
-    public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount) {
+    public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount, String idempotencyKey) {
         try {
             ConfirmRequest body = new ConfirmRequest(paymentKey, orderId, amount);
             ConfirmResponse response = restClient.post()
                     .uri("/v1/payments/confirm")
                     .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
+                    .header(IDEMPOTENCY_KEY, idempotencyKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
                     .body(ConfirmResponse.class);
             if (response == null || response.paymentKey() == null) {
                 log.warn("Toss confirm: null/invalid response orderId={}", orderId);
-                return PaymentConfirmResult.failure("PG 응답이 비어 있습니다.");
+                return PaymentConfirmResult.retryableFailure("PG 응답이 비어 있습니다.");
             }
             return PaymentConfirmResult.success(
                     response.paymentKey(),
                     response.method() != null ? response.method() : "UNKNOWN",
                     response.approvedAt());
+        } catch (RestClientResponseException e) {
+            log.warn("Toss confirm 거절 orderId={} status={}", orderId, e.getStatusCode(), e);
+            String reason = e.getMessage() != null ? e.getMessage() : "PG가 결제 확정을 거절했습니다.";
+            if (e.getStatusCode().value() == 409) {
+                return PaymentConfirmResult.retryableFailure(reason);
+            }
+            return PaymentConfirmResult.failure(reason);
         } catch (Exception e) {
             log.warn("Toss confirm 예외 orderId={}", orderId, e);
-            return PaymentConfirmResult.failure(
+            return PaymentConfirmResult.retryableFailure(
                     e.getMessage() != null ? e.getMessage() : "PG 호출 중 오류");
         }
     }
 
     @Override
-    public RefundResult refund(String paymentKey, long amount) {
+    public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
         try {
             RefundRequest body = new RefundRequest("요청에 의한 환불", amount);
             RefundResponse response = restClient.post()
                     .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
                     .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
+                    .header(IDEMPOTENCY_KEY, idempotencyKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()

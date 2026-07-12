@@ -23,14 +23,16 @@
   - `requestOrderRefund(orderId, amount, paymentKey)`
   - `requestBookingRefund(bookingId, amount)`
   - `requestPassRefund(passPurchaseId, amount, paymentKey)`
+  - `requestPaymentAttemptRefund(paymentAttemptId, amount, paymentKey)`
 - `RefundExecutionService`는 부모 트랜잭션이 커밋된 뒤 `refundExecutor`에서 PG 환불 API를 호출한다.
 - PG 환불 API 호출 전 입력 조회와 호출 후 결과 업데이트만 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다.
   단, 원결제 `paymentKey`가 없어 PG 호출 자체가 불가능한 경우에는 입력 조회 트랜잭션 안에서 즉시 `FAILED`로 저장한다.
 - 부모 트랜잭션이 롤백되면 환불 요청 레코드와 PG 환불 호출도 발생하지 않는다.
 - PG 호출 실패는 커밋된 환불 요청 레코드를 `FAILED`로 갱신해 운영자 재시도 대상으로 남긴다.
 - 재시도 호출이 이미 트랜잭션 안에서 발생하면 커밋 이후 실행으로 예약하고, 트랜잭션이 없으면 즉시 실행한다.
-- `Refund`는 `bookingId`/`orderId`/`passPurchaseId`를 모두 id-only 참조로 저장한다. 환불 이력은 재시도·운영 추적용 레코드이며,
+- `Refund`는 `bookingId`/`orderId`/`passPurchaseId`/`paymentAttemptId` 중 하나를 id-only 참조로 저장한다. 환불 이력은 재시도·운영 추적용 레코드이며,
   예약, 주문, 8회권 객체를 탐색하거나 상태를 변경하지 않는다.
+- 환불 생성 시 UUID 멱등키를 저장하고 최초 PG 호출과 모든 재시도에서 동일하게 사용한다.
 
 ---
 
@@ -56,6 +58,7 @@
 - `OrderApprovalService#processRefund` → `RefundExecutionService` 위임
 - `BookingCancelService` 예약금 환불 경로 → `RefundExecutionService` 위임
 - `PassRefundService` 8회권 환불 경로 → `RefundExecutionService` 위임
+- PG 승인 후 도메인 생성 실패 보상 → `RefundExecutionService` 위임
 - 부모 롤백 시 PG 호출/환불 이력 미생성 보장 테스트 추가:
   - `RefundExecutionServiceUseCaseIT`
 - 커밋 이후 별도 executor에서 PG 호출 실행 보장 테스트 추가:

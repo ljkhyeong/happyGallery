@@ -39,6 +39,7 @@
 - **테스트 보강 (2026-04-26)**: 기존 예약/주문/8회권 생성 테스트를 `/api/v1/payments/prepare` + `/confirm` 경로로 전환. `PaymentPrepareUseCaseTest`, `PaymentConfirmUseCaseIT` 추가.
 - **환불 참조값 연결 (2026-04-26, 2026-07-04 갱신)**: confirm 성공 시 `PaymentAttempt.pgRef`와 도메인 `payment_key`를 저장하고, 예약/주문/8회권 환불 생성 시 원결제 Toss `paymentKey`를 `refunds.payment_key`, 환불 성공 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리 저장.
 - **환불 PG 호출 경계 (2026-07-04)**: 환불 요청 레코드는 부모 트랜잭션에 참여하고, 실제 PG refund 호출은 부모 커밋 이후 `refundExecutor`에서 실행한다. 결과 업데이트와 재시도 검증은 `RefundTransactionService`의 짧은 `REQUIRES_NEW` 어노테이션 트랜잭션으로 처리한다.
+- **결제 confirm 경계 (2026-07-12)**: `P1R-T4` 완료. `PROCESSING` 선점 후 트랜잭션 밖에서 Toss confirm을 호출하고 `orderId` 멱등키를 사용한다. PG 승인 후 로컬 생성 실패는 `payment_attempt_id` 보상 환불로 기존 재시도 경로에 연결한다. 상세는 `docs/ADR/0033_결제_confirm_트랜잭션과_보상_경계/adr.md`.
 - **알림 Outbox 경계 (2026-07-04)**: 일반 `NotificationRequestedEvent`는 도메인 트랜잭션 안에서 `notification_outbox`에 저장하고, 커밋 이후 `NotificationOutboxDispatcher`/`notificationExecutor`가 발송한다. 발송 결과는 기존 `notification_log`에 남긴다.
 - **프론트 결제 흐름 보강 (2026-04-26)**: `ProductDetailPage` 회원 BUY NOW를 Toss prepare/confirm 경로로 전환. P8 E2E는 Toss stub 기반 현재 UI selector로 갱신.
 - **E2E 실행 단위 (2026-04-26)**: `frontend npm run e2e`는 `@smoke` 4개만 실행. 전체는 `npm run e2e:full`, 도메인별은 README의 프론트엔드 명령 참조. 운영 기준은 `docs/ADR/0027_테스트_전략과_최소_테스트_세트_기준선/adr.md`, 회고는 `docs/Retrospective/0009_프론트_E2E_실행_시간_슬림화/retrospective.md`.
@@ -48,7 +49,7 @@
 
 ### 다음 세션 진입점 (남은 Task)
 
-1. **Phase 1 후속 잔여** — `plan.md`의 `P1R-T1b`, `P1R-T2`, `P1R-T4`, `P1R-T5`, `P1R-T6`, `P1R-T7`, `P1R-T8b` 확인.
+1. **Phase 1 후속 잔여** — `plan.md`의 `P1R-T1b`, `P1R-T2`, `P1R-T5`, `P1R-T6`, `P1R-T7`, `P1R-T8b` 확인.
 2. **Phase 2 착수** — SMS 인증 실발송: `~/.claude/plans/imperative-greeting-barto.md`의 Phase 2와 notification 관련 스킬/문서 먼저 확인.
 
 ### Phase 진행도 / 환경 변수 / 플랜 밖 미룬 항목

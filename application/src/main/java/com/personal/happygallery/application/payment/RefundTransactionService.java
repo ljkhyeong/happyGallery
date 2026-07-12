@@ -4,6 +4,8 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.customer.GuestPhoneProtector;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
+import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -25,17 +27,23 @@ class RefundTransactionService {
     private static final Logger log = LoggerFactory.getLogger(RefundTransactionService.class);
 
     private final RefundPort refundPort;
+    private final PaymentAttemptReaderPort paymentAttemptReader;
+    private final PaymentAttemptStorePort paymentAttemptStore;
     private final BookingReaderPort bookingReader;
     private final OrderReaderPort orderReader;
     private final GuestPhoneProtector guestPhoneProtector;
     private final ApplicationEventPublisher eventPublisher;
 
     RefundTransactionService(RefundPort refundPort,
+                             PaymentAttemptReaderPort paymentAttemptReader,
+                             PaymentAttemptStorePort paymentAttemptStore,
                              BookingReaderPort bookingReader,
                              OrderReaderPort orderReader,
                              GuestPhoneProtector guestPhoneProtector,
                              ApplicationEventPublisher eventPublisher) {
         this.refundPort = refundPort;
+        this.paymentAttemptReader = paymentAttemptReader;
+        this.paymentAttemptStore = paymentAttemptStore;
         this.bookingReader = bookingReader;
         this.orderReader = orderReader;
         this.guestPhoneProtector = guestPhoneProtector;
@@ -47,9 +55,12 @@ class RefundTransactionService {
         Refund refund = findRefund(refundId);
         if (refund.getPaymentKey() == null || refund.getPaymentKey().isBlank()) {
             refund.markFailed(missingPaymentKeyReason);
-            return RefundCall.failed(refundPort.save(refund));
+            Refund failedRefund = refundPort.save(refund);
+            markPaymentAttemptCompensationFailed(failedRefund, missingPaymentKeyReason);
+            return RefundCall.failed(failedRefund);
         }
-        return RefundCall.ready(refund.getId(), refund.getPaymentKey(), refund.getAmount());
+        return RefundCall.ready(
+                refund.getId(), refund.getPaymentKey(), refund.getAmount(), refund.getIdempotencyKey());
     }
 
     @Transactional(readOnly = true)
@@ -71,6 +82,7 @@ class RefundTransactionService {
         Refund refund = findRefund(refundId);
         refund.markSucceeded(refundTransactionKey);
         Refund savedRefund = refundPort.save(refund);
+        markPaymentAttemptCompensated(savedRefund);
         publishRefundSucceededNotification(savedRefund);
         return savedRefund;
     }
@@ -79,12 +91,34 @@ class RefundTransactionService {
     public Refund markFailed(Long refundId, String reason) {
         Refund refund = findRefund(refundId);
         refund.markFailed(reason);
-        return refundPort.save(refund);
+        Refund savedRefund = refundPort.save(refund);
+        markPaymentAttemptCompensationFailed(savedRefund, reason);
+        return savedRefund;
     }
 
     private Refund findRefund(Long refundId) {
         return refundPort.findById(refundId)
                 .orElseThrow(NotFoundException.supplier("환불"));
+    }
+
+    private void markPaymentAttemptCompensated(Refund refund) {
+        if (refund.getPaymentAttemptId() == null) {
+            return;
+        }
+        var attempt = paymentAttemptReader.findByIdForUpdate(refund.getPaymentAttemptId())
+                .orElseThrow(NotFoundException.supplier("결제 시도"));
+        attempt.markCompensated();
+        paymentAttemptStore.save(attempt);
+    }
+
+    private void markPaymentAttemptCompensationFailed(Refund refund, String reason) {
+        if (refund.getPaymentAttemptId() == null) {
+            return;
+        }
+        var attempt = paymentAttemptReader.findByIdForUpdate(refund.getPaymentAttemptId())
+                .orElseThrow(NotFoundException.supplier("결제 시도"));
+        attempt.markCompensationFailed(reason);
+        paymentAttemptStore.save(attempt);
     }
 
     private void publishRefundSucceededNotification(Refund refund) {
@@ -138,14 +172,16 @@ class RefundTransactionService {
         });
     }
 
-    record RefundCall(Long refundId, String paymentKey, long amount, Refund failedRefund) {
+    record RefundCall(Long refundId, String paymentKey, long amount,
+                      String idempotencyKey, Refund failedRefund) {
 
-        static RefundCall ready(Long refundId, String paymentKey, long amount) {
-            return new RefundCall(refundId, paymentKey, amount, null);
+        static RefundCall ready(Long refundId, String paymentKey, long amount, String idempotencyKey) {
+            return new RefundCall(refundId, paymentKey, amount, idempotencyKey, null);
         }
 
         static RefundCall failed(Refund refund) {
-            return new RefundCall(refund.getId(), null, refund.getAmount(), refund);
+            return new RefundCall(
+                    refund.getId(), null, refund.getAmount(), refund.getIdempotencyKey(), refund);
         }
 
         boolean failedBeforePgCall() {

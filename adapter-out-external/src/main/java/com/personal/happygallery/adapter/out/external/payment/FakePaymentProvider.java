@@ -31,7 +31,7 @@ public class FakePaymentProvider implements PaymentProvider {
     }
 
     @Override
-    public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount) {
+    public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount, String idempotencyKey) {
         return PaymentConfirmResult.success(
                 "FAKE-PG-" + UUID.randomUUID(),
                 "FAKE_PG",
@@ -39,7 +39,7 @@ public class FakePaymentProvider implements PaymentProvider {
     }
 
     @Override
-    public RefundResult refund(String paymentKey, long amount) {
+    public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
         if (localRefundFailureScript != null) {
             var reason = localRefundFailureScript.consumeNextFailureReason();
             if (reason.isPresent()) {

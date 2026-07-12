@@ -193,8 +193,11 @@
     - 예약금: `slot.bookingClass.price × 10%`
     - 8회권: `app.pass.total-price` 환경 변수 (`PASS_TOTAL_PRICE`, 기본 240,000원)
 - confirm 단계에서 PG `paymentKey`와 `amount`가 prepare 시점 amount와 다르면 거절한다.
+- confirm은 결제 시도를 `PROCESSING`으로 선점한 뒤 DB 트랜잭션 밖에서 PG를 호출한다. 동시 요청은 한 건만 PG 호출을 수행한다.
+- Toss confirm은 prepare의 `orderId`를 멱등키로 사용한다. 일시 실패는 `RETRYABLE`, 최종 거절은 `FAILED`로 별도 트랜잭션에 저장한다.
 - 8회권 사용 예약은 prepare에서 `amount=0`을 받고 PG 호출 없이 confirm을 직접 호출한다.
 - PG confirm 성공 시 원결제 참조값은 `payment_attempt.pg_ref`와 생성된 주문/예약/8회권의 `payment_key`에 저장하고, 환불 시 PG cancel 호출에 사용한다. 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장하며, 8회권 환불은 `refunds.pass_purchase_id`로 추적한다. PG 환불 호출은 환불 요청을 만든 부모 트랜잭션이 커밋된 뒤 별도 executor에서 실행한다.
+- PG 승인 후 도메인 생성이 실패하면 `refunds.payment_attempt_id`로 보상 환불을 남긴다. 보상 실패는 관리자 환불 재시도 대상이며, 모든 환불 재시도는 최초 `refunds.idempotency_key`를 재사용한다.
 
 ---
 

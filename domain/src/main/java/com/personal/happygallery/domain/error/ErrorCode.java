@@ -30,6 +30,7 @@ public enum ErrorCode {
     DUPLICATE_BOOKING(409, "이미 예약된 슬롯입니다."),
     SLOT_NOT_AVAILABLE(409, "예약할 수 없는 슬롯입니다."),
     BOOKING_CONFLICT(409, "동시 변경 요청이 감지되었습니다. 잠시 후 다시 시도해주세요."),
+    PAYMENT_CONFIRM_IN_PROGRESS(409, "결제 확정을 처리 중입니다. 잠시 후 다시 시도해주세요."),
     CONFLICT(409, "처리 중 충돌이 감지되었습니다. 잠시 후 다시 시도해주세요."),
 
     // 422 Unprocessable — 비즈니스 규칙 위반

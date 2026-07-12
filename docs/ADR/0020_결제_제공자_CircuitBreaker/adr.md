@@ -39,8 +39,9 @@
 
 ### 4. 결제 confirm도 같은 보호 경계를 통과한다
 
-- `ResilientPaymentProvider.confirm(paymentKey, orderId, amount)`를 추가한다.
-- 서킷 오픈, 타임아웃, 예외는 `PaymentConfirmResult.failure`로 표준화한다.
+- `ResilientPaymentProvider.confirm(paymentKey, orderId, amount, idempotencyKey)`를 추가한다.
+- 서킷 오픈, 타임아웃, 예외는 같은 멱등키로 재시도할 수 있도록
+  `PaymentConfirmResult.retryableFailure`로 표준화한다.
 - 애플리케이션은 confirm 실패를 `PAYMENT_FAILED`로 매핑하고 도메인 저장을 진행하지 않는다.
 
 ---

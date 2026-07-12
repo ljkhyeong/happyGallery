@@ -154,7 +154,7 @@
 
 | Task | 상태 | 범위 | 완료 기준 |
 |------|------|------|-----------|
-| `P1-T1` | done | port 시그니처 | `PaymentPort.confirm(paymentKey, orderId, amount)` 추가, `PaymentConfirmResult` record |
+| `P1-T1` | done | port 시그니처 | `PaymentPort.confirm(paymentKey, orderId, amount, idempotencyKey)` 추가, `PaymentConfirmResult` record |
 | `P1-T2` | done | 도메인 | `PaymentAttempt` entity (orderIdExternal UNIQUE, context/status state machine, `requireConfirmable`/`markConfirmed`) |
 | `P1-T3` | done | DB | V32 `payment_attempt`, V33 `orders/bookings/pass_purchases.payment_key` |
 | `P1-T4` | done | 영속 어댑터 | `PaymentAttemptRepository` + Store/Reader port |
@@ -173,7 +173,7 @@
 | `P1R-T1b` | todo | cart checkout 경로 정리 | `/me/cart/checkout` 기반 즉시 주문을 Toss `prepare/confirm` 경로로 전환하거나, 정책상 유지할 경로라면 명시적 무결제/후불 계약으로 분리하고 문서화 |
 | `P1R-T2` | todo | rate limit 정책 전환 | `RateLimitFilter`의 구 booking/pass 생성 rule을 `/payments/prepare`, `/payments/confirm` 중심으로 재설계하고 테스트 갱신 |
 | `P1R-T3` | done | 프론트 E2E 갱신 | Toss SDK stub 기반으로 P8-2~P8-9 smoke flow를 현재 prepare/confirm UI에 맞게 갱신 |
-| `P1R-T4` | todo | confirm 멱등성/동시성 보강 | `PaymentAttempt` confirm 조회에 잠금 또는 claim 상태를 도입하고, 중복 confirm/동시 confirm 회귀 테스트 추가 |
+| `P1R-T4` | done | confirm 멱등성/동시성 보강 | `PROCESSING` 선점 잠금, 트랜잭션 밖 PG 호출, Toss 멱등키, PG 실패 영속화, 로컬 실패 보상 환불과 동시 confirm 회귀 테스트 반영 |
 | `P1R-T5` | todo | 금액 스냅샷 불변식 점검 | prepare 시 확정한 금액과 fulfill 시 생성되는 도메인 금액이 어긋나지 않도록 snapshot/assertion을 보강 |
 | `P1R-T6` | todo | stale DTO/type 정리 | 제거된 생성 POST용 request DTO와 프론트 타입을 실제 사용 여부 기준으로 삭제하거나 이름/용도를 갱신 |
 | `P1R-T7` | todo | 운영 배포 설정 반영 | GitHub Actions frontend build에 `VITE_TOSS_CLIENT_KEY` 주입, ECS task definition/secret에 `TOSS_SECRET_KEY` 반영 여부 확인 |

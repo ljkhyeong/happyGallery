@@ -65,6 +65,8 @@ export interface FailedRefundResponse {
   refundId: number;
   bookingId: number | null;
   orderId: number | null;
+  passPurchaseId: number | null;
+  paymentAttemptId: number | null;
   amount: number;
   failReason: string;
   createdAt: string;

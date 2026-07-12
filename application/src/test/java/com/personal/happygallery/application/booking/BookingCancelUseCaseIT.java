@@ -66,9 +66,9 @@ class BookingCancelUseCaseIT {
     void setUp() {
         helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort);
         // 기본: PaymentProvider 성공
-        when(paymentProvider.confirm(any(), any(), anyLong()))
+        when(paymentProvider.confirm(any(), any(), anyLong(), any()))
                 .thenReturn(PaymentConfirmResult.success("FAKE-TEST-PG", "CARD", "2026-04-26T12:00:00+09:00"));
-        when(paymentProvider.refund(any(), anyLong()))
+        when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("FAKE-TEST-REF"));
         cleanupSupport.clearBookingWithPassAndRefundData();
         cleanupSupport.clearNotificationLogs();
@@ -118,7 +118,7 @@ class BookingCancelUseCaseIT {
                             NotificationEventType.BOOKING_CANCELED,
                             NotificationEventType.DEPOSIT_REFUNDED);
         });
-        verify(paymentProvider).refund(eq("FAKE-TEST-PG"), eq(5000L));
+        verify(paymentProvider).refund(eq("FAKE-TEST-PG"), eq(5000L), any());
     }
 
     // -----------------------------------------------------------------------
@@ -128,7 +128,7 @@ class BookingCancelUseCaseIT {
     @DisplayName("PG 환불 실패 시 환불 이력이 FAILED로 저장된다")
     @Test
     void cancel_refundFailure_refundSavedAsFailed() throws Exception {
-        when(paymentProvider.refund(any(), anyLong()))
+        when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.failure("PG 타임아웃"));
 
         Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -156,7 +156,7 @@ class BookingCancelUseCaseIT {
             softly.assertThat(logs).extracting(NotificationLog::getEventType)
                     .containsExactly(NotificationEventType.BOOKING_CANCELED);
         });
-        verify(paymentProvider).refund(eq("FAKE-TEST-PG"), eq(5000L));
+        verify(paymentProvider).refund(eq("FAKE-TEST-PG"), eq(5000L), any());
     }
 
     // -----------------------------------------------------------------------

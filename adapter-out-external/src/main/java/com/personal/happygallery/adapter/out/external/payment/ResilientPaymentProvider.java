@@ -78,30 +78,34 @@ public class ResilientPaymentProvider implements PaymentProvider {
     }
 
     @Override
-    public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount) {
+    public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount, String idempotencyKey) {
         try {
-            return circuitBreaker.executeCallable(() -> executeConfirmWithTimeout(paymentKey, orderId, amount));
+            return circuitBreaker.executeCallable(
+                    () -> executeConfirmWithTimeout(paymentKey, orderId, amount, idempotencyKey));
         } catch (CallNotPermittedException e) {
             log.warn("PG 확정 호출 차단 (circuit open) [state={}]", circuitBreaker.getState());
-            return PaymentConfirmResult.failure("PG 장애로 결제 확정이 일시 차단되었습니다. 잠시 후 재시도해주세요.");
+            return PaymentConfirmResult.retryableFailure(
+                    "PG 장애로 결제 확정이 일시 차단되었습니다. 잠시 후 재시도해주세요.");
         } catch (TimeoutException e) {
             log.warn("PG 확정 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
-            return PaymentConfirmResult.failure("PG 응답 지연으로 결제 확정에 실패했습니다.");
+            return PaymentConfirmResult.retryableFailure("PG 응답 지연으로 결제 확정에 실패했습니다.");
         } catch (Exception e) {
             Throwable cause = rootCause(e);
             if (cause instanceof TimeoutException) {
                 log.warn("PG 확정 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
-                return PaymentConfirmResult.failure("PG 응답 지연으로 결제 확정에 실패했습니다.");
+                return PaymentConfirmResult.retryableFailure("PG 응답 지연으로 결제 확정에 실패했습니다.");
             }
             log.error("PG 확정 호출 예외", cause);
-            return PaymentConfirmResult.failure(cause.getMessage() != null ? cause.getMessage() : "PG 호출 중 오류가 발생했습니다.");
+            return PaymentConfirmResult.retryableFailure(
+                    cause.getMessage() != null ? cause.getMessage() : "PG 호출 중 오류가 발생했습니다.");
         }
     }
 
     @Override
-    public RefundResult refund(String paymentKey, long amount) {
+    public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
         try {
-            return circuitBreaker.executeCallable(() -> executeRefundWithTimeout(paymentKey, amount));
+            return circuitBreaker.executeCallable(
+                    () -> executeRefundWithTimeout(paymentKey, amount, idempotencyKey));
         } catch (CallNotPermittedException e) {
             log.warn("PG 환불 호출 차단 (circuit open) [state={}]", circuitBreaker.getState());
             return RefundResult.failure("PG 장애로 환불 처리가 일시 차단되었습니다. 잠시 후 재시도해주세요.");
@@ -119,14 +123,17 @@ public class ResilientPaymentProvider implements PaymentProvider {
         }
     }
 
-    private PaymentConfirmResult executeConfirmWithTimeout(String paymentKey, String orderId, long amount) throws Exception {
+    private PaymentConfirmResult executeConfirmWithTimeout(String paymentKey, String orderId, long amount,
+                                                           String idempotencyKey) throws Exception {
         return timeLimiter.executeFutureSupplier(
-                () -> CompletableFuture.supplyAsync(() -> delegate.confirm(paymentKey, orderId, amount), executor));
+                () -> CompletableFuture.supplyAsync(
+                        () -> delegate.confirm(paymentKey, orderId, amount, idempotencyKey), executor));
     }
 
-    private RefundResult executeRefundWithTimeout(String paymentKey, long amount) throws Exception {
+    private RefundResult executeRefundWithTimeout(String paymentKey, long amount, String idempotencyKey) throws Exception {
         return timeLimiter.executeFutureSupplier(
-                () -> CompletableFuture.supplyAsync(() -> delegate.refund(paymentKey, amount), executor));
+                () -> CompletableFuture.supplyAsync(
+                        () -> delegate.refund(paymentKey, amount, idempotencyKey), executor));
     }
 
     private Throwable rootCause(Throwable throwable) {

@@ -17,21 +17,25 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @Tag("policy")
 class PaymentAttemptPolicyTest {
 
-    @DisplayName("준비된 결제 시도는 동일 금액으로 확정할 수 있다")
+    @DisplayName("준비된 결제 시도는 선점과 PG 승인을 거쳐 확정된다")
     @Test
     void pendingAttempt_canBeConfirmed_whenAmountMatches() {
         PaymentAttempt attempt = PaymentAttempt.start("order-id", PaymentContext.ORDER, 10_000L, "{}");
-        LocalDateTime confirmedAt = LocalDateTime.of(2026, 4, 23, 10, 0);
+        LocalDateTime processingAt = LocalDateTime.of(2026, 4, 23, 9, 59);
+        LocalDateTime approvedAt = LocalDateTime.of(2026, 4, 23, 10, 0);
 
         assertThatCode(() -> attempt.requireConfirmable(10_000L))
                 .doesNotThrowAnyException();
-        attempt.markConfirmed("payment-key", "pg-ref", confirmedAt, 10_000L);
+        attempt.startProcessing(10_000L, "payment-key", processingAt);
+        attempt.markApproved("pg-ref", approvedAt);
+        attempt.markConfirmed();
 
         assertSoftly(softly -> {
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             softly.assertThat(attempt.getPaymentKey()).isEqualTo("payment-key");
             softly.assertThat(attempt.getPgRef()).isEqualTo("pg-ref");
-            softly.assertThat(attempt.getConfirmedAt()).isEqualTo(confirmedAt);
+            softly.assertThat(attempt.getProcessingAt()).isEqualTo(processingAt);
+            softly.assertThat(attempt.getConfirmedAt()).isEqualTo(approvedAt);
         });
     }
 
@@ -49,13 +53,13 @@ class PaymentAttemptPolicyTest {
                 });
     }
 
-    @DisplayName("결제 확정 전이는 금액이 다르면 상태를 변경하지 않는다")
+    @DisplayName("결제 선점은 금액이 다르면 상태를 변경하지 않는다")
     @Test
     void markConfirmed_rejectsConfirm_whenAmountDiffers() {
         PaymentAttempt attempt = PaymentAttempt.start("order-id", PaymentContext.BOOKING, 10_000L, "{}");
-        LocalDateTime confirmedAt = LocalDateTime.of(2026, 4, 23, 10, 0);
+        LocalDateTime processingAt = LocalDateTime.of(2026, 4, 23, 10, 0);
 
-        assertThatThrownBy(() -> attempt.markConfirmed("payment-key", "pg-ref", confirmedAt, 9_000L))
+        assertThatThrownBy(() -> attempt.startProcessing(9_000L, "payment-key", processingAt))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {
                     assertSoftly(softly -> {
                         softly.assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
@@ -75,7 +79,8 @@ class PaymentAttemptPolicyTest {
     @Test
     void failedAttempt_rejectsConfirm() {
         PaymentAttempt attempt = PaymentAttempt.start("order-id", PaymentContext.PASS, 240_000L, "{}");
-        attempt.markFailed();
+        attempt.startProcessing(240_000L, "payment-key", LocalDateTime.of(2026, 4, 23, 10, 0));
+        attempt.markFailed("PG 거절");
 
         assertThatThrownBy(() -> attempt.requireConfirmable(240_000L))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {

@@ -11,6 +11,10 @@ import com.personal.happygallery.application.payment.port.in.PaymentPayload.Pass
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareCommand;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
+import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.application.payment.port.out.RefundResult;
+import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -18,20 +22,37 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @UseCaseIT
 class PaymentConfirmUseCaseIT {
@@ -39,17 +60,24 @@ class PaymentConfirmUseCaseIT {
     @Autowired PaymentPrepareUseCase prepareUseCase;
     @Autowired PaymentConfirmUseCase confirmUseCase;
     @Autowired PaymentAttemptReaderPort attemptReader;
+    @Autowired RefundPort refundPort;
     @Autowired OrderReaderPort orderReader;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired UserStorePort userStorePort;
     @Autowired TestCleanupSupport cleanupSupport;
+    @MockitoBean PaymentProvider paymentProvider;
 
     @BeforeEach
     void setUp() {
         cleanupSupport.clearOrderData();
         cleanupSupport.clearBookingWithPassAndRefundData();
         cleanupSupport.clearUsers();
+        when(paymentProvider.confirm(any(), any(), anyLong(), any()))
+                .thenReturn(PaymentConfirmResult.success(
+                        "confirmed-payment-key", "CARD", "2026-07-12T10:00:00+09:00"));
+        when(paymentProvider.refund(any(), anyLong(), any()))
+                .thenReturn(RefundResult.success("compensation-refund-key"));
     }
 
     @DisplayName("confirm은 PG 성공 후 주문을 저장하고 결제 시도를 확정한다")
@@ -73,11 +101,13 @@ class PaymentConfirmUseCaseIT {
             softly.assertThat(result.context()).isEqualTo(PaymentContext.ORDER);
             softly.assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID_APPROVAL_PENDING);
             softly.assertThat(order.getTotalAmount()).isEqualTo(31_000L);
-            softly.assertThat(order.getPaymentKey()).startsWith("FAKE-PG-");
+            softly.assertThat(order.getPaymentKey()).isEqualTo("confirmed-payment-key");
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             softly.assertThat(attempt.getPaymentKey()).isEqualTo("payment-key-confirm");
-            softly.assertThat(attempt.getPgRef()).startsWith("FAKE-PG-");
+            softly.assertThat(attempt.getPgRef()).isEqualTo("confirmed-payment-key");
         });
+        verify(paymentProvider).confirm(
+                "payment-key-confirm", prepared.orderId(), prepared.amount(), prepared.orderId());
     }
 
     @DisplayName("confirm은 prepare 금액과 다른 금액이면 도메인 저장 전에 거부한다")
@@ -103,5 +133,129 @@ class PaymentConfirmUseCaseIT {
                     .hasValueSatisfying(attempt -> softly.assertThat(attempt.getStatus())
                             .isEqualTo(PaymentAttemptStatus.PENDING));
         });
+    }
+
+    @DisplayName("PG 확정 실패는 외부 호출 트랜잭션과 분리되어 FAILED 상태로 저장된다")
+    @Test
+    void confirm_pgFailure_persistsFailedAttemptOutsidePaymentTransaction() {
+        User user = userStorePort.save(new User("payment-failure@example.com", "hashed", "회원", "01011112222"));
+        Product product = productStorePort.save(readyStockProduct("확정 실패 상품", 41_000L));
+        inventoryStorePort.save(inventory(product, 1));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                auth));
+        AtomicBoolean transactionActiveDuringPgCall = new AtomicBoolean(true);
+        when(paymentProvider.confirm(any(), any(), anyLong(), any()))
+                .thenAnswer(invocation -> {
+                    transactionActiveDuringPgCall.set(
+                            TransactionSynchronizationManager.isActualTransactionActive());
+                    return PaymentConfirmResult.failure("PG 승인 거절");
+                });
+
+        assertThatThrownBy(() -> confirmUseCase.confirm(
+                new ConfirmCommand("payment-key-failure", prepared.orderId(), prepared.amount(), auth)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_FAILED));
+
+        var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(transactionActiveDuringPgCall.get()).isFalse();
+            softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.FAILED);
+            softly.assertThat(attempt.getFailReason()).isEqualTo("PG 승인 거절");
+            softly.assertThat(orderReader.findAllByOrderByCreatedAtDesc()).isEmpty();
+        });
+    }
+
+    @DisplayName("PG 승인 후 도메인 생성이 실패하면 결제 시도 보상 환불을 실행한다")
+    @Test
+    void confirm_fulfillmentFailure_compensatesApprovedPayment() {
+        User user = userStorePort.save(new User("payment-compensation@example.com", "hashed", "회원", "01033334444"));
+        Product product = productStorePort.save(readyStockProduct("보상 환불 상품", 52_000L));
+        inventoryStorePort.save(inventory(product, 0));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                auth));
+
+        assertThatThrownBy(() -> confirmUseCase.confirm(
+                new ConfirmCommand("payment-key-compensation", prepared.orderId(), prepared.amount(), auth)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVENTORY_NOT_ENOUGH));
+
+        await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(25, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> {
+                    var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
+                    var refunds = refundPort.findAll();
+                    assertSoftly(softly -> {
+                        softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.COMPENSATED);
+                        softly.assertThat(refunds).singleElement().satisfies(refund -> {
+                            softly.assertThat(refund.getPaymentAttemptId()).isEqualTo(attempt.getId());
+                            softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
+                            softly.assertThat(refund.getPaymentKey()).isEqualTo("confirmed-payment-key");
+                        });
+                    });
+                });
+
+        var refund = refundPort.findAll().get(0);
+        verify(paymentProvider).refund(
+                "confirmed-payment-key", prepared.amount(), refund.getIdempotencyKey());
+    }
+
+    @DisplayName("동시에 같은 결제를 확정하면 한 요청만 PG 호출과 주문 생성을 수행한다")
+    @Test
+    void confirm_concurrently_claimsSingleAttempt() throws Exception {
+        User user = userStorePort.save(new User("payment-concurrent@example.com", "hashed", "회원", "01055556666"));
+        Product product = productStorePort.save(readyStockProduct("동시 확정 상품", 63_000L));
+        inventoryStorePort.save(inventory(product, 2));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                auth));
+        ConfirmCommand command = new ConfirmCommand(
+                "payment-key-concurrent", prepared.orderId(), prepared.amount(), auth);
+        CountDownLatch pgEntered = new CountDownLatch(1);
+        CountDownLatch releasePg = new CountDownLatch(1);
+        when(paymentProvider.confirm(any(), any(), anyLong(), any()))
+                .thenAnswer(invocation -> {
+                    pgEntered.countDown();
+                    if (!releasePg.await(3, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("PG 호출 해제 대기 시간 초과");
+                    }
+                    return PaymentConfirmResult.success(
+                            "confirmed-payment-key", "CARD", "2026-07-12T10:00:00+09:00");
+                });
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            var first = executor.submit(() -> confirmUseCase.confirm(command));
+            assertThat(pgEntered.await(3, TimeUnit.SECONDS)).isTrue();
+            var second = executor.submit(() -> confirmUseCase.confirm(command));
+
+            assertThatThrownBy(second::get)
+                    .isInstanceOfSatisfying(ExecutionException.class, exception ->
+                            assertThat(exception.getCause())
+                                    .isInstanceOfSatisfying(HappyGalleryException.class, cause ->
+                                            assertThat(cause.getErrorCode())
+                                                    .isEqualTo(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS)));
+
+            releasePg.countDown();
+            PaymentConfirmUseCase.ConfirmResult result = first.get(3, TimeUnit.SECONDS);
+            assertSoftly(softly -> {
+                softly.assertThat(orderReader.findById(result.domainId())).isPresent();
+                softly.assertThat(attemptReader.findByOrderIdExternal(prepared.orderId()))
+                        .hasValueSatisfying(attempt -> softly.assertThat(attempt.getStatus())
+                                .isEqualTo(PaymentAttemptStatus.CONFIRMED));
+            });
+            verify(paymentProvider, times(1)).confirm(
+                    eq("payment-key-concurrent"), eq(prepared.orderId()), eq(prepared.amount()), eq(prepared.orderId()));
+        } finally {
+            releasePg.countDown();
+            executor.shutdownNow();
+        }
     }
 }

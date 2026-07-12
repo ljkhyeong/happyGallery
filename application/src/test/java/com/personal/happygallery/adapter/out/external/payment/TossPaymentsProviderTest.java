@@ -33,6 +33,7 @@ class TossPaymentsProviderTest {
         server.expect(requestTo("https://api.tosspayments.com/v1/payments/confirm"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, basicAuth("test_secret")))
+                .andExpect(header("Idempotency-Key", "confirm-idempotency-key"))
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(content().json("""
                         {
@@ -50,7 +51,8 @@ class TossPaymentsProviderTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        PaymentConfirmResult result = provider.confirm("payment-key", "order-id", 10_000L);
+        PaymentConfirmResult result = provider.confirm(
+                "payment-key", "order-id", 10_000L, "confirm-idempotency-key");
 
         server.verify();
         assertSoftly(softly -> {
@@ -79,7 +81,8 @@ class TossPaymentsProviderTest {
                                 }
                                 """));
 
-        PaymentConfirmResult result = provider.confirm("payment-key", "order-id", 10_000L);
+        PaymentConfirmResult result = provider.confirm(
+                "payment-key", "order-id", 10_000L, "confirm-idempotency-key");
 
         server.verify();
         assertSoftly(softly -> {
@@ -99,6 +102,7 @@ class TossPaymentsProviderTest {
         server.expect(requestTo("https://api.tosspayments.com/v1/payments/payment-key/cancel"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, basicAuth("test_secret")))
+                .andExpect(header("Idempotency-Key", "refund-idempotency-key"))
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(content().json("""
                         {
@@ -119,7 +123,7 @@ class TossPaymentsProviderTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        RefundResult result = provider.refund("payment-key", 5_000L);
+        RefundResult result = provider.refund("payment-key", 5_000L, "refund-idempotency-key");
 
         server.verify();
         assertSoftly(softly -> {
@@ -144,7 +148,7 @@ class TossPaymentsProviderTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        RefundResult result = provider.refund("payment-key", 5_000L);
+        RefundResult result = provider.refund("payment-key", 5_000L, "refund-idempotency-key");
 
         server.verify();
         assertSoftly(softly -> {
@@ -172,7 +176,7 @@ class TossPaymentsProviderTest {
                                 }
                                 """));
 
-        RefundResult result = provider.refund("payment-key", 5_000L);
+        RefundResult result = provider.refund("payment-key", 5_000L, "refund-idempotency-key");
 
         server.verify();
         assertSoftly(softly -> {

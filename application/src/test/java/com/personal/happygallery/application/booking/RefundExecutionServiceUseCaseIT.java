@@ -90,7 +90,7 @@ class RefundExecutionServiceUseCaseIT {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("outer rollback");
 
-        verify(paymentProvider, after(300).never()).refund(any(), anyLong());
+        verify(paymentProvider, after(300).never()).refund(any(), anyLong(), any());
         assertThat(refundRepository.findAll()).isEmpty();
     }
 
@@ -103,7 +103,7 @@ class RefundExecutionServiceUseCaseIT {
         Order order = saveMemberOrder(paidAt);
         AtomicBoolean transactionActiveDuringPaymentCall = new AtomicBoolean(true);
         AtomicReference<String> paymentCallThreadName = new AtomicReference<>();
-        when(paymentProvider.refund(any(), anyLong()))
+        when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenAnswer(invocation -> {
                     transactionActiveDuringPaymentCall.set(TransactionSynchronizationManager.isActualTransactionActive());
                     paymentCallThreadName.set(Thread.currentThread().getName());
@@ -122,7 +122,7 @@ class RefundExecutionServiceUseCaseIT {
                     assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
                 });
 
-        verify(paymentProvider).refund("payment-key", 55_000L);
+        verify(paymentProvider).refund("payment-key", 55_000L, result.getIdempotencyKey());
         var refunds = refundRepository.findAll();
         assertSoftly(softly -> {
             softly.assertThat(transactionActiveDuringPaymentCall.get()).isFalse();
@@ -157,7 +157,7 @@ class RefundExecutionServiceUseCaseIT {
                     assertThat(refunds.get(0).getFailReason()).contains("paymentKey");
                 });
 
-        verify(paymentProvider, after(300).never()).refund(any(), anyLong());
+        verify(paymentProvider, after(300).never()).refund(any(), anyLong(), any());
         assertSoftly(softly -> {
             softly.assertThat(result).isNotNull();
             softly.assertThat(result.getStatus()).isEqualTo(RefundStatus.REQUESTED);
