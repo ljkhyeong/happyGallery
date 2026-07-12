@@ -35,7 +35,7 @@ public class MeGuestClaimController {
 
     @PostMapping
     public GuestClaimUseCase.ClaimResult claimGuestRecords(
-            @RequestBody @Valid ClaimGuestRecordsRequest req,
+            @RequestBody ClaimGuestRecordsRequest req,
             @CustomerUserId Long userId) {
         return guestClaim.claim(userId, req.orderIds(), req.bookingIds());
     }
