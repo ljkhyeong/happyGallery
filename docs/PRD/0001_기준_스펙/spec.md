@@ -195,10 +195,11 @@
 - 표준 결제 생성 경로는 모든 도메인(`ORDER`, `BOOKING`, `PASS`)에서 `/api/v1/payments/prepare` → `/api/v1/payments/confirm` 단일 진입점을 사용한다. 회원 장바구니 checkout 등 남은 우회 경로는 `plan.md`의 `P1R-T1` 후속 작업으로 닫는다.
 - prepare 단계에서 서버가 `orderId(UUID)`와 `amount`를 확정해 `payment_attempt`(`PENDING`)로 저장한다. 클라이언트가 보낸 amount는 신뢰하지 않는다.
 - 산출 규칙:
-    - 주문: 항목별 `productId.price × qty` 합계 (단가는 서버 재조회)
+    - 주문: 상품을 한 번에 조회해 항목별 `productId.price × qty` 합계를 계산하고, 서버가 확정한 항목 단가를 결제 시도 payload에 함께 저장한다.
     - 예약금: `slot.bookingClass.price × 10%`
     - 8회권: `app.pass.total-price` 환경 변수 (`PASS_TOTAL_PRICE`, 기본 240,000원)
 - confirm 단계에서 PG `paymentKey`와 `amount`가 prepare 시점 amount와 다르면 거절한다.
+- 주문 confirm은 현재 상품가를 다시 읽지 않고 prepare 시점에 저장한 항목 단가로 주문을 생성한다. 저장된 항목 합계가 `payment_attempt.amount`와 다르면 PG 호출 전에 거절한다.
 - confirm은 결제 시도를 `PROCESSING`으로 선점한 뒤 DB 트랜잭션 밖에서 PG를 호출한다. 동시 요청은 한 건만 PG 호출을 수행한다.
 - Toss confirm은 prepare의 `orderId`를 멱등키로 사용한다. 일시 실패는 `RETRYABLE`, 최종 거절은 `FAILED`로 별도 트랜잭션에 저장한다.
 - 8회권 사용 예약은 prepare에서 `amount=0`을 받고 PG 호출 없이 confirm을 직접 호출한다.

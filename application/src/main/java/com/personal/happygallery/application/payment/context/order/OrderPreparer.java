@@ -5,12 +5,18 @@ import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedOrderItem;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Product;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,7 +34,7 @@ public class OrderPreparer implements PaymentPreparer {
     }
 
     @Override
-    public long calculateAmount(PaymentPayload payload, AuthContext auth) {
+    public PreparedPayment prepare(PaymentPayload payload, AuthContext auth) {
         if (!(payload instanceof OrderPayload op)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 결제 payload가 아닙니다.");
         }
@@ -45,15 +51,37 @@ public class OrderPreparer implements PaymentPreparer {
             }
         }
 
-        long total = 0;
         for (OrderItemRef item : op.items()) {
+            if (item == null || item.productId() == null) {
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 상품이 지정되지 않았습니다.");
+            }
             if (item.qty() <= 0) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 수량은 1 이상이어야 합니다.");
             }
-            Product product = productReader.findById(item.productId())
-                    .orElseThrow(NotFoundException.supplier("상품"));
-            total += (long) item.qty() * product.getPrice();
         }
-        return total;
+
+        Map<Long, Product> productsById = productReader.findAllById(op.items().stream()
+                        .map(OrderItemRef::productId)
+                        .distinct()
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(Product::getId, Function.identity()));
+        List<PreparedOrderItem> preparedItems = op.items().stream()
+                .map(item -> prepareItem(item, productsById))
+                .toList();
+        long total = preparedItems.stream()
+                .mapToLong(item -> (long) item.qty() * item.unitPrice())
+                .sum();
+
+        return new PreparedPayment(total, new PreparedOrderPayload(
+                op.userId(), op.phone(), op.verificationCode(), op.name(), preparedItems));
+    }
+
+    private PreparedOrderItem prepareItem(OrderItemRef item, Map<Long, Product> productsById) {
+        Product product = productsById.get(item.productId());
+        if (product == null) {
+            throw new NotFoundException("상품");
+        }
+        return new PreparedOrderItem(item.productId(), item.qty(), product.getPrice());
     }
 }

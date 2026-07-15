@@ -2,6 +2,7 @@ package com.personal.happygallery.application.payment;
 
 import tools.jackson.databind.ObjectMapper;
 import com.personal.happygallery.application.payment.context.PaymentPreparer;
+import com.personal.happygallery.application.payment.context.PaymentPreparer.PreparedPayment;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -44,17 +45,18 @@ public class DefaultPaymentPrepareService implements PaymentPrepareUseCase {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지원하지 않는 결제 컨텍스트입니다.");
         }
 
-        long amount = preparer.calculateAmount(command.payload(), command.auth());
-        if (amount < 0) {
+        PreparedPayment prepared = preparer.prepare(command.payload(), command.auth());
+        if (prepared.amount() < 0) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "결제 금액은 0 이상이어야 합니다.");
         }
 
         String orderIdExternal = UUID.randomUUID().toString();
-        String payloadJson = serialize(command.payload());
-        PaymentAttempt attempt = PaymentAttempt.start(orderIdExternal, command.context(), amount, payloadJson);
+        String payloadJson = serialize(prepared.payload());
+        PaymentAttempt attempt = PaymentAttempt.start(
+                orderIdExternal, command.context(), prepared.amount(), payloadJson);
         attemptStore.save(attempt);
 
-        return new PrepareResult(orderIdExternal, amount, command.context());
+        return new PrepareResult(orderIdExternal, prepared.amount(), command.context());
     }
 
     private String serialize(Object payload) {

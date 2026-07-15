@@ -15,6 +15,7 @@
 - PG 승인 후 로컬 도메인 생성이 실패하면 외부 결제만 승인된 상태가 남는다.
 - 동시 confirm 요청이 같은 `PENDING` 시도를 중복 처리할 수 있다.
 - Toss POST 요청에 멱등키가 없어 타임아웃 재시도가 안전하지 않다.
+- 주문 prepare와 confirm이 각각 상품 가격을 조회해, 두 호출 사이에 가격이 바뀌면 PG 승인 금액과 저장 주문 금액이 달라질 수 있다.
 
 Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며, 같은 API 키·주소·HTTP 메서드와
 같은 멱등키 조합의 최초 응답을 15일간 재사용한다.
@@ -42,7 +43,19 @@ Toss confirm은 활성 DB 트랜잭션이 없는 상태에서 호출한다.
 비관적 쓰기 잠금을 사용한다. `PROCESSING`이 1분 이상 지속되면 같은 paymentKey 요청만 다시 선점할 수 있다.
 저장된 payload와 현재 인증 주체의 조합은 claim 단계에서 한 번 검증하며, 이후 fulfiller는 이 계약을 전제로 실행한다.
 
-### 3. Toss 멱등키를 요청마다 고정한다
+### 3. 주문 단가는 prepare 시점에 확정한다
+
+- 공개 입력인 `OrderPayload`에는 `productId`, `qty`만 받는다.
+- `OrderPreparer`는 상품을 ID 목록으로 한 번에 조회하고, 서버 상품가를 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만든다.
+- `payment_attempt.payload_json`에는 내부용 payload를 저장한다.
+- claim 단계에서 항목 단가 합계와 `payment_attempt.amount`를 대조한 뒤 PG를 호출한다.
+- `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 단가로 `OrderItemRequest`를 만든다.
+- 변경 전 생성되어 서버 단가가 없는 미확정 주문 결제 시도는 confirm하지 않고 새 prepare를 요구한다.
+
+`OrderItemRequest`가 결제 입력 항목과 `Product`를 받는 팩토리는 두지 않는다. confirm 경로가 `Product`에
+의존하면 현재 가격 재조회와 계층 간 결합이 다시 생기므로, 서버가 확정한 원시 값만 명시적으로 전달한다.
+
+### 4. Toss 멱등키를 요청마다 고정한다
 
 - confirm: prepare에서 생성한 무작위 UUID `orderId`를 `Idempotency-Key`로 사용한다.
 - refund: `refunds.idempotency_key`에 환불 생성 시 UUID를 저장하고 최초 실행과 모든 재시도에서 재사용한다.
@@ -50,7 +63,7 @@ Toss confirm은 활성 DB 트랜잭션이 없는 상태에서 호출한다.
 
 공식 계약: [토스페이먼츠 인증 및 기타 헤더 설정](https://docs.tosspayments.com/reference/using-api/authorization)
 
-### 4. PG 승인과 도메인 생성을 별도 트랜잭션으로 처리한다
+### 5. PG 승인과 도메인 생성을 별도 트랜잭션으로 처리한다
 
 1. `PENDING/RETRYABLE -> PROCESSING` 선점
 2. DB 트랜잭션 밖에서 PG confirm
@@ -60,7 +73,7 @@ Toss confirm은 활성 DB 트랜잭션이 없는 상태에서 호출한다.
 
 `APPROVED`가 남으면 PG 재호출 없이 도메인 생성을 재개할 수 있다.
 
-### 5. PG 승인 후 로컬 실패는 기존 환불 재시도 경로로 보상한다
+### 6. PG 승인 후 로컬 실패는 기존 환불 재시도 경로로 보상한다
 
 - `refunds.payment_attempt_id`로 보상 대상 결제 시도를 식별한다.
 - 결제 시도 `COMPENSATION_REQUESTED`와 환불 `REQUESTED`를 한 트랜잭션으로 저장한다.
@@ -78,6 +91,7 @@ Toss confirm은 활성 DB 트랜잭션이 없는 상태에서 호출한다.
 | 장점 | PG 실패 상태가 예외 롤백과 무관하게 유지된다 |
 | 장점 | 동시 confirm은 한 요청만 PG 호출을 수행한다 |
 | 장점 | 타임아웃 재시도가 같은 Toss 멱등키를 사용한다 |
+| 장점 | prepare 이후 상품 가격이 바뀌어도 PG 승인 금액과 저장 주문 금액이 일치한다 |
 | 장점 | PG 승인 후 로컬 실패가 durable한 보상 환불과 운영자 재시도 대상으로 남는다 |
 | 단점 | confirm 상태와 보상 상태가 늘어나 운영 조회가 복잡해진다 |
 | 단점 | 비회원 confirm 응답 커밋 후 네트워크 단절 시 1회성 원문 access token 재발급 문제는 별도 보완이 필요하다 |
@@ -86,6 +100,8 @@ Toss confirm은 활성 DB 트랜잭션이 없는 상태에서 호출한다.
 
 - `PaymentConfirmTransactionService`
 - `DefaultPaymentConfirmService`
+- `PaymentPreparer`, `OrderPreparer`, `OrderFulfiller`, `PaymentPayload.PreparedOrderPayload`
+- `ProductReaderPort`, `ProductRepository`, `DefaultOrderCreationService`
 - `PaymentAttempt`, `PaymentAttemptStatus`
 - `RefundExecutionService`, `RefundTransactionService`, `Refund`
 - `TossPaymentsProvider`

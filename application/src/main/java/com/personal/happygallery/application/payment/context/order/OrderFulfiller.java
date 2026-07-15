@@ -7,18 +7,14 @@ import com.personal.happygallery.application.order.OrderService.OrderItemRequest
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
-import com.personal.happygallery.application.product.port.out.ProductReaderPort;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentContext;
-import com.personal.happygallery.domain.product.Product;
-import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -28,14 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderFulfiller implements PaymentFulfiller {
 
     private final VerifiedGuestResolver verifiedGuestResolver;
-    private final ProductReaderPort productReader;
     private final OrderService orderService;
 
     public OrderFulfiller(VerifiedGuestResolver verifiedGuestResolver,
-                          ProductReaderPort productReader,
                           OrderService orderService) {
         this.verifiedGuestResolver = verifiedGuestResolver;
-        this.productReader = productReader;
         this.orderService = orderService;
     }
 
@@ -45,9 +38,24 @@ public class OrderFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    public void validate(PaymentPayload payload, AuthContext auth) {
-        if (!(payload instanceof OrderPayload op)) {
+    public void validate(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth) {
+        if (payload instanceof OrderPayload) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "주문 단가 정보가 없습니다. 결제를 다시 준비해 주세요.");
+        }
+        if (!(payload instanceof PreparedOrderPayload op)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 결제 payload가 아닙니다.");
+        }
+        if (op.items() == null || op.items().isEmpty()
+                || op.items().stream().anyMatch(item -> item == null
+                        || item.productId() == null || item.qty() <= 0 || item.unitPrice() < 0)) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 주문 항목이 올바르지 않습니다.");
+        }
+        long preparedAmount = op.items().stream()
+                .mapToLong(item -> (long) item.qty() * item.unitPrice())
+                .sum();
+        if (preparedAmount != attempt.getAmount()) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 주문 금액이 결제 금액과 일치하지 않습니다.");
         }
         if (auth.isMember()) {
             if (op.userId() == null || !op.userId().equals(auth.userId())) {
@@ -63,8 +71,10 @@ public class OrderFulfiller implements PaymentFulfiller {
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String paymentKey) {
-        OrderPayload op = (OrderPayload) payload;
-        List<OrderItemRequest> orderItems = resolveItemPrices(op.items());
+        PreparedOrderPayload op = (PreparedOrderPayload) payload;
+        List<OrderItemRequest> orderItems = op.items().stream()
+                .map(item -> new OrderItemRequest(item.productId(), item.qty(), item.unitPrice()))
+                .toList();
 
         if (auth.isMember()) {
             Order order = orderService.createMemberOrder(auth.userId(), orderItems);
@@ -75,15 +85,5 @@ public class OrderFulfiller implements PaymentFulfiller {
         OrderCreationResult result = orderService.createPaidOrder(guest.getId(), orderItems);
         result.order().recordPaymentKey(paymentKey);
         return new FulfillResult(result.order().getId(), result.rawAccessToken());
-    }
-
-    private List<OrderItemRequest> resolveItemPrices(List<OrderItemRef> items) {
-        List<OrderItemRequest> resolved = new ArrayList<>(items.size());
-        for (OrderItemRef item : items) {
-            Product product = productReader.findById(item.productId())
-                    .orElseThrow(NotFoundException.supplier("상품"));
-            resolved.add(new OrderItemRequest(item.productId(), item.qty(), product.getPrice()));
-        }
-        return resolved;
     }
 }

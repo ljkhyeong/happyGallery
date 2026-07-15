@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -62,9 +64,11 @@ class PaymentConfirmUseCaseIT {
     @Autowired PaymentAttemptReaderPort attemptReader;
     @Autowired RefundPort refundPort;
     @Autowired OrderReaderPort orderReader;
+    @Autowired OrderItemPort orderItemPort;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired UserStorePort userStorePort;
+    @Autowired JdbcTemplate jdbcTemplate;
     @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean PaymentProvider paymentProvider;
 
@@ -80,9 +84,9 @@ class PaymentConfirmUseCaseIT {
                 .thenReturn(RefundResult.success("compensation-refund-key"));
     }
 
-    @DisplayName("confirm은 PG 성공 후 주문을 저장하고 결제 시도를 확정한다")
+    @DisplayName("confirm은 상품 가격이 바뀌어도 prepare 시점 단가로 주문을 저장한다")
     @Test
-    void confirm_success_storesOrderAndConfirmsAttempt() {
+    void confirm_productPriceChanged_usesPreparedPriceSnapshot() {
         User user = userStorePort.save(new User("payment-confirm@example.com", "hashed", "회원", "01056785678"));
         Product product = productStorePort.save(readyStockProduct("확정 상품", 31_000L));
         inventoryStorePort.save(inventory(product, 5));
@@ -91,17 +95,22 @@ class PaymentConfirmUseCaseIT {
                 PaymentContext.ORDER,
                 new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
                 auth));
+        jdbcTemplate.update("UPDATE products SET price = ? WHERE id = ?", 99_000L, product.getId());
 
         PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
                 new ConfirmCommand("payment-key-confirm", prepared.orderId(), prepared.amount(), auth));
 
         var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
         var order = orderReader.findById(result.domainId()).orElseThrow();
+        var orderItems = orderItemPort.findByOrder(order);
         assertSoftly(softly -> {
             softly.assertThat(result.context()).isEqualTo(PaymentContext.ORDER);
+            softly.assertThat(prepared.amount()).isEqualTo(31_000L);
             softly.assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID_APPROVAL_PENDING);
             softly.assertThat(order.getTotalAmount()).isEqualTo(31_000L);
             softly.assertThat(order.getPaymentKey()).isEqualTo("confirmed-payment-key");
+            softly.assertThat(orderItems).hasSize(1);
+            softly.assertThat(orderItems.getFirst().getUnitPrice()).isEqualTo(31_000L);
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             softly.assertThat(attempt.getPaymentKey()).isEqualTo("payment-key-confirm");
             softly.assertThat(attempt.getPgRef()).isEqualTo("confirmed-payment-key");

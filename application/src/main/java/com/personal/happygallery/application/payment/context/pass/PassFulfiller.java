@@ -29,7 +29,7 @@ public class PassFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    public void validate(PaymentPayload payload, AuthContext auth) {
+    public void validate(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth) {
         if (!(payload instanceof PassPayload pp)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 결제 payload가 아닙니다.");
         }

@@ -30,7 +30,7 @@ public class BookingPreparer implements PaymentPreparer {
     }
 
     @Override
-    public long calculateAmount(PaymentPayload payload, AuthContext auth) {
+    public PreparedPayment prepare(PaymentPayload payload, AuthContext auth) {
         if (!(payload instanceof BookingPayload bp)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "예약 결제 payload가 아닙니다.");
         }
@@ -42,7 +42,7 @@ public class BookingPreparer implements PaymentPreparer {
             if (!auth.isMember() || !auth.userId().equals(bp.userId())) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 사용 예약은 회원 인증이 필요합니다.");
             }
-            return 0L;
+            return new PreparedPayment(0L, bp);
         }
 
         if (bp.paymentMethod() == null) {
@@ -64,6 +64,6 @@ public class BookingPreparer implements PaymentPreparer {
 
         Slot slot = slotReader.findById(bp.slotId())
                 .orElseThrow(NotFoundException.supplier("슬롯"));
-        return DepositCalculator.of(slot);
+        return new PreparedPayment(DepositCalculator.of(slot), bp);
     }
 }

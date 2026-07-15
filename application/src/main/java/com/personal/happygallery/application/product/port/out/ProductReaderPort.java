@@ -13,6 +13,8 @@ public interface ProductReaderPort {
 
     Optional<Product> findById(Long id);
 
+    List<Product> findAllById(List<Long> ids);
+
     List<Product> findByStatusOrderByCreatedAtDesc(ProductStatus status);
 
     /** 필터 조건에 따른 ACTIVE 상품 목록 조회. */

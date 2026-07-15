@@ -16,8 +16,8 @@ public interface PaymentFulfiller {
     /** 처리하는 PaymentContext. */
     PaymentContext context();
 
-    /** PG 호출 전에 저장된 payload와 현재 인증 주체의 조합을 검증한다. */
-    void validate(PaymentPayload payload, AuthContext auth);
+    /** PG 호출 전에 결제 시도, 저장된 payload와 현재 인증 주체의 조합을 검증한다. */
+    void validate(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth);
 
     /**
      * payload를 도메인 저장으로 풀어낸다.

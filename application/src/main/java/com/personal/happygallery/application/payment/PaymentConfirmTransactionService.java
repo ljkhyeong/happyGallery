@@ -63,7 +63,7 @@ class PaymentConfirmTransactionService {
                 .orElseThrow(() -> new NotFoundException("결제 시도"));
         String paymentKey = normalize(command.paymentKey());
         PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
-        fulfiller.validate(deserialize(attempt.getPayloadJson()), command.auth());
+        fulfiller.validate(attempt, deserialize(attempt.getPayloadJson()), command.auth());
 
         LocalDateTime now = LocalDateTime.now(clock);
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED) {

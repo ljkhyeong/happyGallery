@@ -5,6 +5,9 @@ import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.product.Product;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,13 +36,23 @@ public class DefaultOrderCreationService implements OrderCreationService {
     }
 
     private List<OrderService.OrderItemRequest> resolveItemPrices(List<OrderItemInput> items) {
+        Map<Long, Product> productsById = productReader.findAllById(items.stream()
+                        .map(OrderItemInput::productId)
+                        .distinct()
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(Product::getId, Function.identity()));
+
         return items.stream()
-                .map(item -> {
-                    Product product = productReader.findById(item.productId())
-                            .orElseThrow(NotFoundException.supplier("상품"));
-                    return new OrderService.OrderItemRequest(
-                            item.productId(), item.qty(), product.getPrice());
-                })
+                .map(item -> toOrderItem(item, productsById))
                 .toList();
+    }
+
+    private OrderService.OrderItemRequest toOrderItem(OrderItemInput item, Map<Long, Product> productsById) {
+        Product product = productsById.get(item.productId());
+        if (product == null) {
+            throw new NotFoundException("상품");
+        }
+        return new OrderService.OrderItemRequest(item.productId(), item.qty(), product.getPrice());
     }
 }

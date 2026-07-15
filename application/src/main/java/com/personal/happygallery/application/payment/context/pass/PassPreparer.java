@@ -25,13 +25,13 @@ public class PassPreparer implements PaymentPreparer {
     }
 
     @Override
-    public long calculateAmount(PaymentPayload payload, AuthContext auth) {
+    public PreparedPayment prepare(PaymentPayload payload, AuthContext auth) {
         if (!(payload instanceof PassPayload pp)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 결제 payload가 아닙니다.");
         }
         if (!auth.isMember() || pp.userId() == null || !pp.userId().equals(auth.userId())) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 구매는 회원 인증이 필요합니다.");
         }
-        return priceProperties.totalPrice();
+        return new PreparedPayment(priceProperties.totalPrice(), pp);
     }
 }

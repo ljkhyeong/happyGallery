@@ -1405,9 +1405,11 @@ Content-Type: application/json
 - 정책:
   - `payload.type`은 `ORDER` / `BOOKING` / `PASS` 중 하나로, 상위 `context`와 일치해야 한다.
   - 금액은 서버가 산출한다. 클라이언트가 `amount`를 보내도 무시되며, `payment_attempt.amount`는 서버 계산값이다.
-    - `ORDER`: 항목별 `productId.price * qty` 합계
+    - `ORDER`: 상품을 한 번에 조회한 뒤 항목별 `productId.price * qty` 합계
     - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약), 없으면 `slot.bookingClass.price * 10%`
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
+  - `ORDER`의 항목 단가는 서버가 prepare 시점에 내부 payload로 저장한다. confirm은 상품의 현재 가격이 아니라 이 단가로 주문을 생성하고, 단가 합계와 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
+  - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
   - prepare 응답의 `orderId`는 Toss 결제창에 그대로 전달한다.
 

@@ -15,6 +15,7 @@ import java.util.List;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
         @JsonSubTypes.Type(value = PaymentPayload.OrderPayload.class, name = "ORDER"),
+        @JsonSubTypes.Type(value = PaymentPayload.PreparedOrderPayload.class, name = "PREPARED_ORDER"),
         @JsonSubTypes.Type(value = PaymentPayload.BookingPayload.class, name = "BOOKING"),
         @JsonSubTypes.Type(value = PaymentPayload.PassPayload.class, name = "PASS")
 })
@@ -35,6 +36,17 @@ public sealed interface PaymentPayload {
     ) implements PaymentPayload {}
 
     record OrderItemRef(Long productId, int qty) {}
+
+    /** prepare에서 서버 상품가를 확정한 뒤 결제 시도에만 저장하는 주문 payload. */
+    record PreparedOrderPayload(
+            Long userId,
+            String phone,
+            String verificationCode,
+            String name,
+            List<PreparedOrderItem> items
+    ) implements PaymentPayload {}
+
+    record PreparedOrderItem(Long productId, int qty, long unitPrice) {}
 
     /**
      * 예약 결제 payload. 회원 8회권 사용 시 {@code passId}만 세팅(amount=0).

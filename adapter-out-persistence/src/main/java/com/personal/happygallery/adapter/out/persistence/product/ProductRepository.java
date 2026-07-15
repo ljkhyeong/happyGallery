@@ -18,6 +18,12 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
         JpaSpecificationExecutor<Product>, ProductReaderPort, ProductStorePort {
 
     @Override Optional<Product> findById(Long id);
+
+    @Override
+    default List<Product> findAllById(List<Long> ids) {
+        return findAllById((Iterable<Long>) ids);
+    }
+
     @Override Product save(Product product);
 
     /** ACTIVE 상품 목록 — 최신 등록순 */
