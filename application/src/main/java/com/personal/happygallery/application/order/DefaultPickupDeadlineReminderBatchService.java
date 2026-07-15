@@ -13,6 +13,11 @@ import com.personal.happygallery.domain.order.Order;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -52,32 +57,39 @@ public class DefaultPickupDeadlineReminderBatchService implements PickupDeadline
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime twoHoursLater = now.plusHours(2);
         List<Fulfillment> candidates = fulfillmentPort.findPickupsApproachingDeadline(now, twoHoursLater);
+        Map<Long, Order> ordersById = findOrders(candidates);
+        LocalDateTime deduplicationStart = now.minusHours(24);
+        Set<Long> notifiedUserIds = findNotifiedUserIds(ordersById, deduplicationStart, now);
+        Set<Long> notifiedGuestIds = findNotifiedGuestIds(ordersById, deduplicationStart, now);
 
         return BatchExecutor.execute(candidates,
                 Fulfillment::getOrderId,
-                f -> processReminder(f, now),
+                fulfillment -> processReminder(
+                        fulfillment, ordersById, notifiedUserIds, notifiedGuestIds),
                 "픽업 마감 알림");
     }
 
-    private boolean processReminder(Fulfillment fulfillment, LocalDateTime now) {
+    private boolean processReminder(Fulfillment fulfillment,
+                                    Map<Long, Order> ordersById,
+                                    Set<Long> notifiedUserIds,
+                                    Set<Long> notifiedGuestIds) {
         Long orderId = fulfillment.getOrderId();
-        Order order = orderReaderPort.findById(orderId)
-                .orElseThrow(() -> new IllegalStateException("주문 미존재: " + orderId));
+        Order order = ordersById.get(orderId);
+        if (order == null) {
+            throw new IllegalStateException("주문 미존재: " + orderId);
+        }
 
-        LocalDateTime deduplicationStart = now.minusHours(24);
         NotificationEventType eventType = NotificationEventType.PICKUP_DEADLINE_REMINDER;
 
         if (order.getUserId() != null) {
-            if (notificationLogReader.existsSentUserNotification(
-                    order.getUserId(), eventType, deduplicationStart, now)) {
+            if (notifiedUserIds.contains(order.getUserId())) {
                 log.info("픽업 마감 알림 중복 스킵 [orderId={} userId={}]", orderId, order.getUserId());
                 return false;
             }
             eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                     order.getUserId(), eventType, "ORDER", orderId));
         } else if (order.getGuestId() != null) {
-            if (notificationLogReader.existsSentNotification(
-                    order.getGuestId(), eventType, deduplicationStart, now)) {
+            if (notifiedGuestIds.contains(order.getGuestId())) {
                 log.info("픽업 마감 알림 중복 스킵 [orderId={} guestId={}]", orderId, order.getGuestId());
                 return false;
             }
@@ -88,5 +100,47 @@ public class DefaultPickupDeadlineReminderBatchService implements PickupDeadline
             return false;
         }
         return true;
+    }
+
+    private Map<Long, Order> findOrders(List<Fulfillment> candidates) {
+        List<Long> orderIds = candidates.stream()
+                .map(Fulfillment::getOrderId)
+                .distinct()
+                .toList();
+        if (orderIds.isEmpty()) {
+            return Map.of();
+        }
+        return orderReaderPort.findAllById(orderIds).stream()
+                .collect(Collectors.toMap(Order::getId, Function.identity()));
+    }
+
+    private Set<Long> findNotifiedUserIds(Map<Long, Order> ordersById,
+                                          LocalDateTime sentStart,
+                                          LocalDateTime sentEnd) {
+        List<Long> userIds = ordersById.values().stream()
+                .map(Order::getUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (userIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(notificationLogReader.findSentUserIds(
+                userIds, NotificationEventType.PICKUP_DEADLINE_REMINDER, sentStart, sentEnd));
+    }
+
+    private Set<Long> findNotifiedGuestIds(Map<Long, Order> ordersById,
+                                           LocalDateTime sentStart,
+                                           LocalDateTime sentEnd) {
+        List<Long> guestIds = ordersById.values().stream()
+                .map(Order::getGuestId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (guestIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(notificationLogReader.findSentGuestIds(
+                guestIds, NotificationEventType.PICKUP_DEADLINE_REMINDER, sentStart, sentEnd));
     }
 }

@@ -11,6 +11,8 @@ import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -89,15 +91,12 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
         LocalDateTime sentEnd = sentStart.plusDays(1);
         List<PassPurchase> expiring = passPurchaseReader
                 .findByExpiresAtBetweenAndRemainingCreditsGreaterThan(targetStart, targetEnd, 0);
+        Set<Long> notifiedUserIds = findNotifiedUserIds(expiring, sentStart, sentEnd);
 
         return BatchExecutor.execute(expiring,
                 PassPurchase::getId,
                 pass -> {
-                    if (notificationLogReader.existsSentUserNotification(
-                            pass.getUserId(),
-                            NotificationEventType.PASS_EXPIRY_SOON,
-                            sentStart,
-                            sentEnd)) {
+                    if (notifiedUserIds.contains(pass.getUserId())) {
                         return false;
                     }
                     eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
@@ -108,5 +107,20 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
                     return true;
                 },
                 "8회권 만료 알림");
+    }
+
+    private Set<Long> findNotifiedUserIds(List<PassPurchase> expiring,
+                                          LocalDateTime sentStart,
+                                          LocalDateTime sentEnd) {
+        List<Long> userIds = expiring.stream()
+                .map(PassPurchase::getUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (userIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(notificationLogReader.findSentUserIds(
+                userIds, NotificationEventType.PASS_EXPIRY_SOON, sentStart, sentEnd));
     }
 }

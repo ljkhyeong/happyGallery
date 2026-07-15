@@ -11,11 +11,11 @@ import java.util.Optional;
  */
 public interface NotificationLogReaderPort {
 
-    boolean existsSentNotification(Long guestId, NotificationEventType eventType,
-                                   LocalDateTime sentStart, LocalDateTime sentEnd);
+    List<Long> findSentGuestIds(List<Long> guestIds, NotificationEventType eventType,
+                                LocalDateTime sentStart, LocalDateTime sentEnd);
 
-    boolean existsSentUserNotification(Long userId, NotificationEventType eventType,
-                                       LocalDateTime sentStart, LocalDateTime sentEnd);
+    List<Long> findSentUserIds(List<Long> userIds, NotificationEventType eventType,
+                               LocalDateTime sentStart, LocalDateTime sentEnd);
 
     Optional<NotificationLog> findById(Long id);
 

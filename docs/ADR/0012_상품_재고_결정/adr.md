@@ -29,17 +29,21 @@ class Inventory {
 `product_id`가 PK이자 FK인 DDL(V2) 구조를 그대로 반영.
 `@Version`은 잠재적 낙관적 락 전환을 위해 유지.
 
-### 2. 재고 차감 — 비관적 락 (`SELECT ... FOR UPDATE`)
+### 2. 재고 차감·복구 — productId 정렬 일괄 비관적 락
 
 ```java
 // InventoryRepository
 @Lock(PESSIMISTIC_WRITE)
-@Query("SELECT i FROM Inventory i WHERE i.productId = :productId")
-Optional<Inventory> findByProductIdWithLock(Long productId);
+@Query("SELECT i FROM Inventory i WHERE i.productId IN :productIds ORDER BY i.productId")
+List<Inventory> findByProductIdInWithLock(List<Long> productIds);
 ```
 
 단일 작품 특성상 경합이 드물지만, 중복 판매 비용이 크므로 비관적 락 선택.
 `SlotRepository.findByIdWithLock()` 패턴 재사용.
+
+한 주문에 여러 상품이 있으면 `InventoryService`가 중복 productId의 수량을 합산하고 productId 오름차순으로
+모든 재고 row를 한 번에 잠근다. 상품별 잠금 조회 N회를 한 번의 `IN` 조회로 줄이면서 주문 간 잠금 순서를
+고정해 교착 가능성도 낮춘다. 주문 거절·자동환불의 재고 복구도 같은 일괄 잠금 경로를 사용한다.
 
 ### 3. 정책 검증 — 기존 `InventoryPolicy` 재사용
 
@@ -73,7 +77,6 @@ Optional<Inventory> findByProductIdWithLock(Long productId);
 ## 위험 포인트
 
 - **목록 조회 N+1 위험**: 상품 목록은 재고를 `IN`으로 일괄 조회하고, 장바구니는 projection JOIN을 사용한다. 신규 목록 조회도 항목별 개별 조회를 만들지 않는다.
-- **비관적 락 데드락**: 여러 상품을 순서 없이 잠글 경우 데드락 가능.
-  → §8.2 주문 생성 시 product_id 오름차순 정렬 후 lock 획득 권장.
+- **비관적 락 데드락**: 여러 상품은 product_id 오름차순으로 한 번에 잠근다. 신규 다건 재고 변경도 `InventoryService.deductAll/restoreAll`을 사용한다.
 - **`restore()` 멱등성**: 환불 재시도 시 중복 복구 가능.
   → §8.2 환불 흐름에서 refund 상태 전이로 방어 필요.

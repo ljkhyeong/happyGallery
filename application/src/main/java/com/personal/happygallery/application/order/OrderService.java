@@ -3,6 +3,7 @@ package com.personal.happygallery.application.order;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.product.InventoryService;
+import com.personal.happygallery.application.product.InventoryService.InventoryAdjustment;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
@@ -69,10 +70,7 @@ public class OrderService {
         Order order = orderStore.save(
                 Order.forGuest(guestId, tokenHash, totalAmount, paidAt, paidAt.plusHours(24)));
 
-        for (OrderItemRequest item : items) {
-            orderItemPort.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
-            inventoryService.deduct(item.productId(), item.qty());
-        }
+        saveItemsAndDeductInventory(order, items);
 
         eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
                 guestId,
@@ -93,12 +91,17 @@ public class OrderService {
         Order order = orderStore.save(
                 Order.forMember(userId, totalAmount, paidAt, paidAt.plusHours(24)));
 
-        for (OrderItemRequest item : items) {
-            orderItemPort.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
-            inventoryService.deduct(item.productId(), item.qty());
-        }
+        saveItemsAndDeductInventory(order, items);
 
         return order;
+    }
+
+    private void saveItemsAndDeductInventory(Order order, List<OrderItemRequest> items) {
+        inventoryService.deductAll(items.stream()
+                .map(item -> new InventoryAdjustment(item.productId(), item.qty()))
+                .toList());
+        items.forEach(item -> orderItemPort.save(
+                new OrderItem(order, item.productId(), item.qty(), item.unitPrice())));
     }
 
     public record OrderItemRequest(Long productId, int qty, long unitPrice) {}

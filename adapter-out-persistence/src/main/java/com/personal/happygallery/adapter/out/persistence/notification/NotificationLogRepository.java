@@ -17,22 +17,36 @@ import org.springframework.data.repository.query.Param;
 public interface NotificationLogRepository extends JpaRepository<NotificationLog, Long>,
         NotificationLogReaderPort, NotificationLogStorePort {
 
-    String SUCCESS_STATUS = "SUCCESS";
-
     @Override NotificationLog save(NotificationLog log);
     @Override Optional<NotificationLog> findById(Long id);
 
-    boolean existsByGuestIdAndEventTypeAndStatusAndSentAtBetween(Long guestId,
-                                                                 NotificationEventType eventType,
-                                                                 String status,
-                                                                 LocalDateTime start,
-                                                                 LocalDateTime end);
+    @Override
+    @Query("""
+            SELECT DISTINCT n.guestId
+            FROM NotificationLog n
+            WHERE n.guestId IN :guestIds
+              AND n.eventType = :eventType
+              AND n.status = 'SUCCESS'
+              AND n.sentAt BETWEEN :sentStart AND :sentEnd
+            """)
+    List<Long> findSentGuestIds(@Param("guestIds") List<Long> guestIds,
+                                @Param("eventType") NotificationEventType eventType,
+                                @Param("sentStart") LocalDateTime sentStart,
+                                @Param("sentEnd") LocalDateTime sentEnd);
 
-    boolean existsByUserIdAndEventTypeAndStatusAndSentAtBetween(Long userId,
-                                                                NotificationEventType eventType,
-                                                                String status,
-                                                                LocalDateTime start,
-                                                                LocalDateTime end);
+    @Override
+    @Query("""
+            SELECT DISTINCT n.userId
+            FROM NotificationLog n
+            WHERE n.userId IN :userIds
+              AND n.eventType = :eventType
+              AND n.status = 'SUCCESS'
+              AND n.sentAt BETWEEN :sentStart AND :sentEnd
+            """)
+    List<Long> findSentUserIds(@Param("userIds") List<Long> userIds,
+                               @Param("eventType") NotificationEventType eventType,
+                               @Param("sentStart") LocalDateTime sentStart,
+                               @Param("sentEnd") LocalDateTime sentEnd);
 
     @Query("SELECT n FROM NotificationLog n WHERE n.userId = :userId ORDER BY n.sentAt DESC")
     List<NotificationLog> findByUserIdOrderBySentAtDesc(@Param("userId") Long userId, Pageable pageable);
@@ -51,20 +65,6 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
     @Modifying
     @Query("UPDATE NotificationLog n SET n.readAt = :readAt WHERE n.guestId = :guestId AND n.readAt IS NULL")
     void markAllReadByGuestId(@Param("guestId") Long guestId, @Param("readAt") LocalDateTime readAt);
-
-    @Override
-    default boolean existsSentNotification(Long guestId, NotificationEventType eventType,
-                                           LocalDateTime sentStart, LocalDateTime sentEnd) {
-        return existsByGuestIdAndEventTypeAndStatusAndSentAtBetween(
-                guestId, eventType, SUCCESS_STATUS, sentStart, sentEnd);
-    }
-
-    @Override
-    default boolean existsSentUserNotification(Long userId, NotificationEventType eventType,
-                                               LocalDateTime sentStart, LocalDateTime sentEnd) {
-        return existsByUserIdAndEventTypeAndStatusAndSentAtBetween(
-                userId, eventType, SUCCESS_STATUS, sentStart, sentEnd);
-    }
 
     @Override
     default List<NotificationLog> findByUserIdOrderBySentAtDesc(Long userId, int limit, int offset) {

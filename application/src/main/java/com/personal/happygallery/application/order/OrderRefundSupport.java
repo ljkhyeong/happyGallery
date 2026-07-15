@@ -3,6 +3,7 @@ package com.personal.happygallery.application.order;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.product.InventoryService;
+import com.personal.happygallery.application.product.InventoryService.InventoryAdjustment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import java.util.List;
@@ -38,9 +39,9 @@ class OrderRefundSupport {
     @Transactional(propagation = Propagation.MANDATORY)
     void refundOrder(Order order) {
         List<OrderItem> items = orderItemPort.findByOrder(order);
-        for (OrderItem item : items) {
-            inventoryService.restore(item.getProductId(), item.getQty());
-        }
+        inventoryService.restoreAll(items.stream()
+                .map(item -> new InventoryAdjustment(item.getProductId(), item.getQty()))
+                .toList());
 
         refundExecutionService.requestOrderRefund(order.getId(), order.getTotalAmount(), order.getPaymentKey());
     }

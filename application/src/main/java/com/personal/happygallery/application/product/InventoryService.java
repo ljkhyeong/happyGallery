@@ -4,6 +4,12 @@ import com.personal.happygallery.application.product.port.out.InventoryStorePort
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,10 +50,12 @@ public class InventoryService {
      * @return 차감 후 재고
      */
     public Inventory deduct(Long productId, int qty) {
-        Inventory inventory = inventoryStorePort.findByProductIdWithLock(productId)
-                .orElseThrow(NotFoundException.supplier("재고"));
-        inventory.deduct(qty);
-        return inventoryStorePort.save(inventory);
+        return deductAll(List.of(new InventoryAdjustment(productId, qty))).getFirst();
+    }
+
+    /** 여러 상품 재고를 productId 순서로 한 번에 잠근 뒤 차감한다. */
+    public List<Inventory> deductAll(List<InventoryAdjustment> adjustments) {
+        return updateAll(adjustments, Inventory::deduct);
     }
 
     /**
@@ -58,9 +66,44 @@ public class InventoryService {
      * @return 복구 후 재고
      */
     public Inventory restore(Long productId, int qty) {
-        Inventory inventory = inventoryStorePort.findByProductIdWithLock(productId)
-                .orElseThrow(NotFoundException.supplier("재고"));
-        inventory.restore(qty);
-        return inventoryStorePort.save(inventory);
+        return restoreAll(List.of(new InventoryAdjustment(productId, qty))).getFirst();
     }
+
+    /** 여러 상품 재고를 productId 순서로 한 번에 잠근 뒤 복구한다. */
+    public List<Inventory> restoreAll(List<InventoryAdjustment> adjustments) {
+        return updateAll(adjustments, Inventory::restore);
+    }
+
+    private List<Inventory> updateAll(List<InventoryAdjustment> adjustments,
+                                      BiConsumer<Inventory, Integer> update) {
+        if (adjustments.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Integer> quantitiesByProductId = new TreeMap<>();
+        for (InventoryAdjustment adjustment : adjustments) {
+            quantitiesByProductId.merge(
+                    adjustment.productId(), adjustment.qty(),
+                    (current, added) -> Math.addExact(current, added));
+        }
+
+        List<Inventory> inventories = inventoryStorePort.findByProductIdInWithLock(
+                List.copyOf(quantitiesByProductId.keySet()));
+        Map<Long, Inventory> inventoriesByProductId = inventories.stream()
+                .collect(Collectors.toMap(Inventory::getProductId, Function.identity()));
+
+        quantitiesByProductId.forEach((productId, qty) -> {
+            Inventory inventory = inventoriesByProductId.get(productId);
+            if (inventory == null) {
+                throw new NotFoundException("재고");
+            }
+            update.accept(inventory, qty);
+        });
+
+        return inventories.stream()
+                .map(inventoryStorePort::save)
+                .toList();
+    }
+
+    public record InventoryAdjustment(Long productId, int qty) {}
 }

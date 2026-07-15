@@ -82,7 +82,7 @@
 
 **구현 메모**:
 - 대상 범위: `[targetStart, targetEnd)` where `targetStart = today+7d 00:00`
-- 중복 방지: `notification_log`에서 같은 guest/event/success/sentAt day 범위 조회
+- 중복 방지: 대상 userId 목록을 한 번의 `IN` 조회로 확인해 `notification_log`의 같은 user/event/success/sentAt day 범위를 검사한다.
 
 ---
 
