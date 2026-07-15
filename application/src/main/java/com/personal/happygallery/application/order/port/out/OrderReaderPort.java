@@ -9,7 +9,6 @@ import org.springframework.data.domain.Pageable;
 
 public interface OrderReaderPort {
     Optional<Order> findById(Long id);
-    List<Order> findAllById(List<Long> ids);
     List<Order> findByStatusAndApprovalDeadlineAtBefore(OrderStatus status, LocalDateTime deadline);
     List<Order> findByStatusAndApprovalDeadlineAtBefore(OrderStatus status, LocalDateTime deadline, Pageable pageable);
     List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);

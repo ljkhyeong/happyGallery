@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.order;
 
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
+import com.personal.happygallery.application.order.port.out.PickupReminderTarget;
 import com.personal.happygallery.domain.order.Fulfillment;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,10 +29,15 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>,
             + "AND f.pickupDeadlineAt < :now")
     List<Fulfillment> findExpiredPickups(@Param("now") LocalDateTime now, Pageable pageable);
 
-    /** 픽업 마감 임박 알림용 조회: Order.status=PICKUP_READY AND pickupDeadlineAt BETWEEN from AND to */
-    @Query("SELECT f FROM Fulfillment f JOIN Order o ON f.orderId = o.id "
-            + "WHERE o.status = 'PICKUP_READY' "
-            + "AND f.pickupDeadlineAt BETWEEN :from AND :to")
-    List<Fulfillment> findPickupsApproachingDeadline(@Param("from") LocalDateTime from,
-                                                     @Param("to") LocalDateTime to);
+    /** 픽업 마감 임박 알림 대상과 주문 수신자를 한 번에 조회한다. */
+    @Query("""
+            SELECT new com.personal.happygallery.application.order.port.out.PickupReminderTarget(
+                f.orderId, o.userId, o.guestId)
+            FROM Fulfillment f
+            JOIN Order o ON f.orderId = o.id
+            WHERE o.status = 'PICKUP_READY'
+              AND f.pickupDeadlineAt BETWEEN :from AND :to
+            """)
+    List<PickupReminderTarget> findPickupReminderTargets(@Param("from") LocalDateTime from,
+                                                         @Param("to") LocalDateTime to);
 }

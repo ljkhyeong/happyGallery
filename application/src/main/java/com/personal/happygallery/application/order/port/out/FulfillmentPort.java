@@ -12,5 +12,5 @@ public interface FulfillmentPort {
     List<Fulfillment> findAll();
     List<Fulfillment> findExpiredPickups(LocalDateTime now);
     List<Fulfillment> findExpiredPickups(LocalDateTime now, Pageable pageable);
-    List<Fulfillment> findPickupsApproachingDeadline(LocalDateTime from, LocalDateTime to);
+    List<PickupReminderTarget> findPickupReminderTargets(LocalDateTime from, LocalDateTime to);
 }

@@ -7,7 +7,6 @@ import com.personal.happygallery.application.order.OrderService.OrderItemRequest
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -39,17 +38,9 @@ public class OrderFulfiller implements PaymentFulfiller {
 
     @Override
     public void validate(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth) {
-        if (payload instanceof OrderPayload) {
+        if (!(payload instanceof PreparedOrderPayload op)) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "주문 단가 정보가 없습니다. 결제를 다시 준비해 주세요.");
-        }
-        if (!(payload instanceof PreparedOrderPayload op)) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 결제 payload가 아닙니다.");
-        }
-        if (op.items() == null || op.items().isEmpty()
-                || op.items().stream().anyMatch(item -> item == null
-                        || item.productId() == null || item.qty() <= 0 || item.unitPrice() < 0)) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 주문 항목이 올바르지 않습니다.");
         }
         long preparedAmount = op.items().stream()
                 .mapToLong(item -> (long) item.qty() * item.unitPrice())

@@ -8,8 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -84,21 +82,16 @@ public class InventoryService {
         for (InventoryAdjustment adjustment : adjustments) {
             quantitiesByProductId.merge(
                     adjustment.productId(), adjustment.qty(),
-                    (current, added) -> Math.addExact(current, added));
+                    Integer::sum);
         }
 
         List<Inventory> inventories = inventoryStorePort.findByProductIdInWithLock(
                 List.copyOf(quantitiesByProductId.keySet()));
-        Map<Long, Inventory> inventoriesByProductId = inventories.stream()
-                .collect(Collectors.toMap(Inventory::getProductId, Function.identity()));
-
-        quantitiesByProductId.forEach((productId, qty) -> {
-            Inventory inventory = inventoriesByProductId.get(productId);
-            if (inventory == null) {
-                throw new NotFoundException("재고");
-            }
-            update.accept(inventory, qty);
-        });
+        if (inventories.size() != quantitiesByProductId.size()) {
+            throw new NotFoundException("재고");
+        }
+        inventories.forEach(inventory ->
+                update.accept(inventory, quantitiesByProductId.get(inventory.getProductId())));
 
         return inventories.stream()
                 .map(inventoryStorePort::save)

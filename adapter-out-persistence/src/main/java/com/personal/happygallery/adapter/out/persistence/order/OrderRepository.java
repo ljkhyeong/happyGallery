@@ -16,11 +16,6 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
 
     @Override Optional<Order> findById(Long id);
 
-    @Override
-    default List<Order> findAllById(List<Long> ids) {
-        return findAllById((Iterable<Long>) ids);
-    }
-
     @Override Order save(Order order);
     @Override Order saveAndFlush(Order order);
 

@@ -5,19 +5,14 @@ import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.notification.port.out.NotificationLogReaderPort;
 import com.personal.happygallery.application.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
-import com.personal.happygallery.application.order.port.out.OrderReaderPort;
+import com.personal.happygallery.application.order.port.out.PickupReminderTarget;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
-import com.personal.happygallery.domain.order.Fulfillment;
-import com.personal.happygallery.domain.order.Order;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -35,18 +30,15 @@ public class DefaultPickupDeadlineReminderBatchService implements PickupDeadline
     private static final Logger log = LoggerFactory.getLogger(DefaultPickupDeadlineReminderBatchService.class);
 
     private final FulfillmentPort fulfillmentPort;
-    private final OrderReaderPort orderReaderPort;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationLogReaderPort notificationLogReader;
     private final Clock clock;
 
     public DefaultPickupDeadlineReminderBatchService(FulfillmentPort fulfillmentPort,
-                                                      OrderReaderPort orderReaderPort,
                                                       ApplicationEventPublisher eventPublisher,
                                                       NotificationLogReaderPort notificationLogReader,
                                                       Clock clock) {
         this.fulfillmentPort = fulfillmentPort;
-        this.orderReaderPort = orderReaderPort;
         this.eventPublisher = eventPublisher;
         this.notificationLogReader = notificationLogReader;
         this.clock = clock;
@@ -56,45 +48,37 @@ public class DefaultPickupDeadlineReminderBatchService implements PickupDeadline
     public BatchResult sendPickupDeadlineReminders() {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime twoHoursLater = now.plusHours(2);
-        List<Fulfillment> candidates = fulfillmentPort.findPickupsApproachingDeadline(now, twoHoursLater);
-        Map<Long, Order> ordersById = findOrders(candidates);
+        List<PickupReminderTarget> candidates = fulfillmentPort.findPickupReminderTargets(now, twoHoursLater);
         LocalDateTime deduplicationStart = now.minusHours(24);
-        Set<Long> notifiedUserIds = findNotifiedUserIds(ordersById, deduplicationStart, now);
-        Set<Long> notifiedGuestIds = findNotifiedGuestIds(ordersById, deduplicationStart, now);
+        Set<Long> notifiedUserIds = findNotifiedUserIds(candidates, deduplicationStart, now);
+        Set<Long> notifiedGuestIds = findNotifiedGuestIds(candidates, deduplicationStart, now);
 
         return BatchExecutor.execute(candidates,
-                Fulfillment::getOrderId,
-                fulfillment -> processReminder(
-                        fulfillment, ordersById, notifiedUserIds, notifiedGuestIds),
+                PickupReminderTarget::orderId,
+                target -> processReminder(target, notifiedUserIds, notifiedGuestIds),
                 "픽업 마감 알림");
     }
 
-    private boolean processReminder(Fulfillment fulfillment,
-                                    Map<Long, Order> ordersById,
+    private boolean processReminder(PickupReminderTarget target,
                                     Set<Long> notifiedUserIds,
                                     Set<Long> notifiedGuestIds) {
-        Long orderId = fulfillment.getOrderId();
-        Order order = ordersById.get(orderId);
-        if (order == null) {
-            throw new IllegalStateException("주문 미존재: " + orderId);
-        }
-
+        Long orderId = target.orderId();
         NotificationEventType eventType = NotificationEventType.PICKUP_DEADLINE_REMINDER;
 
-        if (order.getUserId() != null) {
-            if (notifiedUserIds.contains(order.getUserId())) {
-                log.info("픽업 마감 알림 중복 스킵 [orderId={} userId={}]", orderId, order.getUserId());
+        if (target.userId() != null) {
+            if (notifiedUserIds.contains(target.userId())) {
+                log.info("픽업 마감 알림 중복 스킵 [orderId={} userId={}]", orderId, target.userId());
                 return false;
             }
             eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                    order.getUserId(), eventType, "ORDER", orderId));
-        } else if (order.getGuestId() != null) {
-            if (notifiedGuestIds.contains(order.getGuestId())) {
-                log.info("픽업 마감 알림 중복 스킵 [orderId={} guestId={}]", orderId, order.getGuestId());
+                    target.userId(), eventType, "ORDER", orderId));
+        } else if (target.guestId() != null) {
+            if (notifiedGuestIds.contains(target.guestId())) {
+                log.info("픽업 마감 알림 중복 스킵 [orderId={} guestId={}]", orderId, target.guestId());
                 return false;
             }
             eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
-                    order.getGuestId(), eventType, "ORDER", orderId));
+                    target.guestId(), eventType, "ORDER", orderId));
         } else {
             log.warn("픽업 마감 알림 대상 없음 [orderId={}]", orderId);
             return false;
@@ -102,23 +86,11 @@ public class DefaultPickupDeadlineReminderBatchService implements PickupDeadline
         return true;
     }
 
-    private Map<Long, Order> findOrders(List<Fulfillment> candidates) {
-        List<Long> orderIds = candidates.stream()
-                .map(Fulfillment::getOrderId)
-                .distinct()
-                .toList();
-        if (orderIds.isEmpty()) {
-            return Map.of();
-        }
-        return orderReaderPort.findAllById(orderIds).stream()
-                .collect(Collectors.toMap(Order::getId, Function.identity()));
-    }
-
-    private Set<Long> findNotifiedUserIds(Map<Long, Order> ordersById,
+    private Set<Long> findNotifiedUserIds(List<PickupReminderTarget> candidates,
                                           LocalDateTime sentStart,
                                           LocalDateTime sentEnd) {
-        List<Long> userIds = ordersById.values().stream()
-                .map(Order::getUserId)
+        List<Long> userIds = candidates.stream()
+                .map(PickupReminderTarget::userId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
@@ -129,11 +101,11 @@ public class DefaultPickupDeadlineReminderBatchService implements PickupDeadline
                 userIds, NotificationEventType.PICKUP_DEADLINE_REMINDER, sentStart, sentEnd));
     }
 
-    private Set<Long> findNotifiedGuestIds(Map<Long, Order> ordersById,
+    private Set<Long> findNotifiedGuestIds(List<PickupReminderTarget> candidates,
                                            LocalDateTime sentStart,
                                            LocalDateTime sentEnd) {
-        List<Long> guestIds = ordersById.values().stream()
-                .map(Order::getGuestId)
+        List<Long> guestIds = candidates.stream()
+                .map(PickupReminderTarget::guestId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
