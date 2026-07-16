@@ -52,6 +52,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -117,6 +118,31 @@ class PaymentConfirmUseCaseIT {
         });
         verify(paymentProvider).confirm(
                 "payment-key-confirm", prepared.orderId(), prepared.amount(), prepared.orderId());
+    }
+
+    @DisplayName("confirm은 결제를 준비한 회원과 다른 회원이면 PG 호출 전에 거부한다")
+    @Test
+    void confirm_differentMember_rejectsBeforePgCall() {
+        User owner = userStorePort.save(
+                new User("payment-owner@example.com", "hashed", "준비 회원", "01011110000"));
+        User other = userStorePort.save(
+                new User("payment-other@example.com", "hashed", "다른 회원", "01022220000"));
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.PASS,
+                new PassPayload(owner.getId()),
+                AuthContext.member(owner.getId())));
+
+        assertThatThrownBy(() -> confirmUseCase.confirm(new ConfirmCommand(
+                "payment-key-other", prepared.orderId(), prepared.amount(), AuthContext.member(other.getId()))))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertSoftly(softly -> {
+                            softly.assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+                            softly.assertThat(exception.getMessage()).contains("현재 인증 정보");
+                        }));
+
+        assertThat(attemptReader.findByOrderIdExternal(prepared.orderId()))
+                .hasValueSatisfying(attempt -> assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PENDING));
+        verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
     }
 
     @DisplayName("confirm은 prepare 금액과 다른 금액이면 도메인 저장 전에 거부한다")

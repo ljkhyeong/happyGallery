@@ -5,7 +5,6 @@ import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase.GuestBookingResult;
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
-import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.domain.booking.Booking;
@@ -35,35 +34,23 @@ public class BookingFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    public void validate(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth) {
+    public void validateBeforePg(PaymentAttempt attempt, PaymentPayload payload) {
         if (!(payload instanceof BookingPayload bp)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "예약 결제 payload가 아닙니다.");
         }
-        if (bp.passId() != null) {
-            if (!auth.isMember() || bp.userId() == null || !bp.userId().equals(auth.userId())) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 사용 예약은 회원 인증이 필요합니다.");
-            }
-            return;
-        }
-        if (auth.isMember()) {
-            if (bp.userId() == null || !bp.userId().equals(auth.userId())) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "회원 정보가 인증과 일치하지 않습니다.");
-            }
-            return;
-        }
-        if (bp.phone() == null || bp.verificationCode() == null || bp.name() == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비회원 예약은 휴대폰 인증이 필요합니다.");
+        if (bp.passId() != null && bp.userId() == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 사용 예약은 회원 인증이 필요합니다.");
         }
     }
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String paymentKey) {
+    public FulfillResult fulfill(PaymentPayload payload, String paymentKey) {
         BookingPayload bp = (BookingPayload) payload;
 
-        if (auth.isMember()) {
+        if (bp.userId() != null) {
             Booking booking = memberBookingUseCase.createMemberBooking(
-                    auth.userId(), bp.slotId(), bp.paymentMethod(), bp.passId());
+                    bp.userId(), bp.slotId(), bp.paymentMethod(), bp.passId());
             booking.recordPaymentKey(paymentKey);
             return new FulfillResult(booking.getId(), null);
         }

@@ -188,7 +188,7 @@ class RefundTransactionService {
                         NotificationEventType.DEPOSIT_REFUNDED,
                         "REFUND",
                         refund.getId()));
-            } else if (booking.getGuest() != null) {
+            } else {
                 Guest guest = booking.getGuest();
                 eventPublisher.publishEvent(NotificationRequestedEvent.forGuestWithContact(
                         guest.getId(),
@@ -209,7 +209,7 @@ class RefundTransactionService {
                         NotificationEventType.ORDER_REFUNDED,
                         "REFUND",
                         refund.getId()));
-            } else if (order.getGuestId() != null) {
+            } else {
                 eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
                         order.getGuestId(),
                         NotificationEventType.ORDER_REFUNDED,

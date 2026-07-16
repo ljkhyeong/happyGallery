@@ -5,7 +5,6 @@ import com.personal.happygallery.application.order.OrderService;
 import com.personal.happygallery.application.order.OrderService.OrderCreationResult;
 import com.personal.happygallery.application.order.OrderService.OrderItemRequest;
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
-import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.domain.booking.Guest;
@@ -37,7 +36,7 @@ public class OrderFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    public void validate(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth) {
+    public void validateBeforePg(PaymentAttempt attempt, PaymentPayload payload) {
         if (!(payload instanceof PreparedOrderPayload op)) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "주문 단가 정보가 없습니다. 결제를 다시 준비해 주세요.");
@@ -48,27 +47,18 @@ public class OrderFulfiller implements PaymentFulfiller {
         if (preparedAmount != attempt.getAmount()) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 주문 금액이 결제 금액과 일치하지 않습니다.");
         }
-        if (auth.isMember()) {
-            if (op.userId() == null || !op.userId().equals(auth.userId())) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "회원 정보가 인증과 일치하지 않습니다.");
-            }
-            return;
-        }
-        if (op.phone() == null || op.verificationCode() == null || op.name() == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비회원 주문은 휴대폰 인증이 필요합니다.");
-        }
     }
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String paymentKey) {
+    public FulfillResult fulfill(PaymentPayload payload, String paymentKey) {
         PreparedOrderPayload op = (PreparedOrderPayload) payload;
         List<OrderItemRequest> orderItems = op.items().stream()
                 .map(item -> new OrderItemRequest(item.productId(), item.qty(), item.unitPrice()))
                 .toList();
 
-        if (auth.isMember()) {
-            Order order = orderService.createMemberOrder(auth.userId(), orderItems);
+        if (op.userId() != null) {
+            Order order = orderService.createMemberOrder(op.userId(), orderItems);
             order.recordPaymentKey(paymentKey);
             return new FulfillResult(order.getId(), null);
         }

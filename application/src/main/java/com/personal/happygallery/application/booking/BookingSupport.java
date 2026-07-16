@@ -62,7 +62,7 @@ class BookingSupport {
     void notifyBooker(Booking booking, NotificationEventType eventType) {
         if (booking.getUserId() != null) {
             eventPublisher.publishEvent(bookerEventForUser(booking, eventType));
-        } else if (booking.getGuest() != null) {
+        } else {
             eventPublisher.publishEvent(bookerEventForGuest(booking, eventType));
         }
     }

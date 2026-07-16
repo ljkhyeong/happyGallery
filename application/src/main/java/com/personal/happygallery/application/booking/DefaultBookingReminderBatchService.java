@@ -78,13 +78,11 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
                     booking.getUserId(), eventType, "BOOKING", booking.getId()));
             log.info("리마인드 발송 [bookingId={}, userId={}, type={}]",
                     booking.getId(), booking.getUserId(), eventType);
-        } else if (booking.getGuest() != null) {
+        } else {
             eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
                     booking.getGuest().getId(), eventType, "BOOKING", booking.getId()));
             log.info("리마인드 발송 [bookingId={}, guestId={}, type={}]",
                     booking.getId(), booking.getGuest().getId(), eventType);
-        } else {
-            log.warn("리마인드 발송 불가 — guest/userId 모두 없음 [bookingId={}]", booking.getId());
         }
     }
 }

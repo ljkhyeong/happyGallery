@@ -63,7 +63,9 @@ class PaymentConfirmTransactionService {
                 .orElseThrow(() -> new NotFoundException("결제 시도"));
         String paymentKey = normalize(command.paymentKey());
         PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
-        fulfiller.validate(attempt, deserialize(attempt.getPayloadJson()), command.auth());
+        PaymentPayload payload = deserialize(attempt.getPayloadJson());
+        fulfiller.validateBeforePg(attempt, payload);
+        requireSameActor(payload, command.auth());
 
         LocalDateTime now = LocalDateTime.now(clock);
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED) {
@@ -108,7 +110,7 @@ class PaymentConfirmTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ConfirmResult fulfillAndConfirm(Long attemptId, AuthContext auth) {
+    public ConfirmResult fulfillAndConfirm(Long attemptId) {
         PaymentAttempt attempt = findForUpdate(attemptId);
         if (attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
@@ -116,8 +118,7 @@ class PaymentConfirmTransactionService {
         }
         PaymentPayload payload = deserialize(attempt.getPayloadJson());
         PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
-        PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(
-                attempt, payload, auth, attempt.getPgRef());
+        PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(payload, attempt.getPgRef());
         attempt.markConfirmed();
         attemptStore.save(attempt);
         return new ConfirmResult(attempt.getContext(), fulfilled.domainId(), fulfilled.rawAccessToken());
@@ -159,6 +160,13 @@ class PaymentConfirmTransactionService {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지원하지 않는 결제 컨텍스트입니다.");
         }
         return fulfiller;
+    }
+
+    private void requireSameActor(PaymentPayload payload, AuthContext auth) {
+        if (!Objects.equals(payload.userId(), auth.userId())) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "결제를 준비한 사용자와 현재 인증 정보가 일치하지 않습니다.");
+        }
     }
 
     private PaymentPayload deserialize(String json) {

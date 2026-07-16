@@ -52,7 +52,7 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
         }
 
         try {
-            return transactionService.fulfillAndConfirm(claimed.id(), command.auth());
+            return transactionService.fulfillAndConfirm(claimed.id());
         } catch (RuntimeException fulfillmentFailure) {
             if (claimed.amount() > 0) {
                 compensateAfterApproval(claimed, confirmedPaymentKey, fulfillmentFailure);

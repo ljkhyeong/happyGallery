@@ -104,7 +104,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
                 .collect(Collectors.toMap(Order::getId, Function.identity()));
         for (Long orderId : orderIds) {
             Order order = orderMap.get(orderId);
-            if (order == null || !Objects.equals(order.getGuestId(), guestId) || order.getUserId() != null) {
+            if (order == null || !Objects.equals(order.getGuestId(), guestId)) {
                 throw new NotFoundException("claim 주문");
             }
             order.claimToUser(userId);
@@ -118,8 +118,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         for (Long bookingId : bookingIds) {
             Booking booking = bookingMap.get(bookingId);
             if (booking == null || booking.getGuest() == null
-                    || !Objects.equals(booking.getGuest().getId(), guestId)
-                    || booking.getUserId() != null) {
+                    || !Objects.equals(booking.getGuest().getId(), guestId)) {
                 throw new NotFoundException("claim 예약");
             }
             booking.claimToUser(userId);

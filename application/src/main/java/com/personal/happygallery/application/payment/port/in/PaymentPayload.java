@@ -21,6 +21,9 @@ import java.util.List;
 })
 public sealed interface PaymentPayload {
 
+    /** prepare 당시 결제 주체. 비회원이면 null이다. */
+    Long userId();
+
     /**
      * 주문 결제 payload.
      *
