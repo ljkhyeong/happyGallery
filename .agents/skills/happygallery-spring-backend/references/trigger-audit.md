@@ -23,4 +23,4 @@ Goal: keep each happyGallery skill narrow enough that a typical request has an o
 - `booking`에서 `pass` 관련 키워드를 제거해 `pass` 전용 skill이 먼저 트리거되게 했다.
 - `order`에서 `payment refund` 표현을 `refund execution`으로 좁혀 payment skill과의 직접 충돌을 줄였다.
 - `spring-backend`는 fallback 역할만 하도록 "several modules", "broad repository review", "shared Gradle or module structure" 같은 범용 표현 위주로 유지했다.
-- `admin`은 운영자 backend endpoint, filter, auth, and `X-Admin-Id` 같은 표현에 집중시키고, frontend admin page work는 `happygallery-frontend-flows`로 분리했다.
+- `admin`은 운영자 backend endpoint, Bearer session, `AdminPrincipal`, `X-Admin-Key` fallback 같은 표현에 집중시키고, frontend admin page work는 `happygallery-frontend-flows`로 분리했다.

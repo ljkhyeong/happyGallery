@@ -71,8 +71,8 @@ PAID_APPROVAL_PENDING  (approval_deadline_at = paidAt + 24h)
 ### 7. 주문 처리 이력에 관리자 식별자 기록
 
 관리자 승인/거절, 제작, 픽업, 배송 이력은 `order_approvals.decided_by_admin_id`를 함께 저장한다.
-`AdminAuthFilter`가 Bearer 세션에서 검증한 `adminUserId`를 request attribute로 전달하고,
-주문 컨트롤러는 이 값을 이력에 기록한다.
+`AdminAuthenticationFilter`가 Bearer 세션을 검증해 `AdminPrincipal`과 `SecurityContext`를 구성하고,
+주문 컨트롤러는 `@AuthenticationPrincipal AdminPrincipal`에서 꺼낸 `adminUserId`를 이력에 기록한다.
 API Key 폴백 경로와 배치 자동환불(`AUTO_REFUND`), 픽업 만료(`PICKUP_EXPIRED`)는 null 이력을 허용한다.
 
 ### 8. 픽업 마감 알림의 연관 데이터는 일괄 조회한다

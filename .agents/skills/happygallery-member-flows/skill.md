@@ -2,7 +2,7 @@
 name: happygallery-member-flows
 description: >
   Repository-specific workflow for the member-only `/api/v1/me/**` API surface in the happyGallery app
-  (both backend and frontend). Use this skill whenever the request involves: CustomerAuthFilter,
+  (both backend and frontend). Use this skill whenever the request involves: CustomerAuthenticationFilter,
   Me*Controller (MeBookingController, MeOrderController, MePassController, MeCartController,
   MeGuestClaimController, MeInquiryController, MeNotificationController, MeProductQnaController),
   guest-to-member claim mechanics (GuestClaimUseCase, MeGuestClaimController), member booking creation
@@ -11,7 +11,7 @@ description: >
   skill when someone says "게스트 예약을 회원으로 옮기고 싶어요" / "마이페이지에서 이용권을 못 찾겠어요" /
   "회원 인증 필터가 어떻게 동작해요?". Always use this skill when the request touches `/api/v1/me/**`
   or the member authentication boundary — do not split across booking, order, or pass skills when the
-  entry point is the member /me API. For signup, login, Google OAuth, or phone ownership verification
+  entry point is the member /me API. For signup, login, social OAuth, or phone ownership verification
   itself, use `happygallery-identity-flows` instead.
 ---
 
@@ -20,14 +20,14 @@ description: >
 ## Core references
 
 - `docs/PRD/0001_기준_스펙/spec.md` — 회원 API 계약, 인증 흐름, 게스트 클레임 정책
-- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/CustomerAuthFilter.java` — 회원 인증 필터
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/customer/CustomerAuthenticationFilter.java` — 회원 인증 필터
 - `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/customer/` — Me*Controller 군 + GuestClaim 컨트롤러
 - `application/src/main/java/com/personal/happygallery/application/customer/` — 회원/클레임 use case + port
 
 ## Scope vs `happygallery-identity-flows`
 
 - 이 스킬: `/api/v1/me/**` 진입점, 인증 필터 뒤의 회원 전용 API 계약, 게스트→회원 claim 메커니즘 (이미 인증된 신원 기준).
-- `happygallery-identity-flows`: 회원가입·로그인·Google OAuth·휴대폰 소유 검증 자체 (신원 형성 단계).
+- `happygallery-identity-flows`: 회원가입·로그인·Google/Naver OAuth·휴대폰 소유 검증 자체 (신원 형성 단계).
 - SMS 발송 기반 변경은 `happygallery-notification-flows`. 단, 휴대폰 소유 규칙은 identity-flows 쪽이다.
 
 ## Architecture overview
@@ -54,7 +54,7 @@ CustomerAuthenticationFilter → Me*Controller (/api/v1/me)
 - 게스트 클레임은 전화번호 인증이 완료된 경우에만 실행 가능. `PhoneVerificationRequiredException` 발생 시 클라이언트는 인증 단계로 이동해야 한다.
 - 게스트 클레임 시 중복 소유 방지: `userId == null` 인 게스트 레코드만 claim 대상이다.
 - 회원 예약 생성 시 pass를 사용하면 `MemberBookingUseCase` 구현(`DefaultMemberBookingService`)이 pass credit 차감을 처리한다 — 예약 생성과 credit 차감은 같은 트랜잭션 내에 있어야 한다.
-- 회원 API 경로 `/api/v1/me/**` 는 반드시 `CustomerAuthFilter` 뒤에 위치해야 한다 — 공개 경로에 노출되지 않도록 한다.
+- `SecurityConfig`는 `/api/v1/me/**`에 `ROLE_CUSTOMER`를 요구하고, `CustomerAuthenticationFilter`는 익명 인증보다 먼저 회원 principal을 구성해야 한다.
 
 ## Guest Claim flow
 
@@ -64,7 +64,7 @@ POST /api/v1/me/guest-claims/verify    → 전화번호 인증 코드 확인 →
 POST /api/v1/me/guest-claims           → ClaimResult (실제 클레임 실행)
 ```
 
-**전화번호 정규화**: 하이픈 유무 등 형태 차이를 수용하기 위해 GuestClaim 구현은 원본 + 숫자만 형태 둘 다 조회한다.
+**전화번호 정규화**: GuestClaim은 `KoreanPhoneNumber`로 숫자 형태를 한 번 정규화한 뒤 동일한 HMAC 인덱스로 조회한다.
 
 ## Member booking via /me
 
@@ -100,7 +100,7 @@ POST /api/v1/me/guest-claims           → ClaimResult (실제 클레임 실행)
 
 ## Verification workflow
 
-- 인증 필터 변경: `./gradlew :adapter-in-web:test --tests "*CustomerAuthFilter*" --tests "*RateLimit*"`
+- 인증 필터 변경: `./gradlew :adapter-in-web:test --tests "*CustomerAuthUseCaseIT" --tests "*SecurityBoundaryUseCaseIT" --tests "*RateLimitFilterTest"`
 - 게스트 클레임 흐름 변경: `./gradlew --no-daemon :application:useCaseTest --tests "*GuestClaim*"`
 - 회원 예약/주문/패스 API 변경: `./gradlew :adapter-in-web:test --tests "*Me*UseCaseIT*"` + `./gradlew --no-daemon :application:useCaseTest --tests "*Member*"`
 - 프론트엔드 변경: `cd frontend && npm run build`

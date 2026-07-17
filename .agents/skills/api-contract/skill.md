@@ -20,12 +20,13 @@ description: >
 - Read the needed ADRs:
   - `docs/ADR/0016_API_버전_전략/adr.md`
   - `docs/ADR/0002_state-transition-guard/adr.md` (for domain error → HTTP status mapping)
+  - `docs/ADR/0023_관리자_회원_인증_세션_기준선/adr.md` (for authentication boundaries)
 
 ## URL and versioning conventions
 
 - All API paths use `/api/v1/` prefix.
 - Public endpoints: `/api/v1/classes`, `/api/v1/slots`, `/api/v1/bookings`, `/api/v1/passes`, `/api/v1/products`, `/api/v1/orders`
-- Admin endpoints: `/api/v1/admin/**` (protected by `AdminAuthFilter`)
+- Admin endpoints: `/api/v1/admin/**` (protected by the admin `SecurityFilterChain`)
 - Path variables use `kebab-case` for multi-word segments.
 
 ## Response schema conventions
@@ -47,7 +48,7 @@ description: >
 | 성공 생성 | 201 Created |
 | 성공 조회/수정 | 200 OK |
 | 요청 파라미터 오류 | 400 Bad Request |
-| 인증 실패 (Admin-Key 없음/오류) | 401 Unauthorized |
+| 인증 실패 (관리자 Bearer/API key 또는 회원 세션 없음/오류) | 401 Unauthorized |
 | 도메인 불가 전이, 비즈니스 규칙 위반 | 409 Conflict |
 | 리소스 없음 | 404 Not Found |
 | 서버 오류 | 500 Internal Server Error |
@@ -62,28 +63,29 @@ description: >
 
 - Do not break existing response DTO field names or types — clients depend on them.
 - New fields may be added (additive), but existing fields must not be renamed or removed without a versioning plan.
-- Admin endpoints must stay behind `AdminAuthFilter`; never expose admin actions on public paths.
+- Admin endpoints must stay behind the admin `SecurityFilterChain`; never expose admin actions on public paths.
 - Error codes must be documented in `docs/PRD/0001_기준_스펙/spec.md` when they become part of the public contract.
 - Do not declare request/response DTO records (or classes) inline inside controller files. Always place them in the corresponding `dto/` package (`web/customer/dto/`, `web/admin/dto/`, etc.).
 - Do not return raw `Map<String, ?>` from controller methods. Always define a named response DTO record so that the API contract is explicit and type-safe.
 
 ## Likely code locations
 
-- `app/src/main/java/com/personal/happygallery/app/web/` — Public controllers
-- `app/src/main/java/com/personal/happygallery/app/web/admin/` — Admin controllers
-- `app/src/main/java/com/personal/happygallery/app/web/admin/dto/` — Request/response DTOs
-- `common/src/main/java/com/personal/happygallery/common/exception/` — Error codes and ErrorResponse
-- `app/src/main/java/com/personal/happygallery/app/web/GlobalExceptionHandler.java` — HTTP status mapping
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/` — Public controllers and `ErrorResponse`
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/admin/` — Admin controllers
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/admin/dto/` — Admin request/response DTOs
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/GlobalExceptionHandler.java` — HTTP status mapping
+- `domain/src/main/java/com/personal/happygallery/domain/error/` — Error codes and domain exceptions
 
 ## High-value tests (for reference)
 
-- `app/src/test/java/com/personal/happygallery/app/web/admin/AdminSlotUseCaseIT.java`
-- `app/src/test/java/com/personal/happygallery/app/web/AdminAuthFilterTest.java`
+- `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/restdocs/` — API 계약 문서 테스트
+- `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/SecurityBoundaryUseCaseIT.java`
+- `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/admin/AdminSlotUseCaseIT.java`
 
 ## Verification workflow
 
-- New endpoint or DTO change: `./gradlew --no-daemon :app:useCaseTest --tests "*UseCaseIT*"`
-- Auth filter or error mapping change: `./gradlew :app:test --tests "*AdminAuthFilterTest" --tests "*RateLimitFilterTest"`
+- New endpoint or DTO change: `./gradlew --no-daemon :adapter-in-web:restDocsTest` plus the affected `:adapter-in-web:test` integration test.
+- Auth or error mapping change: `./gradlew :adapter-in-web:test --tests "*SecurityBoundaryUseCaseIT" --tests "*RateLimitFilterTest"`.
 
 ## Doc sync checklist
 

@@ -21,10 +21,10 @@ description: Repository-specific workflow for backend admin work in the happyGal
 
 ## Non-negotiable invariants
 
-- Preserve `RequestIdFilter -> RateLimitFilter -> AdminAuthFilter` ordering where applicable.
+- Preserve `RequestIdFilter -> RateLimitFilter -> admin SecurityFilterChain` ordering, with `AdminAuthenticationFilter` before `AnonymousAuthenticationFilter` inside the chain.
 - Keep admin endpoint paths and response DTO contracts aligned with the PRD.
-- Preserve Redis-backed Bearer session behavior, admin identity propagation, and 401 handling.
-- Treat legacy `X-Admin-Id` compatibility and persisted admin history fields consistently where older flows still depend on them, but do not treat the header as the primary runtime contract.
+- Preserve Redis-backed Bearer session behavior, `AdminPrincipal` propagation through `SecurityContext`, and 401 handling.
+- Keep `Authorization: Bearer` as the primary contract. `X-Admin-Key` is an explicitly enabled local/test fallback, not an admin identity header.
 - Do not weaken admin protection or accidentally expose broader public routes.
 - If the change only touches admin UI components or pages under `frontend/`, use `happygallery-frontend-flows` instead.
 - When a change is domain-specific and not about admin concerns, prefer the narrower booking/order/pass/product/payment skill.
@@ -32,7 +32,7 @@ description: Repository-specific workflow for backend admin work in the happyGal
 
 ## Verification workflow
 
-- Filter or auth changes: `./gradlew :adapter-in-web:test --tests "*AdminAuthFilterTest" --tests "*RateLimitFilterTest"`
+- Filter or auth changes: `./gradlew :adapter-in-web:test --tests "*SecurityBoundaryUseCaseIT" --tests "*AdminLoginUseCaseIT" --tests "*RateLimitFilterTest"`
 - Admin integration endpoint changes: `./gradlew --no-daemon :application:useCaseTest --tests "*Admin*"`
 - Broad admin confidence: `./gradlew --no-daemon :application:useCaseTest`
 
