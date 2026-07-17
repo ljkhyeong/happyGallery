@@ -2,11 +2,14 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
+import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderApprovalDecision;
+import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
@@ -16,8 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 픽업 이행 관리 서비스 (§8.4).
  *
  * <ul>
- *   <li>{@link #markPickupReady(Long, LocalDateTime)} — 픽업 준비 완료 → {@link OrderStatus#PICKUP_READY}</li>
- *   <li>{@link #confirmPickup(Long)} — 픽업 완료 → {@link OrderStatus#PICKED_UP}</li>
+ *   <li>{@link #markPickupReady(Long, LocalDateTime, Long)} — 픽업 준비 완료 → {@link OrderStatus#PICKUP_READY}</li>
+ *   <li>{@link #confirmPickup(Long, Long)} — 픽업 완료 → {@link OrderStatus#PICKED_UP}</li>
  * </ul>
  */
 @Service
@@ -27,13 +30,16 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
     private final FulfillmentPort fulfillmentPort;
+    private final OrderHistoryPort orderHistoryPort;
 
     public DefaultOrderPickupService(OrderReaderPort orderReader,
                                      OrderStorePort orderStore,
-                                     FulfillmentPort fulfillmentPort) {
+                                     FulfillmentPort fulfillmentPort,
+                                     OrderHistoryPort orderHistoryPort) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.fulfillmentPort = fulfillmentPort;
+        this.orderHistoryPort = orderHistoryPort;
     }
 
     /**
@@ -45,7 +51,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
      * @return 픽업 결과 (주문 ID, 상태, 마감 시각)
      */
     @OptimisticLockRetryable
-    public PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt) {
+    public PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.markPickupReady();
 
@@ -56,6 +62,8 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
                 })
                 .orElseGet(() -> Fulfillment.pickup(orderId, pickupDeadlineAt));
         fulfillmentPort.save(fulfillment);
+        orderHistoryPort.save(
+                new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PICKUP_READY, adminId, null));
         orderStore.save(order);
 
         return PickupResult.of(order, fulfillment);
@@ -68,12 +76,14 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
      * @return 픽업 결과 (주문 ID, 상태, 마감 시각)
      */
     @OptimisticLockRetryable
-    public PickupResult confirmPickup(Long orderId) {
+    public PickupResult confirmPickup(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.confirmPickup();
 
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         fulfillmentPort.save(fulfillment);
+        orderHistoryPort.save(
+                new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PICKUP_COMPLETE, adminId, null));
         orderStore.save(order);
 
         return PickupResult.of(order, fulfillment);

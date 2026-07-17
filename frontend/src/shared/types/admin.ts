@@ -99,6 +99,9 @@ export type OrderApprovalDecision =
   | "AUTO_REFUND"
   | "PRODUCTION_COMPLETE"
   | "RESUME_PRODUCTION"
+  | "PICKUP_READY"
+  | "PICKUP_COMPLETE"
+  | "PICKUP_EXPIRED"
   | "PREPARE_SHIPPING"
   | "SHIP"
   | "DELIVER";

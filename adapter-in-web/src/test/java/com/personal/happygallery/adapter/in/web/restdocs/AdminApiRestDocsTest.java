@@ -190,8 +190,9 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(orderProductionUseCase.requestDelay(200L)).thenReturn(production(OrderStatus.DELAY_REQUESTED));
         when(orderProductionUseCase.cancelForDelayRejection(200L, ADMIN_USER_ID))
                 .thenReturn(production(OrderStatus.DELAY_REJECTED_CANCELED));
-        when(orderPickupUseCase.markPickupReady(eq(200L), any())).thenReturn(pickup(OrderStatus.PICKUP_READY));
-        when(orderPickupUseCase.confirmPickup(200L)).thenReturn(pickup(OrderStatus.PICKED_UP));
+        when(orderPickupUseCase.markPickupReady(eq(200L), any(), eq(ADMIN_USER_ID)))
+                .thenReturn(pickup(OrderStatus.PICKUP_READY));
+        when(orderPickupUseCase.confirmPickup(200L, ADMIN_USER_ID)).thenReturn(pickup(OrderStatus.PICKED_UP));
         when(orderShippingUseCase.prepareShipping(200L, ADMIN_USER_ID)).thenReturn(shipping(OrderStatus.SHIPPING_PREPARING));
         when(orderShippingUseCase.markShipped(200L, ADMIN_USER_ID)).thenReturn(shipping(OrderStatus.SHIPPED));
         when(orderShippingUseCase.markDelivered(200L, ADMIN_USER_ID)).thenReturn(shipping(OrderStatus.DELIVERED));

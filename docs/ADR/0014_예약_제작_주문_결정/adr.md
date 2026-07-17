@@ -93,9 +93,9 @@ READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업
 | `POST`  | `/admin/orders/{id}/prepare-shipping`   | 배송 준비 시작 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) |
 | `POST`  | `/admin/orders/{id}/mark-shipped`       | 배송 출발 (SHIPPING_PREPARING → SHIPPED) |
 | `POST`  | `/admin/orders/{id}/mark-delivered`     | 배송 완료 (SHIPPED → DELIVERED) |
-| `GET`   | `/admin/orders/{id}/history`            | 주문 결정 이력 조회 |
+| `GET`   | `/admin/orders/{id}/history`            | 주문 처리 이력 조회 |
 
-주문 결정 API는 Bearer 세션에서 검증된 admin id를 `order_approvals`에 기록한다.
+관리자 주문 처리 API는 Bearer 세션에서 검증된 admin id를 `order_approvals`에 기록한다.
 `setExpectedShipDate`는 `IN_PRODUCTION`, `DELAY_REQUESTED`, `SHIPPING_PREPARING` 상태의 SHIPPING fulfillment에서만 허용한다.
 `Fulfillment.setExpectedShipDate()`가 SHIPPING 타입을 직접 검증해 변경 메서드 밖의 중복 사전 검증을 두지 않는다.
 
@@ -107,5 +107,5 @@ READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업
 |------|------|
 | 혼합 주문 | MADE_TO_ORDER + READY_STOCK 상품이 같은 주문에 있으면 전체가 IN_PRODUCTION으로 전이됨. MVP에서는 이런 케이스가 없다고 가정. |
 | Fulfillment 상태 관리 | Fulfillment에 별도 `status` 컬럼 없음 — `Order.status`가 단일 소스. 제작 완료 후 픽업 전환 시 `Fulfillment.convertToPickup()`이 `expected_ship_date`를 비우고 type을 PICKUP으로 전환한다. |
-| 배송 이력 관리 | 배송 전이도 `order_approvals` append-only 이력으로 남기며, 운영 화면은 이를 시간순 조회한다. |
+| 배송·픽업 이력 관리 | 배송과 픽업 전이도 `order_approvals` append-only 이력으로 남기며, 운영 화면은 이를 시간순 조회한다. |
 | 관리자 식별자 | Bearer 세션 경로는 admin id를 이력에 기록하고, API Key 폴백 경로는 null 이력이 존재할 수 있다. |

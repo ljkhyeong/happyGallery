@@ -220,7 +220,7 @@ class OrderProductionUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // 제작 완료 → APPROVED_FULFILLMENT_PENDING → PICKUP_READY 전체 흐름
+    // 제작 완료 → APPROVED_FULFILLMENT_PENDING → 픽업 처리 전체 흐름
     // -----------------------------------------------------------------------
 
     @DisplayName("제작 완료 처리 시 APPROVED_FULFILLMENT_PENDING 상태로 전이된다")
@@ -295,7 +295,7 @@ class OrderProductionUseCaseIT {
         orderProductionService.completeProduction(order.getId(), 1L);
 
         orderPickupService.markPickupReady(order.getId(),
-                LocalDateTime.of(2026, 4, 1, 18, 0));
+                LocalDateTime.of(2026, 4, 1, 18, 0), 1L);
 
         var fulfillments = orderStateProbe.fulfillments().stream()
                 .filter(f -> f.getOrderId().equals(order.getId()))
@@ -308,9 +308,9 @@ class OrderProductionUseCaseIT {
         });
     }
 
-    @DisplayName("제작 완료 후 픽업 준비까지 전체 흐름이 정상 동작한다")
+    @DisplayName("제작 완료 후 픽업 완료까지 상태와 이력이 함께 전이된다")
     @Test
-    void completeProduction_thenPickupReady_fullFlow() throws Exception {
+    void completeProduction_thenPickupComplete_recordsFullFlow() throws Exception {
         Order order = orderHelper.createMadeToOrderPaidOrder("제작→픽업 전체 흐름 상품", 250000L).order();
 
         // 승인 → IN_PRODUCTION
@@ -327,11 +327,22 @@ class OrderProductionUseCaseIT {
                         .content("{\"pickupDeadlineAt\":\"2026-04-01T18:00:00\"}"))
                 .andExpect(status().isOk());
 
+        mockMvc.perform(post("/admin/orders/{id}/complete-pickup", order.getId()))
+                .andExpect(status().isOk());
+
         Order final_ = orderStateProbe.getOrder(order.getId());
+        var decisions = orderStateProbe.orderApprovalHistoryOrdered(order.getId()).stream()
+                .map(history -> history.getDecision())
+                .toList();
         assertSoftly(softly -> {
             softly.assertThat(afterApprove.getStatus()).isEqualTo(OrderStatus.IN_PRODUCTION);
             softly.assertThat(afterCompleteProduction.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-            softly.assertThat(final_.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
+            softly.assertThat(final_.getStatus()).isEqualTo(OrderStatus.PICKED_UP);
+            softly.assertThat(decisions).containsExactly(
+                    OrderApprovalDecision.APPROVE,
+                    OrderApprovalDecision.PRODUCTION_COMPLETE,
+                    OrderApprovalDecision.PICKUP_READY,
+                    OrderApprovalDecision.PICKUP_COMPLETE);
         });
     }
 

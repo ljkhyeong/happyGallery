@@ -11,6 +11,9 @@ const DECISION_LABELS: Record<string, string> = {
   AUTO_REFUND: "자동 환불",
   PRODUCTION_COMPLETE: "제작 완료",
   RESUME_PRODUCTION: "제작 재개",
+  PICKUP_READY: "픽업 준비",
+  PICKUP_COMPLETE: "픽업 완료",
+  PICKUP_EXPIRED: "픽업 만료",
   PREPARE_SHIPPING: "배송 준비",
   SHIP: "배송 출발",
   DELIVER: "배송 완료",
@@ -40,7 +43,7 @@ export function OrderHistoryPanel({ orderId, adminKey }: Props) {
         <Table size="sm" bordered>
           <thead>
             <tr>
-              <th>결정</th>
+              <th>처리</th>
               <th>관리자 ID</th>
               <th>사유</th>
               <th>일시</th>

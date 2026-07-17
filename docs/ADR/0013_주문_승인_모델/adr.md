@@ -68,12 +68,12 @@ PAID_APPROVAL_PENDING  (approval_deadline_at = paidAt + 24h)
 주문 환불은 기존 `Refund` 엔티티(refunds 테이블)에 `orderId` 필드를 통해 기록한다.
 별도 엔티티 없이 `Refund.forOrder(orderId, amount, paymentKey)` 팩토리로 기록한다.
 
-### 7. 승인 이력에 관리자 식별자 기록
+### 7. 주문 처리 이력에 관리자 식별자 기록
 
-관리자 승인/거절 및 제작 완료 이력은 `order_approvals.decided_by_admin_id`를 함께 저장한다.
+관리자 승인/거절, 제작, 픽업, 배송 이력은 `order_approvals.decided_by_admin_id`를 함께 저장한다.
 `AdminAuthFilter`가 Bearer 세션에서 검증한 `adminUserId`를 request attribute로 전달하고,
 주문 컨트롤러는 이 값을 이력에 기록한다.
-API Key 폴백 경로와 배치 자동환불(`AUTO_REFUND`)은 null 이력을 허용한다.
+API Key 폴백 경로와 배치 자동환불(`AUTO_REFUND`), 픽업 만료(`PICKUP_EXPIRED`)는 null 이력을 허용한다.
 
 ### 8. 픽업 마감 알림의 연관 데이터는 일괄 조회한다
 
@@ -93,4 +93,4 @@ API Key 폴백 경로와 배치 자동환불(`AUTO_REFUND`)은 null 이력을 �
 | 배치 단위 트랜잭션 | `autoRefundExpired()`는 목록 조회 후 건별 `REQUIRES_NEW` 트랜잭션으로 처리한다. 추후 건수 증가 시 페이지네이션 검토 필요 |
 | 픽업 알림 조회량 | 후보 주문과 최근 성공 이력은 일괄 조회하고, outbox 처리만 건별 격리를 유지 |
 | 승인 기한 경과 후 관리자 승인 | 배치 미실행 상태에서 기한 경과 주문도 관리자가 승인 가능 (의도된 여유). 배치 실행 후에는 409 차단 |
-| 관리자 식별자 null 허용 | Bearer 세션 경로는 adminId가 기록되지만, API Key 폴백과 배치 이력은 null일 수 있음 |
+| 관리자 식별자 null 허용 | Bearer 세션 경로는 adminId가 기록되지만, API Key 폴백과 자동환불·픽업 만료 배치 이력은 null일 수 있음 |

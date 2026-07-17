@@ -740,8 +740,12 @@ Authorization: Bearer {token}
 - `POST /api/v1/admin/orders/{id}/prepare-pickup`
   - 요청: `{ "pickupDeadlineAt": "2026-04-16T18:00:00" }`
   - 응답: `{ "orderId": 5, "status": "PICKUP_READY", "pickupDeadlineAt": "2026-04-16T18:00:00" }`
+  - 정책:
+    - 이력은 `PICKUP_READY`로 기록하고 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
 - `POST /api/v1/admin/orders/{id}/complete-pickup`
   - 응답: `{ "orderId": 5, "status": "PICKED_UP", "pickupDeadlineAt": "2026-04-16T18:00:00" }`
+  - 정책:
+    - 이력은 `PICKUP_COMPLETE`로 기록하고 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
 
 공통 에러:
 - `401 UNAUTHORIZED` — 관리자 인증 실패
@@ -770,6 +774,7 @@ Authorization: Bearer {token}
 - 정책:
   - `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
   - 성공 건은 `PICKUP_EXPIRED`로 전이하고 환불/재고 복구를 수행한다.
+  - 이력은 `PICKUP_EXPIRED`로 기록하며 자동 처리이므로 adminId는 `null`이다.
   - `failureReasons`는 내부 예외명을 그대로 노출하지 않고 `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`로 정규화한다.
 
 #### 2.7.5 제작 완료
@@ -822,7 +827,7 @@ Authorization: Bearer {token}
   - 각 전이는 `order_approvals` 이력에 `PREPARE_SHIPPING`, `SHIP`, `DELIVER`로 기록한다.
   - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
 
-#### 2.7.7 주문 결정 이력 조회
+#### 2.7.7 주문 처리 이력 조회
 
 ```http
 GET /api/v1/admin/orders/{id}/history
@@ -843,8 +848,8 @@ Authorization: Bearer {token}
 
 - 성공: `200 OK`
 - 정책:
-  - 결정 시간 순으로 정렬된 전체 이력을 반환한다.
-  - `decision`: `APPROVE`, `REJECT`, `DELAY`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
+  - 처리 시간 순으로 정렬된 전체 이력을 반환한다.
+  - `decision`: `APPROVE`, `REJECT`, `DELAY`, `DELAY_CANCEL`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PICKUP_READY`, `PICKUP_COMPLETE`, `PICKUP_EXPIRED`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
 
 ### 2.8 공지사항 API
 

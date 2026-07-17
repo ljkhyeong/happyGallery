@@ -18,7 +18,7 @@ public interface OrderPickupUseCase {
         }
     }
 
-    PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt);
+    PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt, Long adminId);
 
-    PickupResult confirmPickup(Long orderId);
+    PickupResult confirmPickup(Long orderId, Long adminId);
 }

@@ -1,11 +1,14 @@
 package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
+import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderApprovalDecision;
+import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
@@ -18,15 +21,18 @@ public class PickupExpireProcessor {
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
     private final OrderRefundSupport orderRefundSupport;
+    private final OrderHistoryPort orderHistoryPort;
 
     public PickupExpireProcessor(FulfillmentPort fulfillmentPort,
                                  OrderReaderPort orderReader,
                                  OrderStorePort orderStore,
-                                 OrderRefundSupport orderRefundSupport) {
+                                 OrderRefundSupport orderRefundSupport,
+                                 OrderHistoryPort orderHistoryPort) {
         this.fulfillmentPort = fulfillmentPort;
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.orderRefundSupport = orderRefundSupport;
+        this.orderHistoryPort = orderHistoryPort;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -44,6 +50,8 @@ public class PickupExpireProcessor {
 
         orderRefundSupport.refundOrder(order);
         order.markPickupExpired();
+        orderHistoryPort.save(
+                new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PICKUP_EXPIRED));
         orderStore.save(order);
         return true;
     }

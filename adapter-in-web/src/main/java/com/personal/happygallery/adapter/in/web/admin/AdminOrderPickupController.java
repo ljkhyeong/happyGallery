@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.admin;
 import com.personal.happygallery.adapter.in.web.admin.dto.BatchResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.MarkPickupReadyRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.PickupResponse;
+import com.personal.happygallery.adapter.in.web.resolver.AdminUserId;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
@@ -31,16 +32,18 @@ public class AdminOrderPickupController {
     @PostMapping("/{id}/prepare-pickup")
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse markPickupReady(@PathVariable Long id,
-                                          @RequestBody MarkPickupReadyRequest request) {
-        OrderPickupUseCase.PickupResult result = orderPickupUseCase.markPickupReady(id, request.pickupDeadlineAt());
+                                          @RequestBody MarkPickupReadyRequest request,
+                                          @AdminUserId Long adminId) {
+        OrderPickupUseCase.PickupResult result = orderPickupUseCase.markPickupReady(
+                id, request.pickupDeadlineAt(), adminId);
         return PickupResponse.from(result);
     }
 
     /** POST /admin/orders/{id}/complete-pickup — 픽업 완료 (PICKUP_READY → PICKED_UP) */
     @PostMapping("/{id}/complete-pickup")
     @ResponseStatus(HttpStatus.OK)
-    public PickupResponse confirmPickup(@PathVariable Long id) {
-        OrderPickupUseCase.PickupResult result = orderPickupUseCase.confirmPickup(id);
+    public PickupResponse confirmPickup(@PathVariable Long id, @AdminUserId Long adminId) {
+        OrderPickupUseCase.PickupResult result = orderPickupUseCase.confirmPickup(id, adminId);
         return PickupResponse.from(result);
     }
 

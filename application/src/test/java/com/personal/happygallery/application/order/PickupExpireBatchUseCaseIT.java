@@ -11,6 +11,7 @@ import com.personal.happygallery.application.product.port.out.InventoryReaderPor
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.OrderStateProbe;
@@ -90,7 +91,7 @@ class PickupExpireBatchUseCaseIT {
 
         // 픽업 준비 완료 (마감 시각: 과거)
         LocalDateTime pastDeadline = LocalDateTime.now(clock).minusHours(1);
-        orderPickupService.markPickupReady(order.getId(), pastDeadline);
+        orderPickupService.markPickupReady(order.getId(), pastDeadline, 1L);
 
         Order afterReady = orderStateProbe.getOrder(order.getId());
 
@@ -105,6 +106,9 @@ class PickupExpireBatchUseCaseIT {
 
         // 환불 기록 확인
         var refunds = orderStateProbe.refunds();
+        var decisions = orderStateProbe.orderApprovalHistoryOrdered(order.getId()).stream()
+                .map(history -> history.getDecision())
+                .toList();
 
         assertSoftly(softly -> {
             softly.assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
@@ -114,6 +118,10 @@ class PickupExpireBatchUseCaseIT {
             softly.assertThat(restoredQuantity).isEqualTo(1);
             softly.assertThat(refunds).hasSize(1);
             softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(decisions).containsExactly(
+                    OrderApprovalDecision.APPROVE,
+                    OrderApprovalDecision.PICKUP_READY,
+                    OrderApprovalDecision.PICKUP_EXPIRED);
         });
     }
 
@@ -130,7 +138,7 @@ class PickupExpireBatchUseCaseIT {
 
         // 픽업 준비 완료 (마감 시각: 미래)
         LocalDateTime futureDeadline = LocalDateTime.now(clock).plusDays(1);
-        orderPickupService.markPickupReady(order.getId(), futureDeadline);
+        orderPickupService.markPickupReady(order.getId(), futureDeadline, 1L);
 
         // 배치 실행 → 0건 처리
         BatchResult result = pickupExpireBatchService.expirePickups();
@@ -156,8 +164,8 @@ class PickupExpireBatchUseCaseIT {
         orderApprovalService.approve(successOrder.getId());
 
         LocalDateTime pastDeadline = LocalDateTime.now(clock).minusHours(1);
-        orderPickupService.markPickupReady(failedOrder.getId(), pastDeadline);
-        orderPickupService.markPickupReady(successOrder.getId(), pastDeadline);
+        orderPickupService.markPickupReady(failedOrder.getId(), pastDeadline, 1L);
+        orderPickupService.markPickupReady(successOrder.getId(), pastDeadline, 1L);
 
         // 실패 케이스 유도: 재고 레코드가 사라진 상태에서 복구 시도하면 NotFoundException 발생
         inventoryStorePort.deleteById(failedFixture.product().getId());
@@ -182,7 +190,7 @@ class PickupExpireBatchUseCaseIT {
         Order order = fixture.order();
         orderApprovalService.approve(order.getId());
         LocalDateTime pastDeadline = LocalDateTime.now(clock).minusMinutes(1);
-        orderPickupService.markPickupReady(order.getId(), pastDeadline);
+        orderPickupService.markPickupReady(order.getId(), pastDeadline, 1L);
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch startLatch = new CountDownLatch(1);
@@ -193,7 +201,7 @@ class PickupExpireBatchUseCaseIT {
             executor.submit(() -> {
                 try {
                     startLatch.await();
-                    orderPickupService.confirmPickup(order.getId());
+                    orderPickupService.confirmPickup(order.getId(), 1L);
                 } catch (Throwable t) {
                     pickupError.set(t);
                 }

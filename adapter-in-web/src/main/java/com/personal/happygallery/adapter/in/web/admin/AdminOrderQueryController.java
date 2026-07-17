@@ -51,7 +51,7 @@ public class AdminOrderQueryController {
         return adminOrderSearchUseCase.search(status, dateFrom, dateTo, keyword, page, size);
     }
 
-    /** GET /admin/orders/{id}/history — 주문 결정 이력 조회 */
+    /** GET /admin/orders/{id}/history — 주문 처리 이력 조회 */
     @GetMapping("/{id}/history")
     public List<OrderHistoryResponse> getOrderHistory(@PathVariable Long id) {
         return adminOrderQueryUseCase.getOrderHistory(id);

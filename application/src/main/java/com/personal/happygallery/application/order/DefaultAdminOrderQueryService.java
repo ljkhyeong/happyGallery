@@ -60,7 +60,7 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
                 r -> CursorUtils.encode(r.createdAt(), r.orderId()));
     }
 
-    /** 관리자 주문 결정 이력 조회 — 결정 시간순 */
+    /** 관리자 주문 처리 이력 조회 — 처리 시간순 */
     public List<OrderHistoryResponse> getOrderHistory(Long orderId) {
         return orderHistoryPort.findByOrderIdOrderByDecidedAtAsc(orderId).stream()
                 .map(OrderHistoryResponse::from)
