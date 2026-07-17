@@ -16,7 +16,7 @@ public record OffsetPage<T>(
         int page,
         int size,
         long totalCount,
-        int totalPages
+        long totalPages
 ) {
 
     public static <T> OffsetPage<T> of(List<T> content, int page, int size, long totalCount) {
@@ -26,7 +26,7 @@ public record OffsetPage<T>(
         if (page < 0) {
             throw new IllegalArgumentException("page must be >= 0");
         }
-        int totalPages = (int) Math.ceil((double) totalCount / size);
+        long totalPages = Math.ceilDiv(totalCount, size);
         return new OffsetPage<>(content, page, size, totalCount, totalPages);
     }
 }
