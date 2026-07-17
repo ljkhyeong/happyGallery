@@ -1,7 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.dashboard.adapter;
 
-import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
 import com.personal.happygallery.application.search.port.out.AdminBookingSearchPort;
+import com.personal.happygallery.application.search.port.out.AdminBookingSearchResult;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.adapter.out.persistence.dashboard.mapper.AdminBookingSearchMapper;
 import java.time.LocalDate;
@@ -24,8 +24,8 @@ class MyBatisAdminBookingSearchAdapter implements AdminBookingSearchPort {
     }
 
     @Override
-    public List<AdminBookingSearchRow> search(BookingStatus status, LocalDate dateFrom, LocalDate dateTo,
-                                               String keyword, int offset, int size) {
+    public List<AdminBookingSearchResult> search(BookingStatus status, LocalDate dateFrom, LocalDate dateTo,
+                                                  String keyword, int offset, int size) {
         return mapper.search(
                 status != null ? status.name() : null,
                 dateFrom != null ? dateFrom.atStartOfDay() : null,

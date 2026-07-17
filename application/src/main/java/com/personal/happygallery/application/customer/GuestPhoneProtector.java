@@ -28,6 +28,13 @@ public class GuestPhoneProtector {
         if (guest == null || guest.getPhoneEnc() == null) {
             throw new IllegalStateException("게스트 전화번호 암호문이 없습니다.");
         }
-        return fieldEncryptor.decrypt(guest.getPhoneEnc());
+        return decryptEncryptedPhone(guest.getPhoneEnc());
+    }
+
+    public String decryptEncryptedPhone(String phoneEnc) {
+        if (phoneEnc == null) {
+            throw new IllegalStateException("게스트 전화번호 암호문이 없습니다.");
+        }
+        return fieldEncryptor.decrypt(phoneEnc);
     }
 }

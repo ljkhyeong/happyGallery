@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.dashboard.mapper;
 
-import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
+import com.personal.happygallery.application.search.port.out.AdminBookingSearchResult;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
@@ -9,7 +9,7 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface AdminBookingSearchMapper {
 
-    List<AdminBookingSearchRow> search(
+    List<AdminBookingSearchResult> search(
             @Param("status") String status,
             @Param("dateFrom") LocalDateTime dateFrom,
             @Param("dateTo") LocalDateTime dateTo,

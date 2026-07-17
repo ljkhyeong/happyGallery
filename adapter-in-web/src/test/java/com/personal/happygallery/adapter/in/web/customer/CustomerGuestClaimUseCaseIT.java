@@ -168,6 +168,49 @@ class CustomerGuestClaimUseCaseIT {
                 .andExpect(jsonPath("$[0].bookingId").value(booking.getId()));
     }
 
+    @DisplayName("회원에게 같은 슬롯의 활성 예약이 있으면 비회원 예약을 가져올 수 없다")
+    @Test
+    void claimGuestBooking_conflictsWithMemberBooking() throws Exception {
+        String email = "claim-conflict@example.com";
+        String phone = "01012345678";
+        Guest guest = guestStorePort.save(TestFixtures.guest("비회원", phone));
+        Cookie sessionCookie = signupAndGetSessionCookie(email, "010-1234-5678");
+        User user = userReaderPort.findByEmail(email).orElseThrow();
+
+        BookingClass bookingClass = classStorePort.save(TestFixtures.defaultBookingClass());
+        Slot slot = slotStorePort.save(TestFixtures.slot(
+                bookingClass,
+                BookingTestHelper.FUTURE,
+                BookingTestHelper.FUTURE.plusHours(2)));
+        bookingStorePort.save(Booking.forMemberDeposit(
+                user.getId(), slot, 10_000L, 40_000L, DepositPaymentMethod.CARD));
+        Booking guestBooking = bookingStorePort.save(Booking.forGuestDeposit(
+                guest, slot, 10_000L, 40_000L,
+                DepositPaymentMethod.CARD, "claim-conflict-token"));
+
+        String verificationCode = bookingHelper.sendVerificationAndGetCode(phone);
+        mockMvc.perform(post("/api/v1/me/guest-claims/verify")
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new VerifyGuestClaimPhoneRequest(verificationCode))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/me/guest-claims")
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ClaimGuestRecordsRequest(
+                                List.of(), List.of(guestBooking.getId())))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_BOOKING"));
+
+        Booking unchanged = bookingReaderPort.findById(guestBooking.getId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(unchanged.getUserId()).isNull();
+            softly.assertThat(unchanged.getGuest().getId()).isEqualTo(guest.getId());
+        });
+    }
+
     @DisplayName("휴대폰 재인증 전에는 비회원 이력 미리보기를 조회할 수 없다")
     @Test
     void preview_requiresPhoneVerification() throws Exception {

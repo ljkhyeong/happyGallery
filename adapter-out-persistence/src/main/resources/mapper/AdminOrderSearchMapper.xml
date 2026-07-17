@@ -34,14 +34,15 @@
         서브쿼리에서 커버링 인덱스로 ID만 페이징한 뒤,
         외부 쿼리에서 실제 데이터를 JOIN으로 가져온다.
     -->
-    <select id="search" resultType="com.personal.happygallery.application.search.dto.AdminOrderSearchRow">
+    <select id="search" resultType="com.personal.happygallery.application.search.port.out.AdminOrderSearchResult">
         SELECT
             o.id                                    AS orderId,
             CONCAT('ORD-', LPAD(o.id, 8, '0'))      AS orderNumber,
             o.status                                AS status,
             o.total_amount                          AS totalAmount,
             COALESCE(u.name, g.name, '(알 수 없음)')  AS buyerName,
-            COALESCE(u.phone, g.phone, '')           AS buyerPhone,
+            u.phone                                  AS memberPhone,
+            g.phone_enc                              AS guestPhoneEnc,
             o.paid_at                               AS paidAt,
             o.approval_deadline_at                  AS approvalDeadlineAt,
             o.created_at                            AS createdAt

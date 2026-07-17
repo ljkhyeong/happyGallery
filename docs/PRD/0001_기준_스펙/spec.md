@@ -114,6 +114,7 @@
       - 예: 슬롯 10:00~12:00, buffer_min=30 → `start_at ∈ [12:00, 12:30)` 인 슬롯 차단
       - 12:30에 시작하는 슬롯은 **차단 대상 아님**
 - **동시성**: 예약 확정 시 `slots` row를 `SELECT FOR UPDATE`로 잠근 뒤 `booked_count`를 증가한다 (ADR-0003)
+- 동일 예약자는 한 슬롯에 `BOOKED` 예약을 한 건만 가질 수 있다. 취소·완료·결석 이력은 중복 판단에서 제외하며, 취소 후에는 같은 슬롯을 다시 예약할 수 있다.
 - 슬롯의 실제 활성 상태는 관리자 활성 상태와 버퍼 차단 수를 함께 반영한다.
 
 ### 4.2 예약금/환불/변경
@@ -148,6 +149,7 @@
     - 결석 또는 변경 불가(시작 1시간 전 이후)는 **1회 소모**
 - 8회권 예약 생성 시 `pass_ledger`의 `USE` 원장은 해당 `booking_id`를 `related_booking_id`에 남긴다.
 - 예약 취소로 1회권을 복구하는 `REFUND` 원장도 원인 예약의 `booking_id`를 남긴다. 8회권 전체 환불처럼 단일 예약이 원인이 아닌 원장은 `related_booking_id`를 비운다.
+- 하나의 예약에는 `USE` 원장과 예약 취소 `REFUND` 원장을 타입별로 한 건만 기록한다.
 - 예약 상세 응답은 `cancelPolicy`를 포함해 취소 가능 여부, 환불/크레딧 복구 마감 시각, 8회권 크레딧 복구 여부를 서버 기준으로 제공한다.
 - 8회권 예약의 취소 마감이 지난 경우 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`을 내린다. 프론트는 취소 확인창에 “취소 마감이 지나 8회권 크레딧은 복구되지 않습니다”라는 한국어 경고를 표시한다.
 
@@ -175,6 +177,7 @@
     4) 앱 푸시(리마인드)
 - 수신자 조회 실패처럼 실제 발송 채널을 시도하기 전 실패한 알림은 `notification_log`에 `SYSTEM` 채널의 `FAILED` 이력으로 남기고, 발송 재시도 배치 대상에는 포함하지 않는다.
 - 일반 알림 요청은 도메인 트랜잭션 안에서 `notification_outbox`에 먼저 저장하고, 커밋 이후 별도 dispatcher가 발송한다. 발송 결과는 기존처럼 `notification_log`에 남긴다.
+- `notification_outbox`와 `notification_log`는 회원 또는 비회원 수신자 중 정확히 하나만 가진다.
 - 발송 이벤트:
     - 예약 완료, 예약 변경
     - D-1 리마인드, 당일 아침 리마인드
@@ -188,6 +191,7 @@
 - 비회원 예약/주문은 휴대폰 인증(문자 코드) 필수
 - 비회원 예약/주문 생성 시 접근 토큰(32자 hex)을 1회 발급하고, DB에는 SHA-256 해시만 저장한다 ([ADR-0024](../../ADR/0024_비회원_토큰_강화/adr.md))
 - 비회원 전화번호는 DB에 평문 컬럼을 두지 않고 암호문(`phone_enc`)과 동등 검색용 HMAC(`phone_hmac`)으로 저장한다.
+- 동일 `phone_hmac`은 하나의 비회원 이력 소유자만 식별하며, 동시 요청에서도 기존 Guest를 원자적으로 재사용한다.
 - 조회/변경/취소는 `X-Access-Token` 헤더로 토큰 전달 (URL 노출 방지)
 - 동일 전화번호로 동일 슬롯 중복 예약은 방지
 
@@ -205,6 +209,7 @@
 - 8회권 사용 예약은 prepare에서 `amount=0`을 받고 PG 호출 없이 confirm을 직접 호출한다.
 - PG confirm 성공 시 원결제 참조값은 `payment_attempt.pg_ref`와 생성된 주문/예약/8회권의 `payment_key`에 저장하고, 환불 시 PG cancel 호출에 사용한다. 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장하며, 8회권 환불은 `refunds.pass_purchase_id`로 추적한다. PG 환불 호출은 환불 요청을 만든 부모 트랜잭션이 커밋된 뒤 별도 executor에서 실행한다. 실행되지 못한 `REQUESTED`, 재시도 시각이 지난 `RETRYABLE`·`RECONCILIATION_REQUIRED`, 1분 이상 멈춘 `PROCESSING`은 매분 최대 10건씩 자동 복구한다.
 - PG 승인 후 도메인 생성이 실패하면 `refunds.payment_attempt_id`로 보상 환불을 남긴다. 보상 환불의 일시 실패와 결과 불명 상태에서는 결제 시도를 `COMPENSATION_REQUESTED`로 유지하고, 명시적 최종 실패만 `COMPENSATION_FAILED`로 전이한다. 모든 환불 재처리는 최초 `refunds.idempotency_key`를 재사용한다.
+- 주문·예약·8회권·결제 시도 원본은 각각 환불 요청 한 건만 가지며, 재시도는 새 이력을 만들지 않고 기존 환불 행과 멱등키를 사용한다.
 
 ---
 

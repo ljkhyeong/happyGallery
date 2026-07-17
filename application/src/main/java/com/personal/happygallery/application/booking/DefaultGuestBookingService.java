@@ -80,7 +80,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         Slot slot = slotCapacitySupport.loadActiveSlot(command.slotId());
 
         // 3. 중복 예약 확인
-        if (bookingReaderPort.existsBySlotIdAndGuestId(command.slotId(), guest.getId())) {
+        if (bookingReaderPort.existsBookedBySlotIdAndGuestId(command.slotId(), guest.getId())) {
             throw new DuplicateBookingException();
         }
 

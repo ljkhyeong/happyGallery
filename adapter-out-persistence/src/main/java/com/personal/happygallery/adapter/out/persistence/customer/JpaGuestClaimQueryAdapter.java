@@ -40,4 +40,9 @@ class JpaGuestClaimQueryAdapter implements GuestClaimQueryPort {
     public List<Booking> findBookingsByIds(Collection<Long> ids) {
         return bookingRepository.findAllById(ids);
     }
+
+    @Override
+    public boolean existsBookedByUserIdAndSlotIds(Long userId, Collection<Long> slotIds) {
+        return bookingRepository.existsBookedByUserIdAndSlotIds(userId, slotIds);
+    }
 }

@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.customer;
 
-import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
@@ -20,18 +19,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class VerifiedGuestResolver {
 
     private final PhoneVerificationReaderPort phoneVerificationReader;
-    private final GuestReaderPort guestReader;
     private final GuestStorePort guestStore;
     private final GuestPhoneProtector guestPhoneProtector;
     private final Clock clock;
 
     public VerifiedGuestResolver(PhoneVerificationReaderPort phoneVerificationReader,
-                                  GuestReaderPort guestReader,
                                   GuestStorePort guestStore,
                                   GuestPhoneProtector guestPhoneProtector,
                                   Clock clock) {
         this.phoneVerificationReader = phoneVerificationReader;
-        this.guestReader = guestReader;
         this.guestStore = guestStore;
         this.guestPhoneProtector = guestPhoneProtector;
         this.clock = clock;
@@ -49,9 +45,7 @@ public class VerifiedGuestResolver {
                 .orElseThrow(PhoneVerificationFailedException::new);
         pv.markVerified();
 
-        String phoneHmac = guestPhoneProtector.index(phone);
-        Guest guest = guestReader.findByPhoneHmac(phoneHmac)
-                .orElseGet(() -> guestStore.save(guestPhoneProtector.newGuest(name, phone)));
+        Guest guest = guestStore.getOrCreateByPhoneHmac(guestPhoneProtector.newGuest(name, phone));
         guest.markPhoneVerified();
 
         return guest;

@@ -19,4 +19,6 @@ public interface GuestClaimQueryPort {
     List<Booking> findBookingsByGuestId(Long guestId);
 
     List<Booking> findBookingsByIds(Collection<Long> ids);
+
+    boolean existsBookedByUserIdAndSlotIds(Long userId, Collection<Long> slotIds);
 }

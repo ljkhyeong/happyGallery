@@ -4,6 +4,7 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -65,17 +66,68 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             """)
     List<Booking> findByGuestIdWithDetails(@Param("guestId") Long guestId);
 
-    /** 동일 슬롯 + 동일 회원 중복 예약 확인 */
-    @Override boolean existsBySlotIdAndUserId(Long slotId, Long userId);
+    /** 동일 슬롯에 같은 회원의 활성 예약이 있는지 확인한다. */
+    @Override
+    @Query("""
+            SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+            FROM Booking b
+            WHERE b.slot.id = :slotId
+              AND b.userId = :userId
+              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
+            """)
+    boolean existsBookedBySlotIdAndUserId(@Param("slotId") Long slotId,
+                                          @Param("userId") Long userId);
 
-    /** 동일 슬롯 + 동일 게스트 중복 예약 확인 */
-    @Override boolean existsBySlotIdAndGuestId(Long slotId, Long guestId);
+    /** 동일 슬롯에 같은 게스트의 활성 예약이 있는지 확인한다. */
+    @Override
+    @Query("""
+            SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+            FROM Booking b
+            WHERE b.slot.id = :slotId
+              AND b.guest.id = :guestId
+              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
+            """)
+    boolean existsBookedBySlotIdAndGuestId(@Param("slotId") Long slotId,
+                                           @Param("guestId") Long guestId);
 
-    /** 동일 슬롯 + 동일 게스트 중복 예약 확인 — 특정 booking 제외 (변경 시 자기 자신 제외용) */
-    @Override boolean existsBySlotIdAndGuestIdAndIdNot(Long slotId, Long guestId, Long excludeBookingId);
+    /** 예약 변경 시 자기 자신을 제외하고 같은 게스트의 활성 예약이 있는지 확인한다. */
+    @Override
+    @Query("""
+            SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+            FROM Booking b
+            WHERE b.slot.id = :slotId
+              AND b.guest.id = :guestId
+              AND b.id <> :excludeBookingId
+              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
+            """)
+    boolean existsBookedBySlotIdAndGuestIdAndIdNot(@Param("slotId") Long slotId,
+                                                   @Param("guestId") Long guestId,
+                                                   @Param("excludeBookingId") Long excludeBookingId);
 
-    /** 동일 슬롯 + 동일 회원 중복 예약 확인 — 특정 booking 제외 (변경 시 자기 자신 제외용) */
-    @Override boolean existsBySlotIdAndUserIdAndIdNot(Long slotId, Long userId, Long excludeBookingId);
+    /** 예약 변경 시 자기 자신을 제외하고 같은 회원의 활성 예약이 있는지 확인한다. */
+    @Override
+    @Query("""
+            SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+            FROM Booking b
+            WHERE b.slot.id = :slotId
+              AND b.userId = :userId
+              AND b.id <> :excludeBookingId
+              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
+            """)
+    boolean existsBookedBySlotIdAndUserIdAndIdNot(@Param("slotId") Long slotId,
+                                                  @Param("userId") Long userId,
+                                                  @Param("excludeBookingId") Long excludeBookingId);
+
+    /** 이력 가져오기 시 회원에게 선택 슬롯의 활성 예약이 이미 있는지 한 번에 확인한다. */
+    @Query("""
+            SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+            FROM Booking b
+            WHERE b.userId = :userId
+              AND b.slot.id IN :slotIds
+              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
+            """)
+    boolean existsBookedByUserIdAndSlotIds(@Param("userId") Long userId,
+                                           @Param("slotIds") Collection<Long> slotIds);
 
     /** 8회권 환불 시 자동취소 대상 — 해당 pass의 미래 BOOKED 예약 */
     @Override

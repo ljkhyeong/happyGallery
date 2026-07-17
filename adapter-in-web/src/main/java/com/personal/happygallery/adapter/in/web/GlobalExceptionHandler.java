@@ -4,7 +4,12 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.sentry.Sentry;
-import tools.jackson.core.JacksonException;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -15,10 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.util.Locale;
-import java.util.Map;
-import java.util.stream.Collectors;
+import tools.jackson.core.JacksonException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -63,16 +65,14 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
     }
 
-    /**
-     * DB 유니크 제약 위반 — TOCTOU 경쟁 조건에서 발생할 수 있는 최후 방어선.
-     * 예: (slot_id, guest_id) 동시 삽입 충돌 (ADR-0004 참고)
-     */
+    /** DB 제약 위반. 활성 예약 UNIQUE 충돌만 중복 예약으로 응답한다. */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
         log.warn("DB 제약 위반: {}", e.getMessage());
+        ErrorCode errorCode = resolveDataIntegrityErrorCode(e);
         return ResponseEntity
-                .status(ErrorCode.INVALID_INPUT.httpStatus)
-                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, ErrorCode.INVALID_INPUT.message, requestId()));
+                .status(errorCode.httpStatus)
+                .body(ErrorResponse.of(errorCode, errorCode.message, requestId()));
     }
 
     /**
@@ -105,6 +105,39 @@ public class GlobalExceptionHandler {
             "domain.booking.booking", ErrorCode.BOOKING_CONFLICT,
             "bookings", ErrorCode.BOOKING_CONFLICT
     );
+
+    private static final Set<String> DUPLICATE_BOOKING_CONSTRAINTS = Set.of(
+            "uq_bookings_active_user_slot",
+            "uq_bookings_active_guest_slot"
+    );
+
+    private ErrorCode resolveDataIntegrityErrorCode(DataIntegrityViolationException e) {
+        return findConstraintName(e)
+                .map(GlobalExceptionHandler::normalizeConstraintName)
+                .filter(DUPLICATE_BOOKING_CONSTRAINTS::contains)
+                .map(name -> ErrorCode.DUPLICATE_BOOKING)
+                .orElse(ErrorCode.INVALID_INPUT);
+    }
+
+    private static String normalizeConstraintName(String constraintName) {
+        String normalized = constraintName.toLowerCase(Locale.ROOT)
+                .replace("`", "")
+                .replace("\"", "")
+                .replace("'", "");
+        int qualifierSeparator = normalized.lastIndexOf('.');
+        return qualifierSeparator < 0 ? normalized : normalized.substring(qualifierSeparator + 1);
+    }
+
+    private static Optional<String> findConstraintName(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof ConstraintViolationException violation) {
+                return Optional.ofNullable(violation.getConstraintName());
+            }
+            current = current.getCause();
+        }
+        return Optional.empty();
+    }
 
     private ErrorCode resolveOptimisticLockErrorCode(OptimisticLockingFailureException e) {
         String details = collectExceptionDetails(e);

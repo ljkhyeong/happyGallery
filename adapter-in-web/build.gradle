@@ -8,6 +8,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'com.bucket4j:bucket4j-core:8.10.1'
 	implementation 'io.sentry:sentry-spring-boot-4-starter:8.25.0'
+	compileOnly 'org.hibernate.orm:hibernate-core'
 
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'

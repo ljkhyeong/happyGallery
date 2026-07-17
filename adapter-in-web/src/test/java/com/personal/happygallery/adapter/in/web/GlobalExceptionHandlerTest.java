@@ -4,7 +4,8 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.order.Order;
-import tools.jackson.core.JacksonException;
+import java.sql.SQLException;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -12,8 +13,8 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.http.ResponseEntity;
+import tools.jackson.core.JacksonException;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 class GlobalExceptionHandlerTest {
@@ -50,11 +51,23 @@ class GlobalExceptionHandlerTest {
     @Test
     void dataIntegrity_slotUnique_mapsToInvalidInput() {
         ResponseEntity<ErrorResponse> response = handler.handleDataIntegrityViolation(
-                new DataIntegrityViolationException("Duplicate entry for key 'uq_slot_class_start'"));
+                constraintViolation("uq_slot_class_start"));
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(400);
             softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.INVALID_INPUT));
+        });
+    }
+
+    @DisplayName("활성 예약 유니크 제약 위반은 DUPLICATE_BOOKING으로 매핑된다")
+    @Test
+    void dataIntegrity_activeBookingUnique_mapsToDuplicateBooking() {
+        ResponseEntity<ErrorResponse> response = handler.handleDataIntegrityViolation(
+                constraintViolation("bookings.uq_bookings_active_guest_slot"));
+
+        assertSoftly(softly -> {
+            softly.assertThat(response.getStatusCode().value()).isEqualTo(409);
+            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.DUPLICATE_BOOKING));
         });
     }
 
@@ -87,5 +100,11 @@ class GlobalExceptionHandlerTest {
         TestJacksonException(String message) {
             super(message);
         }
+    }
+
+    private static DataIntegrityViolationException constraintViolation(String constraintName) {
+        return new DataIntegrityViolationException(
+                "DB constraint violation",
+                new ConstraintViolationException("Duplicate entry", new SQLException(), constraintName));
     }
 }

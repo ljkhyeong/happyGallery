@@ -9,6 +9,9 @@ import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
+import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
+import com.personal.happygallery.application.search.port.in.AdminBookingSearchUseCase;
+import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
@@ -47,6 +50,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class AdminBookingQueryUseCaseIT {
 
     @Autowired AdminBookingQueryUseCase adminBookingQueryService;
+    @Autowired AdminBookingSearchUseCase adminBookingSearchUseCase;
     @Autowired BookingReminderBatchUseCase bookingReminderBatchService;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
@@ -102,7 +106,7 @@ class AdminBookingQueryUseCaseIT {
         });
     }
 
-    @DisplayName("관리자 예약 목록은 회원 예약이 없는 날의 비회원 예약도 조회한다")
+    @DisplayName("관리자 예약 목록과 검색은 회원 예약이 없는 날의 비회원 예약도 조회한다")
     @Test
     void listBookings_guestOnly_returnsGuestBookings() {
         LocalDate targetDate = LocalDate.now(clock).plusDays(2);
@@ -111,11 +115,15 @@ class AdminBookingQueryUseCaseIT {
         saveGuestBooking(slotStart, "게스트전용 클래스", "GUEST_ONLY", "게스트", "01012121212");
 
         List<AdminBookingResponse> responses = adminBookingQueryService.listBookings(targetDate, null);
+        OffsetPage<AdminBookingSearchRow> searchResult =
+                adminBookingSearchUseCase.search(null, targetDate, targetDate, null, 0, 20);
 
         assertSoftly(softly -> {
             softly.assertThat(responses).hasSize(1);
             softly.assertThat(responses.getFirst().bookerType()).isEqualTo("GUEST");
             softly.assertThat(responses.getFirst().bookerPhone()).isEqualTo("01012121212");
+            softly.assertThat(searchResult.content()).hasSize(1);
+            softly.assertThat(searchResult.content().getFirst().bookerPhone()).isEqualTo("01012121212");
         });
     }
 

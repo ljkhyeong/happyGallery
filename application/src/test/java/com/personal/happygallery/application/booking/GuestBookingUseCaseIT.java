@@ -3,13 +3,17 @@ package com.personal.happygallery.application.booking;
 import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.PreparePaymentRequest;
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.customer.GuestPhoneProtector;
+import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.support.BookingStateProbe;
@@ -18,17 +22,28 @@ import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -42,10 +57,14 @@ class GuestBookingUseCaseIT {
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
+    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
+    @Autowired GuestPhoneProtector guestPhoneProtector;
     @Autowired BookingReaderPort bookingReaderPort;
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired ObjectMapper objectMapper;
+    @Autowired PlatformTransactionManager transactionManager;
 
     Long slotId;
     static final String PHONE = "01012345678";
@@ -114,6 +133,45 @@ class GuestBookingUseCaseIT {
 
         // DB 저장 확인
         assertThat(bookingReaderPort.findById(created.bookingId())).isPresent();
+    }
+
+    @DisplayName("동일 전화번호의 게스트를 동시에 생성해도 하나만 저장한다")
+    @Test
+    void createGuest_concurrently_reusesSameGuest() throws Exception {
+        int threadCount = 3;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        List<Future<Long>> futures = new ArrayList<>();
+
+        try {
+            for (int i = 0; i < threadCount; i++) {
+                futures.add(executor.submit(() -> {
+                    startLatch.await();
+                    return getOrCreateGuestInTx("홍길동").getId();
+                }));
+            }
+
+            startLatch.countDown();
+            List<Long> guestIds = new ArrayList<>();
+            for (Future<Long> future : futures) {
+                guestIds.add(future.get(10, TimeUnit.SECONDS));
+            }
+
+            Guest stored = guestRepository.findByPhoneHmac(guestPhoneProtector.index(PHONE)).orElseThrow();
+            String storedPhoneEnc = stored.getPhoneEnc();
+            Guest reused = getOrCreateGuestInTx("변경된 이름");
+
+            assertSoftly(softly -> {
+                softly.assertThat(new HashSet<>(guestIds)).hasSize(1);
+                softly.assertThat(guestRepository.count()).isEqualTo(1L);
+                softly.assertThat(reused.getId()).isEqualTo(stored.getId());
+                softly.assertThat(reused.getName()).isEqualTo("홍길동");
+                softly.assertThat(reused.getPhoneEnc()).isEqualTo(storedPhoneEnc);
+                softly.assertThat(guestPhoneProtector.decrypt(reused)).isEqualTo(PHONE);
+            });
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     // Proof: 계좌이체로 예약금 결제 시도 → 422 차단
@@ -234,5 +292,10 @@ class GuestBookingUseCaseIT {
     private String confirmRequest(PaymentTestHelper.PreparedPayment prepared, String paymentKey) throws Exception {
         return objectMapper.writeValueAsString(
                 new ConfirmPaymentRequest(paymentKey, prepared.orderId(), prepared.amount()));
+    }
+
+    private Guest getOrCreateGuestInTx(String name) {
+        return new TransactionTemplate(transactionManager).execute(status ->
+                guestStorePort.getOrCreateByPhoneHmac(guestPhoneProtector.newGuest(name, PHONE)));
     }
 }

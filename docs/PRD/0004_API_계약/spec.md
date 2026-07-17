@@ -479,7 +479,7 @@ X-Access-Token: {accessToken}
   - `400 INVALID_INPUT` — 동일 슬롯으로 변경 시도
   - `404 NOT_FOUND` — 예약 미존재 또는 token 불일치
   - `409 CAPACITY_EXCEEDED` — 새 슬롯 정원 초과
-  - `409 DUPLICATE_BOOKING` — 동일 전화번호 + 새 슬롯 이미 예약
+  - `409 DUPLICATE_BOOKING` — 동일 전화번호 + 새 슬롯에 활성 예약이 이미 존재
   - `409 SLOT_NOT_AVAILABLE` — 새 슬롯 비활성
   - `409 BOOKING_CONFLICT` — 낙관적 락 충돌
   - `422 CHANGE_NOT_ALLOWED` — 현재 슬롯 시작 1시간 이내
@@ -1480,7 +1480,7 @@ Content-Type: application/json
   - `404 NOT_FOUND` — `payment_attempt` 미존재
   - `409 INVENTORY_NOT_ENOUGH` — 결제 직전 재고 부족
   - `409 CAPACITY_EXCEEDED` — 결제 직전 슬롯 정원 초과
-  - `409 DUPLICATE_BOOKING` — 동일 전화번호 + 동일 슬롯 중복
+  - `409 DUPLICATE_BOOKING` — 동일 전화번호 + 동일 슬롯에 활성 예약 중복
   - `409 SLOT_NOT_AVAILABLE` — 결제 직전 비활성 슬롯
   - `409 PAYMENT_CONFIRM_IN_PROGRESS` — 동일 결제 confirm 처리 중
   - `500 INTERNAL_ERROR` — 저장된 결제 payload 직렬화/역직렬화 실패
@@ -1567,7 +1567,7 @@ Content-Type: application/json
 | 409 | `ALREADY_REFUNDED` | 이미 환불된 주문에 승인·거절 시도 |
 | 409 | `INVENTORY_NOT_ENOUGH` | 재고 차감 시 수량 부족 |
 | 409 | `CAPACITY_EXCEEDED` | 슬롯 정원(8명) 초과 예약 시도 |
-| 409 | `DUPLICATE_BOOKING` | 동일 전화번호 + 동일 슬롯 중복 예약 |
+| 409 | `DUPLICATE_BOOKING` | 동일 예약자 + 동일 슬롯 활성 예약 중복 |
 | 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 |
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌에 의한 동시 변경 요청 |
 | 409 | `PAYMENT_CONFIRM_IN_PROGRESS` | 동일 결제의 confirm 요청이 이미 처리 중 |

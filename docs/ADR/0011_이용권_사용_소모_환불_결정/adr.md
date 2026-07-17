@@ -20,6 +20,7 @@
 8회권 전체 환불처럼 단일 예약이 원인이 아닌 원장은 `related_booking_id`를 비운다.
 예약 생성에서는 회원 소유권만 먼저 확인하고, `PassPurchase.useCredit(usedAt)`이 만료·잔여 크레딧 검증과
 차감을 한 번에 수행한다. 이후 `USE` 원장을 같은 트랜잭션에 저장하며, 어느 한쪽이라도 실패하면 모두 롤백한다.
+`UNIQUE(related_booking_id, type)`으로 같은 예약에 `USE` 또는 예약 취소 `REFUND`가 중복 기록되는 것도 차단한다.
 
 **이유**:
 - `isPassBooking()` 판별, 환불 시 미래 예약 조회 `findFutureBookedPassBookings()` 모두 이 FK에 의존

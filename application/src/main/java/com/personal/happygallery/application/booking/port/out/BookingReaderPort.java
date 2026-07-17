@@ -19,13 +19,13 @@ public interface BookingReaderPort {
 
     List<Booking> findByGuestIdWithDetails(Long guestId);
 
-    boolean existsBySlotIdAndGuestId(Long slotId, Long guestId);
+    boolean existsBookedBySlotIdAndGuestId(Long slotId, Long guestId);
 
-    boolean existsBySlotIdAndUserId(Long slotId, Long userId);
+    boolean existsBookedBySlotIdAndUserId(Long slotId, Long userId);
 
-    boolean existsBySlotIdAndGuestIdAndIdNot(Long slotId, Long guestId, Long excludeBookingId);
+    boolean existsBookedBySlotIdAndGuestIdAndIdNot(Long slotId, Long guestId, Long excludeBookingId);
 
-    boolean existsBySlotIdAndUserIdAndIdNot(Long slotId, Long userId, Long excludeBookingId);
+    boolean existsBookedBySlotIdAndUserIdAndIdNot(Long slotId, Long userId, Long excludeBookingId);
 
     List<Booking> findFutureBookedPassBookings(Long passId, LocalDateTime now);
 

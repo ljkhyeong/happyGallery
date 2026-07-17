@@ -3,15 +3,17 @@ package com.personal.happygallery.application.customer;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
 import com.personal.happygallery.application.customer.port.out.GuestClaimQueryPort;
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
-import com.personal.happygallery.application.monitoring.port.in.ClientMonitoringUseCase;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
+import com.personal.happygallery.application.monitoring.port.in.ClientMonitoringUseCase;
+import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingStatus;
+import com.personal.happygallery.domain.booking.Guest;
+import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
 import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
-import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.Guest;
-import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
@@ -23,11 +25,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 @Service
 @Transactional
@@ -101,7 +105,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     private void claimOrders(Set<Long> orderIds, Long guestId, Long userId) {
         if (orderIds.isEmpty()) return;
         Map<Long, Order> orderMap = claimQuery.findOrdersByIds(orderIds).stream()
-                .collect(Collectors.toMap(Order::getId, Function.identity()));
+                .collect(toMap(Order::getId, Function.identity()));
         for (Long orderId : orderIds) {
             Order order = orderMap.get(orderId);
             if (order == null || !Objects.equals(order.getGuestId(), guestId)) {
@@ -114,13 +118,26 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     private void claimBookings(Set<Long> bookingIds, Long guestId, Long userId) {
         if (bookingIds.isEmpty()) return;
         Map<Long, Booking> bookingMap = claimQuery.findBookingsByIds(bookingIds).stream()
-                .collect(Collectors.toMap(Booking::getId, Function.identity()));
+                .collect(toMap(Booking::getId, Function.identity()));
         for (Long bookingId : bookingIds) {
             Booking booking = bookingMap.get(bookingId);
             if (booking == null || booking.getGuest() == null
                     || !Objects.equals(booking.getGuest().getId(), guestId)) {
                 throw new NotFoundException("claim 예약");
             }
+        }
+
+        Set<Long> bookedSlotIds = bookingMap.values().stream()
+                .filter(booking -> booking.getStatus() == BookingStatus.BOOKED)
+                .map(booking -> booking.getSlot().getId())
+                .collect(toSet());
+        if (!bookedSlotIds.isEmpty()
+                && claimQuery.existsBookedByUserIdAndSlotIds(userId, bookedSlotIds)) {
+            throw new DuplicateBookingException();
+        }
+
+        for (Long bookingId : bookingIds) {
+            Booking booking = bookingMap.get(bookingId);
             booking.claimToUser(userId);
         }
     }

@@ -1,7 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.dashboard.adapter;
 
-import com.personal.happygallery.application.search.dto.AdminOrderSearchRow;
 import com.personal.happygallery.application.search.port.out.AdminOrderSearchPort;
+import com.personal.happygallery.application.search.port.out.AdminOrderSearchResult;
 import com.personal.happygallery.adapter.out.persistence.time.SeoulDateTimeRangeConverter;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.adapter.out.persistence.dashboard.mapper.AdminOrderSearchMapper;
@@ -22,8 +22,8 @@ class MyBatisAdminOrderSearchAdapter implements AdminOrderSearchPort {
     }
 
     @Override
-    public List<AdminOrderSearchRow> search(OrderStatus status, LocalDate dateFrom, LocalDate dateTo,
-                                             String keyword, int offset, int size) {
+    public List<AdminOrderSearchResult> search(OrderStatus status, LocalDate dateFrom, LocalDate dateTo,
+                                                String keyword, int offset, int size) {
         return mapper.search(
                 status != null ? status.name() : null,
                 dateFrom != null ? SeoulDateTimeRangeConverter.toUtcStart(dateFrom) : null,

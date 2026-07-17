@@ -47,7 +47,7 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
         Slot slot = slotCapacitySupport.loadActiveSlot(slotId);
 
         // 2. 중복 예약 확인
-        if (bookingReaderPort.existsBySlotIdAndUserId(slotId, userId)) {
+        if (bookingReaderPort.existsBookedBySlotIdAndUserId(slotId, userId)) {
             throw new DuplicateBookingException();
         }
 

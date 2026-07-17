@@ -51,7 +51,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
     public Booking rescheduleBooking(Long bookingId, String accessToken, Long newSlotId) {
         Booking booking = bookingSupport.findByToken(bookingId, accessToken);
         if (booking.getGuest() != null &&
-                bookingReaderPort.existsBySlotIdAndGuestIdAndIdNot(
+                bookingReaderPort.existsBookedBySlotIdAndGuestIdAndIdNot(
                         newSlotId, booking.getGuest().getId(), bookingId)) {
             throw new DuplicateBookingException();
         }
@@ -64,7 +64,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
      */
     public Booking rescheduleMemberBooking(Long bookingId, Long userId, Long newSlotId) {
         Booking booking = bookingSupport.findByIdAndUserId(bookingId, userId);
-        if (bookingReaderPort.existsBySlotIdAndUserIdAndIdNot(
+        if (bookingReaderPort.existsBookedBySlotIdAndUserIdAndIdNot(
                 newSlotId, userId, bookingId)) {
             throw new DuplicateBookingException();
         }

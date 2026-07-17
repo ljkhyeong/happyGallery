@@ -123,6 +123,31 @@ class BookingCancelUseCaseIT {
         verify(paymentProvider).refund(eq("FAKE-TEST-PG"), eq(5000L), any());
     }
 
+    @DisplayName("취소한 예약과 같은 전화번호로 같은 슬롯을 다시 예약할 수 있다")
+    @Test
+    void cancel_thenRebookSameSlot_success() throws Exception {
+        Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        String phone = "01077770007";
+
+        BookingTestHelper.CreatedBooking canceledBooking =
+                helper.createVerifiedCardBooking(phone, slot.getId());
+        mockMvc.perform(delete("/bookings/{id}", canceledBooking.bookingId())
+                        .header("X-Access-Token", canceledBooking.accessToken()))
+                .andExpect(status().isOk());
+
+        BookingTestHelper.CreatedBooking rebooked =
+                helper.createVerifiedCardBooking(phone, slot.getId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(rebooked.bookingId()).isNotEqualTo(canceledBooking.bookingId());
+            softly.assertThat(bookingStateProbe.getBooking(canceledBooking.bookingId()).getStatus().name())
+                    .isEqualTo("CANCELED");
+            softly.assertThat(bookingStateProbe.getBooking(rebooked.bookingId()).getStatus().name())
+                    .isEqualTo("BOOKED");
+            softly.assertThat(bookingStateProbe.getSlot(slot.getId()).getBookedCount()).isEqualTo(1);
+        });
+    }
+
     // -----------------------------------------------------------------------
     // Proof: PG 환불 결과 불명 → 상태 확인 필요로 저장됨 (사라지지 않음)
     // -----------------------------------------------------------------------
