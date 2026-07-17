@@ -4,13 +4,14 @@ import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.adapter.in.web.admin.dto.LoginRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.LoginResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/v1/admin/auth")
@@ -29,7 +30,7 @@ public class AdminLoginController {
 
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public void logout(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             adminAuthUseCase.logout(authHeader.substring(7));
         }

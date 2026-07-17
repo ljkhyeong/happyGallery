@@ -36,7 +36,6 @@ public class AsyncConfig implements AsyncConfigurer {
                 finally { MDC.clear(); }
             };
         });
-        executor.initialize();
         return executor;
     }
 
@@ -57,7 +56,6 @@ public class AsyncConfig implements AsyncConfigurer {
                 finally { MDC.clear(); }
             };
         });
-        executor.initialize();
         return executor;
     }
 

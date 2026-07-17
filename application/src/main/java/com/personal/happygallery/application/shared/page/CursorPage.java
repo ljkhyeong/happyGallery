@@ -27,7 +27,7 @@ public record CursorPage<T>(
                                        Function<T, String> cursorExtractor) {
         if (fetchedItems.size() > size) {
             List<T> content = fetchedItems.subList(0, size);
-            String nextCursor = cursorExtractor.apply(content.get(content.size() - 1));
+            String nextCursor = cursorExtractor.apply(content.getLast());
             return new CursorPage<>(List.copyOf(content), nextCursor, true);
         }
         return new CursorPage<>(List.copyOf(fetchedItems), null, false);

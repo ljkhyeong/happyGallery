@@ -78,7 +78,7 @@ class NaverOAuthClient implements OAuthTokenExchangePort {
     private OAuthUserInfo fetchUserInfo(String accessToken) {
         UserInfoEnvelope envelope = restClient.get()
                 .uri(props.userInfoUrl())
-                .header("Authorization", "Bearer " + accessToken)
+                .headers(headers -> headers.setBearerAuth(accessToken))
                 .retrieve()
                 .body(UserInfoEnvelope.class);
 

@@ -39,6 +39,6 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
         return findDispatchableForUpdate(
                 now,
                 staleBefore,
-                PageRequest.of(0, limit));
+                PageRequest.ofSize(limit));
     }
 }

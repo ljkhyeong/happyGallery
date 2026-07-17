@@ -9,12 +9,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.ResourceAccessException;
+
+import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.REQUEST_TIMEOUT;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
 /**
  * Toss Payments 실결제 어댑터 — {@code paymentProviderDelegate} (prod).
@@ -137,9 +142,11 @@ public class TossPaymentsProvider implements PaymentProvider {
     }
 
     private boolean isRetryableStatus(RestClientResponseException exception) {
-        int status = exception.getStatusCode().value();
-        return status == 408 || status == 409 || status == 429
-                || exception.getStatusCode().is5xxServerError();
+        HttpStatusCode status = exception.getStatusCode();
+        return status.isSameCodeAs(REQUEST_TIMEOUT)
+                || status.isSameCodeAs(CONFLICT)
+                || status.isSameCodeAs(TOO_MANY_REQUESTS)
+                || status.is5xxServerError();
     }
 
     private record RefundResponse(String paymentKey, String lastTransactionKey, List<CancelResponse> cancels) {}

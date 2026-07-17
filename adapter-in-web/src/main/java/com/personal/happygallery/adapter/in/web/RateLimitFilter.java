@@ -18,6 +18,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -49,7 +50,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private static final String X_FORWARDED_FOR = "X-Forwarded-For";
-    private static final String ADMIN_PATH_PREFIX = "/api/v1/admin/";
 
     private static final LimitRule PHONE_VERIFICATION_RULE = new LimitRule(
             "PHONE_VERIFICATION", pathPattern(POST, "/api/v1/bookings/phone-verifications"));
@@ -66,7 +66,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final LimitRule SOCIAL_LOGIN_INIT_RULE = new LimitRule(
             "SOCIAL_LOGIN_INIT", pathPattern(GET, "/api/v1/auth/social/{provider}/url"));
     private static final LimitRule ADMIN_API_RULE = new LimitRule(
-            "ADMIN_API", request -> request.getRequestURI().startsWith(ADMIN_PATH_PREFIX));
+            "ADMIN_API", pathPattern("/api/v1/admin/**"));
 
     private final ObjectMapper objectMapper;
     private final RateLimitProperties properties;
@@ -107,7 +107,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setHeader("X-RateLimit-Remaining", String.valueOf(remaining));
 
         if (count > resolved.capacity()) {
-            response.setHeader("Retry-After", String.valueOf(resolved.window().toSeconds()));
+            response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(resolved.window().toSeconds()));
             log.warn("rate limit exceeded [rule={}]", resolved.rule().id());
             writeTooManyRequests(response);
             return;

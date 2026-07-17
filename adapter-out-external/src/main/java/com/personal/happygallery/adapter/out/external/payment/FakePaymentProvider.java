@@ -4,7 +4,7 @@ import com.personal.happygallery.application.payment.port.out.PaymentConfirmResu
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import java.time.OffsetDateTime;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -16,18 +16,10 @@ import org.springframework.stereotype.Component;
 @Profile("!prod")
 public class FakePaymentProvider implements PaymentProvider {
 
-    private LocalRefundFailureScript localRefundFailureScript;
+    private final LocalRefundFailureScript localRefundFailureScript;
 
-    public FakePaymentProvider() {
-    }
-
-    FakePaymentProvider(LocalRefundFailureScript localRefundFailureScript) {
-        this.localRefundFailureScript = localRefundFailureScript;
-    }
-
-    @Autowired(required = false)
-    void setLocalRefundFailureScript(LocalRefundFailureScript localRefundFailureScript) {
-        this.localRefundFailureScript = localRefundFailureScript;
+    public FakePaymentProvider(ObjectProvider<LocalRefundFailureScript> localRefundFailureScriptProvider) {
+        this.localRefundFailureScript = localRefundFailureScriptProvider.getIfAvailable();
     }
 
     @Override

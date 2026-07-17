@@ -81,7 +81,7 @@ class GoogleOAuthClient implements OAuthTokenExchangePort {
     private OAuthUserInfo fetchUserInfo(String accessToken) {
         UserInfoResponse response = restClient.get()
                 .uri(props.userInfoUrl())
-                .header("Authorization", "Bearer " + accessToken)
+                .headers(headers -> headers.setBearerAuth(accessToken))
                 .retrieve()
                 .body(UserInfoResponse.class);
 

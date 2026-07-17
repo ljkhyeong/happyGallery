@@ -31,7 +31,7 @@ public class DefaultNoticeService implements NoticeQueryUseCase, NoticeAdminUseC
     @Override
     @Transactional(readOnly = true)
     public List<Notice> listRecent(int limit) {
-        return noticeReader.findAllByOrderByPinnedDescCreatedAtDesc(PageRequest.of(0, limit));
+        return noticeReader.findAllByOrderByPinnedDescCreatedAtDesc(PageRequest.ofSize(limit));
     }
 
     @Override

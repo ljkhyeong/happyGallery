@@ -2,10 +2,12 @@ package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.http.PooledHttpClientFactory;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -32,8 +34,8 @@ class NotificationRestClientConfig {
                                @Qualifier("kakaoHttpClient") CloseableHttpClient httpClient) {
         return RestClient.builder()
                 .baseUrl(props.baseUrl())
-                .defaultHeader("Content-Type", "application/json")
-                .defaultHeader("Authorization", "KakaoAK " + props.apiKey())
+                .defaultHeaders(headers -> headers.setContentType(MediaType.APPLICATION_JSON))
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "KakaoAK " + props.apiKey())
                 .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
                 .build();
     }
@@ -48,7 +50,7 @@ class NotificationRestClientConfig {
                              @Qualifier("smsHttpClient") CloseableHttpClient httpClient) {
         return RestClient.builder()
                 .baseUrl(props.baseUrl())
-                .defaultHeader("Content-Type", "application/json")
+                .defaultHeaders(headers -> headers.setContentType(MediaType.APPLICATION_JSON))
                 .defaultHeader("X-Secret-Key", props.apiSecret())
                 .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
                 .build();
