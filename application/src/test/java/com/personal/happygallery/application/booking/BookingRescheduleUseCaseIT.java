@@ -77,7 +77,7 @@ class BookingRescheduleUseCaseIT {
 
         // 5번 연속 변경 (slots[1] → slots[2] → ... → slots[5])
         for (int i = 1; i <= 5; i++) {
-                    mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+                    mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                             .header("X-Access-Token", booking.accessToken())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(rescheduleRequest(slots[i].getId())))
@@ -123,7 +123,7 @@ class BookingRescheduleUseCaseIT {
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01022220001", nearSlot.getId());
 
-        mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(rescheduleRequest(targetSlot.getId())))
@@ -142,7 +142,7 @@ class BookingRescheduleUseCaseIT {
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330001", slot.getId());
 
-        mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(rescheduleRequest(slot.getId())))
@@ -163,7 +163,7 @@ class BookingRescheduleUseCaseIT {
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01044440001", fromSlot.getId());
 
-        mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(rescheduleRequest(inactiveSlot.getId())))
@@ -188,7 +188,7 @@ class BookingRescheduleUseCaseIT {
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550001", fromSlot.getId());
 
-        mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(rescheduleRequest(fullSlot.getId())))
@@ -208,7 +208,7 @@ class BookingRescheduleUseCaseIT {
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01066660001", fromSlot.getId());
 
-        mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", "invalid-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(rescheduleRequest(toSlot.getId())))

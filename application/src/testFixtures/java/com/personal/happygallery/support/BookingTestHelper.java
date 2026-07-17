@@ -38,7 +38,7 @@ public final class BookingTestHelper {
     }
 
     public String sendVerificationAndGetCode(String phone) throws Exception {
-        mockMvc.perform(post("/bookings/phone-verifications")
+        mockMvc.perform(post("/api/v1/bookings/phone-verifications")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new SendVerificationRequest(phone))))

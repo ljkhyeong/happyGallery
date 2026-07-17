@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/orders", "/admin/orders"})
+@RequestMapping("/api/v1/admin/orders")
 public class AdminOrderApprovalController {
 
     private final OrderApprovalUseCase orderApprovalUseCase;
@@ -19,14 +19,14 @@ public class AdminOrderApprovalController {
         this.orderApprovalUseCase = orderApprovalUseCase;
     }
 
-    /** POST /admin/orders/{id}/approve — 주문 승인 (MADE_TO_ORDER는 IN_PRODUCTION으로 전이) */
+    /** POST /api/v1/admin/orders/{id}/approve — 주문 승인 (MADE_TO_ORDER는 IN_PRODUCTION으로 전이) */
     @PostMapping("/{id}/approve")
     @ResponseStatus(HttpStatus.OK)
     public void approve(@PathVariable Long id, @AdminUserId Long adminId) {
         orderApprovalUseCase.approve(id, adminId);
     }
 
-    /** POST /admin/orders/{id}/reject — 주문 거절 (환불 + 재고 복구 포함, 제작 중은 거절 불가) */
+    /** POST /api/v1/admin/orders/{id}/reject — 주문 거절 (환불 + 재고 복구 포함, 제작 중은 거절 불가) */
     @PostMapping("/{id}/reject")
     @ResponseStatus(HttpStatus.OK)
     public void reject(@PathVariable Long id, @AdminUserId Long adminId) {

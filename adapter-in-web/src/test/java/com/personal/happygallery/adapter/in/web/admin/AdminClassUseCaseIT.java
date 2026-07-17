@@ -41,7 +41,7 @@ class AdminClassUseCaseIT {
     @DisplayName("관리자 클래스 생성이 성공한다")
     @Test
     void createClass_success() throws Exception {
-        mockMvc.perform(post("/admin/classes")
+        mockMvc.perform(post("/api/v1/admin/classes")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -69,7 +69,7 @@ class AdminClassUseCaseIT {
     @DisplayName("관리자 키 없이 클래스 생성 API를 호출하면 401을 반환한다")
     @Test
     void createClass_withoutAuth_returns401() throws Exception {
-        mockMvc.perform(post("/admin/classes")
+        mockMvc.perform(post("/api/v1/admin/classes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

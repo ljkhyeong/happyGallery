@@ -2,5 +2,5 @@ package com.personal.happygallery.adapter.in.web.admin.dto;
 
 import java.time.LocalDate;
 
-/** PATCH /admin/orders/{id}/expected-ship-date 요청 바디 */
+/** PATCH /api/v1/admin/orders/{id}/expected-ship-date 요청 바디 */
 public record SetExpectedShipDateRequest(LocalDate expectedShipDate) {}

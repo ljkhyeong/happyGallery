@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/classes", "/admin/classes"})
+@RequestMapping("/api/v1/admin/classes")
 public class AdminClassController {
 
     private final ClassManagementUseCase classManagementUseCase;
@@ -22,7 +22,7 @@ public class AdminClassController {
         this.classManagementUseCase = classManagementUseCase;
     }
 
-    /** POST /admin/classes — 클래스 생성 */
+    /** POST /api/v1/admin/classes — 클래스 생성 */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ClassResponse createClass(@RequestBody @Valid CreateClassRequest request) {

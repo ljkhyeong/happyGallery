@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/slots", "/slots"})
+@RequestMapping("/api/v1/slots")
 public class SlotController {
 
     private final SlotQueryUseCase slotQueryUseCase;
@@ -20,7 +20,7 @@ public class SlotController {
         this.slotQueryUseCase = slotQueryUseCase;
     }
 
-    /** GET /slots?classId={}&date={} — 예약 가능 슬롯 목록 */
+    /** GET /api/v1/slots?classId={}&date={} — 예약 가능 슬롯 목록 */
     @GetMapping
     public List<PublicSlotResponse> listAvailableSlots(
             @RequestParam Long classId,

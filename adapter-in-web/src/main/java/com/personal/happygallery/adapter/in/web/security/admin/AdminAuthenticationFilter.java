@@ -24,13 +24,9 @@ public final class AdminAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final RequestMatcher PUBLIC_ADMIN_ENDPOINTS = new OrRequestMatcher(
             endpoint(HttpMethod.POST, "/api/v1/admin/auth/login"),
-            endpoint(HttpMethod.POST, "/admin/auth/login"),
             endpoint(HttpMethod.POST, "/api/v1/admin/auth/logout"),
-            endpoint(HttpMethod.POST, "/admin/auth/logout"),
             endpoint(HttpMethod.POST, "/api/v1/admin/setup"),
-            endpoint(HttpMethod.POST, "/admin/setup"),
-            endpoint(HttpMethod.GET, "/api/v1/admin/setup/status"),
-            endpoint(HttpMethod.GET, "/admin/setup/status")
+            endpoint(HttpMethod.GET, "/api/v1/admin/setup/status")
     );
 
     private final AuthenticationManager authenticationManager;

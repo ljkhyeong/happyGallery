@@ -25,7 +25,7 @@ import java.security.MessageDigest;
  * <p>두 조건을 모두 만족하지 않으면 404 를 반환하여 엔드포인트 존재 자체를 감춘다.
  */
 @RestController
-@RequestMapping({"/api/v1/admin/setup", "/admin/setup"})
+@RequestMapping("/api/v1/admin/setup")
 public class AdminSetupController {
 
     private final AdminSetupProperties setupProperties;

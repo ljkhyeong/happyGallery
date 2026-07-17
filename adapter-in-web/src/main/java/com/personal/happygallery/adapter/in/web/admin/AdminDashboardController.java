@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/dashboard", "/admin/dashboard"})
+@RequestMapping("/api/v1/admin/dashboard")
 public class AdminDashboardController {
 
     private final DashboardQueryUseCase dashboardQueryUseCase;

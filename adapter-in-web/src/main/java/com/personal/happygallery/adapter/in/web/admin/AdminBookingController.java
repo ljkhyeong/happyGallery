@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/bookings", "/admin/bookings"})
+@RequestMapping("/api/v1/admin/bookings")
 public class AdminBookingController {
 
     private final AdminBookingQueryUseCase adminBookingQueryUseCase;
@@ -35,7 +35,7 @@ public class AdminBookingController {
         this.bookingNoShowUseCase = bookingNoShowUseCase;
     }
 
-    /** GET /admin/bookings?date=2026-03-08&status=BOOKED — 날짜별 예약 조회 (상태 필터 선택) */
+    /** GET /api/v1/admin/bookings?date=2026-03-08&status=BOOKED — 날짜별 예약 조회 (상태 필터 선택) */
     @GetMapping
     public List<AdminBookingResponse> listBookings(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
@@ -43,7 +43,7 @@ public class AdminBookingController {
         return adminBookingQueryUseCase.listBookings(date, status);
     }
 
-    /** GET /admin/bookings/search — 상태·날짜·키워드 기반 예약 검색 (OFFSET + 지연 조인) */
+    /** GET /api/v1/admin/bookings/search — 상태·날짜·키워드 기반 예약 검색 (OFFSET + 지연 조인) */
     @GetMapping("/search")
     public OffsetPage<AdminBookingSearchRow> searchBookings(
             @RequestParam(required = false) BookingStatus status,

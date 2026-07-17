@@ -1,6 +1,7 @@
 # ADR-0017: 필터 기반 API 처리율 제한 도입
 
 **날짜**: 2026-03-06  
+**최종 갱신**: 2026-07-17
 **상태**: Accepted
 
 ---
@@ -23,7 +24,7 @@
 
 - 요청 초기 단계에서 차단해 컨트롤러/서비스/DB 진입 전에 자원을 보호한다.
 - 필터 순서:
-  - `RequestIdFilter` → `RateLimitFilter` → `AdminAuthFilter`
+  - `RequestIdFilter` → `RateLimitFilter` → Spring Security FilterChain
 
 ### 2. Redis 공유 카운터 기반 fixed-window 정책을 적용한다
 
@@ -35,14 +36,14 @@
   - 인증코드 발송: 10 req/sec/IP
   - 회원 로그인: 10 req/min/IP
   - 회원 회원가입: 5 req/min/IP
-  - 게스트 예약 생성: 30 req/min/IP (구 생성 API 기준, 결제 전환 후 `/payments/prepare`로 이전 필요)
-  - 이용권 구매: 20 req/min/IP (구 생성 API 기준, 결제 전환 후 `/payments/prepare`로 이전 필요)
   - 관리자 로그인: 5 req/min/IP
+  - 최초 관리자 setup: 5 req/min/IP
   - Admin API: 120 req/min/IP
+  - 소셜 로그인 URL 발급/코드 교환: 각 10 req/min/IP
 
-### Update (2026-04-26)
+### Update (2026-07-17)
 
-주문/예약/8회권 생성은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm`로 전환됐다. 현재 필터 구현에는 아직 구 `BOOKING_CREATE`, `PASS_PURCHASE` 경로 규칙이 남아 있으므로 `plan.md`의 `P1R-T2`에서 결제 API 기준 rate limit으로 이전한다.
+주문/예약/8회권 생성은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm`로 전환됐다. 더 이상 매핑되지 않는 구 `BOOKING_CREATE`, `PASS_PURCHASE` 규칙과 설정은 제거했다. 결제 API 자체의 처리율 제한은 본문을 읽어야 하는 context별 정책과 멱등 confirm 재시도를 함께 설계해야 하므로 `plan.md`의 `P1R-T2`에서 별도로 다룬다.
 
 ### 3. Redis 증분과 TTL 설정은 Lua script로 원자적으로 처리한다
 
@@ -74,9 +75,9 @@
 ## 구현 반영
 
 - `adapter-in-web/.../RateLimitFilter` 추가
-- `adapter-in-web/.../RequestIdFilter`, `adapter-in-web/.../AdminAuthFilter` 필터 순서/경로 보강
+- `adapter-in-web/.../RequestIdFilter`, Spring Security FilterChain과의 필터 순서 보강
 - `StringRedisTemplate` 기반 Redis 카운터 사용
 - Lua script로 `INCR` + `EXPIRE` 원자 처리
 - `domain/error/ErrorCode`에 `TOO_MANY_REQUESTS` 추가
 - `bootstrap/src/main/resources/application.yml`에 `app.rate-limit.*` 설정 추가
-- `CUSTOMER_LOGIN`, `CUSTOMER_SIGNUP`, `ADMIN_LOGIN` 한도와 `trust-forwarded-headers` 정책 추가
+- `PHONE_VERIFICATION`, `CUSTOMER_LOGIN`, `CUSTOMER_SIGNUP`, `ADMIN_LOGIN`, `ADMIN_SETUP`, `ADMIN_API`, `SOCIAL_LOGIN` 한도와 `trust-forwarded-headers` 정책 적용

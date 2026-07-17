@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/classes", "/classes"})
+@RequestMapping("/api/v1/classes")
 public class ClassController {
 
     private final ClassQueryUseCase classQueryUseCase;
@@ -17,7 +17,7 @@ public class ClassController {
         this.classQueryUseCase = classQueryUseCase;
     }
 
-    /** GET /classes — 전체 클래스 목록 */
+    /** GET /api/v1/classes — 전체 클래스 목록 */
     @GetMapping
     public List<ClassResponse> listClasses() {
         return classQueryUseCase.listAll().stream()

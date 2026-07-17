@@ -91,7 +91,7 @@ class GuestBookingUseCaseIT {
     @DisplayName("전화번호 인증코드 발송이 성공한다")
     @Test
     void sendVerification_success() throws Exception {
-        mockMvc.perform(post("/bookings/phone-verifications")
+        mockMvc.perform(post("/api/v1/bookings/phone-verifications")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new SendVerificationRequest(PHONE))))
                 .andExpect(status().isOk())
@@ -103,7 +103,7 @@ class GuestBookingUseCaseIT {
     @DisplayName("유효하지 않은 전화번호로 인증코드를 요청하면 400을 반환한다")
     @Test
     void sendVerification_invalidPhone_returns400() throws Exception {
-        mockMvc.perform(post("/bookings/phone-verifications")
+        mockMvc.perform(post("/api/v1/bookings/phone-verifications")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 { "phone": "12345" }
@@ -121,7 +121,7 @@ class GuestBookingUseCaseIT {
     void createGuestBooking_success() throws Exception {
         BookingTestHelper.CreatedBooking created = helper.createVerifiedCardBooking(PHONE, slotId);
 
-        mockMvc.perform(get("/bookings/{id}", created.bookingId())
+        mockMvc.perform(get("/api/v1/bookings/{id}", created.bookingId())
                         .header("X-Access-Token", created.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").isNumber())
@@ -258,7 +258,7 @@ class GuestBookingUseCaseIT {
     void getBooking_success() throws Exception {
         BookingTestHelper.CreatedBooking created = helper.createVerifiedCardBooking(PHONE, slotId);
 
-        mockMvc.perform(get("/bookings/{id}", created.bookingId())
+        mockMvc.perform(get("/api/v1/bookings/{id}", created.bookingId())
                         .header("X-Access-Token", created.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(created.bookingId()))
@@ -274,7 +274,7 @@ class GuestBookingUseCaseIT {
     void getBooking_wrongToken_returns404() throws Exception {
         BookingTestHelper.CreatedBooking created = helper.createVerifiedCardBooking(PHONE, slotId);
 
-        mockMvc.perform(get("/bookings/{id}", created.bookingId())
+        mockMvc.perform(get("/api/v1/bookings/{id}", created.bookingId())
                         .header("X-Access-Token", "invalid-token"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));

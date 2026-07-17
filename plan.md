@@ -171,7 +171,7 @@
 |------|------|------|-----------|
 | `P1R-T1a` | done | ProductDetail 회원 즉시 주문 | `ProductDetailPage`의 `/me/orders` 직접 POST를 Toss `prepare/confirm` 경로로 전환 |
 | `P1R-T1b` | todo | cart checkout 경로 정리 | `/me/cart/checkout` 기반 즉시 주문을 Toss `prepare/confirm` 경로로 전환하거나, 정책상 유지할 경로라면 명시적 무결제/후불 계약으로 분리하고 문서화 |
-| `P1R-T2` | todo | rate limit 정책 전환 | `RateLimitFilter`의 구 booking/pass 생성 rule을 `/payments/prepare`, `/payments/confirm` 중심으로 재설계하고 테스트 갱신 |
+| `P1R-T2` | todo | rate limit 정책 전환 | 구 booking/pass 생성 rule은 제거 완료. `/payments/prepare`, `/payments/confirm`의 context·멱등 재시도 특성을 반영한 제한 정책을 설계하고 테스트 갱신 |
 | `P1R-T3` | done | 프론트 E2E 갱신 | Toss SDK stub 기반으로 P8-2~P8-9 smoke flow를 현재 prepare/confirm UI에 맞게 갱신 |
 | `P1R-T4` | done | confirm 멱등성/동시성 보강 | `PROCESSING` 선점 잠금, 트랜잭션 밖 PG 호출, Toss 멱등키, PG 실패 영속화, 로컬 실패 보상 환불과 동시 confirm 회귀 테스트 반영 |
 | `P1R-T5` | todo | 금액 스냅샷 불변식 점검 | prepare 시 확정한 금액과 fulfill 시 생성되는 도메인 금액이 어긋나지 않도록 snapshot/assertion을 보강 |

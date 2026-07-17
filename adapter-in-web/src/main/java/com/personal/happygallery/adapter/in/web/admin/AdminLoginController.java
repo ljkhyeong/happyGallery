@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.HttpStatus;
 
 @RestController
-@RequestMapping({"/api/v1/admin/auth", "/admin/auth"})
+@RequestMapping("/api/v1/admin/auth")
 public class AdminLoginController {
 
     private final AdminAuthUseCase adminAuthUseCase;

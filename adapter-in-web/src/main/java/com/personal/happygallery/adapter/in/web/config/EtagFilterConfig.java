@@ -12,8 +12,7 @@ public class EtagFilterConfig {
     FilterRegistrationBean<ShallowEtagHeaderFilter> shallowEtagHeaderFilter() {
         var registration = new FilterRegistrationBean<>(new ShallowEtagHeaderFilter());
         registration.addUrlPatterns(
-                "/api/v1/products/*", "/api/v1/classes/*", "/api/v1/notices/*",
-                "/products/*", "/classes/*", "/notices/*"
+                "/api/v1/products/*", "/api/v1/classes/*", "/api/v1/notices/*"
         );
         registration.setOrder(0);
         return registration;

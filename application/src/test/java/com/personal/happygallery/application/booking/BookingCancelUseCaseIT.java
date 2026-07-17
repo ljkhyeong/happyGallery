@@ -93,7 +93,7 @@ class BookingCancelUseCaseIT {
         cleanupSupport.clearNotificationLogs();
 
         // 취소 — 취소 보상 마감 이전 슬롯이므로 환불 가능
-        mockMvc.perform(delete("/bookings/{id}", bookingId)
+        mockMvc.perform(delete("/api/v1/bookings/{id}", bookingId)
                         .header("X-Access-Token", createdBooking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
@@ -131,7 +131,7 @@ class BookingCancelUseCaseIT {
 
         BookingTestHelper.CreatedBooking canceledBooking =
                 helper.createVerifiedCardBooking(phone, slot.getId());
-        mockMvc.perform(delete("/bookings/{id}", canceledBooking.bookingId())
+        mockMvc.perform(delete("/api/v1/bookings/{id}", canceledBooking.bookingId())
                         .header("X-Access-Token", canceledBooking.accessToken()))
                 .andExpect(status().isOk());
 
@@ -165,7 +165,7 @@ class BookingCancelUseCaseIT {
         cleanupSupport.clearNotificationLogs();
 
         // 취소 — 환불 가능 구간이지만 PG 실패
-        mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
+        mockMvc.perform(delete("/api/v1/bookings/{id}", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
@@ -200,7 +200,7 @@ class BookingCancelUseCaseIT {
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01022220002", slot.getId());
         Long bookingId = booking.bookingId();
 
-        mockMvc.perform(delete("/bookings/{id}", bookingId)
+        mockMvc.perform(delete("/api/v1/bookings/{id}", bookingId)
                         .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
@@ -224,7 +224,7 @@ class BookingCancelUseCaseIT {
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330003", slot.getId());
 
-        mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
+        mockMvc.perform(delete("/api/v1/bookings/{id}", booking.bookingId())
                         .header("X-Access-Token", "invalid-token"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
@@ -242,12 +242,12 @@ class BookingCancelUseCaseIT {
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01044440004", slot.getId());
 
         // 첫 번째 취소 — 성공
-        mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
+        mockMvc.perform(delete("/api/v1/bookings/{id}", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isOk());
 
         // 두 번째 취소 — 400
-        mockMvc.perform(delete("/bookings/{id}", booking.bookingId())
+        mockMvc.perform(delete("/api/v1/bookings/{id}", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));

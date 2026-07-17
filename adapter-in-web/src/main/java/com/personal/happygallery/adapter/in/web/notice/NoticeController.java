@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/notices", "/notices"})
+@RequestMapping("/api/v1/notices")
 public class NoticeController {
 
     private final NoticeQueryUseCase noticeQueryUseCase;

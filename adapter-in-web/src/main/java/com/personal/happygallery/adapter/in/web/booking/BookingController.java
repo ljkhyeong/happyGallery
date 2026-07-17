@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>예약 생성은 {@code POST /api/v1/payments/prepare} → {@code /confirm} 경로로 일원화됨.
  */
 @RestController
-@RequestMapping({"/api/v1/bookings", "/bookings"})
+@RequestMapping("/api/v1/bookings")
 public class BookingController {
 
     private final GuestBookingUseCase guestBookingUseCase;

@@ -53,7 +53,7 @@ class AdminSlotUseCaseIT {
     @DisplayName("관리자 슬롯 생성이 성공한다")
     @Test
     void createSlot_success() throws Exception {
-        mockMvc.perform(post("/admin/slots")
+        mockMvc.perform(post("/api/v1/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(slotRequest(classId, LocalDateTime.of(2026, 3, 1, 10, 0))))
@@ -69,14 +69,14 @@ class AdminSlotUseCaseIT {
     @DisplayName("관리자 슬롯 목록 조회는 비활성 슬롯을 포함해 시작 시각 내림차순으로 반환한다")
     @Test
     void listSlots_includingInactiveOrderedByStartAtDesc() throws Exception {
-        String firstResponse = mockMvc.perform(post("/admin/slots")
+        String firstResponse = mockMvc.perform(post("/api/v1/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(slotRequest(classId, LocalDateTime.of(2026, 3, 1, 10, 0))))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        String secondResponse = mockMvc.perform(post("/admin/slots")
+        String secondResponse = mockMvc.perform(post("/api/v1/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(slotRequest(classId, LocalDateTime.of(2026, 3, 2, 10, 0))))
@@ -86,11 +86,11 @@ class AdminSlotUseCaseIT {
         long firstSlotId = ((Number) com.jayway.jsonpath.JsonPath.read(firstResponse, "$.id")).longValue();
         long secondSlotId = ((Number) com.jayway.jsonpath.JsonPath.read(secondResponse, "$.id")).longValue();
 
-        mockMvc.perform(patch("/admin/slots/{id}/deactivate", firstSlotId)
+        mockMvc.perform(patch("/api/v1/admin/slots/{id}/deactivate", firstSlotId)
                         .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/admin/slots")
+        mockMvc.perform(get("/api/v1/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .param("classId", classId.toString()))
                 .andExpect(status().isOk())
@@ -105,7 +105,7 @@ class AdminSlotUseCaseIT {
     @Test
     void deactivateSlot_success() throws Exception {
         // given — 슬롯 생성
-        String response = mockMvc.perform(post("/admin/slots")
+        String response = mockMvc.perform(post("/api/v1/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(slotRequest(classId, LocalDateTime.of(2026, 3, 2, 10, 0))))
@@ -115,7 +115,7 @@ class AdminSlotUseCaseIT {
         long slotId = ((Number) com.jayway.jsonpath.JsonPath.read(response, "$.id")).longValue();
 
         // when — 비활성화
-        mockMvc.perform(patch("/admin/slots/{id}/deactivate", slotId)
+        mockMvc.perform(patch("/api/v1/admin/slots/{id}/deactivate", slotId)
                         .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.isActive").value(false));
@@ -129,7 +129,7 @@ class AdminSlotUseCaseIT {
     @DisplayName("존재하지 않는 클래스로 슬롯을 생성하면 실패한다")
     @Test
     void createSlot_notFoundClass() throws Exception {
-        mockMvc.perform(post("/admin/slots")
+        mockMvc.perform(post("/api/v1/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(slotRequest(99999L, LocalDateTime.of(2026, 3, 1, 10, 0))))
@@ -143,14 +143,14 @@ class AdminSlotUseCaseIT {
         String body = slotRequest(classId, LocalDateTime.of(2026, 3, 3, 10, 0));
 
         // 첫 번째 생성 — 성공
-        mockMvc.perform(post("/admin/slots")
+        mockMvc.perform(post("/api/v1/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated());
 
         // 두 번째 동일 시간 — 실패
-        mockMvc.perform(post("/admin/slots")
+        mockMvc.perform(post("/api/v1/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -161,7 +161,7 @@ class AdminSlotUseCaseIT {
     @DisplayName("관리자 키 없이 관리자 API를 호출하면 401을 반환한다")
     @Test
     void callAdminWithoutKey_returns401() throws Exception {
-        mockMvc.perform(post("/admin/slots")
+        mockMvc.perform(post("/api/v1/admin/slots")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(slotRequest(classId, LocalDateTime.of(2026, 3, 10, 10, 0))))
                 .andExpect(status().isUnauthorized())
@@ -171,7 +171,7 @@ class AdminSlotUseCaseIT {
     @DisplayName("잘못된 관리자 키로 관리자 API를 호출하면 401을 반환한다")
     @Test
     void callAdminWithWrongKey_returns401() throws Exception {
-        mockMvc.perform(post("/admin/slots")
+        mockMvc.perform(post("/api/v1/admin/slots")
                         .header("X-Admin-Key", "wrong-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(slotRequest(classId, LocalDateTime.of(2026, 3, 11, 10, 0))))

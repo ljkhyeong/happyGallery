@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/products", "/admin/products"})
+@RequestMapping("/api/v1/admin/products")
 public class AdminProductController {
 
     private final ProductAdminUseCase productAdminUseCase;
@@ -28,7 +28,7 @@ public class AdminProductController {
         this.productQueryUseCase = productQueryUseCase;
     }
 
-    /** POST /admin/products — 상품 등록 */
+    /** POST /api/v1/admin/products — 상품 등록 */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ProductResponse register(@RequestBody @Valid CreateProductRequest request) {
@@ -37,7 +37,7 @@ public class AdminProductController {
         return ProductResponse.from(result);
     }
 
-    /** GET /admin/products — ACTIVE 상품 목록 */
+    /** GET /api/v1/admin/products — ACTIVE 상품 목록 */
     @GetMapping
     public List<ProductResponse> listActive() {
         return productQueryUseCase.listActiveProducts().stream()

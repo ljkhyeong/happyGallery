@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/inquiries", "/admin/inquiries"})
+@RequestMapping("/api/v1/admin/inquiries")
 public class AdminInquiryController {
 
     private final InquiryUseCase inquiryUseCase;

@@ -43,29 +43,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private static final String X_FORWARDED_FOR = "X-Forwarded-For";
-    private static final String LEGACY_ADMIN_PATH_PREFIX = "/admin/";
-    private static final String VERSIONED_ADMIN_PATH_PREFIX = "/api/v1/admin/";
+    private static final String ADMIN_PATH_PREFIX = "/api/v1/admin/";
     private static final String SOCIAL_LOGIN_PATH_PREFIX = "/api/v1/auth/social/";
 
     private static final LimitRule PHONE_VERIFICATION_RULE = new LimitRule(
-            "PHONE_VERIFICATION", "POST", "/bookings/phone-verifications", "/api/v1/bookings/phone-verifications");
-    private static final LimitRule BOOKING_CREATE_RULE = new LimitRule(
-            "BOOKING_CREATE", "POST", "/bookings/guest", "/api/v1/bookings/guest");
-    private static final LimitRule PASS_PURCHASE_RULE = new LimitRule(
-            "PASS_PURCHASE", "POST", "/passes/guest", "/api/v1/passes/guest");
+            "PHONE_VERIFICATION", "POST", "/api/v1/bookings/phone-verifications");
     private static final LimitRule CUSTOMER_LOGIN_RULE = new LimitRule(
-            "CUSTOMER_LOGIN", "POST", null, "/api/v1/auth/login");
+            "CUSTOMER_LOGIN", "POST", "/api/v1/auth/login");
     private static final LimitRule CUSTOMER_SIGNUP_RULE = new LimitRule(
-            "CUSTOMER_SIGNUP", "POST", null, "/api/v1/auth/signup");
+            "CUSTOMER_SIGNUP", "POST", "/api/v1/auth/signup");
     private static final LimitRule ADMIN_LOGIN_RULE = new LimitRule(
-            "ADMIN_LOGIN", "POST", "/admin/auth/login", "/api/v1/admin/auth/login");
+            "ADMIN_LOGIN", "POST", "/api/v1/admin/auth/login");
     private static final LimitRule ADMIN_SETUP_RULE = new LimitRule(
-            "ADMIN_SETUP", "POST", "/admin/setup", "/api/v1/admin/setup");
+            "ADMIN_SETUP", "POST", "/api/v1/admin/setup");
     private static final LimitRule SOCIAL_LOGIN_RULE = new LimitRule(
-            "SOCIAL_LOGIN", "POST", null, null);
+            "SOCIAL_LOGIN", "POST", null);
     private static final LimitRule SOCIAL_LOGIN_INIT_RULE = new LimitRule(
-            "SOCIAL_LOGIN_INIT", "GET", null, null);
-    private static final LimitRule ADMIN_API_RULE = new LimitRule("ADMIN_API", null, null, null);
+            "SOCIAL_LOGIN_INIT", "GET", null);
+    private static final LimitRule ADMIN_API_RULE = new LimitRule("ADMIN_API", null, null);
 
     private final ObjectMapper objectMapper;
     private final RateLimitProperties properties;
@@ -143,12 +138,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (matches(request, PHONE_VERIFICATION_RULE)) {
             return new ResolvedRule(PHONE_VERIFICATION_RULE, properties.phoneVerificationPerSecond(), Duration.ofSeconds(1));
         }
-        if (matches(request, BOOKING_CREATE_RULE)) {
-            return new ResolvedRule(BOOKING_CREATE_RULE, properties.bookingCreatePerMinute(), Duration.ofMinutes(1));
-        }
-        if (matches(request, PASS_PURCHASE_RULE)) {
-            return new ResolvedRule(PASS_PURCHASE_RULE, properties.passPurchasePerMinute(), Duration.ofMinutes(1));
-        }
         return null;
     }
 
@@ -156,9 +145,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (!request.getMethod().equals(rule.method())) {
             return false;
         }
-        String uri = request.getRequestURI();
-        return (rule.legacyPath() != null && uri.equals(rule.legacyPath()))
-                || (rule.versionedPath() != null && uri.equals(rule.versionedPath()));
+        return request.getRequestURI().equals(rule.path());
     }
 
     private boolean matchesSocialLogin(HttpServletRequest request) {
@@ -191,7 +178,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean isAdminPath(String uri) {
-        return uri.startsWith(LEGACY_ADMIN_PATH_PREFIX) || uri.startsWith(VERSIONED_ADMIN_PATH_PREFIX);
+        return uri.startsWith(ADMIN_PATH_PREFIX);
     }
 
     String resolveClientKey(HttpServletRequest request) {
@@ -219,7 +206,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.getWriter().write(objectMapper.writeValueAsString(ErrorResponse.of(ErrorCode.TOO_MANY_REQUESTS)));
     }
 
-    private record LimitRule(String id, String method, String legacyPath, String versionedPath) {
+    private record LimitRule(String id, String method, String path) {
     }
 
     private record ResolvedRule(LimitRule rule, long capacity, Duration window) {

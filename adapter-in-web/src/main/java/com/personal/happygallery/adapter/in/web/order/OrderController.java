@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 이 컨트롤러는 비회원 토큰 기반 조회만 담당한다.
  */
 @RestController
-@RequestMapping({"/api/v1/orders", "/orders"})
+@RequestMapping("/api/v1/orders")
 public class OrderController {
 
     private final OrderQueryUseCase orderQueryUseCase;
@@ -25,7 +25,7 @@ public class OrderController {
         this.orderQueryUseCase = orderQueryUseCase;
     }
 
-    /** GET /orders/{id} — 주문 상세 조회 (X-Access-Token 헤더) */
+    /** GET /api/v1/orders/{id} — 주문 상세 조회 (X-Access-Token 헤더) */
     @GetMapping("/{id}")
     public OrderDetailResponse getOrder(@PathVariable Long id,
                                          @RequestHeader("X-Access-Token") String token) {

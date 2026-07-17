@@ -119,8 +119,6 @@ app:
     enabled: ${RATE_LIMIT_ENABLED:true}
     trust-forwarded-headers: ${RATE_LIMIT_TRUST_FORWARDED:false}
     phone-verification-per-second: 10
-    booking-create-per-minute: 30
-    pass-purchase-per-minute: 20
     customer-login-per-minute: 10
     customer-signup-per-minute: 5
     admin-login-per-minute: 5

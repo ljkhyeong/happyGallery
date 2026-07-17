@@ -52,7 +52,7 @@ class ProductInventoryUseCaseIT {
     @DisplayName("상품 등록 성공 시 재고 레코드가 함께 생성된다")
     @Test
     void registerProduct_success_createsInventory() throws Exception {
-        String resp = mockMvc.perform(post("/admin/products")
+        String resp = mockMvc.perform(post("/api/v1/admin/products")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -84,14 +84,14 @@ class ProductInventoryUseCaseIT {
             softly.assertThat(productRepository.findById(productId).orElseThrow().getCategory()).isEqualTo("WOOD");
         });
 
-        mockMvc.perform(get("/products").param("category", "wood"))
+        mockMvc.perform(get("/api/v1/products").param("category", "wood"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(productId))
                 .andExpect(jsonPath("$[0].category").value("WOOD"));
     }
 
     // -----------------------------------------------------------------------
-    // Proof: GET /products/{id} → available 필드 포함
+    // Proof: GET /api/v1/products/{id} → available 필드 포함
     // -----------------------------------------------------------------------
 
     @DisplayName("상품 조회 시 재고 가용 여부가 표시된다")
@@ -100,7 +100,7 @@ class ProductInventoryUseCaseIT {
         Product product = productRepository.save(readyStockProduct("향수 키트", 48000L));
         inventoryRepository.save(inventory(product, 1));
 
-        mockMvc.perform(get("/products/{id}", product.getId()))
+        mockMvc.perform(get("/api/v1/products/{id}", product.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(product.getId()))
                 .andExpect(jsonPath("$.name").value("향수 키트"))

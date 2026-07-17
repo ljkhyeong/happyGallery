@@ -212,7 +212,7 @@ class PassCreditUsageUseCaseIT {
 
         Long bookingId = createPassBooking(slot.getId());
 
-        mockMvc.perform(post("/admin/bookings/{id}/no-show", bookingId)
+        mockMvc.perform(post("/api/v1/admin/bookings/{id}/no-show", bookingId)
                         .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
@@ -244,7 +244,7 @@ class PassCreditUsageUseCaseIT {
         createPassBooking(slot2.getId());
 
         // 전체 환불
-        mockMvc.perform(post("/admin/passes/{passId}/refund", pass.getId())
+        mockMvc.perform(post("/api/v1/admin/passes/{passId}/refund", pass.getId())
                         .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(2))
@@ -287,7 +287,7 @@ class PassCreditUsageUseCaseIT {
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.failure("PG가 환불을 거절했습니다."));
 
-        mockMvc.perform(post("/admin/passes/{passId}/refund", pass.getId())
+        mockMvc.perform(post("/api/v1/admin/passes/{passId}/refund", pass.getId())
                         .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(0))
@@ -299,7 +299,7 @@ class PassCreditUsageUseCaseIT {
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         verify(paymentProvider).refund(eq("test-pass-payment-key"), eq(320_000L), any());
 
-        mockMvc.perform(get("/admin/refunds/failed")
+        mockMvc.perform(get("/api/v1/admin/refunds/failed")
                         .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].passPurchaseId").value(pass.getId()))

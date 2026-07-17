@@ -26,7 +26,7 @@ class RateLimitFilterTest {
     @DisplayName("제한 대상이 아닌 경로는 처리율 제한 없이 통과한다")
     @Test
     void passesThrough_whenPathIsNotRateLimited() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 1, 1, 1, 1), mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 1, 1), mockRedis());
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/actuator/health");
         request.setRemoteAddr("127.0.0.1");
@@ -40,7 +40,7 @@ class RateLimitFilterTest {
     @DisplayName("동일 IP에서 인증코드 발송 요청이 초과되면 429를 반환한다")
     @Test
     void returns429_whenPhoneVerificationLimitExceeded() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 1, 10, 10, 10), mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 1, 10), mockRedis());
 
         MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/bookings/phone-verifications");
         first.setRemoteAddr("127.0.0.1");
@@ -60,20 +60,20 @@ class RateLimitFilterTest {
         });
     }
 
-    @DisplayName("레거시와 v1 관리자 경로는 동일한 처리율 제한 규칙을 사용한다")
+    @DisplayName("동일 IP에서 관리자 요청이 초과되면 429를 반환한다")
     @Test
-    void appliesSameLimit_forLegacyAndV1AdminPaths() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 10, 10, 10, 1), mockRedis());
+    void returns429_whenAdminLimitExceeded() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 10, 1), mockRedis());
 
-        MockHttpServletRequest legacyPathRequest = new MockHttpServletRequest("POST", "/admin/orders/expire-pickups");
-        legacyPathRequest.setRemoteAddr("127.0.0.1");
+        MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/admin/orders/expire-pickups");
+        first.setRemoteAddr("127.0.0.1");
         MockHttpServletResponse firstResponse = new MockHttpServletResponse();
-        filter.doFilter(legacyPathRequest, firstResponse, new MockFilterChain());
+        filter.doFilter(first, firstResponse, new MockFilterChain());
 
-        MockHttpServletRequest v1PathRequest = new MockHttpServletRequest("POST", "/api/v1/admin/orders/expire-pickups");
-        v1PathRequest.setRemoteAddr("127.0.0.1");
+        MockHttpServletRequest second = new MockHttpServletRequest("POST", "/api/v1/admin/orders/expire-pickups");
+        second.setRemoteAddr("127.0.0.1");
         MockHttpServletResponse secondResponse = new MockHttpServletResponse();
-        filter.doFilter(v1PathRequest, secondResponse, new MockFilterChain());
+        filter.doFilter(second, secondResponse, new MockFilterChain());
         String secondResponseBody = secondResponse.getContentAsString();
 
         assertSoftly(softly -> {
@@ -85,7 +85,7 @@ class RateLimitFilterTest {
     @DisplayName("trustForwardedHeaders가 false이면 X-Forwarded-For를 무시하고 remoteAddr를 사용한다")
     @Test
     void usesRemoteAddr_whenTrustForwardedHeadersDisabled() throws Exception {
-        RateLimitProperties props = properties(true, false, 10, 10, 10, 10, 10);
+        RateLimitProperties props = properties(true, false, 10, 10, 10);
         RateLimitFilter filter = new RateLimitFilter(objectMapper, props, mockRedis());
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
@@ -98,7 +98,7 @@ class RateLimitFilterTest {
     @DisplayName("trustForwardedHeaders가 true이면 X-Forwarded-For 첫 번째 IP를 사용한다")
     @Test
     void usesForwardedFor_whenTrustForwardedHeadersEnabled() throws Exception {
-        RateLimitProperties props = properties(true, true, 10, 10, 10, 10, 10);
+        RateLimitProperties props = properties(true, true, 10, 10, 10);
         RateLimitFilter filter = new RateLimitFilter(objectMapper, props, mockRedis());
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
@@ -111,7 +111,7 @@ class RateLimitFilterTest {
     @DisplayName("로그인 경로는 일반 admin API보다 엄격한 rate limit이 적용된다")
     @Test
     void returns429_whenAdminLoginLimitExceeded() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, false, 10, 10, 10, 1, 100), mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, false, 10, 1, 100), mockRedis());
 
         MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/admin/auth/login");
         first.setRemoteAddr("127.0.0.1");
@@ -132,7 +132,7 @@ class RateLimitFilterTest {
     @DisplayName("최초 관리자 setup 경로는 일반 admin API보다 별도 rate limit이 적용된다")
     @Test
     void returns429_whenAdminSetupLimitExceeded() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, false, 10, 10, 10, 100, 1, 100), mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, false, 10, 100, 1, 100), mockRedis());
 
         MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/admin/setup");
         first.setRemoteAddr("127.0.0.1");
@@ -211,29 +211,22 @@ class RateLimitFilterTest {
 
     private static RateLimitProperties properties(boolean enabled,
                                                   long phoneVerificationPerSecond,
-                                                  long bookingCreatePerMinute,
-                                                  long passPurchasePerMinute,
                                                   long adminApiPerMinute) {
-        return properties(enabled, false, phoneVerificationPerSecond, bookingCreatePerMinute,
-                passPurchasePerMinute, 5, adminApiPerMinute);
+        return properties(enabled, false, phoneVerificationPerSecond, 5, adminApiPerMinute);
     }
 
     private static RateLimitProperties properties(boolean enabled,
                                                   boolean trustForwardedHeaders,
                                                   long phoneVerificationPerSecond,
-                                                  long bookingCreatePerMinute,
-                                                  long passPurchasePerMinute,
                                                   long adminLoginPerMinute,
                                                   long adminApiPerMinute) {
-        return properties(enabled, trustForwardedHeaders, phoneVerificationPerSecond, bookingCreatePerMinute,
-                passPurchasePerMinute, adminLoginPerMinute, 5, adminApiPerMinute);
+        return properties(enabled, trustForwardedHeaders, phoneVerificationPerSecond,
+                adminLoginPerMinute, 5, adminApiPerMinute);
     }
 
     private static RateLimitProperties properties(boolean enabled,
                                                   boolean trustForwardedHeaders,
                                                   long phoneVerificationPerSecond,
-                                                  long bookingCreatePerMinute,
-                                                  long passPurchasePerMinute,
                                                   long adminLoginPerMinute,
                                                   long adminSetupPerMinute,
                                                   long adminApiPerMinute) {
@@ -241,8 +234,6 @@ class RateLimitFilterTest {
                 enabled,
                 trustForwardedHeaders,
                 phoneVerificationPerSecond,
-                bookingCreatePerMinute,
-                passPurchasePerMinute,
                 10,
                 5,
                 adminLoginPerMinute,
@@ -257,8 +248,6 @@ class RateLimitFilterTest {
                 true,
                 false,
                 10,
-                30,
-                20,
                 10,
                 5,
                 5,

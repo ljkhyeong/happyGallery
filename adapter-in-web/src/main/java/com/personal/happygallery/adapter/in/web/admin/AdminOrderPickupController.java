@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/orders", "/admin/orders"})
+@RequestMapping("/api/v1/admin/orders")
 public class AdminOrderPickupController {
 
     private final OrderPickupUseCase orderPickupUseCase;
@@ -28,7 +28,7 @@ public class AdminOrderPickupController {
         this.pickupExpireBatchUseCase = pickupExpireBatchUseCase;
     }
 
-    /** POST /admin/orders/{id}/prepare-pickup — 픽업 준비 완료 (APPROVED_FULFILLMENT_PENDING → PICKUP_READY) */
+    /** POST /api/v1/admin/orders/{id}/prepare-pickup — 픽업 준비 완료 (APPROVED_FULFILLMENT_PENDING → PICKUP_READY) */
     @PostMapping("/{id}/prepare-pickup")
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse markPickupReady(@PathVariable Long id,
@@ -39,7 +39,7 @@ public class AdminOrderPickupController {
         return PickupResponse.from(result);
     }
 
-    /** POST /admin/orders/{id}/complete-pickup — 픽업 완료 (PICKUP_READY → PICKED_UP) */
+    /** POST /api/v1/admin/orders/{id}/complete-pickup — 픽업 완료 (PICKUP_READY → PICKED_UP) */
     @PostMapping("/{id}/complete-pickup")
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse confirmPickup(@PathVariable Long id, @AdminUserId Long adminId) {
@@ -47,7 +47,7 @@ public class AdminOrderPickupController {
         return PickupResponse.from(result);
     }
 
-    /** POST /admin/orders/expire-pickups — 픽업 마감 초과 자동환불 배치 */
+    /** POST /api/v1/admin/orders/expire-pickups — 픽업 마감 초과 자동환불 배치 */
     @PostMapping("/expire-pickups")
     @ResponseStatus(HttpStatus.OK)
     public BatchResponse expirePickups() {

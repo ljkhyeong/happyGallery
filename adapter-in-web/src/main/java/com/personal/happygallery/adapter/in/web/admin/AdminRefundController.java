@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/refunds", "/admin/refunds"})
+@RequestMapping("/api/v1/admin/refunds")
 public class AdminRefundController {
 
     private final RefundRetryUseCase refundRetryUseCase;

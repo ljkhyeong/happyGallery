@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/notices", "/admin/notices"})
+@RequestMapping("/api/v1/admin/notices")
 public class AdminNoticeController {
 
     private final NoticeAdminUseCase noticeAdminUseCase;

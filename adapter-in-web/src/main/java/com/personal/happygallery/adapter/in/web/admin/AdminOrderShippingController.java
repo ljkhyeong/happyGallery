@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/orders", "/admin/orders"})
+@RequestMapping("/api/v1/admin/orders")
 public class AdminOrderShippingController {
 
     private final OrderShippingUseCase orderShippingUseCase;
@@ -20,7 +20,7 @@ public class AdminOrderShippingController {
         this.orderShippingUseCase = orderShippingUseCase;
     }
 
-    /** POST /admin/orders/{id}/prepare-shipping — 배송 준비 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) */
+    /** POST /api/v1/admin/orders/{id}/prepare-shipping — 배송 준비 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) */
     @PostMapping("/{id}/prepare-shipping")
     @ResponseStatus(HttpStatus.OK)
     public ShippingResponse prepareShipping(@PathVariable Long id, @AdminUserId Long adminId) {
@@ -28,7 +28,7 @@ public class AdminOrderShippingController {
         return ShippingResponse.from(result);
     }
 
-    /** POST /admin/orders/{id}/mark-shipped — 배송 출발 (SHIPPING_PREPARING → SHIPPED) */
+    /** POST /api/v1/admin/orders/{id}/mark-shipped — 배송 출발 (SHIPPING_PREPARING → SHIPPED) */
     @PostMapping("/{id}/mark-shipped")
     @ResponseStatus(HttpStatus.OK)
     public ShippingResponse markShipped(@PathVariable Long id, @AdminUserId Long adminId) {
@@ -36,7 +36,7 @@ public class AdminOrderShippingController {
         return ShippingResponse.from(result);
     }
 
-    /** POST /admin/orders/{id}/mark-delivered — 배송 완료 (SHIPPED → DELIVERED) */
+    /** POST /api/v1/admin/orders/{id}/mark-delivered — 배송 완료 (SHIPPED → DELIVERED) */
     @PostMapping("/{id}/mark-delivered")
     @ResponseStatus(HttpStatus.OK)
     public ShippingResponse markDelivered(@PathVariable Long id, @AdminUserId Long adminId) {

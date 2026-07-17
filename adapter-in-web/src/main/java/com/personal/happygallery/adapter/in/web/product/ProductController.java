@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/products", "/products"})
+@RequestMapping("/api/v1/products")
 public class ProductController {
 
     private final ProductQueryUseCase productQueryUseCase;
@@ -23,7 +23,7 @@ public class ProductController {
         this.productQueryUseCase = productQueryUseCase;
     }
 
-    /** GET /products — ACTIVE 상품 목록 (필터·정렬 지원) */
+    /** GET /api/v1/products — ACTIVE 상품 목록 (필터·정렬 지원) */
     @GetMapping
     public List<ProductDetailResponse> listProducts(
             @RequestParam(required = false) ProductType type,
@@ -41,13 +41,13 @@ public class ProductController {
                 .toList();
     }
 
-    /** GET /products/categories — ACTIVE 상품 카테고리 목록 */
+    /** GET /api/v1/products/categories — ACTIVE 상품 카테고리 목록 */
     @GetMapping("/categories")
     public List<String> listCategories() {
         return productQueryUseCase.listActiveCategories();
     }
 
-    /** GET /products/{id} — 상품 상세 + 재고 가용 여부 */
+    /** GET /api/v1/products/{id} — 상품 상세 + 재고 가용 여부 */
     @GetMapping("/{id}")
     public ProductDetailResponse getProduct(@PathVariable Long id) {
         return ProductDetailResponse.from(productQueryUseCase.getProduct(id));

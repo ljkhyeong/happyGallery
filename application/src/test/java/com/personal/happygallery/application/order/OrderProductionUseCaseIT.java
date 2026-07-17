@@ -322,12 +322,12 @@ class OrderProductionUseCaseIT {
         Order afterCompleteProduction = orderStateProbe.getOrder(order.getId());
 
         // 픽업 준비 → PICKUP_READY (기존 흐름과 연결 확인)
-        mockMvc.perform(post("/admin/orders/{id}/prepare-pickup", order.getId())
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/prepare-pickup", order.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"pickupDeadlineAt\":\"2026-04-01T18:00:00\"}"))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/admin/orders/{id}/complete-pickup", order.getId()))
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/complete-pickup", order.getId()))
                 .andExpect(status().isOk());
 
         Order final_ = orderStateProbe.getOrder(order.getId());

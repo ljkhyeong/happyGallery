@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/slots", "/admin/slots"})
+@RequestMapping("/api/v1/admin/slots")
 public class AdminSlotController {
 
     private final SlotManagementUseCase slotManagementUseCase;
@@ -31,7 +31,7 @@ public class AdminSlotController {
         this.slotQueryUseCase = slotQueryUseCase;
     }
 
-    /** GET /admin/slots?classId= — 클래스별 슬롯 전체 조회 (활성/비활성 포함) */
+    /** GET /api/v1/admin/slots?classId= — 클래스별 슬롯 전체 조회 (활성/비활성 포함) */
     @GetMapping
     public List<SlotResponse> listSlots(@RequestParam Long classId) {
         return slotQueryUseCase.listByClass(classId).stream()
@@ -39,7 +39,7 @@ public class AdminSlotController {
                 .toList();
     }
 
-    /** POST /admin/slots — 슬롯 생성 */
+    /** POST /api/v1/admin/slots — 슬롯 생성 */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public SlotResponse createSlot(@RequestBody @Valid CreateSlotRequest request) {
@@ -47,7 +47,7 @@ public class AdminSlotController {
         return SlotResponse.from(slot);
     }
 
-    /** PATCH /admin/slots/{id}/deactivate — 슬롯 비활성화 */
+    /** PATCH /api/v1/admin/slots/{id}/deactivate — 슬롯 비활성화 */
     @PatchMapping("/{id}/deactivate")
     public SlotResponse deactivateSlot(@PathVariable Long id) {
         Slot slot = slotManagementUseCase.deactivateSlot(id);

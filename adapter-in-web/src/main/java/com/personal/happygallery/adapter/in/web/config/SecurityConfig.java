@@ -59,15 +59,15 @@ public class SecurityConfig {
         AuthenticationFailureHandler failureHandler = (request, response, exception) ->
                 entryPoint.commence(request, response, exception);
 
-        http.securityMatcher("/api/v1/admin", "/api/v1/admin/**", "/admin", "/admin/**")
+        http.securityMatcher("/api/v1/admin", "/api/v1/admin/**")
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(POST,
-                                "/api/v1/admin/auth/login", "/admin/auth/login",
-                                "/api/v1/admin/auth/logout", "/admin/auth/logout",
-                                "/api/v1/admin/setup", "/admin/setup")
+                                "/api/v1/admin/auth/login",
+                                "/api/v1/admin/auth/logout",
+                                "/api/v1/admin/setup")
                         .permitAll()
                         .requestMatchers(GET,
-                                "/api/v1/admin/setup/status", "/admin/setup/status")
+                                "/api/v1/admin/setup/status")
                         .permitAll()
                         .anyRequest().hasRole("ADMIN"))
                 .addFilterBefore(
@@ -107,12 +107,12 @@ public class SecurityConfig {
                                 "/api/v1/auth/**",
                                 "/api/v1/payments/**",
                                 "/api/v1/monitoring/client-events",
-                                "/api/v1/bookings/**", "/bookings/**",
-                                "/api/v1/orders/**", "/orders/**",
-                                "/api/v1/products/**", "/products/**",
-                                "/api/v1/classes/**", "/classes/**",
-                                "/api/v1/slots/**", "/slots/**",
-                                "/api/v1/notices/**", "/notices/**")
+                                "/api/v1/bookings/**",
+                                "/api/v1/orders/**",
+                                "/api/v1/products/**",
+                                "/api/v1/classes/**",
+                                "/api/v1/slots/**",
+                                "/api/v1/notices/**")
                         .permitAll()
                         .anyRequest().denyAll())
                 .addFilterBefore(

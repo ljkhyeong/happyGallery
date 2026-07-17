@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @Profile("local")
 @RestController
-@RequestMapping({"/api/v1/admin/dev/phone-verifications", "/admin/dev/phone-verifications"})
+@RequestMapping("/api/v1/admin/dev/phone-verifications")
 public class LocalPhoneVerificationController {
 
     private final DevPhoneVerificationQueryUseCase phoneVerificationQuery;

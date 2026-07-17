@@ -92,7 +92,7 @@ class OrderApprovalUseCaseIT {
     void approve_transitionsToApprovedFulfillmentPending() throws Exception {
         Order order = orderHelper.createReadyStockPaidOrder("테스트 상품", 50000L).order();
 
-        mockMvc.perform(post("/admin/orders/{id}/approve", order.getId()))
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/approve", order.getId()))
                 .andExpect(status().isOk());
 
         Order updated = orderStateProbe.getOrder(order.getId());
@@ -117,7 +117,7 @@ class OrderApprovalUseCaseIT {
         // 재고 차감 확인
         assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(0);
 
-        mockMvc.perform(post("/admin/orders/{id}/reject", order.getId()))
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/reject", order.getId()))
                 .andExpect(status().isOk());
 
         Order updated = orderStateProbe.getOrder(order.getId());
@@ -268,7 +268,7 @@ class OrderApprovalUseCaseIT {
 
         orderAutoRefundBatchService.autoRefundExpired();
 
-        mockMvc.perform(post("/admin/orders/{id}/reject", order.getId()))
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/reject", order.getId()))
                 .andExpect(status().isConflict());
     }
 
@@ -288,7 +288,7 @@ class OrderApprovalUseCaseIT {
         refund.markFailed(processingToken, "PG 점검중");
         refundPort.save(refund);
 
-        mockMvc.perform(get("/admin/refunds/failed"))
+        mockMvc.perform(get("/api/v1/admin/refunds/failed"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].refundId").value(refund.getId()))
                 .andExpect(jsonPath("$[0].bookingId", nullValue()))

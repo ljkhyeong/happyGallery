@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/products/{productId}/qna", "/products/{productId}/qna"})
+@RequestMapping("/api/v1/products/{productId}/qna")
 public class ProductQnaController {
 
     private final ProductQnaUseCase qnaUseCase;

@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/orders", "/admin/orders"})
+@RequestMapping("/api/v1/admin/orders")
 public class AdminOrderProductionController {
 
     private final OrderProductionUseCase orderProductionUseCase;
@@ -23,7 +23,7 @@ public class AdminOrderProductionController {
         this.orderProductionUseCase = orderProductionUseCase;
     }
 
-    /** POST /admin/orders/{id}/resume-production — 지연 요청에서 제작 재개 (DELAY_REQUESTED → IN_PRODUCTION) */
+    /** POST /api/v1/admin/orders/{id}/resume-production — 지연 요청에서 제작 재개 (DELAY_REQUESTED → IN_PRODUCTION) */
     @PostMapping("/{id}/resume-production")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse resumeProduction(@PathVariable Long id, @AdminUserId Long adminId) {
@@ -31,7 +31,7 @@ public class AdminOrderProductionController {
         return OrderProductionResponse.from(result);
     }
 
-    /** POST /admin/orders/{id}/complete-production — 제작 완료 (IN_PRODUCTION/DELAY_REQUESTED → APPROVED_FULFILLMENT_PENDING) */
+    /** POST /api/v1/admin/orders/{id}/complete-production — 제작 완료 (IN_PRODUCTION/DELAY_REQUESTED → APPROVED_FULFILLMENT_PENDING) */
     @PostMapping("/{id}/complete-production")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse completeProduction(@PathVariable Long id, @AdminUserId Long adminId) {
@@ -39,7 +39,7 @@ public class AdminOrderProductionController {
         return OrderProductionResponse.from(result);
     }
 
-    /** PATCH /admin/orders/{id}/expected-ship-date — 예상 출고일 설정/갱신 */
+    /** PATCH /api/v1/admin/orders/{id}/expected-ship-date — 예상 출고일 설정/갱신 */
     @PatchMapping("/{id}/expected-ship-date")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse setExpectedShipDate(@PathVariable Long id,
@@ -49,7 +49,7 @@ public class AdminOrderProductionController {
         return OrderProductionResponse.from(result);
     }
 
-    /** POST /admin/orders/{id}/delay — 고객 동의 후 배송 지연 상태로 전환 */
+    /** POST /api/v1/admin/orders/{id}/delay — 고객 동의 후 배송 지연 상태로 전환 */
     @PostMapping("/{id}/delay")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse requestDelay(@PathVariable Long id) {
@@ -57,7 +57,7 @@ public class AdminOrderProductionController {
         return OrderProductionResponse.from(result);
     }
 
-    /** POST /admin/orders/{id}/cancel-for-delay-rejection — 고객 지연 거절로 취소 */
+    /** POST /api/v1/admin/orders/{id}/cancel-for-delay-rejection — 고객 지연 거절로 취소 */
     @PostMapping("/{id}/cancel-for-delay-rejection")
     @ResponseStatus(HttpStatus.OK)
     public OrderProductionResponse cancelForDelayRejection(@PathVariable Long id, @AdminUserId Long adminId) {
