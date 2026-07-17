@@ -51,8 +51,7 @@ public class DefaultOrderAutoRefundBatchService implements OrderAutoRefundBatchU
         LocalDateTime now = LocalDateTime.now(clock);
 
         return BatchExecutor.executePaginated(
-                () -> orderReader.findByStatusAndApprovalDeadlineAtBefore(
-                        OrderStatus.PAID_APPROVAL_PENDING, now, PageRequest.ofSize(PAGE_SIZE)),
+                () -> orderReader.findPaidApprovalPendingBefore(now, PageRequest.ofSize(PAGE_SIZE)),
                 Order::getId,
                 order -> orderAutoRefundProcessor.process(order.getId(), now),
                 "주문 자동환불");

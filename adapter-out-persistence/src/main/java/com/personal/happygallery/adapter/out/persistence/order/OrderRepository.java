@@ -23,8 +23,13 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
      * 자동환불 배치용 조회.
      * {@code status = PAID_APPROVAL_PENDING} AND {@code approvalDeadlineAt < deadline}.
      */
-    List<Order> findByStatusAndApprovalDeadlineAtBefore(OrderStatus status, LocalDateTime deadline);
-    List<Order> findByStatusAndApprovalDeadlineAtBefore(OrderStatus status, LocalDateTime deadline, Pageable pageable);
+    @Override
+    @Query("""
+            SELECT o FROM Order o
+            WHERE o.status = com.personal.happygallery.domain.order.OrderStatus.PAID_APPROVAL_PENDING
+              AND o.approvalDeadlineAt < :deadline
+            """)
+    List<Order> findPaidApprovalPendingBefore(@Param("deadline") LocalDateTime deadline, Pageable pageable);
 
     /** 회원 — 자기 주문 조회 (최신순) */
     List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);

@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 class RefundDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(RefundDispatcher.class);
-    private static final String MISSING_PAYMENT_KEY_REASON = "paymentKey가 없어 PG 환불을 실행할 수 없습니다.";
 
     private final PaymentPort paymentPort;
     private final RefundTransactionService transactionService;
@@ -26,7 +25,7 @@ class RefundDispatcher {
 
     @Transactional(propagation = Propagation.NEVER)
     public Refund dispatch(Long refundId, String target) {
-        RefundCall refundCall = transactionService.claimRefundCall(refundId, MISSING_PAYMENT_KEY_REASON);
+        RefundCall refundCall = transactionService.claimRefundCall(refundId);
         if (!refundCall.readyForPgCall()) {
             return refundCall.completedRefund();
         }

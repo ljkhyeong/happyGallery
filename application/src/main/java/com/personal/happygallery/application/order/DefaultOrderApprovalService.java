@@ -11,7 +11,6 @@ import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
-import com.personal.happygallery.domain.product.ProductType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -88,7 +87,7 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
     }
 
     private boolean isMadeToOrderOrder(Order order) {
-        return orderItemPort.existsByOrderAndProductType(order, ProductType.MADE_TO_ORDER);
+        return orderItemPort.existsMadeToOrderItem(order);
     }
 
     /**

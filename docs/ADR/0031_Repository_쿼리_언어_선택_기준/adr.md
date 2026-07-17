@@ -19,7 +19,9 @@
 
 - 단건/목록 상세 조회는 JPQL `@Query`로 작성한다.
 - 연관 엔티티가 필요하면 `JOIN FETCH`로 즉시 로딩해 N+1을 막는다 (예: `BookingRepository.findByUserIdWithDetails`).
-- 단순 조건 메서드는 Spring Data derived query 그대로 둔다 (예: `findByStatusAndApprovalDeadlineAtBefore`).
+- 단순 조건 메서드는 Spring Data derived query 그대로 둔다 (예: `findByUserIdOrderByCreatedAtDesc`).
+- 상태가 조회의 업무 의미로 고정되면 호출자에게 상태 파라미터를 노출하지 않고, 의도가 드러나는 메서드명과 JPQL enum literal로 고정한다 (예: `findBookedInRange`).
+- 관리자 검색처럼 상태가 실제 입력인 조회만 상태 파라미터를 유지한다.
 
 ### 2. native query는 다음 경우에만 사용한다
 

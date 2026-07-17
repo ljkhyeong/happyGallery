@@ -22,7 +22,7 @@
 차감을 한 번에 수행한다. 이후 `USE` 원장을 같은 트랜잭션에 저장하며, 어느 한쪽이라도 실패하면 모두 롤백한다.
 
 **이유**:
-- `isPassBooking()` 판별, 환불 시 미래 예약 조회 `findFuturePassBookings()` 모두 이 FK에 의존
+- `isPassBooking()` 판별, 환불 시 미래 예약 조회 `findFutureBookedPassBookings()` 모두 이 FK에 의존
 - nullable: 기존 예약금 결제 예약과의 하위 호환성 유지
 - 크레딧 사용/복구 원장과 원인 예약을 양방향으로 추적할 수 있어 운영 감사와 장애 대응이 쉬워진다.
 
@@ -84,6 +84,6 @@
 | `application/.../booking/DefaultBookingNoShowService.java` | 결석 처리 |
 | `application/.../pass/DefaultPassRefundService.java` | 정산 환불 + 미래 예약 자동 취소 |
 | `application/.../booking/DefaultBookingCancelService.java` | D-1 이후 취소 시 크레딧 소멸 유지 분기 |
-| `adapter-out-persistence/.../booking/BookingRepository.java` | `findFuturePassBookings()` JPQL 쿼리 |
+| `adapter-out-persistence/.../booking/BookingRepository.java` | `findFutureBookedPassBookings()` JPQL 쿼리 |
 | `adapter-in-web/.../admin/AdminBookingController.java` | `POST /admin/bookings/{id}/no-show` |
 | `bootstrap/src/main/resources/db/migration/V5__add_pass_booking_link.sql` | bookings.pass_purchase_id FK, pass_purchases.total_price |

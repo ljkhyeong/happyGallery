@@ -61,7 +61,7 @@
 |------|------|------|-----------|
 | `B1-T1` | done | admin 예약 조회 쿼리 | `findAllInRange` JOIN→LEFT JOIN FETCH, member/claimed booking 결과 포함 |
 | `B1-T2` | done | admin 예약 응답 DTO | `bookerType`(GUEST/MEMBER) 추가, `guestName/Phone`→`bookerName/Phone` 변경, User batch fetch, 프론트 타입/UI 동기화 |
-| `B1-T3` | done | reminder batch 쿼리/발송 | `findBookingsInRange` LEFT JOIN 전환, guest/member 분기 발송 (`notifyByGuestId`/`notifyByUserId`) |
+| `B1-T3` | done | reminder batch 쿼리/발송 | `findBookedInRange` LEFT JOIN 전환, guest/member 분기 발송 (`notifyByGuestId`/`notifyByUserId`) |
 | `B1-T4` | done | notification 진입점 | `notifyBookingGuest`/`notifyBookingUser` → `notifyBooker` 통합, cancel/reschedule/create 호출처 일괄 전환 |
 | `B1-T5` | done | 운영 검증 테스트 | `AdminBookingQueryUseCaseIT` — admin list 3종 포함, D-1 claimed 리마인드, 당일 3종 혼합 리마인드 검증 3 tests |
 | `B1-T6` | done | 문서 | PRD-0001 §3.1/§4.1에 member/guest 주체 명시, PRD-0004에 admin 예약 목록(bookerType) 계약 추가, ADR-0022에 admin query 경계 반영 |

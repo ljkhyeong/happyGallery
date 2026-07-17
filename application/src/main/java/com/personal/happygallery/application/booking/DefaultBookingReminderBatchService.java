@@ -5,7 +5,6 @@ import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.booking.port.in.BookingReminderBatchUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.Clock;
@@ -50,7 +49,7 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
         LocalDateTime start = tomorrow.atStartOfDay();
         LocalDateTime end = start.plusDays(1);
 
-        List<Booking> bookings = bookingReaderPort.findBookingsInRange(BookingStatus.BOOKED, start, end);
+        List<Booking> bookings = bookingReaderPort.findBookedInRange(start, end);
         return BatchExecutor.execute(bookings, Booking::getId,
                 booking -> { sendReminder(booking, NotificationEventType.REMINDER_D1); return true; },
                 "D-1 예약 리마인드");
@@ -66,7 +65,7 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
         LocalDateTime start = today.atStartOfDay();
         LocalDateTime end = start.plusDays(1);
 
-        List<Booking> bookings = bookingReaderPort.findBookingsInRange(BookingStatus.BOOKED, start, end);
+        List<Booking> bookings = bookingReaderPort.findBookedInRange(start, end);
         return BatchExecutor.execute(bookings, Booking::getId,
                 booking -> { sendReminder(booking, NotificationEventType.REMINDER_SAME_DAY); return true; },
                 "당일 예약 리마인드");

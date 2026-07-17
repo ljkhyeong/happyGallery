@@ -4,7 +4,6 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
-import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Slot;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -46,8 +45,8 @@ class DefaultBookingCancellationService implements BookingCancellationService {
 
     @Override
     public int cancelLinkedBookings(Long passId) {
-        List<Booking> futureBookings = bookingReader.findFuturePassBookings(
-                passId, BookingStatus.BOOKED, LocalDateTime.now(clock));
+        List<Booking> futureBookings = bookingReader.findFutureBookedPassBookings(
+                passId, LocalDateTime.now(clock));
 
         futureBookings.forEach(booking -> cancelOne(booking, passId));
 

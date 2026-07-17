@@ -3,7 +3,6 @@ package com.personal.happygallery.adapter.out.persistence.booking;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.BookingStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -75,16 +74,27 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
     boolean existsBySlotIdAndUserIdAndIdNot(Long slotId, Long userId, Long excludeBookingId);
 
     /** 8회권 환불 시 자동취소 대상 — 해당 pass의 미래 BOOKED 예약 */
-    @Query("SELECT b FROM Booking b WHERE b.passPurchase.id = :passId AND b.status = :status AND b.slot.startAt > :now")
-    List<Booking> findFuturePassBookings(@Param("passId") Long passId,
-                                         @Param("status") BookingStatus status,
-                                         @Param("now") LocalDateTime now);
+    @Override
+    @Query("""
+            SELECT b FROM Booking b
+            WHERE b.passPurchase.id = :passId
+              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
+              AND b.slot.startAt > :now
+            """)
+    List<Booking> findFutureBookedPassBookings(@Param("passId") Long passId,
+                                               @Param("now") LocalDateTime now);
 
     /** D-1 / 당일 리마인드 공용 — LEFT JOIN FETCH guest (member booking 포함, detached 후 LAZY 로딩 방지) */
-    @Query("SELECT b FROM Booking b LEFT JOIN FETCH b.guest WHERE b.status = :status AND b.slot.startAt >= :start AND b.slot.startAt < :end")
-    List<Booking> findBookingsInRange(@Param("status") BookingStatus status,
-                                      @Param("start") LocalDateTime start,
-                                      @Param("end") LocalDateTime end);
+    @Override
+    @Query("""
+            SELECT b FROM Booking b
+            LEFT JOIN FETCH b.guest
+            WHERE b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
+              AND b.slot.startAt >= :start
+              AND b.slot.startAt < :end
+            """)
+    List<Booking> findBookedInRange(@Param("start") LocalDateTime start,
+                                    @Param("end") LocalDateTime end);
 
     /** 관리자 — 날짜 범위 내 예약 전체 조회 (guest nullable, class, slot eager fetch) */
     @Query("""

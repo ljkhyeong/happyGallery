@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.out.persistence.booking;
 
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.domain.booking.Refund;
-import com.personal.happygallery.domain.payment.RefundStatus;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,9 +16,16 @@ public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPor
     @Override Optional<Refund> findById(Long id);
     @Override Refund save(Refund refund);
 
-    List<Refund> findByStatus(RefundStatus status);
-
-    List<Refund> findByStatusIn(List<RefundStatus> statuses);
+    @Override
+    @Query("""
+            SELECT r FROM Refund r
+            WHERE r.status IN (
+                com.personal.happygallery.domain.payment.RefundStatus.FAILED,
+                com.personal.happygallery.domain.payment.RefundStatus.RETRYABLE,
+                com.personal.happygallery.domain.payment.RefundStatus.RECONCILIATION_REQUIRED
+            )
+            """)
+    List<Refund> findActionRequired();
 
     @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)

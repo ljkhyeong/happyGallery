@@ -1,7 +1,6 @@
 package com.personal.happygallery.application.booking.port.out;
 
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.BookingStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -28,9 +27,9 @@ public interface BookingReaderPort {
 
     boolean existsBySlotIdAndUserIdAndIdNot(Long slotId, Long userId, Long excludeBookingId);
 
-    List<Booking> findFuturePassBookings(Long passId, BookingStatus status, LocalDateTime now);
+    List<Booking> findFutureBookedPassBookings(Long passId, LocalDateTime now);
 
-    List<Booking> findBookingsInRange(BookingStatus status, LocalDateTime start, LocalDateTime end);
+    List<Booking> findBookedInRange(LocalDateTime start, LocalDateTime end);
 
     List<Booking> findAllInRange(LocalDateTime start, LocalDateTime end);
 }

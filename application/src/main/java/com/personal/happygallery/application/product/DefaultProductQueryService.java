@@ -6,7 +6,6 @@ import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductStatus;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -38,7 +37,7 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
 
     /** ACTIVE 상품 목록 조회 — 최신 등록순 (N+1 방지: 재고 일괄 조회) */
     public List<ProductWithInventory> listActiveProducts() {
-        List<Product> products = productReaderPort.findByStatusOrderByCreatedAtDesc(ProductStatus.ACTIVE);
+        List<Product> products = productReaderPort.findActiveProductsByCreatedAtDesc();
         return toProductWithInventoryList(products);
     }
 
@@ -53,7 +52,7 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
 
     /** ACTIVE 상품에 존재하는 카테고리 목록. */
     public List<String> listActiveCategories() {
-        return productReaderPort.findDistinctCategoriesByStatus(ProductStatus.ACTIVE);
+        return productReaderPort.findDistinctActiveCategories();
     }
 
     private List<ProductWithInventory> toProductWithInventoryList(List<Product> products) {

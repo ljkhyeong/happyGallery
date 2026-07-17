@@ -30,6 +30,8 @@ class RefundTransactionService {
     static final Duration PROCESSING_TIMEOUT = Duration.ofMinutes(1);
     private static final Duration RETRY_DELAY = Duration.ofMinutes(1);
     private static final int MAX_FAILURE_REASON_LENGTH = 500;
+    private static final String MISSING_PAYMENT_KEY_REASON =
+            "paymentKey가 없어 PG 환불을 실행할 수 없습니다.";
 
     private final RefundPort refundPort;
     private final PaymentAttemptReaderPort paymentAttemptReader;
@@ -59,7 +61,7 @@ class RefundTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public RefundCall claimRefundCall(Long refundId, String missingPaymentKeyReason) {
+    public RefundCall claimRefundCall(Long refundId) {
         Refund refund = findRefundForUpdate(refundId);
         LocalDateTime now = LocalDateTime.now(clock);
         String processingToken = refund.startProcessing(now, now.minus(PROCESSING_TIMEOUT));
@@ -67,9 +69,9 @@ class RefundTransactionService {
             return RefundCall.completed(refund);
         }
         if (refund.getPaymentKey() == null || refund.getPaymentKey().isBlank()) {
-            refund.markFailed(processingToken, missingPaymentKeyReason);
+            refund.markFailed(processingToken, MISSING_PAYMENT_KEY_REASON);
             Refund failedRefund = refundPort.save(refund);
-            markPaymentAttemptCompensationFailed(failedRefund, missingPaymentKeyReason);
+            markPaymentAttemptCompensationFailed(failedRefund, MISSING_PAYMENT_KEY_REASON);
             return RefundCall.completed(failedRefund);
         }
         return RefundCall.ready(
