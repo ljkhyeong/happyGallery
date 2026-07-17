@@ -2,8 +2,10 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.customer.dto.CustomerLoginRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.SignupRequest;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,14 +28,21 @@ class CustomerAuthUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired ObjectMapper objectMapper;
+    @Autowired TestCleanupSupport cleanupSupport;
 
     MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        cleanupSupport.clearUsers();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter)
                 .build();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearUsers();
     }
 
     @DisplayName("회원가입 후 사용자 정보와 세션 쿠키를 받는다")

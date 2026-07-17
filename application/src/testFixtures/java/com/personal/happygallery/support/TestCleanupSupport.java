@@ -1,5 +1,6 @@
 package com.personal.happygallery.support;
 
+import com.personal.happygallery.adapter.out.persistence.admin.AdminUserRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class TestCleanupSupport {
 
+    private final AdminUserRepository adminUserRepository;
     private final BookingHistoryRepository bookingHistoryRepository;
     private final BookingRepository bookingRepository;
     private final ClassRepository classRepository;
@@ -44,7 +46,8 @@ public class TestCleanupSupport {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
 
-    public TestCleanupSupport(BookingHistoryRepository bookingHistoryRepository,
+    public TestCleanupSupport(AdminUserRepository adminUserRepository,
+                              BookingHistoryRepository bookingHistoryRepository,
                               BookingRepository bookingRepository,
                               ClassRepository classRepository,
                               GuestRepository guestRepository,
@@ -63,6 +66,7 @@ public class TestCleanupSupport {
                               InventoryRepository inventoryRepository,
                               ProductRepository productRepository,
                               UserRepository userRepository) {
+        this.adminUserRepository = adminUserRepository;
         this.bookingHistoryRepository = bookingHistoryRepository;
         this.bookingRepository = bookingRepository;
         this.classRepository = classRepository;
@@ -82,6 +86,10 @@ public class TestCleanupSupport {
         this.inventoryRepository = inventoryRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
+    }
+
+    public void clearAdminUsers() {
+        adminUserRepository.deleteAllInBatch();
     }
 
     public void clearBookingWithPassAndRefundData() {

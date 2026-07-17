@@ -1,9 +1,11 @@
 package com.personal.happygallery.adapter.in.web.monitoring;
 
 import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,14 +26,21 @@ class ClientMonitoringUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
+    @Autowired TestCleanupSupport cleanupSupport;
 
     MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        cleanupSupport.clearUsers();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter, customerAuthFilter)
                 .build();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearUsers();
     }
 
     @DisplayName("비회원도 client monitoring 이벤트를 전송할 수 있다")

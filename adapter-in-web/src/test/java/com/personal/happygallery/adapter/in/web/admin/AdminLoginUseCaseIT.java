@@ -1,7 +1,10 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
+import com.personal.happygallery.domain.admin.AdminUser;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,14 +22,19 @@ class AdminLoginUseCaseIT {
 
     @Autowired MockMvc mockMvc;
     @Autowired AdminUserPort adminUserPort;
+    @Autowired TestCleanupSupport cleanupSupport;
 
     @BeforeEach
     void setUp() {
-        adminUserPort.findByUsername("admin")
-                .orElseGet(() -> adminUserPort.save(
-                        new com.personal.happygallery.domain.admin.AdminUser(
-                                "admin",
-                                new BCryptPasswordEncoder().encode("admin1234"))));
+        cleanupSupport.clearAdminUsers();
+        adminUserPort.save(new AdminUser(
+                "admin",
+                new BCryptPasswordEncoder().encode("admin1234")));
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearAdminUsers();
     }
 
     @DisplayName("관리자 계정으로 로그인할 수 있다")
