@@ -9,7 +9,7 @@ public interface OrderApprovalHistoryRepository extends JpaRepository<OrderAppro
 
     @Override OrderApprovalHistory save(OrderApprovalHistory history);
 
-    List<OrderApprovalHistory> findByOrderId(Long orderId);
+    @Override List<OrderApprovalHistory> findByOrderId(Long orderId);
 
-    List<OrderApprovalHistory> findByOrderIdOrderByDecidedAtAsc(Long orderId);
+    @Override List<OrderApprovalHistory> findByOrderIdOrderByDecidedAtAsc(Long orderId);
 }

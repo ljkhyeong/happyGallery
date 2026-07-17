@@ -10,5 +10,5 @@ public interface PassLedgerRepository extends JpaRepository<PassLedger, Long>, P
 
     @Override PassLedger save(PassLedger ledger);
 
-    List<PassLedger> findByPassPurchaseId(Long passPurchaseId);
+    @Override List<PassLedger> findByPassPurchaseId(Long passPurchaseId);
 }

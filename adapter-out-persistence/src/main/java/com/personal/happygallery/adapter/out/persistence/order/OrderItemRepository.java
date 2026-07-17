@@ -12,7 +12,7 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long>, Ord
 
     @Override OrderItem save(OrderItem item);
 
-    List<OrderItem> findByOrder(Order order);
+    @Override List<OrderItem> findByOrder(Order order);
 
     /** 주문 내 제작 상품 존재 여부 — N+1 방지용 단일 쿼리 */
     @Override

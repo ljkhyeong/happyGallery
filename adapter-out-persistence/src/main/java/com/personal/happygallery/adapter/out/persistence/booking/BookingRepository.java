@@ -18,6 +18,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
     /** 비회원 예약 조회 — bookingId + accessToken 두 조건 모두 만족해야 함 */
     Optional<Booking> findByIdAndAccessToken(Long id, String accessToken);
 
+    @Override
     @Query("""
             SELECT b
             FROM Booking b
@@ -31,6 +32,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
                                                    @Param("accessToken") String accessToken);
 
     /** 회원 — 자기 예약 조회 (슬롯 시작 시간 내림차순) */
+    @Override
     @Query("""
             SELECT b FROM Booking b
             JOIN FETCH b.bookingClass
@@ -40,6 +42,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             """)
     List<Booking> findByUserIdWithDetails(@Param("userId") Long userId);
 
+    @Override
     @Query("""
             SELECT b FROM Booking b
             JOIN FETCH b.bookingClass
@@ -51,6 +54,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
                                                    @Param("userId") Long userId);
 
     /** guest claim preview용 비회원 예약 조회 (슬롯 시작 시간 내림차순) */
+    @Override
     @Query("""
             SELECT b FROM Booking b
             JOIN FETCH b.guest
@@ -62,16 +66,16 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
     List<Booking> findByGuestIdWithDetails(@Param("guestId") Long guestId);
 
     /** 동일 슬롯 + 동일 회원 중복 예약 확인 */
-    boolean existsBySlotIdAndUserId(Long slotId, Long userId);
+    @Override boolean existsBySlotIdAndUserId(Long slotId, Long userId);
 
     /** 동일 슬롯 + 동일 게스트 중복 예약 확인 */
-    boolean existsBySlotIdAndGuestId(Long slotId, Long guestId);
+    @Override boolean existsBySlotIdAndGuestId(Long slotId, Long guestId);
 
     /** 동일 슬롯 + 동일 게스트 중복 예약 확인 — 특정 booking 제외 (변경 시 자기 자신 제외용) */
-    boolean existsBySlotIdAndGuestIdAndIdNot(Long slotId, Long guestId, Long excludeBookingId);
+    @Override boolean existsBySlotIdAndGuestIdAndIdNot(Long slotId, Long guestId, Long excludeBookingId);
 
     /** 동일 슬롯 + 동일 회원 중복 예약 확인 — 특정 booking 제외 (변경 시 자기 자신 제외용) */
-    boolean existsBySlotIdAndUserIdAndIdNot(Long slotId, Long userId, Long excludeBookingId);
+    @Override boolean existsBySlotIdAndUserIdAndIdNot(Long slotId, Long userId, Long excludeBookingId);
 
     /** 8회권 환불 시 자동취소 대상 — 해당 pass의 미래 BOOKED 예약 */
     @Override
@@ -97,6 +101,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
                                     @Param("end") LocalDateTime end);
 
     /** 관리자 — 날짜 범위 내 예약 전체 조회 (guest nullable, class, slot eager fetch) */
+    @Override
     @Query("""
             SELECT b FROM Booking b
             LEFT JOIN FETCH b.guest

@@ -12,5 +12,5 @@ public interface GuestRepository extends JpaRepository<Guest, Long>, GuestReader
     @Override Guest save(Guest guest);
 
     /** 블라인드 인덱스로 게스트 조회 */
-    Optional<Guest> findByPhoneHmac(String phoneHmac);
+    @Override Optional<Guest> findByPhoneHmac(String phoneHmac);
 }

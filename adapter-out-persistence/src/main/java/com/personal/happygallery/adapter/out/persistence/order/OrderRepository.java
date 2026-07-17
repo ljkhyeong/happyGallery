@@ -32,24 +32,26 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     List<Order> findPaidApprovalPendingBefore(@Param("deadline") LocalDateTime deadline, Pageable pageable);
 
     /** 회원 — 자기 주문 조회 (최신순) */
-    List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
+    @Override List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     /** guest claim preview용 비회원 주문 조회 (최신순) */
     List<Order> findByGuestIdOrderByCreatedAtDesc(Long guestId);
 
     /** 관리자 — 상태별 주문 조회 (최신순) */
-    List<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status);
+    @Override List<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status);
 
     /** 관리자 — 전체 주문 조회 (최신순) */
-    List<Order> findAllByOrderByCreatedAtDesc();
+    @Override List<Order> findAllByOrderByCreatedAtDesc();
 
     // ── 커서 기반 페이지네이션 ──
 
     /** 전체 주문 — 첫 페이지 */
+    @Override
     @Query("SELECT o FROM Order o ORDER BY o.createdAt DESC, o.id DESC LIMIT :limit")
     List<Order> findAllOrderByCreatedAtDesc(@Param("limit") int limit);
 
     /** 전체 주문 — 커서 이후 (tuple comparison으로 복합 인덱스 range scan 활용) */
+    @Override
     @Query(value = """
             SELECT id, user_id, guest_id, access_token, status,
                    total_amount, paid_at, approval_deadline_at, version, created_at
@@ -64,12 +66,14 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
             @Param("limit") int limit);
 
     /** 상태별 주문 — 첫 페이지 */
+    @Override
     @Query("SELECT o FROM Order o WHERE o.status = :status ORDER BY o.createdAt DESC, o.id DESC LIMIT :limit")
     List<Order> findByStatusOrderByCreatedAtDesc(
             @Param("status") OrderStatus status,
             @Param("limit") int limit);
 
     /** 상태별 주문 — 커서 이후 (tuple comparison으로 복합 인덱스 range scan 활용) */
+    @Override
     @Query(value = """
             SELECT id, user_id, guest_id, access_token, status,
                    total_amount, paid_at, approval_deadline_at, version, created_at

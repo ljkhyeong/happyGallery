@@ -12,7 +12,7 @@ public interface ProductReaderPort {
 
     Optional<Product> findById(Long id);
 
-    List<Product> findAllById(List<Long> ids);
+    List<Product> findAllById(Iterable<Long> ids);
 
     List<Product> findActiveProductsByCreatedAtDesc();
 

@@ -20,7 +20,7 @@ public interface UserReaderPort {
 
     boolean existsByEmailHmac(String emailHmac);
 
-    List<User> findAllById(List<Long> ids);
+    List<User> findAllById(Iterable<Long> ids);
 
     Optional<User> findByProviderAndProviderId(AuthProvider provider, String providerId);
 }

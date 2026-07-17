@@ -14,7 +14,7 @@ public interface NoticeRepository extends JpaRepository<Notice, Long>, NoticeRea
     @Override Notice save(Notice notice);
     @Override void deleteById(Long id);
 
-    List<Notice> findAllByOrderByPinnedDescCreatedAtDesc();
+    @Override List<Notice> findAllByOrderByPinnedDescCreatedAtDesc();
 
-    List<Notice> findAllByOrderByPinnedDescCreatedAtDesc(Pageable pageable);
+    @Override List<Notice> findAllByOrderByPinnedDescCreatedAtDesc(Pageable pageable);
 }

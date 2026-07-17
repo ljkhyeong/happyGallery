@@ -18,12 +18,13 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     @Override Slot save(Slot slot);
 
     /** 중복 슬롯 검사 — (class_id, start_at) UNIQUE 제약 반영 */
-    boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
+    @Override boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
 
     /** 관리자 슬롯 전체 조회 — 활성/비활성 포함, 시작 시각 내림차순 */
-    List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
+    @Override List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
 
     /** 공개 슬롯 조회 — classId + 날짜 기준, 활성 & 잔여 정원 있는 슬롯만 */
+    @Override
     @Query("SELECT s FROM Slot s " +
            "WHERE s.bookingClass.id = :classId " +
            "AND s.startAt >= :dayStart AND s.startAt < :dayEnd " +
@@ -36,6 +37,7 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
                                            @Param("dayEnd") LocalDateTime dayEnd);
 
     /** 비관적 쓰기 락 — 정원 강제용. 반드시 트랜잭션 안에서 호출해야 한다. */
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Slot s WHERE s.id = :id")
     Optional<Slot> findByIdWithLock(@Param("id") Long id);
@@ -44,6 +46,7 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
      * 버퍼 범위 내 슬롯을 잠금과 함께 조회한다.
      * 범위: {@code start_at in [windowStart, windowEnd)} — 시작 포함, 끝 미포함.
      */
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Slot s " +
            "WHERE s.bookingClass.id = :classId " +

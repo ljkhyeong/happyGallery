@@ -10,5 +10,5 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, Long>, Adm
 
     @Override AdminUser save(AdminUser adminUser);
 
-    Optional<AdminUser> findByUsername(String username);
+    @Override Optional<AdminUser> findByUsername(String username);
 }

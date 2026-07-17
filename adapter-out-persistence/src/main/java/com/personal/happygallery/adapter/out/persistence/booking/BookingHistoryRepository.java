@@ -9,5 +9,5 @@ public interface BookingHistoryRepository extends JpaRepository<BookingHistory, 
     @Override BookingHistory save(BookingHistory history);
 
     /** 특정 예약의 이력 건수 — Proof 테스트용 */
-    long countByBookingId(Long bookingId);
+    @Override long countByBookingId(Long bookingId);
 }

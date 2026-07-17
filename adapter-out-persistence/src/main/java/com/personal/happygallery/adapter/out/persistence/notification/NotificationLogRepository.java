@@ -58,10 +58,12 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
 
     long countByGuestIdAndReadAtIsNull(Long guestId);
 
+    @Override
     @Modifying
     @Query("UPDATE NotificationLog n SET n.readAt = :readAt WHERE n.userId = :userId AND n.readAt IS NULL")
     void markAllReadByUserId(@Param("userId") Long userId, @Param("readAt") LocalDateTime readAt);
 
+    @Override
     @Modifying
     @Query("UPDATE NotificationLog n SET n.readAt = :readAt WHERE n.guestId = :guestId AND n.readAt IS NULL")
     void markAllReadByGuestId(@Param("guestId") Long guestId, @Param("readAt") LocalDateTime readAt);
