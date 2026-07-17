@@ -23,12 +23,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class CustomerAuthController {
 
     private final CustomerAuthUseCase customerAuth;
-    private final AuthSessionWriter authSessionWriter;
+    private final CustomerSessionBinder customerSessionBinder;
 
     public CustomerAuthController(CustomerAuthUseCase customerAuth,
-                                  AuthSessionWriter authSessionWriter) {
+                                  CustomerSessionBinder customerSessionBinder) {
         this.customerAuth = customerAuth;
-        this.authSessionWriter = authSessionWriter;
+        this.customerSessionBinder = customerSessionBinder;
     }
 
     @PostMapping("/auth/signup")
@@ -42,7 +42,7 @@ public class CustomerAuthController {
                         request.password(),
                         request.name(),
                         request.phone()));
-        authSessionWriter.bind(httpRequest, httpResponse, user.getId());
+        customerSessionBinder.bind(httpRequest, httpResponse, user.getId());
         return CustomerUserResponse.from(user);
     }
 
@@ -54,14 +54,14 @@ public class CustomerAuthController {
                 new CustomerAuthUseCase.LoginCommand(
                         request.email(),
                         request.password()));
-        authSessionWriter.bind(httpRequest, httpResponse, user.getId());
+        customerSessionBinder.bind(httpRequest, httpResponse, user.getId());
         return CustomerUserResponse.from(user);
     }
 
     @PostMapping("/auth/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
-        authSessionWriter.unbind(httpRequest, httpResponse);
+        customerSessionBinder.unbind(httpRequest, httpResponse);
     }
 
     @GetMapping("/me")

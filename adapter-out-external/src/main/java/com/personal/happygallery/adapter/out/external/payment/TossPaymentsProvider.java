@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.ResourceAccessException;
@@ -120,23 +121,19 @@ public class TossPaymentsProvider implements PaymentProvider {
         if (response == null) {
             return null;
         }
-        if (hasText(response.lastTransactionKey())) {
+        if (StringUtils.hasText(response.lastTransactionKey())) {
             return response.lastTransactionKey();
         }
         if (response.cancels() == null || response.cancels().isEmpty()) {
             return null;
         }
-        for (int index = response.cancels().size() - 1; index >= 0; index--) {
-            String transactionKey = response.cancels().get(index).transactionKey();
-            if (hasText(transactionKey)) {
+        for (CancelResponse cancel : response.cancels().reversed()) {
+            String transactionKey = cancel.transactionKey();
+            if (StringUtils.hasText(transactionKey)) {
                 return transactionKey;
             }
         }
         return null;
-    }
-
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
     }
 
     private boolean isRetryableStatus(RestClientResponseException exception) {

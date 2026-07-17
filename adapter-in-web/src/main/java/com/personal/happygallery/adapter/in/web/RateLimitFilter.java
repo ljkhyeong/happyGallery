@@ -18,9 +18,14 @@ import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
+
+import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpMethod.POST;
+import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
@@ -45,23 +50,23 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final String X_FORWARDED_FOR = "X-Forwarded-For";
     private static final String ADMIN_PATH_PREFIX = "/api/v1/admin/";
-    private static final String SOCIAL_LOGIN_PATH_PREFIX = "/api/v1/auth/social/";
 
     private static final LimitRule PHONE_VERIFICATION_RULE = new LimitRule(
-            "PHONE_VERIFICATION", "POST", "/api/v1/bookings/phone-verifications");
+            "PHONE_VERIFICATION", pathPattern(POST, "/api/v1/bookings/phone-verifications"));
     private static final LimitRule CUSTOMER_LOGIN_RULE = new LimitRule(
-            "CUSTOMER_LOGIN", "POST", "/api/v1/auth/login");
+            "CUSTOMER_LOGIN", pathPattern(POST, "/api/v1/auth/login"));
     private static final LimitRule CUSTOMER_SIGNUP_RULE = new LimitRule(
-            "CUSTOMER_SIGNUP", "POST", "/api/v1/auth/signup");
+            "CUSTOMER_SIGNUP", pathPattern(POST, "/api/v1/auth/signup"));
     private static final LimitRule ADMIN_LOGIN_RULE = new LimitRule(
-            "ADMIN_LOGIN", "POST", "/api/v1/admin/auth/login");
+            "ADMIN_LOGIN", pathPattern(POST, "/api/v1/admin/auth/login"));
     private static final LimitRule ADMIN_SETUP_RULE = new LimitRule(
-            "ADMIN_SETUP", "POST", "/api/v1/admin/setup");
+            "ADMIN_SETUP", pathPattern(POST, "/api/v1/admin/setup"));
     private static final LimitRule SOCIAL_LOGIN_RULE = new LimitRule(
-            "SOCIAL_LOGIN", "POST", null);
+            "SOCIAL_LOGIN", pathPattern(POST, "/api/v1/auth/social/{provider}"));
     private static final LimitRule SOCIAL_LOGIN_INIT_RULE = new LimitRule(
-            "SOCIAL_LOGIN_INIT", "GET", null);
-    private static final LimitRule ADMIN_API_RULE = new LimitRule("ADMIN_API", null, null);
+            "SOCIAL_LOGIN_INIT", pathPattern(GET, "/api/v1/auth/social/{provider}/url"));
+    private static final LimitRule ADMIN_API_RULE = new LimitRule(
+            "ADMIN_API", request -> request.getRequestURI().startsWith(ADMIN_PATH_PREFIX));
 
     private final ObjectMapper objectMapper;
     private final RateLimitProperties properties;
@@ -124,10 +129,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (matches(request, CUSTOMER_SIGNUP_RULE)) {
             return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.customerSignupPerMinute(), Duration.ofMinutes(1));
         }
-        if (matchesSocialLogin(request)) {
+        if (matches(request, SOCIAL_LOGIN_RULE)) {
             return new ResolvedRule(SOCIAL_LOGIN_RULE, properties.socialLoginPerMinute(), Duration.ofMinutes(1));
         }
-        if (matchesSocialLoginInit(request)) {
+        if (matches(request, SOCIAL_LOGIN_INIT_RULE)) {
             return new ResolvedRule(SOCIAL_LOGIN_INIT_RULE, properties.socialLoginPerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, ADMIN_LOGIN_RULE)) {
@@ -136,8 +141,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (matches(request, ADMIN_SETUP_RULE)) {
             return new ResolvedRule(ADMIN_SETUP_RULE, properties.adminSetupPerMinute(), Duration.ofMinutes(1));
         }
-        String uri = request.getRequestURI();
-        if (isAdminPath(uri)) {
+        if (matches(request, ADMIN_API_RULE)) {
             return new ResolvedRule(ADMIN_API_RULE, properties.adminApiPerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, PHONE_VERIFICATION_RULE)) {
@@ -147,43 +151,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean matches(HttpServletRequest request, LimitRule rule) {
-        if (!request.getMethod().equals(rule.method())) {
-            return false;
-        }
-        return request.getRequestURI().equals(rule.path());
-    }
-
-    private boolean matchesSocialLogin(HttpServletRequest request) {
-        return matchesSocialProviderPath(request, SOCIAL_LOGIN_RULE.method(), "");
-    }
-
-    private boolean matchesSocialLoginInit(HttpServletRequest request) {
-        return matchesSocialProviderPath(request, SOCIAL_LOGIN_INIT_RULE.method(), "/url");
-    }
-
-    private boolean matchesSocialProviderPath(HttpServletRequest request,
-                                              String method,
-                                              String suffix) {
-        if (!request.getMethod().equals(method)) {
-            return false;
-        }
-
-        String uri = request.getRequestURI();
-        if (!uri.startsWith(SOCIAL_LOGIN_PATH_PREFIX)) {
-            return false;
-        }
-
-        String providerPath = uri.substring(SOCIAL_LOGIN_PATH_PREFIX.length());
-        if (!providerPath.endsWith(suffix)) {
-            return false;
-        }
-
-        String provider = providerPath.substring(0, providerPath.length() - suffix.length());
-        return !provider.isBlank() && !provider.contains("/");
-    }
-
-    private boolean isAdminPath(String uri) {
-        return uri.startsWith(ADMIN_PATH_PREFIX);
+        return rule.matcher().matches(request);
     }
 
     String resolveClientKey(HttpServletRequest request) {
@@ -211,7 +179,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.getWriter().write(objectMapper.writeValueAsString(ErrorResponse.of(ErrorCode.TOO_MANY_REQUESTS)));
     }
 
-    private record LimitRule(String id, String method, String path) {
+    private record LimitRule(String id, RequestMatcher matcher) {
     }
 
     private record ResolvedRule(LimitRule rule, long capacity, Duration window) {

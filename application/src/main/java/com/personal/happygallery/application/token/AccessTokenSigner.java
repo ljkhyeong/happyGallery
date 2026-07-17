@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.token;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
@@ -62,7 +63,9 @@ public final class AccessTokenSigner {
         String signature = token.substring(dotIndex + 1);
 
         String expectedSignature = computeHmac(encodedPayload, hmacSecret);
-        if (!constantTimeEquals(signature, expectedSignature)) {
+        if (!MessageDigest.isEqual(
+                signature.getBytes(StandardCharsets.UTF_8),
+                expectedSignature.getBytes(StandardCharsets.UTF_8))) {
             throw new InvalidTokenException("토큰 서명 불일치");
         }
 
@@ -98,17 +101,6 @@ public final class AccessTokenSigner {
         } catch (Exception e) {
             throw new TokenSigningException();
         }
-    }
-
-    private static boolean constantTimeEquals(String a, String b) {
-        byte[] aBytes = a.getBytes(StandardCharsets.UTF_8);
-        byte[] bBytes = b.getBytes(StandardCharsets.UTF_8);
-        if (aBytes.length != bBytes.length) return false;
-        int result = 0;
-        for (int i = 0; i < aBytes.length; i++) {
-            result |= aBytes[i] ^ bBytes[i];
-        }
-        return result == 0;
     }
 
     public record SignedToken(String rawToken, String nonceHash) {}

@@ -17,6 +17,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -124,8 +125,7 @@ public class GlobalExceptionHandler {
                 .replace("`", "")
                 .replace("\"", "")
                 .replace("'", "");
-        int qualifierSeparator = normalized.lastIndexOf('.');
-        return qualifierSeparator < 0 ? normalized : normalized.substring(qualifierSeparator + 1);
+        return StringUtils.unqualify(normalized);
     }
 
     private static Optional<String> findConstraintName(Throwable throwable) {

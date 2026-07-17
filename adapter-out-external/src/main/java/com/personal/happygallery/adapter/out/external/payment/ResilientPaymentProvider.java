@@ -11,6 +11,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.NestedExceptionUtils;
 
 /**
  * 외부 PG 호출 보호용 데코레이터.
@@ -53,7 +54,7 @@ public class ResilientPaymentProvider implements PaymentProvider {
             log.warn("PG 확정 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
             return PaymentConfirmResult.retryableFailure("PG 응답 지연으로 결제 확정에 실패했습니다.");
         } catch (Exception e) {
-            Throwable cause = rootCause(e);
+            Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
             if (cause instanceof TimeoutException) {
                 log.warn("PG 확정 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
                 return PaymentConfirmResult.retryableFailure("PG 응답 지연으로 결제 확정에 실패했습니다.");
@@ -79,7 +80,7 @@ public class ResilientPaymentProvider implements PaymentProvider {
             log.warn("PG 환불 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
             return RefundResult.reconciliationRequired("PG 응답 지연으로 환불 상태 확인이 필요합니다.");
         } catch (Exception e) {
-            Throwable cause = rootCause(e);
+            Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
             if (cause instanceof TimeoutException) {
                 log.warn("PG 환불 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
                 return RefundResult.reconciliationRequired("PG 응답 지연으로 환불 상태 확인이 필요합니다.");
@@ -104,13 +105,5 @@ public class ResilientPaymentProvider implements PaymentProvider {
         return timeLimiter.executeFutureSupplier(
                 () -> CompletableFuture.supplyAsync(
                         () -> delegate.refund(paymentKey, amount, idempotencyKey), executor));
-    }
-
-    private Throwable rootCause(Throwable throwable) {
-        Throwable current = throwable;
-        while (current.getCause() != null && current.getCause() != current) {
-            current = current.getCause();
-        }
-        return current;
     }
 }

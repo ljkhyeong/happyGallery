@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.NestedExceptionUtils;
 
 /**
  * 알림 발송 어댑터에 서킷 브레이커 + 타임아웃을 씌우는 데코레이터.
@@ -60,7 +61,7 @@ public class ResilientNotificationSender implements NotificationSender {
             log.warn("[{}] 발송 타임아웃 [timeoutMs={} event={}]", channel(), timeoutMillis, eventType);
             return false;
         } catch (Exception e) {
-            Throwable cause = rootCause(e);
+            Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
             if (cause instanceof TimeoutException) {
                 log.warn("[{}] 발송 타임아웃 [timeoutMs={} event={}]", channel(), timeoutMillis, eventType);
                 return false;
@@ -75,13 +76,5 @@ public class ResilientNotificationSender implements NotificationSender {
         return timeLimiter.executeFutureSupplier(
                 () -> CompletableFuture.supplyAsync(
                         () -> delegate.send(phone, recipientName, eventType), executor));
-    }
-
-    private Throwable rootCause(Throwable throwable) {
-        Throwable current = throwable;
-        while (current.getCause() != null && current.getCause() != current) {
-            current = current.getCause();
-        }
-        return current;
     }
 }

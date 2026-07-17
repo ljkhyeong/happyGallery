@@ -33,12 +33,12 @@ public class SocialLoginController {
             SocialLoginController.class.getName() + ".state.";
 
     private final SocialAuthUseCase socialAuth;
-    private final AuthSessionWriter authSessionWriter;
+    private final CustomerSessionBinder customerSessionBinder;
 
     public SocialLoginController(SocialAuthUseCase socialAuth,
-                                 AuthSessionWriter authSessionWriter) {
+                                 CustomerSessionBinder customerSessionBinder) {
         this.socialAuth = socialAuth;
-        this.authSessionWriter = authSessionWriter;
+        this.customerSessionBinder = customerSessionBinder;
     }
 
     @GetMapping("/{provider}/url")
@@ -67,14 +67,14 @@ public class SocialLoginController {
                         request.code(),
                         request.redirectUri(),
                         verifiedState));
-        authSessionWriter.bind(httpRequest, httpResponse, result.user().getId());
+        customerSessionBinder.bind(httpRequest, httpResponse, result.user().getId());
         return new SocialLoginResponse(
                 CustomerUserResponse.from(result.user()),
                 result.newUser());
     }
 
     private void storeState(HttpServletRequest request, SocialProvider provider, String state) {
-        request.getSession(true).setAttribute(stateAttributeName(provider), state);
+        request.getSession().setAttribute(stateAttributeName(provider), state);
     }
 
     private String verifyAndConsumeState(HttpServletRequest request,

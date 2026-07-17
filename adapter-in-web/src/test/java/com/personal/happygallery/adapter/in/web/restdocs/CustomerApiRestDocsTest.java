@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
-import com.personal.happygallery.adapter.in.web.customer.AuthSessionWriter;
+import com.personal.happygallery.adapter.in.web.customer.CustomerSessionBinder;
 import com.personal.happygallery.adapter.in.web.customer.CustomerAuthController;
 import com.personal.happygallery.adapter.in.web.customer.MeBookingController;
 import com.personal.happygallery.adapter.in.web.customer.MeCartController;
@@ -133,10 +133,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(qnaUseCase.createQuestion(eq(1L), eq(CUSTOMER_USER_ID), any(), any(), eq(false), any()))
                 .thenReturn(qna);
 
-        AuthSessionWriter authSessionWriter = new AuthSessionWriter(mock(CsrfTokenRepository.class));
+        CustomerSessionBinder customerSessionBinder = new CustomerSessionBinder(mock(CsrfTokenRepository.class));
         mockMvc = mockMvc(restDocumentation,
-                new CustomerAuthController(customerAuthUseCase, authSessionWriter),
-                new SocialLoginController(socialAuthUseCase, authSessionWriter),
+                new CustomerAuthController(customerAuthUseCase, customerSessionBinder),
+                new SocialLoginController(socialAuthUseCase, customerSessionBinder),
                 new MeCartController(cartUseCase, cartCheckoutUseCase),
                 new MeBookingController(bookingQueryUseCase, bookingRescheduleUseCase,
                         bookingCancelUseCase, RestDocsFixtures.clock()),
