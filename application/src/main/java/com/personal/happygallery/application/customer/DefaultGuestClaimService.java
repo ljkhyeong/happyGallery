@@ -72,7 +72,9 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
     public ClaimPreview verifyPhoneAndPreview(Long userId, String verificationCode) {
         User user = findUser(userId);
-        PhoneVerification verification = findValidVerification(user.getPhone(), verificationCode);
+        PhoneVerification verification = phoneVerificationReader
+                .findValidVerification(user.getPhone(), verificationCode, LocalDateTime.now(clock))
+                .orElseThrow(PhoneVerificationFailedException::new);
         verification.markVerified();
         user.markPhoneVerified();
         log.info("guest claim phone verified [userId={}]", userId);
@@ -91,10 +93,10 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
             return new ClaimResult(0, 0);
         }
 
-        Set<Long> orderIdSet = dedupe(orderIds);
+        Set<Long> orderIdSet = new LinkedHashSet<>(orderIds);
         claimOrders(orderIdSet, guest.getId(), userId);
 
-        Set<Long> bookingIdSet = dedupe(bookingIds);
+        Set<Long> bookingIdSet = new LinkedHashSet<>(bookingIds);
         claimBookings(bookingIdSet, guest.getId(), userId);
 
         clientMonitoringService.logGuestClaimCompleted(
@@ -164,12 +166,6 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
                 .orElseThrow(NotFoundException.supplier("회원"));
     }
 
-    private PhoneVerification findValidVerification(String phone, String verificationCode) {
-        return phoneVerificationReader
-                .findValidVerification(phone, verificationCode, LocalDateTime.now(clock))
-                .orElseThrow(PhoneVerificationFailedException::new);
-    }
-
     private Optional<Guest> findGuest(String phone) {
         return guestReader.findByPhoneHmac(guestPersonalDataProtector.indexPhone(phone));
     }
@@ -178,10 +174,6 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         if (!user.isPhoneVerified()) {
             throw new PhoneVerificationRequiredException();
         }
-    }
-
-    private static Set<Long> dedupe(List<Long> ids) {
-        return ids == null ? Set.of() : new LinkedHashSet<>(ids);
     }
 
 }
