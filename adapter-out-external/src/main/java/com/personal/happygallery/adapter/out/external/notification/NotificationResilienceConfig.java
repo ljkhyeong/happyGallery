@@ -69,8 +69,8 @@ class NotificationResilienceConfig {
     NotificationSender kakaoNotificationSender(KakaoNotificationProperties props,
                                                @Qualifier("kakaoRestClient") RestClient kakaoRestClient,
                                                @Qualifier("kakaoNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
-                                               TimeLimiter notificationTimeLimiter,
-                                               ExecutorService notificationTimeoutExecutor,
+                                               @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
+                                               @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
                                                NotificationResilienceProperties resilience) {
         KakaoAlimtalkSender raw = new KakaoAlimtalkSender(props, kakaoRestClient, new KakaoTemplateCatalog());
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
@@ -82,8 +82,8 @@ class NotificationResilienceConfig {
     NotificationSender smsNotificationSender(SmsNotificationProperties props,
                                              @Qualifier("smsRestClient") RestClient smsRestClient,
                                              @Qualifier("smsNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
-                                             TimeLimiter notificationTimeLimiter,
-                                             ExecutorService notificationTimeoutExecutor,
+                                             @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
+                                             @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
                                              NotificationResilienceProperties resilience) {
         RealSmsSender raw = new RealSmsSender(props, smsRestClient, new SmsMessageCatalog());
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,

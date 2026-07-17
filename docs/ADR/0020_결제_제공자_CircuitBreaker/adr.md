@@ -19,7 +19,7 @@
 
 ### 1. `PaymentProvider` 경계에 데코레이터를 적용한다
 
-- `ResilientPaymentProvider`를 `@Primary` 빈으로 등록한다.
+- `PaymentResilienceConfig`에서 `ResilientPaymentProvider`를 `@Primary` 빈으로 조립한다.
 - 실제 호출 구현체는 `paymentProviderDelegate`로 분리해 주입한다.
 
 ### 2. `CircuitBreaker + TimeLimiter`를 조합한다
@@ -54,6 +54,12 @@
 - `CallerRunsPolicy`는 요청·환불 스레드에서 PG 호출을 직접 실행해 외부 호출 격리와 `TimeLimiter` 타임아웃 시작 경계를 무너뜨리므로 사용하지 않는다.
 - `executor_queued_tasks`, `executor_queue_remaining_tasks`, `happygallery_payment_executor_rejected_total`을 수집하고 대기열 80% 지속 또는 거절 발생 시 알림을 보낸다.
 
+### 6. 보호 자원 구성과 호출 실행 책임을 분리한다
+
+- `PaymentResilienceConfig`가 `CircuitBreaker`, `TimeLimiter`, 제한 큐 executor의 생성과 메트릭 등록, Spring 빈 조립을 담당한다.
+- `PaymentTimeoutExecutor`가 executor의 종료 수명주기를 담당한다.
+- `ResilientPaymentProvider`는 주입받은 보호 자원으로 PG 호출을 실행하고 결과를 표준화하는 역할만 담당한다.
+
 ---
 
 ## 결과 (트레이드오프)
@@ -71,7 +77,9 @@
 
 ## 구현 반영
 
-- `adapter-out-external/.../payment/ResilientPaymentProvider` 추가
+- `adapter-out-external/.../payment/PaymentResilienceConfig`에서 결제 보호 자원과 `@Primary` 제공자 빈 구성
+- `adapter-out-external/.../payment/PaymentTimeoutExecutor`에서 제한 큐 executor의 종료 수명주기 관리
+- `adapter-out-external/.../payment/ResilientPaymentProvider`에서 보호된 PG 호출과 결과 표준화 수행
 - `adapter-out-external/.../payment/FakePaymentProvider` 빈 이름 분리 (`paymentProviderDelegate`)
 - `PaymentProvider.confirm` 경로도 `CircuitBreaker + TimeLimiter` 보호 적용
 - PG timeout executor에 `ArrayBlockingQueue + AbortPolicy` 적용

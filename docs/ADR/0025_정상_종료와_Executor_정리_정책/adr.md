@@ -83,7 +83,8 @@
 
 ### 4. PG timeout용 `ExecutorService`는 빠른 정리를 우선한다
 
-`ResilientPaymentProvider` 내부 executor는 `@PreDestroy`에서 다음 순서로 종료한다.
+`PaymentResilienceConfig`는 PG timeout executor를 Spring 빈으로 생성하고,
+`PaymentTimeoutExecutor.close()`는 빈 종료 시 다음 순서로 실행기를 정리한다.
 
 1. `executor.shutdown()`
 2. 최대 2초 `awaitTermination`
@@ -123,8 +124,12 @@
   - `refundExecutor`에 shutdown drain·MDC 전파 설정 적용
   - `TaskDecorator`로 MDC 복사/주입/정리 적용
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/ResilientPaymentProvider.java`
-  - `@PreDestroy` 기반 executor 종료 로직 적용
-  - 제한 큐와 즉시 거절 정책 적용
+  - 주입받은 보호 자원으로 PG 호출 실행과 결과 표준화
+- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentResilienceConfig.java`
+  - 제한 큐와 즉시 거절 정책을 적용한 executor 빈 생성
+  - CircuitBreaker, TimeLimiter, executor와 제공자 빈 조립
+- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentTimeoutExecutor.java`
+  - Spring 빈 종료 시 2초 대기 후 강제 종료하는 수명주기 구현
 
 ---
 
@@ -159,4 +164,6 @@
 - `docs/ADR/0030_타임아웃_계층과_ingress_keep_alive_기준선/adr.md`
 - `bootstrap/src/main/resources/application.yml`
 - `bootstrap/src/main/java/com/personal/happygallery/bootstrap/config/AsyncConfig.java`
+- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentResilienceConfig.java`
+- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentTimeoutExecutor.java`
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/ResilientPaymentProvider.java`

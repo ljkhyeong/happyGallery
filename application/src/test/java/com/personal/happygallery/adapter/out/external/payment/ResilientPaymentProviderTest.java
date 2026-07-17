@@ -17,12 +17,13 @@ import static org.awaitility.Awaitility.await;
 class ResilientPaymentProviderTest {
 
     private ResilientPaymentProvider provider;
+    private PaymentTimeoutExecutor timeoutExecutor;
     private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @AfterEach
     void tearDown() {
-        if (provider != null) {
-            provider.shutdown();
+        if (timeoutExecutor != null) {
+            timeoutExecutor.close();
         }
         meterRegistry.close();
     }
@@ -34,7 +35,7 @@ class ResilientPaymentProviderTest {
             throw new RuntimeException("PG error");
         });
 
-        provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3), meterRegistry);
+        provider = createProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3));
 
         RefundResult result = provider.refund("payment-key", 10_000, "refund-idempotency-key");
 
@@ -57,7 +58,7 @@ class ResilientPaymentProviderTest {
             return RefundResult.success("late-ref");
         });
 
-        provider = new ResilientPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3), meterRegistry);
+        provider = createProvider(delegate, properties(50, 50f, 20, 10, 30, 3));
 
         RefundResult result = provider.refund("payment-key", 10_000, "refund-idempotency-key");
 
@@ -82,10 +83,9 @@ class ResilientPaymentProviderTest {
             }
             return RefundResult.success("refund-transaction-key");
         });
-        provider = new ResilientPaymentProvider(
+        provider = createProvider(
                 delegate,
-                properties(3_000, 50f, 20, 10, 30, 3, 1, 1),
-                meterRegistry);
+                properties(3_000, 50f, 20, 10, 30, 3, 1, 1));
 
         CompletableFuture<RefundResult> running = CompletableFuture.supplyAsync(
                 () -> provider.refund("payment-key-1", 10_000, "idempotency-key-1"));
@@ -123,7 +123,7 @@ class ResilientPaymentProviderTest {
         PaymentProvider delegate = refundOnlyDelegate(
                 (paymentKey, amount) -> RefundResult.retryableFailure("PG down"));
 
-        provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1), meterRegistry);
+        provider = createProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1));
 
         provider.refund("payment-key", 10_000, "refund-idempotency-key");
         provider.refund("payment-key", 10_000, "refund-idempotency-key");
@@ -142,7 +142,7 @@ class ResilientPaymentProviderTest {
             throw new RuntimeException("PG confirm error");
         });
 
-        provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3), meterRegistry);
+        provider = createProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3));
 
         PaymentConfirmResult result = provider.confirm(
                 "payment-key", "order-id", 10_000, "confirm-idempotency-key");
@@ -166,7 +166,7 @@ class ResilientPaymentProviderTest {
             return PaymentConfirmResult.success("late-ref", "CARD", "2026-04-23T10:00:00+09:00");
         });
 
-        provider = new ResilientPaymentProvider(delegate, properties(50, 50f, 20, 10, 30, 3), meterRegistry);
+        provider = createProvider(delegate, properties(50, 50f, 20, 10, 30, 3));
 
         PaymentConfirmResult result = provider.confirm(
                 "payment-key", "order-id", 10_000, "confirm-idempotency-key");
@@ -184,7 +184,7 @@ class ResilientPaymentProviderTest {
         PaymentProvider delegate = confirmOnlyDelegate(
                 (paymentKey, orderId, amount) -> PaymentConfirmResult.retryableFailure("PG confirm down"));
 
-        provider = new ResilientPaymentProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1), meterRegistry);
+        provider = createProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1));
 
         provider.confirm("payment-key", "order-id", 10_000, "confirm-idempotency-key");
         provider.confirm("payment-key", "order-id", 10_000, "confirm-idempotency-key");
@@ -196,6 +196,18 @@ class ResilientPaymentProviderTest {
             softly.assertThat(result.retryable()).isTrue();
             softly.assertThat(result.failReason()).contains("일시 차단");
         });
+    }
+
+    private ResilientPaymentProvider createProvider(PaymentProvider delegate,
+                                                    ExternalPaymentProperties properties) {
+        PaymentResilienceConfig config = new PaymentResilienceConfig();
+        timeoutExecutor = config.paymentTimeoutExecutor(properties, meterRegistry);
+        return config.resilientPaymentProvider(
+                delegate,
+                config.paymentCircuitBreaker(properties),
+                config.paymentTimeLimiter(properties),
+                timeoutExecutor,
+                properties);
     }
 
     private static ExternalPaymentProperties properties(long timeoutMillis,

@@ -4,28 +4,13 @@ import com.personal.happygallery.application.payment.port.out.PaymentConfirmResu
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.timelimiter.TimeLimiter;
-import io.github.resilience4j.timelimiter.TimeLimiterConfig;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
-import jakarta.annotation.PreDestroy;
-import java.time.Duration;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Component;
 
 /**
  * 외부 PG 호출 보호용 데코레이터.
@@ -33,65 +18,26 @@ import org.springframework.stereotype.Component;
  * <p>서킷 브레이커 + 타임아웃을 외부 호출 경계에 적용해
  * 장애 전파(cascading failure)를 줄인다.
  */
-@Primary
-@Component
 public class ResilientPaymentProvider implements PaymentProvider {
 
     private static final Logger log = LoggerFactory.getLogger(ResilientPaymentProvider.class);
-    private static final AtomicInteger THREAD_SEQ = new AtomicInteger(0);
 
     private final PaymentProvider delegate;
     private final CircuitBreaker circuitBreaker;
     private final TimeLimiter timeLimiter;
-    private final ExecutorService executor;
+    private final Executor executor;
     private final long timeoutMillis;
 
-    public ResilientPaymentProvider(
-            @Qualifier("paymentProviderDelegate") PaymentProvider delegate,
-            ExternalPaymentProperties properties,
-            MeterRegistry meterRegistry
-    ) {
-        ExternalPaymentProperties.CircuitBreaker cb = properties.circuitBreaker();
+    ResilientPaymentProvider(PaymentProvider delegate,
+                             CircuitBreaker circuitBreaker,
+                             TimeLimiter timeLimiter,
+                             Executor executor,
+                             long timeoutMillis) {
         this.delegate = delegate;
-        this.timeoutMillis = properties.timeoutMillis();
-        this.circuitBreaker = CircuitBreaker.of("paymentProvider", CircuitBreakerConfig.custom()
-                .failureRateThreshold(cb.failureRateThreshold())
-                .slidingWindowSize(cb.slidingWindowSize())
-                .minimumNumberOfCalls(cb.minimumNumberOfCalls())
-                .waitDurationInOpenState(Duration.ofSeconds(cb.waitDurationOpenSeconds()))
-                .permittedNumberOfCallsInHalfOpenState(cb.permittedCallsInHalfOpenState())
-                .recordResult(ResilientPaymentProvider::isFailureResult)
-                .build());
-        this.timeLimiter = TimeLimiter.of(TimeLimiterConfig.custom()
-                .timeoutDuration(Duration.ofMillis(this.timeoutMillis))
-                .cancelRunningFuture(true)
-                .build());
-        ExternalPaymentProperties.ThreadPool threadPool = properties.threadPool();
-        Counter rejectedCounter = Counter.builder("happygallery.payment.executor.rejected")
-                .description("PG timeout executor rejected task count")
-                .register(meterRegistry);
-        RejectedExecutionHandler abortPolicy = new ThreadPoolExecutor.AbortPolicy();
-        RejectedExecutionHandler rejectionHandler = (task, executor) -> {
-            rejectedCounter.increment();
-            abortPolicy.rejectedExecution(task, executor);
-        };
-        ThreadPoolExecutor rawExecutor = new ThreadPoolExecutor(
-                threadPool.poolSize(),
-                threadPool.poolSize(),
-                0L,
-                TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(threadPool.queueCapacity()),
-                runnable -> {
-                    Thread thread = new Thread(runnable);
-                    thread.setName("payment-timeout-" + THREAD_SEQ.incrementAndGet());
-                    thread.setDaemon(true);
-                    return thread;
-                },
-                rejectionHandler);
-        this.executor = ExecutorServiceMetrics.monitor(
-                meterRegistry,
-                rawExecutor,
-                "paymentTimeoutExecutor");
+        this.circuitBreaker = circuitBreaker;
+        this.timeLimiter = timeLimiter;
+        this.executor = executor;
+        this.timeoutMillis = timeoutMillis;
     }
 
     @Override
@@ -168,28 +114,5 @@ public class ResilientPaymentProvider implements PaymentProvider {
             current = current.getCause();
         }
         return current;
-    }
-
-    private static boolean isFailureResult(Object result) {
-        if (result instanceof PaymentConfirmResult confirmResult) {
-            return confirmResult.retryable();
-        }
-        if (result instanceof RefundResult refundResult) {
-            return refundResult.retryable() || refundResult.reconciliationRequired();
-        }
-        return false;
-    }
-
-    @PreDestroy
-    void shutdown() {
-        executor.shutdown();
-        try {
-            if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            executor.shutdownNow();
-        }
     }
 }
