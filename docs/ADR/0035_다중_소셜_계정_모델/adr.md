@@ -15,7 +15,7 @@ Naver 로그인을 추가하면 비밀번호 회원이 Google과 Naver를 함께
 
 1. `users`는 서비스 회원 자체만 나타내고 인증 제공자 컬럼을 두지 않는다.
 2. 소셜 계정은 `user_social_accounts`에 분리한다.
-3. `(provider, provider_id)`를 유일하게 유지해 외부 계정 하나가 여러 회원에 연결되지 않도록 한다.
+3. 외부 provider ID는 원문 대신 `provider_id_hmac`로 저장하고 `(provider, provider_id_hmac)`를 유일하게 유지해 외부 계정 하나가 여러 회원에 연결되지 않도록 한다.
 4. `(user_id, provider)`를 유일하게 유지해 한 회원은 제공자별 계정을 하나씩만 연결한다.
 5. 소셜 로그인 시 외부 계정이 이미 연결되어 있으면 해당 회원으로 로그인한다. 외부 계정 연결이 없고 이메일이 기존 회원과 겹치면 제공자와 관계없이 자동 병합하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다.
 6. URL 발급 시 생성한 OAuth `state`는 서버 세션에 provider별로 저장하고, 코드 교환 요청에서 일치 여부를 확인한 뒤 제거한다.
@@ -27,10 +27,9 @@ Naver 로그인을 추가하면 비밀번호 회원이 Google과 Naver를 함께
 
 ## 마이그레이션
 
-- 기존 `users.provider != LOCAL` 계정은 `user_social_accounts`로 이전한다.
-- 롤링 배포 중 구버전 인스턴스가 계속 읽을 수 있도록 이번 확장 마이그레이션에서는 `users.provider`, `users.provider_id`와 기존 복합 인덱스를 유지한다.
-- V45 적용 후 구버전 인스턴스가 기존 컬럼에만 새 Google 계정을 쓸 수 있다. 신버전은 새 테이블에 계정이 없을 때 legacy `(provider, provider_id)`가 정확히 일치하는 user ID만 조회해 `user_social_accounts`로 승격한다.
-- 모든 인스턴스가 새 코드로 전환된 다음 릴리스에서 기존 컬럼과 인덱스를 별도 축소 마이그레이션으로 제거한다.
+- V45는 기존 `users.provider != LOCAL` 계정을 `user_social_accounts`로 이전하면서 롤링 배포 호환을 위해 `users.provider`, `users.provider_id`와 기존 복합 인덱스를 임시 유지했다.
+- V46은 소셜 식별자를 `provider_id_hmac`로 전환하고 `users.provider`, `users.provider_id`와 기존 인덱스를 제거해 과도기를 종료했다.
+- V46은 전환한 `(provider, provider_id_hmac)`가 충돌하면 자동 병합하지 않고 마이그레이션을 중단한다.
 - `LOCAL`은 소셜 제공자가 아니므로 새 테이블에 저장하지 않는다. 비밀번호 존재 여부가 로컬 로그인 가능 여부를 나타낸다.
 
 ## 결과
@@ -45,5 +44,6 @@ Naver 로그인을 추가하면 비밀번호 회원이 Google과 Naver를 함께
 - `docs/PRD/0004_API_계약/spec.md`
 - `docs/ADR/0022_시스템_경계_상태_스키마_기준선/adr.md`
 - `docs/ADR/0029_외부_HTTP_클라이언트_풀링_기준선/adr.md`
+- `docs/ADR/0036_개인정보_평문_제거와_블라인드_인덱스_기준/adr.md`
 - [Google OpenID Connect API Reference](https://developers.google.com/identity/openid-connect/reference)
 - [Naver 로그인 회원 프로필 안내](https://help.naver.com/service/23029/contents/20553?lang=ko)

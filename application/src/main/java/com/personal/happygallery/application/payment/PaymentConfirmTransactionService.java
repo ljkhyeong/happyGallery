@@ -7,6 +7,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -35,6 +36,7 @@ class PaymentConfirmTransactionService {
     private final RefundExecutionService refundExecutionService;
     private final Map<PaymentContext, PaymentFulfiller> fulfillers;
     private final ObjectMapper objectMapper;
+    private final FieldEncryptor fieldEncryptor;
     private final Clock clock;
 
     PaymentConfirmTransactionService(PaymentAttemptReaderPort attemptReader,
@@ -42,6 +44,7 @@ class PaymentConfirmTransactionService {
                                      RefundExecutionService refundExecutionService,
                                      List<PaymentFulfiller> fulfillers,
                                      ObjectMapper objectMapper,
+                                     FieldEncryptor fieldEncryptor,
                                      Clock clock) {
         this.attemptReader = attemptReader;
         this.attemptStore = attemptStore;
@@ -54,6 +57,7 @@ class PaymentConfirmTransactionService {
             }
         }
         this.objectMapper = objectMapper;
+        this.fieldEncryptor = fieldEncryptor;
         this.clock = clock;
     }
 
@@ -63,7 +67,7 @@ class PaymentConfirmTransactionService {
                 .orElseThrow(() -> new NotFoundException("결제 시도"));
         String paymentKey = normalize(command.paymentKey());
         PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
-        PaymentPayload payload = deserialize(attempt.getPayloadJson());
+        PaymentPayload payload = deserialize(attempt.getPayloadEnc());
         fulfiller.validateBeforePg(attempt, payload);
         requireSameActor(payload, command.auth());
 
@@ -116,7 +120,7 @@ class PaymentConfirmTransactionService {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
                     "승인된 결제만 도메인 생성에 사용할 수 있습니다.");
         }
-        PaymentPayload payload = deserialize(attempt.getPayloadJson());
+        PaymentPayload payload = deserialize(attempt.getPayloadEnc());
         PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
         PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(payload, attempt.getPgRef());
         attempt.markConfirmed();
@@ -169,8 +173,15 @@ class PaymentConfirmTransactionService {
         }
     }
 
-    private PaymentPayload deserialize(String json) {
+    private PaymentPayload deserialize(String storedPayload) {
+        String json = isLegacyPlainJson(storedPayload)
+                ? storedPayload
+                : fieldEncryptor.decrypt(storedPayload);
         return objectMapper.readValue(json, PaymentPayload.class);
+    }
+
+    private boolean isLegacyPlainJson(String storedPayload) {
+        return storedPayload != null && storedPayload.stripLeading().startsWith("{");
     }
 
     private boolean isStale(PaymentAttempt attempt, LocalDateTime now) {

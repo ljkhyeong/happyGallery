@@ -13,13 +13,7 @@ public interface UserReaderPort {
 
     Optional<User> findByEmail(String email);
 
-    Optional<User> findByEmailHmac(String emailHmac);
-
-    Optional<Long> findLegacyUserIdByProviderAndProviderId(String provider, String providerId);
-
     boolean existsByEmail(String email);
-
-    boolean existsByEmailHmac(String emailHmac);
 
     List<User> findAllById(Iterable<Long> ids);
 }

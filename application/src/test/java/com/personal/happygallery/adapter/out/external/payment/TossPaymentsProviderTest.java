@@ -77,7 +77,7 @@ class TossPaymentsProviderTest {
                         .body("""
                                 {
                                   "code": "INVALID_REQUEST",
-                                  "message": "잘못된 요청입니다."
+                                  "message": "payment-key로 결제를 확정할 수 없습니다."
                                 }
                                 """));
 
@@ -88,7 +88,7 @@ class TossPaymentsProviderTest {
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
             softly.assertThat(result.paymentKey()).isNull();
-            softly.assertThat(result.failReason()).isNotBlank();
+            softly.assertThat(result.failReason()).isEqualTo("PG가 결제 확정을 거절했습니다.");
         });
     }
 
@@ -173,7 +173,7 @@ class TossPaymentsProviderTest {
                         .body("""
                                 {
                                   "code": "INVALID_REFUND",
-                                  "message": "환불할 수 없는 결제입니다."
+                                  "message": "payment-key는 환불할 수 없습니다."
                                 }
                                 """));
 
@@ -185,7 +185,7 @@ class TossPaymentsProviderTest {
             softly.assertThat(result.retryable()).isFalse();
             softly.assertThat(result.reconciliationRequired()).isFalse();
             softly.assertThat(result.refundTransactionKey()).isNull();
-            softly.assertThat(result.failReason()).isNotBlank();
+            softly.assertThat(result.failReason()).isEqualTo("PG가 환불을 거절했습니다.");
         });
     }
 

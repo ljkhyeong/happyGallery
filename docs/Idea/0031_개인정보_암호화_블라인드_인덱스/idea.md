@@ -1,15 +1,15 @@
 # 개인정보 암호화 — 블라인드 인덱스 방식
 
 **날짜**: 2026-03-24
-**상태**: 구현 진행 중
+**상태**: 채택 완료 — [ADR-0036](../../ADR/0036_개인정보_평문_제거와_블라인드_인덱스_기준/adr.md)
 
 ---
 
 ## 배경
 
-현재 `Guest` 전화번호는 평문 컬럼을 제거하고 `phone_enc`/`phone_hmac`로 저장한다.
-`User.phone`과 `User.email`은 아직 DB에 평문이 남아 있어 후속 제거 대상이다.
-비밀번호는 BCrypt 단방향 해시를 사용하고 있으며, 회원 전화번호·이메일의 평문 제거가 남아 있다.
+초기 검토에서는 `Guest` 전화번호부터 암호화했고 회원·인증·결제 준비 데이터에는 평문이 남아 있었다.
+현재 구현은 회원 이메일·이름·전화번호, 비회원 이름·전화번호와 결제 준비 payload를 AES-GCM으로 보호하고,
+정확 일치가 필요한 값은 HMAC 블라인드 인덱스로 조회한다. 현재 결정과 마이그레이션 기준은 ADR-0036을 따른다.
 
 ---
 
@@ -49,9 +49,11 @@ BCrypt는 저장된 한 건의 해시와 평문을 대조하는 비밀번호 검
 
 | 엔티티 | 평문 필드 | 암호화 필드 | HMAC 인덱스 필드 |
 |--------|----------|-----------|----------------|
-| `Guest` | 없음 | `phone_enc` | `phone_hmac` |
-| `User` | `phone` | `phone_enc` | `phone_hmac` |
-| `User` | `email` | `email_enc` | `email_hmac` |
+| `Guest` | 없음 | `name_enc`, `phone_enc` | `name_hmac`, `phone_hmac` |
+| `User` | 없음 | `email_enc`, `name_enc`, `phone_enc` | `email_hmac`, `name_hmac`, `phone_hmac` |
+| `PhoneVerification` | 없음 | `code_enc` | `phone_hmac`, `code_hmac` |
+| `PaymentAttempt` | 없음 | `payload_enc` | 없음 |
+| `SocialAccount` | 없음 | 없음 | `provider_id_hmac` |
 
 ### 키 관리
 
@@ -59,16 +61,15 @@ BCrypt는 저장된 한 건의 해시와 평문을 대조하는 비밀번호 검
 - 프로덕션: AWS KMS 또는 Secrets Manager 보관
 - 로컬/테스트: `application-local.yml`에 고정값
 
-### 마이그레이션 전략 (무중단)
+### 채택된 마이그레이션
 
-1. **V1**: 새 컬럼 추가 (nullable) + HMAC 인덱스 생성
-2. **배치**: 기존 평문 → 암호화/HMAC 백필
-3. **V2**: 애플리케이션이 새 컬럼으로 읽기/쓰기 전환
-4. **V3**: 평문 컬럼 NOT NULL 제거 → 이후 평문 컬럼 DROP
+- Java Flyway `V46__ProtectPlaintextPersonalData`가 애플리케이션 AES/HMAC 키로 기존 데이터를 백필하고 평문 컬럼을 제거한다.
+- 정규화 후 회원 이메일, 비회원 전화번호 또는 소셜 식별자가 충돌하면 자동 병합하지 않고 배포를 중단한다.
+- 유효기간이 짧은 기존 휴대폰 인증 행은 백필하지 않고 폐기한다.
 
 ### 블라인드 인덱스 한계와 대응
 
-- LIKE 검색 불가 → 관리자 화면 부분 검색 필요 시 별도 대응
+- LIKE 검색 불가 → 관리자 이름은 정확 일치만 지원하고, 주문·예약 번호 부분 검색은 비식별 컬럼으로 유지
 - 전화번호 11자리 전수 대조 위험 → HMAC에 pepper 추가
 - 키 유출 시 HMAC 재생성 필요 → 키 로테이션 절차 문서화
 
@@ -79,11 +80,11 @@ BCrypt는 저장된 한 건의 해시와 평문을 대조하는 비밀번호 검
 | 단계 | 내용 |
 |------|------|
 | 0단계 | TDE 선적용 (코드 변경 없이 DB 설정) — 선택 |
-| 1단계 | Spring Security Crypto 기반 필드 암호화 구현체 + JPA AttributeConverter 구현 |
+| 1단계 | Spring Security Crypto 기반 필드 암호화·블라인드 인덱스와 persistence adapter 구현 |
 | 2단계 | Flyway 마이그레이션 + 엔티티 변경 |
 | 3단계 | 리포지토리 검색을 HMAC 컬럼으로 전환 |
-| 4단계 | 기존 데이터 백필 배치 |
-| 5단계 | `Guest.phone` 평문 컬럼 제거 완료. `User.phone`, `User.email` 제거는 후속 |
+| 4단계 | V46 Java Flyway로 기존 데이터 백필 및 충돌 사전 검증 |
+| 5단계 | 회원·비회원·인증·결제 준비 데이터의 평문 컬럼 제거 완료 |
 
 ---
 

@@ -116,7 +116,7 @@ class AdminBookingQueryUseCaseIT {
 
         List<AdminBookingResponse> responses = adminBookingQueryService.listBookings(targetDate, null);
         OffsetPage<AdminBookingSearchRow> searchResult =
-                adminBookingSearchUseCase.search(null, targetDate, targetDate, null, 0, 20);
+                adminBookingSearchUseCase.search(null, targetDate, targetDate, "게스트", 0, 20);
 
         assertSoftly(softly -> {
             softly.assertThat(responses).hasSize(1);

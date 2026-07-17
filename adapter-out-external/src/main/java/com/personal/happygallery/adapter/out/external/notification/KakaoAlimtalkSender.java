@@ -48,17 +48,17 @@ public class KakaoAlimtalkSender implements NotificationSender {
                     .body(request)
                     .retrieve()
                     .onStatus(HttpStatusCode::isError, (req, resp) -> {
-                        log.warn("[KAKAO] HTTP {} phone={} event={}", resp.getStatusCode(), phone, eventType);
+                        log.warn("[KAKAO] HTTP {} event={}", resp.getStatusCode(), eventType);
                     })
                     .toBodilessEntity();
 
             boolean success = response.getStatusCode().is2xxSuccessful();
             if (success) {
-                log.info("[KAKAO] 발송 성공 phone={} event={}", phone, eventType);
+                log.info("[KAKAO] 발송 성공 event={}", eventType);
             }
             return success;
         } catch (Exception e) {
-            log.warn("[KAKAO] 발송 예외 phone={} event={}", phone, eventType, e);
+            log.warn("[KAKAO] 발송 예외 [event={} type={}]", eventType, e.getClass().getSimpleName());
             return false;
         }
     }

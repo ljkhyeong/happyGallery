@@ -64,6 +64,8 @@ public class AsyncConfig implements AsyncConfigurer {
     @Override
     public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
         return (Throwable ex, Method method, Object... params) ->
-                log.error("[Async] 비동기 작업 실패 — {}.{}()", method.getDeclaringClass().getSimpleName(), method.getName(), ex);
+                log.error("[Async] 비동기 작업 실패 — {}.{}() [type={}]",
+                        method.getDeclaringClass().getSimpleName(), method.getName(),
+                        ex.getClass().getSimpleName());
     }
 }

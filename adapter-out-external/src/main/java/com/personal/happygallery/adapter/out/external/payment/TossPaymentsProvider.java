@@ -28,6 +28,12 @@ public class TossPaymentsProvider implements PaymentProvider {
 
     private static final Logger log = LoggerFactory.getLogger(TossPaymentsProvider.class);
     private static final String IDEMPOTENCY_KEY = "Idempotency-Key";
+    private static final String CONFIRM_REJECTED = "PG가 결제 확정을 거절했습니다.";
+    private static final String CONFIRM_RETRYABLE = "PG 결제 확정 요청을 재시도해야 합니다.";
+    private static final String CONFIRM_ERROR = "PG 결제 확정 호출 중 오류가 발생했습니다.";
+    private static final String REFUND_REJECTED = "PG가 환불을 거절했습니다.";
+    private static final String REFUND_RETRYABLE = "PG 환불 요청을 재시도해야 합니다.";
+    private static final String REFUND_RESULT_UNKNOWN = "PG 통신 결과를 확인할 수 없습니다.";
 
     private final RestClient restClient;
     private final String authorizationHeader;
@@ -60,16 +66,14 @@ public class TossPaymentsProvider implements PaymentProvider {
                     response.method() != null ? response.method() : "UNKNOWN",
                     response.approvedAt());
         } catch (RestClientResponseException e) {
-            log.warn("Toss confirm 거절 orderId={} status={}", orderId, e.getStatusCode(), e);
-            String reason = e.getMessage() != null ? e.getMessage() : "PG가 결제 확정을 거절했습니다.";
+            log.warn("Toss confirm 거절 [orderId={} status={}]", orderId, e.getStatusCode());
             if (isRetryableStatus(e)) {
-                return PaymentConfirmResult.retryableFailure(reason);
+                return PaymentConfirmResult.retryableFailure(CONFIRM_RETRYABLE);
             }
-            return PaymentConfirmResult.failure(reason);
+            return PaymentConfirmResult.failure(CONFIRM_REJECTED);
         } catch (Exception e) {
-            log.warn("Toss confirm 예외 orderId={}", orderId, e);
-            return PaymentConfirmResult.retryableFailure(
-                    e.getMessage() != null ? e.getMessage() : "PG 호출 중 오류");
+            log.warn("Toss confirm 예외 [orderId={} type={}]", orderId, e.getClass().getSimpleName());
+            return PaymentConfirmResult.retryableFailure(CONFIRM_ERROR);
         }
     }
 
@@ -87,25 +91,22 @@ public class TossPaymentsProvider implements PaymentProvider {
                     .body(RefundResponse.class);
             String refundTransactionKey = refundTransactionKey(response);
             if (refundTransactionKey == null) {
-                log.warn("Toss refund: missing refund transactionKey paymentKey={}", paymentKey);
+                log.warn("Toss refund 응답에 refund transactionKey가 없습니다.");
                 return RefundResult.reconciliationRequired("PG 환불 거래 키가 비어 있어 상태 확인이 필요합니다.");
             }
             return RefundResult.success(refundTransactionKey);
         } catch (RestClientResponseException e) {
-            log.warn("Toss refund 거절 paymentKey={} status={}", paymentKey, e.getStatusCode(), e);
-            String reason = e.getMessage() != null ? e.getMessage() : "PG가 환불을 거절했습니다.";
+            log.warn("Toss refund 거절 [status={}]", e.getStatusCode());
             if (isRetryableStatus(e)) {
-                return RefundResult.retryableFailure(reason);
+                return RefundResult.retryableFailure(REFUND_RETRYABLE);
             }
-            return RefundResult.failure(reason);
+            return RefundResult.failure(REFUND_REJECTED);
         } catch (ResourceAccessException e) {
-            log.warn("Toss refund 통신 결과 불명 paymentKey={}", paymentKey, e);
-            return RefundResult.reconciliationRequired(
-                    e.getMessage() != null ? e.getMessage() : "PG 통신 결과를 확인할 수 없습니다.");
+            log.warn("Toss refund 통신 결과 불명 [type={}]", e.getClass().getSimpleName());
+            return RefundResult.reconciliationRequired(REFUND_RESULT_UNKNOWN);
         } catch (Exception e) {
-            log.warn("Toss refund 예외 paymentKey={}", paymentKey, e);
-            return RefundResult.reconciliationRequired(
-                    e.getMessage() != null ? e.getMessage() : "PG 호출 결과를 확인할 수 없습니다.");
+            log.warn("Toss refund 예외 [type={}]", e.getClass().getSimpleName());
+            return RefundResult.reconciliationRequired(REFUND_RESULT_UNKNOWN);
         }
     }
 

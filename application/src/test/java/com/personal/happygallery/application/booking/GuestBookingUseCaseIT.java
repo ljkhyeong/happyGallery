@@ -7,9 +7,10 @@ import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
-import com.personal.happygallery.application.customer.GuestPhoneProtector;
+import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
@@ -59,8 +60,9 @@ class GuestBookingUseCaseIT {
     @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
     @Autowired GuestStorePort guestStorePort;
     @Autowired GuestRepository guestRepository;
-    @Autowired GuestPhoneProtector guestPhoneProtector;
+    @Autowired GuestPersonalDataProtector guestPersonalDataProtector;
     @Autowired BookingReaderPort bookingReaderPort;
+    @Autowired PaymentAttemptReaderPort paymentAttemptReaderPort;
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired ObjectMapper objectMapper;
@@ -119,7 +121,22 @@ class GuestBookingUseCaseIT {
     @DisplayName("게스트 예약 생성이 성공한다")
     @Test
     void createGuestBooking_success() throws Exception {
-        BookingTestHelper.CreatedBooking created = helper.createVerifiedCardBooking(PHONE, slotId);
+        String verificationCode = helper.sendVerificationAndGetCode(PHONE);
+        PaymentTestHelper.PreparedPayment prepared = paymentHelper.preparePayment(
+                PaymentContext.BOOKING,
+                bookingPayload(PHONE, verificationCode, "홍길동", slotId, DepositPaymentMethod.CARD));
+        String storedPayload = paymentAttemptReaderPort.findByOrderIdExternal(prepared.orderId())
+                .orElseThrow()
+                .getPayloadEnc();
+
+        assertThat(storedPayload)
+                .doesNotContain(PHONE)
+                .doesNotContain(verificationCode);
+
+        PaymentTestHelper.ConfirmedPayment confirmed = paymentHelper.confirmPayment(
+                prepared.orderId(), prepared.amount(), "test-payment-key");
+        BookingTestHelper.CreatedBooking created = new BookingTestHelper.CreatedBooking(
+                confirmed.domainId(), confirmed.accessToken());
 
         mockMvc.perform(get("/api/v1/bookings/{id}", created.bookingId())
                         .header("X-Access-Token", created.accessToken()))
@@ -157,7 +174,7 @@ class GuestBookingUseCaseIT {
                 guestIds.add(future.get(10, TimeUnit.SECONDS));
             }
 
-            Guest stored = guestRepository.findByPhoneHmac(guestPhoneProtector.index(PHONE)).orElseThrow();
+            Guest stored = guestRepository.findByPhoneHmac(guestPersonalDataProtector.indexPhone(PHONE)).orElseThrow();
             String storedPhoneEnc = stored.getPhoneEnc();
             Guest reused = getOrCreateGuestInTx("변경된 이름");
 
@@ -165,9 +182,9 @@ class GuestBookingUseCaseIT {
                 softly.assertThat(new HashSet<>(guestIds)).hasSize(1);
                 softly.assertThat(guestRepository.count()).isEqualTo(1L);
                 softly.assertThat(reused.getId()).isEqualTo(stored.getId());
-                softly.assertThat(reused.getName()).isEqualTo("홍길동");
+                softly.assertThat(guestPersonalDataProtector.decryptName(reused)).isEqualTo("홍길동");
                 softly.assertThat(reused.getPhoneEnc()).isEqualTo(storedPhoneEnc);
-                softly.assertThat(guestPhoneProtector.decrypt(reused)).isEqualTo(PHONE);
+                softly.assertThat(guestPersonalDataProtector.decryptPhone(reused)).isEqualTo(PHONE);
             });
         } finally {
             executor.shutdownNow();
@@ -296,6 +313,6 @@ class GuestBookingUseCaseIT {
 
     private Guest getOrCreateGuestInTx(String name) {
         return new TransactionTemplate(transactionManager).execute(status ->
-                guestStorePort.getOrCreateByPhoneHmac(guestPhoneProtector.newGuest(name, PHONE)));
+                guestStorePort.getOrCreateByPhoneHmac(guestPersonalDataProtector.newGuest(name, PHONE)));
     }
 }

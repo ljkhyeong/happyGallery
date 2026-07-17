@@ -58,8 +58,9 @@ class RefundDispatcher {
                     ? result
                     : RefundResult.reconciliationRequired("PG 응답이 비어 있어 환불 상태 확인이 필요합니다.");
         } catch (Exception e) {
-            log.error("환불 호출 예외 [{} refundId={}]", target, refundCall.refundId(), e);
-            return RefundResult.reconciliationRequired(e.getMessage());
+            log.error("환불 호출 예외 [{} refundId={} type={}]",
+                    target, refundCall.refundId(), e.getClass().getSimpleName());
+            return RefundResult.reconciliationRequired("PG 호출 결과를 확인할 수 없습니다.");
         }
     }
 }

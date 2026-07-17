@@ -58,8 +58,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(JacksonException.class)
     public ResponseEntity<ErrorResponse> handleJacksonException(JacksonException e) {
-        log.error("JSON 처리 중 내부 오류", e);
-        Sentry.captureException(e);
+        log.error("JSON 처리 중 내부 오류 [type={}]", e.getClass().getSimpleName());
+        Sentry.captureMessage("JSON processing failed: " + e.getClass().getSimpleName());
         return ResponseEntity
                 .status(ErrorCode.INTERNAL_ERROR.httpStatus)
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
@@ -68,7 +68,7 @@ public class GlobalExceptionHandler {
     /** DB 제약 위반. 활성 예약 UNIQUE 충돌만 중복 예약으로 응답한다. */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
-        log.warn("DB 제약 위반: {}", e.getMessage());
+        log.warn("DB 제약 위반");
         ErrorCode errorCode = resolveDataIntegrityErrorCode(e);
         return ResponseEntity
                 .status(errorCode.httpStatus)
@@ -81,7 +81,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(OptimisticLockingFailureException e) {
-        log.warn("낙관적 락 충돌: {}", e.getMessage());
+        log.warn("낙관적 락 충돌");
         ErrorCode errorCode = resolveOptimisticLockErrorCode(e);
         return ResponseEntity
                 .status(errorCode.httpStatus)
@@ -90,8 +90,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception e) {
-        log.error("처리되지 않은 예외", e);
-        Sentry.captureException(e);
+        log.error("처리되지 않은 예외 [type={}]", e.getClass().getSimpleName());
+        Sentry.captureMessage("Unhandled exception: " + e.getClass().getSimpleName());
         return ResponseEntity
                 .status(500)
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));

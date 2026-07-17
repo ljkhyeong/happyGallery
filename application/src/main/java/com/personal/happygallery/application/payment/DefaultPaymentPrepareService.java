@@ -5,6 +5,7 @@ import com.personal.happygallery.application.payment.context.PaymentPreparer;
 import com.personal.happygallery.application.payment.context.PaymentPreparer.PreparedPayment;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
@@ -23,10 +24,12 @@ public class DefaultPaymentPrepareService implements PaymentPrepareUseCase {
     private final Map<PaymentContext, PaymentPreparer> preparers;
     private final PaymentAttemptStorePort attemptStore;
     private final ObjectMapper objectMapper;
+    private final FieldEncryptor fieldEncryptor;
 
     public DefaultPaymentPrepareService(List<PaymentPreparer> preparers,
                                         PaymentAttemptStorePort attemptStore,
-                                        ObjectMapper objectMapper) {
+                                        ObjectMapper objectMapper,
+                                        FieldEncryptor fieldEncryptor) {
         this.preparers = new EnumMap<>(PaymentContext.class);
         for (PaymentPreparer preparer : preparers) {
             PaymentContext context = preparer.context();
@@ -36,6 +39,7 @@ public class DefaultPaymentPrepareService implements PaymentPrepareUseCase {
         }
         this.attemptStore = attemptStore;
         this.objectMapper = objectMapper;
+        this.fieldEncryptor = fieldEncryptor;
     }
 
     @Override
@@ -51,9 +55,9 @@ public class DefaultPaymentPrepareService implements PaymentPrepareUseCase {
         }
 
         String orderIdExternal = UUID.randomUUID().toString();
-        String payloadJson = serialize(prepared.payload());
+        String payloadEnc = fieldEncryptor.encrypt(serialize(prepared.payload()));
         PaymentAttempt attempt = PaymentAttempt.start(
-                orderIdExternal, command.context(), prepared.amount(), payloadJson);
+                orderIdExternal, command.context(), prepared.amount(), payloadEnc);
         attemptStore.save(attempt);
 
         return new PrepareResult(orderIdExternal, prepared.amount(), command.context());

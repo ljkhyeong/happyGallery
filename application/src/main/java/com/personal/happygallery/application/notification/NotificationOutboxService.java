@@ -4,7 +4,6 @@ import com.personal.happygallery.application.notification.port.out.NotificationO
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent.ForGuest;
-import com.personal.happygallery.domain.notification.NotificationRequestedEvent.ForGuestWithContact;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent.ForUser;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -34,7 +33,6 @@ public class NotificationOutboxService {
     private boolean hasRecipient(NotificationRequestedEvent event) {
         return switch (event) {
             case ForGuest e -> e.guestId() != null;
-            case ForGuestWithContact e -> e.guestId() != null;
             case ForUser e -> e.userId() != null;
         };
     }

@@ -28,11 +28,12 @@ class JpaGuestStoreAdapter implements GuestStorePort {
     public Guest getOrCreateByPhoneHmac(Guest candidate) {
         // 중복이면 기존 신원 정보를 유지하고 UNIQUE 제약의 직렬화만 이용한다.
         entityManager.createNativeQuery("""
-                        INSERT INTO guests (name, phone_enc, phone_hmac, phone_verified)
-                        VALUES (:name, :phoneEnc, :phoneHmac, :phoneVerified)
+                        INSERT INTO guests (name_enc, name_hmac, phone_enc, phone_hmac, phone_verified)
+                        VALUES (:nameEnc, :nameHmac, :phoneEnc, :phoneHmac, :phoneVerified)
                         ON DUPLICATE KEY UPDATE id = id
                         """)
-                .setParameter("name", candidate.getName())
+                .setParameter("nameEnc", candidate.getNameEnc())
+                .setParameter("nameHmac", candidate.getNameHmac())
                 .setParameter("phoneEnc", candidate.getPhoneEnc())
                 .setParameter("phoneHmac", candidate.getPhoneHmac())
                 .setParameter("phoneVerified", candidate.isPhoneVerified())

@@ -4,6 +4,8 @@ import com.personal.happygallery.application.search.port.out.AdminOrderSearchPor
 import com.personal.happygallery.application.search.port.out.AdminOrderSearchResult;
 import com.personal.happygallery.adapter.out.persistence.time.SeoulDateTimeRangeConverter;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.crypto.BlindIndexer;
+import com.personal.happygallery.domain.user.PersonalName;
 import com.personal.happygallery.adapter.out.persistence.dashboard.mapper.AdminOrderSearchMapper;
 import java.time.LocalDate;
 import java.util.List;
@@ -16,9 +18,11 @@ import org.springframework.stereotype.Component;
 class MyBatisAdminOrderSearchAdapter implements AdminOrderSearchPort {
 
     private final AdminOrderSearchMapper mapper;
+    private final BlindIndexer blindIndexer;
 
-    MyBatisAdminOrderSearchAdapter(AdminOrderSearchMapper mapper) {
+    MyBatisAdminOrderSearchAdapter(AdminOrderSearchMapper mapper, BlindIndexer blindIndexer) {
         this.mapper = mapper;
+        this.blindIndexer = blindIndexer;
     }
 
     @Override
@@ -28,7 +32,7 @@ class MyBatisAdminOrderSearchAdapter implements AdminOrderSearchPort {
                 status != null ? status.name() : null,
                 dateFrom != null ? SeoulDateTimeRangeConverter.toUtcStart(dateFrom) : null,
                 dateTo != null ? SeoulDateTimeRangeConverter.toUtcExclusiveEnd(dateTo) : null,
-                keyword, offset, size);
+                keyword, indexKeyword(keyword), offset, size);
     }
 
     @Override
@@ -37,6 +41,10 @@ class MyBatisAdminOrderSearchAdapter implements AdminOrderSearchPort {
                 status != null ? status.name() : null,
                 dateFrom != null ? SeoulDateTimeRangeConverter.toUtcStart(dateFrom) : null,
                 dateTo != null ? SeoulDateTimeRangeConverter.toUtcExclusiveEnd(dateTo) : null,
-                keyword);
+                keyword, indexKeyword(keyword));
+    }
+
+    private String indexKeyword(String keyword) {
+        return keyword == null ? null : blindIndexer.index(PersonalName.required(keyword));
     }
 }

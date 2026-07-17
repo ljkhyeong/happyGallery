@@ -1,6 +1,6 @@
 package com.personal.happygallery.application.notification;
 
-import com.personal.happygallery.application.customer.GuestPhoneProtector;
+import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
@@ -116,6 +116,35 @@ class NotificationServiceTest {
         });
     }
 
+    @DisplayName("알림 발송 예외는 원문 대신 고정 실패 사유로 기록한다")
+    @Test
+    void sendToUser_senderThrows_savesSanitizedFailureReason() {
+        NotificationSenderPort sender = mock(NotificationSenderPort.class);
+        NotificationLogStorePort logStore = mock(NotificationLogStorePort.class);
+        GuestReaderPort guestReader = mock(GuestReaderPort.class);
+        UserReaderPort userReader = mock(UserReaderPort.class);
+        NotificationService service = service(List.of(sender), logStore, guestReader, userReader);
+        when(sender.channel()).thenReturn(NotificationChannel.SMS);
+        when(sender.send("01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
+                .thenThrow(new IllegalStateException("phone=01012345678 recipient=회원"));
+
+        boolean sent = service.sendToUser(
+                10L,
+                "01012345678",
+                "회원",
+                NotificationEventType.BOOKING_CONFIRMED
+        );
+
+        ArgumentCaptor<NotificationLog> captor = ArgumentCaptor.forClass(NotificationLog.class);
+        verify(logStore).save(captor.capture());
+        assertSoftly(softly -> {
+            NotificationLog saved = captor.getValue();
+            softly.assertThat(sent).isFalse();
+            softly.assertThat(saved.getStatus()).isEqualTo("FAILED");
+            softly.assertThat(saved.getFailReason()).isEqualTo("DELIVERY_EXCEPTION");
+        });
+    }
+
     @DisplayName("회원 수신자를 찾지 못하면 SYSTEM 실패 로그를 남기고 실제 채널 발송은 시도하지 않는다")
     @Test
     void sendByUserId_userNotFound_savesSystemFailureLog() {
@@ -179,7 +208,7 @@ class NotificationServiceTest {
                 logStore,
                 guestReader,
                 userReader,
-                mock(GuestPhoneProtector.class),
+                mock(GuestPersonalDataProtector.class),
                 CLOCK
         );
     }

@@ -50,7 +50,7 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 
 - 공개 입력인 `OrderPayload`에는 `productId`, `qty`만 받는다.
 - `OrderPreparer`는 상품을 ID 목록으로 한 번에 조회하고, 서버 상품가를 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만든다.
-- `payment_attempt.payload_json`에는 내부용 payload를 저장한다.
+- 내부용 payload는 AES-GCM으로 암호화해 `payment_attempt.payload_enc`에 저장하고, claim과 fulfillment에서만 복호화한다. V46은 기존 평문 JSON도 암호문으로 전환한다.
 - claim 단계에서 항목 단가 합계와 `payment_attempt.amount`를 대조한 뒤 PG를 호출한다.
 - `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 단가로 `OrderItemRequest`를 만든다.
 - 변경 전 생성되어 서버 단가가 없는 미확정 주문 결제 시도는 confirm하지 않고 새 prepare를 요구한다.
@@ -110,3 +110,4 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - `RefundExecutionService`, `RefundTransactionService`, `Refund`
 - `TossPaymentsProvider`
 - `V41__harden_payment_confirm_boundary.sql`
+- `V46__ProtectPlaintextPersonalData`

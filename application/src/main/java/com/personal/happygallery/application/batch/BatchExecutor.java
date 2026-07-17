@@ -49,7 +49,7 @@ public final class BatchExecutor {
                 log.info("{} 충돌로 스킵 [id={}]", label, id);
                 failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
             } catch (Exception e) {
-                log.warn("{} 실패 [id={}]", label, id, e);
+                log.warn("{} 실패 [id={} type={}]", label, id, e.getClass().getSimpleName());
                 failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
             }
         }

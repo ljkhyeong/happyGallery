@@ -46,7 +46,7 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
             try {
                 transactionService.markApproved(claimed.id(), confirmedPaymentKey);
             } catch (RuntimeException approvalFailure) {
-                compensateAfterApproval(claimed, confirmedPaymentKey, approvalFailure);
+                compensateAfterApproval(claimed, confirmedPaymentKey);
                 throw approvalFailure;
             }
         }
@@ -55,10 +55,10 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
             return transactionService.fulfillAndConfirm(claimed.id());
         } catch (RuntimeException fulfillmentFailure) {
             if (claimed.amount() > 0) {
-                compensateAfterApproval(claimed, confirmedPaymentKey, fulfillmentFailure);
+                compensateAfterApproval(claimed, confirmedPaymentKey);
             } else {
                 transactionService.markZeroAmountFulfillmentFailed(
-                        claimed.id(), failureReason(fulfillmentFailure.getMessage(), "도메인 생성에 실패했습니다."));
+                        claimed.id(), "도메인 생성에 실패했습니다.");
             }
             throw fulfillmentFailure;
         }
@@ -72,21 +72,20 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                     ? result
                     : PaymentConfirmResult.retryableFailure("PG 응답이 비어 있습니다.");
         } catch (RuntimeException e) {
-            log.warn("PG confirm 호출 예외 [orderId={}]", claimed.orderId(), e);
-            return PaymentConfirmResult.retryableFailure(
-                    failureReason(e.getMessage(), "PG 호출 중 오류가 발생했습니다."));
+            log.warn("PG confirm 호출 예외 [orderId={}, type={}]",
+                    claimed.orderId(), e.getClass().getSimpleName());
+            return PaymentConfirmResult.retryableFailure("PG 호출 중 오류가 발생했습니다.");
         }
     }
 
     private void compensateAfterApproval(PaymentConfirmTransactionService.ClaimedAttempt claimed,
-                                         String confirmedPaymentKey,
-                                         RuntimeException failure) {
-        String reason = failureReason(failure.getMessage(), "PG 승인 후 도메인 생성에 실패했습니다.");
+                                         String confirmedPaymentKey) {
+        String reason = "PG 승인 후 도메인 생성에 실패했습니다.";
         try {
             transactionService.requestCompensation(claimed.id(), confirmedPaymentKey, reason);
         } catch (RuntimeException compensationFailure) {
-            log.error("PG 승인 결제의 보상 환불 요청 저장 실패 [attemptId={}, orderId={}]",
-                    claimed.id(), claimed.orderId(), compensationFailure);
+            log.error("PG 승인 결제의 보상 환불 요청 저장 실패 [attemptId={}, orderId={}, type={}]",
+                    claimed.id(), claimed.orderId(), compensationFailure.getClass().getSimpleName());
         }
     }
 

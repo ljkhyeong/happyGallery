@@ -45,22 +45,22 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     private final GuestClaimQueryPort claimQuery;
     private final Clock clock;
     private final ClientMonitoringUseCase clientMonitoringService;
-    private final GuestPhoneProtector guestPhoneProtector;
+    private final GuestPersonalDataProtector guestPersonalDataProtector;
 
     public DefaultGuestClaimService(UserReaderPort userReader,
-                             GuestReaderPort guestReader,
-                             PhoneVerificationReaderPort phoneVerificationReader,
-                             GuestClaimQueryPort claimQuery,
-                             Clock clock,
-                             ClientMonitoringUseCase clientMonitoringService,
-                             GuestPhoneProtector guestPhoneProtector) {
+                                    GuestReaderPort guestReader,
+                                    PhoneVerificationReaderPort phoneVerificationReader,
+                                    GuestClaimQueryPort claimQuery,
+                                    Clock clock,
+                                    ClientMonitoringUseCase clientMonitoringService,
+                                    GuestPersonalDataProtector guestPersonalDataProtector) {
         this.userReader = userReader;
         this.guestReader = guestReader;
         this.phoneVerificationReader = phoneVerificationReader;
         this.claimQuery = claimQuery;
         this.clock = clock;
         this.clientMonitoringService = clientMonitoringService;
-        this.guestPhoneProtector = guestPhoneProtector;
+        this.guestPersonalDataProtector = guestPersonalDataProtector;
     }
 
     @Transactional(readOnly = true)
@@ -75,7 +75,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         PhoneVerification verification = findValidVerification(user.getPhone(), verificationCode);
         verification.markVerified();
         user.markPhoneVerified();
-        log.info("guest claim phone verified [userId={} phone={}]", userId, maskPhone(user.getPhone()));
+        log.info("guest claim phone verified [userId={}]", userId);
         return buildPreview(user);
     }
 
@@ -85,7 +85,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         User user = findUser(userId);
         requirePhoneVerified(user);
 
-        Guest guest = findGuestByAnyPhoneFormat(user.getPhone())
+        Guest guest = findGuest(user.getPhone())
                 .orElse(null);
         if (guest == null) {
             return new ClaimResult(0, 0);
@@ -145,7 +145,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     private static final int PREVIEW_LIMIT = 100;
 
     private ClaimPreview buildPreview(User user) {
-        return findGuestByAnyPhoneFormat(user.getPhone())
+        return findGuest(user.getPhone())
                 .map(guest -> new ClaimPreview(
                         user.isPhoneVerified(),
                         claimQuery.findOrdersByGuestId(guest.getId()).stream()
@@ -165,25 +165,13 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     }
 
     private PhoneVerification findValidVerification(String phone, String verificationCode) {
-        LocalDateTime now = LocalDateTime.now(clock);
-        for (String candidatePhone : candidatePhones(phone)) {
-            Optional<PhoneVerification> verification = phoneVerificationReader
-                    .findValidVerification(candidatePhone, verificationCode, now);
-            if (verification.isPresent()) {
-                return verification.get();
-            }
-        }
-        throw new PhoneVerificationFailedException();
+        return phoneVerificationReader
+                .findValidVerification(phone, verificationCode, LocalDateTime.now(clock))
+                .orElseThrow(PhoneVerificationFailedException::new);
     }
 
-    private Optional<Guest> findGuestByAnyPhoneFormat(String phone) {
-        for (String candidatePhone : candidatePhones(phone)) {
-            Optional<Guest> guest = guestReader.findByPhoneHmac(guestPhoneProtector.index(candidatePhone));
-            if (guest.isPresent()) {
-                return guest;
-            }
-        }
-        return Optional.empty();
+    private Optional<Guest> findGuest(String phone) {
+        return guestReader.findByPhoneHmac(guestPersonalDataProtector.indexPhone(phone));
     }
 
     private void requirePhoneVerified(User user) {
@@ -192,24 +180,8 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         }
     }
 
-    private static List<String> candidatePhones(String phone) {
-        Set<String> candidates = new LinkedHashSet<>();
-        candidates.add(phone);
-
-        String digitsOnly = phone.replaceAll("\\D", "");
-        if (!digitsOnly.isBlank()) {
-            candidates.add(digitsOnly);
-        }
-        return List.copyOf(candidates);
-    }
-
     private static Set<Long> dedupe(List<Long> ids) {
         return ids == null ? Set.of() : new LinkedHashSet<>(ids);
     }
 
-    /** 전화번호 뒤 4자리를 마스킹한다. */
-    private static String maskPhone(String phone) {
-        if (phone == null || phone.length() <= 4) return "****";
-        return phone.substring(0, phone.length() - 4) + "****";
-    }
 }

@@ -1,11 +1,15 @@
 package com.personal.happygallery.domain.booking;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.time.LocalDateTime;
 
 /** 휴대폰 인증 코드 임시 저장 — phone_verifications 테이블 */
@@ -17,11 +21,20 @@ public class PhoneVerification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 20)
+    @Transient
     private String phone;
 
-    @Column(nullable = false, length = 6)
+    @Transient
     private String code;
+
+    @Column(name = "phone_hmac", nullable = false, length = 64)
+    private String phoneHmac;
+
+    @Column(name = "code_hmac", nullable = false, length = 64)
+    private String codeHmac;
+
+    @Column(name = "code_enc", nullable = false, length = 255)
+    private String codeEnc;
 
     @Column(nullable = false)
     private boolean verified = false;
@@ -35,10 +48,21 @@ public class PhoneVerification {
     protected PhoneVerification() {}
 
     public PhoneVerification(String phone, String code, LocalDateTime expiresAt) {
-        this.phone = phone;
-        this.code = code;
+        this.phone = KoreanPhoneNumber.required(phone);
+        this.code = requireCode(code);
         this.expiresAt = expiresAt;
         this.verified = false;
+    }
+
+    public void protect(String phoneHmac, String codeHmac, String codeEnc) {
+        this.phoneHmac = phoneHmac;
+        this.codeHmac = codeHmac;
+        this.codeEnc = codeEnc;
+    }
+
+    public void restoreProtectedFields(String phone, String code) {
+        this.phone = KoreanPhoneNumber.required(phone);
+        this.code = requireCode(code);
     }
 
     /** 인증 코드를 소모(1회 사용)한다. */
@@ -49,6 +73,16 @@ public class PhoneVerification {
     public Long getId() { return id; }
     public String getPhone() { return phone; }
     public String getCode() { return code; }
+    public String getPhoneHmac() { return phoneHmac; }
+    public String getCodeHmac() { return codeHmac; }
+    public String getCodeEnc() { return codeEnc; }
     public boolean isVerified() { return verified; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
+
+    private static String requireCode(String code) {
+        if (code == null || !code.matches("^[0-9]{6}$")) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "인증 코드는 6자리 숫자여야 합니다.");
+        }
+        return code;
+    }
 }

@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.in.web;
 
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties;
+import com.personal.happygallery.domain.crypto.BlindIndexer;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -21,12 +22,14 @@ import static org.mockito.ArgumentMatchers.anyList;
 
 class RateLimitFilterTest {
 
+    private static final BlindIndexer BLIND_INDEXER = new BlindIndexer(new byte[32]);
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @DisplayName("제한 대상이 아닌 경로는 처리율 제한 없이 통과한다")
     @Test
     void passesThrough_whenPathIsNotRateLimited() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 1, 1), mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 1, 1), mockRedis(), BLIND_INDEXER);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/actuator/health");
         request.setRemoteAddr("127.0.0.1");
@@ -40,7 +43,7 @@ class RateLimitFilterTest {
     @DisplayName("동일 IP에서 인증코드 발송 요청이 초과되면 429를 반환한다")
     @Test
     void returns429_whenPhoneVerificationLimitExceeded() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 1, 10), mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 1, 10), mockRedis(), BLIND_INDEXER);
 
         MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/bookings/phone-verifications");
         first.setRemoteAddr("127.0.0.1");
@@ -63,7 +66,7 @@ class RateLimitFilterTest {
     @DisplayName("동일 IP에서 관리자 요청이 초과되면 429를 반환한다")
     @Test
     void returns429_whenAdminLimitExceeded() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 10, 1), mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, 10, 1), mockRedis(), BLIND_INDEXER);
 
         MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/admin/orders/expire-pickups");
         first.setRemoteAddr("127.0.0.1");
@@ -86,7 +89,7 @@ class RateLimitFilterTest {
     @Test
     void usesRemoteAddr_whenTrustForwardedHeadersDisabled() throws Exception {
         RateLimitProperties props = properties(true, false, 10, 10, 10);
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, props, mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, props, mockRedis(), BLIND_INDEXER);
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
         request.setRemoteAddr("10.0.0.1");
@@ -99,7 +102,7 @@ class RateLimitFilterTest {
     @Test
     void usesForwardedFor_whenTrustForwardedHeadersEnabled() throws Exception {
         RateLimitProperties props = properties(true, true, 10, 10, 10);
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, props, mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, props, mockRedis(), BLIND_INDEXER);
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
         request.setRemoteAddr("10.0.0.1");
@@ -111,7 +114,7 @@ class RateLimitFilterTest {
     @DisplayName("로그인 경로는 일반 admin API보다 엄격한 rate limit이 적용된다")
     @Test
     void returns429_whenAdminLoginLimitExceeded() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, false, 10, 1, 100), mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, false, 10, 1, 100), mockRedis(), BLIND_INDEXER);
 
         MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/admin/auth/login");
         first.setRemoteAddr("127.0.0.1");
@@ -132,7 +135,7 @@ class RateLimitFilterTest {
     @DisplayName("최초 관리자 setup 경로는 일반 admin API보다 별도 rate limit이 적용된다")
     @Test
     void returns429_whenAdminSetupLimitExceeded() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, false, 10, 100, 1, 100), mockRedis());
+        RateLimitFilter filter = new RateLimitFilter(objectMapper, properties(true, false, 10, 100, 1, 100), mockRedis(), BLIND_INDEXER);
 
         MockHttpServletRequest first = new MockHttpServletRequest("POST", "/api/v1/admin/setup");
         first.setRemoteAddr("127.0.0.1");
@@ -154,7 +157,7 @@ class RateLimitFilterTest {
     @Test
     void appliesSameLimit_forGoogleAndNaverLogin() throws Exception {
         RateLimitFilter filter = new RateLimitFilter(
-                objectMapper, propertiesWithSocialLoginLimit(1), mockRedis());
+                objectMapper, propertiesWithSocialLoginLimit(1), mockRedis(), BLIND_INDEXER);
 
         MockHttpServletRequest google = new MockHttpServletRequest("POST", "/api/v1/auth/social/google");
         google.setRemoteAddr("127.0.0.1");
@@ -176,7 +179,7 @@ class RateLimitFilterTest {
     @Test
     void limitsSocialLoginInitializationSeparately() throws Exception {
         RateLimitFilter filter = new RateLimitFilter(
-                objectMapper, propertiesWithSocialLoginLimit(1), mockRedis());
+                objectMapper, propertiesWithSocialLoginLimit(1), mockRedis(), BLIND_INDEXER);
 
         MockHttpServletRequest google = new MockHttpServletRequest(
                 "GET", "/api/v1/auth/social/google/url");

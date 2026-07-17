@@ -43,7 +43,8 @@ public class NotificationOutboxDispatcher {
                     failureReasons.merge(ALL_CHANNELS_FAILED, 1, Integer::sum);
                 }
             } catch (Exception e) {
-                log.warn("[알림 outbox] dispatch 실패 [outboxId={}]", outboxId, e);
+                log.warn("[알림 outbox] dispatch 실패 [outboxId={} type={}]",
+                        outboxId, e.getClass().getSimpleName());
                 failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
             }
         }

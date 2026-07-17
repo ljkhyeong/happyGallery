@@ -42,7 +42,7 @@ class ResilientPaymentProviderTest {
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
             softly.assertThat(result.reconciliationRequired()).isTrue();
-            softly.assertThat(result.failReason()).contains("PG error");
+            softly.assertThat(result.failReason()).isEqualTo("PG 호출 결과를 확인할 수 없습니다.");
         });
     }
 
@@ -150,7 +150,7 @@ class ResilientPaymentProviderTest {
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
             softly.assertThat(result.retryable()).isTrue();
-            softly.assertThat(result.failReason()).contains("PG confirm error");
+            softly.assertThat(result.failReason()).isEqualTo("PG 호출 중 오류가 발생했습니다.");
         });
     }
 

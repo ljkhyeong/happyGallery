@@ -2,8 +2,6 @@ package com.personal.happygallery.adapter.out.external.oauth;
 
 import com.personal.happygallery.application.customer.port.out.OAuthTokenExchangePort;
 import com.personal.happygallery.domain.user.SocialProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -12,8 +10,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Profile("!prod")
 class FakeGoogleOAuthClient implements OAuthTokenExchangePort {
 
-    private static final Logger log = LoggerFactory.getLogger(FakeGoogleOAuthClient.class);
-
     @Override
     public SocialProvider provider() {
         return SocialProvider.GOOGLE;
@@ -21,7 +17,6 @@ class FakeGoogleOAuthClient implements OAuthTokenExchangePort {
 
     @Override
     public AuthorizationUrl buildAuthorizationUrl(String redirectUri, String state) {
-        log.info("[FAKE] Google OAuth authorization URL — redirectUri={}", redirectUri);
         String callbackUrl = UriComponentsBuilder.fromUriString(redirectUri)
                 .queryParam("code", "fake-google-code")
                 .queryParam("state", state)
@@ -33,7 +28,6 @@ class FakeGoogleOAuthClient implements OAuthTokenExchangePort {
 
     @Override
     public OAuthUserInfo exchangeCodeForUserInfo(String authorizationCode, String redirectUri, String state) {
-        log.info("[FAKE] Google OAuth code exchange — redirectUri={}", redirectUri);
         return new OAuthUserInfo(
                 "fake-google-sub-" + authorizationCode.hashCode(),
                 "social-test@example.com",

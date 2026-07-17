@@ -46,7 +46,9 @@ public final class TestFixtures {
     }
 
     public static Guest guest(String name, String phone) {
-        return new Guest(name, TEST_FIELD_ENCRYPTOR.encrypt(phone), TEST_BLIND_INDEXER.index(phone));
+        return new Guest(
+                TEST_FIELD_ENCRYPTOR.encrypt(name), TEST_BLIND_INDEXER.index(name),
+                TEST_FIELD_ENCRYPTOR.encrypt(phone), TEST_BLIND_INDEXER.index(phone));
     }
 
     public static Booking booking(Guest guest,

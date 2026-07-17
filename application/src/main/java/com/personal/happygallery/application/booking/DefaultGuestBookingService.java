@@ -39,12 +39,12 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
     private final SecureRandom random = new SecureRandom();
 
     public DefaultGuestBookingService(VerifiedGuestResolver verifiedGuestResolver,
-                               PhoneVerificationStorePort phoneVerificationStorePort,
-                               BookingReaderPort bookingReaderPort,
-                               SlotCapacitySupport slotCapacitySupport,
-                               BookingCreationSupport creationSupport,
-                               GuestTokenService guestTokenService,
-                               Clock clock) {
+                                      PhoneVerificationStorePort phoneVerificationStorePort,
+                                      BookingReaderPort bookingReaderPort,
+                                      SlotCapacitySupport slotCapacitySupport,
+                                      BookingCreationSupport creationSupport,
+                                      GuestTokenService guestTokenService,
+                                      Clock clock) {
         this.verifiedGuestResolver = verifiedGuestResolver;
         this.phoneVerificationStorePort = phoneVerificationStorePort;
         this.bookingReaderPort = bookingReaderPort;
@@ -56,7 +56,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
 
     /**
      * 휴대폰 인증 코드를 생성·저장한다.
-     * 실제 SMS 발송은 미구현 — 코드는 서버 로그에서만 확인 가능.
+     * 실제 SMS 발송은 미구현이며 local 전용 API에서만 암호문을 복호화해 확인한다.
      *
      * @return 저장된 PhoneVerification (id, phone — code는 응답에 포함하지 않음)
      */
@@ -66,7 +66,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
                 .plusMinutes(VERIFICATION_EXPIRE_MINUTES);
         PhoneVerification pv = new PhoneVerification(phone, code, expiresAt);
         pv = phoneVerificationStorePort.save(pv);
-        log.info("[phone-verification] phone={}, verificationId={}, code={}", phone, pv.getId(), code);
+        log.info("[phone-verification] created [verificationId={}]", pv.getId());
         return pv;
     }
 

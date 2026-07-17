@@ -13,6 +13,8 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.PaymentMethodNotAllowedException;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.domain.user.KoreanPhoneNumber;
+import com.personal.happygallery.domain.user.PersonalName;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -64,6 +66,17 @@ public class BookingPreparer implements PaymentPreparer {
 
         Slot slot = slotReader.findById(bp.slotId())
                 .orElseThrow(NotFoundException.supplier("슬롯"));
-        return new PreparedPayment(DepositCalculator.of(slot), bp);
+        if (auth.isMember()) {
+            return new PreparedPayment(DepositCalculator.of(slot), bp);
+        }
+        BookingPayload prepared = new BookingPayload(
+                null,
+                KoreanPhoneNumber.required(bp.phone()),
+                bp.verificationCode(),
+                PersonalName.required(bp.name()),
+                bp.slotId(),
+                null,
+                bp.paymentMethod());
+        return new PreparedPayment(DepositCalculator.of(slot), prepared);
     }
 }

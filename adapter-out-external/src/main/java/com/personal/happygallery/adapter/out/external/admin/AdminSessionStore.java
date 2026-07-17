@@ -2,6 +2,8 @@ package com.personal.happygallery.adapter.out.external.admin;
 
 import com.personal.happygallery.application.admin.port.AdminSession;
 import com.personal.happygallery.application.admin.port.out.AdminSessionPort;
+import com.personal.happygallery.domain.crypto.BlindIndexer;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,11 +22,19 @@ public class AdminSessionStore implements AdminSessionPort {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final BlindIndexer blindIndexer;
+    private final FieldEncryptor fieldEncryptor;
 
-    public AdminSessionStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper, Clock clock) {
+    public AdminSessionStore(StringRedisTemplate redisTemplate,
+                             ObjectMapper objectMapper,
+                             Clock clock,
+                             BlindIndexer blindIndexer,
+                             FieldEncryptor fieldEncryptor) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.blindIndexer = blindIndexer;
+        this.fieldEncryptor = fieldEncryptor;
     }
 
     @Override
@@ -33,7 +43,7 @@ public class AdminSessionStore implements AdminSessionPort {
         AdminSession session = new AdminSession(adminUserId, username, Instant.now(clock));
         try {
             String json = objectMapper.writeValueAsString(session);
-            redisTemplate.opsForValue().set(KEY_PREFIX + token, json, SESSION_TTL);
+            redisTemplate.opsForValue().set(key(token), fieldEncryptor.encrypt(json), SESSION_TTL);
         } catch (Exception e) {
             throw new IllegalStateException("관리자 세션 직렬화 실패", e);
         }
@@ -42,12 +52,13 @@ public class AdminSessionStore implements AdminSessionPort {
 
     @Override
     public Optional<AdminSession> validate(String token) {
-        String json = redisTemplate.opsForValue().get(KEY_PREFIX + token);
-        if (json == null) {
+        String encrypted = redisTemplate.opsForValue().get(key(token));
+        if (encrypted == null) {
             return Optional.empty();
         }
         try {
-            return Optional.of(objectMapper.readValue(json, AdminSession.class));
+            return Optional.of(objectMapper.readValue(
+                    fieldEncryptor.decrypt(encrypted), AdminSession.class));
         } catch (Exception e) {
             return Optional.empty();
         }
@@ -55,6 +66,10 @@ public class AdminSessionStore implements AdminSessionPort {
 
     @Override
     public void remove(String token) {
-        redisTemplate.delete(KEY_PREFIX + token);
+        redisTemplate.delete(key(token));
+    }
+
+    private String key(String token) {
+        return KEY_PREFIX + blindIndexer.index(token);
     }
 }

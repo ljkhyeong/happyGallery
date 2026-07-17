@@ -1,12 +1,12 @@
 package com.personal.happygallery.application.search;
 
-import com.personal.happygallery.application.customer.GuestPhoneProtector;
 import com.personal.happygallery.application.search.dto.AdminOrderSearchRow;
 import com.personal.happygallery.application.search.port.in.AdminOrderSearchUseCase;
 import com.personal.happygallery.application.search.port.out.AdminOrderSearchPort;
 import com.personal.happygallery.application.search.port.out.AdminOrderSearchResult;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,12 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 class DefaultAdminOrderSearchService implements AdminOrderSearchUseCase {
 
     private final AdminOrderSearchPort searchPort;
-    private final GuestPhoneProtector guestPhoneProtector;
+    private final FieldEncryptor fieldEncryptor;
 
     DefaultAdminOrderSearchService(AdminOrderSearchPort searchPort,
-                                   GuestPhoneProtector guestPhoneProtector) {
+                                   FieldEncryptor fieldEncryptor) {
         this.searchPort = searchPort;
-        this.guestPhoneProtector = guestPhoneProtector;
+        this.fieldEncryptor = fieldEncryptor;
     }
 
     @Override
@@ -32,18 +32,19 @@ class DefaultAdminOrderSearchService implements AdminOrderSearchUseCase {
     }
 
     private AdminOrderSearchRow toResponse(AdminOrderSearchResult result) {
-        String buyerPhone = result.guestPhoneEnc() == null
-                ? result.memberPhone()
-                : guestPhoneProtector.decryptEncryptedPhone(result.guestPhoneEnc());
         return new AdminOrderSearchRow(
                 result.orderId(),
                 result.orderNumber(),
                 result.status(),
                 result.totalAmount(),
-                result.buyerName(),
-                buyerPhone,
+                fieldEncryptor.decrypt(result.buyerNameEnc()),
+                decryptNullable(result.buyerPhoneEnc()),
                 result.paidAt(),
                 result.approvalDeadlineAt(),
                 result.createdAt());
+    }
+
+    private String decryptNullable(String encrypted) {
+        return encrypted == null ? null : fieldEncryptor.decrypt(encrypted);
     }
 }

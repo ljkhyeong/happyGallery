@@ -67,7 +67,7 @@ class CustomerAuthUseCaseIT {
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.email").value("test@example.com"))
                 .andExpect(jsonPath("$.name").value("테스트"))
-                .andExpect(jsonPath("$.phone").value("010-1234-5678"))
+                .andExpect(jsonPath("$.phone").value("01012345678"))
                 .andExpect(jsonPath("$.phoneVerified").value(false))
                 .andExpect(jsonPath("$.provider").doesNotExist())
                 .andExpect(cookie().exists("HG_SESSION"))
@@ -77,19 +77,21 @@ class CustomerAuthUseCaseIT {
     @DisplayName("중복 이메일로 회원가입하면 409를 반환한다")
     @Test
     void signup_duplicateEmail_conflict() throws Exception {
-        String body = objectMapper.writeValueAsString(new SignupRequest(
+        String firstBody = objectMapper.writeValueAsString(new SignupRequest(
                 "dup@example.com", "password123", "테스트", "010-0000-0000"));
+        String duplicateBody = objectMapper.writeValueAsString(new SignupRequest(
+                "DUP@EXAMPLE.COM", "password123", "테스트", "010-0000-0000"));
 
         mockMvc.perform(post("/api/v1/auth/signup")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+                        .content(firstBody))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/auth/signup")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+                        .content(duplicateBody))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"));
     }
@@ -108,7 +110,7 @@ class CustomerAuthUseCaseIT {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new CustomerLoginRequest("login@example.com", "password123"))))
+                                new CustomerLoginRequest("LOGIN@EXAMPLE.COM", "password123"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("login@example.com"))
                 .andExpect(cookie().exists("HG_SESSION"));

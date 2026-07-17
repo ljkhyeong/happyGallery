@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,25 +17,31 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Transient
     private String email;
 
-    @Column(name = "email_enc")
+    @Column(name = "email_enc", nullable = false, length = 512)
     private String emailEnc;
 
-    @Column(name = "email_hmac", length = 64)
+    @Column(name = "email_hmac", nullable = false, length = 64)
     private String emailHmac;
 
     @Column(name = "password_hash")
     private String passwordHash;
 
-    @Column(nullable = false, length = 100)
+    @Transient
     private String name;
 
-    @Column(nullable = false, length = 20)
+    @Column(name = "name_enc", nullable = false, length = 1024)
+    private String nameEnc;
+
+    @Column(name = "name_hmac", nullable = false, length = 64)
+    private String nameHmac;
+
+    @Transient
     private String phone;
 
-    @Column(name = "phone_enc")
+    @Column(name = "phone_enc", length = 255)
     private String phoneEnc;
 
     @Column(name = "phone_hmac", length = 64)
@@ -52,10 +59,10 @@ public class User {
     protected User() {}
 
     public User(String email, String passwordHash, String name, String phone) {
-        this.email = email;
+        this.email = EmailAddress.required(email);
         this.passwordHash = passwordHash;
-        this.name = name;
-        this.phone = phone;
+        this.name = PersonalName.required(name);
+        this.phone = KoreanPhoneNumber.required(phone);
         this.phoneVerified = false;
     }
 
@@ -64,19 +71,28 @@ public class User {
     }
 
     private User(String email, String name) {
-        this.email = email;
+        this.email = EmailAddress.required(email);
         this.passwordHash = null;
-        this.name = name;
-        this.phone = "";
+        this.name = PersonalName.required(name);
+        this.phone = null;
         this.phoneVerified = false;
     }
 
-    public void applyEncryption(String emailEnc, String emailHmac,
-                               String phoneEnc, String phoneHmac) {
+    public void protect(String emailEnc, String emailHmac,
+                        String nameEnc, String nameHmac,
+                        String phoneEnc, String phoneHmac) {
         this.emailEnc = emailEnc;
         this.emailHmac = emailHmac;
+        this.nameEnc = nameEnc;
+        this.nameHmac = nameHmac;
         this.phoneEnc = phoneEnc;
         this.phoneHmac = phoneHmac;
+    }
+
+    public void restoreProtectedFields(String email, String name, String phone) {
+        this.email = EmailAddress.required(email);
+        this.name = PersonalName.required(name);
+        this.phone = KoreanPhoneNumber.optional(phone);
     }
 
     public Long getId() { return id; }
@@ -85,6 +101,8 @@ public class User {
     public String getEmailHmac() { return emailHmac; }
     public String getPasswordHash() { return passwordHash; }
     public String getName() { return name; }
+    public String getNameEnc() { return nameEnc; }
+    public String getNameHmac() { return nameHmac; }
     public String getPhone() { return phone; }
     public String getPhoneEnc() { return phoneEnc; }
     public String getPhoneHmac() { return phoneHmac; }

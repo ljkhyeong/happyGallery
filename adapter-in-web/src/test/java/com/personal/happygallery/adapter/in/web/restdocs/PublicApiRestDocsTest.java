@@ -15,7 +15,7 @@ import com.personal.happygallery.application.booking.port.in.BookingRescheduleUs
 import com.personal.happygallery.application.booking.port.in.ClassQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
-import com.personal.happygallery.application.customer.GuestPhoneProtector;
+import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
 import com.personal.happygallery.application.monitoring.port.in.ClientMonitoringUseCase;
 import com.personal.happygallery.application.notice.port.in.NoticeQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
@@ -27,6 +27,7 @@ import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.payment.PaymentContext;
@@ -59,7 +60,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     private BookingQueryUseCase bookingQueryUseCase;
     private BookingRescheduleUseCase bookingRescheduleUseCase;
     private BookingCancelUseCase bookingCancelUseCase;
-    private GuestPhoneProtector guestPhoneProtector;
+    private GuestPersonalDataProtector guestPersonalDataProtector;
     private OrderQueryUseCase orderQueryUseCase;
     private PaymentPrepareUseCase paymentPrepareUseCase;
     private PaymentConfirmUseCase paymentConfirmUseCase;
@@ -76,7 +77,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         bookingQueryUseCase = mock(BookingQueryUseCase.class);
         bookingRescheduleUseCase = mock(BookingRescheduleUseCase.class);
         bookingCancelUseCase = mock(BookingCancelUseCase.class);
-        guestPhoneProtector = mock(GuestPhoneProtector.class);
+        guestPersonalDataProtector = mock(GuestPersonalDataProtector.class);
         orderQueryUseCase = mock(OrderQueryUseCase.class);
         paymentPrepareUseCase = mock(PaymentPrepareUseCase.class);
         paymentConfirmUseCase = mock(PaymentConfirmUseCase.class);
@@ -102,7 +103,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(slotQueryUseCase.listAvailable(any(), any())).thenReturn(List.of(slot));
         when(guestBookingUseCase.sendVerificationCode(any())).thenReturn(phoneVerification);
         when(bookingQueryUseCase.getBookingByToken(eq(100L), any())).thenReturn(booking);
-        when(guestPhoneProtector.decrypt(any())).thenReturn("01012345678");
+        when(guestPersonalDataProtector.decryptPhone(any(Guest.class))).thenReturn("01012345678");
+        when(guestPersonalDataProtector.decryptName(any(Guest.class))).thenReturn("홍길동");
         when(bookingRescheduleUseCase.rescheduleBooking(eq(100L), any(), eq(42L)))
                 .thenReturn(booking);
         when(bookingCancelUseCase.cancelBooking(eq(100L), any()))
@@ -121,7 +123,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 new ClassController(classQueryUseCase),
                 new SlotController(slotQueryUseCase),
                 new BookingController(guestBookingUseCase, bookingQueryUseCase,
-                        bookingRescheduleUseCase, bookingCancelUseCase, guestPhoneProtector,
+                        bookingRescheduleUseCase, bookingCancelUseCase, guestPersonalDataProtector,
                         RestDocsFixtures.clock()),
                 new OrderController(orderQueryUseCase),
                 new PaymentController(paymentPrepareUseCase, paymentConfirmUseCase),

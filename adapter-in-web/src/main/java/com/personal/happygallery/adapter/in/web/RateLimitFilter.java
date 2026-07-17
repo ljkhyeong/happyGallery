@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.in.web;
 
 import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties;
 import jakarta.servlet.FilterChain;
@@ -65,13 +66,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final RateLimitProperties properties;
     private final StringRedisTemplate redisTemplate;
+    private final BlindIndexer blindIndexer;
 
     public RateLimitFilter(ObjectMapper objectMapper,
                            RateLimitProperties properties,
-                           StringRedisTemplate redisTemplate) {
+                           StringRedisTemplate redisTemplate,
+                           BlindIndexer blindIndexer) {
         this.objectMapper = objectMapper;
         this.properties = properties;
         this.redisTemplate = redisTemplate;
+        this.blindIndexer = blindIndexer;
     }
 
     @Override
@@ -89,7 +93,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String bucketKey = "rate:" + resolved.rule().id() + ":" + resolveClientKey(request);
+        String bucketKey = "rate:" + resolved.rule().id() + ":"
+                + blindIndexer.index(resolveClientKey(request));
         long count = increment(bucketKey, resolved.window());
         long remaining = Math.max(0, resolved.capacity() - count);
 
@@ -98,7 +103,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         if (count > resolved.capacity()) {
             response.setHeader("Retry-After", String.valueOf(resolved.window().toSeconds()));
-            log.warn("rate limit exceeded [rule={} client={}]", resolved.rule().id(), bucketKey);
+            log.warn("rate limit exceeded [rule={}]", resolved.rule().id());
             writeTooManyRequests(response);
             return;
         }

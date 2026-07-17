@@ -13,6 +13,8 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.user.KoreanPhoneNumber;
+import com.personal.happygallery.domain.user.PersonalName;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -73,8 +75,10 @@ public class OrderPreparer implements PaymentPreparer {
                 .mapToLong(item -> (long) item.qty() * item.unitPrice())
                 .sum();
 
+        String phone = auth.isMember() ? null : KoreanPhoneNumber.required(op.phone());
+        String name = auth.isMember() ? null : PersonalName.required(op.name());
         return new PreparedPayment(total, new PreparedOrderPayload(
-                op.userId(), op.phone(), op.verificationCode(), op.name(), preparedItems));
+                op.userId(), phone, op.verificationCode(), name, preparedItems));
     }
 
     private PreparedOrderItem prepareItem(OrderItemRef item, Map<Long, Product> productsById) {

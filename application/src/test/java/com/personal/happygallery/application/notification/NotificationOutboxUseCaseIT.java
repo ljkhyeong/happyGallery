@@ -1,7 +1,7 @@
 package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
-import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
+import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
@@ -30,7 +30,7 @@ class NotificationOutboxUseCaseIT {
     @Autowired ApplicationEventPublisher eventPublisher;
     @Autowired NotificationOutboxRepository outboxRepository;
     @Autowired NotificationOutboxDispatcher outboxDispatcher;
-    @Autowired UserRepository userRepository;
+    @Autowired UserStorePort userStorePort;
     @Autowired NotificationLogProbe notificationLogProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PlatformTransactionManager transactionManager;
@@ -44,7 +44,7 @@ class NotificationOutboxUseCaseIT {
     @DisplayName("알림 이벤트는 outbox에 저장되고 커밋 이후 발송된다")
     @Test
     void notificationEvent_enqueuesOutboxAndDispatchesAfterCommit() {
-        User user = userRepository.save(new User("outbox@example.com", "hash", "회원", "01012345678"));
+        User user = userStorePort.save(new User("outbox@example.com", "hash", "회원", "01012345678"));
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status ->
                 eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
@@ -66,7 +66,7 @@ class NotificationOutboxUseCaseIT {
     @DisplayName("알림 이벤트가 발행된 트랜잭션이 롤백되면 outbox도 생성되지 않는다")
     @Test
     void notificationEvent_rollsBackWithPublisherTransaction() {
-        User user = userRepository.save(new User("outbox-rollback@example.com", "hash", "회원", "01087654321"));
+        User user = userStorePort.save(new User("outbox-rollback@example.com", "hash", "회원", "01087654321"));
 
         assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
             eventPublisher.publishEvent(NotificationRequestedEvent.forUser(

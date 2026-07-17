@@ -23,8 +23,8 @@
         <if test="keyword != null and keyword != ''">
             AND (
                 CAST(o.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
-                OR u.name LIKE CONCAT('%', #{keyword}, '%')
-                OR g.name LIKE CONCAT('%', #{keyword}, '%')
+                OR u.name_hmac = #{keywordHmac}
+                OR g.name_hmac = #{keywordHmac}
             )
         </if>
     </sql>
@@ -40,9 +40,8 @@
             CONCAT('ORD-', LPAD(o.id, 8, '0'))      AS orderNumber,
             o.status                                AS status,
             o.total_amount                          AS totalAmount,
-            COALESCE(u.name, g.name, '(알 수 없음)')  AS buyerName,
-            u.phone                                  AS memberPhone,
-            g.phone_enc                              AS guestPhoneEnc,
+            COALESCE(u.name_enc, g.name_enc)         AS buyerNameEnc,
+            COALESCE(u.phone_enc, g.phone_enc)       AS buyerPhoneEnc,
             o.paid_at                               AS paidAt,
             o.approval_deadline_at                  AS approvalDeadlineAt,
             o.created_at                            AS createdAt

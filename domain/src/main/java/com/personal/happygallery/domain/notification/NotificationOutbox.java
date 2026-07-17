@@ -1,7 +1,6 @@
 package com.personal.happygallery.domain.notification;
 
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent.ForGuest;
-import com.personal.happygallery.domain.notification.NotificationRequestedEvent.ForGuestWithContact;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent.ForUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -93,8 +92,6 @@ public class NotificationOutbox {
     public static NotificationOutbox from(NotificationRequestedEvent event, LocalDateTime now) {
         return switch (event) {
             case ForGuest e -> forGuest(e.guestId(), e.eventType(), e.aggregateType(), e.aggregateId(),
-                    e.idempotencyKey(), now);
-            case ForGuestWithContact e -> forGuest(e.guestId(), e.eventType(), e.aggregateType(), e.aggregateId(),
                     e.idempotencyKey(), now);
             case ForUser e -> forUser(e.userId(), e.eventType(), e.aggregateType(), e.aggregateId(),
                     e.idempotencyKey(), now);

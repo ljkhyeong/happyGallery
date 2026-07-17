@@ -1,6 +1,6 @@
 package com.personal.happygallery.application.notification;
 
-import com.personal.happygallery.application.customer.GuestPhoneProtector;
+import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 public class NotificationService {
 
     private static final String RECIPIENT_NOT_FOUND = "RECIPIENT_NOT_FOUND";
+    private static final String DELIVERY_EXCEPTION = "DELIVERY_EXCEPTION";
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
@@ -37,20 +38,20 @@ public class NotificationService {
     private final NotificationLogStorePort notificationLogStore;
     private final GuestReaderPort guestReader;
     private final UserReaderPort userReader;
-    private final GuestPhoneProtector guestPhoneProtector;
+    private final GuestPersonalDataProtector guestPersonalDataProtector;
     private final Clock clock;
 
     public NotificationService(List<NotificationSenderPort> senders,
                                NotificationLogStorePort notificationLogStore,
                                GuestReaderPort guestReader,
                                UserReaderPort userReader,
-                               GuestPhoneProtector guestPhoneProtector,
+                               GuestPersonalDataProtector guestPersonalDataProtector,
                                Clock clock) {
         this.senders = List.copyOf(senders);
         this.notificationLogStore = notificationLogStore;
         this.guestReader = guestReader;
         this.userReader = userReader;
-        this.guestPhoneProtector = guestPhoneProtector;
+        this.guestPersonalDataProtector = guestPersonalDataProtector;
         this.clock = clock;
     }
 
@@ -66,7 +67,11 @@ public class NotificationService {
             return true;
         }
         return guestReader.findById(guestId)
-                .map(guest -> sendToGuest(guest.getId(), guestPhoneProtector.decrypt(guest), guest.getName(), eventType))
+                .map(guest -> sendToGuest(
+                        guest.getId(),
+                        guestPersonalDataProtector.decryptPhone(guest),
+                        guestPersonalDataProtector.decryptName(guest),
+                        eventType))
                 .orElseGet(() -> {
                     logRecipientNotFound(guestId, null, eventType);
                     return true;
@@ -105,8 +110,10 @@ public class NotificationService {
                 }
                 save(NotificationLog.failed(guestId, userId, sender.channel(), eventType, "발송 실패", sentAt));
             } catch (Exception e) {
-                log.warn("[알림] {} 발송 예외 [{}={} event={}]", sender.channel(), recipientLabel, recipientId, eventType, e);
-                save(NotificationLog.failed(guestId, userId, sender.channel(), eventType, e.getMessage(), sentAt));
+                log.warn("[알림] {} 발송 예외 [{}={} event={} type={}]",
+                        sender.channel(), recipientLabel, recipientId, eventType, e.getClass().getSimpleName());
+                save(NotificationLog.failed(
+                        guestId, userId, sender.channel(), eventType, DELIVERY_EXCEPTION, sentAt));
             }
         }
         log.error("[알림] 모든 채널 실패 [{}={} event={}]", recipientLabel, recipientId, eventType);
@@ -131,7 +138,7 @@ public class NotificationService {
         try {
             notificationLogStore.save(entry);
         } catch (Exception e) {
-            log.error("[알림] 로그 저장 실패", e);
+            log.error("[알림] 로그 저장 실패 [type={}]", e.getClass().getSimpleName());
         }
     }
 }

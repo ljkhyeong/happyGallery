@@ -4,7 +4,7 @@ import com.personal.happygallery.application.booking.port.in.BookingCancelUseCas
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
-import com.personal.happygallery.application.customer.GuestPhoneProtector;
+import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
 import com.personal.happygallery.adapter.in.web.booking.dto.BookingDetailResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.CancelResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleRequest;
@@ -38,20 +38,20 @@ public class BookingController {
     private final BookingQueryUseCase bookingQueryUseCase;
     private final BookingRescheduleUseCase bookingRescheduleUseCase;
     private final BookingCancelUseCase bookingCancelUseCase;
-    private final GuestPhoneProtector guestPhoneProtector;
+    private final GuestPersonalDataProtector guestPersonalDataProtector;
     private final Clock clock;
 
     public BookingController(GuestBookingUseCase guestBookingUseCase,
                              BookingQueryUseCase bookingQueryUseCase,
                              BookingRescheduleUseCase bookingRescheduleUseCase,
                              BookingCancelUseCase bookingCancelUseCase,
-                             GuestPhoneProtector guestPhoneProtector,
+                             GuestPersonalDataProtector guestPersonalDataProtector,
                              Clock clock) {
         this.guestBookingUseCase = guestBookingUseCase;
         this.bookingQueryUseCase = bookingQueryUseCase;
         this.bookingRescheduleUseCase = bookingRescheduleUseCase;
         this.bookingCancelUseCase = bookingCancelUseCase;
-        this.guestPhoneProtector = guestPhoneProtector;
+        this.guestPersonalDataProtector = guestPersonalDataProtector;
         this.clock = clock;
     }
 
@@ -69,7 +69,11 @@ public class BookingController {
             @PathVariable Long bookingId,
             @RequestHeader("X-Access-Token") String token) {
         Booking booking = bookingQueryUseCase.getBookingByToken(bookingId, token);
-        return BookingDetailResponse.from(booking, guestPhoneProtector.decrypt(booking.getGuest()), clock);
+        return BookingDetailResponse.from(
+                booking,
+                guestPersonalDataProtector.decryptName(booking.getGuest()),
+                guestPersonalDataProtector.decryptPhone(booking.getGuest()),
+                clock);
     }
 
     /** 비회원 예약 변경 — 슬롯 교체, 이력 누적 */

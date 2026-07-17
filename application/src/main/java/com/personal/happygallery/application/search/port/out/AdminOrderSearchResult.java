@@ -7,9 +7,8 @@ public record AdminOrderSearchResult(
         String orderNumber,
         String status,
         long totalAmount,
-        String buyerName,
-        String memberPhone,
-        String guestPhoneEnc,
+        String buyerNameEnc,
+        String buyerPhoneEnc,
         LocalDateTime paidAt,
         LocalDateTime approvalDeadlineAt,
         LocalDateTime createdAt

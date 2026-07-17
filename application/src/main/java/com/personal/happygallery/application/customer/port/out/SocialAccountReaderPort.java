@@ -8,5 +8,5 @@ public interface SocialAccountReaderPort {
 
     Optional<SocialAccount> findByProviderAndProviderId(SocialProvider provider, String providerId);
 
-    Optional<SocialAccount> findByUserIdAndProvider(Long userId, SocialProvider provider);
+    boolean existsByUserIdAndProvider(Long userId, SocialProvider provider);
 }

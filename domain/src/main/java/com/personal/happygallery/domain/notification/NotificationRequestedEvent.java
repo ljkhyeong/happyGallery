@@ -21,11 +21,6 @@ public sealed interface NotificationRequestedEvent {
                     String aggregateType, Long aggregateId, String idempotencyKey)
             implements NotificationRequestedEvent {}
 
-    record ForGuestWithContact(Long guestId, String phone, String name,
-                               NotificationEventType eventType,
-                               String aggregateType, Long aggregateId, String idempotencyKey)
-            implements NotificationRequestedEvent {}
-
     record ForUser(Long userId, NotificationEventType eventType,
                    String aggregateType, Long aggregateId, String idempotencyKey)
             implements NotificationRequestedEvent {}
@@ -37,19 +32,6 @@ public sealed interface NotificationRequestedEvent {
     static NotificationRequestedEvent forGuest(Long guestId, NotificationEventType eventType,
                                                String aggregateType, Long aggregateId) {
         return new ForGuest(guestId, eventType, aggregateType, aggregateId,
-                aggregateKey("GUEST", guestId, eventType, aggregateType, aggregateId));
-    }
-
-    static NotificationRequestedEvent forGuestWithContact(Long guestId, String phone, String name,
-                                                          NotificationEventType eventType) {
-        return new ForGuestWithContact(guestId, phone, name, eventType, null, null,
-                requestKey("GUEST", guestId, eventType));
-    }
-
-    static NotificationRequestedEvent forGuestWithContact(Long guestId, String phone, String name,
-                                                          NotificationEventType eventType,
-                                                          String aggregateType, Long aggregateId) {
-        return new ForGuestWithContact(guestId, phone, name, eventType, aggregateType, aggregateId,
                 aggregateKey("GUEST", guestId, eventType, aggregateType, aggregateId));
     }
 

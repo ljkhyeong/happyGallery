@@ -20,7 +20,7 @@ public record BookingDetailResponse(
         String guestPhone,  // 마스킹: 010****5678
         BookingCancelPolicyResponse cancelPolicy
 ) {
-    public static BookingDetailResponse from(Booking booking, String guestPhone, Clock clock) {
+    public static BookingDetailResponse from(Booking booking, String guestName, String guestPhone, Clock clock) {
         String maskedPhone = maskPhoneMiddle(guestPhone);
         return new BookingDetailResponse(
                 booking.getId(),
@@ -32,7 +32,7 @@ public record BookingDetailResponse(
                 booking.getStatus().name(),
                 booking.getDepositAmount(),
                 booking.getBalanceAmount(),
-                booking.getGuest().getName(),
+                guestName,
                 maskedPhone,
                 BookingCancelPolicyResponse.from(booking, clock)
         );

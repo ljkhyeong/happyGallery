@@ -40,7 +40,8 @@ class NotificationEventListener {
         try {
             outboxDispatcher.dispatchPending();
         } catch (Exception e) {
-            log.warn("[알림 outbox] 비동기 dispatch 실패", e);
+            log.warn("[알림 outbox] 비동기 dispatch 실패 [type={}]",
+                    e.getClass().getSimpleName());
         }
     }
 }

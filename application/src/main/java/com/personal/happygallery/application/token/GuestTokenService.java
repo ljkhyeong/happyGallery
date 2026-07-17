@@ -52,7 +52,7 @@ public class GuestTokenService {
                         rawToken, properties.hmacSecret(), clock.instant());
                 return claims.nonceHash();
             } catch (InvalidTokenException e) {
-                log.warn("토큰 검증 실패: {}", e.getMessage());
+                log.warn("게스트 토큰 검증 실패 [type={}]", e.getClass().getSimpleName());
                 throw new NotFoundException("접근 토큰");
             }
         }

@@ -2,7 +2,6 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.out.BookingHistoryPort;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
-import com.personal.happygallery.application.customer.GuestPhoneProtector;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistory;
@@ -24,18 +23,15 @@ class BookingSupport {
     private final BookingHistoryPort bookingHistoryPort;
     private final ApplicationEventPublisher eventPublisher;
     private final GuestTokenService guestTokenService;
-    private final GuestPhoneProtector guestPhoneProtector;
 
     BookingSupport(BookingReaderPort bookingReaderPort,
                    BookingHistoryPort bookingHistoryPort,
                    ApplicationEventPublisher eventPublisher,
-                   GuestTokenService guestTokenService,
-                   GuestPhoneProtector guestPhoneProtector) {
+                   GuestTokenService guestTokenService) {
         this.bookingReaderPort = bookingReaderPort;
         this.bookingHistoryPort = bookingHistoryPort;
         this.eventPublisher = eventPublisher;
         this.guestTokenService = guestTokenService;
-        this.guestPhoneProtector = guestPhoneProtector;
     }
 
     Booking findByToken(Long bookingId, String rawAccessToken) {
@@ -76,16 +72,10 @@ class BookingSupport {
 
     private NotificationRequestedEvent bookerEventForGuest(Booking booking, NotificationEventType eventType) {
         if (eventType == NotificationEventType.BOOKING_RESCHEDULED) {
-            return NotificationRequestedEvent.forGuestWithContact(
-                    booking.getGuest().getId(),
-                    guestPhoneProtector.decrypt(booking.getGuest()),
-                    booking.getGuest().getName(),
-                    eventType);
+            return NotificationRequestedEvent.forGuest(booking.getGuest().getId(), eventType);
         }
-        return NotificationRequestedEvent.forGuestWithContact(
+        return NotificationRequestedEvent.forGuest(
                 booking.getGuest().getId(),
-                guestPhoneProtector.decrypt(booking.getGuest()),
-                booking.getGuest().getName(),
                 eventType,
                 "BOOKING",
                 booking.getId());

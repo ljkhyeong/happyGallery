@@ -1,12 +1,12 @@
 package com.personal.happygallery.application.search;
 
-import com.personal.happygallery.application.customer.GuestPhoneProtector;
 import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
 import com.personal.happygallery.application.search.port.in.AdminBookingSearchUseCase;
 import com.personal.happygallery.application.search.port.out.AdminBookingSearchPort;
 import com.personal.happygallery.application.search.port.out.AdminBookingSearchResult;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.booking.BookingStatus;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,12 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 class DefaultAdminBookingSearchService implements AdminBookingSearchUseCase {
 
     private final AdminBookingSearchPort searchPort;
-    private final GuestPhoneProtector guestPhoneProtector;
+    private final FieldEncryptor fieldEncryptor;
 
     DefaultAdminBookingSearchService(AdminBookingSearchPort searchPort,
-                                     GuestPhoneProtector guestPhoneProtector) {
+                                     FieldEncryptor fieldEncryptor) {
         this.searchPort = searchPort;
-        this.guestPhoneProtector = guestPhoneProtector;
+        this.fieldEncryptor = fieldEncryptor;
     }
 
     @Override
@@ -32,15 +32,12 @@ class DefaultAdminBookingSearchService implements AdminBookingSearchUseCase {
     }
 
     private AdminBookingSearchRow toResponse(AdminBookingSearchResult result) {
-        String bookerPhone = result.guestPhoneEnc() == null
-                ? result.memberPhone()
-                : guestPhoneProtector.decryptEncryptedPhone(result.guestPhoneEnc());
         return new AdminBookingSearchRow(
                 result.bookingId(),
                 result.bookingNumber(),
                 result.bookerType(),
-                result.bookerName(),
-                bookerPhone,
+                fieldEncryptor.decrypt(result.bookerNameEnc()),
+                decryptNullable(result.bookerPhoneEnc()),
                 result.className(),
                 result.startAt(),
                 result.endAt(),
@@ -49,5 +46,9 @@ class DefaultAdminBookingSearchService implements AdminBookingSearchUseCase {
                 result.balanceAmount(),
                 result.passBooking(),
                 result.createdAt());
+    }
+
+    private String decryptNullable(String encrypted) {
+        return encrypted == null ? null : fieldEncryptor.decrypt(encrypted);
     }
 }

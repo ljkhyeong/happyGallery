@@ -14,7 +14,7 @@ import com.personal.happygallery.adapter.out.persistence.booking.RefundRepositor
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
-import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
+import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
@@ -77,7 +77,7 @@ class PassCreditUsageUseCaseIT {
     @Autowired RefundRepository refundRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired ClassRepository classRepository;
-    @Autowired UserRepository userRepository;
+    @Autowired UserReaderPort userReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
     @Autowired ObjectMapper objectMapper;
@@ -104,7 +104,7 @@ class PassCreditUsageUseCaseIT {
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("FAKE-TEST-PASS-REF"));
         sessionCookie = signupAndGetSessionCookie("pass-member@example.com", "01099990001");
-        Long userId = userRepository.findByEmail("pass-member@example.com").orElseThrow().getId();
+        Long userId = userReaderPort.findByEmail("pass-member@example.com").orElseThrow().getId();
         pass = passPurchase(userId, FUTURE.plusDays(90), 320_000L);
         pass.recordPaymentKey("test-pass-payment-key");
         pass = passPurchaseRepository.save(pass);

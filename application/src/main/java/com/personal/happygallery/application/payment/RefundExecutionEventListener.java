@@ -24,7 +24,8 @@ class RefundExecutionEventListener {
         try {
             refundDispatcher.dispatch(event.refundId(), event.target());
         } catch (Exception e) {
-            log.error("환불 비동기 실행 실패 [refundId={}]", event.refundId(), e);
+            log.error("환불 비동기 실행 실패 [refundId={} type={}]",
+                    event.refundId(), e.getClass().getSimpleName());
         }
     }
 }

@@ -4,7 +4,6 @@ import com.personal.happygallery.application.monitoring.port.in.ClientMonitoring
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 @Service
 public class DefaultClientMonitoringService implements ClientMonitoringUseCase {
@@ -22,11 +21,9 @@ public class DefaultClientMonitoringService implements ClientMonitoringUseCase {
                                      String source,
                                      String target,
                                      Long userId) {
-        log.info("[client-monitoring] event={} path={} source={} target={} authenticated={} userId={}",
+        // path/source/target은 클라이언트가 임의로 보낼 수 있어 로그에 남기지 않는다.
+        log.info("[client-monitoring] event={} authenticated={} userId={}",
                 eventType.logValue(),
-                sanitize(path, 120),
-                sanitizeOrDash(source, 80),
-                sanitizeOrDash(target, 80),
                 userId != null,
                 userId);
         appMetrics.incrementClientEvent(eventType.logValue());
@@ -49,17 +46,4 @@ public class DefaultClientMonitoringService implements ClientMonitoringUseCase {
         appMetrics.incrementGuestClaimCompleted();
     }
 
-    private static String sanitizeOrDash(String value, int maxLength) {
-        return StringUtils.hasText(value) ? sanitize(value, maxLength) : "-";
-    }
-
-    private static String sanitize(String value, int maxLength) {
-        String normalized = value.replace('\n', ' ')
-                .replace('\r', ' ')
-                .trim();
-        if (normalized.length() <= maxLength) {
-            return normalized;
-        }
-        return normalized.substring(0, maxLength);
-    }
 }

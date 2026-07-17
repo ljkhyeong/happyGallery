@@ -3,6 +3,8 @@ package com.personal.happygallery.adapter.out.persistence.dashboard.adapter;
 import com.personal.happygallery.application.search.port.out.AdminBookingSearchPort;
 import com.personal.happygallery.application.search.port.out.AdminBookingSearchResult;
 import com.personal.happygallery.domain.booking.BookingStatus;
+import com.personal.happygallery.domain.crypto.BlindIndexer;
+import com.personal.happygallery.domain.user.PersonalName;
 import com.personal.happygallery.adapter.out.persistence.dashboard.mapper.AdminBookingSearchMapper;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -18,9 +20,11 @@ import org.springframework.stereotype.Component;
 class MyBatisAdminBookingSearchAdapter implements AdminBookingSearchPort {
 
     private final AdminBookingSearchMapper mapper;
+    private final BlindIndexer blindIndexer;
 
-    MyBatisAdminBookingSearchAdapter(AdminBookingSearchMapper mapper) {
+    MyBatisAdminBookingSearchAdapter(AdminBookingSearchMapper mapper, BlindIndexer blindIndexer) {
         this.mapper = mapper;
+        this.blindIndexer = blindIndexer;
     }
 
     @Override
@@ -30,7 +34,7 @@ class MyBatisAdminBookingSearchAdapter implements AdminBookingSearchPort {
                 status != null ? status.name() : null,
                 dateFrom != null ? dateFrom.atStartOfDay() : null,
                 dateTo != null ? dateTo.plusDays(1).atStartOfDay() : null,
-                keyword, offset, size);
+                keyword, indexKeyword(keyword), offset, size);
     }
 
     @Override
@@ -39,6 +43,10 @@ class MyBatisAdminBookingSearchAdapter implements AdminBookingSearchPort {
                 status != null ? status.name() : null,
                 dateFrom != null ? dateFrom.atStartOfDay() : null,
                 dateTo != null ? dateTo.plusDays(1).atStartOfDay() : null,
-                keyword);
+                keyword, indexKeyword(keyword));
+    }
+
+    private String indexKeyword(String keyword) {
+        return keyword == null ? null : blindIndexer.index(PersonalName.required(keyword));
     }
 }

@@ -76,15 +76,18 @@
 #### 사용자와 비회원
 
 - `users`
-  - `id`, `email`, `password_hash nullable`, `name`, `phone`, `phone_verified`, `last_login_at`, `created_at`
-  - `provider`, `provider_id`는 롤링 배포 호환성을 위해 임시 유지한다. 일반 도메인 저장에는 사용하지 않고, 구버전이 기록한 소셜 계정을 새 테이블로 승격하는 정확 일치 조회에만 사용한다.
+  - `id`, `email_enc`, `email_hmac`, `password_hash nullable`, `name_enc`, `name_hmac`, `phone_enc nullable`, `phone_hmac nullable`, `phone_verified`, `last_login_at`, `created_at`
+  - 이메일·이름·전화번호 평문 컬럼은 두지 않는다. 복호화가 필요한 값은 `*_enc`, 정확 일치 조회는 `*_hmac`를 사용한다.
 - `user_social_accounts`
-  - `id`, `user_id`, `provider(GOOGLE|NAVER)`, `provider_id`, `created_at`
-  - 외부 식별자는 provider 내부에서만 고유하므로 `(provider, provider_id)`를 유일하게 유지한다.
+  - `id`, `user_id`, `provider(GOOGLE|NAVER)`, `provider_id_hmac`, `created_at`
+  - 외부 식별자는 provider 내부에서만 고유하므로 `(provider, provider_id_hmac)`를 유일하게 유지한다. 원문은 저장하지 않는다.
   - 한 회원이 같은 provider의 계정을 둘 이상 연결하지 않도록 `(user_id, provider)`를 유일하게 유지한다.
 - `guests`
-  - `id`, `name`, `phone_enc`, `phone_hmac`, `phone_verified`, `created_at`
-  - 비회원 전화번호 평문 컬럼은 두지 않는다. 표시는 `phone_enc` 복호화, 동등 검색은 `phone_hmac`로 처리한다.
+  - `id`, `name_enc`, `name_hmac`, `phone_enc`, `phone_hmac`, `phone_verified`, `created_at`
+  - 비회원 이름·전화번호 평문 컬럼은 두지 않는다. 표시는 암호문 복호화, 동등 검색은 HMAC으로 처리한다.
+- `phone_verifications`
+  - `id`, `phone_hmac`, `code_hmac`, `code_enc`, `verified`, `expires_at`, `created_at`
+  - 전화번호와 인증 코드 평문은 저장하지 않는다. 인증은 전화번호와 코드의 HMAC으로 조회하고, 로컬 전용 코드 조회는 `code_enc`를 복호화한다.
 
 #### 상품과 재고
 
@@ -115,7 +118,8 @@
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
   - `processing_at nullable`, `payment_key nullable`, `pg_ref nullable`, `fail_reason nullable`
-  - `payload_json`, `created_at`, `confirmed_at nullable`, `version`
+  - `payload_enc`, `created_at`, `confirmed_at nullable`, `version`
+  - 내부 결제 payload는 AES-GCM 암호문으로 저장하고 claim·fulfillment 시점에만 복호화한다.
   - 상태: `PENDING | PROCESSING | RETRYABLE | APPROVED | CONFIRMED | FAILED | COMPENSATION_REQUESTED | COMPENSATION_FAILED | COMPENSATED | CANCELED`
 
 #### 클래스, 슬롯, 예약
@@ -182,6 +186,10 @@ WHERE (user_id IS NULL AND guest_id IS NULL)
 - `orders(status, created_at, id)` 커서 조회
 - `payment_attempt(order_id_external)` UNIQUE
 - `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
+- `users(email_hmac)` UNIQUE, `users(name_hmac)` 정확 일치 검색
+- `guests(phone_hmac)` UNIQUE, `guests(name_hmac)` 정확 일치 검색
+- `user_social_accounts(provider, provider_id_hmac)` UNIQUE
+- `phone_verifications(phone_hmac, id)` 최신 인증 조회
 - `inventory(product_id, version)`
 - `notification_log(user_id, sent_at DESC)`
 - `notification_log(guest_id, sent_at DESC)`
@@ -211,4 +219,5 @@ WHERE (user_id IS NULL AND guest_id IS NULL)
 - `docs/ADR/0013_주문_승인_모델/adr.md`
 - `docs/ADR/0014_예약_제작_주문_결정/adr.md`
 - `docs/ADR/0021_Hexagonal_아키텍처_전환/adr.md`
+- `docs/ADR/0036_개인정보_평문_제거와_블라인드_인덱스_기준/adr.md`
 - `docs/PRD/0001_기준_스펙/spec.md`

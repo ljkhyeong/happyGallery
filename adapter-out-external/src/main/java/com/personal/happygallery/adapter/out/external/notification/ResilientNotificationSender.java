@@ -65,7 +65,8 @@ public class ResilientNotificationSender implements NotificationSender {
                 log.warn("[{}] 발송 타임아웃 [timeoutMs={} event={}]", channel(), timeoutMillis, eventType);
                 return false;
             }
-            log.warn("[{}] 발송 예외 event={}", channel(), eventType, cause);
+            log.warn("[{}] 발송 예외 [event={} type={}]",
+                    channel(), eventType, cause.getClass().getSimpleName());
             return false;
         }
     }

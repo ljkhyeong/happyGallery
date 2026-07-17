@@ -61,8 +61,8 @@ public class PaymentAttempt {
     private String failReason;
 
     @Lob
-    @Column(name = "payload_json", nullable = false, columnDefinition = "TEXT")
-    private String payloadJson;
+    @Column(name = "payload_enc", nullable = false, columnDefinition = "MEDIUMTEXT")
+    private String payloadEnc;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -76,20 +76,20 @@ public class PaymentAttempt {
 
     protected PaymentAttempt() {}
 
-    private PaymentAttempt(String orderIdExternal, PaymentContext context, long amount, String payloadJson) {
+    private PaymentAttempt(String orderIdExternal, PaymentContext context, long amount, String payloadEnc) {
         this.orderIdExternal = orderIdExternal;
         this.context = context;
         this.amount = amount;
         this.status = PaymentAttemptStatus.PENDING;
-        this.payloadJson = payloadJson;
+        this.payloadEnc = payloadEnc;
     }
 
     /**
      * prepare 단계 엔트리. status는 PENDING으로 시작. createdAt은 DB default로 채워진다.
      */
     public static PaymentAttempt start(String orderIdExternal, PaymentContext context,
-                                       long amount, String payloadJson) {
-        return new PaymentAttempt(orderIdExternal, context, amount, payloadJson);
+                                       long amount, String payloadEnc) {
+        return new PaymentAttempt(orderIdExternal, context, amount, payloadEnc);
     }
 
     /**
@@ -204,7 +204,7 @@ public class PaymentAttempt {
     public String getPaymentKey() { return paymentKey; }
     public String getPgRef() { return pgRef; }
     public String getFailReason() { return failReason; }
-    public String getPayloadJson() { return payloadJson; }
+    public String getPayloadEnc() { return payloadEnc; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getProcessingAt() { return processingAt; }
     public LocalDateTime getConfirmedAt() { return confirmedAt; }

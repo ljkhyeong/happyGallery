@@ -92,7 +92,6 @@ final class RestDocsFixtures {
         BookingClass bookingClass = bookingClass();
         Slot slot = slot(bookingClass);
         Guest guest = mock(Guest.class);
-        when(guest.getName()).thenReturn("홍길동");
 
         Booking booking = mock(Booking.class);
         when(booking.getId()).thenReturn(100L);

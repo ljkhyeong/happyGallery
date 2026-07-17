@@ -20,16 +20,16 @@ public class VerifiedGuestResolver {
 
     private final PhoneVerificationReaderPort phoneVerificationReader;
     private final GuestStorePort guestStore;
-    private final GuestPhoneProtector guestPhoneProtector;
+    private final GuestPersonalDataProtector guestPersonalDataProtector;
     private final Clock clock;
 
     public VerifiedGuestResolver(PhoneVerificationReaderPort phoneVerificationReader,
                                   GuestStorePort guestStore,
-                                  GuestPhoneProtector guestPhoneProtector,
+                                  GuestPersonalDataProtector guestPersonalDataProtector,
                                   Clock clock) {
         this.phoneVerificationReader = phoneVerificationReader;
         this.guestStore = guestStore;
-        this.guestPhoneProtector = guestPhoneProtector;
+        this.guestPersonalDataProtector = guestPersonalDataProtector;
         this.clock = clock;
     }
 
@@ -45,7 +45,7 @@ public class VerifiedGuestResolver {
                 .orElseThrow(PhoneVerificationFailedException::new);
         pv.markVerified();
 
-        Guest guest = guestStore.getOrCreateByPhoneHmac(guestPhoneProtector.newGuest(name, phone));
+        Guest guest = guestStore.getOrCreateByPhoneHmac(guestPersonalDataProtector.newGuest(name, phone));
         guest.markPhoneVerified();
 
         return guest;

@@ -51,7 +51,8 @@ public class BatchLoggingAspect {
             return result;
         } catch (Throwable t) {
             long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
-            log.error("[배치] {} 실패 ({}ms)", jobName, durationMs, t);
+            log.error("[배치] {} 실패 ({}ms) [type={}]",
+                    jobName, durationMs, t.getClass().getSimpleName());
             throw t;
         } finally {
             MDC.remove("requestId");

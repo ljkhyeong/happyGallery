@@ -1,7 +1,6 @@
 package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
-import com.personal.happygallery.application.customer.GuestPhoneProtector;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
@@ -38,7 +37,6 @@ class RefundTransactionService {
     private final PaymentAttemptStorePort paymentAttemptStore;
     private final BookingReaderPort bookingReader;
     private final OrderReaderPort orderReader;
-    private final GuestPhoneProtector guestPhoneProtector;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
@@ -47,7 +45,6 @@ class RefundTransactionService {
                              PaymentAttemptStorePort paymentAttemptStore,
                              BookingReaderPort bookingReader,
                              OrderReaderPort orderReader,
-                             GuestPhoneProtector guestPhoneProtector,
                              ApplicationEventPublisher eventPublisher,
                              Clock clock) {
         this.refundPort = refundPort;
@@ -55,7 +52,6 @@ class RefundTransactionService {
         this.paymentAttemptStore = paymentAttemptStore;
         this.bookingReader = bookingReader;
         this.orderReader = orderReader;
-        this.guestPhoneProtector = guestPhoneProtector;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
@@ -178,7 +174,8 @@ class RefundTransactionService {
                 publishOrderRefunded(refund);
             }
         } catch (Exception e) {
-            log.warn("환불 성공 알림 발행 실패 [refundId={}]", refund.getId(), e);
+            log.warn("환불 성공 알림 발행 실패 [refundId={} type={}]",
+                    refund.getId(), e.getClass().getSimpleName());
         }
     }
 
@@ -191,11 +188,8 @@ class RefundTransactionService {
                         "REFUND",
                         refund.getId()));
             } else {
-                Guest guest = booking.getGuest();
-                eventPublisher.publishEvent(NotificationRequestedEvent.forGuestWithContact(
-                        guest.getId(),
-                        guestPhoneProtector.decrypt(guest),
-                        guest.getName(),
+                eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
+                        booking.getGuest().getId(),
                         NotificationEventType.DEPOSIT_REFUNDED,
                         "REFUND",
                         refund.getId()));

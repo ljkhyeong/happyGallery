@@ -9,7 +9,7 @@ import java.util.List;
  * prepare 단계에 들어오는 context별 결제 payload.
  *
  * <p>{@link com.fasterxml.jackson.annotation.JsonTypeInfo} 기반 polymorphic 직렬화로
- * {@link com.personal.happygallery.domain.payment.PaymentAttempt#getPayloadJson()}에 저장되고,
+ * 암호화되어 {@link com.personal.happygallery.domain.payment.PaymentAttempt#getPayloadEnc()}에 저장되고,
  * confirm 시 fulfiller가 동일 클래스로 역직렬화해 도메인 저장에 사용한다.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

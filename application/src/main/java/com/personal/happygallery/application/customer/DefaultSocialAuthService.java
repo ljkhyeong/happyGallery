@@ -8,8 +8,6 @@ import com.personal.happygallery.application.customer.port.out.SocialAccountRead
 import com.personal.happygallery.application.customer.port.out.SocialAccountStorePort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
-import com.personal.happygallery.domain.crypto.BlindIndexer;
-import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.SocialAccount;
@@ -33,8 +31,6 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
     private final SocialAccountStorePort socialAccountStore;
     private final UserReaderPort userReader;
     private final UserStorePort userStore;
-    private final FieldEncryptor fieldEncryptor;
-    private final BlindIndexer blindIndexer;
     private final Clock clock;
 
     public DefaultSocialAuthService(List<OAuthTokenExchangePort> oauthPorts,
@@ -42,8 +38,6 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
                                     SocialAccountStorePort socialAccountStore,
                                     UserReaderPort userReader,
                                     UserStorePort userStore,
-                                    FieldEncryptor fieldEncryptor,
-                                    BlindIndexer blindIndexer,
                                     Clock clock) {
         this.oauthPorts = new EnumMap<>(SocialProvider.class);
         oauthPorts.forEach(oauthPort -> this.oauthPorts.put(oauthPort.provider(), oauthPort));
@@ -51,8 +45,6 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
         this.socialAccountStore = socialAccountStore;
         this.userReader = userReader;
         this.userStore = userStore;
-        this.fieldEncryptor = fieldEncryptor;
-        this.blindIndexer = blindIndexer;
         this.clock = clock;
     }
 
@@ -73,16 +65,6 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
                 command.provider(), info.providerId());
         if (socialAccount.isPresent()) {
             User user = findSocialAccountUser(socialAccount.get());
-            updateLastLogin(user);
-            return new SocialLoginResult(user, false);
-        }
-
-        Optional<Long> legacyUserId = userReader.findLegacyUserIdByProviderAndProviderId(
-                command.provider().name(), info.providerId());
-        if (legacyUserId.isPresent()) {
-            User user = userReader.findById(legacyUserId.get())
-                    .orElseThrow(() -> new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED));
-            linkSocialAccount(user, command.provider(), info.providerId());
             updateLastLogin(user);
             return new SocialLoginResult(user, false);
         }
@@ -114,14 +96,11 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
 
     private User createSocialUser(OAuthUserInfo info) {
         User user = User.fromSocialProfile(info.email(), info.name());
-        user.applyEncryption(
-                fieldEncryptor.encrypt(info.email()), blindIndexer.index(info.email()),
-                null, null);
         return userStore.save(user);
     }
 
     private void linkSocialAccount(User user, SocialProvider provider, String providerId) {
-        if (socialAccountReader.findByUserIdAndProvider(user.getId(), provider).isPresent()) {
+        if (socialAccountReader.existsByUserIdAndProvider(user.getId(), provider)) {
             throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
         }
         socialAccountStore.save(new SocialAccount(user.getId(), provider, providerId));

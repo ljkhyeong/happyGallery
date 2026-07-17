@@ -34,6 +34,7 @@
 - 로그인 성공 시 UUID 세션 토큰을 발급하고, 이후 요청에 `Authorization: Bearer {token}` 헤더를 사용한다.
 - 세션 만료: 8시간
 - 세션 저장소는 Redis 기반 `AdminSessionStore`를 사용한다. 여러 인스턴스가 떠 있어도 같은 세션을 본다.
+- Redis에는 관리자 토큰 원문을 키로 쓰지 않고 토큰 HMAC을 사용하며, 세션 JSON도 AES-GCM 암호문으로 저장한다.
 
 #### 인증 엔드포인트
 
@@ -92,6 +93,7 @@ Content-Type: application/json
   - `404 NOT_FOUND` — 초기 관리자 계정 생성 비활성(토큰 없음 또는 이미 관리자 계정 존재)
   - `409 EMAIL_ALREADY_EXISTS` — 같은 username이 이미 존재
 - 운영 규칙:
+  - `username`은 개인 이메일·실명 대신 3~50자의 영문, 숫자, `.`, `_`, `-`로 구성한 운영 식별자를 사용한다.
   - 계정 생성 직후 `status.required`는 `false`가 된다.
   - 운영자는 최초 관리자 계정 생성이 끝나면 즉시 `ADMIN_SETUP_TOKEN`을 제거한다.
 
@@ -150,6 +152,13 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 
 - Spring Security 적용으로 기존 공개 조회 API의 `ETag`, `If-None-Match`, `304 Not Modified` 계약은 바뀌지 않는다.
 - API가 명시한 `Cache-Control: no-store` 등 응답별 캐시 정책은 그대로 적용된다.
+
+### 1.4 민감정보 형식과 오류 노출
+
+- 회원가입 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일하며, 회원 응답의 `phone`도 같은 형식을 사용한다.
+- 휴대폰 인증과 비회원 결제 payload의 표준 전화번호 형식은 `^01[0-9]{8,9}$`이다.
+- 서버 로그에는 전화번호, 인증 코드, 결제 키, 관리자 세션 토큰과 외부 서비스 오류 원문을 남기지 않는다.
+- Redis 처리율 제한 버킷은 IP 또는 인증 토큰 원문 대신 HMAC 식별자를 사용한다.
 
 ---
 
@@ -444,7 +453,7 @@ POST /api/v1/bookings/phone-verifications
 - 에러:
   - `400 INVALID_INPUT` — 전화번호 형식 불일치 (`^01[0-9]{8,9}$`)
 - 정책:
-  - 인증 코드는 응답에 포함하지 않고 서버 로그에만 기록한다.
+  - 인증 코드는 응답과 서버 로그에 포함하지 않는다.
   - 개발/테스트 환경에서는 `GET /api/v1/admin/dev/phone-verifications/latest?phone=` 로 코드를 조회할 수 있다.
 
 #### ~~2.4.2 게스트 예약 생성~~ (2026-04-22 제거)
@@ -732,7 +741,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
-  - `keyword`는 주문 ID 문자열, 회원 이름, 비회원 이름에 대해 부분 일치 검색한다.
+  - `keyword`는 주문 ID 문자열에는 부분 일치, 회원·비회원 이름에는 정확 일치로 검색한다.
   - `dateFrom`~`dateTo`는 KST 기준 주문 생성일 범위를 의미한다.
   - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
 
@@ -1025,7 +1034,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
-  - `keyword`는 예약 ID 문자열, 회원 이름, 비회원 이름에 대해 부분 일치 검색한다.
+  - `keyword`는 예약 ID 문자열에는 부분 일치, 회원·비회원 이름에는 정확 일치로 검색한다.
   - 날짜 필터는 슬롯 시작 시간(`slotStart`) 기준 KST 범위를 사용한다.
   - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
 
@@ -1133,10 +1142,11 @@ Authorization: Bearer {token}
 - 로그인·회원가입·소셜 로그인 성공 시 기존 세션 ID를 회전하고 새 ID로 회원 세션을 유지한다.
 - 상태를 변경하는 요청은 1.3의 SPA CSRF 계약에 따라 `X-XSRF-TOKEN` 헤더를 함께 보낸다.
 - 회원 로그인은 이메일/비밀번호(local)와 Google, Naver OAuth2를 함께 지원한다.
-- 소셜 계정은 `user_social_accounts`에 `(provider, provider_id)`로 저장한다. 한 회원은 Google과 Naver 계정을 각각 하나씩 연결할 수 있다.
+- 소셜 계정은 `user_social_accounts`에 `(provider, provider_id_hmac)`로 저장한다. 한 회원은 Google과 Naver 계정을 각각 하나씩 연결할 수 있다.
 - Google은 `email_verified=true`인 프로필만 수용한다.
 - 외부 provider ID가 처음인데 같은 이메일의 기존 회원이 있으면 제공자와 관계없이 자동 연결하지 않는다. 이미 연결된 provider ID 로그인과 이메일 충돌이 없는 신규 가입만 허용한다.
 - 소셜 로그인으로 새로 생성된 회원은 `password_hash`가 비어 있을 수 있다.
+- 이메일은 앞뒤 공백을 제거한 소문자, 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일한다. 응답에는 복호화한 값을 반환한다.
 
 #### 2.12.0.1 소셜 로그인 URL 발급
 
@@ -1464,7 +1474,7 @@ Content-Type: application/json
     - `ORDER`: 상품을 한 번에 조회한 뒤 항목별 `productId.price * qty` 합계
     - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약), 없으면 `slot.bookingClass.price * 10%`
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
-  - `ORDER`의 항목 단가는 서버가 prepare 시점에 내부 payload로 저장한다. confirm은 상품의 현재 가격이 아니라 이 단가로 주문을 생성하고, 단가 합계와 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
+  - `ORDER`의 항목 단가는 서버가 prepare 시점에 내부 payload로 저장한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장한다. confirm은 상품의 현재 가격이 아니라 이 단가로 주문을 생성하고, 단가 합계와 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
   - prepare 응답의 `orderId`는 Toss 결제창에 그대로 전달한다.
@@ -1578,6 +1588,7 @@ Content-Type: application/json
   - 인증은 선택이다. `HG_SESSION`이 있으면 `userId`를 함께 기록한다.
   - `path`는 필수이며 최대 120자다.
   - `source`, `target`은 선택이며 최대 80자다.
+  - 클라이언트가 보내는 `path`, `source`, `target` 원문은 로그에 남기지 않는다. 로그와 메트릭에는 서버가 정의한 `event`, 인증 여부와 내부 ID만 사용한다.
   - 모니터링 실패는 사용자 핵심 플로우를 막지 않는 best-effort 성격으로 다룬다.
 
 ### 2.17 local 전용 Dev API
