@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
@@ -29,6 +30,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -64,6 +67,8 @@ class OrderProductionUseCaseIT {
     @BeforeEach
     void setUp() {
         cleanup();
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(
+                AdminPrincipal.apiKey(), null, "ROLE_ADMIN"));
         orderHelper = new OrderTestHelper(
                 productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort,
                 userStorePort, orderService);
@@ -75,6 +80,7 @@ class OrderProductionUseCaseIT {
     }
 
     private void cleanup() {
+        SecurityContextHolder.clearContext();
         cleanupSupport.clearOrderData();
         cleanupSupport.clearUsers();
     }

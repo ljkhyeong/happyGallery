@@ -4,9 +4,10 @@ import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase.QnaWithAuthor;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminQnaResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.QnaReplyRequest;
-import com.personal.happygallery.adapter.in.web.resolver.AdminUserId;
+import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,7 +36,8 @@ public class AdminProductQnaController {
     @PostMapping("/{id}/reply")
     public AdminQnaResponse reply(@PathVariable Long id,
                                   @RequestBody @Valid QnaReplyRequest request,
-                                  @AdminUserId Long adminId) {
-        return AdminQnaResponse.from(qnaUseCase.replyAndGet(id, request.replyContent(), adminId));
+                                  @AuthenticationPrincipal AdminPrincipal admin) {
+        return AdminQnaResponse.from(qnaUseCase.replyAndGet(
+                id, request.replyContent(), admin.adminUserId()));
     }
 }

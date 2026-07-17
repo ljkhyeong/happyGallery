@@ -2,9 +2,10 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.application.pass.port.in.PassQueryUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyPassSummary;
-import com.personal.happygallery.adapter.in.web.resolver.CustomerUserId;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,13 +27,14 @@ public class MePassController {
     }
 
     @GetMapping
-    public List<MyPassSummary> myPasses(@CustomerUserId Long userId) {
-        return MyPassSummary.fromAll(passQueryUseCase.listMyPasses(userId));
+    public List<MyPassSummary> myPasses(@AuthenticationPrincipal CustomerPrincipal customer) {
+        return MyPassSummary.fromAll(passQueryUseCase.listMyPasses(customer.userId()));
     }
 
     @GetMapping("/{id}")
-    public MyPassSummary myPass(@PathVariable Long id, @CustomerUserId Long userId) {
-        PassPurchase pass = passQueryUseCase.findMyPass(id, userId);
+    public MyPassSummary myPass(@PathVariable Long id,
+                                @AuthenticationPrincipal CustomerPrincipal customer) {
+        PassPurchase pass = passQueryUseCase.findMyPass(id, customer.userId());
         return MyPassSummary.from(pass);
     }
 }

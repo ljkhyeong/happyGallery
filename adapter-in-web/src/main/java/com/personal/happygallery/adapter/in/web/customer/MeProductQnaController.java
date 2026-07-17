@@ -3,9 +3,10 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.CreateQnaRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.QnaCreatedResponse;
-import com.personal.happygallery.adapter.in.web.resolver.CustomerUserId;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,9 +28,9 @@ public class MeProductQnaController {
     @ResponseStatus(HttpStatus.CREATED)
     public QnaCreatedResponse create(@PathVariable Long productId,
                                      @RequestBody @Valid CreateQnaRequest request,
-                                     @CustomerUserId Long userId) {
+                                     @AuthenticationPrincipal CustomerPrincipal customer) {
         return QnaCreatedResponse.from(qnaUseCase.createQuestion(
-                productId, userId, request.title(), request.content(),
+                productId, customer.userId(), request.title(), request.content(),
                 request.secret(), request.password()));
     }
 }

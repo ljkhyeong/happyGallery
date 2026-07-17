@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.NotificationService;
@@ -27,6 +28,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
@@ -68,6 +71,8 @@ class OrderApprovalUseCaseIT {
     @BeforeEach
     void setUp() {
         cleanup();
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(
+                AdminPrincipal.apiKey(), null, "ROLE_ADMIN"));
         orderHelper = new OrderTestHelper(
                 productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort,
                 userStorePort, orderService, clock);
@@ -79,6 +84,7 @@ class OrderApprovalUseCaseIT {
     }
 
     private void cleanup() {
+        SecurityContextHolder.clearContext();
         cleanupSupport.clearOrderData();
         cleanupSupport.clearUsers();
     }

@@ -3,10 +3,11 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.CreateInquiryRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.InquiryResponse;
-import com.personal.happygallery.adapter.in.web.resolver.CustomerUserId;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,21 +29,22 @@ public class MeInquiryController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public InquiryResponse create(@RequestBody @Valid CreateInquiryRequest request,
-                                  @CustomerUserId Long userId) {
-        var inquiry = inquiryUseCase.create(userId, request.title(), request.content());
+                                  @AuthenticationPrincipal CustomerPrincipal customer) {
+        var inquiry = inquiryUseCase.create(customer.userId(), request.title(), request.content());
         return InquiryResponse.from(inquiry);
     }
 
     @GetMapping
-    public List<InquiryResponse> list(@CustomerUserId Long userId) {
-        return inquiryUseCase.listByUser(userId).stream()
+    public List<InquiryResponse> list(@AuthenticationPrincipal CustomerPrincipal customer) {
+        return inquiryUseCase.listByUser(customer.userId()).stream()
                 .map(InquiryResponse::from)
                 .toList();
     }
 
     @GetMapping("/{id}")
-    public InquiryResponse detail(@PathVariable Long id, @CustomerUserId Long userId) {
-        var inquiry = inquiryUseCase.findByIdAndUser(id, userId);
+    public InquiryResponse detail(@PathVariable Long id,
+                                  @AuthenticationPrincipal CustomerPrincipal customer) {
+        var inquiry = inquiryUseCase.findByIdAndUser(id, customer.userId());
         return InquiryResponse.from(inquiry);
     }
 }

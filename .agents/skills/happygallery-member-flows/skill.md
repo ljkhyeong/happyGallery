@@ -33,7 +33,7 @@ description: >
 ## Architecture overview
 
 ```
-CustomerAuthFilter → Me*Controller (/api/v1/me)
+CustomerAuthenticationFilter → Me*Controller (/api/v1/me)
                        ├── /me/orders        (MeOrderController)
                        ├── /me/bookings      (MeBookingController, MemberBookingUseCase)
                        ├── /me/passes        (MePassController)
@@ -50,7 +50,7 @@ CustomerAuthFilter → Me*Controller (/api/v1/me)
 
 ## Non-negotiable invariants
 
-- `CustomerAuthFilter`가 회원 세션을 검증하고 request attribute로 userId를 설정한다 — 모든 /me API는 이 attribute를 통해 userId를 획득한다 (`@CustomerUserId` resolver 사용).
+- `CustomerAuthenticationFilter`가 회원 세션을 검증하고 `CustomerPrincipal`과 `SecurityContext`를 구성한다. 모든 `/me` API는 `@AuthenticationPrincipal CustomerPrincipal`로 현재 회원을 받고 `userId()`를 유스케이스에 전달한다.
 - 게스트 클레임은 전화번호 인증이 완료된 경우에만 실행 가능. `PhoneVerificationRequiredException` 발생 시 클라이언트는 인증 단계로 이동해야 한다.
 - 게스트 클레임 시 중복 소유 방지: `userId == null` 인 게스트 레코드만 claim 대상이다.
 - 회원 예약 생성 시 pass를 사용하면 `MemberBookingUseCase` 구현(`DefaultMemberBookingService`)이 pass credit 차감을 처리한다 — 예약 생성과 credit 차감은 같은 트랜잭션 내에 있어야 한다.
@@ -77,9 +77,9 @@ POST /api/v1/me/guest-claims           → ClaimResult (실제 클레임 실행)
 ## Likely code locations
 
 **Backend:**
-- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/CustomerAuthFilter.java`
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/customer/CustomerAuthenticationFilter.java`
 - `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/customer/Me*Controller.java`
-- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/resolver/CustomerUserId.java`
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/customer/CustomerPrincipal.java`
 - `application/src/main/java/com/personal/happygallery/application/customer/` — CustomerAuth/GuestClaim use case + port
 - `application/src/main/java/com/personal/happygallery/application/booking/DefaultMemberBookingService.java`
 - `application/src/main/java/com/personal/happygallery/application/booking/port/in/MemberBookingUseCase.java`

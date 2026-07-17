@@ -22,7 +22,7 @@
 - 관리자 체인은 서버 HTTP 세션을 만들지 않고 Redis Bearer 세션 또는 local API key로 인증한다.
 - 회원·공개 체인은 `HG_SESSION`에서 회원 ID를 읽어 요청 범위의 회원 principal과 `SecurityContext`를 구성한다.
 - `RequestIdFilter`와 `RateLimitFilter`는 인증 여부와 무관하게 모든 요청에 적용되도록 Security 체인 앞단에 유지한다.
-- 식별자만 필요한 컨트롤러는 기존 `@AdminUserId`, `@CustomerUserId`를 유지하고 argument resolver가 인증 principal에서 ID를 읽는다. `/api/v1/me`는 필터가 이미 조회한 회원 응답 스냅샷을 principal에서 재사용해 중복 조회를 피한다.
+- 컨트롤러는 Spring Security의 `@AuthenticationPrincipal`로 `AdminPrincipal` 또는 `CustomerPrincipal`을 직접 주입받고 필요한 ID를 애플리케이션 유스케이스에 전달한다. 회원 인증이 선택인 결제·클라이언트 모니터링 API는 nullable `CustomerPrincipal`로 게스트를 구분한다. `/api/v1/me`는 필터가 이미 조회한 회원 응답 스냅샷을 principal에서 재사용해 중복 조회를 피한다.
 
 ### 2. 관리자 인증은 Redis 기반 Bearer 세션을 기본으로 한다
 

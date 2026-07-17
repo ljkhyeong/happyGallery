@@ -7,10 +7,11 @@ import com.personal.happygallery.adapter.in.web.customer.dto.AddCartItemRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.CartResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyOrderSummary;
 import com.personal.happygallery.adapter.in.web.customer.dto.UpdateCartItemRequest;
-import com.personal.happygallery.adapter.in.web.resolver.CustomerUserId;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.domain.order.Order;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,34 +35,36 @@ public class MeCartController {
     }
 
     @GetMapping
-    public CartResponse getCart(@CustomerUserId Long userId) {
-        CartView cart = cartUseCase.getCart(userId);
+    public CartResponse getCart(@AuthenticationPrincipal CustomerPrincipal customer) {
+        CartView cart = cartUseCase.getCart(customer.userId());
         return CartResponse.from(cart);
     }
 
     @PostMapping("/items")
     @ResponseStatus(HttpStatus.CREATED)
-    public void addItem(@RequestBody @Valid AddCartItemRequest req, @CustomerUserId Long userId) {
-        cartUseCase.addItem(userId, req.productId(), req.qty());
+    public void addItem(@RequestBody @Valid AddCartItemRequest req,
+                        @AuthenticationPrincipal CustomerPrincipal customer) {
+        cartUseCase.addItem(customer.userId(), req.productId(), req.qty());
     }
 
     @PutMapping("/items/{productId}")
     public void updateItemQty(@PathVariable Long productId,
                               @RequestBody @Valid UpdateCartItemRequest req,
-                              @CustomerUserId Long userId) {
-        cartUseCase.updateItemQty(userId, productId, req.qty());
+                              @AuthenticationPrincipal CustomerPrincipal customer) {
+        cartUseCase.updateItemQty(customer.userId(), productId, req.qty());
     }
 
     @DeleteMapping("/items/{productId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removeItem(@PathVariable Long productId, @CustomerUserId Long userId) {
-        cartUseCase.removeItem(userId, productId);
+    public void removeItem(@PathVariable Long productId,
+                           @AuthenticationPrincipal CustomerPrincipal customer) {
+        cartUseCase.removeItem(customer.userId(), productId);
     }
 
     @PostMapping("/checkout")
     @ResponseStatus(HttpStatus.CREATED)
-    public MyOrderSummary checkout(@CustomerUserId Long userId) {
-        Order order = cartCheckoutUseCase.checkout(userId);
+    public MyOrderSummary checkout(@AuthenticationPrincipal CustomerPrincipal customer) {
+        Order order = cartCheckoutUseCase.checkout(customer.userId());
         return MyOrderSummary.from(order);
     }
 }

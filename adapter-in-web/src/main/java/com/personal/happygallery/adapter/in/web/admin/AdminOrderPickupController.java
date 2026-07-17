@@ -3,11 +3,12 @@ package com.personal.happygallery.adapter.in.web.admin;
 import com.personal.happygallery.adapter.in.web.admin.dto.BatchResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.MarkPickupReadyRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.PickupResponse;
-import com.personal.happygallery.adapter.in.web.resolver.AdminUserId;
+import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,17 +34,19 @@ public class AdminOrderPickupController {
     @ResponseStatus(HttpStatus.OK)
     public PickupResponse markPickupReady(@PathVariable Long id,
                                           @RequestBody MarkPickupReadyRequest request,
-                                          @AdminUserId Long adminId) {
+                                          @AuthenticationPrincipal AdminPrincipal admin) {
         OrderPickupUseCase.PickupResult result = orderPickupUseCase.markPickupReady(
-                id, request.pickupDeadlineAt(), adminId);
+                id, request.pickupDeadlineAt(), admin.adminUserId());
         return PickupResponse.from(result);
     }
 
     /** POST /api/v1/admin/orders/{id}/complete-pickup — 픽업 완료 (PICKUP_READY → PICKED_UP) */
     @PostMapping("/{id}/complete-pickup")
     @ResponseStatus(HttpStatus.OK)
-    public PickupResponse confirmPickup(@PathVariable Long id, @AdminUserId Long adminId) {
-        OrderPickupUseCase.PickupResult result = orderPickupUseCase.confirmPickup(id, adminId);
+    public PickupResponse confirmPickup(@PathVariable Long id,
+                                        @AuthenticationPrincipal AdminPrincipal admin) {
+        OrderPickupUseCase.PickupResult result = orderPickupUseCase.confirmPickup(
+                id, admin.adminUserId());
         return PickupResponse.from(result);
     }
 

@@ -10,7 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -65,8 +65,7 @@ public class CustomerAuthController {
     }
 
     @GetMapping("/me")
-    public CustomerUserResponse me(Authentication authentication) {
-        CustomerPrincipal customer = (CustomerPrincipal) authentication.getPrincipal();
+    public CustomerUserResponse me(@AuthenticationPrincipal CustomerPrincipal customer) {
         return new CustomerUserResponse(
                 customer.userId(),
                 customer.email(),

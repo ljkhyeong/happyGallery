@@ -3,8 +3,9 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyOrderSummary;
 import com.personal.happygallery.adapter.in.web.order.dto.OrderDetailResponse;
-import com.personal.happygallery.adapter.in.web.resolver.CustomerUserId;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,13 +27,14 @@ public class MeOrderController {
     }
 
     @GetMapping
-    public List<MyOrderSummary> myOrders(@CustomerUserId Long userId) {
-        return MyOrderSummary.fromAll(orderQueryUseCase.listMyOrders(userId));
+    public List<MyOrderSummary> myOrders(@AuthenticationPrincipal CustomerPrincipal customer) {
+        return MyOrderSummary.fromAll(orderQueryUseCase.listMyOrders(customer.userId()));
     }
 
     @GetMapping("/{id}")
-    public OrderDetailResponse myOrder(@PathVariable Long id, @CustomerUserId Long userId) {
-        OrderQueryUseCase.OrderDetail detail = orderQueryUseCase.findMyOrder(id, userId);
+    public OrderDetailResponse myOrder(@PathVariable Long id,
+                                       @AuthenticationPrincipal CustomerPrincipal customer) {
+        OrderQueryUseCase.OrderDetail detail = orderQueryUseCase.findMyOrder(id, customer.userId());
         return OrderDetailResponse.from(detail);
     }
 }

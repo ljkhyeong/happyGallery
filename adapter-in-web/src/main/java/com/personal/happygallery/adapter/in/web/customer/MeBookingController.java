@@ -7,11 +7,12 @@ import com.personal.happygallery.adapter.in.web.booking.dto.CancelResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MemberRescheduleRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyBookingDetail;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyBookingSummary;
-import com.personal.happygallery.adapter.in.web.resolver.CustomerUserId;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.domain.booking.Booking;
 import jakarta.validation.Valid;
 import java.time.Clock;
 import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -45,27 +46,31 @@ public class MeBookingController {
     }
 
     @GetMapping
-    public List<MyBookingSummary> myBookings(@CustomerUserId Long userId) {
-        return MyBookingSummary.fromAll(bookingQueryUseCase.listMyBookings(userId));
+    public List<MyBookingSummary> myBookings(@AuthenticationPrincipal CustomerPrincipal customer) {
+        return MyBookingSummary.fromAll(bookingQueryUseCase.listMyBookings(customer.userId()));
     }
 
     @GetMapping("/{id}")
-    public MyBookingDetail myBooking(@PathVariable Long id, @CustomerUserId Long userId) {
-        Booking booking = bookingQueryUseCase.findMyBooking(id, userId);
+    public MyBookingDetail myBooking(@PathVariable Long id,
+                                     @AuthenticationPrincipal CustomerPrincipal customer) {
+        Booking booking = bookingQueryUseCase.findMyBooking(id, customer.userId());
         return MyBookingDetail.from(booking, clock);
     }
 
     @PatchMapping("/{id}/reschedule")
     public MyBookingSummary rescheduleBooking(@PathVariable Long id,
                                               @RequestBody @Valid MemberRescheduleRequest req,
-                                              @CustomerUserId Long userId) {
-        Booking booking = bookingRescheduleUseCase.rescheduleMemberBooking(id, userId, req.newSlotId());
+                                              @AuthenticationPrincipal CustomerPrincipal customer) {
+        Booking booking = bookingRescheduleUseCase.rescheduleMemberBooking(
+                id, customer.userId(), req.newSlotId());
         return MyBookingSummary.from(booking);
     }
 
     @DeleteMapping("/{id}")
-    public CancelResponse cancelBooking(@PathVariable Long id, @CustomerUserId Long userId) {
-        BookingCancelUseCase.CancelResult result = bookingCancelUseCase.cancelMemberBooking(id, userId);
+    public CancelResponse cancelBooking(@PathVariable Long id,
+                                        @AuthenticationPrincipal CustomerPrincipal customer) {
+        BookingCancelUseCase.CancelResult result = bookingCancelUseCase.cancelMemberBooking(
+                id, customer.userId());
         return CancelResponse.from(result.booking(), result.refundable());
     }
 }

@@ -3,8 +3,9 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.notification.port.in.NotificationQueryUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.NotificationResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.UnreadCountResponse;
-import com.personal.happygallery.adapter.in.web.resolver.CustomerUserId;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,25 +26,26 @@ public class MeNotificationController {
     @GetMapping
     public List<NotificationResponse> list(@RequestParam(defaultValue = "0") int page,
                                            @RequestParam(defaultValue = "20") int size,
-                                           @CustomerUserId Long userId) {
-        return notificationQuery.listNotifications(userId, null, page, size).stream()
+                                           @AuthenticationPrincipal CustomerPrincipal customer) {
+        return notificationQuery.listNotifications(customer.userId(), null, page, size).stream()
                 .map(NotificationResponse::from)
                 .toList();
     }
 
     @GetMapping("/unread-count")
-    public UnreadCountResponse unreadCount(@CustomerUserId Long userId) {
-        long count = notificationQuery.countUnread(userId, null);
+    public UnreadCountResponse unreadCount(@AuthenticationPrincipal CustomerPrincipal customer) {
+        long count = notificationQuery.countUnread(customer.userId(), null);
         return new UnreadCountResponse(count);
     }
 
     @PatchMapping("/{id}/read")
-    public void markAsRead(@PathVariable Long id, @CustomerUserId Long userId) {
-        notificationQuery.markAsRead(id, userId, null);
+    public void markAsRead(@PathVariable Long id,
+                           @AuthenticationPrincipal CustomerPrincipal customer) {
+        notificationQuery.markAsRead(id, customer.userId(), null);
     }
 
     @PatchMapping("/read-all")
-    public void markAllAsRead(@CustomerUserId Long userId) {
-        notificationQuery.markAllAsRead(userId, null);
+    public void markAllAsRead(@AuthenticationPrincipal CustomerPrincipal customer) {
+        notificationQuery.markAllAsRead(customer.userId(), null);
     }
 }
