@@ -24,6 +24,7 @@ public enum ErrorCode {
 
     // 409 Conflict — 상태 충돌
     EMAIL_ALREADY_EXISTS(409, "이미 사용 중인 이메일입니다."),
+    SOCIAL_ACCOUNT_LINK_REQUIRED(409, "같은 이메일로 가입된 계정이 있습니다. 기존 로그인 수단을 이용해주세요."),
     ALREADY_REFUNDED(409, "이미 환불된 건입니다."),
     INVENTORY_NOT_ENOUGH(409, "재고가 부족합니다."),
     CAPACITY_EXCEEDED(409, "슬롯 정원이 초과되었습니다."),

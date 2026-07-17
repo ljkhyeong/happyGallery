@@ -10,20 +10,20 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 @Profile("!prod")
-class FakeGoogleOAuthClient implements OAuthTokenExchangePort {
+class FakeNaverOAuthClient implements OAuthTokenExchangePort {
 
-    private static final Logger log = LoggerFactory.getLogger(FakeGoogleOAuthClient.class);
+    private static final Logger log = LoggerFactory.getLogger(FakeNaverOAuthClient.class);
 
     @Override
     public SocialProvider provider() {
-        return SocialProvider.GOOGLE;
+        return SocialProvider.NAVER;
     }
 
     @Override
     public AuthorizationUrl buildAuthorizationUrl(String redirectUri, String state) {
-        log.info("[FAKE] Google OAuth authorization URL — redirectUri={}", redirectUri);
+        log.info("[FAKE] Naver OAuth authorization URL — redirectUri={}", redirectUri);
         String callbackUrl = UriComponentsBuilder.fromUriString(redirectUri)
-                .queryParam("code", "fake-google-code")
+                .queryParam("code", "fake-naver-code")
                 .queryParam("state", state)
                 .build()
                 .encode()
@@ -33,11 +33,11 @@ class FakeGoogleOAuthClient implements OAuthTokenExchangePort {
 
     @Override
     public OAuthUserInfo exchangeCodeForUserInfo(String authorizationCode, String redirectUri, String state) {
-        log.info("[FAKE] Google OAuth code exchange — redirectUri={}", redirectUri);
+        log.info("[FAKE] Naver OAuth code exchange — redirectUri={}", redirectUri);
         return new OAuthUserInfo(
-                "fake-google-sub-" + authorizationCode.hashCode(),
+                "fake-naver-id-" + authorizationCode.hashCode(),
                 "social-test@example.com",
-                "테스트 구글 사용자"
+                "테스트 네이버 사용자"
         );
     }
 }

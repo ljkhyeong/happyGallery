@@ -23,7 +23,6 @@ import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.time.Clocks;
-import com.personal.happygallery.domain.user.AuthProvider;
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -164,7 +163,6 @@ final class RestDocsFixtures {
         when(user.getName()).thenReturn("회원");
         when(user.getPhone()).thenReturn("01012345678");
         when(user.isPhoneVerified()).thenReturn(true);
-        when(user.getProvider()).thenReturn(AuthProvider.LOCAL);
         return user;
     }
 

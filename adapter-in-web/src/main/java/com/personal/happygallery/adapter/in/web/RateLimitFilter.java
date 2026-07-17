@@ -45,6 +45,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final String X_FORWARDED_FOR = "X-Forwarded-For";
     private static final String LEGACY_ADMIN_PATH_PREFIX = "/admin/";
     private static final String VERSIONED_ADMIN_PATH_PREFIX = "/api/v1/admin/";
+    private static final String SOCIAL_LOGIN_PATH_PREFIX = "/api/v1/auth/social/";
 
     private static final LimitRule PHONE_VERIFICATION_RULE = new LimitRule(
             "PHONE_VERIFICATION", "POST", "/bookings/phone-verifications", "/api/v1/bookings/phone-verifications");
@@ -61,7 +62,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final LimitRule ADMIN_SETUP_RULE = new LimitRule(
             "ADMIN_SETUP", "POST", "/admin/setup", "/api/v1/admin/setup");
     private static final LimitRule SOCIAL_LOGIN_RULE = new LimitRule(
-            "SOCIAL_LOGIN", "POST", null, "/api/v1/auth/social/google");
+            "SOCIAL_LOGIN", "POST", null, null);
+    private static final LimitRule SOCIAL_LOGIN_INIT_RULE = new LimitRule(
+            "SOCIAL_LOGIN_INIT", "GET", null, null);
     private static final LimitRule ADMIN_API_RULE = new LimitRule("ADMIN_API", null, null, null);
 
     private final ObjectMapper objectMapper;
@@ -121,8 +124,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (matches(request, CUSTOMER_SIGNUP_RULE)) {
             return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.customerSignupPerMinute(), Duration.ofMinutes(1));
         }
-        if (matches(request, SOCIAL_LOGIN_RULE)) {
+        if (matchesSocialLogin(request)) {
             return new ResolvedRule(SOCIAL_LOGIN_RULE, properties.socialLoginPerMinute(), Duration.ofMinutes(1));
+        }
+        if (matchesSocialLoginInit(request)) {
+            return new ResolvedRule(SOCIAL_LOGIN_INIT_RULE, properties.socialLoginPerMinute(), Duration.ofMinutes(1));
         }
         if (matches(request, ADMIN_LOGIN_RULE)) {
             return new ResolvedRule(ADMIN_LOGIN_RULE, properties.adminLoginPerMinute(), Duration.ofMinutes(1));
@@ -147,10 +153,41 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean matches(HttpServletRequest request, LimitRule rule) {
-        if (!request.getMethod().equals(rule.method())) return false;
+        if (!request.getMethod().equals(rule.method())) {
+            return false;
+        }
         String uri = request.getRequestURI();
         return (rule.legacyPath() != null && uri.equals(rule.legacyPath()))
                 || (rule.versionedPath() != null && uri.equals(rule.versionedPath()));
+    }
+
+    private boolean matchesSocialLogin(HttpServletRequest request) {
+        return matchesSocialProviderPath(request, SOCIAL_LOGIN_RULE.method(), "");
+    }
+
+    private boolean matchesSocialLoginInit(HttpServletRequest request) {
+        return matchesSocialProviderPath(request, SOCIAL_LOGIN_INIT_RULE.method(), "/url");
+    }
+
+    private boolean matchesSocialProviderPath(HttpServletRequest request,
+                                              String method,
+                                              String suffix) {
+        if (!request.getMethod().equals(method)) {
+            return false;
+        }
+
+        String uri = request.getRequestURI();
+        if (!uri.startsWith(SOCIAL_LOGIN_PATH_PREFIX)) {
+            return false;
+        }
+
+        String providerPath = uri.substring(SOCIAL_LOGIN_PATH_PREFIX.length());
+        if (!providerPath.endsWith(suffix)) {
+            return false;
+        }
+
+        String provider = providerPath.substring(0, providerPath.length() - suffix.length());
+        return !provider.isBlank() && !provider.contains("/");
     }
 
     private boolean isAdminPath(String uri) {

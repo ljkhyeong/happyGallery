@@ -143,7 +143,6 @@ test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미�
         name: "8회권 회원",
         phone: "01012345678",
         phoneVerified: true,
-        provider: "LOCAL",
       }),
     });
   });

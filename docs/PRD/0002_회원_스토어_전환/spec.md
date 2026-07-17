@@ -292,7 +292,7 @@
 - 장바구니: 현재 구현됨. 다만 `POST /api/v1/me/cart/checkout`은 결제 API 우회 경로라 `plan.md`의 `P1R-T1`에서 전환 또는 별도 계약 분리가 필요하다.
 - 리뷰/별점: 미구현.
 - Q&A: Product Q&A와 1:1 문의는 현재 구현됨.
-- 소셜 로그인: Google 로그인은 현재 구현됨. 서버 측 `state` 검증 강화는 `simple-idea.md` 후속 항목.
+- 소셜 로그인: Google과 Naver 로그인을 지원하며, 서버 세션에 저장한 provider별 `state`를 콜백에서 1회 검증한다.
 - 네이버페이/스마트스토어 API 연동
 - 쿠폰/적립금/찜
 - 상품 이미지 CMS

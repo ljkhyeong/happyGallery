@@ -19,6 +19,7 @@ import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseReposi
 import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptRepository;
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
+import com.personal.happygallery.adapter.out.persistence.user.SocialAccountRepository;
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
 import org.springframework.stereotype.Component;
 
@@ -44,6 +45,7 @@ public class TestCleanupSupport {
     private final PaymentAttemptRepository paymentAttemptRepository;
     private final InventoryRepository inventoryRepository;
     private final ProductRepository productRepository;
+    private final SocialAccountRepository socialAccountRepository;
     private final UserRepository userRepository;
 
     public TestCleanupSupport(AdminUserRepository adminUserRepository,
@@ -65,6 +67,7 @@ public class TestCleanupSupport {
                               PaymentAttemptRepository paymentAttemptRepository,
                               InventoryRepository inventoryRepository,
                               ProductRepository productRepository,
+                              SocialAccountRepository socialAccountRepository,
                               UserRepository userRepository) {
         this.adminUserRepository = adminUserRepository;
         this.bookingHistoryRepository = bookingHistoryRepository;
@@ -85,6 +88,7 @@ public class TestCleanupSupport {
         this.paymentAttemptRepository = paymentAttemptRepository;
         this.inventoryRepository = inventoryRepository;
         this.productRepository = productRepository;
+        this.socialAccountRepository = socialAccountRepository;
         this.userRepository = userRepository;
     }
 
@@ -159,6 +163,7 @@ public class TestCleanupSupport {
     }
 
     public void clearUsers() {
+        socialAccountRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
     }
 

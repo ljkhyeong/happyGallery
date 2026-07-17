@@ -498,6 +498,8 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 |------|------|
 | `GOOGLE_OAUTH_CLIENT_ID` | Google 로그인 |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Google 로그인 |
+| `NAVER_OAUTH_CLIENT_ID` | Naver 로그인 |
+| `NAVER_OAUTH_CLIENT_SECRET` | Naver 로그인 |
 | `KAKAO_API_KEY` | 카카오 알림톡 |
 | `KAKAO_SENDER_KEY` | 카카오 알림톡 |
 | `SMS_API_KEY` | SMS 발송 |
@@ -520,6 +522,11 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 | `GOOGLE_OAUTH_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
 | `GOOGLE_OAUTH_MAX_CONNECTIONS` | `10` |
 | `GOOGLE_OAUTH_KEEP_ALIVE_MILLIS` | `30000` |
+| `NAVER_OAUTH_TIMEOUT_MILLIS` | `5000` |
+| `NAVER_OAUTH_CONNECT_TIMEOUT_MILLIS` | `2000` |
+| `NAVER_OAUTH_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
+| `NAVER_OAUTH_MAX_CONNECTIONS` | `10` |
+| `NAVER_OAUTH_KEEP_ALIVE_MILLIS` | `30000` |
 | `KAKAO_TIMEOUT_MILLIS` | `5000` |
 | `KAKAO_CONNECT_TIMEOUT_MILLIS` | `2000` |
 | `KAKAO_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
@@ -737,7 +744,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 - `GUEST_TOKEN_HMAC_SECRET`
 - `app.field-encryption.encrypt-key`
 - `app.field-encryption.hmac-key`
-- `KAKAO_*`, `SMS_*`, `GOOGLE_OAUTH_*`
+- `KAKAO_*`, `SMS_*`, `GOOGLE_OAUTH_*`, `NAVER_OAUTH_*`
 - `TOSS_SECRET_KEY`
 - 백엔드 `SENTRY_DSN`
 

@@ -150,6 +150,52 @@ class RateLimitFilterTest {
         });
     }
 
+    @DisplayName("구글과 네이버 로그인은 동일한 소셜 로그인 처리율 제한을 사용한다")
+    @Test
+    void appliesSameLimit_forGoogleAndNaverLogin() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(
+                objectMapper, propertiesWithSocialLoginLimit(1), mockRedis());
+
+        MockHttpServletRequest google = new MockHttpServletRequest("POST", "/api/v1/auth/social/google");
+        google.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse googleResponse = new MockHttpServletResponse();
+        filter.doFilter(google, googleResponse, new MockFilterChain());
+
+        MockHttpServletRequest naver = new MockHttpServletRequest("POST", "/api/v1/auth/social/naver");
+        naver.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse naverResponse = new MockHttpServletResponse();
+        filter.doFilter(naver, naverResponse, new MockFilterChain());
+
+        assertSoftly(softly -> {
+            softly.assertThat(googleResponse.getStatus()).isEqualTo(200);
+            softly.assertThat(naverResponse.getStatus()).isEqualTo(429);
+        });
+    }
+
+    @DisplayName("소셜 로그인 URL 발급은 코드 교환과 분리된 처리율 제한을 사용한다")
+    @Test
+    void limitsSocialLoginInitializationSeparately() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(
+                objectMapper, propertiesWithSocialLoginLimit(1), mockRedis());
+
+        MockHttpServletRequest google = new MockHttpServletRequest(
+                "GET", "/api/v1/auth/social/google/url");
+        google.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse googleResponse = new MockHttpServletResponse();
+        filter.doFilter(google, googleResponse, new MockFilterChain());
+
+        MockHttpServletRequest naver = new MockHttpServletRequest(
+                "GET", "/api/v1/auth/social/naver/url");
+        naver.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse naverResponse = new MockHttpServletResponse();
+        filter.doFilter(naver, naverResponse, new MockFilterChain());
+
+        assertSoftly(softly -> {
+            softly.assertThat(googleResponse.getStatus()).isEqualTo(200);
+            softly.assertThat(naverResponse.getStatus()).isEqualTo(429);
+        });
+    }
+
     @SuppressWarnings("unchecked")
     private static StringRedisTemplate mockRedis() {
         ConcurrentHashMap<String, AtomicLong> counters = new ConcurrentHashMap<>();
@@ -203,6 +249,22 @@ class RateLimitFilterTest {
                 adminSetupPerMinute,
                 adminApiPerMinute,
                 10
+        );
+    }
+
+    private static RateLimitProperties propertiesWithSocialLoginLimit(long socialLoginPerMinute) {
+        return new RateLimitProperties(
+                true,
+                false,
+                10,
+                30,
+                20,
+                10,
+                5,
+                5,
+                5,
+                120,
+                socialLoginPerMinute
         );
     }
 }

@@ -3,7 +3,7 @@ package com.personal.happygallery.adapter.in.web.customer.dto;
 import com.personal.happygallery.domain.user.User;
 
 public record CustomerUserResponse(Long id, String email, String name, String phone,
-                                    boolean phoneVerified, String provider) {
+                                   boolean phoneVerified) {
 
     public static CustomerUserResponse from(User user) {
         return new CustomerUserResponse(
@@ -11,8 +11,7 @@ public record CustomerUserResponse(Long id, String email, String name, String ph
                 user.getEmail(),
                 user.getName(),
                 user.getPhone(),
-                user.isPhoneVerified(),
-                user.getProvider().name()
+                user.isPhoneVerified()
         );
     }
 }

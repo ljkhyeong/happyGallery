@@ -57,6 +57,7 @@ npm run dev
 - `local` 프로필에서는 DB가 비어 있으면 기본 클래스 3종과 관리자 계정 `admin / admin1234`를 자동 생성한다.
 - 로컬과 개발 환경에서는 `X-Admin-Key: dev-admin-key`를 사용할 수 있다.
 - `prod`가 아닌 환경에서는 실제 알림/결제 대신 테스트용 발송기와 `FakePaymentProvider`를 사용한다.
+- `prod`가 아닌 환경의 Google/Naver 로그인은 외부 인증 화면 없이 테스트용 콜백으로 즉시 돌아온다.
 - `local`이 아닌 환경에서 최초 관리자 계정이 필요하면 `ADMIN_SETUP_TOKEN`을 주입하고 `/api/v1/admin/setup`을 호출한다.
 - 반복 E2E처럼 짧은 시간에 인증/관리 요청이 몰리는 로컬 검증에서는 `RATE_LIMIT_ENABLED=false`를 사용할 수 있다.
 
@@ -153,10 +154,20 @@ docker compose up -d --build
 | `PAYMENT_EXECUTOR_POOL_SIZE` | 백엔드 | PG 호출 실행 스레드 수, 기본 `4` |
 | `PAYMENT_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | PG 호출 대기열 크기, 기본 `20` |
 | `PASS_TOTAL_PRICE` | 백엔드 | 8회권 결제 금액 |
+| `GOOGLE_OAUTH_CLIENT_ID` | 백엔드 `prod` | Google 로그인 client ID |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Google 로그인 client secret |
+| `NAVER_OAUTH_CLIENT_ID` | 백엔드 `prod` | Naver 로그인 client ID |
+| `NAVER_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Naver 로그인 client secret |
 | `RATE_LIMIT_ENABLED` | 백엔드 | 로컬 반복 검증 시 처리율 제한 off 가능 |
 | `ADMIN_SETUP_TOKEN` | 백엔드 | 최초 관리자 계정 생성용 일회성 토큰 |
 
 환경별 전체 설정은 [application.yml](bootstrap/src/main/resources/application.yml)과 [application-local.yml](bootstrap/src/main/resources/application-local.yml)을 기준으로 확인한다.
+
+Naver 로그인 운영 등록 조건:
+
+- Naver Developers 애플리케이션에 서비스 origin과 정확한 콜백 URI `${서비스 origin}/auth/callback/naver`를 등록한다.
+- 회원 프로필의 이메일과 이름 제공 항목을 사용하도록 설정한다. 둘 중 하나가 제공되지 않으면 서비스 회원을 식별할 수 없어 로그인을 거절한다.
+- 로그인 버튼은 [Naver 로그인 버튼 사용 가이드](https://developers.naver.com/docs/login/bi/bi.md)의 공식 심벌과 지정 색상을 사용한다.
 
 ## 문서 진입점
 

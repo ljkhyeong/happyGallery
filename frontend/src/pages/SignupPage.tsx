@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { api } from "@/shared/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { normalizePhone } from "@/shared/validation/phone";
-import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 
 export function SignupPage() {
   const { signup } = useCustomerAuth();
@@ -143,25 +142,7 @@ export function SignupPage() {
                 <span className="px-3 text-muted-soft small">또는</span>
                 <hr className="flex-grow-1" />
               </div>
-              <Button
-                variant="outline-dark"
-                className="w-100"
-                onClick={async () => {
-                  sessionStorage.setItem(SESSION_KEYS.socialLoginReturnTo, redirectTo);
-                  const redirectUri = window.location.origin + "/auth/callback/google";
-                  try {
-                    const data = await api<{ url: string; state: string }>(
-                      `/auth/social/google/url?redirectUri=${encodeURIComponent(redirectUri)}`,
-                    );
-                    sessionStorage.setItem(SESSION_KEYS.googleOauthState, data.state);
-                    window.location.href = data.url;
-                  } catch {
-                    setError("Google 로그인 준비에 실패했습니다.");
-                  }
-                }}
-              >
-                Google로 회원가입
-              </Button>
+              <SocialLoginButtons action="회원가입" returnTo={redirectTo} onError={setError} />
               <div className="auth-footer-link mt-4">
                 이미 계정이 있으신가요? <Link to={loginHref}>로그인</Link>
               </div>

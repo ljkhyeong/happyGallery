@@ -29,24 +29,29 @@ import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.qna.ProductQna;
+import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.domain.user.User;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class CustomerApiRestDocsTest extends RestDocsTestSupport {
@@ -93,7 +98,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
 
         when(customerAuthUseCase.signup(any())).thenReturn(user);
         when(customerAuthUseCase.login(any())).thenReturn(user);
-        when(socialAuthUseCase.buildAuthorizationUrl(any()))
+        when(socialAuthUseCase.buildAuthorizationUrl(any(), any()))
                 .thenReturn(new SocialAuthUseCase.AuthorizationUrlResult(
                         "https://accounts.google.com/o/oauth2/v2/auth?state=state-123",
                         "state-123"));
@@ -191,21 +196,39 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void google_auth_url() throws Exception {
         mockMvc.perform(get("/api/v1/auth/social/google/url")
                         .param("redirectUri", "https://happygallery.example/auth/callback"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+
+        verify(socialAuthUseCase).buildAuthorizationUrl(
+                SocialProvider.GOOGLE, "https://happygallery.example/auth/callback");
     }
 
     @Test
-    @DisplayName("구글 로그인 API를 문서화한다")
-    void google_login() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/social/google")
+    @DisplayName("네이버 로그인 API를 문서화한다")
+    void naver_login() throws Exception {
+        var authorizationResult = mockMvc.perform(get("/api/v1/auth/social/naver/url")
+                        .param("redirectUri", "https://happygallery.example/auth/callback"))
+                .andExpect(status().isOk())
+                .andReturn();
+        var session = (MockHttpSession) authorizationResult.getRequest().getSession(false);
+
+        mockMvc.perform(post("/api/v1/auth/social/naver")
+                        .session(session)
                         .contentType(jsonContent())
                         .content(json("""
                                 {
                                   "code": "oauth-code",
-                                  "redirectUri": "https://happygallery.example/auth/callback"
+                                  "redirectUri": "https://happygallery.example/auth/callback",
+                                  "state": "state-123"
                                 }
                                 """)))
                 .andExpect(status().isOk());
+
+        verify(socialAuthUseCase).socialLogin(new SocialAuthUseCase.SocialLoginCommand(
+                SocialProvider.NAVER,
+                "oauth-code",
+                "https://happygallery.example/auth/callback",
+                "state-123"));
     }
 
     @Test

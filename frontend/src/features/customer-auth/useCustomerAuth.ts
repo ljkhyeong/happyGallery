@@ -1,6 +1,7 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { api } from "@/shared/api";
+import { api, ApiError } from "@/shared/api";
 import { normalizePhone } from "@/shared/validation/phone";
+import type { SocialProvider } from "@/features/customer-auth/socialAuth";
 
 interface CustomerUserResponse {
   id: number;
@@ -8,7 +9,6 @@ interface CustomerUserResponse {
   name: string;
   phone: string;
   phoneVerified: boolean;
-  provider: string;
 }
 
 interface SocialLoginResponse {
@@ -22,7 +22,6 @@ export interface CustomerUser {
   name: string;
   phone: string;
   phoneVerified: boolean;
-  provider: string;
 }
 
 interface CustomerAuthContextValue {
@@ -31,7 +30,12 @@ interface CustomerAuthContextValue {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   signup: (email: string, password: string, name: string, phone: string) => Promise<boolean>;
-  socialLogin: (code: string, redirectUri: string) => Promise<{ ok: boolean; newUser: boolean }>;
+  socialLogin: (
+    provider: SocialProvider,
+    code: string,
+    redirectUri: string,
+    state: string,
+  ) => Promise<{ ok: boolean; newUser: boolean; errorCode?: string }>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -95,16 +99,25 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const socialLogin = useCallback(
-    async (code: string, redirectUri: string): Promise<{ ok: boolean; newUser: boolean }> => {
+    async (
+      provider: SocialProvider,
+      code: string,
+      redirectUri: string,
+      state: string,
+    ): Promise<{ ok: boolean; newUser: boolean; errorCode?: string }> => {
       try {
-        const res = await api<SocialLoginResponse>("/auth/social/google", {
+        const res = await api<SocialLoginResponse>(`/auth/social/${provider}`, {
           method: "POST",
-          body: { code, redirectUri },
+          body: { code, redirectUri, state },
         });
         setUser(res.user);
         return { ok: true, newUser: res.newUser };
-      } catch {
-        return { ok: false, newUser: false };
+      } catch (error) {
+        return {
+          ok: false,
+          newUser: false,
+          errorCode: error instanceof ApiError ? error.code : undefined,
+        };
       }
     },
     [],

@@ -19,50 +19,47 @@ import org.springframework.web.client.RestClient;
 
 @Component
 @Profile("prod")
-class GoogleOAuthClient implements OAuthTokenExchangePort {
+class NaverOAuthClient implements OAuthTokenExchangePort {
 
-    private static final Logger log = LoggerFactory.getLogger(GoogleOAuthClient.class);
-    private static final String GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+    private static final Logger log = LoggerFactory.getLogger(NaverOAuthClient.class);
+    private static final String NAVER_AUTH_URL = "https://nid.naver.com/oauth2.0/authorize";
 
     private final RestClient restClient;
-    private final GoogleOAuthProperties props;
+    private final NaverOAuthProperties props;
 
-    GoogleOAuthClient(RestClient googleOAuthRestClient, GoogleOAuthProperties props) {
-        this.restClient = googleOAuthRestClient;
+    NaverOAuthClient(RestClient naverOAuthRestClient, NaverOAuthProperties props) {
+        this.restClient = naverOAuthRestClient;
         this.props = props;
     }
 
     @Override
     public SocialProvider provider() {
-        return SocialProvider.GOOGLE;
+        return SocialProvider.NAVER;
     }
 
     @Override
     public AuthorizationUrl buildAuthorizationUrl(String redirectUri, String state) {
-        String url = GOOGLE_AUTH_URL
-                + "?client_id=" + encode(props.clientId())
+        String url = NAVER_AUTH_URL
+                + "?response_type=code"
+                + "&client_id=" + encode(props.clientId())
                 + "&redirect_uri=" + encode(redirectUri)
-                + "&response_type=code"
-                + "&scope=" + encode("openid email profile")
-                + "&state=" + encode(state)
-                + "&access_type=offline"
-                + "&prompt=consent";
+                + "&state=" + encode(state);
         return new AuthorizationUrl(url, state);
     }
 
     @Override
     public OAuthUserInfo exchangeCodeForUserInfo(String authorizationCode, String redirectUri, String state) {
-        String accessToken = exchangeToken(authorizationCode, redirectUri);
+        String accessToken = exchangeToken(authorizationCode, state);
         return fetchUserInfo(accessToken);
     }
 
-    private String exchangeToken(String code, String redirectUri) {
+    private String exchangeToken(String code, String state) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("grant_type", "authorization_code");
-        form.add("code", code);
         form.add("client_id", props.clientId());
         form.add("client_secret", props.clientSecret());
-        form.add("redirect_uri", redirectUri);
+        form.add("code", code);
+        form.add("state", state);
 
         TokenResponse response = restClient.post()
                 .uri(props.tokenUrl())
@@ -71,41 +68,38 @@ class GoogleOAuthClient implements OAuthTokenExchangePort {
                 .retrieve()
                 .body(TokenResponse.class);
 
-        if (response == null || response.accessToken() == null) {
-            log.error("Google OAuth token exchange failed: null response");
+        if (response == null || !StringUtils.hasText(response.accessToken())) {
+            log.error("Naver OAuth token exchange failed: access token missing");
             throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
         }
         return response.accessToken();
     }
 
     private OAuthUserInfo fetchUserInfo(String accessToken) {
-        UserInfoResponse response = restClient.get()
+        UserInfoEnvelope envelope = restClient.get()
                 .uri(props.userInfoUrl())
                 .header("Authorization", "Bearer " + accessToken)
                 .retrieve()
-                .body(UserInfoResponse.class);
+                .body(UserInfoEnvelope.class);
 
+        UserInfoResponse response = envelope == null ? null : envelope.response();
         if (response == null
-                || !StringUtils.hasText(response.sub())
+                || !StringUtils.hasText(response.id())
                 || !StringUtils.hasText(response.email())
-                || !StringUtils.hasText(response.name())
-                || !Boolean.TRUE.equals(response.emailVerified())) {
-            log.error("Google OAuth userinfo fetch failed: required verified profile field missing");
+                || !StringUtils.hasText(response.name())) {
+            log.error("Naver OAuth userinfo fetch failed: required profile field missing");
             throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
         }
-        return new OAuthUserInfo(response.sub(), response.email(), response.name());
+        return new OAuthUserInfo(response.id(), response.email(), response.name());
     }
 
     private record TokenResponse(
             @JsonProperty("access_token") String accessToken
     ) {}
 
-    private record UserInfoResponse(
-            String sub,
-            String email,
-            String name,
-            @JsonProperty("email_verified") Boolean emailVerified
-    ) {}
+    private record UserInfoEnvelope(UserInfoResponse response) {}
+
+    private record UserInfoResponse(String id, String email, String name) {}
 
     private static String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);

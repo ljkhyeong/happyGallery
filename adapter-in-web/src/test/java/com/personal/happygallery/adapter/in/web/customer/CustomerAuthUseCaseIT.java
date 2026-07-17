@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.customer.dto.CustomerLoginRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.SignupRequest;
+import com.personal.happygallery.adapter.in.web.customer.dto.SocialLoginRequest;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
@@ -11,14 +12,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.ObjectMapper;
 
+import static org.hamcrest.Matchers.startsWith;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -58,6 +63,7 @@ class CustomerAuthUseCaseIT {
                 .andExpect(jsonPath("$.name").value("테스트"))
                 .andExpect(jsonPath("$.phone").value("010-1234-5678"))
                 .andExpect(jsonPath("$.phoneVerified").value(false))
+                .andExpect(jsonPath("$.provider").doesNotExist())
                 .andExpect(cookie().exists("HG_SESSION"))
                 .andExpect(cookie().httpOnly("HG_SESSION", true));
     }
@@ -131,5 +137,43 @@ class CustomerAuthUseCaseIT {
                         .cookie(sessionCookie))
                 .andExpect(status().isNoContent())
                 .andExpect(cookie().maxAge("HG_SESSION", 0));
+    }
+
+    @DisplayName("소셜 로그인 state가 세션과 다르면 로그인을 거절한다")
+    @Test
+    void socialLogin_rejectsMismatchedState() throws Exception {
+        String redirectUri = "https://happygallery.example/auth/callback/naver";
+        var authorizationResult = mockMvc.perform(get("/api/v1/auth/social/naver/url")
+                        .param("redirectUri", redirectUri))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.url").value(startsWith(
+                        redirectUri + "?code=fake-naver-code&state=")))
+                .andExpect(cookie().exists("HG_SESSION"))
+                .andReturn();
+
+        var sessionCookie = authorizationResult.getResponse().getCookie("HG_SESSION");
+
+        mockMvc.perform(post("/api/v1/auth/social/naver")
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new SocialLoginRequest("oauth-code", redirectUri, "wrong-state"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_FAILED"));
+    }
+
+    @DisplayName("state를 보내지 않는 기존 Google 콜백도 전환 배포 중에는 로그인된다")
+    @Test
+    void googleSocialLogin_acceptsLegacyRequestWithoutState() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/social/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new SocialLoginRequest(
+                                "legacy-google-code",
+                                "https://happygallery.example/auth/callback/google",
+                                null))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.email").value("social-test@example.com"))
+                .andExpect(cookie().exists("HG_SESSION"));
     }
 }

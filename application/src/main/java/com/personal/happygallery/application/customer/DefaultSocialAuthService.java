@@ -4,14 +4,22 @@ import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.customer.port.out.OAuthTokenExchangePort;
 import com.personal.happygallery.application.customer.port.out.OAuthTokenExchangePort.AuthorizationUrl;
 import com.personal.happygallery.application.customer.port.out.OAuthTokenExchangePort.OAuthUserInfo;
+import com.personal.happygallery.application.customer.port.out.SocialAccountReaderPort;
+import com.personal.happygallery.application.customer.port.out.SocialAccountStorePort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
-import com.personal.happygallery.domain.user.AuthProvider;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.user.SocialAccount;
+import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -20,20 +28,27 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DefaultSocialAuthService implements SocialAuthUseCase {
 
-    private final OAuthTokenExchangePort oauthPort;
+    private final Map<SocialProvider, OAuthTokenExchangePort> oauthPorts;
+    private final SocialAccountReaderPort socialAccountReader;
+    private final SocialAccountStorePort socialAccountStore;
     private final UserReaderPort userReader;
     private final UserStorePort userStore;
     private final FieldEncryptor fieldEncryptor;
     private final BlindIndexer blindIndexer;
     private final Clock clock;
 
-    public DefaultSocialAuthService(OAuthTokenExchangePort oauthPort,
+    public DefaultSocialAuthService(List<OAuthTokenExchangePort> oauthPorts,
+                                    SocialAccountReaderPort socialAccountReader,
+                                    SocialAccountStorePort socialAccountStore,
                                     UserReaderPort userReader,
                                     UserStorePort userStore,
                                     FieldEncryptor fieldEncryptor,
                                     BlindIndexer blindIndexer,
                                     Clock clock) {
-        this.oauthPort = oauthPort;
+        this.oauthPorts = new EnumMap<>(SocialProvider.class);
+        oauthPorts.forEach(oauthPort -> this.oauthPorts.put(oauthPort.provider(), oauthPort));
+        this.socialAccountReader = socialAccountReader;
+        this.socialAccountStore = socialAccountStore;
         this.userReader = userReader;
         this.userStore = userStore;
         this.fieldEncryptor = fieldEncryptor;
@@ -42,42 +57,77 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
     }
 
     @Override
-    public AuthorizationUrlResult buildAuthorizationUrl(String redirectUri) {
+    public AuthorizationUrlResult buildAuthorizationUrl(SocialProvider provider, String redirectUri) {
         String state = UUID.randomUUID().toString();
-        AuthorizationUrl authUrl = oauthPort.buildAuthorizationUrl(redirectUri, state);
+        AuthorizationUrl authUrl = oauthPort(provider).buildAuthorizationUrl(redirectUri, state);
         return new AuthorizationUrlResult(authUrl.url(), authUrl.state());
     }
 
     @Override
     @Transactional
     public SocialLoginResult socialLogin(SocialLoginCommand command) {
-        OAuthUserInfo info = oauthPort.exchangeCodeForUserInfo(
-                command.authorizationCode(), command.redirectUri());
+        OAuthUserInfo info = oauthPort(command.provider()).exchangeCodeForUserInfo(
+                command.authorizationCode(), command.redirectUri(), command.state());
 
-        // 1. provider + providerId로 기존 유저 조회
-        Optional<User> byProvider = userReader.findByProviderAndProviderId(
-                AuthProvider.GOOGLE, info.providerId());
-        if (byProvider.isPresent()) {
-            User user = byProvider.get();
-            user.updateLastLoginAt(LocalDateTime.now(clock));
+        Optional<SocialAccount> socialAccount = socialAccountReader.findByProviderAndProviderId(
+                command.provider(), info.providerId());
+        if (socialAccount.isPresent()) {
+            User user = findSocialAccountUser(socialAccount.get());
+            updateLastLogin(user);
             return new SocialLoginResult(user, false);
         }
 
-        // 2. 이메일로 기존 LOCAL 유저 조회 → 계정 연결
-        Optional<User> byEmail = userReader.findByEmail(info.email());
-        if (byEmail.isPresent()) {
-            User user = byEmail.get();
-            user.linkProvider(AuthProvider.GOOGLE, info.providerId());
-            user.updateLastLoginAt(LocalDateTime.now(clock));
+        Optional<Long> legacyUserId = userReader.findLegacyUserIdByProviderAndProviderId(
+                command.provider().name(), info.providerId());
+        if (legacyUserId.isPresent()) {
+            User user = userReader.findById(legacyUserId.get())
+                    .orElseThrow(() -> new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED));
+            linkSocialAccount(user, command.provider(), info.providerId());
+            updateLastLogin(user);
             return new SocialLoginResult(user, false);
         }
 
-        // 3. 신규 유저 생성
-        User newUser = new User(info.email(), info.name(), AuthProvider.GOOGLE, info.providerId());
-        newUser.applyEncryption(
+        Optional<User> existingUser = userReader.findByEmail(info.email());
+        if (existingUser.isPresent()) {
+            throw new HappyGalleryException(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
+        }
+
+        User user = createSocialUser(info);
+        linkSocialAccount(user, command.provider(), info.providerId());
+        updateLastLogin(user);
+
+        return new SocialLoginResult(user, true);
+    }
+
+    private OAuthTokenExchangePort oauthPort(SocialProvider provider) {
+        OAuthTokenExchangePort oauthPort = oauthPorts.get(provider);
+        if (oauthPort == null) {
+            throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
+        }
+        return oauthPort;
+    }
+
+    private User findSocialAccountUser(SocialAccount socialAccount) {
+        return userReader.findById(socialAccount.getUserId())
+                .orElseThrow(() -> new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED));
+    }
+
+    private User createSocialUser(OAuthUserInfo info) {
+        User user = User.fromSocialProfile(info.email(), info.name());
+        user.applyEncryption(
                 fieldEncryptor.encrypt(info.email()), blindIndexer.index(info.email()),
                 null, null);
-        userStore.save(newUser);
-        return new SocialLoginResult(newUser, true);
+        return userStore.save(user);
+    }
+
+    private void linkSocialAccount(User user, SocialProvider provider, String providerId) {
+        if (socialAccountReader.findByUserIdAndProvider(user.getId(), provider).isPresent()) {
+            throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
+        }
+        socialAccountStore.save(new SocialAccount(user.getId(), provider, providerId));
+    }
+
+    private void updateLastLogin(User user) {
+        user.updateLastLoginAt(LocalDateTime.now(clock));
     }
 }

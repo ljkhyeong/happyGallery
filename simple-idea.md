@@ -5,7 +5,7 @@
 
 | As-Is | To-Be |
 |------|-------|
-| Google OAuth `state`를 프론트 `sessionStorage`에서만 비교하고, 백엔드는 `code`/`redirectUri`만 받아 처리한다. | OAuth 시작 시 `state`를 서버 세션에도 저장하고, 콜백 또는 코드 교환 시 백엔드가 직접 검증해 login CSRF 방어 경계를 서버 쪽으로 옮긴다. |
+| ~~Google OAuth `state`를 프론트 `sessionStorage`에서만 비교하고, 백엔드는 `code`/`redirectUri`만 받아 처리한다.~~ | ~~OAuth 시작 시 `state`를 서버 세션에도 저장하고, 콜백 또는 코드 교환 시 백엔드가 직접 검증해 login CSRF 방어 경계를 서버 쪽으로 옮긴다.~~ |
 | `AdminAuthFilter`가 URL 시작 문자열과 `/auth/` 포함 여부만 보고 관리자 경로를 판정한다. | 공통 경로 판정 규칙이나 명시적 관리자 경로 목록을 두어 우회 가능성을 줄인다. |
 | `AdminBookingResponse`는 비회원 예약 기준의 이름/전화번호 구조를 강하게 전제한다. | 비회원 예약, 회원 예약, 이관된 예약을 모두 담을 수 있는 `customerSummary` 구조로 단순화한다. |
 | ~~`ProductQueryService`가 상품 목록 뒤에 재고를 건별 조회한다.~~ | ~~상품과 재고를 함께 읽는 조회 한 번으로 목록을 만들도록 바꾼다.~~ |
@@ -19,3 +19,7 @@
 | ~~예약금 예약 취소 시 `refundable`만 보고 `DEPOSIT_REFUNDED` 알림을 보내 PG 환불 실패와 성공을 구분하지 않는다.~~ | ~~`RefundStatus.SUCCEEDED`를 확인한 경우에만 환불 완료 알림을 보내고, 실패는 무알림 또는 별도 이벤트로 분리한다.~~ |
 | UseCase가 JPA 엔티티(`Booking`, `Slot` 등)를 컨트롤러에 직접 반환한다. 현재는 즉시 DTO로 바꾸기 때문에 안전하지만, 비동기 처리 도입 시 `LazyInitializationException` 위험이 있다. | 비동기 응답 조립이 필요해지면 UseCase 반환 타입을 record로 바꾼다. `CancelResult`, `ProductionResult` 같은 기존 패턴을 따른다. |
 | Response DTO·UseCase record의 팩토리 메서드가 ID 값을 낱개 인자로 받는 곳이 섞여 있다. 필드 추가 시 컴파일 에러로 잡히지 않고 파라미터 순서 실수 여지가 있다. | 팩토리 메서드는 엔티티 인스턴스를 직접 받도록 통일한다. Response DTO(웹 어댑터)와 UseCase record(app 레이어) 모두 도메인을 알 수 있는 의존 방향이므로 문제없다. |
+| 다중 소셜 계정 확장 배포 호환성을 위해 `users.provider`, `users.provider_id`, 기존 복합 인덱스와 legacy 소셜 계정 승격 조회를 임시 유지한다. | 모든 운영 인스턴스가 `user_social_accounts` 기반 버전으로 전환된 다음 릴리스에서 기존 컬럼·인덱스·legacy 조회 포트를 함께 제거한다. |
+| 롤링 배포 중 구 프런트 Google 콜백 호환을 위해 `state`가 없는 Google 코드 교환을 임시 허용한다. | 새 프런트 배포와 캐시 전환이 완료된 다음 릴리스에서 호환 분기를 제거해 Google과 Naver 모두 서버 `state` 검증을 필수화한다. |
+| 소셜 provider ID가 처음이고 이메일이 기존 회원과 겹치면 계정 공유를 막기 위해 자동 연결하지 않는다. | 로그인된 회원이 OAuth state를 다시 검증한 뒤 Google/Naver 계정을 명시적으로 연결할 수 있는 마이페이지 API와 화면을 추가한다. |
+| Naver는 이메일 검증 상태를 제공하지 않지만 이메일 충돌이 없는 신규 회원은 현재 프로필 이메일로 생성한다. | 자체 이메일 인증을 거친 뒤 canonical 이메일을 확정하거나, provider-scoped 임시 계정으로 시작해 이메일 선점 위험을 없앤다. |

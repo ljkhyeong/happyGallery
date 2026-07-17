@@ -754,6 +754,37 @@
   font-size: 0.875rem;
 }
 
+.social-login-button-naver {
+  --bs-btn-color: #FFFFFF;
+  --bs-btn-bg: #03A94D;
+  --bs-btn-border-color: #03A94D;
+  --bs-btn-hover-color: #FFFFFF;
+  --bs-btn-hover-bg: #03A94D;
+  --bs-btn-hover-border-color: #03A94D;
+  --bs-btn-active-color: #FFFFFF;
+  --bs-btn-active-bg: #03A94D;
+  --bs-btn-active-border-color: #03A94D;
+  --bs-btn-disabled-color: #FFFFFF;
+  --bs-btn-disabled-bg: #03A94D;
+  --bs-btn-disabled-border-color: #03A94D;
+  min-height: 48px;
+  padding-block: 3px;
+  font-size: 0.875rem;
+}
+
+.social-login-button-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.social-login-button-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+}
+
 .auth-prefill-card {
   padding: 1.25rem;
   background: var(--hg-surface-alt);
