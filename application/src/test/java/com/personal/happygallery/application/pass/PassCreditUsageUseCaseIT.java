@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.pass;
 
-import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
 import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -55,6 +54,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -64,8 +65,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class PassCreditUsageUseCaseIT {
 
+    private static final String ADMIN_KEY = "dev-admin-key";
+
     @Autowired WebApplicationContext context;
-    @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     MockMvc mockMvc;
     @Autowired PassPurchaseRepository passPurchaseRepository;
@@ -90,7 +92,8 @@ class PassCreditUsageUseCaseIT {
     @BeforeEach
     void setUp() throws Exception {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(springSessionRepositoryFilter, customerAuthFilter)
+                .addFilters(springSessionRepositoryFilter)
+                .apply(springSecurity())
                 .build();
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
         customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
@@ -152,6 +155,7 @@ class PassCreditUsageUseCaseIT {
 
         // 취소 (FUTURE = 2030년 → 취소 보상 마감 이전이므로 환불 가능)
         mockMvc.perform(delete("/api/v1/me/bookings/{id}", bookingId)
+                        .with(csrf())
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
@@ -182,6 +186,7 @@ class PassCreditUsageUseCaseIT {
         Long bookingId = createPassBooking(slot.getId());
 
         mockMvc.perform(delete("/api/v1/me/bookings/{id}", bookingId)
+                        .with(csrf())
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"))
@@ -207,7 +212,8 @@ class PassCreditUsageUseCaseIT {
 
         Long bookingId = createPassBooking(slot.getId());
 
-        mockMvc.perform(post("/admin/bookings/{id}/no-show", bookingId))
+        mockMvc.perform(post("/admin/bookings/{id}/no-show", bookingId)
+                        .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
                 .andExpect(jsonPath("$.status").value("NO_SHOW"));
@@ -238,7 +244,8 @@ class PassCreditUsageUseCaseIT {
         createPassBooking(slot2.getId());
 
         // 전체 환불
-        mockMvc.perform(post("/admin/passes/{passId}/refund", pass.getId()))
+        mockMvc.perform(post("/admin/passes/{passId}/refund", pass.getId())
+                        .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(2))
                 .andExpect(jsonPath("$.refundCredits").value(8))
@@ -280,7 +287,8 @@ class PassCreditUsageUseCaseIT {
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.failure("PG가 환불을 거절했습니다."));
 
-        mockMvc.perform(post("/admin/passes/{passId}/refund", pass.getId()))
+        mockMvc.perform(post("/admin/passes/{passId}/refund", pass.getId())
+                        .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(0))
                 .andExpect(jsonPath("$.refundCredits").value(8))
@@ -291,7 +299,8 @@ class PassCreditUsageUseCaseIT {
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         verify(paymentProvider).refund(eq("test-pass-payment-key"), eq(320_000L), any());
 
-        mockMvc.perform(get("/admin/refunds/failed"))
+        mockMvc.perform(get("/admin/refunds/failed")
+                        .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].passPurchaseId").value(pass.getId()))
                 .andExpect(jsonPath("$[0].bookingId").value(nullValue()))
@@ -332,6 +341,7 @@ class PassCreditUsageUseCaseIT {
                 sessionCookie);
 
         mockMvc.perform(post("/api/v1/payments/confirm")
+                        .with(csrf())
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(confirmRequest(prepared)))
@@ -353,6 +363,7 @@ class PassCreditUsageUseCaseIT {
                 sessionCookie);
 
         mockMvc.perform(post("/api/v1/payments/confirm")
+                        .with(csrf())
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(confirmRequest(prepared)))

@@ -14,6 +14,7 @@
 - 주문/예약/8회권은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm` 표준 결제 경로를 사용한다. confirm은 선점·PG 승인·도메인 저장 트랜잭션을 분리하고 Toss 멱등키와 실패 보상 환불을 사용한다.
 - 환불은 요청 이력을 먼저 커밋한 뒤 PG를 호출한다. 실행 유실·일시 실패·결과 불명 상태는 최초 멱등키를 유지한 채 매분 복구하며, PG 호출 실행기는 제한 큐와 즉시 거절 정책으로 보호한다.
 - 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
+- 브라우저의 비관리자 상태 변경 요청은 `XSRF-TOKEN` 쿠키와 `X-XSRF-TOKEN` 헤더로 CSRF를 방어한다.
 - 상세 요구사항은 [기준 스펙](docs/PRD/0001_기준_스펙/spec.md), HTTP 계약은 [API 계약](docs/PRD/0004_API_계약/spec.md)을 기준으로 본다.
 
 ## 빠른 시작
@@ -123,7 +124,7 @@ docker compose up -d --build
 
 ## 기술 스택
 
-- 백엔드: Spring Boot 4.0.2, Java 21, Gradle
+- 백엔드: Spring Boot 4.0.2, Spring Security, Java 21, Gradle
 - 프론트엔드: Vite, React 19, TypeScript
 - 데이터베이스: MySQL 8, Flyway
 - 세션과 캐시: Redis, Spring Session

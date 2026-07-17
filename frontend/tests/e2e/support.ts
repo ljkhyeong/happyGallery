@@ -6,6 +6,8 @@ const ADMIN_PASSWORD = process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? "admin1234";
 const BACKEND_BASE_URL = (process.env.PLAYWRIGHT_BACKEND_URL ?? "http://127.0.0.1:8080/api/v1").replace(/\/$/, "");
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const CUSTOMER_SESSION_COOKIE = "HG_SESSION";
+const CSRF_COOKIE_NAME = "XSRF-TOKEN";
+const CSRF_HEADER_NAME = "X-XSRF-TOKEN";
 const FRONTEND_ORIGIN = "http://127.0.0.1:3000";
 
 let cachedAdminToken: string | null = null;
@@ -283,8 +285,10 @@ export async function signupCustomer(
     phone: overrides.phone ?? makePhoneNumber(label),
   };
 
+  const csrfHeaders = await issueCustomerCsrfHeaders(page);
   const response = await page.request.post(`${BACKEND_BASE_URL}/auth/signup`, {
     data: credentials,
+    headers: csrfHeaders,
   });
   expect(response.ok(), "Customer signup API should succeed").toBeTruthy();
   await setCustomerSessionFromResponse(page, response.headers()["set-cookie"]);
@@ -294,8 +298,10 @@ export async function signupCustomer(
 }
 
 export async function loginCustomer(page: Page, credentials: CustomerCredentials) {
+  const csrfHeaders = await issueCustomerCsrfHeaders(page);
   const response = await page.request.post(`${BACKEND_BASE_URL}/auth/login`, {
     data: { email: credentials.email, password: credentials.password },
+    headers: csrfHeaders,
   });
   expect(response.ok(), "Customer login API should succeed").toBeTruthy();
   await setCustomerSessionFromResponse(page, response.headers()["set-cookie"]);
@@ -353,6 +359,18 @@ async function setCustomerSessionFromResponse(page: Page, setCookieHeader?: stri
       httpOnly: true,
     },
   ]);
+}
+
+async function issueCustomerCsrfHeaders(page: Page): Promise<Record<string, string>> {
+  const response = await page.request.get(`${BACKEND_BASE_URL}/auth/csrf`);
+  expect(response.ok(), "CSRF token API should succeed").toBeTruthy();
+
+  const csrfCookie = (await page.context().cookies(BACKEND_BASE_URL))
+    .find((cookie) => cookie.name === CSRF_COOKIE_NAME);
+  if (!csrfCookie) {
+    throw new Error("Could not find XSRF-TOKEN cookie from CSRF response");
+  }
+  return { [CSRF_HEADER_NAME]: csrfCookie.value };
 }
 
 export function adminCard(page: Page, title: string): Locator {

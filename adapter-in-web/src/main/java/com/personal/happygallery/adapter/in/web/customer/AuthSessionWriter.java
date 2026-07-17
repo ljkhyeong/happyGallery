@@ -1,19 +1,43 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
-import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.stereotype.Component;
 
 /**
  * 회원 인증 성공 후 세션에 사용자 ID를 묶는 단일 진입점.
  *
- * <p>로그인·회원가입·소셜 로그인 컨트롤러가 같은 setAttribute 라인을 각자
- * 적지 않도록 모은다. 세션 키나 보관 정책이 바뀔 때 수정 지점은 이 컴포넌트 한 곳.
+ * <p>로그인·회원가입·소셜 로그인 컨트롤러가 같은 세션 처리를 각자 적지 않도록 모은다.
+ * 기존 세션은 속성을 보존한 채 ID를 교체해 세션 고정 공격을 방어한다.
  */
 @Component
 public class AuthSessionWriter {
 
-    public void bind(HttpServletRequest request, Long userId) {
-        request.getSession(true).setAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR, userId);
+    private final CsrfTokenRepository csrfTokenRepository;
+
+    public AuthSessionWriter(CsrfTokenRepository csrfTokenRepository) {
+        this.csrfTokenRepository = csrfTokenRepository;
+    }
+
+    public void bind(HttpServletRequest request, HttpServletResponse response, Long userId) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            session = request.getSession(true);
+        } else {
+            request.changeSessionId();
+        }
+        session.setAttribute(CustomerAuthenticationFilter.CUSTOMER_USER_ID_SESSION_ATTRIBUTE, userId);
+        csrfTokenRepository.saveToken(null, request, response);
+    }
+
+    public void unbind(HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        csrfTokenRepository.saveToken(null, request, response);
     }
 }

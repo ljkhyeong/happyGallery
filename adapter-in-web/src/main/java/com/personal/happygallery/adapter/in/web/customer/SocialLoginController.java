@@ -11,6 +11,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.SocialProvider;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
@@ -56,7 +57,8 @@ public class SocialLoginController {
     @PostMapping("/{provider}")
     public SocialLoginResponse login(@PathVariable String provider,
                                      @RequestBody @Valid SocialLoginRequest request,
-                                     HttpServletRequest httpRequest) {
+                                     HttpServletRequest httpRequest,
+                                     HttpServletResponse httpResponse) {
         SocialProvider socialProvider = SocialProvider.fromPath(provider);
         String verifiedState = verifyAndConsumeState(httpRequest, socialProvider, request.state());
         SocialLoginResult result = socialAuth.socialLogin(
@@ -65,7 +67,7 @@ public class SocialLoginController {
                         request.code(),
                         request.redirectUri(),
                         verifiedState));
-        authSessionWriter.bind(httpRequest, result.user().getId());
+        authSessionWriter.bind(httpRequest, httpResponse, result.user().getId());
         return new SocialLoginResponse(
                 CustomerUserResponse.from(result.user()),
                 result.newUser());

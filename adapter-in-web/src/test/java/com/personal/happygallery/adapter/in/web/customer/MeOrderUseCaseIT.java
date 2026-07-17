@@ -4,7 +4,6 @@ import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
-import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.support.CustomerTestHelper;
@@ -27,6 +26,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static com.personal.happygallery.support.TestFixtures.inventory;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -35,7 +35,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MeOrderUseCaseIT {
 
     @Autowired WebApplicationContext context;
-    @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
@@ -55,7 +54,8 @@ class MeOrderUseCaseIT {
     void setUp() throws Exception {
         cleanup();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(springSessionRepositoryFilter, customerAuthFilter)
+                .addFilters(springSessionRepositoryFilter)
+                .apply(springSecurity())
                 .build();
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
         customerHelper = new CustomerTestHelper(mockMvc, objectMapper);

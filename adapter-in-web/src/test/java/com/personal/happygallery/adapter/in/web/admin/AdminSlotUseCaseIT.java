@@ -1,6 +1,5 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
-import com.personal.happygallery.adapter.in.web.AdminAuthFilter;
 import com.personal.happygallery.adapter.in.web.admin.dto.CreateSlotRequest;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
@@ -20,6 +19,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -32,7 +32,6 @@ class AdminSlotUseCaseIT {
     private static final String ADMIN_KEY = "dev-admin-key";
 
     @Autowired WebApplicationContext context;
-    @Autowired AdminAuthFilter adminAuthFilter;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotReaderPort slotReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -44,7 +43,7 @@ class AdminSlotUseCaseIT {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(adminAuthFilter)
+                .apply(springSecurity())
                 .build();
         cleanupSupport.clearBookingData();
         BookingClass cls = classStorePort.save(defaultBookingClass());

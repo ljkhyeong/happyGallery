@@ -12,7 +12,6 @@ import com.personal.happygallery.application.product.port.out.InventoryStorePort
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.OrderService;
-import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
 import com.personal.happygallery.adapter.in.web.customer.dto.ClaimGuestRecordsRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.VerifyGuestClaimPhoneRequest;
 import com.personal.happygallery.domain.booking.Booking;
@@ -49,6 +48,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -58,7 +59,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CustomerGuestClaimUseCaseIT {
 
     @Autowired WebApplicationContext context;
-    @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired GuestStorePort guestStorePort;
     @Autowired ProductStorePort productStorePort;
@@ -83,7 +83,8 @@ class CustomerGuestClaimUseCaseIT {
     void setUp() {
         cleanup();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(springSessionRepositoryFilter, customerAuthFilter)
+                .addFilters(springSessionRepositoryFilter)
+                .apply(springSecurity())
                 .build();
         bookingHelper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort, objectMapper);
         customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
@@ -128,6 +129,7 @@ class CustomerGuestClaimUseCaseIT {
         String verificationCode = bookingHelper.sendVerificationAndGetCode("01012345678");
 
         mockMvc.perform(post("/api/v1/me/guest-claims/verify")
+                        .with(csrf())
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
@@ -140,6 +142,7 @@ class CustomerGuestClaimUseCaseIT {
         assertThat(userReaderPort.findById(user.getId()).orElseThrow().isPhoneVerified()).isTrue();
 
         mockMvc.perform(post("/api/v1/me/guest-claims")
+                        .with(csrf())
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new ClaimGuestRecordsRequest(
@@ -190,6 +193,7 @@ class CustomerGuestClaimUseCaseIT {
 
         String verificationCode = bookingHelper.sendVerificationAndGetCode(phone);
         mockMvc.perform(post("/api/v1/me/guest-claims/verify")
+                        .with(csrf())
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
@@ -197,6 +201,7 @@ class CustomerGuestClaimUseCaseIT {
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/v1/me/guest-claims")
+                        .with(csrf())
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new ClaimGuestRecordsRequest(

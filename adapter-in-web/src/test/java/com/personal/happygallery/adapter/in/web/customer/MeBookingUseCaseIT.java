@@ -4,7 +4,6 @@ import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
-import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
 import com.personal.happygallery.adapter.in.web.customer.dto.MemberRescheduleRequest;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
@@ -30,6 +29,8 @@ import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -40,7 +41,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MeBookingUseCaseIT {
 
     @Autowired WebApplicationContext context;
-    @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
@@ -61,7 +61,8 @@ class MeBookingUseCaseIT {
     void setUp() throws Exception {
         cleanup();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(springSessionRepositoryFilter, customerAuthFilter)
+                .addFilters(springSessionRepositoryFilter)
+                .apply(springSecurity())
                 .build();
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
         customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
@@ -137,6 +138,7 @@ class MeBookingUseCaseIT {
         Long bookingId = createBooking(slotId);
 
         mockMvc.perform(patch("/api/v1/me/bookings/{id}/reschedule", bookingId)
+                        .with(csrf())
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new MemberRescheduleRequest(slot2Id))))
@@ -151,6 +153,7 @@ class MeBookingUseCaseIT {
         Long bookingId = createBooking(slotId);
 
         mockMvc.perform(delete("/api/v1/me/bookings/{id}", bookingId)
+                        .with(csrf())
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))

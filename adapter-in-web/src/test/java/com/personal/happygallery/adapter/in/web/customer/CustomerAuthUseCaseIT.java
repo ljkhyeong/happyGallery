@@ -6,6 +6,7 @@ import com.personal.happygallery.adapter.in.web.customer.dto.SocialLoginRequest;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +20,10 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.ObjectMapper;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.startsWith;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
@@ -42,6 +46,7 @@ class CustomerAuthUseCaseIT {
         cleanupSupport.clearUsers();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter)
+                .apply(springSecurity())
                 .build();
     }
 
@@ -54,6 +59,7 @@ class CustomerAuthUseCaseIT {
     @Test
     void signup_success() throws Exception {
         mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new SignupRequest(
                                 "test@example.com", "password123", "테스트", "010-1234-5678"))))
@@ -75,11 +81,13 @@ class CustomerAuthUseCaseIT {
                 "dup@example.com", "password123", "테스트", "010-0000-0000"));
 
         mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isConflict())
@@ -90,12 +98,14 @@ class CustomerAuthUseCaseIT {
     @Test
     void login_success() throws Exception {
         mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new SignupRequest(
                                 "login@example.com", "password123", "로그인", "010-1111-2222"))))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/auth/login")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new CustomerLoginRequest("login@example.com", "password123"))))
@@ -108,12 +118,14 @@ class CustomerAuthUseCaseIT {
     @Test
     void login_wrongPassword_unauthorized() throws Exception {
         mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new SignupRequest(
                                 "wrong@example.com", "password123", "테스트", "010-3333-4444"))))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/auth/login")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new CustomerLoginRequest("wrong@example.com", "wrongpassword"))))
@@ -125,6 +137,7 @@ class CustomerAuthUseCaseIT {
     @Test
     void logout_clearsCookie() throws Exception {
         var signupResult = mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new SignupRequest(
                                 "logout@example.com", "password123", "로그아웃", "010-9999-0000"))))
@@ -134,6 +147,7 @@ class CustomerAuthUseCaseIT {
         var sessionCookie = signupResult.getResponse().getCookie("HG_SESSION");
 
         mockMvc.perform(post("/api/v1/auth/logout")
+                        .with(csrf())
                         .cookie(sessionCookie))
                 .andExpect(status().isNoContent())
                 .andExpect(cookie().maxAge("HG_SESSION", 0));
@@ -155,6 +169,7 @@ class CustomerAuthUseCaseIT {
         var sessionCookie = authorizationResult.getResponse().getCookie("HG_SESSION");
 
         mockMvc.perform(post("/api/v1/auth/social/naver")
+                        .with(csrf())
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
@@ -167,6 +182,7 @@ class CustomerAuthUseCaseIT {
     @Test
     void googleSocialLogin_acceptsLegacyRequestWithoutState() throws Exception {
         mockMvc.perform(post("/api/v1/auth/social/google")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new SocialLoginRequest(
                                 "legacy-google-code",
@@ -175,5 +191,32 @@ class CustomerAuthUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.email").value("social-test@example.com"))
                 .andExpect(cookie().exists("HG_SESSION"));
+    }
+
+    @DisplayName("기존 세션으로 로그인하면 세션 ID가 교체된다")
+    @Test
+    void login_rotatesExistingSessionId() throws Exception {
+        var signupResult = mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new SignupRequest(
+                                "rotate@example.com", "password123", "세션교체", "010-7777-8888"))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        var existingSession = signupResult.getResponse().getCookie("HG_SESSION");
+
+        var loginResult = mockMvc.perform(post("/api/v1/auth/login")
+                        .with(csrf())
+                        .cookie(existingSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new CustomerLoginRequest("rotate@example.com", "password123"))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat(loginResult.getResponse().getCookie("HG_SESSION"))
+                .isNotNull()
+                .extracting(Cookie::getValue)
+                .isNotEqualTo(existingSession.getValue());
     }
 }

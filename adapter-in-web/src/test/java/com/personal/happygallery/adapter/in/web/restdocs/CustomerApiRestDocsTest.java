@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.restdocs.RestDocumentationContextProvider;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -132,7 +133,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(qnaUseCase.createQuestion(eq(1L), eq(CUSTOMER_USER_ID), any(), any(), eq(false), any()))
                 .thenReturn(qna);
 
-        AuthSessionWriter authSessionWriter = new AuthSessionWriter();
+        AuthSessionWriter authSessionWriter = new AuthSessionWriter(mock(CsrfTokenRepository.class));
         mockMvc = mockMvc(restDocumentation,
                 new CustomerAuthController(customerAuthUseCase, authSessionWriter),
                 new SocialLoginController(socialAuthUseCase, authSessionWriter),
@@ -187,7 +188,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @Test
     @DisplayName("내 정보 조회 API를 문서화한다")
     void me() throws Exception {
-        mockMvc.perform(get("/api/v1/me").with(customerUser(RestDocsFixtures.user())))
+        mockMvc.perform(get("/api/v1/me").with(customerUser()))
                 .andExpect(status().isOk());
     }
 

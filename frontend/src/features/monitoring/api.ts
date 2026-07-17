@@ -1,4 +1,6 @@
-const CLIENT_MONITORING_ENDPOINT = "/api/v1/monitoring/client-events";
+import { api } from "@/shared/api";
+
+const CLIENT_MONITORING_ENDPOINT = "/monitoring/client-events";
 
 export type ClientMonitoringEvent =
   | "GUEST_LOOKUP_HUB_VIEWED"
@@ -16,32 +18,16 @@ interface TrackClientEventInput {
 export function trackClientEvent(input: TrackClientEventInput) {
   if (typeof window === "undefined") return;
 
-  const body = JSON.stringify({
+  const body = {
     event: input.event,
     path: input.path ?? window.location.pathname,
     source: input.source,
     target: input.target,
-  });
+  };
 
-  try {
-    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-      const sent = navigator.sendBeacon(
-        CLIENT_MONITORING_ENDPOINT,
-        new Blob([body], { type: "application/json" }),
-      );
-      if (sent) return;
-    }
-  } catch {
-    // sendBeacon fallback below
-  }
-
-  void fetch(CLIENT_MONITORING_ENDPOINT, {
+  void api<void>(CLIENT_MONITORING_ENDPOINT, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body,
-    credentials: "include",
     keepalive: true,
   }).catch(() => {
     // monitoring is best-effort

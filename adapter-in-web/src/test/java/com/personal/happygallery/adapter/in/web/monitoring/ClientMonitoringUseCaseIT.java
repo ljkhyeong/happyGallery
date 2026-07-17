@@ -1,6 +1,5 @@
 package com.personal.happygallery.adapter.in.web.monitoring;
 
-import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
@@ -17,6 +16,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -24,7 +25,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ClientMonitoringUseCaseIT {
 
     @Autowired WebApplicationContext context;
-    @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired TestCleanupSupport cleanupSupport;
 
@@ -34,7 +34,8 @@ class ClientMonitoringUseCaseIT {
     void setUp() {
         cleanupSupport.clearUsers();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(springSessionRepositoryFilter, customerAuthFilter)
+                .addFilters(springSessionRepositoryFilter)
+                .apply(springSecurity())
                 .build();
     }
 
@@ -47,6 +48,7 @@ class ClientMonitoringUseCaseIT {
     @Test
     void guest_canSendClientMonitoringEvent() throws Exception {
         mockMvc.perform(post("/api/v1/monitoring/client-events")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -63,6 +65,7 @@ class ClientMonitoringUseCaseIT {
     @Test
     void member_canSendClientMonitoringEvent() throws Exception {
         MvcResult signup = mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -78,6 +81,7 @@ class ClientMonitoringUseCaseIT {
         Cookie sessionCookie = signup.getResponse().getCookie("HG_SESSION");
 
         mockMvc.perform(post("/api/v1/monitoring/client-events")
+                        .with(csrf())
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

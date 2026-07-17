@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,6 +41,7 @@ public final class PaymentTestHelper {
                                           PaymentPayload payload,
                                           Cookie... cookies) throws Exception {
         MockHttpServletRequestBuilder request = post("/api/v1/payments/prepare")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new PreparePaymentRequest(context, payload)));
         if (cookies.length > 0) {
@@ -60,6 +62,7 @@ public final class PaymentTestHelper {
                                            String paymentKey,
                                            Cookie... cookies) throws Exception {
         MockHttpServletRequestBuilder request = post("/api/v1/payments/confirm")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(
                         new ConfirmPaymentRequest(paymentKey, orderId, amount)));

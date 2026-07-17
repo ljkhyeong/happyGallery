@@ -1,12 +1,13 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
-import com.personal.happygallery.adapter.in.web.AdminAuthFilter;
-import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
 import com.personal.happygallery.adapter.in.web.GlobalExceptionHandler;
 import com.personal.happygallery.adapter.in.web.resolver.AuthUserIdResolver;
+import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
 import org.springframework.test.web.servlet.MockMvc;
@@ -51,22 +52,24 @@ abstract class RestDocsTestSupport {
 
     protected static RequestPostProcessor customerUser() {
         return request -> {
-            request.setAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR, CUSTOMER_USER_ID);
-            return request;
-        };
-    }
-
-    protected static RequestPostProcessor customerUser(Object user) {
-        return request -> {
-            request.setAttribute(CustomerAuthFilter.CUSTOMER_USER_ID_ATTR, CUSTOMER_USER_ID);
-            request.setAttribute(CustomerAuthFilter.CUSTOMER_USER_ATTR, user);
+            request.setUserPrincipal(new TestingAuthenticationToken(
+                    new CustomerPrincipal(
+                            CUSTOMER_USER_ID,
+                            "member@example.com",
+                            "회원",
+                            "01012345678",
+                            true
+                    ),
+                    null,
+                    "ROLE_CUSTOMER"));
             return request;
         };
     }
 
     protected static RequestPostProcessor adminUser() {
         return request -> {
-            request.setAttribute(AdminAuthFilter.ADMIN_USER_ID_ATTR, ADMIN_USER_ID);
+            request.setUserPrincipal(new TestingAuthenticationToken(
+                    AdminPrincipal.bearerSession(ADMIN_USER_ID, "admin"), null, "ROLE_ADMIN"));
             return request;
         };
     }

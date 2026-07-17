@@ -16,6 +16,9 @@ public enum ErrorCode {
     INVALID_CREDENTIALS(401, "이메일 또는 비밀번호가 올바르지 않습니다."),
     SOCIAL_LOGIN_FAILED(401, "소셜 로그인에 실패했습니다. 다시 시도해주세요."),
 
+    // 403 Forbidden — 인증되었지만 권한 부족
+    FORBIDDEN(403, "요청한 작업을 수행할 권한이 없습니다."),
+
     // 429 Too Many Requests — 처리율 제한 초과
     TOO_MANY_REQUESTS(429, "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
 

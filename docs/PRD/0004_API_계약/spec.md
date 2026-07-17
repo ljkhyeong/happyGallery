@@ -114,6 +114,44 @@ Content-Type: application/json
 
 - `401 UNAUTHORIZED`
 - `{ "code": "UNAUTHORIZED", "message": "관리자 인증이 필요합니다." }`
+- 관리자 인증은 됐지만 요청 권한이 없으면 `403 FORBIDDEN`과 기존 에러 JSON 형식을 반환한다.
+
+### 1.3 회원 세션과 CSRF 정책
+
+- 회원 세션은 `HG_SESSION` HttpOnly 쿠키로 유지하고, 로그인·회원가입·소셜 로그인 성공 시 세션 ID를 회전한다.
+- 회원 전용 API는 회원 인증 정보가 없으면 `401 UNAUTHORIZED`, 인증은 됐지만 권한이 없으면 `403 FORBIDDEN`을 기존 에러 JSON 형식으로 반환한다.
+- 관리자 API는 Bearer/API key 헤더로 인증하므로 CSRF 토큰을 요구하지 않는다.
+- 그 외 회원·공개 API의 `POST`, `PUT`, `PATCH`, `DELETE` 요청은 아래 SPA CSRF 절차를 따른다. 개별 API 예시에서 헤더를 생략해도 같은 규칙이 적용된다.
+
+#### CSRF 토큰 발급
+
+```http
+GET /api/v1/auth/csrf
+```
+
+```json
+{
+  "cookieName": "XSRF-TOKEN",
+  "headerName": "X-XSRF-TOKEN"
+}
+```
+
+- 성공: `200 OK`
+- 응답 캐시 정책: `Cache-Control: no-store`
+- 응답은 JSON 본문과 함께 브라우저에서 읽을 수 있는 `XSRF-TOKEN` 쿠키를 설정한다. JSON 본문에는 토큰 값을 중복 노출하지 않는다.
+- 클라이언트는 상태를 변경하는 요청에 `cookieName`이 가리키는 쿠키 값을 `headerName`이 가리키는 요청 헤더로 복사한다.
+
+```http
+X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
+```
+
+- 토큰이 없거나 일치하지 않으면 `403 FORBIDDEN`과 기존 에러 JSON 형식을 반환한다.
+- 로그인과 로그아웃 성공 후에는 기존 CSRF 토큰이 폐기되므로 다음 상태 변경 요청 전에 `GET /api/v1/auth/csrf`를 다시 호출한다.
+
+#### 응답 캐시 정책
+
+- Spring Security 적용으로 기존 공개 조회 API의 `ETag`, `If-None-Match`, `304 Not Modified` 계약은 바뀌지 않는다.
+- API가 명시한 `Cache-Control: no-store` 등 응답별 캐시 정책은 그대로 적용된다.
 
 ---
 
@@ -1089,11 +1127,13 @@ Authorization: Bearer {token}
 
 ### 2.12 회원 API (`/api/v1/me`)
 
-회원 인증은 `HG_SESSION` HttpOnly 쿠키 기반이며, `CustomerAuthFilter`에서 검증한다.
+회원 인증은 `HG_SESSION` HttpOnly 쿠키 기반이며, Spring Security의 회원 principal로 검증한다.
 
 #### 2.12.0 회원 인증 정책
 
 - 회원 세션은 `HG_SESSION` HttpOnly 쿠키로 유지한다.
+- 로그인·회원가입·소셜 로그인 성공 시 기존 세션 ID를 회전하고 새 ID로 회원 세션을 유지한다.
+- 상태를 변경하는 요청은 1.3의 SPA CSRF 계약에 따라 `X-XSRF-TOKEN` 헤더를 함께 보낸다.
 - 회원 로그인은 이메일/비밀번호(local)와 Google, Naver OAuth2를 함께 지원한다.
 - 소셜 계정은 `user_social_accounts`에 `(provider, provider_id)`로 저장한다. 한 회원은 Google과 Naver 계정을 각각 하나씩 연결할 수 있다.
 - Google은 `email_verified=true`인 프로필만 수용한다.
@@ -1157,7 +1197,8 @@ POST /api/v1/auth/social/{provider}
 - 정책:
   - 요청의 `state`는 URL 발급 시 서버 세션에 저장한 같은 provider의 값과 일치해야 하며, 검증 후 제거한다.
   - 롤링 배포 호환 기간에는 구 프런트가 보내는 Google 요청에 한해 `state` 누락을 허용한다. Naver와 새 Google 요청은 서버 검증을 거친다.
-  - 성공 시 일반 회원 로그인과 동일하게 `HG_SESSION`을 시작한다.
+  - 성공 시 일반 회원 로그인과 동일하게 세션 ID를 회전하고 `HG_SESSION`을 시작한다.
+  - 성공 후 기존 CSRF 토큰이 폐기되므로 클라이언트는 새 CSRF 토큰을 발급받는다.
   - `newUser=true`인 경우 후속 전화번호 입력/인증 온보딩이 필요할 수 있다.
   - 소셜 로그인 URL 발급과 코드 교환은 서로 분리된 IP 버킷으로 각각 분당 10회 제한한다.
 #### ~~2.12.1 회원 예약 생성~~ (2026-04-22 제거)
@@ -1580,6 +1621,8 @@ Content-Type: application/json
 |------|----------|----------|
 | 400 | `INVALID_INPUT` | 요청 바디/파라미터 검증 실패 또는 요청 JSON 형식 오류 |
 | 400 | `PHONE_VERIFICATION_FAILED` | 인증 코드 불일치 또는 만료 |
+| 401 | `UNAUTHORIZED` | 보호된 API에 유효한 관리자 또는 회원 인증 없이 접근 |
+| 403 | `FORBIDDEN` | 인증은 됐지만 요청 권한이 없거나 CSRF 토큰이 없거나 일치하지 않음 |
 | 404 | `NOT_FOUND` | 주문·예약·이용권·상품 미존재 |
 | 409 | `ALREADY_REFUNDED` | 이미 환불된 주문에 승인·거절 시도 |
 | 409 | `INVENTORY_NOT_ENOUGH` | 재고 차감 시 수량 부족 |

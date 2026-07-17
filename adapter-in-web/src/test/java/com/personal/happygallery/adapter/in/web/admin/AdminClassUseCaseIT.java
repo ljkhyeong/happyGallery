@@ -1,6 +1,5 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
-import com.personal.happygallery.adapter.in.web.AdminAuthFilter;
 import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -15,6 +14,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -25,7 +25,6 @@ class AdminClassUseCaseIT {
     private static final String ADMIN_KEY = "dev-admin-key";
 
     @Autowired WebApplicationContext context;
-    @Autowired AdminAuthFilter adminAuthFilter;
     @Autowired ClassReaderPort classReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
 
@@ -34,7 +33,7 @@ class AdminClassUseCaseIT {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(adminAuthFilter)
+                .apply(springSecurity())
                 .build();
         cleanupSupport.clearBookingData();
     }

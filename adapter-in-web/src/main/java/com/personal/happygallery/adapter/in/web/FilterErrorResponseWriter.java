@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.domain.error.ErrorCode;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.slf4j.MDC;
 import tools.jackson.databind.ObjectMapper;
 
 public final class FilterErrorResponseWriter {
@@ -20,6 +21,6 @@ public final class FilterErrorResponseWriter {
         response.setStatus(code.httpStatus);
         response.setContentType("application/json;charset=UTF-8");
         response.getWriter().write(
-                mapper.writeValueAsString(ErrorResponse.of(code, message)));
+                mapper.writeValueAsString(ErrorResponse.of(code, message, MDC.get("requestId"))));
     }
 }
