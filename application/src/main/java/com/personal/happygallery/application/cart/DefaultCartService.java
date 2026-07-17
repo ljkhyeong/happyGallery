@@ -3,7 +3,7 @@ package com.personal.happygallery.application.cart;
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.cart.port.out.CartItemReaderPort;
 import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
-import com.personal.happygallery.application.cart.port.out.CartQueryPort;
+import com.personal.happygallery.application.cart.port.out.CartReadModelPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.cart.CartItem;
@@ -20,18 +20,18 @@ public class DefaultCartService implements CartUseCase {
 
     private final CartItemReaderPort cartItemReader;
     private final CartItemStorePort cartItemStore;
-    private final CartQueryPort cartQuery;
+    private final CartReadModelPort cartReadModel;
     private final ProductReaderPort productReader;
     private final Clock clock;
 
     public DefaultCartService(CartItemReaderPort cartItemReader,
                               CartItemStorePort cartItemStore,
-                              CartQueryPort cartQuery,
+                              CartReadModelPort cartReadModel,
                               ProductReaderPort productReader,
                               Clock clock) {
         this.cartItemReader = cartItemReader;
         this.cartItemStore = cartItemStore;
-        this.cartQuery = cartQuery;
+        this.cartReadModel = cartReadModel;
         this.productReader = productReader;
         this.clock = clock;
     }
@@ -39,7 +39,7 @@ public class DefaultCartService implements CartUseCase {
     @Override
     @Transactional(readOnly = true)
     public CartView getCart(Long userId) {
-        List<CartItemView> views = cartQuery.findDetailsByUserId(userId).stream()
+        List<CartItemView> views = cartReadModel.findDetailsByUserId(userId).stream()
                 .map(item -> {
                     boolean available = item.productStatus() == ProductStatus.ACTIVE
                             && item.inventoryQuantity() != null

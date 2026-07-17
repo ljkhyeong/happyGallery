@@ -1,7 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.dashboard.adapter;
 
 import com.personal.happygallery.application.dashboard.dto.SlotUtilization;
-import com.personal.happygallery.application.dashboard.port.out.BookingStatsQueryPort;
+import com.personal.happygallery.application.dashboard.port.out.BookingAnalyticsPort;
 import com.personal.happygallery.adapter.out.persistence.time.SeoulDateTimeRangeConverter;
 import com.personal.happygallery.adapter.out.persistence.dashboard.mapper.BookingStatsMapper;
 import java.time.LocalDate;
@@ -9,7 +9,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-class MyBatisBookingStatsAdapter implements BookingStatsQueryPort {
+class MyBatisBookingStatsAdapter implements BookingAnalyticsPort {
 
     private final BookingStatsMapper bookingStatsMapper;
 

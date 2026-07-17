@@ -68,7 +68,7 @@ List<Inventory> findByProductIdInWithLock(List<Long> productIds);
 ### 6. 장바구니 조회 — 읽기 전용 projection JOIN
 
 - `CartItem`은 `productId`만 유지하고 `Product`, `Inventory` JPA 연관관계를 추가하지 않는다.
-- `GET /api/v1/me/cart`는 `CartQueryPort`를 통해 장바구니 항목, 상품, 재고를 한 번의 projection JOIN 쿼리로 조회한다.
+- `GET /api/v1/me/cart`는 화면용 조합 조회를 나타내는 `CartReadModelPort`를 통해 장바구니 항목, 상품, 재고를 한 번의 projection JOIN 쿼리로 조회한다.
 - 애플리케이션 서비스는 projection을 응답 모델로 변환하고 가용성과 합계만 계산한다.
 - 상품별 개별 조회와 여러 조회 결과를 ID `Map`으로 다시 조립하지 않는다.
 

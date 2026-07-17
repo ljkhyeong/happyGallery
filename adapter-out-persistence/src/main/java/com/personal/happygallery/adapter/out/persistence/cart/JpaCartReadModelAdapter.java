@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.cart;
 
-import com.personal.happygallery.application.cart.port.out.CartQueryPort;
+import com.personal.happygallery.application.cart.port.out.CartReadModelPort;
 import com.personal.happygallery.domain.product.ProductStatus;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
@@ -8,11 +8,11 @@ import java.util.List;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class JpaCartQueryAdapter implements CartQueryPort {
+public class JpaCartReadModelAdapter implements CartReadModelPort {
 
     private final EntityManager entityManager;
 
-    public JpaCartQueryAdapter(EntityManager entityManager) {
+    public JpaCartReadModelAdapter(EntityManager entityManager) {
         this.entityManager = entityManager;
     }
 

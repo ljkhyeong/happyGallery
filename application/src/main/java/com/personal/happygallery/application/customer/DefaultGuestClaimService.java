@@ -1,7 +1,7 @@
 package com.personal.happygallery.application.customer;
 
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
-import com.personal.happygallery.application.customer.port.out.GuestClaimQueryPort;
+import com.personal.happygallery.application.customer.port.out.GuestClaimTargetPort;
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
@@ -42,7 +42,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     private final UserReaderPort userReader;
     private final GuestReaderPort guestReader;
     private final PhoneVerificationReaderPort phoneVerificationReader;
-    private final GuestClaimQueryPort claimQuery;
+    private final GuestClaimTargetPort claimTargets;
     private final Clock clock;
     private final ClientMonitoringUseCase clientMonitoringService;
     private final GuestPersonalDataProtector guestPersonalDataProtector;
@@ -50,14 +50,14 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     public DefaultGuestClaimService(UserReaderPort userReader,
                                     GuestReaderPort guestReader,
                                     PhoneVerificationReaderPort phoneVerificationReader,
-                                    GuestClaimQueryPort claimQuery,
+                                    GuestClaimTargetPort claimTargets,
                                     Clock clock,
                                     ClientMonitoringUseCase clientMonitoringService,
                                     GuestPersonalDataProtector guestPersonalDataProtector) {
         this.userReader = userReader;
         this.guestReader = guestReader;
         this.phoneVerificationReader = phoneVerificationReader;
-        this.claimQuery = claimQuery;
+        this.claimTargets = claimTargets;
         this.clock = clock;
         this.clientMonitoringService = clientMonitoringService;
         this.guestPersonalDataProtector = guestPersonalDataProtector;
@@ -104,7 +104,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
     private void claimOrders(Set<Long> orderIds, Long guestId, Long userId) {
         if (orderIds.isEmpty()) return;
-        Map<Long, Order> orderMap = claimQuery.findOrdersByIds(orderIds).stream()
+        Map<Long, Order> orderMap = claimTargets.findOrdersByIds(orderIds).stream()
                 .collect(toMap(Order::getId, Function.identity()));
         for (Long orderId : orderIds) {
             Order order = orderMap.get(orderId);
@@ -117,7 +117,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
     private void claimBookings(Set<Long> bookingIds, Long guestId, Long userId) {
         if (bookingIds.isEmpty()) return;
-        Map<Long, Booking> bookingMap = claimQuery.findBookingsByIds(bookingIds).stream()
+        Map<Long, Booking> bookingMap = claimTargets.findBookingsByIds(bookingIds).stream()
                 .collect(toMap(Booking::getId, Function.identity()));
         for (Long bookingId : bookingIds) {
             Booking booking = bookingMap.get(bookingId);
@@ -132,7 +132,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
                 .map(booking -> booking.getSlot().getId())
                 .collect(toSet());
         if (!bookedSlotIds.isEmpty()
-                && claimQuery.existsBookedByUserIdAndSlotIds(userId, bookedSlotIds)) {
+                && claimTargets.existsBookedByUserIdAndSlotIds(userId, bookedSlotIds)) {
             throw new DuplicateBookingException();
         }
 
@@ -148,11 +148,11 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         return findGuest(user.getPhone())
                 .map(guest -> new ClaimPreview(
                         user.isPhoneVerified(),
-                        claimQuery.findOrdersByGuestId(guest.getId()).stream()
+                        claimTargets.findOrdersByGuestId(guest.getId()).stream()
                                 .limit(PREVIEW_LIMIT)
                                 .map(ClaimOrderSummary::from)
                                 .toList(),
-                        claimQuery.findBookingsByGuestId(guest.getId()).stream()
+                        claimTargets.findBookingsByGuestId(guest.getId()).stream()
                                 .limit(PREVIEW_LIMIT)
                                 .map(ClaimBookingSummary::from)
                                 .toList()))

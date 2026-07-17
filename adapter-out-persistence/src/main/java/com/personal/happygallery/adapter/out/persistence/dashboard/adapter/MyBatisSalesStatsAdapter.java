@@ -9,7 +9,7 @@ import com.personal.happygallery.application.dashboard.dto.RevenueBreakdown;
 import com.personal.happygallery.application.dashboard.dto.StatusCount;
 import com.personal.happygallery.application.dashboard.dto.TopProduct;
 import com.personal.happygallery.application.dashboard.dto.TopProductSort;
-import com.personal.happygallery.application.dashboard.port.out.SalesStatsQueryPort;
+import com.personal.happygallery.application.dashboard.port.out.SalesAnalyticsPort;
 import com.personal.happygallery.adapter.out.persistence.time.SeoulDateTimeRangeConverter;
 import com.personal.happygallery.adapter.out.persistence.dashboard.mapper.SalesStatsMapper;
 import java.time.Clock;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  * WHERE 절에서 인덱스를 탈 수 있도록 sargable 조건을 보장한다.
  */
 @Component
-class MyBatisSalesStatsAdapter implements SalesStatsQueryPort {
+class MyBatisSalesStatsAdapter implements SalesAnalyticsPort {
 
     private final Clock clock;
     private final SalesStatsMapper salesStatsMapper;

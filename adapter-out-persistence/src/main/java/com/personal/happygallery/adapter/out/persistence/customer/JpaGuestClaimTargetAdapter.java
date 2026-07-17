@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.customer;
 
-import com.personal.happygallery.application.customer.port.out.GuestClaimQueryPort;
+import com.personal.happygallery.application.customer.port.out.GuestClaimTargetPort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingRepository;
@@ -10,13 +10,13 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
-class JpaGuestClaimQueryAdapter implements GuestClaimQueryPort {
+class JpaGuestClaimTargetAdapter implements GuestClaimTargetPort {
 
     private final OrderRepository orderRepository;
     private final BookingRepository bookingRepository;
 
-    JpaGuestClaimQueryAdapter(OrderRepository orderRepository,
-                              BookingRepository bookingRepository) {
+    JpaGuestClaimTargetAdapter(OrderRepository orderRepository,
+                               BookingRepository bookingRepository) {
         this.orderRepository = orderRepository;
         this.bookingRepository = bookingRepository;
     }

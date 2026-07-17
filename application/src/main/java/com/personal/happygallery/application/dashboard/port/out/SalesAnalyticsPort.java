@@ -12,7 +12,7 @@ import com.personal.happygallery.application.dashboard.dto.TopProductSort;
 import java.time.LocalDate;
 import java.util.List;
 
-public interface SalesStatsQueryPort {
+public interface SalesAnalyticsPort {
 
     DashboardOverview findOverview(LocalDate from, LocalDate to);
 
