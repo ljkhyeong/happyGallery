@@ -92,6 +92,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -253,8 +254,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("관리자 로그인 API를 문서화한다")
     void admin_login() throws Exception {
         mockMvc.perform(post("/api/v1/admin/auth/login")
-                        .contentType(jsonContent())
-                        .content(json("{\"username\":\"admin\",\"password\":\"admin123456\"}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"admin123456\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -277,14 +278,14 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("관리자 최초 설정 API를 문서화한다")
     void admin_setup() throws Exception {
         mockMvc.perform(post("/api/v1/admin/setup")
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "token": "setup-token",
                                   "username": "admin",
                                   "password": "admin123456"
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isCreated());
     }
 
@@ -294,8 +295,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(post("/api/v1/admin/products")
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token")
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "name": "시그니처 캔들",
                                   "type": "READY_STOCK",
@@ -303,7 +304,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                                   "price": 39000,
                                   "quantity": 12
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isCreated());
     }
 
@@ -322,8 +323,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(post("/api/v1/admin/classes")
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token")
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "name": "향수 원데이",
                                   "category": "PERFUME",
@@ -331,7 +332,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                                   "price": 50000,
                                   "bufferMin": 30
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isCreated());
     }
 
@@ -351,13 +352,13 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(post("/api/v1/admin/slots")
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token")
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "classId": 1,
                                   "startAt": "2026-05-07T19:00:00"
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isCreated());
     }
 
@@ -476,8 +477,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(patch("/api/v1/admin/orders/{id}/expected-ship-date", 200L)
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token")
-                        .contentType(jsonContent())
-                        .content(json("{\"expectedShipDate\":\"2026-05-08\"}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"expectedShipDate\":\"2026-05-08\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -507,8 +508,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(post("/api/v1/admin/orders/{id}/prepare-pickup", 200L)
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token")
-                        .contentType(jsonContent())
-                        .content(json("{\"pickupDeadlineAt\":\"2026-05-10T21:00:00\"}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"pickupDeadlineAt\":\"2026-05-10T21:00:00\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -658,14 +659,14 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     void admin_create_notice() throws Exception {
         mockMvc.perform(post("/api/v1/admin/notices")
                         .with(adminUser())
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "title": "운영 안내",
                                   "content": "5월 클래스 운영 안내입니다.",
                                   "pinned": true
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isCreated());
     }
 
@@ -674,14 +675,14 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     void admin_update_notice() throws Exception {
         mockMvc.perform(put("/api/v1/admin/notices/{id}", 1L)
                         .with(adminUser())
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "title": "운영 안내",
                                   "content": "수정된 안내입니다.",
                                   "pinned": false
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isOk());
     }
 
@@ -731,8 +732,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     void admin_reply_qna() throws Exception {
         mockMvc.perform(post("/api/v1/admin/qna/{id}/reply", 5L)
                         .with(adminUser())
-                        .contentType(jsonContent())
-                        .content(json("{\"replyContent\":\"주문 승인 후 안내드립니다.\"}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"replyContent\":\"주문 승인 후 안내드립니다.\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -755,8 +756,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     void admin_reply_inquiry() throws Exception {
         mockMvc.perform(post("/api/v1/admin/inquiries/{id}/reply", 9L)
                         .with(adminUser())
-                        .contentType(jsonContent())
-                        .content(json("{\"replyContent\":\"마이페이지에서 변경할 수 있습니다.\"}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"replyContent\":\"마이페이지에서 변경할 수 있습니다.\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -788,8 +789,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     void local_arm_next_refund_failure() throws Exception {
         mockMvc.perform(post("/api/v1/admin/dev/payment/refunds/fail-next")
                         .with(adminUser())
-                        .contentType(jsonContent())
-                        .content(json("{\"reason\":\"로컬 smoke 강제 환불 실패\"}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"reason\":\"로컬 smoke 강제 환불 실패\"}"))
                 .andExpect(status().isOk());
     }
 

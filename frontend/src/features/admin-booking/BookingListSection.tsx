@@ -2,7 +2,14 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col } from "react-bootstrap";
 import { fetchBookings, markNoShow } from "./api";
-import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
+import {
+  EmptyState,
+  ErrorAlert,
+  getStatusLabel,
+  LoadingSpinner,
+  StatusBadge,
+  useToast,
+} from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { formatDateTime, formatKRW } from "@/shared/lib";
@@ -14,21 +21,11 @@ interface Props {
 
 const STATUS_OPTIONS = [
   { value: "", label: "전체" },
-  { value: "BOOKED", label: "예약됨" },
-  { value: "CANCELED", label: "취소" },
-  { value: "NO_SHOW", label: "노쇼" },
-  { value: "COMPLETED", label: "완료" },
+  { value: "BOOKED", label: getStatusLabel("BOOKED") },
+  { value: "CANCELED", label: getStatusLabel("CANCELED") },
+  { value: "NO_SHOW", label: getStatusLabel("NO_SHOW") },
+  { value: "COMPLETED", label: getStatusLabel("COMPLETED") },
 ] as const;
-
-function statusBadge(status: string) {
-  switch (status) {
-    case "BOOKED": return <Badge bg="primary">예약됨</Badge>;
-    case "CANCELED": return <Badge bg="secondary">취소</Badge>;
-    case "NO_SHOW": return <Badge bg="danger">노쇼</Badge>;
-    case "COMPLETED": return <Badge bg="success">완료</Badge>;
-    default: return <Badge bg="dark">{status}</Badge>;
-  }
-}
 
 function todayStr(): string {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
@@ -124,7 +121,7 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
                   <br />
                   <small className="text-muted-soft">~ {formatDateTime(b.endAt)}</small>
                 </td>
-                <td>{statusBadge(b.status)}</td>
+                <td><StatusBadge status={b.status} /></td>
                 <td>
                   {b.passBooking ? (
                     <Badge bg="info">8회권</Badge>

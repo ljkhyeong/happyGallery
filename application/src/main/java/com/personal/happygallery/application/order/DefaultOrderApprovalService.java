@@ -76,7 +76,7 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
     public Order approve(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
 
-        boolean isMadeToOrder = isMadeToOrderOrder(order);
+        boolean isMadeToOrder = orderItemPort.existsMadeToOrderItem(order);
         if (isMadeToOrder) {
             order.approveAsProduction();
             fulfillmentPort.save(Fulfillment.shipping(order.getId()));
@@ -87,10 +87,6 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.APPROVE, adminId, null));
         log.info("order approved [orderId={} adminId={} madeToOrder={}]", orderId, adminId, isMadeToOrder);
         return orderStore.save(order);
-    }
-
-    private boolean isMadeToOrderOrder(Order order) {
-        return orderItemPort.existsMadeToOrderItem(order);
     }
 
     /**

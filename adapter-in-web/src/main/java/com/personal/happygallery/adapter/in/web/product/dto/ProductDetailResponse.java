@@ -13,10 +13,8 @@ public record ProductDetailResponse(
         boolean available
 ) {
     public static ProductDetailResponse from(ProductQueryUseCase.ProductWithInventory r) {
-        return from(r.product(), r.inventory());
-    }
-
-    private static ProductDetailResponse from(Product product, Inventory inventory) {
+        Product product = r.product();
+        Inventory inventory = r.inventory();
         return new ProductDetailResponse(
                 product.getId(),
                 product.getName(),

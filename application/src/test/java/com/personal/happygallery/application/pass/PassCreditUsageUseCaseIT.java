@@ -103,7 +103,7 @@ class PassCreditUsageUseCaseIT {
         cleanupSupport.clearUsers();
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("FAKE-TEST-PASS-REF"));
-        sessionCookie = signupAndGetSessionCookie("pass-member@example.com", "01099990001");
+        sessionCookie = customerHelper.signupAndGetSessionCookie("pass-member@example.com", "01099990001");
         Long userId = userReaderPort.findByEmail("pass-member@example.com").orElseThrow().getId();
         pass = passPurchase(userId, FUTURE.plusDays(90), 320_000L);
         pass.recordPaymentKey("test-pass-payment-key");
@@ -376,10 +376,6 @@ class PassCreditUsageUseCaseIT {
     private Long createPassBooking(Long slotId) throws Exception {
         return paymentHelper.createMemberPassBooking(sessionCookie, pass.getUserId(), slotId, pass.getId())
                 .domainId();
-    }
-
-    private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
-        return customerHelper.signupAndGetSessionCookie(email, phone);
     }
 
     private BookingPayload passBookingPayload(PassPurchase passPurchase, Slot slot) {

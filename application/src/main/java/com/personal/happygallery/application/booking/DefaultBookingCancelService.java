@@ -92,16 +92,12 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
         }
 
         if (booking.isPassBooking()) {
-            restorePassCredit(booking);
+            passCreditService.restoreCredit(booking.getPassPurchase().getId(), booking.getId());
             return new CancellationCompensation(true, null);
         }
 
         Refund refund = refundExecutionService.requestBookingRefund(booking, booking.getDepositAmount());
         return new CancellationCompensation(true, refund);
-    }
-
-    private void restorePassCredit(Booking booking) {
-        passCreditService.restoreCredit(booking.getPassPurchase().getId(), booking.getId());
     }
 
     private record CancellationCompensation(boolean refundable, Refund refund) {}

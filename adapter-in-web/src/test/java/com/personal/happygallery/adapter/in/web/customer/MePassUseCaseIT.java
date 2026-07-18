@@ -50,7 +50,7 @@ class MePassUseCaseIT {
                 .build();
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
         customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
-        sessionCookie = signupAndGetSessionCookie("pass@test.com", "010-5555-6666");
+        sessionCookie = customerHelper.signupAndGetSessionCookie("pass@test.com", "010-5555-6666");
         userId = userReaderPort.findByEmail("pass@test.com").orElseThrow().getId();
     }
 
@@ -115,7 +115,4 @@ class MePassUseCaseIT {
         return paymentHelper.purchaseMemberPass(sessionCookie, userId).domainId();
     }
 
-    private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
-        return customerHelper.signupAndGetSessionCookie(email, phone);
-    }
 }

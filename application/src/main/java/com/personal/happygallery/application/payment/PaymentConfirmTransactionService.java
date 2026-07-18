@@ -175,14 +175,11 @@ class PaymentConfirmTransactionService {
     }
 
     private PaymentPayload deserialize(String storedPayload) {
-        String json = isLegacyPlainJson(storedPayload)
+        boolean legacyPlainJson = storedPayload != null && storedPayload.stripLeading().startsWith("{");
+        String json = legacyPlainJson
                 ? storedPayload
                 : fieldEncryptor.decrypt(storedPayload);
         return objectMapper.readValue(json, PaymentPayload.class);
-    }
-
-    private boolean isLegacyPlainJson(String storedPayload) {
-        return storedPayload != null && storedPayload.stripLeading().startsWith("{");
     }
 
     private boolean isStale(PaymentAttempt attempt, LocalDateTime now) {

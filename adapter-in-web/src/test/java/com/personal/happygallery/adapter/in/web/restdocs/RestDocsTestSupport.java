@@ -5,7 +5,6 @@ import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
@@ -45,14 +44,6 @@ abstract class RestDocsTestSupport {
                         .withResponseDefaults(prettyPrint()))
                 .alwaysDo(document("{class-name}/{method-name}"))
                 .build();
-    }
-
-    protected static String json(String body) {
-        return body;
-    }
-
-    protected static MediaType jsonContent() {
-        return MediaType.APPLICATION_JSON;
     }
 
     protected static RequestPostProcessor customerUser() {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, Button } from "react-bootstrap";
 import { fetchFailedRefunds, retryRefund } from "./api";
@@ -40,8 +40,6 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
     onSettled: () => setPendingId(null),
   });
 
-  const handleRetry = useCallback((id: number) => retry.mutate(id), [retry]);
-
   if (isLoading) return <LoadingSpinner />;
   if (error) {
     if (error instanceof ApiError && error.status === 401) return null;
@@ -76,7 +74,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
             <td>
               <Button size="sm" variant="outline-warning"
                 disabled={pendingId === r.refundId}
-                onClick={() => handleRetry(r.refundId)}>
+                onClick={() => retry.mutate(r.refundId)}>
                 {pendingId === r.refundId ? "..." : "재처리"}
               </Button>
             </td>

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
 
 interface Props {
@@ -11,28 +12,6 @@ interface Props {
   trackingSource: string;
 }
 
-function buildClaimSignupLink(guestPhone?: string, guestName?: string) {
-  const search = new URLSearchParams({
-    claim: "1",
-    redirect: "/my?claim=1",
-  });
-  if (guestPhone) {
-    search.set("phone", guestPhone);
-  }
-  if (guestName) {
-    search.set("name", guestName);
-  }
-  return `/signup?${search.toString()}`;
-}
-
-function buildClaimLoginLink() {
-  const search = new URLSearchParams({
-    claim: "1",
-    redirect: "/my?claim=1",
-  });
-  return `/login?${search.toString()}`;
-}
-
 export function GuestClaimSuccessActions({
   guestPhone,
   guestName,
@@ -42,6 +21,17 @@ export function GuestClaimSuccessActions({
   primaryState,
   trackingSource,
 }: Props) {
+  const signupHref = buildAuthPageHref("/signup", {
+    redirectTo: "/my?claim=1",
+    claim: true,
+    phone: guestPhone,
+    name: guestName,
+  });
+  const loginHref = buildAuthPageHref("/login", {
+    redirectTo: "/my?claim=1",
+    claim: true,
+  });
+
   return (
     <>
       <div className="guest-claim-actions-note mb-2">
@@ -54,7 +44,7 @@ export function GuestClaimSuccessActions({
           </Link>
         )}
         <Link
-          to={buildClaimSignupLink(guestPhone, guestName)}
+          to={signupHref}
           className="btn btn-primary btn-sm"
           onClick={() => trackGuestMemberCta(trackingSource, "signup")}
         >
@@ -64,7 +54,7 @@ export function GuestClaimSuccessActions({
       <div className="small">
         <div className="mb-1">
           <Link
-            to={buildClaimLoginLink()}
+            to={loginHref}
             className="text-decoration-none"
             onClick={() => trackGuestMemberCta(trackingSource, "login")}
           >

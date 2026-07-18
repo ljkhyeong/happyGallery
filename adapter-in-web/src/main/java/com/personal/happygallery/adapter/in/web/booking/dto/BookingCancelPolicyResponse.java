@@ -20,19 +20,15 @@ public record BookingCancelPolicyResponse(
         boolean booked = booking.getStatus() == BookingStatus.BOOKED;
         boolean refundable = booked && TimeBoundary.isRefundable(booking.getSlot().getStartAt(), clock);
         boolean passCreditRestorable = booking.isPassBooking() && refundable;
-        String warningCode = resolveWarningCode(booking, booked, passCreditRestorable);
+        boolean passCreditNotRestorable = booked && booking.isPassBooking() && !passCreditRestorable;
+        String warningCode = passCreditNotRestorable
+                ? PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE
+                : null;
 
         return new BookingCancelPolicyResponse(
                 refundable,
                 deadlineAt,
                 passCreditRestorable,
                 warningCode);
-    }
-
-    private static String resolveWarningCode(Booking booking, boolean booked, boolean passCreditRestorable) {
-        if (booked && booking.isPassBooking() && !passCreditRestorable) {
-            return PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE;
-        }
-        return null;
     }
 }

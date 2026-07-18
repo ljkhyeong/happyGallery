@@ -73,7 +73,7 @@ class MeBookingUseCaseIT {
         slotId = s1.getId();
         slot2Id = s2.getId();
 
-        sessionCookie = signupAndGetSessionCookie("member@test.com", "010-1111-2222");
+        sessionCookie = customerHelper.signupAndGetSessionCookie("member@test.com", "010-1111-2222");
         userId = userReaderPort.findByEmail("member@test.com").orElseThrow().getId();
     }
 
@@ -175,7 +175,4 @@ class MeBookingUseCaseIT {
                 .domainId();
     }
 
-    private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
-        return customerHelper.signupAndGetSessionCookie(email, phone);
-    }
 }

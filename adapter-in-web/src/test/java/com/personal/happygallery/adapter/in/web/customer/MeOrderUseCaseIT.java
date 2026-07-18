@@ -64,7 +64,7 @@ class MeOrderUseCaseIT {
         inventoryStorePort.save(inventory(product, 10));
         productId = product.getId();
 
-        sessionCookie = signupAndGetSessionCookie("order@test.com", "010-3333-4444");
+        sessionCookie = customerHelper.signupAndGetSessionCookie("order@test.com", "010-3333-4444");
         userId = userReaderPort.findByEmail("order@test.com").orElseThrow().getId();
     }
 
@@ -129,7 +129,4 @@ class MeOrderUseCaseIT {
                 .domainId();
     }
 
-    private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
-        return customerHelper.signupAndGetSessionCookie(email, phone);
-    }
 }

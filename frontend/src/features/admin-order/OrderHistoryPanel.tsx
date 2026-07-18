@@ -20,10 +20,6 @@ const DECISION_LABELS: Record<string, string> = {
   DELIVER: "배송 완료",
 };
 
-function decisionLabel(decision: string): string {
-  return DECISION_LABELS[decision] ?? decision;
-}
-
 interface Props {
   orderId: number;
   adminKey: string;
@@ -53,7 +49,7 @@ export function OrderHistoryPanel({ orderId, adminKey }: Props) {
           <tbody>
             {data.map((h) => (
               <tr key={h.id}>
-                <td><small>{decisionLabel(h.decision)}</small></td>
+                <td><small>{DECISION_LABELS[h.decision] ?? h.decision}</small></td>
                 <td><small>{h.decidedByAdminId ?? "-"}</small></td>
                 <td><small>{h.reason ?? "-"}</small></td>
                 <td><small>{formatDateTime(h.decidedAt)}</small></td>

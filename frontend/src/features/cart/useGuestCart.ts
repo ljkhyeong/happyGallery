@@ -7,7 +7,7 @@ export interface GuestCartItem {
   qty: number;
 }
 
-function load(): GuestCartItem[] {
+export function getGuestCartItems(): GuestCartItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -24,12 +24,8 @@ export function clearGuestCart() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-export function getGuestCartItems(): GuestCartItem[] {
-  return load();
-}
-
 export function useGuestCart() {
-  const [items, setItems] = useState<GuestCartItem[]>(load);
+  const [items, setItems] = useState<GuestCartItem[]>(getGuestCartItems);
 
   useEffect(() => {
     persist(items);

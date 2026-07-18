@@ -74,7 +74,7 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
             throw new HappyGalleryException(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
         }
 
-        User user = createSocialUser(info);
+        User user = userStore.save(User.fromSocialProfile(info.email(), info.name()));
         linkSocialAccount(user, command.provider(), info.providerId());
         updateLastLogin(user);
 
@@ -92,11 +92,6 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
     private User findSocialAccountUser(SocialAccount socialAccount) {
         return userReader.findById(socialAccount.getUserId())
                 .orElseThrow(() -> new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED));
-    }
-
-    private User createSocialUser(OAuthUserInfo info) {
-        User user = User.fromSocialProfile(info.email(), info.name());
-        return userStore.save(user);
     }
 
     private void linkSocialAccount(User user, SocialProvider provider, String providerId) {

@@ -55,15 +55,12 @@ public class DefaultPaymentPrepareService implements PaymentPrepareUseCase {
         }
 
         String orderIdExternal = UUID.randomUUID().toString();
-        String payloadEnc = fieldEncryptor.encrypt(serialize(prepared.payload()));
+        String payloadJson = objectMapper.writeValueAsString(prepared.payload());
+        String payloadEnc = fieldEncryptor.encrypt(payloadJson);
         PaymentAttempt attempt = PaymentAttempt.start(
                 orderIdExternal, command.context(), prepared.amount(), payloadEnc);
         attemptStore.save(attempt);
 
         return new PrepareResult(orderIdExternal, prepared.amount(), command.context());
-    }
-
-    private String serialize(Object payload) {
-        return objectMapper.writeValueAsString(payload);
     }
 }

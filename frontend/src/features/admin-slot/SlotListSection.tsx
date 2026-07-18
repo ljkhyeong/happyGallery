@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col, ProgressBar } from "react-bootstrap";
 import { fetchClasses, fetchSlotsByClass, deactivateSlot } from "./api";
@@ -47,11 +47,6 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
     },
     onSettled: () => setPendingId(null),
   });
-
-  const handleDeactivate = useCallback(
-    (id: number) => mutation.mutate(id),
-    [mutation],
-  );
 
   return (
     <div>
@@ -120,7 +115,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
                         variant="outline-danger"
                         style={{ minWidth: 84 }}
                         disabled={pendingId === s.id}
-                        onClick={() => handleDeactivate(s.id)}
+                        onClick={() => mutation.mutate(s.id)}
                       >
                         {pendingId === s.id ? "처리 중..." : "비활성화"}
                       </Button>

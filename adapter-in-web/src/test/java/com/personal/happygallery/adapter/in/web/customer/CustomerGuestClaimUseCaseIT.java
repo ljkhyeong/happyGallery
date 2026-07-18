@@ -123,7 +123,7 @@ class CustomerGuestClaimUseCaseIT {
                 DepositPaymentMethod.CARD,
                 "guest-claim-access-token"));
 
-        Cookie sessionCookie = signupAndGetSessionCookie(email, "010-1234-5678");
+        Cookie sessionCookie = customerHelper.signupAndGetSessionCookie(email, "010-1234-5678");
         User user = userReaderPort.findByEmail(email).orElseThrow();
 
         String verificationCode = bookingHelper.sendVerificationAndGetCode("01012345678");
@@ -177,7 +177,7 @@ class CustomerGuestClaimUseCaseIT {
         String email = "claim-conflict@example.com";
         String phone = "01012345678";
         Guest guest = guestStorePort.save(TestFixtures.guest("비회원", phone));
-        Cookie sessionCookie = signupAndGetSessionCookie(email, "010-1234-5678");
+        Cookie sessionCookie = customerHelper.signupAndGetSessionCookie(email, "010-1234-5678");
         User user = userReaderPort.findByEmail(email).orElseThrow();
 
         BookingClass bookingClass = classStorePort.save(TestFixtures.defaultBookingClass());
@@ -219,7 +219,7 @@ class CustomerGuestClaimUseCaseIT {
     @DisplayName("휴대폰 재인증 전에는 비회원 이력 미리보기를 조회할 수 없다")
     @Test
     void preview_requiresPhoneVerification() throws Exception {
-        Cookie sessionCookie = signupAndGetSessionCookie("preview@example.com", "01012345678");
+        Cookie sessionCookie = customerHelper.signupAndGetSessionCookie("preview@example.com", "01012345678");
 
         mockMvc.perform(get("/api/v1/me/guest-claims/preview")
                         .cookie(sessionCookie))
@@ -227,7 +227,4 @@ class CustomerGuestClaimUseCaseIT {
                 .andExpect(jsonPath("$.message").value("휴대폰 인증을 완료한 뒤 다시 시도해주세요."));
     }
 
-    private Cookie signupAndGetSessionCookie(String email, String phone) throws Exception {
-        return customerHelper.signupAndGetSessionCookie(email, phone);
-    }
 }

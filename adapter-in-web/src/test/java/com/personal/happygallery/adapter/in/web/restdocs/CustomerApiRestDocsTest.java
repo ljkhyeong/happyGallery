@@ -49,6 +49,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -159,15 +160,15 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("회원 가입 API를 문서화한다")
     void signup() throws Exception {
         mockMvc.perform(post("/api/v1/auth/signup")
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "email": "member@example.com",
                                   "password": "password1234",
                                   "name": "회원",
                                   "phone": "01012345678"
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isCreated());
     }
 
@@ -175,13 +176,13 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("회원 로그인 API를 문서화한다")
     void login() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "email": "member@example.com",
                                   "password": "password1234"
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isOk());
     }
 
@@ -222,14 +223,14 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
 
         mockMvc.perform(post("/api/v1/auth/social/naver")
                         .session(session)
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "code": "oauth-code",
                                   "redirectUri": "https://happygallery.example/auth/callback",
                                   "state": "state-123"
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isOk());
 
         verify(socialAuthUseCase).socialLogin(new SocialAuthUseCase.SocialLoginCommand(
@@ -251,8 +252,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void add_cart_item() throws Exception {
         mockMvc.perform(post("/api/v1/me/cart/items")
                         .with(customerUser())
-                        .contentType(jsonContent())
-                        .content(json("{\"productId\":1,\"qty\":1}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"productId\":1,\"qty\":1}"))
                 .andExpect(status().isCreated());
     }
 
@@ -261,8 +262,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void update_cart_item() throws Exception {
         mockMvc.perform(put("/api/v1/me/cart/items/{productId}", 1L)
                         .with(customerUser())
-                        .contentType(jsonContent())
-                        .content(json("{\"qty\":2}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"qty\":2}"))
                 .andExpect(status().isOk());
     }
 
@@ -300,8 +301,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void reschedule_my_booking() throws Exception {
         mockMvc.perform(patch("/api/v1/me/bookings/{id}/reschedule", 100L)
                         .with(customerUser())
-                        .contentType(jsonContent())
-                        .content(json("{\"newSlotId\":42}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"newSlotId\":42}"))
                 .andExpect(status().isOk());
     }
 
@@ -385,8 +386,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void verify_guest_claim_phone() throws Exception {
         mockMvc.perform(post("/api/v1/me/guest-claims/verify")
                         .with(customerUser())
-                        .contentType(jsonContent())
-                        .content(json("{\"verificationCode\":\"123456\"}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"verificationCode\":\"123456\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -395,8 +396,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void claim_guest_records() throws Exception {
         mockMvc.perform(post("/api/v1/me/guest-claims")
                         .with(customerUser())
-                        .contentType(jsonContent())
-                        .content(json("{\"orderIds\":[200],\"bookingIds\":[100]}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"orderIds\":[200],\"bookingIds\":[100]}"))
                 .andExpect(status().isOk());
     }
 
@@ -405,13 +406,13 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void create_inquiry() throws Exception {
         mockMvc.perform(post("/api/v1/me/inquiries")
                         .with(customerUser())
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "title": "예약 문의",
                                   "content": "예약 변경이 가능한가요?"
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isCreated());
     }
 
@@ -434,15 +435,15 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void create_my_product_qna() throws Exception {
         mockMvc.perform(post("/api/v1/me/products/{productId}/qna", 1L)
                         .with(customerUser())
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "title": "배송 문의",
                                   "content": "언제 받을 수 있나요?",
                                   "secret": false,
                                   "password": null
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isCreated());
     }
 

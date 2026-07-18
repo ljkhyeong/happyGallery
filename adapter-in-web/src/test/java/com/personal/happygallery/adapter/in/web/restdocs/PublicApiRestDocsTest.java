@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -174,8 +175,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("공개 상품 QNA 비밀번호 확인 API를 문서화한다")
     void verify_product_qna_password() throws Exception {
         mockMvc.perform(post("/api/v1/products/{productId}/qna/{id}/verify", 1L, 5L)
-                        .contentType(jsonContent())
-                        .content(json("{\"password\":\"qna-secret\"}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"password\":\"qna-secret\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -199,8 +200,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("비회원 휴대폰 인증 발송 API를 문서화한다")
     void send_booking_phone_verification() throws Exception {
         mockMvc.perform(post("/api/v1/bookings/phone-verifications")
-                        .contentType(jsonContent())
-                        .content(json("{\"phone\":\"01012345678\"}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"phone\":\"01012345678\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -217,8 +218,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void reschedule_guest_booking() throws Exception {
         mockMvc.perform(patch("/api/v1/bookings/{bookingId}/reschedule", 100L)
                         .header("X-Access-Token", "guest-access-token")
-                        .contentType(jsonContent())
-                        .content(json("{\"newSlotId\":42}")))
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"newSlotId\":42}"))
                 .andExpect(status().isOk());
     }
 
@@ -245,8 +246,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void prepare_payment() throws Exception {
         mockMvc.perform(post("/api/v1/payments/prepare")
                         .with(customerUser())
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "context": "ORDER",
                                   "payload": {
@@ -255,7 +256,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                     "items": [{ "productId": 1, "qty": 1 }]
                                   }
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isOk());
     }
 
@@ -264,14 +265,14 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void confirm_payment() throws Exception {
         mockMvc.perform(post("/api/v1/payments/confirm")
                         .with(customerUser())
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "paymentKey": "toss-payment-key",
                                   "orderId": "pay_20260501_0001",
                                   "amount": 39000
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isOk());
     }
 
@@ -294,15 +295,15 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void capture_client_event() throws Exception {
         mockMvc.perform(post("/api/v1/monitoring/client-events")
                         .with(customerUser())
-                        .contentType(jsonContent())
-                        .content(json("""
+                        .contentType(APPLICATION_JSON)
+                        .content("""
                                 {
                                   "event": "GUEST_LOOKUP_HUB_VIEWED",
                                   "path": "/guest",
                                   "source": "GuestLookupPage",
                                   "target": "primary-cta"
                                 }
-                                """)))
+                                """))
                 .andExpect(status().isNoContent());
     }
 
