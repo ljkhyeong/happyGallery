@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.slf4j.MDC;
 import org.springframework.http.MediaType;
+import org.springframework.util.StreamUtils;
 import tools.jackson.databind.ObjectMapper;
 
 public final class FilterErrorResponseWriter {
@@ -24,6 +25,7 @@ public final class FilterErrorResponseWriter {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         mapper.writeValue(
-                response.getOutputStream(), ErrorResponse.of(code, message, MDC.get("requestId")));
+                StreamUtils.nonClosing(response.getOutputStream()),
+                ErrorResponse.of(code, message, MDC.get("requestId")));
     }
 }

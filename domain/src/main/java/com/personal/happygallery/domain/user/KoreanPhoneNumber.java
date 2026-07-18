@@ -7,7 +7,8 @@ import java.util.regex.Pattern;
 public final class KoreanPhoneNumber {
 
     private static final Pattern MOBILE_PATTERN = Pattern.compile("^01[0-9]{8,9}$");
-    private static final Pattern SEPARATOR_PATTERN = Pattern.compile("[\\s-]");
+    private static final Pattern SEPARATOR_PATTERN = Pattern.compile(
+            "[\\s-]", Pattern.UNICODE_CHARACTER_CLASS);
 
     private KoreanPhoneNumber() {}
 

@@ -186,16 +186,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private void writeTooManyRequests(HttpServletResponse response) throws IOException {
-        writeError(response, ErrorCode.TOO_MANY_REQUESTS);
+        FilterErrorResponseWriter.write(response, objectMapper, ErrorCode.TOO_MANY_REQUESTS);
     }
 
     private void writeServiceUnavailable(HttpServletResponse response) throws IOException {
         response.setHeader(HttpHeaders.RETRY_AFTER, "1");
-        writeError(response, ErrorCode.SERVICE_UNAVAILABLE);
-    }
-
-    private void writeError(HttpServletResponse response, ErrorCode errorCode) throws IOException {
-        FilterErrorResponseWriter.write(response, objectMapper, errorCode);
+        FilterErrorResponseWriter.write(response, objectMapper, ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     private record LimitRule(String id, RequestMatcher matcher, RateLimitFailureMode failureMode) {

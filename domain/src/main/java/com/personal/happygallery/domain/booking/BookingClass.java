@@ -1,6 +1,8 @@
 package com.personal.happygallery.domain.booking;
 
 import com.personal.happygallery.domain.category.CategoryName;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -13,6 +15,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "classes")
 public class BookingClass {
+
+    private static final int MAX_NAME_LENGTH = 100;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,11 +46,22 @@ public class BookingClass {
     protected BookingClass() {}
 
     public BookingClass(String name, String category, int durationMin, long price, int bufferMin) {
-        this.name = name;
+        this.name = requireName(name);
         this.category = CategoryName.required(category);
         this.durationMin = durationMin;
         this.price = price;
         this.bufferMin = bufferMin;
+    }
+
+    private static String requireName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "클래스명은 필수입니다.");
+        }
+        String normalized = name.strip();
+        if (normalized.length() > MAX_NAME_LENGTH) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "클래스명은 100자 이하여야 합니다.");
+        }
+        return normalized;
     }
 
     public Long getId() { return id; }

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
+import org.slf4j.MDC;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -56,14 +57,21 @@ class RateLimitFilterTest {
                 .build(), mockRedis());
 
         perform(filter, "POST", "/api/v1/bookings/phone-verifications");
-        MockHttpServletResponse secondResponse = perform(
-                filter, "POST", "/api/v1/bookings/phone-verifications");
+        MockHttpServletResponse secondResponse;
+        try (MDC.MDCCloseable ignored = MDC.putCloseable("requestId", "rate-limit-test")) {
+            secondResponse = perform(filter, "POST", "/api/v1/bookings/phone-verifications");
+        }
         String secondResponseBody = secondResponse.getContentAsString();
 
         assertSoftly(softly -> {
             softly.assertThat(secondResponse.getStatus()).isEqualTo(429);
             softly.assertThat(secondResponse.getHeader("Retry-After")).isNotBlank();
-            softly.assertThat(secondResponseBody).contains("\"code\":\"TOO_MANY_REQUESTS\"");
+            softly.assertThat(secondResponse.getContentType()).startsWith("application/json");
+            softly.assertThat(secondResponse.getCharacterEncoding()).isEqualTo("UTF-8");
+            softly.assertThat(secondResponseBody).contains(
+                    "\"code\":\"TOO_MANY_REQUESTS\"",
+                    "요청이 너무 많습니다.",
+                    "\"requestId\":\"rate-limit-test\"");
         });
     }
 
