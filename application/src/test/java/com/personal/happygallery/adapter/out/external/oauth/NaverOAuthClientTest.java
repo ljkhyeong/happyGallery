@@ -39,7 +39,7 @@ class NaverOAuthClientTest {
             softly.assertThat(result.url()).contains("client_id=client-id");
             softly.assertThat(result.url())
                     .contains("redirect_uri=https%3A%2F%2Fhappy.test%2Foauth%2Fcallback%3Fnext%3D%2Fme");
-            softly.assertThat(result.url()).contains("state=state+value");
+            softly.assertThat(result.url()).contains("state=state%20value");
         });
     }
 

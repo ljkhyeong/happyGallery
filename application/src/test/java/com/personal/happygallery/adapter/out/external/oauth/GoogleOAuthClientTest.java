@@ -35,8 +35,8 @@ class GoogleOAuthClientTest {
             softly.assertThat(result.state()).isEqualTo("state value");
             softly.assertThat(result.url()).contains("client_id=client-id");
             softly.assertThat(result.url()).contains("redirect_uri=https%3A%2F%2Fhappy.test%2Foauth%2Fcallback%3Fnext%3D%2Fme");
-            softly.assertThat(result.url()).contains("scope=openid+email+profile");
-            softly.assertThat(result.url()).contains("state=state+value");
+            softly.assertThat(result.url()).contains("scope=openid%20email%20profile");
+            softly.assertThat(result.url()).contains("state=state%20value");
         });
     }
 

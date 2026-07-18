@@ -26,9 +26,14 @@ class TossPaymentsRestClientConfig {
     @Bean
     RestClient tossPaymentsRestClient(TossPaymentsProperties props,
                                       @Qualifier("tossPaymentsHttpClient") CloseableHttpClient httpClient) {
-        return RestClient.builder()
-                .baseUrl(props.baseUrl())
+        return configure(RestClient.builder(), props)
                 .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
                 .build();
+    }
+
+    static RestClient.Builder configure(RestClient.Builder builder, TossPaymentsProperties props) {
+        return builder
+                .baseUrl(props.baseUrl())
+                .defaultHeaders(headers -> headers.setBasicAuth(props.secretKey(), ""));
     }
 }

@@ -5,8 +5,7 @@ import com.personal.happygallery.application.customer.port.out.OAuthTokenExchang
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.SocialProvider;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -16,6 +15,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 @Profile("prod")
@@ -39,14 +39,20 @@ class GoogleOAuthClient implements OAuthTokenExchangePort {
 
     @Override
     public AuthorizationUrl buildAuthorizationUrl(String redirectUri, String state) {
-        String url = GOOGLE_AUTH_URL
-                + "?client_id=" + encode(props.clientId())
-                + "&redirect_uri=" + encode(redirectUri)
-                + "&response_type=code"
-                + "&scope=" + encode("openid email profile")
-                + "&state=" + encode(state)
-                + "&access_type=offline"
-                + "&prompt=consent";
+        String url = UriComponentsBuilder.fromUriString(GOOGLE_AUTH_URL)
+                .queryParam("client_id", "{clientId}")
+                .queryParam("redirect_uri", "{redirectUri}")
+                .queryParam("response_type", "code")
+                .queryParam("scope", "openid email profile")
+                .queryParam("state", "{state}")
+                .queryParam("access_type", "offline")
+                .queryParam("prompt", "consent")
+                .encode()
+                .buildAndExpand(Map.of(
+                        "clientId", props.clientId(),
+                        "redirectUri", redirectUri,
+                        "state", state))
+                .toUriString();
         return new AuthorizationUrl(url, state);
     }
 
@@ -71,8 +77,8 @@ class GoogleOAuthClient implements OAuthTokenExchangePort {
                 .retrieve()
                 .body(TokenResponse.class);
 
-        if (response == null || response.accessToken() == null) {
-            log.error("Google OAuth token exchange failed: null response");
+        if (response == null || !StringUtils.hasText(response.accessToken())) {
+            log.error("Google OAuth token exchange failed: access token missing");
             throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
         }
         return response.accessToken();
@@ -106,8 +112,4 @@ class GoogleOAuthClient implements OAuthTokenExchangePort {
             String name,
             @JsonProperty("email_verified") Boolean emailVerified
     ) {}
-
-    private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
-    }
 }

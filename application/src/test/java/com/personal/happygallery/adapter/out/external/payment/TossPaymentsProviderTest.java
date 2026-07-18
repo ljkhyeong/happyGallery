@@ -2,8 +2,6 @@ package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -23,16 +21,25 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 class TossPaymentsProviderTest {
 
+    private static final TossPaymentsProperties PROPERTIES = new TossPaymentsProperties(
+            "test_secret",
+            "https://api.tosspayments.com",
+            5_000,
+            2_000,
+            1_000,
+            10,
+            30_000);
+
     @DisplayName("Toss 결제 확정은 Basic 인증과 서버 금액으로 confirm 요청을 보낸다")
     @Test
     void confirm_sendsBasicAuthAndAmount_returnsSuccess() {
-        RestClient.Builder builder = RestClient.builder().baseUrl("https://api.tosspayments.com");
+        RestClient.Builder builder = tossRestClientBuilder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build(), properties("test_secret"));
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
 
         server.expect(requestTo("https://api.tosspayments.com/v1/payments/confirm"))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(header(HttpHeaders.AUTHORIZATION, basicAuth("test_secret")))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, basicAuth(PROPERTIES.secretKey())))
                 .andExpect(header("Idempotency-Key", "confirm-idempotency-key"))
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(content().json("""
@@ -67,9 +74,9 @@ class TossPaymentsProviderTest {
     @DisplayName("Toss 결제 확정 실패 응답은 실패 결과로 변환된다")
     @Test
     void confirm_tossFailureResponse_returnsFailure() {
-        RestClient.Builder builder = RestClient.builder().baseUrl("https://api.tosspayments.com");
+        RestClient.Builder builder = tossRestClientBuilder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build(), properties("test_secret"));
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
 
         server.expect(requestTo("https://api.tosspayments.com/v1/payments/confirm"))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST)
@@ -95,13 +102,13 @@ class TossPaymentsProviderTest {
     @DisplayName("Toss 환불은 Basic 인증과 취소 금액으로 cancel 요청을 보낸다")
     @Test
     void refund_sendsBasicAuthAndAmount_returnsSuccess() {
-        RestClient.Builder builder = RestClient.builder().baseUrl("https://api.tosspayments.com");
+        RestClient.Builder builder = tossRestClientBuilder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build(), properties("test_secret"));
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
 
         server.expect(requestTo("https://api.tosspayments.com/v1/payments/payment-key/cancel"))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(header(HttpHeaders.AUTHORIZATION, basicAuth("test_secret")))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, basicAuth(PROPERTIES.secretKey())))
                 .andExpect(header("Idempotency-Key", "refund-idempotency-key"))
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(content().json("""
@@ -136,9 +143,9 @@ class TossPaymentsProviderTest {
     @DisplayName("Toss 환불 응답에 취소 거래 키가 없으면 상태 확인 필요 결과로 변환된다")
     @Test
     void refund_withoutTransactionKey_returnsFailure() {
-        RestClient.Builder builder = RestClient.builder().baseUrl("https://api.tosspayments.com");
+        RestClient.Builder builder = tossRestClientBuilder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build(), properties("test_secret"));
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
 
         server.expect(requestTo("https://api.tosspayments.com/v1/payments/payment-key/cancel"))
                 .andExpect(method(HttpMethod.POST))
@@ -162,9 +169,9 @@ class TossPaymentsProviderTest {
     @DisplayName("Toss 환불 실패 응답은 실패 결과로 변환된다")
     @Test
     void refund_tossFailureResponse_returnsFailure() {
-        RestClient.Builder builder = RestClient.builder().baseUrl("https://api.tosspayments.com");
+        RestClient.Builder builder = tossRestClientBuilder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build(), properties("test_secret"));
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
 
         server.expect(requestTo("https://api.tosspayments.com/v1/payments/payment-key/cancel"))
                 .andExpect(method(HttpMethod.POST))
@@ -189,20 +196,13 @@ class TossPaymentsProviderTest {
         });
     }
 
-    private static TossPaymentsProperties properties(String secretKey) {
-        return new TossPaymentsProperties(
-                secretKey,
-                "https://api.tosspayments.com",
-                5_000,
-                2_000,
-                1_000,
-                10,
-                30_000);
+    private static RestClient.Builder tossRestClientBuilder() {
+        return TossPaymentsRestClientConfig.configure(RestClient.builder(), PROPERTIES);
     }
 
     private static String basicAuth(String secretKey) {
-        String encoded = Base64.getEncoder()
-                .encodeToString((secretKey + ":").getBytes(StandardCharsets.UTF_8));
-        return "Basic " + encoded;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBasicAuth(secretKey, "");
+        return headers.getFirst(HttpHeaders.AUTHORIZATION);
     }
 }

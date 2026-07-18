@@ -5,8 +5,7 @@ import com.personal.happygallery.application.customer.port.out.OAuthTokenExchang
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.SocialProvider;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -16,6 +15,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 @Profile("prod")
@@ -39,11 +39,17 @@ class NaverOAuthClient implements OAuthTokenExchangePort {
 
     @Override
     public AuthorizationUrl buildAuthorizationUrl(String redirectUri, String state) {
-        String url = NAVER_AUTH_URL
-                + "?response_type=code"
-                + "&client_id=" + encode(props.clientId())
-                + "&redirect_uri=" + encode(redirectUri)
-                + "&state=" + encode(state);
+        String url = UriComponentsBuilder.fromUriString(NAVER_AUTH_URL)
+                .queryParam("response_type", "code")
+                .queryParam("client_id", "{clientId}")
+                .queryParam("redirect_uri", "{redirectUri}")
+                .queryParam("state", "{state}")
+                .encode()
+                .buildAndExpand(Map.of(
+                        "clientId", props.clientId(),
+                        "redirectUri", redirectUri,
+                        "state", state))
+                .toUriString();
         return new AuthorizationUrl(url, state);
     }
 
@@ -100,8 +106,4 @@ class NaverOAuthClient implements OAuthTokenExchangePort {
     private record UserInfoEnvelope(UserInfoResponse response) {}
 
     private record UserInfoResponse(String id, String email, String name) {}
-
-    private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
-    }
 }
