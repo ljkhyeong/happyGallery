@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 class NotificationOutboxTransactionService {
 
+    private static final int MAX_BACKOFF_EXPONENT = 5;
+
     private final NotificationOutboxPort outboxPort;
     private final Clock clock;
 
@@ -65,8 +67,8 @@ class NotificationOutboxTransactionService {
     }
 
     private LocalDateTime nextAttemptAt(NotificationOutbox outbox, LocalDateTime now) {
-        int nextAttempt = outbox.getAttemptCount() + 1;
-        long delayMinutes = Math.min(60L, 1L << Math.min(nextAttempt - 1, 5));
+        int backoffExponent = Math.clamp((long) outbox.getAttemptCount(), 0, MAX_BACKOFF_EXPONENT);
+        long delayMinutes = 1L << backoffExponent;
         return now.plusMinutes(delayMinutes);
     }
 }
