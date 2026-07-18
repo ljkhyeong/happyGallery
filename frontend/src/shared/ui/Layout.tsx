@@ -5,9 +5,9 @@ import { CartBadge } from "@/features/cart/CartBadge";
 import { NotificationBell } from "@/features/notification/NotificationBell";
 
 const NAV_ITEMS = [
-  { path: "/products", label: "STORE" },
-  { path: "/bookings/new", label: "WORKSHOP" },
-  { path: "/passes/purchase", label: "PASS" },
+  { path: "/products", label: "작품" },
+  { path: "/bookings/new", label: "클래스" },
+  { path: "/passes/purchase", label: "8회권" },
 ] as const;
 
 function isActive(pathname: string, itemPath: string): boolean {
@@ -23,15 +23,15 @@ export function Layout() {
     <div className="d-flex flex-column min-vh-100">
       <div className="app-utility-bar">
         <Container className="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2" style={{ maxWidth: 1100 }}>
-          <div className="app-utility-copy">FREE SHIPPING ON ORDERS OVER ₩50,000</div>
+          <div className="app-utility-copy">작품 주문 · 클래스 예약 · 8회권을 한곳에서</div>
           <div className="d-flex flex-wrap align-items-center gap-3">
             {!isLoading && (
               isAuthenticated ? (
-                <Link to="/my" className="app-utility-link">MY PAGE</Link>
+                <Link to="/my" className="app-utility-link">내 정보</Link>
               ) : (
                 <>
-                  <Link to="/login" className="app-utility-link">LOGIN</Link>
-                  <Link to="/signup" className="app-utility-link">JOIN</Link>
+                  <Link to="/login" className="app-utility-link">로그인</Link>
+                  <Link to="/signup" className="app-utility-link">회원가입</Link>
                 </>
               )
             )}
@@ -40,7 +40,7 @@ export function Layout() {
               state={{ monitoringSource: "layout_utility" }}
               className="app-utility-link"
             >
-              ORDER LOOKUP
+              비회원 조회
             </Link>
             <Link to="/admin" className="app-utility-link">ADMIN</Link>
           </div>
@@ -50,8 +50,8 @@ export function Layout() {
       <Navbar expand="md" className="app-navbar" data-bs-theme="light">
         <Container style={{ maxWidth: 1100 }}>
           <Navbar.Brand as={Link} to="/" className="app-brand d-flex flex-column">
-            <span className="app-brand-mark">HAPPYGALLERY</span>
-            <span className="app-brand-subtitle">Handmade Store &amp; Workshop</span>
+            <span className="app-brand-mark">happyGallery</span>
+            <span className="app-brand-subtitle">작품과 시간이 머무는 공방</span>
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="main-nav" />
           <Navbar.Collapse id="main-nav">
@@ -87,7 +87,7 @@ export function Layout() {
                       className="app-nav-link text-muted-soft btn btn-link p-0 border-0"
                       onClick={() => logout()}
                     >
-                      LOGOUT
+                      로그아웃
                     </Nav.Link>
                   </>
                 ) : (
@@ -98,7 +98,7 @@ export function Layout() {
                       active={isActive(pathname, "/login")}
                       className="app-nav-link"
                     >
-                      LOGIN
+                      로그인
                     </Nav.Link>
                     <Nav.Link
                       as={Link}
@@ -106,7 +106,7 @@ export function Layout() {
                       active={isActive(pathname, "/signup")}
                       className="app-signup-link"
                     >
-                      JOIN US
+                      회원가입
                     </Nav.Link>
                   </>
                 )
@@ -122,9 +122,8 @@ export function Layout() {
 
       <footer className="app-footer text-center py-4 small">
         <Container style={{ maxWidth: 1100 }}>
-          <span>
-            &copy; {new Date().getFullYear()} HAPPYGALLERY &middot; Handmade with care
-          </span>
+          <div className="app-footer-brand">happyGallery</div>
+          <span>&copy; {new Date().getFullYear()} 손으로 만든 작품과 공방의 시간을 전합니다.</span>
         </Container>
       </footer>
     </div>

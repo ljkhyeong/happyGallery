@@ -133,6 +133,13 @@ docker compose up -d --build
 - 모니터링: Actuator, Prometheus, Grafana, Sentry
 - 테스트: JUnit 5, Testcontainers, Spring REST Docs, Playwright
 
+### 프론트엔드 디자인 기준
+
+- 햇빛이 드는 공방을 중심 이미지로 삼고 한지색, 점토색, 잎색을 기본 팔레트로 사용한다.
+- 본문은 Pretendard, 전시 제목과 브랜드 표기는 Gowun Batang 계열을 사용한다.
+- 공통 색상과 컴포넌트 변수는 `frontend/src/styles/_variables.scss`, 화면 스타일은 `frontend/src/styles/global.scss`에서 관리한다.
+- 홈 히어로 이미지는 `frontend/src/assets/studio-hero.jpg`를 사용하며, 모바일 구도와 `prefers-reduced-motion`을 함께 지원한다.
+
 ## 운영/배포
 
 AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노트북의 단일 노드 k3s다.
