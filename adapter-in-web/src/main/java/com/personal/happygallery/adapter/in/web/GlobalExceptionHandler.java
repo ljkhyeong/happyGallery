@@ -65,7 +65,7 @@ public class GlobalExceptionHandler {
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining(", "));
         return ResponseEntity
-                .status(400)
+                .status(ErrorCode.INVALID_INPUT.httpStatus)
                 .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, message, requestId()));
     }
 
@@ -117,7 +117,7 @@ public class GlobalExceptionHandler {
         log.error("처리되지 않은 예외 [type={}]", e.getClass().getSimpleName());
         Sentry.captureMessage("Unhandled exception: " + e.getClass().getSimpleName());
         return ResponseEntity
-                .status(500)
+                .status(ErrorCode.INTERNAL_ERROR.httpStatus)
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
     }
 

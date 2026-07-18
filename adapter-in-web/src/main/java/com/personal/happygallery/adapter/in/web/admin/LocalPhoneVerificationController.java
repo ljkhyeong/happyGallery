@@ -26,8 +26,7 @@ public class LocalPhoneVerificationController {
 
     @GetMapping("/latest")
     public ResponseEntity<LatestVerificationCodeResponse> latestCode(@RequestParam String phone) {
-        return phoneVerificationQuery.findLatestUnverifiedCode(phone)
-                .map(code -> ResponseEntity.ok(new LatestVerificationCodeResponse(code)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return ResponseEntity.of(phoneVerificationQuery.findLatestUnverifiedCode(phone)
+                .map(LatestVerificationCodeResponse::new));
     }
 }

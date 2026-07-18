@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.in.web;
 
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties;
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties.Rule;
-import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitDecision;
 import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode;
 import com.personal.happygallery.adapter.in.web.ratelimit.RedisRateLimiter;
@@ -13,7 +12,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Optional;
-import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
@@ -178,12 +176,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         String forwarded = request.getHeader(X_FORWARDED_FOR);
         if (StringUtils.hasText(forwarded)) {
-            String[] tokens = forwarded.split(",");
-            if (tokens.length > 0) {
-                String ip = tokens[0].trim();
-                if (StringUtils.hasText(ip)) {
-                    return ip;
-                }
+            String ip = forwarded.split(",", 2)[0].trim();
+            if (StringUtils.hasText(ip)) {
+                return ip;
             }
         }
         String remoteAddr = request.getRemoteAddr();
@@ -200,10 +195,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private void writeError(HttpServletResponse response, ErrorCode errorCode) throws IOException {
-        response.setStatus(errorCode.httpStatus);
-        response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write(objectMapper.writeValueAsString(
-                ErrorResponse.of(errorCode, errorCode.message, MDC.get("requestId"))));
+        FilterErrorResponseWriter.write(response, objectMapper, errorCode);
     }
 
     private record LimitRule(String id, RequestMatcher matcher, RateLimitFailureMode failureMode) {
