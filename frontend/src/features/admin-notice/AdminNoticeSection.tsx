@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Card, Badge, Button, Form } from "react-bootstrap";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAdminNotices, createNotice, updateNotice, deleteNotice } from "./api";
 import type { NoticeListItem } from "@/shared/types";
 import { ApiError } from "@/shared/api";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 
@@ -26,6 +27,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [pinned, setPinned] = useState(false);
+  const [actionError, setActionError] = useState<Error | null>(null);
 
   const resetForm = () => {
     setShowForm(false);
@@ -33,32 +35,39 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
     setTitle("");
     setContent("");
     setPinned(false);
+    setActionError(null);
   };
 
-  const createMutation = useMutation({
+  const createMutation = useAdminMutation(onAuthError, {
     mutationFn: () => createNotice({ title, content, pinned }, adminKey),
+    onMutate: () => setActionError(null),
     onSuccess: () => {
       toast.show("공지사항이 등록되었습니다.");
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["admin", "notices"] });
     },
+    onError: setActionError,
   });
 
-  const updateMutation = useMutation({
+  const updateMutation = useAdminMutation(onAuthError, {
     mutationFn: () => updateNotice(editId!, { title, content, pinned }, adminKey),
+    onMutate: () => setActionError(null),
     onSuccess: () => {
       toast.show("공지사항이 수정되었습니다.");
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["admin", "notices"] });
     },
+    onError: setActionError,
   });
 
-  const deleteMutation = useMutation({
+  const deleteMutation = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => deleteNotice(id, adminKey),
+    onMutate: () => setActionError(null),
     onSuccess: () => {
       toast.show("공지사항이 삭제되었습니다.");
       queryClient.invalidateQueries({ queryKey: ["admin", "notices"] });
     },
+    onError: setActionError,
   });
 
   const startEdit = (n: NoticeListItem) => {
@@ -66,6 +75,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
     setTitle(n.title);
     setPinned(n.pinned);
     setContent("");
+    setActionError(null);
     setShowForm(true);
   };
 
@@ -92,6 +102,8 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
           {showForm ? "취소" : "새 공지 작성"}
         </Button>
       </div>
+
+      <ErrorAlert error={actionError} />
 
       {showForm && (
         <Card className="mb-3">
@@ -131,7 +143,6 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
               >
                 {editId ? "수정" : "등록"}
               </Button>
-              <ErrorAlert error={createMutation.error ?? updateMutation.error} />
             </Form>
           </Card.Body>
         </Card>

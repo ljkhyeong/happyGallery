@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { Card, Form, Button, Row, Col } from "react-bootstrap";
 import { expirePasses, refundPass } from "./api";
 import { ErrorAlert, useToast } from "@/shared/ui";
-import { ApiError } from "@/shared/api";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { formatKRW } from "@/shared/lib";
 import { useAdminRefundPolling } from "@/features/admin-refund/useAdminRefundPolling";
 
@@ -16,19 +15,18 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
   const toast = useToast();
   const { trackRefund } = useAdminRefundPolling(adminKey, onAuthError);
   const [passId, setPassId] = useState("");
+  const [actionError, setActionError] = useState<Error | null>(null);
 
-  function onError(error: Error) {
-    if (error instanceof ApiError && error.status === 401) onAuthError();
-  }
-
-  const expire = useMutation({
+  const expire = useAdminMutation(onAuthError, {
     mutationFn: () => expirePasses(adminKey),
+    onMutate: () => setActionError(null),
     onSuccess: (r) => toast.show(`만료 배치: 성공 ${r.successCount}, 실패 ${r.failureCount}`),
-    onError,
+    onError: setActionError,
   });
 
-  const refund = useMutation({
+  const refund = useAdminMutation(onAuthError, {
     mutationFn: () => refundPass(adminKey, Number(passId)),
+    onMutate: () => setActionError(null),
     onSuccess: (r) => {
       if (r.refundId != null && r.refundStatus != null) {
         toast.show(
@@ -40,7 +38,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
         toast.show(`8회권 정산 완료: 환불 금액 없음, 취소 예약 ${r.canceledBookings}건`);
       }
     },
-    onError,
+    onError: setActionError,
   });
 
   const pending = expire.isPending || refund.isPending;
@@ -49,7 +47,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
     <Card>
       <Card.Header>8회권 관리</Card.Header>
       <Card.Body>
-        <ErrorAlert error={expire.error ?? refund.error} />
+        <ErrorAlert error={actionError} />
 
         <Row className="g-2 mb-3">
           <Col xs={8}>
