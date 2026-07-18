@@ -2,6 +2,7 @@ package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.application.notification.port.in.NotificationQueryUseCase;
 import com.personal.happygallery.application.notification.port.out.NotificationLogReaderPort;
+import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -23,7 +24,7 @@ public class DefaultNotificationQueryService implements NotificationQueryUseCase
 
     @Override
     public List<NotificationView> listNotifications(Long userId, Long guestId, int page, int size) {
-        int offset = page * size;
+        int offset = PageParams.offset(page, size);
         List<NotificationLog> logs = (userId != null)
                 ? logReader.findByUserIdOrderBySentAtDesc(userId, size, offset)
                 : logReader.findByGuestIdOrderBySentAtDesc(guestId, size, offset);

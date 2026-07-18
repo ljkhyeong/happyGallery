@@ -2,13 +2,12 @@ package com.personal.happygallery.application.search;
 
 import com.personal.happygallery.application.search.port.out.AdminSearchPort;
 import com.personal.happygallery.application.shared.page.OffsetPage;
+import com.personal.happygallery.application.shared.page.PageParams;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Function;
 
 final class AdminSearchHelper {
-
-    private static final int MAX_SIZE = 100;
 
     private AdminSearchHelper() {}
 
@@ -17,14 +16,15 @@ final class AdminSearchHelper {
                                            String keyword, int page, int size,
                                            Function<D, R> rowMapper) {
         String safeKeyword = SearchParams.clampKeyword(keyword);
-        int safePage = SearchParams.clampPage(page);
-        int clampedSize = SearchParams.clampSize(size, MAX_SIZE);
+        int safePage = PageParams.clampPage(page);
+        int clampedSize = PageParams.clampSize(size);
+        int offset = PageParams.offset(safePage, clampedSize);
         long totalCount = port.count(status, dateFrom, dateTo, safeKeyword);
-        if (totalCount == 0 || (long) safePage * clampedSize >= totalCount) {
+        if (totalCount == 0 || offset >= totalCount) {
             return OffsetPage.of(List.of(), safePage, clampedSize, totalCount);
         }
         List<R> rows = port.search(
-                        status, dateFrom, dateTo, safeKeyword, safePage * clampedSize, clampedSize)
+                        status, dateFrom, dateTo, safeKeyword, offset, clampedSize)
                 .stream()
                 .map(rowMapper)
                 .toList();

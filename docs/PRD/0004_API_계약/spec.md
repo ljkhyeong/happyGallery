@@ -722,6 +722,8 @@ Authorization: Bearer {token}
 ```
 
 - 성공: `200 OK`
+- 에러:
+  - `400 INVALID_INPUT` — `size`가 1~100 범위를 벗어난 경우
 - 정책:
   - 상태 필터가 없으면 전체 주문을 `createdAt DESC, id DESC` 기준으로 조회한다.
   - `cursor`는 `Base64("{ISO_LOCAL_DATE_TIME}|{id}")` 형식이다.
@@ -759,6 +761,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
+  - `page`는 0 미만이면 0으로, `size`는 1~100 범위로 보정하며 표현 가능한 OFFSET을 넘으면 `400 INVALID_INPUT`으로 거절한다.
   - `keyword`는 주문 ID 문자열에는 부분 일치, 회원·비회원 이름에는 정확 일치로 검색한다.
   - `dateFrom`~`dateTo`는 KST 기준 주문 생성일 범위를 의미한다.
   - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
@@ -1083,6 +1086,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
+  - `page`는 0 미만이면 0으로, `size`는 1~100 범위로 보정하며 표현 가능한 OFFSET을 넘으면 `400 INVALID_INPUT`으로 거절한다.
   - `keyword`는 예약 ID 문자열에는 부분 일치, 회원·비회원 이름에는 정확 일치로 검색한다.
   - 날짜 필터는 슬롯 시작 시간(`slotStart`) 기준 KST 범위를 사용한다.
   - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
@@ -1450,6 +1454,7 @@ Cookie: HG_SESSION={sessionToken}
 
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
+- `page`는 0 이상, `size`는 1~100이어야 하며 표현 가능한 OFFSET 범위를 넘으면 `400 INVALID_INPUT`으로 거절한다.
 - 본인 알림만 조회/읽음 처리할 수 있고, 타인 알림 ID는 찾을 수 없는 것처럼 거절한다.
 - 목록은 `sentAt DESC` 기준 페이지네이션으로 조회한다.
 - `readAt != null`이면 `read=true`로 본다.

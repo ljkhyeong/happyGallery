@@ -5,6 +5,7 @@ import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.application.order.port.in.AdminOrderResponse;
 import com.personal.happygallery.application.order.port.in.OrderHistoryResponse;
 import com.personal.happygallery.domain.order.Order;
@@ -36,7 +37,8 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
 
     /** 관리자 주문 목록 조회 — 커서 기반 페이지네이션 */
     public CursorPage<AdminOrderResponse> listOrders(OrderStatus status, String cursor, int size) {
-        int fetchSize = size + 1;
+        int pageSize = PageParams.requireSize(size);
+        int fetchSize = pageSize + 1;
         List<Order> orders;
 
         if (cursor == null) {
@@ -56,7 +58,7 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
                 .map(AdminOrderResponse::from)
                 .toList();
 
-        return CursorPage.of(items, size,
+        return CursorPage.of(items, pageSize,
                 r -> CursorUtils.encode(r.createdAt(), r.orderId()));
     }
 
