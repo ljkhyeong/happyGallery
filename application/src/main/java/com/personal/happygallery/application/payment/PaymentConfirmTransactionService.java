@@ -66,7 +66,7 @@ class PaymentConfirmTransactionService {
     public ClaimedAttempt claim(ConfirmCommand command) {
         PaymentAttempt attempt = attemptReader.findByOrderIdExternalForUpdate(command.orderId())
                 .orElseThrow(() -> new NotFoundException("결제 시도"));
-        String paymentKey = normalize(command.paymentKey());
+        String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
         PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
         PaymentPayload payload = deserialize(attempt.getPayloadEnc());
         fulfiller.validateBeforePg(attempt, payload);
@@ -188,10 +188,6 @@ class PaymentConfirmTransactionService {
     private boolean isStale(PaymentAttempt attempt, LocalDateTime now) {
         return attempt.getProcessingAt() == null
                 || !attempt.getProcessingAt().isAfter(now.minus(PROCESSING_STALE_AFTER));
-    }
-
-    private String normalize(String value) {
-        return StringUtils.hasText(value) ? value : null;
     }
 
     record ClaimedAttempt(Long id, String orderId, long amount, String paymentKey,

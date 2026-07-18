@@ -160,9 +160,7 @@ public class PaymentAttempt {
 
     /** 최종 PG 실패 또는 amount=0 도메인 생성 실패다. */
     public void markFailed(String reason) {
-        if (status != PaymentAttemptStatus.PROCESSING && status != PaymentAttemptStatus.APPROVED) {
-            throw invalidTransition();
-        }
+        requireStatus(PaymentAttemptStatus.PROCESSING, PaymentAttemptStatus.APPROVED);
         this.status = PaymentAttemptStatus.FAILED;
         this.failReason = reason;
     }
@@ -175,19 +173,17 @@ public class PaymentAttempt {
     }
 
     public void markCompensationFailed(String reason) {
-        if (status != PaymentAttemptStatus.COMPENSATION_REQUESTED
-                && status != PaymentAttemptStatus.COMPENSATION_FAILED) {
-            throw invalidTransition();
-        }
+        requireStatus(
+                PaymentAttemptStatus.COMPENSATION_REQUESTED,
+                PaymentAttemptStatus.COMPENSATION_FAILED);
         this.status = PaymentAttemptStatus.COMPENSATION_FAILED;
         this.failReason = reason;
     }
 
     public void markCompensated() {
-        if (status != PaymentAttemptStatus.COMPENSATION_REQUESTED
-                && status != PaymentAttemptStatus.COMPENSATION_FAILED) {
-            throw invalidTransition();
-        }
+        requireStatus(
+                PaymentAttemptStatus.COMPENSATION_REQUESTED,
+                PaymentAttemptStatus.COMPENSATION_FAILED);
         this.status = PaymentAttemptStatus.COMPENSATED;
     }
 
@@ -225,14 +221,13 @@ public class PaymentAttempt {
         }
     }
 
-    private void requireStatus(PaymentAttemptStatus expected) {
-        if (status != expected) {
-            throw invalidTransition();
+    private void requireStatus(PaymentAttemptStatus... allowedStatuses) {
+        for (PaymentAttemptStatus allowedStatus : allowedStatuses) {
+            if (status == allowedStatus) {
+                return;
+            }
         }
-    }
-
-    private HappyGalleryException invalidTransition() {
-        return new HappyGalleryException(ErrorCode.INVALID_INPUT,
+        throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
                 "결제 상태를 변경할 수 없습니다. (현재: " + status + ")");
     }
 }
