@@ -38,7 +38,10 @@ export function BookingCreatePage() {
     }
   }, [isAuthenticated, paymentPath]);
 
-  const passValid = isAuthenticated && paymentPath === "pass" ? Number(passId) > 0 : true;
+  const parsedPassId = Number(passId);
+  const passValid = isAuthenticated && paymentPath === "pass"
+    ? Number.isSafeInteger(parsedPassId) && parsedPassId > 0
+    : true;
   const formReady = selectedSlot !== null && passValid;
 
   const startPayment = useMutation({
@@ -57,7 +60,7 @@ export function BookingCreatePage() {
               type: "BOOKING",
               userId: user!.id,
               slotId: selectedSlot!.id,
-              passId: paymentPath === "pass" ? Number(passId) : undefined,
+              passId: paymentPath === "pass" ? parsedPassId : undefined,
               paymentMethod: paymentPath === "pass" ? undefined : paymentMethod,
             };
 

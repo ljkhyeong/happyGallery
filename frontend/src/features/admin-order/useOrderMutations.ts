@@ -88,9 +88,9 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
     onSuccess: (r) => { toast.show(`픽업 만료 배치: 성공 ${r.successCount}, 실패 ${r.failureCount}`); invalidate(); },
   });
 
-  const lastError = approve.error || reject.error || completeProduction_.error
-    || delay.error || delayCancel.error || resumeProduction_.error || pickup.error || pickupDone.error || shipDate.error
-    || prepareShipping_.error || shipped.error || delivered.error || expire.error;
+  const lastError = approve.error ?? reject.error ?? completeProduction_.error
+    ?? delay.error ?? delayCancel.error ?? resumeProduction_.error ?? pickup.error ?? pickupDone.error ?? shipDate.error
+    ?? prepareShipping_.error ?? shipped.error ?? delivered.error ?? expire.error;
 
   return {
     pendingId,

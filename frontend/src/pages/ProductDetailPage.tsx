@@ -30,7 +30,7 @@ export function ProductDetailPage() {
   const { data: product, isLoading, error } = useQuery({
     queryKey: ["products", productId],
     queryFn: () => fetchProduct(productId),
-    enabled: productId > 0,
+    enabled: Number.isSafeInteger(productId) && productId > 0,
     staleTime: PUBLIC_DATA_STALE_TIME,
   });
 

@@ -23,7 +23,7 @@ export function MyBookingDetailPage() {
   } = useQuery({
     queryKey: ["my", "bookings", bookingId],
     queryFn: () => fetchMyBooking(bookingId),
-    enabled: isAuthenticated && bookingId > 0,
+    enabled: isAuthenticated && Number.isSafeInteger(bookingId) && bookingId > 0,
     refetchInterval: ({ state }) =>
       customerRefundPollingInterval(
         state.data?.refund?.status,

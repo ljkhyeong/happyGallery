@@ -58,7 +58,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    fetchMe();
+    void fetchMe();
   }, [fetchMe]);
 
   const login = useCallback(

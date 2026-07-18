@@ -43,14 +43,14 @@ export function MyOrdersPage() {
   const sortedOrders = [...filteredOrders].sort((left, right) => {
     switch (sortValue) {
       case "OLDEST":
-        return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+        return Date.parse(left.createdAt) - Date.parse(right.createdAt);
       case "AMOUNT_DESC":
         return right.totalAmount - left.totalAmount;
       case "AMOUNT_ASC":
         return left.totalAmount - right.totalAmount;
       case "LATEST":
       default:
-        return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+        return Date.parse(right.createdAt) - Date.parse(left.createdAt);
     }
   });
   const activeCount = (orders ?? []).filter((order) =>

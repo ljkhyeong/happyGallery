@@ -43,7 +43,7 @@ export function buildQuickStatusTabs(statuses: string[], maxTabs = 3): MyQuickTa
 
 export function getPassFilterKey(pass: MyPassSummary): string {
   if (pass.remainingCredits <= 0) return "USED_UP";
-  return new Date(pass.expiresAt).getTime() < Date.now() ? "EXPIRED" : "ACTIVE";
+  return Date.parse(pass.expiresAt) < Date.now() ? "EXPIRED" : "ACTIVE";
 }
 
 export function buildPassTabs(passes: MyPassSummary[]): MyQuickTab[] {

@@ -17,7 +17,7 @@ export function MyOrderDetailPage() {
   const { data: order, isLoading, error } = useQuery({
     queryKey: ["my", "orders", orderId],
     queryFn: () => api<OrderDetailResponse>(`/me/orders/${orderId}`),
-    enabled: isAuthenticated && orderId > 0,
+    enabled: isAuthenticated && Number.isSafeInteger(orderId) && orderId > 0,
     refetchInterval: ({ state }) =>
       customerRefundPollingInterval(
         state.data?.refund?.status,

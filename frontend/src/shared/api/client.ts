@@ -75,18 +75,16 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  const headers: Record<string, string> = {
-    ...Object.fromEntries(Object.entries(customHeaders ?? {}).map(([k, v]) => [k, String(v)])),
-  };
+  const headers = new Headers(customHeaders);
 
   if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
+    headers.set("Content-Type", "application/json");
   }
 
   let response: Response;
   try {
     if (requiresCsrf(path, rest.method)) {
-      headers[CSRF_HEADER_NAME] = await getCsrfToken(controller.signal);
+      headers.set(CSRF_HEADER_NAME, await getCsrfToken(controller.signal));
     }
 
     response = await fetch(buildUrl(path, params), {

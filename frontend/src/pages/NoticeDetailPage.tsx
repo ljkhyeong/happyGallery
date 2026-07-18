@@ -12,7 +12,7 @@ export function NoticeDetailPage() {
   const { data: notice, isLoading, error } = useQuery({
     queryKey: ["notices", noticeId],
     queryFn: () => fetchNotice(noticeId),
-    enabled: !isNaN(noticeId),
+    enabled: Number.isSafeInteger(noticeId) && noticeId > 0,
   });
 
   return (

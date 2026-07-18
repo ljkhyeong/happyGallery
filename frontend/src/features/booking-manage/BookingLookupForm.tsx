@@ -15,7 +15,7 @@ export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initi
 
   const parsedBookingId = Number(bookingId);
   const normalizedToken = token.trim();
-  const validBookingId = Number.isInteger(parsedBookingId) && parsedBookingId > 0;
+  const validBookingId = Number.isSafeInteger(parsedBookingId) && parsedBookingId > 0;
   const valid = validBookingId && normalizedToken.length > 0;
 
   return (

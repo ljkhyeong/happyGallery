@@ -131,7 +131,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
               >
                 {editId ? "수정" : "등록"}
               </Button>
-              <ErrorAlert error={createMutation.error || updateMutation.error} />
+              <ErrorAlert error={createMutation.error ?? updateMutation.error} />
             </Form>
           </Card.Body>
         </Card>

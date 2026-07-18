@@ -24,7 +24,7 @@ export function PaymentSuccessPage() {
     if (calledRef.current) return;
     calledRef.current = true;
 
-    if (!orderId || amount === null || Number.isNaN(amount)) {
+    if (amount === null || !Number.isSafeInteger(amount) || amount < 0 || !orderId) {
       setError(new Error("결제 정보가 올바르지 않습니다."));
       return;
     }

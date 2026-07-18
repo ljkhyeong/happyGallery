@@ -28,7 +28,7 @@ export function OrderDetailPage() {
   const [token, setToken] = useState(navState?.token ?? "");
   const [order, setOrder] = useState<OrderDetailResponse | null>(null);
   const parsedOrderId = Number(orderId);
-  const validOrderId = Number.isInteger(parsedOrderId) && parsedOrderId > 0;
+  const validOrderId = Number.isSafeInteger(parsedOrderId) && parsedOrderId > 0;
   const normalizedToken = token.trim();
 
   const refundPollCount = useRef(0);

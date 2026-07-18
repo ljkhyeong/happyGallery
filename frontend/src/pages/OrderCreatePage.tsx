@@ -30,7 +30,7 @@ export function OrderCreatePage() {
 
   const prefilledProductId = Number(searchParams.get("productId"));
   const requestedQty = Number(searchParams.get("qty") ?? "1");
-  const hasPrefilledItem = Number.isInteger(prefilledProductId) && prefilledProductId > 0;
+  const hasPrefilledItem = Number.isSafeInteger(prefilledProductId) && prefilledProductId > 0;
   const normalizedPrefilledQty = Number.isInteger(requestedQty) && requestedQty >= 1
     ? Math.min(requestedQty, MAX_QTY)
     : 1;

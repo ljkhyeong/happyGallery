@@ -45,16 +45,16 @@ export function MyBookingsPage() {
   const sortedBookings = [...filteredBookings].sort((left, right) => {
     switch (sortValue) {
       case "LATEST":
-        return new Date(right.startAt).getTime() - new Date(left.startAt).getTime();
+        return Date.parse(right.startAt) - Date.parse(left.startAt);
       case "DEPOSIT_DESC":
         return right.depositAmount - left.depositAmount;
       case "SOONEST":
       default:
-        return new Date(left.startAt).getTime() - new Date(right.startAt).getTime();
+        return Date.parse(left.startAt) - Date.parse(right.startAt);
     }
   });
   const upcomingCount = (bookings ?? []).filter((booking) =>
-    booking.status === "BOOKED" && new Date(booking.startAt).getTime() >= Date.now(),
+    booking.status === "BOOKED" && Date.parse(booking.startAt) >= Date.now(),
   ).length;
   const finishedCount = (bookings ?? []).filter((booking) =>
     ["COMPLETED", "CANCELED", "NO_SHOW"].includes(booking.status),

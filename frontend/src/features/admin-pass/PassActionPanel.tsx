@@ -49,7 +49,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
     <Card>
       <Card.Header>8회권 관리</Card.Header>
       <Card.Body>
-        <ErrorAlert error={expire.error || refund.error} />
+        <ErrorAlert error={expire.error ?? refund.error} />
 
         <Row className="g-2 mb-3">
           <Col xs={8}>

@@ -36,18 +36,18 @@ export function MyPassesPage() {
   const sortedPasses = [...filteredPasses].sort((left, right) => {
     switch (sortValue) {
       case "PURCHASE_DESC":
-        return new Date(right.purchasedAt).getTime() - new Date(left.purchasedAt).getTime();
+        return Date.parse(right.purchasedAt) - Date.parse(left.purchasedAt);
       case "CREDITS_DESC":
         return right.remainingCredits - left.remainingCredits;
       case "EXPIRY_ASC":
       default:
-        return new Date(left.expiresAt).getTime() - new Date(right.expiresAt).getTime();
+        return Date.parse(left.expiresAt) - Date.parse(right.expiresAt);
     }
   });
   const quickTabs = buildPassTabs(passes ?? []);
   const activePassCount = (passes ?? []).filter((pass) => getPassFilterKey(pass) === "ACTIVE").length;
   const expiringSoonCount = (passes ?? []).filter((pass) => {
-    const expiresIn = new Date(pass.expiresAt).getTime() - Date.now();
+    const expiresIn = Date.parse(pass.expiresAt) - Date.now();
     return getPassFilterKey(pass) === "ACTIVE" && expiresIn <= 7 * 24 * 60 * 60 * 1000;
   }).length;
   const remainingCredits = (passes ?? []).reduce((sum, pass) => sum + pass.remainingCredits, 0);
