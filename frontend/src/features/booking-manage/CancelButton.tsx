@@ -23,7 +23,7 @@ function resolvePolicyNotice(cancelPolicy: BookingCancelPolicy) {
     } as const;
   }
   if (cancelPolicy.refundable) {
-    return { variant: "info", message: "취소 마감 전이므로 예약금이 환불됩니다." } as const;
+    return { variant: "info", message: "취소 마감 전이므로 예약금 환불이 요청됩니다." } as const;
   }
   return {
     variant: "warning",
@@ -56,7 +56,7 @@ export function CancelButton({
         cancelPolicy.warningCode === PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE;
       const passBooking = passCreditNotRestored || cancelPolicy.passCreditRestorable;
       let message: string;
-      let variant: "success" | "warning";
+      let variant: "success" | "warning" | "info";
 
       if (passBooking && !res.refundable) {
         message = "예약이 취소되었습니다. 취소 마감이 지나 8회권 크레딧은 복구되지 않았습니다.";
@@ -64,8 +64,14 @@ export function CancelButton({
       } else if (passBooking) {
         message = "예약이 취소되었고 8회권 크레딧 1회가 복구되었습니다.";
         variant = "success";
+      } else if (res.refund?.status === "SUCCEEDED") {
+        message = `예약이 취소되었고 ${formatKRW(res.refund.amount)} 환불이 완료되었습니다.`;
+        variant = "success";
+      } else if (res.refund) {
+        message = `예약이 취소되었고 ${formatKRW(res.refund.amount)} 환불 요청이 접수되었습니다.`;
+        variant = "info";
       } else if (res.refundable) {
-        message = `예약이 취소되었습니다. 환불 금액: ${formatKRW(res.refundAmount)}`;
+        message = "예약이 취소되었습니다.";
         variant = "success";
       } else {
         message = "예약이 취소되었습니다. 예약금은 환불되지 않았습니다.";

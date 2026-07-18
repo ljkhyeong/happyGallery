@@ -489,7 +489,8 @@ X-Access-Token: {accessToken}
     "deadlineAt": "2026-03-01T00:00:00",
     "passCreditRestorable": false,
     "warningCode": null
-  }
+  },
+  "refund": null
 }
 ```
 
@@ -499,6 +500,7 @@ X-Access-Token: {accessToken}
 - `cancelPolicy.refundable`은 지금 취소하면 예약금 환불 또는 8회권 크레딧 복구가 가능한지를 뜻한다.
 - `cancelPolicy.deadlineAt`은 체험일 00:00 KST 기준 취소 보상 마감 시각이다.
 - 8회권 예약에서 마감이 지났으면 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`을 내린다. 프론트는 이 코드를 사용자에게 노출하지 않고 크레딧 미복구 한국어 경고로 변환해 취소 전에 표시한다.
+- 환불 이력이 있으면 `refund`에 `amount`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
 
 #### 2.4.4 예약 변경
 
@@ -548,7 +550,12 @@ X-Access-Token: {accessToken}
 {
   "bookingId": 1,
   "status": "CANCELED",
-  "refundable": true
+  "refundable": true,
+  "refundAmount": 5000,
+  "refund": {
+    "amount": 5000,
+    "status": "REQUESTED"
+  }
 }
 ```
 
@@ -560,6 +567,8 @@ X-Access-Token: {accessToken}
   - 예약금 결제: `refundable=true`이면 PG 환불 요청
   - 8회권 결제: `refundable=true`이면 `REFUND` ledger와 remaining credit 복구
   - `refundable=false`이면 크레딧 소멸 유지
+  - `200 OK`는 예약 취소와 환불 요청 이력 저장 완료를 뜻하며 PG 환불 완료를 뜻하지 않는다.
+  - 예약금 환불을 요청했을 때만 `refund`가 `{amount,status}`로 채워진다. 8회권 크레딧 복구 또는 환불 불가 취소에서는 `refund=null`, `refundAmount=0`이다.
 
 ### 2.5 8회권 API
 
@@ -620,6 +629,8 @@ Authorization: Bearer {token}
   - `REFUND` ledger 기록 후 `remaining_credits = 0`
   - `payment_key` 기반 PG 환불 요청 이력을 `refunds`에 `REQUESTED`로 남기고, 부모 트랜잭션 커밋 이후 PG 환불을 실행
   - PG 결과는 비동기로 `SUCCEEDED`, `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 중 하나에 반영된다. 미완료 상태는 같은 멱등키로 자동 복구하며 운영자가 수동 재처리할 수도 있다.
+  - `200 OK`와 `refundStatus=REQUESTED`는 미래 예약 취소·크레딧 정산·환불 요청 접수 완료를 뜻한다. `refundAmount=0`이면 `refundId`, `refundStatus`는 `null`이며 PG 환불은 실행하지 않는다.
+  - `refundId`가 있으면 `GET /api/v1/admin/refunds/{refundId}`로 실제 PG 처리 상태를 조회한다.
   - 단가 = `totalPrice / totalCredits`
 
 #### 2.5.5 만료 배치 수동 트리거
@@ -670,7 +681,8 @@ X-Access-Token: {accessToken}
     "type": "SHIPPING",
     "expectedShipDate": null,
     "pickupDeadlineAt": null
-  }
+  },
+  "refund": null
 }
 ```
 
@@ -680,6 +692,7 @@ X-Access-Token: {accessToken}
 - 정책:
   - `X-Access-Token` 헤더의 토큰을 SHA-256 해시하여 DB 저장값과 비교한다.
   - `fulfillment`는 아직 생성되지 않은 경우 `null`일 수 있다.
+  - 환불 이력이 있으면 `refund`에 `amount`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
 
 ### 2.7 주문 Admin API
 
@@ -758,10 +771,24 @@ Authorization: Bearer {token}
     - `MADE_TO_ORDER` 상품이 있으면 `IN_PRODUCTION`, 아니면 `APPROVED_FULFILLMENT_PENDING`으로 전이
     - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다
 - `POST /api/v1/admin/orders/{id}/reject`
-  - 응답: `200 OK` 본문 없음
+  - 응답: `200 OK`
+    ```json
+    {
+      "orderId": 5,
+      "orderStatus": "REJECTED",
+      "refund": {
+        "refundId": 42,
+        "amount": 118000,
+        "status": "REQUESTED",
+        "attemptCount": 0,
+        "failReason": null
+      }
+    }
+    ```
   - 정책:
     - 승인 대기 주문만 거절 가능
     - 재고 복구 + 환불 실행 + `REJECTED` 전이
+    - 응답의 `REQUESTED`는 로컬 거절과 환불 요청 접수 완료를 뜻하며 PG 환불 완료를 뜻하지 않는다.
 - `PATCH /api/v1/admin/orders/{id}/expected-ship-date`
   - 요청: `{ "expectedShipDate": "2026-04-15" }`
   - 응답: `{ "orderId": 5, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
@@ -774,11 +801,26 @@ Authorization: Bearer {token}
     - `IN_PRODUCTION`에서만 지연 요청 가능
     - 고객이 지연을 수락한 뒤 호출하는 운영 액션이다.
 - `POST /api/v1/admin/orders/{id}/cancel-for-delay-rejection`
-  - 응답: `{ "orderId": 5, "status": "DELAY_REJECTED_CANCELED", "expectedShipDate": "2026-04-15" }`
+  - 응답:
+    ```json
+    {
+      "orderId": 5,
+      "orderStatus": "DELAY_REJECTED_CANCELED",
+      "expectedShipDate": "2026-04-15",
+      "refund": {
+        "refundId": 43,
+        "amount": 118000,
+        "status": "REQUESTED",
+        "attemptCount": 0,
+        "failReason": null
+      }
+    }
+    ```
   - 정책:
     - 고객이 제안된 지연을 수락하기 전에 거절한 경우 사용한다.
     - `IN_PRODUCTION`에서만 지연 거절 취소 가능
     - 재고 복구 + 환불 실행 + `DELAY_REJECTED_CANCELED` 전이
+    - 응답의 `REQUESTED`는 로컬 취소와 환불 요청 접수 완료를 뜻하며 PG 환불 완료를 뜻하지 않는다.
     - 이력은 `DELAY_CANCEL`로 기록하고 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
     - `DELAY_REQUESTED`는 이미 지연을 수락한 상태이므로 400으로 거절한다.
 - `POST /api/v1/admin/orders/{id}/resume-production`
@@ -1118,14 +1160,45 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 상태를 반환한다.
 
-#### 2.11.2 환불 재시도
+#### 2.11.2 환불 상태 조회
+
+```http
+GET /api/v1/admin/refunds/{refundId}
+Authorization: Bearer {token}
+```
+
+```json
+{
+  "refundId": 42,
+  "amount": 5000,
+  "status": "SUCCEEDED",
+  "attemptCount": 1,
+  "failReason": null
+}
+```
+
+- 성공: `200 OK`
+- 에러: `404 NOT_FOUND` — refundId 미존재
+- 주문 거절·지연 거절 취소·8회권 환불 시작 응답의 `refundId`로 실제 PG 상태를 조회한다.
+
+#### 2.11.3 환불 재시도
 
 ```http
 POST /api/v1/admin/refunds/{refundId}/retry
 Authorization: Bearer {token}
 ```
 
-- 성공: `200 OK` (본문 없음)
+```json
+{
+  "refundId": 42,
+  "amount": 5000,
+  "status": "SUCCEEDED",
+  "attemptCount": 2,
+  "failReason": null
+}
+```
+
+- 성공: `200 OK`
 - 에러:
   - `404 NOT_FOUND` — refundId 미존재
   - `400 INVALID_INPUT` — 조치 필요 상태가 아닌 환불 재시도
@@ -1249,7 +1322,8 @@ POST /api/v1/auth/social/{provider}
     "deadlineAt": "2026-03-01T00:00:00",
     "passCreditRestorable": false,
     "warningCode": "PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE"
-  }
+  },
+  "refund": null
 }
 ```
 
@@ -1257,6 +1331,7 @@ POST /api/v1/auth/social/{provider}
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 다른 회원의 리소스 접근 시 `404 NOT_FOUND`
 - 8회권 예약에서 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`이면 취소해도 크레딧이 복구되지 않는다. 취소 확인창과 완료 알림은 이 사실을 한국어로 명확히 알린다.
+- 회원 예약·주문 상세의 `refund`도 비회원 상세와 같은 `{amount,status}` 또는 `null` 계약을 사용한다. 본인 소유권 검증 후 조회하며 내부 환불 ID와 실패 사유는 노출하지 않는다.
 
 #### 2.12.4 회원 상품 Q&A 작성
 

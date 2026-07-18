@@ -1,6 +1,7 @@
 import { Card, Row, Col } from "react-bootstrap";
 import { StatusBadge } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import type { BookingDetailResponse } from "@/shared/types";
 
 interface Props {
@@ -41,6 +42,7 @@ export function BookingDetail({ booking }: Props) {
             <span>{formatKRW(booking.balanceAmount)}</span>
           </Col>
         </Row>
+        <RefundProgressAlert refund={booking.refund} />
       </Card.Body>
     </Card>
   );

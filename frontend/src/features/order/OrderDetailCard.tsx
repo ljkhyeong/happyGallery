@@ -2,6 +2,7 @@ import { Card, Table, Row, Col, Badge } from "react-bootstrap";
 import { StatusBadge } from "@/shared/ui";
 import { formatKRW, formatDateTime, formatDate, FULFILLMENT_TYPE_LABEL } from "@/shared/lib";
 import type { OrderDetailResponse } from "@/shared/types";
+import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 
 interface Props {
   order: OrderDetailResponse;
@@ -77,6 +78,7 @@ export function OrderDetailCard({ order }: Props) {
             </Row>
           </>
         )}
+        <RefundProgressAlert refund={order.refund} />
       </Card.Body>
     </Card>
   );

@@ -124,10 +124,18 @@ class OrderApprovalUseCaseIT {
         assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(0);
 
         mockMvc.perform(post("/api/v1/admin/orders/{id}/reject", order.getId()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId").value(order.getId()))
+                .andExpect(jsonPath("$.orderStatus").value("REJECTED"))
+                .andExpect(jsonPath("$.refund.refundId").isNumber())
+                .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
 
         Order updated = orderStateProbe.getOrder(order.getId());
         var refunds = orderStateProbe.refunds();
+        mockMvc.perform(get("/api/v1/admin/refunds/{id}", refunds.get(0).getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refundId").value(refunds.get(0).getId()))
+                .andExpect(jsonPath("$.amount").value(30000));
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED);
             softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))

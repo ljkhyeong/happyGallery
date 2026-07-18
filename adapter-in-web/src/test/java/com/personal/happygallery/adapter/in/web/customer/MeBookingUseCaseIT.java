@@ -158,7 +158,9 @@ class MeBookingUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
                 .andExpect(jsonPath("$.status").value("CANCELED"))
-                .andExpect(jsonPath("$.refundable").value(true));
+                .andExpect(jsonPath("$.refundable").value(true))
+                .andExpect(jsonPath("$.refund.amount").value(5000))
+                .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
     }
 
     @DisplayName("인증 없이 회원 예약 목록을 조회하면 401을 반환한다")

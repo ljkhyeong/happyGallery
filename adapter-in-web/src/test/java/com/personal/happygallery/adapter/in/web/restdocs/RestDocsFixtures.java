@@ -9,6 +9,7 @@ import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -21,6 +22,7 @@ import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.domain.user.User;
@@ -141,7 +143,27 @@ final class RestDocsFixtures {
     }
 
     static OrderQueryUseCase.OrderDetail orderDetail() {
-        return new OrderQueryUseCase.OrderDetail(order(), List.of(orderItem()), fulfillment());
+        return new OrderQueryUseCase.OrderDetail(order(), List.of(orderItem()), fulfillment(), null);
+    }
+
+    static Refund bookingRefund() {
+        Refund refund = mock(Refund.class);
+        when(refund.getId()).thenReturn(900L);
+        when(refund.getBookingId()).thenReturn(100L);
+        when(refund.getAmount()).thenReturn(5000L);
+        when(refund.getStatus()).thenReturn(RefundStatus.REQUESTED);
+        when(refund.getUpdatedAt()).thenReturn(NOW);
+        return refund;
+    }
+
+    static Refund orderRefund() {
+        Refund refund = mock(Refund.class);
+        when(refund.getId()).thenReturn(901L);
+        when(refund.getOrderId()).thenReturn(200L);
+        when(refund.getAmount()).thenReturn(39000L);
+        when(refund.getStatus()).thenReturn(RefundStatus.REQUESTED);
+        when(refund.getUpdatedAt()).thenReturn(NOW);
+        return refund;
     }
 
     static PassPurchase passPurchase() {

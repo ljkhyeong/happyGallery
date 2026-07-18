@@ -1,3 +1,5 @@
+import type { AdminRefundStatus } from "./refund";
+
 export type OrderStatus =
   | "PAID_APPROVAL_PENDING"
   | "APPROVED_FULFILLMENT_PENDING"
@@ -46,6 +48,19 @@ export interface OrderProductionResponse {
   orderId: number;
   status: OrderStatus;
   expectedShipDate: string | null;
+}
+
+export interface OrderRejectResponse {
+  orderId: number;
+  orderStatus: OrderStatus;
+  refund: AdminRefundStatus;
+}
+
+export interface OrderDelayCancellationResponse {
+  orderId: number;
+  orderStatus: OrderStatus;
+  expectedShipDate: string | null;
+  refund: AdminRefundStatus;
 }
 
 export interface PickupResponse {

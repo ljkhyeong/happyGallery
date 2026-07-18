@@ -2,6 +2,7 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Booking;
 import java.util.List;
@@ -14,29 +15,42 @@ public class DefaultBookingQueryService implements BookingQueryUseCase {
 
     private final BookingSupport bookingSupport;
     private final BookingReaderPort bookingReaderPort;
+    private final RefundPort refundPort;
 
     public DefaultBookingQueryService(BookingSupport bookingSupport,
-                               BookingReaderPort bookingReaderPort) {
+                                      BookingReaderPort bookingReaderPort,
+                                      RefundPort refundPort) {
         this.bookingSupport = bookingSupport;
         this.bookingReaderPort = bookingReaderPort;
+        this.refundPort = refundPort;
     }
 
     /**
      * access_token으로 비회원 예약을 조회한다.
      * bookingId + accessToken 두 조건이 모두 일치해야 한다.
      */
-    public Booking getBookingByToken(Long bookingId, String accessToken) {
-        return bookingSupport.findByToken(bookingId, accessToken);
+    @Override
+    public BookingDetail getBookingByToken(Long bookingId, String accessToken) {
+        return detail(bookingSupport.findByToken(bookingId, accessToken));
     }
 
     /** 회원 — 자기 예약 목록 조회 */
+    @Override
     public List<Booking> listMyBookings(Long userId) {
         return bookingReaderPort.findByUserIdWithDetails(userId);
     }
 
     /** 회원 — 자기 예약 상세 조회 */
-    public Booking findMyBooking(Long id, Long userId) {
-        return bookingReaderPort.findByIdAndUserIdWithDetails(id, userId)
+    @Override
+    public BookingDetail findMyBooking(Long id, Long userId) {
+        Booking booking = bookingReaderPort.findByIdAndUserIdWithDetails(id, userId)
                 .orElseThrow(NotFoundException.supplier("예약"));
+        return detail(booking);
+    }
+
+    private BookingDetail detail(Booking booking) {
+        return new BookingDetail(
+                booking,
+                refundPort.findByBookingId(booking.getId()).orElse(null));
     }
 }

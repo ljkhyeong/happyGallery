@@ -4,6 +4,7 @@ import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.InventoryService.InventoryAdjustment;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import java.util.List;
@@ -37,12 +38,13 @@ class OrderRefundSupport {
      * 재고 복구 → 환불 요청 생성을 순서대로 수행한다.
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    void refundOrder(Order order) {
+    Refund refundOrder(Order order) {
         List<OrderItem> items = orderItemPort.findByOrder(order);
         inventoryService.restoreAll(items.stream()
                 .map(item -> new InventoryAdjustment(item.getProductId(), item.getQty()))
                 .toList());
 
-        refundExecutionService.requestOrderRefund(order.getId(), order.getTotalAmount(), order.getPaymentKey());
+        return refundExecutionService.requestOrderRefund(
+                order.getId(), order.getTotalAmount(), order.getPaymentKey());
     }
 }

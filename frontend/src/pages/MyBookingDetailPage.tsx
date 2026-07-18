@@ -8,6 +8,7 @@ import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyBookingDetailCard } from "@/features/my-booking/MyBookingDetailCard";
 import { cancelMyBooking, fetchMyBooking, rescheduleMyBooking } from "@/features/my-booking/api";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
+import { customerRefundPollingInterval } from "@/shared/lib";
 
 export function MyBookingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,13 +24,18 @@ export function MyBookingDetailPage() {
     queryKey: ["my", "bookings", bookingId],
     queryFn: () => fetchMyBooking(bookingId),
     enabled: isAuthenticated && bookingId > 0,
+    refetchInterval: ({ state }) =>
+      customerRefundPollingInterval(
+        state.data?.refund?.status,
+        state.dataUpdateCount + state.fetchFailureCount,
+      ),
   });
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
 
-  if (error) {
+  if (error && !booking) {
     return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
 
@@ -67,6 +73,8 @@ export function MyBookingDetailPage() {
       </div>
 
       <MyBookingDetailCard booking={booking} />
+
+      {error && <ErrorAlert error={error} />}
 
       {isBooked && (
         <Card className="mt-4 border-0 my-action-card">

@@ -3,6 +3,8 @@ package com.personal.happygallery.adapter.in.web.booking.dto;
 import static com.personal.happygallery.adapter.in.web.MaskingUtil.maskPhoneMiddle;
 
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.Refund;
+import com.personal.happygallery.adapter.in.web.payment.dto.RefundProgressResponse;
 import java.time.Clock;
 import java.time.LocalDateTime;
 
@@ -18,9 +20,14 @@ public record BookingDetailResponse(
         long balanceAmount,
         String guestName,
         String guestPhone,  // 마스킹: 010****5678
-        BookingCancelPolicyResponse cancelPolicy
+        BookingCancelPolicyResponse cancelPolicy,
+        RefundProgressResponse refund
 ) {
-    public static BookingDetailResponse from(Booking booking, String guestName, String guestPhone, Clock clock) {
+    public static BookingDetailResponse from(Booking booking,
+                                             Refund refund,
+                                             String guestName,
+                                             String guestPhone,
+                                             Clock clock) {
         String maskedPhone = maskPhoneMiddle(guestPhone);
         return new BookingDetailResponse(
                 booking.getId(),
@@ -34,7 +41,8 @@ public record BookingDetailResponse(
                 booking.getBalanceAmount(),
                 guestName,
                 maskedPhone,
-                BookingCancelPolicyResponse.from(booking, clock)
+                BookingCancelPolicyResponse.from(booking, clock),
+                refund != null ? RefundProgressResponse.from(refund) : null
         );
     }
 }

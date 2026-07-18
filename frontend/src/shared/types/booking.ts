@@ -1,3 +1,5 @@
+import type { RefundProgress } from "./refund";
+
 export type BookingStatus = "BOOKED" | "CANCELED" | "NO_SHOW" | "COMPLETED";
 export type DepositPaymentMethod = "CARD" | "EASY_PAY";
 
@@ -50,6 +52,7 @@ export interface BookingDetailResponse {
   guestName: string;
   guestPhone: string;
   cancelPolicy: BookingCancelPolicy;
+  refund: RefundProgress | null;
 }
 
 export interface MyBookingDetailResponse {
@@ -64,6 +67,7 @@ export interface MyBookingDetailResponse {
   balanceStatus: string;
   passBooking: boolean;
   cancelPolicy: BookingCancelPolicy;
+  refund: RefundProgress | null;
 }
 
 export interface RescheduleRequest {
@@ -85,4 +89,5 @@ export interface CancelResponse {
   status: BookingStatus;
   refundable: boolean;
   refundAmount: number;
+  refund: RefundProgress | null;
 }

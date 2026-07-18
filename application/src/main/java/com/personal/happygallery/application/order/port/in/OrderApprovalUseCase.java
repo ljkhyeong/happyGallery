@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order.port.in;
 
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Order;
 
 /**
@@ -9,11 +10,13 @@ import com.personal.happygallery.domain.order.Order;
  */
 public interface OrderApprovalUseCase {
 
+    record RejectResult(Order order, Refund refund) {}
+
     Order approve(Long orderId);
 
     Order approve(Long orderId, Long adminId);
 
-    Order reject(Long orderId);
+    RejectResult reject(Long orderId);
 
-    Order reject(Long orderId, Long adminId);
+    RejectResult reject(Long orderId, Long adminId);
 }

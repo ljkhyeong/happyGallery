@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.order.dto;
 
+import com.personal.happygallery.adapter.in.web.payment.dto.RefundProgressResponse;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
@@ -15,7 +16,8 @@ public record OrderDetailResponse(
         LocalDateTime paidAt,
         LocalDateTime approvalDeadlineAt,
         List<ItemDto> items,
-        FulfillmentDto fulfillment
+        FulfillmentDto fulfillment,
+        RefundProgressResponse refund
 ) {
     public record ItemDto(Long productId, int qty, long unitPrice) {
         public static ItemDto from(OrderItem item) {
@@ -35,18 +37,16 @@ public record OrderDetailResponse(
     }
 
     public static OrderDetailResponse from(OrderQueryUseCase.OrderDetail detail) {
-        return from(detail.order(), detail.items(), detail.fulfillment());
-    }
-
-    private static OrderDetailResponse from(Order order, List<OrderItem> items, Fulfillment fulfillment) {
+        Order order = detail.order();
         return new OrderDetailResponse(
                 order.getId(),
                 order.getStatus().name(),
                 order.getTotalAmount(),
                 order.getPaidAt(),
                 order.getApprovalDeadlineAt(),
-                items.stream().map(ItemDto::from).toList(),
-                fulfillment != null ? FulfillmentDto.from(fulfillment) : null
+                detail.items().stream().map(ItemDto::from).toList(),
+                detail.fulfillment() != null ? FulfillmentDto.from(detail.fulfillment()) : null,
+                detail.refund() != null ? RefundProgressResponse.from(detail.refund()) : null
         );
     }
 }

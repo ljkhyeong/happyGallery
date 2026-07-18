@@ -5,6 +5,7 @@ import { expirePasses, refundPass } from "./api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { formatKRW } from "@/shared/lib";
+import { useAdminRefundPolling } from "@/features/admin-refund/useAdminRefundPolling";
 
 interface Props {
   adminKey: string;
@@ -13,6 +14,7 @@ interface Props {
 
 export function PassActionPanel({ adminKey, onAuthError }: Props) {
   const toast = useToast();
+  const { trackRefund } = useAdminRefundPolling(adminKey, onAuthError);
   const [passId, setPassId] = useState("");
 
   function onError(error: Error) {
@@ -27,8 +29,17 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
 
   const refund = useMutation({
     mutationFn: () => refundPass(adminKey, Number(passId)),
-    onSuccess: (r) =>
-      toast.show(`환불 완료: ${r.refundCredits}회분 ${formatKRW(r.refundAmount)}, 취소 예약 ${r.canceledBookings}건`),
+    onSuccess: (r) => {
+      if (r.refundId != null && r.refundStatus != null) {
+        toast.show(
+          `환불 요청 접수: ${r.refundCredits}회분 ${formatKRW(r.refundAmount)}, 취소 예약 ${r.canceledBookings}건`,
+          "info",
+        );
+        trackRefund(r.refundId, `8회권 #${passId}`);
+      } else {
+        toast.show(`8회권 정산 완료: 환불 금액 없음, 취소 예약 ${r.canceledBookings}건`);
+      }
+    },
     onError,
   });
 

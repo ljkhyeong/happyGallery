@@ -53,8 +53,8 @@ public class MeBookingController {
     @GetMapping("/{id}")
     public MyBookingDetail myBooking(@PathVariable Long id,
                                      @AuthenticationPrincipal CustomerPrincipal customer) {
-        Booking booking = bookingQueryUseCase.findMyBooking(id, customer.userId());
-        return MyBookingDetail.from(booking, clock);
+        BookingQueryUseCase.BookingDetail detail = bookingQueryUseCase.findMyBooking(id, customer.userId());
+        return MyBookingDetail.from(detail.booking(), detail.refund(), clock);
     }
 
     @PatchMapping("/{id}/reschedule")
@@ -71,6 +71,6 @@ public class MeBookingController {
                                         @AuthenticationPrincipal CustomerPrincipal customer) {
         BookingCancelUseCase.CancelResult result = bookingCancelUseCase.cancelMemberBooking(
                 id, customer.userId());
-        return CancelResponse.from(result.booking(), result.refundable());
+        return CancelResponse.from(result);
     }
 }

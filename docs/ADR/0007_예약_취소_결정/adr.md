@@ -42,23 +42,23 @@
 
 ---
 
-## 결정 4: CancelResult 내부 record로 (booking, refundable) 반환
+## 결정 4: CancelResult 내부 record로 (booking, refundable, refund) 반환
 
-**결정**: `BookingCancelService.CancelResult` 내부 record를 사용해 두 값을 함께 반환.
+**결정**: `BookingCancelUseCase.CancelResult` 내부 record로 취소된 예약, 정책상 보상 가능 여부, 생성된 환불 요청을 함께 반환한다. `refund`는 예약금 PG 환불을 요청했을 때만 존재하며, 8회권 크레딧 복구 또는 환불 불가 취소에서는 `null`이다.
 
 **대안**: boolean을 필드로 Booking에 추가, 또는 별도 DTO.
 
-**이유**: 서비스 레이어에서 컨트롤러로 취소 결과와 환불 여부를 함께 전달해야 하는데, Booking 엔티티를 오염시키지 않는 가장 단순한 방법.
+**이유**: 서비스 레이어에서 컨트롤러로 로컬 취소 결과와 비동기 PG 환불 요청 상태를 함께 전달해야 하는데, Booking 엔티티에 환불 실행 상태를 복제하지 않는 가장 단순한 방법이다.
 
 ---
 
-## 결정 5: API — DELETE /bookings/{bookingId}?token=xxx
+## 결정 5: API — DELETE /bookings/{bookingId} + X-Access-Token
 
-**결정**: `DELETE` 메서드를 쓰고, `access_token`은 쿼리 파라미터로 받는다.
+**결정**: `DELETE` 메서드를 쓰고, 비회원 `access_token`은 `X-Access-Token` 헤더로 받는다.
 
 **대안**: `PATCH /bookings/{bookingId}/cancel` with body.
 
-**이유**: `DELETE`가 취소(자원 소멸)의 의미에 더 부합한다. 토큰을 본문이 아닌 쿼리 파라미터로 받아 GET 조회 패턴과 일관성을 유지했다. 응답 본문에 취소 결과를 담아 `200`을 반환한 이유는 환불 가능 여부를 함께 전달하기 위해서다.
+**이유**: `DELETE`가 취소(자원 소멸)의 의미에 더 부합한다. 조회·변경·취소가 같은 헤더 인증 계약을 사용한다. 응답 본문에 `refundable`, `refundAmount`, nullable `refund`를 담아 로컬 취소 결과와 PG 환불 요청 접수를 구분한다.
 
 ---
 

@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order.port.in;
 
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -18,11 +19,13 @@ public interface OrderProductionUseCase {
         }
     }
 
+    record DelayCancellationResult(ProductionResult production, Refund refund) {}
+
     ProductionResult setExpectedShipDate(Long orderId, LocalDate expectedShipDate);
 
     ProductionResult requestDelay(Long orderId);
 
-    ProductionResult cancelForDelayRejection(Long orderId, Long adminId);
+    DelayCancellationResult cancelForDelayRejection(Long orderId, Long adminId);
 
     ProductionResult resumeProduction(Long orderId, Long adminId);
 

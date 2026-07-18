@@ -18,6 +18,7 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -169,7 +170,7 @@ class OrderProductionUseCaseIT {
         Order order = fixture.order();
         orderApprovalService.approve(order.getId());
 
-        orderProductionService.cancelForDelayRejection(order.getId(), 1L);
+        var result = orderProductionService.cancelForDelayRejection(order.getId(), 1L);
 
         Order updated = orderStateProbe.getOrder(order.getId());
         var histories = orderStateProbe.orderApprovalHistory(order.getId());
@@ -179,6 +180,8 @@ class OrderProductionUseCaseIT {
                     .isEqualTo(1);
             softly.assertThat(orderStateProbe.refunds()).hasSize(1);
             softly.assertThat(orderStateProbe.refunds().get(0).getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(result.refund().getId()).isNotNull();
+            softly.assertThat(result.refund().getStatus()).isEqualTo(RefundStatus.REQUESTED);
             softly.assertThat(histories)
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY_CANCEL);

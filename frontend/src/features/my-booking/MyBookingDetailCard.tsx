@@ -1,6 +1,7 @@
 import { Card, Row, Col } from "react-bootstrap";
 import { StatusBadge } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import type { MyBookingDetailResponse } from "@/shared/types";
 
 interface Props {
@@ -49,6 +50,7 @@ export function MyBookingDetailCard({ booking }: Props) {
             <span>{booking.passBooking ? "8회권 사용" : "예약금 결제"}</span>
           </Col>
         </Row>
+        <RefundProgressAlert refund={booking.refund} />
       </Card.Body>
     </Card>
   );

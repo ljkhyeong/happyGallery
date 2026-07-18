@@ -55,6 +55,7 @@ import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase;
 import com.personal.happygallery.application.payment.port.in.DevRefundFailureUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundRetryUseCase;
+import com.personal.happygallery.application.payment.port.in.RefundQueryUseCase;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
@@ -66,10 +67,12 @@ import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notice.Notice;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -95,6 +98,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 class AdminApiRestDocsTest extends RestDocsTestSupport {
 
@@ -121,6 +125,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     private NoticeAdminUseCase noticeAdminUseCase;
     private NoticeQueryUseCase noticeQueryUseCase;
     private RefundRetryUseCase refundRetryUseCase;
+    private RefundQueryUseCase refundQueryUseCase;
     private ProductQnaUseCase qnaUseCase;
     private InquiryUseCase inquiryUseCase;
     private PassExpiryBatchUseCase passExpiryBatchUseCase;
@@ -151,6 +156,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         noticeAdminUseCase = mock(NoticeAdminUseCase.class);
         noticeQueryUseCase = mock(NoticeQueryUseCase.class);
         refundRetryUseCase = mock(RefundRetryUseCase.class);
+        refundQueryUseCase = mock(RefundQueryUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
         inquiryUseCase = mock(InquiryUseCase.class);
         passExpiryBatchUseCase = mock(PassExpiryBatchUseCase.class);
@@ -162,6 +168,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         BookingClass bookingClass = RestDocsFixtures.bookingClass();
         Slot slot = RestDocsFixtures.slot();
         Booking booking = RestDocsFixtures.booking();
+        Order order = RestDocsFixtures.order();
+        Refund orderRefund = RestDocsFixtures.orderRefund();
         Notice notice = RestDocsFixtures.notice();
         ProductQnaUseCase.QnaWithAuthor qna = qna();
         InquiryUseCase.InquiryWithUser inquiry = inquiry();
@@ -183,13 +191,16 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new CursorPage<>(List.of(adminOrderResponse()), "cursor-next", true));
         when(adminOrderSearchUseCase.search(any(), any(), any(), any(), eq(0), eq(20)))
                 .thenReturn(OffsetPage.of(List.of(adminOrderSearchRow()), 0, 20, 1));
+        when(orderApprovalUseCase.reject(200L, ADMIN_USER_ID))
+                .thenReturn(new OrderApprovalUseCase.RejectResult(order, orderRefund));
         when(orderProductionUseCase.resumeProduction(200L, ADMIN_USER_ID)).thenReturn(production(OrderStatus.IN_PRODUCTION));
         when(orderProductionUseCase.completeProduction(200L, ADMIN_USER_ID))
                 .thenReturn(production(OrderStatus.APPROVED_FULFILLMENT_PENDING));
         when(orderProductionUseCase.setExpectedShipDate(eq(200L), any())).thenReturn(production(OrderStatus.IN_PRODUCTION));
         when(orderProductionUseCase.requestDelay(200L)).thenReturn(production(OrderStatus.DELAY_REQUESTED));
         when(orderProductionUseCase.cancelForDelayRejection(200L, ADMIN_USER_ID))
-                .thenReturn(production(OrderStatus.DELAY_REJECTED_CANCELED));
+                .thenReturn(new OrderProductionUseCase.DelayCancellationResult(
+                        production(OrderStatus.DELAY_REJECTED_CANCELED), orderRefund));
         when(orderPickupUseCase.markPickupReady(eq(200L), any(), eq(ADMIN_USER_ID)))
                 .thenReturn(pickup(OrderStatus.PICKUP_READY));
         when(orderPickupUseCase.confirmPickup(200L, ADMIN_USER_ID)).thenReturn(pickup(OrderStatus.PICKED_UP));
@@ -204,6 +215,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(noticeAdminUseCase.create(any(), any(), anyBoolean())).thenReturn(notice);
         when(noticeAdminUseCase.update(eq(1L), any(), any(), anyBoolean())).thenReturn(notice);
         when(refundRetryUseCase.listFailed()).thenReturn(List.of());
+        when(refundRetryUseCase.retry(anyLong())).thenReturn(orderRefund);
+        when(refundQueryUseCase.getRefund(anyLong())).thenReturn(orderRefund);
         when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(qna));
         when(qnaUseCase.replyAndGet(eq(5L), any(), eq(ADMIN_USER_ID))).thenReturn(qna);
         when(inquiryUseCase.listAll()).thenReturn(List.of(inquiry));
@@ -228,7 +241,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 new AdminOrderShippingController(orderShippingUseCase),
                 new AdminDashboardController(dashboardQueryUseCase),
                 new AdminNoticeController(noticeAdminUseCase, noticeQueryUseCase),
-                new AdminRefundController(refundRetryUseCase),
+                new AdminRefundController(refundRetryUseCase, refundQueryUseCase),
                 new AdminProductQnaController(qnaUseCase),
                 new AdminInquiryController(inquiryUseCase),
                 new AdminPassController(passExpiryBatchUseCase, passRefundUseCase),
@@ -434,7 +447,9 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(post("/api/v1/admin/orders/{id}/reject", 200L)
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refund.refundId").value(901))
+                .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
     }
 
     @Test
@@ -481,7 +496,9 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(post("/api/v1/admin/orders/{id}/cancel-for-delay-rejection", 200L)
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refund.refundId").value(901))
+                .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
     }
 
     @Test
@@ -683,10 +700,21 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("관리자 환불 상태 조회 API를 문서화한다")
+    void admin_get_refund() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/refunds/{refundId}", 901L).with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refundId").value(901))
+                .andExpect(jsonPath("$.status").value("REQUESTED"));
+    }
+
+    @Test
     @DisplayName("관리자 환불 재시도 API를 문서화한다")
     void admin_retry_refund() throws Exception {
         mockMvc.perform(post("/api/v1/admin/refunds/{refundId}/retry", 1L).with(adminUser()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refundId").value(901))
+                .andExpect(jsonPath("$.status").value("REQUESTED"));
     }
 
     @Test

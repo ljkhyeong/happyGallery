@@ -30,6 +30,7 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import java.util.List;
@@ -48,6 +49,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 class PublicApiRestDocsTest extends RestDocsTestSupport {
 
@@ -93,6 +95,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         Slot slot = RestDocsFixtures.slot();
         PhoneVerification phoneVerification = RestDocsFixtures.phoneVerification();
         Booking booking = RestDocsFixtures.booking();
+        Refund bookingRefund = RestDocsFixtures.bookingRefund();
         OrderQueryUseCase.OrderDetail orderDetail = RestDocsFixtures.orderDetail();
         Notice notice = RestDocsFixtures.notice();
 
@@ -105,13 +108,14 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(classQueryUseCase.listAll()).thenReturn(List.of(bookingClass));
         when(slotQueryUseCase.listAvailable(any(), any())).thenReturn(List.of(slot));
         when(guestBookingUseCase.sendVerificationCode(any())).thenReturn(phoneVerification);
-        when(bookingQueryUseCase.getBookingByToken(eq(100L), any())).thenReturn(booking);
+        when(bookingQueryUseCase.getBookingByToken(eq(100L), any()))
+                .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null));
         when(guestPersonalDataProtector.decryptPhone(any(Guest.class))).thenReturn("01012345678");
         when(guestPersonalDataProtector.decryptName(any(Guest.class))).thenReturn("홍길동");
         when(bookingRescheduleUseCase.rescheduleBooking(eq(100L), any(), eq(42L)))
                 .thenReturn(booking);
         when(bookingCancelUseCase.cancelBooking(eq(100L), any()))
-                .thenReturn(new BookingCancelUseCase.CancelResult(booking, true));
+                .thenReturn(new BookingCancelUseCase.CancelResult(booking, true, bookingRefund));
         when(orderQueryUseCase.getOrderByToken(eq(200L), any())).thenReturn(orderDetail);
         when(paymentPrepareUseCase.prepare(any()))
                 .thenReturn(new PaymentPrepareUseCase.PrepareResult("pay_20260501_0001", 39000L, PaymentContext.ORDER));
@@ -223,7 +227,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void cancel_guest_booking() throws Exception {
         mockMvc.perform(delete("/api/v1/bookings/{bookingId}", 100L)
                         .header("X-Access-Token", "guest-access-token"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refund.amount").value(5000))
+                .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
     }
 
     @Test

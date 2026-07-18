@@ -7,6 +7,7 @@ import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -64,11 +65,13 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
      * @param orderId 주문 ID
      * @return 승인된 주문
      */
+    @Override
     @OptimisticLockRetryable
     public Order approve(Long orderId) {
         return approve(orderId, null);
     }
 
+    @Override
     @OptimisticLockRetryable
     public Order approve(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
@@ -100,24 +103,26 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
      * </ol>
      *
      * @param orderId 주문 ID
-     * @return 거절된 주문
+     * @return 거절된 주문과 생성된 환불 요청
      */
+    @Override
     @OptimisticLockRetryable
-    public Order reject(Long orderId) {
+    public RejectResult reject(Long orderId) {
         return reject(orderId, null);
     }
 
+    @Override
     @OptimisticLockRetryable
-    public Order reject(Long orderId, Long adminId) {
+    public RejectResult reject(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.reject();
 
-        orderRefundSupport.refundOrder(order);
+        Refund refund = orderRefundSupport.refundOrder(order);
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT, adminId, null));
         log.info("order rejected [orderId={} adminId={}]", orderId, adminId);
 
-        return orderStore.save(order);
+        return new RejectResult(orderStore.save(order), refund);
     }
 
 }

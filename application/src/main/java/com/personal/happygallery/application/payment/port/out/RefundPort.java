@@ -13,6 +13,10 @@ public interface RefundPort {
 
     Optional<Refund> findByIdForUpdate(Long id);
 
+    Optional<Refund> findByBookingId(Long bookingId);
+
+    Optional<Refund> findByOrderId(Long orderId);
+
     List<Refund> findAll();
 
     long count();

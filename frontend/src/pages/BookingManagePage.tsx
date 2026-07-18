@@ -11,10 +11,17 @@ import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { ErrorAlert } from "@/shared/ui";
 import type { BookingDetailResponse } from "@/shared/types";
+import { customerRefundPollingInterval } from "@/shared/lib";
 
 interface LocationState {
   bookingId?: number;
   token?: string;
+}
+
+interface BookingLookupVariables {
+  bookingId: number;
+  token: string;
+  background?: boolean;
 }
 
 export function BookingManagePage() {
@@ -31,16 +38,23 @@ export function BookingManagePage() {
     claim: true,
   });
 
+  const refundPollCount = useRef(0);
   const lookup = useMutation({
-    mutationFn: ({ bookingId, token }: { bookingId: number; token: string }) =>
+    mutationFn: ({ bookingId, token }: BookingLookupVariables) =>
       fetchBooking(bookingId, token),
     onSuccess: (data, variables) => {
       setBooking(data);
       setCurrentToken(variables.token);
+      refundPollCount.current = variables.background ? refundPollCount.current + 1 : 0;
     },
-    onError: () => {
+    onError: (_error, variables) => {
+      if (variables.background) {
+        refundPollCount.current += 1;
+        return;
+      }
       setBooking(null);
       setCurrentToken("");
+      refundPollCount.current = 0;
     },
   });
 
@@ -62,6 +76,20 @@ export function BookingManagePage() {
       lookup.mutate({ bookingId: booking.bookingId, token: currentToken });
     }
   }, [booking, currentToken, lookup]);
+
+  useEffect(() => {
+    const interval = customerRefundPollingInterval(
+      booking?.refund?.status,
+      refundPollCount.current,
+    );
+    if (!booking || !currentToken || lookup.isPending || interval === false) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      lookup.mutate({ bookingId: booking.bookingId, token: currentToken, background: true });
+    }, interval);
+    return () => window.clearTimeout(timer);
+  }, [booking, currentToken, lookup.isPending, lookup.mutate]);
 
   const isBooked = booking?.status === "BOOKED";
 

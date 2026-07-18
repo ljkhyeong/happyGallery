@@ -26,6 +26,7 @@ import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.application.pass.port.in.PassQueryUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -55,6 +56,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 class CustomerApiRestDocsTest extends RestDocsTestSupport {
 
@@ -95,6 +97,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         User user = RestDocsFixtures.user();
         Order order = RestDocsFixtures.order();
         Booking booking = RestDocsFixtures.booking();
+        Refund bookingRefund = RestDocsFixtures.bookingRefund();
         OrderQueryUseCase.OrderDetail orderDetail = RestDocsFixtures.orderDetail();
         PassPurchase pass = RestDocsFixtures.passPurchase();
         Inquiry inquiry = RestDocsFixtures.inquiry();
@@ -114,11 +117,12 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         39000L));
         when(cartCheckoutUseCase.checkout(CUSTOMER_USER_ID)).thenReturn(order);
         when(bookingQueryUseCase.listMyBookings(CUSTOMER_USER_ID)).thenReturn(List.of(booking));
-        when(bookingQueryUseCase.findMyBooking(100L, CUSTOMER_USER_ID)).thenReturn(booking);
+        when(bookingQueryUseCase.findMyBooking(100L, CUSTOMER_USER_ID))
+                .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null));
         when(bookingRescheduleUseCase.rescheduleMemberBooking(100L, CUSTOMER_USER_ID, 42L))
                 .thenReturn(booking);
         when(bookingCancelUseCase.cancelMemberBooking(100L, CUSTOMER_USER_ID))
-                .thenReturn(new BookingCancelUseCase.CancelResult(booking, true));
+                .thenReturn(new BookingCancelUseCase.CancelResult(booking, true, bookingRefund));
         when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(order));
         when(orderQueryUseCase.findMyOrder(200L, CUSTOMER_USER_ID)).thenReturn(orderDetail);
         when(passQueryUseCase.listMyPasses(CUSTOMER_USER_ID)).thenReturn(List.of(pass));
@@ -305,7 +309,9 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("내 예약 취소 API를 문서화한다")
     void cancel_my_booking() throws Exception {
         mockMvc.perform(delete("/api/v1/me/bookings/{id}", 100L).with(customerUser()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refund.amount").value(5000))
+                .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
     }
 
     @Test

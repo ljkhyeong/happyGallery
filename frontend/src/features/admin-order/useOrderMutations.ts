@@ -9,6 +9,7 @@ import {
   prepareShipping, markShipped, markDelivered,
 } from "./api";
 import type { MarkPickupReadyRequest, SetExpectedShipDateRequest } from "@/shared/types";
+import { useAdminRefundPolling } from "@/features/admin-refund/useAdminRefundPolling";
 
 interface UseOrderMutationsOptions {
   adminKey: string;
@@ -19,6 +20,7 @@ interface UseOrderMutationsOptions {
 export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOrderMutationsOptions) {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { trackRefund } = useAdminRefundPolling(adminKey, onAuthError);
   const [pendingId, setPendingId] = useState<number | null>(null);
 
   const invalidate = useCallback(() => {
@@ -39,10 +41,28 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
   }
 
   const approve = mut((id) => approveOrder(adminKey, id), "승인 완료");
-  const reject = mut((id) => rejectOrder(adminKey, id), "거절 완료");
+  const reject = useAdminMutation(onAuthError, {
+    mutationFn: (id: number) => rejectOrder(adminKey, id),
+    onMutate: (id) => setPendingId(id),
+    onSuccess: (result, id) => {
+      toast.show(`주문 #${id} 거절 및 환불 요청이 접수되었습니다.`, "info");
+      trackRefund(result.refund.refundId, `주문 #${id}`);
+      invalidate();
+    },
+    onSettled: () => setPendingId(null),
+  });
   const completeProduction_ = mut((id) => completeProduction(adminKey, id), "제작 완료");
   const delay = mut((id) => requestDelay(adminKey, id), "지연 요청");
-  const delayCancel = mut((id) => cancelForDelayRejection(adminKey, id), "지연 거절 취소 완료");
+  const delayCancel = useAdminMutation(onAuthError, {
+    mutationFn: (id: number) => cancelForDelayRejection(adminKey, id),
+    onMutate: (id) => setPendingId(id),
+    onSuccess: (result, id) => {
+      toast.show(`주문 #${id} 지연 거절 취소 및 환불 요청이 접수되었습니다.`, "info");
+      trackRefund(result.refund.refundId, `주문 #${id}`);
+      invalidate();
+    },
+    onSettled: () => setPendingId(null),
+  });
   const resumeProduction_ = mut((id) => resumeProduction(adminKey, id), "제작 재개");
   const prepareShipping_ = mut((id) => prepareShipping(adminKey, id), "배송 준비");
   const shipped = mut((id) => markShipped(adminKey, id), "배송 출발");

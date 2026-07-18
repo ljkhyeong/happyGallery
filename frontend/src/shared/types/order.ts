@@ -1,4 +1,5 @@
 import type { OrderStatus } from "./admin";
+import type { RefundProgress } from "./refund";
 
 export interface CreateOrderRequest {
   phone: string;
@@ -28,6 +29,7 @@ export interface OrderDetailResponse {
   approvalDeadlineAt: string;
   items: OrderItemDto[];
   fulfillment: FulfillmentDto | null;
+  refund: RefundProgress | null;
 }
 
 export interface OrderItemDto {

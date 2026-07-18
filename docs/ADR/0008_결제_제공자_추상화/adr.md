@@ -37,13 +37,13 @@
 
 ---
 
-## 결정 4 — 운영자 재시도 API: `POST /admin/refunds/{id}/retry`
+## 결정 4 — 운영자 상태 조회·재시도 API
 
-**선택**: `DefaultRefundRetryService.retry(refundId)` + `AdminRefundController`
+**선택**: `GET /api/v1/admin/refunds/{id}`로 단건 상태를 조회하고, `POST /api/v1/admin/refunds/{id}/retry`는 재처리 후 실제 저장 상태를 응답한다.
 
-**이유**: 조치 필요 레코드를 DB에서 직접 수정하는 것은 감사 추적을 남기지 않는다. API를 통해 재처리하면 시도 횟수와 결과 상태가 기록되어 추적 가능하다.
+**이유**: 환불 시작 응답은 `REQUESTED`이므로 운영자가 PG 처리 결과를 별도로 확인할 수 있어야 한다. 조치 필요 레코드를 DB에서 직접 수정하지 않고 API로 재처리하면 시도 횟수와 결과 상태도 함께 추적할 수 있다.
 
-**현재 제약**: `/admin/**` 인증 미적용 (§11 이후 적용 예정, ADR-0007과 동일).
+**인증**: `/api/v1/admin/**`는 Spring Security 관리자 인증을 통과해야 한다.
 
 ---
 
@@ -68,7 +68,7 @@
 | `domain/booking/Refund.java` | `markSucceeded()` / `markFailed()` 추가 |
 | `application/.../booking/DefaultBookingCancelService.java` | Provider 호출, 실패 시 FAILED 저장 |
 | `application/.../payment/DefaultRefundRetryService.java` | FAILED 재시도 서비스 |
-| `adapter-in-web/.../admin/AdminRefundController.java` | `GET /admin/refunds/failed`, `POST /admin/refunds/{id}/retry` |
+| `adapter-in-web/.../admin/AdminRefundController.java` | `GET /admin/refunds/failed`, `GET /admin/refunds/{id}`, `POST /admin/refunds/{id}/retry` |
 | `adapter-in-web/.../admin/dto/FailedRefundResponse.java` | `bookingId`/`orderId` nullable 응답 모델 |
 
 ## Update (2026-04-26)

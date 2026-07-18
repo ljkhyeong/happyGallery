@@ -7,6 +7,7 @@ import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.domain.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.time.Clock;
@@ -46,8 +47,9 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
      *   <li>상태 확인 → 슬롯 반납 → 이력 → 환불 → 취소 → 알림</li>
      * </ol>
      *
-     * @return (취소된 booking, 환불 가능 여부)
+     * @return 취소된 예약, 보상 가능 여부, 생성된 예약금 환불 요청
      */
+    @Override
     public CancelResult cancelBooking(Long bookingId, String accessToken) {
         Booking booking = bookingSupport.findByToken(bookingId, accessToken);
         return cancelInternal(booking);
@@ -56,6 +58,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
     /**
      * 회원 예약을 취소한다. accessToken 대신 userId 소유권으로 검증한다.
      */
+    @Override
     public CancelResult cancelMemberBooking(Long bookingId, Long userId) {
         Booking booking = bookingSupport.findByIdAndUserId(bookingId, userId);
         return cancelInternal(booking);
@@ -79,27 +82,27 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
         // 5. 취소 알림. 실제 예약금 환불 성공 알림은 커밋 이후 RefundExecutionService가 발행한다.
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CANCELED);
 
-        return new CancelResult(booking, compensation.refundable());
+        return new CancelResult(booking, compensation.refundable(), compensation.refund());
     }
 
     private CancellationCompensation applyCancellationCompensation(Booking booking, Slot slot) {
         boolean refundable = TimeBoundary.isRefundable(slot.getStartAt(), clock);
         if (!refundable) {
-            return new CancellationCompensation(false);
+            return new CancellationCompensation(false, null);
         }
 
         if (booking.isPassBooking()) {
             restorePassCredit(booking);
-            return new CancellationCompensation(true);
+            return new CancellationCompensation(true, null);
         }
 
-        refundExecutionService.requestBookingRefund(booking, booking.getDepositAmount());
-        return new CancellationCompensation(true);
+        Refund refund = refundExecutionService.requestBookingRefund(booking, booking.getDepositAmount());
+        return new CancellationCompensation(true, refund);
     }
 
     private void restorePassCredit(Booking booking) {
         passCreditService.restoreCredit(booking.getPassPurchase().getId(), booking.getId());
     }
 
-    private record CancellationCompensation(boolean refundable) {}
+    private record CancellationCompensation(boolean refundable, Refund refund) {}
 }

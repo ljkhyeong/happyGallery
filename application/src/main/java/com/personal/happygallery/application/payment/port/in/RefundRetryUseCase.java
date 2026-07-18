@@ -10,7 +10,7 @@ import java.util.List;
  */
 public interface RefundRetryUseCase {
 
-    void retry(Long refundId);
+    Refund retry(Long refundId);
 
     List<Refund> listFailed();
 }

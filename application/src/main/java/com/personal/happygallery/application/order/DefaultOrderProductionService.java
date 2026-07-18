@@ -7,6 +7,7 @@ import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
@@ -56,6 +57,7 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      * @param expectedShipDate 예상 출고일
      * @return 주문 상태 + 갱신된 출고일
      */
+    @Override
     @OptimisticLockRetryable
     public ProductionResult setExpectedShipDate(Long orderId, LocalDate expectedShipDate) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
@@ -75,6 +77,7 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      * @param orderId 주문 ID
      * @return 전이된 주문 상태 + 출고일
      */
+    @Override
     @OptimisticLockRetryable
     public ProductionResult requestDelay(Long orderId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
@@ -91,24 +94,26 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      * 고객이 제작 지연을 거절한 경우 주문을 취소하고 환불·재고 복구를 수행한다.
      * 지연 수락 전 {@link OrderStatus#IN_PRODUCTION} 상태에서만 허용한다.
      */
+    @Override
     @OptimisticLockRetryable
-    public ProductionResult cancelForDelayRejection(Long orderId, Long adminId) {
+    public DelayCancellationResult cancelForDelayRejection(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
 
         order.cancelForDelayRejection();
-        orderRefundSupport.refundOrder(order);
+        Refund refund = orderRefundSupport.refundOrder(order);
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELAY_CANCEL, adminId, null));
         orderStore.save(order);
-        return ProductionResult.of(order, fulfillment);
+        return new DelayCancellationResult(ProductionResult.of(order, fulfillment), refund);
     }
 
     /**
      * 지연 요청 상태에서 제작을 재개한다.
      * {@link OrderStatus#DELAY_REQUESTED} → {@link OrderStatus#IN_PRODUCTION}.
      */
+    @Override
     @OptimisticLockRetryable
     public ProductionResult resumeProduction(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
@@ -127,6 +132,7 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
      * {@link OrderStatus#APPROVED_FULFILLMENT_PENDING}으로 전이한다.
      * 이후 픽업 준비({@code markPickupReady}) 또는 배송 흐름으로 이어진다.
      */
+    @Override
     @OptimisticLockRetryable
     public ProductionResult completeProduction(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);

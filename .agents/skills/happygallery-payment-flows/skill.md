@@ -35,6 +35,10 @@ description: Repository-specific workflow for payment provider integration, Toss
 - Preserve circuit-breaker and timeout protection around external payment calls, including confirm and refund.
 - Keep refund records durable even when PG calls fail.
 - Do not let PG failures roll back booking cancellation or order rejection flows that must complete locally.
+- Treat `Refund.status` as the single source of truth. Do not copy asynchronous PG state onto booking, order, or pass aggregates.
+- A cancel, reject, or pass-refund response with `REQUESTED` means the local transition and refund request were committed, not that PG refund completed.
+- Expose customer progress only through an ownership-checked booking or order detail projection (`amount`, `status`). Keep `refundId`, failure reasons, and retry metadata admin-only.
+- For admin flows, return `refundId` from the initiating action and query `GET /api/v1/admin/refunds/{refundId}`. Poll only `REQUESTED` and `PROCESSING`; hand action-required states to notifications and the failed-refund workflow. Customer detail may continue auto-recoverable states at a slower interval.
 - Keep `FakePaymentProvider` out of `prod`; prod should use Toss-backed provider.
 - Keep Toss secret values in environment variables, not tracked config.
 - Prefer this skill over order, booking, or pass skills when the main change is the payment boundary itself.

@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
+import com.personal.happygallery.adapter.in.web.admin.dto.OrderRejectResponse;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import org.springframework.http.HttpStatus;
@@ -31,8 +32,8 @@ public class AdminOrderApprovalController {
     /** POST /api/v1/admin/orders/{id}/reject — 주문 거절 (환불 + 재고 복구 포함, 제작 중은 거절 불가) */
     @PostMapping("/{id}/reject")
     @ResponseStatus(HttpStatus.OK)
-    public void reject(@PathVariable Long id,
-                       @AuthenticationPrincipal AdminPrincipal admin) {
-        orderApprovalUseCase.reject(id, admin.adminUserId());
+    public OrderRejectResponse reject(@PathVariable Long id,
+                                      @AuthenticationPrincipal AdminPrincipal admin) {
+        return OrderRejectResponse.from(orderApprovalUseCase.reject(id, admin.adminUserId()));
     }
 }

@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -99,10 +100,17 @@ class BookingCancelUseCaseIT {
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
                 .andExpect(jsonPath("$.status").value("CANCELED"))
                 .andExpect(jsonPath("$.refundable").value(true))
-                .andExpect(jsonPath("$.refundAmount").value(5000));
+                .andExpect(jsonPath("$.refundAmount").value(5000))
+                .andExpect(jsonPath("$.refund.amount").value(5000))
+                .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
 
         Booking booking = bookingStateProbe.getBooking(bookingId);
         Refund refund = awaitRefundStatus(RefundStatus.SUCCEEDED);
+        mockMvc.perform(get("/api/v1/bookings/{id}", bookingId)
+                        .header("X-Access-Token", createdBooking.accessToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refund.amount").value(5000))
+                .andExpect(jsonPath("$.refund.status").value("SUCCEEDED"));
         Slot updatedSlot = bookingStateProbe.getSlot(slot.getId());
         List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 2);
 

@@ -6,7 +6,7 @@ import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { formatKRW, formatDateTime } from "@/shared/lib";
-import type { FailedRefundResponse } from "@/shared/types";
+import type { AdminRefundStatus, FailedRefundResponse } from "@/shared/types";
 
 interface Props {
   adminKey: string;
@@ -21,6 +21,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   const { data: refunds, isLoading, error } = useQuery({
     queryKey: ["admin", "refunds", "failed"],
     queryFn: () => fetchFailedRefunds(adminKey),
+    refetchInterval: 5_000,
   });
 
   useEffect(() => {
@@ -32,8 +33,8 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   const retry = useAdminMutation(onAuthError, {
     mutationFn: (refundId: number) => retryRefund(adminKey, refundId),
     onMutate: (id) => setPendingId(id),
-    onSuccess: () => {
-      toast.show("환불 재처리 요청 완료");
+    onSuccess: (result) => {
+      showRetryResult(toast.show, result.status);
       queryClient.invalidateQueries({ queryKey: ["admin", "refunds", "failed"] });
     },
     onSettled: () => setPendingId(null),
@@ -84,6 +85,19 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
       </tbody>
     </Table>
   );
+}
+
+function showRetryResult(
+  show: ReturnType<typeof useToast>["show"],
+  status: AdminRefundStatus["status"],
+) {
+  if (status === "SUCCEEDED") {
+    show("환불 재처리가 완료되었습니다.");
+  } else if (status === "FAILED") {
+    show("환불 재처리가 실패했습니다. 실패 사유를 확인해 주세요.", "danger");
+  } else {
+    show("환불 재처리 후 상태를 확인 중입니다.", "warning");
+  }
 }
 
 function refundStatusLabel(status: FailedRefundResponse["status"]): string {

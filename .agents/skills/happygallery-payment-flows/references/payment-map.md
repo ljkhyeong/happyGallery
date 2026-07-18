@@ -17,6 +17,11 @@
 - `frontend/src/pages/PaymentSuccessPage.tsx`
 - `frontend/src/pages/PaymentFailPage.tsx`
 - `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/admin/LocalRefundFailureController.java`
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/admin/AdminRefundController.java`
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/payment/dto/RefundProgressResponse.java`
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/payment/dto/RefundStatusResponse.java`
+- `frontend/src/features/refund/RefundProgressAlert.tsx`
+- `frontend/src/features/admin-refund/useAdminRefundPolling.ts`
 - `bootstrap/src/main/resources/db/migration/`
 
 ## Current Toss prepare/confirm pieces
@@ -29,6 +34,8 @@
 - `FakePaymentProvider` for non-prod
 - `CircuitBreakerPaymentProvider` wrapping confirm and refund
 - `LocalRefundFailureScript` and `LocalRefundFailureController` for local refund-failure smoke/E2E hooks
+- `RefundExecutionService`, `RefundDispatcher`, and `RefundTransactionService` for durable request, out-of-transaction PG execution, and state updates
+- `RefundQueryUseCase` for admin status lookup; customer booking and order detail queries expose only the safe refund projection after ownership checks
 - `V32__add_payment_attempt.sql`
 - `V33__add_payment_key_columns.sql`
 
@@ -39,6 +46,7 @@
 - Duplicate confirm and amount mismatch tests
 - Confirm success records final `paymentKey` on the target aggregate
 - Refund failure durability tests such as `RefundExecutionServiceUseCaseIT`
+- Existing booking cancellation and order rejection integration flows should assert the initiating `REQUESTED` response and one final detail/status lookup instead of adding DTO-only tests
 - Circuit breaker and timeout provider tests under `application/src/test/java/com/personal/happygallery/adapter/out/external/payment/` until provider tests move with the adapter module
 - Web contract tests for new payment prepare/confirm endpoints
 - Local refund failure hook tests such as `LocalRefundFailureControllerTest` when admin dev refund hooks change

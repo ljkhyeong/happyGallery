@@ -73,9 +73,11 @@ public class BookingController {
     public BookingDetailResponse getBooking(
             @PathVariable Long bookingId,
             @RequestHeader("X-Access-Token") String token) {
-        Booking booking = bookingQueryUseCase.getBookingByToken(bookingId, token);
+        BookingQueryUseCase.BookingDetail detail = bookingQueryUseCase.getBookingByToken(bookingId, token);
+        Booking booking = detail.booking();
         return BookingDetailResponse.from(
                 booking,
+                detail.refund(),
                 guestPersonalDataProtector.decryptName(booking.getGuest()),
                 guestPersonalDataProtector.decryptPhone(booking.getGuest()),
                 clock);
@@ -99,6 +101,6 @@ public class BookingController {
             @RequestHeader("X-Access-Token") String token) {
         BookingCancelUseCase.CancelResult result =
                 bookingCancelUseCase.cancelBooking(bookingId, token);
-        return CancelResponse.from(result.booking(), result.refundable());
+        return CancelResponse.from(result);
     }
 }

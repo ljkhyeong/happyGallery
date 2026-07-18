@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.OrderProductionResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.OrderDelayCancellationResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SetExpectedShipDateRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase;
@@ -65,11 +66,11 @@ public class AdminOrderProductionController {
     /** POST /api/v1/admin/orders/{id}/cancel-for-delay-rejection — 고객 지연 거절로 취소 */
     @PostMapping("/{id}/cancel-for-delay-rejection")
     @ResponseStatus(HttpStatus.OK)
-    public OrderProductionResponse cancelForDelayRejection(
+    public OrderDelayCancellationResponse cancelForDelayRejection(
             @PathVariable Long id,
             @AuthenticationPrincipal AdminPrincipal admin) {
-        OrderProductionUseCase.ProductionResult result =
+        OrderProductionUseCase.DelayCancellationResult result =
                 orderProductionUseCase.cancelForDelayRejection(id, admin.adminUserId());
-        return OrderProductionResponse.from(result);
+        return OrderDelayCancellationResponse.from(result);
     }
 }

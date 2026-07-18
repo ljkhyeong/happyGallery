@@ -7,6 +7,7 @@ import { api } from "@/shared/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import type { OrderDetailResponse } from "@/shared/types";
+import { customerRefundPollingInterval } from "@/shared/lib";
 
 export function MyOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,13 +18,18 @@ export function MyOrderDetailPage() {
     queryKey: ["my", "orders", orderId],
     queryFn: () => api<OrderDetailResponse>(`/me/orders/${orderId}`),
     enabled: isAuthenticated && orderId > 0,
+    refetchInterval: ({ state }) =>
+      customerRefundPollingInterval(
+        state.data?.refund?.status,
+        state.dataUpdateCount + state.fetchFailureCount,
+      ),
   });
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
 
-  if (error) {
+  if (error && !order) {
     return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
 
@@ -57,6 +63,7 @@ export function MyOrderDetailPage() {
           현재 주문 상태와 이행 정보를 확인할 수 있습니다.
         </p>
       </div>
+      {error && <ErrorAlert error={error} />}
       <OrderDetailCard order={order} />
     </Container>
   );

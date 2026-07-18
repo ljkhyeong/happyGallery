@@ -1,5 +1,5 @@
 import { adminHeaders as h, api } from "@/shared/api";
-import type { CursorPage, AdminOrderResponse, OrderProductionResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest, ShippingResponse, OrderHistoryResponse } from "@/shared/types";
+import type { CursorPage, AdminOrderResponse, OrderProductionResponse, OrderRejectResponse, OrderDelayCancellationResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest, ShippingResponse, OrderHistoryResponse } from "@/shared/types";
 
 export function fetchOrders(
   adminKey: string,
@@ -17,7 +17,7 @@ export function approveOrder(adminKey: string, id: number): Promise<void> {
   return api(`/admin/orders/${id}/approve`, { method: "POST", headers: h(adminKey) });
 }
 
-export function rejectOrder(adminKey: string, id: number): Promise<void> {
+export function rejectOrder(adminKey: string, id: number): Promise<OrderRejectResponse> {
   return api(`/admin/orders/${id}/reject`, { method: "POST", headers: h(adminKey) });
 }
 
@@ -33,7 +33,7 @@ export function requestDelay(adminKey: string, id: number): Promise<OrderProduct
   return api(`/admin/orders/${id}/delay`, { method: "POST", headers: h(adminKey) });
 }
 
-export function cancelForDelayRejection(adminKey: string, id: number): Promise<OrderProductionResponse> {
+export function cancelForDelayRejection(adminKey: string, id: number): Promise<OrderDelayCancellationResponse> {
   return api(`/admin/orders/${id}/cancel-for-delay-rejection`, { method: "POST", headers: h(adminKey) });
 }
 

@@ -8,10 +8,17 @@ import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { ErrorAlert } from "@/shared/ui";
 import type { OrderDetailResponse } from "@/shared/types";
+import { customerRefundPollingInterval } from "@/shared/lib";
 
 interface LocationState {
   orderId?: number;
   token?: string;
+}
+
+interface OrderLookupVariables {
+  id: number;
+  token: string;
+  background?: boolean;
 }
 
 export function OrderDetailPage() {
@@ -21,15 +28,26 @@ export function OrderDetailPage() {
   const [token, setToken] = useState(navState?.token ?? "");
   const [order, setOrder] = useState<OrderDetailResponse | null>(null);
 
+  const refundPollCount = useRef(0);
   const lookup = useMutation({
-    mutationFn: ({ id, t }: { id: number; t: string }) => fetchOrder(id, t),
-    onSuccess: setOrder,
-    onError: () => setOrder(null),
+    mutationFn: ({ id, token }: OrderLookupVariables) => fetchOrder(id, token),
+    onSuccess: (data, variables) => {
+      setOrder(data);
+      refundPollCount.current = variables.background ? refundPollCount.current + 1 : 0;
+    },
+    onError: (_error, variables) => {
+      if (variables.background) {
+        refundPollCount.current += 1;
+        return;
+      }
+      setOrder(null);
+      refundPollCount.current = 0;
+    },
   });
 
   const handleLookup = useCallback(() => {
     if (Number(orderId) > 0 && token.trim()) {
-      lookup.mutate({ id: Number(orderId), t: token.trim() });
+      lookup.mutate({ id: Number(orderId), token: token.trim() });
     }
   }, [orderId, token, lookup]);
 
@@ -37,9 +55,23 @@ export function OrderDetailPage() {
   useEffect(() => {
     if (!autoLookupDone.current && navState?.orderId && navState?.token) {
       autoLookupDone.current = true;
-      lookup.mutate({ id: navState.orderId, t: navState.token });
+      lookup.mutate({ id: navState.orderId, token: navState.token });
     }
   }, [navState, lookup]);
+
+  useEffect(() => {
+    const interval = customerRefundPollingInterval(
+      order?.refund?.status,
+      refundPollCount.current,
+    );
+    if (!order || lookup.isPending || !token.trim() || interval === false) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      lookup.mutate({ id: order.orderId, token: token.trim(), background: true });
+    }, interval);
+    return () => window.clearTimeout(timer);
+  }, [lookup.isPending, lookup.mutate, order, token]);
   const claimLoginHref = buildAuthPageHref("/login", {
     redirectTo: "/my?claim=1",
     claim: true,
