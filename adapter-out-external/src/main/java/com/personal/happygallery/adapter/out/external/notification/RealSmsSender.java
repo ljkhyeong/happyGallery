@@ -20,14 +20,11 @@ public class RealSmsSender implements NotificationSender {
 
     private final SmsNotificationProperties properties;
     private final RestClient restClient;
-    private final SmsMessageCatalog messageCatalog;
 
     public RealSmsSender(SmsNotificationProperties properties,
-                         RestClient smsRestClient,
-                         SmsMessageCatalog messageCatalog) {
+                         RestClient smsRestClient) {
         this.properties = properties;
         this.restClient = smsRestClient;
-        this.messageCatalog = messageCatalog;
     }
 
     @Override
@@ -38,7 +35,7 @@ public class RealSmsSender implements NotificationSender {
     @Override
     public boolean send(String phone, String recipientName, NotificationEventType eventType) {
         try {
-            String message = messageCatalog.render(recipientName, eventType);
+            String message = SmsMessageCatalog.render(recipientName, eventType);
             var request = new SmsRequest(
                     message, properties.senderNumber(),
                     List.of(new SmsRequest.Recipient(phone)));

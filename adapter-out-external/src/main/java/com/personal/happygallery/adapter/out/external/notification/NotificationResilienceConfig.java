@@ -72,7 +72,7 @@ class NotificationResilienceConfig {
                                                @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
                                                @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
                                                NotificationResilienceProperties resilience) {
-        KakaoAlimtalkSender raw = new KakaoAlimtalkSender(props, kakaoRestClient, new KakaoTemplateCatalog());
+        KakaoAlimtalkSender raw = new KakaoAlimtalkSender(props, kakaoRestClient);
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
                 notificationTimeoutExecutor, resilience.timeoutMillis());
     }
@@ -85,7 +85,7 @@ class NotificationResilienceConfig {
                                              @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
                                              @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
                                              NotificationResilienceProperties resilience) {
-        RealSmsSender raw = new RealSmsSender(props, smsRestClient, new SmsMessageCatalog());
+        RealSmsSender raw = new RealSmsSender(props, smsRestClient);
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
                 notificationTimeoutExecutor, resilience.timeoutMillis());
     }

@@ -8,9 +8,12 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
  * <p>{@link KakaoAlimtalkSender}와 분리해 두면 신규 이벤트 추가 시
  * sender 본문을 건드리지 않고 매핑만 갱신할 수 있다.
  */
-public class KakaoTemplateCatalog {
+public final class KakaoTemplateCatalog {
 
-    public String resolveTemplateCode(NotificationEventType eventType) {
+    private KakaoTemplateCatalog() {
+    }
+
+    public static String resolveTemplateCode(NotificationEventType eventType) {
         return switch (eventType) {
             case BOOKING_CONFIRMED -> "HG_BOOKING_CONFIRMED";
             case BOOKING_RESCHEDULED -> "HG_BOOKING_RESCHEDULED";

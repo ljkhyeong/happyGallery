@@ -20,14 +20,11 @@ public class KakaoAlimtalkSender implements NotificationSender {
 
     private final KakaoNotificationProperties properties;
     private final RestClient restClient;
-    private final KakaoTemplateCatalog templateCatalog;
 
     public KakaoAlimtalkSender(KakaoNotificationProperties properties,
-                               RestClient kakaoRestClient,
-                               KakaoTemplateCatalog templateCatalog) {
+                               RestClient kakaoRestClient) {
         this.properties = properties;
         this.restClient = kakaoRestClient;
-        this.templateCatalog = templateCatalog;
     }
 
     @Override
@@ -38,7 +35,7 @@ public class KakaoAlimtalkSender implements NotificationSender {
     @Override
     public boolean send(String phone, String recipientName, NotificationEventType eventType) {
         try {
-            String templateCode = templateCatalog.resolveTemplateCode(eventType);
+            String templateCode = KakaoTemplateCatalog.resolveTemplateCode(eventType);
             var request = new KakaoAlimtalkRequest(
                     properties.senderKey(), templateCode, phone,
                     Map.of("name", recipientName));

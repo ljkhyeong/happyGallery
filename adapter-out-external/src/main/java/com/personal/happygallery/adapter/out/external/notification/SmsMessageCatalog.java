@@ -8,11 +8,14 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
  * <p>{@link RealSmsSender}와 분리해 두면 신규 이벤트 추가 시
  * sender 본문을 건드리지 않고 메시지 문구만 갱신할 수 있다.
  */
-public class SmsMessageCatalog {
+public final class SmsMessageCatalog {
 
     private static final String PREFIX = "[해피갤러리] ";
 
-    public String render(String recipientName, NotificationEventType eventType) {
+    private SmsMessageCatalog() {
+    }
+
+    public static String render(String recipientName, NotificationEventType eventType) {
         return switch (eventType) {
             case BOOKING_CONFIRMED -> PREFIX + recipientName + "님, 예약이 확정되었습니다.";
             case BOOKING_RESCHEDULED -> PREFIX + recipientName + "님, 예약이 변경되었습니다.";
