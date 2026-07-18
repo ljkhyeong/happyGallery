@@ -6,6 +6,7 @@ import com.personal.happygallery.application.order.port.in.PickupDeadlineReminde
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundRecoveryUseCase;
+import com.personal.happygallery.domain.time.Clocks;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -49,56 +50,56 @@ public class BatchScheduler {
 
     /** 주문 승인 SLA(24h) 초과 → 자동환불. 매시간 정각 실행. */
     @BatchJob("주문 자동환불")
-    @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runOrderAutoRefund() {
         return orderAutoRefundBatchUseCase.autoRefundExpired();
     }
 
     /** 픽업 마감 초과 → 기성품 환불, 주문제작 미환불 만료. 매시간 정각 실행. */
     @BatchJob("픽업 만료")
-    @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPickupExpire() {
         return pickupExpireBatchUseCase.expirePickups();
     }
 
     /** 만료된 8회권 크레딧 소멸. 매일 00:00 실행. */
     @BatchJob("8회권 크레딧 소멸")
-    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 0 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPassExpiry() {
         return passExpiryBatchUseCase.expireAll();
     }
 
     /** 8회권 만료 7일 전 알림. 매일 09:00 실행. */
     @BatchJob("8회권 만료 7일 전 알림")
-    @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 9 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPassExpiryNotification() {
         return passExpiryBatchUseCase.sendExpiryNotifications();
     }
 
     /** 픽업 마감 2시간 전 알림. 매시간 정각 실행. */
     @BatchJob("픽업 마감 알림")
-    @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPickupDeadlineReminder() {
         return pickupDeadlineReminderBatchUseCase.sendPickupDeadlineReminders();
     }
 
     /** 예약 D-1 리마인드. 매일 00:00 실행. */
     @BatchJob("D-1 예약 리마인드")
-    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 0 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runBookingD1Reminder() {
         return bookingReminderBatchUseCase.sendD1Reminders();
     }
 
     /** 예약 당일 리마인드. 매일 07:00 실행. */
     @BatchJob("당일 예약 리마인드")
-    @Scheduled(cron = "0 0 7 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 7 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runBookingSameDayReminder() {
         return bookingReminderBatchUseCase.sendSameDayReminders();
     }
 
     /** 유실된 요청과 오래된 처리 중 환불을 같은 멱등키로 복구한다. 매분 15초에 실행. */
     @BatchJob("환불 복구")
-    @Scheduled(cron = "15 * * * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "15 * * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runRefundRecovery() {
         return refundRecoveryUseCase.recoverPendingRefunds();
     }

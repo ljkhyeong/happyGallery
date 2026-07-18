@@ -8,10 +8,10 @@ import com.personal.happygallery.application.notification.port.out.NotificationS
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
+import com.personal.happygallery.domain.time.Clocks;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +30,7 @@ class NotificationServiceTest {
 
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-06-27T00:00:00Z"),
-            ZoneId.of("Asia/Seoul")
+            Clocks.SEOUL
     );
 
     @DisplayName("첫 알림 채널이 성공하면 성공 로그를 남기고 다음 채널은 시도하지 않는다")

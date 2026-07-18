@@ -11,11 +11,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import java.time.LocalDateTime;
+import java.util.regex.Pattern;
 
 /** 휴대폰 인증 코드 임시 저장 — phone_verifications 테이블 */
 @Entity
 @Table(name = "phone_verifications")
 public class PhoneVerification {
+
+    private static final Pattern CODE_PATTERN = Pattern.compile("^[0-9]{6}$");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -80,7 +83,7 @@ public class PhoneVerification {
     public LocalDateTime getExpiresAt() { return expiresAt; }
 
     private static String requireCode(String code) {
-        if (code == null || !code.matches("^[0-9]{6}$")) {
+        if (code == null || !CODE_PATTERN.matcher(code).matches()) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "인증 코드는 6자리 숫자여야 합니다.");
         }
         return code;

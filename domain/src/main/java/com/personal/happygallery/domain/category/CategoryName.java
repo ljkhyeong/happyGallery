@@ -31,6 +31,6 @@ public final class CategoryName {
     }
 
     private static String normalize(String value) {
-        return value.trim().toUpperCase(Locale.ROOT);
+        return value.strip().toUpperCase(Locale.ROOT);
     }
 }

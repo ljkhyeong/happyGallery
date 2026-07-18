@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 public final class KoreanPhoneNumber {
 
     private static final Pattern MOBILE_PATTERN = Pattern.compile("^01[0-9]{8,9}$");
+    private static final Pattern SEPARATOR_PATTERN = Pattern.compile("[\\s-]");
 
     private KoreanPhoneNumber() {}
 
@@ -22,7 +23,7 @@ public final class KoreanPhoneNumber {
         if (value == null || value.isBlank()) {
             return null;
         }
-        String normalized = value.replaceAll("[\\s-]", "");
+        String normalized = SEPARATOR_PATTERN.matcher(value).replaceAll("");
         if (!MOBILE_PATTERN.matcher(normalized).matches()) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "휴대폰 번호 형식이 올바르지 않습니다.");
         }

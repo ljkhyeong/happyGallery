@@ -33,7 +33,7 @@ public class LocalRefundFailureController {
     public ArmRefundFailureResponse failNext(@RequestBody(required = false) @Valid FailNextRefundRequest request) {
         String reason = DEFAULT_REASON;
         if (request != null && StringUtils.hasText(request.reason())) {
-            reason = request.reason().trim();
+            reason = request.reason().strip();
         }
 
         devRefundFailure.armNextFailure(reason);

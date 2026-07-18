@@ -25,7 +25,7 @@ public final class SpringSecurityFieldEncryptor implements FieldEncryptor {
                     "AES-256 키는 32바이트여야 합니다 (현재: " + keyBytes.length + ")");
         }
         this.encryptor = new AesBytesEncryptor(
-                new SecretKeySpec(keyBytes.clone(), "AES"),
+                new SecretKeySpec(keyBytes, "AES"),
                 KeyGenerators.secureRandom(GCM_IV_BYTES),
                 CipherAlgorithm.GCM);
     }

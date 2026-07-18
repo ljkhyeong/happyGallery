@@ -13,7 +13,7 @@ public final class PersonalName {
         if (value == null || value.isBlank()) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이름은 필수입니다.");
         }
-        String normalized = value.trim();
+        String normalized = value.strip();
         if (normalized.codePointCount(0, normalized.length()) > MAX_LENGTH) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이름은 100자 이하여야 합니다.");
         }

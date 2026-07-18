@@ -22,7 +22,7 @@ public final class BlindIndexer {
         if (keyBytes.length != 32) {
             throw new IllegalArgumentException("HMAC 키는 32바이트여야 합니다 (현재: " + keyBytes.length + ")");
         }
-        this.secretKey = new SecretKeySpec(keyBytes.clone(), ALGORITHM);
+        this.secretKey = new SecretKeySpec(keyBytes, ALGORITHM);
     }
 
     /** 평문 → 64자 lowercase hex HMAC */

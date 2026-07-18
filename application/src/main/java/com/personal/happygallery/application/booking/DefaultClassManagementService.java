@@ -19,7 +19,7 @@ public class DefaultClassManagementService implements ClassManagementUseCase {
     @Override
     public BookingClass createClass(String name, String category, int durationMin, long price, int bufferMin) {
         return classStorePort.save(new BookingClass(
-                name.trim(),
+                name.strip(),
                 category,
                 durationMin,
                 price,

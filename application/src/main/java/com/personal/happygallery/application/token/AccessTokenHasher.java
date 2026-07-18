@@ -29,7 +29,7 @@ public final class AccessTokenHasher {
             byte[] digest = md.digest(rawToken.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 not available", e);
+            throw new IllegalStateException("SHA-256 not available", e);
         }
     }
 }

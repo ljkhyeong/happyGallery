@@ -43,7 +43,7 @@ public class BatchLoggingAspect {
                                 durationMs);
                     }
                 } else if (result instanceof Number count) {
-                    log.info("[배치] {} 완료: {}건 ({}ms)", jobName, count.intValue(), durationMs);
+                    log.info("[배치] {} 완료: {}건 ({}ms)", jobName, count, durationMs);
                 } else {
                     log.info("[배치] {} 완료 ({}ms)", jobName, durationMs);
                 }

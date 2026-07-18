@@ -12,6 +12,6 @@ public final class EmailAddress {
         if (value == null || value.isBlank()) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이메일은 필수입니다.");
         }
-        return value.trim().toLowerCase(Locale.ROOT);
+        return value.strip().toLowerCase(Locale.ROOT);
     }
 }

@@ -39,7 +39,7 @@ public class PooledHttpClientFactory {
                 .setKeepAliveStrategy((response, context) -> {
                     TimeValue keepAlive = DefaultConnectionKeepAliveStrategy.INSTANCE
                             .getKeepAliveDuration(response, context);
-                    if (keepAlive != null && keepAlive.toMilliseconds() > 0) {
+                    if (TimeValue.isPositive(keepAlive)) {
                         return keepAlive;
                     }
                     return TimeValue.ofMilliseconds(props.keepAliveMillis());
