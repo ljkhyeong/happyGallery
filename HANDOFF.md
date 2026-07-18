@@ -1,60 +1,34 @@
 # HANDOFF
 
-> **이 파일은 다음 AI 에이전트가 작업을 이어받기 위한 인수인계 전용이다. 사람용 문서가 아니다.**
+## 진행 중: 결제 후속과 신원 경로 완성
 
-## 작성 지침 (필수)
+**기준일:** 2026-07-18
+**활성 계획:** `plan.md`
 
-목적: 컨텍스트 부족 또는 에이전트 교체 때 다음 에이전트가 바로 이어서 작업하게 하는 것. 그 이상도 이하도 적지 않는다.
+### 현재 상태
 
-**적는다**
-1. 지금 진행 중인 작업: 어디까지 했고, 다음 무엇을 해야 하는지, 어느 파일/플랜/스킬을 먼저 열어야 하는지.
-2. 이 세션 안에서만 알 수 있고 다른 문서엔 없는 결정.
-3. 보존 규칙이 명시된 진행 중 섹션: 규칙에 적힌 종료 조건까지 유지한다.
+- Toss prepare/confirm, confirm 트랜잭션 분리·멱등성·보상 환불은 구현됨.
+- 환불은 부모 트랜잭션에 `REQUESTED`를 저장한 뒤 커밋 후 실행하며, 미완료 상태를 같은 멱등키로 복구함.
+- 알림은 도메인 트랜잭션과 함께 outbox를 저장하고 커밋 후 비동기로 발송함.
+- Spring Security 회원/관리자 체인과 SPA CSRF, Google/Naver 로그인, 개인정보 암호화·블라인드 인덱스 전환은 구현됨.
+- 장기 계약은 `docs/PRD/0001_기준_스펙/spec.md`, `docs/PRD/0004_API_계약/spec.md`와 관련 ADR을 기준으로 확인함.
 
-**적지 않는다 (다른 문서에 있으면 경로만 남긴다)**
-- 사람용 설명, 프로젝트 소개, 완료 이력, 긴 배경, 일반 운영 규칙.
-- 모듈 구조, 운영 주소, 인증 방식, 환경 구성, 배포 구조 → `README.md` / `CLAUDE.md`
-- 우선 확인 문서 목록, 자주 쓰는 명령, 도구 사용 규칙 → `CLAUDE.md`
-- 제품 요구사항 / API 계약 → `docs/PRD/`
-- 설계 결정 배경 → `docs/ADR/`
-- 전체 로드맵, 완료된 Phase 체크리스트 → `plan.md` 또는 `~/.claude/plans/*.md`
-- "현재 활성 목표" 같은 추상적 우선순위. 진행 중 작업이 없으면 "진행 중 작업 없음" 수준으로 비운다.
+### 다음 작업
 
-**갱신 규칙**
-- 작업이 끝났거나 보존 규칙이 만료되면 해당 섹션을 삭제한다. 기록 보관 목적이면 `docs/Retrospective/`로 옮긴다.
-- 같은 세션 안에서 "표현 정리" 명목으로 진행 중 섹션을 덮지 않는다.
-- 길이 목표: 진행 중 섹션 포함 80줄 이내. 넘으면 원문 문서나 플랜으로 옮기고, 여기는 다음 에이전트가 열어야 할 경로와 한 줄 이유만 남긴다.
+1. `plan.md`의 장바구니 결제 우회 경로를 먼저 정리한다.
+2. 결제 prepare 금액과 fulfill 금액 불변식을 주문·예약·8회권 전체에서 점검한다.
+3. 제거된 직접 생성 API용 DTO와 프론트 타입의 실제 소비자를 확인해 정리한다.
+4. `docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md`에 맞는 k3s 운영 산출물을 구현한다.
+5. `happygallery-identity-flows`와 `happygallery-notification-flows`를 함께 사용해 인증 코드 SMS와 회원가입 휴대폰 소유 확인을 순서대로 구현한다.
 
----
+### 먼저 열 파일
 
-## 🚧 진행 중: 돈·신원 경로 복원 플랜 (Phase 1 결제 경로 전환·테스트 보강됨)
+- 결제 후속: `plan.md`, `application/src/main/java/com/personal/happygallery/application/payment/context/`, `application/src/main/java/com/personal/happygallery/application/cart/`, `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/customer/MeCartController.java`, `frontend/src/features/cart/`
+- 운영 구성: `docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md`, `happygallery-deploy-ops`
+- 신원 경로: `application/src/main/java/com/personal/happygallery/application/customer/`, `application/src/main/java/com/personal/happygallery/application/booking/DefaultGuestBookingService.java`, `domain/src/main/java/com/personal/happygallery/domain/booking/PhoneVerification.java`, `happygallery-identity-flows`, `happygallery-notification-flows`
 
-**갱신 시점**: 2026-04-26
-**브랜치**: `main` 기준으로 다음 작업 브랜치 생성
-**플랜 전문**: `~/.claude/plans/imperative-greeting-barto.md` — **반드시 먼저 읽는다.**
+### 세션 전용 주의
 
-### 이번 세션에서만 결정된 사실 (다른 문서에 없음)
-- **Flyway 번호 shift**: V31이 이미 `cleanup_redundant_indexes`로 점유되어, 플랜의 V31/V32 → **V32/V33** 으로 shift. 다음 세션도 이 규약 유지.
-- **8회권 사용 예약**: amount=0 → PG 우회, `confirm` 직호출. 프론트가 이 분기를 처리.
-- **테스트 보강 (2026-04-26)**: 기존 예약/주문/8회권 생성 테스트를 `/api/v1/payments/prepare` + `/confirm` 경로로 전환. `PaymentPrepareUseCaseTest`, `PaymentConfirmUseCaseIT` 추가.
-- **환불 참조값 연결 (2026-04-26, 2026-07-04 갱신)**: confirm 성공 시 `PaymentAttempt.pgRef`와 도메인 `payment_key`를 저장하고, 예약/주문/8회권 환불 생성 시 원결제 Toss `paymentKey`를 `refunds.payment_key`, 환불 성공 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리 저장.
-- **환불 PG 호출 경계 (2026-07-12)**: 환불 요청 레코드는 `Propagation.MANDATORY`로 부모 트랜잭션에 참여하고 `RefundExecutionRequestedEvent`를 발행한다. `RefundExecutionEventListener`가 부모 커밋 이후 `refundExecutor`에서 `Propagation.NEVER`인 `RefundDispatcher`를 호출하며, 실행 전 선점과 결과 저장은 `RefundTransactionService`의 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다. `REQUESTED/RETRYABLE/RECONCILIATION_REQUIRED`와 오래된 `PROCESSING`은 같은 멱등키로 매분 복구하며, PG TimeLimiter 실행기는 제한 큐·즉시 거절을 사용한다. 고객·관리자 상태 조회와 UI 계약은 `docs/PRD/0004_API_계약/spec.md`, 실행 경계는 `docs/ADR/0018_환불_이력_트랜잭션_분리/adr.md`, `docs/ADR/0020_결제_제공자_CircuitBreaker/adr.md` 참조.
-- **결제 confirm 경계 (2026-07-12)**: `P1R-T4` 완료. `PROCESSING` 선점 후 트랜잭션 밖에서 Toss confirm을 호출하고 `orderId` 멱등키를 사용한다. PG 승인 후 로컬 생성 실패는 `payment_attempt_id` 보상 환불로 기존 재시도 경로에 연결한다. 상세는 `docs/ADR/0033_결제_confirm_트랜잭션과_보상_경계/adr.md`.
-- **알림 Outbox 경계 (2026-07-12)**: 일반 `NotificationRequestedEvent`는 도메인 트랜잭션 안에서 `notification_outbox`에 저장한다. 커밋 이후 `@Async("notificationExecutor")` 리스너가 `Propagation.NEVER`인 `NotificationOutboxDispatcher`를 호출하고, 발송 결과는 기존 `notification_log`에 남긴다.
-- **프론트 결제 흐름 보강 (2026-04-26)**: `ProductDetailPage` 회원 BUY NOW를 Toss prepare/confirm 경로로 전환. P8 E2E는 Toss stub 기반 현재 UI selector로 갱신.
-- **E2E 실행 단위 (2026-04-26)**: `frontend npm run e2e`는 `@smoke` 4개만 실행. 전체는 `npm run e2e:full`, 도메인별은 README의 프론트엔드 명령 참조. 운영 기준은 `docs/ADR/0027_테스트_전략과_최소_테스트_세트_기준선/adr.md`, 회고는 `docs/Retrospective/0009_프론트_E2E_실행_시간_슬림화/retrospective.md`.
-- **로컬 E2E 설정 (2026-04-26)**: 반복 smoke에서는 `RATE_LIMIT_ENABLED=false`로 bootRun. 관리자 예약 목록의 guest-only NPE는 `DefaultAdminBookingQueryService`에서 null userId 방어.
-- **검증 (2026-04-26)**: E2E 슬림화 변경은 `frontend npx tsc -p tsconfig.node.json`, `frontend npm run build`, `frontend npm run e2e`(4 passed, 21.8s), `frontend npm run e2e:full`(9 passed, 34.6s), `git diff --check` PASS. 백엔드 bootRun은 중지했고 8080 리스너 없음.
-- **API 계약 문서화 (2026-04-26)**: `adapter-in-web`에 Spring REST Docs 기반 `restDocsTest` 태스크와 공개/회원/관리자 API 계약 테스트를 추가. `./gradlew --no-daemon :adapter-in-web:restDocsTest`, `./gradlew --no-daemon :adapter-in-web:test` PASS.
-
-### 다음 세션 진입점 (남은 Task)
-
-1. **Phase 1 후속 잔여** — `plan.md`의 `P1R-T1b`, `P1R-T5`, `P1R-T6`, `P1R-T7`, `P1R-T8b` 확인.
-2. **Phase 2 착수** — SMS 인증 실발송: `~/.claude/plans/imperative-greeting-barto.md`의 Phase 2와 notification 관련 스킬/문서 먼저 확인.
-
-### Phase 진행도 / 환경 변수 / 플랜 밖 미룬 항목
-→ `~/.claude/plans/imperative-greeting-barto.md` 참조. 여기엔 옮기지 않는다.
-
-### 이 섹션 보존 규칙
-- **Phase 3 완료까지 삭제 금지.** 표현 정리 명목으로도 덮지 않는다.
-- 내용 변경은 플랜 파일에서 하고, 여기엔 "다음 세션 진입점"만 갱신한다.
+- Flyway SQL 최고 번호는 V45이고, Java migration `V46__ProtectPlaintextPersonalData`가 추가로 존재한다. 다음 migration 번호를 정할 때 Java migration도 포함한다.
+- 장바구니 checkout은 현재 결제 우회 경로다. 새 기본 계약으로 간주하지 않는다.
+- 회원 signup은 현재 휴대폰을 `phoneVerified=false`로 저장한다. 전용 소유 확인이 끝나기 전에 true로 바꾸지 않는다.

@@ -1,230 +1,42 @@
 # Plan
 
 이 파일은 현재 활성 작업만 유지한다.
-완료된 실행 계획은 별도 보관하지 않고 제거하며, 장기적으로 남겨야 하는 내용은 `README.md`, `HANDOFF.md`, `docs/PRD`, `docs/ADR`에 반영한다.
-
----
+완료된 구현과 장기 설계는 `docs/PRD`, `docs/ADR`, `README.md`를 기준으로 확인한다.
 
 ## Active Goal
 
-**(2026-07-18 갱신)** Track 1~5는 모두 완료. **Track 6 Phase 1 — Toss 결제 전환 복구는 완료**했고, 현재 활성 목표는 결제 전환 후 남은 우회 경로·자가 호스팅 운영 설정·테스트 공백을 닫은 뒤 Phase 2/3 신원 경로를 진행하는 것이다.
-플랜 전문: `~/.claude/plans/imperative-greeting-barto.md`
+**2026-07-18 기준:** Toss prepare/confirm, 비동기 환불 복구, 알림 outbox, Spring Security·CSRF, 개인정보 암호화·블라인드 인덱스, Google/Naver 로그인은 구현되어 있다.
 
-남은 구조적 애로:
-- cart checkout 기반 결제 우회 주문 경로가 일부 남아 있음
-- 단일 노트북 k3s 운영 매니페스트·TLS·secret·rollback 구성이 아직 없음
-- SMS 인증 코드가 실제 발송되지 않음(로그만)
-- 회원 가입 시 휴대폰 소유 확인 없음
+현재 목표는 남은 결제 우회 경로와 금액 불변식, 자가 호스팅 운영 구성, 실제 SMS 인증, 회원가입 휴대폰 소유 확인을 순서대로 닫는 것이다.
 
-접근: 결제 전환 후속 리팩토링을 짧게 닫고, `PhoneVerificationSender` 전용 포트와 `PhoneOwnershipVerificationUseCase`를 순차 도입한다.
+## 남은 작업
 
-우선순위:
-1. Phase 1 후속 — 결제 전환 우회 경로/운영/E2E 정리
-2. Phase 2 — SMS 실발송
-3. Phase 3 — 회원가입 소유 확인
+| 우선순위 | 작업 | 현재 상태 | 완료 기준 |
+| --- | --- | --- | --- |
+| 1 | 장바구니 결제 경로 | `POST /api/v1/me/cart/checkout`이 결제 prepare/confirm을 우회해 주문을 즉시 생성함 | Toss prepare/confirm으로 전환하거나 명시적 무결제·후불 계약으로 분리하고 PRD/API/프론트/E2E를 함께 갱신 |
+| 2 | 결제 금액 스냅샷 | 주문은 prepare 단가 스냅샷을 fulfill에 사용하지만 예약·8회권은 prepare 이후 기준값 변경 가능성을 더 점검해야 함 | prepare 금액과 fulfill 도메인 금액이 항상 같음을 코드와 고가치 테스트로 보장 |
+| 3 | 결제 레거시 DTO | 제거된 직접 생성 API용 백엔드 DTO와 프론트 타입 일부가 남아 있음 | `rg`로 실제 소비자를 확인해 삭제하거나 현재 용도를 이름과 계약에 반영 |
+| 4 | 자가 호스팅 운영 구성 | ADR-0037만 확정됐고 Kubernetes 산출물은 없음 | 단일 노트북 k3s manifest, ingress/TLS, PVC·백업, secret, 이미지 전달, rollout/rollback과 검증 절차 구현 |
+| 5 | 실 SMS와 회원 휴대폰 소유 확인 | 일반 알림 SMS adapter는 있으나 인증 코드는 전용 sender에 연결되지 않았고 signup은 `phoneVerified=false`로 저장 | `PhoneVerificationSender` 경계와 실제/가짜 adapter를 연결한 뒤, 별도 회원 소유 확인 use case와 signup UI/API 계약 구현 |
 
----
+## 실행 순서
 
-## Track 1. Public/Auth Security Hardening
+1. 결제 우회 경로·금액 스냅샷·레거시 DTO를 함께 정리한다.
+2. ADR-0037을 기준으로 자가 호스팅 운영 산출물을 만든다.
+3. 인증 코드 전용 SMS 발송 경계를 구현한다.
+4. 회원가입 휴대폰 소유 확인을 구현한다.
 
-목표:
-- OTP 응답 노출 제거
-- 관리자 기본 자격/기본 API key 제거
-- profile 오적용에 강한 기본 구성으로 전환
-- Actuator 노출 정책 명시
+## 검증 기준
 
-| Task | 상태 | 범위 | 완료 기준 |
-|------|------|------|-----------|
-| `S1-T1` | done | 공개 휴대폰 인증 API | `SendVerificationResponse`에서 `code` 제거, 서버 로그 출력, local-only dev API 추가, 테스트 헬퍼 repository 직접 조회로 전환 |
-| `S1-T2` | done | frontend 공개 인증 UX | `PhoneVerificationStep`에서 MVP 코드 표시 제거, 타입에서 `code` 필드 제거, E2E를 dev API 조회로 전환 |
-| `S1-T3` | done | `booking/order/pass/claim` 인증 재사용부 | `VerifiedGuestResolver` 추출, booking/order/pass 3곳의 인증+guest upsert 중복 제거 |
-| `S1-T4` | done | admin seed/migration | V16으로 기본 admin 삭제, `LocalAdminSeedService`로 local-only seed 전환, 테스트 `@BeforeEach`에서 자체 seed |
-| `S1-T5` | done | admin auth config/filter | 기본값을 `enableApiKeyAuth=false`, `apiKey=""` 로 변경, local 프로필에서만 활성화, prod 누락 시 안전 |
-| `S1-T6` | done | local-only admin hook | 전수 확인: 모든 Local* 클래스에 `@Profile("local")` 적용, 신규 `LocalPhoneVerificationController` 포함 |
-| `S1-T7` | done | actuator/prometheus | management port를 기본 8081로 분리, local에서는 8080 유지, 노출 목록 health/info/metrics/prometheus 유지 |
-| `S1-T8` | done | 문서 | ADR-0023 admin 기본값 반영, PRD-0004 API Key 폴백 기본값/LocalAdminSeedService 명시, HANDOFF 트랙 완료 반영 |
+- 백엔드 정책: `./gradlew :application:policyTest`
+- DB·트랜잭션·Testcontainers 흐름: `./gradlew --no-daemon :application:useCaseTest`
+- HTTP 계약: `./gradlew --no-daemon :adapter-in-web:restDocsTest`
+- 프론트: `cd frontend && npm run build`
+- 브라우저: 변경 도메인에 따라 `npm run e2e:payment`, `e2e:identity`, `e2e:admin` 중 최소 범위 실행
 
-검증:
-- 공개 OTP API 응답에 code 미포함 확인
-- guest booking/order/pass/claim happy path 회귀 확인
-- admin login/API 접근 정책이 local/prod에서 의도대로 동작하는지 확인
-- actuator 접근 제어 정책 확인
+## 문서 동기화
 
----
-
-## Track 2. Booking Query/Reminder Recovery
-
-목표:
-- member booking 과 claim 완료 booking 이 운영 조회/리마인드에서 빠지지 않도록 복구
-
-| Task | 상태 | 범위 | 완료 기준 |
-|------|------|------|-----------|
-| `B1-T1` | done | admin 예약 조회 쿼리 | `findAllInRange` JOIN→LEFT JOIN FETCH, member/claimed booking 결과 포함 |
-| `B1-T2` | done | admin 예약 응답 DTO | `bookerType`(GUEST/MEMBER) 추가, `guestName/Phone`→`bookerName/Phone` 변경, User batch fetch, 프론트 타입/UI 동기화 |
-| `B1-T3` | done | reminder batch 쿼리/발송 | `findBookedInRange` LEFT JOIN 전환, guest/member 분기 발송 (`notifyByGuestId`/`notifyByUserId`) |
-| `B1-T4` | done | notification 진입점 | `notifyBookingGuest`/`notifyBookingUser` → `notifyBooker` 통합, cancel/reschedule/create 호출처 일괄 전환 |
-| `B1-T5` | done | 운영 검증 테스트 | `AdminBookingQueryUseCaseIT` — admin list 3종 포함, D-1 claimed 리마인드, 당일 3종 혼합 리마인드 검증 3 tests |
-| `B1-T6` | done | 문서 | PRD-0001 §3.1/§4.1에 member/guest 주체 명시, PRD-0004에 admin 예약 목록(bookerType) 계약 추가, ADR-0022에 admin query 경계 반영 |
-
-검증:
-- admin booking list 에 guest/member/claimed booking 모두 노출
-- D-1/당일 reminder 가 guest/member 각각 적절한 채널로 기록
-- claim 이후 예약이 운영 화면과 배치에서 누락되지 않음
-
----
-
-## Track 3. Guest Token Hardening
-
-목표:
-- guest access token 을 URL/평문 저장 기반에서 더 안전한 계약으로 전환
-
-| Task | 상태 | 범위 | 완료 기준 |
-|------|------|------|-----------|
-| `T1-T1` | done | 현행 계약 정리 | 예약/주문 token 사용 API와 프론트 호출 경로 전수 정리 |
-| `T1-T2` | done | backend token 저장 방식 | AccessTokenHasher(SHA-256 해시 저장), V17 migration(orders 컬럼 확장+UNIQUE), 서비스/컨트롤러 전환 완료 |
-| `T1-T3` | done | backend API 계약 | query param → `X-Access-Token` 헤더로 통일, RescheduleRequest에서 token 필드 제거, 프론트엔드 API 호출 동기화 |
-| `T1-T4` | done | frontend guest 조회/변경 흐름 | 성공 화면에 일회성 안내+복사 버튼 추가, 성공→조회 네비게이션 시 state로 token+ID 전달, 조회 페이지 자동 fill+자동 조회 |
-| `T1-T5` | done | migration/compat | V18 마이그레이션으로 기존 평문 토큰 일괄 SHA-256 해싱, CHAR_LENGTH<64 조건으로 멱등 처리 |
-| `T1-T6` | done | 보안 문서 | API contract(query param→X-Access-Token 헤더, 토큰 형식/1회성 명시), PRD §8(토큰 보안 정책), ADR-0024(V18 backfill+헤더 전환), Idea-0005(완료 항목 반영), HANDOFF(ADR-0024 추가) |
-
-결정 포인트:
-- 단기: hash 저장 + 기존 UX 유지
-- 중기: guest session 또는 signed short-lived token 도입
-
-검증:
-- guest 조회/취소/변경이 새 token 계약으로 동작
-- DB에 raw token 이 남지 않음
-- access log/support screenshot 에서 민감 토큰 노출이 줄어드는 구조 확인
-
----
-
-## Track 4. Test Coverage Recovery
-
-목표:
-- 지금 구조에서 가장 위험한 회귀 지점을 직접 때리는 테스트를 추가
-
-| Task | 상태 | 범위 | 완료 기준 |
-|------|------|------|-----------|
-| `Q1-T1` | done | `me/bookings` | MeBookingUseCaseIT: 생성/목록/상세/변경/취소/401 — 6 tests |
-| `Q1-T2` | done | `me/orders` | MeOrderUseCaseIT: 생성/목록/상세/401 — 4 tests |
-| `Q1-T3` | done | `me/passes` | MePassUseCaseIT: 구매/목록/상세/401 — 4 tests |
-| `Q1-T4` | done | pass refund | PassCreditUsageUseCaseIT: slot bookedCount=0, BookingHistory 4건 assert 추가 |
-| `Q1-T5` | done | 알림 사이드이펙트 | BookingReminderBatchUseCaseIT: member D-1 리마인드, guest+member 혼합 당일 리마인드 2 tests 추가 |
-| `Q1-T6` | done | admin/member filter | AdminAuthFilterTest: /api/v1/me/ 통과, /api/v1/auth/ 통과 2 tests 추가 |
-| `Q1-T7` | done | OTP/관리자 설정 | AdminAuthFilterTest: 기본값 enableApiKeyAuth=false 검증, 기본 설정 admin 접근 401 — 2 tests 추가 |
-
-검증:
-- 변경 범위별 최소 IT/UseCaseIT 확보
-- 새 보안 정책과 운영 경로가 테스트로 고정
-
----
-
-## Track 5. Architecture Convergence
-
-목표:
-- “헥사고날 전환 중간 상태”를 줄이고, controller/service/repository 책임을 다시 맞춘다
-
-| Task | 상태 | 범위 | 완료 기준 |
-|------|------|------|-----------|
-| `A1-T1` | done | admin query 계층 | `AdminBookingQueryService`(날짜조회+User batch fetch), `AdminOrderQueryService`(목록+이력) 도입, 컨트롤러에서 infra 직접 의존 제거, `UserReaderPort.findAllById` 추가 |
-| `A1-T2` | done | product 계층 | `ProductReaderPort` 확장 + `ProductStorePort`/`InventoryReaderPort`/`InventoryStorePort` 신설, `ProductPersistencePortAdapter`/`InventoryPersistencePortAdapter` 도입, 3개 서비스에서 infra repository 직접 의존 제거 |
-| `A1-T3` | done | notification 계층 | `NotificationLogStorePort` 신설, `NotificationLogPersistencePortAdapter` (Reader+Store 통합) 도입, `NotificationService`에서 `NotificationLogRepository` 직접 의존 제거 |
-| `A1-T4` | done | booking creation | `BookingCreationSupport` 추출 — 슬롯검증/락/8회권차감/예약금검증/저장+이력+알림 공통화, GuestBookingService·MemberBookingService에서 8개 의존성 제거 |
-| `A1-T5` | done | verified guest resolver | S1-T3에서 `VerifiedGuestResolver` 추출 완료 (booking/order/pass 3곳 공통). claim은 의미론이 다름(user phone re-verification) — 별도 유지 적합 |
-| `A1-T6` | done | 주문 생성 조합 서비스 | `OrderCreationService.createMemberOrder()` 추가 + `resolveItemPrices()` 추출, `MeOrderController`에서 `ProductQueryService` 의존 제거 — 가격 조회를 서비스 레이어로 이동 |
-| `A1-T7` | done | refund boundary | `RefundExecutionService`/`RefundRetryService`/`RefundPort`/`RefundPortAdapter`를 `app.booking`→`app.payment`로 이동, booking·order 양쪽의 공용 환불 경계 확립 |
-| `A1-T8` | done | query performance | `InventoryReaderPort.findByProductIdIn()` 추가, `listActiveProducts()` 배치 조회로 전환 — N+1 → 2 쿼리 |
-| `A1-T9` | done | guest claim service | `claim()` 메서드를 `claimOrders`/`claimBookings`/`claimPasses`로 분리, 전화번호 로그 마스킹(`maskPhone`) 적용 |
-| `A1-T10` | done | ADR 동기화 | ADR-0021에 2차 확산 섹션 추가, ADR-0022에 access_token/user_id/admin query 반영, ADR-0023에 admin 기본값/actuator 포트 반영, PRD-0004에 회원 API 계약 추가 |
-
-원칙:
-- 새 포트는 경계가 분명한 곳에만 만든다.
-- controller 에서 가격 조회, 소유권 판정, aggregate 조합을 하지 않는다.
-- `Default*` 구현체와 `*Adapter` 규칙을 계속 유지하되, 혼합 상태를 오래 두지 않는다.
-
----
-
-## Track 6. Payment/Identity Path Recovery (ACTIVE)
-
-플랜 참조: `~/.claude/plans/imperative-greeting-barto.md`. 이 Track은 해당 플랜의 Phase 1~3을 실제 체크리스트로 추적한다.
-
-**마이그레이션 번호 주의**: 플랜 원문의 V31/V32는 이미 `V31__cleanup_redundant_indexes.sql`이 점유 → **V32/V33으로 shift**.
-
-### Phase 1 — Toss Payments 실결제 연동 (DONE)
-
-| Task | 상태 | 범위 | 완료 기준 |
-|------|------|------|-----------|
-| `P1-T1` | done | port 시그니처 | `PaymentPort.confirm(paymentKey, orderId, amount, idempotencyKey)` 추가, `PaymentConfirmResult` record |
-| `P1-T2` | done | 도메인 | `PaymentAttempt` entity (orderIdExternal UNIQUE, context/status state machine, `requireConfirmable`/`markConfirmed`) |
-| `P1-T3` | done | DB | V32 `payment_attempt`, V33 `orders/bookings/pass_purchases.payment_key` |
-| `P1-T4` | done | 영속 어댑터 | `PaymentAttemptRepository` + Store/Reader port |
-| `P1-T5` | done | PG 어댑터 | `TossPaymentsProvider` `@Profile("prod")`, `FakePaymentProvider` `@Profile("!prod")` + `.confirm()`, `CircuitBreakerPaymentProvider.confirm()` wrapping |
-| `P1-T6` | done | UseCase | `PaymentPrepareUseCase`/`PaymentConfirmUseCase` + Order/Booking/Pass Preparer·Fulfiller |
-| `P1-T7` | done | 서비스 리팩토링 | 생성 진입점은 confirm 경로로 전환, `PassPriceProperties` 신규, `DepositCalculator` 규칙 확정, 도메인 `payment_key` 저장과 환불 참조값 연결 |
-| `P1-T8` | done | 컨트롤러 | `PaymentController` 신규 + 기존 생성 POST 제거 |
-| `P1-T9` | done | 프론트 | `frontend/src/features/payment/TossCheckout.ts`+api, success/fail 라우트, 3개 페이지 전환 |
-| `P1-T10` | done | 빌드 | 2026-04-26 `:application:test`, `:application:useCaseTest`, `:adapter-in-web:test`, `:application:policyTest`, `:bootstrap:bootJar -x test`, `./gradlew --no-daemon test`, `frontend npm run build` PASS |
-
-### Phase 1 후속 — 결제 전환 리팩토링 태스크
-
-| Task | 상태 | 범위 | 완료 기준 |
-|------|------|------|-----------|
-| `P1R-T1a` | done | ProductDetail 회원 즉시 주문 | `ProductDetailPage`의 `/me/orders` 직접 POST를 Toss `prepare/confirm` 경로로 전환 |
-| `P1R-T1b` | todo | cart checkout 경로 정리 | `/me/cart/checkout` 기반 즉시 주문을 Toss `prepare/confirm` 경로로 전환하거나, 정책상 유지할 경로라면 명시적 무결제/후불 계약으로 분리하고 문서화 |
-| `P1R-T2` | done | rate limit 정책 전환 | `/api/v1/**` 기본 IP 보호, prepare/confirm 독립 버킷, 전화번호·주문번호·회원 subject 제한과 경로별 Redis fail-open/closed 적용 |
-| `P1R-T3` | done | 프론트 E2E 갱신 | Toss SDK stub 기반으로 P8-2~P8-9 smoke flow를 현재 prepare/confirm UI에 맞게 갱신 |
-| `P1R-T4` | done | confirm 멱등성/동시성 보강 | `PROCESSING` 선점 잠금, 트랜잭션 밖 PG 호출, Toss 멱등키, PG 실패 영속화, 로컬 실패 보상 환불과 동시 confirm 회귀 테스트 반영 |
-| `P1R-T5` | todo | 금액 스냅샷 불변식 점검 | prepare 시 확정한 금액과 fulfill 시 생성되는 도메인 금액이 어긋나지 않도록 snapshot/assertion을 보강 |
-| `P1R-T6` | todo | stale DTO/type 정리 | 제거된 생성 POST용 request DTO와 프론트 타입을 실제 사용 여부 기준으로 삭제하거나 이름/용도를 갱신 |
-| `P1R-T7` | todo | 자가 호스팅 운영 구성 | 단일 노트북 k3s 매니페스트, ingress/TLS, 영속 볼륨·백업, secret 주입, 이미지 배포·rollback 구성 |
-| `P1R-T8a` | done | 로컬 결제 smoke 검증 | Docker MySQL/Redis + bootRun + HTTP/manual 및 Playwright P8 smoke로 주문/예약/8회권 결제와 환불 실패 재시도 확인 |
-| `P1R-T8b` | todo | 결제 경계 추가 수동 검증 | 중복 confirm 거부와 운영 Toss 테스트 key 기반 샘플 결제 확인 |
-
-### Phase 2 — SMS 인증 실발송
-
-| Task | 상태 | 범위 |
-|------|------|------|
-| `P2-T1` | todo | `PhoneVerificationSender` port + Real/Fake adapter + `DefaultGuestBookingService.sendVerificationCode` 연결 |
-
-### Phase 3 — 회원가입 휴대폰 소유 확인
-
-| Task | 상태 | 범위 |
-|------|------|------|
-| `P3-T1` | todo | `PhoneOwnershipVerificationUseCase`/`DefaultPhoneOwnershipVerificationService`, `SignupCommand`/`SignupRequest`에 `verificationCode`, `SignupPage`에 `PhoneVerificationStep` 삽입 |
-
-### 환경 변수 신규
-
-- `TOSS_SECRET_KEY` (백엔드)
-- `VITE_TOSS_CLIENT_KEY` (프론트)
-- `PASS_TOTAL_PRICE` (기본 240000)
-
-### 검증 (원본 플랜 기준)
-
-- `RefundExecutionService`가 새 `pg_ref` (Toss paymentKey) 기반으로 정상 호출
-- `/guest` 조회 회귀 없음
-- Toss 테스트 가맹점 key로 샘플 결제 + 중복 confirm 거부 확인
-
-### 플랜 밖으로 미룬 것
-
-비밀번호 복잡도, Grafana/Prometheus 인증, ADMIN 링크 UX, Google OAuth state 서버 검증 — 별도 트랙.
-
----
-
-## Execution Order
-
-1. `Track 1`~`Track 5`: 완료 (2026-04 이전)
-2. **`Track 6` Phase 1 후속 → Phase 2 → Phase 3** (현재)
-3. 각 Phase 종료 시 문서 동기화 (HANDOFF + PRD-0001 + PRD-0004 + ADR-0008/0020/0031(신규))
-
-이 순서를 택하는 이유:
-- 결제 우회 경로와 운영 누락을 먼저 막아야 한다.
-- token 계약과 구조 리팩토링은 영향 범위가 넓으므로, 안전망 테스트를 먼저 늘려야 한다.
-- ADR/문서 정리는 구현 방향이 확정된 뒤 한 번에 맞추는 편이 비용이 낮다.
-
----
-
-## Rules
-
-- 새 실행 계획은 이 파일에만 추가한다.
-- 완료된 task는 체크 후 제거하거나 간단한 완료 메모만 남기고 정리한다.
-- 장기 보관 가치가 있는 설계/요구사항/운영 정보는 `docs/ADR`, `docs/PRD`, `docs/Idea`, `docs/POC`, `HANDOFF.md`로 옮긴다.
+- 사용자 동작과 정책: `docs/PRD/0001_기준_스펙/spec.md`
+- HTTP 요청·응답: `docs/PRD/0004_API_계약/spec.md`
+- 오래 유지할 설계 결정: 관련 `docs/ADR/`
+- 다음 세션에 필요한 진행 상태만: `HANDOFF.md`

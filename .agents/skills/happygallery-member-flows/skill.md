@@ -1,18 +1,6 @@
 ---
 name: happygallery-member-flows
-description: >
-  Repository-specific workflow for the member-only `/api/v1/me/**` API surface in the happyGallery app
-  (both backend and frontend). Use this skill whenever the request involves: CustomerAuthenticationFilter,
-  Me*Controller (MeBookingController, MeOrderController, MePassController, MeCartController,
-  MeGuestClaimController, MeInquiryController, MeNotificationController, MeProductQnaController),
-  guest-to-member claim mechanics (GuestClaimUseCase, MeGuestClaimController), member booking creation
-  (MemberBookingUseCase / DefaultMemberBookingService), member order/pass purchase via the member API,
-  MyPage / MyBookingDetailPage, or the customer-claim / my-booking frontend features. Also use this
-  skill when someone says "게스트 예약을 회원으로 옮기고 싶어요" / "마이페이지에서 이용권을 못 찾겠어요" /
-  "회원 인증 필터가 어떻게 동작해요?". Always use this skill when the request touches `/api/v1/me/**`
-  or the member authentication boundary — do not split across booking, order, or pass skills when the
-  entry point is the member /me API. For signup, login, social OAuth, or phone ownership verification
-  itself, use `happygallery-identity-flows` instead.
+description: Repository-specific workflow for happyGallery member-only `/api/v1/me/**` backend and frontend flows. Use for CustomerAuthenticationFilter, CustomerPrincipal, Me*Controller APIs, MyPage, member booking/order/pass/cart, notifications/inquiries/Q&A, and guest-to-member claim after identity is verified. Use `happygallery-identity-flows` instead for signup, login, OAuth, or phone ownership verification.
 ---
 
 # happyGallery Member Flows
@@ -101,7 +89,7 @@ POST /api/v1/me/guest-claims           → ClaimResult (실제 클레임 실행)
 ## Verification workflow
 
 - 인증 필터 변경: `./gradlew :adapter-in-web:test --tests "*CustomerAuthUseCaseIT" --tests "*SecurityBoundaryUseCaseIT" --tests "*RateLimitFilterTest"`
-- 게스트 클레임 흐름 변경: `./gradlew --no-daemon :application:useCaseTest --tests "*GuestClaim*"`
+- 게스트 클레임 HTTP 흐름 변경: `./gradlew --no-daemon :adapter-in-web:test --tests "*CustomerGuestClaimUseCaseIT"`
 - 회원 예약/주문/패스 API 변경: `./gradlew :adapter-in-web:test --tests "*Me*UseCaseIT*"` + `./gradlew --no-daemon :application:useCaseTest --tests "*Member*"`
 - 프론트엔드 변경: `cd frontend && npm run build`
 
@@ -110,4 +98,4 @@ POST /api/v1/me/guest-claims           → ClaimResult (실제 클레임 실행)
 - 회원 API 경로/DTO/에러코드 변경: `docs/PRD/0001_기준_스펙/spec.md`, `docs/PRD/0004_API_계약/spec.md`
 - 게스트 클레임 정책 변경: `docs/PRD/0001_기준_스펙/spec.md` 및 관련 ADR
 - 결제 진입 변경 시: `happygallery-payment-flows`와 `docs/PRD/0004_API_계약/spec.md`의 `2.15 결제 API` 항목
-- 현재 작업 상태: `HANDOFF.md`
+- 다음 세션에 필요한 활성 작업만: `HANDOFF.md`

@@ -93,7 +93,7 @@
 - `/my/passes`
 - `/my/inquiries`
 - `/my/inquiries/new`
-- `/auth/callback/google`
+- `/auth/callback/:provider`
 - `/login`
 - `/signup`
 - `/admin`

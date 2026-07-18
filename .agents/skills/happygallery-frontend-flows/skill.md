@@ -8,7 +8,7 @@ description: Repository-specific workflow for frontend-only work in the happyGal
 ## Session bootstrap
 
 - Read `HANDOFF.md` before changing frontend code.
-- If `HANDOFF.md` disagrees with the implementation, update it immediately to match the code.
+- Use `HANDOFF.md` only for active work and remaining actions, not as route or runtime authority.
 - Use `README.md` for the current route and documentation index overview.
 - Use `docs/PRD/0001_기준_스펙/spec.md` for user-facing policy wording and route behavior.
 - Use `docs/PRD/0004_API_계약/spec.md` when the change depends on request or response contracts.
@@ -19,7 +19,7 @@ description: Repository-specific workflow for frontend-only work in the happyGal
 - Keep route-level wiring in `frontend/src/pages` and `frontend/src/app`.
 - Keep domain UI, forms, queries, and mutations in `frontend/src/features/<feature>`.
 - Keep shared HTTP, types, utility mapping, and reusable UI in `frontend/src/shared`.
-- If the request needs a backend contract, controller, filter, schema, or policy change, stop using this skill as the primary workflow and switch to the matching happyGallery backend skill.
+- If the request also needs backend work, coordinate with the matching happyGallery backend skill and verify both sides of the contract.
 
 ## Non-negotiable frontend patterns
 
@@ -31,8 +31,8 @@ description: Repository-specific workflow for frontend-only work in the happyGal
   - the storage key is `hg_admin_token`
   - `AdminPage` passes `onAuthError` down to admin feature components
   - 401 handling clears the stored token and pushes the user back through the admin gate
-- Keep route paths aligned with the PRD and `HANDOFF.md`.
-- Treat the route list in `references/frontend-map.md` as the current canonical frontend route set, especially guest, member, cart, and payment return routes. Do not reintroduce legacy guest aliases unless the spec changes.
+- Keep route paths aligned with the PRD and executable registry in `frontend/src/app/App.tsx`.
+- Treat the route list in `references/frontend-map.md` as a navigation aid, not a second route registry.
 - For Toss checkout work, keep `VITE_TOSS_CLIENT_KEY` client-side only and coordinate backend prepare/confirm contracts with `happygallery-payment-flows`.
 - For phone verification UI, do not expose verification codes in production UI; coordinate ownership rules with `happygallery-identity-flows`.
 - When editing styles, preserve the current visual language based on Pretendard, Bootstrap variables, and shared global styles unless the request is a deliberate redesign.
@@ -48,8 +48,8 @@ description: Repository-specific workflow for frontend-only work in the happyGal
 ## Verification workflow
 
 - Static UI, component, styling, or query-state changes: `cd frontend && npm run build`
-- Responsive layout or visual polish work: `cd frontend && npm run build`, then use `screenshot` on representative widths such as mobile, tablet, and desktop.
-- Multi-step user flows, admin auth handling, form submission, lookup, cancel/reschedule, or order/pass flows: `cd frontend && npm run build`, then use `playwright`. Use `playwright-interactive` while debugging if manual inspection helps.
+- Responsive or visual work: build, then inspect mobile and desktop with Playwright or the in-app browser.
+- Payment, identity, or admin flows: build, then choose `npm run e2e:payment`, `e2e:identity`, or `e2e:admin`; reserve `e2e:full` for broad shared changes.
 - Client-side monitoring or production telemetry work: `cd frontend && npm run build`, then combine with `sentry`.
 - If the request turns out to require backend API changes, stop and switch to the matching backend skill rather than adding Gradle verification from this workflow.
 
