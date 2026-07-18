@@ -1,29 +1,29 @@
 package com.personal.happygallery.adapter.in.web;
 
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.crypto.BlindIndexer;
-import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties;
+import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties.Rule;
+import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
+import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitDecision;
+import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode;
+import com.personal.happygallery.adapter.in.web.ratelimit.RedisRateLimiter;
+import com.personal.happygallery.domain.error.ErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.time.Duration;
-import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Optional;
+import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
+import static com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode.FAIL_CLOSED;
+import static com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode.FAIL_OPEN;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
@@ -32,55 +32,49 @@ import static org.springframework.security.web.servlet.util.matcher.PathPatternR
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
-
-    private static final RedisScript<Long> INCREMENT_SCRIPT;
-
-    static {
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
-        script.setScriptText("""
-                local count = redis.call('INCR', KEYS[1])
-                if count == 1 then
-                    redis.call('EXPIRE', KEYS[1], ARGV[1])
-                end
-                return count
-                """);
-        script.setResultType(Long.class);
-        INCREMENT_SCRIPT = script;
-    }
-
     private static final String X_FORWARDED_FOR = "X-Forwarded-For";
 
     private static final LimitRule PHONE_VERIFICATION_RULE = new LimitRule(
-            "PHONE_VERIFICATION", pathPattern(POST, "/api/v1/bookings/phone-verifications"));
+            "PHONE_VERIFICATION_IP", pathPattern(POST, "/api/v1/bookings/phone-verifications"), FAIL_CLOSED);
     private static final LimitRule CUSTOMER_LOGIN_RULE = new LimitRule(
-            "CUSTOMER_LOGIN", pathPattern(POST, "/api/v1/auth/login"));
+            "CUSTOMER_LOGIN_IP", pathPattern(POST, "/api/v1/auth/login"), FAIL_CLOSED);
     private static final LimitRule CUSTOMER_SIGNUP_RULE = new LimitRule(
-            "CUSTOMER_SIGNUP", pathPattern(POST, "/api/v1/auth/signup"));
+            "CUSTOMER_SIGNUP_IP", pathPattern(POST, "/api/v1/auth/signup"), FAIL_CLOSED);
     private static final LimitRule ADMIN_LOGIN_RULE = new LimitRule(
-            "ADMIN_LOGIN", pathPattern(POST, "/api/v1/admin/auth/login"));
+            "ADMIN_LOGIN_IP", pathPattern(POST, "/api/v1/admin/auth/login"), FAIL_CLOSED);
     private static final LimitRule ADMIN_SETUP_RULE = new LimitRule(
-            "ADMIN_SETUP", pathPattern(POST, "/api/v1/admin/setup"));
+            "ADMIN_SETUP_IP", pathPattern(POST, "/api/v1/admin/setup"), FAIL_CLOSED);
     private static final LimitRule SOCIAL_LOGIN_RULE = new LimitRule(
-            "SOCIAL_LOGIN", pathPattern(POST, "/api/v1/auth/social/{provider}"));
+            "SOCIAL_LOGIN_IP", pathPattern(POST, "/api/v1/auth/social/{provider}"), FAIL_CLOSED);
     private static final LimitRule SOCIAL_LOGIN_INIT_RULE = new LimitRule(
-            "SOCIAL_LOGIN_INIT", pathPattern(GET, "/api/v1/auth/social/{provider}/url"));
+            "SOCIAL_LOGIN_INIT_IP", pathPattern(GET, "/api/v1/auth/social/{provider}/url"), FAIL_CLOSED);
+    private static final LimitRule PAYMENT_PREPARE_RULE = new LimitRule(
+            "PAYMENT_PREPARE_IP", pathPattern(POST, "/api/v1/payments/prepare"), FAIL_CLOSED);
+    private static final LimitRule PAYMENT_CONFIRM_RULE = new LimitRule(
+            "PAYMENT_CONFIRM_IP", pathPattern(POST, "/api/v1/payments/confirm"), FAIL_OPEN);
+    private static final LimitRule PRODUCT_QNA_VERIFY_RULE = new LimitRule(
+            "PRODUCT_QNA_VERIFY_IP", pathPattern(POST, "/api/v1/products/{productId}/qna/{id}/verify"), FAIL_CLOSED);
+    private static final LimitRule GUEST_CLAIM_VERIFY_RULE = new LimitRule(
+            "GUEST_CLAIM_VERIFY_IP", pathPattern(POST, "/api/v1/me/guest-claims/verify"), FAIL_CLOSED);
+    private static final LimitRule CLIENT_MONITORING_RULE = new LimitRule(
+            "CLIENT_MONITORING_IP", pathPattern(POST, "/api/v1/monitoring/client-events"), FAIL_CLOSED);
+    private static final LimitRule CART_CHECKOUT_RULE = new LimitRule(
+            "CART_CHECKOUT_IP", pathPattern(POST, "/api/v1/me/cart/checkout"), FAIL_CLOSED);
     private static final LimitRule ADMIN_API_RULE = new LimitRule(
-            "ADMIN_API", pathPattern("/api/v1/admin/**"));
+            "ADMIN_API_IP", pathPattern("/api/v1/admin/**"), FAIL_CLOSED);
+    private static final LimitRule DEFAULT_API_RULE = new LimitRule(
+            "DEFAULT_API_IP", pathPattern("/api/v1/**"), FAIL_OPEN);
 
     private final ObjectMapper objectMapper;
     private final RateLimitProperties properties;
-    private final StringRedisTemplate redisTemplate;
-    private final BlindIndexer blindIndexer;
+    private final RedisRateLimiter rateLimiter;
 
     public RateLimitFilter(ObjectMapper objectMapper,
                            RateLimitProperties properties,
-                           StringRedisTemplate redisTemplate,
-                           BlindIndexer blindIndexer) {
+                           RedisRateLimiter rateLimiter) {
         this.objectMapper = objectMapper;
         this.properties = properties;
-        this.redisTemplate = redisTemplate;
-        this.blindIndexer = blindIndexer;
+        this.rateLimiter = rateLimiter;
     }
 
     @Override
@@ -98,17 +92,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String bucketKey = "rate:" + resolved.rule().id() + ":"
-                + blindIndexer.index(resolveClientKey(request));
-        long count = increment(bucketKey, resolved.window());
-        long remaining = Math.max(0, resolved.capacity() - count);
+        Optional<RateLimitDecision> result = rateLimiter.tryConsume(
+                resolved.rule().id(), resolveClientKey(request), resolved.limit());
+        if (result.isEmpty()) {
+            if (resolved.rule().failureMode() == FAIL_CLOSED) {
+                writeServiceUnavailable(response);
+                return;
+            }
+            filterChain.doFilter(request, response);
+            return;
+        }
+        RateLimitDecision decision = result.get();
 
-        response.setHeader("X-RateLimit-Limit", String.valueOf(resolved.capacity()));
-        response.setHeader("X-RateLimit-Remaining", String.valueOf(remaining));
+        response.setHeader("X-RateLimit-Limit", String.valueOf(decision.limit()));
+        response.setHeader("X-RateLimit-Remaining", String.valueOf(decision.remaining()));
 
-        if (count > resolved.capacity()) {
-            response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(resolved.window().toSeconds()));
-            log.warn("rate limit exceeded [rule={}]", resolved.rule().id());
+        if (decision.rejected()) {
+            response.setHeader(HttpHeaders.RETRY_AFTER,
+                    String.valueOf(Math.max(1, decision.window().toSeconds())));
             writeTooManyRequests(response);
             return;
         }
@@ -116,36 +117,51 @@ public class RateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private long increment(String key, Duration window) {
-        Long count = redisTemplate.execute(
-                INCREMENT_SCRIPT, List.of(key), String.valueOf(window.toSeconds()));
-        return count == null ? 1L : count;
-    }
-
     private ResolvedRule resolveRule(HttpServletRequest request) {
         if (matches(request, CUSTOMER_LOGIN_RULE)) {
-            return new ResolvedRule(CUSTOMER_LOGIN_RULE, properties.customerLoginPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(CUSTOMER_LOGIN_RULE, properties.ip().customerLogin());
         }
         if (matches(request, CUSTOMER_SIGNUP_RULE)) {
-            return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.customerSignupPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.ip().customerSignup());
         }
         if (matches(request, SOCIAL_LOGIN_RULE)) {
-            return new ResolvedRule(SOCIAL_LOGIN_RULE, properties.socialLoginPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(SOCIAL_LOGIN_RULE, properties.ip().socialLogin());
         }
         if (matches(request, SOCIAL_LOGIN_INIT_RULE)) {
-            return new ResolvedRule(SOCIAL_LOGIN_INIT_RULE, properties.socialLoginPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(SOCIAL_LOGIN_INIT_RULE, properties.ip().socialLogin());
         }
         if (matches(request, ADMIN_LOGIN_RULE)) {
-            return new ResolvedRule(ADMIN_LOGIN_RULE, properties.adminLoginPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(ADMIN_LOGIN_RULE, properties.ip().adminLogin());
         }
         if (matches(request, ADMIN_SETUP_RULE)) {
-            return new ResolvedRule(ADMIN_SETUP_RULE, properties.adminSetupPerMinute(), Duration.ofMinutes(1));
-        }
-        if (matches(request, ADMIN_API_RULE)) {
-            return new ResolvedRule(ADMIN_API_RULE, properties.adminApiPerMinute(), Duration.ofMinutes(1));
+            return new ResolvedRule(ADMIN_SETUP_RULE, properties.ip().adminSetup());
         }
         if (matches(request, PHONE_VERIFICATION_RULE)) {
-            return new ResolvedRule(PHONE_VERIFICATION_RULE, properties.phoneVerificationPerSecond(), Duration.ofSeconds(1));
+            return new ResolvedRule(PHONE_VERIFICATION_RULE, properties.ip().phoneVerification());
+        }
+        if (matches(request, PAYMENT_PREPARE_RULE)) {
+            return new ResolvedRule(PAYMENT_PREPARE_RULE, properties.ip().paymentPrepare());
+        }
+        if (matches(request, PAYMENT_CONFIRM_RULE)) {
+            return new ResolvedRule(PAYMENT_CONFIRM_RULE, properties.ip().paymentConfirm());
+        }
+        if (matches(request, PRODUCT_QNA_VERIFY_RULE)) {
+            return new ResolvedRule(PRODUCT_QNA_VERIFY_RULE, properties.ip().productQnaVerify());
+        }
+        if (matches(request, GUEST_CLAIM_VERIFY_RULE)) {
+            return new ResolvedRule(GUEST_CLAIM_VERIFY_RULE, properties.ip().guestClaimVerify());
+        }
+        if (matches(request, CLIENT_MONITORING_RULE)) {
+            return new ResolvedRule(CLIENT_MONITORING_RULE, properties.ip().clientMonitoring());
+        }
+        if (matches(request, CART_CHECKOUT_RULE)) {
+            return new ResolvedRule(CART_CHECKOUT_RULE, properties.ip().cartCheckout());
+        }
+        if (matches(request, ADMIN_API_RULE)) {
+            return new ResolvedRule(ADMIN_API_RULE, properties.ip().adminApi());
+        }
+        if (matches(request, DEFAULT_API_RULE)) {
+            return new ResolvedRule(DEFAULT_API_RULE, properties.ip().defaultApi());
         }
         return null;
     }
@@ -174,14 +190,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private void writeTooManyRequests(HttpServletResponse response) throws IOException {
-        response.setStatus(ErrorCode.TOO_MANY_REQUESTS.httpStatus);
+        writeError(response, ErrorCode.TOO_MANY_REQUESTS);
+    }
+
+    private void writeServiceUnavailable(HttpServletResponse response) throws IOException {
+        response.setHeader(HttpHeaders.RETRY_AFTER, "1");
+        writeError(response, ErrorCode.SERVICE_UNAVAILABLE);
+    }
+
+    private void writeError(HttpServletResponse response, ErrorCode errorCode) throws IOException {
+        response.setStatus(errorCode.httpStatus);
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write(objectMapper.writeValueAsString(ErrorResponse.of(ErrorCode.TOO_MANY_REQUESTS)));
+        response.getWriter().write(objectMapper.writeValueAsString(
+                ErrorResponse.of(errorCode, errorCode.message, MDC.get("requestId"))));
     }
 
-    private record LimitRule(String id, RequestMatcher matcher) {
+    private record LimitRule(String id, RequestMatcher matcher, RateLimitFailureMode failureMode) {
     }
 
-    private record ResolvedRule(LimitRule rule, long capacity, Duration window) {
+    private record ResolvedRule(LimitRule rule, Rule limit) {
     }
 }

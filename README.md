@@ -128,23 +128,28 @@ docker compose up -d --build
 - 프론트엔드: Vite, React 19, TypeScript
 - 데이터베이스: MySQL 8, Flyway
 - 세션과 캐시: Redis, Spring Session
-- 인프라: AWS CloudFront, S3, ALB, ECS Fargate, RDS, ElastiCache
+- 인프라 목표: 단일 노트북 k3s, Kubernetes Ingress, MySQL 영속 볼륨, cluster 내부 Redis
+- 로컬 개발·복구 진단: Docker Compose, Nginx
 - 모니터링: Actuator, Prometheus, Grafana, Sentry
 - 테스트: JUnit 5, Testcontainers, Spring REST Docs, Playwright
 
 ## 운영/배포
 
-- 현재 운영 서버는 AWS 비용 점검과 절감을 위해 2026-05-05 기준 임시 중지 상태다. 재가동 전까지 운영 주소와 `/api/*` 경로는 접속되지 않을 수 있다.
-- 운영 주소: `https://d36l7yi27358tl.cloudfront.net/`
-- 주요 경로: `/products`, `/bookings/new`, `/passes/purchase`, `/my`, `/guest`, `/admin`
-- 배포 구조: `CloudFront -> S3`로 프론트 정적 파일을 제공하고, `/api/*`는 `CloudFront -> ALB -> ECS Fargate -> RDS/Redis`로 전달한다.
-- 배포 파이프라인: `main` push 시 GitHub Actions가 프론트는 S3/CloudFront로, 백엔드는 ECR/ECS로 배포한다.
+AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노트북의 단일 노드 k3s다.
 
-운영 배경과 설정 기준:
+```text
+브라우저 -> DNS/공유기/방화벽 -> k3s Ingress(TLS)
+                                  -> /api/* -> Spring Boot -> cluster 내부 MySQL/Redis
+                                  -> 그 외   -> React SPA
+```
 
-- [CloudFront + S3 + ALB 배포 구조](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md)
-- [GitHub Actions CI/CD 배포 Fargate](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md)
-- [AWS 배포 설정 베이스라인](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)
+- 프론트엔드와 API는 같은 origin으로 제공하고 외부에는 ingress의 HTTP/HTTPS 포트만 연다.
+- 애플리케이션, MySQL, Redis와 관리·모니터링 포트는 외부에 직접 공개하지 않는다.
+- Docker Compose는 로컬 개발, 통합 검증과 복구 진단용이다. 현재 `local` 프로필과 개발 기본값을 사용하므로 운영 배포 기준이 아니다.
+- 2026-07-18 기준 Kubernetes manifest, ingress/TLS, 영속 볼륨, secret 주입, 백업·복원, 이미지 rollout·rollback 절차는 아직 구현되지 않았다.
+- 현재 공개 운영 주소와 자동 배포 workflow는 없다. 위 항목을 구현하고 검증하기 전에는 운영 중으로 간주하지 않는다.
+
+운영 목표와 불변 조건은 [ADR-0037 자가 호스팅 배포 토폴로지 기준](docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)을 따른다. 이전 AWS 구조와 배포 설정은 [Idea-0028](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md), [Idea-0029](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md), [Idea-0039](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)에 역사 기록으로 남긴다.
 
 ## 주요 환경 변수
 
@@ -160,6 +165,14 @@ docker compose up -d --build
 | `NAVER_OAUTH_CLIENT_ID` | 백엔드 `prod` | Naver 로그인 client ID |
 | `NAVER_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Naver 로그인 client secret |
 | `RATE_LIMIT_ENABLED` | 백엔드 | 로컬 반복 검증 시 처리율 제한 off 가능 |
+| `RATE_LIMIT_KEY_PREFIX` | 백엔드 | 환경별 Redis 처리율 제한 키 prefix |
+| `REDIS_CONNECT_TIMEOUT` | 백엔드 | Redis 연결 대기 상한, 기본 `1s` |
+| `REDIS_COMMAND_TIMEOUT` | 백엔드 | Redis 명령 대기 상한, 기본 `1s` |
+| `FORWARD_HEADERS_STRATEGY` | 백엔드 `prod` | 통제된 ingress 구성 후 `native`로 설정 |
+| `RATE_LIMIT_TRUST_FORWARDED` | 백엔드 | 통제된 ingress 구성 후에만 `true`로 설정 |
+| `ENCRYPT_KEY` | 백엔드 `prod` | 개인정보 AES-256 키, 64자리 hex |
+| `HMAC_KEY` | 백엔드 `prod` | 블라인드 인덱스 HMAC 키, 64자리 hex |
+| `GUEST_TOKEN_HMAC_SECRET` | 백엔드 `prod` | 비회원 접근 토큰 서명 키 |
 | `ADMIN_SETUP_TOKEN` | 백엔드 | 최초 관리자 계정 생성용 일회성 토큰 |
 
 환경별 전체 설정은 [application.yml](bootstrap/src/main/resources/application.yml)과 [application-local.yml](bootstrap/src/main/resources/application-local.yml)을 기준으로 확인한다.

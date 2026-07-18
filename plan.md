@@ -7,12 +7,12 @@
 
 ## Active Goal
 
-**(2026-04-26 갱신)** Track 1~5는 모두 완료. **Track 6 Phase 1 — Toss 결제 전환 복구는 완료**했고, 현재 활성 목표는 결제 전환 후 남은 우회 경로·운영 설정·테스트 공백을 닫은 뒤 Phase 2/3 신원 경로를 진행하는 것이다.
+**(2026-07-18 갱신)** Track 1~5는 모두 완료. **Track 6 Phase 1 — Toss 결제 전환 복구는 완료**했고, 현재 활성 목표는 결제 전환 후 남은 우회 경로·자가 호스팅 운영 설정·테스트 공백을 닫은 뒤 Phase 2/3 신원 경로를 진행하는 것이다.
 플랜 전문: `~/.claude/plans/imperative-greeting-barto.md`
 
 남은 구조적 애로:
 - cart checkout 기반 결제 우회 주문 경로가 일부 남아 있음
-- 결제 엔드포인트 기준 rate limit/운영 배포 설정이 완전히 전환되지 않음
+- 단일 노트북 k3s 운영 매니페스트·TLS·secret·rollback 구성이 아직 없음
 - SMS 인증 코드가 실제 발송되지 않음(로그만)
 - 회원 가입 시 휴대폰 소유 확인 없음
 
@@ -171,12 +171,12 @@
 |------|------|------|-----------|
 | `P1R-T1a` | done | ProductDetail 회원 즉시 주문 | `ProductDetailPage`의 `/me/orders` 직접 POST를 Toss `prepare/confirm` 경로로 전환 |
 | `P1R-T1b` | todo | cart checkout 경로 정리 | `/me/cart/checkout` 기반 즉시 주문을 Toss `prepare/confirm` 경로로 전환하거나, 정책상 유지할 경로라면 명시적 무결제/후불 계약으로 분리하고 문서화 |
-| `P1R-T2` | todo | rate limit 정책 전환 | 구 booking/pass 생성 rule은 제거 완료. `/payments/prepare`, `/payments/confirm`의 context·멱등 재시도 특성을 반영한 제한 정책을 설계하고 테스트 갱신 |
+| `P1R-T2` | done | rate limit 정책 전환 | `/api/v1/**` 기본 IP 보호, prepare/confirm 독립 버킷, 전화번호·주문번호·회원 subject 제한과 경로별 Redis fail-open/closed 적용 |
 | `P1R-T3` | done | 프론트 E2E 갱신 | Toss SDK stub 기반으로 P8-2~P8-9 smoke flow를 현재 prepare/confirm UI에 맞게 갱신 |
 | `P1R-T4` | done | confirm 멱등성/동시성 보강 | `PROCESSING` 선점 잠금, 트랜잭션 밖 PG 호출, Toss 멱등키, PG 실패 영속화, 로컬 실패 보상 환불과 동시 confirm 회귀 테스트 반영 |
 | `P1R-T5` | todo | 금액 스냅샷 불변식 점검 | prepare 시 확정한 금액과 fulfill 시 생성되는 도메인 금액이 어긋나지 않도록 snapshot/assertion을 보강 |
 | `P1R-T6` | todo | stale DTO/type 정리 | 제거된 생성 POST용 request DTO와 프론트 타입을 실제 사용 여부 기준으로 삭제하거나 이름/용도를 갱신 |
-| `P1R-T7` | todo | 운영 배포 설정 반영 | GitHub Actions frontend build에 `VITE_TOSS_CLIENT_KEY` 주입, ECS task definition/secret에 `TOSS_SECRET_KEY` 반영 여부 확인 |
+| `P1R-T7` | todo | 자가 호스팅 운영 구성 | 단일 노트북 k3s 매니페스트, ingress/TLS, 영속 볼륨·백업, secret 주입, 이미지 배포·rollback 구성 |
 | `P1R-T8a` | done | 로컬 결제 smoke 검증 | Docker MySQL/Redis + bootRun + HTTP/manual 및 Playwright P8 smoke로 주문/예약/8회권 결제와 환불 실패 재시도 확인 |
 | `P1R-T8b` | todo | 결제 경계 추가 수동 검증 | 중복 confirm 거부와 운영 Toss 테스트 key 기반 샘플 결제 확인 |
 
@@ -206,7 +206,7 @@
 
 ### 플랜 밖으로 미룬 것
 
-HTTPS 구성, 비밀번호 복잡도, Grafana/Prometheus 인증, ADMIN 링크 UX, Google OAuth state 서버 검증, phone-key rate limit — 별도 트랙.
+비밀번호 복잡도, Grafana/Prometheus 인증, ADMIN 링크 UX, Google OAuth state 서버 검증 — 별도 트랙.
 
 ---
 

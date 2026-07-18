@@ -9,6 +9,7 @@ import com.personal.happygallery.adapter.in.web.order.OrderController;
 import com.personal.happygallery.adapter.in.web.payment.PaymentController;
 import com.personal.happygallery.adapter.in.web.product.ProductController;
 import com.personal.happygallery.adapter.in.web.product.ProductQnaController;
+import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
@@ -66,6 +67,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     private PaymentConfirmUseCase paymentConfirmUseCase;
     private NoticeQueryUseCase noticeQueryUseCase;
     private ClientMonitoringUseCase clientMonitoringUseCase;
+    private SubjectRateLimitGuard rateLimitGuard;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -83,6 +85,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         paymentConfirmUseCase = mock(PaymentConfirmUseCase.class);
         noticeQueryUseCase = mock(NoticeQueryUseCase.class);
         clientMonitoringUseCase = mock(ClientMonitoringUseCase.class);
+        rateLimitGuard = mock(SubjectRateLimitGuard.class);
 
         ProductQueryUseCase.ProductWithInventory product = RestDocsFixtures.productWithInventory();
         ProductQnaUseCase.QnaWithAuthor qna = qna();
@@ -124,9 +127,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 new SlotController(slotQueryUseCase),
                 new BookingController(guestBookingUseCase, bookingQueryUseCase,
                         bookingRescheduleUseCase, bookingCancelUseCase, guestPersonalDataProtector,
-                        RestDocsFixtures.clock()),
+                        rateLimitGuard, RestDocsFixtures.clock()),
                 new OrderController(orderQueryUseCase),
-                new PaymentController(paymentPrepareUseCase, paymentConfirmUseCase),
+                new PaymentController(paymentPrepareUseCase, paymentConfirmUseCase, rateLimitGuard),
                 new NoticeController(noticeQueryUseCase),
                 new ClientMonitoringController(clientMonitoringUseCase));
     }

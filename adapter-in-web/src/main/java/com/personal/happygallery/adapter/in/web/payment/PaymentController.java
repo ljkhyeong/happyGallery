@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentReques
 import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentResponse;
 import com.personal.happygallery.adapter.in.web.payment.dto.PreparePaymentRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.PreparePaymentResponse;
+import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
@@ -31,11 +32,14 @@ public class PaymentController {
 
     private final PaymentPrepareUseCase prepareUseCase;
     private final PaymentConfirmUseCase confirmUseCase;
+    private final SubjectRateLimitGuard rateLimitGuard;
 
     public PaymentController(PaymentPrepareUseCase prepareUseCase,
-                             PaymentConfirmUseCase confirmUseCase) {
+                             PaymentConfirmUseCase confirmUseCase,
+                             SubjectRateLimitGuard rateLimitGuard) {
         this.prepareUseCase = prepareUseCase;
         this.confirmUseCase = confirmUseCase;
+        this.rateLimitGuard = rateLimitGuard;
     }
 
     @PostMapping("/prepare")
@@ -51,6 +55,7 @@ public class PaymentController {
     @PostMapping("/confirm")
     public ConfirmPaymentResponse confirm(@RequestBody @Valid ConfirmPaymentRequest req,
                                           @AuthenticationPrincipal CustomerPrincipal customer) {
+        rateLimitGuard.checkPaymentConfirm(req.orderId());
         AuthContext auth = customer != null
                 ? AuthContext.member(customer.userId())
                 : AuthContext.guest();

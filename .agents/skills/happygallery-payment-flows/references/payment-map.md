@@ -49,5 +49,5 @@
 - Payment request/response contracts: `docs/PRD/0004_API_계약/spec.md`
 - Payment design changes: matching ADRs listed in `SKILL.md`
 - Active payment phase and remaining work: `HANDOFF.md` and `plan.md`
-- Runtime env vars: `README.md`, deployment docs, and `docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md` when deployment settings change
+- Runtime env vars: `README.md`, `docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md`, and the actual self-hosted deployment manifests or secret-injection procedure when deployment settings change
 - Local-only dev hooks: `docs/PRD/0004_API_계약/spec.md` and `docs/Idea/0009_로컬_개발_지원_경계/idea.md`

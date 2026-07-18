@@ -49,7 +49,10 @@ public enum ErrorCode {
     INTERNAL_ERROR(500, "서버 내부 오류가 발생했습니다."),
 
     // 502 Bad Gateway — 외부 PG/서비스 호출 실패
-    PAYMENT_FAILED(502, "결제 확정에 실패했습니다.");
+    PAYMENT_FAILED(502, "결제 확정에 실패했습니다."),
+
+    // 503 Service Unavailable — 필수 인프라 일시 장애
+    SERVICE_UNAVAILABLE(503, "요청을 일시적으로 처리할 수 없습니다. 잠시 후 다시 시도해주세요.");
 
     public final int httpStatus;
     public final String message;

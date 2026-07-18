@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.ClaimGuestRecordsRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.VerifyGuestClaimPhoneRequest;
+import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -17,9 +18,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class MeGuestClaimController {
 
     private final GuestClaimUseCase guestClaim;
+    private final SubjectRateLimitGuard rateLimitGuard;
 
-    public MeGuestClaimController(GuestClaimUseCase guestClaim) {
+    public MeGuestClaimController(GuestClaimUseCase guestClaim,
+                                  SubjectRateLimitGuard rateLimitGuard) {
         this.guestClaim = guestClaim;
+        this.rateLimitGuard = rateLimitGuard;
     }
 
     @GetMapping("/preview")
@@ -32,6 +36,7 @@ public class MeGuestClaimController {
     public GuestClaimUseCase.ClaimPreview verifyPhoneAndPreviewGuestClaims(
             @RequestBody @Valid VerifyGuestClaimPhoneRequest req,
             @AuthenticationPrincipal CustomerPrincipal customer) {
+        rateLimitGuard.checkGuestClaim(customer.userId());
         return guestClaim.verifyPhoneAndPreview(customer.userId(), req.verificationCode());
     }
 

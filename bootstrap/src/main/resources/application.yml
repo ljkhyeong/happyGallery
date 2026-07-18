@@ -35,6 +35,8 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:1s}
+      timeout: ${REDIS_COMMAND_TIMEOUT:1s}
   session:
     store-type: redis
     timeout: 7d
@@ -45,6 +47,9 @@ spring:
     default-timeout: ${TX_DEFAULT_TIMEOUT:10s}
 
 app:
+  field-encryption:
+    encrypt-key: ${ENCRYPT_KEY:}
+    hmac-key: ${HMAC_KEY:}
   admin:
     api-key: ${ADMIN_API_KEY:}
     enable-api-key-auth: ${ADMIN_ENABLE_API_KEY_AUTH:false}
@@ -118,13 +123,27 @@ app:
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     trust-forwarded-headers: ${RATE_LIMIT_TRUST_FORWARDED:false}
-    phone-verification-per-second: 10
-    customer-login-per-minute: 10
-    customer-signup-per-minute: 5
-    admin-login-per-minute: 5
-    admin-setup-per-minute: 5
-    admin-api-per-minute: 120
-    social-login-per-minute: 10
+    key-prefix: ${RATE_LIMIT_KEY_PREFIX:happygallery:rate}
+    ip:
+      default-api: { capacity: 300, window: 1m }
+      phone-verification: { capacity: 5, window: 1m }
+      customer-login: { capacity: 10, window: 1m }
+      customer-signup: { capacity: 5, window: 1m }
+      admin-login: { capacity: 5, window: 1m }
+      admin-setup: { capacity: 5, window: 1m }
+      admin-api: { capacity: 120, window: 1m }
+      social-login: { capacity: 10, window: 1m }
+      payment-prepare: { capacity: 30, window: 1m }
+      payment-confirm: { capacity: 60, window: 1m }
+      product-qna-verify: { capacity: 10, window: 1m }
+      guest-claim-verify: { capacity: 10, window: 1m }
+      client-monitoring: { capacity: 60, window: 1m }
+      cart-checkout: { capacity: 10, window: 1m }
+    subject:
+      phone-verification: { capacity: 3, window: 10m }
+      payment-confirm: { capacity: 20, window: 1m }
+      guest-claim-verify: { capacity: 5, window: 1m }
+      cart-checkout: { capacity: 5, window: 1m }
 
 management:
   server:

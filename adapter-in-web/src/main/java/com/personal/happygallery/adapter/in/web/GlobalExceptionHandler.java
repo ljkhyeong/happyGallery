@@ -2,6 +2,8 @@ package com.personal.happygallery.adapter.in.web;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
+import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitExceededException;
+import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitUnavailableException;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.sentry.Sentry;
 import java.util.Locale;
@@ -15,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -27,6 +30,26 @@ import tools.jackson.core.JacksonException;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(RateLimitUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitUnavailable() {
+        return ResponseEntity
+                .status(ErrorCode.SERVICE_UNAVAILABLE.httpStatus)
+                .header(HttpHeaders.RETRY_AFTER, "1")
+                .body(ErrorResponse.of(ErrorCode.SERVICE_UNAVAILABLE,
+                        ErrorCode.SERVICE_UNAVAILABLE.message, requestId()));
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(RateLimitExceededException e) {
+        return ResponseEntity
+                .status(ErrorCode.TOO_MANY_REQUESTS.httpStatus)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.retryAfterSeconds()))
+                .header("X-RateLimit-Limit", String.valueOf(e.limit()))
+                .header("X-RateLimit-Remaining", String.valueOf(e.remaining()))
+                .body(ErrorResponse.of(ErrorCode.TOO_MANY_REQUESTS,
+                        ErrorCode.TOO_MANY_REQUESTS.message, requestId()));
+    }
 
     @ExceptionHandler(HappyGalleryException.class)
     public ResponseEntity<ErrorResponse> handleHappyGalleryException(HappyGalleryException e) {

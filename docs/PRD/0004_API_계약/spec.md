@@ -158,7 +158,11 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 - 회원가입 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일하며, 회원 응답의 `phone`도 같은 형식을 사용한다.
 - 휴대폰 인증과 비회원 결제 payload의 표준 전화번호 형식은 `^01[0-9]{8,9}$`이다.
 - 서버 로그에는 전화번호, 인증 코드, 결제 키, 관리자 세션 토큰과 외부 서비스 오류 원문을 남기지 않는다.
-- Redis 처리율 제한 버킷은 IP 또는 인증 토큰 원문 대신 HMAC 식별자를 사용한다.
+- 모든 `/api/v1/**` 요청은 IP 기준 기본 처리율 제한을 적용하고, 인증·결제·검증처럼 비용이 큰 경로는 더 엄격한 독립 버킷을 사용한다.
+- 인증 코드 발송, 결제 확정, 비회원 이력 인증과 장바구니 주문 생성은 검증된 전화번호·주문번호·회원 ID 기준 제한도 함께 적용한다.
+- Redis 처리율 제한 버킷은 IP, 전화번호, 주문번호 또는 회원 ID 원문 대신 HMAC 식별자를 사용한다.
+- 제한 초과는 `429 TOO_MANY_REQUESTS`와 `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` 헤더를 반환한다.
+- Redis 장애 시 일반 API와 결제 확정은 제한만 건너뛰며, 인증·관리·결제 준비·비밀번호 확인과 비용이 큰 쓰기 API는 `503 SERVICE_UNAVAILABLE`, `Retry-After: 1`을 반환한다.
 
 ---
 
@@ -1650,6 +1654,7 @@ Content-Type: application/json
 | 422 | `PAYMENT_METHOD_NOT_ALLOWED` | 계좌이체(`BANK_TRANSFER`)로 예약금 결제 시도 |
 | 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 거절 (서킷 브레이커 OPEN/타임아웃 포함) |
+| 503 | `SERVICE_UNAVAILABLE` | fail-closed 처리율 제한 경로에서 Redis를 사용할 수 없음 |
 
 ---
 

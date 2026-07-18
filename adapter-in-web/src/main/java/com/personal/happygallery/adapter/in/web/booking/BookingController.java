@@ -11,6 +11,7 @@ import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleRequest;
 import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequest;
 import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationResponse;
+import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import jakarta.validation.Valid;
@@ -39,6 +40,7 @@ public class BookingController {
     private final BookingRescheduleUseCase bookingRescheduleUseCase;
     private final BookingCancelUseCase bookingCancelUseCase;
     private final GuestPersonalDataProtector guestPersonalDataProtector;
+    private final SubjectRateLimitGuard rateLimitGuard;
     private final Clock clock;
 
     public BookingController(GuestBookingUseCase guestBookingUseCase,
@@ -46,12 +48,14 @@ public class BookingController {
                              BookingRescheduleUseCase bookingRescheduleUseCase,
                              BookingCancelUseCase bookingCancelUseCase,
                              GuestPersonalDataProtector guestPersonalDataProtector,
+                             SubjectRateLimitGuard rateLimitGuard,
                              Clock clock) {
         this.guestBookingUseCase = guestBookingUseCase;
         this.bookingQueryUseCase = bookingQueryUseCase;
         this.bookingRescheduleUseCase = bookingRescheduleUseCase;
         this.bookingCancelUseCase = bookingCancelUseCase;
         this.guestPersonalDataProtector = guestPersonalDataProtector;
+        this.rateLimitGuard = rateLimitGuard;
         this.clock = clock;
     }
 
@@ -59,6 +63,7 @@ public class BookingController {
     @PostMapping("/phone-verifications")
     public SendVerificationResponse sendVerification(
             @RequestBody @Valid SendVerificationRequest request) {
+        rateLimitGuard.checkPhoneVerification(request.phone());
         PhoneVerification pv = guestBookingUseCase.sendVerificationCode(request.phone());
         return SendVerificationResponse.from(pv);
     }

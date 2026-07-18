@@ -49,7 +49,7 @@
 
 ### 다음 세션 진입점 (남은 Task)
 
-1. **Phase 1 후속 잔여** — `plan.md`의 `P1R-T1b`, `P1R-T2`, `P1R-T5`, `P1R-T6`, `P1R-T7`, `P1R-T8b` 확인.
+1. **Phase 1 후속 잔여** — `plan.md`의 `P1R-T1b`, `P1R-T5`, `P1R-T6`, `P1R-T7`, `P1R-T8b` 확인.
 2. **Phase 2 착수** — SMS 인증 실발송: `~/.claude/plans/imperative-greeting-barto.md`의 Phase 2와 notification 관련 스킬/문서 먼저 확인.
 
 ### Phase 진행도 / 환경 변수 / 플랜 밖 미룬 항목

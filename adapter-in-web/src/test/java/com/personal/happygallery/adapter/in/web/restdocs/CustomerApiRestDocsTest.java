@@ -11,6 +11,7 @@ import com.personal.happygallery.adapter.in.web.customer.MeOrderController;
 import com.personal.happygallery.adapter.in.web.customer.MePassController;
 import com.personal.happygallery.adapter.in.web.customer.MeProductQnaController;
 import com.personal.happygallery.adapter.in.web.customer.SocialLoginController;
+import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
@@ -72,6 +73,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private GuestClaimUseCase guestClaimUseCase;
     private InquiryUseCase inquiryUseCase;
     private ProductQnaUseCase qnaUseCase;
+    private SubjectRateLimitGuard rateLimitGuard;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -88,6 +90,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         guestClaimUseCase = mock(GuestClaimUseCase.class);
         inquiryUseCase = mock(InquiryUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
+        rateLimitGuard = mock(SubjectRateLimitGuard.class);
 
         User user = RestDocsFixtures.user();
         Order order = RestDocsFixtures.order();
@@ -137,13 +140,13 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         mockMvc = mockMvc(restDocumentation,
                 new CustomerAuthController(customerAuthUseCase, customerSessionBinder),
                 new SocialLoginController(socialAuthUseCase, customerSessionBinder),
-                new MeCartController(cartUseCase, cartCheckoutUseCase),
+                new MeCartController(cartUseCase, cartCheckoutUseCase, rateLimitGuard),
                 new MeBookingController(bookingQueryUseCase, bookingRescheduleUseCase,
                         bookingCancelUseCase, RestDocsFixtures.clock()),
                 new MeOrderController(orderQueryUseCase),
                 new MePassController(passQueryUseCase),
                 new MeNotificationController(notificationQueryUseCase),
-                new MeGuestClaimController(guestClaimUseCase),
+                new MeGuestClaimController(guestClaimUseCase, rateLimitGuard),
                 new MeInquiryController(inquiryUseCase),
                 new MeProductQnaController(qnaUseCase));
     }

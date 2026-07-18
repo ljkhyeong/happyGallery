@@ -55,20 +55,19 @@
 
 ### 5. 배포 인프라
 
-- `nginx/nginx.conf`: SPA fallback (`try_files $uri /index.html`) + API 리버스 프록시 (`proxy_pass http://app:8080`).
-- `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto` 헤더 전달.
-- `docker-compose.yml`에 `nginx` 서비스 추가 (frontend `dist` 마운트).
-- `application-prod.yml`:
-  - `server.forward-headers-strategy: native` — Tomcat `RemoteIpValve` 활성화.
-  - `app.rate-limit.trust-forwarded-headers: true` — 프록시 뒤 실제 IP 기반 rate limiting.
-- Grafana 인증 환경변수 외부화: `${GRAFANA_ADMIN_PASSWORD}` (기본값 없음).
-- `.env.example` 통합 — Kakao, SMS, Sentry, Grafana 환경변수 추가.
+- `nginx/nginx.conf`와 `docker-compose.yml`의 Nginx 서비스는 SPA fallback과 API 프록시를 포함한 로컬 통합 검증·복구 진단용으로 유지한다.
+- 운영 목표는 ADR-0037에 따라 단일 노트북의 단일 노드 k3s와 Kubernetes Ingress로 전환한다. Docker Compose의 `local` 프로필과 개발 기본값을 운영 구성으로 사용하지 않는다.
+- ingress는 `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`를 덮어쓰거나 정규화하고 애플리케이션 직접 접근을 차단한다.
+- `application-prod.yml`은 forwarded header 신뢰를 기본적으로 끈다. 통제된 ingress가 헤더를 덮어쓰고 직접 접근을 차단한 뒤에만 `FORWARD_HEADERS_STRATEGY=native`, `RATE_LIMIT_TRUST_FORWARDED=true`를 함께 설정한다.
+- Grafana 인증 환경변수 외부화와 `.env.example`의 로컬 설정 목록은 유지하되, 운영 secret은 Kubernetes 실행 환경에서 저장소 밖의 값으로 주입한다.
+- AWS 자동 배포는 폐기한다. k3s manifest와 배포·rollback 절차가 구현되기 전까지 운영 배포는 미구현 상태다.
 
 ## 1차 배포 제외 항목 (Known Gaps)
 
 - **번들 결제** (PRD §6): 스키마 준비 완료(`bundle_id nullable`), 구현은 Phase 2.
 - **Email/Push 알림 채널** (PRD §7): `NotificationChannel` enum에 값 존재, 어댑터 미구현.
-- **Tomcat internal-proxies**: Nginx 앞에 ALB 등 외부 프록시가 추가되면 설정 필요 (`docs/Idea/0027`).
+- **k3s 운영 배포**: Kubernetes manifest, ingress/TLS, 영속 볼륨, secret 주입, 백업·복원, 이미지 rollout·rollback 절차가 아직 없다. 완료 전에는 공개 운영 배포로 간주하지 않는다(ADR-0037).
+- **신뢰 프록시 경계**: 공유기, 터널 또는 별도 프록시를 ingress 앞에 추가하면 신뢰 가능한 홉과 전달 헤더 정규화 규칙을 명시하고 실제 IP 기반 처리율 제한을 다시 검증해야 한다.
 
 ## Update (2026-04-26)
 
@@ -81,8 +80,14 @@
 - 알림 sender와 Toss 결제·환불 로그에서 수신자 정보, 결제 키와 외부 예외 원문을 제거했다.
 - 저장 개인정보와 Redis 키 보호 기준은 ADR-0036으로 분리한다.
 
+## Update (2026-07-18)
+
+- AWS 배포 기준을 폐기하고 단일 노트북 k3s를 운영 목표로 채택했다.
+- 이 ADR의 Nginx·Docker Compose 구성은 로컬 통합 검증과 복구 진단 범위로 한정하며, 운영 토폴로지와 미구현 항목은 ADR-0037을 따른다.
+
 ## 참고
 
 - PRD §3.3 (픽업 규칙), PRD §7 (알림 정책)
 - ADR-0015 (로그 구조화), ADR-0017 (rate limiting), ADR-0025 (graceful shutdown)
 - ADR-0036 (개인정보 평문 제거와 블라인드 인덱스)
+- ADR-0037 (자가 호스팅 배포 토폴로지 기준)
