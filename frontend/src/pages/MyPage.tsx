@@ -14,6 +14,7 @@ import { MyOrdersSection } from "@/features/my/MyOrdersSection";
 import { MyBookingsSection } from "@/features/my/MyBookingsSection";
 import { MyPassesSection } from "@/features/my/MyPassesSection";
 import { MyInquiriesSection } from "@/features/my/MyInquiriesSection";
+import { getPassFilterKey } from "@/features/my/listUtils";
 import { LoadingSpinner } from "@/shared/ui";
 
 export function MyPage() {
@@ -51,12 +52,13 @@ export function MyPage() {
   const orderCount = orders?.length ?? 0;
   const bookingCount = bookings?.length ?? 0;
   const passCount = passes?.length ?? 0;
-  const remainingCredits = passes?.reduce((sum, pass) => sum + pass.remainingCredits, 0) ?? 0;
+  const activePasses = passes?.filter((pass) => getPassFilterKey(pass) === "ACTIVE") ?? [];
+  const activePassCount = activePasses.length;
+  const remainingCredits = activePasses.reduce((sum, pass) => sum + pass.remainingCredits, 0);
   const nextBooking = bookings
     ?.filter((booking) => booking.status === "BOOKED")
     .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())[0];
   const latestOrder = orders?.[0];
-  const hasActivePass = (passes?.find((pass) => pass.remainingCredits > 0) ?? passes?.[0]) != null;
 
   useEffect(() => {
     if (!isAuthenticated || searchParams.get("claim") !== "1") {
@@ -102,10 +104,9 @@ export function MyPage() {
         orderCount={orderCount}
         bookingCount={bookingCount}
         remainingCredits={remainingCredits}
-        passCount={passCount}
+        activePassCount={activePassCount}
         latestOrder={latestOrder}
         nextBooking={nextBooking}
-        activePass={hasActivePass}
       />
 
       <MyClaimCard

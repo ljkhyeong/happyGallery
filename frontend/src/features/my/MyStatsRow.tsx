@@ -6,20 +6,18 @@ interface Props {
   orderCount: number;
   bookingCount: number;
   remainingCredits: number;
-  passCount: number;
+  activePassCount: number;
   latestOrder: MyOrderSummary | undefined;
   nextBooking: MyBookingSummary | undefined;
-  activePass: boolean;
 }
 
 export function MyStatsRow({
   orderCount,
   bookingCount,
   remainingCredits,
-  passCount,
+  activePassCount,
   latestOrder,
   nextBooking,
-  activePass,
 }: Props) {
   return (
     <Row className="g-3 mb-4">
@@ -51,7 +49,7 @@ export function MyStatsRow({
             <div className="my-section-kicker mb-2">Passes</div>
             <div className="my-stat-value">{remainingCredits}</div>
             <div className="text-muted-soft small">
-              {activePass ? `활성 8회권 ${passCount}건` : "보유한 8회권이 없습니다."}
+              {activePassCount > 0 ? `활성 8회권 ${activePassCount}건` : "사용 가능한 8회권이 없습니다."}
             </div>
           </Card.Body>
         </Card>
