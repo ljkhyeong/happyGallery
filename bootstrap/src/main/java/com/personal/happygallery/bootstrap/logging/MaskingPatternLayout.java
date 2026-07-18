@@ -2,9 +2,8 @@ package com.personal.happygallery.bootstrap.logging;
 
 import ch.qos.logback.classic.PatternLayout;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.util.StringUtils;
 
 /**
  * 민감 데이터를 마스킹하는 Logback PatternLayout.
@@ -32,7 +31,7 @@ public class MaskingPatternLayout extends PatternLayout {
     }
 
     static String maskSensitive(String message) {
-        if (message == null || message.isEmpty()) {
+        if (!StringUtils.hasLength(message)) {
             return message;
         }
         String masked = PHONE_PATTERN.matcher(message).replaceAll("$1-****-****");

@@ -8,6 +8,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
@@ -90,7 +91,7 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
     }
 
     private String failureReason(String reason, String fallback) {
-        String resolved = reason == null || reason.isBlank() ? fallback : reason;
+        String resolved = StringUtils.hasText(reason) ? reason : fallback;
         return resolved.length() <= MAX_FAILURE_REASON_LENGTH
                 ? resolved
                 : resolved.substring(0, MAX_FAILURE_REASON_LENGTH);

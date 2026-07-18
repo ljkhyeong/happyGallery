@@ -174,12 +174,13 @@ class OrderProductionUseCaseIT {
 
         Order updated = orderStateProbe.getOrder(order.getId());
         var histories = orderStateProbe.orderApprovalHistory(order.getId());
+        var refunds = orderStateProbe.refunds();
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_REJECTED_CANCELED);
             softly.assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity())
                     .isEqualTo(1);
-            softly.assertThat(orderStateProbe.refunds()).hasSize(1);
-            softly.assertThat(orderStateProbe.refunds().get(0).getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(refunds).hasSize(1);
+            softly.assertThat(refunds.getFirst().getOrderId()).isEqualTo(order.getId());
             softly.assertThat(result.refund().getId()).isNotNull();
             softly.assertThat(result.refund().getStatus()).isEqualTo(RefundStatus.REQUESTED);
             softly.assertThat(histories)
@@ -309,11 +310,12 @@ class OrderProductionUseCaseIT {
         var fulfillments = orderStateProbe.fulfillments().stream()
                 .filter(f -> f.getOrderId().equals(order.getId()))
                 .toList();
+        var fulfillment = fulfillments.getFirst();
         assertSoftly(softly -> {
             softly.assertThat(fulfillments).hasSize(1);
-            softly.assertThat(fulfillments.get(0).getType())
+            softly.assertThat(fulfillment.getType())
                     .isEqualTo(FulfillmentType.PICKUP);
-            softly.assertThat(fulfillments.get(0).getPickupDeadlineAt()).isNotNull();
+            softly.assertThat(fulfillment.getPickupDeadlineAt()).isNotNull();
         });
     }
 

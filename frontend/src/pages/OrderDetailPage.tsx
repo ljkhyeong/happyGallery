@@ -27,6 +27,9 @@ export function OrderDetailPage() {
   const [orderId, setOrderId] = useState(navState?.orderId ? String(navState.orderId) : "");
   const [token, setToken] = useState(navState?.token ?? "");
   const [order, setOrder] = useState<OrderDetailResponse | null>(null);
+  const parsedOrderId = Number(orderId);
+  const validOrderId = Number.isInteger(parsedOrderId) && parsedOrderId > 0;
+  const normalizedToken = token.trim();
 
   const refundPollCount = useRef(0);
   const lookup = useMutation({
@@ -46,10 +49,10 @@ export function OrderDetailPage() {
   });
 
   const handleLookup = useCallback(() => {
-    if (Number(orderId) > 0 && token.trim()) {
-      lookup.mutate({ id: Number(orderId), token: token.trim() });
+    if (validOrderId && normalizedToken) {
+      lookup.mutate({ id: parsedOrderId, token: normalizedToken });
     }
-  }, [orderId, token, lookup]);
+  }, [lookup, normalizedToken, parsedOrderId, validOrderId]);
 
   const autoLookupDone = useRef(false);
   useEffect(() => {
@@ -64,14 +67,14 @@ export function OrderDetailPage() {
       order?.refund?.status,
       refundPollCount.current,
     );
-    if (!order || lookup.isPending || !token.trim() || interval === false) {
+    if (!order || lookup.isPending || !normalizedToken || interval === false) {
       return;
     }
     const timer = window.setTimeout(() => {
-      lookup.mutate({ id: order.orderId, token: token.trim(), background: true });
+      lookup.mutate({ id: order.orderId, token: normalizedToken, background: true });
     }, interval);
     return () => window.clearTimeout(timer);
-  }, [lookup.isPending, lookup.mutate, order, token]);
+  }, [lookup.isPending, lookup.mutate, normalizedToken, order]);
   const claimLoginHref = buildAuthPageHref("/login", {
     redirectTo: "/my?claim=1",
     claim: true,
@@ -150,7 +153,7 @@ export function OrderDetailPage() {
               </Col>
               <Col xs={12} sm={3}>
                 <Button type="submit" variant="primary" className="w-100"
-                  disabled={!Number(orderId) || !token.trim() || lookup.isPending}>
+                  disabled={!validOrderId || !normalizedToken || lookup.isPending}>
                   {lookup.isPending ? "조회 중..." : "조회"}
                 </Button>
               </Col>

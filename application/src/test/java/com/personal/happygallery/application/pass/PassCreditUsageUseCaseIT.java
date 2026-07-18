@@ -129,15 +129,17 @@ class PassCreditUsageUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(ledgers).hasSize(1);
             if (!ledgers.isEmpty()) {
-                softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
-                softly.assertThat(ledgers.get(0).getAmount()).isEqualTo(1);
-                softly.assertThat(ledgers.get(0).getRelatedBookingId()).isEqualTo(confirmed.domainId());
+                var ledger = ledgers.getFirst();
+                softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.USE);
+                softly.assertThat(ledger.getAmount()).isEqualTo(1);
+                softly.assertThat(ledger.getRelatedBookingId()).isEqualTo(confirmed.domainId());
             }
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
             softly.assertThat(bookings).hasSize(1);
             if (!bookings.isEmpty()) {
-                softly.assertThat(bookings.get(0).getId()).isEqualTo(confirmed.domainId());
-                softly.assertThat(bookings.get(0).isPassBooking()).isTrue();
+                var booking = bookings.getFirst();
+                softly.assertThat(booking.getId()).isEqualTo(confirmed.domainId());
+                softly.assertThat(booking.isPassBooking()).isTrue();
             }
         });
     }
@@ -196,7 +198,7 @@ class PassCreditUsageUseCaseIT {
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(ledgers).hasSize(1);
-            softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
+            softly.assertThat(ledgers.getFirst().getType()).isEqualTo(PassLedgerType.USE);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
         });
     }
@@ -224,7 +226,7 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(bookingRepository.findById(bookingId))
                     .hasValueSatisfying(b -> assertThat(b.getStatus()).isEqualTo(BookingStatus.NO_SHOW));
             softly.assertThat(ledgers).hasSize(1);
-            softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.USE);
+            softly.assertThat(ledgers.getFirst().getType()).isEqualTo(PassLedgerType.USE);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
         });
     }
@@ -271,7 +273,7 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(refund.getPaymentKey()).isEqualTo("test-pass-payment-key");
             softly.assertThat(refund.getRefundTransactionKey()).isEqualTo("FAKE-TEST-PASS-REF");
             softly.assertThat(refundLedgers).hasSize(1);
-            softly.assertThat(refundLedgers.get(0).getAmount()).isEqualTo(8);
+            softly.assertThat(refundLedgers.getFirst().getAmount()).isEqualTo(8);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
             // Q1-T4: slot bookedCount 복구 확인
             softly.assertThat(reloadedSlot1.getBookedCount()).as("slot1 bookedCount").isEqualTo(0);
@@ -396,9 +398,9 @@ class PassCreditUsageUseCaseIT {
                 .untilAsserted(() -> {
                     var refunds = refundRepository.findAll();
                     assertThat(refunds).hasSize(1);
-                    assertThat(refunds.get(0).getStatus()).isEqualTo(status);
+                    assertThat(refunds.getFirst().getStatus()).isEqualTo(status);
                 });
-        return refundRepository.findAll().get(0);
+        return refundRepository.findAll().getFirst();
     }
 
 }

@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 @Component
 public class OrderPreparer implements PaymentPreparer {
@@ -40,7 +41,7 @@ public class OrderPreparer implements PaymentPreparer {
         if (!(payload instanceof OrderPayload op)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 결제 payload가 아닙니다.");
         }
-        if (op.items() == null || op.items().isEmpty()) {
+        if (CollectionUtils.isEmpty(op.items())) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 항목이 비었습니다.");
         }
         if (auth.isMember()) {

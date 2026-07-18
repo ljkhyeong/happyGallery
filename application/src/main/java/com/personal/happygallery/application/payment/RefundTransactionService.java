@@ -21,6 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 class RefundTransactionService {
@@ -64,7 +65,7 @@ class RefundTransactionService {
         if (processingToken == null) {
             return RefundCall.completed(refund);
         }
-        if (refund.getPaymentKey() == null || refund.getPaymentKey().isBlank()) {
+        if (!StringUtils.hasText(refund.getPaymentKey())) {
             refund.markFailed(processingToken, MISSING_PAYMENT_KEY_REASON);
             Refund failedRefund = refundPort.save(refund);
             markPaymentAttemptCompensationFailed(failedRefund, MISSING_PAYMENT_KEY_REASON);
@@ -140,7 +141,9 @@ class RefundTransactionService {
     }
 
     private String failureReason(String reason) {
-        String resolved = reason == null || reason.isBlank() ? "PG 환불 처리 결과를 확인할 수 없습니다." : reason;
+        String resolved = StringUtils.hasText(reason)
+                ? reason
+                : "PG 환불 처리 결과를 확인할 수 없습니다.";
         return resolved.length() <= MAX_FAILURE_REASON_LENGTH
                 ? resolved
                 : resolved.substring(0, MAX_FAILURE_REASON_LENGTH);

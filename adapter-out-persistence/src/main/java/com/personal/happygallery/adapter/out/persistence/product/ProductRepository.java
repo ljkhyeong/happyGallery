@@ -11,6 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.util.StringUtils;
 
 public interface ProductRepository extends JpaRepository<Product, Long>,
         ProductReaderPort, ProductStorePort {
@@ -68,7 +69,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
             Sort sort);
 
     private static String toLikePattern(String keyword) {
-        if (keyword == null || keyword.isBlank()) {
+        if (!StringUtils.hasText(keyword)) {
             return null;
         }
 

@@ -44,7 +44,10 @@ export function QnaCreateForm({ productId }: Props) {
     );
   }
 
-  const canSubmit = title.trim() && content.trim() && (!secret || password.length >= 4);
+  const canSubmit =
+    title.trim().length > 0 &&
+    content.trim().length > 0 &&
+    (!secret || password.length >= 4);
 
   return (
     <Card className="mb-3">

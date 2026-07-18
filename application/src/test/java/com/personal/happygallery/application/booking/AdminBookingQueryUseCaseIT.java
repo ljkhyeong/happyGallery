@@ -140,12 +140,13 @@ class AdminBookingQueryUseCaseIT {
 
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
         List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
+        NotificationLog log = logs.getFirst();
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
-            softly.assertThat(logs.get(0).getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
-            softly.assertThat(logs.get(0).getUserId()).isEqualTo(claimer.getId());
-            softly.assertThat(logs.get(0).getGuestId()).isNull();
+            softly.assertThat(log.getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
+            softly.assertThat(log.getUserId()).isEqualTo(claimer.getId());
+            softly.assertThat(log.getGuestId()).isNull();
         });
     }
 

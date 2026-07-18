@@ -9,7 +9,6 @@ import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,8 +25,6 @@ import org.springframework.web.client.RestClient;
 @Configuration
 @Profile("prod")
 class NotificationResilienceConfig {
-
-    private static final AtomicInteger THREAD_SEQ = new AtomicInteger(0);
 
     @Bean
     CircuitBreaker kakaoNotificationCircuitBreaker(NotificationResilienceProperties properties) {
@@ -52,12 +49,10 @@ class NotificationResilienceConfig {
                                                 MeterRegistry meterRegistry) {
         ExecutorService rawExecutor = Executors.newFixedThreadPool(
                 Math.max(2, properties.circuitBreaker().permittedCallsInHalfOpenState() * 2),
-                runnable -> {
-                    Thread thread = new Thread(runnable);
-                    thread.setName("notification-timeout-" + THREAD_SEQ.incrementAndGet());
-                    thread.setDaemon(true);
-                    return thread;
-                });
+                Thread.ofPlatform()
+                        .name("notification-timeout-", 1)
+                        .daemon(true)
+                        .factory());
         return ExecutorServiceMetrics.monitor(
                 meterRegistry,
                 rawExecutor,

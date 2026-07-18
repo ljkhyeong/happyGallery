@@ -96,7 +96,7 @@ class NotificationServiceTest {
         ArgumentCaptor<NotificationLog> captor = ArgumentCaptor.forClass(NotificationLog.class);
         verify(logStore, times(2)).save(captor.capture());
         assertSoftly(softly -> {
-            NotificationLog kakaoLog = captor.getAllValues().get(0);
+            NotificationLog kakaoLog = captor.getAllValues().getFirst();
             NotificationLog smsLog = captor.getAllValues().get(1);
             softly.assertThat(sent).isTrue();
             softly.assertThat(kakaoLog.getGuestId()).isEqualTo(20L);

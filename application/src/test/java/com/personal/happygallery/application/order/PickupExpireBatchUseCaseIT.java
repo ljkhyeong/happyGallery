@@ -120,7 +120,7 @@ class PickupExpireBatchUseCaseIT {
             softly.assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
             softly.assertThat(restoredQuantity).isEqualTo(1);
             softly.assertThat(refunds).hasSize(1);
-            softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(refunds.getFirst().getOrderId()).isEqualTo(order.getId());
             softly.assertThat(decisions).containsExactly(
                     OrderApprovalDecision.APPROVE,
                     OrderApprovalDecision.PICKUP_READY,

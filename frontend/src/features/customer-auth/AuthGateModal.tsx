@@ -36,6 +36,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
   const [guestCode, setGuestCode] = useState("");
   const [guestName, setGuestName] = useState("");
   const [guestNameTouched, setGuestNameTouched] = useState(false);
+  const normalizedGuestName = guestName.trim();
 
   // If already authenticated, confirm directly
   if (isAuthenticated && show) {
@@ -84,8 +85,8 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
   }
 
   function handleGuestSubmit() {
-    if (guestName.trim()) {
-      onGuestConfirm({ phone: guestPhone, verificationCode: guestCode, name: guestName.trim() });
+    if (normalizedGuestName) {
+      onGuestConfirm({ phone: guestPhone, verificationCode: guestCode, name: normalizedGuestName });
     }
   }
 
@@ -187,7 +188,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
                     onChange={(e) => setGuestName(e.target.value)}
                     onBlur={() => setGuestNameTouched(true)}
                     placeholder="이름"
-                    isInvalid={guestNameTouched && !guestName.trim()}
+                    isInvalid={guestNameTouched && !normalizedGuestName}
                   />
                   <Form.Control.Feedback type="invalid">
                     이름을 입력해 주세요.
@@ -195,7 +196,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
                 </Form.Group>
                 <Button
                   variant="primary" className="w-100" size="sm"
-                  disabled={!guestName.trim()}
+                  disabled={!normalizedGuestName}
                   onClick={handleGuestSubmit}
                 >
                   비회원으로 진행

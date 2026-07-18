@@ -53,14 +53,15 @@ class PassPurchaseUseCaseIT {
 
         // Proof: EARN ledger 1건, amount=8
         var ledgers = passLedgerReaderPort.findByPassPurchaseId(passId);
+        var ledger = ledgers.getFirst();
         assertSoftly(softly -> {
             softly.assertThat(purchased.getUserId()).isEqualTo(user.getId());
             softly.assertThat(purchased.getExpiresAt())
                     .isEqualTo(LocalDateTime.now(clock).toLocalDate().plusDays(90).atStartOfDay());
             softly.assertThat(purchased.getRemainingCredits()).isEqualTo(8);
             softly.assertThat(ledgers).hasSize(1);
-            softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.EARN);
-            softly.assertThat(ledgers.get(0).getAmount()).isEqualTo(8);
+            softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EARN);
+            softly.assertThat(ledger.getAmount()).isEqualTo(8);
         });
     }
 
@@ -83,13 +84,14 @@ class PassPurchaseUseCaseIT {
 
         // Proof: EARN(구매 직접 저장 시 없음) + EXPIRE ledger 1건
         var ledgers = passLedgerReaderPort.findByPassPurchaseId(expiredPass.getId());
+        var ledger = ledgers.getFirst();
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isZero();
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
             softly.assertThat(ledgers).hasSize(1);
-            softly.assertThat(ledgers.get(0).getType()).isEqualTo(PassLedgerType.EXPIRE);
-            softly.assertThat(ledgers.get(0).getAmount()).isEqualTo(8);
+            softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EXPIRE);
+            softly.assertThat(ledger.getAmount()).isEqualTo(8);
         });
     }
 
@@ -133,7 +135,7 @@ class PassPurchaseUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(expiring).hasSize(1);
-            softly.assertThat(expiring.get(0).getUserId()).isEqualTo(firstUser.getId());
+            softly.assertThat(expiring.getFirst().getUserId()).isEqualTo(firstUser.getId());
         });
     }
 

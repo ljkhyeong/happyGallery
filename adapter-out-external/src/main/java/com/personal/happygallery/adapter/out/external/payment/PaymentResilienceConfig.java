@@ -15,7 +15,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,8 +23,6 @@ import org.springframework.context.annotation.Primary;
 /** 결제 외부 호출을 보호하는 자원과 데코레이터 빈을 구성한다. */
 @Configuration(proxyBeanMethods = false)
 class PaymentResilienceConfig {
-
-    private static final AtomicInteger THREAD_SEQ = new AtomicInteger(0);
 
     @Bean
     CircuitBreaker paymentCircuitBreaker(ExternalPaymentProperties properties) {
@@ -66,12 +63,10 @@ class PaymentResilienceConfig {
                 0L,
                 TimeUnit.MILLISECONDS,
                 new ArrayBlockingQueue<>(threadPool.queueCapacity()),
-                runnable -> {
-                    Thread thread = new Thread(runnable);
-                    thread.setName("payment-timeout-" + THREAD_SEQ.incrementAndGet());
-                    thread.setDaemon(true);
-                    return thread;
-                },
+                Thread.ofPlatform()
+                        .name("payment-timeout-", 1)
+                        .daemon(true)
+                        .factory(),
                 countingAbortPolicy);
         ExecutorService monitoredExecutor = ExecutorServiceMetrics.monitor(
                 meterRegistry,

@@ -24,6 +24,7 @@ import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import tools.jackson.databind.ObjectMapper;
 
 @Service
@@ -190,7 +191,7 @@ class PaymentConfirmTransactionService {
     }
 
     private String normalize(String value) {
-        return value == null || value.isBlank() ? null : value;
+        return StringUtils.hasText(value) ? value : null;
     }
 
     record ClaimedAttempt(Long id, String orderId, long amount, String paymentKey,

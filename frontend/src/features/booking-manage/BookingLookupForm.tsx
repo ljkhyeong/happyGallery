@@ -13,14 +13,17 @@ export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initi
   const [token, setToken] = useState(initialToken ?? "");
   const [touched, setTouched] = useState({ bookingId: false, token: false });
 
-  const valid = Number(bookingId) > 0 && token.trim().length > 0;
+  const parsedBookingId = Number(bookingId);
+  const normalizedToken = token.trim();
+  const validBookingId = Number.isInteger(parsedBookingId) && parsedBookingId > 0;
+  const valid = validBookingId && normalizedToken.length > 0;
 
   return (
     <Form
       onSubmit={(e) => {
         e.preventDefault();
         setTouched({ bookingId: true, token: true });
-        if (valid) onLookup(Number(bookingId), token.trim());
+        if (valid) onLookup(parsedBookingId, normalizedToken);
       }}
     >
       <Row className="g-2 align-items-end">
@@ -34,7 +37,7 @@ export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initi
               onChange={(e) => setBookingId(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, bookingId: true }))}
               placeholder="예약 ID"
-              isInvalid={touched.bookingId && !(Number(bookingId) > 0)}
+              isInvalid={touched.bookingId && !validBookingId}
             />
             <Form.Control.Feedback type="invalid">
               유효한 예약 번호를 입력해 주세요.
@@ -49,7 +52,7 @@ export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initi
               onChange={(e) => setToken(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, token: true }))}
               placeholder="예약 시 발급된 토큰"
-              isInvalid={touched.token && !token.trim()}
+              isInvalid={touched.token && !normalizedToken}
             />
             <Form.Control.Feedback type="invalid">
               인증 토큰을 입력해 주세요.

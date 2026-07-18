@@ -16,11 +16,12 @@ export function ProductListPage() {
   const [sort, setSort] = useState<ProductSortOrder>("newest");
 
   const debouncedKeyword = useDebouncedValue(keyword, 300);
+  const normalizedKeyword = debouncedKeyword.trim();
 
   const filterParams: ProductFilterParams = {
     ...(type !== "ALL" && { type: type as ProductType }),
     ...(category !== "ALL" && { category }),
-    ...(debouncedKeyword.trim() && { keyword: debouncedKeyword.trim() }),
+    ...(normalizedKeyword && { keyword: normalizedKeyword }),
     ...(sort !== "newest" && { sort }),
   };
 

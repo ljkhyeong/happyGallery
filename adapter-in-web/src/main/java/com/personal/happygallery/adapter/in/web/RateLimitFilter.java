@@ -19,6 +19,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
@@ -176,11 +177,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return remoteAddr == null ? "unknown" : remoteAddr;
         }
         String forwarded = request.getHeader(X_FORWARDED_FOR);
-        if (forwarded != null && !forwarded.isBlank()) {
+        if (StringUtils.hasText(forwarded)) {
             String[] tokens = forwarded.split(",");
             if (tokens.length > 0) {
                 String ip = tokens[0].trim();
-                if (!ip.isEmpty()) {
+                if (StringUtils.hasText(ip)) {
                     return ip;
                 }
             }

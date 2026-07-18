@@ -26,6 +26,7 @@ export function OrderCreatePage() {
   const [name, setName] = useState(user?.name ?? "");
   const [nameTouched, setNameTouched] = useState(false);
   const [items, setItems] = useState<OrderItemInput[]>([]);
+  const normalizedName = name.trim();
 
   const prefilledProductId = Number(searchParams.get("productId"));
   const requestedQty = Number(searchParams.get("qty") ?? "1");
@@ -47,8 +48,8 @@ export function OrderCreatePage() {
   const mutation = useMutation({
     mutationFn: async () => {
       const payload: OrderPayload = user
-        ? { type: "ORDER", userId: user.id, name: name || user.name, items }
-        : { type: "ORDER", phone, verificationCode: code, name, items };
+        ? { type: "ORDER", userId: user.id, name: normalizedName || user.name, items }
+        : { type: "ORDER", phone, verificationCode: code, name: normalizedName, items };
       await executePaymentFlow({
         context: "ORDER",
         payload,
@@ -56,9 +57,9 @@ export function OrderCreatePage() {
           ? `상품 주문 (${items[0].qty}개)`
           : `상품 주문 ${items.length}건`,
         customerKey: user ? `member_${user.id}` : undefined,
-        customerName: name,
+        customerName: normalizedName,
         customerPhone: phone || undefined,
-        returnHint: { customerName: name, customerPhone: phone },
+        returnHint: { customerName: normalizedName, customerPhone: phone },
       });
     },
   });
@@ -165,7 +166,7 @@ export function OrderCreatePage() {
                   onChange={(e) => setName(e.target.value)}
                   onBlur={() => setNameTouched(true)}
                   placeholder="이름을 입력하세요"
-                  isInvalid={nameTouched && !name.trim()}
+                  isInvalid={nameTouched && !normalizedName}
                 />
                 <Form.Control.Feedback type="invalid">
                   이름을 입력해 주세요.
@@ -185,7 +186,7 @@ export function OrderCreatePage() {
 
           <Button
             variant="primary" size="lg" className="w-100"
-            disabled={!name.trim() || items.length === 0 || mutation.isPending}
+            disabled={!normalizedName || items.length === 0 || mutation.isPending}
             onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
             {mutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
           </Button>

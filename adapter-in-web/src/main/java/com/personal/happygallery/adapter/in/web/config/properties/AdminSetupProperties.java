@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.config.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.util.StringUtils;
 
 /**
  * 최초 관리자 계정 one-time setup 용 토큰.
@@ -13,6 +14,6 @@ public record AdminSetupProperties(
         @DefaultValue("") String token
 ) {
     public boolean enabled() {
-        return token != null && !token.isBlank();
+        return StringUtils.hasText(token);
     }
 }

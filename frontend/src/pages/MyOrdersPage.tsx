@@ -26,6 +26,7 @@ export function MyOrdersPage() {
     enabled: isAuthenticated,
   });
   const searchQuery = searchParams.get("q") ?? "";
+  const normalizedQuery = searchQuery.trim();
   const statusFilter = searchParams.get("status") ?? "ALL";
   const sortValue = searchParams.get("sort") ?? DEFAULT_SORT;
   const statuses = (orders ?? []).map((order) => order.status);
@@ -36,7 +37,6 @@ export function MyOrdersPage() {
   const quickTabs = buildQuickStatusTabs(statuses);
   const filteredOrders = (orders ?? []).filter((order) => {
     const matchesStatus = statusFilter === "ALL" || order.status === statusFilter;
-    const normalizedQuery = searchQuery.trim();
     const matchesQuery = normalizedQuery === "" || String(order.orderId).includes(normalizedQuery);
     return matchesStatus && matchesQuery;
   });
@@ -71,10 +71,11 @@ export function MyOrdersPage() {
   function updateFilters(next: { q?: string; status?: string; sort?: string }) {
     const nextSearchParams = new URLSearchParams(searchParams);
     const nextQuery = next.q ?? searchQuery;
+    const normalizedNextQuery = nextQuery.trim();
     const nextStatus = next.status ?? statusFilter;
     const nextSort = next.sort ?? sortValue;
 
-    if (nextQuery.trim()) nextSearchParams.set("q", nextQuery.trim());
+    if (normalizedNextQuery) nextSearchParams.set("q", normalizedNextQuery);
     else nextSearchParams.delete("q");
 
     if (nextStatus !== "ALL") nextSearchParams.set("status", nextStatus);

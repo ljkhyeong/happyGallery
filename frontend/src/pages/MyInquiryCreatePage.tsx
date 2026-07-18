@@ -37,7 +37,7 @@ export function MyInquiryCreatePage() {
     );
   }
 
-  const canSubmit = title.trim() && content.trim();
+  const canSubmit = title.trim().length > 0 && content.trim().length > 0;
 
   return (
     <Container className="page-container" style={{ maxWidth: 640 }}>

@@ -25,11 +25,11 @@ export function MyPassesPage() {
     enabled: isAuthenticated,
   });
   const searchQuery = searchParams.get("q") ?? "";
+  const normalizedQuery = searchQuery.trim();
   const passFilter = searchParams.get("status") ?? searchParams.get("filter") ?? "ALL";
   const sortValue = searchParams.get("sort") ?? DEFAULT_SORT;
   const filteredPasses = (passes ?? []).filter((pass) => {
     const matchesFilter = passFilter === "ALL" || getPassFilterKey(pass) === passFilter;
-    const normalizedQuery = searchQuery.trim();
     const matchesQuery = normalizedQuery === "" || String(pass.passId).includes(normalizedQuery);
     return matchesFilter && matchesQuery;
   });
@@ -55,10 +55,11 @@ export function MyPassesPage() {
   function updateFilters(next: { q?: string; status?: string; sort?: string }) {
     const nextSearchParams = new URLSearchParams(searchParams);
     const nextQuery = next.q ?? searchQuery;
+    const normalizedNextQuery = nextQuery.trim();
     const nextStatus = next.status ?? passFilter;
     const nextSort = next.sort ?? sortValue;
 
-    if (nextQuery.trim()) nextSearchParams.set("q", nextQuery.trim());
+    if (normalizedNextQuery) nextSearchParams.set("q", normalizedNextQuery);
     else nextSearchParams.delete("q");
 
     if (nextStatus !== "ALL") nextSearchParams.set("status", nextStatus);

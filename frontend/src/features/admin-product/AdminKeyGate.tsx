@@ -10,13 +10,15 @@ export function AdminKeyGate({ onLogin }: Props) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const normalizedUsername = username.trim();
+  const normalizedPassword = password.trim();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) return;
+    if (!normalizedUsername || !normalizedPassword) return;
     setError("");
     setLoading(true);
-    const ok = await onLogin(username.trim(), password.trim());
+    const ok = await onLogin(normalizedUsername, normalizedPassword);
     setLoading(false);
     if (!ok) {
       setError("아이디 또는 비밀번호가 올바르지 않습니다.");
@@ -54,7 +56,7 @@ export function AdminKeyGate({ onLogin }: Props) {
             <Button
               type="submit"
               variant="primary"
-              disabled={!username.trim() || !password.trim() || loading}
+              disabled={!normalizedUsername || !normalizedPassword || loading}
             >
               {loading ? <Spinner size="sm" /> : "로그인"}
             </Button>

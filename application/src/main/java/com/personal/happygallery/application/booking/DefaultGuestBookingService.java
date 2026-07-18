@@ -61,7 +61,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
      * @return 저장된 PhoneVerification (id, phone — code는 응답에 포함하지 않음)
      */
     public PhoneVerification sendVerificationCode(String phone) {
-        String code = String.format("%06d", random.nextInt(1_000_000));
+        String code = "%06d".formatted(random.nextInt(1_000_000));
         LocalDateTime expiresAt = LocalDateTime.now(clock)
                 .plusMinutes(VERIFICATION_EXPIRE_MINUTES);
         PhoneVerification pv = new PhoneVerification(phone, code, expiresAt);

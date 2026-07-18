@@ -121,11 +121,13 @@ class RefundExecutionServiceUseCaseIT {
                 .untilAsserted(() -> {
                     var refunds = refundRepository.findAll();
                     assertThat(refunds).hasSize(1);
-                    assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
+                    var refund = refunds.getFirst();
+                    assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
                 });
 
         verify(paymentProvider).refund("payment-key", 55_000L, result.getIdempotencyKey());
         var refunds = refundRepository.findAll();
+        var refund = refunds.getFirst();
         assertSoftly(softly -> {
             softly.assertThat(transactionActiveDuringPaymentCall.get()).isFalse();
             softly.assertThat(paymentCallThreadName.get()).startsWith("refund-");
@@ -133,8 +135,8 @@ class RefundExecutionServiceUseCaseIT {
             softly.assertThat(result.getStatus()).isEqualTo(RefundStatus.REQUESTED);
             softly.assertThat(result.getRefundTransactionKey()).isNull();
             softly.assertThat(refunds).hasSize(1);
-            softly.assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
-            softly.assertThat(refunds.get(0).getRefundTransactionKey()).isEqualTo("refund-transaction-key");
+            softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
+            softly.assertThat(refund.getRefundTransactionKey()).isEqualTo("refund-transaction-key");
         });
     }
 
@@ -155,8 +157,9 @@ class RefundExecutionServiceUseCaseIT {
                 .untilAsserted(() -> {
                     var refunds = refundRepository.findAll();
                     assertThat(refunds).hasSize(1);
-                    assertThat(refunds.get(0).getStatus()).isEqualTo(RefundStatus.FAILED);
-                    assertThat(refunds.get(0).getFailReason()).contains("paymentKey");
+                    var refund = refunds.getFirst();
+                    assertThat(refund.getStatus()).isEqualTo(RefundStatus.FAILED);
+                    assertThat(refund.getFailReason()).contains("paymentKey");
                 });
 
         verify(paymentProvider, after(300).never()).refund(any(), anyLong(), any());

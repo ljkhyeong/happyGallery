@@ -41,7 +41,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
     },
   });
 
-  const valid = name.trim() && Number(price) > 0 && Number(quantity) >= 1;
+  const valid = name.trim().length > 0 && Number(price) > 0 && Number(quantity) >= 1;
 
   return (
     <Form

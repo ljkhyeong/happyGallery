@@ -235,7 +235,7 @@ class PaymentConfirmUseCaseIT {
                     });
                 });
 
-        var refund = refundPort.findAll().get(0);
+        var refund = refundPort.findAll().getFirst();
         verify(paymentProvider).refund(
                 "confirmed-payment-key", prepared.amount(), refund.getIdempotencyKey());
     }

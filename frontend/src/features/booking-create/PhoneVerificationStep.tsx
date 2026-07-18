@@ -40,6 +40,7 @@ export function PhoneVerificationStep({
 
   const phoneValid = isValidPhone(phone);
   const showPhoneError = touched && phone.length > 0 && !phoneValid;
+  const normalizedCode = code.trim();
 
   return (
     <div>
@@ -94,8 +95,8 @@ export function PhoneVerificationStep({
               <Button
                 variant="primary"
                 className="w-100"
-                disabled={!code.trim()}
-                onClick={() => onVerified(phone, code.trim())}
+                disabled={!normalizedCode}
+                onClick={() => onVerified(phone, normalizedCode)}
               >
                 {confirmLabel}
               </Button>

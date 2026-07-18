@@ -7,6 +7,7 @@ import com.personal.happygallery.domain.user.SocialAccount;
 import com.personal.happygallery.domain.user.SocialProvider;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 @Repository
 class JpaSocialAccountPersistenceAdapter implements SocialAccountReaderPort, SocialAccountStorePort {
@@ -44,7 +45,7 @@ class JpaSocialAccountPersistenceAdapter implements SocialAccountReaderPort, Soc
     }
 
     private String index(String providerId) {
-        if (providerId == null || providerId.isBlank()) {
+        if (!StringUtils.hasText(providerId)) {
             throw new IllegalArgumentException("providerId must not be blank");
         }
         return blindIndexer.index(providerId);

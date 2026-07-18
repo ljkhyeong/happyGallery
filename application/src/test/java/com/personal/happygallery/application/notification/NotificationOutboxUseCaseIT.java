@@ -59,7 +59,7 @@ class NotificationOutboxUseCaseIT {
                 .untilAsserted(() -> {
                     var outboxes = outboxRepository.findAll();
                     assertThat(outboxes).hasSize(1);
-                    assertThat(outboxes.get(0).getStatus()).isEqualTo(NotificationOutboxStatus.SENT);
+                    assertThat(outboxes.getFirst().getStatus()).isEqualTo(NotificationOutboxStatus.SENT);
                 });
     }
 

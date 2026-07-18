@@ -267,9 +267,9 @@ class BookingCancelUseCaseIT {
                 .untilAsserted(() -> {
                     var refunds = bookingStateProbe.refunds();
                     assertThat(refunds).hasSize(1);
-                    assertThat(refunds.get(0).getStatus()).isEqualTo(status);
+                    assertThat(refunds.getFirst().getStatus()).isEqualTo(status);
                 });
-        return bookingStateProbe.refunds().get(0);
+        return bookingStateProbe.refunds().getFirst();
     }
 
 }

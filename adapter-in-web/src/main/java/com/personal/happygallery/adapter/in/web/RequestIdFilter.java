@@ -32,14 +32,10 @@ public class RequestIdFilter extends OncePerRequestFilter {
             requestId = UUID.randomUUID().toString();
         }
 
-        MDC.put("requestId", requestId);
-        response.setHeader(REQUEST_ID_HEADER, requestId);
-        log.debug("{} {}", request.getMethod(), request.getRequestURI());
-
-        try {
+        try (MDC.MDCCloseable ignored = MDC.putCloseable("requestId", requestId)) {
+            response.setHeader(REQUEST_ID_HEADER, requestId);
+            log.debug("{} {}", request.getMethod(), request.getRequestURI());
             chain.doFilter(request, response);
-        } finally {
-            MDC.remove("requestId");
         }
     }
 }
