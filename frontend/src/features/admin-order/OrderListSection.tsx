@@ -30,7 +30,8 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "COMPLETED", label: "완료" },
   { value: "REJECTED", label: "거절" },
   { value: "AUTO_REFUND_TIMEOUT", label: "자동 환불" },
-  { value: "PICKUP_EXPIRED", label: "픽업 만료" },
+  { value: "PICKUP_EXPIRED", label: "픽업 만료 환불" },
+  { value: "PICKUP_FORFEITED", label: "픽업 미수령 종료" },
 ];
 
 export function OrderListSection({ adminKey, onAuthError }: Props) {

@@ -4,7 +4,7 @@
 
 <mapper namespace="com.personal.happygallery.adapter.out.persistence.dashboard.mapper.SalesStatsMapper">
 
-    <!-- 환불/거절/만료 등 실 매출에서 제외할 상태 (OrderStatus.isRefunded 참조) -->
+    <!-- 환불된 주문만 실 매출에서 제외한다. 미환불 PICKUP_FORFEITED는 매출에 포함한다. -->
     <sql id="excludedOrderStatuses">
         'REJECTED', 'AUTO_REFUND_TIMEOUT', 'PICKUP_EXPIRED'
     </sql>

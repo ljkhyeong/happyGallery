@@ -20,25 +20,29 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @Tag("policy")
 class OrderStatusTransitionPolicyTest {
 
-    @DisplayName("승인 가능 검증은 대기 상태만 허용하고 환불성 상태를 거절한다")
+    @DisplayName("승인 대기 검증은 환불 상태와 다른 종결 상태를 구분한다")
     @Test
-    void requireApprovable_validatesApprovalPolicy() {
+    void requireApprovalPending_distinguishesRefundedAndOtherFinalStatuses() {
         assertSoftly(softly -> {
-            softly.assertThatCode(() -> OrderStatus.PAID_APPROVAL_PENDING.requireApprovable())
+            softly.assertThatCode(() -> OrderStatus.PAID_APPROVAL_PENDING.requireApprovalPending())
                     .as("PAID_APPROVAL_PENDING은 승인 가능")
                     .doesNotThrowAnyException();
-            softly.assertThatThrownBy(() -> OrderStatus.AUTO_REFUND_TIMEOUT.requireApprovable())
+            softly.assertThatThrownBy(() -> OrderStatus.AUTO_REFUND_TIMEOUT.requireApprovalPending())
                     .as("AUTO_REFUND_TIMEOUT은 이미 환불된 주문")
                     .isInstanceOf(AlreadyRefundedException.class);
-            softly.assertThatThrownBy(() -> OrderStatus.REJECTED.requireApprovable())
+            softly.assertThatThrownBy(() -> OrderStatus.REJECTED.requireApprovalPending())
                     .as("REJECTED는 이미 환불된 주문")
                     .isInstanceOf(AlreadyRefundedException.class);
-            softly.assertThatThrownBy(() -> OrderStatus.PICKUP_EXPIRED.requireApprovable())
-                    .as("PICKUP_EXPIRED는 이미 환불된 주문")
-                    .isInstanceOf(AlreadyRefundedException.class);
-            softly.assertThatThrownBy(() -> OrderStatus.DELAY_REJECTED_CANCELED.requireApprovable())
+            softly.assertThatThrownBy(() -> OrderStatus.DELAY_REJECTED_CANCELED.requireApprovalPending())
                     .as("DELAY_REJECTED_CANCELED는 이미 환불된 주문")
                     .isInstanceOf(AlreadyRefundedException.class);
+            softly.assertThatThrownBy(() -> OrderStatus.PICKUP_EXPIRED.requireApprovalPending())
+                    .as("PICKUP_EXPIRED는 환불된 기성품 주문")
+                    .isInstanceOf(AlreadyRefundedException.class);
+            softly.assertThatThrownBy(() -> OrderStatus.PICKUP_FORFEITED.requireApprovalPending())
+                    .as("PICKUP_FORFEITED는 환불되지 않은 미수령 종결 상태")
+                    .isInstanceOf(HappyGalleryException.class)
+                    .isNotInstanceOf(AlreadyRefundedException.class);
         });
     }
 

@@ -11,11 +11,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
- * 픽업 마감 초과 자동환불 배치 서비스 (§8.4).
+ * 픽업 마감 초과 처리 배치 서비스 (§8.4).
  *
  * <p>{@code pickup_deadline_at < now} 인 {@code PICKUP_READY} 주문을 일괄 처리한다.
- * 각 주문에 대해 재고를 복구하고 PG 환불을 호출한 뒤
- * 상태를 {@code PICKUP_EXPIRED}로 전이한다.
+ * 기성품 주문은 재고 복구와 환불을 요청하고, 주문제작 주문은 환불 없이
+ * {@code PICKUP_FORFEITED}로 전이한다.
  */
 @Service
 public class DefaultPickupExpireBatchService implements PickupExpireBatchUseCase {
@@ -33,11 +33,12 @@ public class DefaultPickupExpireBatchService implements PickupExpireBatchUseCase
     }
 
     /**
-     * 픽업 마감이 경과한 주문을 자동환불 처리한다.
+     * 픽업 마감이 경과한 주문을 만료 처리한다.
      *
      * <ol>
      *   <li>Order.status=PICKUP_READY AND pickupDeadlineAt &lt; now 조회</li>
-     *   <li>각 주문: 재고 복구 → PG 환불 → PICKUP_EXPIRED 전이</li>
+     *   <li>기성품 주문: 재고 복구 → 환불 요청 → PICKUP_EXPIRED 전이</li>
+     *   <li>주문제작 주문: 환불 없이 PICKUP_FORFEITED 전이</li>
      * </ol>
      *
      * @return 처리된 건수

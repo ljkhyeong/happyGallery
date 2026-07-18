@@ -60,6 +60,7 @@ export function MyOrdersPage() {
       "REJECTED",
       "AUTO_REFUND_TIMEOUT",
       "PICKUP_EXPIRED",
+      "PICKUP_FORFEITED",
       "DELAY_REJECTED_CANCELED",
     ].includes(order.status),
   ).length;

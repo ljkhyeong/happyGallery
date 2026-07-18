@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 주문 환불 공통 보조 로직.
  *
- * <p>재고 복구 → 환불 요청 순서를 단일 지점에서 강제하여 주문 거절·자동환불·픽업 만료에서
+ * <p>재고 복구 → 환불 요청 순서를 단일 지점에서 강제하여 주문 거절·자동환불·기성품 픽업 만료에서
  * 동일한 보상 흐름을 보장한다. 실제 PG 호출과 환불 성공 알림은 부모 트랜잭션 커밋 이후
  * {@link RefundExecutionService}가 처리한다.
  */

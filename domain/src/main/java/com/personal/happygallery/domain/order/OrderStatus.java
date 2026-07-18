@@ -26,19 +26,10 @@ public enum OrderStatus {
 	PICKUP_READY,
 	PICKED_UP,
 	PICKUP_EXPIRED,
+	PICKUP_FORFEITED,
 
 	// 최종 상태
 	COMPLETED;
-
-	/** 승인 가능한 상태인지 확인한다. 이미 환불된 경우 {@link AlreadyRefundedException}을 던진다. */
-	public void requireApprovable() {
-		if (this == REJECTED
-				|| this == AUTO_REFUND_TIMEOUT
-				|| this == PICKUP_EXPIRED
-				|| this == DELAY_REJECTED_CANCELED) {
-			throw new AlreadyRefundedException();
-		}
-	}
 
 	/**
 	 * 관리자 승인/거절이 가능한 승인 대기 상태인지 확인한다.
@@ -46,7 +37,12 @@ public enum OrderStatus {
 	 * 그 외 승인 대기 외 상태는 {@code 400 INVALID_INPUT}을 던진다.
 	 */
 	public void requireApprovalPending() {
-		requireApprovable();
+		if (this == REJECTED
+				|| this == AUTO_REFUND_TIMEOUT
+				|| this == PICKUP_EXPIRED
+				|| this == DELAY_REJECTED_CANCELED) {
+			throw new AlreadyRefundedException();
+		}
 		if (this != PAID_APPROVAL_PENDING) {
 			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "승인 대기 상태의 주문만 처리할 수 있습니다.");
 		}

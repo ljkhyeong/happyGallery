@@ -14,6 +14,7 @@ export type OrderStatus =
   | "PICKUP_READY"
   | "PICKED_UP"
   | "PICKUP_EXPIRED"
+  | "PICKUP_FORFEITED"
   | "COMPLETED";
 
 export interface SlotResponse {
@@ -117,6 +118,7 @@ export type OrderApprovalDecision =
   | "PICKUP_READY"
   | "PICKUP_COMPLETE"
   | "PICKUP_EXPIRED"
+  | "PICKUP_FORFEITED"
   | "PREPARE_SHIPPING"
   | "SHIP"
   | "DELIVER";

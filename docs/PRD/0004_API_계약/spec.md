@@ -693,6 +693,7 @@ X-Access-Token: {accessToken}
   - `X-Access-Token` 헤더의 토큰을 SHA-256 해시하여 DB 저장값과 비교한다.
   - `fulfillment`는 아직 생성되지 않은 경우 `null`일 수 있다.
   - 환불 이력이 있으면 `refund`에 `amount`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
+  - `status=PICKUP_EXPIRED`는 기성품 미수령 환불이며 `refund`에 진행 상태를 반환한다. `status=PICKUP_FORFEITED`는 주문제작 상품의 미수령 종료이며 `refund=null`이다.
 
 ### 2.7 주문 Admin API
 
@@ -864,8 +865,10 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
-  - 성공 건은 `PICKUP_EXPIRED`로 전이하고 환불/재고 복구를 수행한다.
-  - 이력은 `PICKUP_EXPIRED`로 기록하며 자동 처리이므로 adminId는 `null`이다.
+  - 기성품 주문은 재고를 복구하고 환불 요청 이력을 만든 뒤 `PICKUP_EXPIRED`로 전이한다. PG 환불은 부모 트랜잭션 커밋 후 비동기로 실행한다.
+  - 주문제작 상품이 하나라도 포함된 주문은 제작 완료 상품으로 보아 환불 요청과 재고 복구 없이 `PICKUP_FORFEITED`로 전이한다.
+  - 이력은 각각 `PICKUP_EXPIRED`, `PICKUP_FORFEITED`로 기록하며 자동 처리이므로 adminId는 `null`이다.
+  - `successCount`는 만료 상태 전이에 성공한 건수이며 PG 환불 완료 건수가 아니다.
   - `failureReasons`는 내부 예외명을 그대로 노출하지 않고 `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`로 정규화한다.
 
 #### 2.7.5 제작 완료
@@ -940,7 +943,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - 처리 시간 순으로 정렬된 전체 이력을 반환한다.
-  - `decision`: `APPROVE`, `REJECT`, `DELAY`, `DELAY_CANCEL`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PICKUP_READY`, `PICKUP_COMPLETE`, `PICKUP_EXPIRED`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
+  - `decision`: `APPROVE`, `REJECT`, `DELAY`, `DELAY_CANCEL`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PICKUP_READY`, `PICKUP_COMPLETE`, `PICKUP_EXPIRED`, `PICKUP_FORFEITED`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
 
 ### 2.8 공지사항 API
 

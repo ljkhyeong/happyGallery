@@ -25,7 +25,7 @@
 
 | 대상 | 구현 위치 | 가드 메서드 |
 |------|----------|------------|
-| 주문 승인 가능 여부 | `OrderStatus.requireApprovable()` | 환불 상태이면 `AlreadyRefundedException` |
+| 주문 승인 가능 여부 | `OrderStatus.requireApprovalPending()` | 환불 상태는 `AlreadyRefundedException`, 그 외 승인 대기 외 상태는 `INVALID_INPUT` |
 | 슬롯 정원 | `SlotCapacity.checkAvailable(int)` | `bookedCount >= 8`이면 `CapacityExceededException` |
 | 재고 차감 | `InventoryPolicy.checkSufficient(int, int)` | `available < requested`이면 `InventoryNotEnoughException` |
 
@@ -72,8 +72,7 @@ RuntimeException
 - 에러 응답 포맷이 단일 레코드로 고정 → 클라이언트 파싱 안정적
 
 **부정 / 후속 작업**
-- `OrderStatus.requireApprovable()`은 "승인 불가 상태 전체"를 커버하지 않음
-  (예: 이미 `APPROVED_FULFILLMENT_PENDING` 상태에서 재승인 시도 → 별도 처리 필요)
+- 주문 상태만으로 환불 여부를 판단할 수 있도록 환불 경로와 미환불 종결 경로를 다른 상태로 유지해야 한다.
 - 서비스 레이어 구현 시 가드 호출 누락 방지를 코드 리뷰로 보완 필요
 
 ---

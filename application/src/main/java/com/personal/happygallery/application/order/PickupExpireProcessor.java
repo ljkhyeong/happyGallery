@@ -2,6 +2,7 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
+import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
@@ -19,17 +20,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class PickupExpireProcessor {
     private final FulfillmentPort fulfillmentPort;
     private final OrderReaderPort orderReader;
+    private final OrderItemPort orderItemPort;
     private final OrderStorePort orderStore;
     private final OrderRefundSupport orderRefundSupport;
     private final OrderHistoryPort orderHistoryPort;
 
     public PickupExpireProcessor(FulfillmentPort fulfillmentPort,
                                  OrderReaderPort orderReader,
+                                 OrderItemPort orderItemPort,
                                  OrderStorePort orderStore,
                                  OrderRefundSupport orderRefundSupport,
                                  OrderHistoryPort orderHistoryPort) {
         this.fulfillmentPort = fulfillmentPort;
         this.orderReader = orderReader;
+        this.orderItemPort = orderItemPort;
         this.orderStore = orderStore;
         this.orderRefundSupport = orderRefundSupport;
         this.orderHistoryPort = orderHistoryPort;
@@ -48,10 +52,16 @@ public class PickupExpireProcessor {
             return false;
         }
 
-        orderRefundSupport.refundOrder(order);
-        order.markPickupExpired();
-        orderHistoryPort.save(
-                new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PICKUP_EXPIRED));
+        OrderApprovalDecision decision;
+        if (orderItemPort.existsMadeToOrderItem(order)) {
+            order.markPickupForfeited();
+            decision = OrderApprovalDecision.PICKUP_FORFEITED;
+        } else {
+            orderRefundSupport.refundOrder(order);
+            order.markPickupExpired();
+            decision = OrderApprovalDecision.PICKUP_EXPIRED;
+        }
+        orderHistoryPort.save(new OrderApprovalHistory(order.getId(), decision));
         orderStore.save(order);
         return true;
     }

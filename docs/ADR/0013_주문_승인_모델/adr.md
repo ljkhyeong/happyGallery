@@ -28,12 +28,18 @@ PAID_APPROVAL_PENDING  (approval_deadline_at = paidAt + 24h)
 
 이미 환불된 상태(REJECTED, AUTO_REFUND_TIMEOUT, PICKUP_EXPIRED, DELAY_REJECTED_CANCELED)에서
 승인/거절 재시도 → `AlreadyRefundedException` (409).
-이 가드는 기존 `OrderStatus.requireApprovable()`을 재사용한다.
+이 가드는 `OrderStatus.requireApprovalPending()`에서 적용한다.
+
+주문제작 미수령은 환불된 기성품과 구분해 `PICKUP_FORFEITED`로 종결한다.
+승인/거절 재시도는 `ALREADY_REFUNDED`가 아니라 승인 대기 상태가 아닌 요청으로 거절한다.
 
 ### 2. 환불·재고 복구 순서
 
 거절/자동환불 트랜잭션에서는 반드시 **재고 복구 → 환불 요청 기록 생성** 순으로 처리하고,
 커밋 이후 PG 환불을 호출한다. 명시적 거절은 `FAILED`, 일시 실패와 결과 불명은 자동 복구 가능한 상태로 남는다.
+
+픽업 만료는 기성품 주문에만 같은 보상 흐름을 적용한다. 주문제작 상품이 하나라도 포함된 주문은
+미수령 상태와 이력만 `PICKUP_FORFEITED`로 종결하고 환불 이력과 재고 복구를 만들지 않는다.
 
 ### 3. 서비스 분리
 
@@ -67,13 +73,15 @@ PAID_APPROVAL_PENDING  (approval_deadline_at = paidAt + 24h)
 
 주문 환불은 기존 `Refund` 엔티티(refunds 테이블)에 `orderId` 필드를 통해 기록한다.
 별도 엔티티 없이 `Refund.forOrder(orderId, amount, paymentKey)` 팩토리로 기록한다.
+픽업 만료 환불 이력은 기성품 주문에만 생성한다. `PICKUP_EXPIRED`는 환불 경로,
+`PICKUP_FORFEITED`는 주문제작 미환불 경로를 나타낸다.
 
 ### 7. 주문 처리 이력에 관리자 식별자 기록
 
 관리자 승인/거절, 제작, 픽업, 배송 이력은 `order_approvals.decided_by_admin_id`를 함께 저장한다.
 `AdminAuthenticationFilter`가 Bearer 세션을 검증해 `AdminPrincipal`과 `SecurityContext`를 구성하고,
 주문 컨트롤러는 `@AuthenticationPrincipal AdminPrincipal`에서 꺼낸 `adminUserId`를 이력에 기록한다.
-API Key 폴백 경로와 배치 자동환불(`AUTO_REFUND`), 픽업 만료(`PICKUP_EXPIRED`)는 null 이력을 허용한다.
+API Key 폴백 경로와 배치 자동환불(`AUTO_REFUND`), 픽업 만료(`PICKUP_EXPIRED`, `PICKUP_FORFEITED`)는 null 이력을 허용한다.
 
 ### 8. 픽업 마감 알림의 연관 데이터는 일괄 조회한다
 

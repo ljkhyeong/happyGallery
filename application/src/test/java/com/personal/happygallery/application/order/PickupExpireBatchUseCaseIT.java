@@ -4,6 +4,7 @@ import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
+import com.personal.happygallery.application.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
@@ -36,7 +37,8 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 /**
  * [UseCaseIT] §8.4 픽업 만료 배치 검증.
  *
- * <p>Proof (§8.4 DoD): 배치 실행 시 픽업 만료 주문이 환불되고 재고가 복구됨.
+ * <p>Proof (§8.4 DoD): 기성품 픽업 만료는 환불·재고 복구하고,
+ * 주문제작 미수령은 환불 없이 종료한다.
  */
 @UseCaseIT
 class PickupExpireBatchUseCaseIT {
@@ -45,6 +47,7 @@ class PickupExpireBatchUseCaseIT {
     @Autowired PickupExpireProcessor pickupExpireProcessor;
     @Autowired OrderPickupUseCase orderPickupService;
     @Autowired OrderApprovalUseCase orderApprovalService;
+    @Autowired OrderProductionUseCase orderProductionService;
     @Autowired OrderService orderService;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
@@ -76,12 +79,12 @@ class PickupExpireBatchUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof (DoD §8.4): 픽업 마감 초과 → 자동환불 + 재고 복구
+    // Proof (DoD §8.4): 픽업 마감 초과 → 상품 유형별 환불 정책 적용
     // -----------------------------------------------------------------------
 
-    @DisplayName("픽업 기한이 지난 주문은 환불되고 재고가 복구된다")
+    @DisplayName("픽업 기한이 지난 기성품 주문은 환불되고 재고가 복구된다")
     @Test
-    void expirePickups_expiredDeadline_refundsAndRestoresInventory() {
+    void expirePickups_readyStockExpired_refundsAndRestoresInventory() {
         OrderTestHelper.OrderFixture fixture = orderHelper.createReadyStockPaidOrder("픽업 테스트 상품", 50000L);
         Order order = fixture.order();
         assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(0);
@@ -122,6 +125,42 @@ class PickupExpireBatchUseCaseIT {
                     OrderApprovalDecision.APPROVE,
                     OrderApprovalDecision.PICKUP_READY,
                     OrderApprovalDecision.PICKUP_EXPIRED);
+        });
+    }
+
+    @DisplayName("픽업 기한이 지난 주문제작 상품은 환불과 재고 복구 없이 만료된다")
+    @Test
+    void expirePickups_madeToOrderExpired_doesNotRefundOrRestoreInventory() {
+        OrderTestHelper.OrderFixture fixture =
+                orderHelper.createMadeToOrderPaidOrder("미수령 주문제작 상품", 200000L);
+        Order order = fixture.order();
+
+        orderApprovalService.approve(order.getId());
+        orderProductionService.completeProduction(order.getId(), 1L);
+        orderPickupService.markPickupReady(
+                order.getId(), LocalDateTime.now(clock).minusHours(1), 1L);
+
+        BatchResult result = pickupExpireBatchService.expirePickups();
+
+        Order expired = orderStateProbe.getOrder(order.getId());
+        int remainingQuantity = orderStateProbe
+                .getInventoryByProductId(fixture.product().getId())
+                .getQuantity();
+        var decisions = orderStateProbe.orderApprovalHistoryOrdered(order.getId()).stream()
+                .map(history -> history.getDecision())
+                .toList();
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(1);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_FORFEITED);
+            softly.assertThat(remainingQuantity).isZero();
+            softly.assertThat(orderStateProbe.refundCount()).isZero();
+            softly.assertThat(decisions).containsExactly(
+                    OrderApprovalDecision.APPROVE,
+                    OrderApprovalDecision.PRODUCTION_COMPLETE,
+                    OrderApprovalDecision.PICKUP_READY,
+                    OrderApprovalDecision.PICKUP_FORFEITED);
         });
     }
 

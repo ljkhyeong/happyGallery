@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  * 이 클래스는 {@code @Transactional}을 갖지 않으며, 트랜잭션은 각 서비스 메서드에서 처리한다.
  *
  * <ul>
- *   <li>매시간 정각: 주문 승인 SLA 초과 자동환불, 픽업 마감 자동취소, 픽업 마감 2시간 전 알림</li>
+ *   <li>매시간 정각: 주문 승인 SLA 초과 자동환불, 픽업 만료 처리, 픽업 마감 2시간 전 알림</li>
  *   <li>매일 00:00: 8회권 크레딧 소멸, 예약 D-1 리마인드</li>
  *   <li>매일 07:00: 예약 당일 리마인드</li>
  *   <li>매일 09:00: 8회권 만료 7일 전 알림</li>
@@ -54,7 +54,7 @@ public class BatchScheduler {
         return orderAutoRefundBatchUseCase.autoRefundExpired();
     }
 
-    /** 픽업 마감 초과 → 자동취소·환불. 매시간 정각 실행. */
+    /** 픽업 마감 초과 → 기성품 환불, 주문제작 미환불 만료. 매시간 정각 실행. */
     @BatchJob("픽업 만료")
     @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul")
     public BatchResult runPickupExpire() {

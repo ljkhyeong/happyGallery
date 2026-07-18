@@ -35,7 +35,7 @@ IN_PRODUCTION          ← 환불 불가 시작점
     └─ 제작 완료 (completeProduction)
            ↓
     APPROVED_FULFILLMENT_PENDING
-    ├─ 픽업 준비 → PICKUP_READY → PICKED_UP / PICKUP_EXPIRED
+    ├─ 픽업 준비 → PICKUP_READY → PICKED_UP / PICKUP_FORFEITED(미수령, 환불 없음)
     └─ 배송 준비 (prepareShipping)
            ↓
     SHIPPING_PREPARING
@@ -75,6 +75,9 @@ READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업
 서비스는 주문을 `DELAY_REJECTED_CANCELED`로 전이한 뒤 환불·재고 복구를 수행한다.
 이미 `DELAY_REQUESTED`로 전이된 주문은 고객이 지연을 수락한 상태이므로 이 경로를 허용하지 않는다.
 
+제작 완료 후 픽업 흐름에 합류해도 제작 시작 이력은 사라지지 않는다. 픽업 마감까지 미수령하면
+`PICKUP_FORFEITED` 상태와 이력만 남기고 `Refund` 생성과 재고 복구는 수행하지 않는다.
+
 ### 5. 서비스 분리
 
 - `OrderApprovalService`: approve (MADE_TO_ORDER 감지 포함) / reject
@@ -105,7 +108,7 @@ READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업
 
 | 항목 | 내용 |
 |------|------|
-| 혼합 주문 | MADE_TO_ORDER + READY_STOCK 상품이 같은 주문에 있으면 전체가 IN_PRODUCTION으로 전이됨. MVP에서는 이런 케이스가 없다고 가정. |
+| 혼합 주문 | MADE_TO_ORDER + READY_STOCK 상품이 같은 주문에 있으면 전체를 제작 주문으로 보아 IN_PRODUCTION으로 전이하고, 픽업 미수령 시에도 전체 주문을 환불하지 않는다. |
 | Fulfillment 상태 관리 | Fulfillment에 별도 `status` 컬럼 없음 — `Order.status`가 단일 소스. 제작 완료 후 픽업 전환 시 `Fulfillment.convertToPickup()`이 `expected_ship_date`를 비우고 type을 PICKUP으로 전환한다. |
 | 배송·픽업 이력 관리 | 배송과 픽업 전이도 `order_approvals` append-only 이력으로 남기며, 운영 화면은 이를 시간순 조회한다. |
 | 관리자 식별자 | Bearer 세션 경로는 admin id를 이력에 기록하고, API Key 폴백 경로는 null 이력이 존재할 수 있다. |

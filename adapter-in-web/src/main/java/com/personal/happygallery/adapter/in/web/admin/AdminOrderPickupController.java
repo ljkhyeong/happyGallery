@@ -50,7 +50,7 @@ public class AdminOrderPickupController {
         return PickupResponse.from(result);
     }
 
-    /** POST /api/v1/admin/orders/expire-pickups — 픽업 마감 초과 자동환불 배치 */
+    /** POST /api/v1/admin/orders/expire-pickups — 픽업 마감 초과 처리 배치 */
     @PostMapping("/expire-pickups")
     @ResponseStatus(HttpStatus.OK)
     public BatchResponse expirePickups() {
