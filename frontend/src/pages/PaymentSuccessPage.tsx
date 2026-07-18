@@ -6,6 +6,7 @@ import {
   consumePaymentReturnHint,
   type ConfirmPaymentResponse,
 } from "@/features/payment";
+import { isPositiveSafeIntegerString } from "@/shared/lib";
 import { ErrorAlert } from "@/shared/ui";
 
 export function PaymentSuccessPage() {
@@ -15,16 +16,17 @@ export function PaymentSuccessPage() {
   const [result, setResult] = useState<ConfirmPaymentResponse | null>(null);
   const calledRef = useRef(false);
 
-  const paymentKey = params.get("paymentKey");
-  const orderId = params.get("orderId");
+  const paymentKey = params.get("paymentKey")?.trim() ?? "";
+  const orderId = params.get("orderId")?.trim() ?? "";
   const amountStr = params.get("amount");
-  const amount = amountStr ? Number(amountStr) : null;
+  const amount = Number(amountStr);
+  const validAmount = isPositiveSafeIntegerString(amountStr);
 
   useEffect(() => {
     if (calledRef.current) return;
     calledRef.current = true;
 
-    if (amount === null || !Number.isSafeInteger(amount) || amount < 0 || !orderId) {
+    if (!paymentKey || !orderId || !validAmount) {
       setError(new Error("결제 정보가 올바르지 않습니다."));
       return;
     }
@@ -35,7 +37,7 @@ export function PaymentSuccessPage() {
         consumePaymentReturnHint();
       })
       .catch((e) => setError(e instanceof Error ? e : new Error(String(e))));
-  }, [paymentKey, orderId, amount]);
+  }, [paymentKey, orderId, amount, validAmount]);
 
   if (error) {
     return (

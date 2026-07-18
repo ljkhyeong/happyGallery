@@ -9,6 +9,7 @@ import { BookingCreatePage } from "@/pages/BookingCreatePage";
 import { ProductListPage } from "@/pages/ProductListPage";
 import { ProductDetailPage } from "@/pages/ProductDetailPage";
 import { OrderCreatePage } from "@/pages/OrderCreatePage";
+import { NotFoundPage } from "@/pages/NotFoundPage";
 import { CustomerAuthProvider } from "@/features/customer-auth/useCustomerAuth";
 import "@/styles/global.scss";
 
@@ -66,9 +67,6 @@ const CartPage = lazy(() =>
 const SocialCallbackPage = lazy(() =>
   import("@/pages/SocialCallbackPage").then((module) => ({ default: module.SocialCallbackPage })),
 );
-const NotFoundPage = lazy(() =>
-  import("@/pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })),
-);
 const PaymentSuccessPage = lazy(() =>
   import("@/pages/PaymentSuccessPage").then((module) => ({ default: module.PaymentSuccessPage })),
 );
@@ -122,7 +120,7 @@ export function App() {
                 <Route path="/admin" element={<LazyRoute><AdminPage /></LazyRoute>} />
                 <Route path="/payments/success" element={<LazyRoute><PaymentSuccessPage /></LazyRoute>} />
                 <Route path="/payments/fail" element={<LazyRoute><PaymentFailPage /></LazyRoute>} />
-                <Route path="*" element={<LazyRoute><NotFoundPage /></LazyRoute>} />
+                <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>
           </BrowserRouter>

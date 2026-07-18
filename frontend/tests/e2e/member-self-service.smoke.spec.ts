@@ -34,7 +34,7 @@ test("P8-6 @payment 회원 가입 후 상품 상세에서 주문하고 내 주�
   await expect(page).toHaveURL(/\/my\/orders\/\d+$/);
   const orderId = Number(page.url().match(/\/my\/orders\/(\d+)$/)?.[1]);
   await expect(page.getByRole("heading", { name: "주문 상품" })).toBeVisible();
-  await expect(page.getByRole("cell", { name: String(product.id) })).toBeVisible();
+  await expect(page.getByRole("cell", { name: String(product.id), exact: true })).toBeVisible();
   await expect(page.getByRole("cell", { name: "₩66,000" })).toBeVisible();
 
   await logoutCustomer(page);

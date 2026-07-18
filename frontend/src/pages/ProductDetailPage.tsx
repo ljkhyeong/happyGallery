@@ -11,15 +11,22 @@ import {
 } from "@/features/payment";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
-import { formatKRW, PRODUCT_TYPE_LABEL, PRODUCT_FULFILLMENT_LABEL } from "@/shared/lib";
+import {
+  formatKRW,
+  isPositiveSafeIntegerString,
+  PRODUCT_FULFILLMENT_LABEL,
+  PRODUCT_TYPE_LABEL,
+} from "@/shared/lib";
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
 import { useCart } from "@/features/cart/useCart";
+import { NotFoundPage } from "@/pages/NotFoundPage";
 
 const MAX_QTY = 99;
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const productId = Number(id);
+  const validProductId = isPositiveSafeIntegerString(id);
   const navigate = useNavigate();
   const toast = useToast();
   const { isAuthenticated, isLoading: authLoading, user } = useCustomerAuth();
@@ -30,7 +37,7 @@ export function ProductDetailPage() {
   const { data: product, isLoading, error } = useQuery({
     queryKey: ["products", productId],
     queryFn: () => fetchProduct(productId),
-    enabled: Number.isSafeInteger(productId) && productId > 0,
+    enabled: validProductId,
     staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
@@ -55,6 +62,7 @@ export function ProductDetailPage() {
     },
   });
 
+  if (!validProductId) return <NotFoundPage />;
   if (isLoading) return <Container className="page-container"><LoadingSpinner /></Container>;
   if (error) return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   if (!product) return null;

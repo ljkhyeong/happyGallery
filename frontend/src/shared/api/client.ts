@@ -71,15 +71,14 @@ function requiresCsrf(path: string, method: string | undefined): boolean {
 
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, params, headers: customHeaders, ...rest } = options;
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
   const headers = new Headers(customHeaders);
 
   if (body !== undefined) {
     headers.set("Content-Type", "application/json");
   }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   let response: Response;
   try {

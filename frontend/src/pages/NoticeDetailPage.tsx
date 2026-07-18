@@ -3,17 +3,21 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchNotice } from "@/features/notice/api";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
-import { formatDateTime } from "@/shared/lib";
+import { formatDateTime, isPositiveSafeIntegerString } from "@/shared/lib";
+import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export function NoticeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const noticeId = Number(id);
+  const validNoticeId = isPositiveSafeIntegerString(id);
 
   const { data: notice, isLoading, error } = useQuery({
     queryKey: ["notices", noticeId],
     queryFn: () => fetchNotice(noticeId),
-    enabled: Number.isSafeInteger(noticeId) && noticeId > 0,
+    enabled: validNoticeId,
   });
+
+  if (!validNoticeId) return <NotFoundPage />;
 
   return (
     <Container className="page-container" style={{ maxWidth: 720 }}>

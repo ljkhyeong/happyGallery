@@ -8,11 +8,13 @@ import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyBookingDetailCard } from "@/features/my-booking/MyBookingDetailCard";
 import { cancelMyBooking, fetchMyBooking, rescheduleMyBooking } from "@/features/my-booking/api";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
-import { customerRefundPollingInterval } from "@/shared/lib";
+import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
+import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export function MyBookingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const bookingId = Number(id);
+  const validBookingId = isPositiveSafeIntegerString(id);
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
 
   const {
@@ -23,13 +25,15 @@ export function MyBookingDetailPage() {
   } = useQuery({
     queryKey: ["my", "bookings", bookingId],
     queryFn: () => fetchMyBooking(bookingId),
-    enabled: isAuthenticated && Number.isSafeInteger(bookingId) && bookingId > 0,
+    enabled: isAuthenticated && validBookingId,
     refetchInterval: ({ state }) =>
       customerRefundPollingInterval(
         state.data?.refund?.status,
         state.dataUpdateCount + state.fetchFailureCount,
       ),
   });
+
+  if (!validBookingId) return <NotFoundPage />;
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;

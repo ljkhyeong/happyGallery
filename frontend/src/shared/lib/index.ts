@@ -1,5 +1,6 @@
 export { formatKRW, formatDate, formatDateTime } from "./format";
 export { getUserMessage } from "./errorMessages";
+export { isPositiveSafeIntegerString } from "./number";
 export {
   adminRefundPollingInterval,
   customerRefundPollingInterval,

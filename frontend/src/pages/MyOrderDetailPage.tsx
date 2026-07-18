@@ -7,23 +7,27 @@ import { api } from "@/shared/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import type { OrderDetailResponse } from "@/shared/types";
-import { customerRefundPollingInterval } from "@/shared/lib";
+import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
+import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export function MyOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const orderId = Number(id);
+  const validOrderId = isPositiveSafeIntegerString(id);
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
 
   const { data: order, isLoading, error } = useQuery({
     queryKey: ["my", "orders", orderId],
     queryFn: () => api<OrderDetailResponse>(`/me/orders/${orderId}`),
-    enabled: isAuthenticated && Number.isSafeInteger(orderId) && orderId > 0,
+    enabled: isAuthenticated && validOrderId,
     refetchInterval: ({ state }) =>
       customerRefundPollingInterval(
         state.data?.refund?.status,
         state.dataUpdateCount + state.fetchFailureCount,
       ),
   });
+
+  if (!validOrderId) return <NotFoundPage />;
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
