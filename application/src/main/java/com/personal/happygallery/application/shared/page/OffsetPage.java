@@ -19,6 +19,10 @@ public record OffsetPage<T>(
         long totalPages
 ) {
 
+    public OffsetPage {
+        content = List.copyOf(content);
+    }
+
     public static <T> OffsetPage<T> of(List<T> content, int page, int size, long totalCount) {
         if (size < 1) {
             throw new IllegalArgumentException("size must be >= 1");

@@ -10,6 +10,10 @@ public record BatchResponse(
         Map<String, Integer> failureReasons
 ) {
 
+    public BatchResponse {
+        failureReasons = Map.copyOf(failureReasons);
+    }
+
     private static final Map<String, String> REASON_LABELS = Map.ofEntries(
             Map.entry("ObjectOptimisticLockingFailureException", "CONFLICT"),
             Map.entry("OptimisticLockingFailureException", "CONFLICT"),
