@@ -1,0 +1,19 @@
+[Unit]
+Description=happyGallery encrypted MySQL backup
+After=k3s.service network-online.target
+Requires=k3s.service
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=/etc/happygallery/backup.env
+WorkingDirectory=/opt/happygallery
+ExecStart=/opt/happygallery/deploy/k3s/scripts/backup-mysql.sh
+ExecStartPost=/opt/happygallery/deploy/k3s/scripts/prune-backups.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: happygallery
+data:
+  SPRING_PROFILES_ACTIVE: prod
+  DB_URL: jdbc:mysql://mysql:3306/happygallery?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  MANAGEMENT_PORT: "8081"
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+  FORWARD_HEADERS_STRATEGY: native
+  RATE_LIMIT_TRUST_FORWARDED: "true"
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_KEY_PREFIX: happygallery:rate:prod
+  ACTUATOR_HEALTH_SHOW_DETAILS: never
+  SENTRY_ENVIRONMENT: production
+  SENTRY_RELEASE: happygallery@__IMAGE_TAG__
+  PASS_TOTAL_PRICE: "240000"
+  GOOGLE_OAUTH_REDIRECT_URI: https://__PUBLIC_HOST__/auth/callback/google
+  NAVER_OAUTH_REDIRECT_URI: https://__PUBLIC_HOST__/auth/callback/naver
