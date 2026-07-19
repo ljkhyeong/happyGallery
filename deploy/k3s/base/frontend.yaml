@@ -95,4 +95,3 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 64Mi
-

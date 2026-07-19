@@ -8,4 +8,3 @@ ENV HOME=/tmp
 EXPOSE 8080 8081
 USER 10001:10001
 ENTRYPOINT ["java", "-jar", "app.jar"]
-

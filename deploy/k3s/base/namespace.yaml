@@ -4,4 +4,3 @@ metadata:
   name: happygallery
   labels:
     app.kubernetes.io/part-of: happygallery
-

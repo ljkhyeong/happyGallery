@@ -15,4 +15,3 @@ find "$BACKUP_DIR" -maxdepth 1 -type f \
     -mtime "+$retention_days" -print -delete
 
 info "$retention_days일보다 오래된 happygallery 백업만 정리했습니다."
-

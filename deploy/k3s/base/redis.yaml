@@ -103,4 +103,3 @@ spec:
         - name: data
           emptyDir:
             sizeLimit: 512Mi
-

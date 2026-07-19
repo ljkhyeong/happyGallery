@@ -8,4 +8,3 @@ spec:
     additionalArguments:
       - --entryPoints.web.forwardedHeaders.insecure=false
       - --entryPoints.websecure.forwardedHeaders.insecure=false
-

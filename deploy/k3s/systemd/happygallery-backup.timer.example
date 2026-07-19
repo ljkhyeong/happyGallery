@@ -9,4 +9,3 @@ Unit=happygallery-backup.service
 
 [Install]
 WantedBy=timers.target
-

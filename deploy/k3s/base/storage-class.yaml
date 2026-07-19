@@ -6,4 +6,3 @@ provisioner: rancher.io/local-path
 reclaimPolicy: Retain
 allowVolumeExpansion: true
 volumeBindingMode: WaitForFirstConsumer
-
