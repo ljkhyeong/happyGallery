@@ -41,6 +41,19 @@ class AccessTokenSignerTest {
                 .hasMessage("토큰 서명 불일치");
     }
 
+    @DisplayName("서명 토큰은 만료 시각부터 거절한다")
+    @Test
+    void verify_atExpiry_throwsInvalidTokenException() {
+        Instant expiry = Instant.parse("2026-05-01T00:00:00Z");
+        AccessTokenSigner.SignedToken signed = AccessTokenSigner.sign(expiry, SECRET);
+
+        assertThat(AccessTokenSigner.verify(signed.rawToken(), SECRET, expiry.minusNanos(1)).expiry())
+                .isEqualTo(expiry);
+        assertThatThrownBy(() -> AccessTokenSigner.verify(signed.rawToken(), SECRET, expiry))
+                .isInstanceOf(InvalidTokenException.class)
+                .hasMessage("토큰 만료");
+    }
+
     @DisplayName("서명 비밀키가 잘못되면 스택트레이스 없는 TokenSigningException을 던진다")
     @Test
     void sign_invalidSecret_throwsTokenSigningException() {

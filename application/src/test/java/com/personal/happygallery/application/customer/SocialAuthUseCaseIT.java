@@ -41,12 +41,16 @@ class SocialAuthUseCaseIT {
                 "naver-account-id",
                 "social-test@example.com",
                 "테스트 네이버 사용자"));
+        var storedSocialAccount = socialAccountRepository.findAll().getFirst();
 
         assertSoftly(softly -> {
             softly.assertThat(firstLogin.newUser()).isTrue();
             softly.assertThat(secondLogin.newUser()).isFalse();
             softly.assertThat(secondLogin.user().getId()).isEqualTo(firstLogin.user().getId());
             softly.assertThat(socialAccountRepository.count()).isEqualTo(1);
+            softly.assertThat(storedSocialAccount.getProviderIdEnc())
+                    .isNotBlank()
+                    .doesNotContain("naver-account-id");
         });
     }
 

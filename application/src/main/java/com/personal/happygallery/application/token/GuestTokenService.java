@@ -1,9 +1,6 @@
 package com.personal.happygallery.application.token;
 
 import com.personal.happygallery.domain.error.NotFoundException;
-import com.personal.happygallery.application.token.AccessTokenHasher;
-import com.personal.happygallery.application.token.AccessTokenSigner;
-import com.personal.happygallery.application.token.InvalidTokenException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -48,8 +45,7 @@ public class GuestTokenService {
     public String resolveTokenHash(String rawToken) {
         if (AccessTokenSigner.isSigned(rawToken)) {
             try {
-                AccessTokenSigner.TokenClaims claims = AccessTokenSigner.verify(
-                        rawToken, properties.hmacSecret(), clock.instant());
+                AccessTokenSigner.TokenClaims claims = verifySigned(rawToken);
                 return claims.nonceHash();
             } catch (InvalidTokenException e) {
                 log.warn("게스트 토큰 검증 실패 [type={}]", e.getClass().getSimpleName());
@@ -57,6 +53,18 @@ public class GuestTokenService {
             }
         }
         return AccessTokenHasher.hash(rawToken);
+    }
+
+    private AccessTokenSigner.TokenClaims verifySigned(String rawToken) {
+        Instant now = clock.instant();
+        try {
+            return AccessTokenSigner.verify(rawToken, properties.hmacSecret(), now);
+        } catch (InvalidTokenException activeKeyFailure) {
+            if (properties.previousHmacSecret().isBlank()) {
+                throw activeKeyFailure;
+            }
+            return AccessTokenSigner.verify(rawToken, properties.previousHmacSecret(), now);
+        }
     }
 
     public record IssuedToken(String rawToken, String tokenHash) {}

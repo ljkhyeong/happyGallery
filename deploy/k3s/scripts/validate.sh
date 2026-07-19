@@ -61,6 +61,20 @@ ruby -e '
     end
     abort "#{name}이 kube-system 전체 Pod를 허용합니다." unless exact
   end
+  mysql_policy = policies.fetch("allow-app-to-mysql")
+  mysql_rules = mysql_policy.dig("spec", "ingress") || []
+  mysql_peers = mysql_rules.flat_map { |rule| rule["from"] || [] }
+  mysql_names = mysql_peers.map { |peer| peer.dig("podSelector", "matchLabels", "app.kubernetes.io/name") }.compact.sort
+  abort "MySQL ingress는 app/key-rotation Pod만 허용해야 합니다." unless mysql_names == %w[app key-rotation]
+  mysql_ports = mysql_rules.flat_map { |rule| rule["ports"] || [] }.map { |port| port["port"] }.uniq
+  abort "MySQL ingress는 3306만 허용해야 합니다." unless mysql_ports == [3306]
+  redis_policy = policies.fetch("allow-app-to-redis")
+  redis_rules = redis_policy.dig("spec", "ingress") || []
+  redis_peers = redis_rules.flat_map { |rule| rule["from"] || [] }
+  redis_names = redis_peers.map { |peer| peer.dig("podSelector", "matchLabels", "app.kubernetes.io/name") }.compact.sort
+  abort "Redis ingress는 app/key-rotation Pod만 허용해야 합니다." unless redis_names == %w[app key-rotation]
+  redis_ports = redis_rules.flat_map { |rule| rule["ports"] || [] }.map { |port| port["port"] }.uniq
+  abort "Redis ingress는 6379만 허용해야 합니다." unless redis_ports == [6379]
   puts "YAML 문서 #{documents.size}개 파싱 완료"
 ' "$rendered"
 
@@ -70,6 +84,39 @@ for script in "$SCRIPT_DIR"/*.sh; do
         *) sh -n "$script" ;;
     esac
 done
+
+rotation_job="$tmp_dir/data-key-rotation-job.yaml"
+awk '
+  /^apiVersion: batch\/v1$/ { capture = 1 }
+  capture && /^EOF$/ { exit }
+  capture {
+    gsub(/\$NAMESPACE/, "happygallery")
+    gsub(/\$app_image/, "localhost/happygallery-app:test@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    print
+  }
+' "$SCRIPT_DIR/rotate-data-keys.sh" > "$rotation_job"
+ruby -e '
+  require "yaml"
+  job = YAML.load(File.read(ARGV.fetch(0)))
+  abort "데이터 키 회전 Job YAML을 추출하지 못했습니다." unless job&.fetch("kind", nil) == "Job"
+  template = job.dig("spec", "template")
+  abort "데이터 키 회전 Job label이 올바르지 않습니다." unless template.dig("metadata", "labels", "app.kubernetes.io/name") == "key-rotation"
+  container = template.dig("spec", "containers", 0)
+  abort "데이터 키 회전 Job 이미지가 digest로 고정되지 않았습니다." unless container.fetch("image").match?(/@sha256:[a-f0-9]{64}\z/)
+  env = container.fetch("env").to_h { |entry| [entry.fetch("name"), entry] }
+  %w[SERVER_PORT MANAGEMENT_PORT].each do |name|
+    abort "#{name}=0이 데이터 키 회전 Job에 없습니다." unless env.dig(name, "value") == "0"
+  end
+  abort "데이터 키 회전 Job은 servlet 보안 context를 유지해야 합니다." if env.key?("SPRING_MAIN_WEB_APPLICATION_TYPE")
+  abort "데이터 키 회전 Job의 실행 플래그가 true가 아닙니다." unless env.dig("KEY_ROTATION_ENABLED", "value") == "true"
+  required_secret_env = %w[
+    FIELD_ENCRYPTION_KEY_ID ENCRYPT_KEY HMAC_KEY PREVIOUS_ENCRYPT_KEYS PREVIOUS_HMAC_KEYS
+    GUEST_TOKEN_HMAC_SECRET GUEST_TOKEN_PREVIOUS_HMAC_SECRET KEY_ROTATION_SOURCE_KEY_ID
+  ]
+  abort "데이터 키 회전 Job의 키 Secret 참조가 누락됐습니다." unless required_secret_env.all? do |name|
+    env.dig(name, "valueFrom", "secretKeyRef", "name") == "happygallery-data-key-rotation"
+  end
+' "$rotation_job"
 
 grep -q 'kind: StatefulSet' "$rendered" || die "MySQL StatefulSet이 없습니다."
 grep -q 'storageClassName: local-path-retain' "$rendered" || die "Retain PVC가 없습니다."
@@ -110,19 +157,31 @@ grep -q 'rotate-mysql-credentials.sh' "$SCRIPT_DIR/create-secrets.sh" \
     || die "기존 PVC의 MySQL Secret 단독 교체 방지가 없습니다."
 grep -q 'rotate-redis-credentials.sh' "$SCRIPT_DIR/create-secrets.sh" \
     || die "Redis Secret 단독 교체 방지가 없습니다."
+grep -q 'rotate-data-keys.sh/finalize-data-key-rotation.sh' "$SCRIPT_DIR/create-secrets.sh" \
+    || die "데이터 키/키링의 일반 Secret 교체 방지가 없습니다."
 grep -q 'activate-restored-release.sh' "$SCRIPT_DIR/restore-mysql.sh" \
     || die "복원 후 호환 digest 활성화 절차가 연결되지 않았습니다."
 grep -q 'APP_IMAGE_DIGEST=' "$SCRIPT_DIR/build-import-images.sh" \
     || die "이미지 build/import 결과에 digest가 없습니다."
-if grep -Eq '(MYSQL_ROOT_PASSWORD|DB_PASSWORD|ENCRYPT_KEY|HMAC_KEY|TOSS_SECRET_KEY): [^[:space:]]+' "$rendered"; then
+if grep -Eq '(MYSQL_ROOT_PASSWORD|DB_PASSWORD|ENCRYPT_KEY|HMAC_KEY|PREVIOUS_ENCRYPT_KEYS|PREVIOUS_HMAC_KEYS|GUEST_TOKEN_HMAC_SECRET|GUEST_TOKEN_PREVIOUS_HMAC_SECRET|TOSS_SECRET_KEY): [^[:space:]]+' "$rendered"; then
     die "평문 secret으로 의심되는 값이 manifest에 있습니다."
 fi
 
 ruby - "$SCRIPT_DIR" <<'RUBY'
   script_dir = ARGV.fetch(0)
   create_secrets = File.read(File.join(script_dir, "create-secrets.sh"))
-  data_key_guard = /get secret happygallery-app.*?"ENCRYPT_KEY\|.*?"HMAC_KEY\|.*?"GUEST_TOKEN_HMAC_SECRET\|.*?current_encoded=.*?desired_encoded=.*?\[ "\$current_encoded" = "\$desired_encoded" \].*?별도 키 회전 절차가 구현될 때까지/m
-  abort "데이터 결합 키의 기존 값 비교·차단이 없습니다." unless create_secrets.match?(data_key_guard)
+  guarded_data_keys = %w[
+    FIELD_ENCRYPTION_KEY_ID ENCRYPT_KEY HMAC_KEY PREVIOUS_ENCRYPT_KEYS PREVIOUS_HMAC_KEYS
+    GUEST_TOKEN_HMAC_SECRET GUEST_TOKEN_PREVIOUS_HMAC_SECRET
+  ]
+  guarded_data_keys.each do |key|
+    abort "#{key}의 일반 Secret 교체 차단이 없습니다." unless create_secrets.include?("guard_data_key_change #{key}")
+  end
+  data_key_guard = /guard_data_key_change\(\).*?current_encoded=.*?get secret happygallery-app.*?desired_encoded=.*?\[ "\$current_encoded" = "\$desired_encoded" \]/m
+  abort "데이터 결합 키의 기존 값 비교가 없습니다." unless create_secrets.match?(data_key_guard)
+  abort "데이터 결합 키 변경이 전용 절차로 연결되지 않습니다." unless create_secrets.include?("rotate-data-keys.sh/finalize-data-key-rotation.sh")
+  legacy_id_guard = /key.*FIELD_ENCRYPTION_KEY_ID.*?current_encoded.*?desired_value.*?v1/m
+  abort "기존 Secret의 누락된 key ID를 v1 기본값으로 보정할 수 없습니다." unless create_secrets.match?(legacy_id_guard)
   abort "기존 MySQL PVC에서 app Secret 유실을 차단하지 않습니다." unless create_secrets.match?(/get pvc data-mysql-0.*?get secret happygallery-app.*?분리 보관한 기존 Secret/m)
   redis_guard = /get secret happygallery-redis.*?current_redis_encoded=.*?desired_redis_encoded=.*?\[ "\$current_redis_encoded" = "\$desired_redis_encoded" \].*?rotate-redis-credentials\.sh/m
   abort "Redis 비밀번호의 일반 Secret 교체 차단이 없습니다." unless create_secrets.match?(redis_guard)
@@ -136,6 +195,23 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
 
   mysql_rotation = File.read(File.join(script_dir, "rotate-mysql-credentials.sh"))
   abort "MySQL 회전 실패 시 app drain 보장이 없습니다." unless mysql_rotation.match?(/on_rotation_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
+
+  data_rotation = File.read(File.join(script_dir, "rotate-data-keys.sh"))
+  data_rotation_flow = /키 회전 중 쓰기를 막기 위해.*?scale deployment\/app --replicas=0.*?wait_for_no_pods.*?fresh off-device.*?backup-mysql\.sh.*?verify_checksum.*?kind: Job.*?SERVER_PORT.*?MANAGEMENT_PORT.*?KEY_ROTATION_ENABLED.*?wait_for_rotation_job.*?runtime Secret을 새 active.*?patch secret happygallery-app.*?FLUSHALL.*?scale deployment\/app --replicas=1/m
+  abort "데이터 키 회전의 drain/backup/Job/Secret/Redis/app 순서가 깨졌습니다." unless data_rotation.match?(data_rotation_flow)
+  abort "데이터 키 회전 Job이 현재 app digest를 재사용하지 않습니다." unless data_rotation.match?(/app_image=.*?containers.*?image: \$app_image/m)
+  abort "데이터 키 회전 Job이 외부 Service와 분리된 key-rotation label을 쓰지 않습니다." unless data_rotation.match?(/app\.kubernetes\.io\/name: key-rotation/)
+  abort "데이터 키 회전 실패 시 app drain 보장이 없습니다." unless data_rotation.match?(/on_rotation_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
+  abort "데이터 키 회전이 guest previous 보존기한을 기록하지 않습니다." unless data_rotation.include?("guest-previous-valid-until-epoch")
+  abort "데이터 키 회전 시작 상태와 원래 replica 기록이 없습니다." unless data_rotation.match?(/key-rotation-phase.*?started.*?key-rotation-original-replicas/m)
+  abort "runtime app에서 key rotation 실행을 차단하지 않습니다." unless data_rotation.match?(/current_rotation_enabled.*?''\|false/m)
+
+  data_finalization = File.read(File.join(script_dir, "finalize-data-key-rotation.sh"))
+  abort "previous 키 finalize가 소셜 provider ID 백필을 검사하지 않습니다." unless data_finalization.include?("provider_id_enc IS NULL")
+  finalization_flow = /guest_previous_valid_until.*?now_epoch.*?scale deployment\/app --replicas=0.*?wait_for_no_pods.*?pending=\$\(pending_social_accounts\).*?PREVIOUS_ENCRYPT_KEYS.*?PREVIOUS_HMAC_KEYS.*?GUEST_TOKEN_PREVIOUS_HMAC_SECRET.*?scale deployment\/app --replicas=1/m
+  abort "previous 키 finalize의 guest 유예/social 백필/drain/Secret/app 순서가 깨졌습니다." unless data_finalization.match?(finalization_flow)
+  abort "previous 키 finalize 실패 시 app drain 보장이 없습니다." unless data_finalization.match?(/on_finalization_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
+  abort "previous 키 finalize 재개 상태가 없습니다." unless data_finalization.match?(/key-rotation-phase.*?finalizing.*?key-finalization-original-replicas/m)
 
   restored_release = File.read(File.join(script_dir, "activate-restored-release.sh"))
   activation_flow = /app이 중지된 상태에서.*?set image deployment\/app.*?configured_app_ref=.*?scale deployment\/app --replicas=1/m

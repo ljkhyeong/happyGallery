@@ -1,5 +1,7 @@
 # ADR-0024: 비회원 접근 토큰 강화
 
+**최종 갱신**: 2026-07-19
+
 ## 상태
 Accepted
 
@@ -40,7 +42,15 @@ Accepted
 - **듀얼 모드 폴백**: 토큰에 `.` 구분자가 있으면 서명 검증 경로, 없으면 레거시 SHA-256 해시 경로
 - V49 이후 동일 confirm 재호출에 같은 응답을 반환할 수 있도록 원문 서명 토큰을 `payment_attempt.fulfilled_access_token_enc`에 AES-GCM 암호문으로 저장한다. 주문·예약에는 계속 nonce 해시만 저장한다.
 
-배경 및 설계 검토는 [Idea-0005](../../Idea/0005_비회원_토큰_Signed_만료/idea.md) 참조.
+### 서명 키 회전 (구현 완료)
+
+- `app.guest-token.hmac-secret`은 신규 토큰 발급과 1차 검증에 사용하는 active 키다. 선택적인 `app.guest-token.previous-hmac-secret`은 전환 전에 발급된 토큰 검증에만 사용한다.
+- 신규 토큰은 항상 active 키로만 서명한다. 검증은 active 키를 먼저 시도하고 실패하면 previous 키를 시도한다.
+- 두 키는 서로 달라야 하며 각각 32자 이상이어야 한다. 점이 없는 레거시 토큰의 SHA-256 비교 경로는 서명 키 회전과 무관하게 유지한다.
+- 기본 토큰 수명은 168시간이다. 회전 스크립트는 runtime Secret 전환 시각부터 설정된 토큰 TTL에 1시간의 운영 여유를 더한 제거 가능 시각을 기록하므로, 기본 설정에서는 previous 키를 최소 169시간 유지한다.
+- previous 키 제거는 필드 키와 별개의 유예 조건을 확인한 뒤 [`finalize-data-key-rotation.sh`](../../../deploy/k3s/scripts/finalize-data-key-rotation.sh)에서 수행한다. 유예 중에는 active/previous를 함께 백업하고, finalizer 이후 신규 active 키만 runtime Secret에 남긴다.
+
+배경 및 설계 검토는 [Idea-0005](../../Idea/0005_비회원_토큰_Signed_만료/idea.md), 운영 키 교체 순서는 [ADR-0037](../0037_자가_호스팅_배포_토폴로지_기준/adr.md)을 참조한다.
 
 ## 결과
 - 주문·예약의 nonce 해시만으로는 원본 토큰을 복원할 수 없다. `payment_attempt`의 원문 토큰은 필드 암호화 키가 있어야 복호화할 수 있으므로 DB 백업과 암호화 키를 분리해 관리한다.
@@ -50,3 +60,4 @@ Accepted
 - HMAC 서명으로 토큰 위·변조 방지
 - 만료 시간으로 노출된 토큰의 재사용 기간 제한 (7일)
 - 듀얼 모드로 기존 레거시 토큰 하위 호환 유지
+- active/previous 검증으로 키 교체 직전에 발급된 유효 토큰을 즉시 끊지 않고 서명 키를 전환할 수 있다.

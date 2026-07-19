@@ -29,6 +29,9 @@ public class SocialAccount {
     @Transient
     private String providerId;
 
+    @Column(name = "provider_id_enc", length = 1024)
+    private String providerIdEnc;
+
     @Column(name = "provider_id_hmac", nullable = false, length = 64)
     private String providerIdHmac;
 
@@ -43,7 +46,8 @@ public class SocialAccount {
         this.providerId = requireProviderId(providerId);
     }
 
-    public void protect(String providerIdHmac) {
+    public void protect(String providerIdEnc, String providerIdHmac) {
+        this.providerIdEnc = providerIdEnc;
         this.providerIdHmac = providerIdHmac;
     }
 
@@ -55,6 +59,7 @@ public class SocialAccount {
     public Long getUserId() { return userId; }
     public SocialProvider getProvider() { return provider; }
     public String getProviderId() { return providerId; }
+    public String getProviderIdEnc() { return providerIdEnc; }
     public String getProviderIdHmac() { return providerIdHmac; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 

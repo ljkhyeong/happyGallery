@@ -73,6 +73,9 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: app
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: key-rotation
       ports:
         - protocol: TCP
           port: 3306
@@ -92,6 +95,9 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: app
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: key-rotation
       ports:
         - protocol: TCP
           port: 6379

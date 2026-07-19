@@ -13,6 +13,7 @@ app:
   rate-limit:
     enabled: false
   field-encryption:
+    active-key-id: v1
     encrypt-key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     hmac-key: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
   external:

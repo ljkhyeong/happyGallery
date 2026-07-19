@@ -78,7 +78,7 @@ public final class AccessTokenSigner {
         long epochSeconds = Long.parseLong(payload.substring(colonIndex + 1));
         Instant expiry = Instant.ofEpochSecond(epochSeconds);
 
-        if (now.isAfter(expiry)) {
+        if (!now.isBefore(expiry)) {
             throw new InvalidTokenException("토큰 만료");
         }
 

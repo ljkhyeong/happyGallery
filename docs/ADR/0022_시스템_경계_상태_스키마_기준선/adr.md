@@ -80,6 +80,8 @@
   - 비밀번호 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다.
 - `admin_setup_lock`
   - `id=1`인 단일 행만 유지한다. 최초 관리자 생성 트랜잭션이 이 행을 `FOR UPDATE`로 잠가 동시 setup 요청을 직렬화한다.
+- `data_key_rotation_lock`
+  - `id=1`인 단일 행만 유지한다. 개인정보 키 회전 트랜잭션이 `FOR UPDATE NOWAIT`로 잠가 중복 회전을 커밋·롤백까지 직렬화한다.
 
 - `users`
   - `id`, `email_enc`, `email_hmac`, `password_hash nullable`, `credential_version`, `version`, `name_enc`, `name_hmac`, `phone_enc nullable`, `phone_hmac nullable`, `phone_verified`, `last_login_at`, `created_at`
@@ -87,8 +89,8 @@
   - `credential_version`은 비밀번호 해시 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다.
   - `version`은 로그인 시각·휴대폰 확인·비밀번호처럼 같은 회원 행을 갱신하는 경로의 stale update를 막는 JPA 낙관적 락 버전이다.
 - `user_social_accounts`
-  - `id`, `user_id`, `provider(GOOGLE|NAVER)`, `provider_id_hmac`, `created_at`
-  - 외부 식별자는 provider 내부에서만 고유하므로 `(provider, provider_id_hmac)`를 유일하게 유지한다. 원문은 저장하지 않는다.
+  - `id`, `user_id`, `provider(GOOGLE|NAVER)`, `provider_id_enc nullable`, `provider_id_hmac`, `created_at`
+  - 외부 식별자는 provider 내부에서만 고유하므로 `(provider, provider_id_hmac)`를 유일하게 유지한다. 평문은 저장하지 않고, V63 이전 행의 nullable 암호문은 다음 소셜 로그인에서 채운다.
   - 한 회원이 같은 provider의 계정을 둘 이상 연결하지 않도록 `(user_id, provider)`를 유일하게 유지한다.
 - `guests`
   - `id`, `name_enc`, `name_hmac`, `phone_enc`, `phone_hmac`, `phone_verified`, `created_at`

@@ -76,8 +76,14 @@ spring:
 
 app:
   field-encryption:
+    active-key-id: ${FIELD_ENCRYPTION_KEY_ID:v1}
     encrypt-key: ${ENCRYPT_KEY:}
     hmac-key: ${HMAC_KEY:}
+    previous-encrypt-keys: ${PREVIOUS_ENCRYPT_KEYS:}
+    previous-hmac-keys: ${PREVIOUS_HMAC_KEYS:}
+  key-rotation:
+    enabled: ${KEY_ROTATION_ENABLED:false}
+    source-key-id: ${KEY_ROTATION_SOURCE_KEY_ID:}
   admin:
     api-key: ${ADMIN_API_KEY:}
     enable-api-key-auth: ${ADMIN_ENABLE_API_KEY_AUTH:false}
@@ -154,6 +160,7 @@ app:
         keep-alive-millis: ${TOSS_KEEP_ALIVE_MILLIS:30000}
   guest-token:
     hmac-secret: ${GUEST_TOKEN_HMAC_SECRET:}
+    previous-hmac-secret: ${GUEST_TOKEN_PREVIOUS_HMAC_SECRET:}
     expiry-hours: ${GUEST_TOKEN_EXPIRY_HOURS:168}
   pass:
     total-price: ${PASS_TOTAL_PRICE:240000}

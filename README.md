@@ -191,12 +191,16 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `REDIS_COMMAND_TIMEOUT` | 백엔드 | Redis 명령 대기 상한, 기본 `1s` |
 | `FORWARD_HEADERS_STRATEGY` | 백엔드 `prod` | 통제된 ingress 구성 후 `native`로 설정 |
 | `RATE_LIMIT_TRUST_FORWARDED` | 백엔드 | 통제된 ingress 구성 후에만 `true`로 설정 |
-| `ENCRYPT_KEY` | 백엔드 `prod` | 개인정보 AES-256 키, 64자리 hex |
-| `HMAC_KEY` | 백엔드 `prod` | 블라인드 인덱스 HMAC 키, 64자리 hex |
-| `GUEST_TOKEN_HMAC_SECRET` | 백엔드 `prod` | 비회원 접근 토큰 서명 키 |
+| `FIELD_ENCRYPTION_KEY_ID` | 백엔드 `prod` | 활성 AES/HMAC 키 쌍의 버전 ID, 기본 `v1` |
+| `ENCRYPT_KEY` | 백엔드 `prod` | 활성 개인정보 AES-256 키, 64자리 hex |
+| `HMAC_KEY` | 백엔드 `prod` | 활성 블라인드 인덱스 HMAC 키, 64자리 hex |
+| `PREVIOUS_ENCRYPT_KEYS` / `PREVIOUS_HMAC_KEYS` | 백엔드 `prod` | 회전 중에만 유지하는 `keyId=64자리hex` 이전 키 목록 |
+| `GUEST_TOKEN_HMAC_SECRET` | 백엔드 `prod` | 활성 비회원 접근 토큰 서명 키 |
+| `GUEST_TOKEN_PREVIOUS_HMAC_SECRET` | 백엔드 `prod` | 회전 전 발급 토큰의 만료까지 한시적으로 검증하는 이전 키 |
 | `ADMIN_SETUP_TOKEN` | 백엔드 | 최초 관리자 계정 생성용 일회성 토큰 |
 
 환경별 전체 설정은 [application.yml](bootstrap/src/main/resources/application.yml)과 [application-local.yml](bootstrap/src/main/resources/application-local.yml)을 기준으로 확인한다.
+데이터 결합 키는 Secret을 직접 수정하지 않고 [k3s 데이터 키 회전 절차](deploy/k3s/README.md#2-secret-준비)로만 교체한다.
 
 Naver 로그인 운영 등록 조건:
 

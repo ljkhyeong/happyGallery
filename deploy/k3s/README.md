@@ -65,12 +65,13 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/app.env.exampl
 sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-url.example /etc/happygallery/alert-webhook-url
 ```
 
-- `ENCRYPT_KEY`, `HMAC_KEY`: 각각 `openssl rand -hex 32`
-- DB/Redis/guest token 비밀값: 충분히 긴 암호학적 난수
+- `FIELD_ENCRYPTION_KEY_ID`: `v1`처럼 배포 세대가 식별되는 1~32자 ID
+- `ENCRYPT_KEY`, `HMAC_KEY`: 각각 별도로 `openssl rand -hex 32`
+- DB/Redis/guest token 비밀값: 서로 재사용하지 않은 충분히 긴 암호학적 난수
 - Toss, Google, Naver, NHN Cloud Alimtalk·SMS: 각 제공자 운영 자격증명
 - Alimtalk: NHN Cloud에 카카오 발신 프로필을 연결하고 `KakaoTemplateCatalog`의 모든 `HG_*` 템플릿을 승인받은 뒤 `ALIMTALK_SENDER_KEY`를 설정
 - 알림 timeout: 예제의 `NOTIFICATION_TIMEOUT_MILLIS=5000`은 NHN transport 단계 합(`acquire 500 + connect 1000 + response 2000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
-- `ENCRYPT_KEY`와 `HMAC_KEY`: DB 백업과 물리적으로 분리된 복구 저장소에도 보관
+- active/previous AES·HMAC·guest token 키: DB 백업과 물리적으로 분리된 복구 저장소에도 보관
 
 ```bash
 ./deploy/k3s/scripts/create-secrets.sh \
@@ -84,7 +85,39 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 
 Kubernetes Secret은 base64 인코딩일 뿐 자체 암호화가 아니다. k3s datastore 암호화, kubeconfig/host 접근 제한, off-device 복구 키 보관을 함께 적용한다. `create-secrets.sh`는 기존 MySQL PVC가 있으면 DB 비밀번호를 Secret에서만 바꾸는 동작을 거부한다. MySQL 공식 이미지의 초기화 환경 변수는 기존 데이터 디렉터리의 계정 비밀번호를 바꾸지 않기 때문이다.
 
-기존 `happygallery-app` Secret의 `ENCRYPT_KEY`, `HMAC_KEY`, `GUEST_TOKEN_HMAC_SECRET`도 일반 교체를 거부한다. 이 값들은 기존 암호문, 블라인드 인덱스와 접근 토큰에 결합되어 있으므로 데이터 재암호화·인덱스 재생성·토큰 전환을 포함한 별도 키 회전 절차가 필요하며, 그 절차는 아직 구현하지 않았다. 기존 MySQL PVC에서 이 Secret이 유실됐다면 새 키를 만들지 말고 분리 보관한 기존 값을 먼저 복구한다. 운영 env와 분리 복구본에는 반드시 현재 값을 유지한다. Toss/OAuth/알림 같은 일반 app Secret을 바꾸면 `kubectl -n happygallery rollout restart deployment/app`으로 새 Pod에 반영한다.
+기존 `happygallery-app` Secret의 active/previous AES·HMAC·guest token 키와 key ID는 일반 교체를 거부한다. 기존 MySQL PVC에서 이 Secret이 유실됐다면 새 키를 만들지 말고 분리 보관한 기존 키링을 먼저 복구한다. Toss/OAuth/알림 같은 일반 app Secret을 바꾸면 `kubectl -n happygallery rollout restart deployment/app`으로 새 Pod에 반영한다.
+
+데이터 키 회전은 keyring과 `provider_id_enc`를 지원하는 app 이미지를 먼저 일반 rollout한 뒤 유지보수 창에서 실행한다. 이 저장소는 운영 미개시이므로 해당 이미지를 최초 운영 기준선으로 삼는다. 접두사 없는 암호문만 읽는 구 binary가 이미 운영 중인 별도 환경에서는 트래픽을 받기 전에 version-aware reader를 먼저 배포해야 하며, `hg:<keyId>:` 쓰기가 시작된 뒤에는 구 binary만 되돌리지 않고 forward fix 또는 회전 전 백업 복원을 선택한다. 새 키 파일과 기존 `backup.env`를 모두 600 권한으로 준비하고, 구키와 신키의 recovery copy가 DB 백업과 분리돼 있는지 먼저 확인한다. key ID는 retained backup의 키를 식별하므로 과거 ID를 다른 키에 재사용하지 않는다.
+
+```bash
+sudo install -m 600 -o "$USER" -g "$(id -gn)" \
+  deploy/k3s/examples/data-key-rotation.env.example \
+  /etc/happygallery/data-key-rotation.env
+
+CONFIRM_DATA_KEY_ROTATION=rotate-happygallery-data-keys \
+  ./deploy/k3s/scripts/rotate-data-keys.sh \
+  /etc/happygallery/data-key-rotation.env \
+  /etc/happygallery/backup.env
+```
+
+전용 스크립트는 다음 순서를 강제한다.
+
+1. 단일 app replica, digest 고정 app 이미지, MySQL PVC·Secret과 외부 백업 mount marker를 확인한다.
+2. app을 0 replica로 줄이고 실제 Pod가 모두 사라진 뒤 fresh `age` 암호화 백업과 checksum을 만든다.
+3. 현재 app과 같은 digest의 임시 Job을 Service 없이 임의 servlet/management port로 실행한다. Job만 새 AES/HMAC을 active로, 구 AES/HMAC을 previous로 읽고 `KEY_ROTATION_ENABLED=true`로 DB를 재암호화·재색인한다. 휴대폰 인증 행은 전량 제거되어 사용자가 다시 인증해야 한다.
+4. Job 성공 후에만 runtime Secret을 새 active/구 previous로 전환하고, Redis 세션·rate-limit 상태를 `FLUSHALL`해 전체 로그아웃시킨 뒤 app을 재기동한다.
+5. 오류가 나면 임시 Job/Secret을 정리하고 app을 0 replica로 유지한다. 시작 단계와 원래 replica 수를 Secret annotation에 기록하므로 같은 env로 다시 실행하면 fresh 백업부터 또는 runtime Secret 전환 이후 단계부터 재개한다. 다른 target key ID로는 덮어쓸 수 없다.
+
+성공 직후 `/etc/happygallery/app.env`도 현재 runtime Secret과 같은 active/previous 상태로 갱신한다. 값은 로그에 출력되지 않으므로 새 키 파일과 분리 보관한 구키를 사용한다. `PREVIOUS_ENCRYPT_KEYS`와 `PREVIOUS_HMAC_KEYS` 형식은 `sourceKeyId=64자리hex`이며, `GUEST_TOKEN_PREVIOUS_HMAC_SECRET`에는 구 guest key를 둔다. 이전 키가 남아 있는 동안 새 회전을 시작할 수 없다.
+
+기존 소셜 계정은 다음 OAuth 로그인 때 `provider_id_enc`와 새 HMAC을 lazy backfill한다. 구 guest token verifier는 최소 168시간과 회전 당시 설정된 토큰 TTL 중 더 긴 값에 1시간 안전 여유를 더한 시각까지 유지한다. 두 조건이 모두 끝난 뒤 previous AES/HMAC/guest 키를 한 번에 제거한다.
+
+```bash
+CONFIRM_DATA_KEY_FINALIZATION=finalize-happygallery-data-keys \
+  ./deploy/k3s/scripts/finalize-data-key-rotation.sh
+```
+
+finalize는 `user_social_accounts.provider_id_enc IS NULL`이 0건이고 guest 보존기한이 지났는지 확인한다. app을 0 replica로 만든 뒤 previous 키를 제거하고 원래 replica를 복구하며, 실패 시 app을 0으로 유지한다. `finalizing` 단계에서 중단되면 같은 명령으로 재개한다. 성공 후 `/etc/happygallery/app.env`의 세 previous 값도 비운다. runtime에서 제거한 구키도 해당 키에 결합된 보존 백업이 남아 있는 동안 off-device recovery bundle에서는 폐기하지 않는다.
 
 기존 MySQL 자격증명은 유지보수 창에서 DB 계정과 Kubernetes Secret을 함께 회전한다. 새 비밀번호는 저장소 밖 600 권한 파일로 준비하고, 성공 후 `/etc/happygallery/mysql.env`의 `MYSQL_ROOT_PASSWORD`/`MYSQL_PASSWORD`와 `/etc/happygallery/app.env`의 `DB_PASSWORD`도 같은 값으로 갱신한다. 스크립트는 app Pod가 실제로 모두 종료된 뒤 두 계정을 한 SQL 문장으로 바꾸고, Secret 갱신, MySQL 재시작, app 재기동 순서로 처리한다. 중간 실패 시 app은 중지 상태로 남겨 불일치 자격증명으로 쓰기가 재개되지 않게 한다.
 
@@ -242,7 +275,7 @@ export CONFIRM_RESTORED_RELEASE='<호환 release의 IMAGE_TAG>'
 - DB 시점과 불일치할 Redis 세션·rate-limit 상태 삭제
 - app이 0인 상태에서 선택한 release의 app/frontend digest 반영 후 app scale-up
 
-복원 후 회원 로그인, 개인정보 복호화, 이름/전화번호 HMAC 조회, 주문·예약·결제 이력과 Flyway 상태를 확인한다. `ENCRYPT_KEY`/`HMAC_KEY`를 잃었거나 백업 시점과 다른 키를 쓰면 데이터 복구가 완료된 것이 아니다.
+복원 후 회원 로그인, 개인정보 복호화, 이름/전화번호 HMAC 조회, 주문·예약·결제 이력과 Flyway 상태를 확인한다. 백업 시점의 active/previous AES·HMAC 키링을 잃었거나 다른 키를 쓰면 데이터 복구가 완료된 것이 아니다. guest token 연속성이 필요하면 백업 시점 guest active/previous 키도 함께 복구한다.
 
 ## 9. rollback
 
@@ -265,4 +298,4 @@ rollback은 보존된 전체 manifest를 재적용하지 않는다. digest로 �
 ./deploy/k3s/scripts/validate.sh
 ```
 
-이 검증은 Kustomize 렌더링, YAML 파싱, shell 구문, probe/종료 유예/PVC/내부 Prometheus/OAuth callback, app/frontend digest 고정, Redis·Alertmanager 단일 인스턴스의 `Recreate`, 복원 전 Pod 종료와 호환 digest 선반영 순서, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 회전 방지, 회전 실패 시 app drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 백업 mount와 restore 성공은 대상 노트북에서만 검증할 수 있다.
+이 검증은 Kustomize 렌더링, YAML 파싱, shell 구문, probe/종료 유예/PVC/내부 Prometheus/OAuth callback, app/frontend digest 고정, Redis·Alertmanager 단일 인스턴스의 `Recreate`, 복원 전 Pod 종료와 호환 digest 선반영 순서, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.
