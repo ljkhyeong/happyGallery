@@ -30,7 +30,7 @@
 
 **이유**: 스키마가 이미 준비되어 있음. 추가 마이그레이션 불필요.
 
-**위험**: `Refund` 엔티티가 `order_id`, `pg_ref`, `fail_reason` 등 현재 사용하지 않는 컬럼을 포함 — PG 연동 구현 시 동일 엔티티를 확장 사용 예정.
+**당시 위험**: `Refund` 엔티티가 `order_id`, 원결제 식별자, `fail_reason` 등 미사용 컬럼을 포함했다. 후속 PG 연동에서 Toss `paymentKey`와 환불 `transactionKey`로 의미를 구체화했다.
 
 ---
 

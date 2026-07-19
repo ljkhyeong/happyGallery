@@ -1646,7 +1646,7 @@ Content-Type: application/json
   - PG 성공은 별도 트랜잭션으로 `APPROVED`에 저장하고, 이후 도메인 저장과 `CONFIRMED` 전이는 한 트랜잭션으로 처리한다.
   - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다.
   - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다.
-  - PG 원결제 참조값(`pgRef`, Toss는 `paymentKey`)은 `payment_attempt.pg_ref`와 생성된 도메인 레코드의 `payment_key`에 저장한다. 이후 환불은 해당 값을 PG cancel 호출의 원결제 식별자로 사용한다.
+  - confirm 요청 `paymentKey`는 `payment_attempt.payment_key`, PG 승인 응답의 `paymentKey`는 `payment_attempt.confirmed_payment_key`와 생성된 도메인 레코드의 `payment_key`에 저장한다. 이후 환불은 승인 응답의 `paymentKey`를 PG cancel 호출의 원결제 식별자로 사용한다.
   - 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장한다. 자동·수동 재처리는 `refunds.payment_key`와 최초 `idempotency_key`를 다시 사용한다.
   - 비회원 경로의 `accessToken`(32자 hex)은 confirm 응답에서 1회만 반환되며 DB에는 SHA-256 해시만 저장된다. 회원 경로는 `accessToken=null`.
   - `domainId`는 context에 따라 `orderId`(`ORDER`), `bookingId`(`BOOKING`), `passId`(`PASS`)다.

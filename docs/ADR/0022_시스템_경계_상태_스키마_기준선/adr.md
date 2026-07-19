@@ -117,7 +117,7 @@
   - `status(REQUESTED|PROCESSING|RETRYABLE|RECONCILIATION_REQUIRED|SUCCEEDED|FAILED)`, `processing_at`, `processing_token`, `attempt_count`, `next_attempt_at`, `created_at`, `updated_at`, `version`
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
-  - `processing_at nullable`, `payment_key nullable`, `pg_ref nullable`, `fail_reason nullable`
+  - `processing_at nullable`, `payment_key nullable`, `confirmed_payment_key nullable`, `fail_reason nullable`
   - `payload_enc`, `created_at`, `confirmed_at nullable`, `version`
   - 내부 결제 payload는 AES-GCM 암호문으로 저장하고 claim·fulfillment 시점에만 복호화한다.
   - 상태: `PENDING | PROCESSING | RETRYABLE | APPROVED | CONFIRMED | FAILED | COMPENSATION_REQUESTED | COMPENSATION_FAILED | COMPENSATED | CANCELED`

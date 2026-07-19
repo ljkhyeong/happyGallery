@@ -114,7 +114,7 @@ class PaymentConfirmUseCaseIT {
             softly.assertThat(orderItems.getFirst().getUnitPrice()).isEqualTo(31_000L);
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             softly.assertThat(attempt.getPaymentKey()).isEqualTo("payment-key-confirm");
-            softly.assertThat(attempt.getPgRef()).isEqualTo("confirmed-payment-key");
+            softly.assertThat(attempt.getConfirmedPaymentKey()).isEqualTo("confirmed-payment-key");
         });
         verify(paymentProvider).confirm(
                 "payment-key-confirm", prepared.orderId(), prepared.amount(), prepared.orderId());

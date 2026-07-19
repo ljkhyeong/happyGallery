@@ -94,7 +94,7 @@ class PaymentConfirmTransactionService {
     public void markApproved(Long attemptId, String confirmedPaymentKey) {
         PaymentAttempt attempt = findForUpdate(attemptId);
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED) {
-            if (!Objects.equals(attempt.getPgRef(), confirmedPaymentKey)) {
+            if (!Objects.equals(attempt.getConfirmedPaymentKey(), confirmedPaymentKey)) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 결제 키가 기존 승인 결과와 일치하지 않습니다.");
             }
             return;
@@ -123,7 +123,7 @@ class PaymentConfirmTransactionService {
         }
         PaymentPayload payload = deserialize(attempt.getPayloadEnc());
         PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
-        PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(payload, attempt.getPgRef());
+        PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(payload, attempt.getConfirmedPaymentKey());
         attempt.markConfirmed();
         attemptStore.save(attempt);
         return new ConfirmResult(attempt.getContext(), fulfilled.domainId(), fulfilled.rawAccessToken());
@@ -138,7 +138,7 @@ class PaymentConfirmTransactionService {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
                     "승인된 결제만 보상 환불을 요청할 수 있습니다.");
         }
-        if (!Objects.equals(attempt.getPgRef(), confirmedPaymentKey)) {
+        if (!Objects.equals(attempt.getConfirmedPaymentKey(), confirmedPaymentKey)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 결제 키가 기존 승인 결과와 일치하지 않습니다.");
         }
         attempt.markCompensationRequested(reason);
@@ -196,7 +196,7 @@ class PaymentConfirmTransactionService {
         static ClaimedAttempt approved(PaymentAttempt attempt) {
             return new ClaimedAttempt(
                     attempt.getId(), attempt.getOrderIdExternal(), attempt.getAmount(),
-                    attempt.getPaymentKey(), attempt.getPgRef(), true);
+                    attempt.getPaymentKey(), attempt.getConfirmedPaymentKey(), true);
         }
 
         String idempotencyKey() {

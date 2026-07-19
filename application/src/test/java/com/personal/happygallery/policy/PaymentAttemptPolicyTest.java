@@ -24,13 +24,13 @@ class PaymentAttemptPolicyTest {
         LocalDateTime approvedAt = LocalDateTime.of(2026, 4, 23, 10, 0);
 
         attempt.startProcessing(10_000L, "payment-key", processingAt);
-        attempt.markApproved("pg-ref", approvedAt);
+        attempt.markApproved("confirmed-payment-key", approvedAt);
         attempt.markConfirmed();
 
         assertSoftly(softly -> {
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             softly.assertThat(attempt.getPaymentKey()).isEqualTo("payment-key");
-            softly.assertThat(attempt.getPgRef()).isEqualTo("pg-ref");
+            softly.assertThat(attempt.getConfirmedPaymentKey()).isEqualTo("confirmed-payment-key");
             softly.assertThat(attempt.getProcessingAt()).isEqualTo(processingAt);
             softly.assertThat(attempt.getConfirmedAt()).isEqualTo(approvedAt);
         });
@@ -53,7 +53,7 @@ class PaymentAttemptPolicyTest {
         assertSoftly(softly -> {
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PENDING);
             softly.assertThat(attempt.getPaymentKey()).isNull();
-            softly.assertThat(attempt.getPgRef()).isNull();
+            softly.assertThat(attempt.getConfirmedPaymentKey()).isNull();
             softly.assertThat(attempt.getConfirmedAt()).isNull();
         });
     }

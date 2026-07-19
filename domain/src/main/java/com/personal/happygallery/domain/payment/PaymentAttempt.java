@@ -54,8 +54,8 @@ public class PaymentAttempt {
     @Column(name = "payment_key", length = 200)
     private String paymentKey;
 
-    @Column(name = "pg_ref", length = 200)
-    private String pgRef;
+    @Column(name = "confirmed_payment_key", length = 200)
+    private String confirmedPaymentKey;
 
     @Column(name = "fail_reason", length = 500)
     private String failReason;
@@ -123,17 +123,17 @@ public class PaymentAttempt {
     }
 
     /** PG 승인 또는 amount=0 내부 승인이 끝나 도메인 생성을 수행할 수 있다. */
-    public void markApproved(String pgRef, LocalDateTime approvedAt) {
+    public void markApproved(String confirmedPaymentKey, LocalDateTime approvedAt) {
         requireStatus(PaymentAttemptStatus.PROCESSING);
-        boolean hasPgRef = pgRef != null && !pgRef.isBlank();
-        if (amount > 0 && !hasPgRef) {
+        boolean hasConfirmedPaymentKey = confirmedPaymentKey != null && !confirmedPaymentKey.isBlank();
+        if (amount > 0 && !hasConfirmedPaymentKey) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 승인 결과의 paymentKey가 누락되었습니다.");
         }
-        if (amount == 0 && hasPgRef) {
+        if (amount == 0 && hasConfirmedPaymentKey) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "0원 결제에는 PG 승인 키를 저장할 수 없습니다.");
         }
         this.status = PaymentAttemptStatus.APPROVED;
-        this.pgRef = pgRef;
+        this.confirmedPaymentKey = confirmedPaymentKey;
         this.confirmedAt = approvedAt;
     }
 
@@ -191,7 +191,7 @@ public class PaymentAttempt {
     public long getAmount() { return amount; }
     public PaymentAttemptStatus getStatus() { return status; }
     public String getPaymentKey() { return paymentKey; }
-    public String getPgRef() { return pgRef; }
+    public String getConfirmedPaymentKey() { return confirmedPaymentKey; }
     public String getFailReason() { return failReason; }
     public String getPayloadEnc() { return payloadEnc; }
     public LocalDateTime getCreatedAt() { return createdAt; }
