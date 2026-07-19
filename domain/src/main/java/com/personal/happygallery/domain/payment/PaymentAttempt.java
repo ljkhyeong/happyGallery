@@ -65,7 +65,7 @@ public class PaymentAttempt {
     private String failReason;
 
     @Lob
-    @Column(name = "payload_enc", nullable = false, columnDefinition = "MEDIUMTEXT")
+    @Column(name = "payload_enc", columnDefinition = "MEDIUMTEXT")
     private String payloadEnc;
 
     @Column(name = "fulfilled_domain_id")
@@ -245,10 +245,18 @@ public class PaymentAttempt {
         this.status = PaymentAttemptStatus.COMPENSATED;
     }
 
-    /** 사용자 포기/타임아웃 시 배치/어드민이 호출. */
-    public void markCanceled() {
+    /** prepare 유효시간이 지난 미시작 결제를 취소하고 개인정보 payload를 제거한다. */
+    public boolean expirePendingBefore(LocalDateTime cutoff) {
+        if (status != PaymentAttemptStatus.PENDING
+                || createdAt == null
+                || createdAt.isAfter(cutoff)) {
+            return false;
+        }
         this.status = PaymentAttemptStatus.CANCELED;
         this.processingToken = null;
+        this.payloadEnc = null;
+        this.failReason = "결제 준비 유효시간이 만료되었습니다.";
+        return true;
     }
 
     /**
@@ -257,15 +265,19 @@ public class PaymentAttempt {
      * <p>PG 결과 저장 전인 PROCESSING은 선점 시각을, PG 승인 저장 후인 APPROVED는 승인 시각을 기준으로 한다.
      * 시각이 없는 과거 데이터는 생성 시각까지 제한 시간을 넘긴 경우에만 복구한다.
      */
-    public boolean isConfirmRecoveryCandidate(LocalDateTime staleBefore) {
+    public boolean isConfirmRecoveryCandidate(LocalDateTime activityStaleBefore,
+                                              LocalDateTime createdAtStaleBeforeUtc) {
         if (confirmRecoveryAttemptedAt != null
-                && !isAtOrBefore(confirmRecoveryAttemptedAt, staleBefore)) {
+                && !isAtOrBefore(confirmRecoveryAttemptedAt, activityStaleBefore)) {
             return false;
         }
         return switch (status) {
-            case PROCESSING, RETRYABLE ->
-                    isAtOrBefore(processingAt != null ? processingAt : createdAt, staleBefore);
-            case APPROVED -> isAtOrBefore(confirmedAt != null ? confirmedAt : createdAt, staleBefore);
+            case PROCESSING, RETRYABLE -> processingAt != null
+                    ? isAtOrBefore(processingAt, activityStaleBefore)
+                    : isAtOrBefore(createdAt, createdAtStaleBeforeUtc);
+            case APPROVED -> confirmedAt != null
+                    ? isAtOrBefore(confirmedAt, activityStaleBefore)
+                    : isAtOrBefore(createdAt, createdAtStaleBeforeUtc);
             default -> false;
         };
     }
@@ -284,6 +296,15 @@ public class PaymentAttempt {
         requireStatus(PaymentAttemptStatus.PROCESSING, PaymentAttemptStatus.RETRYABLE);
         this.status = PaymentAttemptStatus.RECONCILIATION_REQUIRED;
         this.processingToken = null;
+        this.failReason = reason;
+    }
+
+    /** PG 조회로 승인되지 않았음이 확정된 대사 대상을 실패로 종결한다. */
+    public void markReconciledNotApproved(String reason) {
+        requireStatus(PaymentAttemptStatus.RECONCILIATION_REQUIRED);
+        this.status = PaymentAttemptStatus.FAILED;
+        this.processingToken = null;
+        this.payloadEnc = null;
         this.failReason = reason;
     }
 

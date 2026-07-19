@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
@@ -98,6 +99,9 @@ class PaymentResilienceConfig {
         }
         if (result instanceof RefundResult refundResult) {
             return refundResult.retryable() || refundResult.reconciliationRequired();
+        }
+        if (result instanceof PaymentLookupResult lookupResult) {
+            return lookupResult.status() == PaymentLookupResult.Status.UNAVAILABLE;
         }
         return false;
     }

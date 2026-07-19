@@ -15,7 +15,7 @@ kube -n "$NAMESPACE" get pods
 kube -n "$NAMESPACE" get pvc data-mysql-0 -o jsonpath='{.status.phase}' | grep -qx Bound \
     || die "MySQL PVC가 Bound 상태가 아닙니다."
 
-for workload in statefulset/mysql deployment/redis deployment/app deployment/frontend deployment/prometheus; do
+for workload in statefulset/mysql deployment/redis deployment/app deployment/frontend deployment/prometheus deployment/alertmanager; do
     ready=$(kube -n "$NAMESPACE" get "$workload" -o jsonpath='{.status.readyReplicas}')
     [ "${ready:-0}" -eq 1 ] || die "$workload ready replica가 1이 아닙니다."
 done
@@ -65,6 +65,11 @@ printf '%s' "$prometheus_target" | grep -q 'app-management:8081' \
     || die "Prometheus가 app-management:8081 관리 포트를 대상으로 사용하지 않습니다."
 printf '%s' "$prometheus_target" | grep -q '"health":"up"' \
     || die "Prometheus happygallery scrape target이 UP이 아닙니다."
+prometheus_alertmanagers=$(curl -fsS "http://127.0.0.1:$prometheus_port/api/v1/alertmanagers")
+printf '%s' "$prometheus_alertmanagers" | grep -q 'alertmanager:9093' \
+    || die "Prometheus에 Alertmanager 대상이 없습니다."
+printf '%s' "$prometheus_alertmanagers" | grep -q 'activeAlertmanagers.*alertmanager:9093' \
+    || die "Prometheus가 Alertmanager를 활성 대상으로 인식하지 못했습니다."
 
 if [ "${SKIP_PUBLIC_CHECK:-false}" = true ]; then
     info "SKIP_PUBLIC_CHECK=true: DNS/TLS 공개 경로 검증을 건너뜁니다."

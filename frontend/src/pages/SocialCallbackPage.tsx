@@ -28,12 +28,12 @@ export function SocialCallbackPage() {
     }
 
     void (async () => {
-      await refresh();
+      const user = await refresh();
 
       const returnTo = resolveSafeReturnTo(sessionStorage.getItem(SESSION_KEYS.socialLoginReturnTo));
       sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
 
-      if (searchParams.get("newUser") === "true") {
+      if (searchParams.get("newUser") === "true" || user?.phone === null) {
         navigate("/my", { replace: true, state: { phoneOnboarding: true } });
       } else {
         navigate(returnTo, { replace: true });

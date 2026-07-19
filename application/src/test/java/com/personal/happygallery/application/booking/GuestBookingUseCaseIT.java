@@ -95,8 +95,8 @@ class GuestBookingUseCaseIT {
 
         BookingClass cls = classStorePort.save(defaultBookingClass());
         Slot slot = slotStorePort.save(
-                slot(cls, LocalDateTime.of(2026, 3, 1, 10, 0),
-                        LocalDateTime.of(2026, 3, 1, 12, 0)));
+                slot(cls, LocalDateTime.of(2026, 3, 2, 10, 0),
+                        LocalDateTime.of(2026, 3, 2, 12, 0)));
         slotId = slot.getId();
     }
 

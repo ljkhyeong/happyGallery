@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.order;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -9,8 +11,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -18,9 +18,9 @@ import java.util.Objects;
 /**
  * 주문 이행 정보 — fulfillments 테이블.
  *
- * <p>MADE_TO_ORDER 승인 시(SHIPPING), 또는 픽업 준비 완료 시(PICKUP) 생성된다.
+ * <p>결제 확정으로 주문을 생성할 때 고객이 선택한 SHIPPING 또는 PICKUP 타입으로 함께 생성된다.
  * 관리자가 {@link #setExpectedShipDate(LocalDate)}로 예상 출고일을,
- * {@link #getPickupDeadlineAt()}로 픽업 마감 시각을 관리한다.
+ * {@link #setPickupDeadline(LocalDateTime)}으로 픽업 마감 시각을 관리한다.
  *
  * <p>주문 상태는 {@link Order#getStatus()}가 단일 소스이다.
  */
@@ -45,6 +45,9 @@ public class Fulfillment {
     @Column(name = "pickup_deadline_at")
     private LocalDateTime pickupDeadlineAt;
 
+    @Column(name = "shipping_address_enc", length = 4096)
+    private String shippingAddressEnc;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -56,17 +59,18 @@ public class Fulfillment {
     }
 
     /** 배송 이행 레코드를 생성한다. */
-    public static Fulfillment shipping(Long orderId) {
+    public static Fulfillment shipping(Long orderId, String shippingAddressEnc) {
         Fulfillment fulfillment = new Fulfillment(orderId);
         fulfillment.type = FulfillmentType.SHIPPING;
+        fulfillment.shippingAddressEnc = Objects.requireNonNull(
+                shippingAddressEnc, "shippingAddressEnc must not be null");
         return fulfillment;
     }
 
-    /** 픽업 이행 레코드를 생성한다. */
-    public static Fulfillment pickup(Long orderId, LocalDateTime pickupDeadlineAt) {
+    /** 픽업 이행 레코드를 생성한다. 픽업 마감은 준비 완료 시점에 설정한다. */
+    public static Fulfillment pickup(Long orderId) {
         Fulfillment fulfillment = new Fulfillment(orderId);
         fulfillment.type = FulfillmentType.PICKUP;
-        fulfillment.pickupDeadlineAt = requirePickupDeadlineAt(pickupDeadlineAt);
         return fulfillment;
     }
 
@@ -76,7 +80,7 @@ public class Fulfillment {
         this.expectedShipDate = expectedShipDate;
     }
 
-    private void requireShippingType() {
+    public void requireShippingType() {
         if (this.type != FulfillmentType.SHIPPING) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT,
@@ -84,11 +88,17 @@ public class Fulfillment {
         }
     }
 
-    /** 기존 이행 레코드를 픽업용으로 전환한다 (MADE_TO_ORDER 제작 완료 후 픽업 시). */
-    public void convertToPickup(LocalDateTime pickupDeadlineAt) {
-        this.type = FulfillmentType.PICKUP;
-        this.expectedShipDate = null;
+    public void setPickupDeadline(LocalDateTime pickupDeadlineAt) {
+        requirePickupType();
         this.pickupDeadlineAt = requirePickupDeadlineAt(pickupDeadlineAt);
+    }
+
+    public void requirePickupType() {
+        if (this.type != FulfillmentType.PICKUP) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "픽업 주문에서만 픽업 처리를 할 수 있습니다.");
+        }
     }
 
     private static LocalDateTime requirePickupDeadlineAt(LocalDateTime pickupDeadlineAt) {
@@ -103,5 +113,6 @@ public class Fulfillment {
     public FulfillmentType getType() { return type; }
     public LocalDate getExpectedShipDate() { return expectedShipDate; }
     public LocalDateTime getPickupDeadlineAt() { return pickupDeadlineAt; }
+    public String getShippingAddressEnc() { return shippingAddressEnc; }
     public long getVersion() { return version; }
 }

@@ -9,7 +9,9 @@ import com.personal.happygallery.application.payment.port.out.PaymentAttemptRead
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,10 +44,12 @@ public class DefaultPaymentConfirmRecoveryService implements PaymentConfirmRecov
 
     @Override
     public BatchResult recoverIncompleteConfirms() {
-        LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime staleBefore = now
+        Instant staleBefore = clock.instant()
                 .minus(PaymentConfirmTransactionService.CONFIRM_RECOVERY_DELAY);
-        List<Long> attemptIds = attemptReader.findConfirmRecoveryCandidateIds(staleBefore, BATCH_SIZE);
+        LocalDateTime activityStaleBefore = LocalDateTime.ofInstant(staleBefore, clock.getZone());
+        LocalDateTime createdAtStaleBeforeUtc = LocalDateTime.ofInstant(staleBefore, ZoneOffset.UTC);
+        List<Long> attemptIds = attemptReader.findConfirmRecoveryCandidateIds(
+                activityStaleBefore, createdAtStaleBeforeUtc, BATCH_SIZE);
         return BatchExecutor.execute(
                 attemptIds,
                 attemptId -> attemptId,
@@ -54,7 +58,7 @@ public class DefaultPaymentConfirmRecoveryService implements PaymentConfirmRecov
     }
 
     private boolean recover(Long attemptId) {
-        return switch (transactionService.resolveConfirmRecovery(attemptId, LocalDateTime.now(clock))) {
+        return switch (transactionService.resolveConfirmRecovery(attemptId)) {
             case PaymentConfirmTransactionService.RecoverySkipped ignored -> false;
             case PaymentConfirmTransactionService.ReconciliationRequired ignored -> {
                 appMetrics.incrementPaymentConfirmReconciliationRequired();

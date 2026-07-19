@@ -11,7 +11,6 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
-import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,17 +42,15 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
 
     /**
      * 배송 준비 시작. APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING.
-     * Fulfillment가 SHIPPING 타입이어야 한다 (없으면 새로 생성).
+     * 결제 confirm에서 생성된 Fulfillment가 SHIPPING 타입이어야 한다.
      */
     @Override
     @OptimisticLockRetryable
     public ShippingResult prepareShipping(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
+        fulfillment.requireShippingType();
         order.markShippingPreparing();
-
-        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseGet(() -> Fulfillment.shipping(orderId));
-        fulfillmentPort.save(fulfillment);
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PREPARE_SHIPPING, adminId, null));
@@ -69,13 +66,14 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     @OptimisticLockRetryable
     public ShippingResult markShipped(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
+        fulfillment.requireShippingType();
         order.markShipped();
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.SHIP, adminId, null));
         orderStore.save(order);
 
-        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         return ShippingResult.of(order, fulfillment);
     }
 
@@ -86,13 +84,14 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     @OptimisticLockRetryable
     public ShippingResult markDelivered(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
+        fulfillment.requireShippingType();
         order.markDelivered();
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELIVER, adminId, null));
         orderStore.save(order);
 
-        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         return ShippingResult.of(order, fulfillment);
     }
 }

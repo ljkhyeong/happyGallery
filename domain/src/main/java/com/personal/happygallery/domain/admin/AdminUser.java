@@ -22,6 +22,9 @@ public class AdminUser {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    @Column(name = "credential_version", nullable = false)
+    private long credentialVersion;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -35,5 +38,11 @@ public class AdminUser {
     public Long getId() { return id; }
     public String getUsername() { return username; }
     public String getPasswordHash() { return passwordHash; }
+    public long getCredentialVersion() { return credentialVersion; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public void updatePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.credentialVersion = Math.incrementExact(credentialVersion);
+    }
 }

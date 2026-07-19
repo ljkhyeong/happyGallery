@@ -9,14 +9,11 @@ public interface SlotReaderPort {
 
     Optional<Slot> findById(Long id);
 
-    /** 비관적 쓰기 락 — 정원 강제용 */
-    Optional<Slot> findByIdWithLock(Long id);
-
     boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
 
     List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
 
-    List<Slot> findAvailableByClassAndDate(Long classId, LocalDateTime dayStart, LocalDateTime dayEnd);
+    List<Slot> findAvailableByClassAndDate(Long classId, LocalDateTime dayStart,
+                                           LocalDateTime dayEnd, LocalDateTime now);
 
-    List<Slot> findInBufferWindowWithLock(Long classId, LocalDateTime windowStart, LocalDateTime windowEnd);
 }

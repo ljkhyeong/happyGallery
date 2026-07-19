@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Container, Badge } from "react-bootstrap";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { GuestClaimModal } from "@/features/customer-claim/GuestClaimModal";
+import { InitialPhoneRegistrationModal } from "@/features/customer-auth/InitialPhoneRegistrationModal";
+import { PasswordChangeModal } from "@/features/customer-auth/PasswordChangeModal";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { fetchMyBookings, fetchMyOrders, fetchMyPasses } from "@/features/my/api";
 import { fetchMyInquiries } from "@/features/my-inquiry/api";
@@ -10,6 +12,7 @@ import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyDashboardHero } from "@/features/my/MyDashboardHero";
 import { MyStatsRow } from "@/features/my/MyStatsRow";
 import { MyClaimCard } from "@/features/my/MyClaimCard";
+import { MyPasswordCard } from "@/features/my/MyPasswordCard";
 import { MyOrdersSection } from "@/features/my/MyOrdersSection";
 import { MyBookingsSection } from "@/features/my/MyBookingsSection";
 import { MyPassesSection } from "@/features/my/MyPassesSection";
@@ -19,8 +22,12 @@ import { LoadingSpinner } from "@/shared/ui";
 
 export function MyPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showClaimModal, setShowClaimModal] = useState(false);
+  const [showPhoneRegistration, setShowPhoneRegistration] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [phoneOnboardingHandled, setPhoneOnboardingHandled] = useState(false);
   const [claimModalSource, setClaimModalSource] = useState<string | null>(null);
   const [showClaimEntryHint, setShowClaimEntryHint] = useState(false);
   const { user, isAuthenticated, isLoading: authLoading, logout, refresh } = useCustomerAuth();
@@ -60,6 +67,17 @@ export function MyPage() {
     .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))[0];
   const latestOrder = orders?.[0];
 
+  const phoneOnboardingRequested = Boolean(
+    (location.state as { phoneOnboarding?: boolean } | null)?.phoneOnboarding,
+  );
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.phone !== null || phoneOnboardingHandled) {
+      return;
+    }
+    setShowPhoneRegistration(true);
+  }, [isAuthenticated, phoneOnboardingHandled, phoneOnboardingRequested, user?.phone]);
+
   useEffect(() => {
     if (!isAuthenticated || searchParams.get("claim") !== "1") {
       return;
@@ -88,8 +106,21 @@ export function MyPage() {
   }
 
   const handleOpenClaim = (source: string) => {
+    if (!user?.phone) {
+      setPhoneOnboardingHandled(false);
+      setShowPhoneRegistration(true);
+      return;
+    }
     setClaimModalSource(source);
     setShowClaimModal(true);
+  };
+
+  const closePhoneRegistration = () => {
+    setPhoneOnboardingHandled(true);
+    setShowPhoneRegistration(false);
+    if (phoneOnboardingRequested) {
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+    }
   };
 
   return (
@@ -116,6 +147,15 @@ export function MyPage() {
         onOpenClaim={handleOpenClaim}
       />
 
+      <MyPasswordCard
+        user={user!}
+        onChangePassword={() => setShowPasswordChange(true)}
+        onRegisterPhone={() => {
+          setPhoneOnboardingHandled(false);
+          setShowPhoneRegistration(true);
+        }}
+      />
+
       <MyOrdersSection
         orders={orders}
         isLoading={ordersLoading}
@@ -139,16 +179,35 @@ export function MyPage() {
 
       <MyInquiriesSection inquiries={inquiries} />
 
-      {showClaimModal && (
+      {showClaimModal && user!.phone && (
         <GuestClaimModal
           show={showClaimModal}
           onClose={() => setShowClaimModal(false)}
           phone={user!.phone}
           phoneVerified={user!.phoneVerified}
-          onPhoneVerified={refresh}
+          onPhoneVerified={async () => {
+            await refresh();
+          }}
           monitoringSource={claimModalSource}
         />
       )}
+
+      <InitialPhoneRegistrationModal
+        show={showPhoneRegistration}
+        onClose={closePhoneRegistration}
+        onRegistered={async () => {
+          await refresh();
+        }}
+      />
+
+      <PasswordChangeModal
+        show={showPasswordChange}
+        onClose={() => setShowPasswordChange(false)}
+        onChanged={async () => {
+          await refresh();
+          navigate("/login", { replace: true });
+        }}
+      />
     </Container>
   );
 }

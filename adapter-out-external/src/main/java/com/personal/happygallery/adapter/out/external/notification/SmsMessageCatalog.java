@@ -23,6 +23,7 @@ public final class SmsMessageCatalog {
             case DEPOSIT_REFUNDED -> PREFIX + recipientName + "님, 예약금이 환불되었습니다.";
             case ORDER_PAID -> PREFIX + recipientName + "님, 주문 결제가 완료되었습니다.";
             case ORDER_REFUNDED -> PREFIX + recipientName + "님, 주문이 환불되었습니다.";
+            case PASS_PURCHASED -> PREFIX + recipientName + "님, 8회권 결제가 완료되었습니다.";
             case REMINDER_D1 -> PREFIX + recipientName + "님, 내일 체험이 예정되어 있습니다.";
             case REMINDER_SAME_DAY -> PREFIX + recipientName + "님, 오늘 체험이 예정되어 있습니다.";
             case PASS_EXPIRY_SOON -> PREFIX + recipientName + "님, 8회권 만료가 7일 남았습니다.";

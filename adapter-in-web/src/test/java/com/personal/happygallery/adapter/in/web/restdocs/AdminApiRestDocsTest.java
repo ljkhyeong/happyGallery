@@ -2,16 +2,19 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.adapter.in.web.admin.AdminBookingController;
 import com.personal.happygallery.adapter.in.web.admin.AdminClassController;
+import com.personal.happygallery.adapter.in.web.admin.AdminCredentialController;
 import com.personal.happygallery.adapter.in.web.admin.AdminDashboardController;
 import com.personal.happygallery.adapter.in.web.admin.AdminInquiryController;
 import com.personal.happygallery.adapter.in.web.admin.AdminLoginController;
 import com.personal.happygallery.adapter.in.web.admin.AdminNoticeController;
+import com.personal.happygallery.adapter.in.web.admin.AdminNotificationController;
 import com.personal.happygallery.adapter.in.web.admin.AdminOrderApprovalController;
 import com.personal.happygallery.adapter.in.web.admin.AdminOrderPickupController;
 import com.personal.happygallery.adapter.in.web.admin.AdminOrderProductionController;
 import com.personal.happygallery.adapter.in.web.admin.AdminOrderQueryController;
 import com.personal.happygallery.adapter.in.web.admin.AdminOrderShippingController;
 import com.personal.happygallery.adapter.in.web.admin.AdminPassController;
+import com.personal.happygallery.adapter.in.web.admin.AdminPaymentReconciliationController;
 import com.personal.happygallery.adapter.in.web.admin.AdminProductController;
 import com.personal.happygallery.adapter.in.web.admin.AdminProductQnaController;
 import com.personal.happygallery.adapter.in.web.admin.AdminRefundController;
@@ -21,6 +24,7 @@ import com.personal.happygallery.adapter.in.web.admin.LocalPhoneVerificationCont
 import com.personal.happygallery.adapter.in.web.admin.LocalRefundFailureController;
 import com.personal.happygallery.adapter.in.web.config.properties.AdminSetupProperties;
 import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase;
+import com.personal.happygallery.application.admin.port.in.AdminCredentialUseCase;
 import com.personal.happygallery.application.admin.port.in.AdminSetupUseCase;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
@@ -43,8 +47,10 @@ import com.personal.happygallery.application.dashboard.port.in.DashboardQueryUse
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.application.notice.port.in.NoticeAdminUseCase;
 import com.personal.happygallery.application.notice.port.in.NoticeQueryUseCase;
+import com.personal.happygallery.application.notification.port.in.NotificationFailureAdminUseCase;
 import com.personal.happygallery.application.order.port.in.AdminOrderQueryUseCase;
 import com.personal.happygallery.application.order.port.in.AdminOrderResponse;
+import com.personal.happygallery.application.order.port.in.AdminOrderFulfillmentResponse;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderHistoryResponse;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
@@ -54,6 +60,7 @@ import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseC
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase;
 import com.personal.happygallery.application.payment.port.in.DevRefundFailureUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentReconciliationAdminUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundRetryUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundQueryUseCase;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
@@ -68,12 +75,17 @@ import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notice.Notice;
+import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationOutbox;
+import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
+import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -106,6 +118,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     private MockMvc mockMvc;
 
     private AdminAuthUseCase adminAuthUseCase;
+    private AdminCredentialUseCase adminCredentialUseCase;
     private AdminSetupUseCase adminSetupUseCase;
     private ProductAdminUseCase productAdminUseCase;
     private ProductQueryUseCase productQueryUseCase;
@@ -127,6 +140,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     private NoticeQueryUseCase noticeQueryUseCase;
     private RefundRetryUseCase refundRetryUseCase;
     private RefundQueryUseCase refundQueryUseCase;
+    private NotificationFailureAdminUseCase notificationFailureAdminUseCase;
+    private PaymentReconciliationAdminUseCase paymentReconciliationAdminUseCase;
     private ProductQnaUseCase qnaUseCase;
     private InquiryUseCase inquiryUseCase;
     private PassExpiryBatchUseCase passExpiryBatchUseCase;
@@ -137,6 +152,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
         adminAuthUseCase = mock(AdminAuthUseCase.class);
+        adminCredentialUseCase = mock(AdminCredentialUseCase.class);
         adminSetupUseCase = mock(AdminSetupUseCase.class);
         productAdminUseCase = mock(ProductAdminUseCase.class);
         productQueryUseCase = mock(ProductQueryUseCase.class);
@@ -158,6 +174,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         noticeQueryUseCase = mock(NoticeQueryUseCase.class);
         refundRetryUseCase = mock(RefundRetryUseCase.class);
         refundQueryUseCase = mock(RefundQueryUseCase.class);
+        notificationFailureAdminUseCase = mock(NotificationFailureAdminUseCase.class);
+        paymentReconciliationAdminUseCase = mock(PaymentReconciliationAdminUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
         inquiryUseCase = mock(InquiryUseCase.class);
         passExpiryBatchUseCase = mock(PassExpiryBatchUseCase.class);
@@ -190,6 +208,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(bookingNoShowUseCase.markNoShow(100L)).thenReturn(booking);
         when(adminOrderQueryUseCase.listOrders(any(), any(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(adminOrderResponse()), "cursor-next", true));
+        when(adminOrderQueryUseCase.getFulfillment(200L)).thenReturn(adminOrderFulfillmentResponse());
         when(adminOrderSearchUseCase.search(any(), any(), any(), any(), eq(0), eq(20)))
                 .thenReturn(OffsetPage.of(List.of(adminOrderSearchRow()), 0, 20, 1));
         when(orderApprovalUseCase.reject(200L, ADMIN_USER_ID))
@@ -218,6 +237,19 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(refundRetryUseCase.listFailed()).thenReturn(List.of());
         when(refundRetryUseCase.retry(anyLong())).thenReturn(orderRefund);
         when(refundQueryUseCase.getRefund(anyLong())).thenReturn(orderRefund);
+        NotificationOutbox retriedNotification = NotificationOutbox.from(
+                NotificationRequestedEvent.forUser(
+                        10L, NotificationEventType.PASS_PURCHASED, "PASS", 300L),
+                LocalDateTime.of(2026, 5, 1, 21, 0));
+        when(notificationFailureAdminUseCase.listFailed()).thenReturn(List.of());
+        when(notificationFailureAdminUseCase.retry(1L)).thenReturn(retriedNotification);
+        when(paymentReconciliationAdminUseCase.listRequired()).thenReturn(List.of());
+        when(paymentReconciliationAdminUseCase.reconcile(1L)).thenReturn(
+                new PaymentReconciliationAdminUseCase.ReconciliationResult(
+                        1L,
+                        PaymentAttemptStatus.CONFIRMED,
+                        300L,
+                        "PG 승인 확인 후 서비스 처리를 완료했습니다."));
         when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(qna));
         when(qnaUseCase.replyAndGet(eq(5L), any(), eq(ADMIN_USER_ID))).thenReturn(qna);
         when(inquiryUseCase.listAll()).thenReturn(List.of(inquiry));
@@ -230,6 +262,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
 
         mockMvc = mockMvc(restDocumentation,
                 new AdminLoginController(adminAuthUseCase),
+                new AdminCredentialController(adminCredentialUseCase),
                 new AdminSetupController(new AdminSetupProperties("setup-token"), adminSetupUseCase),
                 new AdminProductController(productAdminUseCase, productQueryUseCase),
                 new AdminClassController(classManagementUseCase),
@@ -243,6 +276,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 new AdminDashboardController(dashboardQueryUseCase),
                 new AdminNoticeController(noticeAdminUseCase, noticeQueryUseCase),
                 new AdminRefundController(refundRetryUseCase, refundQueryUseCase),
+                new AdminNotificationController(notificationFailureAdminUseCase),
+                new AdminPaymentReconciliationController(paymentReconciliationAdminUseCase),
                 new AdminProductQnaController(qnaUseCase),
                 new AdminInquiryController(inquiryUseCase),
                 new AdminPassController(passExpiryBatchUseCase, passRefundUseCase),
@@ -264,6 +299,22 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     void admin_logout() throws Exception {
         mockMvc.perform(post("/api/v1/admin/auth/logout")
                         .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("관리자 비밀번호 변경 API를 문서화한다")
+    void admin_change_password() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/auth/password")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "admin123456",
+                                  "newPassword": "new-admin-123456"
+                                }
+                                """))
                 .andExpect(status().isNoContent());
     }
 
@@ -416,6 +467,16 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                         .param("cursor", "cursor")
                         .param("size", "20"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 주문 이행 상세 API를 문서화한다")
+    void admin_get_order_fulfillment() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/orders/{id}/fulfillment", 200L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shippingAddress.postalCode").value("06236"));
     }
 
     @Test
@@ -719,6 +780,38 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("관리자 실패 알림 목록 API를 문서화한다")
+    void admin_list_failed_notifications() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/notifications/failed").with(adminUser()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 실패 알림 재처리 API를 문서화한다")
+    void admin_retry_notification() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/notifications/{outboxId}/retry", 1L).with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("관리자 결제 대사 대상 목록 API를 문서화한다")
+    void admin_list_payment_reconciliations() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/payment-attempts/reconciliation-required").with(adminUser()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 결제 대사 실행 API를 문서화한다")
+    void admin_reconcile_payment() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/payment-attempts/{attemptId}/reconcile", 1L)
+                        .with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.domainId").value(300L));
+    }
+
+    @Test
     @DisplayName("관리자 QNA 목록 API를 문서화한다")
     void admin_list_qna() throws Exception {
         mockMvc.perform(get("/api/v1/admin/qna")
@@ -815,10 +908,19 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     }
 
     private static AdminOrderResponse adminOrderResponse() {
-        return new AdminOrderResponse(200L, "ORD-00000200", "PAID_APPROVAL_PENDING", 39000L,
+        return new AdminOrderResponse(200L, "ORD-00000200", "PAID_APPROVAL_PENDING", 39000L, "PICKUP",
                 LocalDateTime.of(2026, 5, 1, 20, 55),
                 LocalDateTime.of(2026, 5, 1, 21, 15),
                 LocalDateTime.of(2026, 5, 1, 20, 50));
+    }
+
+    private static AdminOrderFulfillmentResponse adminOrderFulfillmentResponse() {
+        return new AdminOrderFulfillmentResponse(
+                200L,
+                "SHIPPING",
+                new ShippingAddress("홍길동", "01012345678", "06236", "서울시 강남구 테헤란로 1", "2층"),
+                LocalDate.of(2026, 5, 8),
+                null);
     }
 
     private static AdminOrderSearchRow adminOrderSearchRow() {

@@ -10,10 +10,13 @@ import { SlotListSection } from "@/features/admin-slot/SlotListSection";
 import { BookingListSection } from "@/features/admin-booking/BookingListSection";
 import { OrderListSection } from "@/features/admin-order/OrderListSection";
 import { FailedRefundSection } from "@/features/admin-refund/FailedRefundSection";
+import { FailedNotificationSection } from "@/features/admin-notification/FailedNotificationSection";
+import { PaymentReconciliationSection } from "@/features/admin-payment-reconciliation/PaymentReconciliationSection";
 import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
 import { AdminQnaSection } from "@/features/admin-qna/AdminQnaSection";
 import { AdminInquirySection } from "@/features/admin-inquiry/AdminInquirySection";
 import { AdminNoticeSection } from "@/features/admin-notice/AdminNoticeSection";
+import { AdminPasswordChangeForm } from "@/features/admin-auth/AdminPasswordChangeForm";
 import { useToast } from "@/shared/ui";
 
 export function AdminPage() {
@@ -23,6 +26,11 @@ export function AdminPage() {
   const handleAuthError = useCallback(() => {
     clearAdminKey();
     toast.show("인증이 만료되었습니다. 다시 로그인해 주세요.", "warning");
+  }, [clearAdminKey, toast]);
+
+  const handlePasswordChanged = useCallback(() => {
+    clearAdminKey();
+    toast.show("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.", "success");
   }, [clearAdminKey, toast]);
 
   if (!isAuthenticated) {
@@ -37,6 +45,17 @@ export function AdminPage() {
           로그아웃
         </Button>
       </div>
+
+      <Card className="mb-4">
+        <Card.Header>관리자 비밀번호</Card.Header>
+        <Card.Body>
+          <AdminPasswordChangeForm
+            adminKey={adminKey}
+            onAuthError={handleAuthError}
+            onChanged={handlePasswordChanged}
+          />
+        </Card.Body>
+      </Card>
 
       <Card className="mb-4">
         <Card.Header>공지사항 관리</Card.Header>
@@ -102,6 +121,20 @@ export function AdminPage() {
         <Card.Header>환불 확인 필요</Card.Header>
         <Card.Body>
           <FailedRefundSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-4">
+        <Card.Header>결제 대사 필요</Card.Header>
+        <Card.Body>
+          <PaymentReconciliationSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-4">
+        <Card.Header>알림 재처리 필요</Card.Header>
+        <Card.Body>
+          <FailedNotificationSection adminKey={adminKey} onAuthError={handleAuthError} />
         </Card.Body>
       </Card>
 

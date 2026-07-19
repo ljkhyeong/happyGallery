@@ -75,9 +75,17 @@
 
 #### 사용자와 비회원
 
+- `admin_user`
+  - `id`, `username(unique)`, `password_hash`, `credential_version`, `created_at`
+  - 비밀번호 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다.
+- `admin_setup_lock`
+  - `id=1`인 단일 행만 유지한다. 최초 관리자 생성 트랜잭션이 이 행을 `FOR UPDATE`로 잠가 동시 setup 요청을 직렬화한다.
+
 - `users`
-  - `id`, `email_enc`, `email_hmac`, `password_hash nullable`, `name_enc`, `name_hmac`, `phone_enc nullable`, `phone_hmac nullable`, `phone_verified`, `last_login_at`, `created_at`
+  - `id`, `email_enc`, `email_hmac`, `password_hash nullable`, `credential_version`, `version`, `name_enc`, `name_hmac`, `phone_enc nullable`, `phone_hmac nullable`, `phone_verified`, `last_login_at`, `created_at`
   - 이메일·이름·전화번호 평문 컬럼은 두지 않는다. 복호화가 필요한 값은 `*_enc`, 정확 일치 조회는 `*_hmac`를 사용한다.
+  - `credential_version`은 비밀번호 해시 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다.
+  - `version`은 로그인 시각·휴대폰 확인·비밀번호처럼 같은 회원 행을 갱신하는 경로의 stale update를 막는 JPA 낙관적 락 버전이다.
 - `user_social_accounts`
   - `id`, `user_id`, `provider(GOOGLE|NAVER)`, `provider_id_hmac`, `created_at`
   - 외부 식별자는 provider 내부에서만 고유하므로 `(provider, provider_id_hmac)`를 유일하게 유지한다. 원문은 저장하지 않는다.
@@ -110,7 +118,8 @@
 - `order_approvals`
   - `id`, `order_id`, `decided_by_admin_id`, `decision`, `reason`, `decided_at`
 - `fulfillments`
-  - `id`, `order_id(unique)`, `type(SHIPPING|PICKUP)`, `expected_ship_date`, `pickup_deadline_at`, `version`
+  - `id`, `order_id(unique)`, `type(SHIPPING|PICKUP)`, `expected_ship_date`, `pickup_deadline_at`, `shipping_address_enc nullable`, `version`
+  - 주문 confirm 시 고객이 선택한 타입으로 함께 생성한다. `SHIPPING`의 구조화 배송지는 AES-GCM 암호문으로 저장하고 관리자 단건 이행 조회에서만 복호화한다.
 - `refunds`
   - `id`, `order_id nullable`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
   - 네 참조 중 정확히 하나, `amount`, `payment_key`, `refund_transaction_key`, `idempotency_key UNIQUE`, `fail_reason`

@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.notification.NotificationOutbox;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,10 +16,31 @@ import org.springframework.data.repository.query.Param;
 public interface NotificationOutboxRepository extends JpaRepository<NotificationOutbox, Long>, NotificationOutboxPort {
 
     @Override
+    Optional<NotificationOutbox> findById(Long id);
+
+    @Override
     NotificationOutbox save(NotificationOutbox outbox);
 
     @Override
     boolean existsByIdempotencyKey(String idempotencyKey);
+
+    @Override
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT n FROM NotificationOutbox n WHERE n.id = :id")
+    Optional<NotificationOutbox> findByIdForUpdate(@Param("id") Long id);
+
+    @Query("""
+            SELECT n
+            FROM NotificationOutbox n
+            WHERE n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.FAILED
+            ORDER BY n.createdAt, n.id
+            """)
+    List<NotificationOutbox> findFailedPage(Pageable pageable);
+
+    @Override
+    default List<NotificationOutbox> findFailed(int limit) {
+        return findFailedPage(PageRequest.ofSize(limit));
+    }
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

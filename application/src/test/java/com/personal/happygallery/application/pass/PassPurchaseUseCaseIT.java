@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.pass;
 
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.pass.port.in.PassPurchaseUseCase;
@@ -9,6 +10,7 @@ import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPor
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -34,6 +36,7 @@ class PassPurchaseUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PassExpiryBatchUseCase passExpiryBatchService;
     @Autowired PassPurchaseUseCase passPurchaseUseCase;
+    @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired Clock clock;
 
     @BeforeEach
@@ -65,6 +68,13 @@ class PassPurchaseUseCaseIT {
             softly.assertThat(ledgers).hasSize(1);
             softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EARN);
             softly.assertThat(ledger.getAmount()).isEqualTo(8);
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .singleElement()
+                    .satisfies(outbox -> {
+                        softly.assertThat(outbox.getUserId()).isEqualTo(user.getId());
+                        softly.assertThat(outbox.getEventType()).isEqualTo(NotificationEventType.PASS_PURCHASED);
+                        softly.assertThat(outbox.getAggregateId()).isEqualTo(passId);
+                    });
         });
     }
 

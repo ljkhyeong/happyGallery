@@ -60,7 +60,7 @@ Q&A ID만으로 전역 버킷을 만들지 않는다. 제3자가 버킷을 소�
 - 기본 prefix는 `happygallery:rate`이며 배포 환경에서 `RATE_LIMIT_KEY_PREFIX`로 분리할 수 있다.
 - Redis 연결과 명령 대기 상한은 각각 1초다. 장애와 복구 상태 전환에만 규칙 ID와 예외 유형을 기록하고, 개별 초과 요청은 WARN 로그로 남기지 않는다.
 - `DEFAULT_API_IP`와 결제 confirm IP·주문번호 규칙은 Redis 장애 시 fail-open한다. 일반 조회 가용성과 이미 시작한 결제의 멱등 재시도를 우선한다.
-- 로그인·가입·관리자·인증 코드·Q&A 비밀번호 확인·비회원 이력 인증·모니터링 수집과 payment prepare는 fail-closed하고 `503 SERVICE_UNAVAILABLE`을 반환한다. 장바구니 결제도 표준 payment prepare 버킷을 사용한다. edge 방어가 없는 상태에서 Redis 장애가 고위험 경로의 무제한 허용으로 바뀌지 않게 한다.
+- 로그인·가입·비밀번호 재설정·관리자·인증 코드·Q&A 비밀번호 확인·비회원 이력 인증·모니터링 수집과 payment prepare는 fail-closed하고 `503 SERVICE_UNAVAILABLE`을 반환한다. 장바구니 결제도 표준 payment prepare 버킷을 사용한다. edge 방어가 없는 상태에서 Redis 장애가 고위험 경로의 무제한 허용으로 바뀌지 않게 한다.
 - 인메모리 fallback은 pod마다 카운터가 갈리므로 두지 않는다.
 
 ### 4. 전달 헤더는 신뢰 경계가 생긴 뒤에만 사용한다

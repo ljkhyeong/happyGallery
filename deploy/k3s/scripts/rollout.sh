@@ -41,7 +41,7 @@ kube get crd certificates.cert-manager.io >/dev/null \
 kube get crd middlewares.traefik.io >/dev/null \
     || die "Traefik Middleware CRD를 찾을 수 없습니다."
 
-for secret in happygallery-mysql happygallery-redis happygallery-app; do
+for secret in happygallery-mysql happygallery-redis happygallery-app happygallery-alertmanager; do
     kube -n "$NAMESPACE" get secret "$secret" >/dev/null \
         || die "runtime Secret이 없습니다: $secret"
 done
@@ -98,11 +98,13 @@ kube apply --dry-run=server -f "$manifest" >/dev/null
 info "release manifest를 적용합니다: $release_dir"
 kube apply -f "$manifest"
 kube -n "$NAMESPACE" rollout restart deployment/prometheus >/dev/null
+kube -n "$NAMESPACE" rollout restart deployment/alertmanager >/dev/null
 kube -n "$NAMESPACE" rollout status statefulset/mysql --timeout=5m
 kube -n "$NAMESPACE" rollout status deployment/redis --timeout=3m
 kube -n "$NAMESPACE" rollout status deployment/app --timeout=8m
 kube -n "$NAMESPACE" rollout status deployment/frontend --timeout=3m
 kube -n "$NAMESPACE" rollout status deployment/prometheus --timeout=3m
+kube -n "$NAMESPACE" rollout status deployment/alertmanager --timeout=3m
 kube -n "$NAMESPACE" wait --for=condition=Ready certificate/happygallery-tls --timeout=5m
 
 "$SCRIPT_DIR/verify.sh" "$PUBLIC_HOST"

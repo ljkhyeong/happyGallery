@@ -91,14 +91,58 @@ export interface FailedRefundResponse {
   createdAt: string;
 }
 
+export interface FailedNotificationResponse {
+  outboxId: number;
+  recipientType: "USER" | "GUEST";
+  recipientId: number;
+  eventType: string;
+  aggregateType: string | null;
+  aggregateId: number | null;
+  status: "FAILED" | "PENDING";
+  attemptCount: number;
+  lastError: string | null;
+  createdAt: string;
+}
+
+export interface PaymentReconciliationRequiredResponse {
+  attemptId: number;
+  context: "ORDER" | "BOOKING" | "PASS";
+  amount: number;
+  status: "RECONCILIATION_REQUIRED";
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface PaymentReconciliationResultResponse {
+  attemptId: number;
+  status: "RECONCILIATION_REQUIRED" | "CONFIRMED" | "FAILED";
+  domainId: number | null;
+  message: string;
+}
+
 export interface AdminOrderResponse {
   orderId: number;
   orderNumber: string;
   status: OrderStatus;
   totalAmount: number;
+  fulfillmentType: "SHIPPING" | "PICKUP" | null;
   paidAt: string | null;
   approvalDeadlineAt: string | null;
   createdAt: string;
+}
+
+export interface AdminOrderFulfillmentResponse {
+  orderId: number;
+  type: "SHIPPING" | "PICKUP";
+  shippingAddress: {
+    recipientName: string;
+    phone: string;
+    postalCode: string;
+    addressLine1: string;
+    addressLine2: string | null;
+  } | null;
+  expectedShipDate: string | null;
+  pickupDeadlineAt: string | null;
 }
 
 export interface ShippingResponse {

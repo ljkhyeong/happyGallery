@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.concurrent.CompletableFuture;
@@ -198,6 +199,20 @@ class ResilientPaymentProviderTest {
         });
     }
 
+    @DisplayName("자동 판정이 어려운 정상 PG 상태 조회는 결제 서킷을 열지 않는다")
+    @Test
+    void lookup_reviewRequired_doesNotOpenSharedCircuit() {
+        PaymentProvider delegate = lookupOnlyDelegate(orderId ->
+                PaymentLookupResult.reviewRequired(orderId, "PG 결제가 처리 중입니다."));
+        provider = createProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1));
+
+        provider.lookupByOrderId("order-id-1");
+        provider.lookupByOrderId("order-id-2");
+        PaymentLookupResult result = provider.lookupByOrderId("order-id-3");
+
+        assertThat(result.status()).isEqualTo(PaymentLookupResult.Status.REVIEW_REQUIRED);
+    }
+
     private ResilientPaymentProvider createProvider(PaymentProvider delegate,
                                                     ExternalPaymentProperties properties) {
         PaymentResilienceConfig config = new PaymentResilienceConfig();
@@ -254,6 +269,11 @@ class ResilientPaymentProviderTest {
             public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
                 return refundBehavior.refund(paymentKey, amount);
             }
+
+            @Override
+            public PaymentLookupResult lookupByOrderId(String orderId) {
+                throw new UnsupportedOperationException();
+            }
         };
     }
 
@@ -269,6 +289,31 @@ class ResilientPaymentProviderTest {
             public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
                 throw new UnsupportedOperationException();
             }
+
+            @Override
+            public PaymentLookupResult lookupByOrderId(String orderId) {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+
+    private static PaymentProvider lookupOnlyDelegate(LookupBehavior lookupBehavior) {
+        return new PaymentProvider() {
+            @Override
+            public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
+                                                String idempotencyKey) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public PaymentLookupResult lookupByOrderId(String orderId) {
+                return lookupBehavior.lookup(orderId);
+            }
         };
     }
 
@@ -280,5 +325,10 @@ class ResilientPaymentProviderTest {
     @FunctionalInterface
     private interface ConfirmBehavior {
         PaymentConfirmResult confirm(String paymentKey, String orderId, long amount);
+    }
+
+    @FunctionalInterface
+    private interface LookupBehavior {
+        PaymentLookupResult lookup(String orderId);
     }
 }

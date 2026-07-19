@@ -3,12 +3,10 @@ package com.personal.happygallery.adapter.out.persistence.booking;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.domain.booking.Slot;
-import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,31 +26,14 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     @Query("SELECT s FROM Slot s " +
            "WHERE s.bookingClass.id = :classId " +
            "AND s.startAt >= :dayStart AND s.startAt < :dayEnd " +
+           "AND s.startAt > :now " +
            "AND s.adminActive = true " +
            "AND s.bufferBlockCount = 0 " +
            "AND s.bookedCount < s.capacity " +
            "ORDER BY s.startAt")
     List<Slot> findAvailableByClassAndDate(@Param("classId") Long classId,
                                            @Param("dayStart") LocalDateTime dayStart,
-                                           @Param("dayEnd") LocalDateTime dayEnd);
+                                           @Param("dayEnd") LocalDateTime dayEnd,
+                                           @Param("now") LocalDateTime now);
 
-    /** 비관적 쓰기 락 — 정원 강제용. 반드시 트랜잭션 안에서 호출해야 한다. */
-    @Override
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT s FROM Slot s WHERE s.id = :id")
-    Optional<Slot> findByIdWithLock(@Param("id") Long id);
-
-    /**
-     * 버퍼 범위 내 슬롯을 잠금과 함께 조회한다.
-     * 범위: {@code start_at in [windowStart, windowEnd)} — 시작 포함, 끝 미포함.
-     */
-    @Override
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT s FROM Slot s " +
-           "WHERE s.bookingClass.id = :classId " +
-           "AND s.startAt >= :windowStart AND s.startAt < :windowEnd " +
-           "ORDER BY s.id")
-    List<Slot> findInBufferWindowWithLock(@Param("classId") Long classId,
-                                          @Param("windowStart") LocalDateTime windowStart,
-                                          @Param("windowEnd") LocalDateTime windowEnd);
 }

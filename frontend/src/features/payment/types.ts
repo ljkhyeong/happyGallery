@@ -6,6 +6,16 @@ export interface OrderItemRef {
   qty: number;
 }
 
+export type FulfillmentType = "SHIPPING" | "PICKUP";
+
+export interface ShippingAddress {
+  recipientName: string;
+  phone: string;
+  postalCode: string;
+  addressLine1: string;
+  addressLine2: string | null;
+}
+
 export interface OrderPayload {
   type: "ORDER";
   userId?: number | null;
@@ -14,6 +24,8 @@ export interface OrderPayload {
   name?: string | null;
   items: OrderItemRef[];
   cartCheckout?: boolean;
+  fulfillmentType: FulfillmentType;
+  shippingAddress: ShippingAddress | null;
 }
 
 export interface BookingPayload {

@@ -24,6 +24,8 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: redis
@@ -49,7 +51,7 @@ spec:
           args:
             - sh
             - -ec
-            - exec redis-server --save "" --appendonly no --requirepass "$REDIS_PASSWORD"
+            - exec redis-server --save "" --appendonly no --notify-keyspace-events Egx --requirepass "$REDIS_PASSWORD"
           envFrom:
             - secretRef:
                 name: happygallery-redis

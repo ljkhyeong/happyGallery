@@ -6,10 +6,17 @@ import { useCart } from "@/features/cart/useCart";
 import { executePaymentFlow, type OrderPayload } from "@/features/payment";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
+import {
+  FulfillmentForm,
+  fulfillmentPayload,
+  isFulfillmentComplete,
+  useFulfillmentSelection,
+} from "@/features/order/FulfillmentForm";
 
 export function CartPage() {
   const { isAuthenticated, user } = useCustomerAuth();
   const { items, totalAmount, isLoading, updateQty, removeItem } = useCart();
+  const [fulfillment, setFulfillment] = useFulfillmentSelection(user?.name, user?.phone ?? undefined);
   const availableItems = items.filter((item) => item.available);
   const checkout = useMutation({
     mutationFn: async () => {
@@ -21,6 +28,7 @@ export function CartPage() {
         userId: user.id,
         items: [],
         cartCheckout: true,
+        ...fulfillmentPayload(fulfillment),
       };
       await executePaymentFlow({
         context: "ORDER",
@@ -155,12 +163,17 @@ export function CartPage() {
                 <span className="fs-5 fw-bold">{formatKRW(totalAmount)}</span>
               </div>
 
+              <div className="mb-3">
+                <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
+              </div>
+
               <ErrorAlert error={checkout.error} />
               <Button
                 variant="primary"
                 size="lg"
                 className="w-100"
-                disabled={checkout.isPending || availableItems.length === 0}
+                disabled={checkout.isPending || availableItems.length === 0
+                  || !isFulfillmentComplete(fulfillment)}
                 onClick={handleCheckout}
               >
                 {checkout.isPending ? "결제 준비 중..." : "결제하기"}

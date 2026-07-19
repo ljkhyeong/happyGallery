@@ -29,8 +29,10 @@
 - `phone_verifications`: `phone_hmac`, `code_hmac`, `code_enc`
 - `payment_attempt`: 내부 결제 payload 전체를 `payload_enc`에 저장하고, confirm 재응답에 필요한 비회원 원문 접근 토큰은 `fulfilled_access_token_enc`에 저장
 - `user_social_accounts`: 원문 provider ID 대신 `provider_id_hmac` 저장
+- `fulfillments`: 주문 시점 구조화 배송지 JSON을 `shipping_address_enc`에 저장
 
 회원과 비회원의 평문 이메일·이름·전화번호 컬럼, 휴대폰 인증 평문 전화번호·코드, 소셜 provider ID와 결제 payload JSON 평문 컬럼은 제거한다. 비밀번호는 단방향 해시를 유지한다. 비회원 접근 토큰은 주문·예약에 nonce 해시만 저장하고, 동일 confirm 재응답에 필요한 원문만 `payment_attempt`에 AES-GCM 암호문으로 저장한다.
+배송지는 검색 인덱스를 만들지 않으며 고객 응답에는 포함하지 않는다. `V52`가 `shipping_address_enc`를 추가하고 관리자 단건 이행 조회에서만 복호화한다.
 
 ### 3. 검색 기능은 암호화 방식에 맞춰 제한한다
 

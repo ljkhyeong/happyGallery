@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.admin;
 
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
+import com.personal.happygallery.application.admin.port.out.AdminSetupLockPort;
 import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -27,6 +28,9 @@ class DefaultAdminSetupServiceTest {
     private AdminUserPort adminUserPort;
 
     @Mock
+    private AdminSetupLockPort setupLock;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @InjectMocks
@@ -42,6 +46,7 @@ class DefaultAdminSetupServiceTest {
         adminSetupService.setup("admin", "admin123456");
 
         ArgumentCaptor<AdminUser> captor = ArgumentCaptor.forClass(AdminUser.class);
+        verify(setupLock).lock();
         verify(adminUserPort).save(captor.capture());
         assertSoftly(softly -> {
             softly.assertThat(captor.getValue().getUsername()).isEqualTo("admin");

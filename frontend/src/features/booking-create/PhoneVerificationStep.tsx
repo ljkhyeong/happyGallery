@@ -13,6 +13,8 @@ interface Props {
   initialPhone?: string;
   lockPhone?: boolean;
   confirmLabel?: string;
+  confirming?: boolean;
+  confirmDisabled?: boolean;
 }
 
 export function PhoneVerificationStep({
@@ -23,6 +25,8 @@ export function PhoneVerificationStep({
   initialPhone = "",
   lockPhone = false,
   confirmLabel = "확인",
+  confirming = false,
+  confirmDisabled = false,
 }: Props) {
   const [phone, setPhone] = useState(normalizePhone(initialPhone));
   const [code, setCode] = useState("");
@@ -104,10 +108,10 @@ export function PhoneVerificationStep({
                 type="button"
                 variant="primary"
                 className="w-100"
-                disabled={!normalizedCode}
+                disabled={!normalizedCode || confirming || confirmDisabled}
                 onClick={() => onVerified(phone, normalizedCode)}
               >
-                {confirmLabel}
+                {confirming ? "확인 중..." : confirmLabel}
               </Button>
             </Col>
           </Row>

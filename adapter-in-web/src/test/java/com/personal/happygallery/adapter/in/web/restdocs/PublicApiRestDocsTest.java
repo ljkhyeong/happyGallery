@@ -254,7 +254,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                     "type": "ORDER",
                                     "userId": 11,
                                     "items": [],
-                                    "cartCheckout": true
+                                    "cartCheckout": true,
+                                    "fulfillmentType": "PICKUP",
+                                    "shippingAddress": null
                                   }
                                 }
                                 """))

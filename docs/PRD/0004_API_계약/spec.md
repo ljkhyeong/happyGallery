@@ -35,6 +35,7 @@
 - 세션 만료: 8시간
 - 세션 저장소는 Redis 기반 `AdminSessionStore`를 사용한다. 여러 인스턴스가 떠 있어도 같은 세션을 본다.
 - Redis에는 관리자 토큰 원문을 키로 쓰지 않고 토큰 HMAC을 사용하며, 세션 JSON도 AES-GCM 암호문으로 저장한다.
+- 세션에는 발급 당시 `credentialVersion`을 저장한다. 비밀번호 변경으로 DB 버전이 증가하면 기존 버전의 모든 세션은 즉시 인증에 실패하고, Redis 세션 키는 커밋 후 일괄 삭제한다.
 
 #### 인증 엔드포인트
 
@@ -51,7 +52,7 @@ Content-Type: application/json
 
 - 성공: `200 OK`
 - 실패: `401 UNAUTHORIZED`
-  - `{ "code": "UNAUTHORIZED", "message": "아이디 또는 비밀번호가 올바르지 않습니다." }`
+  - `{ "code": "INVALID_CREDENTIALS", "message": "아이디 또는 비밀번호가 올바르지 않습니다." }`
 
 ```http
 POST /api/v1/admin/auth/logout
@@ -59,6 +60,24 @@ Authorization: Bearer {token}
 ```
 
 - 성공: `204 No Content`
+
+```http
+PATCH /api/v1/admin/auth/password
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "currentPassword": "admin123456",
+  "newPassword": "new-admin-123456"
+}
+```
+
+- 새 비밀번호는 10~100자다.
+- 성공: `204 No Content`. 현재 세션을 포함해 해당 관리자에게 발급된 기존 세션을 모두 폐기하므로 새 비밀번호로 다시 로그인해야 한다.
+- 실패:
+  - `401 INVALID_CREDENTIALS` — 현재 비밀번호 불일치
+  - `403 FORBIDDEN` — 계정 ID가 없는 local API key 인증으로 변경 시도
+  - `422 PASSWORD_UNCHANGED` — 현재 비밀번호와 새 비밀번호가 같음
 
 #### 최초 관리자 계정 생성
 
@@ -94,8 +113,9 @@ Content-Type: application/json
   - `409 EMAIL_ALREADY_EXISTS` — 같은 username이 이미 존재
 - 운영 규칙:
   - `username`은 개인 이메일·실명 대신 3~50자의 영문, 숫자, `.`, `_`, `-`로 구성한 운영 식별자를 사용한다.
-  - 계정 생성 직후 `status.required`는 `false`가 된다.
-  - 운영자는 최초 관리자 계정 생성이 끝나면 즉시 `ADMIN_SETUP_TOKEN`을 제거한다.
+- 계정 생성 직후 `status.required`는 `false`가 된다.
+- 동시에 여러 설정 요청이 들어와도 DB의 단일 setup 잠금 행으로 직렬화하며 한 요청만 생성에 성공한다.
+- 운영자는 최초 관리자 계정 생성이 끝나면 즉시 `ADMIN_SETUP_TOKEN`을 제거한다.
 
 #### API Key 폴백
 
@@ -119,6 +139,7 @@ Content-Type: application/json
 ### 1.3 회원 세션과 CSRF 정책
 
 - 회원 세션은 `HG_SESSION` HttpOnly 쿠키로 유지하고, 로그인·회원가입·소셜 로그인 성공 시 세션 ID를 회전한다.
+- 세션 principal 인덱스는 `userId:credentialVersion`으로 구분한다. 비밀번호 변경·재설정 커밋 뒤에는 변경 전 버전 인덱스만 삭제하므로, 동시에 새 버전으로 로그인한 세션은 유지된다.
 - 회원 전용 API는 회원 인증 정보가 없으면 `401 UNAUTHORIZED`, 인증은 됐지만 권한이 없으면 `403 FORBIDDEN`을 기존 에러 JSON 형식으로 반환한다.
 - 관리자 API는 Bearer/API key 헤더로 인증하므로 CSRF 토큰을 요구하지 않는다.
 - 그 외 회원·공개 API의 `POST`, `PUT`, `PATCH`, `DELETE` 요청은 아래 SPA CSRF 절차를 따른다. 개별 API 예시에서 헤더를 생략해도 같은 규칙이 적용된다.
@@ -238,6 +259,7 @@ Authorization: Bearer {token}
   - `endAt`은 요청받지 않고 `startAt + class.durationMin`으로 서버가 계산한다.
   - 같은 클래스의 같은 `startAt`에는 종료 시각과 무관하게 슬롯을 하나만 생성할 수 있다.
   - 이미 예약된 같은 클래스 슬롯의 뒤쪽 버퍼에 포함되면 생성 응답의 `isActive`는 `false`다.
+  - 같은 클래스의 슬롯 생성과 예약·반납은 클래스 행 잠금으로 직렬화해, 동시 생성된 버퍼 슬롯도 예약 상태를 빠뜨리지 않는다.
   - `adminActive`는 관리자 비활성화 여부, `bufferBlocked`는 예약 버퍼 차단 여부다.
   - `isActive`는 `adminActive=true`이고 `bufferBlocked=false`일 때만 `true`다.
 
@@ -694,7 +716,7 @@ X-Access-Token: {accessToken}
   - `404 NOT_FOUND` — orderId 미존재 또는 token 불일치
 - 정책:
   - `X-Access-Token` 헤더의 토큰을 SHA-256 해시하여 DB 저장값과 비교한다.
-  - `fulfillment`는 아직 생성되지 않은 경우 `null`일 수 있다.
+  - 신규 주문의 `fulfillment`는 결제 confirm 시 함께 생성되며 고객이 선택한 `type`, 예상 출고일, 픽업 마감만 반환한다. 배송지 원문은 고객 응답에 포함하지 않는다.
   - 환불 이력이 있으면 `refund`에 `amount`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
   - `status=PICKUP_EXPIRED`는 기성품 미수령 환불이며 `refund`에 진행 상태를 반환한다. `status=PICKUP_FORFEITED`는 주문제작 상품의 미수령 종료이며 `refund=null`이다.
 
@@ -715,6 +737,7 @@ Authorization: Bearer {token}
       "orderNumber": "HG-20260324-00123",
       "status": "PAID_APPROVAL_PENDING",
       "totalAmount": 118000,
+      "fulfillmentType": "SHIPPING",
       "paidAt": "2026-03-24T11:32:10",
       "createdAt": "2026-03-24T11:32:10"
     }
@@ -731,6 +754,32 @@ Authorization: Bearer {token}
   - 상태 필터가 없으면 전체 주문을 `createdAt DESC, id DESC` 기준으로 조회한다.
   - `cursor`는 `Base64("{ISO_LOCAL_DATE_TIME}|{id}")` 형식이다.
   - 프론트는 `hasMore=true`일 때만 `nextCursor`로 다음 페이지를 요청한다.
+  - 목록에는 운영 분기를 위한 `fulfillmentType`만 포함하며 배송지 개인정보는 포함하지 않는다.
+
+#### 2.7.1.1 관리자 주문 이행 상세 조회
+
+```http
+GET /api/v1/admin/orders/{id}/fulfillment
+Authorization: Bearer {token}
+```
+
+```json
+{
+  "orderId": 123,
+  "type": "SHIPPING",
+  "shippingAddress": {
+    "recipientName": "홍길동",
+    "phone": "01012345678",
+    "postalCode": "06236",
+    "addressLine1": "서울시 강남구 테헤란로 1",
+    "addressLine2": "2층"
+  },
+  "expectedShipDate": null,
+  "pickupDeadlineAt": null
+}
+```
+
+- 관리자 인증 후에만 배송지 암호문을 복호화한다. `PICKUP` 주문은 `shippingAddress=null`이다.
 
 #### 2.7.2 관리자 주문 검색
 
@@ -839,6 +888,8 @@ Authorization: Bearer {token}
   - 요청: `{ "pickupDeadlineAt": "2026-04-16T18:00:00" }`
   - 응답: `{ "orderId": 5, "status": "PICKUP_READY", "pickupDeadlineAt": "2026-04-16T18:00:00" }`
   - 정책:
+    - 결제 시 고객이 `PICKUP`을 선택한 주문만 처리한다.
+    - `pickupDeadlineAt`은 서버 `Clock` 기준 현재보다 이후여야 한다.
     - 이력은 `PICKUP_READY`로 기록하고 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
 - `POST /api/v1/admin/orders/{id}/complete-pickup`
   - 응답: `{ "orderId": 5, "status": "PICKED_UP", "pickupDeadlineAt": "2026-04-16T18:00:00" }`
@@ -924,6 +975,7 @@ Authorization: Bearer {token}
 
 - 정책:
   - `APPROVED_FULFILLMENT_PENDING` → `SHIPPING_PREPARING` → `SHIPPED` → `DELIVERED` 순서만 허용한다.
+  - 결제 시 고객이 `SHIPPING`을 선택한 주문만 배송 흐름을 시작할 수 있다. 픽업 주문은 상태 변경 전에 거절한다.
   - 각 전이는 `order_approvals` 이력에 `PREPARE_SHIPPING`, `SHIP`, `DELIVER`로 기록한다.
   - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
 
@@ -1141,7 +1193,7 @@ Authorization: Bearer {token}
 - `top-products.sort` 기본값은 `REVENUE`이며 `REVENUE`, `QUANTITY`를 지원한다.
 - `order-status`는 전체 운영 상태 분포를 반환하고, 나머지 API는 `from`, `to`를 필수로 받는다.
 
-### 2.11 환불 조치 관리 Admin API
+### 2.11 운영 조치 관리 Admin API
 
 #### 2.11.1 조치 필요 환불 목록 조회
 
@@ -1219,6 +1271,39 @@ Authorization: Bearer {token}
   - `paymentAttemptId`가 있으면 PG 승인 후 주문·예약·8회권 생성에 실패한 결제의 보상 환불이다.
   - 최초 환불과 자동·수동 재처리는 같은 `refunds.idempotency_key`를 Toss `Idempotency-Key` 헤더로 사용한다.
 
+#### 2.11.4 실패 알림 목록과 재처리
+
+- `GET /api/v1/admin/notifications/failed`
+  - 자동 재시도를 모두 소진한 `FAILED` outbox를 오래된 순서로 최대 100건 반환한다.
+  - `createdAt`은 UTC 오프셋을 포함한 ISO-8601 시각으로 반환한다.
+- `POST /api/v1/admin/notifications/{outboxId}/retry`
+  - 성공: `200 OK`, 기존 outbox를 `PENDING`으로 다시 연 결과를 반환한다.
+  - 에러: `404 NOT_FOUND`, `400 INVALID_INPUT`(최종 실패가 아닌 outbox)
+
+재처리는 새 알림 요청을 만들지 않고 기존 outbox와 멱등키를 그대로 사용한다. 다음 scheduler 주기 또는 dispatcher가 발송을 다시 시도한다.
+
+#### 2.11.5 결제 대사 목록과 PG 조회
+
+```http
+GET /api/v1/admin/payment-attempts/reconciliation-required
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK`
+- 응답은 `attemptId`, `context`, `amount`, `status`, `reason`, `createdAt`을 포함하며 paymentKey와 저장 payload는 노출하지 않는다. `createdAt`은 UTC 오프셋을 포함한 ISO-8601 시각이다.
+
+```http
+POST /api/v1/admin/payment-attempts/{attemptId}/reconcile
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK`, `attemptId`, 최종 또는 유지 상태, 생성된 `domainId`, 처리 메시지를 반환한다.
+- 에러: `404 NOT_FOUND`, `400 INVALID_INPUT`(대사 대상이 아님), `409 CONFLICT`(동시 상태 변경), PG 조회 결과와 저장 요청의 식별자·금액 불일치
+- 정책:
+  - 저장된 `orderId`로 PG 상태를 조회하며 조회 네트워크 구간에는 DB 트랜잭션을 열지 않는다.
+  - `DONE`이면 저장된 paymentKey·orderId·amount를 모두 확인한 뒤 기존 주문·예약·8회권 처리를 재개한다.
+  - Toss가 `NOT_FOUND_PAYMENT`로 승인 없음(결제 미존재)을 명시한 경우에만 `FAILED`로 확정한다. 다른 404를 포함해 결과를 자동 판정할 수 없으면 `RECONCILIATION_REQUIRED`를 유지한다.
+
 ### 2.12 회원 API (`/api/v1/me`)
 
 회원 인증은 `HG_SESSION` HttpOnly 쿠키 기반이며, Spring Security의 회원 principal로 검증한다.
@@ -1233,6 +1318,7 @@ Authorization: Bearer {token}
 - Google은 `email_verified=true`인 프로필만 수용한다.
 - 외부 provider ID가 처음인데 같은 이메일의 기존 회원이 있으면 제공자와 관계없이 자동 연결하지 않는다. 이미 연결된 provider ID 로그인과 이메일 충돌이 없는 신규 가입만 허용한다.
 - 소셜 로그인으로 새로 생성된 회원은 `password_hash`가 비어 있을 수 있다.
+- 회원 응답의 `localPasswordEnabled`는 이메일 로그인 비밀번호가 설정되어 있는지를 나타낸다.
 - 이메일은 앞뒤 공백을 제거한 소문자, 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일한다. 응답에는 복호화한 값을 반환한다.
 
 #### 2.12.0.1 이메일 회원가입
@@ -1255,7 +1341,8 @@ POST /api/v1/auth/signup
   "email": "member@example.com",
   "name": "홍길동",
   "phone": "01012345678",
-  "phoneVerified": true
+  "phoneVerified": true,
+  "localPasswordEnabled": true
 }
 ```
 
@@ -1301,11 +1388,97 @@ GET /api/v1/auth/social/callback/{provider}?code=...&state=...
 - 정책:
   - Spring Security가 callback의 `state`와 세션의 authorization request를 비교하고 한 번 사용한 authorization request를 제거한 뒤 code를 토큰으로 교환한다.
   - Google ID Token과 UserInfo, Naver UserInfo를 공통 소셜 프로필로 변환한 뒤에만 application의 계정 연결 트랜잭션을 시작한다.
-  - 성공 시 세션 ID를 한 번 회전하고 `customerUserId`만 장기 인증 상태로 저장한다.
+  - 성공 시 세션 ID를 한 번 회전하고 `customerUserId`, `customerCredentialVersion`, `userId:credentialVersion` 형식의 principal 인덱스를 장기 인증 상태로 저장한다.
   - OAuth `SecurityContext`, access token, refresh token은 세션에 저장하지 않는다. 다음 요청은 기존 `CustomerAuthenticationFilter`가 `customerUserId`로 회원 principal을 다시 구성한다.
   - 성공 후 기존 CSRF 토큰이 폐기되므로 클라이언트는 새 CSRF 토큰을 발급받는다.
-  - `newUser=true`인 경우 후속 전화번호 입력/인증 온보딩이 필요할 수 있다.
+  - `newUser=true`이면 프런트는 마이페이지의 최초 전화번호 등록 온보딩을 연다. callback 상태를 잃고 마이페이지에 직접 진입해도 현재 회원의 `phone=null`이면 같은 온보딩을 연다.
   - 소셜 로그인 시작과 callback은 서로 분리된 IP 버킷으로 각각 분당 10회 제한한다.
+
+#### 2.12.0.4 소셜 회원 최초 휴대폰 등록
+
+```http
+PATCH /api/v1/me/phone
+Cookie: HG_SESSION={sessionToken}
+
+{
+  "phone": "01012345678",
+  "verificationCode": "483921"
+}
+```
+
+```json
+{
+  "id": 7,
+  "email": "social@example.com",
+  "name": "홍길동",
+  "phone": "01012345678",
+  "phoneVerified": true,
+  "localPasswordEnabled": false
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `400 INVALID_INPUT` — 요청 형식 또는 전화번호 형식 불일치
+  - `400 PHONE_VERIFICATION_FAILED` — 같은 전화번호의 미소모·유효 인증 코드가 아님
+  - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `409 PHONE_ALREADY_REGISTERED` — 이미 전화번호가 등록된 회원
+  - `429 TOO_MANY_REQUESTS` — 같은 전화번호의 인증 코드 확인 시도 초과
+- 정책:
+  - 인증 코드 발급은 2.4.1의 `POST /api/v1/bookings/phone-verifications`를 사용한다.
+  - 회원 행 잠금 아래 인증 코드를 한 번 소비하고 `phone_enc`, `phone_hmac`, `phone_verified=true`를 같은 트랜잭션에서 저장한다.
+  - 이 API는 `phone=null`인 회원의 최초 등록 전용이다. 이미 저장된 번호의 재확인과 비회원 이력 가져오기는 `/api/v1/me/guest-claims/**` 계약을 사용한다.
+  - `GET /api/v1/me`의 `phone`은 최초 등록 전 `null`일 수 있다.
+
+#### 2.12.0.5 로그인 비밀번호 변경
+
+```http
+PATCH /api/v1/me/password
+Cookie: HG_SESSION={sessionToken}
+
+{
+  "currentPassword": "password123",
+  "newPassword": "newPassword456"
+}
+```
+
+- 성공: `204 No Content`
+- 에러:
+  - `400 INVALID_INPUT` — 비밀번호 길이 또는 요청 형식 불일치
+  - `401 INVALID_CREDENTIALS` — 현재 비밀번호 불일치
+  - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `409 LOCAL_PASSWORD_NOT_SET` — 소셜 로그인만 사용하는 회원
+  - `422 PASSWORD_UNCHANGED` — 현재 비밀번호와 새 비밀번호가 같음
+- 정책:
+  - 현재 비밀번호는 `PasswordEncoder.matches(...)`로 확인하고 새 비밀번호는 BCrypt로 다시 해시한다.
+  - 성공하면 `credential_version`을 증가시키고 현재 요청을 포함한 모든 회원 세션을 무효화한다.
+  - 소셜 로그인만 사용하는 회원은 이 API 대신 2.12.0.6의 SMS 재설정으로 최초 로컬 비밀번호를 설정한다.
+
+#### 2.12.0.6 검증된 휴대폰으로 비밀번호 재설정
+
+```http
+POST /api/v1/auth/password/reset
+
+{
+  "email": "member@example.com",
+  "phone": "01012345678",
+  "verificationCode": "483921",
+  "newPassword": "newPassword456"
+}
+```
+
+- 성공: `204 No Content`
+- 에러:
+  - `400 INVALID_INPUT` — 이메일·비밀번호·인증코드 요청 형식 불일치
+  - `400 PASSWORD_RESET_FAILED` — 이메일, 저장된 검증 전화번호 또는 인증코드 불일치
+  - `422 PASSWORD_UNCHANGED` — 기존 로컬 비밀번호와 새 비밀번호가 같음
+  - `429 TOO_MANY_REQUESTS` — IP 또는 전화번호별 확인 시도 초과
+  - `503 SERVICE_UNAVAILABLE` — fail-closed 처리율 제한 저장소 장애
+- 정책:
+  - 이메일과 회원에게 저장된 `phoneVerified=true` 전화번호가 일치하고, 같은 번호의 미소모·유효 SMS 코드를 한 번 소비해야 한다.
+  - 계정·전화번호·인증코드 중 어느 값이 틀렸는지는 `PASSWORD_RESET_FAILED` 하나로 응답해 계정 존재 여부를 구분하지 못하게 한다.
+  - `password_hash=null`인 소셜 전용 회원도 성공할 수 있으며, 성공 후 이메일 로그인이 활성화된다.
+  - 성공하면 `credential_version`을 증가시키고 해당 회원의 모든 세션을 무효화한다.
 
 #### ~~2.12.1 회원 예약 생성~~ (2026-04-22 제거)
 
@@ -1533,6 +1706,7 @@ POST /api/v1/products/{productId}/qna/{id}/verify
 회원 장바구니도 같은 prepare/confirm 경로를 사용한다.
 
 회원/비회원 구분은 요청 본문이 아니라 인증 컨텍스트(`HG_SESSION` 쿠키 유무)로 결정한다.
+회원 경로는 현재 회원의 `phone`이 존재하고 `phoneVerified=true`여야 하며, 미등록 상태에서는 `422 PHONE_VERIFICATION_REQUIRED`를 반환한다.
 8회권 사용 예약처럼 amount가 0이면 응답된 `amount=0`을 보고 프론트가 PG 호출 없이 `confirm`을 직접 호출한다.
 
 #### 2.15.1 결제 준비 (prepare)
@@ -1549,7 +1723,9 @@ Content-Type: application/json
     "userId": 7,
     "items": [
       { "productId": 1, "qty": 2 }
-    ]
+    ],
+    "fulfillmentType": "PICKUP",
+    "shippingAddress": null
   }
 }
 ```
@@ -1575,6 +1751,8 @@ Content-Type: application/json
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
   - 서버는 prepare 시점의 `ORDER` 항목 단가, `BOOKING` 예약금·잔금, `PASS` 총 가격을 내부 payload로 저장한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장한다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
+  - `ORDER` payload는 `fulfillmentType=SHIPPING|PICKUP`을 반드시 포함한다. `SHIPPING`은 구조화된 `shippingAddress`가 필수이고 `PICKUP`은 `shippingAddress=null`이어야 한다.
+  - 직접 주문과 장바구니 주문 모두 `ACTIVE` 상품만 확정한다. 판매 중지 상품은 재고가 남아 있어도 `400 INVALID_INPUT`으로 거절한다.
   - 회원 장바구니는 `cartCheckout=true`를 지정한다. 이때 서버는 클라이언트의 `items`를 사용하지 않고 장바구니에서 구매 가능한 항목을 확정한다.
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
   - prepare 응답의 `orderId`는 Toss 결제창에 그대로 전달한다.
@@ -1589,7 +1767,15 @@ Content-Type: application/json
   "phone": "01012345678",      // 비회원 경로
   "verificationCode": "483921",
   "name": "홍길동",
-  "items": [{ "productId": 1, "qty": 2 }]
+  "items": [{ "productId": 1, "qty": 2 }],
+  "fulfillmentType": "SHIPPING",
+  "shippingAddress": {
+    "recipientName": "홍길동",
+    "phone": "01012345678",
+    "postalCode": "06236",
+    "addressLine1": "서울시 강남구 테헤란로 1",
+    "addressLine2": "2층"
+  }
 }
 
 // ORDER (회원 장바구니)
@@ -1597,7 +1783,9 @@ Content-Type: application/json
   "type": "ORDER",
   "userId": 7,
   "items": [],
-  "cartCheckout": true
+  "cartCheckout": true,
+  "fulfillmentType": "PICKUP",
+  "shippingAddress": null
 }
 
 // BOOKING (예약금 결제)
@@ -1659,6 +1847,7 @@ Content-Type: application/json
   - `409 PAYMENT_CONFIRM_IN_PROGRESS` — 동일 결제 confirm 처리 중
   - `500 INTERNAL_ERROR` — 저장된 결제 payload 직렬화/역직렬화 실패
   - `502 PAYMENT_FAILED` — PG가 결제 확정 거절 (서킷 브레이커 OPEN/타임아웃 포함)
+  - `410 PAYMENT_ATTEMPT_EXPIRED` — prepare 후 30분 동안 confirm을 시작하지 않아 만료됨
 - 정책:
   - `paymentKey`는 amount > 0 결제만 필수다. 8회권 사용 예약처럼 `payment_attempt.amount=0`인 경우 `paymentKey`는 비워서 보내고 PG 호출은 생략된다.
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
@@ -1667,7 +1856,7 @@ Content-Type: application/json
   - Toss 승인 응답의 `paymentKey`, `orderId`는 confirm 요청값과 모두 같아야 한다. 다르면 성공으로 저장하지 않고 같은 멱등키로 재확인 가능한 실패로 처리한다.
   - PG 성공은 별도 트랜잭션으로 `APPROVED`에 저장하고, 이후 도메인 저장과 `CONFIRMED` 전이는 한 트랜잭션으로 처리한다.
   - 이미 `CONFIRMED`인 결제를 같은 인증 주체·금액·paymentKey로 재호출하면 PG와 도메인 생성을 반복하지 않고 최초 `context`, `domainId`, `accessToken`을 그대로 반환한다.
-  - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다.
+  - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다. `FAILED`로 종결된 결제의 동일 confirm 재호출은 PG를 다시 호출하지 않고 저장된 실패 사유의 `502 PAYMENT_FAILED`를 반환한다.
   - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다. amount=0 내부 승인 실패는 외부 결제가 없으므로 보상 환불을 만들지 않는다.
   - PG 승인 상태 또는 보상 환불 요청 저장까지 실패해 `PROCESSING`·`RETRYABLE`·`APPROVED`가 1분 이상 남으면, 서버 배치가 매분 최대 10건을 자동 재개한다. `PROCESSING/RETRYABLE`은 저장된 요청과 같은 `orderId` 멱등키로 PG confirm을 재확인하고, `APPROVED`는 PG 호출 없이 fulfillment를 재개한다. 마지막 복구 시각을 저장해 건별 1분 backoff와 후보 순환을 적용한다. 생성 후 14일이 지난 유료 미확정 PG 호출은 자동·사용자 재승인 모두 막고 `RECONCILIATION_REQUIRED`로 격리하며, PG를 호출하지 않는 0원 결제는 기간과 무관하게 내부 처리를 재개한다. 복구는 저장 payload의 결제 주체를 사용하며 공개 confirm API의 요청·응답 형식은 바뀌지 않는다.
   - confirm 요청 `paymentKey`는 `payment_attempt.payment_key`, PG 승인 응답의 `paymentKey`는 `payment_attempt.confirmed_payment_key`와 생성된 도메인 레코드의 `payment_key`에 저장한다. 이후 환불은 승인 응답의 `paymentKey`를 PG cancel 호출의 원결제 식별자로 사용한다.
@@ -1675,6 +1864,7 @@ Content-Type: application/json
   - 비회원 경로의 신규 `accessToken`은 HMAC-SHA256 서명과 기본 7일 만료 시각을 포함한다. 주문·예약에는 nonce의 SHA-256 해시만 저장하며, 서명 없는 32자 hex 토큰은 기존 데이터 조회용 폴백으로만 허용한다. 응답 유실 뒤 동일 confirm 재호출을 위해 원문 토큰은 `payment_attempt`에 AES-GCM 암호문으로 저장한다. 회원 경로는 `accessToken=null`.
   - `domainId`는 context에 따라 `orderId`(`ORDER`), `bookingId`(`BOOKING`), `passId`(`PASS`)다.
   - 비회원 휴대폰 인증 실패는 confirm 단계에서 fulfillment가 호출하는 `VerifiedGuestResolver`가 던지는 `400 PHONE_VERIFICATION_FAILED`로 매핑된다.
+  - confirm은 행 잠금 아래 30분 유효시간을 다시 확인하고, 경계를 넘긴 `PENDING`을 `CANCELED`로 전이한 뒤 `payload_enc`를 제거하고 `410 PAYMENT_ATTEMPT_EXPIRED`를 반환한다. 매분 배치도 같은 기준으로 confirm을 시작하지 않은 결제를 일괄 정리한다. 만료된 orderId는 새 prepare부터 다시 시작해야 한다.
 
 ---
 
@@ -1741,7 +1931,9 @@ Content-Type: application/json
 |------|----------|----------|
 | 400 | `INVALID_INPUT` | 요청 바디/파라미터 검증 실패 또는 요청 JSON 형식 오류 |
 | 400 | `PHONE_VERIFICATION_FAILED` | 인증 코드 불일치 또는 만료 |
+| 400 | `PASSWORD_RESET_FAILED` | 비밀번호 재설정의 계정·전화번호·인증코드 확인 실패 |
 | 401 | `UNAUTHORIZED` | 보호된 API에 유효한 관리자 또는 회원 인증 없이 접근 |
+| 401 | `INVALID_CREDENTIALS` | 로그인 자격 증명 또는 현재 비밀번호 불일치 |
 | 403 | `FORBIDDEN` | 인증은 됐지만 요청 권한이 없거나 CSRF 토큰이 없거나 일치하지 않음 |
 | 404 | `NOT_FOUND` | 주문·예약·이용권·상품 미존재 |
 | 409 | `ALREADY_REFUNDED` | 이미 환불된 주문에 승인·거절 시도 |
@@ -1752,6 +1944,8 @@ Content-Type: application/json
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌에 의한 동시 변경 요청 |
 | 409 | `PAYMENT_CONFIRM_IN_PROGRESS` | 동일 결제의 confirm 요청이 이미 처리 중 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치 등 비예약 운영 액션의 충돌 |
+| 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
+| 410 | `PAYMENT_ATTEMPT_EXPIRED` | 결제 준비 후 30분 안에 confirm을 시작하지 않음 |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 |
 | 422 | `REFUND_NOT_ALLOWED` | 취소 보상 마감 이후 환불 요청 |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/일반 환불 시도 |
@@ -1759,6 +1953,8 @@ Content-Type: application/json
 | 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 시도 |
 | 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 크레딧 0인 8회권으로 예약 시도 |
 | 422 | `PAYMENT_METHOD_NOT_ALLOWED` | 계좌이체(`BANK_TRANSFER`)로 예약금 결제 시도 |
+| 422 | `PHONE_VERIFICATION_REQUIRED` | 회원 휴대폰이 없거나 소유 확인이 완료되지 않아 결제를 시작할 수 없음 |
+| 422 | `PASSWORD_UNCHANGED` | 현재와 같은 비밀번호로 변경·재설정 시도 |
 | 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 거절 (서킷 브레이커 OPEN/타임아웃 포함) |
 | 503 | `SERVICE_UNAVAILABLE` | fail-closed 처리율 제한 저장소 장애 또는 인증 SMS 등 필수 외부 작업을 시작·완료할 수 없음 |

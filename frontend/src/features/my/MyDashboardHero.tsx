@@ -23,10 +23,14 @@ export function MyDashboardHero({ user, nextBooking, onLogout }: Props) {
             </p>
             <div className="d-flex flex-wrap gap-2 align-items-center mb-3">
               <Badge bg={user.phoneVerified ? "success" : "secondary"}>
-                {user.phoneVerified ? "휴대폰 인증 완료" : "휴대폰 재확인 필요"}
+                {user.phoneVerified
+                  ? "휴대폰 인증 완료"
+                  : user.phone
+                    ? "휴대폰 재확인 필요"
+                    : "휴대폰 등록 필요"}
               </Badge>
               <span className="text-muted-soft small">{user.email}</span>
-              <span className="text-muted-soft small">{user.phone}</span>
+              {user.phone && <span className="text-muted-soft small">{user.phone}</span>}
             </div>
             {nextBooking && (
               <div className="my-dashboard-note">

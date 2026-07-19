@@ -34,6 +34,9 @@
 - outbox의 `recipient_type`과 수신자 ID는 DB CHECK로 일치시키고, outbox와 발송 로그 모두 회원·비회원 수신자 중 정확히 하나만 갖도록 강제한다.
 - aggregate가 명확한 일회성 알림은 `recipient + eventType + aggregateType + aggregateId` idempotency key로 outbox 중복 저장을 막는다.
 - 같은 예약에서 여러 번 발생할 수 있는 `BOOKING_RESCHEDULED`는 요청 단위 idempotency key를 사용해 기존 반복 발송 의미를 보존한다.
+- 자동 재시도를 모두 소진한 outbox는 `FAILED`로 종결하고 `happygallery.notification.outbox.failed` 카운터를 올린다.
+- 관리자는 실패 outbox를 최대 100건씩 조회하고, 원래 행을 `PENDING`으로 다시 열 수 있다. 새 outbox나 새 멱등키를 만들지 않으므로 동일 이벤트가 별도 요청으로 중복 발송되는 것을 막는다.
+- 주문 결제와 8회권 구매도 주문/구매 트랜잭션 안에서 각각 `ORDER_PAID`, `PASS_PURCHASED` outbox를 저장한다.
 
 ---
 
@@ -59,5 +62,6 @@
 - `NotificationOutboxDispatcher#dispatchPending`에 `Propagation.NEVER` 적용
 - `NotificationResilienceConfig`에 boolean 실패 집계, 제한 큐 timeout executor와 대기열·거절 메트릭 적용
 - `NotificationRequestedEvent`에 aggregate/idempotency key 추가
+- 최종 실패 메트릭, 관리자 실패 목록·재처리 API와 화면 추가
 - outbox 트랜잭션 보장 테스트:
   - `NotificationOutboxUseCaseIT`

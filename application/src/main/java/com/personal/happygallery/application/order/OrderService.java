@@ -2,6 +2,7 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
+import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.InventoryService.InventoryAdjustment;
 import com.personal.happygallery.application.token.GuestTokenService;
@@ -9,6 +10,9 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.ShippingAddress;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,22 +32,28 @@ public class OrderService {
 
     private final OrderStorePort orderStore;
     private final OrderItemPort orderItemPort;
+    private final FulfillmentPort fulfillmentPort;
     private final InventoryService inventoryService;
     private final ApplicationEventPublisher eventPublisher;
     private final GuestTokenService guestTokenService;
+    private final ShippingAddressProtector shippingAddressProtector;
     private final Clock clock;
 
     public OrderService(OrderStorePort orderStore,
                         OrderItemPort orderItemPort,
+                        FulfillmentPort fulfillmentPort,
                         InventoryService inventoryService,
                         ApplicationEventPublisher eventPublisher,
                         GuestTokenService guestTokenService,
+                        ShippingAddressProtector shippingAddressProtector,
                         Clock clock) {
         this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
+        this.fulfillmentPort = fulfillmentPort;
         this.inventoryService = inventoryService;
         this.eventPublisher = eventPublisher;
         this.guestTokenService = guestTokenService;
+        this.shippingAddressProtector = shippingAddressProtector;
         this.clock = clock;
     }
 
@@ -60,7 +70,9 @@ public class OrderService {
      * @param items   주문 상품 목록
      * @return 생성된 주문
      */
-    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items) {
+    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
+                                               FulfillmentType fulfillmentType,
+                                               ShippingAddress shippingAddress) {
         LocalDateTime paidAt = LocalDateTime.now(clock);
         long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
 
@@ -71,6 +83,7 @@ public class OrderService {
                 Order.forGuest(guestId, tokenHash, totalAmount, paidAt, paidAt.plusHours(24)));
 
         saveItemsAndDeductInventory(order, items);
+        saveFulfillment(order, fulfillmentType, shippingAddress);
 
         eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
                 guestId,
@@ -84,7 +97,9 @@ public class OrderService {
     /**
      * 회원 주문 생성. guest 대신 user_id를 설정한다. accessToken 없음.
      */
-    public Order createMemberOrder(Long userId, List<OrderItemRequest> items) {
+    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
+                                   FulfillmentType fulfillmentType,
+                                   ShippingAddress shippingAddress) {
         LocalDateTime paidAt = LocalDateTime.now(clock);
         long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
 
@@ -92,8 +107,25 @@ public class OrderService {
                 Order.forMember(userId, totalAmount, paidAt, paidAt.plusHours(24)));
 
         saveItemsAndDeductInventory(order, items);
+        saveFulfillment(order, fulfillmentType, shippingAddress);
+
+        eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
+                userId,
+                NotificationEventType.ORDER_PAID,
+                "ORDER",
+                order.getId()));
 
         return order;
+    }
+
+    /** 테스트·내부 fixture용 기본 픽업 주문 생성 경로. 운영 결제는 수령 방법을 명시한다. */
+    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items) {
+        return createPaidOrder(guestId, items, FulfillmentType.PICKUP, null);
+    }
+
+    /** 테스트·내부 fixture용 기본 픽업 주문 생성 경로. 운영 결제는 수령 방법을 명시한다. */
+    public Order createMemberOrder(Long userId, List<OrderItemRequest> items) {
+        return createMemberOrder(userId, items, FulfillmentType.PICKUP, null);
     }
 
     private void saveItemsAndDeductInventory(Order order, List<OrderItemRequest> items) {
@@ -102,6 +134,20 @@ public class OrderService {
                 .toList());
         items.forEach(item -> orderItemPort.save(
                 new OrderItem(order, item.productId(), item.qty(), item.unitPrice())));
+    }
+
+    private void saveFulfillment(Order order,
+                                 FulfillmentType fulfillmentType,
+                                 ShippingAddress shippingAddress) {
+        if (fulfillmentType == null) {
+            throw new IllegalArgumentException("fulfillmentType must not be null");
+        }
+        Fulfillment fulfillment = switch (fulfillmentType) {
+            case PICKUP -> Fulfillment.pickup(order.getId());
+            case SHIPPING -> Fulfillment.shipping(
+                    order.getId(), shippingAddressProtector.encrypt(shippingAddress));
+        };
+        fulfillmentPort.save(fulfillment);
     }
 
     public record OrderItemRequest(Long productId, int qty, long unitPrice) {}

@@ -65,6 +65,9 @@ List<Inventory> findByProductIdInWithLock(List<Long> productIds);
 
 `available: true/false` — `inventory.quantity > 0` 여부를 응답에 포함.
 
+직접 주문 prepare도 장바구니와 동일하게 `Product.status=ACTIVE`를 확인한다. 공개 목록에서 사라진 상품을
+오래된 화면이나 조작 요청으로 직접 지정해도 재고 유무와 무관하게 결제 대상으로 확정하지 않는다.
+
 ### 6. 장바구니 조회 — 읽기 전용 projection JOIN
 
 - `CartItem`은 `productId`만 유지하고 `Product`, `Inventory` JPA 연관관계를 추가하지 않는다.

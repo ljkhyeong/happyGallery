@@ -4,6 +4,7 @@ import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.PickupReminderTarget;
 import com.personal.happygallery.domain.order.Fulfillment;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,8 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>,
     @Override Fulfillment save(Fulfillment fulfillment);
 
     @Override Optional<Fulfillment> findByOrderId(Long orderId);
+
+    @Override List<Fulfillment> findByOrderIdIn(Collection<Long> orderIds);
 
     /** 픽업 만료 배치 페이지네이션 조회 */
     @Override

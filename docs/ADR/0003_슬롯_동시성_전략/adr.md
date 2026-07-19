@@ -3,7 +3,7 @@
 - **상태**: 확정
 - **날짜**: 2026-02-22
 - **관련 파일**:
-  - `adapter-out-persistence/src/main/java/com/personal/happygallery/adapter/out/persistence/booking/SlotRepository.java` — `findByIdWithLock()`
+  - `adapter-out-persistence/src/main/java/com/personal/happygallery/adapter/out/persistence/booking/JpaSlotLockAdapter.java` — `lockAllById()`
   - `application/src/main/java/com/personal/happygallery/application/booking/SlotCapacitySupport.java` — `reserveCapacity()`
   - `domain/booking/Slot.java` — `incrementBookedCount()`
   - `domain/booking/SlotCapacity.java` — `checkAvailable(int)`
@@ -29,26 +29,55 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 ### 구현 흐름 (`SlotCapacitySupport.reserveCapacity()`을 포함하는 단일 트랜잭션)
 
 ```
-1. SlotRepository.findByIdWithLock(slotId)
-   → SELECT … FROM slots WHERE id = ? FOR UPDATE  (row 잠금)
+1. 원인 슬롯의 불변 시간 정보에서 classId와 버퍼 범위를 계산
 
-2. Slot.incrementBookedCount()
+2. classes 행을 SELECT FOR UPDATE로 잠금
+   → 같은 클래스의 슬롯 생성·예약·반납을 직렬화
+
+3. JpaSlotLockAdapter.lockScope(classId, sourceSlotId, windowStart, windowEnd)
+   → 원인 슬롯과 버퍼 범위를 PK 오름차순으로 SELECT FOR UPDATE
+   → MySQL REPEATABLE READ의 이전 스냅샷이 아니라 잠금 현재 읽기로 직전에 생성된 슬롯까지 포함
+   → 후보 Slot만 detach하고 같은 잠금 트랜잭션에서 PK 조회로 다시 적재해 최신 상태 사용
+
+4. 주입된 Clock 기준으로 슬롯 시작 전이고 실제 활성 상태인지 재확인
+   → 조회 이후 시간이 지났거나 관리자/버퍼 상태가 바뀌었으면 SlotNotAvailableException
+
+5. 잠긴 뒤쪽 버퍼 슬롯의 예약 점유 확인
+   → booked_count > 0인 슬롯이 하나라도 있으면 역방향 버퍼 충돌이므로 SlotNotAvailableException
+
+6. Slot.incrementBookedCount()
    → SlotCapacity.checkAvailable(bookedCount)   // bookedCount >= 8 → CapacityExceededException
    → bookedCount++
 
-3. slotRepository.save(slot)                    // booked_count 커밋
+7. slotStorePort.save(slot)                     // booked_count 커밋
 
-4. booked_count가 0 → 1이면 버퍼 윈도우의 슬롯을 잠그고 buffer_block_count++
+8. booked_count가 0 → 1이면 이미 잠근 버퍼 윈도우 슬롯의 buffer_block_count++
 ```
 
 예약 취소·변경의 `releaseCapacity()`는 `booked_count`가 1 → 0이 될 때 같은 버퍼 윈도우를 잠그고
 `buffer_block_count--`를 수행한다. 버퍼가 겹치는 슬롯은 차단 수가 0이 된 뒤에만 실제 활성 상태가 된다.
 
+범위 슬롯만 잠그면 버퍼 ID 조회와 관리자 슬롯 INSERT 사이에 phantom이 생길 수 있다. 반대로 원인 슬롯부터
+잠그고 클래스 행을 나중에 잠그면 서로 다른 원인 슬롯 예약이 교차할 때 교착될 수 있다. 따라서 모든
+같은 클래스 작업은 `classes → slots(PK 오름차순)` 순서로 잠근다. 클래스 행을 먼저 잡았으므로 뒤의 범위
+`FOR UPDATE` 사이에는 같은 클래스 INSERT가 들어오지 않고, 앞뒤 슬롯 동시 예약도 하나씩 직렬화된다.
+
+예약 생성·변경 흐름은 빠른 사전 확인에서 슬롯 엔티티를 이미 읽을 수 있다. 일반 조회가 먼저 MySQL
+`REPEATABLE READ` 스냅샷을 열어도 뒤의 `FOR UPDATE`는 현재 읽기로 실행되므로 클래스 락 대기 중 생성된
+버퍼 슬롯까지 찾는다. JPA 1차 캐시에 이미 있던 Slot 값은 자동 갱신을 보장하지 않고 `refresh`도 앞선
+스냅샷에서 신규 행을 못 찾을 수 있다. 잠금 어댑터는 범위 잠금으로 후보를 확정한 뒤 해당 Slot만 detach하고
+PK 잠금 조회로 다시 적재한다. 전체 영속성 컨텍스트를 비우지 않아 함께 처리 중인 다른 애그리거트는 유지된다.
+
+규칙 적용 전에 이미 충돌한 예약 데이터는 자동 취소하지 않는다. 그러나 이후 예약 확정은 매번 잠긴
+버퍼 범위의 기존 예약을 확인하므로, 어느 쪽 슬롯이 먼저 예약됐는지와 관계없이 충돌을 새로 만들거나
+확대하는 예약은 거절한다.
+
 ### 역할 분리
 
 | 락 전략 | 대상 | 이유 |
 |---------|------|------|
-| **비관적 락 (SELECT FOR UPDATE)** | `slots.booked_count` | 정원 경쟁 빈번, 재시도 없이 직렬화 |
+| **비관적 락 (SELECT FOR UPDATE)** | 클래스 행 | 같은 클래스의 슬롯 생성·예약·반납 순서를 직렬화해 phantom 방지 |
+| **비관적 락 (SELECT FOR UPDATE)** | 원인 슬롯과 뒤쪽 버퍼 슬롯 | 정원과 버퍼 충돌을 같은 경계에서 직렬화 |
 | **낙관적 락 (`@Version`)** | `bookings` 예약 행 | 동시 변경 드물고 재시도 허용 가능 (§5.3 구현 시) |
 
 ---
@@ -59,17 +88,19 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 |------|-----------|
 | 낙관적 락(`@Version` on slots) | 충돌 빈번 시 `OptimisticLockException` → 재시도 → 또 충돌. 서비스 레이어에 재시도 루프 필요. |
 | DB COUNT 쿼리 + 제약 | `FOR UPDATE` 없이 COUNT 후 INSERT 시 TOCTOU(Time-of-Check-Time-of-Use) 경쟁 조건 그대로 잔존. |
-| 분산 락(Redis) | 현재 인프라에 Redis 없음. MVP 단계 과도한 복잡도. |
+| 분산 락(Redis) | DB 행이 정원과 버퍼 상태의 원본이므로 별도 잠금 저장소를 두면 장애 지점과 정합성 경계만 늘어난다. |
 
 ---
 
 ## 결과
 
 **긍정**
-- 정원 강제 로직이 단일 트랜잭션 + 단일 row 잠금으로 단순화.
+- 클래스 행을 먼저 잠그고 원인 슬롯과 버퍼 슬롯을 PK 순서로 잠가 정원, 역방향 충돌, 슬롯 삽입 경쟁을 함께 방어한다.
 - 재시도 로직 불필요 → 서비스 레이어 코드 간결.
 - `CapacityExceededException` 발생 시 자동 롤백 → `booked_count` 불변 보장.
 - 첫 예약과 마지막 예약 전환에서만 버퍼 차단 수를 변경해 같은 슬롯의 여러 예약을 하나의 원인으로 취급한다.
+- 공개 조회와 잠금 후 재검증을 함께 적용해 이미 시작한 슬롯이 조회-예약 사이 경쟁 조건으로 확정되지 않는다.
+- 뒤 슬롯 선예약 후 앞 슬롯 예약을 시도하는 역방향 순서에서도 버퍼 충돌을 허용하지 않는다.
 
 **부정 / 주의 사항**
 - `reserveCapacity()`는 반드시 **예약 엔티티(bookings) save와 동일 트랜잭션** 안에서 호출해야 한다.

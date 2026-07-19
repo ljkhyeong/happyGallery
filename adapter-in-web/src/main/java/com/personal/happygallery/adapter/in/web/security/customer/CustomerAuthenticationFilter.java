@@ -27,6 +27,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public final class CustomerAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String CUSTOMER_USER_ID_SESSION_ATTRIBUTE = "customerUserId";
+    public static final String CUSTOMER_CREDENTIAL_VERSION_SESSION_ATTRIBUTE = "customerCredentialVersion";
 
     private static final List<GrantedAuthority> CUSTOMER_AUTHORITIES =
             List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER"));
@@ -52,25 +53,33 @@ public final class CustomerAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         HttpSession session = request.getSession(false);
-        Long userId = resolveUserId(session);
-        if (userId == null) {
+        SessionCredentials credentials = resolveCredentials(session);
+        if (credentials == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        customerAuth.findUser(userId).ifPresentOrElse(
-                user -> authenticate(CustomerPrincipal.from(user)),
-                () -> session.removeAttribute(CUSTOMER_USER_ID_SESSION_ATTRIBUTE)
-        );
+        customerAuth.findUser(credentials.userId())
+                .filter(user -> user.getCredentialVersion() == credentials.credentialVersion())
+                .ifPresentOrElse(
+                        user -> authenticate(CustomerPrincipal.from(user)),
+                        session::invalidate);
         filterChain.doFilter(request, response);
     }
 
-    private Long resolveUserId(HttpSession session) {
+    private SessionCredentials resolveCredentials(HttpSession session) {
         if (session == null) {
             return null;
         }
         Object userId = session.getAttribute(CUSTOMER_USER_ID_SESSION_ATTRIBUTE);
-        return userId instanceof Long id ? id : null;
+        Object credentialVersion = session.getAttribute(CUSTOMER_CREDENTIAL_VERSION_SESSION_ATTRIBUTE);
+        if (userId instanceof Long id && credentialVersion instanceof Long version) {
+            return new SessionCredentials(id, version);
+        }
+        if (userId != null) {
+            session.invalidate();
+        }
+        return null;
     }
 
     private void authenticate(CustomerPrincipal principal) {
@@ -83,5 +92,8 @@ public final class CustomerAuthenticationFilter extends OncePerRequestFilter {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
+    }
+
+    private record SessionCredentials(Long userId, long credentialVersion) {
     }
 }

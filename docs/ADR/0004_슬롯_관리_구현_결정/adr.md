@@ -83,18 +83,19 @@ OSIV에 의존하지 않는 것을 전제로 한다.
 
 ### 결정
 - 슬롯 생성 요청은 `classId`, `startAt`만 받고 `Slot`이 `endAt = startAt + bookingClass.durationMin`으로 계산한다.
-- 앱 레벨에서 `existsByBookingClassIdAndStartAt()`로 선행 검사 후, DB 제약을 최후 방어선으로 유지한다.
+- 같은 클래스의 예약·반납과 슬롯 생성을 직렬화하는 `classes` 행 잠금을 먼저 획득한다.
+- 잠금 안에서 `existsByBookingClassIdAndStartAt()`로 선행 검사 후, DB 제약을 최후 방어선으로 유지한다.
 
 ```
 앱 레벨 체크  →  400 INVALID_INPUT  (명확한 에러 메시지)
-      ↓ (TOCTOU 통과 시)
+      ↓ (애플리케이션 외부 쓰기 등 최후 경쟁 시)
 DB UNIQUE      →  DataIntegrityViolationException → 현재 미처리(500)
 ```
 
 ### 트레이드오프 / 위험
-- **TOCTOU 경쟁 조건**: 두 요청이 동시에 앱 레벨 체크를 통과하면 DB 제약이 발동. 현재 `GlobalExceptionHandler`에 `DataIntegrityViolationException` 핸들러 없음 → `500` 반환.
-- **미결 과제**: `GlobalExceptionHandler`에 `DataIntegrityViolationException` → `409 INVALID_INPUT` 변환 핸들러 추가 검토.
-- 슬롯 생성 빈도가 낮아(관리자 단독 조작) TOCTOU 실제 발생 가능성은 낮음.
+- 같은 클래스의 슬롯 생성과 예약·반납은 짧은 클래스 행 잠금 경계에서 직렬화된다.
+- 클래스별로만 직렬화하므로 서로 다른 클래스 작업은 병렬 처리된다.
+- DB를 애플리케이션 밖에서 직접 변경하는 경우에는 UNIQUE 제약이 최후 방어선으로 남는다.
 
 ---
 
@@ -123,6 +124,26 @@ void incrementBufferBlocks(...);
 
 ---
 
+## Decision 5: 공개 예약 가능 시각과 최종 확정 시각을 이중 검증
+
+### 배경
+
+날짜별 공개 조회가 활성 상태와 잔여 정원만 확인하면 이미 시작한 슬롯도 노출된다. 또한 조회 당시에는
+미래 슬롯이었더라도 결제·확정 전에 시작 시각이 지날 수 있어 조회 필터만으로는 예약 정합성을 보장할 수 없다.
+
+### 결정
+
+- 공개 슬롯 조회는 주입된 `Clock`의 현재 시각보다 뒤에 시작하는 슬롯만 반환한다.
+- 시작 시각과 현재 시각이 같으면 이미 시작한 슬롯으로 보고 제외한다.
+- `SlotCapacitySupport.reserveCapacity()`는 원인 슬롯을 비관적으로 잠근 뒤 같은 시간 규칙을 다시 검증한다.
+
+### 결과
+
+공개 화면은 예약 가능한 슬롯만 보여 주고, 조회와 최종 확정 사이에 시간이 경과해도 잠금 트랜잭션에서
+예약을 거절한다. 시간 기준은 운영체제 기본 시각이 아니라 애플리케이션의 Asia/Seoul `Clock`을 따른다.
+
+---
+
 ## 결과
 
 **공통 위험 요약**
@@ -130,7 +151,7 @@ void incrementBufferBlocks(...);
 | 위험 | 트리거 조건 | 조치 |
 |------|------------|------|
 | LazyInitializationException | DTO가 LAZY 연관 필드를 추가로 참조 | 서비스 DTO 조립 또는 fetch join/@EntityGraph 적용 |
-| createSlot TOCTOU 500 | 동시 슬롯 생성 | GlobalExceptionHandler에 DataIntegrityViolationException 핸들러 추가 |
+| 클래스 단위 잠금 경합 | 같은 클래스에 슬롯 생성·예약이 집중 | 트랜잭션을 짧게 유지하고 잠금 대기 지표 확인 |
 | 버퍼 N+1 | 고밀도 슬롯 배치 | @Modifying 일괄 UPDATE로 교체 |
 
 ---

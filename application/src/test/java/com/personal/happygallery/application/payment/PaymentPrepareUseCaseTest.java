@@ -18,6 +18,7 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
@@ -35,6 +36,7 @@ import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @UseCaseIT
 class PaymentPrepareUseCaseTest {
@@ -89,5 +91,25 @@ class PaymentPrepareUseCaseTest {
                         softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PENDING);
                     });
         });
+    }
+
+    @DisplayName("직접 주문 prepare는 판매 중지 상품을 결제 대상으로 확정하지 않는다")
+    @Test
+    void prepare_inactiveDirectOrder_rejected() {
+        User user = userStorePort.save(new User(
+                "inactive-order@example.com", "hashed", "회원", "01055556666"));
+        Product product = productStorePort.save(readyStockProduct("판매 중지 상품", 29_000L));
+        product.deactivate();
+        productStorePort.save(product);
+        inventoryStorePort.save(inventory(product, 1));
+
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(new OrderItemRef(product.getId(), 1))),
+                AuthContext.member(user.getId()))))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("판매 중인 상품");
     }
 }

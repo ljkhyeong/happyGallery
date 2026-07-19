@@ -42,6 +42,12 @@ ruby -e '
   abort "app/frontend 이미지는 sha256 digest로 고정해야 합니다." unless release_deployments.size == 2 && release_deployments.all? do |d|
     d.dig("spec", "template", "spec", "containers", 0, "image")&.match?(/@sha256:[a-f0-9]{64}\z/)
   end
+  singleton_deployments = documents.select do |d|
+    d["kind"] == "Deployment" && %w[redis alertmanager].include?(d.dig("metadata", "name"))
+  end
+  abort "Redis/Alertmanager 단일 인스턴스는 Recreate 전략이어야 합니다." unless singleton_deployments.size == 2 && singleton_deployments.all? do |d|
+    d.dig("spec", "replicas") == 1 && d.dig("spec", "strategy", "type") == "Recreate"
+  end
   cluster_scoped = documents.select { |d| %w[Namespace StorageClass ClusterIssuer].include?(d["kind"]) }
   abort "cluster-scoped 리소스에 namespace가 있습니다." if cluster_scoped.any? { |d| d.dig("metadata", "namespace") }
   policies = documents.select { |d| d["kind"] == "NetworkPolicy" }.to_h { |d| [d.dig("metadata", "name"), d] }
@@ -75,6 +81,10 @@ grep -q 'imagePullPolicy: Never' "$rendered" || die "로컬 이미지 import 정
 grep -q 'app-management:8081' "$rendered" || die "Prometheus가 내부 관리 포트를 scrape하지 않습니다."
 grep -q 'alert: PaymentConfirmReconciliationRequired' "$rendered" \
     || die "결제 confirm 수동 대사 critical 알림이 없습니다."
+grep -q 'alertmanager:9093' "$rendered" \
+    || die "Prometheus와 Alertmanager 연결이 없습니다."
+grep -q 'url_file: /etc/alertmanager/secrets/webhook-url' "$rendered" \
+    || die "Alertmanager webhook Secret 파일 연결이 없습니다."
 grep -q 'GOOGLE_OAUTH_REDIRECT_URI: https://gallery.example.com/api/v1/auth/social/callback/google' "$rendered" \
     || die "Google OAuth callback이 공개 host와 일치하지 않습니다."
 grep -q 'NAVER_OAUTH_REDIRECT_URI: https://gallery.example.com/api/v1/auth/social/callback/naver' "$rendered" \

@@ -26,9 +26,27 @@ import org.springframework.stereotype.Component;
 public class AppMetrics {
 
     private final MeterRegistry registry;
+    private final Counter guestClaimCompleted;
+    private final Counter paymentConfirmReconciliationRequired;
+    private final Counter notificationOutboxFailed;
+    private final Counter customerSessionRevocationFailed;
 
     public AppMetrics(MeterRegistry registry) {
         this.registry = registry;
+        this.guestClaimCompleted = Counter.builder("happygallery.funnel.guest_claim_completed")
+                .description("비회원→회원 기록 인수 완료")
+                .register(registry);
+        this.paymentConfirmReconciliationRequired = Counter.builder(
+                        "happygallery.payment.confirm.reconciliation_required")
+                .description("수동 대사가 필요한 결제 confirm 시도")
+                .register(registry);
+        this.notificationOutboxFailed = Counter.builder("happygallery.notification.outbox.failed")
+                .description("자동 재시도를 모두 소진한 알림 outbox")
+                .register(registry);
+        this.customerSessionRevocationFailed = Counter.builder(
+                        "happygallery.customer.session.revocation_failed")
+                .description("회원 자격 증명 변경 후 이전 버전 Redis 세션 폐기 실패")
+                .register(registry);
     }
 
     /**
@@ -48,17 +66,21 @@ public class AppMetrics {
      * guest claim 완료 카운터를 증가시킨다.
      */
     public void incrementGuestClaimCompleted() {
-        Counter.builder("happygallery.funnel.guest_claim_completed")
-                .description("비회원→회원 기록 인수 완료")
-                .register(registry)
-                .increment();
+        guestClaimCompleted.increment();
     }
 
     /** PG 멱등 안전 기간을 지나 수동 결제 대사가 필요해진 건수를 기록한다. */
     public void incrementPaymentConfirmReconciliationRequired() {
-        Counter.builder("happygallery.payment.confirm.reconciliation_required")
-                .description("수동 대사가 필요한 결제 confirm 시도")
-                .register(registry)
-                .increment();
+        paymentConfirmReconciliationRequired.increment();
+    }
+
+    /** 자동 재시도를 모두 소진한 알림 outbox 건수를 기록한다. */
+    public void incrementNotificationOutboxFailed() {
+        notificationOutboxFailed.increment();
+    }
+
+    /** 자격 증명 변경 이후 이전 버전 Redis 회원 세션 삭제가 실패한 건수를 기록한다. */
+    public void incrementCustomerSessionRevocationFailure() {
+        customerSessionRevocationFailed.increment();
     }
 }

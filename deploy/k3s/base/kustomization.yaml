@@ -10,5 +10,6 @@ resources:
   - app.yaml
   - frontend.yaml
   - prometheus.yaml
+  - alertmanager.yaml
   - ingress.yaml
   - network-policy.yaml

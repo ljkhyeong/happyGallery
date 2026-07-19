@@ -89,13 +89,13 @@ class OrderProductionUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // MADE_TO_ORDER 승인 → IN_PRODUCTION + Fulfillment 생성
+    // MADE_TO_ORDER 승인 → IN_PRODUCTION + 결제 시점 Fulfillment 유지
     // -----------------------------------------------------------------------
 
-    @DisplayName("주문제작 상품 주문 승인 시 IN_PRODUCTION으로 전이되고 Fulfillment가 생성된다")
+    @DisplayName("주문제작 상품 승인 시 결제에서 정한 배송 방식이 유지된다")
     @Test
     void approve_madeToOrder_transitionsToInProductionAndCreatesFulfillment() {
-        Order order = orderHelper.createMadeToOrderPaidOrder("예약 제작 상품", 200000L).order();
+        Order order = orderHelper.createMadeToOrderPaidShippingOrder("예약 제작 상품", 200000L).order();
 
         orderApprovalService.approve(order.getId(), ADMIN_ID);
 
@@ -108,7 +108,7 @@ class OrderProductionUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // READY_STOCK 승인 → 기존 흐름 유지 (Fulfillment 미생성)
+    // READY_STOCK 승인 → 기존 상태 흐름 + 결제 시점 Fulfillment 유지
     // -----------------------------------------------------------------------
 
     @DisplayName("기성품 주문 승인 시 APPROVED_FULFILLMENT_PENDING 상태를 유지한다")
@@ -121,7 +121,9 @@ class OrderProductionUseCaseIT {
         Order updated = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
-            softly.assertThat(orderStateProbe.findFulfillmentByOrderId(order.getId())).isEmpty();
+            softly.assertThat(orderStateProbe.findFulfillmentByOrderId(order.getId()))
+                    .hasValueSatisfying(fulfillment ->
+                            softly.assertThat(fulfillment.getType()).isEqualTo(FulfillmentType.PICKUP));
         });
     }
 
@@ -132,7 +134,7 @@ class OrderProductionUseCaseIT {
     @DisplayName("예상 출고일 설정 시 Fulfillment의 출고일이 갱신된다")
     @Test
     void setExpectedShipDate_updatesShipDateOnFulfillment() {
-        Order order = orderHelper.createMadeToOrderPaidOrder("출고일 설정 상품", 150000L).order();
+        Order order = orderHelper.createMadeToOrderPaidShippingOrder("출고일 설정 상품", 150000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         LocalDate shipDate = LocalDate.of(2026, 4, 15);
@@ -366,7 +368,7 @@ class OrderProductionUseCaseIT {
     @DisplayName("제작 완료 후 배송 흐름 전체가 정상 전이된다")
     @Test
     void shippingFlow_fullTransition() {
-        Order order = orderHelper.createMadeToOrderPaidOrder("배송 흐름 상품", 200000L).order();
+        Order order = orderHelper.createMadeToOrderPaidShippingOrder("배송 흐름 상품", 200000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.completeProduction(order.getId(), 1L);
 
@@ -397,6 +399,30 @@ class OrderProductionUseCaseIT {
                 OrderApprovalDecision.DELIVER);
     }
 
+    @DisplayName("관리자는 고객이 선택한 수령 방법과 다른 이행 흐름을 시작할 수 없다")
+    @Test
+    void fulfillmentTransition_mustMatchCustomerSelection() {
+        Order pickupOrder = orderHelper.createReadyStockPaidOrder("픽업 선택 상품", 60_000L).order();
+        Order shippingOrder = orderHelper.createMadeToOrderPaidShippingOrder("배송 선택 상품", 160_000L).order();
+        orderApprovalService.approve(pickupOrder.getId(), ADMIN_ID);
+        orderApprovalService.approve(shippingOrder.getId(), ADMIN_ID);
+        orderProductionService.completeProduction(shippingOrder.getId(), ADMIN_ID);
+
+        assertSoftly(softly -> {
+            softly.assertThatThrownBy(() -> orderShippingService.prepareShipping(pickupOrder.getId(), ADMIN_ID))
+                    .isInstanceOf(HappyGalleryException.class)
+                    .hasMessageContaining("배송 이행");
+            softly.assertThatThrownBy(() -> orderPickupService.markPickupReady(
+                            shippingOrder.getId(), LocalDateTime.of(2026, 4, 1, 18, 0), ADMIN_ID))
+                    .isInstanceOf(HappyGalleryException.class)
+                    .hasMessageContaining("픽업 주문");
+            softly.assertThat(orderStateProbe.getOrder(pickupOrder.getId()).getStatus())
+                    .isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(orderStateProbe.getOrder(shippingOrder.getId()).getStatus())
+                    .isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+        });
+    }
+
     // -----------------------------------------------------------------------
     // expectedShipDate write guard
     // -----------------------------------------------------------------------
@@ -417,7 +443,7 @@ class OrderProductionUseCaseIT {
     @DisplayName("SHIPPING_PREPARING 상태에서는 출고일 설정이 가능하다")
     @Test
     void setExpectedShipDate_inShippingPreparing_succeeds() {
-        Order order = orderHelper.createMadeToOrderPaidOrder("배송준비 출고일 상품", 150000L).order();
+        Order order = orderHelper.createMadeToOrderPaidShippingOrder("배송준비 출고일 상품", 150000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.completeProduction(order.getId(), 1L);
         orderShippingService.prepareShipping(order.getId(), 1L);

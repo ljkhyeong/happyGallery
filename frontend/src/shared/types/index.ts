@@ -4,7 +4,7 @@ export type { RefundStatus, RefundProgress, AdminRefundStatus } from "./refund";
 export type { ProductType, ProductStatus, ProductSortOrder, ProductDetailResponse, ProductResponse, CreateProductRequest, ProductFilterParams } from "./product";
 export type { BookingStatus, DepositPaymentMethod, BookingCancelPolicy, SendVerificationRequest, SendVerificationResponse, BookingDetailResponse, MyBookingDetailResponse, RescheduleResponse, CancelResponse } from "./booking";
 export type { PassRefundResponse } from "./pass";
-export type { OrderStatus, SlotResponse, CreateSlotRequest, BatchResponse, BookingNoShowResponse, OrderProductionResponse, OrderRejectResponse, OrderDelayCancellationResponse, PickupResponse, MarkPickupReadyRequest, SetExpectedShipDateRequest, FailedRefundResponse, AdminOrderResponse, AdminBookingResponse, ShippingResponse, OrderApprovalDecision, OrderHistoryResponse } from "./admin";
+export type { OrderStatus, SlotResponse, CreateSlotRequest, BatchResponse, BookingNoShowResponse, OrderProductionResponse, OrderRejectResponse, OrderDelayCancellationResponse, PickupResponse, MarkPickupReadyRequest, SetExpectedShipDateRequest, FailedRefundResponse, FailedNotificationResponse, PaymentReconciliationRequiredResponse, PaymentReconciliationResultResponse, AdminOrderResponse, AdminOrderFulfillmentResponse, AdminBookingResponse, ShippingResponse, OrderApprovalDecision, OrderHistoryResponse } from "./admin";
 export type { ClassResponse, CreateClassRequest } from "./class";
 export type { PublicSlotResponse } from "./slot";
 export type { OrderItemInput, OrderDetailResponse, OrderItemDto, FulfillmentType, FulfillmentDto } from "./order";

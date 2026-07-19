@@ -15,6 +15,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.PersonalName;
 import java.util.List;
@@ -95,7 +96,8 @@ public class OrderPreparer implements PaymentPreparer {
         String phone = auth.isMember() ? null : KoreanPhoneNumber.required(op.phone());
         String name = auth.isMember() ? null : PersonalName.required(op.name());
         return new PreparedPayment(total, new PreparedOrderPayload(
-                op.userId(), phone, op.verificationCode(), name, preparedItems, op.cartCheckout()));
+                op.userId(), phone, op.verificationCode(), name, preparedItems, op.cartCheckout(),
+                op.fulfillmentType(), op.shippingAddress()));
     }
 
     private List<ItemToPrepare> cartItems(Long userId) {
@@ -108,6 +110,9 @@ public class OrderPreparer implements PaymentPreparer {
         Product product = productsById.get(item.productId());
         if (product == null) {
             throw new NotFoundException("상품");
+        }
+        if (product.getStatus() != ProductStatus.ACTIVE) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "판매 중인 상품만 주문할 수 있습니다.");
         }
         return new PreparedOrderItem(item.cartItemId(), item.productId(), item.qty(), product.getPrice());
     }

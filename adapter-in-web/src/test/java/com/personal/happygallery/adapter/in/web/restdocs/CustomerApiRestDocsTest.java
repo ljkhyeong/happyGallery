@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.adapter.in.web.customer.CustomerSessionBinder;
 import com.personal.happygallery.adapter.in.web.customer.CustomerAuthController;
+import com.personal.happygallery.adapter.in.web.customer.CustomerCredentialController;
 import com.personal.happygallery.adapter.in.web.customer.MeBookingController;
 import com.personal.happygallery.adapter.in.web.customer.MeCartController;
 import com.personal.happygallery.adapter.in.web.customer.MeGuestClaimController;
@@ -9,6 +10,7 @@ import com.personal.happygallery.adapter.in.web.customer.MeInquiryController;
 import com.personal.happygallery.adapter.in.web.customer.MeNotificationController;
 import com.personal.happygallery.adapter.in.web.customer.MeOrderController;
 import com.personal.happygallery.adapter.in.web.customer.MePassController;
+import com.personal.happygallery.adapter.in.web.customer.MePhoneController;
 import com.personal.happygallery.adapter.in.web.customer.MeProductQnaController;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
@@ -16,7 +18,9 @@ import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
+import com.personal.happygallery.application.customer.port.in.CustomerCredentialUseCase;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
+import com.personal.happygallery.application.customer.port.in.InitialMemberPhoneRegistrationUseCase;
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.application.notification.port.in.NotificationQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
@@ -56,6 +60,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private MockMvc mockMvc;
 
     private CustomerAuthUseCase customerAuthUseCase;
+    private CustomerCredentialUseCase customerCredentialUseCase;
     private CartUseCase cartUseCase;
     private BookingQueryUseCase bookingQueryUseCase;
     private BookingRescheduleUseCase bookingRescheduleUseCase;
@@ -64,6 +69,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private PassQueryUseCase passQueryUseCase;
     private NotificationQueryUseCase notificationQueryUseCase;
     private GuestClaimUseCase guestClaimUseCase;
+    private InitialMemberPhoneRegistrationUseCase phoneRegistrationUseCase;
     private InquiryUseCase inquiryUseCase;
     private ProductQnaUseCase qnaUseCase;
     private SubjectRateLimitGuard rateLimitGuard;
@@ -71,6 +77,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
         customerAuthUseCase = mock(CustomerAuthUseCase.class);
+        customerCredentialUseCase = mock(CustomerCredentialUseCase.class);
         cartUseCase = mock(CartUseCase.class);
         bookingQueryUseCase = mock(BookingQueryUseCase.class);
         bookingRescheduleUseCase = mock(BookingRescheduleUseCase.class);
@@ -79,6 +86,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         passQueryUseCase = mock(PassQueryUseCase.class);
         notificationQueryUseCase = mock(NotificationQueryUseCase.class);
         guestClaimUseCase = mock(GuestClaimUseCase.class);
+        phoneRegistrationUseCase = mock(InitialMemberPhoneRegistrationUseCase.class);
         inquiryUseCase = mock(InquiryUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
         rateLimitGuard = mock(SubjectRateLimitGuard.class);
@@ -116,6 +124,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(guestClaimUseCase.verifyPhoneAndPreview(CUSTOMER_USER_ID, "123456")).thenReturn(claimPreview(true));
         when(guestClaimUseCase.claim(eq(CUSTOMER_USER_ID), any(), any()))
                 .thenReturn(new GuestClaimUseCase.ClaimResult(1, 1));
+        when(phoneRegistrationUseCase.register(CUSTOMER_USER_ID, "01012345678", "123456"))
+                .thenReturn(user);
+        when(customerCredentialUseCase.resetPassword(any()))
+                .thenReturn(CUSTOMER_USER_ID);
         when(inquiryUseCase.create(eq(CUSTOMER_USER_ID), any(), any())).thenReturn(inquiry);
         when(inquiryUseCase.listByUser(CUSTOMER_USER_ID)).thenReturn(List.of(inquiry));
         when(inquiryUseCase.findByIdAndUser(9L, CUSTOMER_USER_ID)).thenReturn(inquiry);
@@ -125,6 +137,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         CustomerSessionBinder customerSessionBinder = new CustomerSessionBinder(mock(CsrfTokenRepository.class));
         mockMvc = mockMvc(restDocumentation,
                 new CustomerAuthController(customerAuthUseCase, customerSessionBinder, rateLimitGuard),
+                new CustomerCredentialController(
+                        customerCredentialUseCase, customerSessionBinder, rateLimitGuard),
                 new MeCartController(cartUseCase),
                 new MeBookingController(bookingQueryUseCase, bookingRescheduleUseCase,
                         bookingCancelUseCase, RestDocsFixtures.clock()),
@@ -132,6 +146,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 new MePassController(passQueryUseCase),
                 new MeNotificationController(notificationQueryUseCase),
                 new MeGuestClaimController(guestClaimUseCase, rateLimitGuard),
+                new MePhoneController(phoneRegistrationUseCase, rateLimitGuard),
                 new MeInquiryController(inquiryUseCase),
                 new MeProductQnaController(qnaUseCase));
     }
@@ -179,6 +194,52 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void me() throws Exception {
         mockMvc.perform(get("/api/v1/me").with(customerUser()))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("회원 최초 휴대폰 등록 API를 문서화한다")
+    void register_initial_phone() throws Exception {
+        mockMvc.perform(patch("/api/v1/me/phone")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "phone": "01012345678",
+                                  "verificationCode": "123456"
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("회원 비밀번호 변경 API를 문서화한다")
+    void change_password() throws Exception {
+        mockMvc.perform(patch("/api/v1/me/password")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "password1234",
+                                  "newPassword": "newPassword1234"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("검증된 휴대폰으로 비밀번호 재설정 API를 문서화한다")
+    void reset_password() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password/reset")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "member@example.com",
+                                  "phone": "01012345678",
+                                  "verificationCode": "123456",
+                                  "newPassword": "newPassword1234"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
     }
 
     @Test

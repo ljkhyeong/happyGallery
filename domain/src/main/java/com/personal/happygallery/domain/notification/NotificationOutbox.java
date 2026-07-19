@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.notification;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent.ForGuest;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent.ForUser;
 import jakarta.persistence.Column;
@@ -145,20 +147,34 @@ public class NotificationOutbox {
         this.lastError = null;
     }
 
-    public void markDeliveryFailed(String reason,
-                                   LocalDateTime nextAttemptAt,
-                                   LocalDateTime now,
-                                   int maxAttempts) {
+    public boolean markDeliveryFailed(String reason,
+                                      LocalDateTime nextAttemptAt,
+                                      LocalDateTime now,
+                                      int maxAttempts) {
         this.attemptCount++;
         this.lastError = truncate(reason);
         this.lockedAt = null;
         if (this.attemptCount >= maxAttempts) {
             this.status = NotificationOutboxStatus.FAILED;
             this.processedAt = now;
-            return;
+            return true;
         }
         this.status = NotificationOutboxStatus.PENDING;
         this.nextAttemptAt = nextAttemptAt;
+        return false;
+    }
+
+    /** 운영자가 최종 실패를 확인한 뒤 같은 outbox와 멱등키로 다시 발송하도록 연다. */
+    public void retryFailed(LocalDateTime now) {
+        if (status != NotificationOutboxStatus.FAILED) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "최종 실패한 알림만 재처리할 수 있습니다.");
+        }
+        this.status = NotificationOutboxStatus.PENDING;
+        this.attemptCount = 0;
+        this.nextAttemptAt = now;
+        this.lockedAt = null;
+        this.processedAt = null;
+        this.lastError = null;
     }
 
     private String truncate(String reason) {

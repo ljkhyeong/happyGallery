@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import java.util.List;
 import org.slf4j.Logger;
@@ -16,6 +17,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.ResourceAccessException;
 
 import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.REQUEST_TIMEOUT;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
@@ -39,6 +41,7 @@ public class TossPaymentsProvider implements PaymentProvider {
     private static final String REFUND_REJECTED = "PG가 환불을 거절했습니다.";
     private static final String REFUND_RETRYABLE = "PG 환불 요청을 재시도해야 합니다.";
     private static final String REFUND_RESULT_UNKNOWN = "PG 통신 결과를 확인할 수 없습니다.";
+    private static final String NOT_FOUND_PAYMENT_CODE = "NOT_FOUND_PAYMENT";
 
     private final RestClient restClient;
 
@@ -83,6 +86,39 @@ public class TossPaymentsProvider implements PaymentProvider {
     }
 
     @Override
+    public PaymentLookupResult lookupByOrderId(String orderId) {
+        try {
+            LookupResponse response = restClient.get()
+                    .uri("/v1/payments/orders/{orderId}", orderId)
+                    .retrieve()
+                    .body(LookupResponse.class);
+            if (response == null || !StringUtils.hasText(response.status())) {
+                return PaymentLookupResult.unavailable(orderId, "PG 결제 조회 응답이 비어 있습니다.");
+            }
+            if (!orderId.equals(response.orderId())) {
+                return PaymentLookupResult.unavailable(orderId, "PG 결제 조회 식별자가 일치하지 않습니다.");
+            }
+            return switch (response.status()) {
+                case "DONE" -> PaymentLookupResult.approved(
+                        response.paymentKey(), response.orderId(), response.totalAmount());
+                case "CANCELED", "ABORTED", "EXPIRED" -> PaymentLookupResult.notApproved(
+                        orderId, "PG 결제가 승인되지 않았거나 이미 전액 취소되었습니다.");
+                default -> PaymentLookupResult.reviewRequired(
+                        orderId, "PG 결제 상태를 자동 확정할 수 없습니다: " + response.status());
+            };
+        } catch (RestClientResponseException e) {
+            if (isPaymentNotFound(e)) {
+                return PaymentLookupResult.notApproved(orderId, "PG에서 승인된 결제를 찾지 못했습니다.");
+            }
+            log.warn("Toss 결제 조회 실패 [orderId={} status={}]", orderId, e.getStatusCode());
+            return PaymentLookupResult.unavailable(orderId, "PG 결제 조회에 실패했습니다.");
+        } catch (Exception e) {
+            log.warn("Toss 결제 조회 예외 [orderId={} type={}]", orderId, e.getClass().getSimpleName());
+            return PaymentLookupResult.unavailable(orderId, "PG 결제 조회 결과를 확인할 수 없습니다.");
+        }
+    }
+
+    @Override
     public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
         try {
             RefundRequest body = new RefundRequest("요청에 의한 환불", amount);
@@ -118,6 +154,8 @@ public class TossPaymentsProvider implements PaymentProvider {
 
     private record ConfirmResponse(String paymentKey, String orderId, String method, String approvedAt) {}
 
+    private record LookupResponse(String paymentKey, String orderId, String status, long totalAmount) {}
+
     private record RefundRequest(String cancelReason, long cancelAmount) {}
 
     private String refundTransactionKey(RefundResponse response) {
@@ -147,7 +185,22 @@ public class TossPaymentsProvider implements PaymentProvider {
                 || status.is5xxServerError();
     }
 
+    private boolean isPaymentNotFound(RestClientResponseException exception) {
+        if (!exception.getStatusCode().isSameCodeAs(NOT_FOUND)) {
+            return false;
+        }
+        try {
+            TossErrorResponse response = exception.getResponseBodyAs(TossErrorResponse.class);
+            return response != null && NOT_FOUND_PAYMENT_CODE.equals(response.code());
+        } catch (RuntimeException parsingFailure) {
+            log.warn("Toss 결제 조회 404 응답 본문을 해석하지 못했습니다.");
+            return false;
+        }
+    }
+
     private record RefundResponse(String paymentKey, String lastTransactionKey, List<CancelResponse> cancels) {}
 
     private record CancelResponse(String transactionKey) {}
+
+    private record TossErrorResponse(String code, String message) {}
 }

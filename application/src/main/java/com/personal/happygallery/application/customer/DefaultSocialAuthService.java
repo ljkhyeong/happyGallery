@@ -43,7 +43,7 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
         Optional<SocialAccount> socialAccount = socialAccountReader.findByProviderAndProviderId(
                 command.provider(), command.providerId());
         if (socialAccount.isPresent()) {
-            User user = findSocialAccountUser(socialAccount.get());
+            User user = findSocialAccountUserForUpdate(socialAccount.get());
             updateLastLogin(user);
             return new SocialLoginResult(user, false);
         }
@@ -60,8 +60,8 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
         return new SocialLoginResult(user, true);
     }
 
-    private User findSocialAccountUser(SocialAccount socialAccount) {
-        return userReader.findById(socialAccount.getUserId())
+    private User findSocialAccountUserForUpdate(SocialAccount socialAccount) {
+        return userReader.findByIdForUpdate(socialAccount.getUserId())
                 .orElseThrow(() -> new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED));
     }
 

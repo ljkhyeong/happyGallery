@@ -9,10 +9,11 @@ Internet -> router/firewall :80/:443 -> k3s Traefik
 app -> mysql:3306 (Retain PVC)
 app -> redis:6379 (비영속 세션/처리율 상태)
 prometheus -> app-management:8081/actuator/prometheus (cluster 내부 전용)
+           -> alertmanager:9093 -> 외부 HTTPS webhook
 ```
 
 단일 노트북, 디스크, 전원, 공유기, 인터넷 또는 k3s 장애는 전체 서비스 중단으로 이어진다. 이 구성은 고가용성을 제공하지 않는다.
-Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하지만 같은 노트북에 있으므로 노트북 자체 장애를 알릴 수 없다. 외부 uptime 감시와 alert 전달 수신자는 운영 주소가 정해진 뒤 노트북 밖에 별도로 둔다.
+Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내부 Alertmanager가 저장소 밖 Secret의 HTTPS webhook으로 전달한다. 다만 둘 다 같은 노트북에 있으므로 노트북 자체 장애는 알릴 수 없다. 외부 uptime 감시와 webhook 수신자는 노트북 밖에 별도로 둔다.
 
 ## 디렉터리
 
@@ -61,6 +62,7 @@ sudo install -d -m 700 -o "$USER" -g "$(id -gn)" /etc/happygallery
 sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/mysql.env.example /etc/happygallery/mysql.env
 sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/redis.env.example /etc/happygallery/redis.env
 sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/app.env.example /etc/happygallery/app.env
+sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-url.example /etc/happygallery/alert-webhook-url
 ```
 
 - `ENCRYPT_KEY`, `HMAC_KEY`: 각각 `openssl rand -hex 32`
@@ -72,8 +74,11 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/app.env.exampl
 ./deploy/k3s/scripts/create-secrets.sh \
   /etc/happygallery/mysql.env \
   /etc/happygallery/redis.env \
-  /etc/happygallery/app.env
+  /etc/happygallery/app.env \
+  /etc/happygallery/alert-webhook-url
 ```
+
+`alert-webhook-url`에는 Alertmanager JSON을 받을 외부 HTTPS endpoint 한 줄만 둔다. URL은 `happygallery-alertmanager` Secret의 파일로 mount되며 manifest, release metadata와 로그에는 기록하지 않는다. critical은 1시간, warning은 4시간 반복 간격으로 같은 receiver에 전달하고 해결 알림도 보낸다. 최초 rollout 전에 수신 서비스에서 테스트 alert가 실제 도착하는지 확인한다.
 
 Kubernetes Secret은 base64 인코딩일 뿐 자체 암호화가 아니다. k3s datastore 암호화, kubeconfig/host 접근 제한, off-device 복구 키 보관을 함께 적용한다. `create-secrets.sh`는 기존 MySQL PVC가 있으면 DB 비밀번호를 Secret에서만 바꾸는 동작을 거부한다. MySQL 공식 이미지의 초기화 환경 변수는 기존 데이터 디렉터리의 계정 비밀번호를 바꾸지 않기 때문이다.
 
@@ -130,7 +135,7 @@ https://<PUBLIC_HOST>/api/v1/auth/social/callback/google
 https://<PUBLIC_HOST>/api/v1/auth/social/callback/naver
 ```
 
-cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시 외부 TCP 80 접근이 필요하다. 공개 서비스는 Traefik 80/443뿐이며 app, MySQL, Redis, Prometheus와 Actuator는 ClusterIP/Pod 네트워크 밖으로 노출하지 않는다.
+cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시 외부 TCP 80 접근이 필요하다. 공개 서비스는 Traefik 80/443뿐이며 app, MySQL, Redis, Prometheus, Alertmanager와 Actuator는 ClusterIP/Pod 네트워크 밖으로 노출하지 않는다.
 
 ## 5. 최초 rollout과 후속 rollout
 
@@ -147,12 +152,12 @@ cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시
 1. cert-manager/Traefik CRD, runtime Secret, containerd 이미지와 digest 일치 확인
 2. 실제 host, ACME email, commit SHA tag와 content digest로 manifest 렌더링
 3. server-side dry-run
-4. MySQL, Redis, app, frontend, Prometheus rollout 대기
+4. MySQL, Redis, app, frontend, Prometheus, Alertmanager rollout 대기
 5. Certificate Ready, 내부 Actuator, Prometheus target, HTTP -> HTTPS, SPA/API 경계 검증
 6. 적용한 manifest와 이미지 식별자를 `$HOME/.local/state/happygallery/releases`에 보존
 
 실패 시 자동 rollback하지 않는다. 새 이미지의 Flyway가 이미 실행됐을 수 있으므로 DB 호환성과 백업을 먼저 확인한다.
-app Deployment는 `Recreate` 전략을 사용한다. 단일 노드에서 구 binary와 Flyway 적용 후의 새 schema가 겹쳐 실행되는 위험을 피하는 대신 app rollout 동안 짧은 API 중단을 수용한다.
+app Deployment는 `Recreate` 전략을 사용한다. 단일 노드에서 구 binary와 Flyway 적용 후의 새 schema가 겹쳐 실행되는 위험을 피하는 대신 app rollout 동안 짧은 API 중단을 수용한다. 비영속 단일 Redis와 클러스터링을 끈 단일 Alertmanager도 `Recreate`로 교체해 rollout 중 서로 다른 상태를 가진 두 Pod가 동시에 서비스되지 않게 한다.
 
 ## 6. 검증과 내부 관리 접근
 
@@ -163,7 +168,7 @@ kubectl -n happygallery logs deployment/app --since=15m
 kubectl -n happygallery port-forward service/prometheus 9090:9090
 ```
 
-검증 스크립트는 모든 workload ready replica, MySQL PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target, 공개 TLS와 API JSON 오류를 확인한다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다.
+검증 스크립트는 모든 workload ready replica, MySQL PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
 
 호스트/공유기에서는 다음도 별도로 확인한다.
 
@@ -258,4 +263,4 @@ rollback은 보존된 전체 manifest를 재적용하지 않는다. digest로 �
 ./deploy/k3s/scripts/validate.sh
 ```
 
-이 검증은 Kustomize 렌더링, YAML 파싱, shell 구문, probe/종료 유예/PVC/내부 Prometheus/OAuth callback, app/frontend digest 고정, 복원 전 Pod 종료와 호환 digest 선반영 순서, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 회전 방지, 회전 실패 시 app drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 백업 mount와 restore 성공은 대상 노트북에서만 검증할 수 있다.
+이 검증은 Kustomize 렌더링, YAML 파싱, shell 구문, probe/종료 유예/PVC/내부 Prometheus/OAuth callback, app/frontend digest 고정, Redis·Alertmanager 단일 인스턴스의 `Recreate`, 복원 전 Pod 종료와 호환 digest 선반영 순서, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 회전 방지, 회전 실패 시 app drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 백업 mount와 restore 성공은 대상 노트북에서만 검증할 수 있다.

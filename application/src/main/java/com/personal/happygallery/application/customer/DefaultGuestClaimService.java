@@ -66,7 +66,8 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
     @Override
     public ClaimPreview verifyPhoneAndPreview(Long userId, String verificationCode) {
-        User user = findUser(userId);
+        User user = userReader.findByIdForUpdate(userId)
+                .orElseThrow(NotFoundException.supplier("회원"));
         phoneOwnershipVerification.verify(user.getPhone(), verificationCode);
         user.markPhoneVerified();
         log.info("guest claim phone verified [userId={}]", userId);

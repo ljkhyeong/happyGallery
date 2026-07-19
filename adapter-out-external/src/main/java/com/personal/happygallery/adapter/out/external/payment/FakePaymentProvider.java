@@ -1,9 +1,12 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Component;
 public class FakePaymentProvider implements PaymentProvider {
 
     private final LocalRefundFailureScript localRefundFailureScript;
+    private final Map<String, PaymentLookupResult> confirmedPayments = new ConcurrentHashMap<>();
 
     public FakePaymentProvider(ObjectProvider<LocalRefundFailureScript> localRefundFailureScriptProvider) {
         this.localRefundFailureScript = localRefundFailureScriptProvider.getIfAvailable();
@@ -24,10 +28,18 @@ public class FakePaymentProvider implements PaymentProvider {
 
     @Override
     public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount, String idempotencyKey) {
+        confirmedPayments.put(orderId, PaymentLookupResult.approved(paymentKey, orderId, amount));
         return PaymentConfirmResult.success(
-                "FAKE-PG-" + UUID.randomUUID(),
+                paymentKey,
                 "FAKE_PG",
                 OffsetDateTime.now().toString());
+    }
+
+    @Override
+    public PaymentLookupResult lookupByOrderId(String orderId) {
+        return confirmedPayments.getOrDefault(
+                orderId,
+                PaymentLookupResult.notApproved(orderId, "가짜 PG에 승인된 결제가 없습니다."));
     }
 
     @Override

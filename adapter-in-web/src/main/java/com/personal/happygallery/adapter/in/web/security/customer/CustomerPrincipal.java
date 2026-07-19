@@ -9,7 +9,9 @@ public record CustomerPrincipal(
         String email,
         String name,
         String phone,
-        boolean phoneVerified
+        boolean phoneVerified,
+        boolean localPasswordEnabled,
+        long credentialVersion
 ) implements Principal {
 
     public static CustomerPrincipal from(User user) {
@@ -18,7 +20,9 @@ public record CustomerPrincipal(
                 user.getEmail(),
                 user.getName(),
                 user.getPhone(),
-                user.isPhoneVerified()
+                user.isPhoneVerified(),
+                user.hasLocalPassword(),
+                user.getCredentialVersion()
         );
     }
 

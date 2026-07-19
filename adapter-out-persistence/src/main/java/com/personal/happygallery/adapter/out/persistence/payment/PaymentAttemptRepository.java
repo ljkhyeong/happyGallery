@@ -7,6 +7,8 @@ import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -38,21 +40,21 @@ public interface PaymentAttemptRepository
                     (
                         status IN ('PROCESSING', 'RETRYABLE')
                         AND (
-                            processing_at <= :staleBefore
-                            OR (processing_at IS NULL AND created_at <= :staleBefore)
+                            processing_at <= :activityStaleBefore
+                            OR (processing_at IS NULL AND created_at <= :createdAtStaleBeforeUtc)
                         )
                     )
                     OR (
                         status = 'APPROVED'
                         AND (
-                            confirmed_at <= :staleBefore
-                            OR (confirmed_at IS NULL AND created_at <= :staleBefore)
+                            confirmed_at <= :activityStaleBefore
+                            OR (confirmed_at IS NULL AND created_at <= :createdAtStaleBeforeUtc)
                         )
                     )
                   )
               AND (
                     confirm_recovery_attempted_at IS NULL
-                    OR confirm_recovery_attempted_at <= :staleBefore
+                    OR confirm_recovery_attempted_at <= :activityStaleBefore
                   )
             ORDER BY GREATEST(
                         CASE
@@ -64,6 +66,33 @@ public interface PaymentAttemptRepository
                      id
             LIMIT :limit
             """, nativeQuery = true)
-    List<Long> findConfirmRecoveryCandidateIds(@Param("staleBefore") LocalDateTime staleBefore,
+    List<Long> findConfirmRecoveryCandidateIds(
+                                               @Param("activityStaleBefore") LocalDateTime activityStaleBefore,
+                                               @Param("createdAtStaleBeforeUtc") LocalDateTime createdAtStaleBeforeUtc,
                                                @Param("limit") int limit);
+
+    @Override
+    @Query(value = """
+            SELECT id
+            FROM payment_attempt
+            WHERE status = 'PENDING'
+              AND created_at <= :createdBefore
+            ORDER BY created_at, id
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<Long> findExpiredPendingIds(@Param("createdBefore") LocalDateTime createdBefore,
+                                     @Param("limit") int limit);
+
+    @Query("""
+            SELECT attempt
+            FROM PaymentAttempt attempt
+            WHERE attempt.status = com.personal.happygallery.domain.payment.PaymentAttemptStatus.RECONCILIATION_REQUIRED
+            ORDER BY attempt.createdAt, attempt.id
+            """)
+    List<PaymentAttempt> findReconciliationRequiredPage(Pageable pageable);
+
+    @Override
+    default List<PaymentAttempt> findReconciliationRequired(int limit) {
+        return findReconciliationRequiredPage(PageRequest.ofSize(limit));
+    }
 }

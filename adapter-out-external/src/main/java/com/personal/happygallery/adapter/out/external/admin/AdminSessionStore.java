@@ -7,7 +7,9 @@ import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -18,6 +20,7 @@ public class AdminSessionStore implements AdminSessionPort {
 
     private static final Duration SESSION_TTL = Duration.ofHours(8);
     private static final String KEY_PREFIX = "admin:session:";
+    private static final String ADMIN_INDEX_PREFIX = "admin:sessions:";
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -38,13 +41,19 @@ public class AdminSessionStore implements AdminSessionPort {
     }
 
     @Override
-    public String create(Long adminUserId, String username) {
+    public String create(Long adminUserId, String username, long credentialVersion) {
         String token = UUID.randomUUID().toString();
-        AdminSession session = new AdminSession(adminUserId, username, Instant.now(clock));
+        String tokenHash = blindIndexer.index(token);
+        AdminSession session = new AdminSession(
+                adminUserId, username, credentialVersion, Instant.now(clock));
         try {
             String json = objectMapper.writeValueAsString(session);
-            redisTemplate.opsForValue().set(key(token), fieldEncryptor.encrypt(json), SESSION_TTL);
+            redisTemplate.opsForValue().set(sessionKey(tokenHash), fieldEncryptor.encrypt(json), SESSION_TTL);
+            String indexKey = adminIndexKey(adminUserId, credentialVersion);
+            redisTemplate.opsForSet().add(indexKey, tokenHash);
+            redisTemplate.expire(indexKey, SESSION_TTL);
         } catch (Exception e) {
+            redisTemplate.delete(sessionKey(tokenHash));
             throw new IllegalStateException("관리자 세션 직렬화 실패", e);
         }
         return token;
@@ -66,10 +75,35 @@ public class AdminSessionStore implements AdminSessionPort {
 
     @Override
     public void remove(String token) {
-        redisTemplate.delete(key(token));
+        String tokenHash = blindIndexer.index(token);
+        Optional<AdminSession> session = validate(token);
+        redisTemplate.delete(sessionKey(tokenHash));
+        session.ifPresent(value -> redisTemplate.opsForSet()
+                .remove(adminIndexKey(value.adminUserId(), value.credentialVersion()), tokenHash));
+    }
+
+    @Override
+    public void removeAll(Long adminUserId, long credentialVersion) {
+        String indexKey = adminIndexKey(adminUserId, credentialVersion);
+        Set<String> tokenHashes = redisTemplate.opsForSet().members(indexKey);
+        if (tokenHashes != null && !tokenHashes.isEmpty()) {
+            List<String> sessionKeys = tokenHashes.stream()
+                    .map(this::sessionKey)
+                    .toList();
+            redisTemplate.delete(sessionKeys);
+        }
+        redisTemplate.delete(indexKey);
     }
 
     private String key(String token) {
-        return KEY_PREFIX + blindIndexer.index(token);
+        return sessionKey(blindIndexer.index(token));
+    }
+
+    private String sessionKey(String tokenHash) {
+        return KEY_PREFIX + tokenHash;
+    }
+
+    private String adminIndexKey(Long adminUserId, long credentialVersion) {
+        return ADMIN_INDEX_PREFIX + adminUserId + ":" + credentialVersion;
     }
 }

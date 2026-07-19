@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.domain.error.CapacityExceededException;
+import com.personal.happygallery.domain.error.SlotNotAvailableException;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotCapacity;
@@ -8,7 +9,9 @@ import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,11 +34,13 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class SlotBookingCapacityUseCaseIT {
 
     @Autowired SlotCapacitySupport slotCapacitySupport;
+    @Autowired DefaultSlotQueryService slotQueryService;
     @Autowired DefaultSlotManagementService slotManagementService;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired Clock clock;
 
     BookingClass bookingClass;
     Slot mainSlot;
@@ -111,6 +116,56 @@ class SlotBookingCapacityUseCaseIT {
         assertThat(slotRepository.findById(outsideSlot.getId()).orElseThrow().isActive()).isTrue();
     }
 
+    @DisplayName("공개 조회는 이미 시작한 슬롯을 제외하고 미래 슬롯만 반환한다")
+    @Test
+    void listAvailable_excludesStartedSlots() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        Slot pastSlot = slotRepository.save(
+                slot(bookingClass, now.minusHours(2), now.minusHours(1)));
+        Slot startingSlot = slotRepository.save(
+                slot(bookingClass, now, now.plusHours(2)));
+        Slot futureSlot = slotRepository.save(
+                slot(bookingClass, now.plusMinutes(1), now.plusHours(2).plusMinutes(1)));
+
+        List<Long> availableSlotIds = slotQueryService.listAvailable(
+                        bookingClass.getId(), now.toLocalDate()).stream()
+                .map(Slot::getId)
+                .toList();
+
+        assertSoftly(softly -> {
+            softly.assertThat(availableSlotIds).contains(futureSlot.getId());
+            softly.assertThat(availableSlotIds).doesNotContain(pastSlot.getId(), startingSlot.getId());
+        });
+    }
+
+    @DisplayName("예약 확정 시 슬롯 시작 시각이 되면 잠금 후 검증에서 거절한다")
+    @Test
+    void reserveCapacity_rejectsSlotStartingNow() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        Slot startingSlot = slotRepository.save(slot(bookingClass, now, now.plusHours(2)));
+
+        assertThatThrownBy(() -> reserveCapacityInTx(startingSlot.getId()))
+                .isInstanceOf(SlotNotAvailableException.class);
+        assertThat(slotRepository.findById(startingSlot.getId()).orElseThrow().getBookedCount()).isZero();
+    }
+
+    @DisplayName("뒤쪽 버퍼 슬롯에 예약이 있으면 앞 슬롯의 새 예약을 거절한다")
+    @Test
+    void reserveCapacity_rejectsReverseOrderBufferConflict() {
+        Slot bookedBufferSlot = slotRepository.save(
+                slot(bookingClass, BUFFER_IN2, BUFFER_IN2.plusHours(2)));
+        reserveCapacityInTx(bookedBufferSlot.getId());
+
+        assertThatThrownBy(() -> reserveCapacityInTx(mainSlot.getId()))
+                .isInstanceOf(SlotNotAvailableException.class);
+
+        assertSoftly(softly -> {
+            softly.assertThat(slotRepository.findById(mainSlot.getId()).orElseThrow().getBookedCount()).isZero();
+            softly.assertThat(slotRepository.findById(bookedBufferSlot.getId()).orElseThrow().getBookedCount())
+                    .isEqualTo(1);
+        });
+    }
+
     @DisplayName("마지막 예약을 반납하면 버퍼 슬롯만 자동 활성화되고 관리자 비활성 상태는 유지된다")
     @Test
     void releaseLastCapacity_reactivatesOnlyBufferBlockedSlot() {
@@ -129,8 +184,7 @@ class SlotBookingCapacityUseCaseIT {
 
         releaseCapacityInTx(mainSlot.getId());
 
-        var availableSlotIds = slotRepository.findAvailableByClassAndDate(
-                        bookingClass.getId(), MAIN_START.toLocalDate().atStartOfDay(), MAIN_START.plusDays(1))
+        var availableSlotIds = slotQueryService.listAvailable(bookingClass.getId(), MAIN_START.toLocalDate())
                 .stream()
                 .map(Slot::getId)
                 .toList();

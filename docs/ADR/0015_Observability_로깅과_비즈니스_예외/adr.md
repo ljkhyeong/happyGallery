@@ -69,3 +69,4 @@
 - `AppMetrics`의 `happygallery.payment.confirm.reconciliation_required` 카운터와
   `PaymentConfirmReconciliationRequired` Prometheus critical 알림으로 결제 수동 대사 필요 상태를 즉시 노출한다.
   로컬 Compose의 `monitoring/alerts.yml`과 k3s ConfigMap의 `deploy/k3s/base/prometheus.yaml`에 같은 규칙을 둔다.
+- k3s Prometheus는 private Alertmanager로 모든 rule을 전달한다. Alertmanager는 critical/warning 반복 간격을 분리하고 저장소 밖 Kubernetes Secret의 `url_file`로 외부 HTTPS generic webhook에 전달한다. 같은 노트북 전체가 중단되는 상황은 별도 외부 uptime 감시가 담당한다.

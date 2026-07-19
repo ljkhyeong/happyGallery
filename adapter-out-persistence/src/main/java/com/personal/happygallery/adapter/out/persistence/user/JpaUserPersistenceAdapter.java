@@ -32,8 +32,18 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
     }
 
     @Override
+    public Optional<User> findByIdForUpdate(Long id) {
+        return userRepository.findByIdForUpdate(id).map(this::restore);
+    }
+
+    @Override
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmailHmac(indexEmail(email)).map(this::restore);
+    }
+
+    @Override
+    public Optional<User> findByEmailForUpdate(String email) {
+        return userRepository.findByEmailHmacForUpdate(indexEmail(email)).map(this::restore);
     }
 
     @Override

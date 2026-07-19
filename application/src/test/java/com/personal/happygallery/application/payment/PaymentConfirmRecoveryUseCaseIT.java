@@ -8,6 +8,7 @@ import com.personal.happygallery.application.payment.PaymentConfirmTransactionSe
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentReconciliationAdminUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
@@ -17,6 +18,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareCommand;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
@@ -63,6 +65,7 @@ class PaymentConfirmRecoveryUseCaseIT {
     @Autowired PaymentPrepareUseCase prepareUseCase;
     @Autowired PaymentConfirmRecoveryUseCase recoveryUseCase;
     @Autowired PaymentConfirmUseCase confirmUseCase;
+    @Autowired PaymentReconciliationAdminUseCase reconciliationAdminUseCase;
     @Autowired PaymentConfirmTransactionService transactionService;
     @Autowired PaymentAttemptReaderPort attemptReader;
     @Autowired RefundPort refundPort;
@@ -196,6 +199,64 @@ class PaymentConfirmRecoveryUseCaseIT {
         assertThat(meterRegistry
                 .counter("happygallery.payment.confirm.reconciliation_required")
                 .count()).isEqualTo(metricBefore + 1D);
+        verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
+    }
+
+    @DisplayName("대사 대상 결제가 PG에서 승인 완료로 조회되면 저장 요청을 이행하고 확정한다")
+    @Test
+    void reconcile_approvedAtPg_fulfillsAndConfirmsStoredRequest() {
+        PreparedPayment prepared = preparePass("admin-reconciliation@example.com", "01010000012");
+        PgConfirmationRequired first = beginConfirm(prepared, "reconciliation-approved-key");
+        jdbcTemplate.update(
+                "UPDATE payment_attempt SET created_at = ?, processing_at = ? WHERE id = ?",
+                LocalDateTime.now(clock).minusDays(15),
+                LocalDateTime.now(clock).minusMinutes(2),
+                first.attemptId());
+        recoveryUseCase.recoverIncompleteConfirms();
+        when(paymentProvider.lookupByOrderId(prepared.orderId())).thenReturn(
+                PaymentLookupResult.approved(
+                        "reconciliation-approved-key", prepared.orderId(), prepared.amount()));
+
+        PaymentReconciliationAdminUseCase.ReconciliationResult result =
+                reconciliationAdminUseCase.reconcile(first.attemptId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.status()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
+            softly.assertThat(result.domainId()).isNotNull();
+            softly.assertThat(statusOf(first.attemptId())).isEqualTo(PaymentAttemptStatus.CONFIRMED);
+            softly.assertThat(attemptReader.findById(first.attemptId()))
+                    .hasValueSatisfying(attempt -> softly.assertThat(attempt.getFulfilledDomainId())
+                            .isEqualTo(result.domainId()));
+        });
+        verify(paymentProvider).lookupByOrderId(prepared.orderId());
+        verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
+    }
+
+    @DisplayName("PG 미승인으로 종결한 대사 결제는 payload 제거 뒤 재확인에도 결제 실패를 반환한다")
+    @Test
+    void reconcile_notApprovedAtPg_rejectsLaterConfirmWithoutPayload() {
+        PreparedPayment prepared = preparePass("reconciliation-failed@example.com", "01010000013");
+        PgConfirmationRequired first = beginConfirm(prepared, "reconciliation-failed-key");
+        jdbcTemplate.update(
+                "UPDATE payment_attempt SET created_at = ?, processing_at = ? WHERE id = ?",
+                LocalDateTime.now(clock).minusDays(15),
+                LocalDateTime.now(clock).minusMinutes(2),
+                first.attemptId());
+        recoveryUseCase.recoverIncompleteConfirms();
+        when(paymentProvider.lookupByOrderId(prepared.orderId())).thenReturn(
+                PaymentLookupResult.notApproved(prepared.orderId(), "PG에서 승인 내역을 찾지 못했습니다."));
+
+        reconciliationAdminUseCase.reconcile(first.attemptId());
+
+        assertThat(attemptReader.findById(first.attemptId()))
+                .hasValueSatisfying(attempt -> {
+                    assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.FAILED);
+                    assertThat(attempt.getPayloadEnc()).isNull();
+                });
+        assertThatThrownBy(() -> confirmUseCase.confirm(new ConfirmCommand(
+                "reconciliation-failed-key", prepared.orderId(), prepared.amount(), prepared.auth())))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_FAILED));
         verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
     }
 

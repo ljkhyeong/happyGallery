@@ -35,17 +35,23 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
             <div className="my-section-kicker mb-2">Guest Claim</div>
             <h6 className="mb-1">비회원 이력 가져오기</h6>
             <p className="text-muted-soft small mb-0">
-              {user.phoneVerified
+              {!user.phone
+                ? "휴대폰 번호를 등록하면 같은 번호로 남긴 비회원 주문과 예약을 가져올 수 있습니다."
+                : user.phoneVerified
                 ? "같은 휴대폰 번호로 남긴 비회원 주문과 예약을 이 계정으로 이전할 수 있습니다."
                 : "먼저 같은 번호인지 한 번 더 확인한 뒤 비회원 주문과 예약을 가져올 수 있습니다."}
             </p>
           </div>
           <Button
-            variant={user.phoneVerified ? "outline-primary" : "primary"}
+            variant={user.phoneVerified && user.phone ? "outline-primary" : "primary"}
             size="sm"
             onClick={() => onOpenClaim("claim_dashboard_card")}
           >
-            {user.phoneVerified ? "이력 가져오기" : "휴대폰 확인 후 가져오기"}
+            {!user.phone
+              ? "휴대폰 등록"
+              : user.phoneVerified
+                ? "이력 가져오기"
+                : "휴대폰 확인 후 가져오기"}
           </Button>
         </div>
       </Card.Body>

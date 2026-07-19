@@ -106,4 +106,6 @@ public class Slot {
     public boolean isAdminActive() { return adminActive; }
     public boolean isBufferBlocked() { return bufferBlockCount > 0; }
     public boolean isActive() { return adminActive && bufferBlockCount == 0; }
+    public boolean hasBookings() { return bookedCount > 0; }
+    public boolean isReservableAt(LocalDateTime now) { return isActive() && startAt.isAfter(now); }
 }

@@ -11,6 +11,8 @@ spec.md §3.2: MADE_TO_ORDER 상품 주문이 승인되면 즉시 제작 시작(
 제작 시작 이후 일반 취소/거절 환불은 불가하다. 예상 출고일을 관리자가 설정·노출한다.
 고객 동의 시 DELAY_REQUESTED 상태로 전환하고, 고객이 지연을 수락하기 전에 거절하면 별도 취소 상태로 전환한다.
 제작이 완료되면 주문은 픽업/배송 공통 이행 흐름(APPROVED_FULFILLMENT_PENDING)으로 다시 합류해야 한다.
+회원 바로 주문·장바구니와 비회원 주문 모두 결제 전에 픽업 또는 배송을 선택하므로, 제작 완료 뒤 관리자가
+수령 방식을 임의로 바꾸지 않고 결제 시점 선택을 유지해야 한다.
 
 ---
 
@@ -52,16 +54,19 @@ READY_STOCK 상품은 기존 흐름 유지: approve → APPROVED_FULFILLMENT_PEN
 `OrderApprovalService.approve()` 내부에서 OrderItem → Product 조회로 MADE_TO_ORDER 여부를 판단한다.
 `Order` 엔티티는 product type을 직접 알지 않으며, 서비스 레이어에서 판단 후 `approveAsProduction()` 또는 `approve()`를 선택 호출한다.
 
-### 3. Fulfillment 레코드 생성
+### 3. Fulfillment와 배송지 스냅샷 생성
 
-MADE_TO_ORDER 승인 시 `fulfillments` 테이블에 레코드를 생성한다.
-- `type = SHIPPING` (예약 제작은 배송)
-- `expected_ship_date = null` (관리자가 별도 설정)
-- Fulfillment에 별도 `status` 컬럼은 없다 — 주문 상태는 `Order.status`가 단일 소스
-- `order_id`는 unique로 유지해 주문당 fulfillment 1건 불변식을 보장한다
-- `Fulfillment` 생성은 `shipping(orderId)`, `pickup(orderId, pickupDeadlineAt)` 팩토리로만 수행해 type 선정 책임을 도메인에 둔다
+결제 confirm에서 주문·주문 항목·재고 차감과 같은 트랜잭션으로 `fulfillments` 레코드를 생성한다.
 
-READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업에서 처리 예정).
+- `type`은 prepare 전에 고객이 선택한 `SHIPPING` 또는 `PICKUP`으로 고정한다.
+- `SHIPPING`은 받는 사람·표준화 전화번호·우편번호·기본/상세 주소를 JSON으로 직렬화하고 AES-GCM 암호문만 `shipping_address_enc`에 저장한다.
+- `PICKUP`은 현재 단일 매장 정책이므로 매장명 자유 문자열이나 배송지를 저장하지 않는다.
+- `expected_ship_date`와 `pickup_deadline_at`은 최초 null이며 관리자가 해당 타입의 후속 단계에서 설정한다.
+- Fulfillment에 별도 `status` 컬럼은 없다. 주문 상태는 `Order.status`가 단일 소스다.
+- `order_id`는 unique로 유지해 주문당 fulfillment 1건 불변식을 보장한다.
+
+관리자 주문 목록은 `type`만 일괄 조회하고, 배송지 원문은 관리자 단건 이행 상세 API에서만 복호화한다.
+`OrderShippingService`와 `OrderPickupService`는 저장된 타입을 먼저 확인해 고객 선택과 다른 상태 전이를 거절한다.
 
 ### 4. 환불 불가 가드
 
@@ -96,6 +101,7 @@ READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업
 | `POST`  | `/admin/orders/{id}/prepare-shipping`   | 배송 준비 시작 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) |
 | `POST`  | `/admin/orders/{id}/mark-shipped`       | 배송 출발 (SHIPPING_PREPARING → SHIPPED) |
 | `POST`  | `/admin/orders/{id}/mark-delivered`     | 배송 완료 (SHIPPED → DELIVERED) |
+| `GET`   | `/admin/orders/{id}/fulfillment`        | 관리자 이행 방식·배송지 상세 조회 |
 | `GET`   | `/admin/orders/{id}/history`            | 주문 처리 이력 조회 |
 
 관리자 주문 처리 API는 Bearer 세션에서 검증된 admin id를 `order_approvals`에 기록한다.
@@ -109,6 +115,7 @@ READY_STOCK 승인 시에는 Fulfillment를 생성하지 않는다 (§8.4 픽업
 | 항목 | 내용 |
 |------|------|
 | 혼합 주문 | MADE_TO_ORDER + READY_STOCK 상품이 같은 주문에 있으면 전체를 제작 주문으로 보아 IN_PRODUCTION으로 전이하고, 픽업 미수령 시에도 전체 주문을 환불하지 않는다. |
-| Fulfillment 상태 관리 | Fulfillment에 별도 `status` 컬럼 없음 — `Order.status`가 단일 소스. 제작 완료 후 픽업 전환 시 `Fulfillment.convertToPickup()`이 `expected_ship_date`를 비우고 type을 PICKUP으로 전환한다. |
+| Fulfillment 상태 관리 | Fulfillment에 별도 `status` 컬럼은 없고 `Order.status`가 단일 소스다. 수령 방식은 결제 시점에 고정하며 제작 완료 뒤에도 변환하지 않는다. |
+| 배송지 노출 | 배송지 스냅샷은 암호문만 저장하고 고객 상세·관리자 목록에는 포함하지 않는다. 관리자 단건 이행 상세만 복호화한다. |
 | 배송·픽업 이력 관리 | 배송과 픽업 전이도 `order_approvals` append-only 이력으로 남기며, 운영 화면은 이를 시간순 조회한다. |
 | 관리자 식별자 | Bearer 세션 경로는 admin id를 이력에 기록하고, API Key 폴백 경로는 null 이력이 존재할 수 있다. |

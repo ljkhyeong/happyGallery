@@ -51,6 +51,8 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                             rejected.attemptId(), command.orderId());
                     throw rejected.failure();
                 }
+                case PaymentConfirmTransactionService.Expired ignored ->
+                        throw new HappyGalleryException(ErrorCode.PAYMENT_ATTEMPT_EXPIRED);
                 case PaymentConfirmTransactionService.ReadyForFulfillment ready -> {
                     return fulfill(ready);
                 }

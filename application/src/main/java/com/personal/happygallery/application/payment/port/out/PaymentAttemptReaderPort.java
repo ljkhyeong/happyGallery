@@ -16,5 +16,13 @@ public interface PaymentAttemptReaderPort {
     Optional<PaymentAttempt> findByOrderIdExternalForUpdate(String orderIdExternal);
 
     /** confirm 도중 중단된 PROCESSING/RETRYABLE/APPROVED 시도 ID를 오래된 순서로 조회한다. */
-    List<Long> findConfirmRecoveryCandidateIds(LocalDateTime staleBefore, int limit);
+    List<Long> findConfirmRecoveryCandidateIds(LocalDateTime activityStaleBefore,
+                                                LocalDateTime createdAtStaleBeforeUtc,
+                                                int limit);
+
+    /** 아직 confirm을 시작하지 않은 채 유효시간이 지난 결제 준비 ID를 오래된 순서로 조회한다. */
+    List<Long> findExpiredPendingIds(LocalDateTime createdBefore, int limit);
+
+    /** PG 조회를 통한 운영 대사가 필요한 결제 시도를 오래된 순서로 조회한다. */
+    List<PaymentAttempt> findReconciliationRequired(int limit);
 }

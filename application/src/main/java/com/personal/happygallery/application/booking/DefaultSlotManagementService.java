@@ -2,6 +2,7 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
 import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
+import com.personal.happygallery.application.booking.port.out.SlotLockPort;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -11,6 +12,7 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotBufferPolicy;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,13 +21,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class DefaultSlotManagementService implements SlotManagementUseCase {
 
     private final ClassReaderPort classReaderPort;
+    private final SlotLockPort slotLockPort;
     private final SlotReaderPort slotReaderPort;
     private final SlotStorePort slotStorePort;
 
     public DefaultSlotManagementService(ClassReaderPort classReaderPort,
-                                  SlotReaderPort slotReaderPort,
-                                  SlotStorePort slotStorePort) {
+                                        SlotLockPort slotLockPort,
+                                        SlotReaderPort slotReaderPort,
+                                        SlotStorePort slotStorePort) {
         this.classReaderPort = classReaderPort;
+        this.slotLockPort = slotLockPort;
         this.slotReaderPort = slotReaderPort;
         this.slotStorePort = slotStorePort;
     }
@@ -33,7 +38,7 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
     /** 슬롯을 생성한다. */
     @Override
     public Slot createSlot(Long classId, LocalDateTime startAt) {
-        BookingClass bookingClass = classReaderPort.findById(classId)
+        BookingClass bookingClass = classReaderPort.findByIdForUpdate(classId)
                 .orElseThrow(NotFoundException.supplier("클래스"));
 
         if (slotReaderPort.existsByBookingClassIdAndStartAt(classId, startAt)) {
@@ -42,7 +47,7 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
 
         Slot slot = new Slot(bookingClass, startAt);
         slotReaderPort.findByBookingClassIdOrderByStartAtDesc(classId).stream()
-                .filter(existing -> existing.getBookedCount() > 0)
+                .filter(Slot::hasBookings)
                 .filter(existing -> SlotBufferPolicy.contains(
                         existing.getEndAt(), bookingClass.getBufferMin(), startAt))
                 .forEach(existing -> slot.incrementBufferBlockCount());
@@ -52,7 +57,8 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
     /** 슬롯을 비활성화한다. */
     @Override
     public Slot deactivateSlot(Long slotId) {
-        Slot slot = slotReaderPort.findById(slotId)
+        Slot slot = slotLockPort.lockAllById(List.of(slotId)).stream()
+                .findFirst()
                 .orElseThrow(NotFoundException.supplier("슬롯"));
         slot.deactivate();
         return slotStorePort.save(slot);

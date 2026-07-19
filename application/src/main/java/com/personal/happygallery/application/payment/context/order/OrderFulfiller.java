@@ -63,7 +63,8 @@ public class OrderFulfiller implements PaymentFulfiller {
                 .toList();
 
         if (op.userId() != null) {
-            Order order = orderService.createMemberOrder(op.userId(), orderItems);
+            Order order = orderService.createMemberOrder(
+                    op.userId(), orderItems, op.fulfillmentType(), op.shippingAddress());
             order.recordPaymentKey(paymentKey);
             if (op.cartCheckout()) {
                 cartUseCase.removePurchasedItems(op.userId(), op.items().stream()
@@ -73,7 +74,8 @@ public class OrderFulfiller implements PaymentFulfiller {
             return new FulfillResult(order.getId(), null);
         }
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(op.phone(), op.verificationCode(), op.name());
-        OrderCreationResult result = orderService.createPaidOrder(guest.getId(), orderItems);
+        OrderCreationResult result = orderService.createPaidOrder(
+                guest.getId(), orderItems, op.fulfillmentType(), op.shippingAddress());
         result.order().recordPaymentKey(paymentKey);
         return new FulfillResult(result.order().getId(), result.rawAccessToken());
     }

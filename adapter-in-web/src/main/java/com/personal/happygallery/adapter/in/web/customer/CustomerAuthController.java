@@ -49,7 +49,7 @@ public class CustomerAuthController {
                         request.name(),
                         request.phone(),
                         request.verificationCode()));
-        customerSessionBinder.bind(httpRequest, httpResponse, user.getId());
+        customerSessionBinder.bind(httpRequest, httpResponse, user);
         return CustomerUserResponse.from(user);
     }
 
@@ -61,7 +61,7 @@ public class CustomerAuthController {
                 new CustomerAuthUseCase.LoginCommand(
                         request.email(),
                         request.password()));
-        customerSessionBinder.bind(httpRequest, httpResponse, user.getId());
+        customerSessionBinder.bind(httpRequest, httpResponse, user);
         return CustomerUserResponse.from(user);
     }
 
@@ -78,7 +78,8 @@ public class CustomerAuthController {
                 customer.email(),
                 customer.name(),
                 customer.phone(),
-                customer.phoneVerified()
+                customer.phoneVerified(),
+                customer.localPasswordEnabled()
         );
     }
 }

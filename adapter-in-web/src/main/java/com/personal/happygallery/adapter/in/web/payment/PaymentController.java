@@ -13,6 +13,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareResult;
+import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,6 +46,9 @@ public class PaymentController {
     @PostMapping("/prepare")
     public PreparePaymentResponse prepare(@RequestBody @Valid PreparePaymentRequest req,
                                           @AuthenticationPrincipal CustomerPrincipal customer) {
+        if (customer != null && (!customer.phoneVerified() || customer.phone() == null)) {
+            throw new PhoneVerificationRequiredException();
+        }
         AuthContext auth = customer != null
                 ? AuthContext.member(customer.userId())
                 : AuthContext.guest();

@@ -28,6 +28,10 @@ services:
   redis:
     image: redis:7-alpine
     container_name: happygallery-redis
+    command:
+      - redis-server
+      - --notify-keyspace-events
+      - Egx
     ports:
       - "6379:6379"
     healthcheck:

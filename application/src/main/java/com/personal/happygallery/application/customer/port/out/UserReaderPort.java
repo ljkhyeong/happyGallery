@@ -11,7 +11,11 @@ public interface UserReaderPort {
 
     Optional<User> findById(Long id);
 
+    Optional<User> findByIdForUpdate(Long id);
+
     Optional<User> findByEmail(String email);
+
+    Optional<User> findByEmailForUpdate(String email);
 
     boolean existsByEmail(String email);
 

@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -124,6 +125,88 @@ class TossPaymentsProviderTest {
             softly.assertThat(result.success()).isFalse();
             softly.assertThat(result.retryable()).isTrue();
             softly.assertThat(result.failReason()).contains("식별자");
+        });
+    }
+
+    @DisplayName("Toss 주문번호 결제 조회는 완료된 승인을 대사 결과로 변환한다")
+    @Test
+    void lookupByOrderId_donePayment_returnsApproved() {
+        RestClient.Builder builder = tossRestClientBuilder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
+
+        server.expect(requestTo("https://api.tosspayments.com/v1/payments/orders/order-id"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, basicAuth(PROPERTIES.secretKey())))
+                .andRespond(withSuccess("""
+                        {
+                          "paymentKey": "payment-key",
+                          "orderId": "order-id",
+                          "status": "DONE",
+                          "totalAmount": 10000
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        PaymentLookupResult result = provider.lookupByOrderId("order-id");
+
+        server.verify();
+        assertSoftly(softly -> {
+            softly.assertThat(result.status()).isEqualTo(PaymentLookupResult.Status.APPROVED);
+            softly.assertThat(result.paymentKey()).isEqualTo("payment-key");
+            softly.assertThat(result.orderId()).isEqualTo("order-id");
+            softly.assertThat(result.totalAmount()).isEqualTo(10_000L);
+        });
+    }
+
+    @DisplayName("Toss 결제 조회의 명시적인 결제 미존재 응답만 미승인으로 확정한다")
+    @Test
+    void lookupByOrderId_paymentNotFound_returnsNotApproved() {
+        RestClient.Builder builder = tossRestClientBuilder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
+
+        server.expect(requestTo("https://api.tosspayments.com/v1/payments/orders/order-id"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {
+                                  "code": "NOT_FOUND_PAYMENT",
+                                  "message": "존재하지 않는 결제 정보입니다."
+                                }
+                                """));
+
+        PaymentLookupResult result = provider.lookupByOrderId("order-id");
+
+        server.verify();
+        assertSoftly(softly -> {
+            softly.assertThat(result.status()).isEqualTo(PaymentLookupResult.Status.NOT_APPROVED);
+            softly.assertThat(result.orderId()).isEqualTo("order-id");
+        });
+    }
+
+    @DisplayName("Toss 결제 조회의 다른 404 응답은 결제 미승인으로 확정하지 않는다")
+    @Test
+    void lookupByOrderId_otherNotFound_returnsUnavailable() {
+        RestClient.Builder builder = tossRestClientBuilder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
+
+        server.expect(requestTo("https://api.tosspayments.com/v1/payments/orders/order-id"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {
+                                  "code": "NOT_FOUND_PAYMENT_SESSION",
+                                  "message": "결제 진행 데이터가 존재하지 않습니다."
+                                }
+                                """));
+
+        PaymentLookupResult result = provider.lookupByOrderId("order-id");
+
+        server.verify();
+        assertSoftly(softly -> {
+            softly.assertThat(result.status()).isEqualTo(PaymentLookupResult.Status.UNAVAILABLE);
+            softly.assertThat(result.orderId()).isEqualTo("order-id");
         });
     }
 

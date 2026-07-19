@@ -85,8 +85,8 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(
                 command.phone(), command.code(), command.name());
 
-        // 2. 슬롯 활성 여부 확인 (락 전 빠른 체크)
-        Slot slot = slotCapacitySupport.loadActiveSlot(command.slotId());
+        // 2. 슬롯 예약 가능 여부 확인 (락 전 빠른 체크)
+        slotCapacitySupport.requireAvailableSlot(command.slotId());
 
         // 3. 중복 예약 확인
         if (bookingReaderPort.existsBookedBySlotIdAndGuestId(command.slotId(), guest.getId())) {
@@ -94,7 +94,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         }
 
         // 4. 비관적 락 + 정원 증가 + 첫 예약이면 뒤쪽 버퍼 차단
-        slotCapacitySupport.reserveCapacity(command.slotId());
+        Slot slot = slotCapacitySupport.reserveCapacity(command.slotId());
 
         GuestTokenService.IssuedToken issued = guestTokenService.issue();
         String rawToken = issued.rawToken();

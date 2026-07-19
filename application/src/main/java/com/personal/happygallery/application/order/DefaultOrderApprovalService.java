@@ -1,7 +1,6 @@
 package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
-import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
@@ -10,7 +9,6 @@ import com.personal.happygallery.application.config.OptimisticLockRetryable;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
-import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,20 +35,17 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
     private final OrderItemPort orderItemPort;
-    private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
     private final OrderRefundSupport orderRefundSupport;
 
     public DefaultOrderApprovalService(OrderReaderPort orderReader,
                                 OrderStorePort orderStore,
                                 OrderItemPort orderItemPort,
-                                FulfillmentPort fulfillmentPort,
                                 OrderHistoryPort orderHistoryPort,
                                 OrderRefundSupport orderRefundSupport) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
-        this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
         this.orderRefundSupport = orderRefundSupport;
     }
@@ -59,8 +54,8 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
      * 주문을 승인한다. 이미 환불된 주문은 409.
      *
      * <p>주문 내 상품 중 {@link ProductType#MADE_TO_ORDER}가 하나라도 있으면
-     * {@link Order#approveAsProduction()}을 호출하여 {@link OrderStatus#IN_PRODUCTION}으로 전이하고
-     * Fulfillment 레코드를 생성한다. 그 외에는 {@link OrderStatus#APPROVED_FULFILLMENT_PENDING}으로 전이한다.
+     * {@link Order#approveAsProduction()}을 호출하여 {@link OrderStatus#IN_PRODUCTION}으로 전이한다.
+     * Fulfillment는 고객 선택을 고정하기 위해 결제 confirm에서 이미 생성된다.
      *
      * @param orderId 주문 ID
      * @return 승인된 주문
@@ -73,7 +68,6 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
         boolean isMadeToOrder = orderItemPort.existsMadeToOrderItem(order);
         if (isMadeToOrder) {
             order.approveAsProduction();
-            fulfillmentPort.save(Fulfillment.shipping(order.getId()));
         } else {
             order.approve();
         }

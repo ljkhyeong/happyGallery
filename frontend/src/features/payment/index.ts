@@ -9,6 +9,8 @@ export type {
   PassPayload,
   PreparePaymentResponse,
   ConfirmPaymentResponse,
+  FulfillmentType,
+  ShippingAddress,
 } from "./types";
 export {
   PAYMENT_RETURN_KEY,

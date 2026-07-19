@@ -14,6 +14,8 @@ public enum NotificationEventType {
     ORDER_PAID,
     /** 주문 환불 */
     ORDER_REFUNDED,
+    /** 8회권 구매 완료 */
+    PASS_PURCHASED,
     /** D-1 리마인드 (배치) */
     REMINDER_D1,
     /** 당일 아침 리마인드 (배치) */

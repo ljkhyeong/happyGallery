@@ -13,6 +13,10 @@ public interface NotificationOutboxPort {
 
     Optional<NotificationOutbox> findById(Long id);
 
+    Optional<NotificationOutbox> findByIdForUpdate(Long id);
+
     List<NotificationOutbox> findDispatchable(LocalDateTime now, LocalDateTime staleBefore, int limit);
+
+    List<NotificationOutbox> findFailed(int limit);
 
 }

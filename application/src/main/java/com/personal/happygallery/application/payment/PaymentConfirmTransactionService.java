@@ -16,7 +16,9 @@ import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -68,10 +70,21 @@ class PaymentConfirmTransactionService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ConfirmationStep resolveConfirmationStep(ConfirmCommand command) {
-        PaymentAttempt attempt = findValidatedAttemptForUpdate(command);
+        PaymentAttempt attempt = findForUpdate(command.orderId());
+        if (attempt.getStatus() == PaymentAttemptStatus.CANCELED) {
+            throw new HappyGalleryException(ErrorCode.PAYMENT_ATTEMPT_EXPIRED);
+        }
+        Instant nowInstant = clock.instant();
+        LocalDateTime now = LocalDateTime.ofInstant(nowInstant, clock.getZone());
+        LocalDateTime prepareExpiredBeforeUtc = LocalDateTime.ofInstant(
+                nowInstant.minus(DefaultPaymentAttemptExpiryBatchService.PREPARE_TTL), ZoneOffset.UTC);
+        if (attempt.expirePendingBefore(prepareExpiredBeforeUtc)) {
+            attemptStore.save(attempt);
+            return new Expired();
+        }
+        validateAttempt(attempt, command);
         String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
 
-        LocalDateTime now = LocalDateTime.now(clock);
         if (attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
             attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
             return new Completed(confirmedResult(attempt));
@@ -84,7 +97,13 @@ class PaymentConfirmTransactionService {
             attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
             throw paymentFailure(attempt);
         }
-        if (attempt.requiresConfirmReconciliation(now.minus(CONFIRM_AUTOMATIC_RETRY_MAX_AGE))) {
+        if (attempt.getStatus() == PaymentAttemptStatus.FAILED) {
+            attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
+            throw paymentFailure(attempt);
+        }
+        if (attempt.requiresConfirmReconciliation(
+                LocalDateTime.ofInstant(
+                        nowInstant.minus(CONFIRM_AUTOMATIC_RETRY_MAX_AGE), ZoneOffset.UTC))) {
             attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
             attempt.markConfirmReconciliationRequired(CONFIRM_RECONCILIATION_REASON);
             attemptStore.save(attempt);
@@ -117,14 +136,19 @@ class PaymentConfirmTransactionService {
      * 반환 후 경합은 실제 confirm의 실행권 선점과 멱등성 검증이 처리한다.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ConfirmRecoveryStep resolveConfirmRecovery(Long attemptId, LocalDateTime now) {
+    public ConfirmRecoveryStep resolveConfirmRecovery(Long attemptId) {
         PaymentAttempt attempt = findForUpdate(attemptId);
-        LocalDateTime staleBefore = now.minus(CONFIRM_RECOVERY_DELAY);
-        if (!attempt.isConfirmRecoveryCandidate(staleBefore)) {
+        Instant nowInstant = clock.instant();
+        LocalDateTime now = LocalDateTime.ofInstant(nowInstant, clock.getZone());
+        LocalDateTime activityStaleBefore = now.minus(CONFIRM_RECOVERY_DELAY);
+        LocalDateTime createdAtStaleBeforeUtc = LocalDateTime.ofInstant(
+                nowInstant.minus(CONFIRM_RECOVERY_DELAY), ZoneOffset.UTC);
+        if (!attempt.isConfirmRecoveryCandidate(activityStaleBefore, createdAtStaleBeforeUtc)) {
             return new RecoverySkipped();
         }
         attempt.markConfirmRecoveryAttempted(now);
-        if (attempt.requiresConfirmReconciliation(now.minus(CONFIRM_AUTOMATIC_RETRY_MAX_AGE))) {
+        if (attempt.requiresConfirmReconciliation(LocalDateTime.ofInstant(
+                nowInstant.minus(CONFIRM_AUTOMATIC_RETRY_MAX_AGE), ZoneOffset.UTC))) {
             attempt.markConfirmReconciliationRequired(CONFIRM_RECONCILIATION_REASON);
             attemptStore.save(attempt);
             return new ReconciliationRequired();
@@ -286,12 +310,26 @@ class PaymentConfirmTransactionService {
     }
 
     private PaymentAttempt findValidatedAttemptForUpdate(ConfirmCommand command) {
-        PaymentAttempt attempt = attemptReader.findByOrderIdExternalForUpdate(command.orderId())
+        PaymentAttempt attempt = findForUpdate(command.orderId());
+        if (attempt.getStatus() == PaymentAttemptStatus.CANCELED) {
+            throw new HappyGalleryException(ErrorCode.PAYMENT_ATTEMPT_EXPIRED);
+        }
+        validateAttempt(attempt, command);
+        return attempt;
+    }
+
+    private PaymentAttempt findForUpdate(String orderId) {
+        return attemptReader.findByOrderIdExternalForUpdate(orderId)
                 .orElseThrow(() -> new NotFoundException("결제 시도"));
+    }
+
+    private void validateAttempt(PaymentAttempt attempt, ConfirmCommand command) {
+        if (attempt.getStatus() == PaymentAttemptStatus.FAILED && attempt.getPayloadEnc() == null) {
+            throw paymentFailure(attempt);
+        }
         PaymentPayload payload = deserialize(attempt.getPayloadEnc());
         fulfiller(attempt.getContext()).validateStoredPayload(attempt, payload);
         requireSameActor(payload, command.auth());
-        return attempt;
     }
 
     private PaymentFulfiller fulfiller(PaymentContext context) {
@@ -350,7 +388,7 @@ class PaymentConfirmTransactionService {
 
     sealed interface ConfirmationStep
             permits Completed, ConfirmationRejected, ReadyForFulfillment,
-                    PgConfirmationRequired, ZeroAmountApprovalRequired {}
+                    PgConfirmationRequired, ZeroAmountApprovalRequired, Expired {}
 
     sealed interface ConfirmRecoveryStep
             permits RecoverySkipped, ReconciliationRequired, RecoveryReady, RecoveryPreparationFailed {}
@@ -367,6 +405,8 @@ class PaymentConfirmTransactionService {
 
     record ConfirmationRejected(Long attemptId,
                                 HappyGalleryException failure) implements ConfirmationStep {}
+
+    record Expired() implements ConfirmationStep {}
 
     record ReadyForFulfillment(Long attemptId,
                                String orderId,

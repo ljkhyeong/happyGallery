@@ -1,5 +1,5 @@
 import { adminHeaders as h, api } from "@/shared/api";
-import type { CursorPage, AdminOrderResponse, OrderProductionResponse, OrderRejectResponse, OrderDelayCancellationResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest, ShippingResponse, OrderHistoryResponse } from "@/shared/types";
+import type { CursorPage, AdminOrderResponse, AdminOrderFulfillmentResponse, OrderProductionResponse, OrderRejectResponse, OrderDelayCancellationResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest, ShippingResponse, OrderHistoryResponse } from "@/shared/types";
 
 export function fetchOrders(
   adminKey: string,
@@ -11,6 +11,13 @@ export function fetchOrders(
     headers: h(adminKey),
     params: { status, cursor, size: String(size) },
   });
+}
+
+export function fetchOrderFulfillment(
+  adminKey: string,
+  id: number,
+): Promise<AdminOrderFulfillmentResponse> {
+  return api<AdminOrderFulfillmentResponse>(`/admin/orders/${id}/fulfillment`, { headers: h(adminKey) });
 }
 
 export function approveOrder(adminKey: string, id: number): Promise<void> {

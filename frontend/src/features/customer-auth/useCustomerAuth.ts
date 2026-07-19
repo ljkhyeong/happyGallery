@@ -6,16 +6,18 @@ interface CustomerUserResponse {
   id: number;
   email: string;
   name: string;
-  phone: string;
+  phone: string | null;
   phoneVerified: boolean;
+  localPasswordEnabled: boolean;
 }
 
 export interface CustomerUser {
   id: number;
   email: string;
   name: string;
-  phone: string;
+  phone: string | null;
   phoneVerified: boolean;
+  localPasswordEnabled: boolean;
 }
 
 interface CustomerAuthContextValue {
@@ -31,7 +33,7 @@ interface CustomerAuthContextValue {
     verificationCode: string,
   ) => Promise<boolean>;
   logout: () => Promise<void>;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<CustomerUser | null>;
 }
 
 const CustomerAuthContext = createContext<CustomerAuthContextValue | null>(null);
@@ -44,8 +46,10 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await api<CustomerUserResponse>("/me");
       setUser(me);
+      return me;
     } catch {
       setUser(null);
+      return null;
     } finally {
       setIsLoading(false);
     }

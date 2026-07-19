@@ -8,12 +8,14 @@ import com.personal.happygallery.application.order.port.in.OrderProductionUseCas
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
+import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -32,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
@@ -56,6 +59,7 @@ class PickupExpireBatchUseCaseIT {
     @Autowired InventoryReaderPort inventoryReaderPort;
     @Autowired OrderStorePort orderStorePort;
     @Autowired OrderItemPort orderItemPort;
+    @Autowired FulfillmentPort fulfillmentPort;
     @Autowired UserStorePort userStorePort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -95,8 +99,7 @@ class PickupExpireBatchUseCaseIT {
         orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         // 픽업 준비 완료 (마감 시각: 과거)
-        LocalDateTime pastDeadline = LocalDateTime.now(clock).minusHours(1);
-        orderPickupService.markPickupReady(order.getId(), pastDeadline, 1L);
+        markPickupReadyWithExpiredDeadline(order.getId());
 
         Order afterReady = orderStateProbe.getOrder(order.getId());
 
@@ -139,8 +142,7 @@ class PickupExpireBatchUseCaseIT {
 
         orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.completeProduction(order.getId(), 1L);
-        orderPickupService.markPickupReady(
-                order.getId(), LocalDateTime.now(clock).minusHours(1), 1L);
+        markPickupReadyWithExpiredDeadline(order.getId());
 
         BatchResult result = pickupExpireBatchService.expirePickups();
 
@@ -204,9 +206,8 @@ class PickupExpireBatchUseCaseIT {
         orderApprovalService.approve(failedOrder.getId(), ADMIN_ID);
         orderApprovalService.approve(successOrder.getId(), ADMIN_ID);
 
-        LocalDateTime pastDeadline = LocalDateTime.now(clock).minusHours(1);
-        orderPickupService.markPickupReady(failedOrder.getId(), pastDeadline, 1L);
-        orderPickupService.markPickupReady(successOrder.getId(), pastDeadline, 1L);
+        markPickupReadyWithExpiredDeadline(failedOrder.getId());
+        markPickupReadyWithExpiredDeadline(successOrder.getId());
 
         // 실패 케이스 유도: 재고 레코드가 사라진 상태에서 복구 시도하면 NotFoundException 발생
         inventoryStorePort.deleteById(failedFixture.product().getId());
@@ -230,8 +231,7 @@ class PickupExpireBatchUseCaseIT {
         OrderTestHelper.OrderFixture fixture = orderHelper.createReadyStockPaidOrder("픽업 경합 테스트 상품", 53000L);
         Order order = fixture.order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
-        LocalDateTime pastDeadline = LocalDateTime.now(clock).minusMinutes(1);
-        orderPickupService.markPickupReady(order.getId(), pastDeadline, 1L);
+        markPickupReadyWithExpiredDeadline(order.getId());
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch startLatch = new CountDownLatch(1);
@@ -279,5 +279,26 @@ class PickupExpireBatchUseCaseIT {
                 softly.assertThat(expireError.get()).isInstanceOf(RuntimeException.class);
             }
         });
+    }
+
+    @DisplayName("현재보다 이르거나 같은 픽업 마감은 주문 상태를 바꾸지 않고 거절한다")
+    @Test
+    void markPickupReady_nonFutureDeadline_rejected() {
+        Order order = orderHelper.createReadyStockPaidOrder("잘못된 픽업 마감 상품", 30_000L).order();
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
+
+        assertThatThrownBy(() -> orderPickupService.markPickupReady(
+                order.getId(), LocalDateTime.now(clock), ADMIN_ID))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("현재보다 이후");
+        assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
+                .isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+    }
+
+    private void markPickupReadyWithExpiredDeadline(Long orderId) {
+        orderPickupService.markPickupReady(orderId, LocalDateTime.now(clock).plusHours(1), ADMIN_ID);
+        var fulfillment = fulfillmentPort.findByOrderId(orderId).orElseThrow();
+        fulfillment.setPickupDeadline(LocalDateTime.now(clock).minusHours(1));
+        fulfillmentPort.save(fulfillment);
     }
 }

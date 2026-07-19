@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -94,6 +95,26 @@ public class ResilientPaymentProvider implements PaymentProvider {
         }
     }
 
+    @Override
+    public PaymentLookupResult lookupByOrderId(String orderId) {
+        try {
+            return circuitBreaker.executeCallable(() -> executeLookupWithTimeout(orderId));
+        } catch (CallNotPermittedException e) {
+            log.warn("PG 조회 호출 차단 (circuit open) [state={}]", circuitBreaker.getState());
+            return PaymentLookupResult.unavailable(orderId, "PG 장애로 결제 조회가 일시 차단되었습니다.");
+        } catch (Exception e) {
+            Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
+            if (cause instanceof TimeoutException) {
+                log.warn("PG 조회 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
+            } else if (cause instanceof RejectedExecutionException) {
+                log.warn("PG 조회 호출 대기열 포화");
+            } else {
+                log.error("PG 조회 호출 예외 [type={}]", cause.getClass().getSimpleName());
+            }
+            return PaymentLookupResult.unavailable(orderId, "PG 결제 조회 결과를 확인할 수 없습니다.");
+        }
+    }
+
     private PaymentConfirmResult executeConfirmWithTimeout(String paymentKey, String orderId, long amount,
                                                            String idempotencyKey) throws Exception {
         return timeLimiter.executeFutureSupplier(
@@ -105,5 +126,10 @@ public class ResilientPaymentProvider implements PaymentProvider {
         return timeLimiter.executeFutureSupplier(
                 () -> CompletableFuture.supplyAsync(
                         () -> delegate.refund(paymentKey, amount, idempotencyKey), executor));
+    }
+
+    private PaymentLookupResult executeLookupWithTimeout(String orderId) throws Exception {
+        return timeLimiter.executeFutureSupplier(
+                () -> CompletableFuture.supplyAsync(() -> delegate.lookupByOrderId(orderId), executor));
     }
 }

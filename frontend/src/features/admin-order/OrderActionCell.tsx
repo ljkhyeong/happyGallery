@@ -6,10 +6,11 @@ import type { OrderMutations } from "./useOrderMutations";
 interface Props {
   orderId: number;
   status: OrderStatus;
+  fulfillmentType: "SHIPPING" | "PICKUP" | null;
   mutations: OrderMutations;
 }
 
-export function OrderActionCell({ orderId, status, mutations }: Props) {
+export function OrderActionCell({ orderId, status, fulfillmentType, mutations }: Props) {
   const [pickupDeadline, setPickupDeadline] = useState("");
   const [shipDateValue, setShipDateValue] = useState("");
 
@@ -56,39 +57,56 @@ export function OrderActionCell({ orderId, status, mutations }: Props) {
               {pending ? "..." : "재개"}
             </Button>
           )}
-          <InputGroup size="sm" style={{ width: "auto" }}>
-            <Form.Control type="date" value={shipDateValue}
-              onChange={(e) => setShipDateValue(e.target.value)}
-              style={{ maxWidth: 150 }} />
-            <Button variant="outline-primary" disabled={disabled}
-              onClick={() => mutations.shipDate.mutate({ id: orderId, body: { expectedShipDate: shipDateValue || undefined } })}>출고일</Button>
-          </InputGroup>
+          {fulfillmentType === "SHIPPING" && (
+            <InputGroup size="sm" style={{ width: "auto" }}>
+              <Form.Control type="date" value={shipDateValue}
+                onChange={(e) => setShipDateValue(e.target.value)}
+                style={{ maxWidth: 150 }} />
+              <Button variant="outline-primary" disabled={disabled}
+                onClick={() => mutations.shipDate.mutate({ id: orderId, body: { expectedShipDate: shipDateValue || undefined } })}>출고일</Button>
+            </InputGroup>
+          )}
         </div>
       );
     case "APPROVED_FULFILLMENT_PENDING":
       return (
         <div className="d-flex gap-1 flex-wrap">
-          <InputGroup size="sm" style={{ width: "auto" }}>
-            <Form.Control type="datetime-local" value={pickupDeadline}
-              onChange={(e) => setPickupDeadline(e.target.value)}
-              style={{ maxWidth: 200 }} />
-            <Button variant="outline-primary" disabled={disabled}
-              onClick={() => mutations.pickup.mutate({ id: orderId, body: { pickupDeadlineAt: pickupDeadline || undefined } })}>
-              {pending ? "..." : "픽업 준비"}
+          {fulfillmentType === "PICKUP" && (
+            <InputGroup size="sm" style={{ width: "auto" }}>
+              <Form.Control type="datetime-local" value={pickupDeadline}
+                onChange={(e) => setPickupDeadline(e.target.value)}
+                style={{ maxWidth: 200 }} />
+              <Button variant="outline-primary" disabled={disabled}
+                onClick={() => mutations.pickup.mutate({ id: orderId, body: { pickupDeadlineAt: pickupDeadline || undefined } })}>
+                {pending ? "..." : "픽업 준비"}
+              </Button>
+            </InputGroup>
+          )}
+          {fulfillmentType === "SHIPPING" && (
+            <Button size="sm" variant="outline-info" disabled={disabled}
+              onClick={() => mutations.prepareShipping.mutate(orderId)}>
+              {pending ? "..." : "배송 준비"}
             </Button>
-          </InputGroup>
-          <Button size="sm" variant="outline-info" disabled={disabled}
-            onClick={() => mutations.prepareShipping.mutate(orderId)}>
-            {pending ? "..." : "배송 준비"}
-          </Button>
+          )}
         </div>
       );
     case "SHIPPING_PREPARING":
       return (
-        <Button size="sm" variant="primary" disabled={disabled}
-          onClick={() => mutations.shipped.mutate(orderId)}>
-          {pending ? "..." : "배송 출발"}
-        </Button>
+        <div className="d-flex gap-1 flex-wrap">
+          <InputGroup size="sm" style={{ width: "auto" }}>
+            <Form.Control type="date" value={shipDateValue}
+              onChange={(e) => setShipDateValue(e.target.value)}
+              style={{ maxWidth: 150 }} />
+            <Button variant="outline-primary" disabled={disabled}
+              onClick={() => mutations.shipDate.mutate({ id: orderId, body: { expectedShipDate: shipDateValue || undefined } })}>
+              출고일
+            </Button>
+          </InputGroup>
+          <Button size="sm" variant="primary" disabled={disabled}
+            onClick={() => mutations.shipped.mutate(orderId)}>
+            {pending ? "..." : "배송 출발"}
+          </Button>
+        </div>
       );
     case "SHIPPED":
       return (

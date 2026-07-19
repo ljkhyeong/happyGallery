@@ -83,9 +83,9 @@
 
 2026-07-19 기준 `deploy/k3s`에 다음 산출물을 구현했다.
 
-- namespace, app/frontend/MySQL/Redis/Prometheus workload, ClusterIP Service, TLS Ingress와 MySQL Retain PVC
+- namespace, app/frontend/MySQL/Redis/Prometheus/Alertmanager workload, ClusterIP Service, TLS Ingress와 MySQL Retain PVC
 - Traefik 전달 헤더 기준, ingress·Prometheus만 허용하는 Actuator NetworkPolicy
-- 저장소 밖 env에서 runtime Secret을 생성·교체하는 절차
+- 저장소 밖 env와 HTTPS webhook URL 파일에서 runtime Secret을 생성·교체하는 절차
 - commit SHA 이미지 build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback
 - `age` 암호화 off-device MySQL 백업, checksum·보존 정리, app 중지 후 복원·Redis 초기화 절차
 
@@ -93,7 +93,7 @@
 
 - k3s와 cert-manager 설치, DNS, 공유기 포트 전달, 호스트 방화벽과 실제 TLS 발급
 - 실제 외부 매체 또는 원격 mount 백업, 분리 보관한 age·필드 암호화 키로 복원 훈련
-- 외부 uptime 감시와 alert 수신자 연결, 전원·디스크·네트워크 장애 알림
+- 외부 uptime 감시와 전원·디스크·네트워크 장애 알림. 애플리케이션 메트릭은 내부 Alertmanager에서 외부 HTTPS webhook으로 전달하지만 노트북 자체 중단은 감지할 수 없다.
 - 실제 브라우저의 세션·CSRF·OAuth·결제·SMS 핵심 흐름 검증과 공개 운영 주소 확정
 
 따라서 저장소 구성은 `배포 준비 완료`, 실제 서비스는 위 검증 전까지 `운영 미개시`로 표현한다.

@@ -8,6 +8,8 @@ import com.personal.happygallery.application.customer.port.out.PhoneVerification
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
+import com.personal.happygallery.application.order.port.out.FulfillmentPort;
+import com.personal.happygallery.application.order.ShippingAddressProtector;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
@@ -24,6 +26,7 @@ import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.adapter.out.persistence.cart.CartItemRepository;
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -34,6 +37,9 @@ import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
@@ -43,6 +49,7 @@ import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -85,6 +92,8 @@ class PaymentConfirmUseCaseIT {
     @Autowired RefundPort refundPort;
     @Autowired OrderReaderPort orderReader;
     @Autowired OrderItemPort orderItemPort;
+    @Autowired FulfillmentPort fulfillmentPort;
+    @Autowired ShippingAddressProtector shippingAddressProtector;
     @Autowired BookingReaderPort bookingReaderPort;
     @Autowired PassPurchaseReaderPort passPurchaseReaderPort;
     @Autowired ClassStorePort classStorePort;
@@ -95,6 +104,7 @@ class PaymentConfirmUseCaseIT {
     @Autowired PhoneVerificationStorePort phoneVerificationStorePort;
     @Autowired CartItemStorePort cartItemStorePort;
     @Autowired CartItemRepository cartItemRepository;
+    @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -206,9 +216,49 @@ class PaymentConfirmUseCaseIT {
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             softly.assertThat(attempt.getPaymentKey()).isEqualTo("payment-key-confirm");
             softly.assertThat(attempt.getConfirmedPaymentKey()).isEqualTo("confirmed-payment-key");
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .singleElement()
+                    .satisfies(outbox -> {
+                        softly.assertThat(outbox.getUserId()).isEqualTo(user.getId());
+                        softly.assertThat(outbox.getEventType()).isEqualTo(NotificationEventType.ORDER_PAID);
+                        softly.assertThat(outbox.getAggregateId()).isEqualTo(order.getId());
+                    });
         });
         verify(paymentProvider).confirm(
                 "payment-key-confirm", prepared.orderId(), prepared.amount(), prepared.orderId());
+    }
+
+    @DisplayName("배송 주문 confirm은 주문 시점 배송지를 암호문으로 고정한다")
+    @Test
+    void confirm_shippingOrder_storesEncryptedAddressSnapshot() {
+        User user = userStorePort.save(new User(
+                "shipping-snapshot@example.com", "hashed", "배송 회원", "01012345678"));
+        Product product = productStorePort.save(readyStockProduct("배송 스냅샷 상품", 44_000L));
+        inventoryStorePort.save(inventory(product, 1));
+        ShippingAddress address = new ShippingAddress(
+                "받는 사람", "010-9876-5432", "06236", "서울시 강남구 테헤란로 1", "2층");
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(new OrderItemRef(product.getId(), 1)), false,
+                        FulfillmentType.SHIPPING, address),
+                auth));
+
+        PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
+                new ConfirmCommand("shipping-payment-key", prepared.orderId(), prepared.amount(), auth));
+
+        var fulfillment = fulfillmentPort.findByOrderId(result.domainId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(fulfillment.getType()).isEqualTo(FulfillmentType.SHIPPING);
+            softly.assertThat(fulfillment.getShippingAddressEnc())
+                    .isNotBlank()
+                    .doesNotContain(address.addressLine1())
+                    .doesNotContain(address.phone());
+            softly.assertThat(shippingAddressProtector.decrypt(fulfillment.getShippingAddressEnc()))
+                    .isEqualTo(address);
+        });
     }
 
     @DisplayName("완료된 비회원 결제를 재호출하면 저장한 결과를 반환하고 PG와 주문 생성을 반복하지 않는다")
@@ -366,11 +416,19 @@ class PaymentConfirmUseCaseIT {
                             TransactionSynchronizationManager.isActualTransactionActive());
                     return PaymentConfirmResult.failure("PG 승인 거절");
                 });
+        ConfirmCommand command = new ConfirmCommand(
+                "payment-key-failure", prepared.orderId(), prepared.amount(), auth);
 
-        assertThatThrownBy(() -> confirmUseCase.confirm(
-                new ConfirmCommand("payment-key-failure", prepared.orderId(), prepared.amount(), auth)))
-                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_FAILED));
+        assertThatThrownBy(() -> confirmUseCase.confirm(command))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception -> assertSoftly(softly -> {
+                    softly.assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_FAILED);
+                    softly.assertThat(exception.getErrorCode().httpStatus).isEqualTo(502);
+                }));
+        assertThatThrownBy(() -> confirmUseCase.confirm(command))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception -> assertSoftly(softly -> {
+                    softly.assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_FAILED);
+                    softly.assertThat(exception.getErrorCode().httpStatus).isEqualTo(502);
+                }));
 
         var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
         assertSoftly(softly -> {
@@ -379,6 +437,39 @@ class PaymentConfirmUseCaseIT {
             softly.assertThat(attempt.getFailReason()).isEqualTo("PG 승인 거절");
             softly.assertThat(orderReader.findAllByOrderByCreatedAtDesc()).isEmpty();
         });
+        verify(paymentProvider, times(1)).confirm(
+                "payment-key-failure", prepared.orderId(), prepared.amount(), prepared.orderId());
+    }
+
+    @DisplayName("배치가 실행되지 않아도 30분이 지난 PENDING 결제는 confirm 시 만료된다")
+    @Test
+    void confirm_expiredPendingAttempt_cancelsBeforePgCall() {
+        User user = userStorePort.save(new User(
+                "payment-point-of-use-expiry@example.com", "hashed", "회원", "01022223333"));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.PASS,
+                new PassPayload(user.getId()),
+                auth));
+        LocalDateTime expiredCreatedAt = LocalDateTime.ofInstant(
+                clock.instant().minus(DefaultPaymentAttemptExpiryBatchService.PREPARE_TTL).minusSeconds(1),
+                ZoneOffset.UTC);
+        jdbcTemplate.update(
+                "UPDATE payment_attempt SET created_at = ? WHERE order_id_external = ?",
+                expiredCreatedAt,
+                prepared.orderId());
+
+        assertThatThrownBy(() -> confirmUseCase.confirm(new ConfirmCommand(
+                "expired-payment-key", prepared.orderId(), prepared.amount(), auth)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_ATTEMPT_EXPIRED));
+
+        var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CANCELED);
+            softly.assertThat(attempt.getPayloadEnc()).isNull();
+        });
+        verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
     }
 
     @DisplayName("PG 승인 후 도메인 생성이 실패하면 결제 시도 보상 환불을 실행한다")

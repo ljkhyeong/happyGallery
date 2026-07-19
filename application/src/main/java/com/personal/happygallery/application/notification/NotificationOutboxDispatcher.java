@@ -18,6 +18,7 @@ public class NotificationOutboxDispatcher {
     private static final int MAX_ATTEMPTS = 5;
     private static final int PROCESSING_TIMEOUT_MINUTES = 10;
     private static final String ALL_CHANNELS_FAILED = "ALL_CHANNELS_FAILED";
+    private static final String DISPATCH_EXCEPTION = "DISPATCH_EXCEPTION";
 
     private final NotificationOutboxTransactionService transactionService;
     private final NotificationService notificationService;
@@ -45,6 +46,7 @@ public class NotificationOutboxDispatcher {
             } catch (Exception e) {
                 log.warn("[알림 outbox] dispatch 실패 [outboxId={} type={}]",
                         outboxId, e.getClass().getSimpleName());
+                recordDispatchException(outboxId, e);
                 failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
             }
         }
@@ -65,5 +67,18 @@ public class NotificationOutboxDispatcher {
         }
         transactionService.markDeliveryFailed(outboxId, ALL_CHANNELS_FAILED, MAX_ATTEMPTS);
         return false;
+    }
+
+    private void recordDispatchException(Long outboxId, Exception dispatchFailure) {
+        try {
+            transactionService.markDeliveryFailed(
+                    outboxId,
+                    DISPATCH_EXCEPTION + ":" + dispatchFailure.getClass().getSimpleName(),
+                    MAX_ATTEMPTS);
+        } catch (Exception recordingFailure) {
+            dispatchFailure.addSuppressed(recordingFailure);
+            log.error("[알림 outbox] dispatch 실패 기록 불가 [outboxId={} type={}]",
+                    outboxId, recordingFailure.getClass().getSimpleName(), recordingFailure);
+        }
     }
 }

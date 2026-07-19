@@ -63,11 +63,11 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 
 ### 3. 도메인 생성 금액은 prepare 시점에 확정한다
 
-- 공개 입력인 `OrderPayload`에는 `productId`, `qty`만 받는다.
-- `OrderPreparer`는 상품을 ID 목록으로 한 번에 조회하고, 서버 상품가를 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만든다.
+- 공개 입력인 `OrderPayload`에는 `productId`, `qty`와 고객이 선택한 수령 방식, 배송 주문의 구조화된 배송지를 받는다.
+- `OrderPreparer`는 `ACTIVE` 상품을 ID 목록으로 한 번에 조회하고, 서버 상품가·수령 방식·배송지 스냅샷을 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만든다.
 - 내부용 payload는 AES-GCM으로 암호화해 `payment_attempt.payload_enc`에 저장하고, confirm 단계 결정과 fulfillment에서만 복호화한다. V46은 기존 평문 JSON도 암호문으로 전환한다.
 - confirm 단계 결정에서 항목 단가 합계와 `payment_attempt.amount`를 대조한 뒤 PG를 호출한다.
-- `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 단가로 `OrderItemRequest`를 만든다.
+- `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 단가로 `OrderItemRequest`를 만들며, 주문과 선택된 fulfillment를 같은 트랜잭션에 저장한다. 배송지는 별도 AES-GCM 암호문으로 `fulfillments.shipping_address_enc`에 보존한다.
 - `BookingPreparer`는 예약금과 잔금을 `PreparedBookingPayload`에, `PassPreparer`는 총 가격을 `PreparedPassPayload`에 저장한다.
 - 예약과 8회권 fulfillment도 현재 가격을 다시 계산하지 않고 저장된 스냅샷으로 생성한다.
 - 변경 전 생성되어 서버 가격이 없는 미확정 결제 시도는 confirm하지 않고 새 prepare를 요구한다.
@@ -130,9 +130,14 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
   별도 트랜잭션에 커밋한 뒤 `PAYMENT_FAILED`를 반환한다. 이미 승인 키가 저장된 `APPROVED` fulfillment 재개에는
   이 상한을 적용하지 않는다. 외부 PG 호출이 없는 amount=0 `PROCESSING`도 기간과 무관하게 내부 처리를 재개한다.
 - `RECONCILIATION_REQUIRED` 전이 시 `happygallery.payment.confirm.reconciliation_required` 카운터를 올리고
-  Prometheus critical 알림을 발생시킨다. 운영자는 저장된 orderId·paymentKey와 Toss 거래 상태를 먼저 대조하며,
-  외부 승인 여부가 확인되기 전에는 `FAILED` 처리나 새 PG 승인 요청을 하지 않는다. 승인/미승인 확인 뒤의 종결은
-  결제 상태를 추측하지 않는 별도 운영 조치로 수행하며, 자동 복구는 이 상태를 다시 처리하지 않는다.
+  Prometheus critical 알림을 발생시킨다. 운영자는 관리자 결제 대사 API에서 저장된 orderId로 Toss 조회 API를
+  호출한다. 조회는 활성 DB 트랜잭션 밖에서 수행하고, 결과 저장은 결제 시도 행을 잠그는 짧은 새 트랜잭션으로
+  분리한다. `DONE`은 저장된 paymentKey·orderId·금액을 모두 대조한 뒤 `APPROVED`와 fulfillment를 재개한다.
+  Toss가 `NOT_FOUND_PAYMENT`로 결제 미존재를 명시한 경우에만 `FAILED`로 종결하고 payload를 제거한다.
+  다른 404, 조회 실패, 자동 판정할 수 없는 상태는 `RECONCILIATION_REQUIRED`를 유지한다. 자동 복구는 이 상태를 다시 처리하지 않는다.
+- confirm을 시작하지 않은 `PENDING`은 30분 유효시간을 둔다. confirm 진입과 만료 배치 모두 행 잠금 아래
+  같은 UTC `created_at` 경계를 확인하고, 만료 시 `CANCELED` 전이와 암호화 payload 제거를 먼저 커밋한다. confirm은 payload
+  복호화와 PG 호출을 시도하지 않고 `PAYMENT_ATTEMPT_EXPIRED`를 반환하며, 배치는 confirm 요청이 없는 레코드를 일괄 정리한다.
 - 후보 조회는 잠그지 않지만 실제 confirm의 비관적 잠금과 processing token fencing을 그대로 사용한다.
   따라서 사용자 요청이나 여러 서버의 복구 배치가 겹쳐도 PG 결과와 도메인 생성은 한 실행권만 반영한다.
   `PENDING`과 최종·보상 상태는 자동 confirm 대상이 아니다.
@@ -157,6 +162,8 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - `PaymentConfirmTransactionService`
 - `DefaultPaymentConfirmService`
 - `DefaultPaymentConfirmRecoveryService`, `PaymentConfirmRecoveryUseCase`, `BatchScheduler`
+- `DefaultPaymentAttemptExpiryBatchService`, `PaymentAttemptExpiryProcessor`
+- `DefaultPaymentReconciliationAdminService`, `PaymentReconciliationTransactionService`
 - `PaymentPreparer`, `PaymentFulfiller`, `OrderPreparer`, `OrderFulfiller`, `BookingFulfiller`, `PassFulfiller`
 - `PaymentPayload.PreparedOrderPayload`, `PreparedBookingPayload`, `PreparedPassPayload`
 - `ProductReaderPort`, `ProductRepository`, `CartUseCase`

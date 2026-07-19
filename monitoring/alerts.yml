@@ -87,6 +87,14 @@ groups:
         annotations:
           summary: "최근 5분 동안 알림 외부 호출 대기열 거절이 발생했습니다 ({{ $value | printf \"%.0f\" }}건)"
 
+      - alert: NotificationOutboxFailed
+        expr: increase(happygallery_notification_outbox_failed_total{application="happygallery"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "자동 재시도를 모두 소진한 알림이 발생했습니다 ({{ $value | printf \"%.0f\" }}건)"
+
       - alert: AppDown
         expr: up{job="happygallery"} == 0
         for: 1m

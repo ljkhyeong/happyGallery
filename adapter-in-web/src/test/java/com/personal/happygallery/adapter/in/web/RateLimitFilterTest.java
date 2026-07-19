@@ -306,6 +306,7 @@ class RateLimitFilterTest {
         return Stream.of(
                 "/api/v1/payments/prepare",
                 "/api/v1/payments/confirm",
+                "/api/v1/auth/password/reset",
                 "/api/v1/products/1/qna/5/verify",
                 "/api/v1/me/guest-claims/verify",
                 "/api/v1/monitoring/client-events"
@@ -400,6 +401,7 @@ class RateLimitFilterTest {
         }
 
         private TestRateLimits highRiskPosts(long capacity) {
+            customerLogin = capacity;
             paymentPrepare = capacity;
             paymentConfirm = capacity;
             productQnaVerify = capacity;

@@ -12,6 +12,11 @@ data:
       evaluation_interval: 15s
     rule_files:
       - /etc/prometheus/rules/alerts.yml
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - alertmanager:9093
     scrape_configs:
       - job_name: happygallery
         metrics_path: /actuator/prometheus
@@ -92,6 +97,13 @@ data:
               severity: warning
             annotations:
               summary: 알림 외부 호출 대기열 사용률이 80%를 초과했습니다
+          - alert: NotificationOutboxFailed
+            expr: increase(happygallery_notification_outbox_failed_total{application="happygallery"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: 자동 재시도를 모두 소진한 알림이 발생했습니다
 ---
 apiVersion: v1
 kind: Service

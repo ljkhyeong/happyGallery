@@ -53,11 +53,10 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
     }
 
     private Slot reserveSlot(Long userId, Long slotId) {
-        Slot slot = slotCapacitySupport.loadActiveSlot(slotId);
+        slotCapacitySupport.requireAvailableSlot(slotId);
         if (bookingReaderPort.existsBookedBySlotIdAndUserId(slotId, userId)) {
             throw new DuplicateBookingException();
         }
-        slotCapacitySupport.reserveCapacity(slotId);
-        return slot;
+        return slotCapacitySupport.reserveCapacity(slotId);
     }
 }

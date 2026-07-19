@@ -7,6 +7,7 @@ import com.personal.happygallery.domain.notification.NotificationRecipientType;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,10 +18,14 @@ class NotificationOutboxTransactionService {
     private static final int MAX_BACKOFF_EXPONENT = 5;
 
     private final NotificationOutboxPort outboxPort;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
-    NotificationOutboxTransactionService(NotificationOutboxPort outboxPort, Clock clock) {
+    NotificationOutboxTransactionService(NotificationOutboxPort outboxPort,
+                                         ApplicationEventPublisher eventPublisher,
+                                         Clock clock) {
         this.outboxPort = outboxPort;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -58,7 +63,11 @@ class NotificationOutboxTransactionService {
     public void markDeliveryFailed(Long outboxId, String reason, int maxAttempts) {
         NotificationOutbox outbox = findOutbox(outboxId);
         LocalDateTime now = LocalDateTime.now(clock);
-        outbox.markDeliveryFailed(reason, nextAttemptAt(outbox, now), now, maxAttempts);
+        boolean permanentlyFailed = outbox.markDeliveryFailed(
+                reason, nextAttemptAt(outbox, now), now, maxAttempts);
+        if (permanentlyFailed) {
+            eventPublisher.publishEvent(new NotificationOutboxFailedEvent(outbox.getId()));
+        }
     }
 
     private NotificationOutbox findOutbox(Long outboxId) {
@@ -78,3 +87,5 @@ record NotificationOutboxDeliveryRequest(Long outboxId,
                                          Long guestId,
                                          Long userId,
                                          NotificationEventType eventType) {}
+
+record NotificationOutboxFailedEvent(Long outboxId) {}

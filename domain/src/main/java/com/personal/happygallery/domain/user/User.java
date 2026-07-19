@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 
 @Entity
@@ -28,6 +29,13 @@ public class User {
 
     @Column(name = "password_hash")
     private String passwordHash;
+
+    @Column(name = "credential_version", nullable = false)
+    private long credentialVersion;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @Transient
     private String name;
@@ -100,6 +108,8 @@ public class User {
     public String getEmailEnc() { return emailEnc; }
     public String getEmailHmac() { return emailHmac; }
     public String getPasswordHash() { return passwordHash; }
+    public long getCredentialVersion() { return credentialVersion; }
+    public long getVersion() { return version; }
     public String getName() { return name; }
     public String getNameEnc() { return nameEnc; }
     public String getNameHmac() { return nameHmac; }
@@ -116,6 +126,20 @@ public class User {
 
     public void markPhoneVerified() {
         this.phoneVerified = true;
+    }
+
+    public void registerVerifiedPhone(String phone) {
+        this.phone = KoreanPhoneNumber.required(phone);
+        this.phoneVerified = true;
+    }
+
+    public boolean hasLocalPassword() {
+        return passwordHash != null;
+    }
+
+    public void updatePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.credentialVersion = Math.incrementExact(credentialVersion);
     }
 
 }

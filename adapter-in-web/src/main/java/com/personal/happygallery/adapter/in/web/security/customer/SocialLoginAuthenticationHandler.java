@@ -47,7 +47,7 @@ public class SocialLoginAuthenticationHandler
         try {
             SocialAuthUseCase.SocialLoginResult result = socialAuth.socialLogin(
                     profileResolver.resolve(authentication));
-            customerSessionBinder.bind(request, response, result.user().getId());
+            customerSessionBinder.bind(request, response, result.user());
             redirect(request, response, "newUser", String.valueOf(result.newUser()));
         } catch (HappyGalleryException exception) {
             ErrorCode errorCode = exception.getErrorCode() == ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED

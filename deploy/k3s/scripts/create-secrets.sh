@@ -3,16 +3,24 @@
 set -Eeuo pipefail
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 
-[ "$#" -eq 3 ] || die "사용법: $0 <mysql.env> <redis.env> <app.env>"
+[ "$#" -eq 4 ] || die "사용법: $0 <mysql.env> <redis.env> <app.env> <alert-webhook-url-file>"
 mysql_file=$1
 redis_file=$2
 app_file=$3
+alert_webhook_file=$4
 require_command base64
 
 for file in "$mysql_file" "$redis_file" "$app_file"; do
     validate_env_file "$file"
     require_private_file "$file"
 done
+require_private_file "$alert_webhook_file"
+alert_webhook_lines=$(awk 'NF { count++ } END { print count + 0 }' "$alert_webhook_file")
+[ "$alert_webhook_lines" -eq 1 ] || die "Alertmanager webhook URL 파일에는 URL 한 줄만 있어야 합니다."
+grep -Eq '^https://[^[:space:]]+$' "$alert_webhook_file" \
+    || die "Alertmanager webhook URL은 공백 없는 https URL이어야 합니다."
+grep -q 'example\.com' "$alert_webhook_file" \
+    && die "Alertmanager 예시 URL을 실제 외부 수신 URL로 바꾸세요."
 
 for key in MYSQL_ROOT_PASSWORD MYSQL_DATABASE MYSQL_USER MYSQL_PASSWORD; do
     require_env_value "$key" "$mysql_file" >/dev/null
@@ -112,6 +120,11 @@ kube create secret generic happygallery-app \
     --from-env-file="$app_file" \
     --dry-run=client -o yaml | kube apply -f - >/dev/null
 
-info "runtime Secret 3개를 생성 또는 교체했습니다. 값은 출력하지 않았습니다."
+kube create secret generic happygallery-alertmanager \
+    --namespace "$NAMESPACE" \
+    --from-file=webhook-url="$alert_webhook_file" \
+    --dry-run=client -o yaml | kube apply -f - >/dev/null
+
+info "runtime Secret 4개를 생성 또는 교체했습니다. 값은 출력하지 않았습니다."
 info "기존 MySQL PVC의 DB 자격증명 변경은 거부됩니다. 일반 app Secret 변경은 app 재기동 후 반영됩니다."
 info "데이터 결합 키와 Redis 비밀번호 변경은 일반 Secret 교체에서 거부됩니다."

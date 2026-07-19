@@ -55,6 +55,9 @@ const LoginPage = lazy(() =>
 const SignupPage = lazy(() =>
   import("@/pages/SignupPage").then((module) => ({ default: module.SignupPage })),
 );
+const ForgotPasswordPage = lazy(() =>
+  import("@/pages/ForgotPasswordPage").then((module) => ({ default: module.ForgotPasswordPage })),
+);
 const AdminPage = lazy(() =>
   import("@/pages/admin/AdminPage").then((module) => ({ default: module.AdminPage })),
 );
@@ -117,6 +120,7 @@ export function App() {
                 <Route path="/auth/callback" element={<LazyRoute><SocialCallbackPage /></LazyRoute>} />
                 <Route path="/login" element={<LazyRoute><LoginPage /></LazyRoute>} />
                 <Route path="/signup" element={<LazyRoute><SignupPage /></LazyRoute>} />
+                <Route path="/forgot-password" element={<LazyRoute><ForgotPasswordPage /></LazyRoute>} />
                 <Route path="/admin" element={<LazyRoute><AdminPage /></LazyRoute>} />
                 <Route path="/payments/success" element={<LazyRoute><PaymentSuccessPage /></LazyRoute>} />
                 <Route path="/payments/fail" element={<LazyRoute><PaymentFailPage /></LazyRoute>} />

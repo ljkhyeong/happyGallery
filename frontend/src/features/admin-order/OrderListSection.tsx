@@ -9,6 +9,7 @@ import { formatDateTime, formatKRW } from "@/shared/lib";
 import { useOrderMutations } from "./useOrderMutations";
 import { OrderActionCell } from "./OrderActionCell";
 import { OrderHistoryPanel } from "./OrderHistoryPanel";
+import { OrderFulfillmentPanel } from "./OrderFulfillmentPanel";
 
 interface Props {
   adminKey: string;
@@ -37,6 +38,7 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
 export function OrderListSection({ adminKey, onAuthError }: Props) {
   const [statusFilter, setStatusFilter] = useState("");
   const [historyOrderId, setHistoryOrderId] = useState<number | null>(null);
+  const [fulfillmentOrderId, setFulfillmentOrderId] = useState<number | null>(null);
   const [allOrders, setAllOrders] = useState<AdminOrderResponse[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
@@ -96,7 +98,7 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
           <Table responsive hover size="sm">
             <thead>
               <tr>
-                <th>주문번호</th><th>상태</th><th>금액</th><th>결제일</th><th>생성일</th><th>액션</th><th></th>
+                <th>주문번호</th><th>상태</th><th>수령</th><th>금액</th><th>결제일</th><th>생성일</th><th>액션</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -104,11 +106,17 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
                 <tr key={o.orderId}>
                   <td>{o.orderNumber}</td>
                   <td><StatusBadge status={o.status} /></td>
+                  <td>{o.fulfillmentType === "SHIPPING" ? "택배" : o.fulfillmentType === "PICKUP" ? "픽업" : "-"}</td>
                   <td>{formatKRW(o.totalAmount)}</td>
                   <td><small>{o.paidAt ? formatDateTime(o.paidAt) : "-"}</small></td>
                   <td><small>{formatDateTime(o.createdAt)}</small></td>
-                  <td><OrderActionCell orderId={o.orderId} status={o.status} mutations={mutations} /></td>
+                  <td><OrderActionCell orderId={o.orderId} status={o.status}
+                    fulfillmentType={o.fulfillmentType} mutations={mutations} /></td>
                   <td>
+                    <Button size="sm" variant="link"
+                      onClick={() => setFulfillmentOrderId(fulfillmentOrderId === o.orderId ? null : o.orderId)}>
+                      {fulfillmentOrderId === o.orderId ? "닫기" : "이행"}
+                    </Button>
                     <Button size="sm" variant="link"
                       onClick={() => setHistoryOrderId(historyOrderId === o.orderId ? null : o.orderId)}>
                       {historyOrderId === o.orderId ? "닫기" : "이력"}
@@ -132,6 +140,10 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
 
       {historyOrderId != null && (
         <OrderHistoryPanel orderId={historyOrderId} adminKey={adminKey} />
+      )}
+
+      {fulfillmentOrderId != null && (
+        <OrderFulfillmentPanel orderId={fulfillmentOrderId} adminKey={adminKey} />
       )}
 
       {mutations.lastError && !(mutations.lastError instanceof ApiError && mutations.lastError.status === 401) && (

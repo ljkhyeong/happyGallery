@@ -19,6 +19,9 @@ public interface PaymentPort {
      */
     PaymentConfirmResult confirm(String paymentKey, String orderId, long amount, String idempotencyKey);
 
+    /** 저장된 orderId로 PG의 현재 승인 상태를 조회한다. 자동 판정 불가와 통신 장애를 구분해 반환한다. */
+    PaymentLookupResult lookupByOrderId(String orderId);
+
     /**
      * 환불을 실행한다.
      *

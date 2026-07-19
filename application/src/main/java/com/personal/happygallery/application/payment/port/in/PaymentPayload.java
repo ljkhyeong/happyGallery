@@ -3,6 +3,10 @@ package com.personal.happygallery.application.payment.port.in;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.util.List;
 
 /**
@@ -40,15 +44,30 @@ public sealed interface PaymentPayload {
             String verificationCode,
             String name,
             List<OrderItemRef> items,
-            boolean cartCheckout
+            boolean cartCheckout,
+            FulfillmentType fulfillmentType,
+            ShippingAddress shippingAddress
     ) implements PaymentPayload {
+
+        public OrderPayload {
+            requireFulfillment(fulfillmentType, shippingAddress);
+        }
 
         public OrderPayload(Long userId,
                             String phone,
                             String verificationCode,
                             String name,
                             List<OrderItemRef> items) {
-            this(userId, phone, verificationCode, name, items, false);
+            this(userId, phone, verificationCode, name, items, false, FulfillmentType.PICKUP, null);
+        }
+
+        public OrderPayload(Long userId,
+                            String phone,
+                            String verificationCode,
+                            String name,
+                            List<OrderItemRef> items,
+                            boolean cartCheckout) {
+            this(userId, phone, verificationCode, name, items, cartCheckout, FulfillmentType.PICKUP, null);
         }
     }
 
@@ -61,15 +80,21 @@ public sealed interface PaymentPayload {
             String verificationCode,
             String name,
             List<PreparedOrderItem> items,
-            boolean cartCheckout
+            boolean cartCheckout,
+            FulfillmentType fulfillmentType,
+            ShippingAddress shippingAddress
     ) implements PaymentPayload {
+
+        public PreparedOrderPayload {
+            requireFulfillment(fulfillmentType, shippingAddress);
+        }
 
         public PreparedOrderPayload(Long userId,
                                     String phone,
                                     String verificationCode,
                                     String name,
                                     List<PreparedOrderItem> items) {
-            this(userId, phone, verificationCode, name, items, false);
+            this(userId, phone, verificationCode, name, items, false, FulfillmentType.PICKUP, null);
         }
     }
 
@@ -119,4 +144,17 @@ public sealed interface PaymentPayload {
 
     /** prepare에서 서버 가격을 확정한 뒤 결제 시도에만 저장하는 8회권 payload. */
     record PreparedPassPayload(Long userId, long totalPrice) implements PaymentPayload {}
+
+    private static void requireFulfillment(
+            FulfillmentType fulfillmentType, ShippingAddress shippingAddress) {
+        if (fulfillmentType == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수령 방법을 선택해 주세요.");
+        }
+        if (fulfillmentType == FulfillmentType.SHIPPING && shippingAddress == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "배송지는 필수입니다.");
+        }
+        if (fulfillmentType == FulfillmentType.PICKUP && shippingAddress != null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "픽업 주문에는 배송지를 입력할 수 없습니다.");
+        }
+    }
 }

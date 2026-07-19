@@ -96,7 +96,16 @@ export function LoginPage() {
                   />
                 </Form.Group>
                 <Form.Group className="mb-3" controlId="password">
-                  <Form.Label>비밀번호</Form.Label>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <Form.Label>비밀번호</Form.Label>
+                    <Link
+                      to="/forgot-password"
+                      state={{ email }}
+                      className="auth-inline-link small mb-2"
+                    >
+                      비밀번호 재설정
+                    </Link>
+                  </div>
                   <Form.Control
                     type="password"
                     value={password}

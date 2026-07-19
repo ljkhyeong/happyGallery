@@ -53,7 +53,9 @@ abstract class RestDocsTestSupport {
                         "member@example.com",
                         "회원",
                         "01012345678",
-                        true
+                        true,
+                        true,
+                        0L
                 ),
                 null,
                 "ROLE_CUSTOMER"));

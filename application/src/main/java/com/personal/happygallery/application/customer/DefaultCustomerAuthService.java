@@ -54,7 +54,8 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
     @Override
     @Transactional
     public User login(LoginCommand command) {
-        User user = userReader.findByEmail(command.email())
+        User user = userReader.findByEmailForUpdate(command.email())
+                .filter(User::hasLocalPassword)
                 .filter(u -> passwordEncoder.matches(command.rawPassword(), u.getPasswordHash()))
                 .orElseThrow(() -> new HappyGalleryException(ErrorCode.INVALID_CREDENTIALS));
         user.updateLastLoginAt(LocalDateTime.now(clock));

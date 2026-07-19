@@ -21,6 +21,7 @@ public final class KakaoTemplateCatalog {
             case DEPOSIT_REFUNDED -> "HG_DEPOSIT_REFUNDED";
             case ORDER_PAID -> "HG_ORDER_PAID";
             case ORDER_REFUNDED -> "HG_ORDER_REFUNDED";
+            case PASS_PURCHASED -> "HG_PASS_PURCHASED";
             case REMINDER_D1 -> "HG_REMINDER_D1";
             case REMINDER_SAME_DAY -> "HG_REMINDER_SAME_DAY";
             case PASS_EXPIRY_SOON -> "HG_PASS_EXPIRY_SOON";

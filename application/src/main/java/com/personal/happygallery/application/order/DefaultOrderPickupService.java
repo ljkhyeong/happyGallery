@@ -6,11 +6,14 @@ import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,20 +34,23 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
     private final OrderStorePort orderStore;
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
+    private final Clock clock;
 
     public DefaultOrderPickupService(OrderReaderPort orderReader,
                                      OrderStorePort orderStore,
                                      FulfillmentPort fulfillmentPort,
-                                     OrderHistoryPort orderHistoryPort) {
+                                     OrderHistoryPort orderHistoryPort,
+                                     Clock clock) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
+        this.clock = clock;
     }
 
     /**
      * 픽업 준비 완료. {@link OrderStatus#APPROVED_FULFILLMENT_PENDING} → {@link OrderStatus#PICKUP_READY}.
-     * 기존 Fulfillment가 있으면 픽업용으로 전환하고, 없으면 새로 생성한다.
+     * 결제 confirm에서 생성된 Fulfillment가 PICKUP 타입인지 확인하고 마감 시각을 설정한다.
      *
      * @param orderId          주문 ID
      * @param pickupDeadlineAt 픽업 마감 시각
@@ -54,14 +60,15 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
     @OptimisticLockRetryable
     public PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
+        fulfillment.requirePickupType();
+        if (pickupDeadlineAt == null || !pickupDeadlineAt.isAfter(LocalDateTime.now(clock))) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "픽업 마감 시각은 현재보다 이후여야 합니다.");
+        }
         order.markPickupReady();
-
-        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .map(existing -> {
-                    existing.convertToPickup(pickupDeadlineAt);
-                    return existing;
-                })
-                .orElseGet(() -> Fulfillment.pickup(orderId, pickupDeadlineAt));
+        fulfillment.setPickupDeadline(pickupDeadlineAt);
         fulfillmentPort.save(fulfillment);
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PICKUP_READY, adminId, null));
@@ -80,9 +87,9 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
     @OptimisticLockRetryable
     public PickupResult confirmPickup(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
-        order.confirmPickup();
-
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
+        fulfillment.requirePickupType();
+        order.confirmPickup();
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PICKUP_COMPLETE, adminId, null));
         orderStore.save(order);

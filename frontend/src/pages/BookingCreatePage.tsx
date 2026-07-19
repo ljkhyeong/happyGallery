@@ -70,10 +70,10 @@ export function BookingCreatePage() {
         orderName: `예약 — ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
         customerKey: user ? `member_${user.id}` : undefined,
         customerName: guest?.name ?? user?.name,
-        customerPhone: guest?.phone ?? user?.phone,
+        customerPhone: guest?.phone ?? user?.phone ?? undefined,
         returnHint: {
           customerName: guest?.name ?? user?.name,
-          customerPhone: guest?.phone ?? user?.phone,
+          customerPhone: guest?.phone ?? user?.phone ?? undefined,
         },
         onZeroAmount: async (prep) => {
           const result = await confirmPayment({

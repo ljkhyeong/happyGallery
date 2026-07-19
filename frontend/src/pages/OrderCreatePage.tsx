@@ -12,6 +12,12 @@ import {
 } from "@/features/payment";
 import { ErrorAlert } from "@/shared/ui";
 import type { OrderItemInput } from "@/shared/types";
+import {
+  FulfillmentForm,
+  fulfillmentPayload,
+  isFulfillmentComplete,
+  useFulfillmentSelection,
+} from "@/features/order/FulfillmentForm";
 
 type Step = "verify" | "items";
 const MAX_QTY = 99;
@@ -26,6 +32,10 @@ export function OrderCreatePage() {
   const [name, setName] = useState(user?.name ?? "");
   const [nameTouched, setNameTouched] = useState(false);
   const [items, setItems] = useState<OrderItemInput[]>([]);
+  const [fulfillment, setFulfillment] = useFulfillmentSelection(
+    user?.name ?? name,
+    user?.phone ?? phone,
+  );
   const normalizedName = name.trim();
 
   const prefilledProductId = Number(searchParams.get("productId"));
@@ -48,8 +58,14 @@ export function OrderCreatePage() {
   const mutation = useMutation({
     mutationFn: async () => {
       const payload: OrderPayload = user
-        ? { type: "ORDER", userId: user.id, name: normalizedName || user.name, items }
-        : { type: "ORDER", phone, verificationCode: code, name: normalizedName, items };
+        ? {
+            type: "ORDER", userId: user.id, name: normalizedName || user.name, items,
+            ...fulfillmentPayload(fulfillment),
+          }
+        : {
+            type: "ORDER", phone, verificationCode: code, name: normalizedName, items,
+            ...fulfillmentPayload(fulfillment),
+          };
       await executePaymentFlow({
         context: "ORDER",
         payload,
@@ -182,11 +198,19 @@ export function OrderCreatePage() {
             </Card.Body>
           </Card>
 
+          <Card className="mb-4">
+            <Card.Header>{user ? "3." : "4."} 수령 방법</Card.Header>
+            <Card.Body>
+              <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
+            </Card.Body>
+          </Card>
+
           <ErrorAlert error={mutation.error} />
 
           <Button
             variant="primary" size="lg" className="w-100"
-            disabled={!normalizedName || items.length === 0 || mutation.isPending}
+            disabled={!normalizedName || items.length === 0
+              || !isFulfillmentComplete(fulfillment) || mutation.isPending}
             onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
             {mutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
           </Button>

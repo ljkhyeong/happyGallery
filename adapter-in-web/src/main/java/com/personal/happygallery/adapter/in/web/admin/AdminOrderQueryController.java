@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.application.order.port.in.AdminOrderQueryUseCase;
 import com.personal.happygallery.application.order.port.in.AdminOrderResponse;
+import com.personal.happygallery.application.order.port.in.AdminOrderFulfillmentResponse;
 import com.personal.happygallery.application.order.port.in.OrderHistoryResponse;
 import com.personal.happygallery.application.search.dto.AdminOrderSearchRow;
 import com.personal.happygallery.application.search.port.in.AdminOrderSearchUseCase;
@@ -28,6 +29,12 @@ public class AdminOrderQueryController {
                                      AdminOrderSearchUseCase adminOrderSearchUseCase) {
         this.adminOrderQueryUseCase = adminOrderQueryUseCase;
         this.adminOrderSearchUseCase = adminOrderSearchUseCase;
+    }
+
+    /** GET /api/v1/admin/orders/{id}/fulfillment — 수령 방식과 배송지 스냅샷 조회 */
+    @GetMapping("/{id}/fulfillment")
+    public AdminOrderFulfillmentResponse getFulfillment(@PathVariable Long id) {
+        return adminOrderQueryUseCase.getFulfillment(id);
     }
 
     /** GET /api/v1/admin/orders?status=...&cursor=...&size=20 — 커서 기반 주문 목록 조회 */

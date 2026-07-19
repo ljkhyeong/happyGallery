@@ -150,7 +150,7 @@ class PaymentAttemptPolicyTest {
                 "retryable", PaymentContext.ORDER, 10_000L, "{}");
         String retryableToken = retryable.startProcessing(10_000L, "retryable-key", boundary);
         retryable.markRetryable(retryableToken, "PG 일시 실패");
-        boolean retryableAtBoundary = retryable.isConfirmRecoveryCandidate(boundary);
+        boolean retryableAtBoundary = retryable.isConfirmRecoveryCandidate(boundary, boundary);
         retryable.markConfirmRecoveryAttempted(boundary.plusNanos(1));
 
         PaymentAttempt staleApproved = PaymentAttempt.start(
@@ -174,13 +174,13 @@ class PaymentAttemptPolicyTest {
         zeroAmount.startProcessing(0L, null, boundary.minusYears(1));
 
         assertSoftly(softly -> {
-            softly.assertThat(staleProcessing.isConfirmRecoveryCandidate(boundary)).isTrue();
-            softly.assertThat(freshProcessing.isConfirmRecoveryCandidate(boundary)).isFalse();
+            softly.assertThat(staleProcessing.isConfirmRecoveryCandidate(boundary, boundary)).isTrue();
+            softly.assertThat(freshProcessing.isConfirmRecoveryCandidate(boundary, boundary)).isFalse();
             softly.assertThat(retryableAtBoundary).isTrue();
-            softly.assertThat(retryable.isConfirmRecoveryCandidate(boundary)).isFalse();
-            softly.assertThat(staleApproved.isConfirmRecoveryCandidate(boundary)).isTrue();
-            softly.assertThat(freshApproved.isConfirmRecoveryCandidate(boundary)).isFalse();
-            softly.assertThat(confirmed.isConfirmRecoveryCandidate(boundary)).isFalse();
+            softly.assertThat(retryable.isConfirmRecoveryCandidate(boundary, boundary)).isFalse();
+            softly.assertThat(staleApproved.isConfirmRecoveryCandidate(boundary, boundary)).isTrue();
+            softly.assertThat(freshApproved.isConfirmRecoveryCandidate(boundary, boundary)).isFalse();
+            softly.assertThat(confirmed.isConfirmRecoveryCandidate(boundary, boundary)).isFalse();
             softly.assertThat(zeroAmount.requiresConfirmReconciliation(boundary.minusDays(14))).isFalse();
         });
     }

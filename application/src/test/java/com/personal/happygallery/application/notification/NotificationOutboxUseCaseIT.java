@@ -3,18 +3,22 @@ package com.personal.happygallery.application.notification;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.NotificationLogProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -34,6 +38,8 @@ class NotificationOutboxUseCaseIT {
     @Autowired NotificationLogProbe notificationLogProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired Clock clock;
 
     @BeforeEach
     void setUp() {
@@ -93,5 +99,24 @@ class NotificationOutboxUseCaseIT {
         assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status ->
                 outboxDispatcher.dispatchPending()))
                 .isInstanceOf(IllegalTransactionStateException.class);
+    }
+
+    @DisplayName("알림 처리 중 예외도 재시도 횟수와 실패 사유에 기록된다")
+    @Test
+    void dispatchPending_deliveryExceptionRecordsFailure() {
+        User user = userStorePort.save(new User(
+                "outbox-exception@example.com", "hash", "회원", "01011112222"));
+        NotificationOutbox outbox = outboxRepository.save(NotificationOutbox.from(
+                NotificationRequestedEvent.forUser(
+                        user.getId(), NotificationEventType.PASS_EXPIRY_SOON, "PASS_PURCHASE", 3L),
+                LocalDateTime.now(clock)));
+        jdbcTemplate.update("UPDATE users SET phone_enc = 'invalid' WHERE id = ?", user.getId());
+
+        outboxDispatcher.dispatchPending();
+
+        NotificationOutbox failed = outboxRepository.findById(outbox.getId()).orElseThrow();
+        assertThat(failed.getStatus()).isEqualTo(NotificationOutboxStatus.PENDING);
+        assertThat(failed.getAttemptCount()).isOne();
+        assertThat(failed.getLastError()).startsWith("DISPATCH_EXCEPTION:");
     }
 }

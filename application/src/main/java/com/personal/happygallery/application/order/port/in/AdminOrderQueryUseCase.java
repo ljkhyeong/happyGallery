@@ -15,5 +15,7 @@ public interface AdminOrderQueryUseCase {
 
     CursorPage<AdminOrderResponse> listOrders(OrderStatus status, String cursor, int size);
 
+    AdminOrderFulfillmentResponse getFulfillment(Long orderId);
+
     List<OrderHistoryResponse> getOrderHistory(Long orderId);
 }

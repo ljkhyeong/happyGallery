@@ -1,15 +1,14 @@
 package com.personal.happygallery.application.admin;
 
 import com.personal.happygallery.application.admin.port.AdminSession;
-import com.personal.happygallery.application.admin.port.out.AdminSessionPort;
 import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase;
+import com.personal.happygallery.application.admin.port.out.AdminSessionPort;
+import com.personal.happygallery.application.admin.port.out.AdminUserPort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import com.personal.happygallery.application.admin.port.out.AdminUserPort;
+import java.util.Optional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
 
 @Service
 public class DefaultAdminAuthService implements AdminAuthUseCase {
@@ -29,14 +28,29 @@ public class DefaultAdminAuthService implements AdminAuthUseCase {
     public String login(String username, String rawPassword) {
         return adminUserRepository.findByUsername(username)
                 .filter(user -> passwordEncoder.matches(rawPassword, user.getPasswordHash()))
-                .map(user -> sessionPort.create(user.getId(), user.getUsername()))
+                .map(user -> sessionPort.create(
+                        user.getId(), user.getUsername(), user.getCredentialVersion()))
                 .orElseThrow(() -> new HappyGalleryException(ErrorCode.INVALID_CREDENTIALS,
                         "아이디 또는 비밀번호가 올바르지 않습니다."));
     }
 
     @Override
     public Optional<AdminSession> validateToken(String token) {
-        return sessionPort.validate(token);
+        Optional<AdminSession> storedSession = sessionPort.validate(token);
+        if (storedSession.isEmpty()) {
+            return Optional.empty();
+        }
+
+        AdminSession session = storedSession.get();
+        boolean valid = adminUserRepository.findById(session.adminUserId())
+                .filter(user -> user.getUsername().equals(session.username()))
+                .filter(user -> user.getCredentialVersion() == session.credentialVersion())
+                .isPresent();
+        if (!valid) {
+            sessionPort.remove(token);
+            return Optional.empty();
+        }
+        return storedSession;
     }
 
     @Override

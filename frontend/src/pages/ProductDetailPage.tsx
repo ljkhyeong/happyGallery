@@ -20,6 +20,12 @@ import {
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
 import { useCart } from "@/features/cart/useCart";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import {
+  FulfillmentForm,
+  fulfillmentPayload,
+  isFulfillmentComplete,
+  useFulfillmentSelection,
+} from "@/features/order/FulfillmentForm";
 
 const MAX_QTY = 99;
 
@@ -32,6 +38,7 @@ export function ProductDetailPage() {
   const { isAuthenticated, isLoading: authLoading, user } = useCustomerAuth();
 
   const [qty, setQty] = useState(1);
+  const [fulfillment, setFulfillment] = useFulfillmentSelection(user?.name, user?.phone ?? undefined);
   const { addItem: addToCart } = useCart();
 
   const { data: product, isLoading, error } = useQuery({
@@ -49,6 +56,7 @@ export function ProductDetailPage() {
         userId: user.id,
         name: user.name,
         items: [{ productId, qty }],
+        ...fulfillmentPayload(fulfillment),
       };
       await executePaymentFlow({
         context: "ORDER",
@@ -57,7 +65,7 @@ export function ProductDetailPage() {
         customerKey: `member_${user.id}`,
         customerName: user.name,
         customerPhone: user.phone || undefined,
-        returnHint: { customerName: user.name, customerPhone: user.phone },
+        returnHint: { customerName: user.name, customerPhone: user.phone ?? undefined },
       });
     },
   });
@@ -69,6 +77,7 @@ export function ProductDetailPage() {
 
   const totalAmount = product.price * qty;
   const canBuy = product.available && qty >= 1 && qty <= MAX_QTY;
+  const canCheckout = canBuy && isFulfillmentComplete(fulfillment);
   const guestFallbackPath = `/orders/new?productId=${productId}&qty=${qty}`;
   const memberRedirectPath = `/products/${productId}`;
   const loginHref = buildAuthPageHref("/login", { redirectTo: memberRedirectPath });
@@ -197,6 +206,12 @@ export function ProductDetailPage() {
                 </div>
               </div>
 
+              {!authLoading && isAuthenticated && (
+                <div className="mb-4">
+                  <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
+                </div>
+              )}
+
               <ErrorAlert error={orderMutation.error} />
 
               {!authLoading && isAuthenticated ? (
@@ -205,7 +220,7 @@ export function ProductDetailPage() {
                     variant="dark"
                     size="lg"
                     className="w-100 mb-2 store-purchase-btn-primary"
-                    disabled={!canBuy || orderMutation.isPending}
+                    disabled={!canCheckout || orderMutation.isPending}
                     onClick={() => orderMutation.mutate()}
                   >
                     {orderMutation.isPending ? "PROCESSING..." : "BUY NOW"}

@@ -39,6 +39,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "CUSTOMER_LOGIN_IP", pathPattern(POST, "/api/v1/auth/login"), FAIL_CLOSED);
     private static final LimitRule CUSTOMER_SIGNUP_RULE = new LimitRule(
             "CUSTOMER_SIGNUP_IP", pathPattern(POST, "/api/v1/auth/signup"), FAIL_CLOSED);
+    private static final LimitRule CUSTOMER_PASSWORD_RESET_RULE = new LimitRule(
+            "CUSTOMER_PASSWORD_RESET_IP", pathPattern(POST, "/api/v1/auth/password/reset"), FAIL_CLOSED);
     private static final LimitRule ADMIN_LOGIN_RULE = new LimitRule(
             "ADMIN_LOGIN_IP", pathPattern(POST, "/api/v1/admin/auth/login"), FAIL_CLOSED);
     private static final LimitRule ADMIN_SETUP_RULE = new LimitRule(
@@ -121,6 +123,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if (matches(request, CUSTOMER_SIGNUP_RULE)) {
             return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.ip().customerSignup());
+        }
+        if (matches(request, CUSTOMER_PASSWORD_RESET_RULE)) {
+            return new ResolvedRule(CUSTOMER_PASSWORD_RESET_RULE, properties.ip().customerLogin());
         }
         if (matches(request, SOCIAL_LOGIN_RULE)) {
             return new ResolvedRule(SOCIAL_LOGIN_RULE, properties.ip().socialLogin());
