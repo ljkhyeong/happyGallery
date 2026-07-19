@@ -14,6 +14,7 @@ import com.personal.happygallery.application.search.port.in.AdminBookingSearchUs
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
@@ -113,8 +114,15 @@ class AdminBookingQueryUseCaseIT {
         LocalDateTime slotStart = targetDate.atTime(10, 0);
 
         saveGuestBooking(slotStart, "게스트전용 클래스", "GUEST_ONLY", "게스트", "01012121212");
+        Slot canceledSlot = saveSlot(slotStart.plusHours(1), "취소 클래스", "CANCELED_ONLY");
+        Guest canceledGuest = guestStorePort.save(guest("취소자", "01034343434"));
+        Booking canceled = booking(
+                canceledGuest, canceledSlot, 10_000L, 20_000L,
+                DepositPaymentMethod.CARD, accessToken());
+        canceled.cancel();
+        bookingStorePort.save(canceled);
 
-        List<AdminBookingResponse> responses = adminBookingQueryService.listBookings(targetDate, null);
+        List<AdminBookingResponse> responses = adminBookingQueryService.listBookings(targetDate, BookingStatus.BOOKED);
         OffsetPage<AdminBookingSearchRow> searchResult =
                 adminBookingSearchUseCase.search(null, targetDate, targetDate, "게스트", 0, 20);
 

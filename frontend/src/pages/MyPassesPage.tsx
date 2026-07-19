@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button, Card, Col, Container, Row } from "react-bootstrap";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { fetchMyPasses } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import { buildPassTabs, getPassFilterKey } from "@/features/my/listUtils";
+import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
@@ -18,16 +19,19 @@ const PASS_SORT_OPTIONS = [
 
 export function MyPassesPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const {
+    searchQuery,
+    statusFilter: passFilter,
+    sortValue,
+    updateFilters,
+    resetFilters,
+  } = useMyListFilters({ defaultSort: DEFAULT_SORT, legacyStatusParam: "filter" });
   const { data: passes, isLoading, error } = useQuery({
     queryKey: ["my", "passes"],
     queryFn: fetchMyPasses,
     enabled: isAuthenticated,
   });
-  const searchQuery = searchParams.get("q") ?? "";
   const normalizedQuery = searchQuery.trim();
-  const passFilter = searchParams.get("status") ?? searchParams.get("filter") ?? "ALL";
-  const sortValue = searchParams.get("sort") ?? DEFAULT_SORT;
   const filteredPasses = (passes ?? []).filter((pass) => {
     const matchesFilter = passFilter === "ALL" || getPassFilterKey(pass) === passFilter;
     const matchesQuery = normalizedQuery === "" || String(pass.passId).includes(normalizedQuery);
@@ -51,26 +55,6 @@ export function MyPassesPage() {
     return getPassFilterKey(pass) === "ACTIVE" && expiresIn <= 7 * 24 * 60 * 60 * 1000;
   }).length;
   const remainingCredits = (passes ?? []).reduce((sum, pass) => sum + pass.remainingCredits, 0);
-
-  function updateFilters(next: { q?: string; status?: string; sort?: string }) {
-    const nextSearchParams = new URLSearchParams(searchParams);
-    const nextQuery = next.q ?? searchQuery;
-    const normalizedNextQuery = nextQuery.trim();
-    const nextStatus = next.status ?? passFilter;
-    const nextSort = next.sort ?? sortValue;
-
-    if (normalizedNextQuery) nextSearchParams.set("q", normalizedNextQuery);
-    else nextSearchParams.delete("q");
-
-    if (nextStatus !== "ALL") nextSearchParams.set("status", nextStatus);
-    else nextSearchParams.delete("status");
-    nextSearchParams.delete("filter");
-
-    if (nextSort !== DEFAULT_SORT) nextSearchParams.set("sort", nextSort);
-    else nextSearchParams.delete("sort");
-
-    setSearchParams(nextSearchParams, { replace: true });
-  }
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -138,7 +122,7 @@ export function MyPassesPage() {
           onSortChange={(value) => updateFilters({ sort: value })}
           defaultSortValue={DEFAULT_SORT}
           resultText={`${sortedPasses.length} / ${passes.length}건 표시 중`}
-          onReset={() => setSearchParams({}, { replace: true })}
+          onReset={resetFilters}
         />
       )}
       {passes && passes.length === 0 && <EmptyState message="8회권이 없습니다." />}

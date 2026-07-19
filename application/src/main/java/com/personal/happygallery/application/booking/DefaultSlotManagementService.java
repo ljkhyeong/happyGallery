@@ -31,6 +31,7 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
     }
 
     /** 슬롯을 생성한다. */
+    @Override
     public Slot createSlot(Long classId, LocalDateTime startAt) {
         BookingClass bookingClass = classReaderPort.findById(classId)
                 .orElseThrow(NotFoundException.supplier("클래스"));
@@ -49,6 +50,7 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
     }
 
     /** 슬롯을 비활성화한다. */
+    @Override
     public Slot deactivateSlot(Long slotId) {
         Slot slot = slotReaderPort.findById(slotId)
                 .orElseThrow(NotFoundException.supplier("슬롯"));

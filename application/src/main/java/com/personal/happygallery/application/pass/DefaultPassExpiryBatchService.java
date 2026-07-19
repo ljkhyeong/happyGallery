@@ -52,6 +52,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
      */
     private static final int PAGE_SIZE = 100;
 
+    @Override
     public BatchResult expireAll() {
         LocalDateTime now = LocalDateTime.now(clock);
 
@@ -64,33 +65,18 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
     }
 
     /**
-     * 만료 7일 전 알림 대상 조회.
-     * now &lt;= expires_at &lt; now + 7일 AND remaining_credits &gt; 0
-     */
-    @Transactional(readOnly = true)
-    public List<PassPurchase> findExpiringWithin7Days() {
-        LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime targetStart = now.plusDays(7).toLocalDate().atStartOfDay();
-        LocalDateTime targetEnd = targetStart.plusDays(1);
-        return passPurchaseReader
-                .findByExpiresAtBetweenAndRemainingCreditsGreaterThan(targetStart, targetEnd, 0);
-    }
-
-    /**
      * 만료 7일 전 PASS_EXPIRY_SOON 알림 발송 배치.
      *
      * <p>중복 발송 체크 로직이 포함되어 범용 BatchExecutor를 사용하지 않는다.
      *
      * @return 발송 건수
      */
+    @Override
     public BatchResult sendExpiryNotifications() {
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime targetStart = now.plusDays(7).toLocalDate().atStartOfDay();
-        LocalDateTime targetEnd = targetStart.plusDays(1);
         LocalDateTime sentStart = now.toLocalDate().atStartOfDay();
         LocalDateTime sentEnd = sentStart.plusDays(1);
-        List<PassPurchase> expiring = passPurchaseReader
-                .findByExpiresAtBetweenAndRemainingCreditsGreaterThan(targetStart, targetEnd, 0);
+        List<PassPurchase> expiring = findPassesExpiringInSevenDays(now);
         Set<Long> notifiedUserIds = findNotifiedUserIds(expiring, sentStart, sentEnd);
 
         return BatchExecutor.execute(expiring,
@@ -107,6 +93,13 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
                     return true;
                 },
                 "8회권 만료 알림");
+    }
+
+    private List<PassPurchase> findPassesExpiringInSevenDays(LocalDateTime now) {
+        LocalDateTime targetStart = now.plusDays(7).toLocalDate().atStartOfDay();
+        LocalDateTime targetEnd = targetStart.plusDays(1);
+        return passPurchaseReader
+                .findByExpiresAtBetweenAndRemainingCreditsGreaterThan(targetStart, targetEnd, 0);
     }
 
     private Set<Long> findNotifiedUserIds(List<PassPurchase> expiring,

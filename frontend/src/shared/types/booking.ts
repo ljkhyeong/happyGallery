@@ -19,26 +19,6 @@ export interface SendVerificationResponse {
   phone: string;
 }
 
-export interface CreateGuestBookingRequest {
-  phone: string;
-  verificationCode: string;
-  name: string;
-  slotId: number;
-  depositAmount?: number;
-  paymentMethod?: DepositPaymentMethod;
-}
-
-export interface BookingResponse {
-  bookingId: number;
-  bookingNumber: string;
-  accessToken: string;
-  slotId: number;
-  status: BookingStatus;
-  depositAmount: number;
-  balanceAmount: number;
-  className: string;
-}
-
 export interface BookingDetailResponse {
   bookingId: number;
   bookingNumber: string;
@@ -68,10 +48,6 @@ export interface MyBookingDetailResponse {
   passBooking: boolean;
   cancelPolicy: BookingCancelPolicy;
   refund: RefundProgress | null;
-}
-
-export interface RescheduleRequest {
-  newSlotId: number;
 }
 
 export interface RescheduleResponse {

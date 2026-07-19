@@ -16,6 +16,7 @@ public class DefaultClientMonitoringService implements ClientMonitoringUseCase {
         this.appMetrics = appMetrics;
     }
 
+    @Override
     public void captureFrontendEvent(ClientMonitoringEventType eventType,
                                      String path,
                                      String source,
@@ -30,6 +31,7 @@ public class DefaultClientMonitoringService implements ClientMonitoringUseCase {
     }
 
     /** guest claim 완료는 내부 서비스가 호출하는 모니터링 헬퍼다. */
+    @Override
     public void logGuestClaimCompleted(Long userId,
                                        Long guestId,
                                        int claimedOrderCount,

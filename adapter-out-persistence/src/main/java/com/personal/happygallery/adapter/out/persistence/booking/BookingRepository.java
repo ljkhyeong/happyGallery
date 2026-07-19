@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.out.persistence.booking;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingStatus;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -15,9 +16,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
 
     @Override Optional<Booking> findById(Long id);
     @Override Booking save(Booking booking);
-
-    /** 비회원 예약 조회 — bookingId + accessToken 두 조건 모두 만족해야 함 */
-    Optional<Booking> findByIdAndAccessToken(Long id, String accessToken);
 
     @Override
     @Query("""
@@ -164,4 +162,20 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             """)
     List<Booking> findAllInRange(@Param("start") LocalDateTime start,
                                  @Param("end") LocalDateTime end);
+
+    /** 관리자 — 날짜 범위와 상태로 예약 조회 */
+    @Override
+    @Query("""
+            SELECT b FROM Booking b
+            LEFT JOIN FETCH b.guest
+            JOIN FETCH b.bookingClass
+            JOIN FETCH b.slot
+            WHERE b.slot.startAt >= :start
+              AND b.slot.startAt < :end
+              AND b.status = :status
+            ORDER BY b.slot.startAt ASC
+            """)
+    List<Booking> findByStatusInRange(@Param("start") LocalDateTime start,
+                                      @Param("end") LocalDateTime end,
+                                      @Param("status") BookingStatus status);
 }

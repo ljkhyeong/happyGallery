@@ -21,8 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 주문 승인/거절 서비스.
  *
  * <ul>
- *   <li>{@link #approve(Long)} — 관리자 승인 → {@link com.personal.happygallery.domain.order.OrderStatus#APPROVED_FULFILLMENT_PENDING}</li>
- *   <li>{@link #reject(Long)} — 관리자 거절 → 재고 복구 → PG 환불 → {@link com.personal.happygallery.domain.order.OrderStatus#REJECTED}</li>
+ *   <li>{@link #approve(Long, Long)} — 관리자 승인 → {@link com.personal.happygallery.domain.order.OrderStatus#APPROVED_FULFILLMENT_PENDING}</li>
+ *   <li>{@link #reject(Long, Long)} — 관리자 거절 → 재고 복구 → PG 환불 → {@link com.personal.happygallery.domain.order.OrderStatus#REJECTED}</li>
  * </ul>
  *
  * <p>이미 환불된 주문에 대한 승인/거절 시도는
@@ -67,12 +67,6 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
      */
     @Override
     @OptimisticLockRetryable
-    public Order approve(Long orderId) {
-        return approve(orderId, null);
-    }
-
-    @Override
-    @OptimisticLockRetryable
     public Order approve(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
 
@@ -101,12 +95,6 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
      * @param orderId 주문 ID
      * @return 거절된 주문과 생성된 환불 요청
      */
-    @Override
-    @OptimisticLockRetryable
-    public RejectResult reject(Long orderId) {
-        return reject(orderId, null);
-    }
-
     @Override
     @OptimisticLockRetryable
     public RejectResult reject(Long orderId, Long adminId) {

@@ -63,6 +63,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         this.guestPersonalDataProtector = guestPersonalDataProtector;
     }
 
+    @Override
     @Transactional(readOnly = true)
     public ClaimPreview preview(Long userId) {
         User user = findUser(userId);
@@ -70,6 +71,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         return buildPreview(user);
     }
 
+    @Override
     public ClaimPreview verifyPhoneAndPreview(Long userId, String verificationCode) {
         User user = findUser(userId);
         PhoneVerification verification = phoneVerificationReader
@@ -81,6 +83,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         return buildPreview(user);
     }
 
+    @Override
     public ClaimResult claim(Long userId,
                              List<Long> orderIds,
                              List<Long> bookingIds) {

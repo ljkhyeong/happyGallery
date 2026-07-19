@@ -49,6 +49,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class OrderProductionUseCaseIT {
 
+    private static final long ADMIN_ID = 1L;
+
     @Autowired MockMvc mockMvc;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
@@ -95,7 +97,7 @@ class OrderProductionUseCaseIT {
     void approve_madeToOrder_transitionsToInProductionAndCreatesFulfillment() {
         Order order = orderHelper.createMadeToOrderPaidOrder("예약 제작 상품", 200000L).order();
 
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         Order updated = orderStateProbe.getOrder(order.getId());
         Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
@@ -114,7 +116,7 @@ class OrderProductionUseCaseIT {
     void approve_readyStock_remainsApprovedFulfillmentPending() {
         Order order = orderHelper.createReadyStockPaidOrder("기성품", 50000L).order();
 
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         Order updated = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
@@ -131,7 +133,7 @@ class OrderProductionUseCaseIT {
     @Test
     void setExpectedShipDate_updatesShipDateOnFulfillment() {
         Order order = orderHelper.createMadeToOrderPaidOrder("출고일 설정 상품", 150000L).order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         LocalDate shipDate = LocalDate.of(2026, 4, 15);
         orderProductionService.setExpectedShipDate(order.getId(), shipDate);
@@ -148,7 +150,7 @@ class OrderProductionUseCaseIT {
     @Test
     void requestDelay_transitionsToDelayRequested() {
         Order order = orderHelper.createMadeToOrderPaidOrder("지연 상품", 180000L).order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         orderProductionService.requestDelay(order.getId());
 
@@ -168,7 +170,7 @@ class OrderProductionUseCaseIT {
         OrderTestHelper.OrderFixture fixture =
                 orderHelper.createMadeToOrderPaidOrder("지연 거절 취소 상품", 180000L);
         Order order = fixture.order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         var result = orderProductionService.cancelForDelayRejection(order.getId(), 1L);
 
@@ -194,7 +196,7 @@ class OrderProductionUseCaseIT {
     @Test
     void cancelForDelayRejection_afterDelayAccepted_throwsInvalidInput() {
         Order order = orderHelper.createMadeToOrderPaidOrder("지연 수락 후 취소 불가 상품", 180000L).order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.requestDelay(order.getId());
 
         assertThatThrownBy(() -> orderProductionService.cancelForDelayRejection(order.getId(), 1L))
@@ -216,11 +218,11 @@ class OrderProductionUseCaseIT {
     @Test
     void reject_inProduction_throwsProductionRefundNotAllowed() {
         Order order = orderHelper.createMadeToOrderPaidOrder("제작 취소 불가 상품", 250000L).order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         // IN_PRODUCTION 상태에서 reject → ProductionRefundNotAllowedException
         assertSoftly(softly -> {
-            softly.assertThatThrownBy(() -> orderApprovalService.reject(order.getId()))
+            softly.assertThatThrownBy(() -> orderApprovalService.reject(order.getId(), ADMIN_ID))
                     .isInstanceOf(ProductionRefundNotAllowedException.class);
 
             // 상태 변경 없음 확인
@@ -237,7 +239,7 @@ class OrderProductionUseCaseIT {
     @Test
     void completeProduction_transitionsToApprovedFulfillmentPending() {
         Order order = orderHelper.createMadeToOrderPaidOrder("제작완료 상품", 200000L).order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         // IN_PRODUCTION → completeProduction → APPROVED_FULFILLMENT_PENDING
         orderProductionService.completeProduction(order.getId(), 1L);
@@ -258,7 +260,7 @@ class OrderProductionUseCaseIT {
     @Test
     void completeProduction_fromDelayRequested_alsoWorks() {
         Order order = orderHelper.createMadeToOrderPaidOrder("지연 후 제작완료 상품", 180000L).order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.requestDelay(order.getId());
 
         // DELAY_REQUESTED → completeProduction → APPROVED_FULFILLMENT_PENDING
@@ -276,7 +278,7 @@ class OrderProductionUseCaseIT {
     @Test
     void resumeProduction_fromDelayRequested_transitionsToInProduction() {
         Order order = orderHelper.createMadeToOrderPaidOrder("재개 상품", 180000L).order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.requestDelay(order.getId());
 
         orderProductionService.resumeProduction(order.getId(), 1L);
@@ -301,7 +303,7 @@ class OrderProductionUseCaseIT {
     @Test
     void madeToOrder_completeProduction_thenPickupReady_singleFulfillment() {
         Order order = orderHelper.createMadeToOrderPaidOrder("단일성 상품", 200000L).order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.completeProduction(order.getId(), 1L);
 
         orderPickupService.markPickupReady(order.getId(),
@@ -325,7 +327,7 @@ class OrderProductionUseCaseIT {
         Order order = orderHelper.createMadeToOrderPaidOrder("제작→픽업 전체 흐름 상품", 250000L).order();
 
         // 승인 → IN_PRODUCTION
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
         Order afterApprove = orderStateProbe.getOrder(order.getId());
 
         // 제작 완료 → APPROVED_FULFILLMENT_PENDING
@@ -365,7 +367,7 @@ class OrderProductionUseCaseIT {
     @Test
     void shippingFlow_fullTransition() {
         Order order = orderHelper.createMadeToOrderPaidOrder("배송 흐름 상품", 200000L).order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.completeProduction(order.getId(), 1L);
 
         // APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING
@@ -403,7 +405,7 @@ class OrderProductionUseCaseIT {
     @Test
     void setExpectedShipDate_afterProductionComplete_throwsInvalidInput() {
         Order order = orderHelper.createMadeToOrderPaidOrder("출고일 가드 상품", 150000L).order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.completeProduction(order.getId(), 1L);
 
         assertThatThrownBy(() ->
@@ -416,7 +418,7 @@ class OrderProductionUseCaseIT {
     @Test
     void setExpectedShipDate_inShippingPreparing_succeeds() {
         Order order = orderHelper.createMadeToOrderPaidOrder("배송준비 출고일 상품", 150000L).order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.completeProduction(order.getId(), 1L);
         orderShippingService.prepareShipping(order.getId(), 1L);
 

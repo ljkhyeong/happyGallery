@@ -12,11 +12,7 @@ public interface OrderApprovalUseCase {
 
     record RejectResult(Order order, Refund refund) {}
 
-    Order approve(Long orderId);
-
     Order approve(Long orderId, Long adminId);
-
-    RejectResult reject(Long orderId);
 
     RejectResult reject(Long orderId, Long adminId);
 }

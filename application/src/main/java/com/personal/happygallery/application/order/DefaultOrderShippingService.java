@@ -45,6 +45,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
      * 배송 준비 시작. APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING.
      * Fulfillment가 SHIPPING 타입이어야 한다 (없으면 새로 생성).
      */
+    @Override
     @OptimisticLockRetryable
     public ShippingResult prepareShipping(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
@@ -64,6 +65,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     /**
      * 배송 출발. SHIPPING_PREPARING → SHIPPED.
      */
+    @Override
     @OptimisticLockRetryable
     public ShippingResult markShipped(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
@@ -80,6 +82,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     /**
      * 배송 완료. SHIPPED → DELIVERED.
      */
+    @Override
     @OptimisticLockRetryable
     public ShippingResult markDelivered(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);

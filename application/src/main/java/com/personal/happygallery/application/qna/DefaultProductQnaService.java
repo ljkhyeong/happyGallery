@@ -45,6 +45,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Override
     @Transactional
     public ProductQna createQuestion(Long productId, Long userId, String title, String content,
                                      boolean secret, String rawPassword) {
@@ -54,6 +55,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
         return qnaStore.save(new ProductQna(productId, userId, title, content, secret, hash));
     }
 
+    @Override
     @Transactional(readOnly = true)
     public List<QnaWithAuthor> listByProduct(Long productId) {
         List<ProductQna> qnaList = qnaReader.findByProductId(productId);
@@ -63,6 +65,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
                 .toList();
     }
 
+    @Override
     @Transactional(readOnly = true)
     public QnaWithAuthor verifyAndGet(Long qnaId, String rawPassword) {
         ProductQna qna = qnaReader.findById(qnaId)
@@ -77,25 +80,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
         return new QnaWithAuthor(qna, authorName);
     }
 
-    @Transactional(readOnly = true)
-    public List<QnaWithAuthor> listAll() {
-        List<ProductQna> qnaList = qnaReader.findByProductId(null);
-        // admin은 전체 조회 — adapter에서 null 처리 불가하므로 별도 메서드 필요할 수 있으나
-        // 현재는 productId별 조회만 사용하고 admin은 컨트롤러에서 분기
-        Map<Long, User> userMap = batchFetchUsers(qnaList);
-        return qnaList.stream()
-                .map(q -> new QnaWithAuthor(q, userName(userMap, q.getUserId())))
-                .toList();
-    }
-
-    @Transactional
-    public ProductQna reply(Long qnaId, String replyContent, Long adminId) {
-        ProductQna qna = qnaReader.findById(qnaId)
-                .orElseThrow(NotFoundException.supplier("Q&A"));
-        qna.reply(replyContent, adminId, LocalDateTime.now(clock));
-        return qnaStore.save(qna);
-    }
-
+    @Override
     @Transactional
     public QnaWithAuthor replyAndGet(Long qnaId, String replyContent, Long adminId) {
         ProductQna qna = qnaReader.findById(qnaId)

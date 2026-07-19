@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import { Container, Card, Form, Button, Row, Col, Badge } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
 import { fetchOrder } from "@/features/order/api";
@@ -7,7 +7,6 @@ import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { ErrorAlert } from "@/shared/ui";
-import type { OrderDetailResponse } from "@/shared/types";
 import { customerRefundPollingInterval } from "@/shared/lib";
 
 interface LocationState {
@@ -15,10 +14,12 @@ interface LocationState {
   token?: string;
 }
 
-interface OrderLookupVariables {
-  id: number;
-  token: string;
-  background?: boolean;
+interface OrderLookup {
+  credentials: {
+    id: number;
+    token: string;
+  };
+  requestId: string;
 }
 
 export function OrderDetailPage() {
@@ -26,55 +27,46 @@ export function OrderDetailPage() {
   const navState = location.state as LocationState | null;
   const [orderId, setOrderId] = useState(navState?.orderId ? String(navState.orderId) : "");
   const [token, setToken] = useState(navState?.token ?? "");
-  const [order, setOrder] = useState<OrderDetailResponse | null>(null);
+  const [lookup, setLookup] = useState<OrderLookup | null>(() =>
+    navState?.orderId && navState.token
+      ? {
+          credentials: { id: navState.orderId, token: navState.token.trim() },
+          requestId: crypto.randomUUID(),
+        }
+      : null,
+  );
   const parsedOrderId = Number(orderId);
   const validOrderId = Number.isSafeInteger(parsedOrderId) && parsedOrderId > 0;
   const normalizedToken = token.trim();
 
-  const refundPollCount = useRef(0);
-  const lookup = useMutation({
-    mutationFn: ({ id, token }: OrderLookupVariables) => fetchOrder(id, token),
-    onSuccess: (data, variables) => {
-      setOrder(data);
-      refundPollCount.current = variables.background ? refundPollCount.current + 1 : 0;
-    },
-    onError: (_error, variables) => {
-      if (variables.background) {
-        refundPollCount.current += 1;
-        return;
-      }
-      setOrder(null);
-      refundPollCount.current = 0;
-    },
+  const { data: order, error, isFetching, refetch: refetchOrder } = useQuery({
+    queryKey: ["guest", "order", lookup?.credentials.id, lookup?.requestId],
+    queryFn: lookup
+      ? () => fetchOrder(lookup.credentials.id, lookup.credentials.token)
+      : skipToken,
+    gcTime: 0,
+    refetchInterval: ({ state }) =>
+      customerRefundPollingInterval(
+        state.data?.refund?.status,
+        state.dataUpdateCount + state.fetchFailureCount,
+      ),
   });
 
   function handleLookup() {
     if (validOrderId && normalizedToken) {
-      lookup.mutate({ id: parsedOrderId, token: normalizedToken });
+      if (
+        lookup?.credentials.id === parsedOrderId &&
+        lookup.credentials.token === normalizedToken
+      ) {
+        void refetchOrder();
+        return;
+      }
+      setLookup({
+        credentials: { id: parsedOrderId, token: normalizedToken },
+        requestId: crypto.randomUUID(),
+      });
     }
   }
-
-  const autoLookupDone = useRef(false);
-  useEffect(() => {
-    if (!autoLookupDone.current && navState?.orderId && navState?.token) {
-      autoLookupDone.current = true;
-      lookup.mutate({ id: navState.orderId, token: navState.token });
-    }
-  }, [navState, lookup]);
-
-  useEffect(() => {
-    const interval = customerRefundPollingInterval(
-      order?.refund?.status,
-      refundPollCount.current,
-    );
-    if (!order || lookup.isPending || !normalizedToken || interval === false) {
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      lookup.mutate({ id: order.orderId, token: normalizedToken, background: true });
-    }, interval);
-    return () => window.clearTimeout(timer);
-  }, [lookup.isPending, lookup.mutate, normalizedToken, order]);
   const claimLoginHref = buildAuthPageHref("/login", {
     redirectTo: "/my?claim=1",
     claim: true,
@@ -153,8 +145,8 @@ export function OrderDetailPage() {
               </Col>
               <Col xs={12} sm={3}>
                 <Button type="submit" variant="primary" className="w-100"
-                  disabled={!validOrderId || !normalizedToken || lookup.isPending}>
-                  {lookup.isPending ? "조회 중..." : "조회"}
+                  disabled={!validOrderId || !normalizedToken || isFetching}>
+                  {isFetching ? "조회 중..." : "조회"}
                 </Button>
               </Col>
             </Row>
@@ -162,7 +154,7 @@ export function OrderDetailPage() {
         </Card.Body>
       </Card>
 
-      <ErrorAlert error={lookup.error} />
+      <ErrorAlert error={order ? null : error} />
 
       {order && <OrderDetailCard order={order} />}
     </Container>

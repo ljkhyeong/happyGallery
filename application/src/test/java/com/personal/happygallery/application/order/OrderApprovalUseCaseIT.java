@@ -51,6 +51,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class OrderApprovalUseCaseIT {
 
+    private static final long ADMIN_ID = 1L;
+
     @Autowired MockMvc mockMvc;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
@@ -153,9 +155,9 @@ class OrderApprovalUseCaseIT {
     void approve_twice_keepsSingleTransitionAndHistory() {
         Order order = orderHelper.createReadyStockPaidOrder("중복 승인 테스트 상품", 50000L).order();
 
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
-        assertThatThrownBy(() -> orderApprovalService.approve(order.getId()))
+        assertThatThrownBy(() -> orderApprovalService.approve(order.getId(), ADMIN_ID))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("승인 대기 상태의 주문만 처리할 수 있습니다.");
 
@@ -173,9 +175,9 @@ class OrderApprovalUseCaseIT {
     void reject_twice_keepsSingleTransitionAndHistory() {
         Order order = orderHelper.createReadyStockPaidOrder("중복 거절 테스트 상품", 30000L).order();
 
-        orderApprovalService.reject(order.getId());
+        orderApprovalService.reject(order.getId(), ADMIN_ID);
 
-        assertThatThrownBy(() -> orderApprovalService.reject(order.getId()))
+        assertThatThrownBy(() -> orderApprovalService.reject(order.getId(), ADMIN_ID))
                 .isInstanceOf(AlreadyRefundedException.class);
 
         Order updated = orderStateProbe.getOrder(order.getId());
@@ -194,9 +196,9 @@ class OrderApprovalUseCaseIT {
         OrderTestHelper.OrderFixture fixture = orderHelper.createReadyStockPaidOrder("승인 후 거절 테스트 상품", 40000L);
         Order order = fixture.order();
 
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
-        assertThatThrownBy(() -> orderApprovalService.reject(order.getId()))
+        assertThatThrownBy(() -> orderApprovalService.reject(order.getId(), ADMIN_ID))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("승인 대기 상태의 주문만 처리할 수 있습니다.");
 
@@ -245,7 +247,7 @@ class OrderApprovalUseCaseIT {
         orderAutoRefundBatchService.autoRefundExpired();
 
         // 승인 시도 → AlreadyRefundedException (409)
-        assertThatThrownBy(() -> orderApprovalService.approve(order.getId()))
+        assertThatThrownBy(() -> orderApprovalService.approve(order.getId(), ADMIN_ID))
                 .isInstanceOf(AlreadyRefundedException.class);
     }
 
@@ -259,7 +261,7 @@ class OrderApprovalUseCaseIT {
         Order order = orderHelper.createExpiredMadeToOrderPendingOrder("제작중 자동환불 제외 상품", 80000L).order();
 
         // MADE_TO_ORDER 승인 → IN_PRODUCTION
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
 

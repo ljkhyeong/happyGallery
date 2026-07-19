@@ -20,11 +20,13 @@ public class DefaultPassQueryService implements PassQueryUseCase {
     }
 
     /** 회원 — 자기 8회권 목록 조회 */
+    @Override
     public List<PassPurchase> listMyPasses(Long userId) {
         return passPurchaseReader.findByUserIdOrderByPurchasedAtDesc(userId);
     }
 
     /** 회원 — 자기 8회권 상세 조회 (소유권 검증 포함) */
+    @Override
     public PassPurchase findMyPass(Long id, Long userId) {
         return passPurchaseReader.findById(id)
                 .filter(p -> Objects.equals(p.getUserId(), userId))

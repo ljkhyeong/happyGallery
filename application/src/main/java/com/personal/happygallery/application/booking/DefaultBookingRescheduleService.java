@@ -48,6 +48,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
      *   <li>RESCHEDULED 이력 저장 + 예약 업데이트 + 알림</li>
      * </ol>
      */
+    @Override
     public Booking rescheduleBooking(Long bookingId, String accessToken, Long newSlotId) {
         Booking booking = bookingSupport.findByToken(bookingId, accessToken);
         if (booking.getGuest() != null &&
@@ -62,6 +63,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
      * 회원 예약 슬롯을 변경한다.
      * accessToken 대신 userId 소유권으로 검증한다.
      */
+    @Override
     public Booking rescheduleMemberBooking(Long bookingId, Long userId, Long newSlotId) {
         Booking booking = bookingSupport.findByIdAndUserId(bookingId, userId);
         if (bookingReaderPort.existsBookedBySlotIdAndUserIdAndIdNot(

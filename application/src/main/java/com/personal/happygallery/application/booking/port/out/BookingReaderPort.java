@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.booking.port.out;
 
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -32,4 +33,6 @@ public interface BookingReaderPort {
     List<Booking> findBookedInRange(LocalDateTime start, LocalDateTime end);
 
     List<Booking> findAllInRange(LocalDateTime start, LocalDateTime end);
+
+    List<Booking> findByStatusInRange(LocalDateTime start, LocalDateTime end, BookingStatus status);
 }

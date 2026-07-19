@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button, Card, Col, Container, Row } from "react-bootstrap";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { fetchMyBookings } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import { buildQuickStatusTabs, buildStatusFilterOptions } from "@/features/my/listUtils";
+import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, getStatusLabel } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
@@ -18,16 +19,14 @@ const BOOKING_SORT_OPTIONS = [
 
 export function MyBookingsPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { searchQuery, statusFilter, sortValue, updateFilters, resetFilters } =
+    useMyListFilters({ defaultSort: DEFAULT_SORT });
   const { data: bookings, isLoading, error } = useQuery({
     queryKey: ["my", "bookings"],
     queryFn: fetchMyBookings,
     enabled: isAuthenticated,
   });
-  const searchQuery = searchParams.get("q") ?? "";
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const statusFilter = searchParams.get("status") ?? "ALL";
-  const sortValue = searchParams.get("sort") ?? DEFAULT_SORT;
   const statuses = (bookings ?? []).map((booking) => booking.status);
   const statusOptions = [
     { value: "ALL", label: "전체 상태" },
@@ -59,25 +58,6 @@ export function MyBookingsPage() {
   const finishedCount = (bookings ?? []).filter((booking) =>
     ["COMPLETED", "CANCELED", "NO_SHOW"].includes(booking.status),
   ).length;
-
-  function updateFilters(next: { q?: string; status?: string; sort?: string }) {
-    const nextSearchParams = new URLSearchParams(searchParams);
-    const nextQuery = next.q ?? searchQuery;
-    const normalizedNextQuery = nextQuery.trim();
-    const nextStatus = next.status ?? statusFilter;
-    const nextSort = next.sort ?? sortValue;
-
-    if (normalizedNextQuery) nextSearchParams.set("q", normalizedNextQuery);
-    else nextSearchParams.delete("q");
-
-    if (nextStatus !== "ALL") nextSearchParams.set("status", nextStatus);
-    else nextSearchParams.delete("status");
-
-    if (nextSort !== DEFAULT_SORT) nextSearchParams.set("sort", nextSort);
-    else nextSearchParams.delete("sort");
-
-    setSearchParams(nextSearchParams, { replace: true });
-  }
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -142,7 +122,7 @@ export function MyBookingsPage() {
           onSortChange={(value) => updateFilters({ sort: value })}
           defaultSortValue={DEFAULT_SORT}
           resultText={`${sortedBookings.length} / ${bookings.length}건 표시 중`}
-          onReset={() => setSearchParams({}, { replace: true })}
+          onReset={resetFilters}
         />
       )}
       {bookings && bookings.length === 0 && <EmptyState message="예약 내역이 없습니다." />}

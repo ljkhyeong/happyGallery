@@ -31,6 +31,7 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
         this.clock = clock;
     }
 
+    @Override
     @Transactional
     public User signup(SignupCommand command) {
         if (userReader.existsByEmail(command.email())) {
@@ -44,6 +45,7 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
         return userStore.save(user);
     }
 
+    @Override
     @Transactional
     public User login(LoginCommand command) {
         User user = userReader.findByEmail(command.email())
@@ -53,6 +55,7 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
         return user;
     }
 
+    @Override
     @Transactional(readOnly = true)
     public Optional<User> findUser(Long userId) {
         return userReader.findById(userId);

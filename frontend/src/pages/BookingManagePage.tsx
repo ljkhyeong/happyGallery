@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import { Container, Card, Button, Badge } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
 import { cancelBooking, fetchBooking, rescheduleBooking } from "@/features/booking-manage/api";
@@ -10,7 +10,6 @@ import { CancelButton } from "@/features/booking-manage/CancelButton";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { ErrorAlert } from "@/shared/ui";
-import type { BookingDetailResponse } from "@/shared/types";
 import { customerRefundPollingInterval } from "@/shared/lib";
 
 interface LocationState {
@@ -18,17 +17,25 @@ interface LocationState {
   token?: string;
 }
 
-interface BookingLookupVariables {
-  bookingId: number;
-  token: string;
-  background?: boolean;
+interface BookingLookup {
+  credentials: {
+    bookingId: number;
+    token: string;
+  };
+  requestId: string;
 }
 
 export function BookingManagePage() {
   const location = useLocation();
   const navState = location.state as LocationState | null;
-  const [booking, setBooking] = useState<BookingDetailResponse | null>(null);
-  const [currentToken, setCurrentToken] = useState("");
+  const [lookup, setLookup] = useState<BookingLookup | null>(() =>
+    navState?.bookingId && navState.token
+      ? {
+          credentials: { bookingId: navState.bookingId, token: navState.token.trim() },
+          requestId: crypto.randomUUID(),
+        }
+      : null,
+  );
   const claimLoginHref = buildAuthPageHref("/login", {
     redirectTo: "/my?claim=1",
     claim: true,
@@ -38,59 +45,44 @@ export function BookingManagePage() {
     claim: true,
   });
 
-  const refundPollCount = useRef(0);
-  const lookup = useMutation({
-    mutationFn: ({ bookingId, token }: BookingLookupVariables) =>
-      fetchBooking(bookingId, token),
-    onSuccess: (data, variables) => {
-      setBooking(data);
-      setCurrentToken(variables.token);
-      refundPollCount.current = variables.background ? refundPollCount.current + 1 : 0;
-    },
-    onError: (_error, variables) => {
-      if (variables.background) {
-        refundPollCount.current += 1;
-        return;
-      }
-      setBooking(null);
-      setCurrentToken("");
-      refundPollCount.current = 0;
-    },
+  const {
+    data: booking,
+    error,
+    isFetching,
+    refetch: refetchBooking,
+  } = useQuery({
+    queryKey: ["guest", "booking", lookup?.credentials.bookingId, lookup?.requestId],
+    queryFn: lookup
+      ? () => fetchBooking(lookup.credentials.bookingId, lookup.credentials.token)
+      : skipToken,
+    gcTime: 0,
+    refetchInterval: ({ state }) =>
+      customerRefundPollingInterval(
+        state.data?.refund?.status,
+        state.dataUpdateCount + state.fetchFailureCount,
+      ),
   });
 
   function handleLookup(bookingId: number, token: string) {
-    lookup.mutate({ bookingId, token });
-  }
-
-  const autoLookupDone = useRef(false);
-  useEffect(() => {
-    if (!autoLookupDone.current && navState?.bookingId && navState?.token) {
-      autoLookupDone.current = true;
-      lookup.mutate({ bookingId: navState.bookingId, token: navState.token });
-    }
-  }, [navState, lookup]);
-
-  function refetch() {
-    if (booking && currentToken) {
-      lookup.mutate({ bookingId: booking.bookingId, token: currentToken });
-    }
-  }
-
-  useEffect(() => {
-    const interval = customerRefundPollingInterval(
-      booking?.refund?.status,
-      refundPollCount.current,
-    );
-    if (!booking || !currentToken || lookup.isPending || interval === false) {
+    if (
+      lookup?.credentials.bookingId === bookingId &&
+      lookup.credentials.token === token
+    ) {
+      void refetchBooking();
       return;
     }
-    const timer = window.setTimeout(() => {
-      lookup.mutate({ bookingId: booking.bookingId, token: currentToken, background: true });
-    }, interval);
-    return () => window.clearTimeout(timer);
-  }, [booking, currentToken, lookup.isPending, lookup.mutate]);
+    setLookup({
+      credentials: { bookingId, token },
+      requestId: crypto.randomUUID(),
+    });
+  }
+
+  function refreshBooking() {
+    void refetchBooking();
+  }
 
   const isBooked = booking?.status === "BOOKED";
+  const currentToken = lookup?.credentials.token ?? "";
 
   return (
     <Container className="page-container">
@@ -145,14 +137,14 @@ export function BookingManagePage() {
           </p>
           <BookingLookupForm
             onLookup={handleLookup}
-            isLoading={lookup.isPending}
+            isLoading={isFetching}
             initialBookingId={navState?.bookingId ? String(navState.bookingId) : undefined}
             initialToken={navState?.token}
           />
         </Card.Body>
       </Card>
 
-      <ErrorAlert error={lookup.error} />
+      <ErrorAlert error={booking ? null : error} />
 
       {booking && (
         <>
@@ -168,7 +160,7 @@ export function BookingManagePage() {
                 <RescheduleForm
                   currentSlotId={booking.slotId}
                   onReschedule={(newSlotId) => rescheduleBooking(booking.bookingId, newSlotId, currentToken)}
-                  onSuccess={refetch}
+                  onSuccess={refreshBooking}
                 />
               </Card.Body>
             </Card>
@@ -183,7 +175,7 @@ export function BookingManagePage() {
                 </p>
                 <CancelButton
                   onCancel={() => cancelBooking(booking.bookingId, currentToken)}
-                  onSuccess={refetch}
+                  onSuccess={refreshBooking}
                   cancelPolicy={booking.cancelPolicy}
                 />
               </Card.Body>

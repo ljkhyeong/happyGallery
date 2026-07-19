@@ -47,6 +47,7 @@ public class DefaultOrderAutoRefundBatchService implements OrderAutoRefundBatchU
      */
     private static final int PAGE_SIZE = 100;
 
+    @Override
     public BatchResult autoRefundExpired() {
         LocalDateTime now = LocalDateTime.now(clock);
 

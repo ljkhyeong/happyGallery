@@ -29,6 +29,7 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
      *   <li>Inventory 저장 (초기 수량)</li>
      * </ol>
      */
+    @Override
     public RegisterResult register(String name, ProductType type, String category, long price, int quantity) {
         Product product = productStorePort.save(new Product(name, type, category, price));
         Inventory inventory = inventoryService.create(product, quantity);

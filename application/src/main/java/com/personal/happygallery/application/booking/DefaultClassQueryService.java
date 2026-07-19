@@ -18,6 +18,7 @@ public class DefaultClassQueryService implements ClassQueryUseCase {
     }
 
     /** 전체 클래스 목록 조회 */
+    @Override
     public List<BookingClass> listAll() {
         return classReaderPort.findAll();
     }

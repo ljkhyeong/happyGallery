@@ -15,5 +15,4 @@ public interface NotificationOutboxPort {
 
     List<NotificationOutbox> findDispatchable(LocalDateTime now, LocalDateTime staleBefore, int limit);
 
-    List<NotificationOutbox> findAll();
 }

@@ -25,6 +25,7 @@ public class DefaultAdminAuthService implements AdminAuthUseCase {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Override
     public String login(String username, String rawPassword) {
         return adminUserRepository.findByUsername(username)
                 .filter(user -> passwordEncoder.matches(rawPassword, user.getPasswordHash()))
@@ -33,10 +34,12 @@ public class DefaultAdminAuthService implements AdminAuthUseCase {
                         "아이디 또는 비밀번호가 올바르지 않습니다."));
     }
 
+    @Override
     public Optional<AdminSession> validateToken(String token) {
         return sessionPort.validate(token);
     }
 
+    @Override
     public void logout(String token) {
         sessionPort.remove(token);
     }

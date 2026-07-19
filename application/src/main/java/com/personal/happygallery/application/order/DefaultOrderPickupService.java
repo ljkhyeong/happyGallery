@@ -50,6 +50,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
      * @param pickupDeadlineAt 픽업 마감 시각
      * @return 픽업 결과 (주문 ID, 상태, 마감 시각)
      */
+    @Override
     @OptimisticLockRetryable
     public PickupResult markPickupReady(Long orderId, LocalDateTime pickupDeadlineAt, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
@@ -75,13 +76,13 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
      * @param orderId 주문 ID
      * @return 픽업 결과 (주문 ID, 상태, 마감 시각)
      */
+    @Override
     @OptimisticLockRetryable
     public PickupResult confirmPickup(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.confirmPickup();
 
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
-        fulfillmentPort.save(fulfillment);
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PICKUP_COMPLETE, adminId, null));
         orderStore.save(order);

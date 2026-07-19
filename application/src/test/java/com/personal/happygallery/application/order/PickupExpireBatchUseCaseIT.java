@@ -43,6 +43,8 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class PickupExpireBatchUseCaseIT {
 
+    private static final long ADMIN_ID = 1L;
+
     @Autowired PickupExpireBatchUseCase pickupExpireBatchService;
     @Autowired PickupExpireProcessor pickupExpireProcessor;
     @Autowired OrderPickupUseCase orderPickupService;
@@ -90,7 +92,7 @@ class PickupExpireBatchUseCaseIT {
         assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(0);
 
         // 승인 → APPROVED_FULFILLMENT_PENDING
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         // 픽업 준비 완료 (마감 시각: 과거)
         LocalDateTime pastDeadline = LocalDateTime.now(clock).minusHours(1);
@@ -135,7 +137,7 @@ class PickupExpireBatchUseCaseIT {
                 orderHelper.createMadeToOrderPaidOrder("미수령 주문제작 상품", 200000L);
         Order order = fixture.order();
 
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.completeProduction(order.getId(), 1L);
         orderPickupService.markPickupReady(
                 order.getId(), LocalDateTime.now(clock).minusHours(1), 1L);
@@ -173,7 +175,7 @@ class PickupExpireBatchUseCaseIT {
     void expirePickups_futureDeadline_notExpired() {
         Order order = orderHelper.createReadyStockPaidOrder("미만료 픽업 상품", 30000L).order();
 
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         // 픽업 준비 완료 (마감 시각: 미래)
         LocalDateTime futureDeadline = LocalDateTime.now(clock).plusDays(1);
@@ -199,8 +201,8 @@ class PickupExpireBatchUseCaseIT {
         Order failedOrder = failedFixture.order();
         Order successOrder = successFixture.order();
 
-        orderApprovalService.approve(failedOrder.getId());
-        orderApprovalService.approve(successOrder.getId());
+        orderApprovalService.approve(failedOrder.getId(), ADMIN_ID);
+        orderApprovalService.approve(successOrder.getId(), ADMIN_ID);
 
         LocalDateTime pastDeadline = LocalDateTime.now(clock).minusHours(1);
         orderPickupService.markPickupReady(failedOrder.getId(), pastDeadline, 1L);
@@ -227,7 +229,7 @@ class PickupExpireBatchUseCaseIT {
     void pickupComplete_and_expireProcess_race_keepsSingleTerminalState() throws InterruptedException {
         OrderTestHelper.OrderFixture fixture = orderHelper.createReadyStockPaidOrder("픽업 경합 테스트 상품", 53000L);
         Order order = fixture.order();
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
         LocalDateTime pastDeadline = LocalDateTime.now(clock).minusMinutes(1);
         orderPickupService.markPickupReady(order.getId(), pastDeadline, 1L);
 

@@ -9,7 +9,7 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.user.User;
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -39,14 +39,17 @@ public class DefaultAdminBookingQueryService implements AdminBookingQueryUseCase
      * 관리자 예약 목록 조회 — 날짜 기준, 선택적 상태 필터.
      * member booking의 User 정보를 batch fetch하여 DTO에 포함한다.
      */
+    @Override
     public List<AdminBookingResponse> listBookings(LocalDate date, BookingStatus status) {
-        List<Booking> bookings = bookingReaderPort.findAllInRange(
-                date.atStartOfDay(), date.atTime(LocalTime.MAX));
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.plusDays(1).atStartOfDay();
+        List<Booking> bookings = status == null
+                ? bookingReaderPort.findAllInRange(start, end)
+                : bookingReaderPort.findByStatusInRange(start, end, status);
 
         Map<Long, User> userMap = resolveUsers(bookings);
 
         return bookings.stream()
-                .filter(booking -> status == null || booking.getStatus() == status)
                 .map(booking -> {
                     Long userId = booking.getUserId();
                     boolean member = userId != null;

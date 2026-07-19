@@ -26,12 +26,4 @@ public record BatchResult(int successCount, int failureCount, Map<String, Intege
                 failureCount + other.failureCount,
                 merged);
     }
-
-    public static Map<String, Integer> failureReasonsOf(Throwable... errors) {
-        Map<String, Integer> reasons = new LinkedHashMap<>();
-        for (Throwable error : errors) {
-            reasons.merge(error.getClass().getSimpleName(), 1, Integer::sum);
-        }
-        return reasons;
-    }
 }

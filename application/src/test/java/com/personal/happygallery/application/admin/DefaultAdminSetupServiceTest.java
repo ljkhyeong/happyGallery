@@ -4,7 +4,6 @@ import com.personal.happygallery.application.admin.port.out.AdminUserPort;
 import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +13,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,7 +36,6 @@ class DefaultAdminSetupServiceTest {
     @Test
     void setup_createsInitialAdmin_whenNoAdminExists() {
         given(adminUserPort.count()).willReturn(0L);
-        given(adminUserPort.findByUsername("admin")).willReturn(Optional.empty());
         given(passwordEncoder.encode("admin123456")).willReturn("encoded-password");
         given(adminUserPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 

@@ -37,19 +37,11 @@ public class GuestPersonalDataProtector {
         return decrypt(guest.getPhoneEnc(), "게스트 전화번호 암호문이 없습니다.");
     }
 
-    public String decryptPhone(String phoneEnc) {
-        return decrypt(phoneEnc, "게스트 전화번호 암호문이 없습니다.");
-    }
-
     public String decryptName(Guest guest) {
         if (guest == null) {
             throw new IllegalStateException("게스트 정보가 없습니다.");
         }
         return decrypt(guest.getNameEnc(), "게스트 이름 암호문이 없습니다.");
-    }
-
-    public String decryptName(String nameEnc) {
-        return decrypt(nameEnc, "게스트 이름 암호문이 없습니다.");
     }
 
     private String decrypt(String encrypted, String missingMessage) {

@@ -28,6 +28,7 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
     }
 
     /** 관리자 주문 목록 조회 — 선택적 상태 필터, 최신 생성순 (레거시 전체 조회) */
+    @Override
     public List<AdminOrderResponse> listOrders(OrderStatus status) {
         var orders = (status != null)
                 ? orderReaderPort.findByStatusOrderByCreatedAtDesc(status)
@@ -36,6 +37,7 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
     }
 
     /** 관리자 주문 목록 조회 — 커서 기반 페이지네이션 */
+    @Override
     public CursorPage<AdminOrderResponse> listOrders(OrderStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
         int fetchSize = pageSize + 1;
@@ -63,6 +65,7 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
     }
 
     /** 관리자 주문 처리 이력 조회 — 처리 시간순 */
+    @Override
     public List<OrderHistoryResponse> getOrderHistory(Long orderId) {
         return orderHistoryPort.findByOrderIdOrderByDecidedAtAsc(orderId).stream()
                 .map(OrderHistoryResponse::from)

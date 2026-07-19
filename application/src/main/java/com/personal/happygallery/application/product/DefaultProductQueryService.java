@@ -28,6 +28,7 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
     }
 
     /** 상품 단건 조회 */
+    @Override
     public ProductWithInventory getProduct(Long productId) {
         Product product = productReaderPort.findById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
@@ -37,12 +38,14 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
     }
 
     /** ACTIVE 상품 목록 조회 — 최신 등록순 (N+1 방지: 재고 일괄 조회) */
+    @Override
     public List<ProductWithInventory> listActiveProducts() {
         List<Product> products = productReaderPort.findActiveProductsByCreatedAtDesc();
         return toProductWithInventoryList(products);
     }
 
     /** 필터 조건에 따른 ACTIVE 상품 목록 조회. */
+    @Override
     public List<ProductWithInventory> listActiveProducts(ProductFilter filter) {
         if (filter.isDefault()) {
             return listActiveProducts();
@@ -52,6 +55,7 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
     }
 
     /** ACTIVE 상품에 존재하는 카테고리 목록. */
+    @Override
     public List<String> listActiveCategories() {
         return productReaderPort.findDistinctActiveCategories();
     }

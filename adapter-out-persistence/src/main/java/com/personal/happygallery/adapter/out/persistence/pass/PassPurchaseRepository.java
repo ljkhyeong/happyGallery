@@ -17,11 +17,6 @@ public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long
     /** 회원 — 자기 8회권 조회 (구매일 내림차순) */
     @Override List<PassPurchase> findByUserIdOrderByPurchasedAtDesc(Long userId);
 
-    /** 만료 배치 대상: expires_at <= now AND remaining_credits > 0 */
-    @Override
-    List<PassPurchase> findByExpiresAtLessThanEqualAndRemainingCreditsGreaterThan(
-            LocalDateTime now, int credits);
-
     /** 만료 배치 페이지네이션 대상 */
     @Override
     List<PassPurchase> findByExpiresAtLessThanEqualAndRemainingCreditsGreaterThan(

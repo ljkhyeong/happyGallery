@@ -36,9 +36,6 @@ public class DefaultAdminSetupService implements AdminSetupUseCase {
         if (adminUserRepository.count() != 0L) {
             throw new HappyGalleryException(ErrorCode.NOT_FOUND, "setup 이 이미 완료되었습니다.");
         }
-        if (adminUserRepository.findByUsername(username).isPresent()) {
-            throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS, "이미 사용 중인 username 입니다.");
-        }
         AdminUser saved = adminUserRepository.save(new AdminUser(username, passwordEncoder.encode(rawPassword)));
         log.warn("[AdminSetup] 최초 관리자 생성 [id={}] — 운영자는 즉시 로그인 후 비밀번호 rotate + ADMIN_SETUP_TOKEN env 제거",
                 saved.getId());

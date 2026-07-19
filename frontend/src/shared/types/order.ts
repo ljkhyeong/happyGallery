@@ -1,24 +1,9 @@
 import type { OrderStatus } from "./admin";
 import type { RefundProgress } from "./refund";
 
-export interface CreateOrderRequest {
-  phone: string;
-  verificationCode: string;
-  name: string;
-  items: OrderItemInput[];
-}
-
 export interface OrderItemInput {
   productId: number;
   qty: number;
-}
-
-export interface OrderResponse {
-  orderId: number;
-  accessToken: string;
-  status: OrderStatus;
-  totalAmount: number;
-  paidAt: string;
 }
 
 export interface OrderDetailResponse {

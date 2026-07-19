@@ -35,16 +35,19 @@ public class DefaultInquiryService implements InquiryUseCase {
         this.clock = clock;
     }
 
+    @Override
     @Transactional
     public Inquiry create(Long userId, String title, String content) {
         return inquiryStore.save(new Inquiry(userId, title, content));
     }
 
+    @Override
     @Transactional(readOnly = true)
     public List<Inquiry> listByUser(Long userId) {
         return inquiryReader.findByUserId(userId);
     }
 
+    @Override
     @Transactional(readOnly = true)
     public Inquiry findByIdAndUser(Long inquiryId, Long userId) {
         Inquiry inquiry = inquiryReader.findById(inquiryId)
@@ -55,6 +58,7 @@ public class DefaultInquiryService implements InquiryUseCase {
         return inquiry;
     }
 
+    @Override
     @Transactional(readOnly = true)
     public List<InquiryWithUser> listAll() {
         List<Inquiry> inquiries = inquiryReader.findAll();
@@ -64,6 +68,7 @@ public class DefaultInquiryService implements InquiryUseCase {
                 .toList();
     }
 
+    @Override
     @Transactional(readOnly = true)
     public InquiryWithUser findByIdForAdmin(Long inquiryId) {
         Inquiry inquiry = inquiryReader.findById(inquiryId)
@@ -73,14 +78,7 @@ public class DefaultInquiryService implements InquiryUseCase {
         return new InquiryWithUser(inquiry, name);
     }
 
-    @Transactional
-    public Inquiry reply(Long inquiryId, String replyContent, Long adminId) {
-        Inquiry inquiry = inquiryReader.findById(inquiryId)
-                .orElseThrow(NotFoundException.supplier("문의"));
-        inquiry.reply(replyContent, adminId, LocalDateTime.now(clock));
-        return inquiryStore.save(inquiry);
-    }
-
+    @Override
     @Transactional
     public InquiryWithUser replyAndGet(Long inquiryId, String replyContent, Long adminId) {
         Inquiry inquiry = inquiryReader.findById(inquiryId)

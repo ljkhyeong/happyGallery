@@ -54,6 +54,7 @@ public class DefaultPassRefundService implements PassRefundUseCase {
      *
      * @return 처리 결과 (취소된 예약 수, 환불 크레딧, 환불 금액, 환불 이력)
      */
+    @Override
     public PassRefundResult refundPass(Long passId) {
         PassPurchase pass = passPurchaseReader.findById(passId)
                 .orElseThrow(NotFoundException.supplier("8회권"));

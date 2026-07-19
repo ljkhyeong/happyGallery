@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +34,7 @@ public final class BatchExecutor {
      */
     public static <T> BatchResult execute(List<T> candidates,
                                           Function<T, Object> idExtractor,
-                                          Function<T, Boolean> processor,
+                                          Predicate<T> processor,
                                           String label) {
         int processed = 0;
         Map<String, Integer> failureReasons = new LinkedHashMap<>();
@@ -41,7 +42,7 @@ public final class BatchExecutor {
         for (T candidate : candidates) {
             Object id = idExtractor.apply(candidate);
             try {
-                if (processor.apply(candidate)) {
+                if (processor.test(candidate)) {
                     log.info("{} 처리 [id={}]", label, id);
                     processed++;
                 }
@@ -71,7 +72,7 @@ public final class BatchExecutor {
      */
     public static <T> BatchResult executePaginated(Supplier<List<T>> pageFetcher,
                                                     Function<T, Object> idExtractor,
-                                                    Function<T, Boolean> processor,
+                                                    Predicate<T> processor,
                                                     String label) {
         BatchResult total = BatchResult.successOnly(0);
         Set<Object> seenIds = new HashSet<>();

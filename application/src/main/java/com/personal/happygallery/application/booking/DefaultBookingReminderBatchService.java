@@ -44,6 +44,7 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
      *
      * @return 발송 건수
      */
+    @Override
     public BatchResult sendD1Reminders() {
         LocalDate tomorrow = LocalDate.now(clock).plusDays(1);
         LocalDateTime start = tomorrow.atStartOfDay();
@@ -60,6 +61,7 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
      *
      * @return 발송 건수
      */
+    @Override
     public BatchResult sendSameDayReminders() {
         LocalDate today = LocalDate.now(clock);
         LocalDateTime start = today.atStartOfDay();

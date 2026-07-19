@@ -21,6 +21,7 @@ public class DefaultSlotQueryService implements SlotQueryUseCase {
     }
 
     /** 클래스 + 날짜 기준 예약 가능 슬롯 조회 */
+    @Override
     public List<Slot> listAvailable(Long classId, LocalDate date) {
         LocalDateTime dayStart = date.atStartOfDay();
         LocalDateTime dayEnd = date.atTime(LocalTime.MAX);
@@ -28,6 +29,7 @@ public class DefaultSlotQueryService implements SlotQueryUseCase {
     }
 
     /** 관리자용 — 클래스 기준 슬롯 전체 조회 (활성/비활성 포함) */
+    @Override
     public List<Slot> listByClass(Long classId) {
         return slotReaderPort.findByBookingClassIdOrderByStartAtDesc(classId);
     }

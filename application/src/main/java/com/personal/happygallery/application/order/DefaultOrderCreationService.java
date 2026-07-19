@@ -31,6 +31,7 @@ public class DefaultOrderCreationService implements OrderCreationService {
     /**
      * 회원 주문 생성 — 세션 userId 기반.
      */
+    @Override
     public Order createMemberOrder(Long userId, List<OrderItemInput> items) {
         List<OrderService.OrderItemRequest> orderItems = resolveItemPrices(items);
         return orderService.createMemberOrder(userId, orderItems);
