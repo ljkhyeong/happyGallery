@@ -81,10 +81,9 @@ class SlotCapacitySupport {
     }
 
     private List<Slot> findBufferSlotsWithLock(Slot sourceSlot) {
-        LocalDateTime windowStart = SlotBufferPolicy.bufferWindowStart(sourceSlot.getEndAt());
         LocalDateTime windowEnd = SlotBufferPolicy.bufferWindowEnd(
                 sourceSlot.getEndAt(), sourceSlot.getBookingClass().getBufferMin());
         return slotReaderPort.findInBufferWindowWithLock(
-                sourceSlot.getBookingClass().getId(), windowStart, windowEnd);
+                sourceSlot.getBookingClass().getId(), sourceSlot.getEndAt(), windowEnd);
     }
 }

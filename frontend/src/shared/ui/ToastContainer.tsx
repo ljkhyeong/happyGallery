@@ -29,9 +29,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => [...prev, { id, message, variant }]);
   }, []);
 
-  const remove = useCallback((id: number) => {
+  function remove(id: number) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  }
   const contextValue = useMemo(() => ({ show }), [show]);
 
   return (

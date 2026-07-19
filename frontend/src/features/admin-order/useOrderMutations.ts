@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useToast } from "@/shared/ui";
@@ -24,10 +24,10 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [lastError, setLastError] = useState<Error | null>(null);
 
-  const invalidate = useCallback(() => {
+  function invalidate() {
     onInvalidate();
     queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
-  }, [onInvalidate, queryClient]);
+  }
 
   function startOrderAction(id: number) {
     setPendingId(id);

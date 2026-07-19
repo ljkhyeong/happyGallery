@@ -175,10 +175,7 @@ class PaymentConfirmTransactionService {
     }
 
     private PaymentPayload deserialize(String storedPayload) {
-        boolean legacyPlainJson = storedPayload != null && storedPayload.stripLeading().startsWith("{");
-        String json = legacyPlainJson
-                ? storedPayload
-                : fieldEncryptor.decrypt(storedPayload);
+        String json = fieldEncryptor.decrypt(storedPayload);
         return objectMapper.readValue(json, PaymentPayload.class);
     }
 

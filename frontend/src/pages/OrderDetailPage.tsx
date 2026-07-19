@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Form, Button, Row, Col, Badge } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
@@ -48,11 +48,11 @@ export function OrderDetailPage() {
     },
   });
 
-  const handleLookup = useCallback(() => {
+  function handleLookup() {
     if (validOrderId && normalizedToken) {
       lookup.mutate({ id: parsedOrderId, token: normalizedToken });
     }
-  }, [lookup, normalizedToken, parsedOrderId, validOrderId]);
+  }
 
   const autoLookupDone = useRef(false);
   useEffect(() => {

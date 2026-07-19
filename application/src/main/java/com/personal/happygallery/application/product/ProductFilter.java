@@ -40,10 +40,6 @@ public record ProductFilter(
         }
     }
 
-    public static ProductFilter defaults() {
-        return new ProductFilter(null, null, null, ProductSortOrder.NEWEST);
-    }
-
     /** 모든 필터가 기본값(미필터 + 최신순)인지 확인한다. */
     public boolean isDefault() {
         return type == null && category == null && keyword == null && sort == ProductSortOrder.NEWEST;

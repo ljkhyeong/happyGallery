@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Table, Button, Form, Row, Col } from "react-bootstrap";
 import type { AdminOrderResponse } from "@/shared/types";
@@ -41,11 +41,11 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
 
-  const resetPagination = useCallback(() => {
+  function resetPagination() {
     setAllOrders([]);
     setCursor(undefined);
     setHasMore(false);
-  }, []);
+  }
 
   const mutations = useOrderMutations({ adminKey, onAuthError, onInvalidate: resetPagination });
 

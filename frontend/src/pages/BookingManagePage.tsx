@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Button, Badge } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
@@ -58,10 +58,9 @@ export function BookingManagePage() {
     },
   });
 
-  const handleLookup = useCallback(
-    (bookingId: number, token: string) => lookup.mutate({ bookingId, token }),
-    [lookup],
-  );
+  function handleLookup(bookingId: number, token: string) {
+    lookup.mutate({ bookingId, token });
+  }
 
   const autoLookupDone = useRef(false);
   useEffect(() => {
@@ -71,11 +70,11 @@ export function BookingManagePage() {
     }
   }, [navState, lookup]);
 
-  const refetch = useCallback(() => {
+  function refetch() {
     if (booking && currentToken) {
       lookup.mutate({ bookingId: booking.bookingId, token: currentToken });
     }
-  }, [booking, currentToken, lookup]);
+  }
 
   useEffect(() => {
     const interval = customerRefundPollingInterval(

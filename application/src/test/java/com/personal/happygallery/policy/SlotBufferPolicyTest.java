@@ -23,12 +23,6 @@ class SlotBufferPolicyTest {
     private static final LocalDateTime END_AT = LocalDateTime.of(2026, 3, 1, 12, 0);
     private static final int BUFFER_MIN = 30;
 
-    @DisplayName("버퍼 시작 시각은 수업 종료 시각과 같다")
-    @Test
-    void bufferWindowStart_equalsEndAt() {
-        assertThat(SlotBufferPolicy.bufferWindowStart(END_AT)).isEqualTo(END_AT);
-    }
-
     @DisplayName("버퍼 종료 시각은 종료 시각에 버퍼 분을 더한 값이다")
     @Test
     void bufferWindowEnd_isEndAtPlusBufferMin() {

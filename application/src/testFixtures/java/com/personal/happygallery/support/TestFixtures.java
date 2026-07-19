@@ -68,10 +68,6 @@ public final class TestFixtures {
         return new Product(name, ProductType.READY_STOCK, price);
     }
 
-    public static Product madeToOrderProduct(String name, long price) {
-        return new Product(name, ProductType.MADE_TO_ORDER, price);
-    }
-
     public static Inventory inventory(Product product, int quantity) {
         return new Inventory(product, quantity);
     }

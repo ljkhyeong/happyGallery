@@ -109,7 +109,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (decision.rejected()) {
             response.setHeader(HttpHeaders.RETRY_AFTER,
                     String.valueOf(Math.max(1, decision.window().toSeconds())));
-            writeTooManyRequests(response);
+            FilterErrorResponseWriter.write(response, objectMapper, ErrorCode.TOO_MANY_REQUESTS);
             return;
         }
 
@@ -183,10 +183,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         String remoteAddr = request.getRemoteAddr();
         return remoteAddr == null ? "unknown" : remoteAddr;
-    }
-
-    private void writeTooManyRequests(HttpServletResponse response) throws IOException {
-        FilterErrorResponseWriter.write(response, objectMapper, ErrorCode.TOO_MANY_REQUESTS);
     }
 
     private void writeServiceUnavailable(HttpServletResponse response) throws IOException {

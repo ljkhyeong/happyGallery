@@ -114,11 +114,6 @@ public class PassPurchase {
         return totalCredits == 0 ? 0 : totalPrice / totalCredits;
     }
 
-    /** 잔여 크레딧 기반 환불 금액 계산 = remaining_credits * unit_price */
-    public long calculateRefundAmount() {
-        return calculateRefundAmount(remainingCredits);
-    }
-
     /** 지정 크레딧 기반 환불 금액 계산 = refund_credits * unit_price */
     public long calculateRefundAmount(int refundCredits) {
         return (long) refundCredits * unitPrice();
