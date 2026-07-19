@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -23,14 +24,16 @@ class PaymentAttemptPolicyTest {
         LocalDateTime processingAt = LocalDateTime.of(2026, 4, 23, 9, 59);
         LocalDateTime approvedAt = LocalDateTime.of(2026, 4, 23, 10, 0);
 
-        attempt.startProcessing(10_000L, "payment-key", processingAt);
-        attempt.markApproved("confirmed-payment-key", approvedAt);
-        attempt.markConfirmed();
+        String processingToken = attempt.startProcessing(10_000L, "payment-key", processingAt);
+        attempt.markApproved(processingToken, "confirmed-payment-key", approvedAt);
+        attempt.markConfirmed(12L, "encrypted-access-token");
 
         assertSoftly(softly -> {
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             softly.assertThat(attempt.getPaymentKey()).isEqualTo("payment-key");
             softly.assertThat(attempt.getConfirmedPaymentKey()).isEqualTo("confirmed-payment-key");
+            softly.assertThat(attempt.getFulfilledDomainId()).isEqualTo(12L);
+            softly.assertThat(attempt.getFulfilledAccessTokenEnc()).isEqualTo("encrypted-access-token");
             softly.assertThat(attempt.getProcessingAt()).isEqualTo(processingAt);
             softly.assertThat(attempt.getConfirmedAt()).isEqualTo(approvedAt);
         });
@@ -62,8 +65,9 @@ class PaymentAttemptPolicyTest {
     @Test
     void failedAttempt_rejectsConfirm() {
         PaymentAttempt attempt = PaymentAttempt.start("order-id", PaymentContext.PASS, 240_000L, "{}");
-        attempt.startProcessing(240_000L, "payment-key", LocalDateTime.of(2026, 4, 23, 10, 0));
-        attempt.markFailed("PG 거절");
+        String processingToken = attempt.startProcessing(
+                240_000L, "payment-key", LocalDateTime.of(2026, 4, 23, 10, 0));
+        attempt.markProcessingFailed(processingToken, "PG 거절");
 
         assertThatThrownBy(() -> attempt.startProcessing(
                 240_000L, "payment-key", LocalDateTime.of(2026, 4, 23, 10, 1)))
@@ -73,5 +77,31 @@ class PaymentAttemptPolicyTest {
                         softly.assertThat(exception.getMessage()).isEqualTo("이미 처리된 결제입니다.");
                     });
                 });
+    }
+
+    @DisplayName("재선점된 결제는 이전 실행권 토큰의 승인과 실패 결과를 무시한다")
+    @Test
+    void restartedAttempt_ignoresResultsFromPreviousProcessingToken() {
+        PaymentAttempt attempt = PaymentAttempt.start("order-id", PaymentContext.ORDER, 10_000L, "{}");
+        String firstToken = attempt.startProcessing(
+                10_000L, "payment-key", LocalDateTime.of(2026, 7, 19, 10, 0));
+        String secondToken = attempt.restartProcessing(
+                10_000L, "payment-key", LocalDateTime.of(2026, 7, 19, 10, 2));
+
+        assertSoftly(softly -> {
+            softly.assertThat(secondToken).isNotEqualTo(firstToken);
+            softly.assertThat(attempt.markRetryable(firstToken, "늦게 도착한 실패")).isFalse();
+            softly.assertThat(attempt.markApproved(
+                    firstToken, "confirmed-payment-key", LocalDateTime.of(2026, 7, 19, 10, 3))).isFalse();
+            softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PROCESSING);
+            softly.assertThat(attempt.getProcessingToken()).isEqualTo(secondToken);
+        });
+
+        assertThat(attempt.markApproved(
+                secondToken, "confirmed-payment-key", LocalDateTime.of(2026, 7, 19, 10, 4))).isTrue();
+        assertSoftly(softly -> {
+            softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.APPROVED);
+            softly.assertThat(attempt.getProcessingToken()).isNull();
+        });
     }
 }

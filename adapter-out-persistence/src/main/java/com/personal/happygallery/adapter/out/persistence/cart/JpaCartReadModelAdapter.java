@@ -19,7 +19,8 @@ public class JpaCartReadModelAdapter implements CartReadModelPort {
     @Override
     public List<CartItemDetail> findDetailsByUserId(Long userId) {
         return entityManager.createQuery("""
-                        SELECT product.id AS productId,
+                        SELECT item.id AS cartItemId,
+                               product.id AS productId,
                                product.name AS productName,
                                product.price AS price,
                                item.qty AS qty,
@@ -40,6 +41,7 @@ public class JpaCartReadModelAdapter implements CartReadModelPort {
 
     private CartItemDetail toDetail(Tuple row) {
         return new CartItemDetail(
+                row.get("cartItemId", Long.class),
                 row.get("productId", Long.class),
                 row.get("productName", String.class),
                 row.get("price", Long.class),

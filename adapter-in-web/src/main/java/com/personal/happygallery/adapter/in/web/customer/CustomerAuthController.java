@@ -3,8 +3,10 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.adapter.in.web.customer.dto.CustomerLoginRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.CustomerUserResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.SignupRequest;
+import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
+import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,11 +26,14 @@ public class CustomerAuthController {
 
     private final CustomerAuthUseCase customerAuth;
     private final CustomerSessionBinder customerSessionBinder;
+    private final SubjectRateLimitGuard rateLimitGuard;
 
     public CustomerAuthController(CustomerAuthUseCase customerAuth,
-                                  CustomerSessionBinder customerSessionBinder) {
+                                  CustomerSessionBinder customerSessionBinder,
+                                  SubjectRateLimitGuard rateLimitGuard) {
         this.customerAuth = customerAuth;
         this.customerSessionBinder = customerSessionBinder;
+        this.rateLimitGuard = rateLimitGuard;
     }
 
     @PostMapping("/auth/signup")
@@ -36,12 +41,14 @@ public class CustomerAuthController {
     public CustomerUserResponse signup(@RequestBody @Valid SignupRequest request,
                                        HttpServletRequest httpRequest,
                                        HttpServletResponse httpResponse) {
+        rateLimitGuard.checkPhoneVerificationAttempt(KoreanPhoneNumber.required(request.phone()));
         User user = customerAuth.signup(
                 new CustomerAuthUseCase.SignupCommand(
                         request.email(),
                         request.password(),
                         request.name(),
-                        request.phone()));
+                        request.phone(),
+                        request.verificationCode()));
         customerSessionBinder.bind(httpRequest, httpResponse, user.getId());
         return CustomerUserResponse.from(user);
     }

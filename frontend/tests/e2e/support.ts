@@ -282,12 +282,21 @@ export async function signupCustomer(
     email: overrides.email ?? makeEmail(label),
     password: overrides.password ?? "password123",
     name: overrides.name ?? label,
-    phone: overrides.phone ?? makePhoneNumber(label),
+    phone: (overrides.phone ?? makePhoneNumber(label)).replace(/\D/g, ""),
   };
 
   const csrfHeaders = await issueCustomerCsrfHeaders(page);
+  const verificationResponse = await page.request.post(
+    `${BACKEND_BASE_URL}/bookings/phone-verifications`,
+    {
+      data: { phone: credentials.phone },
+      headers: csrfHeaders,
+    },
+  );
+  expect(verificationResponse.ok(), "Phone verification send API should succeed").toBeTruthy();
+  const verificationCode = await fetchVerificationCode(page, credentials.phone);
   const response = await page.request.post(`${BACKEND_BASE_URL}/auth/signup`, {
-    data: credentials,
+    data: { ...credentials, verificationCode },
     headers: csrfHeaders,
   });
   expect(response.ok(), "Customer signup API should succeed").toBeTruthy();

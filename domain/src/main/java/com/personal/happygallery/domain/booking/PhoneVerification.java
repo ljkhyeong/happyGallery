@@ -40,6 +40,9 @@ public class PhoneVerification {
     private String codeEnc;
 
     @Column(nullable = false)
+    private boolean delivered = false;
+
+    @Column(nullable = false)
     private boolean verified = false;
 
     @Column(name = "expires_at", nullable = false)
@@ -54,6 +57,7 @@ public class PhoneVerification {
         this.phone = KoreanPhoneNumber.required(phone);
         this.code = requireCode(code);
         this.expiresAt = expiresAt;
+        this.delivered = false;
         this.verified = false;
     }
 
@@ -73,12 +77,18 @@ public class PhoneVerification {
         this.verified = true;
     }
 
+    /** 외부 SMS 사업자가 발송 요청을 정상 접수한 코드만 검증 대상으로 활성화한다. */
+    public void markDelivered() {
+        this.delivered = true;
+    }
+
     public Long getId() { return id; }
     public String getPhone() { return phone; }
     public String getCode() { return code; }
     public String getPhoneHmac() { return phoneHmac; }
     public String getCodeHmac() { return codeHmac; }
     public String getCodeEnc() { return codeEnc; }
+    public boolean isDelivered() { return delivered; }
     public boolean isVerified() { return verified; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
 

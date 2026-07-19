@@ -1,5 +1,7 @@
 package com.personal.happygallery.adapter.in.web.monitoring;
 
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
@@ -12,9 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.ObjectMapper;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -27,6 +29,8 @@ class ClientMonitoringUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReader;
+    @Autowired ObjectMapper objectMapper;
 
     MockMvc mockMvc;
 
@@ -64,21 +68,8 @@ class ClientMonitoringUseCaseIT {
     @DisplayName("회원 세션이 있어도 client monitoring 이벤트를 전송할 수 있다")
     @Test
     void member_canSendClientMonitoringEvent() throws Exception {
-        MvcResult signup = mockMvc.perform(post("/api/v1/auth/signup")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "monitor@example.com",
-                                  "password": "password123",
-                                  "name": "모니터",
-                                  "phone": "01012341234"
-                                }
-                                """))
-                .andExpect(status().isCreated())
-                .andReturn();
-
-        Cookie sessionCookie = signup.getResponse().getCookie("HG_SESSION");
+        Cookie sessionCookie = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader)
+                .signupAndGetSessionCookie("monitor@example.com", "01012341234");
 
         mockMvc.perform(post("/api/v1/monitoring/client-events")
                         .with(csrf())

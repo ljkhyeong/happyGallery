@@ -8,6 +8,7 @@ public interface CartReadModelPort {
     List<CartItemDetail> findDetailsByUserId(Long userId);
 
     record CartItemDetail(
+            Long cartItemId,
             Long productId,
             String productName,
             long price,

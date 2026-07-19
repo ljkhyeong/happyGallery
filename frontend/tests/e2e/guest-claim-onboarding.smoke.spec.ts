@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
   completeGuestAuthGate,
-  completeLockedPhoneVerification,
   completePhoneVerification,
   createAdminProduct,
   createAdminSlot,
@@ -72,14 +71,11 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
 
   await signupCustomer(page, "p8-member-claim", { phone: memberPhone });
   await page.goto("/my");
-  await expect(page.getByText("휴대폰 재확인 필요")).toBeVisible();
+  await expect(page.getByText("휴대폰 인증 완료")).toBeVisible();
 
   await page.getByRole("button", { name: /가져오기/ }).first().click();
   const claimDialog = page.getByRole("dialog").filter({ hasText: "비회원 이력 가져오기" }).first();
   await expect(claimDialog).toBeVisible();
-  await completeLockedPhoneVerification(claimDialog, page, guestPhone, "인증하고 불러오기");
-
-  await expect(claimDialog.getByText("확인 완료")).toBeVisible();
   await expect(claimDialog.getByText(`주문 #${orderId}`)).toBeVisible();
   await expect(claimDialog.getByText(`${bookingClass.name} #${bookingId}`)).toBeVisible();
   await claimDialog.getByRole("button", { name: "선택한 이력 가져오기" }).click();

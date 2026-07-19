@@ -11,11 +11,11 @@ import com.personal.happygallery.adapter.in.web.customer.MeOrderController;
 import com.personal.happygallery.adapter.in.web.customer.MePassController;
 import com.personal.happygallery.adapter.in.web.customer.MeProductQnaController;
 import com.personal.happygallery.adapter.in.web.customer.SocialLoginController;
+import com.personal.happygallery.adapter.in.web.config.properties.SocialLoginProperties;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
-import com.personal.happygallery.application.cart.port.in.CartCheckoutUseCase;
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
@@ -66,7 +66,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private CustomerAuthUseCase customerAuthUseCase;
     private SocialAuthUseCase socialAuthUseCase;
     private CartUseCase cartUseCase;
-    private CartCheckoutUseCase cartCheckoutUseCase;
     private BookingQueryUseCase bookingQueryUseCase;
     private BookingRescheduleUseCase bookingRescheduleUseCase;
     private BookingCancelUseCase bookingCancelUseCase;
@@ -83,7 +82,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         customerAuthUseCase = mock(CustomerAuthUseCase.class);
         socialAuthUseCase = mock(SocialAuthUseCase.class);
         cartUseCase = mock(CartUseCase.class);
-        cartCheckoutUseCase = mock(CartCheckoutUseCase.class);
         bookingQueryUseCase = mock(BookingQueryUseCase.class);
         bookingRescheduleUseCase = mock(BookingRescheduleUseCase.class);
         bookingCancelUseCase = mock(BookingCancelUseCase.class);
@@ -116,7 +114,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new CartUseCase.CartView(
                         List.of(new CartUseCase.CartItemView(1L, "시그니처 캔들", 39000L, 1, true)),
                         39000L));
-        when(cartCheckoutUseCase.checkout(CUSTOMER_USER_ID)).thenReturn(order);
         when(bookingQueryUseCase.listMyBookings(CUSTOMER_USER_ID)).thenReturn(List.of(booking));
         when(bookingQueryUseCase.findMyBooking(100L, CUSTOMER_USER_ID))
                 .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null));
@@ -143,9 +140,14 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
 
         CustomerSessionBinder customerSessionBinder = new CustomerSessionBinder(mock(CsrfTokenRepository.class));
         mockMvc = mockMvc(restDocumentation,
-                new CustomerAuthController(customerAuthUseCase, customerSessionBinder),
-                new SocialLoginController(socialAuthUseCase, customerSessionBinder),
-                new MeCartController(cartUseCase, cartCheckoutUseCase, rateLimitGuard),
+                new CustomerAuthController(customerAuthUseCase, customerSessionBinder, rateLimitGuard),
+                new SocialLoginController(
+                        socialAuthUseCase,
+                        customerSessionBinder,
+                        new SocialLoginProperties(
+                                "https://happygallery.example/auth/callback/google",
+                                "https://happygallery.example/auth/callback/naver")),
+                new MeCartController(cartUseCase),
                 new MeBookingController(bookingQueryUseCase, bookingRescheduleUseCase,
                         bookingCancelUseCase, RestDocsFixtures.clock()),
                 new MeOrderController(orderQueryUseCase),
@@ -166,7 +168,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                   "email": "member@example.com",
                                   "password": "password1234",
                                   "name": "회원",
-                                  "phone": "01012345678"
+                                  "phone": "01012345678",
+                                  "verificationCode": "123456"
                                 }
                                 """))
                 .andExpect(status().isCreated());
@@ -204,19 +207,19 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("구글 로그인 URL API를 문서화한다")
     void google_auth_url() throws Exception {
         mockMvc.perform(get("/api/v1/auth/social/google/url")
-                        .param("redirectUri", "https://happygallery.example/auth/callback"))
+                        .param("redirectUri", "https://happygallery.example/auth/callback/google"))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
 
         verify(socialAuthUseCase).buildAuthorizationUrl(
-                SocialProvider.GOOGLE, "https://happygallery.example/auth/callback");
+                SocialProvider.GOOGLE, "https://happygallery.example/auth/callback/google");
     }
 
     @Test
     @DisplayName("네이버 로그인 API를 문서화한다")
     void naver_login() throws Exception {
         var authorizationResult = mockMvc.perform(get("/api/v1/auth/social/naver/url")
-                        .param("redirectUri", "https://happygallery.example/auth/callback"))
+                        .param("redirectUri", "https://happygallery.example/auth/callback/naver"))
                 .andExpect(status().isOk())
                 .andReturn();
         var session = (MockHttpSession) authorizationResult.getRequest().getSession(false);
@@ -227,7 +230,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         .content("""
                                 {
                                   "code": "oauth-code",
-                                  "redirectUri": "https://happygallery.example/auth/callback",
+                                  "redirectUri": "https://happygallery.example/auth/callback/naver",
                                   "state": "state-123"
                                 }
                                 """))
@@ -236,7 +239,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         verify(socialAuthUseCase).socialLogin(new SocialAuthUseCase.SocialLoginCommand(
                 SocialProvider.NAVER,
                 "oauth-code",
-                "https://happygallery.example/auth/callback",
+                "https://happygallery.example/auth/callback/naver",
                 "state-123"));
     }
 
@@ -273,13 +276,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(delete("/api/v1/me/cart/items/{productId}", 1L)
                         .with(customerUser()))
                 .andExpect(status().isNoContent());
-    }
-
-    @Test
-    @DisplayName("장바구니 결제 생성 API를 문서화한다")
-    void checkout_cart() throws Exception {
-        mockMvc.perform(post("/api/v1/me/cart/checkout").with(customerUser()))
-                .andExpect(status().isCreated());
     }
 
     @Test

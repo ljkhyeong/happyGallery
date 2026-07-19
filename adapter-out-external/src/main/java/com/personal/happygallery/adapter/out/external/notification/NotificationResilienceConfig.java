@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.timelimiter.TimeLimiter;
@@ -101,6 +102,22 @@ class NotificationResilienceConfig {
         RealSmsSender raw = new RealSmsSender(props, smsRestClient);
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
                 notificationTimeoutExecutor, resilience.timeoutMillis());
+    }
+
+    @Bean
+    PhoneVerificationSender phoneVerificationSender(SmsNotificationProperties props,
+                                                     @Qualifier("smsRestClient") RestClient smsRestClient,
+                                                     @Qualifier("smsNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
+                                                     @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
+                                                     @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
+                                                     NotificationResilienceProperties resilience) {
+        PhoneVerificationSender raw = new RealPhoneVerificationSender(props, smsRestClient);
+        return new ResilientPhoneVerificationSender(
+                raw,
+                circuitBreaker,
+                notificationTimeLimiter,
+                notificationTimeoutExecutor,
+                resilience.timeoutMillis());
     }
 
     private static CircuitBreakerConfig circuitBreakerConfig(NotificationResilienceProperties.CircuitBreaker cb) {

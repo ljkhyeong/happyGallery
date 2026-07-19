@@ -1,15 +1,39 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Container, Card, Button, Row, Col, Table } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useCart } from "@/features/cart/useCart";
-import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
+import { executePaymentFlow, type OrderPayload } from "@/features/payment";
+import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 
 export function CartPage() {
-  const navigate = useNavigate();
-  const toast = useToast();
-  const { isAuthenticated } = useCustomerAuth();
-  const { items, totalAmount, isLoading, updateQty, removeItem, checkout } = useCart();
+  const { isAuthenticated, user } = useCustomerAuth();
+  const { items, totalAmount, isLoading, updateQty, removeItem } = useCart();
+  const availableItems = items.filter((item) => item.available);
+  const checkout = useMutation({
+    mutationFn: async () => {
+      if (!user) {
+        throw new Error("로그인이 필요합니다.");
+      }
+      const payload: OrderPayload = {
+        type: "ORDER",
+        userId: user.id,
+        items: [],
+        cartCheckout: true,
+      };
+      await executePaymentFlow({
+        context: "ORDER",
+        payload,
+        orderName: availableItems.length === 1
+          ? `${availableItems[0]?.productName ?? "장바구니 상품"} 주문`
+          : `장바구니 상품 ${availableItems.length}건`,
+        customerKey: `member_${user.id}`,
+        customerName: user.name,
+        returnHint: { customerName: user.name },
+      });
+    },
+  });
 
   if (isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -42,11 +66,8 @@ export function CartPage() {
   }
 
   const handleCheckout = async () => {
-    if (!checkout) return;
     try {
-      const order = await checkout.mutateAsync();
-      toast.show("주문이 완료되었습니다!");
-      navigate(`/my/orders/${order.orderId}`);
+      await checkout.mutateAsync();
     } catch (err) {
       // error handled by React Query
     }
@@ -134,20 +155,16 @@ export function CartPage() {
                 <span className="fs-5 fw-bold">{formatKRW(totalAmount)}</span>
               </div>
 
-              {checkout && (
-                <>
-                  <ErrorAlert error={checkout.error} />
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    className="w-100"
-                    disabled={checkout.isPending}
-                    onClick={handleCheckout}
-                  >
-                    {checkout.isPending ? "주문 처리 중..." : "주문하기"}
-                  </Button>
-                </>
-              )}
+              <ErrorAlert error={checkout.error} />
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-100"
+                disabled={checkout.isPending || availableItems.length === 0}
+                onClick={handleCheckout}
+              >
+                {checkout.isPending ? "결제 준비 중..." : "결제하기"}
+              </Button>
             </Card.Body>
           </Card>
         </Col>

@@ -33,15 +33,14 @@ public record RateLimitProperties(
             @Valid @NotNull Rule paymentConfirm,
             @Valid @NotNull Rule productQnaVerify,
             @Valid @NotNull Rule guestClaimVerify,
-            @Valid @NotNull Rule clientMonitoring,
-            @Valid @NotNull Rule cartCheckout
+            @Valid @NotNull Rule clientMonitoring
     ) {}
 
     public record SubjectRules(
             @Valid @NotNull Rule phoneVerification,
+            @Valid @NotNull Rule phoneVerificationAttempt,
             @Valid @NotNull Rule paymentConfirm,
-            @Valid @NotNull Rule guestClaimVerify,
-            @Valid @NotNull Rule cartCheckout
+            @Valid @NotNull Rule guestClaimVerify
     ) {}
 
     public record Rule(

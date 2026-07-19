@@ -63,60 +63,92 @@ class PaymentConfirmTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ClaimedAttempt claim(ConfirmCommand command) {
-        PaymentAttempt attempt = attemptReader.findByOrderIdExternalForUpdate(command.orderId())
-                .orElseThrow(() -> new NotFoundException("결제 시도"));
+    public ConfirmationStep resolveConfirmationStep(ConfirmCommand command) {
+        PaymentAttempt attempt = findValidatedAttemptForUpdate(command);
         String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
-        PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
-        PaymentPayload payload = deserialize(attempt.getPayloadEnc());
-        fulfiller.validateStoredPayload(attempt, payload);
-        requireSameActor(payload, command.auth());
 
         LocalDateTime now = LocalDateTime.now(clock);
+        if (attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
+            attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
+            return new Completed(confirmedResult(attempt));
+        }
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED) {
             attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
-            return ClaimedAttempt.approved(attempt);
+            return readyForFulfillment(attempt);
         }
+        String processingToken;
         if (attempt.getStatus() == PaymentAttemptStatus.PROCESSING) {
             if (!isStale(attempt, now)) {
                 attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
                 throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
             }
-            attempt.restartProcessing(command.amount(), paymentKey, now);
+            processingToken = attempt.restartProcessing(command.amount(), paymentKey, now);
         } else {
-            attempt.startProcessing(command.amount(), paymentKey, now);
+            processingToken = attempt.startProcessing(command.amount(), paymentKey, now);
         }
         attemptStore.save(attempt);
-        return ClaimedAttempt.processing(attempt);
+        if (attempt.getAmount() == 0L) {
+            return new ZeroAmountApprovalRequired(
+                    attempt.getId(), attempt.getOrderIdExternal(), processingToken);
+        }
+        return new PgConfirmationRequired(
+                attempt.getId(), attempt.getOrderIdExternal(), attempt.getAmount(),
+                attempt.getPaymentKey(), processingToken);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markApproved(Long attemptId, String confirmedPaymentKey) {
-        PaymentAttempt attempt = findForUpdate(attemptId);
+    public ConfirmationStep resolveAfterLostProcessingOwnership(ConfirmCommand command) {
+        PaymentAttempt attempt = findValidatedAttemptForUpdate(command);
+        String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
+        attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
+        if (attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
+            return new Completed(confirmedResult(attempt));
+        }
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED) {
-            if (!Objects.equals(attempt.getConfirmedPaymentKey(), confirmedPaymentKey)) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 결제 키가 기존 승인 결과와 일치하지 않습니다.");
-            }
-            return;
+            return readyForFulfillment(attempt);
         }
-        attempt.markApproved(confirmedPaymentKey, LocalDateTime.now(clock));
-        attemptStore.save(attempt);
+        throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void recordPgFailure(Long attemptId, String reason, boolean retryable) {
+    public boolean tryMarkApproved(Long attemptId,
+                                   String processingToken,
+                                   String confirmedPaymentKey) {
         PaymentAttempt attempt = findForUpdate(attemptId);
-        if (retryable) {
-            attempt.markRetryable(reason);
-        } else {
-            attempt.markFailed(reason);
+        if (attempt.getStatus() == PaymentAttemptStatus.APPROVED
+                || attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
+            requireSameConfirmedPaymentKey(attempt, confirmedPaymentKey);
+            return true;
+        }
+        if (!attempt.markApproved(processingToken, confirmedPaymentKey, LocalDateTime.now(clock))) {
+            return false;
         }
         attemptStore.save(attempt);
+        return true;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean tryRecordPgFailure(Long attemptId,
+                                      String processingToken,
+                                      String reason,
+                                      boolean retryable) {
+        PaymentAttempt attempt = findForUpdate(attemptId);
+        boolean changed = retryable
+                ? attempt.markRetryable(processingToken, reason)
+                : attempt.markProcessingFailed(processingToken, reason);
+        if (!changed) {
+            return false;
+        }
+        attemptStore.save(attempt);
+        return true;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ConfirmResult fulfillAndConfirm(Long attemptId) {
         PaymentAttempt attempt = findForUpdate(attemptId);
+        if (attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
+            return confirmedResult(attempt);
+        }
         if (attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
                     "승인된 결제만 도메인 생성에 사용할 수 있습니다.");
@@ -124,23 +156,44 @@ class PaymentConfirmTransactionService {
         PaymentPayload payload = deserialize(attempt.getPayloadEnc());
         PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
         PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(payload, attempt.getConfirmedPaymentKey());
-        attempt.markConfirmed();
+        String accessTokenEnc = fulfilled.rawAccessToken() == null
+                ? null
+                : fieldEncryptor.encrypt(fulfilled.rawAccessToken());
+        attempt.markConfirmed(fulfilled.domainId(), accessTokenEnc);
         attemptStore.save(attempt);
         return new ConfirmResult(attempt.getContext(), fulfilled.domainId(), fulfilled.rawAccessToken());
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void requestCompensation(Long attemptId, String confirmedPaymentKey, String reason) {
+    public boolean requestCompensationForUnpersistedApproval(Long attemptId,
+                                                             String processingToken,
+                                                             String confirmedPaymentKey,
+                                                             String reason) {
         PaymentAttempt attempt = findForUpdate(attemptId);
-        if (attempt.getStatus() == PaymentAttemptStatus.PROCESSING) {
-            attempt.markApproved(confirmedPaymentKey, LocalDateTime.now(clock));
-        } else if (attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
-                    "승인된 결제만 보상 환불을 요청할 수 있습니다.");
+        if (attempt.getStatus() != PaymentAttemptStatus.PROCESSING
+                || !attempt.markApproved(processingToken, confirmedPaymentKey, LocalDateTime.now(clock))) {
+            return false;
         }
-        if (!Objects.equals(attempt.getConfirmedPaymentKey(), confirmedPaymentKey)) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 결제 키가 기존 승인 결과와 일치하지 않습니다.");
+        requestCompensation(attempt, confirmedPaymentKey, reason);
+        return true;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean requestCompensationAfterFulfillmentFailure(Long attemptId,
+                                                              String confirmedPaymentKey,
+                                                              String reason) {
+        PaymentAttempt attempt = findForUpdate(attemptId);
+        if (attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
+            return false;
         }
+        requestCompensation(attempt, confirmedPaymentKey, reason);
+        return true;
+    }
+
+    private void requestCompensation(PaymentAttempt attempt,
+                                     String confirmedPaymentKey,
+                                     String reason) {
+        requireSameConfirmedPaymentKey(attempt, confirmedPaymentKey);
         attempt.markCompensationRequested(reason);
         attemptStore.save(attempt);
         refundExecutionService.requestPaymentAttemptRefund(
@@ -148,15 +201,28 @@ class PaymentConfirmTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markZeroAmountFulfillmentFailed(Long attemptId, String reason) {
+    public boolean tryMarkZeroAmountFulfillmentFailed(Long attemptId, String reason) {
         PaymentAttempt attempt = findForUpdate(attemptId);
+        if (attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
+            return false;
+        }
         attempt.markFailed(reason);
         attemptStore.save(attempt);
+        return true;
     }
 
     private PaymentAttempt findForUpdate(Long attemptId) {
         return attemptReader.findByIdForUpdate(attemptId)
                 .orElseThrow(() -> new NotFoundException("결제 시도"));
+    }
+
+    private PaymentAttempt findValidatedAttemptForUpdate(ConfirmCommand command) {
+        PaymentAttempt attempt = attemptReader.findByOrderIdExternalForUpdate(command.orderId())
+                .orElseThrow(() -> new NotFoundException("결제 시도"));
+        PaymentPayload payload = deserialize(attempt.getPayloadEnc());
+        fulfiller(attempt.getContext()).validateStoredPayload(attempt, payload);
+        requireSameActor(payload, command.auth());
+        return attempt;
     }
 
     private PaymentFulfiller fulfiller(PaymentContext context) {
@@ -179,28 +245,54 @@ class PaymentConfirmTransactionService {
         return objectMapper.readValue(json, PaymentPayload.class);
     }
 
+    private ConfirmResult confirmedResult(PaymentAttempt attempt) {
+        if (attempt.getFulfilledDomainId() == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "완료된 결제 결과가 없습니다.");
+        }
+        String accessToken = attempt.getFulfilledAccessTokenEnc() == null
+                ? null
+                : fieldEncryptor.decrypt(attempt.getFulfilledAccessTokenEnc());
+        return new ConfirmResult(attempt.getContext(), attempt.getFulfilledDomainId(), accessToken);
+    }
+
+    private ReadyForFulfillment readyForFulfillment(PaymentAttempt attempt) {
+        return new ReadyForFulfillment(
+                attempt.getId(), attempt.getOrderIdExternal(), attempt.getAmount(),
+                attempt.getConfirmedPaymentKey());
+    }
+
+    private void requireSameConfirmedPaymentKey(PaymentAttempt attempt, String confirmedPaymentKey) {
+        if (!Objects.equals(attempt.getConfirmedPaymentKey(), confirmedPaymentKey)) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 결제 키가 기존 승인 결과와 일치하지 않습니다.");
+        }
+    }
+
     private boolean isStale(PaymentAttempt attempt, LocalDateTime now) {
         return attempt.getProcessingAt() == null
                 || !attempt.getProcessingAt().isAfter(now.minus(PROCESSING_STALE_AFTER));
     }
 
-    record ClaimedAttempt(Long id, String orderId, long amount, String paymentKey,
-                          String confirmedPaymentKey, boolean approved) {
+    sealed interface ConfirmationStep
+            permits Completed, ReadyForFulfillment, PgConfirmationRequired, ZeroAmountApprovalRequired {}
 
-        static ClaimedAttempt processing(PaymentAttempt attempt) {
-            return new ClaimedAttempt(
-                    attempt.getId(), attempt.getOrderIdExternal(), attempt.getAmount(),
-                    attempt.getPaymentKey(), null, false);
-        }
+    record Completed(ConfirmResult result) implements ConfirmationStep {}
 
-        static ClaimedAttempt approved(PaymentAttempt attempt) {
-            return new ClaimedAttempt(
-                    attempt.getId(), attempt.getOrderIdExternal(), attempt.getAmount(),
-                    attempt.getPaymentKey(), attempt.getConfirmedPaymentKey(), true);
-        }
+    record ReadyForFulfillment(Long attemptId,
+                               String orderId,
+                               long amount,
+                               String confirmedPaymentKey) implements ConfirmationStep {}
 
+    record PgConfirmationRequired(Long attemptId,
+                                  String orderId,
+                                  long amount,
+                                  String paymentKey,
+                                  String processingToken) implements ConfirmationStep {
         String idempotencyKey() {
             return orderId;
         }
     }
+
+    record ZeroAmountApprovalRequired(Long attemptId,
+                                      String orderId,
+                                      String processingToken) implements ConfirmationStep {}
 }

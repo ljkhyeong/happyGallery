@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.LoginRequest;
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -39,6 +40,7 @@ class SecurityBoundaryUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired ObjectMapper objectMapper;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReader;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired AdminUserPort adminUserPort;
     @Autowired PasswordEncoder passwordEncoder;
@@ -141,7 +143,7 @@ class SecurityBoundaryUseCaseIT {
     @DisplayName("회원 세션으로 관리자 API를 호출해도 회원 세션 ID는 바뀌지 않는다")
     @Test
     void adminAuthentication_doesNotRotateCustomerSession() throws Exception {
-        Cookie customerSession = new CustomerTestHelper(mockMvc, objectMapper)
+        Cookie customerSession = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader)
                 .signupAndGetSessionCookie("security-boundary@example.com", "010-1234-9999");
 
         mockMvc.perform(get("/api/v1/admin/products")

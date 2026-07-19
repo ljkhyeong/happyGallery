@@ -1,12 +1,8 @@
 package com.personal.happygallery.application.customer;
 
+import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
-import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
-import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
 import com.personal.happygallery.domain.booking.Guest;
-import com.personal.happygallery.domain.booking.PhoneVerification;
-import java.time.Clock;
-import java.time.LocalDateTime;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,19 +14,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class VerifiedGuestResolver {
 
-    private final PhoneVerificationReaderPort phoneVerificationReader;
+    private final PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
     private final GuestStorePort guestStore;
     private final GuestPersonalDataProtector guestPersonalDataProtector;
-    private final Clock clock;
 
-    public VerifiedGuestResolver(PhoneVerificationReaderPort phoneVerificationReader,
+    public VerifiedGuestResolver(PhoneOwnershipVerificationUseCase phoneOwnershipVerification,
                                   GuestStorePort guestStore,
-                                  GuestPersonalDataProtector guestPersonalDataProtector,
-                                  Clock clock) {
-        this.phoneVerificationReader = phoneVerificationReader;
+                                  GuestPersonalDataProtector guestPersonalDataProtector) {
+        this.phoneOwnershipVerification = phoneOwnershipVerification;
         this.guestStore = guestStore;
         this.guestPersonalDataProtector = guestPersonalDataProtector;
-        this.clock = clock;
     }
 
     /**
@@ -40,10 +33,7 @@ public class VerifiedGuestResolver {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public Guest resolveVerifiedGuest(String phone, String verificationCode, String name) {
-        PhoneVerification pv = phoneVerificationReader
-                .findValidVerification(phone, verificationCode, LocalDateTime.now(clock))
-                .orElseThrow(PhoneVerificationFailedException::new);
-        pv.markVerified();
+        phoneOwnershipVerification.verify(phone, verificationCode);
 
         Guest guest = guestStore.getOrCreateByPhoneHmac(guestPersonalDataProtector.newGuest(name, phone));
         guest.markPhoneVerified();

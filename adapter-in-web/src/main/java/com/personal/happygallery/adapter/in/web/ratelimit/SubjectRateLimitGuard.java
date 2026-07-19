@@ -24,6 +24,11 @@ public class SubjectRateLimitGuard {
                 properties.subject().phoneVerification(), FAIL_CLOSED);
     }
 
+    public void checkPhoneVerificationAttempt(String phone) {
+        check("PHONE_VERIFICATION_ATTEMPT_PHONE", phone,
+                properties.subject().phoneVerificationAttempt(), FAIL_CLOSED);
+    }
+
     public void checkPaymentConfirm(String orderId) {
         check("PAYMENT_CONFIRM_ORDER", orderId,
                 properties.subject().paymentConfirm(), FAIL_OPEN);
@@ -32,11 +37,6 @@ public class SubjectRateLimitGuard {
     public void checkGuestClaim(long userId) {
         check("GUEST_CLAIM_USER", String.valueOf(userId),
                 properties.subject().guestClaimVerify(), FAIL_CLOSED);
-    }
-
-    public void checkCartCheckout(long userId) {
-        check("CART_CHECKOUT_USER", String.valueOf(userId),
-                properties.subject().cartCheckout(), FAIL_CLOSED);
     }
 
     private void check(String ruleId, String subject, Rule rule, RateLimitFailureMode failureMode) {

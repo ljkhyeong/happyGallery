@@ -12,6 +12,9 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 app:
+  social-login:
+    google-redirect-uri: ${GOOGLE_OAUTH_REDIRECT_URI}
+    naver-redirect-uri: ${NAVER_OAUTH_REDIRECT_URI}
   admin:
     enable-api-key-auth: false
 

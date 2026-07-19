@@ -14,7 +14,8 @@ public interface PaymentPort {
      * @param orderId    서버가 prepare 단계에 생성한 외부 주문 식별자 (UUID)
      * @param amount     확정 금액 (원) — prepare 단계 금액과 일치해야 한다
      * @param idempotencyKey 동일 승인 재시도에 계속 사용하는 PG 멱등키
-     * @return 성공 시 success=true + paymentKey/method/approvedAt, 실패 시 success=false + failReason
+     * @return 성공 시 success=true + paymentKey/method/approvedAt, 실패 시 success=false + failReason.
+     *         외부 통신·서킷 브레이커·타임아웃 같은 운영 실패도 null이나 예외가 아니라 실패 결과로 반환한다.
      */
     PaymentConfirmResult confirm(String paymentKey, String orderId, long amount, String idempotencyKey);
 

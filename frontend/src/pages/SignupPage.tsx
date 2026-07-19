@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
@@ -20,6 +21,7 @@ export function SignupPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState(searchParams.get("name") ?? "");
   const [phone, setPhone] = useState(normalizePhone(searchParams.get("phone") ?? ""));
+  const [verificationCode, setVerificationCode] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -27,12 +29,12 @@ export function SignupPage() {
     e.preventDefault();
     setError("");
     setSubmitting(true);
-    const ok = await signup(email, password, name, phone);
+    const ok = await signup(email, password, name, phone, verificationCode);
     setSubmitting(false);
     if (ok) {
       navigate(redirectTo);
     } else {
-      setError("회원가입에 실패했습니다. 이미 사용 중인 이메일일 수 있습니다.");
+      setError("회원가입에 실패했습니다. 인증코드와 가입 정보를 확인해주세요.");
     }
   }
 
@@ -122,18 +124,23 @@ export function SignupPage() {
                     required
                   />
                 </Form.Group>
-                <Form.Group className="mb-3" controlId="phone">
-                  <Form.Label>전화번호</Form.Label>
-                  <Form.Control
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(normalizePhone(e.target.value))}
-                    required
-                    placeholder="01012345678"
-                    maxLength={11}
+                <div className="mb-4">
+                  <PhoneVerificationStep
+                    title="휴대폰 소유 확인"
+                    initialPhone={phone}
+                    confirmLabel="인증코드 적용"
+                    onVerified={(verifiedPhone, code) => {
+                      setPhone(verifiedPhone);
+                      setVerificationCode(code);
+                    }}
+                    onReset={() => setVerificationCode("")}
                   />
-                </Form.Group>
-                <Button type="submit" className="w-100" disabled={submitting}>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-100"
+                  disabled={!verificationCode || submitting}
+                >
                   {submitting ? "가입 중..." : "회원가입"}
                 </Button>
               </Form>

@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.customer;
 
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
+import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -18,15 +19,18 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
 
     private final UserReaderPort userReader;
     private final UserStorePort userStore;
+    private final PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
 
     public DefaultCustomerAuthService(UserReaderPort userReader,
                                       UserStorePort userStore,
+                                      PhoneOwnershipVerificationUseCase phoneOwnershipVerification,
                                       PasswordEncoder passwordEncoder,
                                       Clock clock) {
         this.userReader = userReader;
         this.userStore = userStore;
+        this.phoneOwnershipVerification = phoneOwnershipVerification;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
     }
@@ -37,11 +41,13 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
         if (userReader.existsByEmail(command.email())) {
             throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
+        phoneOwnershipVerification.verify(command.phone(), command.verificationCode());
         User user = new User(
                 command.email(),
                 passwordEncoder.encode(command.rawPassword()),
                 command.name(),
                 command.phone());
+        user.markPhoneVerified();
         return userStore.save(user);
     }
 

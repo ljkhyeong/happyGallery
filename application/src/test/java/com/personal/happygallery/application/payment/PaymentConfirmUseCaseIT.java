@@ -3,6 +3,8 @@ package com.personal.happygallery.application.payment;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
@@ -21,11 +23,14 @@ import com.personal.happygallery.application.payment.port.out.PaymentConfirmResu
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
+import com.personal.happygallery.adapter.out.persistence.cart.CartItemRepository;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -36,6 +41,8 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -43,6 +50,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -84,12 +92,17 @@ class PaymentConfirmUseCaseIT {
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired UserStorePort userStorePort;
+    @Autowired PhoneVerificationStorePort phoneVerificationStorePort;
+    @Autowired CartItemStorePort cartItemStorePort;
+    @Autowired CartItemRepository cartItemRepository;
     @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean PaymentProvider paymentProvider;
 
     @BeforeEach
     void setUp() {
+        cartItemRepository.deleteAllInBatch();
         cleanupSupport.clearOrderData();
         cleanupSupport.clearBookingWithPassAndRefundData();
         cleanupSupport.clearUsers();
@@ -98,6 +111,69 @@ class PaymentConfirmUseCaseIT {
                         "confirmed-payment-key", "CARD", "2026-07-12T10:00:00+09:00"));
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("compensation-refund-key"));
+    }
+
+    @DisplayName("장바구니 결제는 prepare 시점 항목으로 주문하고 결제 후 추가한 수량은 남긴다")
+    @Test
+    void confirm_cartCheckout_consumesOnlyPreparedQuantities() {
+        User user = userStorePort.save(new User("cart-payment@example.com", "hashed", "회원", "01067896789"));
+        Product product = productStorePort.save(readyStockProduct("장바구니 결제 상품", 31_000L));
+        inventoryStorePort.save(inventory(product, 5));
+        CartItem cartItem = cartItemStorePort.save(new CartItem(
+                user.getId(), product.getId(), 2, LocalDateTime.of(2026, 7, 19, 10, 0)));
+        AuthContext auth = AuthContext.member(user.getId());
+
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(user.getId(), null, null, null, List.of(), true),
+                auth));
+        cartItem.addQty(1, LocalDateTime.of(2026, 7, 19, 10, 1));
+        cartItemStorePort.save(cartItem);
+
+        PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
+                new ConfirmCommand("cart-payment-key", prepared.orderId(), prepared.amount(), auth));
+
+        var order = orderReader.findById(result.domainId()).orElseThrow();
+        var remainingCartItem = cartItemRepository.findByUserIdAndProductId(user.getId(), product.getId());
+        assertSoftly(softly -> {
+            softly.assertThat(prepared.amount()).isEqualTo(62_000L);
+            softly.assertThat(order.getTotalAmount()).isEqualTo(62_000L);
+            softly.assertThat(remainingCartItem).hasValueSatisfying(item ->
+                    softly.assertThat(item.getQty()).isEqualTo(1));
+        });
+    }
+
+    @DisplayName("장바구니 결제는 prepare 후 같은 상품을 다시 담아도 새 항목을 제거하지 않는다")
+    @Test
+    void confirm_cartCheckout_preservesRecreatedCartItem() {
+        User user = userStorePort.save(new User(
+                "cart-recreated@example.com", "hashed", "장바구니 회원", "01078907890"));
+        Product product = productStorePort.save(readyStockProduct("다시 담은 상품", 28_000L));
+        inventoryStorePort.save(inventory(product, 5));
+        CartItem preparedCartItem = cartItemStorePort.save(new CartItem(
+                user.getId(), product.getId(), 1, LocalDateTime.of(2026, 7, 19, 11, 0)));
+        AuthContext auth = AuthContext.member(user.getId());
+
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(user.getId(), null, null, null, List.of(), true),
+                auth));
+        cartItemRepository.deleteById(preparedCartItem.getId());
+        cartItemRepository.flush();
+        CartItem recreatedCartItem = cartItemStorePort.save(new CartItem(
+                user.getId(), product.getId(), 1, LocalDateTime.of(2026, 7, 19, 11, 1)));
+
+        PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
+                new ConfirmCommand("cart-recreated-key", prepared.orderId(), prepared.amount(), auth));
+
+        assertSoftly(softly -> {
+            softly.assertThat(orderReader.findById(result.domainId())).isPresent();
+            softly.assertThat(cartItemRepository.findByUserIdAndProductId(user.getId(), product.getId()))
+                    .hasValueSatisfying(item -> {
+                        softly.assertThat(item.getId()).isEqualTo(recreatedCartItem.getId());
+                        softly.assertThat(item.getQty()).isEqualTo(1);
+                    });
+        });
     }
 
     @DisplayName("confirm은 상품 가격이 바뀌어도 prepare 시점 단가로 주문을 저장한다")
@@ -133,6 +209,44 @@ class PaymentConfirmUseCaseIT {
         });
         verify(paymentProvider).confirm(
                 "payment-key-confirm", prepared.orderId(), prepared.amount(), prepared.orderId());
+    }
+
+    @DisplayName("완료된 비회원 결제를 재호출하면 저장한 결과를 반환하고 PG와 주문 생성을 반복하지 않는다")
+    @Test
+    void confirm_completedGuestOrder_returnsStoredResultIdempotently() {
+        String phone = "01090908080";
+        String verificationCode = "654321";
+        PhoneVerification verification = new PhoneVerification(
+                phone, verificationCode, LocalDateTime.now(clock).plusMinutes(5));
+        verification.markDelivered();
+        phoneVerificationStorePort.save(verification);
+        Product product = productStorePort.save(readyStockProduct("비회원 멱등 주문 상품", 47_000L));
+        inventoryStorePort.save(inventory(product, 2));
+        AuthContext auth = AuthContext.guest();
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        null, phone, verificationCode, "비회원",
+                        List.of(new OrderItemRef(product.getId(), 1))),
+                auth));
+        ConfirmCommand command = new ConfirmCommand(
+                "guest-idempotent-payment-key", prepared.orderId(), prepared.amount(), auth);
+
+        PaymentConfirmUseCase.ConfirmResult first = confirmUseCase.confirm(command);
+        PaymentConfirmUseCase.ConfirmResult replay = confirmUseCase.confirm(command);
+
+        var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(replay).isEqualTo(first);
+            softly.assertThat(first.accessToken()).isNotBlank();
+            softly.assertThat(orderReader.findAllByOrderByCreatedAtDesc()).hasSize(1);
+            softly.assertThat(attempt.getFulfilledDomainId()).isEqualTo(first.domainId());
+            softly.assertThat(attempt.getFulfilledAccessTokenEnc())
+                    .isNotBlank()
+                    .doesNotContain(first.accessToken());
+        });
+        verify(paymentProvider, times(1)).confirm(
+                "guest-idempotent-payment-key", prepared.orderId(), prepared.amount(), prepared.orderId());
     }
 
     @DisplayName("confirm은 클래스 가격이 바뀌어도 prepare 시점 예약금과 잔금으로 예약을 저장한다")
@@ -354,6 +468,63 @@ class PaymentConfirmUseCaseIT {
                     eq("payment-key-concurrent"), eq(prepared.orderId()), eq(prepared.amount()), eq(prepared.orderId()));
         } finally {
             releasePg.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @DisplayName("stale confirm의 늦은 PG 실패는 새 실행권이 완료한 결제 결과를 덮지 않는다")
+    @Test
+    void confirm_stalePgFailure_returnsLatestCompletedResult() throws Exception {
+        User user = userStorePort.save(new User(
+                "payment-stale@example.com", "hashed", "회원", "01066667777"));
+        Product product = productStorePort.save(readyStockProduct("stale 확정 상품", 64_000L));
+        inventoryStorePort.save(inventory(product, 2));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                auth));
+        ConfirmCommand command = new ConfirmCommand(
+                "payment-key-stale", prepared.orderId(), prepared.amount(), auth);
+        CountDownLatch firstPgEntered = new CountDownLatch(1);
+        CountDownLatch releaseFirstPg = new CountDownLatch(1);
+        AtomicInteger pgCalls = new AtomicInteger();
+        when(paymentProvider.confirm(any(), any(), anyLong(), any()))
+                .thenAnswer(invocation -> {
+                    if (pgCalls.getAndIncrement() == 0) {
+                        firstPgEntered.countDown();
+                        if (!releaseFirstPg.await(3, TimeUnit.SECONDS)) {
+                            throw new IllegalStateException("첫 PG 호출 해제 대기 시간 초과");
+                        }
+                        return PaymentConfirmResult.failure("늦은 PG 실패");
+                    }
+                    return PaymentConfirmResult.success(
+                            "confirmed-payment-key", "CARD", "2026-07-12T10:00:00+09:00");
+                });
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            var staleConfirm = executor.submit(() -> confirmUseCase.confirm(command));
+            assertThat(firstPgEntered.await(3, TimeUnit.SECONDS)).isTrue();
+            assertThat(jdbcTemplate.update(
+                    "UPDATE payment_attempt SET processing_at = ? WHERE order_id_external = ?",
+                    LocalDateTime.now(clock).minusMinutes(2), prepared.orderId())).isOne();
+
+            var latestConfirm = executor.submit(() -> confirmUseCase.confirm(command));
+            PaymentConfirmUseCase.ConfirmResult latestResult = latestConfirm.get(3, TimeUnit.SECONDS);
+            releaseFirstPg.countDown();
+            PaymentConfirmUseCase.ConfirmResult staleResult = staleConfirm.get(3, TimeUnit.SECONDS);
+
+            var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
+            assertSoftly(softly -> {
+                softly.assertThat(staleResult).isEqualTo(latestResult);
+                softly.assertThat(orderReader.findAllByOrderByCreatedAtDesc()).hasSize(1);
+                softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
+            });
+            verify(paymentProvider, times(2)).confirm(
+                    eq("payment-key-stale"), eq(prepared.orderId()), eq(prepared.amount()), eq(prepared.orderId()));
+        } finally {
+            releaseFirstPg.countDown();
             executor.shutdownNow();
         }
     }

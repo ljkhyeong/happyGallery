@@ -29,7 +29,13 @@ interface CustomerAuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, password: string, name: string, phone: string) => Promise<boolean>;
+  signup: (
+    email: string,
+    password: string,
+    name: string,
+    phone: string,
+    verificationCode: string,
+  ) => Promise<boolean>;
   socialLogin: (
     provider: SocialProvider,
     code: string,
@@ -83,11 +89,18 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       password: string,
       name: string,
       phone: string,
+      verificationCode: string,
     ): Promise<boolean> => {
       try {
         const me = await api<CustomerUserResponse>("/auth/signup", {
           method: "POST",
-          body: { email, password, name, phone: normalizePhone(phone) },
+          body: {
+            email,
+            password,
+            name,
+            phone: normalizePhone(phone),
+            verificationCode,
+          },
         });
         setUser(me);
         return true;

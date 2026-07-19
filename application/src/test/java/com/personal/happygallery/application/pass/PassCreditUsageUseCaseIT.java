@@ -1,12 +1,7 @@
 package com.personal.happygallery.application.pass;
 
 import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
-import com.personal.happygallery.domain.booking.Refund;
-import com.personal.happygallery.domain.booking.BookingClass;
-import com.personal.happygallery.domain.booking.BookingStatus;
-import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.domain.pass.PassLedgerType;
-import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
@@ -14,10 +9,16 @@ import com.personal.happygallery.adapter.out.persistence.booking.RefundRepositor
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
-import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
-import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
+import com.personal.happygallery.application.payment.port.out.RefundResult;
+import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.BookingStatus;
+import com.personal.happygallery.domain.booking.Refund;
+import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.pass.PassLedgerType;
+import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.support.CustomerTestHelper;
@@ -81,6 +82,7 @@ class PassCreditUsageUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
     @Autowired ObjectMapper objectMapper;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReader;
     @MockitoBean PaymentProvider paymentProvider;
 
     BookingClass cls;
@@ -96,7 +98,7 @@ class PassCreditUsageUseCaseIT {
                 .apply(springSecurity())
                 .build();
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
-        customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
+        customerHelper = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader);
         cleanupSupport.clearBookingWithPassAndRefundData();
 
         cls = classRepository.save(defaultBookingClass());

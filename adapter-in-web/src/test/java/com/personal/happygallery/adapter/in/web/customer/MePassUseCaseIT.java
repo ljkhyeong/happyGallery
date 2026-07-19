@@ -1,7 +1,8 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
-import com.personal.happygallery.application.notification.NotificationService;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
+import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -31,6 +32,7 @@ class MePassUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired UserReaderPort userReaderPort;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReader;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired ObjectMapper objectMapper;
     @MockitoBean NotificationService notificationService;
@@ -49,7 +51,7 @@ class MePassUseCaseIT {
                 .apply(springSecurity())
                 .build();
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
-        customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
+        customerHelper = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader);
         sessionCookie = customerHelper.signupAndGetSessionCookie("pass@test.com", "010-5555-6666");
         userId = userReaderPort.findByEmail("pass@test.com").orElseThrow().getId();
     }

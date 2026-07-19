@@ -149,12 +149,11 @@ app:
       product-qna-verify: { capacity: 10, window: 1m }
       guest-claim-verify: { capacity: 10, window: 1m }
       client-monitoring: { capacity: 60, window: 1m }
-      cart-checkout: { capacity: 10, window: 1m }
     subject:
       phone-verification: { capacity: 3, window: 10m }
+      phone-verification-attempt: { capacity: 5, window: 10m }
       payment-confirm: { capacity: 20, window: 1m }
       guest-claim-verify: { capacity: 5, window: 1m }
-      cart-checkout: { capacity: 5, window: 1m }
 
 management:
   server:

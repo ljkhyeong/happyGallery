@@ -1,7 +1,8 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
-import com.personal.happygallery.application.notification.NotificationService;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
+import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.product.Inventory;
@@ -41,6 +42,7 @@ class MeOrderUseCaseIT {
     @Autowired UserReaderPort userReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired ObjectMapper objectMapper;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReader;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
@@ -58,7 +60,7 @@ class MeOrderUseCaseIT {
                 .apply(springSecurity())
                 .build();
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
-        customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
+        customerHelper = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader);
 
         Product product = productStorePort.save(readyStockProduct("테스트 상품", 29_000L));
         inventoryStorePort.save(inventory(product, 10));

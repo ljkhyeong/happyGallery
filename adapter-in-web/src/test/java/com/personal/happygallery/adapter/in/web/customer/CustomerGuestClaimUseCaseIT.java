@@ -13,7 +13,6 @@ import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.OrderService;
 import com.personal.happygallery.adapter.in.web.customer.dto.ClaimGuestRecordsRequest;
-import com.personal.happygallery.adapter.in.web.customer.dto.VerifyGuestClaimPhoneRequest;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
@@ -76,7 +75,6 @@ class CustomerGuestClaimUseCaseIT {
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
-    BookingTestHelper bookingHelper;
     CustomerTestHelper customerHelper;
 
     @BeforeEach
@@ -86,8 +84,7 @@ class CustomerGuestClaimUseCaseIT {
                 .addFilters(springSessionRepositoryFilter)
                 .apply(springSecurity())
                 .build();
-        bookingHelper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort, objectMapper);
-        customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
+        customerHelper = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReaderPort);
     }
 
     @AfterEach
@@ -101,7 +98,7 @@ class CustomerGuestClaimUseCaseIT {
         cleanupSupport.clearUsers();
     }
 
-    @DisplayName("회원은 휴대폰 재인증 후 같은 번호의 비회원 주문과 예약을 가져올 수 있다")
+    @DisplayName("휴대폰 소유 확인을 마친 회원은 같은 번호의 비회원 주문과 예약을 가져올 수 있다")
     @Test
     void verifyAndClaimGuestRecords() throws Exception {
         String email = "member@example.com";
@@ -126,14 +123,9 @@ class CustomerGuestClaimUseCaseIT {
         Cookie sessionCookie = customerHelper.signupAndGetSessionCookie(email, "010-1234-5678");
         User user = userReaderPort.findByEmail(email).orElseThrow();
 
-        String verificationCode = bookingHelper.sendVerificationAndGetCode("01012345678");
-
-        mockMvc.perform(post("/api/v1/me/guest-claims/verify")
-                        .with(csrf())
+        mockMvc.perform(get("/api/v1/me/guest-claims/preview")
                         .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new VerifyGuestClaimPhoneRequest(verificationCode))))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phoneVerified").value(true))
                 .andExpect(jsonPath("$.orders[0].orderId").value(order.getId()))
@@ -191,15 +183,6 @@ class CustomerGuestClaimUseCaseIT {
                 guest, slot, 10_000L, 40_000L,
                 DepositPaymentMethod.CARD, "claim-conflict-token"));
 
-        String verificationCode = bookingHelper.sendVerificationAndGetCode(phone);
-        mockMvc.perform(post("/api/v1/me/guest-claims/verify")
-                        .with(csrf())
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new VerifyGuestClaimPhoneRequest(verificationCode))))
-                .andExpect(status().isOk());
-
         mockMvc.perform(post("/api/v1/me/guest-claims")
                         .with(csrf())
                         .cookie(sessionCookie)
@@ -214,17 +197,6 @@ class CustomerGuestClaimUseCaseIT {
             softly.assertThat(unchanged.getUserId()).isNull();
             softly.assertThat(unchanged.getGuest().getId()).isEqualTo(guest.getId());
         });
-    }
-
-    @DisplayName("휴대폰 재인증 전에는 비회원 이력 미리보기를 조회할 수 없다")
-    @Test
-    void preview_requiresPhoneVerification() throws Exception {
-        Cookie sessionCookie = customerHelper.signupAndGetSessionCookie("preview@example.com", "01012345678");
-
-        mockMvc.perform(get("/api/v1/me/guest-claims/preview")
-                        .cookie(sessionCookie))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("휴대폰 인증을 완료한 뒤 다시 시도해주세요."));
     }
 
 }

@@ -165,6 +165,7 @@ public class TestCleanupSupport {
     public void clearUsers() {
         socialAccountRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
+        phoneVerificationRepository.deleteAllInBatch();
     }
 
     public void clearNotificationLogs() {

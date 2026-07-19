@@ -13,14 +13,15 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * PG 결제 확정 시도 — payment_attempt 테이블.
  *
  * <p>서버가 prepare 단계에서 orderIdExternal(UUID)과 amount를 확정해
  * {@link PaymentAttemptStatus#PENDING}으로 생성한다. confirm 단계에서는 짧은 트랜잭션으로
- * PROCESSING을 선점하고, 트랜잭션 밖 PG 승인 후 APPROVED를 저장한 다음 도메인 생성과
- * CONFIRMED 전이를 한 트랜잭션으로 완료한다.
+ * PROCESSING과 실행권 토큰을 선점하고, 트랜잭션 밖 PG 승인 후 현재 토큰과 일치하는 결과만
+ * APPROVED로 저장한 다음 도메인 생성과 CONFIRMED 전이를 한 트랜잭션으로 완료한다.
  *
  * <p>서버가 orderId와 amount를 둘 다 쥐는 것이 핵심이다. 클라이언트가 금액을 속여도
  * prepare 시점의 amount와 confirm 시점에 들어온 amount가 다르면 {@link #startProcessing(long, String, LocalDateTime)}에서
@@ -51,6 +52,9 @@ public class PaymentAttempt {
     @Column(name = "processing_at")
     private LocalDateTime processingAt;
 
+    @Column(name = "processing_token", length = 64)
+    private String processingToken;
+
     @Column(name = "payment_key", length = 200)
     private String paymentKey;
 
@@ -63,6 +67,13 @@ public class PaymentAttempt {
     @Lob
     @Column(name = "payload_enc", nullable = false, columnDefinition = "MEDIUMTEXT")
     private String payloadEnc;
+
+    @Column(name = "fulfilled_domain_id")
+    private Long fulfilledDomainId;
+
+    @Lob
+    @Column(name = "fulfilled_access_token_enc", columnDefinition = "MEDIUMTEXT")
+    private String fulfilledAccessTokenEnc;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -105,26 +116,35 @@ public class PaymentAttempt {
     }
 
     /** confirm 실행권을 선점한다. PENDING/RETRYABLE → PROCESSING. */
-    public void startProcessing(long requestedAmount, String paymentKey, LocalDateTime processingAt) {
+    public String startProcessing(long requestedAmount, String paymentKey, LocalDateTime processingAt) {
         status.requireConfirmable();
         requireRequestedAmount(requestedAmount);
         requireSamePaymentKey(paymentKey);
         this.status = PaymentAttemptStatus.PROCESSING;
         this.paymentKey = paymentKey;
         this.processingAt = processingAt;
+        this.processingToken = UUID.randomUUID().toString();
         this.failReason = null;
+        return this.processingToken;
     }
 
     /** 제한 시간을 넘긴 PROCESSING 요청을 동일 금액/paymentKey로 다시 선점한다. */
-    public void restartProcessing(long requestedAmount, String paymentKey, LocalDateTime processingAt) {
+    public String restartProcessing(long requestedAmount, String paymentKey, LocalDateTime processingAt) {
         requireStatus(PaymentAttemptStatus.PROCESSING);
         requireMatchingConfirmRequest(requestedAmount, paymentKey);
         this.processingAt = processingAt;
+        this.processingToken = UUID.randomUUID().toString();
+        this.failReason = null;
+        return this.processingToken;
     }
 
     /** PG 승인 또는 amount=0 내부 승인이 끝나 도메인 생성을 수행할 수 있다. */
-    public void markApproved(String confirmedPaymentKey, LocalDateTime approvedAt) {
-        requireStatus(PaymentAttemptStatus.PROCESSING);
+    public boolean markApproved(String expectedProcessingToken,
+                                String confirmedPaymentKey,
+                                LocalDateTime approvedAt) {
+        if (!ownsProcessing(expectedProcessingToken)) {
+            return false;
+        }
         boolean hasConfirmedPaymentKey = confirmedPaymentKey != null && !confirmedPaymentKey.isBlank();
         if (amount > 0 && !hasConfirmedPaymentKey) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 승인 결과의 paymentKey가 누락되었습니다.");
@@ -135,25 +155,47 @@ public class PaymentAttempt {
         this.status = PaymentAttemptStatus.APPROVED;
         this.confirmedPaymentKey = confirmedPaymentKey;
         this.confirmedAt = approvedAt;
+        this.processingToken = null;
+        return true;
     }
 
-    /** 도메인 생성까지 완료한다. APPROVED → CONFIRMED. */
-    public void markConfirmed() {
+    /** 도메인 생성 결과를 보존하고 APPROVED → CONFIRMED로 전이한다. */
+    public void markConfirmed(Long domainId, String accessTokenEnc) {
         requireStatus(PaymentAttemptStatus.APPROVED);
+        if (domainId == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "완료된 결제의 도메인 ID가 누락되었습니다.");
+        }
         this.status = PaymentAttemptStatus.CONFIRMED;
+        this.fulfilledDomainId = domainId;
+        this.fulfilledAccessTokenEnc = accessTokenEnc;
         this.failReason = null;
     }
 
     /** 네트워크 타임아웃처럼 같은 멱등키로 다시 확인할 수 있는 PG 실패다. */
-    public void markRetryable(String reason) {
-        requireStatus(PaymentAttemptStatus.PROCESSING);
+    public boolean markRetryable(String expectedProcessingToken, String reason) {
+        if (!ownsProcessing(expectedProcessingToken)) {
+            return false;
+        }
         this.status = PaymentAttemptStatus.RETRYABLE;
         this.failReason = reason;
+        this.processingToken = null;
+        return true;
     }
 
-    /** 최종 PG 실패 또는 amount=0 도메인 생성 실패다. */
+    /** 현재 선점자가 받은 최종 PG 실패다. */
+    public boolean markProcessingFailed(String expectedProcessingToken, String reason) {
+        if (!ownsProcessing(expectedProcessingToken)) {
+            return false;
+        }
+        this.status = PaymentAttemptStatus.FAILED;
+        this.failReason = reason;
+        this.processingToken = null;
+        return true;
+    }
+
+    /** amount=0 내부 승인 뒤 도메인 생성이 실패했다. */
     public void markFailed(String reason) {
-        requireStatus(PaymentAttemptStatus.PROCESSING, PaymentAttemptStatus.APPROVED);
+        requireStatus(PaymentAttemptStatus.APPROVED);
         this.status = PaymentAttemptStatus.FAILED;
         this.failReason = reason;
     }
@@ -183,6 +225,7 @@ public class PaymentAttempt {
     /** 사용자 포기/타임아웃 시 배치/어드민이 호출. */
     public void markCanceled() {
         this.status = PaymentAttemptStatus.CANCELED;
+        this.processingToken = null;
     }
 
     public Long getId() { return id; }
@@ -194,8 +237,11 @@ public class PaymentAttempt {
     public String getConfirmedPaymentKey() { return confirmedPaymentKey; }
     public String getFailReason() { return failReason; }
     public String getPayloadEnc() { return payloadEnc; }
+    public Long getFulfilledDomainId() { return fulfilledDomainId; }
+    public String getFulfilledAccessTokenEnc() { return fulfilledAccessTokenEnc; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getProcessingAt() { return processingAt; }
+    public String getProcessingToken() { return processingToken; }
     public LocalDateTime getConfirmedAt() { return confirmedAt; }
     public long getVersion() { return version; }
 
@@ -223,5 +269,11 @@ public class PaymentAttempt {
         }
         throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
                 "결제 상태를 변경할 수 없습니다. (현재: " + status + ")");
+    }
+
+    private boolean ownsProcessing(String expectedProcessingToken) {
+        return status == PaymentAttemptStatus.PROCESSING
+                && processingToken != null
+                && processingToken.equals(expectedProcessingToken);
     }
 }

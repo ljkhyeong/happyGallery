@@ -10,7 +10,13 @@ public interface CartUseCase {
 
     record CartView(List<CartItemView> items, long totalAmount) {}
 
+    record CartPurchaseItem(Long cartItemId, Long productId, int qty) {}
+
+    record PurchasedItem(Long cartItemId, int qty) {}
+
     CartView getCart(Long userId);
+
+    List<CartPurchaseItem> getPurchasableItems(Long userId);
 
     void addItem(Long userId, Long productId, int qty);
 
@@ -18,5 +24,5 @@ public interface CartUseCase {
 
     void removeItem(Long userId, Long productId);
 
-    void clearCart(Long userId);
+    void removePurchasedItems(Long userId, List<PurchasedItem> items);
 }

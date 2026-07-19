@@ -253,7 +253,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                   "payload": {
                                     "type": "ORDER",
                                     "userId": 11,
-                                    "items": [{ "productId": 1, "qty": 1 }]
+                                    "items": [],
+                                    "cartCheckout": true
                                   }
                                 }
                                 """))

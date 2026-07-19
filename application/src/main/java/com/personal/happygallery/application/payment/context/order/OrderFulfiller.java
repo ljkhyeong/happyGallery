@@ -1,5 +1,7 @@
 package com.personal.happygallery.application.payment.context.order;
 
+import com.personal.happygallery.application.cart.port.in.CartUseCase;
+import com.personal.happygallery.application.cart.port.in.CartUseCase.PurchasedItem;
 import com.personal.happygallery.application.customer.VerifiedGuestResolver;
 import com.personal.happygallery.application.order.OrderService;
 import com.personal.happygallery.application.order.OrderService.OrderCreationResult;
@@ -23,11 +25,14 @@ public class OrderFulfiller implements PaymentFulfiller {
 
     private final VerifiedGuestResolver verifiedGuestResolver;
     private final OrderService orderService;
+    private final CartUseCase cartUseCase;
 
     public OrderFulfiller(VerifiedGuestResolver verifiedGuestResolver,
-                          OrderService orderService) {
+                          OrderService orderService,
+                          CartUseCase cartUseCase) {
         this.verifiedGuestResolver = verifiedGuestResolver;
         this.orderService = orderService;
+        this.cartUseCase = cartUseCase;
     }
 
     @Override
@@ -60,6 +65,11 @@ public class OrderFulfiller implements PaymentFulfiller {
         if (op.userId() != null) {
             Order order = orderService.createMemberOrder(op.userId(), orderItems);
             order.recordPaymentKey(paymentKey);
+            if (op.cartCheckout()) {
+                cartUseCase.removePurchasedItems(op.userId(), op.items().stream()
+                        .map(item -> new PurchasedItem(item.cartItemId(), item.qty()))
+                        .toList());
+            }
             return new FulfillResult(order.getId(), null);
         }
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(op.phone(), op.verificationCode(), op.name());

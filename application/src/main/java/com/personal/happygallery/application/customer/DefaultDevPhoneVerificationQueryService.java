@@ -7,7 +7,7 @@ import java.util.Optional;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-@Profile("local")
+@Profile({"local", "dev"})
 @Service
 public class DefaultDevPhoneVerificationQueryService implements DevPhoneVerificationQueryUseCase {
 

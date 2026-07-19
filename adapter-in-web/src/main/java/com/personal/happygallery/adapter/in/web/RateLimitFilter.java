@@ -57,8 +57,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "GUEST_CLAIM_VERIFY_IP", pathPattern(POST, "/api/v1/me/guest-claims/verify"), FAIL_CLOSED);
     private static final LimitRule CLIENT_MONITORING_RULE = new LimitRule(
             "CLIENT_MONITORING_IP", pathPattern(POST, "/api/v1/monitoring/client-events"), FAIL_CLOSED);
-    private static final LimitRule CART_CHECKOUT_RULE = new LimitRule(
-            "CART_CHECKOUT_IP", pathPattern(POST, "/api/v1/me/cart/checkout"), FAIL_CLOSED);
     private static final LimitRule ADMIN_API_RULE = new LimitRule(
             "ADMIN_API_IP", pathPattern("/api/v1/admin/**"), FAIL_CLOSED);
     private static final LimitRule DEFAULT_API_RULE = new LimitRule(
@@ -152,9 +150,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if (matches(request, CLIENT_MONITORING_RULE)) {
             return new ResolvedRule(CLIENT_MONITORING_RULE, properties.ip().clientMonitoring());
-        }
-        if (matches(request, CART_CHECKOUT_RULE)) {
-            return new ResolvedRule(CART_CHECKOUT_RULE, properties.ip().cartCheckout());
         }
         if (matches(request, ADMIN_API_RULE)) {
             return new ResolvedRule(ADMIN_API_RULE, properties.ip().adminApi());

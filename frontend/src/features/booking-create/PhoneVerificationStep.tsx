@@ -7,6 +7,7 @@ import { isValidPhone, normalizePhone } from "@/shared/validation/phone";
 
 interface Props {
   onVerified: (phone: string, code: string) => void;
+  onReset?: () => void;
   title?: string;
   description?: string;
   initialPhone?: string;
@@ -16,6 +17,7 @@ interface Props {
 
 export function PhoneVerificationStep({
   onVerified,
+  onReset,
   title = "1. 휴대폰 인증",
   description,
   initialPhone = "",
@@ -33,6 +35,11 @@ export function PhoneVerificationStep({
 
   const sendMutation = useMutation({
     mutationFn: () => sendVerification({ phone }),
+    onMutate: () => {
+      setCode("");
+      setSent(false);
+      onReset?.();
+    },
     onSuccess: () => {
       setSent(true);
     },
@@ -68,6 +75,7 @@ export function PhoneVerificationStep({
         </Col>
         <Col xs={12} sm={4}>
           <Button
+            type="button"
             variant="outline-primary"
             className="w-100"
             disabled={!phoneValid || sendMutation.isPending}
@@ -93,6 +101,7 @@ export function PhoneVerificationStep({
             </Col>
             <Col xs={12} sm={4}>
               <Button
+                type="button"
                 variant="primary"
                 className="w-100"
                 disabled={!normalizedCode}

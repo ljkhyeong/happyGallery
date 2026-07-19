@@ -1,23 +1,19 @@
 package com.personal.happygallery.application.customer;
 
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
+import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
 import com.personal.happygallery.application.customer.port.out.GuestClaimTargetPort;
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
-import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.monitoring.port.in.ClientMonitoringUseCase;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Guest;
-import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.error.NotFoundException;
-import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
 import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.user.User;
-import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,24 +37,21 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
 
     private final UserReaderPort userReader;
     private final GuestReaderPort guestReader;
-    private final PhoneVerificationReaderPort phoneVerificationReader;
+    private final PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
     private final GuestClaimTargetPort claimTargets;
-    private final Clock clock;
     private final ClientMonitoringUseCase clientMonitoringService;
     private final GuestPersonalDataProtector guestPersonalDataProtector;
 
     public DefaultGuestClaimService(UserReaderPort userReader,
                                     GuestReaderPort guestReader,
-                                    PhoneVerificationReaderPort phoneVerificationReader,
+                                    PhoneOwnershipVerificationUseCase phoneOwnershipVerification,
                                     GuestClaimTargetPort claimTargets,
-                                    Clock clock,
                                     ClientMonitoringUseCase clientMonitoringService,
                                     GuestPersonalDataProtector guestPersonalDataProtector) {
         this.userReader = userReader;
         this.guestReader = guestReader;
-        this.phoneVerificationReader = phoneVerificationReader;
+        this.phoneOwnershipVerification = phoneOwnershipVerification;
         this.claimTargets = claimTargets;
-        this.clock = clock;
         this.clientMonitoringService = clientMonitoringService;
         this.guestPersonalDataProtector = guestPersonalDataProtector;
     }
@@ -74,10 +67,7 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     @Override
     public ClaimPreview verifyPhoneAndPreview(Long userId, String verificationCode) {
         User user = findUser(userId);
-        PhoneVerification verification = phoneVerificationReader
-                .findValidVerification(user.getPhone(), verificationCode, LocalDateTime.now(clock))
-                .orElseThrow(PhoneVerificationFailedException::new);
-        verification.markVerified();
+        phoneOwnershipVerification.verify(user.getPhone(), verificationCode);
         user.markPhoneVerified();
         log.info("guest claim phone verified [userId={}]", userId);
         return buildPreview(user);

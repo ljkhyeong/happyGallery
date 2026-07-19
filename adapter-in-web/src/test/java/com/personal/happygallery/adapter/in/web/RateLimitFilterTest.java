@@ -303,8 +303,7 @@ class RateLimitFilterTest {
                 "/api/v1/payments/confirm",
                 "/api/v1/products/1/qna/5/verify",
                 "/api/v1/me/guest-claims/verify",
-                "/api/v1/monitoring/client-events",
-                "/api/v1/me/cart/checkout"
+                "/api/v1/monitoring/client-events"
         );
     }
 
@@ -349,7 +348,6 @@ class RateLimitFilterTest {
         private long productQnaVerify = 100;
         private long guestClaimVerify = 100;
         private long clientMonitoring = 100;
-        private long cartCheckout = 100;
 
         private TestRateLimits trustForwardedHeaders(boolean value) {
             trustForwardedHeaders = value;
@@ -402,7 +400,6 @@ class RateLimitFilterTest {
             productQnaVerify = capacity;
             guestClaimVerify = capacity;
             clientMonitoring = capacity;
-            cartCheckout = capacity;
             return this;
         }
 
@@ -424,8 +421,7 @@ class RateLimitFilterTest {
                             perMinute(paymentConfirm),
                             perMinute(productQnaVerify),
                             perMinute(guestClaimVerify),
-                            perMinute(clientMonitoring),
-                            perMinute(cartCheckout)
+                            perMinute(clientMonitoring)
                     ),
                     new SubjectRules(
                             perMinute(100),

@@ -2,16 +2,9 @@ package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.timelimiter.TimeLimiter;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeoutException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.core.NestedExceptionUtils;
 
 /**
  * 알림 발송 어댑터에 서킷 브레이커 + 타임아웃을 씌우는 데코레이터.
@@ -26,13 +19,8 @@ import org.springframework.core.NestedExceptionUtils;
  */
 public class ResilientNotificationSender implements NotificationSender {
 
-    private static final Logger log = LoggerFactory.getLogger(ResilientNotificationSender.class);
-
     private final NotificationSender delegate;
-    private final CircuitBreaker circuitBreaker;
-    private final TimeLimiter timeLimiter;
-    private final ExecutorService executor;
-    private final long timeoutMillis;
+    private final ResilientNotificationCall resilientCall;
 
     public ResilientNotificationSender(NotificationSender delegate,
                                        CircuitBreaker circuitBreaker,
@@ -40,10 +28,8 @@ public class ResilientNotificationSender implements NotificationSender {
                                        ExecutorService executor,
                                        long timeoutMillis) {
         this.delegate = delegate;
-        this.circuitBreaker = circuitBreaker;
-        this.timeLimiter = timeLimiter;
-        this.executor = executor;
-        this.timeoutMillis = timeoutMillis;
+        this.resilientCall = new ResilientNotificationCall(
+                circuitBreaker, timeLimiter, executor, timeoutMillis);
     }
 
     @Override
@@ -53,32 +39,9 @@ public class ResilientNotificationSender implements NotificationSender {
 
     @Override
     public boolean send(String phone, String recipientName, NotificationEventType eventType) {
-        try {
-            return circuitBreaker.executeCallable(() -> sendWithTimeout(phone, recipientName, eventType));
-        } catch (CallNotPermittedException e) {
-            log.warn("[{}] 발송 차단 (circuit open) event={}", channel(), eventType);
-            return false;
-        } catch (TimeoutException e) {
-            log.warn("[{}] 발송 타임아웃 [timeoutMs={} event={}]", channel(), timeoutMillis, eventType);
-            return false;
-        } catch (RejectedExecutionException e) {
-            log.warn("[{}] 발송 대기열 포화 [event={}]", channel(), eventType);
-            return false;
-        } catch (Exception e) {
-            Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
-            if (cause instanceof TimeoutException) {
-                log.warn("[{}] 발송 타임아웃 [timeoutMs={} event={}]", channel(), timeoutMillis, eventType);
-                return false;
-            }
-            log.warn("[{}] 발송 예외 [event={} type={}]",
-                    channel(), eventType, cause.getClass().getSimpleName());
-            return false;
-        }
-    }
-
-    private boolean sendWithTimeout(String phone, String recipientName, NotificationEventType eventType) throws Exception {
-        return timeLimiter.executeFutureSupplier(
-                () -> CompletableFuture.supplyAsync(
-                        () -> delegate.send(phone, recipientName, eventType), executor));
+        return resilientCall.execute(
+                channel(),
+                eventType.name(),
+                () -> delegate.send(phone, recipientName, eventType));
     }
 }

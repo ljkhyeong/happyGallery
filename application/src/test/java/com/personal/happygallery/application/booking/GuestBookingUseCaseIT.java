@@ -4,17 +4,21 @@ import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequ
 import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.PreparePaymentRequest;
 import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.PhoneVerificationRepository;
+import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
+import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.support.BookingStateProbe;
@@ -24,6 +28,7 @@ import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -31,13 +36,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
@@ -46,6 +54,8 @@ import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.hamcrest.Matchers.startsWith;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -57,7 +67,9 @@ class GuestBookingUseCaseIT {
     @Autowired MockMvc mockMvc;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
+    @Autowired GuestBookingUseCase guestBookingUseCase;
     @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
+    @Autowired PhoneVerificationRepository phoneVerificationRepository;
     @Autowired GuestStorePort guestStorePort;
     @Autowired GuestRepository guestRepository;
     @Autowired GuestPersonalDataProtector guestPersonalDataProtector;
@@ -67,6 +79,7 @@ class GuestBookingUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired ObjectMapper objectMapper;
     @Autowired PlatformTransactionManager transactionManager;
+    @MockitoBean PhoneVerificationSender phoneVerificationSender;
 
     Long slotId;
     static final String PHONE = "01012345678";
@@ -78,6 +91,7 @@ class GuestBookingUseCaseIT {
         helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort, objectMapper);
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
         cleanupSupport.clearBookingWithPassAndRefundData();
+        when(phoneVerificationSender.send(anyString(), anyString())).thenReturn(true);
 
         BookingClass cls = classStorePort.save(defaultBookingClass());
         Slot slot = slotStorePort.save(
@@ -112,6 +126,90 @@ class GuestBookingUseCaseIT {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @DisplayName("SMS 발송 실패 시 저장 이력은 남지만 인증 코드는 활성화하지 않는다")
+    @Test
+    void sendVerification_deliveryFailed_keepsInactiveRecord() throws Exception {
+        AtomicBoolean transactionActiveDuringSend = new AtomicBoolean(true);
+        when(phoneVerificationSender.send(anyString(), anyString())).thenAnswer(invocation -> {
+            transactionActiveDuringSend.set(TransactionSynchronizationManager.isActualTransactionActive());
+            return false;
+        });
+
+        mockMvc.perform(post("/api/v1/bookings/phone-verifications")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new SendVerificationRequest(PHONE))))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"));
+
+        assertSoftly(softly -> {
+            softly.assertThat(transactionActiveDuringSend).isFalse();
+            softly.assertThat(phoneVerificationRepository.count()).isEqualTo(1L);
+            softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(PHONE)).isEmpty();
+        });
+    }
+
+    @DisplayName("새 인증 코드 발송이 성공하면 이전 미소모 코드를 폐기한다")
+    @Test
+    void sendVerification_reissueInvalidatesPreviousCode() throws Exception {
+        helper.sendVerificationAndGetCode(PHONE);
+        helper.sendVerificationAndGetCode(PHONE);
+
+        var verifications = phoneVerificationRepository.findAll();
+        assertSoftly(softly -> {
+            softly.assertThat(verifications).hasSize(2);
+            softly.assertThat(verifications.stream().filter(it -> it.isDelivered() && !it.isVerified()))
+                    .hasSize(1);
+            softly.assertThat(verifications.stream().filter(it -> it.isVerified()))
+                    .hasSize(1);
+        });
+    }
+
+    @DisplayName("먼저 발급한 인증 코드의 발송 완료가 늦어도 최신 발급 코드만 활성화한다")
+    @Test
+    void sendVerification_outOfOrderDeliveryCompletion_keepsLatestIssuedCode() throws Exception {
+        CountDownLatch firstSendStarted = new CountDownLatch(1);
+        CountDownLatch releaseFirstSend = new CountDownLatch(1);
+        AtomicBoolean firstInvocation = new AtomicBoolean(true);
+        when(phoneVerificationSender.send(anyString(), anyString())).thenAnswer(invocation -> {
+            if (firstInvocation.compareAndSet(true, false)) {
+                firstSendStarted.countDown();
+                if (!releaseFirstSend.await(10, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("첫 번째 SMS 발송 대기가 시간 안에 해제되지 않았습니다.");
+                }
+            }
+            return true;
+        });
+
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<PhoneVerification> first = executor.submit(
+                    () -> guestBookingUseCase.sendVerificationCode(PHONE));
+            assertThat(firstSendStarted.await(10, TimeUnit.SECONDS)).isTrue();
+
+            Future<PhoneVerification> second = executor.submit(
+                    () -> guestBookingUseCase.sendVerificationCode(PHONE));
+            PhoneVerification latestIssued = second.get(10, TimeUnit.SECONDS);
+            releaseFirstSend.countDown();
+            PhoneVerification earlierIssued = first.get(10, TimeUnit.SECONDS);
+
+            List<PhoneVerification> stored = phoneVerificationRepository.findAll().stream()
+                    .sorted(Comparator.comparing(PhoneVerification::getId))
+                    .toList();
+            assertSoftly(softly -> {
+                softly.assertThat(earlierIssued.getId()).isLessThan(latestIssued.getId());
+                softly.assertThat(stored).hasSize(2);
+                softly.assertThat(stored.getFirst().isVerified()).isTrue();
+                softly.assertThat(stored.getFirst().isDelivered()).isFalse();
+                softly.assertThat(stored.getLast().isVerified()).isFalse();
+                softly.assertThat(stored.getLast().isDelivered()).isTrue();
+                softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(PHONE))
+                        .map(PhoneVerification::getId)
+                        .contains(latestIssued.getId());
+            });
+        } finally {
+            releaseFirstSend.countDown();
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -149,7 +247,10 @@ class GuestBookingUseCaseIT {
                 .andExpect(jsonPath("$.className").value("향수 클래스"));
 
         // DB 저장 확인
-        assertThat(bookingReaderPort.findById(created.bookingId())).isPresent();
+        assertSoftly(softly -> {
+            softly.assertThat(bookingReaderPort.findById(created.bookingId())).isPresent();
+            softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(PHONE)).isEmpty();
+        });
     }
 
     @DisplayName("동일 전화번호의 게스트를 동시에 생성해도 하나만 저장한다")

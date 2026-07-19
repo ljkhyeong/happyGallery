@@ -37,7 +37,7 @@ class JpaPhoneVerificationPersistenceAdapter
     @Override
     public Optional<PhoneVerification> findValidVerification(String phone, String code, LocalDateTime now) {
         String normalizedPhone = KoreanPhoneNumber.required(phone);
-        return repository.findByPhoneHmacAndCodeHmacAndVerifiedFalseAndExpiresAtAfter(
+        return repository.findByPhoneHmacAndCodeHmacAndDeliveredTrueAndVerifiedFalseAndExpiresAtAfter(
                         indexPhone(normalizedPhone), indexCode(normalizedPhone, code), now)
                 .map(verification -> restore(verification, normalizedPhone));
     }
@@ -45,8 +45,22 @@ class JpaPhoneVerificationPersistenceAdapter
     @Override
     public Optional<PhoneVerification> findLatestUnverifiedCode(String phone) {
         String normalizedPhone = KoreanPhoneNumber.required(phone);
-        return repository.findTopByPhoneHmacAndVerifiedFalseOrderByIdDesc(indexPhone(normalizedPhone))
+        return repository.findTopByPhoneHmacAndDeliveredTrueAndVerifiedFalseOrderByIdDesc(
+                        indexPhone(normalizedPhone))
                 .map(verification -> restore(verification, normalizedPhone));
+    }
+
+    @Override
+    public Optional<PhoneVerification> findByIdForUpdate(Long verificationId, String phone) {
+        String normalizedPhone = KoreanPhoneNumber.required(phone);
+        return repository.findByIdAndPhoneHmac(verificationId, indexPhone(normalizedPhone))
+                .map(verification -> restore(verification, normalizedPhone));
+    }
+
+    @Override
+    public void invalidateEarlierUnconsumedForPhone(String phone, Long verificationId) {
+        repository.invalidateEarlierUnconsumedForPhone(
+                indexPhone(KoreanPhoneNumber.required(phone)), verificationId);
     }
 
     private PhoneVerification restore(PhoneVerification verification, String phone) {

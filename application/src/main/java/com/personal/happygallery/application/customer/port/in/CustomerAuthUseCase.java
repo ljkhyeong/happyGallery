@@ -11,7 +11,11 @@ import java.util.Optional;
  */
 public interface CustomerAuthUseCase {
 
-    record SignupCommand(String email, String rawPassword, String name, String phone) {}
+    record SignupCommand(String email,
+                         String rawPassword,
+                         String name,
+                         String phone,
+                         String verificationCode) {}
 
     record LoginCommand(String email, String rawPassword) {}
 

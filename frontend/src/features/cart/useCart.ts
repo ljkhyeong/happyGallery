@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { fetchCart, addToCart, updateCartItemQty, removeCartItem, checkoutCart } from "./api";
+import { fetchCart, addToCart, updateCartItemQty, removeCartItem } from "./api";
 import { useGuestCart, getGuestCartItems, clearGuestCart } from "./useGuestCart";
 import { useEffect, useRef } from "react";
 
@@ -53,11 +53,6 @@ export function useCart() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [...CART_KEY] }),
   });
 
-  const checkoutMutation = useMutation({
-    mutationFn: checkoutCart,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...CART_KEY] }),
-  });
-
   if (isAuthenticated) {
     const items = memberQuery.data?.items ?? [];
     return {
@@ -68,7 +63,6 @@ export function useCart() {
       addItem: (productId: number, qty: number) => addMutation.mutateAsync({ productId, qty }),
       updateQty: (productId: number, qty: number) => updateMutation.mutateAsync({ productId, qty }),
       removeItem: (productId: number) => removeMutation.mutateAsync(productId),
-      checkout: checkoutMutation,
     };
   }
 
@@ -87,6 +81,5 @@ export function useCart() {
     addItem: async (productId: number, qty: number) => { guestCart.addItem(productId, qty); },
     updateQty: async (productId: number, qty: number) => { guestCart.updateQty(productId, qty); },
     removeItem: async (productId: number) => { guestCart.removeItem(productId); },
-    checkout: null,
   };
 }

@@ -13,6 +13,7 @@ export interface OrderPayload {
   verificationCode?: string | null;
   name?: string | null;
   items: OrderItemRef[];
+  cartCheckout?: boolean;
 }
 
 export interface BookingPayload {

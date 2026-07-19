@@ -31,15 +31,26 @@ public sealed interface PaymentPayload {
      * 주문 결제 payload.
      *
      * <p>{@code phone/code/name}이 채워지면 비회원 휴대폰 인증 경로,
-     * {@code userId}가 채워지면 회원 경로다.
+     * {@code userId}가 채워지면 회원 경로다. {@code cartCheckout=true}이면
+     * 클라이언트의 {@code items} 대신 서버 장바구니의 구매 가능한 항목을 사용한다.
      */
     record OrderPayload(
             Long userId,
             String phone,
             String verificationCode,
             String name,
-            List<OrderItemRef> items
-    ) implements PaymentPayload {}
+            List<OrderItemRef> items,
+            boolean cartCheckout
+    ) implements PaymentPayload {
+
+        public OrderPayload(Long userId,
+                            String phone,
+                            String verificationCode,
+                            String name,
+                            List<OrderItemRef> items) {
+            this(userId, phone, verificationCode, name, items, false);
+        }
+    }
 
     record OrderItemRef(Long productId, int qty) {}
 
@@ -49,10 +60,25 @@ public sealed interface PaymentPayload {
             String phone,
             String verificationCode,
             String name,
-            List<PreparedOrderItem> items
-    ) implements PaymentPayload {}
+            List<PreparedOrderItem> items,
+            boolean cartCheckout
+    ) implements PaymentPayload {
 
-    record PreparedOrderItem(Long productId, int qty, long unitPrice) {}
+        public PreparedOrderPayload(Long userId,
+                                    String phone,
+                                    String verificationCode,
+                                    String name,
+                                    List<PreparedOrderItem> items) {
+            this(userId, phone, verificationCode, name, items, false);
+        }
+    }
+
+    record PreparedOrderItem(Long cartItemId, Long productId, int qty, long unitPrice) {
+
+        public PreparedOrderItem(Long productId, int qty, long unitPrice) {
+            this(null, productId, qty, unitPrice);
+        }
+    }
 
     /**
      * 예약 결제 payload. 회원 8회권 사용 시 {@code passId}만 세팅(amount=0).

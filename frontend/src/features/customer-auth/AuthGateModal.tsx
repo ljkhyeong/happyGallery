@@ -27,6 +27,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
   const [password, setPassword] = useState("");
   const [signupName, setSignupName] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
+  const [signupVerificationCode, setSignupVerificationCode] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -75,12 +76,18 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
     e.preventDefault();
     setError("");
     setSubmitting(true);
-    const ok = await signup(email, password, signupName, signupPhone);
+    const ok = await signup(
+      email,
+      password,
+      signupName,
+      signupPhone,
+      signupVerificationCode,
+    );
     setSubmitting(false);
     if (ok) {
       onMemberConfirm();
     } else {
-      setError("회원가입에 실패했습니다. 이미 등록된 이메일일 수 있습니다.");
+      setError("회원가입에 실패했습니다. 인증코드와 가입 정보를 확인해주세요.");
     }
   }
 
@@ -155,15 +162,24 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
                 onChange={(e) => setSignupName(e.target.value)} required
               />
             </Form.Group>
-            <Form.Group className="mb-3" controlId="gate-signup-phone">
-              <Form.Label className="small">전화번호</Form.Label>
-              <Form.Control
-                size="sm" value={signupPhone}
-                onChange={(e) => setSignupPhone(normalizePhone(e.target.value))}
-                placeholder="01012345678" maxLength={11} required
+            <div className="mb-3">
+              <PhoneVerificationStep
+                title="휴대폰 소유 확인"
+                initialPhone={signupPhone}
+                confirmLabel="인증코드 적용"
+                onVerified={(phone, code) => {
+                  setSignupPhone(normalizePhone(phone));
+                  setSignupVerificationCode(code);
+                }}
+                onReset={() => setSignupVerificationCode("")}
               />
-            </Form.Group>
-            <Button type="submit" className="w-100" size="sm" disabled={submitting}>
+            </div>
+            <Button
+              type="submit"
+              className="w-100"
+              size="sm"
+              disabled={!signupVerificationCode || submitting}
+            >
               {submitting ? "가입 중..." : "가입하고 진행"}
             </Button>
           </Form>

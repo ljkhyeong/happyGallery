@@ -8,6 +8,11 @@ spring:
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+app:
+  social-login:
+    google-redirect-uri: ${GOOGLE_OAUTH_REDIRECT_URI:http://localhost:3000/auth/callback/google}
+    naver-redirect-uri: ${NAVER_OAUTH_REDIRECT_URI:http://localhost:3000/auth/callback/naver}
+
 logging:
   level:
     root: INFO

@@ -1,10 +1,11 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
-import com.personal.happygallery.application.notification.NotificationService;
+import com.personal.happygallery.adapter.in.web.customer.dto.MemberRescheduleRequest;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
-import com.personal.happygallery.adapter.in.web.customer.dto.MemberRescheduleRequest;
+import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.support.BookingTestHelper;
@@ -47,6 +48,7 @@ class MeBookingUseCaseIT {
     @Autowired UserReaderPort userReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired ObjectMapper objectMapper;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReader;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
@@ -65,7 +67,7 @@ class MeBookingUseCaseIT {
                 .apply(springSecurity())
                 .build();
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
-        customerHelper = new CustomerTestHelper(mockMvc, objectMapper);
+        customerHelper = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader);
 
         BookingClass cls = classStorePort.save(defaultBookingClass());
         Slot s1 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE, BookingTestHelper.FUTURE.plusHours(2)));

@@ -35,7 +35,7 @@ class NotificationSenderContractTest {
                           }
                         }
                         """))
-                .andRespond(withSuccess("", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess(successResponse(), MediaType.APPLICATION_JSON));
 
         boolean sent = sender.send("01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
 
@@ -63,12 +63,77 @@ class NotificationSenderContractTest {
                           ]
                         }
                         """))
-                .andRespond(withSuccess("", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess(successResponse(), MediaType.APPLICATION_JSON));
 
         boolean sent = sender.send("01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
 
         server.verify();
         assertSoftly(softly -> softly.assertThat(sent).isTrue());
+    }
+
+    @DisplayName("휴대폰 인증 SMS는 인증 코드와 유효 시간을 NHN Cloud 요청으로 보낸다")
+    @Test
+    void phoneVerification_send_sendsCodePayload() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://api-sms.cloud.toast.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RealPhoneVerificationSender sender = new RealPhoneVerificationSender(smsProperties(), builder.build());
+
+        server.expect(requestTo("https://api-sms.cloud.toast.com/sms/v3.0/appKeys/api-key/sender/auth/sms"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {
+                          "body": "[해피갤러리] 인증번호는 123456입니다. 5분 안에 입력해주세요.",
+                          "sendNo": "0212345678",
+                          "recipientList": [
+                            {
+                              "recipientNo": "01012345678"
+                            }
+                          ]
+                        }
+                        """))
+                .andRespond(withSuccess(successResponse(), MediaType.APPLICATION_JSON));
+
+        boolean sent = sender.send("01012345678", "123456");
+
+        server.verify();
+        assertSoftly(softly -> softly.assertThat(sent).isTrue());
+    }
+
+    @DisplayName("NHN Cloud가 HTTP 200 본문으로 실패를 반환하면 SMS 발송 실패로 판정한다")
+    @Test
+    void sms_send_rejectsLogicalFailureResponse() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://api-sms.cloud.toast.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RealSmsSender sender = new RealSmsSender(smsProperties(), builder.build());
+
+        server.expect(requestTo("https://api-sms.cloud.toast.com/sms/v3.0/appKeys/api-key/sender/sms"))
+                .andRespond(withSuccess("""
+                        {
+                          "header": {
+                            "isSuccessful": false,
+                            "resultCode": -1000,
+                            "resultMessage": "Invalid appKey."
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        boolean sent = sender.send(
+                "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
+
+        server.verify();
+        assertSoftly(softly -> softly.assertThat(sent).isFalse());
+    }
+
+    private static String successResponse() {
+        return """
+                {
+                  "header": {
+                    "isSuccessful": true,
+                    "resultCode": 0,
+                    "resultMessage": "SUCCESS"
+                  }
+                }
+                """;
     }
 
     private static KakaoNotificationProperties kakaoProperties() {

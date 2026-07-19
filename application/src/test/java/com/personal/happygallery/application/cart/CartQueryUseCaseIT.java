@@ -52,7 +52,7 @@ class CartQueryUseCaseIT {
                             availableProduct.getId(), "재고 상품", 39_000L, 2, true),
                     new CartUseCase.CartItemView(
                             unavailableProduct.getId(), "재고 없는 상품", 15_000L, 1, false));
-            softly.assertThat(cart.totalAmount()).isEqualTo(93_000L);
+            softly.assertThat(cart.totalAmount()).isEqualTo(78_000L);
         });
     }
 }

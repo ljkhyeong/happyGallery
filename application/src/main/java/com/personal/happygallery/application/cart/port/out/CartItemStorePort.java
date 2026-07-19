@@ -7,6 +7,4 @@ public interface CartItemStorePort {
     CartItem save(CartItem item);
 
     void delete(CartItem item);
-
-    void deleteAllByUserId(Long userId);
 }
