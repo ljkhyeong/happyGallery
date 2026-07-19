@@ -101,13 +101,36 @@ class PaymentConfirmTransactionService {
         PaymentAttempt attempt = findValidatedAttemptForUpdate(command);
         String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
         attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
+        return switch (attempt.getStatus()) {
+            case CONFIRMED -> new Completed(confirmedResult(attempt));
+            case APPROVED -> readyForFulfillment(attempt);
+            case RETRYABLE, FAILED -> throw paymentFailure(attempt);
+            case PENDING, PROCESSING ->
+                    throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
+            case COMPENSATION_REQUESTED, COMPENSATION_FAILED, COMPENSATED, CANCELED ->
+                    throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미 후속 처리된 결제입니다.");
+        };
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public ConfirmationStep reconcileLatePgApproval(ConfirmCommand command,
+                                                     String confirmedPaymentKey) {
+        PaymentAttempt attempt = findValidatedAttemptForUpdate(command);
+        String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
+        attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
         if (attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
+            requireSameConfirmedPaymentKey(attempt, confirmedPaymentKey);
             return new Completed(confirmedResult(attempt));
         }
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED) {
+            requireSameConfirmedPaymentKey(attempt, confirmedPaymentKey);
             return readyForFulfillment(attempt);
         }
-        throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
+        if (!attempt.reconcileLatePgApproval(confirmedPaymentKey, LocalDateTime.now(clock))) {
+            throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
+        }
+        attemptStore.save(attempt);
+        return readyForFulfillment(attempt);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -265,6 +288,13 @@ class PaymentConfirmTransactionService {
         if (!Objects.equals(attempt.getConfirmedPaymentKey(), confirmedPaymentKey)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 결제 키가 기존 승인 결과와 일치하지 않습니다.");
         }
+    }
+
+    private HappyGalleryException paymentFailure(PaymentAttempt attempt) {
+        String reason = StringUtils.hasText(attempt.getFailReason())
+                ? attempt.getFailReason()
+                : ErrorCode.PAYMENT_FAILED.message;
+        return new HappyGalleryException(ErrorCode.PAYMENT_FAILED, reason);
     }
 
     private boolean isStale(PaymentAttempt attempt, LocalDateTime now) {

@@ -216,7 +216,7 @@
     - 8회권: `app.pass.total-price` 환경 변수 (`PASS_TOTAL_PRICE`, 기본 240,000원); 확정 가격을 결제 시도 payload에 저장한다.
 - confirm 단계에서 PG `paymentKey`와 `amount`가 prepare 시점 amount와 다르면 거절한다.
 - 주문·예약·8회권 confirm은 현재 가격을 다시 계산하지 않고 prepare 시점에 저장한 가격 스냅샷으로 도메인을 생성한다. 저장된 결제 금액이 `payment_attempt.amount`와 다르면 PG 호출 전에 거절한다.
-- confirm은 결제 시도를 새 processing token과 함께 `PROCESSING`으로 선점한 뒤 DB 트랜잭션 밖에서 PG를 호출한다. 동시 요청은 한 건만 PG 호출을 수행하며, stale 재선점 뒤 이전 token으로 도착한 PG 결과는 저장하지 않는다. 이전 요청은 최신 완료 결과만 다시 읽으며 같은 요청 안에서 PG를 재호출하지 않는다.
+- confirm은 결제 시도를 새 processing token과 함께 `PROCESSING`으로 선점한 뒤 DB 트랜잭션 밖에서 PG를 호출한다. 동시 요청은 한 건만 PG 호출을 수행한다. stale 재선점 뒤 이전 token의 실패 결과는 저장하지 않지만, 늦게 도착한 PG 성공은 같은 요청임을 재검증한 뒤 `APPROVED`로 화해해 실제 승인을 유실하지 않는다. 이전 요청은 같은 요청 안에서 PG를 재호출하지 않는다.
 - `CONFIRMED` 결제는 최종 도메인 ID와 비회원 접근 토큰 암호문을 보존한다. 같은 사용자·금액·paymentKey로 confirm을 재호출하면 PG나 도메인 생성을 반복하지 않고 같은 결과를 반환한다.
 - Toss confirm은 prepare의 `orderId`를 멱등키로 사용한다. 일시 실패는 `RETRYABLE`, 최종 거절은 `FAILED`로 별도 트랜잭션에 저장한다.
 - Toss 승인 응답의 `paymentKey`, `orderId`가 요청값과 다르면 성공으로 수용하지 않고 같은 멱등키로 재확인할 수 있는 `RETRYABLE`로 처리한다.

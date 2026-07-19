@@ -145,6 +145,26 @@ public class PaymentAttempt {
         if (!ownsProcessing(expectedProcessingToken)) {
             return false;
         }
+        applyApproval(confirmedPaymentKey, approvedAt);
+        return true;
+    }
+
+    /**
+     * 재선점 뒤 늦게 도착한 PG 성공을 로컬 상태와 화해한다.
+     * 실패 결과와 달리 외부 승인은 이미 성립한 사실이므로, 새 실행이 처리 중이거나 실패로 끝났어도
+     * 도메인 생성 전 APPROVED로 단조 전이한다.
+     */
+    public boolean reconcileLatePgApproval(String confirmedPaymentKey, LocalDateTime approvedAt) {
+        if (status != PaymentAttemptStatus.PROCESSING
+                && status != PaymentAttemptStatus.RETRYABLE
+                && status != PaymentAttemptStatus.FAILED) {
+            return false;
+        }
+        applyApproval(confirmedPaymentKey, approvedAt);
+        return true;
+    }
+
+    private void applyApproval(String confirmedPaymentKey, LocalDateTime approvedAt) {
         boolean hasConfirmedPaymentKey = confirmedPaymentKey != null && !confirmedPaymentKey.isBlank();
         if (amount > 0 && !hasConfirmedPaymentKey) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 승인 결과의 paymentKey가 누락되었습니다.");
@@ -156,7 +176,6 @@ public class PaymentAttempt {
         this.confirmedPaymentKey = confirmedPaymentKey;
         this.confirmedAt = approvedAt;
         this.processingToken = null;
-        return true;
     }
 
     /** 도메인 생성 결과를 보존하고 APPROVED → CONFIRMED로 전이한다. */

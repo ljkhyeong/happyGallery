@@ -29,7 +29,7 @@ Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며,
 유스케이스 진입점은 `Propagation.NEVER`로 기존 트랜잭션 안의 호출을 거부하고, Toss confirm은
 활성 DB 트랜잭션이 없는 상태에서만 호출한다. 서킷 브레이커·타임아웃·외부 통신 오류는
 `PaymentPort` 구현이 null이 아닌 `PaymentConfirmResult`로 표준화한다. 포트 계약을 벗어난
-예외과 null 반환은 재시도 가능한 PG 실패로 숨기지 않고 계약 위반으로 전파한다.
+예외와 null 반환은 재시도 가능한 PG 실패로 숨기지 않고 계약 위반으로 전파한다.
 
 ### 2. 결제 시도 상태를 단계별로 저장한다
 
@@ -45,9 +45,10 @@ Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며,
 
 `PaymentConfirmTransactionService`의 각 변경은 `REQUIRES_NEW`로 실행한다. confirm 선점 조회에는
 비관적 쓰기 잠금을 사용한다. `PROCESSING`이 1분 이상 지속되면 같은 paymentKey 요청만 다시 선점할 수 있다.
-선점마다 `payment_attempt.processing_token`에 새 UUID를 저장하고, PG 승인·실패 결과는 현재 토큰과
-일치할 때만 반영한다. 따라서 제한 시간을 넘겨 새 요청이 재선점한 뒤 늦게 끝난 이전 요청은 현재 상태를
-변경하거나 보상 환불을 시작하지 못한다.
+선점마다 `payment_attempt.processing_token`에 새 UUID를 저장하고, 일반 PG 승인·실패 결과는 현재 토큰과
+일치할 때만 반영한다. 재선점 뒤 늦게 도착한 실패는 버리지만, 외부에서 이미 성립한 PG 승인 성공은
+유실하면 안 된다. 같은 orderId·금액·paymentKey 요청임을 다시 검증하고 잠금 안에서 최신 상태가
+`PROCESSING/RETRYABLE/FAILED`면 `APPROVED`로 화해한다. 이 경로는 보상 환불을 바로 시작하지 않고 fulfillment를 재개한다.
 
 `resolveConfirmationStep()`은 nullable 값과 boolean 조합 대신 `Completed`, `ReadyForFulfillment`,
 `PgConfirmationRequired`, `ZeroAmountApprovalRequired` 중 하나를 반환한다. 이 단계 결정 시
@@ -92,9 +93,12 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 
 `APPROVED`가 남으면 PG 재호출 없이 도메인 생성을 재개할 수 있다.
 `CONFIRMED` 재호출은 최종 결과를 그대로 반환하므로 성공 응답 유실과 브라우저 새로고침도 멱등하다.
-재선점 뒤 이전 processing token으로 도착한 PG 결과는 저장하지 않는다. 이때 최신 상태가 `CONFIRMED`면
-저장된 결과를 반환하고, `APPROVED`면 PG 재호출 없이 fulfillment를 이어간다. 최신 요청이 아직
-`PROCESSING`이거나 그 밖의 상태면 이전 요청에서 PG를 다시 호출하지 않고 `PAYMENT_CONFIRM_IN_PROGRESS`로 종료한다.
+재선점 뒤 이전 processing token으로 도착한 PG 실패는 저장하지 않는다. 이때 최신 상태가 `CONFIRMED`면
+저장된 결과를 반환하고, `APPROVED`면 PG 재호출 없이 fulfillment를 이어간다. 최신 상태가
+`PROCESSING`이면 `PAYMENT_CONFIRM_IN_PROGRESS`, `RETRYABLE/FAILED`면 저장된 이유의 `PAYMENT_FAILED`,
+보상·취소 상태면 `INVALID_INPUT`으로 종료하며 이전 요청에서 PG를 다시 호출하지 않는다.
+반면 이전 processing token의 PG 성공은 외부 승인 사실이므로, 최신 로컬 실패보다 우선해
+`APPROVED`로 화해하고 fulfillment를 이어간다.
 도메인 주문·예약에는 접근 토큰 해시만 유지하고, 재응답에 필요한 비회원 원문 토큰은
 `payment_attempt.fulfilled_access_token_enc`에 AES-GCM 암호문으로만 보존한다.
 

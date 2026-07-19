@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import static java.util.Objects.requireNonNull;
+
 @Service
 public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
 
@@ -75,7 +77,7 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                         return fulfill(new PaymentConfirmTransactionService.ReadyForFulfillment(
                                 required.attemptId(), required.orderId(), required.amount(), confirmedPaymentKey));
                     }
-                    step = transactionService.resolveAfterLostProcessingOwnership(command);
+                    step = transactionService.reconcileLatePgApproval(command, confirmedPaymentKey);
                 }
             }
         }
@@ -95,17 +97,10 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
     }
 
     private PaymentConfirmResult callPayment(PaymentConfirmTransactionService.PgConfirmationRequired required) {
-        try {
-            PaymentConfirmResult result = paymentPort.confirm(
-                    required.paymentKey(), required.orderId(), required.amount(), required.idempotencyKey());
-            return result != null
-                    ? result
-                    : PaymentConfirmResult.retryableFailure("PG 응답이 비어 있습니다.");
-        } catch (RuntimeException e) {
-            log.warn("PG confirm 호출 예외 [orderId={}, type={}]",
-                    required.orderId(), e.getClass().getSimpleName());
-            return PaymentConfirmResult.retryableFailure("PG 호출 중 오류가 발생했습니다.");
-        }
+        return requireNonNull(
+                paymentPort.confirm(
+                        required.paymentKey(), required.orderId(), required.amount(), required.idempotencyKey()),
+                "PaymentPort.confirm은 null을 반환할 수 없습니다.");
     }
 
     private void compensateUnpersistedApproval(

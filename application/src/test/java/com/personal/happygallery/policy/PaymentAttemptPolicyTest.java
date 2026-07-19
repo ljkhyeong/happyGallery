@@ -79,7 +79,7 @@ class PaymentAttemptPolicyTest {
                 });
     }
 
-    @DisplayName("재선점된 결제는 이전 실행권 토큰의 승인과 실패 결과를 무시한다")
+    @DisplayName("재선점된 결제는 이전 실행권 토큰의 직접 승인과 실패 저장을 거부한다")
     @Test
     void restartedAttempt_ignoresResultsFromPreviousProcessingToken() {
         PaymentAttempt attempt = PaymentAttempt.start("order-id", PaymentContext.ORDER, 10_000L, "{}");
@@ -102,6 +102,37 @@ class PaymentAttemptPolicyTest {
         assertSoftly(softly -> {
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.APPROVED);
             softly.assertThat(attempt.getProcessingToken()).isNull();
+        });
+    }
+
+    @DisplayName("늦게 도착한 PG 성공은 새 실행권의 실패 상태를 승인으로 화해한다")
+    @Test
+    void reconcileLatePgApproval_overridesNewerLocalFailure() {
+        PaymentAttempt retryable = PaymentAttempt.start(
+                "retryable-order", PaymentContext.ORDER, 10_000L, "{}");
+        retryable.startProcessing(
+                10_000L, "retryable-payment-key", LocalDateTime.of(2026, 7, 19, 10, 0));
+        String retryableOwner = retryable.restartProcessing(
+                10_000L, "retryable-payment-key", LocalDateTime.of(2026, 7, 19, 10, 2));
+        retryable.markRetryable(retryableOwner, "새 실행권의 일시 실패");
+
+        PaymentAttempt failed = PaymentAttempt.start(
+                "failed-order", PaymentContext.ORDER, 20_000L, "{}");
+        failed.startProcessing(
+                20_000L, "failed-payment-key", LocalDateTime.of(2026, 7, 19, 10, 0));
+        String failedOwner = failed.restartProcessing(
+                20_000L, "failed-payment-key", LocalDateTime.of(2026, 7, 19, 10, 2));
+        failed.markProcessingFailed(failedOwner, "새 실행권의 최종 실패");
+
+        assertSoftly(softly -> {
+            softly.assertThat(retryable.reconcileLatePgApproval(
+                    "retryable-confirmed-key", LocalDateTime.of(2026, 7, 19, 10, 3))).isTrue();
+            softly.assertThat(retryable.getStatus()).isEqualTo(PaymentAttemptStatus.APPROVED);
+            softly.assertThat(retryable.getConfirmedPaymentKey()).isEqualTo("retryable-confirmed-key");
+            softly.assertThat(failed.reconcileLatePgApproval(
+                    "failed-confirmed-key", LocalDateTime.of(2026, 7, 19, 10, 3))).isTrue();
+            softly.assertThat(failed.getStatus()).isEqualTo(PaymentAttemptStatus.APPROVED);
+            softly.assertThat(failed.getConfirmedPaymentKey()).isEqualTo("failed-confirmed-key");
         });
     }
 }
