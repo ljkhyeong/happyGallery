@@ -45,7 +45,7 @@
 
 **이유**:
 - 비회원 조회는 항상 booking과 1:1 관계 → 별도 테이블 불필요
-- `findByIdAndAccessToken` 단일 쿼리로 bookingId + token 동시 검증 가능
+- `findDetailByIdAndAccessToken` 단일 fetch join 쿼리로 bookingId + token 동시 검증과 상세 연관 조회를 수행한다.
 - UNIQUE 인덱스로 충돌 방지
 
 **형식**: `UUID.randomUUID().toString().replace("-", "")` → 32자 hex 문자열 (VARCHAR 64 안에 여유)

@@ -1283,12 +1283,13 @@ POST /api/v1/auth/social/{provider}
 
 - 성공: `200 OK`
 - 에러:
+  - `400 INVALID_INPUT` — `code`, `redirectUri`, `state` 누락
   - `401 UNAUTHORIZED` — `SOCIAL_LOGIN_FAILED`
   - `409 CONFLICT` — `SOCIAL_ACCOUNT_LINK_REQUIRED` (소셜 이메일이 기존 회원과 겹쳐 명시적 연결이 필요함)
   - `429 TOO_MANY_REQUESTS` — 분당 10회 초과
 - 정책:
   - 요청의 `state`는 URL 발급 시 서버 세션에 저장한 같은 provider의 값과 일치해야 하며, 검증 후 제거한다.
-  - 롤링 배포 호환 기간에는 구 프런트가 보내는 Google 요청에 한해 `state` 누락을 허용한다. Naver와 새 Google 요청은 서버 검증을 거친다.
+  - Google과 Naver 모두 `state`가 필수다. 누락 요청은 형식 검증에서 거절하고, 불일치·재사용 요청은 `SOCIAL_LOGIN_FAILED`로 거절한다.
   - 성공 시 일반 회원 로그인과 동일하게 세션 ID를 회전하고 `HG_SESSION`을 시작한다.
   - 성공 후 기존 CSRF 토큰이 폐기되므로 클라이언트는 새 CSRF 토큰을 발급받는다.
   - `newUser=true`인 경우 후속 전화번호 입력/인증 온보딩이 필요할 수 있다.
@@ -1561,7 +1562,7 @@ Content-Type: application/json
     - `ORDER`: 상품을 한 번에 조회한 뒤 항목별 `productId.price * qty` 합계
     - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약), 없으면 `slot.bookingClass.price * 10%`
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
-  - `ORDER`의 항목 단가는 서버가 prepare 시점에 내부 payload로 저장한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장한다. confirm은 상품의 현재 가격이 아니라 이 단가로 주문을 생성하고, 단가 합계와 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
+  - 서버는 prepare 시점의 `ORDER` 항목 단가, `BOOKING` 예약금·잔금, `PASS` 총 가격을 내부 payload로 저장한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장한다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
   - prepare 응답의 `orderId`는 Toss 결제창에 그대로 전달한다.
@@ -1643,6 +1644,7 @@ Content-Type: application/json
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
   - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다.
   - Toss `Idempotency-Key`는 prepare에서 생성한 `orderId`를 사용하며 같은 결제 재시도에서 변경하지 않는다.
+  - Toss 승인 응답의 `paymentKey`, `orderId`는 confirm 요청값과 모두 같아야 한다. 다르면 성공으로 저장하지 않고 같은 멱등키로 재확인 가능한 실패로 처리한다.
   - PG 성공은 별도 트랜잭션으로 `APPROVED`에 저장하고, 이후 도메인 저장과 `CONFIRMED` 전이는 한 트랜잭션으로 처리한다.
   - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다.
   - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다.

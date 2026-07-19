@@ -54,8 +54,8 @@ D-1 환불 경계는 §5.4/§6.1에서 이미 강제된다.
 | `domain/booking/Booking.java` | paymentMethod 필드 + 생성자 파라미터 |
 | `domain/error/ErrorCode.java` | PAYMENT_METHOD_NOT_ALLOWED (422) 추가 |
 | `domain/error/PaymentMethodNotAllowedException.java` | 예외 클래스 |
-| `application/.../booking/DefaultGuestBookingService.java` | 진입부 BANK_TRANSFER 차단 |
-| `adapter-in-web/.../booking/dto/CreateGuestBookingRequest.java` | @NotNull paymentMethod 필드 추가 |
-| `adapter-in-web/.../booking/BookingController.java` | paymentMethod 서비스로 전달 |
+| `application/.../payment/context/booking/BookingPreparer.java` | 표준 결제 진입점에서 BANK_TRANSFER 차단, 예약금·잔금 확정 |
+| `application/.../payment/port/in/PaymentPayload.java` | 공개 `BookingPayload`와 내부 `PreparedBookingPayload` 분리 |
+| `adapter-in-web/.../payment/PaymentController.java` | 결제 prepare/confirm 단일 진입점 |
 | `GuestBookingUseCaseIT` | bankTransfer_returns422 Proof 테스트 |
 | `BookingRescheduleUseCaseIT` | depositAmount 불변 단언 추가 |

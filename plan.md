@@ -5,23 +5,21 @@
 
 ## Active Goal
 
-**2026-07-18 기준:** Toss prepare/confirm, 비동기 환불 복구, 알림 outbox, Spring Security·CSRF, 개인정보 암호화·블라인드 인덱스, Google/Naver 로그인은 구현되어 있다.
+**2026-07-19 기준:** Toss prepare/confirm, 전 도메인 가격 스냅샷, 비동기 환불 복구, 제한 큐 기반 알림 보호, 알림 outbox, Spring Security·CSRF, 개인정보 암호화·블라인드 인덱스, Google/Naver 로그인은 구현되어 있다.
 
-현재 목표는 남은 결제 우회 경로와 금액 불변식, 자가 호스팅 운영 구성, 실제 SMS 인증, 회원가입 휴대폰 소유 확인을 순서대로 닫는 것이다.
+현재 목표는 남은 결제 우회 경로, 자가 호스팅 운영 구성, 실제 SMS 인증, 회원가입 휴대폰 소유 확인을 순서대로 닫는 것이다.
 
 ## 남은 작업
 
 | 우선순위 | 작업 | 현재 상태 | 완료 기준 |
 | --- | --- | --- | --- |
 | 1 | 장바구니 결제 경로 | `POST /api/v1/me/cart/checkout`이 결제 prepare/confirm을 우회해 주문을 즉시 생성함 | Toss prepare/confirm으로 전환하거나 명시적 무결제·후불 계약으로 분리하고 PRD/API/프론트/E2E를 함께 갱신 |
-| 2 | 결제 금액 스냅샷 | 주문은 prepare 단가 스냅샷을 fulfill에 사용하지만 예약·8회권은 prepare 이후 기준값 변경 가능성을 더 점검해야 함 | prepare 금액과 fulfill 도메인 금액이 항상 같음을 코드와 고가치 테스트로 보장 |
-| 3 | 결제 레거시 DTO | 제거된 직접 생성 API용 백엔드 DTO와 프론트 타입 일부가 남아 있음 | `rg`로 실제 소비자를 확인해 삭제하거나 현재 용도를 이름과 계약에 반영 |
-| 4 | 자가 호스팅 운영 구성 | ADR-0037만 확정됐고 Kubernetes 산출물은 없음 | 단일 노트북 k3s manifest, ingress/TLS, PVC·백업, secret, 이미지 전달, rollout/rollback과 검증 절차 구현 |
-| 5 | 실 SMS와 회원 휴대폰 소유 확인 | 일반 알림 SMS adapter는 있으나 인증 코드는 전용 sender에 연결되지 않았고 signup은 `phoneVerified=false`로 저장 | `PhoneVerificationSender` 경계와 실제/가짜 adapter를 연결한 뒤, 별도 회원 소유 확인 use case와 signup UI/API 계약 구현 |
+| 2 | 자가 호스팅 운영 구성 | ADR-0037만 확정됐고 Kubernetes 산출물은 없음 | 단일 노트북 k3s manifest, ingress/TLS, PVC·백업, secret, 이미지 전달, rollout/rollback과 검증 절차 구현 |
+| 3 | 실 SMS와 회원 휴대폰 소유 확인 | 일반 알림 SMS adapter는 있으나 인증 코드는 전용 sender에 연결되지 않았고 signup은 `phoneVerified=false`로 저장 | `PhoneVerificationSender` 경계와 실제/가짜 adapter를 연결한 뒤, 별도 회원 소유 확인 use case와 signup UI/API 계약 구현 |
 
 ## 실행 순서
 
-1. 결제 우회 경로·금액 스냅샷·레거시 DTO를 함께 정리한다.
+1. 장바구니 결제 우회 경로를 정리한다.
 2. ADR-0037을 기준으로 자가 호스팅 운영 산출물을 만든다.
 3. 인증 코드 전용 SMS 발송 경계를 구현한다.
 4. 회원가입 휴대폰 소유 확인을 구현한다.

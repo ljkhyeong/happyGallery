@@ -178,6 +178,7 @@
     4) 앱 푸시(리마인드)
 - 수신자 조회 실패처럼 실제 발송 채널을 시도하기 전 실패한 알림은 `notification_log`에 `SYSTEM` 채널의 `FAILED` 이력으로 남기고, 발송 재시도 배치 대상에는 포함하지 않는다.
 - 일반 알림 요청은 도메인 트랜잭션 안에서 `notification_outbox`에 먼저 저장하고, 커밋 이후 별도 dispatcher가 발송한다. 발송 결과는 기존처럼 `notification_log`에 남긴다.
+- 카카오·SMS 외부 호출은 채널별 서킷 브레이커와 제한 큐 timeout executor로 보호한다. 발송 결과 `false`도 장애 호출로 집계하며, 대기열 포화는 즉시 해당 채널 실패로 처리해 fallback/outbox 복구 흐름을 유지한다.
 - `notification_outbox`와 `notification_log`는 회원 또는 비회원 수신자 중 정확히 하나만 가진다.
 - 발송 이벤트:
     - 예약 완료, 예약 변경
@@ -207,12 +208,13 @@
 - prepare 단계에서 서버가 `orderId(UUID)`와 `amount`를 확정해 `payment_attempt`(`PENDING`)로 저장한다. 클라이언트가 보낸 amount는 신뢰하지 않는다.
 - 산출 규칙:
     - 주문: 상품을 한 번에 조회해 항목별 `productId.price × qty` 합계를 계산하고, 서버가 확정한 항목 단가를 결제 시도 payload에 함께 저장한다.
-    - 예약금: `slot.bookingClass.price × 10%`
-    - 8회권: `app.pass.total-price` 환경 변수 (`PASS_TOTAL_PRICE`, 기본 240,000원)
+    - 예약금: `slot.bookingClass.price × 10%`; 예약금과 잔금을 결제 시도 payload에 함께 저장한다.
+    - 8회권: `app.pass.total-price` 환경 변수 (`PASS_TOTAL_PRICE`, 기본 240,000원); 확정 가격을 결제 시도 payload에 저장한다.
 - confirm 단계에서 PG `paymentKey`와 `amount`가 prepare 시점 amount와 다르면 거절한다.
-- 주문 confirm은 현재 상품가를 다시 읽지 않고 prepare 시점에 저장한 항목 단가로 주문을 생성한다. 저장된 항목 합계가 `payment_attempt.amount`와 다르면 PG 호출 전에 거절한다.
+- 주문·예약·8회권 confirm은 현재 가격을 다시 계산하지 않고 prepare 시점에 저장한 가격 스냅샷으로 도메인을 생성한다. 저장된 결제 금액이 `payment_attempt.amount`와 다르면 PG 호출 전에 거절한다.
 - confirm은 결제 시도를 `PROCESSING`으로 선점한 뒤 DB 트랜잭션 밖에서 PG를 호출한다. 동시 요청은 한 건만 PG 호출을 수행한다.
 - Toss confirm은 prepare의 `orderId`를 멱등키로 사용한다. 일시 실패는 `RETRYABLE`, 최종 거절은 `FAILED`로 별도 트랜잭션에 저장한다.
+- Toss 승인 응답의 `paymentKey`, `orderId`가 요청값과 다르면 성공으로 수용하지 않고 같은 멱등키로 재확인할 수 있는 `RETRYABLE`로 처리한다.
 - 8회권 사용 예약은 prepare에서 `amount=0`을 받고 PG 호출 없이 confirm을 직접 호출한다.
 - confirm 요청 `paymentKey`는 `payment_attempt.payment_key`, PG 승인 응답의 `paymentKey`는 `payment_attempt.confirmed_payment_key`와 생성된 주문/예약/8회권의 `payment_key`에 저장한다. 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장하며, 8회권 환불은 `refunds.pass_purchase_id`로 추적한다. PG 환불 호출은 환불 요청을 만든 부모 트랜잭션이 커밋된 뒤 별도 executor에서 실행한다. 실행되지 못한 `REQUESTED`, 재시도 시각이 지난 `RETRYABLE`·`RECONCILIATION_REQUIRED`, 1분 이상 멈춘 `PROCESSING`은 매분 최대 10건씩 자동 복구한다.
 - PG 승인 후 도메인 생성이 실패하면 `refunds.payment_attempt_id`로 보상 환불을 남긴다. 보상 환불의 일시 실패와 결과 불명 상태에서는 결제 시도를 `COMPENSATION_REQUESTED`로 유지하고, 명시적 최종 실패만 `COMPENSATION_FAILED`로 전이한다. 모든 환불 재처리는 최초 `refunds.idempotency_key`를 재사용한다.

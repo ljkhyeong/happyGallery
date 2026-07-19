@@ -2,24 +2,22 @@
 
 ## 진행 중: 결제 후속과 신원 경로 완성
 
-**기준일:** 2026-07-18
+**기준일:** 2026-07-19
 **활성 계획:** `plan.md`
 
 ### 현재 상태
 
-- Toss prepare/confirm, confirm 트랜잭션 분리·멱등성·보상 환불은 구현됨.
+- Toss prepare/confirm, 전 도메인 가격 스냅샷, confirm 트랜잭션 분리·멱등성·보상 환불은 구현됨.
 - 환불은 부모 트랜잭션에 `REQUESTED`를 저장한 뒤 커밋 후 실행하며, 미완료 상태를 같은 멱등키로 복구함.
-- 알림은 도메인 트랜잭션과 함께 outbox를 저장하고 커밋 후 비동기로 발송함.
-- Spring Security 회원/관리자 체인과 SPA CSRF, Google/Naver 로그인, 개인정보 암호화·블라인드 인덱스 전환은 구현됨.
+- 알림은 도메인 트랜잭션과 함께 outbox를 저장하고 커밋 후 비동기로 발송하며, 채널 외부 호출은 실패 결과 집계와 제한 큐로 보호함.
+- Spring Security 회원/관리자 체인과 SPA CSRF, Google/Naver의 필수 OAuth state 검증, 개인정보 암호화·블라인드 인덱스 전환은 구현됨.
 - 장기 계약은 `docs/PRD/0001_기준_스펙/spec.md`, `docs/PRD/0004_API_계약/spec.md`와 관련 ADR을 기준으로 확인함.
 
 ### 다음 작업
 
 1. `plan.md`의 장바구니 결제 우회 경로를 먼저 정리한다.
-2. 결제 prepare 금액과 fulfill 금액 불변식을 주문·예약·8회권 전체에서 점검한다.
-3. 제거된 직접 생성 API용 DTO와 프론트 타입의 실제 소비자를 확인해 정리한다.
-4. `docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md`에 맞는 k3s 운영 산출물을 구현한다.
-5. `happygallery-identity-flows`와 `happygallery-notification-flows`를 함께 사용해 인증 코드 SMS와 회원가입 휴대폰 소유 확인을 순서대로 구현한다.
+2. `docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md`에 맞는 k3s 운영 산출물을 구현한다.
+3. `happygallery-identity-flows`와 `happygallery-notification-flows`를 함께 사용해 인증 코드 SMS와 회원가입 휴대폰 소유 확인을 순서대로 구현한다.
 
 ### 먼저 열 파일
 

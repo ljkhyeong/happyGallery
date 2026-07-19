@@ -10,7 +10,7 @@
 현재 애플리케이션은 다음과 같은 비동기/백그라운드 실행 경로를 가진다.
 
 - Spring `ThreadPoolTaskExecutor` 기반 알림·환불 비동기 실행
-- Resilience4j `TimeLimiter`를 위한 별도 `ExecutorService`
+- 결제·알림 외부 호출의 Resilience4j `TimeLimiter`를 위한 별도 `ExecutorService`
 - 웹 요청 종료와 별개로 drain이 필요한 Spring bean lifecycle
 
 운영 중 애플리케이션이 갑자기 종료되면 다음 문제가 생길 수 있다.
@@ -81,24 +81,27 @@
 - 현재 MDC 전파는 `notificationExecutor`와 `refundExecutor`에 적용한다.
 - 다른 executor를 추가할 때 request 추적이 필요하면 같은 수준의 decorator 정책을 별도로 적용해야 한다.
 
-### 4. PG timeout용 `ExecutorService`는 빠른 정리를 우선한다
+### 4. 외부 호출 timeout용 `ExecutorService`는 제한 큐와 빠른 정리를 사용한다
 
-`PaymentResilienceConfig`는 PG timeout executor를 Spring 빈으로 생성하고,
-`PaymentTimeoutExecutor.close()`는 빈 종료 시 다음 순서로 실행기를 정리한다.
+`PaymentResilienceConfig`와 `NotificationResilienceConfig`는 각각 PG와 알림 채널 timeout executor를 Spring 빈으로 생성한다.
+두 실행기는 고정 크기 `ArrayBlockingQueue`와 `AbortPolicy`를 사용해 대기 작업 수에 상한을 두고,
+큐 포화는 호출 스레드에서 실행하지 않고 즉시 재시도 가능한 실패 또는 채널 실패로 반환한다.
+
+결제의 `PaymentTimeoutExecutor.close()`는 빈 종료 시 다음 순서로 실행기를 정리한다.
 
 1. `executor.shutdown()`
 2. 최대 2초 `awaitTermination`
 3. 미종료 시 `shutdownNow()`
 4. `InterruptedException` 발생 시 interrupt 복구 후 `shutdownNow()`
 
-이 executor는 알림 executor와 다르게, 진행 중 작업을 끝까지 보존하는 것보다 보호용 thread를 빨리 정리하는 쪽이 우선이다.
+timeout executor는 업무 후처리용 `notificationExecutor`와 다르게, 진행 중 작업을 끝까지 보존하는 것보다 보호용 thread를 빨리 정리하는 쪽이 우선이다.
 
 이유:
 
 - 이 executor는 독립 비즈니스 큐가 아니라 `TimeLimiter` 보조 실행기에 가깝다.
 - 외부 PG 호출은 이미 timeout/circuit-breaker 보호를 받는다.
 - 종료 시점에 이 thread pool을 오래 붙잡아둘 운영 가치가 상대적으로 낮다.
-- 실행기는 고정 크기 `ArrayBlockingQueue`와 `AbortPolicy`를 사용해 대기 작업 수에 상한을 두며, 거절된 환불은 DB 복구 대상 상태로 남는다.
+- 결제 큐 거절은 DB 복구 대상 상태로 남고, 알림 채널 큐 거절은 `false`로 처리되어 다음 채널 fallback과 outbox 복구 정책을 따른다.
 
 ### 5. 종료 대기 시간은 계층별 역할에 따라 다르게 둔다
 
@@ -108,6 +111,7 @@
 | `notificationExecutor` | task completion 대기 | 30초 |
 | `refundExecutor` | task completion 대기, 미실행 건은 DB 복구 | 30초 |
 | PG timeout executor | 빠른 정리 후 강제 종료 허용 | 2초 |
+| 알림 채널 timeout executor | 제한 큐, Spring 종료 시 신규 작업 거절 | Spring bean 종료 단계 |
 
 모든 executor에 같은 종료 정책을 쓰지 않는다.
 종료 시 무엇을 보호해야 하는지에 따라 대기 시간을 다르게 둔다.
@@ -130,6 +134,8 @@
   - CircuitBreaker, TimeLimiter, executor와 제공자 빈 조립
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentTimeoutExecutor.java`
   - Spring 빈 종료 시 2초 대기 후 강제 종료하는 수명주기 구현
+- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/notification/NotificationResilienceConfig.java`
+  - 알림 채널 timeout executor에 제한 큐·즉시 거절·큐/거절 메트릭 적용
 
 ---
 

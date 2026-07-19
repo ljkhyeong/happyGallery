@@ -166,6 +166,8 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `VITE_TOSS_CLIENT_KEY` | 프론트 빌드 | Toss SDK client key |
 | `PAYMENT_EXECUTOR_POOL_SIZE` | 백엔드 | PG 호출 실행 스레드 수, 기본 `4` |
 | `PAYMENT_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | PG 호출 대기열 크기, 기본 `20` |
+| `NOTIFICATION_EXECUTOR_POOL_SIZE` | 백엔드 | 카카오·SMS timeout 보호 실행 스레드 수, 기본 `6` |
+| `NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 카카오·SMS timeout 보호 대기열 크기, 기본 `20` |
 | `PASS_TOTAL_PRICE` | 백엔드 | 8회권 결제 금액 |
 | `GOOGLE_OAUTH_CLIENT_ID` | 백엔드 `prod` | Google 로그인 client ID |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Google 로그인 client secret |

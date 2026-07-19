@@ -15,7 +15,7 @@
 - PG 승인 후 로컬 도메인 생성이 실패하면 외부 결제만 승인된 상태가 남는다.
 - 동시 confirm 요청이 같은 `PENDING` 시도를 중복 처리할 수 있다.
 - Toss POST 요청에 멱등키가 없어 타임아웃 재시도가 안전하지 않다.
-- 주문 prepare와 confirm이 각각 상품 가격을 조회해, 두 호출 사이에 가격이 바뀌면 PG 승인 금액과 저장 주문 금액이 달라질 수 있다.
+- prepare와 confirm 사이에 상품·클래스·8회권 가격이 바뀌면 PG 승인 금액과 저장 도메인 금액이 달라질 수 있다.
 
 Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며, 같은 API 키·주소·HTTP 메서드와
 같은 멱등키 조합의 최초 응답을 15일간 재사용한다.
@@ -42,19 +42,21 @@ Toss confirm은 활성 DB 트랜잭션이 없는 상태에서 호출한다.
 `PaymentConfirmTransactionService`의 각 변경은 `REQUIRES_NEW`로 실행한다. confirm 선점 조회에는
 비관적 쓰기 잠금을 사용한다. `PROCESSING`이 1분 이상 지속되면 같은 paymentKey 요청만 다시 선점할 수 있다.
 claim 단계에서 `PaymentPayload.userId()`와 현재 `AuthContext.userId()`를 공통 비교한다. 각
-`PaymentFulfiller.validateStoredPayload()`는 컨텍스트별 저장 payload 불변식을 검증하고, 주문은 저장된
-항목 단가 합계와 `PaymentAttempt.amount`까지 비교한다. fulfillment는
+`PaymentFulfiller.validateStoredPayload()`는 컨텍스트별 저장 payload 불변식을 검증하고, 주문·예약·8회권은 저장된
+가격 스냅샷과 `PaymentAttempt.amount`까지 비교한다. fulfillment는
 현재 인증 정보를 다시 받지 않고 검증된 저장 payload의 `userId`를 사용한다. 비회원 연락처의 입력 형태는
 prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 fulfillment의 `VerifiedGuestResolver`가 담당한다.
 
-### 3. 주문 단가는 prepare 시점에 확정한다
+### 3. 도메인 생성 금액은 prepare 시점에 확정한다
 
 - 공개 입력인 `OrderPayload`에는 `productId`, `qty`만 받는다.
 - `OrderPreparer`는 상품을 ID 목록으로 한 번에 조회하고, 서버 상품가를 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만든다.
 - 내부용 payload는 AES-GCM으로 암호화해 `payment_attempt.payload_enc`에 저장하고, claim과 fulfillment에서만 복호화한다. V46은 기존 평문 JSON도 암호문으로 전환한다.
 - claim 단계에서 항목 단가 합계와 `payment_attempt.amount`를 대조한 뒤 PG를 호출한다.
 - `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 단가로 `OrderItemRequest`를 만든다.
-- 변경 전 생성되어 서버 단가가 없는 미확정 주문 결제 시도는 confirm하지 않고 새 prepare를 요구한다.
+- `BookingPreparer`는 예약금과 잔금을 `PreparedBookingPayload`에, `PassPreparer`는 총 가격을 `PreparedPassPayload`에 저장한다.
+- 예약과 8회권 fulfillment도 현재 가격을 다시 계산하지 않고 저장된 스냅샷으로 생성한다.
+- 변경 전 생성되어 서버 가격이 없는 미확정 결제 시도는 confirm하지 않고 새 prepare를 요구한다.
 
 `OrderItemRequest`가 결제 입력 항목과 `Product`를 받는 팩토리는 두지 않는다. confirm 경로가 `Product`에
 의존하면 현재 가격 재조회와 계층 간 결합이 다시 생기므로, 서버가 확정한 원시 값만 명시적으로 전달한다.
@@ -62,6 +64,7 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 ### 4. Toss 멱등키를 요청마다 고정한다
 
 - confirm: prepare에서 생성한 무작위 UUID `orderId`를 `Idempotency-Key`로 사용한다.
+- Toss 승인 응답의 `paymentKey`, `orderId`가 요청값과 다르면 성공으로 수용하지 않고 같은 멱등키 재시도 대상으로 남긴다.
 - refund: `refunds.idempotency_key`에 환불 생성 시 UUID를 저장하고 최초 실행과 모든 재시도에서 재사용한다.
 - 멱등키만 바꿔 같은 요청을 재시도하지 않는다.
 
@@ -95,7 +98,7 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 | 장점 | PG 실패 상태가 예외 롤백과 무관하게 유지된다 |
 | 장점 | 동시 confirm은 한 요청만 PG 호출을 수행한다 |
 | 장점 | 타임아웃 재시도가 같은 Toss 멱등키를 사용한다 |
-| 장점 | prepare 이후 상품 가격이 바뀌어도 PG 승인 금액과 저장 주문 금액이 일치한다 |
+| 장점 | prepare 이후 상품·클래스·8회권 가격이 바뀌어도 PG 승인 금액과 저장 도메인 금액이 일치한다 |
 | 장점 | PG 승인 후 로컬 실패가 durable한 보상 환불과 운영자 재시도 대상으로 남는다 |
 | 단점 | confirm 상태와 보상 상태가 늘어나 운영 조회가 복잡해진다 |
 | 단점 | 비회원 confirm 응답 커밋 후 네트워크 단절 시 1회성 원문 access token 재발급 문제는 별도 보완이 필요하다 |
@@ -105,7 +108,7 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - `PaymentConfirmTransactionService`
 - `DefaultPaymentConfirmService`
 - `PaymentPreparer`, `PaymentFulfiller`, `OrderPreparer`, `OrderFulfiller`, `BookingFulfiller`, `PassFulfiller`
-- `PaymentPayload.PreparedOrderPayload`
+- `PaymentPayload.PreparedOrderPayload`, `PreparedBookingPayload`, `PreparedPassPayload`
 - `ProductReaderPort`, `ProductRepository`, `DefaultOrderCreationService`
 - `PaymentAttempt`, `PaymentAttemptStatus`
 - `RefundExecutionService`, `RefundTransactionService`, `Refund`
