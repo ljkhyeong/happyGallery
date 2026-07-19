@@ -81,6 +81,9 @@ public class PaymentAttempt {
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 
+    @Column(name = "confirm_recovery_attempted_at")
+    private LocalDateTime confirmRecoveryAttemptedAt;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -157,7 +160,8 @@ public class PaymentAttempt {
     public boolean reconcileLatePgApproval(String confirmedPaymentKey, LocalDateTime approvedAt) {
         if (status != PaymentAttemptStatus.PROCESSING
                 && status != PaymentAttemptStatus.RETRYABLE
-                && status != PaymentAttemptStatus.FAILED) {
+                && status != PaymentAttemptStatus.FAILED
+                && status != PaymentAttemptStatus.RECONCILIATION_REQUIRED) {
             return false;
         }
         applyApproval(confirmedPaymentKey, approvedAt);
@@ -247,6 +251,48 @@ public class PaymentAttempt {
         this.processingToken = null;
     }
 
+    /**
+     * confirm 도중 프로세스 또는 DB 장애로 중단된 시도인지 판정한다.
+     *
+     * <p>PG 결과 저장 전인 PROCESSING은 선점 시각을, PG 승인 저장 후인 APPROVED는 승인 시각을 기준으로 한다.
+     * 시각이 없는 과거 데이터는 생성 시각까지 제한 시간을 넘긴 경우에만 복구한다.
+     */
+    public boolean isConfirmRecoveryCandidate(LocalDateTime staleBefore) {
+        if (confirmRecoveryAttemptedAt != null
+                && !isAtOrBefore(confirmRecoveryAttemptedAt, staleBefore)) {
+            return false;
+        }
+        return switch (status) {
+            case PROCESSING, RETRYABLE ->
+                    isAtOrBefore(processingAt != null ? processingAt : createdAt, staleBefore);
+            case APPROVED -> isAtOrBefore(confirmedAt != null ? confirmedAt : createdAt, staleBefore);
+            default -> false;
+        };
+    }
+
+    /** 자동 복구 시도 간 backoff와 후보 순환을 위한 마지막 시각을 기록한다. */
+    public void markConfirmRecoveryAttempted(LocalDateTime attemptedAt) {
+        requireStatus(
+                PaymentAttemptStatus.PROCESSING,
+                PaymentAttemptStatus.RETRYABLE,
+                PaymentAttemptStatus.APPROVED);
+        this.confirmRecoveryAttemptedAt = attemptedAt;
+    }
+
+    /** Toss 멱등 응답 안전 구간을 지난 미확정 PG 호출을 수동 대사 대상으로 격리한다. */
+    public void markConfirmReconciliationRequired(String reason) {
+        requireStatus(PaymentAttemptStatus.PROCESSING, PaymentAttemptStatus.RETRYABLE);
+        this.status = PaymentAttemptStatus.RECONCILIATION_REQUIRED;
+        this.processingToken = null;
+        this.failReason = reason;
+    }
+
+    public boolean requiresConfirmReconciliation(LocalDateTime automaticRetrySafeSince) {
+        return amount > 0L
+                && (status == PaymentAttemptStatus.PROCESSING || status == PaymentAttemptStatus.RETRYABLE)
+                && (createdAt == null || createdAt.isBefore(automaticRetrySafeSince));
+    }
+
     public Long getId() { return id; }
     public String getOrderIdExternal() { return orderIdExternal; }
     public PaymentContext getContext() { return context; }
@@ -262,6 +308,7 @@ public class PaymentAttempt {
     public LocalDateTime getProcessingAt() { return processingAt; }
     public String getProcessingToken() { return processingToken; }
     public LocalDateTime getConfirmedAt() { return confirmedAt; }
+    public LocalDateTime getConfirmRecoveryAttemptedAt() { return confirmRecoveryAttemptedAt; }
     public long getVersion() { return version; }
 
     private void requireSamePaymentKey(String requestedPaymentKey) {
@@ -294,5 +341,9 @@ public class PaymentAttempt {
         return status == PaymentAttemptStatus.PROCESSING
                 && processingToken != null
                 && processingToken.equals(expectedProcessingToken);
+    }
+
+    private boolean isAtOrBefore(LocalDateTime occurredAt, LocalDateTime boundary) {
+        return occurredAt != null && !occurredAt.isAfter(boundary);
     }
 }

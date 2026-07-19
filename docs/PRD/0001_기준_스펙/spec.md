@@ -223,6 +223,7 @@
 - 8회권 사용 예약은 prepare에서 `amount=0`을 받고 PG 호출 없이 confirm을 직접 호출한다. 도메인 생성 실패는 `FAILED`로 기록하며 외부 결제가 없으므로 보상 환불을 만들지 않는다.
 - confirm 요청 `paymentKey`는 `payment_attempt.payment_key`, PG 승인 응답의 `paymentKey`는 `payment_attempt.confirmed_payment_key`와 생성된 주문/예약/8회권의 `payment_key`에 저장한다. 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장하며, 8회권 환불은 `refunds.pass_purchase_id`로 추적한다. PG 환불 호출은 환불 요청을 만든 부모 트랜잭션이 커밋된 뒤 별도 executor에서 실행한다. 실행되지 못한 `REQUESTED`, 재시도 시각이 지난 `RETRYABLE`·`RECONCILIATION_REQUIRED`, 1분 이상 멈춘 `PROCESSING`은 매분 최대 10건씩 자동 복구한다.
 - PG 승인 후 도메인 생성이 실패하면 `refunds.payment_attempt_id`로 보상 환불을 남긴다. 보상 환불의 일시 실패와 결과 불명 상태에서는 결제 시도를 `COMPENSATION_REQUESTED`로 유지하고, 명시적 최종 실패만 `COMPENSATION_FAILED`로 전이한다. 모든 환불 재처리는 최초 `refunds.idempotency_key`를 재사용한다.
+- PG 승인 상태 또는 보상 환불 요청을 저장하는 트랜잭션까지 실패해 결제 시도가 `PROCESSING`·`RETRYABLE`·`APPROVED`에 남으면, 1분 경과 후 매분 45초에 최대 10건씩 자동 복구한다. `PROCESSING/RETRYABLE`은 기존 `orderId` 멱등키로 confirm을 재확인하고, `APPROVED`는 PG 재호출 없이 도메인 생성을 재개한다. 마지막 복구 시각을 저장해 1분 backoff와 후보 순환을 보장하므로 사용자 confirm 재호출은 자동 복구의 필수 조건이 아니다. 단, 생성 후 14일이 지난 유료 미확정 PG 호출은 다시 승인 요청하지 않고 `RECONCILIATION_REQUIRED`로 격리하며, PG를 호출하지 않는 0원 결제는 기간과 무관하게 내부 처리를 재개한다.
 - 주문·예약·8회권·결제 시도 원본은 각각 환불 요청 한 건만 가지며, 재시도는 새 이력을 만들지 않고 기존 환불 행과 멱등키를 사용한다.
 - 주문 거절·예약 취소·8회권 정산 완료와 PG 환불 완료는 구분한다. 시작 응답은 로컬 상태 변경과 `REQUESTED` 이력 접수를 뜻하며, 고객은 소유권이 검증된 예약·주문 상세의 환불 금액과 상태로, 운영자는 `refundId` 단건 조회로 실제 결과를 확인한다.
 

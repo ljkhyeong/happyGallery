@@ -30,7 +30,11 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 class PaymentConfirmTransactionService {
 
-    private static final Duration PROCESSING_STALE_AFTER = Duration.ofMinutes(1);
+    static final Duration CONFIRM_RECOVERY_DELAY = Duration.ofMinutes(1);
+    static final Duration CONFIRM_AUTOMATIC_RETRY_MAX_AGE = Duration.ofDays(14);
+
+    private static final String CONFIRM_RECONCILIATION_REASON =
+            "PG 멱등 응답 안전 기간이 지나 결제 상태 대사가 필요합니다.";
 
     private final PaymentAttemptReaderPort attemptReader;
     private final PaymentAttemptStorePort attemptStore;
@@ -76,6 +80,16 @@ class PaymentConfirmTransactionService {
             attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
             return readyForFulfillment(attempt);
         }
+        if (attempt.getStatus() == PaymentAttemptStatus.RECONCILIATION_REQUIRED) {
+            attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
+            throw paymentFailure(attempt);
+        }
+        if (attempt.requiresConfirmReconciliation(now.minus(CONFIRM_AUTOMATIC_RETRY_MAX_AGE))) {
+            attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
+            attempt.markConfirmReconciliationRequired(CONFIRM_RECONCILIATION_REASON);
+            attemptStore.save(attempt);
+            return new ConfirmationRejected(attempt.getId(), paymentFailure(attempt));
+        }
         String processingToken;
         if (attempt.getStatus() == PaymentAttemptStatus.PROCESSING) {
             if (!isStale(attempt, now)) {
@@ -96,6 +110,38 @@ class PaymentConfirmTransactionService {
                 attempt.getPaymentKey(), processingToken);
     }
 
+    /**
+     * 배치가 저장된 결제 정보만으로 동일 confirm 요청을 복원한다.
+     *
+     * <p>후보 목록 조회 이후의 상태 변경을 반영하도록 행 잠금 아래 상태와 제한 시간을 다시 확인한다.
+     * 반환 후 경합은 실제 confirm의 실행권 선점과 멱등성 검증이 처리한다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public ConfirmRecoveryStep resolveConfirmRecovery(Long attemptId, LocalDateTime now) {
+        PaymentAttempt attempt = findForUpdate(attemptId);
+        LocalDateTime staleBefore = now.minus(CONFIRM_RECOVERY_DELAY);
+        if (!attempt.isConfirmRecoveryCandidate(staleBefore)) {
+            return new RecoverySkipped();
+        }
+        attempt.markConfirmRecoveryAttempted(now);
+        if (attempt.requiresConfirmReconciliation(now.minus(CONFIRM_AUTOMATIC_RETRY_MAX_AGE))) {
+            attempt.markConfirmReconciliationRequired(CONFIRM_RECONCILIATION_REASON);
+            attemptStore.save(attempt);
+            return new ReconciliationRequired();
+        }
+        attemptStore.save(attempt);
+        try {
+            PaymentPayload payload = deserialize(attempt.getPayloadEnc());
+            AuthContext auth = payload.userId() == null
+                    ? AuthContext.guest()
+                    : AuthContext.member(payload.userId());
+            return new RecoveryReady(new ConfirmCommand(
+                    attempt.getPaymentKey(), attempt.getOrderIdExternal(), attempt.getAmount(), auth));
+        } catch (RuntimeException failure) {
+            return new RecoveryPreparationFailed(failure);
+        }
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ConfirmationStep resolveAfterLostProcessingOwnership(ConfirmCommand command) {
         PaymentAttempt attempt = findValidatedAttemptForUpdate(command);
@@ -104,7 +150,7 @@ class PaymentConfirmTransactionService {
         return switch (attempt.getStatus()) {
             case CONFIRMED -> new Completed(confirmedResult(attempt));
             case APPROVED -> readyForFulfillment(attempt);
-            case RETRYABLE, FAILED -> throw paymentFailure(attempt);
+            case RETRYABLE, FAILED, RECONCILIATION_REQUIRED -> throw paymentFailure(attempt);
             case PENDING, PROCESSING ->
                     throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
             case COMPENSATION_REQUESTED, COMPENSATION_FAILED, COMPENSATED, CANCELED ->
@@ -299,13 +345,28 @@ class PaymentConfirmTransactionService {
 
     private boolean isStale(PaymentAttempt attempt, LocalDateTime now) {
         return attempt.getProcessingAt() == null
-                || !attempt.getProcessingAt().isAfter(now.minus(PROCESSING_STALE_AFTER));
+                || !attempt.getProcessingAt().isAfter(now.minus(CONFIRM_RECOVERY_DELAY));
     }
 
     sealed interface ConfirmationStep
-            permits Completed, ReadyForFulfillment, PgConfirmationRequired, ZeroAmountApprovalRequired {}
+            permits Completed, ConfirmationRejected, ReadyForFulfillment,
+                    PgConfirmationRequired, ZeroAmountApprovalRequired {}
+
+    sealed interface ConfirmRecoveryStep
+            permits RecoverySkipped, ReconciliationRequired, RecoveryReady, RecoveryPreparationFailed {}
+
+    record RecoverySkipped() implements ConfirmRecoveryStep {}
+
+    record ReconciliationRequired() implements ConfirmRecoveryStep {}
+
+    record RecoveryReady(ConfirmCommand command) implements ConfirmRecoveryStep {}
+
+    record RecoveryPreparationFailed(RuntimeException failure) implements ConfirmRecoveryStep {}
 
     record Completed(ConfirmResult result) implements ConfirmationStep {}
+
+    record ConfirmationRejected(Long attemptId,
+                                HappyGalleryException failure) implements ConfirmationStep {}
 
     record ReadyForFulfillment(Long attemptId,
                                String orderId,

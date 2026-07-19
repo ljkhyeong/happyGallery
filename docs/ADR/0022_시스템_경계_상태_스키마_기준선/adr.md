@@ -118,11 +118,12 @@
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
   - `processing_at nullable`, `processing_token nullable`, `payment_key nullable`, `confirmed_payment_key nullable`, `fail_reason nullable`
-  - `payload_enc`, `fulfilled_domain_id nullable`, `fulfilled_access_token_enc nullable`, `created_at`, `confirmed_at nullable`, `version`
+  - `payload_enc`, `fulfilled_domain_id nullable`, `fulfilled_access_token_enc nullable`, `created_at`, `confirmed_at nullable`, `confirm_recovery_attempted_at nullable`, `version`
   - 내부 결제 payload는 AES-GCM 암호문으로 저장하고 claim·fulfillment 시점에만 복호화한다.
   - confirm을 선점할 때마다 새 `processing_token`을 발급하고 현재 토큰 소유자의 PG 결과만 상태에 반영한다.
+  - 자동 복구 전에 `confirm_recovery_attempted_at`을 저장해 1분 backoff와 후보 순환을 보장한다.
   - `CONFIRMED` 결과의 도메인 ID와 비회원 접근 토큰 암호문을 저장해 동일 confirm 재호출에 같은 결과를 반환한다.
-  - 상태: `PENDING | PROCESSING | RETRYABLE | APPROVED | CONFIRMED | FAILED | COMPENSATION_REQUESTED | COMPENSATION_FAILED | COMPENSATED | CANCELED`
+  - 상태: `PENDING | PROCESSING | RETRYABLE | APPROVED | CONFIRMED | FAILED | RECONCILIATION_REQUIRED | COMPENSATION_REQUESTED | COMPENSATION_FAILED | COMPENSATED | CANCELED`
 
 #### 클래스, 슬롯, 예약
 
@@ -188,6 +189,7 @@ WHERE (user_id IS NULL AND guest_id IS NULL)
 - `orders(status, created_at, id)` 커서 조회
 - `payment_attempt(order_id_external)` UNIQUE
 - `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
+- `payment_attempt(status, confirm_recovery_attempted_at, created_at)` confirm 자동 복구 backoff·후보 조회
 - `users(email_hmac)` UNIQUE, `users(name_hmac)` 정확 일치 검색
 - `guests(phone_hmac)` UNIQUE, `guests(name_hmac)` 정확 일치 검색
 - `user_social_accounts(provider, provider_id_hmac)` UNIQUE

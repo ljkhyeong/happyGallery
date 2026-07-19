@@ -39,6 +39,7 @@ Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며,
 - `APPROVED`: PG 승인 또는 amount=0 내부 승인 완료, 도메인 생성 전
 - `CONFIRMED`: 도메인 생성 완료
 - `FAILED`: 최종 PG 거절 또는 amount=0 도메인 생성 실패
+- `RECONCILIATION_REQUIRED`: Toss 멱등 응답 안전 기간을 지나 자동 재확인할 수 없어 수동 대사가 필요한 상태
 - `COMPENSATION_REQUESTED`: PG 승인 후 도메인 생성 실패로 보상 환불 요청
 - `COMPENSATION_FAILED`: 보상 환불 실패, 운영자 재시도 필요
 - `COMPENSATED`: 보상 환불 완료
@@ -113,8 +114,28 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - 조치가 필요한 보상 환불은 기존 관리자 환불 목록과 재처리 API를 그대로 사용한다.
 - amount=0 내부 승인은 외부 결제가 없으므로 로컬 생성 실패를 `FAILED`로 기록하고 보상 환불을 만들지 않는다.
 - 보상 요청 트랜잭션 자체가 실패하면 원래 로컬 실패 예외에 보상 실패를 suppressed 원인으로 보존하고
-  ERROR 로그를 남긴다. 이때 보상 이력은 아직 durable하지 않으며, 결제 시도는 `PROCESSING` 또는 `APPROVED`에
-  남아 같은 confirm 재호출에서 동일 멱등키로 다시 처리된다.
+  ERROR 로그를 남긴다. 이때 보상 이력은 아직 durable하지 않지만 결제 시도는 `PROCESSING` 또는 `APPROVED`에
+  남으므로 자동 복구 기준점으로 사용한다.
+- `BatchScheduler`는 매분 45초마다 1분 이상 지난 `PROCESSING`·`RETRYABLE`·`APPROVED`를 오래된 순으로 최대 10건 조회한다.
+  건별 처리 직전에 행 잠금 아래 상태와 시각을 다시 검증하고, 암호화된 저장 payload의 결제 주체와 저장된
+  paymentKey·orderId·amount로 기존 confirm 명령을 복원한다.
+- 각 시도는 `confirm_recovery_attempted_at`을 먼저 저장한다. 다음 배치는 이 시각도 1분 이상 지난 건만 선택하고
+  마지막 처리 시각 순으로 정렬하므로 PG 장애나 영구 오류가 같은 10개 슬롯을 계속 독점하지 않는다.
+- stale `PROCESSING/RETRYABLE`은 새 processing token으로 재선점한 뒤 같은 orderId 멱등키로 PG confirm을 재확인한다.
+  stale `APPROVED`는 PG를 다시 호출하지 않고 fulfillment부터 재개한다. fulfillment가 다시 실패하면 기존
+  보상 트랜잭션이 `COMPENSATION_REQUESTED`와 환불 `REQUESTED`를 함께 저장하고 환불 복구 경로로 넘긴다.
+- Toss가 동일 멱등 응답을 보존하는 15일보다 여유를 둬, 생성 후 14일 이내인 `PROCESSING/RETRYABLE`만 PG에
+  자동 재확인한다. 그보다 오래된 시도는 외부 승인 여부를 추측하지 않고 `RECONCILIATION_REQUIRED`로 전이해
+  로컬 `FAILED` 오판과 보상 누락을 막는다. 동일한 상한은 사용자 confirm 재호출에도 적용하며, 상태 전이는
+  별도 트랜잭션에 커밋한 뒤 `PAYMENT_FAILED`를 반환한다. 이미 승인 키가 저장된 `APPROVED` fulfillment 재개에는
+  이 상한을 적용하지 않는다. 외부 PG 호출이 없는 amount=0 `PROCESSING`도 기간과 무관하게 내부 처리를 재개한다.
+- `RECONCILIATION_REQUIRED` 전이 시 `happygallery.payment.confirm.reconciliation_required` 카운터를 올리고
+  Prometheus critical 알림을 발생시킨다. 운영자는 저장된 orderId·paymentKey와 Toss 거래 상태를 먼저 대조하며,
+  외부 승인 여부가 확인되기 전에는 `FAILED` 처리나 새 PG 승인 요청을 하지 않는다. 승인/미승인 확인 뒤의 종결은
+  결제 상태를 추측하지 않는 별도 운영 조치로 수행하며, 자동 복구는 이 상태를 다시 처리하지 않는다.
+- 후보 조회는 잠그지 않지만 실제 confirm의 비관적 잠금과 processing token fencing을 그대로 사용한다.
+  따라서 사용자 요청이나 여러 서버의 복구 배치가 겹쳐도 PG 결과와 도메인 생성은 한 실행권만 반영한다.
+  `PENDING`과 최종·보상 상태는 자동 confirm 대상이 아니다.
 
 ## 결과
 
@@ -127,6 +148,7 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 | 장점 | 타임아웃 재시도가 같은 Toss 멱등키를 사용한다 |
 | 장점 | prepare 이후 상품·클래스·8회권 가격이 바뀌어도 PG 승인 금액과 저장 도메인 금액이 일치한다 |
 | 장점 | 저장에 성공한 PG 승인 후 로컬 실패가 durable한 보상 환불과 운영자 재시도 대상으로 남는다 |
+| 장점 | 보상 요청 저장 트랜잭션까지 실패해도 남은 결제 중간 상태를 배치가 자동 재개한다 |
 | 단점 | confirm 상태와 보상 상태가 늘어나 운영 조회가 복잡해진다 |
 | 단점 | 비회원 confirm 재응답을 위해 결제 시도 보존 기간 동안 접근 토큰 암호문을 추가 관리한다 |
 
@@ -134,6 +156,7 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 
 - `PaymentConfirmTransactionService`
 - `DefaultPaymentConfirmService`
+- `DefaultPaymentConfirmRecoveryService`, `PaymentConfirmRecoveryUseCase`, `BatchScheduler`
 - `PaymentPreparer`, `PaymentFulfiller`, `OrderPreparer`, `OrderFulfiller`, `BookingFulfiller`, `PassFulfiller`
 - `PaymentPayload.PreparedOrderPayload`, `PreparedBookingPayload`, `PreparedPassPayload`
 - `ProductReaderPort`, `ProductRepository`, `CartUseCase`
@@ -144,3 +167,4 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - `V46__ProtectPlaintextPersonalData`
 - `V49__persist_payment_confirm_result.sql`
 - `V50__fence_payment_confirm_processing.sql`
+- `V51__track_payment_confirm_recovery.sql`

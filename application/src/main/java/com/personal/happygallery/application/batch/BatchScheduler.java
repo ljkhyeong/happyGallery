@@ -5,6 +5,7 @@ import com.personal.happygallery.application.order.port.in.OrderAutoRefundBatchU
 import com.personal.happygallery.application.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentConfirmRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundRecoveryUseCase;
 import com.personal.happygallery.domain.time.Clocks;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Component;
  *   <li>매일 07:00: 예약 당일 리마인드</li>
  *   <li>매일 09:00: 8회권 만료 7일 전 알림</li>
  *   <li>매분 15초: 실행되지 않았거나 결과 확인이 필요한 환불 복구</li>
+ *   <li>매분 45초: confirm 도중 중단된 결제 확정 복구</li>
  * </ul>
  */
 @Component
@@ -33,19 +35,22 @@ public class BatchScheduler {
     private final PassExpiryBatchUseCase passExpiryBatchUseCase;
     private final BookingReminderBatchUseCase bookingReminderBatchUseCase;
     private final RefundRecoveryUseCase refundRecoveryUseCase;
+    private final PaymentConfirmRecoveryUseCase paymentConfirmRecoveryUseCase;
 
     public BatchScheduler(OrderAutoRefundBatchUseCase orderAutoRefundBatchUseCase,
                           PickupExpireBatchUseCase pickupExpireBatchUseCase,
                           PickupDeadlineReminderBatchUseCase pickupDeadlineReminderBatchUseCase,
                           PassExpiryBatchUseCase passExpiryBatchUseCase,
                           BookingReminderBatchUseCase bookingReminderBatchUseCase,
-                          RefundRecoveryUseCase refundRecoveryUseCase) {
+                          RefundRecoveryUseCase refundRecoveryUseCase,
+                          PaymentConfirmRecoveryUseCase paymentConfirmRecoveryUseCase) {
         this.orderAutoRefundBatchUseCase = orderAutoRefundBatchUseCase;
         this.pickupExpireBatchUseCase = pickupExpireBatchUseCase;
         this.pickupDeadlineReminderBatchUseCase = pickupDeadlineReminderBatchUseCase;
         this.passExpiryBatchUseCase = passExpiryBatchUseCase;
         this.bookingReminderBatchUseCase = bookingReminderBatchUseCase;
         this.refundRecoveryUseCase = refundRecoveryUseCase;
+        this.paymentConfirmRecoveryUseCase = paymentConfirmRecoveryUseCase;
     }
 
     /** 주문 승인 SLA(24h) 초과 → 자동환불. 매시간 정각 실행. */
@@ -102,5 +107,12 @@ public class BatchScheduler {
     @Scheduled(cron = "15 * * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runRefundRecovery() {
         return refundRecoveryUseCase.recoverPendingRefunds();
+    }
+
+    /** confirm 도중 중단된 결제를 같은 멱등키로 재개한다. 매분 45초에 실행. */
+    @BatchJob("결제 확정 복구")
+    @Scheduled(cron = "45 * * * * *", zone = Clocks.SEOUL_ID)
+    public BatchResult runPaymentConfirmRecovery() {
+        return paymentConfirmRecoveryUseCase.recoverIncompleteConfirms();
     }
 }

@@ -71,6 +71,13 @@ data:
               severity: warning
             annotations:
               summary: PG 호출 대기열 사용률이 80%를 초과했습니다
+          - alert: PaymentConfirmReconciliationRequired
+            expr: increase(happygallery_payment_confirm_reconciliation_required_total{application="happygallery"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: PG 멱등 안전 기간을 지나 수동 대사가 필요한 결제가 발생했습니다
           - alert: NotificationTimeoutExecutorRejected
             expr: increase(happygallery_notification_executor_rejected_total{application="happygallery"}[5m]) > 0
             for: 1m

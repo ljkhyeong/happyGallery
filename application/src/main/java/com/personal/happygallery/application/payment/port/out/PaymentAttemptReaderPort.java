@@ -1,6 +1,8 @@
 package com.personal.happygallery.application.payment.port.out;
 
 import com.personal.happygallery.domain.payment.PaymentAttempt;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface PaymentAttemptReaderPort {
@@ -12,4 +14,7 @@ public interface PaymentAttemptReaderPort {
     Optional<PaymentAttempt> findByOrderIdExternal(String orderIdExternal);
 
     Optional<PaymentAttempt> findByOrderIdExternalForUpdate(String orderIdExternal);
+
+    /** confirm 도중 중단된 PROCESSING/RETRYABLE/APPROVED 시도 ID를 오래된 순서로 조회한다. */
+    List<Long> findConfirmRecoveryCandidateIds(LocalDateTime staleBefore, int limit);
 }

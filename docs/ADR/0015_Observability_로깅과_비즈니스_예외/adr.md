@@ -66,3 +66,6 @@
 - `bootstrap/src/main/resources/logback-spring.xml` 추가
 - `bootstrap/build.gradle`에 `logstash-logback-encoder` 런타임 의존성 추가
 - `domain/error/HappyGalleryException` 생성자 변경
+- `AppMetrics`의 `happygallery.payment.confirm.reconciliation_required` 카운터와
+  `PaymentConfirmReconciliationRequired` Prometheus critical 알림으로 결제 수동 대사 필요 상태를 즉시 노출한다.
+  로컬 Compose의 `monitoring/alerts.yml`과 k3s ConfigMap의 `deploy/k3s/base/prometheus.yaml`에 같은 규칙을 둔다.

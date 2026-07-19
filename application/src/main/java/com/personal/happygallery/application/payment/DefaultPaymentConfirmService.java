@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.payment;
 
+import com.personal.happygallery.application.monitoring.AppMetrics;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
@@ -23,11 +24,14 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
 
     private final PaymentPort paymentPort;
     private final PaymentConfirmTransactionService transactionService;
+    private final AppMetrics appMetrics;
 
     public DefaultPaymentConfirmService(PaymentPort paymentPort,
-                                        PaymentConfirmTransactionService transactionService) {
+                                        PaymentConfirmTransactionService transactionService,
+                                        AppMetrics appMetrics) {
         this.paymentPort = paymentPort;
         this.transactionService = transactionService;
+        this.appMetrics = appMetrics;
     }
 
     @Override
@@ -39,6 +43,13 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
             switch (step) {
                 case PaymentConfirmTransactionService.Completed completed -> {
                     return completed.result();
+                }
+                case PaymentConfirmTransactionService.ConfirmationRejected rejected -> {
+                    appMetrics.incrementPaymentConfirmReconciliationRequired();
+                    log.error("결제 확정 자동 재확인 안전 기간 초과 — 수동 대사 필요 "
+                                    + "[attemptId={}, orderId={}]",
+                            rejected.attemptId(), command.orderId());
+                    throw rejected.failure();
                 }
                 case PaymentConfirmTransactionService.ReadyForFulfillment ready -> {
                     return fulfill(ready);
@@ -117,7 +128,8 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
             }
         } catch (RuntimeException compensationFailure) {
             originalFailure.addSuppressed(compensationFailure);
-            log.error("PG 승인 결제의 보상 환불 요청 저장 실패 [attemptId={}, orderId={}, type={}]",
+            log.error("PG 승인 결제의 보상 환불 요청 저장 실패 — 자동 복구 대상 유지 "
+                            + "[attemptId={}, orderId={}, type={}]",
                     required.attemptId(), required.orderId(), compensationFailure.getClass().getSimpleName());
         }
     }
@@ -135,7 +147,8 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
             }
         } catch (RuntimeException compensationFailure) {
             originalFailure.addSuppressed(compensationFailure);
-            log.error("PG 승인 결제의 보상 환불 요청 저장 실패 [attemptId={}, orderId={}, type={}]",
+            log.error("PG 승인 결제의 보상 환불 요청 저장 실패 — 자동 복구 대상 유지 "
+                            + "[attemptId={}, orderId={}, type={}]",
                     ready.attemptId(), ready.orderId(), compensationFailure.getClass().getSimpleName());
         }
     }

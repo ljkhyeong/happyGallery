@@ -135,4 +135,53 @@ class PaymentAttemptPolicyTest {
             softly.assertThat(failed.getConfirmedPaymentKey()).isEqualTo("failed-confirmed-key");
         });
     }
+
+    @DisplayName("결제 확정 복구 후보는 상태별 기준 시각이 제한 시간에 도달한 경우만 선택한다")
+    @Test
+    void confirmRecoveryCandidate_usesProcessingAndApprovalBoundaries() {
+        LocalDateTime boundary = LocalDateTime.of(2026, 7, 19, 10, 0);
+        PaymentAttempt staleProcessing = PaymentAttempt.start(
+                "stale-processing", PaymentContext.ORDER, 10_000L, "{}");
+        staleProcessing.startProcessing(10_000L, "processing-key", boundary);
+        PaymentAttempt freshProcessing = PaymentAttempt.start(
+                "fresh-processing", PaymentContext.ORDER, 10_000L, "{}");
+        freshProcessing.startProcessing(10_000L, "processing-key", boundary.plusNanos(1));
+        PaymentAttempt retryable = PaymentAttempt.start(
+                "retryable", PaymentContext.ORDER, 10_000L, "{}");
+        String retryableToken = retryable.startProcessing(10_000L, "retryable-key", boundary);
+        retryable.markRetryable(retryableToken, "PG 일시 실패");
+        boolean retryableAtBoundary = retryable.isConfirmRecoveryCandidate(boundary);
+        retryable.markConfirmRecoveryAttempted(boundary.plusNanos(1));
+
+        PaymentAttempt staleApproved = PaymentAttempt.start(
+                "stale-approved", PaymentContext.ORDER, 10_000L, "{}");
+        String staleToken = staleApproved.startProcessing(
+                10_000L, "approved-key", boundary.minusMinutes(10));
+        staleApproved.markApproved(staleToken, "confirmed-key", boundary);
+        PaymentAttempt freshApproved = PaymentAttempt.start(
+                "fresh-approved", PaymentContext.ORDER, 10_000L, "{}");
+        String freshToken = freshApproved.startProcessing(
+                10_000L, "approved-key", boundary.minusMinutes(10));
+        freshApproved.markApproved(freshToken, "confirmed-key", boundary.plusNanos(1));
+
+        PaymentAttempt confirmed = PaymentAttempt.start(
+                "confirmed", PaymentContext.ORDER, 10_000L, "{}");
+        String confirmedToken = confirmed.startProcessing(10_000L, "confirmed-key", boundary.minusMinutes(10));
+        confirmed.markApproved(confirmedToken, "confirmed-key", boundary.minusMinutes(5));
+        confirmed.markConfirmed(1L, null);
+        PaymentAttempt zeroAmount = PaymentAttempt.start(
+                "zero-amount", PaymentContext.BOOKING, 0L, "{}");
+        zeroAmount.startProcessing(0L, null, boundary.minusYears(1));
+
+        assertSoftly(softly -> {
+            softly.assertThat(staleProcessing.isConfirmRecoveryCandidate(boundary)).isTrue();
+            softly.assertThat(freshProcessing.isConfirmRecoveryCandidate(boundary)).isFalse();
+            softly.assertThat(retryableAtBoundary).isTrue();
+            softly.assertThat(retryable.isConfirmRecoveryCandidate(boundary)).isFalse();
+            softly.assertThat(staleApproved.isConfirmRecoveryCandidate(boundary)).isTrue();
+            softly.assertThat(freshApproved.isConfirmRecoveryCandidate(boundary)).isFalse();
+            softly.assertThat(confirmed.isConfirmRecoveryCandidate(boundary)).isFalse();
+            softly.assertThat(zeroAmount.requiresConfirmReconciliation(boundary.minusDays(14))).isFalse();
+        });
+    }
 }

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>접두사: {@code happygallery.}</li>
  *   <li>제품 전환 지표: {@code happygallery.funnel.*}</li>
+ *   <li>결제 운영 지표: {@code happygallery.payment.*}</li>
  *   <li>라벨: {@code event_type} — 이벤트 유형 구분용 (고유값 금지)</li>
  * </ul>
  *
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>{@code userId}, {@code orderId}, {@code phone} 같은 고유값은 label로 쓰지 않는다.</li>
  *   <li>시스템 메트릭(JVM, HTTP)은 Micrometer 자동 등록에 맡긴다.</li>
- *   <li>이 클래스는 비즈니스/전환 지표만 관리한다.</li>
+ *   <li>이 클래스는 비즈니스/전환 및 운영 조치가 필요한 애플리케이션 지표만 관리한다.</li>
  * </ul>
  */
 @Component
@@ -49,6 +50,14 @@ public class AppMetrics {
     public void incrementGuestClaimCompleted() {
         Counter.builder("happygallery.funnel.guest_claim_completed")
                 .description("비회원→회원 기록 인수 완료")
+                .register(registry)
+                .increment();
+    }
+
+    /** PG 멱등 안전 기간을 지나 수동 결제 대사가 필요해진 건수를 기록한다. */
+    public void incrementPaymentConfirmReconciliationRequired() {
+        Counter.builder("happygallery.payment.confirm.reconciliation_required")
+                .description("수동 대사가 필요한 결제 confirm 시도")
                 .register(registry)
                 .increment();
     }

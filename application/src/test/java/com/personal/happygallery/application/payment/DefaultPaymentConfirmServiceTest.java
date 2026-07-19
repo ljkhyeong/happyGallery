@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.payment;
 
+import com.personal.happygallery.application.monitoring.AppMetrics;
 import com.personal.happygallery.application.payment.PaymentConfirmTransactionService.PgConfirmationRequired;
 import com.personal.happygallery.application.payment.PaymentConfirmTransactionService.ReadyForFulfillment;
 import com.personal.happygallery.application.payment.PaymentConfirmTransactionService.ZeroAmountApprovalRequired;
@@ -8,6 +9,8 @@ import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,7 +37,22 @@ class DefaultPaymentConfirmServiceTest {
 
     @Mock PaymentPort paymentPort;
     @Mock PaymentConfirmTransactionService transactionService;
+    @Mock AppMetrics appMetrics;
     @InjectMocks DefaultPaymentConfirmService service;
+
+    @DisplayName("수동 대사 상태 전이는 운영 카운터를 기록한 뒤 결제 실패를 반환한다")
+    @Test
+    void confirm_reconciliationRequired_recordsOperationalSignalBeforeFailure() {
+        HappyGalleryException failure = new HappyGalleryException(
+                ErrorCode.PAYMENT_FAILED, "수동 대사가 필요합니다.");
+        when(transactionService.resolveConfirmationStep(COMMAND))
+                .thenReturn(new PaymentConfirmTransactionService.ConfirmationRejected(1L, failure));
+
+        assertThatThrownBy(() -> service.confirm(COMMAND)).isSameAs(failure);
+
+        verify(appMetrics).incrementPaymentConfirmReconciliationRequired();
+        verifyNoInteractions(paymentPort);
+    }
 
     @DisplayName("0원 결제 승인 상태 저장 실패는 보상 환불을 요청하지 않는다")
     @Test
