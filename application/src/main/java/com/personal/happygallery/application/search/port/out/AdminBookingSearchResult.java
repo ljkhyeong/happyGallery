@@ -13,7 +13,11 @@ public record AdminBookingSearchResult(
         LocalDateTime endAt,
         String status,
         long depositAmount,
+        LocalDateTime depositPaidAt,
         long balanceAmount,
+        String balanceStatus,
+        LocalDateTime balancePaidAt,
+        boolean arrears,
         boolean passBooking,
         LocalDateTime createdAt
 ) {

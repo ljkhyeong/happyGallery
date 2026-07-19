@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.pass.port.in;
 
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.util.List;
 
@@ -10,7 +11,9 @@ import java.util.List;
  */
 public interface PassQueryUseCase {
 
-    List<PassPurchase> listMyPasses(Long userId);
+    List<PassView> listMyPasses(Long userId);
 
-    PassPurchase findMyPass(Long id, Long userId);
+    PassView findMyPass(Long id, Long userId);
+
+    record PassView(PassPurchase pass, Refund refund) {}
 }

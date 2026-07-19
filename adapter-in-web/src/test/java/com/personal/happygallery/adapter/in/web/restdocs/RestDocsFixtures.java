@@ -46,13 +46,17 @@ final class RestDocsFixtures {
     }
 
     static ProductQueryUseCase.ProductWithInventory productWithInventory() {
+        return productWithInventory(ProductStatus.ACTIVE);
+    }
+
+    static ProductQueryUseCase.ProductWithInventory productWithInventory(ProductStatus status) {
         Product product = mock(Product.class);
         when(product.getId()).thenReturn(1L);
         when(product.getName()).thenReturn("시그니처 캔들");
         when(product.getType()).thenReturn(ProductType.READY_STOCK);
         when(product.getCategory()).thenReturn("CANDLE");
         when(product.getPrice()).thenReturn(39000L);
-        when(product.getStatus()).thenReturn(ProductStatus.ACTIVE);
+        when(product.getStatus()).thenReturn(status);
 
         Inventory inventory = mock(Inventory.class);
         when(inventory.isAvailable()).thenReturn(true);

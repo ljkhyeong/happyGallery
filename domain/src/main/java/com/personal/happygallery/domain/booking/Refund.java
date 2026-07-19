@@ -60,6 +60,9 @@ public class Refund {
     @Column(name = "refund_transaction_key", length = 255)
     private String refundTransactionKey;
 
+    @Column(name = "succeeded_at")
+    private LocalDateTime succeededAt;
+
     @Column(name = "idempotency_key", nullable = false, unique = true, length = 64)
     private String idempotencyKey;
 
@@ -147,12 +150,13 @@ public class Refund {
     }
 
     /** PG 환불 성공 처리. 현재 선점 토큰과 일치하지 않는 오래된 결과는 무시한다. */
-    public boolean markSucceeded(String token, String refundTransactionKey) {
+    public boolean markSucceeded(String token, String refundTransactionKey, LocalDateTime succeededAt) {
         if (!ownsProcessing(token)) {
             return false;
         }
         this.status = RefundStatus.SUCCEEDED;
         this.refundTransactionKey = refundTransactionKey;
+        this.succeededAt = Objects.requireNonNull(succeededAt, "succeededAt must not be null");
         this.failReason = null;
         clearProcessing();
         return true;
@@ -234,6 +238,7 @@ public class Refund {
     public LocalDateTime getNextAttemptAt() { return nextAttemptAt; }
     public String getPaymentKey() { return paymentKey; }
     public String getRefundTransactionKey() { return refundTransactionKey; }
+    public LocalDateTime getSucceededAt() { return succeededAt; }
     public String getIdempotencyKey() { return idempotencyKey; }
     public String getFailReason() { return failReason; }
     public LocalDateTime getCreatedAt() { return createdAt; }

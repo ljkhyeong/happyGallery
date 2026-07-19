@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.dashboard.adapter;
 
 import com.personal.happygallery.application.dashboard.dto.DashboardOverview;
+import com.personal.happygallery.application.dashboard.dto.DailyRevenue;
 import com.personal.happygallery.application.dashboard.dto.PeriodSalesSummary;
 import com.personal.happygallery.application.dashboard.dto.RefundStats;
 import com.personal.happygallery.application.dashboard.dto.RevenueBreakdown;
@@ -23,7 +24,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class MyBatisSalesStatsAdapterPolicyTest {
 
     @Test
-    @DisplayName("개요 조회는 주입된 Clock 기준 오늘 서울 시간대 범위를 사용한다")
+    @DisplayName("개요 조회는 서울 업무 시각과 UTC 생성 시각의 날짜 경계를 구분한다")
     void findOverviewUsesInjectedClockForTodayRange() {
         RecordingSalesStatsMapper mapper = new RecordingSalesStatsMapper();
         Clock fixedClock = Clock.fixed(
@@ -34,24 +35,33 @@ class MyBatisSalesStatsAdapterPolicyTest {
         adapter.findOverview(LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31));
 
         assertSoftly(softly -> {
-            softly.assertThat(mapper.todayFrom).isEqualTo(LocalDateTime.of(2026, 3, 4, 15, 0));
-            softly.assertThat(mapper.todayTo).isEqualTo(LocalDateTime.of(2026, 3, 5, 15, 0));
-            softly.assertThat(mapper.rangeFrom).isEqualTo(LocalDateTime.of(2026, 2, 28, 15, 0));
-            softly.assertThat(mapper.rangeTo).isEqualTo(LocalDateTime.of(2026, 3, 31, 15, 0));
+            softly.assertThat(mapper.todayFrom).isEqualTo(LocalDateTime.of(2026, 3, 5, 0, 0));
+            softly.assertThat(mapper.todayTo).isEqualTo(LocalDateTime.of(2026, 3, 6, 0, 0));
+            softly.assertThat(mapper.todayCreatedFrom).isEqualTo(LocalDateTime.of(2026, 3, 4, 15, 0));
+            softly.assertThat(mapper.todayCreatedTo).isEqualTo(LocalDateTime.of(2026, 3, 5, 15, 0));
+            softly.assertThat(mapper.rangeFrom).isEqualTo(LocalDateTime.of(2026, 3, 1, 0, 0));
+            softly.assertThat(mapper.rangeTo).isEqualTo(LocalDateTime.of(2026, 4, 1, 0, 0));
         });
     }
 
     private static final class RecordingSalesStatsMapper implements SalesStatsMapper {
         private LocalDateTime todayFrom;
         private LocalDateTime todayTo;
+        private LocalDateTime todayCreatedFrom;
+        private LocalDateTime todayCreatedTo;
         private LocalDateTime rangeFrom;
         private LocalDateTime rangeTo;
 
         @Override
-        public DashboardOverview findOverview(LocalDateTime todayFrom, LocalDateTime todayTo,
+        public DashboardOverview findOverview(LocalDateTime todayFrom,
+                                              LocalDateTime todayTo,
+                                              LocalDateTime todayCreatedFrom,
+                                              LocalDateTime todayCreatedTo,
                                               LocalDateTime rangeFrom, LocalDateTime rangeTo) {
             this.todayFrom = todayFrom;
             this.todayTo = todayTo;
+            this.todayCreatedFrom = todayCreatedFrom;
+            this.todayCreatedTo = todayCreatedTo;
             this.rangeFrom = rangeFrom;
             this.rangeTo = rangeTo;
             return new DashboardOverview(0L, 0, 0, 0, 0L, 0);
@@ -81,6 +91,11 @@ class MyBatisSalesStatsAdapterPolicyTest {
         @Override
         public List<TopProduct> findTopProducts(LocalDateTime rangeFrom, LocalDateTime rangeTo,
                                                 int limit, String sort) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<DailyRevenue> findDailyRevenue(LocalDateTime rangeFrom, LocalDateTime rangeTo) {
             throw new UnsupportedOperationException();
         }
     }

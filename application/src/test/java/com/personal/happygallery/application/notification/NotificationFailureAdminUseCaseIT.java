@@ -45,7 +45,8 @@ class NotificationFailureAdminUseCaseIT {
                         user.getId(), NotificationEventType.PASS_PURCHASED, "PASS_PURCHASE", 1L),
                 now));
         for (int attempt = 0; attempt < 5; attempt++) {
-            outbox.markDeliveryFailed("ALL_CHANNELS_FAILED", now, now, 5);
+            String processingToken = outbox.markProcessing(now);
+            outbox.markDeliveryFailed(processingToken, "ALL_CHANNELS_FAILED", now, now, 5);
         }
         outboxRepository.saveAndFlush(outbox);
 

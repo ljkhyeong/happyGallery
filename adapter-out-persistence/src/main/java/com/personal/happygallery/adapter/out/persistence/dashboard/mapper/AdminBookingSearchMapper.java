@@ -15,6 +15,7 @@ public interface AdminBookingSearchMapper {
             @Param("dateTo") LocalDateTime dateTo,
             @Param("keyword") String keyword,
             @Param("keywordHmac") String keywordHmac,
+            @Param("exactId") Long exactId,
             @Param("offset") int offset,
             @Param("size") int size);
 
@@ -23,5 +24,6 @@ public interface AdminBookingSearchMapper {
             @Param("dateFrom") LocalDateTime dateFrom,
             @Param("dateTo") LocalDateTime dateTo,
             @Param("keyword") String keyword,
-            @Param("keywordHmac") String keywordHmac);
+            @Param("keywordHmac") String keywordHmac,
+            @Param("exactId") Long exactId);
 }

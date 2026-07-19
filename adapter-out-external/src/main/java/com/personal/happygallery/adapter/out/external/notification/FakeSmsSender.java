@@ -25,7 +25,10 @@ public class FakeSmsSender implements NotificationSender {
     }
 
     @Override
-    public boolean send(String phone, String recipientName, NotificationEventType eventType) {
+    public boolean send(String idempotencyKey,
+                        String phone,
+                        String recipientName,
+                        NotificationEventType eventType) {
         log.info("[FAKE-SMS] event={}", eventType);
         return true;
     }

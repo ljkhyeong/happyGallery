@@ -5,6 +5,7 @@ import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
+import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -15,8 +16,6 @@ import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -26,7 +25,6 @@ import org.springframework.util.StringUtils;
 @Service
 class RefundTransactionService {
 
-    private static final Logger log = LoggerFactory.getLogger(RefundTransactionService.class);
     static final Duration PROCESSING_TIMEOUT = Duration.ofMinutes(1);
     private static final Duration RETRY_DELAY = Duration.ofMinutes(1);
     private static final int MAX_FAILURE_REASON_LENGTH = 500;
@@ -38,6 +36,7 @@ class RefundTransactionService {
     private final PaymentAttemptStorePort paymentAttemptStore;
     private final BookingReaderPort bookingReader;
     private final OrderReaderPort orderReader;
+    private final PassPurchaseReaderPort passPurchaseReader;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
@@ -46,6 +45,7 @@ class RefundTransactionService {
                              PaymentAttemptStorePort paymentAttemptStore,
                              BookingReaderPort bookingReader,
                              OrderReaderPort orderReader,
+                             PassPurchaseReaderPort passPurchaseReader,
                              ApplicationEventPublisher eventPublisher,
                              Clock clock) {
         this.refundPort = refundPort;
@@ -53,6 +53,7 @@ class RefundTransactionService {
         this.paymentAttemptStore = paymentAttemptStore;
         this.bookingReader = bookingReader;
         this.orderReader = orderReader;
+        this.passPurchaseReader = passPurchaseReader;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
@@ -90,7 +91,7 @@ class RefundTransactionService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Refund markSucceeded(Long refundId, String processingToken, String refundTransactionKey) {
         Refund refund = findRefundForUpdate(refundId);
-        if (!refund.markSucceeded(processingToken, refundTransactionKey)) {
+        if (!refund.markSucceeded(processingToken, refundTransactionKey, LocalDateTime.now(clock))) {
             return refund;
         }
         Refund savedRefund = refundPort.save(refund);
@@ -170,15 +171,12 @@ class RefundTransactionService {
     }
 
     private void publishRefundSucceededNotification(Refund refund) {
-        try {
-            if (refund.getBookingId() != null) {
-                publishBookingRefunded(refund);
-            } else if (refund.getOrderId() != null) {
-                publishOrderRefunded(refund);
-            }
-        } catch (Exception e) {
-            log.warn("환불 성공 알림 발행 실패 [refundId={} type={}]",
-                    refund.getId(), e.getClass().getSimpleName());
+        if (refund.getBookingId() != null) {
+            publishBookingRefunded(refund);
+        } else if (refund.getOrderId() != null) {
+            publishOrderRefunded(refund);
+        } else if (refund.getPassPurchaseId() != null) {
+            publishPassRefunded(refund);
         }
     }
 
@@ -216,6 +214,15 @@ class RefundTransactionService {
                         refund.getId()));
             }
         });
+    }
+
+    private void publishPassRefunded(Refund refund) {
+        passPurchaseReader.findById(refund.getPassPurchaseId()).ifPresent(pass ->
+                eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
+                        pass.getUserId(),
+                        NotificationEventType.PASS_REFUNDED,
+                        "REFUND",
+                        refund.getId())));
     }
 
     record RefundCall(Long refundId, String paymentKey, long amount,

@@ -3,6 +3,8 @@ package com.personal.happygallery.application.order.port.in;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.Fulfillment;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 public record AdminOrderResponse(
         Long orderId,
@@ -12,7 +14,7 @@ public record AdminOrderResponse(
         String fulfillmentType,
         LocalDateTime paidAt,
         LocalDateTime approvalDeadlineAt,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 
     public static AdminOrderResponse from(Order order, Fulfillment fulfillment) {
@@ -24,7 +26,7 @@ public record AdminOrderResponse(
                 fulfillment == null ? null : fulfillment.getType().name(),
                 order.getPaidAt(),
                 order.getApprovalDeadlineAt(),
-                order.getCreatedAt()
+                order.getCreatedAt().atOffset(ZoneOffset.UTC)
         );
     }
 }

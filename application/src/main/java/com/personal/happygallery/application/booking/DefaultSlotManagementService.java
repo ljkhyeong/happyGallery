@@ -63,4 +63,14 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
         slot.deactivate();
         return slotStorePort.save(slot);
     }
+
+    /** 슬롯의 관리자 활성 상태를 복구한다. 버퍼 차단 수는 변경하지 않는다. */
+    @Override
+    public Slot activateSlot(Long slotId) {
+        Slot slot = slotLockPort.lockAllById(List.of(slotId)).stream()
+                .findFirst()
+                .orElseThrow(NotFoundException.supplier("슬롯"));
+        slot.activate();
+        return slotStorePort.save(slot);
+    }
 }

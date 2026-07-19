@@ -13,15 +13,18 @@ import com.personal.happygallery.application.customer.port.out.PhoneVerification
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
+import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.support.CustomerTestHelper;
+import com.personal.happygallery.support.NotificationLogProbe;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -83,6 +86,7 @@ class PassCreditUsageUseCaseIT {
     @Autowired Clock clock;
     @Autowired ObjectMapper objectMapper;
     @Autowired PhoneVerificationReaderPort phoneVerificationReader;
+    @Autowired NotificationLogProbe notificationLogProbe;
     @MockitoBean PaymentProvider paymentProvider;
 
     BookingClass cls;
@@ -100,6 +104,7 @@ class PassCreditUsageUseCaseIT {
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
         customerHelper = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader);
         cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearNotificationLogs();
 
         cls = classRepository.save(defaultBookingClass());
         cleanupSupport.clearUsers();
@@ -142,6 +147,7 @@ class PassCreditUsageUseCaseIT {
                 var booking = bookings.getFirst();
                 softly.assertThat(booking.getId()).isEqualTo(confirmed.domainId());
                 softly.assertThat(booking.isPassBooking()).isTrue();
+                softly.assertThat(booking.getBalanceStatus()).isEqualTo(BalanceStatus.PAID);
             }
         });
     }
@@ -259,6 +265,24 @@ class PassCreditUsageUseCaseIT {
         var refundLedgers = passLedgerRepository.findByPassPurchaseId(pass.getId())
                 .stream().filter(l -> l.getType() == PassLedgerType.REFUND).toList();
         Refund refund = awaitRefundStatus(RefundStatus.SUCCEEDED);
+        await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(25, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertThat(notificationLogProbe.all())
+                        .anySatisfy(log -> {
+                            assertThat(log.getUserId()).isEqualTo(pass.getUserId());
+                            assertThat(log.getEventType()).isEqualTo(NotificationEventType.PASS_REFUNDED);
+                            assertThat(log.getStatus()).isEqualTo("SUCCESS");
+                        }));
+        mockMvc.perform(get("/api/v1/me/passes")
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].refund.amount").value(320_000))
+                .andExpect(jsonPath("$[0].refund.status").value("SUCCEEDED"));
+        Cookie otherSession = customerHelper.signupAndGetSessionCookie(
+                "pass-other@example.com", "01099990002");
+        mockMvc.perform(get("/api/v1/me/passes/{passId}", pass.getId())
+                        .cookie(otherSession))
+                .andExpect(status().isNotFound());
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         Slot reloadedSlot1 = slotRepository.findById(slot1.getId()).orElseThrow();
         Slot reloadedSlot2 = slotRepository.findById(slot2.getId()).orElseThrow();

@@ -24,7 +24,10 @@ public class RealSmsSender implements NotificationSender {
     }
 
     @Override
-    public boolean send(String phone, String recipientName, NotificationEventType eventType) {
+    public boolean send(String idempotencyKey,
+                        String phone,
+                        String recipientName,
+                        NotificationEventType eventType) {
         return smsClient.send(
                 phone,
                 SmsMessageCatalog.render(recipientName, eventType),

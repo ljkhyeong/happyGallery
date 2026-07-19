@@ -322,6 +322,7 @@ class PaymentConfirmUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(prepared.amount()).isEqualTo(5_000L);
             softly.assertThat(booking.getDepositAmount()).isEqualTo(5_000L);
+            softly.assertThat(booking.getDepositPaidAt()).isEqualTo(LocalDateTime.now(clock));
             softly.assertThat(booking.getBalanceAmount()).isEqualTo(45_000L);
             softly.assertThat(booking.getPaymentKey()).isEqualTo("confirmed-payment-key");
         });

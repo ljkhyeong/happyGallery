@@ -13,4 +13,6 @@ public interface SlotManagementUseCase {
     Slot createSlot(Long classId, LocalDateTime startAt);
 
     Slot deactivateSlot(Long slotId);
+
+    Slot activateSlot(Long slotId);
 }

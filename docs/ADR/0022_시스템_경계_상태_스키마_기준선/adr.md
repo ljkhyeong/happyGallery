@@ -104,6 +104,11 @@
   - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `category nullable`, `price`, `status(ACTIVE|INACTIVE)`
 - `inventory`
   - `product_id(PK/FK)`, `quantity`, `version`, `updated_at`
+  - `quantity >= 0`을 DB `CHECK` 제약으로도 강제한다.
+- `inventory_adjustments`
+  - `id`, `product_id(FK)`, `type(INCREASE|DECREASE)`, `quantity`, `quantity_before`, `quantity_after`, `reason`
+  - `adjusted_by_admin_id nullable`, `adjusted_by`, `adjusted_at`
+  - 관리자 수동 조정은 `inventory` 행 잠금 안에서 수량 변경과 이력 저장을 같은 트랜잭션으로 처리한다.
 - 주문제작 여부는 별도 보조 테이블 없이 `products.type=MADE_TO_ORDER`로 판정한다.
 
 #### 주문과 이행
@@ -147,7 +152,7 @@
   - `access_token VARCHAR(64)` — 게스트 예약 조회용 SHA-256 hex 해시 저장
   - `class_id`, `slot_id`, `status`
   - `deposit_amount`, `deposit_paid_at`, `payment_key nullable`
-  - `balance_amount`, `balance_status`, `arrears_flag`, `version`
+  - `deposit_amount`, `deposit_paid_at`, `balance_amount`, `balance_status`, `balance_paid_at`, `arrears_flag`, `version`
 - `booking_history`
   - `id`, `booking_id`, `action`, `from_slot_id`, `to_slot_id`, `actor`, `reason`, `created_at`
 
@@ -181,10 +186,17 @@ WHERE (user_id IS NULL AND guest_id IS NULL)
   - `id`, `product_id`, `user_id`
   - `title`, `content`, `secret`, `password_hash nullable`
   - `reply_content nullable`, `replied_at nullable`, `replied_by nullable`, `created_at`
+
 - `inquiry`
   - `id`, `user_id`
   - `title`, `content`
   - `reply_content nullable`, `replied_at nullable`, `replied_by nullable`, `created_at`
+
+#### 알림 outbox
+
+- `notification_outbox`
+  - `id`, 수신자 식별자, `event_type`, `idempotency_key`, `status`, 재시도 시각과 횟수
+  - `processing_token`, `locked_at`, `version`으로 재선점 전 실행의 오래된 결과 반영을 차단한다.
 
 #### 8회권
 
@@ -203,7 +215,9 @@ WHERE (user_id IS NULL AND guest_id IS NULL)
 - `guests(phone_hmac)` UNIQUE, `guests(name_hmac)` 정확 일치 검색
 - `user_social_accounts(provider, provider_id_hmac)` UNIQUE
 - `phone_verifications(phone_hmac, id)` 최신 인증 조회
+- `phone_verifications(expires_at, id)` 보존 기간 만료 삭제
 - `inventory(product_id, version)`
+- `inventory_adjustments(product_id, adjusted_at, id)` 최근 수동 조정 이력 조회
 - `notification_log(user_id, sent_at DESC)`
 - `notification_log(guest_id, sent_at DESC)`
 - `refunds(status, created_at)`

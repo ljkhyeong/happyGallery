@@ -1,6 +1,7 @@
-import { Card, Col, Row } from "react-bootstrap";
+import { Button, Card, Col, Row } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import type { MyPassSummary } from "./api";
+import { isPassAvailableForBooking } from "./listUtils";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 
@@ -39,7 +40,18 @@ export function MyPassesSection({ passes, isLoading, error, totalCount }: Props)
                 <small>잔여 <strong>{p.remainingCredits}</strong>/{p.totalCredits}회</small>
               </Col>
               <Col xs={6} md={4} className="text-md-end">
-                <small className="text-muted-soft">~{formatDateTime(p.expiresAt)}</small>
+                <small className="d-block text-muted-soft">~{formatDateTime(p.expiresAt)}</small>
+                {isPassAvailableForBooking(p) && (
+                  <Button
+                    as={Link as any}
+                    to={`/bookings/new?passId=${p.passId}`}
+                    variant="outline-primary"
+                    size="sm"
+                    className="mt-2"
+                  >
+                    이 8회권으로 예약
+                  </Button>
+                )}
               </Col>
             </Row>
           </Card.Body>

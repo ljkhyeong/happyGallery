@@ -18,6 +18,7 @@ import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerReposito
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
 import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptRepository;
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
+import com.personal.happygallery.adapter.out.persistence.product.InventoryAdjustmentRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
 import com.personal.happygallery.adapter.out.persistence.user.SocialAccountRepository;
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
@@ -44,6 +45,7 @@ public class TestCleanupSupport {
     private final PassPurchaseRepository passPurchaseRepository;
     private final PaymentAttemptRepository paymentAttemptRepository;
     private final InventoryRepository inventoryRepository;
+    private final InventoryAdjustmentRepository inventoryAdjustmentRepository;
     private final ProductRepository productRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final UserRepository userRepository;
@@ -66,6 +68,7 @@ public class TestCleanupSupport {
                               PassPurchaseRepository passPurchaseRepository,
                               PaymentAttemptRepository paymentAttemptRepository,
                               InventoryRepository inventoryRepository,
+                              InventoryAdjustmentRepository inventoryAdjustmentRepository,
                               ProductRepository productRepository,
                               SocialAccountRepository socialAccountRepository,
                               UserRepository userRepository) {
@@ -87,6 +90,7 @@ public class TestCleanupSupport {
         this.passPurchaseRepository = passPurchaseRepository;
         this.paymentAttemptRepository = paymentAttemptRepository;
         this.inventoryRepository = inventoryRepository;
+        this.inventoryAdjustmentRepository = inventoryAdjustmentRepository;
         this.productRepository = productRepository;
         this.socialAccountRepository = socialAccountRepository;
         this.userRepository = userRepository;
@@ -134,13 +138,14 @@ public class TestCleanupSupport {
                 orderApprovalHistoryRepository,
                 orderItemRepository,
                 orderRepository,
+                inventoryAdjustmentRepository,
                 inventoryRepository,
                 productRepository);
         paymentAttemptRepository.deleteAllInBatch();
     }
 
     public void clearProductData() {
-        TestDataCleaner.clearProductData(inventoryRepository, productRepository);
+        TestDataCleaner.clearProductData(inventoryAdjustmentRepository, inventoryRepository, productRepository);
     }
 
     public void clearPassData() {

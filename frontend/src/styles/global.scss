@@ -55,6 +55,209 @@
   color: var(--hg-ink-soft);
 }
 
+// Admin operations
+.admin-dashboard {
+  padding-block: 1.5rem;
+  border-block: 1px solid var(--hg-border);
+}
+
+.admin-dashboard-heading,
+.admin-dashboard-panel-heading,
+.admin-search-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-dashboard-heading {
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.admin-dashboard-filters {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.admin-dashboard-content {
+  transition: opacity 0.15s ease;
+}
+
+.admin-dashboard-content.is-refreshing {
+  opacity: 0.65;
+}
+
+.admin-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.admin-metric-grid > div {
+  min-width: 0;
+  padding: 1.25rem 1rem;
+  border-right: 1px solid var(--hg-border);
+  border-top: 1px solid var(--hg-border);
+}
+
+.admin-metric-grid > div:nth-child(3n) {
+  border-right: 0;
+}
+
+.admin-metric-grid dt,
+.admin-refund-stats dt {
+  color: var(--hg-ink-soft);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.admin-metric-grid dd,
+.admin-refund-stats dd {
+  margin: 0.35rem 0 0;
+  color: var(--hg-dark);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.admin-dashboard-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(15rem, 0.65fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.admin-dashboard-detail-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-dashboard-panel {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--hg-border);
+  border-radius: 0.375rem;
+  background: #FFFFFF;
+}
+
+.admin-dashboard-panel h6 {
+  margin-bottom: 1rem;
+}
+
+.admin-dashboard-panel-heading {
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.admin-dashboard-panel-heading h6 {
+  margin-bottom: 0;
+}
+
+.admin-dashboard-panel-heading .form-select {
+  width: auto;
+  min-width: 6rem;
+}
+
+.admin-compact-table th,
+.admin-compact-table td {
+  padding-block: 0.55rem;
+  vertical-align: middle;
+}
+
+.admin-compact-table td:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin-compact-table tfoot {
+  border-top: 2px solid var(--hg-dark);
+}
+
+.admin-refund-stats {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.admin-refund-stats > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.6rem;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.admin-refund-stats > div:last-child {
+  border-bottom: 0;
+}
+
+.admin-revenue-trend {
+  max-height: 20rem;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.admin-revenue-row {
+  display: grid;
+  grid-template-columns: 3rem minmax(8rem, 1fr) minmax(6.75rem, auto);
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 1.75rem;
+  font-size: 0.75rem;
+}
+
+.admin-revenue-row time {
+  color: var(--hg-ink-soft);
+}
+
+.admin-revenue-row strong {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin-revenue-bar-track {
+  position: relative;
+  height: 0.55rem;
+  background: #EEF1F2;
+}
+
+.admin-revenue-bar-track::after {
+  content: "";
+  position: absolute;
+  inset-block: -0.2rem;
+  left: 50%;
+  width: 1px;
+  background: #8B9498;
+}
+
+.admin-revenue-bar {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.admin-revenue-bar.positive {
+  left: 50%;
+  background: #26747A;
+}
+
+.admin-revenue-bar.negative {
+  right: 50%;
+  background: #B54A4A;
+}
+
+.admin-search-results {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--hg-border);
+}
+
+.admin-search-pagination {
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
 // ── Entrance animations ────────────────────────────────
 .anim-fade-up {
   animation: fadeUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
@@ -1475,5 +1678,30 @@ textarea {
   .store-section-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .admin-dashboard-columns,
+  .admin-dashboard-detail-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-metric-grid > div,
+  .admin-metric-grid > div:nth-child(3n) {
+    border-right: 1px solid var(--hg-border);
+  }
+
+  .admin-metric-grid > div:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .admin-revenue-row {
+    grid-template-columns: 2.75rem minmax(5rem, 1fr) minmax(5.75rem, auto);
+    gap: 0.4rem;
   }
 }

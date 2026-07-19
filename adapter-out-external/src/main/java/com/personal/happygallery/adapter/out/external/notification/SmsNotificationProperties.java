@@ -14,10 +14,10 @@ public record SmsNotificationProperties(
         @NotBlank String apiKey,
         @NotBlank String apiSecret,
         @NotBlank String senderNumber,
-        @NotBlank @DefaultValue("https://api-sms.cloud.toast.com") String baseUrl,
-        @Min(1) @DefaultValue("5000") long timeoutMillis,
-        @Min(1) @DefaultValue("2000") long connectTimeoutMillis,
-        @Min(1) @DefaultValue("1000") long acquireTimeoutMillis,
+        @NotBlank @DefaultValue("https://sms.api.nhncloudservice.com") String baseUrl,
+        @Min(1) @DefaultValue("2000") long timeoutMillis,
+        @Min(1) @DefaultValue("1000") long connectTimeoutMillis,
+        @Min(1) @DefaultValue("500") long acquireTimeoutMillis,
         @Min(1) @DefaultValue("20") int maxConnections,
         @Min(1) @DefaultValue("30000") long keepAliveMillis
 ) implements HttpPoolProperties {

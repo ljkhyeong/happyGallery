@@ -74,6 +74,11 @@ public class Product {
         this.status = ProductStatus.INACTIVE;
     }
 
+    /** 판매 중지 상품을 다시 활성화한다. */
+    public void activate() {
+        this.status = ProductStatus.ACTIVE;
+    }
+
     public Long getId() { return id; }
     public String getName() { return name; }
     public ProductType getType() { return type; }

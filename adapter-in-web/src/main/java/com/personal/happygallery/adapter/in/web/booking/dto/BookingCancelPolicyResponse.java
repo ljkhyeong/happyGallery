@@ -7,6 +7,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 
 public record BookingCancelPolicyResponse(
+        boolean cancellable,
         boolean refundable,
         LocalDateTime deadlineAt,
         boolean passCreditRestorable,
@@ -17,8 +18,9 @@ public record BookingCancelPolicyResponse(
 
     public static BookingCancelPolicyResponse from(Booking booking, Clock clock) {
         LocalDateTime deadlineAt = TimeBoundary.refundDeadlineAt(booking.getSlot().getStartAt());
+        boolean cancellable = booking.isCustomerCancellationAllowed();
         boolean booked = booking.getStatus() == BookingStatus.BOOKED;
-        boolean refundable = booked && TimeBoundary.isRefundable(booking.getSlot().getStartAt(), clock);
+        boolean refundable = cancellable && TimeBoundary.isRefundable(booking.getSlot().getStartAt(), clock);
         boolean passCreditRestorable = booking.isPassBooking() && refundable;
         boolean passCreditNotRestorable = booked && booking.isPassBooking() && !passCreditRestorable;
         String warningCode = passCreditNotRestorable
@@ -26,6 +28,7 @@ public record BookingCancelPolicyResponse(
                 : null;
 
         return new BookingCancelPolicyResponse(
+                cancellable,
                 refundable,
                 deadlineAt,
                 passCreditRestorable,

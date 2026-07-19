@@ -70,3 +70,7 @@
   `PaymentConfirmReconciliationRequired` Prometheus critical 알림으로 결제 수동 대사 필요 상태를 즉시 노출한다.
   로컬 Compose의 `monitoring/alerts.yml`과 k3s ConfigMap의 `deploy/k3s/base/prometheus.yaml`에 같은 규칙을 둔다.
 - k3s Prometheus는 private Alertmanager로 모든 rule을 전달한다. Alertmanager는 critical/warning 반복 간격을 분리하고 저장소 밖 Kubernetes Secret의 `url_file`로 외부 HTTPS generic webhook에 전달한다. 같은 노트북 전체가 중단되는 상황은 별도 외부 uptime 감시가 담당한다.
+- `@BatchJob`은 고정된 영문 `id`와 한국어 로그 이름을 함께 가진다. `BatchLoggingAspect`는 실행 결과(`succeeded`, `partial`, `failed`), 항목 결과, 소요 시간과 마지막 정상 완료 Unix 시각을 Micrometer에 기록한다.
+- 결제·환불 복구 배치의 마지막 성공 gauge는 애플리케이션 시작 시 0으로 미리 등록한다. 한 작업이 한 번도 실행되지 않은 경우에도 시계열이 빠지지 않아 정체 알림이 이를 감지한다.
+- Prometheus는 최근 10분의 부분·전체 실패를 warning으로, 매분 실행되는 결제 준비 만료·결제 확정 복구·환불 복구 중 하나라도 마지막 정상 완료 뒤 5분을 넘기면 critical로 알린다.
+- 상태 변경형 대량 배치는 ID 오름차순 키셋을 사용한다. 실패한 항목도 현재 실행의 커서는 지나가고 다음 스케줄에서 재시도하므로, 같은 첫 페이지가 뒤 후보를 계속 가리는 문제를 막는다.

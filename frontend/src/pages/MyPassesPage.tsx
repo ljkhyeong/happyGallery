@@ -4,11 +4,16 @@ import { Link } from "react-router-dom";
 import { fetchMyPasses } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
-import { buildPassTabs, getPassFilterKey } from "@/features/my/listUtils";
+import {
+  buildPassTabs,
+  getPassFilterKey,
+  isPassAvailableForBooking,
+} from "@/features/my/listUtils";
 import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { customerRefundPollingInterval, formatDateTime, formatKRW } from "@/shared/lib";
 
 const DEFAULT_SORT = "EXPIRY_ASC";
 const PASS_SORT_OPTIONS = [
@@ -30,6 +35,14 @@ export function MyPassesPage() {
     queryKey: ["my", "passes"],
     queryFn: fetchMyPasses,
     enabled: isAuthenticated,
+    refetchInterval: ({ state }) => {
+      const pendingRefund = state.data?.find(({ refund }) =>
+        refund !== null && refund.status !== "SUCCEEDED" && refund.status !== "FAILED");
+      return customerRefundPollingInterval(
+        pendingRefund?.refund?.status,
+        state.dataUpdateCount + state.fetchFailureCount,
+      );
+    },
   });
   const normalizedQuery = searchQuery.trim();
   const filteredPasses = (passes ?? []).filter((pass) => {
@@ -137,16 +150,28 @@ export function MyPassesPage() {
                 <div className="fw-semibold small">8회권 #{pass.passId}</div>
                 <small className="text-muted-soft">구매 {formatDateTime(pass.purchasedAt)}</small>
               </Col>
-              <Col xs={6} md={3}>
+              <Col xs={6} md={2}>
                 <small>잔여 <strong>{pass.remainingCredits}</strong>/{pass.totalCredits}회</small>
               </Col>
-              <Col xs={6} md={3}>
+              <Col xs={6} md={2}>
                 <small>{formatKRW(pass.totalPrice)}</small>
               </Col>
-              <Col xs={12} md={2} className="text-md-end">
-                <small className="text-muted-soft">~{formatDateTime(pass.expiresAt)}</small>
+              <Col xs={12} md={4} className="text-md-end">
+                <small className="d-block text-muted-soft">~{formatDateTime(pass.expiresAt)}</small>
+                {isPassAvailableForBooking(pass) && (
+                  <Button
+                    as={Link as any}
+                    to={`/bookings/new?passId=${pass.passId}`}
+                    variant="outline-primary"
+                    size="sm"
+                    className="mt-2"
+                  >
+                    이 8회권으로 예약
+                  </Button>
+                )}
               </Col>
             </Row>
+            <RefundProgressAlert refund={pass.refund} />
           </Card.Body>
         </Card>
       ))}

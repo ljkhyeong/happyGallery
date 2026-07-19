@@ -4,97 +4,105 @@
 
 <mapper namespace="com.personal.happygallery.adapter.out.persistence.dashboard.mapper.SalesStatsMapper">
 
-    <!-- 환불된 주문만 실 매출에서 제외한다. 미환불 PICKUP_FORFEITED는 매출에 포함한다. -->
-    <sql id="excludedOrderStatuses">
-        'REJECTED', 'AUTO_REFUND_TIMEOUT', 'PICKUP_EXPIRED'
-    </sql>
-
     <select id="findOverview" resultType="com.personal.happygallery.application.dashboard.dto.DashboardOverview">
         SELECT
-            COALESCE(ord.todayRevenue, 0)   AS todayRevenue,
-            COALESCE(ord.todayOrderCount, 0) AS todayOrderCount,
-            COALESCE(pending.cnt, 0)         AS pendingApprovalCount,
-            COALESCE(today_bk.cnt, 0)        AS todayBookingCount,
-            COALESCE(ord.monthRevenue, 0)    AS monthRevenue,
-            COALESCE(ord.monthOrderCount, 0) AS monthOrderCount
-        FROM
-            (SELECT
-                 SUM(CASE WHEN paid_at >= #{todayFrom} AND paid_at &lt; #{todayTo}
-                          THEN total_amount END) AS todayRevenue,
-                 SUM(CASE WHEN paid_at >= #{todayFrom} AND paid_at &lt; #{todayTo}
-                          THEN 1 ELSE 0 END)     AS todayOrderCount,
-                 SUM(total_amount)                AS monthRevenue,
-                 COUNT(*)                         AS monthOrderCount
-             FROM orders
-             WHERE paid_at IS NOT NULL
-               AND status NOT IN (<include refid="excludedOrderStatuses"/>)
-               AND paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}
-            ) ord,
-            (SELECT COUNT(*) AS cnt
-             FROM orders
-             WHERE status = 'PAID_APPROVAL_PENDING'
-            ) pending,
-            (SELECT COUNT(*) AS cnt
-             FROM bookings
+            COALESCE((SELECT SUM(total_amount) FROM orders
+                      WHERE paid_at >= #{todayFrom} AND paid_at &lt; #{todayTo}), 0)
+              + COALESCE((SELECT SUM(deposit_amount) FROM bookings
+                          WHERE deposit_paid_at >= #{todayFrom} AND deposit_paid_at &lt; #{todayTo}), 0)
+              + COALESCE((SELECT SUM(balance_amount) FROM bookings
+                          WHERE balance_paid_at >= #{todayFrom} AND balance_paid_at &lt; #{todayTo}), 0)
+              + COALESCE((SELECT SUM(total_price) FROM pass_purchases
+                          WHERE purchased_at >= #{todayFrom} AND purchased_at &lt; #{todayTo}), 0)
+              - COALESCE((SELECT SUM(amount) FROM refunds
+                          WHERE status = 'SUCCEEDED'
+                            AND succeeded_at >= #{todayFrom} AND succeeded_at &lt; #{todayTo}
+                            AND payment_attempt_id IS NULL), 0) AS todayRevenue,
+            (SELECT COUNT(*) FROM orders
+             WHERE paid_at >= #{todayFrom} AND paid_at &lt; #{todayTo}) AS todayOrderCount,
+            (SELECT COUNT(*) FROM orders
+             WHERE status = 'PAID_APPROVAL_PENDING') AS pendingApprovalCount,
+            (SELECT COUNT(*) FROM bookings
              WHERE status = 'BOOKED'
-               AND created_at >= #{todayFrom} AND created_at &lt; #{todayTo}
-            ) today_bk
+               AND created_at >= #{todayCreatedFrom} AND created_at &lt; #{todayCreatedTo}) AS todayBookingCount,
+            COALESCE((SELECT SUM(total_amount) FROM orders
+                      WHERE paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}), 0)
+              + COALESCE((SELECT SUM(deposit_amount) FROM bookings
+                          WHERE deposit_paid_at >= #{rangeFrom} AND deposit_paid_at &lt; #{rangeTo}), 0)
+              + COALESCE((SELECT SUM(balance_amount) FROM bookings
+                          WHERE balance_paid_at >= #{rangeFrom} AND balance_paid_at &lt; #{rangeTo}), 0)
+              + COALESCE((SELECT SUM(total_price) FROM pass_purchases
+                          WHERE purchased_at >= #{rangeFrom} AND purchased_at &lt; #{rangeTo}), 0)
+              - COALESCE((SELECT SUM(amount) FROM refunds
+                          WHERE status = 'SUCCEEDED'
+                            AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}
+                            AND payment_attempt_id IS NULL), 0) AS monthRevenue,
+            (SELECT COUNT(*) FROM orders
+             WHERE paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}) AS monthOrderCount
     </select>
 
     <select id="findSalesSummary" resultType="com.personal.happygallery.application.dashboard.dto.PeriodSalesSummary">
         SELECT
             <choose>
                 <when test="granularity == 'DAILY'">
-                    DATE_FORMAT(CONVERT_TZ(o.paid_at, '+00:00', '+09:00'), '%Y-%m-%d')
+                    DATE_FORMAT(flow.occurredAt, '%Y-%m-%d')
                 </when>
                 <when test="granularity == 'WEEKLY'">
-                    DATE_FORMAT(CONVERT_TZ(o.paid_at, '+00:00', '+09:00'), '%x-W%v')
+                    DATE_FORMAT(flow.occurredAt, '%x-W%v')
                 </when>
                 <when test="granularity == 'MONTHLY'">
-                    DATE_FORMAT(CONVERT_TZ(o.paid_at, '+00:00', '+09:00'), '%Y-%m')
+                    DATE_FORMAT(flow.occurredAt, '%Y-%m')
                 </when>
             </choose> AS periodLabel,
-            COALESCE(SUM(o.total_amount), 0) AS totalRevenue,
-            COUNT(*)                         AS orderCount,
-            COALESCE(AVG(o.total_amount), 0) AS avgOrderValue
-        FROM orders o
-        WHERE o.paid_at IS NOT NULL
-          AND o.status NOT IN (<include refid="excludedOrderStatuses"/>)
-          AND o.paid_at >= #{rangeFrom} AND o.paid_at &lt; #{rangeTo}
+            COALESCE(SUM(flow.amount), 0) AS totalRevenue,
+            SUM(flow.orderCount) AS orderCount,
+            COALESCE(ROUND(SUM(flow.amount) / NULLIF(SUM(flow.orderCount), 0)), 0) AS avgOrderValue
+        FROM (
+            SELECT paid_at AS occurredAt, total_amount AS amount, 1 AS orderCount
+            FROM orders
+            WHERE paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}
+            UNION ALL
+            SELECT succeeded_at AS occurredAt, -amount AS amount, 0 AS orderCount
+            FROM refunds
+            WHERE status = 'SUCCEEDED'
+              AND order_id IS NOT NULL
+              AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}
+        ) flow
         GROUP BY periodLabel
         ORDER BY periodLabel
     </select>
 
     <select id="findRevenueBreakdown" resultType="com.personal.happygallery.application.dashboard.dto.RevenueBreakdown">
-        SELECT
-            COALESCE(ord.rev, 0)  AS orderRevenue,
-            COALESCE(dep.rev, 0)  AS bookingDepositRevenue,
-            COALESCE(bal.rev, 0)  AS bookingBalanceRevenue,
-            COALESCE(pp.rev, 0)   AS passPurchaseRevenue,
-            (COALESCE(ord.rev, 0) + COALESCE(dep.rev, 0)
-                + COALESCE(bal.rev, 0) + COALESCE(pp.rev, 0)) AS totalRevenue
-        FROM
-            (SELECT SUM(total_amount) AS rev
-             FROM orders
-             WHERE paid_at IS NOT NULL
-               AND status NOT IN (<include refid="excludedOrderStatuses"/>)
-               AND paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}
-            ) ord,
-            (SELECT SUM(deposit_amount) AS rev
-             FROM bookings
-             WHERE status != 'CANCELED'
-               AND deposit_paid_at IS NOT NULL
-               AND deposit_paid_at >= #{rangeFrom} AND deposit_paid_at &lt; #{rangeTo}
-            ) dep,
-            (SELECT SUM(balance_amount) AS rev
-             FROM bookings
-             WHERE balance_status = 'PAID'
-               AND created_at >= #{rangeFrom} AND created_at &lt; #{rangeTo}
-            ) bal,
-            (SELECT SUM(total_price) AS rev
-             FROM pass_purchases
-             WHERE purchased_at >= #{rangeFrom} AND purchased_at &lt; #{rangeTo}
-            ) pp
+        SELECT net.orderRevenue,
+               net.bookingDepositRevenue,
+               net.bookingBalanceRevenue,
+               net.passPurchaseRevenue,
+               net.orderRevenue + net.bookingDepositRevenue
+                   + net.bookingBalanceRevenue + net.passPurchaseRevenue AS totalRevenue
+        FROM (
+            SELECT
+                COALESCE((SELECT SUM(total_amount) FROM orders
+                          WHERE paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}), 0)
+                  - COALESCE((SELECT SUM(amount) FROM refunds
+                              WHERE status = 'SUCCEEDED' AND order_id IS NOT NULL
+                                AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}), 0)
+                    AS orderRevenue,
+                COALESCE((SELECT SUM(deposit_amount) FROM bookings
+                          WHERE deposit_paid_at >= #{rangeFrom} AND deposit_paid_at &lt; #{rangeTo}), 0)
+                  - COALESCE((SELECT SUM(amount) FROM refunds
+                              WHERE status = 'SUCCEEDED' AND booking_id IS NOT NULL
+                                AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}), 0)
+                    AS bookingDepositRevenue,
+                COALESCE((SELECT SUM(balance_amount) FROM bookings
+                          WHERE balance_paid_at >= #{rangeFrom} AND balance_paid_at &lt; #{rangeTo}), 0)
+                    AS bookingBalanceRevenue,
+                COALESCE((SELECT SUM(total_price) FROM pass_purchases
+                          WHERE purchased_at >= #{rangeFrom} AND purchased_at &lt; #{rangeTo}), 0)
+                  - COALESCE((SELECT SUM(amount) FROM refunds
+                              WHERE status = 'SUCCEEDED' AND pass_purchase_id IS NOT NULL
+                                AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}), 0)
+                    AS passPurchaseRevenue
+        ) net
     </select>
 
     <select id="findOrderStatusDistribution" resultType="com.personal.happygallery.application.dashboard.dto.StatusCount">
@@ -105,35 +113,54 @@
     </select>
 
     <select id="findRefundStats" resultType="com.personal.happygallery.application.dashboard.dto.RefundStats">
-        SELECT
-            COUNT(*)                         AS totalRefundCount,
-            COALESCE(SUM(r.amount), 0)       AS totalRefundedAmount,
-            ROUND(
-                COUNT(*) / NULLIF(
-                    (SELECT COUNT(*) FROM orders
-                     WHERE paid_at IS NOT NULL
-                       AND paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}
-                    ), 0
-                ), 4
-            ) AS refundRate
-        FROM refunds r
-        WHERE r.status = 'SUCCEEDED'
-          AND r.created_at >= #{rangeFrom} AND r.created_at &lt; #{rangeTo}
+        SELECT refunded.cnt AS totalRefundCount,
+               refunded.amount AS totalRefundedAmount,
+               COALESCE(ROUND(refunded.amount / NULLIF(gross.amount, 0), 4), 0) AS refundRate
+        FROM (
+            SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS amount
+            FROM refunds
+            WHERE status = 'SUCCEEDED'
+              AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}
+              AND payment_attempt_id IS NULL
+        ) refunded,
+        (
+            SELECT COALESCE((SELECT SUM(total_amount) FROM orders
+                             WHERE paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}), 0)
+                 + COALESCE((SELECT SUM(deposit_amount) FROM bookings
+                             WHERE deposit_paid_at >= #{rangeFrom} AND deposit_paid_at &lt; #{rangeTo}), 0)
+                 + COALESCE((SELECT SUM(balance_amount) FROM bookings
+                             WHERE balance_paid_at >= #{rangeFrom} AND balance_paid_at &lt; #{rangeTo}), 0)
+                 + COALESCE((SELECT SUM(total_price) FROM pass_purchases
+                             WHERE purchased_at >= #{rangeFrom} AND purchased_at &lt; #{rangeTo}), 0) AS amount
+        ) gross
     </select>
 
     <select id="findTopProducts" resultType="com.personal.happygallery.application.dashboard.dto.TopProduct">
-        SELECT
-            p.id                        AS productId,
-            p.name                      AS productName,
-            p.type                      AS productType,
-            SUM(oi.unit_price * oi.qty) AS totalRevenue,
-            SUM(oi.qty)                 AS totalQuantity
-        FROM order_items oi
-            JOIN orders o ON oi.order_id = o.id
-            JOIN products p ON oi.product_id = p.id
-        WHERE o.paid_at IS NOT NULL
-          AND o.status NOT IN (<include refid="excludedOrderStatuses"/>)
-          AND o.paid_at >= #{rangeFrom} AND o.paid_at &lt; #{rangeTo}
+        SELECT p.id AS productId,
+               p.name AS productName,
+               p.type AS productType,
+               SUM(flow.amount) AS totalRevenue,
+               SUM(flow.quantity) AS totalQuantity
+        FROM (
+            SELECT oi.product_id AS productId,
+                   oi.unit_price * oi.qty AS amount,
+                   oi.qty AS quantity,
+                   o.paid_at AS occurredAt
+            FROM order_items oi
+                JOIN orders o ON oi.order_id = o.id
+            WHERE o.paid_at >= #{rangeFrom} AND o.paid_at &lt; #{rangeTo}
+            UNION ALL
+            SELECT oi.product_id AS productId,
+                   -(oi.unit_price * oi.qty) AS amount,
+                   -oi.qty AS quantity,
+                   r.succeeded_at AS occurredAt
+            FROM refunds r
+                JOIN order_items oi ON oi.order_id = r.order_id
+            WHERE r.status = 'SUCCEEDED'
+              AND r.order_id IS NOT NULL
+              AND r.succeeded_at >= #{rangeFrom} AND r.succeeded_at &lt; #{rangeTo}
+        ) flow
+            JOIN products p ON p.id = flow.productId
         GROUP BY p.id, p.name, p.type
         ORDER BY
             <choose>
@@ -141,6 +168,36 @@
                 <when test="sort == 'QUANTITY'">totalQuantity DESC</when>
             </choose>
         LIMIT #{limit}
+    </select>
+
+    <select id="findDailyRevenue" resultType="com.personal.happygallery.application.dashboard.dto.DailyRevenue">
+        SELECT DATE(flow.occurredAt) AS date,
+               SUM(flow.amount) AS revenue
+        FROM (
+            SELECT paid_at AS occurredAt, total_amount AS amount
+            FROM orders
+            WHERE paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}
+            UNION ALL
+            SELECT deposit_paid_at AS occurredAt, deposit_amount AS amount
+            FROM bookings
+            WHERE deposit_paid_at >= #{rangeFrom} AND deposit_paid_at &lt; #{rangeTo}
+            UNION ALL
+            SELECT balance_paid_at AS occurredAt, balance_amount AS amount
+            FROM bookings
+            WHERE balance_paid_at >= #{rangeFrom} AND balance_paid_at &lt; #{rangeTo}
+            UNION ALL
+            SELECT purchased_at AS occurredAt, total_price AS amount
+            FROM pass_purchases
+            WHERE purchased_at >= #{rangeFrom} AND purchased_at &lt; #{rangeTo}
+            UNION ALL
+            SELECT succeeded_at AS occurredAt, -amount AS amount
+            FROM refunds
+            WHERE status = 'SUCCEEDED'
+              AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}
+              AND payment_attempt_id IS NULL
+        ) flow
+        GROUP BY date
+        ORDER BY date
     </select>
 
 </mapper>

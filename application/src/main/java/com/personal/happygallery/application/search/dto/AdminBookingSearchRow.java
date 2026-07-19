@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.search.dto;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record AdminBookingSearchRow(
         Long bookingId,
@@ -13,8 +14,12 @@ public record AdminBookingSearchRow(
         LocalDateTime endAt,
         String status,
         long depositAmount,
+        LocalDateTime depositPaidAt,
         long balanceAmount,
+        String balanceStatus,
+        LocalDateTime balancePaidAt,
+        boolean arrears,
         boolean passBooking,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 }

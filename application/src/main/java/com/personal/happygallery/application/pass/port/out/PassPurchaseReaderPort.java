@@ -12,7 +12,8 @@ public interface PassPurchaseReaderPort {
 
     List<PassPurchase> findByUserIdOrderByPurchasedAtDesc(Long userId);
 
-    List<PassPurchase> findByExpiresAtLessThanEqualAndRemainingCreditsGreaterThan(LocalDateTime now, int credits, Pageable pageable);
+    List<PassPurchase> findExpiredWithRemainingCreditsAfterId(
+            LocalDateTime now, int credits, Long afterId, Pageable pageable);
 
     List<PassPurchase> findByExpiresAtBetweenAndRemainingCreditsGreaterThan(
             LocalDateTime start, LocalDateTime end, int credits);

@@ -29,6 +29,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
             """)
     List<Product> findActiveProductsByCreatedAtDesc();
 
+    @Override
+    @Query("SELECT p FROM Product p ORDER BY p.createdAt DESC")
+    List<Product> findAllProductsByCreatedAtDesc();
+
     /** ACTIVE 상품의 카테고리 목록 (distinct, non-null). */
     @Override
     @Query("""

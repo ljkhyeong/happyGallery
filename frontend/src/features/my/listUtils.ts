@@ -46,6 +46,14 @@ export function getPassFilterKey(pass: MyPassSummary): string {
   return Date.parse(pass.expiresAt) < Date.now() ? "EXPIRED" : "ACTIVE";
 }
 
+export function isPassAvailableForBooking(pass: MyPassSummary): boolean {
+  const expiresAt = Date.parse(pass.expiresAt);
+  return pass.refund === null
+    && pass.remainingCredits > 0
+    && Number.isFinite(expiresAt)
+    && expiresAt > Date.now();
+}
+
 export function buildPassTabs(passes: MyPassSummary[]): MyQuickTab[] {
   const counts = {
     ACTIVE: 0,

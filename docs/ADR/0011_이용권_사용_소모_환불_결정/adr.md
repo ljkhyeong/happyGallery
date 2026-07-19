@@ -15,6 +15,8 @@
 ## 결정 1: 예약–8회권 연결 (`pass_purchase_id` FK)
 
 **결정**: `bookings` 테이블에 `pass_purchase_id BIGINT NULL FK` 추가 (V5 마이그레이션).
+회원이 예약 가능 슬롯을 직접 선택해 8회권 예약을 한 회차씩 생성하며, 운영자가 8회 일정을 일괄 배정하는
+별도 흐름은 두지 않는다.
 8회권 예약 생성 시 `USE` 원장은 저장된 `booking_id`를 `pass_ledger.related_booking_id`에 남긴다.
 예약 취소로 1크레딧을 복구하는 `REFUND` 원장도 같은 예약 ID를 남긴다.
 8회권 전체 환불처럼 단일 예약이 원인이 아닌 원장은 `related_booking_id`를 비운다.

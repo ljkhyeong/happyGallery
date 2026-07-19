@@ -36,4 +36,8 @@ public interface PhoneVerificationRepository extends JpaRepository<PhoneVerifica
             """)
     void invalidateEarlierUnconsumedForPhone(@Param("phoneHmac") String phoneHmac,
                                              @Param("verificationId") Long verificationId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from PhoneVerification verification where verification.expiresAt <= :cutoff")
+    int deleteExpiredBefore(@Param("cutoff") LocalDateTime cutoff);
 }

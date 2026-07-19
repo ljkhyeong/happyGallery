@@ -56,9 +56,9 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
     public BatchResult expireAll() {
         LocalDateTime now = LocalDateTime.now(clock);
 
-        return BatchExecutor.executePaginated(
-                () -> passPurchaseReader
-                        .findByExpiresAtLessThanEqualAndRemainingCreditsGreaterThan(now, 0, PageRequest.ofSize(PAGE_SIZE)),
+        return BatchExecutor.executeByIdCursor(
+                afterId -> passPurchaseReader.findExpiredWithRemainingCreditsAfterId(
+                        now, 0, afterId, PageRequest.ofSize(PAGE_SIZE)),
                 PassPurchase::getId,
                 pass -> passExpireProcessor.process(pass.getId()),
                 "8회권 만료");

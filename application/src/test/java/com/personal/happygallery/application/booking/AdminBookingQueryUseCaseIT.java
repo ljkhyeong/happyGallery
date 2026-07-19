@@ -8,6 +8,7 @@ import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.dashboard.port.in.DashboardQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
 import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
 import com.personal.happygallery.application.search.port.in.AdminBookingSearchUseCase;
@@ -52,6 +53,7 @@ class AdminBookingQueryUseCaseIT {
 
     @Autowired AdminBookingQueryUseCase adminBookingQueryService;
     @Autowired AdminBookingSearchUseCase adminBookingSearchUseCase;
+    @Autowired DashboardQueryUseCase dashboardQueryUseCase;
     @Autowired BookingReminderBatchUseCase bookingReminderBatchService;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
@@ -132,6 +134,50 @@ class AdminBookingQueryUseCaseIT {
             softly.assertThat(responses.getFirst().bookerPhone()).isEqualTo("01012121212");
             softly.assertThat(searchResult.content()).hasSize(1);
             softly.assertThat(searchResult.content().getFirst().bookerPhone()).isEqualTo("01012121212");
+        });
+    }
+
+    @DisplayName("포맷 예약번호는 정확 일치하고 일반 숫자는 예약 ID 부분 일치로 검색한다")
+    @Test
+    void searchBookings_formattedBookingNumber_matchesExactId() {
+        LocalDateTime slotStart = LocalDate.now(clock).plusDays(3).atTime(10, 0);
+        Slot targetSlot = saveSlot(slotStart, "검색 대상 클래스", "SEARCH_TARGET");
+        Guest targetGuest = guestStorePort.save(guest("검색대상", "01056565656"));
+        Booking target = bookingStorePort.save(booking(
+                targetGuest, targetSlot, 10_000L, 20_000L,
+                DepositPaymentMethod.CARD, accessToken()));
+        saveGuestBooking(slotStart.plusHours(1), "다른 클래스", "SEARCH_OTHER", "다른예약자", "01078787878");
+
+        OffsetPage<AdminBookingSearchRow> exactResult = adminBookingSearchUseCase.search(
+                null, null, null, "BK-%08d".formatted(target.getId()), 0, 20);
+        OffsetPage<AdminBookingSearchRow> partialResult = adminBookingSearchUseCase.search(
+                null, null, null, String.valueOf(target.getId()), 0, 20);
+
+        assertSoftly(softly -> {
+            softly.assertThat(exactResult.totalCount()).isEqualTo(1);
+            softly.assertThat(exactResult.content())
+                    .extracting(AdminBookingSearchRow::bookingId)
+                    .containsExactly(target.getId());
+            softly.assertThat(partialResult.content())
+                    .extracting(AdminBookingSearchRow::bookingId)
+                    .contains(target.getId());
+        });
+    }
+
+    @DisplayName("슬롯 이용률은 늦은 오후 슬롯도 저장된 서울 날짜로 집계한다")
+    @Test
+    void slotUtilization_usesStoredSeoulDate() {
+        LocalDate date = LocalDate.now(clock).plusDays(4);
+        BookingClass cls = classStorePort.save(
+                bookingClass("날짜 경계 클래스", "DATE_BOUNDARY", 60, 30_000L, 30));
+        slotStorePort.save(slot(cls, date.atTime(15, 0), date.atTime(16, 0)));
+        slotStorePort.save(slot(cls, date.atTime(23, 30), date.plusDays(1).atTime(0, 30)));
+
+        var utilization = dashboardQueryUseCase.getSlotUtilization(date, date);
+
+        assertSoftly(softly -> {
+            softly.assertThat(utilization).hasSize(1);
+            softly.assertThat(utilization.getFirst().date()).isEqualTo(date);
         });
     }
 

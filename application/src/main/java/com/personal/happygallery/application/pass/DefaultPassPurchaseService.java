@@ -8,6 +8,7 @@ import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.domain.time.TimeBoundary;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -38,11 +39,11 @@ public class DefaultPassPurchaseService implements PassPurchaseUseCase {
     /** 회원 8회권 구매. prepare 단계에서 확정한 서버 가격을 저장한다. */
     @Override
     public PassPurchase purchaseForMember(Long userId, long preparedTotalPrice) {
-        ZonedDateTime now = ZonedDateTime.now(clock);
+        ZonedDateTime now = ZonedDateTime.now(clock).withZoneSameInstant(Clocks.SEOUL);
         LocalDateTime expiresAt = TimeBoundary.passExpiresAtLocal(now);
 
         PassPurchase purchase = passPurchaseStore.save(
-                PassPurchase.forMember(userId, expiresAt, preparedTotalPrice));
+                PassPurchase.forMember(userId, now.toLocalDateTime(), expiresAt, preparedTotalPrice));
         passLedgerStore.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));
         eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                 userId,

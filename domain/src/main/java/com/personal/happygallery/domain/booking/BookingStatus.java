@@ -9,7 +9,7 @@ public enum BookingStatus {
 	NO_SHOW,
 	COMPLETED;
 
-	/** BOOKED 상태에서만 변경·취소·결석 처리가 가능하다. */
+	/** BOOKED 상태에서만 변경·취소·결석·완료 처리가 가능하다. */
 	public void requireBooked() {
 		if (this != BOOKED) {
 			throw new HappyGalleryException(ErrorCode.INVALID_INPUT,

@@ -19,6 +19,8 @@ import static org.awaitility.Awaitility.await;
 
 class ResilientNotificationSenderTest {
 
+    private static final String IDEMPOTENCY_KEY = "notification-key";
+
     private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
     private ExecutorService timeoutExecutor;
 
@@ -34,19 +36,19 @@ class ResilientNotificationSenderTest {
     @Test
     void send_falseResultsAccumulate_circuitOpenFastFail() {
         AtomicInteger calls = new AtomicInteger();
-        NotificationSender delegate = sender((phone, name, eventType) -> {
+        NotificationSender delegate = sender((idempotencyKey, phone, name, eventType) -> {
             calls.incrementAndGet();
             return false;
         });
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
-        CircuitBreaker circuitBreaker = config.kakaoNotificationCircuitBreaker(properties);
+        CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(properties);
         ResilientNotificationSender resilientSender = createSender(delegate, circuitBreaker, config, properties);
 
-        resilientSender.send("01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
-        resilientSender.send("01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+        resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+        resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
         boolean sent = resilientSender.send(
-                "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
 
         assertSoftly(softly -> {
             softly.assertThat(sent).isFalse();
@@ -61,7 +63,7 @@ class ResilientNotificationSenderTest {
     void send_executorQueueFull_returnsFalseAndRecordsRejection() throws Exception {
         CountDownLatch callStarted = new CountDownLatch(1);
         CountDownLatch releaseCall = new CountDownLatch(1);
-        NotificationSender delegate = sender((phone, name, eventType) -> {
+        NotificationSender delegate = sender((idempotencyKey, phone, name, eventType) -> {
             callStarted.countDown();
             try {
                 releaseCall.await();
@@ -74,17 +76,17 @@ class ResilientNotificationSenderTest {
         NotificationResilienceConfig config = new NotificationResilienceConfig();
         ResilientNotificationSender resilientSender = createSender(
                 delegate,
-                config.kakaoNotificationCircuitBreaker(properties),
+                config.alimtalkNotificationCircuitBreaker(properties),
                 config,
                 properties);
 
         CompletableFuture<Boolean> running = CompletableFuture.supplyAsync(() -> resilientSender.send(
-                "01011111111", "첫 번째", NotificationEventType.BOOKING_CONFIRMED));
+                IDEMPOTENCY_KEY, "01011111111", "첫 번째", NotificationEventType.BOOKING_CONFIRMED));
         CompletableFuture<Boolean> queued = null;
         try {
             assertThat(callStarted.await(1, TimeUnit.SECONDS)).isTrue();
             queued = CompletableFuture.supplyAsync(() -> resilientSender.send(
-                    "01022222222", "두 번째", NotificationEventType.BOOKING_CONFIRMED));
+                    IDEMPOTENCY_KEY, "01022222222", "두 번째", NotificationEventType.BOOKING_CONFIRMED));
             await().atMost(1, TimeUnit.SECONDS).untilAsserted(() ->
                     assertThat(meterRegistry.get("executor.queued")
                             .tag("name", "notificationTimeoutExecutor")
@@ -92,7 +94,7 @@ class ResilientNotificationSenderTest {
                             .value()).isEqualTo(1));
 
             boolean sent = resilientSender.send(
-                    "01033333333", "세 번째", NotificationEventType.BOOKING_CONFIRMED);
+                    IDEMPOTENCY_KEY, "01033333333", "세 번째", NotificationEventType.BOOKING_CONFIRMED);
 
             assertSoftly(softly -> {
                 softly.assertThat(sent).isFalse();
@@ -139,14 +141,20 @@ class ResilientNotificationSenderTest {
             }
 
             @Override
-            public boolean send(String phone, String recipientName, NotificationEventType eventType) {
-                return behavior.send(phone, recipientName, eventType);
+            public boolean send(String idempotencyKey,
+                                String phone,
+                                String recipientName,
+                                NotificationEventType eventType) {
+                return behavior.send(idempotencyKey, phone, recipientName, eventType);
             }
         };
     }
 
     @FunctionalInterface
     private interface SendBehavior {
-        boolean send(String phone, String recipientName, NotificationEventType eventType);
+        boolean send(String idempotencyKey,
+                     String phone,
+                     String recipientName,
+                     NotificationEventType eventType);
     }
 }

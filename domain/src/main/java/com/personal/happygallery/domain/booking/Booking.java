@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.booking;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -56,6 +58,9 @@ public class Booking {
     @Column(name = "balance_status", nullable = false, length = 10)
     private BalanceStatus balanceStatus;
 
+    @Column(name = "balance_paid_at")
+    private LocalDateTime balancePaidAt;
+
     @Column(name = "arrears_flag", nullable = false)
     private boolean arrearsFlag = false;
 
@@ -95,7 +100,8 @@ public class Booking {
         this.status = BookingStatus.BOOKED;
         this.depositAmount = depositAmount;
         this.balanceAmount = balanceAmount;
-        this.balanceStatus = BalanceStatus.UNPAID;
+        this.balanceStatus = balanceAmount == 0 ? BalanceStatus.PAID : BalanceStatus.UNPAID;
+        this.balancePaidAt = null;
         this.arrearsFlag = false;
         this.paymentMethod = paymentMethod;
         this.passPurchase = passPurchase;
@@ -140,7 +146,17 @@ public class Booking {
      */
     public void cancel() {
         status.requireBooked();
+        if (!isCustomerCancellationAllowed()) {
+            throw new HappyGalleryException(
+                    ErrorCode.CHANGE_NOT_ALLOWED,
+                    "잔금 결제가 완료된 예약은 고객이 취소할 수 없습니다. 관리자 정산이 필요합니다.");
+        }
         this.status = BookingStatus.CANCELED;
+    }
+
+    public boolean isCustomerCancellationAllowed() {
+        return status == BookingStatus.BOOKED
+                && (balanceAmount == 0 || balanceStatus != BalanceStatus.PAID);
     }
 
     /** 결석 처리. 크레딧은 예약 시 이미 소모되었으므로 상태만 변경. */
@@ -149,15 +165,57 @@ public class Booking {
         this.status = BookingStatus.NO_SHOW;
     }
 
+    /** 현장 잔금 결제를 기록한다. 이미 결제된 예약은 최초 결제 시각을 유지한다. */
+    public void markBalancePaid(LocalDateTime paidAt) {
+        requireSettlementEditable();
+        if (balanceStatus == BalanceStatus.PAID) {
+            return;
+        }
+        this.balanceStatus = BalanceStatus.PAID;
+        this.balancePaidAt = paidAt;
+        this.arrearsFlag = false;
+    }
+
+    /** 미수 여부를 갱신한다. 결제 완료된 잔금은 미수로 되돌릴 수 없다. */
+    public void updateArrears(boolean arrears) {
+        requireSettlementEditable();
+        if (arrears && balanceStatus == BalanceStatus.PAID) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "결제 완료된 잔금은 미수로 표시할 수 없습니다.");
+        }
+        this.arrearsFlag = arrears;
+    }
+
+    /** 수업 종료 후 예약을 완료한다. 미결제 잔금은 먼저 미수로 명시해야 한다. */
+    public void complete(LocalDateTime now) {
+        status.requireBooked();
+        if (now.isBefore(slot.getEndAt())) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수업 종료 전에는 예약을 완료할 수 없습니다.");
+        }
+        if (balanceStatus == BalanceStatus.UNPAID && !arrearsFlag) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "미결제 잔금은 미수로 표시한 뒤 완료해 주세요.");
+        }
+        this.status = BookingStatus.COMPLETED;
+    }
+
+    private void requireSettlementEditable() {
+        if (status != BookingStatus.BOOKED && status != BookingStatus.COMPLETED) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "예약 중이거나 완료된 예약만 잔금을 정산할 수 있습니다. 현재: " + status);
+        }
+    }
+
     public void claimToUser(Long userId) {
         requireExactlyOneOwner(null, userId);
         this.userId = userId;
         this.guest = null;
     }
 
-    /** 결제 confirm 성공 후 원결제 paymentKey를 저장한다. */
-    public void recordPaymentKey(String paymentKey) {
+    /** 결제 confirm 성공 후 원결제 식별자와 예약금 결제 시각을 저장한다. */
+    public void recordPaymentConfirmation(String paymentKey, LocalDateTime paidAt) {
         this.paymentKey = paymentKey;
+        if (!isPassBooking()) {
+            this.depositPaidAt = paidAt;
+        }
     }
 
     /** 8회권으로 결제된 예약인지 여부. */
@@ -175,6 +233,7 @@ public class Booking {
     public LocalDateTime getDepositPaidAt() { return depositPaidAt; }
     public long getBalanceAmount() { return balanceAmount; }
     public BalanceStatus getBalanceStatus() { return balanceStatus; }
+    public LocalDateTime getBalancePaidAt() { return balancePaidAt; }
     public boolean isArrearsFlag() { return arrearsFlag; }
     public long getVersion() { return version; }
     public DepositPaymentMethod getPaymentMethod() { return paymentMethod; }

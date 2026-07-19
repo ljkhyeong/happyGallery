@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.adapter.out.external.http.HttpPoolProperties;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
@@ -19,10 +20,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
+import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
 
 /**
- * 카카오 알림톡 / NHN SMS 어댑터를 {@link ResilientNotificationSender}로 감싸 등록한다.
+ * NHN Cloud Alimtalk / SMS 어댑터를 {@link ResilientNotificationSender}로 감싸 등록한다.
  *
  * <p>raw sender는 컨텍스트에 빈으로 노출하지 않고 데코레이터만 노출해야
  * {@code NotificationService}의 채널 fallback 체인에 같은 채널이 두 번 들어가지 않는다.
@@ -32,8 +34,8 @@ import org.springframework.web.client.RestClient;
 class NotificationResilienceConfig {
 
     @Bean
-    CircuitBreaker kakaoNotificationCircuitBreaker(NotificationResilienceProperties properties) {
-        return CircuitBreaker.of("kakaoNotification", circuitBreakerConfig(properties.circuitBreaker()));
+    CircuitBreaker alimtalkNotificationCircuitBreaker(NotificationResilienceProperties properties) {
+        return CircuitBreaker.of("alimtalkNotification", circuitBreakerConfig(properties.circuitBreaker()));
     }
 
     @Bean
@@ -80,13 +82,14 @@ class NotificationResilienceConfig {
 
     @Bean
     @Order(1)
-    NotificationSender kakaoNotificationSender(KakaoNotificationProperties props,
-                                               @Qualifier("kakaoRestClient") RestClient kakaoRestClient,
-                                               @Qualifier("kakaoNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
+    NotificationSender kakaoNotificationSender(AlimtalkNotificationProperties props,
+                                               @Qualifier("alimtalkRestClient") RestClient alimtalkRestClient,
+                                               @Qualifier("alimtalkNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
                                                @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
                                                @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
                                                NotificationResilienceProperties resilience) {
-        KakaoAlimtalkSender raw = new KakaoAlimtalkSender(props, kakaoRestClient);
+        validateTimeoutHierarchy(resilience, props);
+        NhnAlimtalkSender raw = new NhnAlimtalkSender(props, alimtalkRestClient);
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
                 notificationTimeoutExecutor, resilience.timeoutMillis());
     }
@@ -99,6 +102,7 @@ class NotificationResilienceConfig {
                                              @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
                                              @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
                                              NotificationResilienceProperties resilience) {
+        validateTimeoutHierarchy(resilience, props);
         RealSmsSender raw = new RealSmsSender(props, smsRestClient);
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
                 notificationTimeoutExecutor, resilience.timeoutMillis());
@@ -111,6 +115,7 @@ class NotificationResilienceConfig {
                                                      @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
                                                      @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
                                                      NotificationResilienceProperties resilience) {
+        validateTimeoutHierarchy(resilience, props);
         PhoneVerificationSender raw = new RealPhoneVerificationSender(props, smsRestClient);
         return new ResilientPhoneVerificationSender(
                 raw,
@@ -133,5 +138,14 @@ class NotificationResilienceConfig {
 
     private static boolean isFailureResult(Object result) {
         return result instanceof Boolean sent && !sent;
+    }
+
+    private static void validateTimeoutHierarchy(NotificationResilienceProperties resilience,
+                                                 HttpPoolProperties transport) {
+        long transportBudgetMillis = transport.acquireTimeoutMillis()
+                + transport.connectTimeoutMillis()
+                + transport.timeoutMillis();
+        Assert.isTrue(resilience.timeoutMillis() > transportBudgetMillis,
+                "알림 TimeLimiter는 acquire + connect + response timeout 합보다 커야 합니다.");
     }
 }

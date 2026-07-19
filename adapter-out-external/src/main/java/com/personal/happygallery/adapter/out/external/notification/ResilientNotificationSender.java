@@ -38,10 +38,13 @@ public class ResilientNotificationSender implements NotificationSender {
     }
 
     @Override
-    public boolean send(String phone, String recipientName, NotificationEventType eventType) {
+    public boolean send(String idempotencyKey,
+                        String phone,
+                        String recipientName,
+                        NotificationEventType eventType) {
         return resilientCall.execute(
                 channel(),
                 eventType.name(),
-                () -> delegate.send(phone, recipientName, eventType));
+                () -> delegate.send(idempotencyKey, phone, recipientName, eventType));
     }
 }

@@ -30,6 +30,7 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   PAYMENT_METHOD_NOT_ALLOWED: "허용되지 않는 결제 수단입니다.",
   PAYMENT_CONFIRM_IN_PROGRESS: "결제 확정을 처리 중입니다. 잠시 후 다시 확인해 주세요.",
   PAYMENT_ATTEMPT_EXPIRED: "결제 준비 시간이 만료되었습니다. 결제를 다시 시작해 주세요.",
+  PAYMENT_RESULT_RETENTION_EXPIRED: "결제 결과 재조회 기간이 만료되었습니다.",
   PAYMENT_FAILED: "결제 처리 결과를 확인하지 못했습니다. 잠시 후 다시 확인해 주세요.",
   SERVICE_UNAVAILABLE: "서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
   FORBIDDEN: "요청한 작업을 수행할 권한이 없습니다.",

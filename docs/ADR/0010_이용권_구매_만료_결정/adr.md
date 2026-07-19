@@ -23,18 +23,19 @@
 **이유**:
 - 기존 `Booking`, `Slot` 등 도메인 엔티티가 모두 `LocalDateTime` 사용 — 일관성 유지
 - 계산은 `TimeBoundary.passExpiresAt(ZonedDateTime)` → `.toLocalDateTime()` 변환으로 결제일 포함 90일의 다음날 00:00 KST를 보장
+- `purchased_at`도 DB UTC 기본값에 맡기지 않고 구매 트랜잭션의 서울 현지시각을 명시해 매출 날짜와 고객 표시 시각을 같은 기준으로 유지한다.
 
 **위험**: 서버 타임존이 Asia/Seoul이 아닌 환경에서는 계산 오차 가능. `TimeBoundary`가 입력 시각을 `Clocks.SEOUL` 날짜로 변환해 계산하므로 현 구성에서는 안전.
 
 ---
 
-### 2. `purchased_at`: DB DEFAULT 위임
+### 2. `purchased_at`: 구매 트랜잭션 시각 명시 저장
 
-**결정**: `purchased_at` 컬럼을 `insertable=false, updatable=false`로 선언. DB `DEFAULT CURRENT_TIMESTAMP(6)` 자동 기록.
+**결정**: `purchased_at` 컬럼은 `updatable=false`로 두고, 구매 서비스가 사용하는 `Clock`의 서울 현지시각을 생성 팩토리에 전달해 명시 저장한다.
 
-**이유**: 기존 `Booking.createdAt`과 동일한 패턴. 애플리케이션에서 별도로 주입하지 않으면 클록 동기화 문제 없음.
+**이유**: 이용권 매출은 고객에게 표시되는 결제일과 같은 KST 날짜 경계로 집계해야 한다. DB 기본값에 맡기면 UTC로 생성되는 `created_at` 계열과 섞여 오후 시간대 매출이 다음 날로 분류될 수 있다.
 
-**위험**: 서비스 레이어에서 `purchasedAt`을 참조해 `expiresAt`을 계산할 수 없으므로, `expiresAt`은 `ZonedDateTime.now(clock)`로 직접 계산해 저장.
+**위험**: 애플리케이션 노드 간 시계 차이가 결제 시각에 반영될 수 있다. 모든 노드는 NTP로 동기화하고, 동일한 `Clock`에서 `purchasedAt`과 `expiresAt`을 함께 계산한다.
 
 ---
 

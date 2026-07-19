@@ -5,6 +5,7 @@ import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
+import com.personal.happygallery.application.order.port.in.AdminOrderQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderAutoRefundBatchUseCase;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
@@ -64,6 +65,7 @@ class OrderApprovalUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired RefundPort refundPort;
     @Autowired OrderApprovalUseCase orderApprovalService;
+    @Autowired AdminOrderQueryUseCase adminOrderQueryUseCase;
     @Autowired OrderAutoRefundBatchUseCase orderAutoRefundBatchService;
     @Autowired OrderService orderService;
     @Autowired Clock clock;
@@ -94,6 +96,28 @@ class OrderApprovalUseCaseIT {
     // -----------------------------------------------------------------------
     // Proof: 승인 → APPROVED_FULFILLMENT_PENDING
     // -----------------------------------------------------------------------
+
+    @DisplayName("관리자 주문 커서 조회는 전체와 상태 필터의 두 번째 페이지를 반환한다")
+    @Test
+    void listOrders_secondCursorPage_returnsOrders() {
+        orderHelper.createReadyStockPaidOrder("커서 상품 1", 10_000L);
+        orderHelper.createReadyStockPaidOrder("커서 상품 2", 20_000L);
+        orderHelper.createReadyStockPaidOrder("커서 상품 3", 30_000L);
+
+        var firstPage = adminOrderQueryUseCase.listOrders(null, null, 1);
+        var secondPage = adminOrderQueryUseCase.listOrders(null, firstPage.nextCursor(), 1);
+        var firstStatusPage = adminOrderQueryUseCase.listOrders(
+                OrderStatus.PAID_APPROVAL_PENDING, null, 1);
+        var secondStatusPage = adminOrderQueryUseCase.listOrders(
+                OrderStatus.PAID_APPROVAL_PENDING, firstStatusPage.nextCursor(), 1);
+
+        assertSoftly(softly -> {
+            softly.assertThat(firstPage.hasMore()).isTrue();
+            softly.assertThat(secondPage.content()).hasSize(1);
+            softly.assertThat(firstStatusPage.hasMore()).isTrue();
+            softly.assertThat(secondStatusPage.content()).hasSize(1);
+        });
+    }
 
     @DisplayName("주문 승인 시 APPROVED_FULFILLMENT_PENDING 상태로 전이된다")
     @Test

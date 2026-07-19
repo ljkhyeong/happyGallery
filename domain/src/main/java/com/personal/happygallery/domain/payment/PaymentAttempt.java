@@ -314,6 +314,19 @@ public class PaymentAttempt {
                 && (createdAt == null || createdAt.isBefore(automaticRetrySafeSince));
     }
 
+    /** 보존 기간이 지난 최종 결제 시도의 개인정보 암호문만 제거한다. */
+    public boolean clearSensitiveDataBefore(LocalDateTime cutoff) {
+        if (!status.isSensitiveDataCleanupAllowed()
+                || createdAt == null
+                || createdAt.isAfter(cutoff)
+                || (payloadEnc == null && fulfilledAccessTokenEnc == null)) {
+            return false;
+        }
+        payloadEnc = null;
+        fulfilledAccessTokenEnc = null;
+        return true;
+    }
+
     public Long getId() { return id; }
     public String getOrderIdExternal() { return orderIdExternal; }
     public PaymentContext getContext() { return context; }

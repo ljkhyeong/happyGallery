@@ -1,13 +1,15 @@
 export type { CursorPage } from "./cursor";
 export type { ErrorCode, ErrorResponse } from "./error";
 export type { RefundStatus, RefundProgress, AdminRefundStatus } from "./refund";
-export type { ProductType, ProductStatus, ProductSortOrder, ProductDetailResponse, ProductResponse, CreateProductRequest, ProductFilterParams } from "./product";
+export type { ProductType, ProductStatus, ProductSortOrder, ProductDetailResponse, ProductResponse, CreateProductRequest, InventoryAdjustmentType, AdjustInventoryRequest, InventoryAdjustmentResponse, ProductFilterParams } from "./product";
 export type { BookingStatus, DepositPaymentMethod, BookingCancelPolicy, SendVerificationRequest, SendVerificationResponse, BookingDetailResponse, MyBookingDetailResponse, RescheduleResponse, CancelResponse } from "./booking";
 export type { PassRefundResponse } from "./pass";
-export type { OrderStatus, SlotResponse, CreateSlotRequest, BatchResponse, BookingNoShowResponse, OrderProductionResponse, OrderRejectResponse, OrderDelayCancellationResponse, PickupResponse, MarkPickupReadyRequest, SetExpectedShipDateRequest, FailedRefundResponse, FailedNotificationResponse, PaymentReconciliationRequiredResponse, PaymentReconciliationResultResponse, AdminOrderResponse, AdminOrderFulfillmentResponse, AdminBookingResponse, ShippingResponse, OrderApprovalDecision, OrderHistoryResponse } from "./admin";
+export type { OrderStatus, SlotResponse, CreateSlotRequest, BatchResponse, BookingNoShowResponse, BookingSettlementResponse, OrderProductionResponse, OrderRejectResponse, OrderDelayCancellationResponse, PickupResponse, MarkPickupReadyRequest, SetExpectedShipDateRequest, FailedRefundResponse, FailedNotificationResponse, PaymentReconciliationRequiredResponse, PaymentReconciliationResultResponse, AdminOrderResponse, AdminOrderFulfillmentResponse, AdminBookingResponse, ShippingResponse, OrderApprovalDecision, OrderHistoryResponse } from "./admin";
 export type { ClassResponse, CreateClassRequest } from "./class";
 export type { PublicSlotResponse } from "./slot";
 export type { OrderItemInput, OrderDetailResponse, OrderItemDto, FulfillmentType, FulfillmentDto } from "./order";
 export type { ProductQnaListItem, ProductQnaDetail, CreateQnaRequest } from "./qna";
 export type { InquiryResponse, CreateInquiryRequest } from "./inquiry";
 export type { NoticeListItem, NoticeDetail, CreateNoticeRequest } from "./notice";
+export type { DashboardGranularity, DashboardOverview, PeriodSalesSummary, RevenueBreakdown, RefundStats, DailyRevenue } from "./dashboard";
+export type { OffsetPage, AdminOrderSearchRow, AdminBookingSearchRow } from "./adminSearch";

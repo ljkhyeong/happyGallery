@@ -88,7 +88,8 @@ app:
       pool-size: ${BATCH_SCHEDULER_POOL_SIZE:4}
   external:
     notification:
-      timeout-millis: ${NOTIFICATION_TIMEOUT_MILLIS:3000}
+      # transport 단계 합(기본 3.5초)이 끝난 뒤에만 바깥 TimeLimiter가 동작한다.
+      timeout-millis: ${NOTIFICATION_TIMEOUT_MILLIS:5000}
       thread-pool:
         pool-size: ${NOTIFICATION_EXECUTOR_POOL_SIZE:6}
         queue-capacity: ${NOTIFICATION_EXECUTOR_QUEUE_CAPACITY:20}
@@ -98,23 +99,24 @@ app:
         minimum-number-of-calls: ${NOTIFICATION_CB_MINIMUM_CALLS:10}
         wait-duration-open-seconds: ${NOTIFICATION_CB_WAIT_OPEN_SECONDS:30}
         permitted-calls-in-half-open-state: ${NOTIFICATION_CB_HALF_OPEN_CALLS:3}
-    kakao:
-      api-key: ${KAKAO_API_KEY:}
-      sender-key: ${KAKAO_SENDER_KEY:}
-      base-url: ${KAKAO_BASE_URL:https://bizapi.kakao.com}
-      timeout-millis: ${KAKAO_TIMEOUT_MILLIS:5000}
-      connect-timeout-millis: ${KAKAO_CONNECT_TIMEOUT_MILLIS:2000}
-      acquire-timeout-millis: ${KAKAO_ACQUIRE_TIMEOUT_MILLIS:1000}
-      max-connections: ${KAKAO_MAX_CONNECTIONS:20}
-      keep-alive-millis: ${KAKAO_KEEP_ALIVE_MILLIS:30000}
+    alimtalk:
+      app-key: ${ALIMTALK_APP_KEY:}
+      secret-key: ${ALIMTALK_SECRET_KEY:}
+      sender-key: ${ALIMTALK_SENDER_KEY:}
+      base-url: ${ALIMTALK_BASE_URL:https://kakaotalk-bizmessage.api.nhncloudservice.com}
+      timeout-millis: ${ALIMTALK_TIMEOUT_MILLIS:2000}
+      connect-timeout-millis: ${ALIMTALK_CONNECT_TIMEOUT_MILLIS:1000}
+      acquire-timeout-millis: ${ALIMTALK_ACQUIRE_TIMEOUT_MILLIS:500}
+      max-connections: ${ALIMTALK_MAX_CONNECTIONS:20}
+      keep-alive-millis: ${ALIMTALK_KEEP_ALIVE_MILLIS:30000}
     sms:
       api-key: ${SMS_API_KEY:}
       api-secret: ${SMS_API_SECRET:}
       sender-number: ${SMS_SENDER_NUMBER:}
-      base-url: ${SMS_BASE_URL:https://api-sms.cloud.toast.com}
-      timeout-millis: ${SMS_TIMEOUT_MILLIS:5000}
-      connect-timeout-millis: ${SMS_CONNECT_TIMEOUT_MILLIS:2000}
-      acquire-timeout-millis: ${SMS_ACQUIRE_TIMEOUT_MILLIS:1000}
+      base-url: ${SMS_BASE_URL:https://sms.api.nhncloudservice.com}
+      timeout-millis: ${SMS_TIMEOUT_MILLIS:2000}
+      connect-timeout-millis: ${SMS_CONNECT_TIMEOUT_MILLIS:1000}
+      acquire-timeout-millis: ${SMS_ACQUIRE_TIMEOUT_MILLIS:500}
       max-connections: ${SMS_MAX_CONNECTIONS:20}
       keep-alive-millis: ${SMS_KEEP_ALIVE_MILLIS:30000}
     google-oauth:

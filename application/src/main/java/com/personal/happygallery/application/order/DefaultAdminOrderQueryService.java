@@ -73,7 +73,7 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
         List<AdminOrderResponse> items = toResponses(orders);
 
         return CursorPage.of(items, pageSize,
-                r -> CursorUtils.encode(r.createdAt(), r.orderId()));
+                r -> CursorUtils.encode(r.createdAt().toLocalDateTime(), r.orderId()));
     }
 
     @Override

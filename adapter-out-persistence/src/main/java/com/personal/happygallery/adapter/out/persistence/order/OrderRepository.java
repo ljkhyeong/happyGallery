@@ -28,8 +28,13 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
             SELECT o FROM Order o
             WHERE o.status = com.personal.happygallery.domain.order.OrderStatus.PAID_APPROVAL_PENDING
               AND o.approvalDeadlineAt < :deadline
+              AND o.id > :afterId
+            ORDER BY o.id ASC
             """)
-    List<Order> findPaidApprovalPendingBefore(@Param("deadline") LocalDateTime deadline, Pageable pageable);
+    List<Order> findPaidApprovalPendingBeforeAfterId(
+            @Param("deadline") LocalDateTime deadline,
+            @Param("afterId") Long afterId,
+            Pageable pageable);
 
     /** 회원 — 자기 주문 조회 (최신순) */
     @Override List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
@@ -53,7 +58,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     /** 전체 주문 — 커서 이후 (tuple comparison으로 복합 인덱스 range scan 활용) */
     @Override
     @Query(value = """
-            SELECT id, user_id, guest_id, access_token, status,
+            SELECT id, user_id, guest_id, access_token, payment_key, status,
                    total_amount, paid_at, approval_deadline_at, version, created_at
             FROM orders
             WHERE (created_at, id) < (:cursorCreatedAt, :cursorId)
@@ -75,7 +80,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     /** 상태별 주문 — 커서 이후 (tuple comparison으로 복합 인덱스 range scan 활용) */
     @Override
     @Query(value = """
-            SELECT id, user_id, guest_id, access_token, status,
+            SELECT id, user_id, guest_id, access_token, payment_key, status,
                    total_amount, paid_at, approval_deadline_at, version, created_at
             FROM orders
             WHERE status = :#{#status.name()}

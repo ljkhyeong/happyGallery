@@ -45,6 +45,14 @@ export interface BookingNoShowResponse {
   status: string;
 }
 
+export interface BookingSettlementResponse {
+  bookingId: number;
+  status: string;
+  balanceStatus: "UNPAID" | "PAID";
+  balancePaidAt: string | null;
+  arrears: boolean;
+}
+
 export interface OrderProductionResponse {
   orderId: number;
   status: OrderStatus;
@@ -186,6 +194,10 @@ export interface AdminBookingResponse {
   endAt: string;
   status: string;
   depositAmount: number;
+  depositPaidAt: string | null;
   balanceAmount: number;
+  balanceStatus: "UNPAID" | "PAID";
+  balancePaidAt: string | null;
+  arrears: boolean;
   passBooking: boolean;
 }

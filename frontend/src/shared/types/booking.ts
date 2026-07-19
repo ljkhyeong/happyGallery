@@ -4,6 +4,7 @@ export type BookingStatus = "BOOKED" | "CANCELED" | "NO_SHOW" | "COMPLETED";
 export type DepositPaymentMethod = "CARD" | "EASY_PAY";
 
 export interface BookingCancelPolicy {
+  cancellable: boolean;
   refundable: boolean;
   deadlineAt: string;
   passCreditRestorable: boolean;

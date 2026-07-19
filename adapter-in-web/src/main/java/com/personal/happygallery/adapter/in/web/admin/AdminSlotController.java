@@ -53,4 +53,11 @@ public class AdminSlotController {
         Slot slot = slotManagementUseCase.deactivateSlot(id);
         return SlotResponse.from(slot);
     }
+
+    /** PATCH /api/v1/admin/slots/{id}/activate — 슬롯 관리자 활성 상태 복구 */
+    @PatchMapping("/{id}/activate")
+    public SlotResponse activateSlot(@PathVariable Long id) {
+        Slot slot = slotManagementUseCase.activateSlot(id);
+        return SlotResponse.from(slot);
+    }
 }

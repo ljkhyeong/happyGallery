@@ -81,6 +81,8 @@ grep -q 'imagePullPolicy: Never' "$rendered" || die "로컬 이미지 import 정
 grep -q 'app-management:8081' "$rendered" || die "Prometheus가 내부 관리 포트를 scrape하지 않습니다."
 grep -q 'alert: PaymentConfirmReconciliationRequired' "$rendered" \
     || die "결제 confirm 수동 대사 critical 알림이 없습니다."
+grep -q 'alert: NotificationLogPersistenceFailed' "$rendered" \
+    || die "알림 감사 이력 저장 실패 알림이 없습니다."
 grep -q 'alertmanager:9093' "$rendered" \
     || die "Prometheus와 Alertmanager 연결이 없습니다."
 grep -q 'url_file: /etc/alertmanager/secrets/webhook-url' "$rendered" \

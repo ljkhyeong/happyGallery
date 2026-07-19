@@ -290,6 +290,20 @@ Authorization: Bearer {token}
 - 정책:
   - 관리자 비활성 상태는 예약 취소·변경으로 버퍼 차단이 자동 해제되어도 유지된다.
 
+#### 2.1.4 슬롯 활성화
+
+```http
+PATCH /api/v1/admin/slots/{id}/activate
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` + 2.1.2와 같은 슬롯 응답
+- 에러:
+  - `404 NOT_FOUND` — slotId에 해당하는 슬롯 없음
+- 정책:
+  - `adminActive`만 `true`로 복구한다.
+  - `bufferBlocked=true`이면 활성화 후에도 `isActive=false`다.
+
 ### 2.2 공개 조회 API
 
 #### 2.2.1 공개 상품 목록 조회
@@ -339,6 +353,7 @@ GET /api/v1/products/{id}
 - 에러:
   - `404 NOT_FOUND` — productId 미존재
 - 정책:
+  - 판매 중지 상품의 기존 상세 링크는 유지하되, 재고가 남아 있어도 `available=false`를 반환한다.
   - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
   - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 
@@ -435,7 +450,7 @@ Content-Type: application/json
   - `category`는 선택값이며, 입력하면 앞뒤 공백을 제거하고 대문자 토큰으로 정규화해 저장·응답한다.
   - 공백 카테고리는 미입력과 동일하게 처리한다.
 
-#### 2.3.2 ACTIVE 상품 목록 조회
+#### 2.3.2 전체 상품 목록 조회
 
 ```http
 GET /api/v1/admin/products
@@ -457,6 +472,77 @@ Authorization: Bearer {token}
 ```
 
 - 성공: `200 OK`
+- 정책:
+  - `ACTIVE`, `INACTIVE` 상품을 모두 최신 등록순으로 반환한다.
+  - `available`은 `status=ACTIVE`이면서 재고가 1개 이상일 때만 `true`다.
+
+#### 2.3.3 상품 판매 상태 변경
+
+```http
+PATCH /api/v1/admin/products/{id}/status
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{ "status": "INACTIVE" }
+```
+
+- 성공: `200 OK` — 변경된 상품과 현재 재고를 `ProductResponse`로 반환
+- 에러:
+  - `400 INVALID_INPUT` — `status` 누락 또는 지원하지 않는 상태
+  - `404 NOT_FOUND` — 상품 미존재
+- 정책:
+  - `ACTIVE`, `INACTIVE`를 지원하며 같은 상태로의 요청은 성공한 것으로 처리한다.
+  - `INACTIVE` 상품은 재고가 남아 있어도 공개 목록에 노출하지 않고 결제 대상으로 확정하지 않는다.
+
+#### 2.3.4 재고 수동 조정
+
+```http
+POST /api/v1/admin/products/{id}/inventory-adjustments
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "type": "DECREASE",
+  "quantity": 2,
+  "reason": "오프라인 매장 판매"
+}
+```
+
+```json
+{
+  "id": 10,
+  "productId": 1,
+  "type": "DECREASE",
+  "quantity": 2,
+  "quantityBefore": 12,
+  "quantityAfter": 10,
+  "reason": "오프라인 매장 판매",
+  "adjustedByAdminId": 99,
+  "adjustedBy": "admin",
+  "adjustedAt": "2026-05-01T21:05:00"
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `400 INVALID_INPUT` — 유형 누락, 1 미만 수량, 빈 사유 또는 500자 초과 사유
+  - `404 NOT_FOUND` — 상품 재고 미존재
+  - `409 INVENTORY_NOT_ENOUGH` — 감소 수량이 현재 재고보다 큼
+- 정책:
+  - `type`은 `INCREASE`, `DECREASE`를 지원한다.
+  - 재고 행을 비관적 쓰기 잠금으로 조회한 뒤 수량 변경과 조정 이력을 같은 트랜잭션에 저장한다.
+  - `adjustedByAdminId`는 관리자 Bearer 세션이면 관리자 ID, 로컬 API key 인증이면 `null`이다. `adjustedBy`에는 관리자명 또는 `local-api-key`를 남긴다.
+
+#### 2.3.5 최근 재고 조정 이력 조회
+
+```http
+GET /api/v1/admin/products/{id}/inventory-adjustments
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — 최신순 최대 50건, 각 항목은 재고 수동 조정 응답과 동일
+- 에러:
+  - `404 NOT_FOUND` — 상품 미존재
 
 ### 2.4 예약 API
 
@@ -510,6 +596,7 @@ X-Access-Token: {accessToken}
   "guestName": "홍길동",
   "guestPhone": "010****5678",
   "cancelPolicy": {
+    "cancellable": true,
     "refundable": true,
     "deadlineAt": "2026-03-01T00:00:00",
     "passCreditRestorable": false,
@@ -522,6 +609,7 @@ X-Access-Token: {accessToken}
 - 성공: `200 OK`
 - 에러:
   - `404 NOT_FOUND` — bookingId 미존재 또는 token 불일치
+- `cancelPolicy.cancellable`은 고객이 현재 예약을 직접 취소할 수 있는지를 뜻한다. 잔금 결제가 완료된 유료 예약은 `false`며 관리자 정산이 필요하다.
 - `cancelPolicy.refundable`은 지금 취소하면 예약금 환불 또는 8회권 크레딧 복구가 가능한지를 뜻한다.
 - `cancelPolicy.deadlineAt`은 체험일 00:00 KST 기준 취소 보상 마감 시각이다.
 - 8회권 예약에서 마감이 지났으면 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`을 내린다. 프론트는 이 코드를 사용자에게 노출하지 않고 크레딧 미복구 한국어 경고로 변환해 취소 전에 표시한다.
@@ -588,6 +676,7 @@ X-Access-Token: {accessToken}
 - 에러:
   - `404 NOT_FOUND` — bookingId 미존재 또는 token 불일치
   - `400 INVALID_INPUT` — `BOOKED` 상태가 아닌 예약 취소 시도
+  - `422 CHANGE_NOT_ALLOWED` — 잔금 결제가 완료되어 관리자 정산이 필요한 예약의 고객 취소 시도
 - 환불 정책:
   - 예약금 결제: `refundable=true`이면 PG 환불 요청
   - 8회권 결제: `refundable=true`이면 `REFUND` ledger와 remaining credit 복구
@@ -734,12 +823,12 @@ Authorization: Bearer {token}
   "content": [
     {
       "orderId": 123,
-      "orderNumber": "HG-20260324-00123",
+      "orderNumber": "ORD-00000123",
       "status": "PAID_APPROVAL_PENDING",
       "totalAmount": 118000,
       "fulfillmentType": "SHIPPING",
       "paidAt": "2026-03-24T11:32:10",
-      "createdAt": "2026-03-24T11:32:10"
+      "createdAt": "2026-03-24T02:32:10Z"
     }
   ],
   "nextCursor": "MjAyNi0wMy0yNFQxMTozMjoxMHwxMjM",
@@ -752,6 +841,7 @@ Authorization: Bearer {token}
   - `400 INVALID_INPUT` — `size`가 1~100 범위를 벗어난 경우
 - 정책:
   - 상태 필터가 없으면 전체 주문을 `createdAt DESC, id DESC` 기준으로 조회한다.
+  - DB 생성 시각인 `createdAt`은 UTC 오프셋(`Z`)을 포함하고, 결제·승인 마감 같은 업무 시각은 서울 현지시각으로 반환한다.
   - `cursor`는 `Base64("{ISO_LOCAL_DATE_TIME}|{id}")` 형식이다.
   - 프론트는 `hasMore=true`일 때만 `nextCursor`로 다음 페이지를 요청한다.
   - 목록에는 운영 분기를 위한 `fulfillmentType`만 포함하며 배송지 개인정보는 포함하지 않는다.
@@ -800,7 +890,7 @@ Authorization: Bearer {token}
       "buyerPhone": "01012345678",
       "paidAt": "2026-03-24T11:32:10",
       "approvalDeadlineAt": "2026-03-25T11:32:10",
-      "createdAt": "2026-03-24T11:32:10"
+      "createdAt": "2026-03-24T02:32:10Z"
     }
   ],
   "page": 0,
@@ -814,9 +904,10 @@ Authorization: Bearer {token}
 - 정책:
   - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
   - `page`는 0 미만이면 0으로, `size`는 1~100 범위로 보정하며 표현 가능한 OFFSET을 넘으면 `400 INVALID_INPUT`으로 거절한다.
-  - `keyword`는 주문 ID 문자열에는 부분 일치, 회원·비회원 이름에는 정확 일치로 검색한다.
+  - `keyword`가 `ORD-{숫자}` 형식의 주문번호이면 해당 주문 ID와 정확 일치로 검색한다. 그 외 숫자·문자열은 주문 ID 부분 일치 또는 회원·비회원 이름 정확 일치로 검색한다.
   - `dateFrom`~`dateTo`는 KST 기준 주문 생성일 범위를 의미한다.
   - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
+  - `createdAt`은 UTC 오프셋(`Z`)을 포함해 브라우저가 서울 시각으로 정확히 변환할 수 있게 한다.
 
 #### 2.7.3 주문 운영 엔드포인트
 
@@ -1085,15 +1176,21 @@ Authorization: Bearer {token}
 [
   {
     "bookingId": 1,
+    "bookingNumber": "BK-00000001",
     "bookerType": "GUEST",
     "bookerName": "홍길동",
     "bookerPhone": "010****5678",
     "className": "향수 클래스",
-    "slotStart": "2026-03-20T10:00:00",
-    "slotEnd": "2026-03-20T12:00:00",
+    "startAt": "2026-03-20T10:00:00",
+    "endAt": "2026-03-20T12:00:00",
     "status": "BOOKED",
     "depositAmount": 5000,
-    "balanceAmount": 45000
+    "depositPaidAt": "2026-03-18T14:00:00",
+    "balanceAmount": 45000,
+    "balanceStatus": "UNPAID",
+    "balancePaidAt": null,
+    "arrears": false,
+    "passBooking": false
   }
 ]
 ```
@@ -1126,9 +1223,13 @@ Authorization: Bearer {token}
       "endAt": "2026-03-24T12:00:00",
       "status": "BOOKED",
       "depositAmount": 5000,
+      "depositPaidAt": "2026-03-20T09:15:00",
       "balanceAmount": 45000,
+      "balanceStatus": "UNPAID",
+      "balancePaidAt": null,
+      "arrears": false,
       "passBooking": false,
-      "createdAt": "2026-03-20T09:15:00"
+      "createdAt": "2026-03-20T00:15:00Z"
     }
   ],
   "page": 0,
@@ -1142,9 +1243,70 @@ Authorization: Bearer {token}
 - 정책:
   - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
   - `page`는 0 미만이면 0으로, `size`는 1~100 범위로 보정하며 표현 가능한 OFFSET을 넘으면 `400 INVALID_INPUT`으로 거절한다.
-  - `keyword`는 예약 ID 문자열에는 부분 일치, 회원·비회원 이름에는 정확 일치로 검색한다.
+  - `keyword`가 `BK-{숫자}` 형식의 예약번호이면 해당 예약 ID와 정확 일치로 검색한다. 그 외 숫자·문자열은 예약 ID 부분 일치 또는 회원·비회원 이름 정확 일치로 검색한다.
   - 날짜 필터는 슬롯 시작 시간(`slotStart`) 기준 KST 범위를 사용한다.
   - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
+  - DB 생성 시각인 `createdAt`은 UTC 오프셋(`Z`)을 포함한다. 슬롯·예약금·잔금 시각은 서울 현지시각이다.
+
+#### 2.9.3 관리자 예약 잔금 결제
+
+```http
+POST /api/v1/admin/bookings/{bookingId}/balance-payment
+Authorization: Bearer {token}
+```
+
+```json
+{
+  "bookingId": 1,
+  "status": "COMPLETED",
+  "balanceStatus": "PAID",
+  "balancePaidAt": "2026-03-20T12:10:00",
+  "arrears": false
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `404 NOT_FOUND` — bookingId 미존재
+  - `400 INVALID_INPUT` — 취소 또는 결석 예약
+- 정책:
+  - `BOOKED`와 `COMPLETED` 예약의 현장 잔금 결제를 기록한다.
+  - 이미 결제된 예약에 다시 요청하면 최초 `balancePaidAt`을 유지한다.
+  - 결제 완료 시 미수 표시는 자동 해제한다.
+
+#### 2.9.4 관리자 예약 미수 설정
+
+```http
+PUT /api/v1/admin/bookings/{bookingId}/arrears
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{ "arrears": true }
+```
+
+- 성공: `200 OK` + 2.9.3과 같은 정산 응답
+- 에러:
+  - `400 INVALID_INPUT` — 결제 완료 잔금을 미수로 설정하거나 취소·결석 예약을 변경
+  - `404 NOT_FOUND` — bookingId 미존재
+- 정책:
+  - `true`와 `false`를 모두 명시적으로 설정할 수 있다.
+  - 미결제 예약을 완료하려면 먼저 `arrears=true`로 미수를 확인해야 한다.
+
+#### 2.9.5 관리자 예약 완료
+
+```http
+POST /api/v1/admin/bookings/{bookingId}/complete
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` + 2.9.3과 같은 정산 응답 (`status=COMPLETED`)
+- 에러:
+  - `400 INVALID_INPUT` — BOOKED가 아니거나, 수업 종료 전이거나, 미결제 잔금을 미수로 표시하지 않음
+  - `404 NOT_FOUND` — bookingId 미존재
+  - `409 BOOKING_CONFLICT` — 동시에 같은 예약을 변경해 낙관적 락 충돌
+- 정책:
+  - `booking_history`에 `COMPLETED`를 기록한다.
+  - 이미 진행된 수업을 닫는 상태 전이이므로 슬롯 정원과 버퍼 차단 수는 변경하지 않는다.
 
 ### 2.10 관리자 대시보드 API
 
@@ -1175,7 +1337,11 @@ Authorization: Bearer {token}
 
 정책:
 - `from`, `to`는 KST 기준 집계 기간이다.
+- 호환 필드명인 `overview.monthRevenue`, `overview.monthOrderCount`는 달력 월 고정값이 아니라 요청한 `from`~`to` 선택 기간의 값이다.
 - `sales-summary.granularity` 기본값은 `DAILY`이며 `DAILY`, `WEEKLY`, `MONTHLY`를 지원한다.
+- `overview`, `revenue-breakdown`, `daily-revenue`는 주문·예약금·예약 잔금·8회권 결제를 결제 시점에 더하고, 도메인 환불이 `SUCCEEDED`가 된 시점에 차감한 순매출이다. 미완료·실패 환불과 `payment_attempt_id`만 가진 보상환불은 차감하지 않는다.
+- `sales-summary`와 `top-products`는 상품 주문 분석 전용이다. 주문 결제를 더하고 성공한 주문 환불을 성공 시점에 차감하며, 예약·8회권 매출은 포함하지 않는다.
+- `refunds.refundRate`는 조회 기간의 성공 환불액을 같은 기간의 네 결제 원천 총 유입액으로 나눈 운영 현금흐름 비율이다. 이전 기간 결제가 현재 기간에 환불되면 1을 넘을 수 있다.
 
 #### 2.10.2 상태/상품/예약 분포
 
@@ -1512,6 +1678,7 @@ POST /api/v1/auth/password/reset
   "balanceStatus": "PAID",
   "passBooking": true,
   "cancelPolicy": {
+    "cancellable": true,
     "refundable": false,
     "deadlineAt": "2026-03-01T00:00:00",
     "passCreditRestorable": false,
@@ -1521,11 +1688,29 @@ POST /api/v1/auth/password/reset
 }
 ```
 
+회원 8회권 목록의 각 항목과 상세 응답은 같은 형태를 사용하며, 환불 요청이 있으면 공개 가능한 진행 상태만 포함한다.
+
+```json
+{
+  "passId": 300,
+  "purchasedAt": "2026-07-01T10:00:00",
+  "expiresAt": "2026-09-29T00:00:00",
+  "totalCredits": 8,
+  "remainingCredits": 0,
+  "totalPrice": 320000,
+  "refund": {
+    "amount": 320000,
+    "status": "PROCESSING"
+  }
+}
+```
+
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 다른 회원의 리소스 접근 시 `404 NOT_FOUND`
 - 8회권 예약에서 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`이면 취소해도 크레딧이 복구되지 않는다. 취소 확인창과 완료 알림은 이 사실을 한국어로 명확히 알린다.
-- 회원 예약·주문 상세의 `refund`도 비회원 상세와 같은 `{amount,status}` 또는 `null` 계약을 사용한다. 본인 소유권 검증 후 조회하며 내부 환불 ID와 실패 사유는 노출하지 않는다.
+- 회원 예약·주문 상세와 8회권 목록·상세의 `refund`는 `{amount,status}` 또는 `null` 계약을 사용한다. 본인 소유권 검증 후 조회하며 내부 환불 ID와 실패 사유는 노출하지 않는다.
+- 환불 상태는 `REQUESTED`, `PROCESSING`, `RETRYABLE`, `RECONCILIATION_REQUIRED`, `SUCCEEDED`, `FAILED` 중 하나다. 고객 화면은 비종결 상태만 제한된 간격으로 다시 조회한다.
 
 #### 2.12.4 회원 상품 Q&A 작성
 
@@ -1814,6 +1999,9 @@ Content-Type: application/json
 }
 ```
 
+- 8회권 사용 예약은 회원이 예약 가능 슬롯을 직접 선택해 한 회차씩 생성하며, 성공할 때마다 크레딧 1회를 차감한다.
+- 운영자가 8회 일정을 일괄 배정하는 별도 API는 제공하지 않는다.
+
 #### 2.15.2 결제 확정 (confirm)
 
 ```http
@@ -1865,6 +2053,7 @@ Content-Type: application/json
   - `domainId`는 context에 따라 `orderId`(`ORDER`), `bookingId`(`BOOKING`), `passId`(`PASS`)다.
   - 비회원 휴대폰 인증 실패는 confirm 단계에서 fulfillment가 호출하는 `VerifiedGuestResolver`가 던지는 `400 PHONE_VERIFICATION_FAILED`로 매핑된다.
   - confirm은 행 잠금 아래 30분 유효시간을 다시 확인하고, 경계를 넘긴 `PENDING`을 `CANCELED`로 전이한 뒤 `payload_enc`를 제거하고 `410 PAYMENT_ATTEMPT_EXPIRED`를 반환한다. 매분 배치도 같은 기준으로 confirm을 시작하지 않은 결제를 일괄 정리한다. 만료된 orderId는 새 prepare부터 다시 시작해야 한다.
+  - 최종 상태인 결제 시도는 생성 30일 뒤 `payload_enc`와 `fulfilled_access_token_enc`를 제거한다. 이후 같은 orderId로 결과를 다시 요청하면 `410 PAYMENT_RESULT_RETENTION_EXPIRED`를 반환한다. 결제 감사 필드와 복구·대사·보상 진행 상태는 유지한다.
 
 ---
 
@@ -1946,6 +2135,7 @@ Content-Type: application/json
 | 409 | `CONFLICT` | 주문 승인/픽업/배치 등 비예약 운영 액션의 충돌 |
 | 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
 | 410 | `PAYMENT_ATTEMPT_EXPIRED` | 결제 준비 후 30분 안에 confirm을 시작하지 않음 |
+| 410 | `PAYMENT_RESULT_RETENTION_EXPIRED` | 최종 결제 결과의 30일 재조회 보존 기간이 지남 |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 |
 | 422 | `REFUND_NOT_ALLOWED` | 취소 보상 마감 이후 환불 요청 |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/일반 환불 시도 |

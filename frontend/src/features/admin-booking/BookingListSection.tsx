@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col } from "react-bootstrap";
-import { fetchBookings, markNoShow } from "./api";
+import {
+  completeBooking,
+  fetchBookings,
+  markBalancePaid,
+  markNoShow,
+  updateArrears,
+} from "./api";
 import {
   EmptyState,
   ErrorAlert,
@@ -36,7 +42,6 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
   const toast = useToast();
   const [date, setDate] = useState(todayStr);
   const [statusFilter, setStatusFilter] = useState("");
-  const [pendingId, setPendingId] = useState<number | null>(null);
 
   const { data: bookings, isLoading, error } = useQuery({
     queryKey: ["admin", "bookings", date, statusFilter],
@@ -52,13 +57,45 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
 
   const noShowMutation = useAdminMutation(onAuthError, {
     mutationFn: (bookingId: number) => markNoShow(adminKey, bookingId),
-    onMutate: (bookingId) => setPendingId(bookingId),
     onSuccess: (res) => {
       toast.show(`예약 #${res.bookingId} 노쇼 처리 완료`);
       queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
     },
-    onSettled: () => setPendingId(null),
   });
+
+  const balancePaymentMutation = useAdminMutation(onAuthError, {
+    mutationFn: (bookingId: number) => markBalancePaid(adminKey, bookingId),
+    onSuccess: (res) => {
+      toast.show(`예약 #${res.bookingId} 잔금 결제 처리 완료`);
+      queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
+    },
+  });
+
+  const arrearsMutation = useAdminMutation(onAuthError, {
+    mutationFn: ({ bookingId, arrears }: { bookingId: number; arrears: boolean }) =>
+      updateArrears(adminKey, bookingId, arrears),
+    onSuccess: (res) => {
+      toast.show(`예약 #${res.bookingId} 미수 상태 변경 완료`);
+      queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
+    },
+  });
+
+  const completeMutation = useAdminMutation(onAuthError, {
+    mutationFn: (bookingId: number) => completeBooking(adminKey, bookingId),
+    onSuccess: (res) => {
+      toast.show(`예약 #${res.bookingId} 수업 완료 처리 완료`);
+      queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
+    },
+  });
+
+  const mutationPending = noShowMutation.isPending
+    || balancePaymentMutation.isPending
+    || arrearsMutation.isPending
+    || completeMutation.isPending;
+  const mutationError = noShowMutation.error
+    ?? balancePaymentMutation.error
+    ?? arrearsMutation.error
+    ?? completeMutation.error;
 
   return (
     <div>
@@ -126,20 +163,78 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
                   {b.passBooking ? (
                     <Badge bg="info">8회권</Badge>
                   ) : (
-                    <small>{formatKRW(b.depositAmount)}</small>
+                    <small>예약금 {formatKRW(b.depositAmount)}</small>
+                  )}
+                  <div className="mt-1 d-flex flex-wrap gap-1">
+                    <Badge bg={b.balanceStatus === "PAID" ? "success" : "secondary"}>
+                      잔금 {b.balanceStatus === "PAID" ? "결제" : "미결제"}
+                    </Badge>
+                    {b.arrears && <Badge bg="warning" text="dark">미수</Badge>}
+                  </div>
+                  {b.balanceAmount > 0 && (
+                    <div>
+                      <small className="text-muted-soft">{formatKRW(b.balanceAmount)}</small>
+                      {b.balancePaidAt && (
+                        <small className="d-block text-muted-soft">{formatDateTime(b.balancePaidAt)}</small>
+                      )}
+                    </div>
                   )}
                 </td>
                 <td>
-                  {b.status === "BOOKED" && (
-                    <Button
-                      size="sm"
-                      variant="outline-danger"
-                      disabled={pendingId === b.bookingId}
-                      onClick={() => noShowMutation.mutate(b.bookingId)}
-                    >
-                      {pendingId === b.bookingId ? "처리 중..." : "노쇼"}
-                    </Button>
-                  )}
+                  <div className="d-flex flex-wrap gap-1" style={{ minWidth: 190 }}>
+                    {["BOOKED", "COMPLETED"].includes(b.status) && b.balanceStatus === "UNPAID" && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline-success"
+                          disabled={mutationPending}
+                          onClick={() => balancePaymentMutation.mutate(b.bookingId)}
+                        >
+                          잔금 결제
+                        </Button>
+                        <Form.Check
+                          type="switch"
+                          id={`booking-arrears-${b.bookingId}`}
+                          label="미수"
+                          checked={b.arrears}
+                          disabled={mutationPending}
+                          onChange={(event) => arrearsMutation.mutate({
+                            bookingId: b.bookingId,
+                            arrears: event.target.checked,
+                          })}
+                        />
+                      </>
+                    )}
+                    {b.status === "BOOKED" && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline-primary"
+                          title={Date.parse(b.endAt) > Date.now()
+                            ? "수업 종료 후 완료할 수 있습니다."
+                            : b.balanceStatus === "UNPAID" && !b.arrears
+                              ? "잔금을 결제하거나 미수로 표시해 주세요."
+                              : undefined}
+                          disabled={
+                            mutationPending
+                            || Date.parse(b.endAt) > Date.now()
+                            || (b.balanceStatus === "UNPAID" && !b.arrears)
+                          }
+                          onClick={() => completeMutation.mutate(b.bookingId)}
+                        >
+                          수업 완료
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline-danger"
+                          disabled={mutationPending}
+                          onClick={() => noShowMutation.mutate(b.bookingId)}
+                        >
+                          노쇼
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -147,8 +242,8 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
         </Table>
       )}
 
-      {noShowMutation.error && !(noShowMutation.error instanceof ApiError && noShowMutation.error.status === 401) && (
-        <ErrorAlert error={noShowMutation.error} />
+      {mutationError && !(mutationError instanceof ApiError && mutationError.status === 401) && (
+        <ErrorAlert error={mutationError} />
       )}
     </div>
   );

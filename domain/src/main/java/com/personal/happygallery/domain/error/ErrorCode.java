@@ -42,6 +42,7 @@ public enum ErrorCode {
 
     // 410 Gone — 유효기간이 끝난 리소스
     PAYMENT_ATTEMPT_EXPIRED(410, "결제 준비 시간이 만료되었습니다. 결제를 다시 시작해주세요."),
+    PAYMENT_RESULT_RETENTION_EXPIRED(410, "결제 결과 재조회 기간이 만료되었습니다."),
 
     // 422 Unprocessable — 비즈니스 규칙 위반
     REFUND_NOT_ALLOWED(422, "환불 가능 기간이 지났습니다."),

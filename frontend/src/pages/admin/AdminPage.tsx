@@ -17,6 +17,8 @@ import { AdminQnaSection } from "@/features/admin-qna/AdminQnaSection";
 import { AdminInquirySection } from "@/features/admin-inquiry/AdminInquirySection";
 import { AdminNoticeSection } from "@/features/admin-notice/AdminNoticeSection";
 import { AdminPasswordChangeForm } from "@/features/admin-auth/AdminPasswordChangeForm";
+import { AdminDashboardSection } from "@/features/admin-dashboard/AdminDashboardSection";
+import { AdminSearchSection } from "@/features/admin-search/AdminSearchSection";
 import { useToast } from "@/shared/ui";
 
 export function AdminPage() {
@@ -45,6 +47,17 @@ export function AdminPage() {
           로그아웃
         </Button>
       </div>
+
+      <div className="mb-4">
+        <AdminDashboardSection adminKey={adminKey} onAuthError={handleAuthError} />
+      </div>
+
+      <Card className="mb-4">
+        <Card.Header>주문·예약 검색</Card.Header>
+        <Card.Body>
+          <AdminSearchSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
 
       <Card className="mb-4">
         <Card.Header>관리자 비밀번호</Card.Header>

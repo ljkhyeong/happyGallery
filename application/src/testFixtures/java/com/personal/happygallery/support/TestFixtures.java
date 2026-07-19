@@ -61,7 +61,7 @@ public final class TestFixtures {
     }
 
     public static PassPurchase passPurchase(Long userId, LocalDateTime expiresAt, long totalPrice) {
-        return PassPurchase.forMember(userId, expiresAt, totalPrice);
+        return PassPurchase.forMember(userId, expiresAt.minusDays(90), expiresAt, totalPrice);
     }
 
     public static Product readyStockProduct(String name, long price) {

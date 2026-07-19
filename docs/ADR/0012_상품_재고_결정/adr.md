@@ -3,6 +3,8 @@
 **날짜**: 2026-03-02
 **상태**: 승인됨
 
+**갱신**: 2026-07-19
+
 ---
 
 ## 맥락
@@ -60,13 +62,24 @@ List<Inventory> findByProductIdInWithLock(List<Long> productIds);
 | Method | Path | 설명 |
 |--------|------|------|
 | `POST` | `/admin/products` | 상품 등록 (name, type, price, quantity) → 201 |
-| `GET`  | `/admin/products` | ACTIVE 상품 목록 |
+| `GET`  | `/admin/products` | 판매 중지 포함 전체 상품 목록 |
+| `PATCH` | `/admin/products/{id}/status` | 판매 중지·재개 |
+| `POST` | `/admin/products/{id}/inventory-adjustments` | 사유를 포함한 재고 수동 증가·감소 |
+| `GET` | `/admin/products/{id}/inventory-adjustments` | 최근 재고 조정 이력 |
 | `GET`  | `/products/{id}` | 상품 상세 + `available` 필드 |
 
-`available: true/false` — `inventory.quantity > 0` 여부를 응답에 포함.
+`available: true/false` — `Product.status=ACTIVE`이고 `inventory.quantity > 0`일 때만 `true`다.
 
 직접 주문 prepare도 장바구니와 동일하게 `Product.status=ACTIVE`를 확인한다. 공개 목록에서 사라진 상품을
 오래된 화면이나 조작 요청으로 직접 지정해도 재고 유무와 무관하게 결제 대상으로 확정하지 않는다.
+
+관리자 수동 조정도 주문 차감·복구와 같은 `inventory` 행 비관적 잠금을 사용한다. 오프라인 판매·입고와
+온라인 결제가 동시에 실행되어도 수량 변경을 직렬화하며, 성공한 변경과 `inventory_adjustments` 이력을 같은
+트랜잭션에 저장한다. 이력에는 증가·감소 유형, 조정 수량, 변경 전후 수량, 사유, 관리자 ID/표시명, 처리 시각을
+보존한다. 감소 결과가 음수가 되면 기존 `InventoryNotEnoughException`으로 전체 트랜잭션을 롤백한다.
+`inventory.quantity >= 0`과 조정 이력의 양수 수량·전후 수량 계산도 DB `CHECK` 제약으로 보강한다.
+관리자 ID는 인증 방식에 따라 없을 수 있고 이력 자체가 계정 생명주기에 종속되면 안 되므로 FK를 걸지 않으며,
+대신 인증 당시 관리자명 또는 `local-api-key` 표시를 함께 스냅샷으로 보존한다.
 
 ### 6. 장바구니 조회 — 읽기 전용 projection JOIN
 
@@ -83,5 +96,6 @@ List<Inventory> findByProductIdInWithLock(List<Long> productIds);
 
 - **목록 조회 N+1 위험**: 상품 목록은 재고를 `IN`으로 일괄 조회하고, 장바구니는 projection JOIN을 사용한다. 신규 목록 조회도 항목별 개별 조회를 만들지 않는다.
 - **비관적 락 데드락**: 여러 상품은 product_id 오름차순으로 한 번에 잠근다. 신규 다건 재고 변경도 `InventoryService.deductAll/restoreAll`을 사용한다.
+- **운영 재고 추적 누락**: 온라인 주문 밖의 변경은 이유 없는 직접 DB 수정 대신 관리자 수동 조정 API와 이력을 사용한다.
 - **`restore()` 멱등성**: 환불 재시도 시 중복 복구 가능.
   → §8.2 환불 흐름에서 refund 상태 전이로 방어 필요.

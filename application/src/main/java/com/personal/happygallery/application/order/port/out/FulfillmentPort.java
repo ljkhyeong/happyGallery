@@ -12,6 +12,6 @@ public interface FulfillmentPort {
     Optional<Fulfillment> findByOrderId(Long orderId);
     List<Fulfillment> findByOrderIdIn(Collection<Long> orderIds);
     List<Fulfillment> findAll();
-    List<Fulfillment> findExpiredPickups(LocalDateTime now, Pageable pageable);
+    List<Fulfillment> findExpiredPickupsAfterId(LocalDateTime now, Long afterId, Pageable pageable);
     List<PickupReminderTarget> findPickupReminderTargets(LocalDateTime from, LocalDateTime to);
 }

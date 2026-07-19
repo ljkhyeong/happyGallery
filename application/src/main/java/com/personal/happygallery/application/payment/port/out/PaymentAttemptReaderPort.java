@@ -23,6 +23,10 @@ public interface PaymentAttemptReaderPort {
     /** 아직 confirm을 시작하지 않은 채 유효시간이 지난 결제 준비 ID를 오래된 순서로 조회한다. */
     List<Long> findExpiredPendingIds(LocalDateTime createdBefore, int limit);
 
+    /** 보존 기간이 지난 최종 상태 중 개인정보 암호문이 남은 결제 시도 ID를 조회한다. */
+    List<Long> findSensitiveDataCleanupCandidateIds(
+            LocalDateTime createdBefore, Long afterId, int limit);
+
     /** PG 조회를 통한 운영 대사가 필요한 결제 시도를 오래된 순서로 조회한다. */
     List<PaymentAttempt> findReconciliationRequired(int limit);
 }

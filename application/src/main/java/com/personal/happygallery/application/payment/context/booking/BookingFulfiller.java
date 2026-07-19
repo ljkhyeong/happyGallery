@@ -12,6 +12,8 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,11 +23,14 @@ public class BookingFulfiller implements PaymentFulfiller {
 
     private final GuestBookingUseCase guestBookingUseCase;
     private final MemberBookingUseCase memberBookingUseCase;
+    private final Clock clock;
 
     public BookingFulfiller(GuestBookingUseCase guestBookingUseCase,
-                            MemberBookingUseCase memberBookingUseCase) {
+                            MemberBookingUseCase memberBookingUseCase,
+                            Clock clock) {
         this.guestBookingUseCase = guestBookingUseCase;
         this.memberBookingUseCase = memberBookingUseCase;
+        this.clock = clock;
     }
 
     @Override
@@ -62,14 +67,14 @@ public class BookingFulfiller implements PaymentFulfiller {
                     : memberBookingUseCase.createMemberDepositBooking(
                             bp.userId(), bp.slotId(), bp.paymentMethod(),
                             bp.depositAmount(), bp.balanceAmount());
-            booking.recordPaymentKey(paymentKey);
+            booking.recordPaymentConfirmation(paymentKey, LocalDateTime.now(clock));
             return new FulfillResult(booking.getId(), null);
         }
 
         GuestBookingResult result = guestBookingUseCase.createGuestBooking(
                 new CreateGuestBookingCommand(bp.phone(), bp.verificationCode(), bp.name(),
                         bp.slotId(), bp.paymentMethod(), bp.depositAmount(), bp.balanceAmount()));
-        result.booking().recordPaymentKey(paymentKey);
+        result.booking().recordPaymentConfirmation(paymentKey, LocalDateTime.now(clock));
         return new FulfillResult(result.booking().getId(), result.rawAccessToken());
     }
 }

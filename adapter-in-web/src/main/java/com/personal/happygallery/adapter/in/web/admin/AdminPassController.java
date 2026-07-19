@@ -23,7 +23,7 @@ public class AdminPassController {
         this.passRefundUseCase = passRefundUseCase;
     }
 
-    /** 만료 배치 수동 트리거 — 스케줄러 미구현 시 운영자가 직접 호출 */
+    /** 만료 배치 수동 트리거. 정기 스케줄 외에 운영자가 즉시 실행할 때 사용한다. */
     @PostMapping("/expire")
     public BatchResponse triggerExpiry() {
         BatchResult result = passExpiryBatchUseCase.expireAll();

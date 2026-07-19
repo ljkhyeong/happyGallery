@@ -3,9 +3,13 @@ package com.personal.happygallery.application.product;
 import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.domain.product.InventoryAdjustment;
+import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +42,7 @@ class ProductInventoryUseCaseIT {
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
     @Autowired InventoryService inventoryService;
+    @Autowired ProductAdminUseCase productAdminUseCase;
     @Autowired TestCleanupSupport cleanupSupport;
 
     @BeforeEach
@@ -107,6 +112,24 @@ class ProductInventoryUseCaseIT {
                 .andExpect(jsonPath("$.available").value(true));
     }
 
+    @DisplayName("판매 중지 상품은 재고가 있어도 공개 상세에서 구매 불가하고 관리자 목록에는 남는다")
+    @Test
+    void inactiveProduct_isUnavailableButVisibleToAdmin() throws Exception {
+        Product product = productRepository.save(readyStockProduct("판매 중지 작품", 48000L));
+        inventoryRepository.save(inventory(product, 1));
+
+        productAdminUseCase.changeStatus(product.getId(), ProductStatus.INACTIVE);
+
+        mockMvc.perform(get("/api/v1/products/{id}", product.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(false));
+        mockMvc.perform(get("/api/v1/admin/products"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(product.getId()))
+                .andExpect(jsonPath("$[0].status").value("INACTIVE"))
+                .andExpect(jsonPath("$[0].available").value(false));
+    }
+
     // -----------------------------------------------------------------------
     // Proof: 재고 차감 후 quantity=0, isAvailable=false
     // -----------------------------------------------------------------------
@@ -161,6 +184,44 @@ class ProductInventoryUseCaseIT {
             // 재고가 0으로 유지됨 (음수로 내려가지 않음)
             Inventory inv = inventoryRepository.findByProductId(product.getId()).orElseThrow();
             softly.assertThat(inv.getQuantity()).isEqualTo(0);
+        });
+    }
+
+    @DisplayName("수동 재고 조정은 수량을 음수로 만들지 않고 성공한 변경만 이력에 남긴다")
+    @Test
+    void manualAdjustment_preservesQuantityAndHistory() {
+        Product product = productRepository.save(readyStockProduct("오프라인 공유 재고", 60000L));
+        inventoryRepository.save(inventory(product, 5));
+
+        InventoryAdjustment adjustment = productAdminUseCase.adjustInventory(
+                new ProductAdminUseCase.AdjustInventoryCommand(
+                        product.getId(),
+                        InventoryAdjustmentType.DECREASE,
+                        2,
+                        "오프라인 매장 판매",
+                        null,
+                        "local-api-key"));
+
+        assertThatThrownBy(() -> productAdminUseCase.adjustInventory(
+                new ProductAdminUseCase.AdjustInventoryCommand(
+                        product.getId(),
+                        InventoryAdjustmentType.DECREASE,
+                        4,
+                        "재고보다 큰 수량 차감",
+                        null,
+                        "local-api-key")))
+                .isInstanceOf(InventoryNotEnoughException.class);
+
+        Inventory current = inventoryRepository.findByProductId(product.getId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(current.getQuantity()).isEqualTo(3);
+            softly.assertThat(adjustment.getQuantityBefore()).isEqualTo(5);
+            softly.assertThat(adjustment.getQuantityAfter()).isEqualTo(3);
+            softly.assertThat(adjustment.getReason()).isEqualTo("오프라인 매장 판매");
+            softly.assertThat(adjustment.getAdjustedAt()).isNotNull();
+            softly.assertThat(productAdminUseCase.listRecentInventoryAdjustments(product.getId()))
+                    .extracting(InventoryAdjustment::getId)
+                    .containsExactly(adjustment.getId());
         });
     }
 }

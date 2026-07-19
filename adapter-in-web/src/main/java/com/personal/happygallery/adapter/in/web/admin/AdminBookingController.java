@@ -1,20 +1,26 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
+import com.personal.happygallery.adapter.in.web.admin.dto.BookingNoShowResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.BookingSettlementResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.UpdateBookingArrearsRequest;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
+import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
 import com.personal.happygallery.application.booking.port.in.BookingNoShowUseCase;
+import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
 import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
 import com.personal.happygallery.application.search.port.in.AdminBookingSearchUseCase;
 import com.personal.happygallery.application.shared.page.OffsetPage;
-import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
-import com.personal.happygallery.adapter.in.web.admin.dto.BookingNoShowResponse;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,13 +32,16 @@ public class AdminBookingController {
     private final AdminBookingQueryUseCase adminBookingQueryUseCase;
     private final AdminBookingSearchUseCase adminBookingSearchUseCase;
     private final BookingNoShowUseCase bookingNoShowUseCase;
+    private final BookingSettlementUseCase bookingSettlementUseCase;
 
     public AdminBookingController(AdminBookingQueryUseCase adminBookingQueryUseCase,
                                   AdminBookingSearchUseCase adminBookingSearchUseCase,
-                                  BookingNoShowUseCase bookingNoShowUseCase) {
+                                  BookingNoShowUseCase bookingNoShowUseCase,
+                                  BookingSettlementUseCase bookingSettlementUseCase) {
         this.adminBookingQueryUseCase = adminBookingQueryUseCase;
         this.adminBookingSearchUseCase = adminBookingSearchUseCase;
         this.bookingNoShowUseCase = bookingNoShowUseCase;
+        this.bookingSettlementUseCase = bookingSettlementUseCase;
     }
 
     /** GET /api/v1/admin/bookings?date=2026-03-08&status=BOOKED — 날짜별 예약 조회 (상태 필터 선택) */
@@ -60,5 +69,26 @@ public class AdminBookingController {
     public BookingNoShowResponse markNoShow(@PathVariable Long bookingId) {
         Booking booking = bookingNoShowUseCase.markNoShow(bookingId);
         return BookingNoShowResponse.from(booking);
+    }
+
+    /** 현장 잔금 결제 완료 처리. */
+    @PostMapping("/{bookingId}/balance-payment")
+    public BookingSettlementResponse markBalancePaid(@PathVariable Long bookingId) {
+        return BookingSettlementResponse.from(bookingSettlementUseCase.markBalancePaid(bookingId));
+    }
+
+    /** 미수 여부를 명시적으로 설정한다. */
+    @PutMapping("/{bookingId}/arrears")
+    public BookingSettlementResponse updateArrears(
+            @PathVariable Long bookingId,
+            @RequestBody @Valid UpdateBookingArrearsRequest request) {
+        return BookingSettlementResponse.from(
+                bookingSettlementUseCase.updateArrears(bookingId, request.arrears()));
+    }
+
+    /** 수업이 끝난 BOOKED 예약을 완료한다. */
+    @PostMapping("/{bookingId}/complete")
+    public BookingSettlementResponse complete(@PathVariable Long bookingId) {
+        return BookingSettlementResponse.from(bookingSettlementUseCase.complete(bookingId));
     }
 }

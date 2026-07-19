@@ -12,7 +12,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "notification_outbox")
@@ -60,6 +62,9 @@ public class NotificationOutbox {
     @Column(name = "locked_at")
     private LocalDateTime lockedAt;
 
+    @Column(name = "processing_token", length = 64)
+    private String processingToken;
+
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
@@ -68,6 +73,10 @@ public class NotificationOutbox {
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     protected NotificationOutbox() {}
 
@@ -134,26 +143,44 @@ public class NotificationOutbox {
                 now);
     }
 
-    public void markProcessing(LocalDateTime now) {
+    public String markProcessing(LocalDateTime now) {
         this.status = NotificationOutboxStatus.PROCESSING;
         this.lockedAt = now;
+        this.processingToken = UUID.randomUUID().toString();
         this.lastError = null;
+        return processingToken;
     }
 
-    public void markSent(LocalDateTime now) {
+    public boolean markSent(String token, LocalDateTime now) {
+        return completeSent(token, now, null);
+    }
+
+    public boolean markSentWithAuditFailure(String token, LocalDateTime now, String reason) {
+        return completeSent(token, now, truncate(reason));
+    }
+
+    private boolean completeSent(String token, LocalDateTime now, String lastError) {
+        if (!isProcessingOwnedBy(token)) {
+            return false;
+        }
         this.status = NotificationOutboxStatus.SENT;
         this.processedAt = now;
-        this.lockedAt = null;
-        this.lastError = null;
+        this.lastError = lastError;
+        clearProcessing();
+        return true;
     }
 
-    public boolean markDeliveryFailed(String reason,
+    public boolean markDeliveryFailed(String token,
+                                      String reason,
                                       LocalDateTime nextAttemptAt,
                                       LocalDateTime now,
                                       int maxAttempts) {
+        if (!isProcessingOwnedBy(token)) {
+            return false;
+        }
         this.attemptCount++;
         this.lastError = truncate(reason);
-        this.lockedAt = null;
+        clearProcessing();
         if (this.attemptCount >= maxAttempts) {
             this.status = NotificationOutboxStatus.FAILED;
             this.processedAt = now;
@@ -161,7 +188,13 @@ public class NotificationOutbox {
         }
         this.status = NotificationOutboxStatus.PENDING;
         this.nextAttemptAt = nextAttemptAt;
-        return false;
+        return true;
+    }
+
+    public boolean isProcessingOwnedBy(String token) {
+        return status == NotificationOutboxStatus.PROCESSING
+                && token != null
+                && token.equals(processingToken);
     }
 
     /** 운영자가 최종 실패를 확인한 뒤 같은 outbox와 멱등키로 다시 발송하도록 연다. */
@@ -172,9 +205,14 @@ public class NotificationOutbox {
         this.status = NotificationOutboxStatus.PENDING;
         this.attemptCount = 0;
         this.nextAttemptAt = now;
-        this.lockedAt = null;
+        clearProcessing();
         this.processedAt = null;
         this.lastError = null;
+    }
+
+    private void clearProcessing() {
+        this.lockedAt = null;
+        this.processingToken = null;
     }
 
     private String truncate(String reason) {
@@ -196,7 +234,9 @@ public class NotificationOutbox {
     public int getAttemptCount() { return attemptCount; }
     public LocalDateTime getNextAttemptAt() { return nextAttemptAt; }
     public LocalDateTime getLockedAt() { return lockedAt; }
+    public String getProcessingToken() { return processingToken; }
     public LocalDateTime getProcessedAt() { return processedAt; }
     public String getLastError() { return lastError; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public long getVersion() { return version; }
 }

@@ -8,6 +8,7 @@ import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,9 +44,13 @@ class DefaultAdminBookingSearchService implements AdminBookingSearchUseCase {
                 result.endAt(),
                 result.status(),
                 result.depositAmount(),
+                result.depositPaidAt(),
                 result.balanceAmount(),
+                result.balanceStatus(),
+                result.balancePaidAt(),
+                result.arrears(),
                 result.passBooking(),
-                result.createdAt());
+                result.createdAt().atOffset(ZoneOffset.UTC));
     }
 
     private String decryptNullable(String encrypted) {

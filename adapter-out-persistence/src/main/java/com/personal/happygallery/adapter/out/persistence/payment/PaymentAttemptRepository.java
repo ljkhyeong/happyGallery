@@ -83,6 +83,22 @@ public interface PaymentAttemptRepository
     List<Long> findExpiredPendingIds(@Param("createdBefore") LocalDateTime createdBefore,
                                      @Param("limit") int limit);
 
+    @Override
+    @Query(value = """
+            SELECT id
+            FROM payment_attempt
+            WHERE status IN ('CONFIRMED', 'FAILED', 'COMPENSATED', 'CANCELED')
+              AND created_at <= :createdBefore
+              AND id > :afterId
+              AND (payload_enc IS NOT NULL OR fulfilled_access_token_enc IS NOT NULL)
+            ORDER BY id
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<Long> findSensitiveDataCleanupCandidateIds(
+            @Param("createdBefore") LocalDateTime createdBefore,
+            @Param("afterId") Long afterId,
+            @Param("limit") int limit);
+
     @Query("""
             SELECT attempt
             FROM PaymentAttempt attempt

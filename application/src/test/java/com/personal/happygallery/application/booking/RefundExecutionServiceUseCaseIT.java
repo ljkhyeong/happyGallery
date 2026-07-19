@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.dashboard.port.in.DashboardQueryUseCase;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.payment.port.in.RefundRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
@@ -16,6 +17,7 @@ import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,6 +53,7 @@ class RefundExecutionServiceUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PlatformTransactionManager transactionManager;
     @Autowired Clock clock;
+    @Autowired DashboardQueryUseCase dashboardQueryUseCase;
     @MockitoBean PaymentProvider paymentProvider;
 
     @BeforeEach
@@ -64,6 +67,7 @@ class RefundExecutionServiceUseCaseIT {
     }
 
     private void cleanup() {
+        cleanupSupport.clearBookingWithPassAndRefundData();
         cleanupSupport.clearOrderData();
         cleanupSupport.clearUsers();
     }
@@ -128,6 +132,9 @@ class RefundExecutionServiceUseCaseIT {
         verify(paymentProvider).refund("payment-key", 55_000L, result.getIdempotencyKey());
         var refunds = refundRepository.findAll();
         var refund = refunds.getFirst();
+        LocalDate today = LocalDate.now(clock);
+        var revenue = dashboardQueryUseCase.getRevenueBreakdown(today, today);
+        var refundStats = dashboardQueryUseCase.getRefundStats(today, today);
         assertSoftly(softly -> {
             softly.assertThat(transactionActiveDuringPaymentCall.get()).isFalse();
             softly.assertThat(paymentCallThreadName.get()).startsWith("refund-");
@@ -137,6 +144,10 @@ class RefundExecutionServiceUseCaseIT {
             softly.assertThat(refunds).hasSize(1);
             softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
             softly.assertThat(refund.getRefundTransactionKey()).isEqualTo("refund-transaction-key");
+            softly.assertThat(revenue.orderRevenue()).isZero();
+            softly.assertThat(revenue.totalRevenue()).isZero();
+            softly.assertThat(refundStats.totalRefundCount()).isOne();
+            softly.assertThat(refundStats.totalRefundedAmount()).isEqualTo(55_000L);
         });
     }
 
@@ -163,9 +174,16 @@ class RefundExecutionServiceUseCaseIT {
                 });
 
         verify(paymentProvider, after(300).never()).refund(any(), anyLong(), any());
+        LocalDate today = LocalDate.now(clock);
+        var revenue = dashboardQueryUseCase.getRevenueBreakdown(today, today);
+        var refundStats = dashboardQueryUseCase.getRefundStats(today, today);
         assertSoftly(softly -> {
             softly.assertThat(result).isNotNull();
             softly.assertThat(result.getStatus()).isEqualTo(RefundStatus.REQUESTED);
+            softly.assertThat(revenue.orderRevenue()).isEqualTo(55_000L);
+            softly.assertThat(revenue.totalRevenue()).isEqualTo(55_000L);
+            softly.assertThat(refundStats.totalRefundCount()).isZero();
+            softly.assertThat(refundStats.totalRefundedAmount()).isZero();
         });
     }
 
@@ -192,6 +210,7 @@ class RefundExecutionServiceUseCaseIT {
             softly.assertThat(recovered.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
             softly.assertThat(recovered.getAttemptCount()).isEqualTo(1);
             softly.assertThat(recovered.getRefundTransactionKey()).isEqualTo("refund-transaction-key");
+            softly.assertThat(recovered.getSucceededAt()).isNotNull();
         });
     }
 
@@ -204,7 +223,7 @@ class RefundExecutionServiceUseCaseIT {
         Order order = saveMemberOrder(paidAt);
         Refund succeededRefund = Refund.forOrder(order.getId(), 55_000L, "payment-key");
         String processingToken = succeededRefund.startProcessing(paidAt, paidAt.minusMinutes(1));
-        succeededRefund.markSucceeded(processingToken, "refund-transaction-key");
+        succeededRefund.markSucceeded(processingToken, "refund-transaction-key", LocalDateTime.now(clock));
         Refund savedRefund = refundRepository.save(succeededRefund);
 
         assertThatThrownBy(() -> refundExecutionService.retryRefund(savedRefund.getId()))

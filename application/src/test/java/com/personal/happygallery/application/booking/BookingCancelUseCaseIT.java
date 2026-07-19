@@ -2,6 +2,7 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -57,6 +58,7 @@ class BookingCancelUseCaseIT {
     @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired NotificationLogProbe notificationLogProbe;
+    @Autowired BookingSettlementUseCase bookingSettlementUseCase;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
     @Autowired ObjectMapper objectMapper;
@@ -218,6 +220,27 @@ class BookingCancelUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(bookingStateProbe.refundCount()).isEqualTo(0L);
             softly.assertThat(bookingStateProbe.bookingHistoryCountByBookingId(bookingId)).isEqualTo(2L);
+        });
+    }
+
+    @DisplayName("잔금 결제가 완료된 예약은 고객 취소를 거절한다")
+    @Test
+    void cancel_balancePaid_returns422WithoutStateChange() throws Exception {
+        Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        BookingTestHelper.CreatedBooking booking =
+                helper.createVerifiedCardBooking("01088880008", slot.getId());
+        bookingSettlementUseCase.markBalancePaid(booking.bookingId());
+
+        mockMvc.perform(delete("/api/v1/bookings/{id}", booking.bookingId())
+                        .header("X-Access-Token", booking.accessToken()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("CHANGE_NOT_ALLOWED"));
+
+        assertSoftly(softly -> {
+            softly.assertThat(bookingStateProbe.getBooking(booking.bookingId()).getStatus().name())
+                    .isEqualTo("BOOKED");
+            softly.assertThat(bookingStateProbe.getSlot(slot.getId()).getBookedCount()).isEqualTo(1);
+            softly.assertThat(bookingStateProbe.refundCount()).isZero();
         });
     }
 

@@ -3,6 +3,7 @@ package com.personal.happygallery.application.product;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.Product;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +73,25 @@ public class InventoryService {
         return updateAll(adjustments, Inventory::restore);
     }
 
+    /** 관리자 수동 조정도 주문 차감과 같은 행 잠금으로 직렬화한다. */
+    public InventoryChange adjust(Long productId, InventoryAdjustmentType type, int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("재고 조정 수량은 1 이상이어야 합니다.");
+        }
+
+        Inventory inventory = inventoryStorePort.findByProductIdInWithLock(List.of(productId))
+                .stream()
+                .findFirst()
+                .orElseThrow(NotFoundException.supplier("재고"));
+        int quantityBefore = inventory.getQuantity();
+        switch (type) {
+            case INCREASE -> inventory.restore(quantity);
+            case DECREASE -> inventory.deduct(quantity);
+        }
+        Inventory saved = inventoryStorePort.save(inventory);
+        return new InventoryChange(quantityBefore, saved.getQuantity());
+    }
+
     private List<Inventory> updateAll(List<InventoryAdjustment> adjustments,
                                       BiConsumer<Inventory, Integer> update) {
         if (adjustments.isEmpty()) {
@@ -99,4 +119,6 @@ public class InventoryService {
     }
 
     public record InventoryAdjustment(Long productId, int qty) {}
+
+    public record InventoryChange(int quantityBefore, int quantityAfter) {}
 }

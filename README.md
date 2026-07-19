@@ -12,6 +12,7 @@
 | 관리자 | 상품/클래스/슬롯 관리, 주문 승인/거절/배송/픽업, 예약 운영, 환불 재시도, Q&A/문의 답변 |
 
 - 주문/예약/8회권은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm` 표준 결제 경로를 사용한다. confirm은 선점·PG 승인·도메인 저장 트랜잭션을 분리하고 Toss 멱등키와 실패 보상 환불을 사용한다.
+- 8회권 사용 예약은 운영자가 일정을 일괄 배정하지 않는다. 회원이 예약 가능 슬롯을 직접 선택해 한 회차씩 예약하고 크레딧 1회를 사용한다.
 - 환불은 요청 이력을 먼저 커밋한 뒤 PG를 호출한다. 실행 유실·일시 실패·결과 불명 상태는 최초 멱등키를 유지한 채 매분 복구하며, PG 호출 실행기는 제한 큐와 즉시 거절 정책으로 보호한다.
 - 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
 - 브라우저의 비관리자 상태 변경 요청은 `XSRF-TOKEN` 쿠키와 `X-XSRF-TOKEN` 헤더로 CSRF를 방어한다.
@@ -167,8 +168,10 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `VITE_TOSS_CLIENT_KEY` | 프론트 빌드 | Toss SDK client key |
 | `PAYMENT_EXECUTOR_POOL_SIZE` | 백엔드 | PG 호출 실행 스레드 수, 기본 `4` |
 | `PAYMENT_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | PG 호출 대기열 크기, 기본 `20` |
-| `NOTIFICATION_EXECUTOR_POOL_SIZE` | 백엔드 | 카카오·SMS timeout 보호 실행 스레드 수, 기본 `6` |
-| `NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 카카오·SMS timeout 보호 대기열 크기, 기본 `20` |
+| `NOTIFICATION_EXECUTOR_POOL_SIZE` | 백엔드 | Alimtalk·SMS timeout 보호 실행 스레드 수, 기본 `6` |
+| `NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | Alimtalk·SMS timeout 보호 대기열 크기, 기본 `20` |
+| `NOTIFICATION_TIMEOUT_MILLIS` | 백엔드 | 알림 외부 호출 전체 TimeLimiter, 기본 `5000` |
+| `ALIMTALK_TIMEOUT_MILLIS` / `SMS_TIMEOUT_MILLIS` | 백엔드 `prod` | NHN 응답 대기 상한, 기본 `2000` (연결 풀 `500` + 연결 `1000`보다 바깥 TimeLimiter가 크게 유지돼야 함) |
 | `PASS_TOTAL_PRICE` | 백엔드 | 8회권 결제 금액 |
 | `GOOGLE_OAUTH_CLIENT_ID` | 백엔드 `prod` | Google 로그인 client ID |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Google 로그인 client secret |
@@ -176,6 +179,9 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `NAVER_OAUTH_CLIENT_ID` | 백엔드 `prod` | Naver 로그인 client ID |
 | `NAVER_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Naver 로그인 client secret |
 | `NAVER_OAUTH_REDIRECT_URI` | 백엔드 `prod` | Naver에 등록한 exact backend callback URI (`https://<host>/api/v1/auth/social/callback/naver`) |
+| `ALIMTALK_APP_KEY` | 백엔드 `prod` | NHN Cloud Alimtalk 서비스 app key |
+| `ALIMTALK_SECRET_KEY` | 백엔드 `prod` | NHN Cloud Alimtalk `X-Secret-Key` 값 |
+| `ALIMTALK_SENDER_KEY` | 백엔드 `prod` | NHN Cloud에 등록한 카카오 발신 프로필 키 |
 | `SMS_API_KEY` | 백엔드 `prod` | NHN Cloud 일반·인증 SMS app key |
 | `SMS_API_SECRET` | 백엔드 `prod` | NHN Cloud SMS API secret |
 | `SMS_SENDER_NUMBER` | 백엔드 `prod` | 사전 등록한 SMS 발신 번호 |

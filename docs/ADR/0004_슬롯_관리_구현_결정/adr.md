@@ -144,6 +144,22 @@ void incrementBufferBlocks(...);
 
 ---
 
+## Decision 6: 관리자 활성 상태는 양방향으로 변경한다
+
+### 배경
+
+`admin_active=false`는 자동 버퍼 차단과 별개의 운영자 판단이지만, 비활성화만 가능하면 실수로 끈 슬롯을
+DB에서 직접 수정해야 한다.
+
+### 결정
+
+- `PATCH /api/v1/admin/slots/{id}/activate`로 `admin_active=true`를 복구한다.
+- 활성화와 비활성화 모두 슬롯 행을 잠근 같은 관리 유스케이스를 사용한다.
+- 활성화는 `buffer_block_count`를 변경하지 않는다. 따라서 버퍼 차단 중인 슬롯은 `adminActive=true`여도
+  `isActive=false`를 유지한다.
+
+---
+
 ## 결과
 
 **공통 위험 요약**

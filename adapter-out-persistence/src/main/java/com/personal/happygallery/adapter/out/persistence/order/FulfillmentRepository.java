@@ -24,8 +24,12 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>,
     @Override
     @Query("SELECT f FROM Fulfillment f JOIN Order o ON f.orderId = o.id "
             + "WHERE o.status = 'PICKUP_READY' "
-            + "AND f.pickupDeadlineAt < :now")
-    List<Fulfillment> findExpiredPickups(@Param("now") LocalDateTime now, Pageable pageable);
+            + "AND f.pickupDeadlineAt < :now "
+            + "AND f.id > :afterId "
+            + "ORDER BY f.id ASC")
+    List<Fulfillment> findExpiredPickupsAfterId(@Param("now") LocalDateTime now,
+                                                @Param("afterId") Long afterId,
+                                                Pageable pageable);
 
     /** 픽업 마감 임박 알림 대상과 주문 수신자를 한 번에 조회한다. */
     @Override

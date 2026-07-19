@@ -101,9 +101,9 @@ class AdminSlotUseCaseIT {
                 .andExpect(jsonPath("$[1].isActive").value(false));
     }
 
-    @DisplayName("관리자 슬롯 비활성화가 성공한다")
+    @DisplayName("관리자가 슬롯을 비활성화한 뒤 다시 활성화할 수 있다")
     @Test
-    void deactivateSlot_success() throws Exception {
+    void deactivateAndActivateSlot_success() throws Exception {
         // given — 슬롯 생성
         String response = mockMvc.perform(post("/api/v1/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
@@ -124,6 +124,12 @@ class AdminSlotUseCaseIT {
         assertThat(slotReaderPort.findById(slotId))
                 .isPresent()
                 .hasValueSatisfying(slot -> assertThat(slot.isActive()).isFalse());
+
+        mockMvc.perform(patch("/api/v1/admin/slots/{id}/activate", slotId)
+                        .header("X-Admin-Key", ADMIN_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.adminActive").value(true))
+                .andExpect(jsonPath("$.isActive").value(true));
     }
 
     @DisplayName("존재하지 않는 클래스로 슬롯을 생성하면 실패한다")

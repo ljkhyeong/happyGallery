@@ -138,6 +138,12 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - confirm을 시작하지 않은 `PENDING`은 30분 유효시간을 둔다. confirm 진입과 만료 배치 모두 행 잠금 아래
   같은 UTC `created_at` 경계를 확인하고, 만료 시 `CANCELED` 전이와 암호화 payload 제거를 먼저 커밋한다. confirm은 payload
   복호화와 PG 호출을 시도하지 않고 `PAYMENT_ATTEMPT_EXPIRED`를 반환하며, 배치는 confirm 요청이 없는 레코드를 일괄 정리한다.
+- `CONFIRMED`, `FAILED`, `COMPENSATED`, `CANCELED`은 생성 30일 뒤 `payload_enc`와
+  `fulfilled_access_token_enc`만 제거한다. 상태·금액·PG 식별자·도메인 ID는 감사에 남기고,
+  `RECONCILIATION_REQUIRED`와 보상 진행 상태는 복구 가능성을 위해 정리하지 않는다. 정리 후 재조회는
+  `PAYMENT_RESULT_RETENTION_EXPIRED`로 명확히 종료한다.
+- 환불 성공 시각은 `refunds.succeeded_at`에 별도로 저장한다. 고객 순매출은 환불 요청·실패 시점이 아니라
+  이 성공 시각에만 차감하며, 도메인 생성 전 승인 취소인 보상환불은 고객 매출·환불 통계에서 제외한다.
 - 후보 조회는 잠그지 않지만 실제 confirm의 비관적 잠금과 processing token fencing을 그대로 사용한다.
   따라서 사용자 요청이나 여러 서버의 복구 배치가 겹쳐도 PG 결과와 도메인 생성은 한 실행권만 반영한다.
   `PENDING`과 최종·보상 상태는 자동 confirm 대상이 아니다.
@@ -175,3 +181,5 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - `V49__persist_payment_confirm_result.sql`
 - `V50__fence_payment_confirm_processing.sql`
 - `V51__track_payment_confirm_recovery.sql`
+- `V58__track_refund_success_time.sql`
+- `V60__normalize_revenue_timestamps_to_seoul.sql`

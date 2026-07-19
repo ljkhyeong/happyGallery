@@ -63,7 +63,7 @@ export function MyPage() {
   const activePassCount = activePasses.length;
   const remainingCredits = activePasses.reduce((sum, pass) => sum + pass.remainingCredits, 0);
   const nextBooking = bookings
-    ?.filter((booking) => booking.status === "BOOKED")
+    ?.filter((booking) => booking.status === "BOOKED" && Date.parse(booking.startAt) >= Date.now())
     .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))[0];
   const latestOrder = orders?.[0];
 

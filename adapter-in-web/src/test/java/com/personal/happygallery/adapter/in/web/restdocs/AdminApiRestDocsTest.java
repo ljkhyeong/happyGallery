@@ -30,6 +30,7 @@ import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
 import com.personal.happygallery.application.booking.port.in.BookingNoShowUseCase;
+import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
 import com.personal.happygallery.application.booking.port.in.ClassManagementUseCase;
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
@@ -86,8 +87,12 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
+import com.personal.happygallery.domain.product.InventoryAdjustment;
+import com.personal.happygallery.domain.product.InventoryAdjustmentType;
+import com.personal.happygallery.domain.product.ProductStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -128,6 +133,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     private AdminBookingQueryUseCase adminBookingQueryUseCase;
     private AdminBookingSearchUseCase adminBookingSearchUseCase;
     private BookingNoShowUseCase bookingNoShowUseCase;
+    private BookingSettlementUseCase bookingSettlementUseCase;
     private AdminOrderQueryUseCase adminOrderQueryUseCase;
     private AdminOrderSearchUseCase adminOrderSearchUseCase;
     private OrderApprovalUseCase orderApprovalUseCase;
@@ -162,6 +168,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         adminBookingQueryUseCase = mock(AdminBookingQueryUseCase.class);
         adminBookingSearchUseCase = mock(AdminBookingSearchUseCase.class);
         bookingNoShowUseCase = mock(BookingNoShowUseCase.class);
+        bookingSettlementUseCase = mock(BookingSettlementUseCase.class);
         adminOrderQueryUseCase = mock(AdminOrderQueryUseCase.class);
         adminOrderSearchUseCase = mock(AdminOrderSearchUseCase.class);
         orderApprovalUseCase = mock(OrderApprovalUseCase.class);
@@ -184,6 +191,9 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         devRefundFailureUseCase = mock(DevRefundFailureUseCase.class);
 
         ProductQueryUseCase.ProductWithInventory product = RestDocsFixtures.productWithInventory();
+        ProductQueryUseCase.ProductWithInventory inactiveProduct =
+                RestDocsFixtures.productWithInventory(ProductStatus.INACTIVE);
+        InventoryAdjustment inventoryAdjustment = inventoryAdjustment();
         BookingClass bookingClass = RestDocsFixtures.bookingClass();
         Slot slot = RestDocsFixtures.slot();
         Booking booking = RestDocsFixtures.booking();
@@ -196,16 +206,26 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(adminSetupUseCase.isAvailable()).thenReturn(true);
         when(productAdminUseCase.register(any(), any(), any(), anyLong(), anyInt()))
                 .thenReturn(new ProductAdminUseCase.RegisterResult(product.product(), product.inventory()));
-        when(productQueryUseCase.listActiveProducts()).thenReturn(List.of(product));
+        when(productQueryUseCase.listAllProducts()).thenReturn(List.of(product));
+        when(productAdminUseCase.changeStatus(1L, ProductStatus.INACTIVE))
+                .thenReturn(new ProductAdminUseCase.StatusChangeResult(
+                        inactiveProduct.product(), inactiveProduct.inventory()));
+        when(productAdminUseCase.adjustInventory(any())).thenReturn(inventoryAdjustment);
+        when(productAdminUseCase.listRecentInventoryAdjustments(1L))
+                .thenReturn(List.of(inventoryAdjustment));
         when(classManagementUseCase.createClass(any(), any(), anyInt(), anyLong(), anyInt()))
                 .thenReturn(bookingClass);
         when(slotQueryUseCase.listByClass(1L)).thenReturn(List.of(slot));
         when(slotManagementUseCase.createSlot(any(), any())).thenReturn(slot);
         when(slotManagementUseCase.deactivateSlot(42L)).thenReturn(slot);
+        when(slotManagementUseCase.activateSlot(42L)).thenReturn(slot);
         when(adminBookingQueryUseCase.listBookings(any(), any())).thenReturn(List.of(adminBookingResponse()));
         when(adminBookingSearchUseCase.search(any(), any(), any(), any(), eq(0), eq(20)))
                 .thenReturn(OffsetPage.of(List.of(adminBookingSearchRow()), 0, 20, 1));
         when(bookingNoShowUseCase.markNoShow(100L)).thenReturn(booking);
+        when(bookingSettlementUseCase.markBalancePaid(100L)).thenReturn(booking);
+        when(bookingSettlementUseCase.updateArrears(eq(100L), anyBoolean())).thenReturn(booking);
+        when(bookingSettlementUseCase.complete(100L)).thenReturn(booking);
         when(adminOrderQueryUseCase.listOrders(any(), any(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(adminOrderResponse()), "cursor-next", true));
         when(adminOrderQueryUseCase.getFulfillment(200L)).thenReturn(adminOrderFulfillmentResponse());
@@ -267,7 +287,11 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 new AdminProductController(productAdminUseCase, productQueryUseCase),
                 new AdminClassController(classManagementUseCase),
                 new AdminSlotController(slotManagementUseCase, slotQueryUseCase),
-                new AdminBookingController(adminBookingQueryUseCase, adminBookingSearchUseCase, bookingNoShowUseCase),
+                new AdminBookingController(
+                        adminBookingQueryUseCase,
+                        adminBookingSearchUseCase,
+                        bookingNoShowUseCase,
+                        bookingSettlementUseCase),
                 new AdminOrderQueryController(adminOrderQueryUseCase, adminOrderSearchUseCase),
                 new AdminOrderApprovalController(orderApprovalUseCase),
                 new AdminOrderProductionController(orderProductionUseCase),
@@ -369,6 +393,43 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("관리자 상품 상태 변경 API를 문서화한다")
+    void admin_change_product_status() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/products/{id}/status", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"status\":\"INACTIVE\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 재고 수동 조정 API를 문서화한다")
+    void admin_adjust_inventory() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/products/{id}/inventory-adjustments", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "DECREASE",
+                                  "quantity": 2,
+                                  "reason": "오프라인 매장 판매"
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 재고 조정 이력 API를 문서화한다")
+    void admin_list_inventory_adjustments() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/products/{id}/inventory-adjustments", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("관리자 클래스 생성 API를 문서화한다")
     void admin_create_class() throws Exception {
         mockMvc.perform(post("/api/v1/admin/classes")
@@ -423,6 +484,15 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("관리자 슬롯 활성화 API를 문서화한다")
+    void admin_activate_slot() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/slots/{id}/activate", 42L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("관리자 예약 목록 API를 문서화한다")
     void admin_list_bookings() throws Exception {
         mockMvc.perform(get("/api/v1/admin/bookings")
@@ -452,6 +522,35 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("관리자 예약 결석 처리 API를 문서화한다")
     void admin_mark_booking_no_show() throws Exception {
         mockMvc.perform(post("/api/v1/admin/bookings/{bookingId}/no-show", 100L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 예약 잔금 결제 API를 문서화한다")
+    void admin_mark_booking_balance_paid() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/bookings/{bookingId}/balance-payment", 100L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 예약 미수 설정 API를 문서화한다")
+    void admin_update_booking_arrears() throws Exception {
+        mockMvc.perform(put("/api/v1/admin/bookings/{bookingId}/arrears", 100L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"arrears\":true}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 예약 완료 API를 문서화한다")
+    void admin_complete_booking() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/bookings/{bookingId}/complete", 100L)
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk());
@@ -897,21 +996,25 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     private static AdminBookingResponse adminBookingResponse() {
         return new AdminBookingResponse(100L, "BK-00000100", "GUEST", "홍길동", "01012345678",
                 "향수 원데이", LocalDateTime.of(2026, 5, 7, 19, 0),
-                LocalDateTime.of(2026, 5, 7, 21, 0), "BOOKED", 5000L, 45000L, false);
+                LocalDateTime.of(2026, 5, 7, 21, 0), "BOOKED",
+                5000L, LocalDateTime.of(2026, 5, 1, 20, 50),
+                45000L, "UNPAID", null, false, false);
     }
 
     private static AdminBookingSearchRow adminBookingSearchRow() {
         return new AdminBookingSearchRow(100L, "BK-00000100", "GUEST", "홍길동", "01012345678",
                 "향수 원데이", LocalDateTime.of(2026, 5, 7, 19, 0),
-                LocalDateTime.of(2026, 5, 7, 21, 0), "BOOKED", 5000L, 45000L, false,
-                LocalDateTime.of(2026, 5, 1, 20, 50));
+                LocalDateTime.of(2026, 5, 7, 21, 0), "BOOKED",
+                5000L, LocalDateTime.of(2026, 5, 1, 20, 50),
+                45000L, "UNPAID", null, false, false,
+                LocalDateTime.of(2026, 5, 1, 20, 50).atOffset(ZoneOffset.UTC));
     }
 
     private static AdminOrderResponse adminOrderResponse() {
         return new AdminOrderResponse(200L, "ORD-00000200", "PAID_APPROVAL_PENDING", 39000L, "PICKUP",
                 LocalDateTime.of(2026, 5, 1, 20, 55),
                 LocalDateTime.of(2026, 5, 1, 21, 15),
-                LocalDateTime.of(2026, 5, 1, 20, 50));
+                LocalDateTime.of(2026, 5, 1, 20, 50).atOffset(ZoneOffset.UTC));
     }
 
     private static AdminOrderFulfillmentResponse adminOrderFulfillmentResponse() {
@@ -928,7 +1031,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 "홍길동", "01012345678",
                 LocalDateTime.of(2026, 5, 1, 20, 55),
                 LocalDateTime.of(2026, 5, 1, 21, 15),
-                LocalDateTime.of(2026, 5, 1, 20, 50));
+                LocalDateTime.of(2026, 5, 1, 20, 50).atOffset(ZoneOffset.UTC));
     }
 
     private static OrderProductionUseCase.ProductionResult production(OrderStatus status) {
@@ -946,6 +1049,21 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     private static OrderHistoryResponse orderHistory() {
         return new OrderHistoryResponse(1L, OrderApprovalDecision.APPROVE, ADMIN_USER_ID,
                 "정상 승인", LocalDateTime.of(2026, 5, 1, 21, 5));
+    }
+
+    private static InventoryAdjustment inventoryAdjustment() {
+        InventoryAdjustment adjustment = mock(InventoryAdjustment.class);
+        when(adjustment.getId()).thenReturn(10L);
+        when(adjustment.getProductId()).thenReturn(1L);
+        when(adjustment.getType()).thenReturn(InventoryAdjustmentType.DECREASE);
+        when(adjustment.getQuantity()).thenReturn(2);
+        when(adjustment.getQuantityBefore()).thenReturn(12);
+        when(adjustment.getQuantityAfter()).thenReturn(10);
+        when(adjustment.getReason()).thenReturn("오프라인 매장 판매");
+        when(adjustment.getAdjustedByAdminId()).thenReturn(ADMIN_USER_ID);
+        when(adjustment.getAdjustedBy()).thenReturn("admin");
+        when(adjustment.getAdjustedAt()).thenReturn(LocalDateTime.of(2026, 5, 1, 21, 5));
+        return adjustment;
     }
 
     private static BatchResult batchResult() {

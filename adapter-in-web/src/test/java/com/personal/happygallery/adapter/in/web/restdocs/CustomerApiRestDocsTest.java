@@ -34,6 +34,7 @@ import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.user.User;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -115,8 +116,9 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new BookingCancelUseCase.CancelResult(booking, true, bookingRefund));
         when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(order));
         when(orderQueryUseCase.findMyOrder(200L, CUSTOMER_USER_ID)).thenReturn(orderDetail);
-        when(passQueryUseCase.listMyPasses(CUSTOMER_USER_ID)).thenReturn(List.of(pass));
-        when(passQueryUseCase.findMyPass(300L, CUSTOMER_USER_ID)).thenReturn(pass);
+        PassQueryUseCase.PassView passView = new PassQueryUseCase.PassView(pass, null);
+        when(passQueryUseCase.listMyPasses(CUSTOMER_USER_ID)).thenReturn(List.of(passView));
+        when(passQueryUseCase.findMyPass(300L, CUSTOMER_USER_ID)).thenReturn(passView);
         when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), any(), eq(0), eq(20)))
                 .thenReturn(List.of());
         when(notificationQueryUseCase.countUnread(CUSTOMER_USER_ID, null)).thenReturn(3L);
@@ -446,7 +448,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         return new GuestClaimUseCase.ClaimPreview(
                 verified,
                 List.of(new GuestClaimUseCase.ClaimOrderSummary(
-                        200L, "PAID_APPROVAL_PENDING", 39000L, LocalDateTime.of(2026, 5, 1, 20, 50))),
+                        200L, "PAID_APPROVAL_PENDING", 39000L,
+                        LocalDateTime.of(2026, 5, 1, 20, 50).atOffset(ZoneOffset.UTC))),
                 List.of(new GuestClaimUseCase.ClaimBookingSummary(
                         100L, "BOOKED", "향수 원데이",
                         LocalDateTime.of(2026, 5, 7, 19, 0),

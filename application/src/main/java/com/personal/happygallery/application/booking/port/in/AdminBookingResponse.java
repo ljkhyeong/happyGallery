@@ -15,7 +15,11 @@ public record AdminBookingResponse(
         LocalDateTime endAt,
         String status,
         long depositAmount,
+        LocalDateTime depositPaidAt,
         long balanceAmount,
+        String balanceStatus,
+        LocalDateTime balancePaidAt,
+        boolean arrears,
         boolean passBooking
 ) {
 
@@ -43,7 +47,11 @@ public record AdminBookingResponse(
                 booking.getSlot().getEndAt(),
                 booking.getStatus().name(),
                 booking.getDepositAmount(),
+                booking.getDepositPaidAt(),
                 booking.getBalanceAmount(),
+                booking.getBalanceStatus().name(),
+                booking.getBalancePaidAt(),
+                booking.isArrearsFlag(),
                 booking.isPassBooking()
         );
     }

@@ -44,6 +44,11 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
         return toProductWithInventoryList(products);
     }
 
+    @Override
+    public List<ProductWithInventory> listAllProducts() {
+        return toProductWithInventoryList(productReaderPort.findAllProductsByCreatedAtDesc());
+    }
+
     /** 필터 조건에 따른 ACTIVE 상품 목록 조회. */
     @Override
     public List<ProductWithInventory> listActiveProducts(ProductFilter filter) {

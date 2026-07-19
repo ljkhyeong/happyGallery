@@ -30,6 +30,27 @@ export interface CreateProductRequest {
   quantity: number;
 }
 
+export type InventoryAdjustmentType = "INCREASE" | "DECREASE";
+
+export interface AdjustInventoryRequest {
+  type: InventoryAdjustmentType;
+  quantity: number;
+  reason: string;
+}
+
+export interface InventoryAdjustmentResponse {
+  id: number;
+  productId: number;
+  type: InventoryAdjustmentType;
+  quantity: number;
+  quantityBefore: number;
+  quantityAfter: number;
+  reason: string;
+  adjustedByAdminId: number | null;
+  adjustedBy: string;
+  adjustedAt: string;
+}
+
 export interface ProductFilterParams {
   type?: ProductType;
   category?: string;

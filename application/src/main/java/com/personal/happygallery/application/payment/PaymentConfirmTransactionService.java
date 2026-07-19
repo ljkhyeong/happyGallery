@@ -324,8 +324,11 @@ class PaymentConfirmTransactionService {
     }
 
     private void validateAttempt(PaymentAttempt attempt, ConfirmCommand command) {
-        if (attempt.getStatus() == PaymentAttemptStatus.FAILED && attempt.getPayloadEnc() == null) {
-            throw paymentFailure(attempt);
+        if (attempt.getPayloadEnc() == null) {
+            if (attempt.getStatus() == PaymentAttemptStatus.FAILED) {
+                throw paymentFailure(attempt);
+            }
+            throw new HappyGalleryException(ErrorCode.PAYMENT_RESULT_RETENTION_EXPIRED);
         }
         PaymentPayload payload = deserialize(attempt.getPayloadEnc());
         fulfiller(attempt.getContext()).validateStoredPayload(attempt, payload);

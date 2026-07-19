@@ -8,6 +8,7 @@ import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,7 +42,7 @@ class DefaultAdminOrderSearchService implements AdminOrderSearchUseCase {
                 decryptNullable(result.buyerPhoneEnc()),
                 result.paidAt(),
                 result.approvalDeadlineAt(),
-                result.createdAt());
+                result.createdAt().atOffset(ZoneOffset.UTC));
     }
 
     private String decryptNullable(String encrypted) {

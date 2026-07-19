@@ -2,6 +2,10 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.batch.BatchResult;
+import com.personal.happygallery.application.batch.DefaultPersonalDataRetentionBatchService;
+import com.personal.happygallery.application.batch.PersonalDataRetentionBatchUseCase;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentAttemptExpiryBatchUseCase;
@@ -12,6 +16,8 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareResult;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
+import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
+import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
@@ -23,6 +29,7 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,7 +48,11 @@ class PaymentAttemptExpiryBatchUseCaseIT {
     @Autowired PaymentPrepareUseCase prepareUseCase;
     @Autowired PaymentConfirmUseCase confirmUseCase;
     @Autowired PaymentAttemptExpiryBatchUseCase expiryUseCase;
+    @Autowired PersonalDataRetentionBatchUseCase retentionUseCase;
     @Autowired PaymentAttemptReaderPort attemptReader;
+    @Autowired PaymentAttemptStorePort attemptStore;
+    @Autowired PhoneVerificationStorePort phoneVerificationStore;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReader;
     @Autowired UserStorePort userStore;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired Clock clock;
@@ -92,6 +103,65 @@ class PaymentAttemptExpiryBatchUseCaseIT {
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_ATTEMPT_EXPIRED));
         verifyNoInteractions(paymentProvider);
+    }
+
+    @DisplayName("보존 기간이 지난 최종 결제 암호문과 만료된 휴대폰 인증만 정리한다")
+    @Test
+    void cleanUpExpiredSensitiveData_preservesRecoverableRecords() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime paymentCutoff = LocalDateTime.ofInstant(
+                clock.instant().minus(DefaultPersonalDataRetentionBatchService.PAYMENT_ATTEMPT_RETENTION),
+                ZoneOffset.UTC);
+        PaymentAttempt oldConfirmed = saveAttempt("old-payload");
+        PaymentAttempt oldReconciliationRequired = saveAttempt("recovery-payload");
+        PaymentAttempt freshConfirmed = saveAttempt("fresh-payload");
+        markAttempt(oldConfirmed, "CONFIRMED", paymentCutoff.minusSeconds(1), "old-token");
+        markAttempt(oldReconciliationRequired, "RECONCILIATION_REQUIRED",
+                paymentCutoff.minusSeconds(1), null);
+        markAttempt(freshConfirmed, "CONFIRMED", paymentCutoff.plusSeconds(1), "fresh-token");
+
+        saveDeliveredVerification("01011112222", "123456", now.minusDays(2));
+        saveDeliveredVerification("01033334444", "654321", now.minusHours(12));
+
+        BatchResult result = retentionUseCase.cleanUpExpiredSensitiveData();
+
+        PaymentAttempt cleaned = attemptReader.findById(oldConfirmed.getId()).orElseThrow();
+        PaymentAttempt recoverable = attemptReader.findById(oldReconciliationRequired.getId()).orElseThrow();
+        PaymentAttempt fresh = attemptReader.findById(freshConfirmed.getId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(2);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(cleaned.getPayloadEnc()).isNull();
+            softly.assertThat(cleaned.getFulfilledAccessTokenEnc()).isNull();
+            softly.assertThat(recoverable.getPayloadEnc()).isEqualTo("recovery-payload");
+            softly.assertThat(fresh.getPayloadEnc()).isEqualTo("fresh-payload");
+            softly.assertThat(fresh.getFulfilledAccessTokenEnc()).isEqualTo("fresh-token");
+            softly.assertThat(phoneVerificationReader.findLatestUnverifiedCode("01011112222")).isEmpty();
+            softly.assertThat(phoneVerificationReader.findLatestUnverifiedCode("01033334444")).isPresent();
+        });
+    }
+
+    private PaymentAttempt saveAttempt(String payload) {
+        return attemptStore.save(PaymentAttempt.start(
+                UUID.randomUUID().toString(), PaymentContext.PASS, 1_000L, payload));
+    }
+
+    private void saveDeliveredVerification(String phone, String code, LocalDateTime expiresAt) {
+        PhoneVerification verification = new PhoneVerification(phone, code, expiresAt);
+        verification.markDelivered();
+        phoneVerificationStore.save(verification);
+    }
+
+    private void markAttempt(PaymentAttempt attempt,
+                             String status,
+                             LocalDateTime createdAt,
+                             String accessToken) {
+        jdbcTemplate.update("""
+                UPDATE payment_attempt
+                SET status = ?, created_at = ?, fulfilled_domain_id = 1,
+                    fulfilled_access_token_enc = ?
+                WHERE id = ?
+                """, status, createdAt, accessToken, attempt.getId());
     }
 
     private PrepareResult preparePass(AuthContext auth) {

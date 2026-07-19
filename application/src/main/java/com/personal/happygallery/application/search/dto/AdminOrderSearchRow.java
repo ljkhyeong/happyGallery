@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.search.dto;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record AdminOrderSearchRow(
         Long orderId,
@@ -11,6 +12,6 @@ public record AdminOrderSearchRow(
         String buyerPhone,
         LocalDateTime paidAt,
         LocalDateTime approvalDeadlineAt,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 }

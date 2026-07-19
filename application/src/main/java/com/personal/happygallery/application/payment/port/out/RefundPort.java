@@ -17,6 +17,10 @@ public interface RefundPort {
 
     Optional<Refund> findByOrderId(Long orderId);
 
+    Optional<Refund> findByPassPurchaseId(Long passPurchaseId);
+
+    List<Refund> findByPassPurchaseIdIn(List<Long> passPurchaseIds);
+
     List<Refund> findAll();
 
     long count();

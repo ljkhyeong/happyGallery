@@ -63,6 +63,11 @@ public class Slot {
         this.adminActive = false;
     }
 
+    /** 운영자가 슬롯을 다시 활성화한다. 예약 버퍼 차단 상태는 유지된다. */
+    public void activate() {
+        this.adminActive = true;
+    }
+
     /** 다른 슬롯의 예약으로 인해 이 슬롯을 막는 버퍼가 하나 추가된다. */
     public void incrementBufferBlockCount() {
         this.bufferBlockCount++;

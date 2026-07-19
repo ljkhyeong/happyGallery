@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * 상품 조회 유스케이스.
  *
- * <p>고객/관리자 공통으로 ACTIVE 상품 목록·단건 조회를 제공한다.
+ * <p>공개 ACTIVE 상품 조회와 관리자 전체 상품 조회를 제공한다.
  */
 public interface ProductQueryUseCase {
 
@@ -18,6 +18,9 @@ public interface ProductQueryUseCase {
 
     /** 전체 ACTIVE 상품 (최신순). HomePage 등 필터 불필요 시 사용. */
     List<ProductWithInventory> listActiveProducts();
+
+    /** 관리자용 전체 상품 (ACTIVE/INACTIVE, 최신순). */
+    List<ProductWithInventory> listAllProducts();
 
     /** 필터 조건에 따른 ACTIVE 상품 목록. */
     List<ProductWithInventory> listActiveProducts(ProductFilter filter);

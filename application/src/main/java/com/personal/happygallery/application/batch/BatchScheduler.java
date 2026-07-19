@@ -26,6 +26,7 @@ import org.springframework.stereotype.Component;
  *   <li>매분 5초: 시작하지 않은 결제 준비 만료</li>
  *   <li>매분 15초: 실행되지 않았거나 결과 확인이 필요한 환불 복구</li>
  *   <li>매분 45초: confirm 도중 중단된 결제 확정 복구</li>
+ *   <li>매일 03:30: 보존 기간이 지난 결제·휴대폰 인증 개인정보 정리</li>
  * </ul>
  */
 @Component
@@ -39,6 +40,7 @@ public class BatchScheduler {
     private final RefundRecoveryUseCase refundRecoveryUseCase;
     private final PaymentConfirmRecoveryUseCase paymentConfirmRecoveryUseCase;
     private final PaymentAttemptExpiryBatchUseCase paymentAttemptExpiryBatchUseCase;
+    private final PersonalDataRetentionBatchUseCase personalDataRetentionBatchUseCase;
 
     public BatchScheduler(OrderAutoRefundBatchUseCase orderAutoRefundBatchUseCase,
                           PickupExpireBatchUseCase pickupExpireBatchUseCase,
@@ -47,7 +49,8 @@ public class BatchScheduler {
                           BookingReminderBatchUseCase bookingReminderBatchUseCase,
                           RefundRecoveryUseCase refundRecoveryUseCase,
                           PaymentConfirmRecoveryUseCase paymentConfirmRecoveryUseCase,
-                          PaymentAttemptExpiryBatchUseCase paymentAttemptExpiryBatchUseCase) {
+                          PaymentAttemptExpiryBatchUseCase paymentAttemptExpiryBatchUseCase,
+                          PersonalDataRetentionBatchUseCase personalDataRetentionBatchUseCase) {
         this.orderAutoRefundBatchUseCase = orderAutoRefundBatchUseCase;
         this.pickupExpireBatchUseCase = pickupExpireBatchUseCase;
         this.pickupDeadlineReminderBatchUseCase = pickupDeadlineReminderBatchUseCase;
@@ -56,75 +59,83 @@ public class BatchScheduler {
         this.refundRecoveryUseCase = refundRecoveryUseCase;
         this.paymentConfirmRecoveryUseCase = paymentConfirmRecoveryUseCase;
         this.paymentAttemptExpiryBatchUseCase = paymentAttemptExpiryBatchUseCase;
+        this.personalDataRetentionBatchUseCase = personalDataRetentionBatchUseCase;
     }
 
     /** 주문 승인 SLA(24h) 초과 → 자동환불. 매시간 정각 실행. */
-    @BatchJob("주문 자동환불")
+    @BatchJob(id = "order_auto_refund", value = "주문 자동환불")
     @Scheduled(cron = "0 0 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runOrderAutoRefund() {
         return orderAutoRefundBatchUseCase.autoRefundExpired();
     }
 
     /** 픽업 마감 초과 → 기성품 환불, 주문제작 미환불 만료. 매시간 정각 실행. */
-    @BatchJob("픽업 만료")
+    @BatchJob(id = "pickup_expire", value = "픽업 만료")
     @Scheduled(cron = "0 0 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPickupExpire() {
         return pickupExpireBatchUseCase.expirePickups();
     }
 
     /** 만료된 8회권 크레딧 소멸. 매일 00:00 실행. */
-    @BatchJob("8회권 크레딧 소멸")
+    @BatchJob(id = "pass_expiry", value = "8회권 크레딧 소멸")
     @Scheduled(cron = "0 0 0 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPassExpiry() {
         return passExpiryBatchUseCase.expireAll();
     }
 
     /** 8회권 만료 7일 전 알림. 매일 09:00 실행. */
-    @BatchJob("8회권 만료 7일 전 알림")
+    @BatchJob(id = "pass_expiry_notification", value = "8회권 만료 7일 전 알림")
     @Scheduled(cron = "0 0 9 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPassExpiryNotification() {
         return passExpiryBatchUseCase.sendExpiryNotifications();
     }
 
     /** 픽업 마감 2시간 전 알림. 매시간 정각 실행. */
-    @BatchJob("픽업 마감 알림")
+    @BatchJob(id = "pickup_deadline_reminder", value = "픽업 마감 알림")
     @Scheduled(cron = "0 0 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPickupDeadlineReminder() {
         return pickupDeadlineReminderBatchUseCase.sendPickupDeadlineReminders();
     }
 
     /** 예약 D-1 리마인드. 매일 00:00 실행. */
-    @BatchJob("D-1 예약 리마인드")
+    @BatchJob(id = "booking_d1_reminder", value = "D-1 예약 리마인드")
     @Scheduled(cron = "0 0 0 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runBookingD1Reminder() {
         return bookingReminderBatchUseCase.sendD1Reminders();
     }
 
     /** 예약 당일 리마인드. 매일 07:00 실행. */
-    @BatchJob("당일 예약 리마인드")
+    @BatchJob(id = "booking_same_day_reminder", value = "당일 예약 리마인드")
     @Scheduled(cron = "0 0 7 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runBookingSameDayReminder() {
         return bookingReminderBatchUseCase.sendSameDayReminders();
     }
 
     /** 유실된 요청과 오래된 처리 중 환불을 같은 멱등키로 복구한다. 매분 15초에 실행. */
-    @BatchJob("환불 복구")
+    @BatchJob(id = "refund_recovery", value = "환불 복구")
     @Scheduled(cron = "15 * * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runRefundRecovery() {
         return refundRecoveryUseCase.recoverPendingRefunds();
     }
 
     /** confirm 도중 중단된 결제를 같은 멱등키로 재개한다. 매분 45초에 실행. */
-    @BatchJob("결제 확정 복구")
+    @BatchJob(id = "payment_confirm_recovery", value = "결제 확정 복구")
     @Scheduled(cron = "45 * * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPaymentConfirmRecovery() {
         return paymentConfirmRecoveryUseCase.recoverIncompleteConfirms();
     }
 
     /** confirm을 시작하지 않고 30분이 지난 결제 준비를 만료 처리한다. 매분 5초에 실행. */
-    @BatchJob("결제 준비 만료")
+    @BatchJob(id = "payment_attempt_expiry", value = "결제 준비 만료")
     @Scheduled(cron = "5 * * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPaymentAttemptExpiry() {
         return paymentAttemptExpiryBatchUseCase.expirePendingAttempts();
+    }
+
+    /** 보존 기간이 지난 결제·휴대폰 인증 개인정보를 정리한다. 매일 03:30 실행. */
+    @BatchJob(id = "personal_data_retention", value = "개인정보 보존 기간 정리")
+    @Scheduled(cron = "0 30 3 * * *", zone = Clocks.SEOUL_ID)
+    public BatchResult runPersonalDataRetention() {
+        return personalDataRetentionBatchUseCase.cleanUpExpiredSensitiveData();
     }
 }

@@ -22,4 +22,12 @@ public enum PaymentAttemptStatus {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미 처리된 결제입니다.");
         }
     }
+
+    /** 복구나 대사 작업이 끝나 개인정보 암호문을 제거해도 되는 최종 상태인지 반환한다. */
+    public boolean isSensitiveDataCleanupAllowed() {
+        return this == CONFIRMED
+                || this == FAILED
+                || this == COMPENSATED
+                || this == CANCELED;
+    }
 }

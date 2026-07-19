@@ -19,11 +19,17 @@
 ### 1. 알림 어댑터 프로필 분리
 
 - 기존 `FakeKakaoSender`/`FakeSmsSender`에 `@Profile("!prod")`를 추가해 비운영 전용으로 격리.
-- `KakaoAlimtalkSender`(`@Order(1)`, `@Profile("prod")`)와 `RealSmsSender`(`@Order(2)`, `@Profile("prod")`)를 신규 추가.
+- `NhnAlimtalkSender`와 `RealSmsSender`를 `prod` 프로필에서 각각 1·2순위로 등록한다.
 - 기존 `NotificationSenderPort` + `@Order` fallback 체인을 그대로 활용해 서비스 계층 변경 없음.
 - `RestClient` + Apache HttpClient 5 연결 풀을 사용한다. 서비스별 풀 기준은 `ADR-0029`를 따른다.
-- 외부 설정: `app.external.kakao.*`, `app.external.sms.*` (`application.yml`에 환경변수 바인딩).
-- `KakaoNotificationProperties`, `SmsNotificationProperties`를 `@ConfigurationProperties` record로 정의.
+- 알림톡은 NHN Cloud Alimtalk v2.2 계약을 사용한다. `POST /alimtalk/v2.2/appkeys/{appKey}/messages`에 `X-Secret-Key`를 보내고, 본문의 `senderKey`, `templateCode`, `recipientList[].recipientNo`, `templateParameter`로 한 명씩 요청한다.
+- 일반 알림은 outbox의 멱등키를 `X-NC-API-IDEMPOTENCY-KEY`로 보낸다. NHN 공식 계약은 같은 키를 10분간 중복 요청으로 거절하며 키 길이 상한은 별도로 명시하지 않는다. 휴대폰 인증 SMS는 outbox 경로가 아니므로 이 헤더를 사용하지 않는다.
+- 알림톡 `templateCode`는 NHN 계약의 최대 20자를 지키며, SMS v3.0 기본 주소는 `https://sms.api.nhncloudservice.com`을 사용한다.
+- 치환 발송은 NHN 계약의 `senderKey` 40자, `recipientNo` 최대 15자, 수신자 목록 최대 1,000건을 기준으로 하며 현재 어댑터는 정규화된 휴대폰 한 건만 요청한다.
+- HTTP 2xx만으로 성공 처리하지 않는다. 응답 `header.isSuccessful=true`, `header.resultCode=0`, 단일 `message.sendResults[].resultCode=0`을 모두 만족해야 성공으로 수용한다.
+- NHN 자체 SMS 대체발송 옵션은 사용하지 않는다. 애플리케이션이 알림톡 실패를 확인한 뒤 기존 2순위 SMS sender를 호출해 채널별 이력·서킷 브레이커·재시도를 한곳에서 관리한다.
+- 외부 설정: `app.external.alimtalk.*`, `app.external.sms.*` (`application.yml`에 환경변수 바인딩).
+- `AlimtalkNotificationProperties`, `SmsNotificationProperties`를 `@ConfigurationProperties` record로 정의한다. 알림톡 설정은 NHN `appKey`, `secretKey`, 카카오 발신 프로필 `senderKey`, 공식 base URL을 각각 구분한다.
 - 휴대폰 인증 코드는 일반 알림 outbox와 분리된 `PhoneVerificationSender`로 NHN 인증용 SMS API에 즉시 발송하되, 일반 알림과 같은 NHN client 설정과 제한 큐·timeout·circuit breaker를 사용한다. HTTP 성공만으로 판단하지 않고 NHN 응답 본문의 성공 코드까지 확인한다.
 
 ### 2. 픽업 마감 2시간 전 알림 배치
@@ -94,6 +100,7 @@
 ## 참고
 
 - PRD §3.3 (픽업 규칙), PRD §7 (알림 정책)
+- [NHN Cloud Alimtalk API v2.2](https://docs.nhncloud.com/ko/Notification/KakaoTalk%20Bizmessage/ko/alimtalk-api-guide-v2.2/)
 - ADR-0015 (로그 구조화), ADR-0017 (rate limiting), ADR-0025 (graceful shutdown)
 - ADR-0036 (개인정보 평문 제거와 블라인드 인덱스)
 - ADR-0037 (자가 호스팅 배포 토폴로지 기준)

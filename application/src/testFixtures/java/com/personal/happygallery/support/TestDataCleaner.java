@@ -15,6 +15,7 @@ import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
+import com.personal.happygallery.adapter.out.persistence.product.InventoryAdjustmentRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
 
 /**
@@ -98,6 +99,7 @@ public final class TestDataCleaner {
                                       OrderApprovalHistoryRepository orderApprovalHistoryRepository,
                                       OrderItemRepository orderItemRepository,
                                       OrderRepository orderRepository,
+                                      InventoryAdjustmentRepository inventoryAdjustmentRepository,
                                       InventoryRepository inventoryRepository,
                                       ProductRepository productRepository) {
         refundRepository.deleteAllInBatch();
@@ -105,12 +107,15 @@ public final class TestDataCleaner {
         orderApprovalHistoryRepository.deleteAllInBatch();
         orderItemRepository.deleteAllInBatch();
         orderRepository.deleteAllInBatch();
+        inventoryAdjustmentRepository.deleteAllInBatch();
         inventoryRepository.deleteAllInBatch();
         productRepository.deleteAllInBatch();
     }
 
-    public static void clearProductData(InventoryRepository inventoryRepository,
+    public static void clearProductData(InventoryAdjustmentRepository inventoryAdjustmentRepository,
+                                        InventoryRepository inventoryRepository,
                                         ProductRepository productRepository) {
+        inventoryAdjustmentRepository.deleteAllInBatch();
         inventoryRepository.deleteAllInBatch();
         productRepository.deleteAllInBatch();
     }

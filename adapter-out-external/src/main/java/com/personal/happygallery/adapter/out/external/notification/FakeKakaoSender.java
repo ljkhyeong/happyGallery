@@ -25,7 +25,10 @@ public class FakeKakaoSender implements NotificationSender {
     }
 
     @Override
-    public boolean send(String phone, String recipientName, NotificationEventType eventType) {
+    public boolean send(String idempotencyKey,
+                        String phone,
+                        String recipientName,
+                        NotificationEventType eventType) {
         log.info("[FAKE-KAKAO] event={}", eventType);
         return true;
     }

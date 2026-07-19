@@ -3,7 +3,6 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.pass.port.in.PassQueryUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyPassSummary;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
-import com.personal.happygallery.domain.pass.PassPurchase;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,7 +33,6 @@ public class MePassController {
     @GetMapping("/{id}")
     public MyPassSummary myPass(@PathVariable Long id,
                                 @AuthenticationPrincipal CustomerPrincipal customer) {
-        PassPurchase pass = passQueryUseCase.findMyPass(id, customer.userId());
-        return MyPassSummary.from(pass);
+        return MyPassSummary.from(passQueryUseCase.findMyPass(id, customer.userId()));
     }
 }

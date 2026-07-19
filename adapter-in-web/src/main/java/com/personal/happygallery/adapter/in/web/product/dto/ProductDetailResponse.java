@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.product.dto;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductStatus;
 
 public record ProductDetailResponse(
         Long id,
@@ -21,7 +22,7 @@ public record ProductDetailResponse(
                 product.getType().name(),
                 product.getCategory(),
                 product.getPrice(),
-                inventory.isAvailable()
+                product.getStatus() == ProductStatus.ACTIVE && inventory.isAvailable()
         );
     }
 }

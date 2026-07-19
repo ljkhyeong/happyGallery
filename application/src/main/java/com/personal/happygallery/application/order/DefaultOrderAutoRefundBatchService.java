@@ -51,8 +51,9 @@ public class DefaultOrderAutoRefundBatchService implements OrderAutoRefundBatchU
     public BatchResult autoRefundExpired() {
         LocalDateTime now = LocalDateTime.now(clock);
 
-        return BatchExecutor.executePaginated(
-                () -> orderReader.findPaidApprovalPendingBefore(now, PageRequest.ofSize(PAGE_SIZE)),
+        return BatchExecutor.executeByIdCursor(
+                afterId -> orderReader.findPaidApprovalPendingBeforeAfterId(
+                        now, afterId, PageRequest.ofSize(PAGE_SIZE)),
                 Order::getId,
                 order -> orderAutoRefundProcessor.process(order.getId(), now),
                 "주문 자동환불");

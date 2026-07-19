@@ -5,10 +5,13 @@ import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
+import com.personal.happygallery.application.monitoring.AppMetrics;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
+import com.personal.happygallery.domain.notification.NotificationRecipientType;
 import com.personal.happygallery.domain.time.Clocks;
+import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -19,8 +22,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -28,6 +36,7 @@ import static org.mockito.Mockito.when;
 
 class NotificationServiceTest {
 
+    private static final String IDEMPOTENCY_KEY = "notification-key";
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-06-27T00:00:00Z"),
             Clocks.SEOUL
@@ -42,18 +51,22 @@ class NotificationServiceTest {
         GuestReaderPort guestReader = mock(GuestReaderPort.class);
         UserReaderPort userReader = mock(UserReaderPort.class);
         NotificationService service = service(List.of(kakaoSender, smsSender), logStore, guestReader, userReader);
-        when(kakaoSender.send("01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED)).thenReturn(true);
+        when(kakaoSender.send(
+                IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
+                .thenReturn(true);
         when(kakaoSender.channel()).thenReturn(NotificationChannel.KAKAO);
 
         boolean sent = service.sendToUser(
                 10L,
+                IDEMPOTENCY_KEY,
                 "01012345678",
                 "회원",
                 NotificationEventType.BOOKING_CONFIRMED
         );
 
         ArgumentCaptor<NotificationLog> captor = ArgumentCaptor.forClass(NotificationLog.class);
-        verify(kakaoSender).send("01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED);
+        verify(kakaoSender).send(
+                IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED);
         verify(logStore).save(captor.capture());
         verifyNoInteractions(smsSender);
         assertSoftly(softly -> {
@@ -78,21 +91,26 @@ class NotificationServiceTest {
         GuestReaderPort guestReader = mock(GuestReaderPort.class);
         UserReaderPort userReader = mock(UserReaderPort.class);
         NotificationService service = service(List.of(kakaoSender, smsSender), logStore, guestReader, userReader);
-        when(kakaoSender.send("01087654321", "게스트", NotificationEventType.REMINDER_D1)).thenReturn(false);
+        when(kakaoSender.send(IDEMPOTENCY_KEY, "01087654321", "게스트", NotificationEventType.REMINDER_D1))
+                .thenReturn(false);
         when(kakaoSender.channel()).thenReturn(NotificationChannel.KAKAO);
-        when(smsSender.send("01087654321", "게스트", NotificationEventType.REMINDER_D1)).thenReturn(true);
+        when(smsSender.send(IDEMPOTENCY_KEY, "01087654321", "게스트", NotificationEventType.REMINDER_D1))
+                .thenReturn(true);
         when(smsSender.channel()).thenReturn(NotificationChannel.SMS);
 
         boolean sent = service.sendToGuest(
                 20L,
+                IDEMPOTENCY_KEY,
                 "01087654321",
                 "게스트",
                 NotificationEventType.REMINDER_D1
         );
 
         var senderOrder = inOrder(kakaoSender, smsSender);
-        senderOrder.verify(kakaoSender).send("01087654321", "게스트", NotificationEventType.REMINDER_D1);
-        senderOrder.verify(smsSender).send("01087654321", "게스트", NotificationEventType.REMINDER_D1);
+        senderOrder.verify(kakaoSender).send(
+                IDEMPOTENCY_KEY, "01087654321", "게스트", NotificationEventType.REMINDER_D1);
+        senderOrder.verify(smsSender).send(
+                IDEMPOTENCY_KEY, "01087654321", "게스트", NotificationEventType.REMINDER_D1);
         ArgumentCaptor<NotificationLog> captor = ArgumentCaptor.forClass(NotificationLog.class);
         verify(logStore, times(2)).save(captor.capture());
         assertSoftly(softly -> {
@@ -125,11 +143,12 @@ class NotificationServiceTest {
         UserReaderPort userReader = mock(UserReaderPort.class);
         NotificationService service = service(List.of(sender), logStore, guestReader, userReader);
         when(sender.channel()).thenReturn(NotificationChannel.SMS);
-        when(sender.send("01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
+        when(sender.send(IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
                 .thenThrow(new IllegalStateException("phone=01012345678 recipient=회원"));
 
         boolean sent = service.sendToUser(
                 10L,
+                IDEMPOTENCY_KEY,
                 "01012345678",
                 "회원",
                 NotificationEventType.BOOKING_CONFIRMED
@@ -155,7 +174,7 @@ class NotificationServiceTest {
         NotificationService service = service(List.of(sender), logStore, guestReader, userReader);
         when(userReader.findById(10L)).thenReturn(Optional.empty());
 
-        service.sendByUserId(10L, NotificationEventType.PASS_EXPIRY_SOON);
+        service.sendByUserId(10L, NotificationEventType.PASS_EXPIRY_SOON, IDEMPOTENCY_KEY);
 
         ArgumentCaptor<NotificationLog> captor = ArgumentCaptor.forClass(NotificationLog.class);
         verify(logStore).save(captor.capture());
@@ -182,7 +201,7 @@ class NotificationServiceTest {
         NotificationService service = service(List.of(sender), logStore, guestReader, userReader);
         when(guestReader.findById(20L)).thenReturn(Optional.empty());
 
-        service.sendByGuestId(20L, NotificationEventType.REMINDER_D1);
+        service.sendByGuestId(20L, NotificationEventType.REMINDER_D1, IDEMPOTENCY_KEY);
 
         ArgumentCaptor<NotificationLog> captor = ArgumentCaptor.forClass(NotificationLog.class);
         verify(logStore).save(captor.capture());
@@ -199,6 +218,62 @@ class NotificationServiceTest {
         });
     }
 
+    @DisplayName("외부 발송 성공 후 감사 로그 저장이 실패해도 outbox를 재발송하지 않고 경고와 함께 완료한다")
+    @Test
+    void dispatchPending_deliverySucceedsButAuditFails_marksSentWithoutFallback() {
+        NotificationSenderPort kakaoSender = mock(NotificationSenderPort.class);
+        NotificationSenderPort smsSender = mock(NotificationSenderPort.class);
+        NotificationLogStorePort logStore = mock(NotificationLogStorePort.class);
+        GuestReaderPort guestReader = mock(GuestReaderPort.class);
+        UserReaderPort userReader = mock(UserReaderPort.class);
+        AppMetrics metrics = mock(AppMetrics.class);
+        NotificationOutboxTransactionService transactionService =
+                mock(NotificationOutboxTransactionService.class);
+        NotificationService service = new NotificationService(
+                List.of(kakaoSender, smsSender),
+                logStore,
+                guestReader,
+                userReader,
+                mock(GuestPersonalDataProtector.class),
+                metrics,
+                CLOCK);
+        NotificationOutboxDispatcher dispatcher =
+                new NotificationOutboxDispatcher(transactionService, service);
+        User user = new User("audit@example.com", "hash", "회원", "01012345678");
+        var reservation = new NotificationOutboxReservation(99L, "processing-token");
+        when(transactionService.reserveDispatchable(50, 1)).thenReturn(List.of(reservation));
+        when(transactionService.loadRequest(99L, "processing-token")).thenReturn(Optional.of(
+                new NotificationOutboxDeliveryRequest(
+                        99L,
+                        NotificationRecipientType.USER,
+                        null,
+                        10L,
+                        NotificationEventType.BOOKING_CONFIRMED,
+                        IDEMPOTENCY_KEY)));
+        when(userReader.findById(10L)).thenReturn(Optional.of(user));
+        when(kakaoSender.channel()).thenReturn(NotificationChannel.KAKAO);
+        when(kakaoSender.send(IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
+                .thenReturn(true);
+        when(transactionService.markSentWithAuditFailure(
+                99L, "processing-token", "AUDIT_LOG_PERSISTENCE_FAILED"))
+                .thenReturn(true);
+        when(logStore.save(any(NotificationLog.class)))
+                .thenThrow(new IllegalStateException("database unavailable"));
+
+        var result = dispatcher.dispatchPending();
+
+        verify(transactionService).markSentWithAuditFailure(
+                99L, "processing-token", "AUDIT_LOG_PERSISTENCE_FAILED");
+        verify(transactionService, never()).markDeliveryFailed(
+                anyLong(), anyString(), anyString(), anyInt());
+        verifyNoInteractions(smsSender);
+        verify(metrics).incrementNotificationLogPersistenceFailure();
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isOne();
+            softly.assertThat(result.failureCount()).isZero();
+        });
+    }
+
     private static NotificationService service(List<NotificationSenderPort> senders,
                                                NotificationLogStorePort logStore,
                                                GuestReaderPort guestReader,
@@ -209,6 +284,7 @@ class NotificationServiceTest {
                 guestReader,
                 userReader,
                 mock(GuestPersonalDataProtector.class),
+                mock(AppMetrics.class),
                 CLOCK
         );
     }

@@ -49,9 +49,10 @@ public class DefaultPickupExpireBatchService implements PickupExpireBatchUseCase
     public BatchResult expirePickups() {
         LocalDateTime now = LocalDateTime.now(clock);
 
-        return BatchExecutor.executePaginated(
-                () -> fulfillmentPort.findExpiredPickups(now, PageRequest.ofSize(PAGE_SIZE)),
-                Fulfillment::getOrderId,
+        return BatchExecutor.executeByIdCursor(
+                afterId -> fulfillmentPort.findExpiredPickupsAfterId(
+                        now, afterId, PageRequest.ofSize(PAGE_SIZE)),
+                Fulfillment::getId,
                 f -> pickupExpireProcessor.process(f.getOrderId(), now),
                 "픽업 만료");
     }

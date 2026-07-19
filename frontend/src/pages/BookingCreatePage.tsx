@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Container, Card, Form, Row, Col, Button } from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
 import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { fetchMyPasses } from "@/features/my/api";
+import { isPassAvailableForBooking } from "@/features/my/listUtils";
 import {
   confirmPayment,
   executePaymentFlow,
   type BookingPayload,
 } from "@/features/payment";
+import { formatDateTime } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
 
@@ -24,7 +27,9 @@ interface GuestInfo {
 export function BookingCreatePage() {
   const toast = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated, user } = useCustomerAuth();
+  const passPrefillApplied = useRef(false);
 
   const [selectedSlot, setSelectedSlot] = useState<PublicSlotResponse | null>(null);
   const [paymentPath, setPaymentPath] = useState<PaymentPath>("deposit");
@@ -32,11 +37,45 @@ export function BookingCreatePage() {
   const [passId, setPassId] = useState("");
   const [showGate, setShowGate] = useState(false);
 
+  const { data: passes, isLoading: passesLoading, error: passesError } = useQuery({
+    queryKey: ["my", "passes"],
+    queryFn: fetchMyPasses,
+    enabled: isAuthenticated,
+  });
+  const availablePasses = (passes ?? []).filter(isPassAvailableForBooking);
+  const requestedPassId = Number(searchParams.get("passId"));
+  const hasRequestedPass = Number.isSafeInteger(requestedPassId) && requestedPassId > 0;
+
   useEffect(() => {
-    if (!isAuthenticated && paymentPath === "pass") {
+    if (isAuthenticated) {
+      return;
+    }
+    passPrefillApplied.current = false;
+    if (paymentPath === "pass") {
       setPaymentPath("deposit");
+      setPassId("");
     }
   }, [isAuthenticated, paymentPath]);
+
+  useEffect(() => {
+    if (!isAuthenticated || passes === undefined || passPrefillApplied.current) {
+      return;
+    }
+    passPrefillApplied.current = true;
+    if (hasRequestedPass && passes.some(
+      (pass) => pass.passId === requestedPassId && isPassAvailableForBooking(pass),
+    )) {
+      setPaymentPath("pass");
+      setPassId(String(requestedPassId));
+    }
+  }, [hasRequestedPass, isAuthenticated, passes, requestedPassId]);
+
+  useEffect(() => {
+    if (paymentPath === "pass" && passId && passes !== undefined
+      && !passes.some((pass) => String(pass.passId) === passId && isPassAvailableForBooking(pass))) {
+      setPassId("");
+    }
+  }, [passId, passes, paymentPath]);
 
   const parsedPassId = Number(passId);
   const passValid = isAuthenticated && paymentPath === "pass"
@@ -128,11 +167,14 @@ export function BookingCreatePage() {
                     id="booking-path-pass" label="8회권 사용"
                     name="paymentPath"
                     checked={paymentPath === "pass"}
+                    disabled={passesLoading || availablePasses.length === 0}
                     onChange={() => setPaymentPath("pass")}
                   />
                 )}
               </div>
             </Form.Group>
+
+            {isAuthenticated && <ErrorAlert error={passesError} />}
 
             {paymentPath === "deposit" ? (
               <Row className="g-2 mb-3">
@@ -154,12 +196,25 @@ export function BookingCreatePage() {
               </Row>
             ) : (
               <Form.Group controlId="booking-pass" className="mb-3">
-                <Form.Label>8회권 ID</Form.Label>
-                <Form.Control
-                  type="number" min={1} value={passId}
+                <Form.Label>사용할 8회권</Form.Label>
+                <Form.Select
+                  value={passId}
                   onChange={(e) => setPassId(e.target.value)}
-                  placeholder="8회권 ID"
-                />
+                  disabled={passesLoading || availablePasses.length === 0}
+                >
+                  <option value="">
+                    {passesLoading
+                      ? "8회권을 불러오는 중입니다"
+                      : availablePasses.length === 0
+                        ? "사용 가능한 8회권이 없습니다"
+                        : "8회권을 선택하세요"}
+                  </option>
+                  {availablePasses.map((pass) => (
+                    <option key={pass.passId} value={pass.passId}>
+                      8회권 #{pass.passId} · 잔여 {pass.remainingCredits}회 · 만료 {formatDateTime(pass.expiresAt)}
+                    </option>
+                  ))}
+                </Form.Select>
                 <Form.Text className="text-muted">
                   잔여 횟수에서 1회가 차감되며 결제창은 열리지 않습니다.
                 </Form.Text>

@@ -9,7 +9,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "app.external.notification")
 public record NotificationResilienceProperties(
-        @Min(1) @DefaultValue("3000") long timeoutMillis,
+        @Min(1) @DefaultValue("5000") long timeoutMillis,
         @Valid ThreadPool threadPool,
         @Valid CircuitBreaker circuitBreaker
 ) {

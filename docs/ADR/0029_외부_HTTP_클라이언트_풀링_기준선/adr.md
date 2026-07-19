@@ -20,7 +20,7 @@ Toss Payments confirm/cancel 호출도 같은 외부 HTTP 경계에 포함된다
 - 일반 외부 API는 `RestClient`, OAuth token 교환은 Spring Security의 `RestClientAuthorizationCodeTokenResponseClient`, OAuth UserInfo는 `DefaultOAuth2UserService`를 사용한다.
 - 각 클라이언트의 request factory를 `HttpComponentsClientHttpRequestFactory`로 바꾼다.
 - 풀은 서비스별로 분리한다.
-  - Kakao 알림톡
+  - NHN Cloud Alimtalk
   - NHN SMS
   - Google OAuth
   - Naver OAuth
@@ -30,17 +30,18 @@ Toss Payments confirm/cancel 호출도 같은 외부 HTTP 경계에 포함된다
 
 현재 기본값:
 
-- acquire timeout: 1초
-- connect timeout: 2초
-- read timeout: 5초
+- Alimtalk/SMS: acquire 0.5초, connect 1초, read/response 2초
+- 알림 바깥 TimeLimiter: 5초
+- OAuth/Toss: acquire 1초, connect 2초, read/response 5초
 - keep-alive: 30초
-- 알림(Kakao, SMS) max connections: 20
+- 알림(Alimtalk, SMS) max connections: 20
 - Google/Naver OAuth provider별 max connections: 10
 - Toss Payments max connections: 10
 
 ### 3. 외부 HTTP 설정도 전체 타임아웃 계층 안에서 정렬한다
 
-- 외부 HTTP는 `acquire 1s < connect 2s < read 5s`
+- Alimtalk/SMS는 `acquire + connect + response < TimeLimiter` 순서를 지킨다. 기본값은 `0.5s + 1s + 2s < 5s`다.
+- 운영 환경변수로 이 순서가 역전되면 애플리케이션 기동을 거부한다.
 - 이 값은 프론트와 ingress 타임아웃보다 안쪽에 둔다.
 - 전체 타임아웃 원칙은 `ADR-0030`을 따른다.
 

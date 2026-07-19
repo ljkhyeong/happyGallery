@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long>, PassPurchaseReaderPort, PassPurchaseStorePort {
 
@@ -19,8 +21,18 @@ public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long
 
     /** 만료 배치 페이지네이션 대상 */
     @Override
-    List<PassPurchase> findByExpiresAtLessThanEqualAndRemainingCreditsGreaterThan(
-            LocalDateTime now, int credits, Pageable pageable);
+    @Query("""
+            SELECT p FROM PassPurchase p
+            WHERE p.expiresAt <= :now
+              AND p.remainingCredits > :credits
+              AND p.id > :afterId
+            ORDER BY p.id ASC
+            """)
+    List<PassPurchase> findExpiredWithRemainingCreditsAfterId(
+            @Param("now") LocalDateTime now,
+            @Param("credits") int credits,
+            @Param("afterId") Long afterId,
+            Pageable pageable);
 
     /** 만료 7일 전 알림 대상: now <= expires_at < now+7일 AND remaining_credits > 0 */
     @Override

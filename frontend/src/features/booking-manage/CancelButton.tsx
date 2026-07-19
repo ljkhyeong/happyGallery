@@ -9,6 +9,12 @@ const PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE =
   "PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE";
 
 function resolvePolicyNotice(cancelPolicy: BookingCancelPolicy) {
+  if (!cancelPolicy.cancellable) {
+    return {
+      variant: "warning",
+      message: "잔금 결제가 완료된 예약은 관리자에게 취소와 정산을 요청해 주세요.",
+    } as const;
+  }
   if (cancelPolicy.warningCode === PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE) {
     return {
       variant: "warning",
@@ -85,7 +91,12 @@ export function CancelButton({
 
   return (
     <>
-      <Button variant="outline-danger" onClick={() => setShowConfirm(true)}>
+      <Button
+        variant="outline-danger"
+        disabled={!cancelPolicy.cancellable}
+        title={!cancelPolicy.cancellable ? "관리자 정산이 필요한 예약입니다." : undefined}
+        onClick={() => setShowConfirm(true)}
+      >
         {buttonLabel}
       </Button>
 

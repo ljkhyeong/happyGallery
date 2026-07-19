@@ -3,10 +3,12 @@ package com.personal.happygallery.application.notification;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
+import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
 import com.personal.happygallery.domain.notification.NotificationRecipientType;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -30,48 +32,62 @@ class NotificationOutboxTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<Long> reserveDispatchableIds(int limit, int processingTimeoutMinutes) {
+    public List<NotificationOutboxReservation> reserveDispatchable(int limit, int processingTimeoutMinutes) {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime staleBefore = now.minusMinutes(processingTimeoutMinutes);
         List<NotificationOutbox> outboxes = outboxPort.findDispatchable(now, staleBefore, limit);
-        for (NotificationOutbox outbox : outboxes) {
-            outbox.markProcessing(now);
-        }
         return outboxes.stream()
-                .map(NotificationOutbox::getId)
+                .map(outbox -> new NotificationOutboxReservation(
+                        outbox.getId(), outbox.markProcessing(now)))
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public NotificationOutboxDeliveryRequest loadRequest(Long outboxId) {
+    public Optional<NotificationOutboxDeliveryRequest> loadRequest(Long outboxId, String processingToken) {
         NotificationOutbox outbox = findOutbox(outboxId);
-        return new NotificationOutboxDeliveryRequest(
+        if (!outbox.isProcessingOwnedBy(processingToken)) {
+            return Optional.empty();
+        }
+        return Optional.of(new NotificationOutboxDeliveryRequest(
                 outbox.getId(),
                 outbox.getRecipientType(),
                 outbox.getGuestId(),
                 outbox.getUserId(),
-                outbox.getEventType());
+                outbox.getEventType(),
+                outbox.getIdempotencyKey()));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markSent(Long outboxId) {
-        NotificationOutbox outbox = findOutbox(outboxId);
-        outbox.markSent(LocalDateTime.now(clock));
+    public boolean markSent(Long outboxId, String processingToken) {
+        NotificationOutbox outbox = findOutboxForUpdate(outboxId);
+        return outbox.markSent(processingToken, LocalDateTime.now(clock));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markDeliveryFailed(Long outboxId, String reason, int maxAttempts) {
-        NotificationOutbox outbox = findOutbox(outboxId);
+    public boolean markSentWithAuditFailure(Long outboxId, String processingToken, String reason) {
+        NotificationOutbox outbox = findOutboxForUpdate(outboxId);
+        return outbox.markSentWithAuditFailure(processingToken, LocalDateTime.now(clock), reason);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean markDeliveryFailed(Long outboxId, String processingToken, String reason, int maxAttempts) {
+        NotificationOutbox outbox = findOutboxForUpdate(outboxId);
         LocalDateTime now = LocalDateTime.now(clock);
-        boolean permanentlyFailed = outbox.markDeliveryFailed(
-                reason, nextAttemptAt(outbox, now), now, maxAttempts);
-        if (permanentlyFailed) {
+        boolean accepted = outbox.markDeliveryFailed(
+                processingToken, reason, nextAttemptAt(outbox, now), now, maxAttempts);
+        if (accepted && outbox.getStatus() == NotificationOutboxStatus.FAILED) {
             eventPublisher.publishEvent(new NotificationOutboxFailedEvent(outbox.getId()));
         }
+        return accepted;
     }
 
     private NotificationOutbox findOutbox(Long outboxId) {
         return outboxPort.findById(outboxId)
+                .orElseThrow(() -> new IllegalStateException("알림 outbox 미존재: " + outboxId));
+    }
+
+    private NotificationOutbox findOutboxForUpdate(Long outboxId) {
+        return outboxPort.findByIdForUpdate(outboxId)
                 .orElseThrow(() -> new IllegalStateException("알림 outbox 미존재: " + outboxId));
     }
 
@@ -82,10 +98,13 @@ class NotificationOutboxTransactionService {
     }
 }
 
+record NotificationOutboxReservation(Long outboxId, String processingToken) {}
+
 record NotificationOutboxDeliveryRequest(Long outboxId,
                                          NotificationRecipientType recipientType,
                                          Long guestId,
                                          Long userId,
-                                         NotificationEventType eventType) {}
+                                         NotificationEventType eventType,
+                                         String idempotencyKey) {}
 
 record NotificationOutboxFailedEvent(Long outboxId) {}

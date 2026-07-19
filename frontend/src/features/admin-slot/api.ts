@@ -26,3 +26,10 @@ export function deactivateSlot(adminKey: string, slotId: number): Promise<SlotRe
     headers: h(adminKey),
   });
 }
+
+export function activateSlot(adminKey: string, slotId: number): Promise<SlotResponse> {
+  return api<SlotResponse>(`/admin/slots/${slotId}/activate`, {
+    method: "PATCH",
+    headers: h(adminKey),
+  });
+}

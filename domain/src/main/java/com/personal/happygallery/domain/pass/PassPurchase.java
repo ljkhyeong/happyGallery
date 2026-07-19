@@ -23,7 +23,7 @@ public class PassPurchase {
     @Column(name = "user_id")
     private Long userId;
 
-    @Column(name = "purchased_at", nullable = false, insertable = false, updatable = false)
+    @Column(name = "purchased_at", nullable = false, updatable = false)
     private LocalDateTime purchasedAt;
 
     @Column(name = "expires_at", nullable = false)
@@ -47,8 +47,12 @@ public class PassPurchase {
 
     protected PassPurchase() {}
 
-    private PassPurchase(Long userId, LocalDateTime expiresAt, long totalPrice) {
+    private PassPurchase(Long userId,
+                         LocalDateTime purchasedAt,
+                         LocalDateTime expiresAt,
+                         long totalPrice) {
         this.userId = userId;
+        this.purchasedAt = purchasedAt;
         this.expiresAt = expiresAt;
         this.totalCredits = 8;
         this.remainingCredits = 8;
@@ -56,8 +60,11 @@ public class PassPurchase {
     }
 
     /** 회원 8회권 구매 생성. */
-    public static PassPurchase forMember(Long userId, LocalDateTime expiresAt, long totalPrice) {
-        return new PassPurchase(userId, expiresAt, totalPrice);
+    public static PassPurchase forMember(Long userId,
+                                         LocalDateTime purchasedAt,
+                                         LocalDateTime expiresAt,
+                                         long totalPrice) {
+        return new PassPurchase(userId, purchasedAt, expiresAt, totalPrice);
     }
 
     /**

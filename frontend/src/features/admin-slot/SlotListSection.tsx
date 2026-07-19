@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col, ProgressBar } from "react-bootstrap";
-import { fetchClasses, fetchSlotsByClass, deactivateSlot } from "./api";
+import { activateSlot, deactivateSlot, fetchClasses, fetchSlotsByClass } from "./api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
@@ -39,10 +39,11 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   }, [error, onAuthError]);
 
   const mutation = useAdminMutation(onAuthError, {
-    mutationFn: (slotId: number) => deactivateSlot(adminKey, slotId),
-    onMutate: (slotId) => setPendingId(slotId),
+    mutationFn: ({ slotId, activate }: { slotId: number; activate: boolean }) =>
+      activate ? activateSlot(adminKey, slotId) : deactivateSlot(adminKey, slotId),
+    onMutate: ({ slotId }) => setPendingId(slotId),
     onSuccess: (slot) => {
-      toast.show(`슬롯 #${slot.id} 비활성화 완료`);
+      toast.show(`슬롯 #${slot.id} ${slot.adminActive ? "활성화" : "비활성화"} 완료`);
       queryClient.invalidateQueries({ queryKey: ["admin", "slots", classIdNum] });
     },
     onSettled: () => setPendingId(null),
@@ -109,17 +110,15 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
                     </Badge>
                   </td>
                   <td>
-                    {s.adminActive && (
-                      <Button
-                        size="sm"
-                        variant="outline-danger"
-                        style={{ minWidth: 84 }}
-                        disabled={pendingId === s.id}
-                        onClick={() => mutation.mutate(s.id)}
-                      >
-                        {pendingId === s.id ? "처리 중..." : "비활성화"}
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant={s.adminActive ? "outline-danger" : "outline-success"}
+                      style={{ minWidth: 84 }}
+                      disabled={pendingId === s.id}
+                      onClick={() => mutation.mutate({ slotId: s.id, activate: !s.adminActive })}
+                    >
+                      {pendingId === s.id ? "처리 중..." : s.adminActive ? "비활성화" : "활성화"}
+                    </Button>
                   </td>
                 </tr>
               );

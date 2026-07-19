@@ -1,4 +1,5 @@
 import { api } from "@/shared/api";
+import type { RefundProgress } from "@/shared/types";
 
 export interface MyOrderSummary {
   orderId: number;
@@ -24,6 +25,7 @@ export interface MyPassSummary {
   totalCredits: number;
   remainingCredits: number;
   totalPrice: number;
+  refund: RefundProgress | null;
 }
 
 export function fetchMyOrders() {

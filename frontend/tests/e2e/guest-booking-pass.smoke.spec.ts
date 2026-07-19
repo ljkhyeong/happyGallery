@@ -88,12 +88,14 @@ test("P8-3 @smoke @payment 회원은 8회권 구매 후 8회권으로 예약할 
   }
   const passId = extractFirstNumber(passCardText, "8회권 #");
 
-  await page.goto("/bookings/new");
+  const passCard = page.locator(".my-list-card").filter({ hasText: `8회권 #${passId}` }).first();
+  await passCard.getByRole("button", { name: "이 8회권으로 예약" }).click();
+  await expect(page).toHaveURL(new RegExp(`/bookings/new\\?passId=${passId}$`));
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
   await page.getByLabel("날짜").fill(slotDate);
   await page.locator(".list-group-item").filter({ hasText: formatTimeTokenForUi(slot.startAt) }).first().click();
-  await page.getByLabel("8회권 사용").check();
-  await page.getByLabel("8회권 ID").fill(String(passId));
+  await expect(page.getByLabel("8회권 사용")).toBeChecked();
+  await expect(page.getByLabel("사용할 8회권")).toHaveValue(String(passId));
   await page.getByRole("button", { name: "8회권으로 예약하기" }).click();
 
   await expect(page).toHaveURL(/\/my\/bookings\/\d+$/);

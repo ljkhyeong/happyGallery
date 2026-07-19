@@ -16,8 +16,9 @@ public class NotificationOutboxDispatcher {
     private static final Logger log = LoggerFactory.getLogger(NotificationOutboxDispatcher.class);
     private static final int DISPATCH_LIMIT = 50;
     private static final int MAX_ATTEMPTS = 5;
-    private static final int PROCESSING_TIMEOUT_MINUTES = 10;
+    private static final int PROCESSING_TIMEOUT_MINUTES = 1;
     private static final String ALL_CHANNELS_FAILED = "ALL_CHANNELS_FAILED";
+    private static final String AUDIT_LOG_PERSISTENCE_FAILED = "AUDIT_LOG_PERSISTENCE_FAILED";
     private static final String DISPATCH_EXCEPTION = "DISPATCH_EXCEPTION";
 
     private final NotificationOutboxTransactionService transactionService;
@@ -31,54 +32,92 @@ public class NotificationOutboxDispatcher {
 
     @Transactional(propagation = Propagation.NEVER)
     public BatchResult dispatchPending() {
-        List<Long> outboxIds = transactionService.reserveDispatchableIds(
+        List<NotificationOutboxReservation> reservations = transactionService.reserveDispatchable(
                 DISPATCH_LIMIT, PROCESSING_TIMEOUT_MINUTES);
         int successCount = 0;
         Map<String, Integer> failureReasons = new LinkedHashMap<>();
 
-        for (Long outboxId : outboxIds) {
+        for (NotificationOutboxReservation reservation : reservations) {
             try {
-                if (dispatchReserved(outboxId)) {
-                    successCount++;
-                } else {
-                    failureReasons.merge(ALL_CHANNELS_FAILED, 1, Integer::sum);
+                switch (dispatchReserved(reservation)) {
+                    case SENT -> successCount++;
+                    case FAILED -> failureReasons.merge(ALL_CHANNELS_FAILED, 1, Integer::sum);
+                    case STALE -> log.info("[알림 outbox] 오래된 실행 결과 무시 [outboxId={}]",
+                            reservation.outboxId());
                 }
             } catch (Exception e) {
                 log.warn("[알림 outbox] dispatch 실패 [outboxId={} type={}]",
-                        outboxId, e.getClass().getSimpleName());
-                recordDispatchException(outboxId, e);
-                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
+                        reservation.outboxId(), e.getClass().getSimpleName());
+                if (recordDispatchException(reservation, e)) {
+                    failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
+                }
             }
         }
 
         return BatchResult.of(successCount, failureReasons);
     }
 
-    private boolean dispatchReserved(Long outboxId) {
-        NotificationOutboxDeliveryRequest request = transactionService.loadRequest(outboxId);
-        boolean sent = switch (request.recipientType()) {
-            case GUEST -> notificationService.sendByGuestId(request.guestId(), request.eventType());
-            case USER -> notificationService.sendByUserId(request.userId(), request.eventType());
-        };
+    private DispatchOutcome dispatchReserved(NotificationOutboxReservation reservation) {
+        var request = transactionService.loadRequest(
+                reservation.outboxId(), reservation.processingToken());
+        if (request.isEmpty()) {
+            return DispatchOutcome.STALE;
+        }
+        NotificationOutboxDeliveryRequest delivery = request.get();
+        boolean sent;
+        try {
+            sent = switch (delivery.recipientType()) {
+                case GUEST -> notificationService.sendByGuestId(
+                        delivery.guestId(), delivery.eventType(), delivery.idempotencyKey());
+                case USER -> notificationService.sendByUserId(
+                        delivery.userId(), delivery.eventType(), delivery.idempotencyKey());
+            };
+        } catch (NotificationAuditPersistenceException exception) {
+            if (exception.deliveryCompleted()) {
+                return transactionService.markSentWithAuditFailure(
+                        reservation.outboxId(), reservation.processingToken(), AUDIT_LOG_PERSISTENCE_FAILED)
+                        ? DispatchOutcome.SENT
+                        : DispatchOutcome.STALE;
+            }
+            return transactionService.markDeliveryFailed(
+                    reservation.outboxId(),
+                    reservation.processingToken(),
+                    ALL_CHANNELS_FAILED + ":" + AUDIT_LOG_PERSISTENCE_FAILED,
+                    MAX_ATTEMPTS)
+                    ? DispatchOutcome.FAILED
+                    : DispatchOutcome.STALE;
+        }
 
         if (sent) {
-            transactionService.markSent(outboxId);
-            return true;
+            return transactionService.markSent(reservation.outboxId(), reservation.processingToken())
+                    ? DispatchOutcome.SENT
+                    : DispatchOutcome.STALE;
         }
-        transactionService.markDeliveryFailed(outboxId, ALL_CHANNELS_FAILED, MAX_ATTEMPTS);
-        return false;
+        return transactionService.markDeliveryFailed(
+                reservation.outboxId(), reservation.processingToken(), ALL_CHANNELS_FAILED, MAX_ATTEMPTS)
+                ? DispatchOutcome.FAILED
+                : DispatchOutcome.STALE;
     }
 
-    private void recordDispatchException(Long outboxId, Exception dispatchFailure) {
+    private boolean recordDispatchException(NotificationOutboxReservation reservation,
+                                            Exception dispatchFailure) {
         try {
-            transactionService.markDeliveryFailed(
-                    outboxId,
+            return transactionService.markDeliveryFailed(
+                    reservation.outboxId(),
+                    reservation.processingToken(),
                     DISPATCH_EXCEPTION + ":" + dispatchFailure.getClass().getSimpleName(),
                     MAX_ATTEMPTS);
         } catch (Exception recordingFailure) {
             dispatchFailure.addSuppressed(recordingFailure);
             log.error("[알림 outbox] dispatch 실패 기록 불가 [outboxId={} type={}]",
-                    outboxId, recordingFailure.getClass().getSimpleName(), recordingFailure);
+                    reservation.outboxId(), recordingFailure.getClass().getSimpleName(), recordingFailure);
+            return false;
         }
+    }
+
+    private enum DispatchOutcome {
+        SENT,
+        FAILED,
+        STALE
     }
 }

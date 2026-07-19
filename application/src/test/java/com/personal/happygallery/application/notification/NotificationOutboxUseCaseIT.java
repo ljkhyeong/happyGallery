@@ -26,6 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.awaitility.Awaitility.await;
 
 @UseCaseIT
@@ -34,6 +35,7 @@ class NotificationOutboxUseCaseIT {
     @Autowired ApplicationEventPublisher eventPublisher;
     @Autowired NotificationOutboxRepository outboxRepository;
     @Autowired NotificationOutboxDispatcher outboxDispatcher;
+    @Autowired NotificationOutboxTransactionService outboxTransactionService;
     @Autowired UserStorePort userStorePort;
     @Autowired NotificationLogProbe notificationLogProbe;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -118,5 +120,48 @@ class NotificationOutboxUseCaseIT {
         assertThat(failed.getStatus()).isEqualTo(NotificationOutboxStatus.PENDING);
         assertThat(failed.getAttemptCount()).isOne();
         assertThat(failed.getLastError()).startsWith("DISPATCH_EXCEPTION:");
+    }
+
+    @DisplayName("재선점 전 처리 토큰의 늦은 성공과 실패는 최신 outbox 상태를 덮지 않는다")
+    @Test
+    void staleProcessingToken_cannotOverwriteLatestClaim() {
+        User user = userStorePort.save(new User(
+                "outbox-fencing@example.com", "hash", "회원", "01033334444"));
+        NotificationOutbox outbox = outboxRepository.save(NotificationOutbox.from(
+                NotificationRequestedEvent.forUser(
+                        user.getId(), NotificationEventType.PASS_EXPIRY_SOON, "PASS_PURCHASE", 4L),
+                LocalDateTime.now(clock)));
+
+        NotificationOutboxReservation first = outboxTransactionService
+                .reserveDispatchable(1, 1)
+                .getFirst();
+        jdbcTemplate.update(
+                "UPDATE notification_outbox SET locked_at = ? WHERE id = ?",
+                LocalDateTime.now(clock).minusMinutes(2),
+                outbox.getId());
+        NotificationOutboxReservation second = outboxTransactionService
+                .reserveDispatchable(1, 1)
+                .getFirst();
+
+        boolean staleSuccessAccepted = outboxTransactionService.markSent(
+                first.outboxId(), first.processingToken());
+        boolean staleFailureAccepted = outboxTransactionService.markDeliveryFailed(
+                first.outboxId(), first.processingToken(), "LATE_FAILURE", 5);
+        NotificationOutbox processing = outboxRepository.findById(outbox.getId()).orElseThrow();
+        boolean latestSuccessAccepted = outboxTransactionService.markSent(
+                second.outboxId(), second.processingToken());
+
+        assertSoftly(softly -> {
+            softly.assertThat(second.processingToken()).isNotEqualTo(first.processingToken());
+            softly.assertThat(staleSuccessAccepted).isFalse();
+            softly.assertThat(staleFailureAccepted).isFalse();
+            softly.assertThat(processing.getStatus()).isEqualTo(NotificationOutboxStatus.PROCESSING);
+            softly.assertThat(processing.getProcessingToken()).isEqualTo(second.processingToken());
+            softly.assertThat(processing.getAttemptCount()).isZero();
+            softly.assertThat(processing.getLastError()).isNull();
+            softly.assertThat(latestSuccessAccepted).isTrue();
+            softly.assertThat(outboxRepository.findById(outbox.getId()).orElseThrow().getStatus())
+                    .isEqualTo(NotificationOutboxStatus.SENT);
+        });
     }
 }

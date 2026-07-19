@@ -20,7 +20,7 @@ class MyBatisBookingStatsAdapter implements BookingAnalyticsPort {
     @Override
     public List<SlotUtilization> findSlotUtilization(LocalDate from, LocalDate to) {
         return bookingStatsMapper.findSlotUtilization(
-                SeoulDateTimeRangeConverter.toUtcStart(from),
-                SeoulDateTimeRangeConverter.toUtcExclusiveEnd(to));
+                SeoulDateTimeRangeConverter.toLocalStart(from),
+                SeoulDateTimeRangeConverter.toLocalExclusiveEnd(to));
     }
 }

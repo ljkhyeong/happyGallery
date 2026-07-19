@@ -6,27 +6,30 @@
 
     <!-- search / count 공유 WHERE 프래그먼트 -->
     <sql id="searchConditions">
-        <where>
-            <if test="status != null">
-                AND b.status = #{status}
-            </if>
-            <if test="dateFrom != null">
-                AND s.start_at &gt;= #{dateFrom}
-            </if>
-            <if test="dateTo != null">
-                AND s.start_at &lt; #{dateTo}
-            </if>
-        </where>
+        <if test="status != null">
+            AND b.status = #{status}
+        </if>
+        <if test="dateFrom != null">
+            AND s.start_at &gt;= #{dateFrom}
+        </if>
+        <if test="dateTo != null">
+            AND s.start_at &lt; #{dateTo}
+        </if>
     </sql>
 
     <sql id="keywordConditions">
-        <if test="keyword != null and keyword != ''">
-            AND (
-                CAST(b.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
-                OR u.name_hmac = #{keywordHmac}
-                OR g.name_hmac = #{keywordHmac}
-            )
-        </if>
+        <choose>
+            <when test="exactId != null">
+                AND b.id = #{exactId}
+            </when>
+            <when test="keyword != null and keyword != ''">
+                AND (
+                    CAST(b.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                    OR u.name_hmac = #{keywordHmac}
+                    OR g.name_hmac = #{keywordHmac}
+                )
+            </when>
+        </choose>
     </sql>
 
     <!--
@@ -47,7 +50,11 @@
             s.end_at                                                          AS endAt,
             b.status                                                          AS status,
             b.deposit_amount                                                  AS depositAmount,
+            b.deposit_paid_at                                                 AS depositPaidAt,
             b.balance_amount                                                  AS balanceAmount,
+            b.balance_status                                                  AS balanceStatus,
+            b.balance_paid_at                                                 AS balancePaidAt,
+            b.arrears_flag                                                    AS arrears,
             CASE WHEN b.pass_purchase_id IS NOT NULL THEN TRUE ELSE FALSE END AS passBooking,
             b.created_at                                                      AS createdAt
         FROM bookings b
@@ -61,8 +68,10 @@
                 LEFT JOIN users u ON b.user_id = u.id
                 LEFT JOIN guests g ON b.guest_id = g.id
             </if>
-            <include refid="searchConditions"/>
-            <include refid="keywordConditions"/>
+            <where>
+                <include refid="searchConditions"/>
+                <include refid="keywordConditions"/>
+            </where>
             ORDER BY b.created_at DESC
             LIMIT #{size} OFFSET #{offset}
         ) sub ON b.id = sub.id
@@ -83,8 +92,10 @@
             LEFT JOIN users u ON b.user_id = u.id
             LEFT JOIN guests g ON b.guest_id = g.id
         </if>
-        <include refid="searchConditions"/>
-        <include refid="keywordConditions"/>
+        <where>
+            <include refid="searchConditions"/>
+            <include refid="keywordConditions"/>
+        </where>
     </select>
 
 </mapper>

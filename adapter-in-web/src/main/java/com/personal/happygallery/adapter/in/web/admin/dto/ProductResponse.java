@@ -4,6 +4,7 @@ import com.personal.happygallery.application.product.port.in.ProductAdminUseCase
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductStatus;
 
 public record ProductResponse(
         Long id,
@@ -23,6 +24,10 @@ public record ProductResponse(
         return from(r.product(), r.inventory());
     }
 
+    public static ProductResponse from(ProductAdminUseCase.StatusChangeResult r) {
+        return from(r.product(), r.inventory());
+    }
+
     private static ProductResponse from(Product product, Inventory inventory) {
         return new ProductResponse(
                 product.getId(),
@@ -31,7 +36,7 @@ public record ProductResponse(
                 product.getCategory(),
                 product.getPrice(),
                 product.getStatus().name(),
-                inventory.isAvailable(),
+                product.getStatus() == ProductStatus.ACTIVE && inventory.isAvailable(),
                 inventory.getQuantity()
         );
     }

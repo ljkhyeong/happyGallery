@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
 
 @Configuration
@@ -32,6 +33,7 @@ class TossPaymentsRestClientConfig {
     }
 
     static RestClient.Builder configure(RestClient.Builder builder, TossPaymentsProperties props) {
+        Assert.hasText(props.secretKey(), "prod 프로필에는 TOSS_SECRET_KEY가 필요합니다.");
         return builder
                 .baseUrl(props.baseUrl())
                 .defaultHeaders(headers -> headers.setBasicAuth(props.secretKey(), ""));

@@ -6,27 +6,30 @@
 
     <!-- search / count 공유 WHERE 프래그먼트 -->
     <sql id="searchConditions">
-        <where>
-            <if test="status != null">
-                AND o.status = #{status}
-            </if>
-            <if test="dateFrom != null">
-                AND o.created_at &gt;= #{dateFrom}
-            </if>
-            <if test="dateTo != null">
-                AND o.created_at &lt; #{dateTo}
-            </if>
-        </where>
+        <if test="status != null">
+            AND o.status = #{status}
+        </if>
+        <if test="dateFrom != null">
+            AND o.created_at &gt;= #{dateFrom}
+        </if>
+        <if test="dateTo != null">
+            AND o.created_at &lt; #{dateTo}
+        </if>
     </sql>
 
     <sql id="keywordConditions">
-        <if test="keyword != null and keyword != ''">
-            AND (
-                CAST(o.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
-                OR u.name_hmac = #{keywordHmac}
-                OR g.name_hmac = #{keywordHmac}
-            )
-        </if>
+        <choose>
+            <when test="exactId != null">
+                AND o.id = #{exactId}
+            </when>
+            <when test="keyword != null and keyword != ''">
+                AND (
+                    CAST(o.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                    OR u.name_hmac = #{keywordHmac}
+                    OR g.name_hmac = #{keywordHmac}
+                )
+            </when>
+        </choose>
     </sql>
 
     <!--
@@ -53,8 +56,10 @@
                 LEFT JOIN users u ON o.user_id = u.id
                 LEFT JOIN guests g ON o.guest_id = g.id
             </if>
-            <include refid="searchConditions"/>
-            <include refid="keywordConditions"/>
+            <where>
+                <include refid="searchConditions"/>
+                <include refid="keywordConditions"/>
+            </where>
             ORDER BY o.created_at DESC
             LIMIT #{size} OFFSET #{offset}
         ) sub ON o.id = sub.id
@@ -70,8 +75,10 @@
             LEFT JOIN users u ON o.user_id = u.id
             LEFT JOIN guests g ON o.guest_id = g.id
         </if>
-        <include refid="searchConditions"/>
-        <include refid="keywordConditions"/>
+        <where>
+            <include refid="searchConditions"/>
+            <include refid="keywordConditions"/>
+        </where>
     </select>
 
 </mapper>

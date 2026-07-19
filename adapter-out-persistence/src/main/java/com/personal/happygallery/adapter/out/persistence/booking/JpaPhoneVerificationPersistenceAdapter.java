@@ -63,6 +63,11 @@ class JpaPhoneVerificationPersistenceAdapter
                 indexPhone(KoreanPhoneNumber.required(phone)), verificationId);
     }
 
+    @Override
+    public int deleteExpiredBefore(LocalDateTime cutoff) {
+        return repository.deleteExpiredBefore(cutoff);
+    }
+
     private PhoneVerification restore(PhoneVerification verification, String phone) {
         verification.restoreProtectedFields(phone, fieldEncryptor.decrypt(verification.getCodeEnc()));
         return verification;
