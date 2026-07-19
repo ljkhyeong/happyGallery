@@ -72,7 +72,7 @@
 현재 근거:
 
 - `AdminBookingQueryService`, `AdminOrderQueryService`처럼 조회 조합 서비스 성격의 경계가 이미 도입된 구간이 있다.
-- `OrderCreationService.createMemberOrder()`처럼 controller의 가격 조회 책임을 app 레이어로 내린 사례도 있다.
+- `PaymentPreparer`처럼 controller 입력을 서버 가격 스냅샷으로 바꾸는 app 경계가 이미 도입된 구간이 있다.
 - 반면 일부 controller/DTO는 여전히 조합 책임이나 표현 기준이 혼재해 있어 “항상 이렇게 한다” 수준의 단일 규칙까지는 아니다.
 
 따라서 지금은 `simple-idea.md`보다 큰 문서인 `docs/Idea`에 두는 것이 맞고,

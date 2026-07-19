@@ -1,7 +1,7 @@
 # ADR-0023: 관리자·회원 인증과 세션 운영 기준
 
 **날짜**: 2026-03-17  
-**최종 갱신**: 2026-07-17
+**최종 갱신**: 2026-07-19
 **상태**: Accepted
 
 ---
@@ -30,7 +30,7 @@
 - 로그인 성공 시 UUID 세션 토큰을 발급한다.
 - 이후 요청은 `Authorization: Bearer {token}` 헤더를 사용한다.
 - 세션 저장소는 Redis 기반 `AdminSessionStore`
-- 키 패턴은 `admin:session:{token}`
+- 키 패턴은 `admin:session:{tokenHmac}`이며 원문 Bearer 토큰을 Redis 키에 남기지 않는다.
 - 세션 TTL은 8시간
 - 관리자 로그인과 최초 계정 setup 경로는 인증 없이 호출할 수 있고, 그 외 관리자 경로는 관리자 principal이 필요하다.
 - 인증 정보가 없거나 유효하지 않으면 `401`, 인증은 됐지만 권한이 부족하면 `403`을 기존 `ErrorResponse` JSON 형식으로 반환한다.
@@ -77,12 +77,22 @@
 
 ### 8. 현재 필요하지 않은 Security 기능은 도입하지 않는다
 
-- Google·Naver 로그인은 기존 OAuth 클라이언트와 서버 세션 `state` 검증을 유지하며 OAuth2 Client로 전환하지 않는다.
-- 관리자 토큰은 자체 Redis 세션이므로 JWT와 OAuth2 Resource Server를 사용하지 않는다.
-- 관리자·회원보다 세분화된 역할 요구가 없으므로 method security를 사용하지 않는다.
-- 프런트와 API가 same-origin으로 통신하므로 별도 CORS 허용 정책을 추가하지 않는다.
+- `oauth2-client`는 현재 Google/Naver URL 발급·코드 교환 API와 계정 연결 정책을 크게 바꾸므로 보류한다. 제3 제공자, refresh token 보관, 표준 OIDC 로그아웃이 필요할 때 재검토한다.
+- 회원은 Spring Session, 관리자는 즉시 폐기 가능한 opaque Redis 세션을 사용하므로 JWT와 OAuth2 Resource Server를 도입하지 않는다. 별도 인증 서버와 여러 Resource Server가 생길 때 재검토한다.
+- 현재 역할은 `CUSTOMER`, `ADMIN` 두 개이고 리소스 소유권은 application 조회·변경 유스케이스에서 검증하므로 `@EnableMethodSecurity`, `@PreAuthorize`를 중복 적용하지 않는다. 직원별 세부 권한이나 HTTP 외 진입점의 공통 권한 요구가 생길 때 재검토한다.
+- 프런트와 API는 Vite proxy와 운영 ingress 모두 same-origin이므로 CORS 허용 정책을 추가하지 않는다. origin을 분리할 때 exact allowlist와 credential 정책을 함께 도입한다.
+- 동시 로그인 제한은 회원 다중 기기와 관리자 세션 축출 정책이 정해질 때까지 보류한다. 현재 custom 인증 필터와 관리자 Bearer 저장소에는 `maximumSessions()`만 추가해서 적용할 수 없다.
+- remember-me는 별도 로그인 유지 UX가 없고 회원 세션 TTL이 7일이므로 도입하지 않는다. 브라우저 재시작 후 유지 요구가 생기면 persistent session cookie와 별도 remember token을 먼저 비교한다.
+- ACL은 단일 회원 소유 또는 전체 관리자 접근 모델에 비해 저장소·캐시·동기화 비용이 크므로 사용하지 않는다. 여러 사용자·그룹이 한 리소스의 권한을 공유할 때만 재검토한다.
 
-### 9. 인증 외 운영 주제는 전용 ADR에서 본다
+### 9. OAuth state와 redirect URI를 같은 서버 상태로 묶는다
+
+- Google/Naver callback URI는 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI` 설정값과 정확히 일치해야 한다.
+- URL 발급 시 검증한 redirect URI를 provider별 `state`와 함께 회원 세션에 저장한다.
+- 코드 교환 시 요청의 `state`, `redirectUri`가 세션 값과 모두 일치해야 하며 검증 시 두 값을 한 번에 제거한다.
+- 이 경계는 OAuth2 Client 전환 여부와 무관하게 유지한다.
+
+### 10. 인증 외 운영 주제는 전용 ADR에서 본다
 
 - requestId, 구조화 로그, 에러 추적: `ADR-0015`
 - 처리율 제한: `ADR-0017`
@@ -90,6 +100,7 @@
 - 결제 외부 호출 보호: `ADR-0020`
 - 외부 HTTP 클라이언트 설정: `ADR-0029`
 - 타임아웃과 keep-alive: `ADR-0030`
+- Actuator 관리 포트와 ingress·NetworkPolicy 노출 경계: `ADR-0037`
 
 ---
 

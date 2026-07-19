@@ -69,7 +69,9 @@ List<Inventory> findByProductIdInWithLock(List<Long> productIds);
 
 - `CartItem`은 `productId`만 유지하고 `Product`, `Inventory` JPA 연관관계를 추가하지 않는다.
 - `GET /api/v1/me/cart`는 화면용 조합 조회를 나타내는 `CartReadModelPort`를 통해 장바구니 항목, 상품, 재고를 한 번의 projection JOIN 쿼리로 조회한다.
-- 애플리케이션 서비스는 projection을 응답 모델로 변환하고 가용성과 합계만 계산한다.
+- 애플리케이션 서비스는 상품이 `ACTIVE`이고 재고가 장바구니 수량 이상일 때만 항목을 구매 가능으로 표시하며, 구매 가능한 항목 합계만 계산한다.
+- 장바구니 결제 prepare도 같은 projection을 사용해 구매 가능한 항목을 선택하고 `cart_items.id`와 수량을 내부 결제 스냅샷에 보존한다. confirm 성공 시 같은 행을 ID 오름차순으로 잠금 조회해 스냅샷 수량만 차감한다.
+- prepare 뒤 항목을 삭제하고 같은 상품을 다시 담으면 새 행 ID가 생기므로 과거 결제로 제거하지 않는다. 수량 변경과 결제 차감은 같은 장바구니 행 잠금에서 직렬화한다.
 - 상품별 개별 조회와 여러 조회 결과를 ID `Map`으로 다시 조립하지 않는다.
 
 ---

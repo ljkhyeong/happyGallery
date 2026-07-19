@@ -1,7 +1,7 @@
 # ADR-0017: 애플리케이션 처리율 제한 기준
 
 **날짜**: 2026-03-06  
-**최종 갱신**: 2026-07-18
+**최종 갱신**: 2026-07-19
 **상태**: Accepted
 
 ---
@@ -37,7 +37,6 @@
 | `PRODUCT_QNA_VERIFY_IP` | 비밀 Q&A 확인 | 10회/1분 |
 | `GUEST_CLAIM_VERIFY_IP` | 비회원 이력 연결 인증 | 10회/1분 |
 | `CLIENT_MONITORING_IP` | 클라이언트 이벤트 수집 | 60회/1분 |
-| `CART_CHECKOUT_IP` | 장바구니 주문 생성 | 10회/1분 |
 
 결제 prepare와 confirm은 서로 다른 버킷을 사용한다. prepare 트래픽이 confirm의 멱등 재시도를 차단해서는 안 되기 때문이다.
 
@@ -48,9 +47,9 @@ Filter는 request body를 읽지 않는다. `@Valid` DTO와 `@AuthenticationPrin
 | 규칙 | 식별 기준 | 한도 |
 | --- | --- | --- |
 | `PHONE_VERIFICATION_PHONE` | 정규화된 전화번호 | 3회/10분 |
+| `PHONE_VERIFICATION_ATTEMPT_PHONE` | 회원가입에서 인증 코드를 시도하는 정규화된 전화번호 | 5회/10분 |
 | `PAYMENT_CONFIRM_ORDER` | 외부 주문번호 | 20회/1분 |
 | `GUEST_CLAIM_USER` | 회원 ID | 5회/1분 |
-| `CART_CHECKOUT_USER` | 회원 ID | 5회/1분 |
 
 Q&A ID만으로 전역 버킷을 만들지 않는다. 제3자가 버킷을 소진해 글 소유자의 접근을 막을 수 있으므로 Q&A 확인은 IP 규칙으로 보호한다.
 
@@ -61,7 +60,7 @@ Q&A ID만으로 전역 버킷을 만들지 않는다. 제3자가 버킷을 소�
 - 기본 prefix는 `happygallery:rate`이며 배포 환경에서 `RATE_LIMIT_KEY_PREFIX`로 분리할 수 있다.
 - Redis 연결과 명령 대기 상한은 각각 1초다. 장애와 복구 상태 전환에만 규칙 ID와 예외 유형을 기록하고, 개별 초과 요청은 WARN 로그로 남기지 않는다.
 - `DEFAULT_API_IP`와 결제 confirm IP·주문번호 규칙은 Redis 장애 시 fail-open한다. 일반 조회 가용성과 이미 시작한 결제의 멱등 재시도를 우선한다.
-- 로그인·가입·관리자·인증 코드·Q&A 비밀번호 확인·비회원 이력 인증·모니터링 수집·장바구니 주문과 payment prepare는 fail-closed하고 `503 SERVICE_UNAVAILABLE`을 반환한다. edge 방어가 없는 상태에서 Redis 장애가 고위험 경로의 무제한 허용으로 바뀌지 않게 한다.
+- 로그인·가입·관리자·인증 코드·Q&A 비밀번호 확인·비회원 이력 인증·모니터링 수집과 payment prepare는 fail-closed하고 `503 SERVICE_UNAVAILABLE`을 반환한다. 장바구니 결제도 표준 payment prepare 버킷을 사용한다. edge 방어가 없는 상태에서 Redis 장애가 고위험 경로의 무제한 허용으로 바뀌지 않게 한다.
 - 인메모리 fallback은 pod마다 카운터가 갈리므로 두지 않는다.
 
 ### 4. 전달 헤더는 신뢰 경계가 생긴 뒤에만 사용한다

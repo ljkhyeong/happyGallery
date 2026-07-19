@@ -24,6 +24,7 @@
 - `RestClient` + Apache HttpClient 5 연결 풀을 사용한다. 서비스별 풀 기준은 `ADR-0029`를 따른다.
 - 외부 설정: `app.external.kakao.*`, `app.external.sms.*` (`application.yml`에 환경변수 바인딩).
 - `KakaoNotificationProperties`, `SmsNotificationProperties`를 `@ConfigurationProperties` record로 정의.
+- 휴대폰 인증 코드는 일반 알림 outbox와 분리된 `PhoneVerificationSender`로 NHN 인증용 SMS API에 즉시 발송하되, 일반 알림과 같은 NHN client 설정과 제한 큐·timeout·circuit breaker를 사용한다. HTTP 성공만으로 판단하지 않고 NHN 응답 본문의 성공 코드까지 확인한다.
 
 ### 2. 픽업 마감 2시간 전 알림 배치
 
@@ -60,13 +61,13 @@
 - ingress는 `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`를 덮어쓰거나 정규화하고 애플리케이션 직접 접근을 차단한다.
 - `application-prod.yml`은 forwarded header 신뢰를 기본적으로 끈다. 통제된 ingress가 헤더를 덮어쓰고 직접 접근을 차단한 뒤에만 `FORWARD_HEADERS_STRATEGY=native`, `RATE_LIMIT_TRUST_FORWARDED=true`를 함께 설정한다.
 - Grafana 인증 환경변수 외부화와 `.env.example`의 로컬 설정 목록은 유지하되, 운영 secret은 Kubernetes 실행 환경에서 저장소 밖의 값으로 주입한다.
-- AWS 자동 배포는 폐기한다. k3s manifest와 배포·rollback 절차가 구현되기 전까지 운영 배포는 미구현 상태다.
+- AWS 자동 배포는 폐기한다. k3s manifest와 배포·rollback·백업·복원 절차는 `deploy/k3s`에서 관리한다.
 
 ## 1차 배포 제외 항목 (Known Gaps)
 
 - **번들 결제** (PRD §6): 스키마 준비 완료(`bundle_id nullable`), 구현은 Phase 2.
 - **Email/Push 알림 채널** (PRD §7): `NotificationChannel` enum에 값 존재, 어댑터 미구현.
-- **k3s 운영 배포**: Kubernetes manifest, ingress/TLS, 영속 볼륨, secret 주입, 백업·복원, 이미지 rollout·rollback 절차가 아직 없다. 완료 전에는 공개 운영 배포로 간주하지 않는다(ADR-0037).
+- **실환경 개통**: k3s 산출물은 구현됐지만 실제 노트북의 DNS·공유기·방화벽·TLS, 외부 암호화 백업 mount, 복원 훈련과 핵심 사용자 흐름 검증은 운영 개시 전에 수행해야 한다(ADR-0037).
 - **신뢰 프록시 경계**: 공유기, 터널 또는 별도 프록시를 ingress 앞에 추가하면 신뢰 가능한 홉과 전달 헤더 정규화 규칙을 명시하고 실제 IP 기반 처리율 제한을 다시 검증해야 한다.
 
 ## Update (2026-04-26)
@@ -84,6 +85,11 @@
 
 - AWS 배포 기준을 폐기하고 단일 노트북 k3s를 운영 목표로 채택했다.
 - 이 ADR의 Nginx·Docker Compose 구성은 로컬 통합 검증과 복구 진단 범위로 한정하며, 운영 토폴로지와 미구현 항목은 ADR-0037을 따른다.
+
+## Update (2026-07-19)
+
+- 인증 SMS를 `PhoneVerificationSender`로 분리하고 인증 코드 저장 커밋 후 트랜잭션 밖에서 발송하도록 정했다.
+- `deploy/k3s`에 단일 노드 manifest, TLS ingress, 비공개 관리 포트, secret·이미지·rollout·rollback, off-device 암호화 백업과 복원 절차를 구현했다.
 
 ## 참고
 

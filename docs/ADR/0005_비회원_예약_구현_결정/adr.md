@@ -39,29 +39,31 @@
 
 ---
 
-## 결정 3 — access_token을 bookings 컬럼으로 관리
+## 결정 3 — 접근 토큰 해시를 bookings 컬럼으로 관리
 
-**선택**: V3 마이그레이션으로 `bookings.access_token VARCHAR(64)` 컬럼 추가
+**선택**: 비회원 예약의 신규 접근 토큰은 HMAC-SHA256 서명과 만료 시각을 포함하고, `bookings.access_token_hash`에는 nonce의 SHA-256 해시만 저장한다. 결제 confirm 응답 유실 뒤 동일 요청을 재현하기 위해 원문 토큰은 `payment_attempt.fulfilled_access_token_enc`에 AES-GCM 암호문으로 저장한다.
 
 **이유**:
 - 비회원 조회는 항상 booking과 1:1 관계 → 별도 테이블 불필요
-- `findDetailByIdAndAccessToken` 단일 fetch join 쿼리로 bookingId + token 동시 검증과 상세 연관 조회를 수행한다.
+- 애플리케이션에서 요청 토큰을 해시한 뒤 `findDetailByIdAndAccessTokenHash` 단일 fetch join 쿼리로 bookingId + token 동시 검증과 상세 연관 조회를 수행한다.
 - UNIQUE 인덱스로 충돌 방지
 
-**형식**: `UUID.randomUUID().toString().replace("-", "")` → 32자 hex 문자열 (VARCHAR 64 안에 여유)
+**형식**: 신규 토큰은 `base64url(nonce:expiry).base64url(signature)` 형식이다. 서명 없는 32자 hex 토큰은 기존 데이터 조회용 SHA-256 폴백으로만 유지한다. 현재 발급·검증 기준은 ADR-0024를 따른다.
 
 ---
 
-## 결정 4 — MVP에서 인증 코드를 응답에 포함
+## 결정 4 — 인증 코드는 전용 SMS 경계로 발송한다
 
-**선택**: `SendVerificationResponse`에 `code` 필드 포함
+**선택**: 운영은 NHN Cloud SMS 기반 `PhoneVerificationSender`, 비운영은 코드 원문을 노출하지 않는 fake sender를 사용한다.
 
 **이유**:
-- 실제 SMS 발송 연동 전 개발/테스트 가능
-- 사용자 합의 (2026-02-22)
+- 인증 코드를 API 응답과 로그에서 제거한다.
+- 비회원 주문·예약과 회원가입 휴대폰 소유 확인이 같은 발급·만료·소비 정책을 사용한다.
+- 개발/테스트에서 코드 확인이 필요하면 local 전용 관리자 API로 암호문을 복호화한다.
 
-**위험**: 프로덕션 배포 전 반드시 제거해야 함.
-`SendVerificationResponse.code` 필드와 `SendVerificationResponse.from()` 팩토리에서 code 반환 제거 필요.
+**트레이드오프**: SMS 장애 시 인증 코드 발급 API는 `503 SERVICE_UNAVAILABLE`을 반환하며, 저장과 외부 발송의 실패 경계를 별도로 관리해야 한다.
+
+**실행 순서**: 인증 코드는 짧은 `REQUIRES_NEW` 트랜잭션으로 먼저 커밋하고 SMS는 활성 트랜잭션 없이 호출한다. NHN이 발송 요청을 정상 접수한 뒤 상위 트랜잭션 롤백으로 코드가 사라지는 경우를 막는다. 요청 실패 시 저장된 코드는 `delivered=false`로 남아 인증에 사용할 수 없고 클라이언트는 `503`을 받는다. 접수 성공 기록은 ID로 행을 잠금 재조회한 뒤 수행하고, 현재 ID보다 이전인 미소모 코드만 무효화한다. 따라서 먼저 발급한 요청의 접수 완료가 늦게 돌아와도 최신 발급 코드를 되살리거나 폐기하지 않는다. 가입·주문·예약에서의 코드 소비도 비관적 잠금으로 한 번만 허용한다.
 
 ---
 

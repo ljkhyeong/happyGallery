@@ -222,7 +222,7 @@
 
 ### 8.1 고객 인증 (U1 구현 완료)
 
-- `POST /api/v1/auth/signup` — 이메일/비밀번호/이름/전화번호, 201 + HttpOnly 쿠키
+- `POST /api/v1/auth/signup` — 이메일/비밀번호/이름/전화번호/SMS 인증 코드, 소유권 확인 성공 시 `phoneVerified=true`, 201 + HttpOnly 쿠키
 - `POST /api/v1/auth/login` — 이메일/비밀번호, 200 + HttpOnly 쿠키
 - `POST /api/v1/auth/logout` — 204 + 쿠키 삭제
 - `GET /api/v1/me` — 로그인 필수, 200 `{id, email, name, phone, phoneVerified}`
@@ -290,10 +290,10 @@
 
 ## 10. 당시 범위 밖과 현재 반영 상태
 
-- 장바구니: 현재 구현됨. 다만 `POST /api/v1/me/cart/checkout`은 결제 API 우회 경로라 `plan.md`의 `P1R-T1`에서 전환 또는 별도 계약 분리가 필요하다.
+- 장바구니: 현재 구현됨. 결제는 `POST /api/v1/payments/prepare`의 `ORDER`, `cartCheckout=true`로 시작하고 표준 confirm 경로에서 주문 생성과 결제 수량 차감을 함께 완료한다.
 - 리뷰/별점: 미구현.
 - Q&A: Product Q&A와 1:1 문의는 현재 구현됨.
-- 소셜 로그인: Google과 Naver 로그인을 지원하며, 서버 세션에 저장한 provider별 `state`를 콜백에서 1회 검증한다.
+- 소셜 로그인: Google과 Naver 로그인을 지원하며, 서버 세션에 저장한 provider별 `state`와 exact redirect URI를 코드 교환 요청에서 함께 1회 검증하고 소비한다.
 - 네이버페이/스마트스토어 API 연동
 - 쿠폰/적립금/찜
 - 상품 이미지 CMS

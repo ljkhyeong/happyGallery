@@ -159,7 +159,7 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 - 휴대폰 인증과 비회원 결제 payload의 표준 전화번호 형식은 `^01[0-9]{8,9}$`이다.
 - 서버 로그에는 전화번호, 인증 코드, 결제 키, 관리자 세션 토큰과 외부 서비스 오류 원문을 남기지 않는다.
 - 모든 `/api/v1/**` 요청은 IP 기준 기본 처리율 제한을 적용하고, 인증·결제·검증처럼 비용이 큰 경로는 더 엄격한 독립 버킷을 사용한다.
-- 인증 코드 발송, 결제 확정, 비회원 이력 인증과 장바구니 주문 생성은 검증된 전화번호·주문번호·회원 ID 기준 제한도 함께 적용한다.
+- 인증 코드 발송·회원가입 코드 시도, 결제 확정과 비회원 이력 인증은 검증된 전화번호·주문번호·회원 ID 기준 제한도 함께 적용한다.
 - Redis 처리율 제한 버킷은 IP, 전화번호, 주문번호 또는 회원 ID 원문 대신 HMAC 식별자를 사용한다.
 - 제한 초과는 `429 TOO_MANY_REQUESTS`와 `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` 헤더를 반환한다.
 - Redis 장애 시 일반 API와 결제 확정은 제한만 건너뛰며, 인증·관리·결제 준비·비밀번호 확인과 비용이 큰 쓰기 API는 `503 SERVICE_UNAVAILABLE`, `Retry-After: 1`을 반환한다.
@@ -456,8 +456,11 @@ POST /api/v1/bookings/phone-verifications
 - 성공: `200 OK`
 - 에러:
   - `400 INVALID_INPUT` — 전화번호 형식 불일치 (`^01[0-9]{8,9}$`)
+  - `503 SERVICE_UNAVAILABLE` — 인증 코드를 저장했지만 SMS 발송이 실패하거나 발송 실행기가 요청을 수용하지 못함
 - 정책:
   - 인증 코드는 응답과 서버 로그에 포함하지 않는다.
+  - 인증 코드는 독립 트랜잭션으로 먼저 저장하고 외부 SMS는 트랜잭션 밖에서 호출한다. NHN이 발송 요청을 정상 접수했다고 기록된 코드만 인증에 사용할 수 있다.
+  - 발송 요청 실패 응답 뒤 재요청하면 새 코드를 발급한다. 발급 ID가 더 큰 코드의 접수 완료만 같은 전화번호의 이전 미소모 코드를 무효화하며, 이전 요청의 접수 완료가 늦게 돌아와도 최신 코드 상태를 덮지 않는다.
   - 개발/테스트 환경에서는 `GET /api/v1/admin/dev/phone-verifications/latest?phone=` 로 코드를 조회할 수 있다.
 
 #### ~~2.4.2 게스트 예약 생성~~ (2026-04-22 제거)
@@ -1232,7 +1235,43 @@ Authorization: Bearer {token}
 - 소셜 로그인으로 새로 생성된 회원은 `password_hash`가 비어 있을 수 있다.
 - 이메일은 앞뒤 공백을 제거한 소문자, 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일한다. 응답에는 복호화한 값을 반환한다.
 
-#### 2.12.0.1 소셜 로그인 URL 발급
+#### 2.12.0.1 이메일 회원가입
+
+```http
+POST /api/v1/auth/signup
+
+{
+  "email": "member@example.com",
+  "password": "password123",
+  "name": "홍길동",
+  "phone": "01012345678",
+  "verificationCode": "483921"
+}
+```
+
+```json
+{
+  "id": 7,
+  "email": "member@example.com",
+  "name": "홍길동",
+  "phone": "01012345678",
+  "phoneVerified": true
+}
+```
+
+- 성공: `201 Created`, `HG_SESSION` HttpOnly 쿠키 발급
+- 에러:
+  - `400 INVALID_INPUT` — 요청 형식 불일치
+  - `400 PHONE_VERIFICATION_FAILED` — 같은 전화번호의 미소모·유효 인증 코드가 아님
+  - `409 EMAIL_ALREADY_EXISTS` — 이미 가입한 이메일
+  - `429 TOO_MANY_REQUESTS` — 회원가입 처리율 제한 초과
+- 정책:
+  - 인증 코드 발급은 2.4.1을 사용한다.
+  - 회원 저장과 인증 코드 1회 소모를 같은 트랜잭션에서 처리하며 성공한 회원은 `phoneVerified=true`다.
+  - 같은 전화번호의 회원가입 인증 코드 시도는 5회/10분으로 제한한다.
+  - 로그인 성공과 동일하게 세션 ID를 회전한다.
+
+#### 2.12.0.2 소셜 로그인 URL 발급
 
 ```http
 GET /api/v1/auth/social/{provider}/url?redirectUri=https://www.happygallery.com/auth/callback/{provider}
@@ -1250,13 +1289,14 @@ GET /api/v1/auth/social/{provider}/url?redirectUri=https://www.happygallery.com/
 - 성공: `200 OK`
 - 응답 헤더: `Cache-Control: no-store`
 - 에러:
-  - `400 INVALID_INPUT` — 지원하지 않는 provider 또는 `redirectUri` 누락
+  - `400 INVALID_INPUT` — 지원하지 않는 provider, `redirectUri` 누락 또는 provider별 허용 callback URI와 불일치
   - `429 TOO_MANY_REQUESTS` — URL 발급 IP 버킷 분당 10회 초과
 - 정책:
-  - 서버는 발급한 `state`를 현재 세션의 provider별 값으로 저장한다.
+  - 서버는 `redirectUri`가 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI`와 정확히 일치하는지 검증한다.
+  - 서버는 발급한 `state`와 검증된 `redirectUri`를 현재 세션의 provider별 값으로 함께 저장한다.
   - 브라우저나 중간 캐시가 이전 세션의 `state`를 재사용하지 않도록 응답 캐시를 금지한다.
 
-#### 2.12.0.2 소셜 로그인 코드 교환
+#### 2.12.0.3 소셜 로그인 코드 교환
 
 ```http
 POST /api/v1/auth/social/{provider}
@@ -1288,7 +1328,7 @@ POST /api/v1/auth/social/{provider}
   - `409 CONFLICT` — `SOCIAL_ACCOUNT_LINK_REQUIRED` (소셜 이메일이 기존 회원과 겹쳐 명시적 연결이 필요함)
   - `429 TOO_MANY_REQUESTS` — 분당 10회 초과
 - 정책:
-  - 요청의 `state`는 URL 발급 시 서버 세션에 저장한 같은 provider의 값과 일치해야 하며, 검증 후 제거한다.
+  - 요청의 `state`, `redirectUri`는 URL 발급 시 서버 세션에 저장한 같은 provider의 값과 모두 일치해야 하며, 검증 후 함께 제거한다.
   - Google과 Naver 모두 `state`가 필수다. 누락 요청은 형식 검증에서 거절하고, 불일치·재사용 요청은 `SOCIAL_LOGIN_FAILED`로 거절한다.
   - 성공 시 일반 회원 로그인과 동일하게 세션 ID를 회전하고 `HG_SESSION`을 시작한다.
   - 성공 후 기존 CSRF 토큰이 폐기되므로 클라이언트는 새 CSRF 토큰을 발급받는다.
@@ -1417,15 +1457,13 @@ Cookie: HG_SESSION={sessionToken}
   - 응답: `200 OK` 본문 없음
 - `DELETE /api/v1/me/cart/items/{productId}`
   - 응답: `204 No Content`
-- `POST /api/v1/me/cart/checkout`
-  - 응답: 회원 주문 생성 응답(`MyOrderSummary`)과 동일
-  - 현재 결제 API 우회 경로다. `plan.md`의 `P1R-T1`에서 Toss `prepare/confirm` 경로로 전환하거나 명시적 후불 계약으로 분리한다.
+- 장바구니 결제는 별도 checkout API를 두지 않는다. `POST /api/v1/payments/prepare`에 `context=ORDER`, `payload.userId`, `payload.cartCheckout=true`, `payload.items=[]`를 보내 시작한다.
 
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 장바구니는 회원 전용이며 `user_id + product_id` 단위로 중복 없이 관리한다.
 - 상품이 `ACTIVE`가 아니거나 재고가 없으면 `available=false`로 표시되며, checkout 시 구매 가능한 항목만 주문으로 전환한다.
-- checkout 성공 시 장바구니를 비운다.
+- 장바구니 prepare는 구매 가능한 항목만 서버에서 선택하고, confirm 성공 시 prepare에서 확정한 수량만 차감한다. 결제 진행 중 추가한 같은 상품 수량과 다른 상품은 유지한다.
 
 #### 2.12.7 회원 알림함
 
@@ -1519,7 +1557,7 @@ POST /api/v1/products/{productId}/qna/{id}/verify
 주문/예약/8회권의 표준 결제 생성 경로는 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm`이다.
 서버가 `prepare` 단계에서 `orderId(UUID)`와 `amount`를 확정해 `payment_attempt` 레코드(`PENDING`)로 저장하고,
 프론트가 Toss 결제창을 통과한 뒤 `confirm`이 동일 `amount` 일치를 강제한 뒤 도메인 저장(주문/예약/8회권)을 수행한다.
-회원 장바구니 checkout 등 남은 우회 경로는 `plan.md`의 `P1R-T1` 후속 작업으로 닫는다.
+회원 장바구니도 같은 prepare/confirm 경로를 사용한다.
 
 회원/비회원 구분은 요청 본문이 아니라 인증 컨텍스트(`HG_SESSION` 쿠키 유무)로 결정한다.
 8회권 사용 예약처럼 amount가 0이면 응답된 `amount=0`을 보고 프론트가 PG 호출 없이 `confirm`을 직접 호출한다.
@@ -1564,6 +1602,7 @@ Content-Type: application/json
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
   - 서버는 prepare 시점의 `ORDER` 항목 단가, `BOOKING` 예약금·잔금, `PASS` 총 가격을 내부 payload로 저장한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장한다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
+  - 회원 장바구니는 `cartCheckout=true`를 지정한다. 이때 서버는 클라이언트의 `items`를 사용하지 않고 장바구니에서 구매 가능한 항목을 확정한다.
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
   - prepare 응답의 `orderId`는 Toss 결제창에 그대로 전달한다.
 
@@ -1578,6 +1617,14 @@ Content-Type: application/json
   "verificationCode": "483921",
   "name": "홍길동",
   "items": [{ "productId": 1, "qty": 2 }]
+}
+
+// ORDER (회원 장바구니)
+{
+  "type": "ORDER",
+  "userId": 7,
+  "items": [],
+  "cartCheckout": true
 }
 
 // BOOKING (예약금 결제)
@@ -1642,15 +1689,16 @@ Content-Type: application/json
 - 정책:
   - `paymentKey`는 amount > 0 결제만 필수다. 8회권 사용 예약처럼 `payment_attempt.amount=0`인 경우 `paymentKey`는 비워서 보내고 PG 호출은 생략된다.
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
-  - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다.
+  - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 새 processing token과 함께 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다. stale 재선점 뒤 이전 token으로 도착한 결과는 상태에 반영하지 않는다.
   - Toss `Idempotency-Key`는 prepare에서 생성한 `orderId`를 사용하며 같은 결제 재시도에서 변경하지 않는다.
   - Toss 승인 응답의 `paymentKey`, `orderId`는 confirm 요청값과 모두 같아야 한다. 다르면 성공으로 저장하지 않고 같은 멱등키로 재확인 가능한 실패로 처리한다.
   - PG 성공은 별도 트랜잭션으로 `APPROVED`에 저장하고, 이후 도메인 저장과 `CONFIRMED` 전이는 한 트랜잭션으로 처리한다.
+  - 이미 `CONFIRMED`인 결제를 같은 인증 주체·금액·paymentKey로 재호출하면 PG와 도메인 생성을 반복하지 않고 최초 `context`, `domainId`, `accessToken`을 그대로 반환한다.
   - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다.
-  - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다.
+  - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다. amount=0 내부 승인 실패는 외부 결제가 없으므로 보상 환불을 만들지 않는다.
   - confirm 요청 `paymentKey`는 `payment_attempt.payment_key`, PG 승인 응답의 `paymentKey`는 `payment_attempt.confirmed_payment_key`와 생성된 도메인 레코드의 `payment_key`에 저장한다. 이후 환불은 승인 응답의 `paymentKey`를 PG cancel 호출의 원결제 식별자로 사용한다.
   - 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장한다. 자동·수동 재처리는 `refunds.payment_key`와 최초 `idempotency_key`를 다시 사용한다.
-  - 비회원 경로의 `accessToken`(32자 hex)은 confirm 응답에서 1회만 반환되며 DB에는 SHA-256 해시만 저장된다. 회원 경로는 `accessToken=null`.
+  - 비회원 경로의 신규 `accessToken`은 HMAC-SHA256 서명과 기본 7일 만료 시각을 포함한다. 주문·예약에는 nonce의 SHA-256 해시만 저장하며, 서명 없는 32자 hex 토큰은 기존 데이터 조회용 폴백으로만 허용한다. 응답 유실 뒤 동일 confirm 재호출을 위해 원문 토큰은 `payment_attempt`에 AES-GCM 암호문으로 저장한다. 회원 경로는 `accessToken=null`.
   - `domainId`는 context에 따라 `orderId`(`ORDER`), `bookingId`(`BOOKING`), `passId`(`PASS`)다.
   - 비회원 휴대폰 인증 실패는 confirm 단계에서 fulfillment가 호출하는 `VerifiedGuestResolver`가 던지는 `400 PHONE_VERIFICATION_FAILED`로 매핑된다.
 
@@ -1739,7 +1787,7 @@ Content-Type: application/json
 | 422 | `PAYMENT_METHOD_NOT_ALLOWED` | 계좌이체(`BANK_TRANSFER`)로 예약금 결제 시도 |
 | 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 거절 (서킷 브레이커 OPEN/타임아웃 포함) |
-| 503 | `SERVICE_UNAVAILABLE` | fail-closed 처리율 제한 경로에서 Redis를 사용할 수 없음 |
+| 503 | `SERVICE_UNAVAILABLE` | fail-closed 처리율 제한 저장소 장애 또는 인증 SMS 등 필수 외부 작업을 시작·완료할 수 없음 |
 
 ---
 

@@ -21,6 +21,7 @@
 - 온라인/오프라인 충돌을 운영 정책(승인/거절/환불)로 흡수하면서도,
 - 고객 경험(예약, 알림, 환불 규칙)을 일관되게 제공한다.
 - 회원 인증은 이메일/비밀번호와 Google, Naver 소셜 로그인을 함께 지원한다. 소셜로 처음 가입한 사용자는 이후 전화번호를 보완한다.
+- 이메일 회원가입은 가입 전에 SMS 인증 코드를 발급받아 같은 전화번호와 코드로 소유권을 확인해야 하며, 성공한 회원은 `phoneVerified=true`로 저장한다.
 
 ---
 
@@ -42,7 +43,7 @@
   - 회원 주문은 추가 토큰 없이 세션 기반으로 조회한다.
   - 비회원 주문은 confirm 응답으로 받은 접근 토큰(`X-Access-Token` 헤더)으로 조회한다.
   - `orders` 레코드는 `user_id`, `guest_id` 중 정확히 하나만 가지며 DB `CHECK` 제약으로 강제한다.
-- 회원은 장바구니에 여러 상품을 담아 한 번에 주문으로 전환할 수 있다. 현재 `POST /api/v1/me/cart/checkout`은 결제 API 우회 경로로 남아 있으며 `plan.md`의 `P1R-T1`에서 결제 API로 전환하거나 별도 후불 계약으로 분리한다.
+- 회원은 장바구니에 여러 상품을 담아 `/api/v1/payments/prepare`의 `ORDER` payload에 `cartCheckout=true`를 지정해 한 번에 결제한다. 서버는 클라이언트가 보낸 항목 대신 현재 장바구니의 구매 가능한 행 ID·수량·단가를 확정하고, confirm 성공 시 그 행의 결제 수량만 잠금 차감한다. prepare 뒤 삭제하고 다시 담은 새 행은 과거 결제로 제거하지 않는다.
 - 재고는 온라인/오프라인 **하나로 공유**한다.
 - 재고 차감 타이밍: **결제 완료 시 즉시 차감**
 - 오프라인 우선권:
@@ -179,6 +180,7 @@
 - 수신자 조회 실패처럼 실제 발송 채널을 시도하기 전 실패한 알림은 `notification_log`에 `SYSTEM` 채널의 `FAILED` 이력으로 남기고, 발송 재시도 배치 대상에는 포함하지 않는다.
 - 일반 알림 요청은 도메인 트랜잭션 안에서 `notification_outbox`에 먼저 저장하고, 커밋 이후 별도 dispatcher가 발송한다. 발송 결과는 기존처럼 `notification_log`에 남긴다.
 - 카카오·SMS 외부 호출은 채널별 서킷 브레이커와 제한 큐 timeout executor로 보호한다. 발송 결과 `false`도 장애 호출로 집계하며, 대기열 포화는 즉시 해당 채널 실패로 처리해 fallback/outbox 복구 흐름을 유지한다.
+- 휴대폰 인증 SMS는 사용자 요청의 즉시 성공·실패를 알려야 하므로 outbox를 사용하지 않고, 인증 코드 저장을 먼저 커밋한 뒤 같은 SMS 장애 격리 경계로 발송한다.
 - `notification_outbox`와 `notification_log`는 회원 또는 비회원 수신자 중 정확히 하나만 가진다.
 - 발송 이벤트:
     - 예약 완료, 예약 변경
@@ -193,18 +195,20 @@
 - 휴대폰 번호는 입력의 공백과 하이픈을 제거한 국내 휴대폰 숫자 형식(`^01[0-9]{8,9}$`)으로 통일해 저장·검색·외부 발송에 사용한다.
 - 회원 이메일·이름·전화번호와 비회원 이름·전화번호는 평문 컬럼을 두지 않는다. 표시가 필요한 값은 AES-GCM 암호문, 정확 일치 검색은 HMAC 인덱스를 사용한다.
 - 소셜 제공자 식별자는 원문 대신 제공자별 HMAC으로 저장하고 정확 일치 로그인에만 사용한다.
+- 소셜 로그인 callback URI는 provider별 운영 설정과 정확히 일치해야 하며, URL 발급 시 `state`와 함께 서버 세션에 저장해 코드 교환 요청과 교차 검증한다.
 - 휴대폰 인증 번호와 인증 코드는 각각 HMAC으로 검증하며, 로컬 조회가 필요한 인증 코드만 암호문으로 저장한다. 인증정보 원문은 로그에 남기지 않는다.
+- 인증 코드는 DB에 먼저 확정한 뒤 트랜잭션 밖에서 NHN Cloud 인증용 SMS API로 발송 요청한다. NHN이 요청을 정상 접수했다고 기록된 코드만 사용할 수 있고, 더 나중에 발급한 코드의 접수 완료가 이전 미소모 코드만 무효화한다. 늦게 끝난 이전 요청의 접수 완료는 최신 코드 상태를 덮지 않는다. 발송 요청 실패는 `503`으로 알리며, 소비는 가입·비회원 주문·예약 트랜잭션 안에서 잠금 후 한 번만 허용한다.
 - 비회원 이름·전화번호·인증 코드가 포함될 수 있는 결제 준비 payload는 `payment_attempt.payload_enc`에 암호문으로 저장한다.
 - 관리자 주문·예약 키워드 검색은 주문·예약 번호 부분 일치와 이름 정확 일치를 지원한다. 암호화된 이름의 부분 검색은 제공하지 않는다.
 - Redis 처리율 제한 키에는 IP나 관리자 토큰 원문을 쓰지 않는다. 관리자 세션은 토큰 HMAC을 Redis 키로, 세션 JSON 암호문을 값으로 저장한다.
 - 비회원 예약/주문은 휴대폰 인증(문자 코드) 필수
-- 비회원 예약/주문 생성 시 접근 토큰(32자 hex)을 1회 발급하고, DB에는 SHA-256 해시만 저장한다 ([ADR-0024](../../ADR/0024_비회원_토큰_강화/adr.md))
+- 비회원 예약/주문의 신규 접근 토큰은 HMAC-SHA256 서명과 만료 시각을 포함한다. 주문·예약에는 nonce의 SHA-256 해시만 저장하고, 서명 없는 32자 hex 토큰은 기존 데이터 조회용 폴백으로만 허용한다. 동일 confirm 재호출에 같은 토큰을 반환하기 위한 원문은 `payment_attempt`에 AES-GCM 암호문으로 저장한다 ([ADR-0024](../../ADR/0024_비회원_토큰_강화/adr.md), [ADR-0033](../../ADR/0033_결제_confirm_트랜잭션과_보상_경계/adr.md)).
 - 동일 `phone_hmac`은 하나의 비회원 이력 소유자만 식별하며, 동시 요청에서도 기존 Guest를 원자적으로 재사용한다.
 - 조회/변경/취소는 `X-Access-Token` 헤더로 토큰 전달 (URL 노출 방지)
 - 동일 전화번호로 동일 슬롯 중복 예약은 방지
 
 ## 8.1 결제 진입점 (prepare/confirm)
-- 표준 결제 생성 경로는 모든 도메인(`ORDER`, `BOOKING`, `PASS`)에서 `/api/v1/payments/prepare` → `/api/v1/payments/confirm` 단일 진입점을 사용한다. 회원 장바구니 checkout 등 남은 우회 경로는 `plan.md`의 `P1R-T1` 후속 작업으로 닫는다.
+- 표준 결제 생성 경로는 모든 도메인(`ORDER`, `BOOKING`, `PASS`)과 회원 장바구니에서 `/api/v1/payments/prepare` → `/api/v1/payments/confirm` 단일 진입점을 사용한다.
 - prepare 단계에서 서버가 `orderId(UUID)`와 `amount`를 확정해 `payment_attempt`(`PENDING`)로 저장한다. 클라이언트가 보낸 amount는 신뢰하지 않는다.
 - 산출 규칙:
     - 주문: 상품을 한 번에 조회해 항목별 `productId.price × qty` 합계를 계산하고, 서버가 확정한 항목 단가를 결제 시도 payload에 함께 저장한다.
@@ -212,10 +216,11 @@
     - 8회권: `app.pass.total-price` 환경 변수 (`PASS_TOTAL_PRICE`, 기본 240,000원); 확정 가격을 결제 시도 payload에 저장한다.
 - confirm 단계에서 PG `paymentKey`와 `amount`가 prepare 시점 amount와 다르면 거절한다.
 - 주문·예약·8회권 confirm은 현재 가격을 다시 계산하지 않고 prepare 시점에 저장한 가격 스냅샷으로 도메인을 생성한다. 저장된 결제 금액이 `payment_attempt.amount`와 다르면 PG 호출 전에 거절한다.
-- confirm은 결제 시도를 `PROCESSING`으로 선점한 뒤 DB 트랜잭션 밖에서 PG를 호출한다. 동시 요청은 한 건만 PG 호출을 수행한다.
+- confirm은 결제 시도를 새 processing token과 함께 `PROCESSING`으로 선점한 뒤 DB 트랜잭션 밖에서 PG를 호출한다. 동시 요청은 한 건만 PG 호출을 수행하며, stale 재선점 뒤 이전 token으로 도착한 PG 결과는 저장하지 않는다. 이전 요청은 최신 완료 결과만 다시 읽으며 같은 요청 안에서 PG를 재호출하지 않는다.
+- `CONFIRMED` 결제는 최종 도메인 ID와 비회원 접근 토큰 암호문을 보존한다. 같은 사용자·금액·paymentKey로 confirm을 재호출하면 PG나 도메인 생성을 반복하지 않고 같은 결과를 반환한다.
 - Toss confirm은 prepare의 `orderId`를 멱등키로 사용한다. 일시 실패는 `RETRYABLE`, 최종 거절은 `FAILED`로 별도 트랜잭션에 저장한다.
 - Toss 승인 응답의 `paymentKey`, `orderId`가 요청값과 다르면 성공으로 수용하지 않고 같은 멱등키로 재확인할 수 있는 `RETRYABLE`로 처리한다.
-- 8회권 사용 예약은 prepare에서 `amount=0`을 받고 PG 호출 없이 confirm을 직접 호출한다.
+- 8회권 사용 예약은 prepare에서 `amount=0`을 받고 PG 호출 없이 confirm을 직접 호출한다. 도메인 생성 실패는 `FAILED`로 기록하며 외부 결제가 없으므로 보상 환불을 만들지 않는다.
 - confirm 요청 `paymentKey`는 `payment_attempt.payment_key`, PG 승인 응답의 `paymentKey`는 `payment_attempt.confirmed_payment_key`와 생성된 주문/예약/8회권의 `payment_key`에 저장한다. 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장하며, 8회권 환불은 `refunds.pass_purchase_id`로 추적한다. PG 환불 호출은 환불 요청을 만든 부모 트랜잭션이 커밋된 뒤 별도 executor에서 실행한다. 실행되지 못한 `REQUESTED`, 재시도 시각이 지난 `RETRYABLE`·`RECONCILIATION_REQUIRED`, 1분 이상 멈춘 `PROCESSING`은 매분 최대 10건씩 자동 복구한다.
 - PG 승인 후 도메인 생성이 실패하면 `refunds.payment_attempt_id`로 보상 환불을 남긴다. 보상 환불의 일시 실패와 결과 불명 상태에서는 결제 시도를 `COMPENSATION_REQUESTED`로 유지하고, 명시적 최종 실패만 `COMPENSATION_FAILED`로 전이한다. 모든 환불 재처리는 최초 `refunds.idempotency_key`를 재사용한다.
 - 주문·예약·8회권·결제 시도 원본은 각각 환불 요청 한 건만 가지며, 재시도는 새 이력을 만들지 않고 기존 환불 행과 멱등키를 사용한다.

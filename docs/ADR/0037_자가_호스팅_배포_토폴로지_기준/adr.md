@@ -1,6 +1,7 @@
 # ADR-0037: 자가 호스팅 배포 토폴로지 기준
 
 **날짜**: 2026-07-18
+**최종 갱신**: 2026-07-19
 **상태**: Accepted
 
 ---
@@ -9,7 +10,7 @@
 
 기존 운영 기준은 CloudFront, S3, ALB, ECS Fargate, RDS와 ElastiCache를 조합한 AWS 배포였다. 현재는 비용과 운영 통제 범위를 다시 정리하면서 AWS 배포를 폐기하고, 소유한 단일 노트북에서 서비스를 자가 호스팅하기로 했다.
 
-저장소에는 로컬 통합 실행을 위한 `docker-compose.yml`과 Nginx 설정이 있지만 Kubernetes manifest는 아직 없다. 현재 Compose는 `local` 프로필, 개발용 기본값과 MySQL/Redis 호스트 포트를 사용하므로 그대로 운영 배포로 간주할 수 없다. 이 ADR은 목표 토폴로지와 운영 불변 조건을 정하며, 실제 운영 배포가 완료됐다는 의미는 아니다.
+결정 당시 저장소에는 로컬 통합 실행을 위한 `docker-compose.yml`과 Nginx 설정만 있었다. 현재 Compose는 `local` 프로필, 개발용 기본값과 MySQL/Redis 호스트 포트를 사용하므로 그대로 운영 배포로 간주할 수 없다. 이 ADR은 목표 토폴로지와 운영 불변 조건을 정하며, 저장소 산출물이 실제 노트북 운영 검증까지 완료됐다는 의미는 아니다.
 
 ## 결정
 
@@ -18,7 +19,7 @@
 - 운영 오케스트레이터는 단일 노트북에 설치한 단일 노드 k3s를 사용한다.
 - Docker Compose는 로컬 개발, 통합 검증과 Kubernetes 장애 시 복구 진단용으로만 유지한다. Compose 구성을 운영 기준으로 승격하지 않는다.
 - AWS의 CloudFront, S3, ALB, ECS Fargate, RDS, ElastiCache와 ECR은 현재 운영 토폴로지에서 제외한다.
-- Kubernetes manifest, 운영용 컨테이너 이미지 경로와 배포 절차가 저장소에 추가되기 전까지 자가 호스팅 운영은 `미구현` 상태로 본다.
+- Kubernetes manifest와 운영 절차는 `deploy/k3s`를 기준으로 관리한다. 실제 노트북에서 외부 경로와 복구 훈련을 통과하기 전까지는 `운영 중`으로 보지 않는다.
 
 ### 2. 외부 요청은 TLS ingress 한 곳으로만 받는다
 
@@ -80,16 +81,22 @@
 
 ## 현재 구현 상태와 남은 작업
 
-2026-07-18 기준으로 다음 항목은 아직 구현되지 않았다.
+2026-07-19 기준 `deploy/k3s`에 다음 산출물을 구현했다.
 
-- k3s namespace, Deployment, Service, Ingress와 PVC manifest
-- 운영 TLS 인증서, DNS, 공유기 포트 전달과 방화벽 설정
-- 운영 secret 생성·주입·교체 절차
-- 이미지 registry/import, rollout 검증과 rollback 절차
-- MySQL 백업, 외부 보관과 복원 훈련 절차
-- 공개 운영 주소와 가용성 모니터링
+- namespace, app/frontend/MySQL/Redis/Prometheus workload, ClusterIP Service, TLS Ingress와 MySQL Retain PVC
+- Traefik 전달 헤더 기준, ingress·Prometheus만 허용하는 Actuator NetworkPolicy
+- 저장소 밖 env에서 runtime Secret을 생성·교체하는 절차
+- commit SHA 이미지 build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback
+- `age` 암호화 off-device MySQL 백업, checksum·보존 정리, app 중지 후 복원·Redis 초기화 절차
 
-따라서 README와 운영 문서는 이 구성을 `운영 목표`로 표현하며, 위 항목이 구현·검증되기 전에는 운영 중이라고 표기하지 않는다.
+다음은 대상 노트북과 외부 환경에서만 완료할 수 있다.
+
+- k3s와 cert-manager 설치, DNS, 공유기 포트 전달, 호스트 방화벽과 실제 TLS 발급
+- 실제 외부 매체 또는 원격 mount 백업, 분리 보관한 age·필드 암호화 키로 복원 훈련
+- 외부 uptime 감시와 alert 수신자 연결, 전원·디스크·네트워크 장애 알림
+- 실제 브라우저의 세션·CSRF·OAuth·결제·SMS 핵심 흐름 검증과 공개 운영 주소 확정
+
+따라서 저장소 구성은 `배포 준비 완료`, 실제 서비스는 위 검증 전까지 `운영 미개시`로 표현한다.
 
 ## 결과
 
@@ -103,7 +110,7 @@
 
 - 단일 노트북과 가정용 네트워크 장애가 전체 장애가 된다.
 - TLS, DNS, 보안 패치, 백업, 복원과 하드웨어 관리를 직접 책임져야 한다.
-- Kubernetes manifest와 운영 자동화가 준비될 때까지 배포 가능한 운영 환경이 없다.
+- 실제 노트북의 외부 네트워크와 복원 절차를 직접 운영·검증해야 한다.
 
 ## 참고
 
@@ -112,3 +119,4 @@
 - [ADR-0028 1차 배포 준비](../0028_배포_준비_알림_연동_로그_마스킹/adr.md)
 - [ADR-0030 타임아웃 계층과 ingress keep-alive 기준선](../0030_타임아웃_계층과_ingress_keep_alive_기준선/adr.md)
 - [ADR-0036 개인정보 평문 제거와 블라인드 인덱스 기준](../0036_개인정보_평문_제거와_블라인드_인덱스_기준/adr.md)
+- [`deploy/k3s` 운영 절차](../../../deploy/k3s/README.md)

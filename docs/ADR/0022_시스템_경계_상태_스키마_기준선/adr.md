@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-07-17
+**갱신**: 2026-07-19
 
 ---
 
@@ -86,8 +86,9 @@
   - `id`, `name_enc`, `name_hmac`, `phone_enc`, `phone_hmac`, `phone_verified`, `created_at`
   - 비회원 이름·전화번호 평문 컬럼은 두지 않는다. 표시는 암호문 복호화, 동등 검색은 HMAC으로 처리한다.
 - `phone_verifications`
-  - `id`, `phone_hmac`, `code_hmac`, `code_enc`, `verified`, `expires_at`, `created_at`
+  - `id`, `phone_hmac`, `code_hmac`, `code_enc`, `delivered`, `verified`, `expires_at`, `created_at`
   - 전화번호와 인증 코드 평문은 저장하지 않는다. 인증은 전화번호와 코드의 HMAC으로 조회하고, 로컬 전용 코드 조회는 `code_enc`를 복호화한다.
+  - NHN이 발송 요청을 정상 접수해 `delivered=true`인 미소모·유효 코드만 인증할 수 있다. 발급 ID가 더 큰 코드의 접수 완료만 같은 번호의 이전 미소모 코드를 무효화하고, 늦게 끝난 이전 요청의 접수 완료는 폐기 상태를 되돌리지 않는다. 소비 조회는 비관적 잠금으로 한 번만 성공한다.
 
 #### 상품과 재고
 
@@ -95,8 +96,7 @@
   - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `category nullable`, `price`, `status(ACTIVE|INACTIVE)`
 - `inventory`
   - `product_id(PK/FK)`, `quantity`, `version`, `updated_at`
-- `made_to_order_spec`
-  - `product_id(FK)`, `lead_time_hint(optional)`, `refundable_until_state=IN_PRODUCTION`
+- 주문제작 여부는 별도 보조 테이블 없이 `products.type=MADE_TO_ORDER`로 판정한다.
 
 #### 주문과 이행
 
@@ -117,9 +117,11 @@
   - `status(REQUESTED|PROCESSING|RETRYABLE|RECONCILIATION_REQUIRED|SUCCEEDED|FAILED)`, `processing_at`, `processing_token`, `attempt_count`, `next_attempt_at`, `created_at`, `updated_at`, `version`
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
-  - `processing_at nullable`, `payment_key nullable`, `confirmed_payment_key nullable`, `fail_reason nullable`
-  - `payload_enc`, `created_at`, `confirmed_at nullable`, `version`
+  - `processing_at nullable`, `processing_token nullable`, `payment_key nullable`, `confirmed_payment_key nullable`, `fail_reason nullable`
+  - `payload_enc`, `fulfilled_domain_id nullable`, `fulfilled_access_token_enc nullable`, `created_at`, `confirmed_at nullable`, `version`
   - 내부 결제 payload는 AES-GCM 암호문으로 저장하고 claim·fulfillment 시점에만 복호화한다.
+  - confirm을 선점할 때마다 새 `processing_token`을 발급하고 현재 토큰 소유자의 PG 결과만 상태에 반영한다.
+  - `CONFIRMED` 결과의 도메인 ID와 비회원 접근 토큰 암호문을 저장해 동일 confirm 재호출에 같은 결과를 반환한다.
   - 상태: `PENDING | PROCESSING | RETRYABLE | APPROVED | CONFIRMED | FAILED | COMPENSATION_REQUESTED | COMPENSATION_FAILED | COMPENSATED | CANCELED`
 
 #### 클래스, 슬롯, 예약

@@ -72,7 +72,7 @@ spec.md 기반으로 MVP를 구현하기 위한 최초 DB 스키마가 필요했
 
 **부정 / 후속 작업**
 - `refunds`의 "둘 중 하나 non-null" 규칙이 DB 제약이 아닌 애플리케이션 로직에만 의존.
-- `made_to_order_spec`, 비회원 인증 토큰 테이블 등은 별도 마이그레이션으로 추가 예정.
+- 후속 구현에서는 별도 `made_to_order_spec` 테이블 없이 `products.type=MADE_TO_ORDER`와 주문 상태로 제작 흐름을 표현했다. 비회원 접근 토큰도 별도 테이블이 아니라 `orders.access_token`, `bookings.access_token`에 SHA-256 해시로 저장한다.
 - `slots.booked_count` 갱신 경로: `SlotCapacitySupport.reserveCapacity()`를 호출하는 단일 트랜잭션 안에서
   `SELECT FOR UPDATE` → `incrementBookedCount()` → save 순서로 확정 (→ ADR-0003).
 
