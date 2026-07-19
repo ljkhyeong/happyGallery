@@ -7,9 +7,10 @@ import com.personal.happygallery.domain.product.Product;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static java.util.stream.Collectors.toMap;
 
 /**
  * 회원 장바구니 주문 생성 조합 서비스.
@@ -41,7 +42,7 @@ public class DefaultOrderCreationService implements OrderCreationService {
                         .distinct()
                         .toList())
                 .stream()
-                .collect(Collectors.toMap(Product::getId, Function.identity()));
+                .collect(toMap(Product::getId, Function.identity()));
 
         return items.stream()
                 .map(item -> toOrderItem(item, productsById))

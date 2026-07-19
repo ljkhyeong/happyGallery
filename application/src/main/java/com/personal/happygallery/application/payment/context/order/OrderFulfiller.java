@@ -36,7 +36,7 @@ public class OrderFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    public void validateBeforePg(PaymentAttempt attempt, PaymentPayload payload) {
+    public void validateStoredPayload(PaymentAttempt attempt, PaymentPayload payload) {
         if (!(payload instanceof PreparedOrderPayload op)) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "주문 단가 정보가 없습니다. 결제를 다시 준비해 주세요.");

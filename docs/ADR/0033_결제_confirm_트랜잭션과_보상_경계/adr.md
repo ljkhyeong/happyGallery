@@ -42,7 +42,8 @@ Toss confirm은 활성 DB 트랜잭션이 없는 상태에서 호출한다.
 `PaymentConfirmTransactionService`의 각 변경은 `REQUIRES_NEW`로 실행한다. confirm 선점 조회에는
 비관적 쓰기 잠금을 사용한다. `PROCESSING`이 1분 이상 지속되면 같은 paymentKey 요청만 다시 선점할 수 있다.
 claim 단계에서 `PaymentPayload.userId()`와 현재 `AuthContext.userId()`를 공통 비교한다. 각
-`PaymentFulfiller.validateBeforePg()`는 컨텍스트별 payload 종류와 금액 불변식만 검증하고, fulfillment는
+`PaymentFulfiller.validateStoredPayload()`는 컨텍스트별 저장 payload 불변식을 검증하고, 주문은 저장된
+항목 단가 합계와 `PaymentAttempt.amount`까지 비교한다. fulfillment는
 현재 인증 정보를 다시 받지 않고 검증된 저장 payload의 `userId`를 사용한다. 비회원 연락처의 입력 형태는
 prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 fulfillment의 `VerifiedGuestResolver`가 담당한다.
 

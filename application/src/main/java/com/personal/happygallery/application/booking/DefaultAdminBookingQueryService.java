@@ -14,9 +14,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static java.util.stream.Collectors.toMap;
 
 @Service
 @Transactional(readOnly = true)
@@ -71,6 +72,6 @@ public class DefaultAdminBookingQueryService implements AdminBookingQueryUseCase
             return Map.of();
         }
         return userReaderPort.findAllById(userIds).stream()
-                .collect(Collectors.toMap(User::getId, Function.identity()));
+                .collect(toMap(User::getId, Function.identity()));
     }
 }

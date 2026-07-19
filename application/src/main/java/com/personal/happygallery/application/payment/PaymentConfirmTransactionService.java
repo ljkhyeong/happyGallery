@@ -69,20 +69,20 @@ class PaymentConfirmTransactionService {
         String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
         PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
         PaymentPayload payload = deserialize(attempt.getPayloadEnc());
-        fulfiller.validateBeforePg(attempt, payload);
+        fulfiller.validateStoredPayload(attempt, payload);
         requireSameActor(payload, command.auth());
 
         LocalDateTime now = LocalDateTime.now(clock);
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED) {
-            attempt.requireMatchingRequest(command.amount(), paymentKey);
+            attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
             return ClaimedAttempt.approved(attempt);
         }
         if (attempt.getStatus() == PaymentAttemptStatus.PROCESSING) {
-            attempt.requireMatchingRequest(command.amount(), paymentKey);
             if (!isStale(attempt, now)) {
+                attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
                 throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
             }
-            attempt.restartProcessing(paymentKey, now);
+            attempt.restartProcessing(command.amount(), paymentKey, now);
         } else {
             attempt.startProcessing(command.amount(), paymentKey, now);
         }

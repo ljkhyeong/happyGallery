@@ -34,7 +34,7 @@ public class BookingFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    public void validateBeforePg(PaymentAttempt attempt, PaymentPayload payload) {
+    public void validateStoredPayload(PaymentAttempt attempt, PaymentPayload payload) {
         if (!(payload instanceof BookingPayload bp)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "예약 결제 payload가 아닙니다.");
         }

@@ -18,9 +18,10 @@ import com.personal.happygallery.domain.user.PersonalName;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+
+import static java.util.stream.Collectors.toMap;
 
 @Component
 public class OrderPreparer implements PaymentPreparer {
@@ -68,7 +69,7 @@ public class OrderPreparer implements PaymentPreparer {
                         .distinct()
                         .toList())
                 .stream()
-                .collect(Collectors.toMap(Product::getId, Function.identity()));
+                .collect(toMap(Product::getId, Function.identity()));
         List<PreparedOrderItem> preparedItems = op.items().stream()
                 .map(item -> prepareItem(item, productsById))
                 .toList();

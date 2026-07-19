@@ -9,9 +9,10 @@ import com.personal.happygallery.domain.product.Product;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static java.util.stream.Collectors.toMap;
 
 @Service
 @Transactional(readOnly = true)
@@ -63,7 +64,7 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
         List<Long> productIds = products.stream().map(Product::getId).toList();
         Map<Long, Inventory> inventoryMap = inventoryReaderPort.findByProductIdIn(productIds)
                 .stream()
-                .collect(Collectors.toMap(Inventory::getProductId, Function.identity()));
+                .collect(toMap(Inventory::getProductId, Function.identity()));
 
         return products.stream()
                 .map(p -> {

@@ -18,6 +18,7 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Component
 public class V46__ProtectPlaintextPersonalData extends BaseJavaMigration {
@@ -138,7 +139,7 @@ public class V46__ProtectPlaintextPersonalData extends BaseJavaMigration {
                      """)) {
             while (result.next()) {
                 String providerId = result.getString("provider_id");
-                if (providerId == null || providerId.isBlank()) {
+                if (!StringUtils.hasText(providerId)) {
                     throw new IllegalStateException("소셜 식별자가 비어 있습니다. socialAccountId=" + result.getLong("id"));
                 }
                 rows.add(new SocialIdentityData(
@@ -151,7 +152,7 @@ public class V46__ProtectPlaintextPersonalData extends BaseJavaMigration {
     }
 
     private String protectPayload(String stored) {
-        if (stored == null || stored.isBlank()) {
+        if (!StringUtils.hasText(stored)) {
             throw new IllegalStateException("결제 준비 payload가 비어 있습니다.");
         }
         if (stored.stripLeading().startsWith("{")) {

@@ -28,7 +28,7 @@ public class PassFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    public void validateBeforePg(PaymentAttempt attempt, PaymentPayload payload) {
+    public void validateStoredPayload(PaymentAttempt attempt, PaymentPayload payload) {
         if (!(payload instanceof PassPayload pp)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 결제 payload가 아닙니다.");
         }

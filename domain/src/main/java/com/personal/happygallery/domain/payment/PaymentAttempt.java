@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
  * CONFIRMED 전이를 한 트랜잭션으로 완료한다.
  *
  * <p>서버가 orderId와 amount를 둘 다 쥐는 것이 핵심이다. 클라이언트가 금액을 속여도
- * prepare 시점의 amount와 confirm 시점에 들어온 amount가 다르면 {@link #requireConfirmable(long)}에서
+ * prepare 시점의 amount와 confirm 시점에 들어온 amount가 다르면 {@link #startProcessing(long, String, LocalDateTime)}에서
  * {@code 400 INVALID_INPUT}을 던진다.
  */
 @Entity
@@ -92,30 +92,22 @@ public class PaymentAttempt {
         return new PaymentAttempt(orderIdExternal, context, amount, payloadEnc);
     }
 
-    /**
-     * confirm 호출 직전 검증. PENDING 또는 RETRYABLE 상태여야 하고, 클라이언트가 전달한
-     * 금액이 prepare 시점에 저장된 amount와 일치해야 한다. 불일치 시 {@code 400 INVALID_INPUT}.
-     */
-    public void requireConfirmable(long expectedAmount) {
-        this.status.requireConfirmable();
-        requireAmount(expectedAmount);
-    }
-
-    /** 처리 중인 동일 요청을 판별할 때 상태와 무관하게 금액/paymentKey를 비교한다. */
-    public void requireMatchingRequest(long expectedAmount, String requestedPaymentKey) {
-        requireAmount(expectedAmount);
+    /** 기존 결제 시도와 동일한 confirm 요청인지 상태와 무관하게 금액/paymentKey를 비교한다. */
+    public void requireMatchingConfirmRequest(long requestedAmount, String requestedPaymentKey) {
+        requireRequestedAmount(requestedAmount);
         requireSamePaymentKey(requestedPaymentKey);
     }
 
-    private void requireAmount(long expectedAmount) {
-        if (this.amount != expectedAmount) {
+    private void requireRequestedAmount(long requestedAmount) {
+        if (this.amount != requestedAmount) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "결제 금액이 일치하지 않습니다.");
         }
     }
 
     /** confirm 실행권을 선점한다. PENDING/RETRYABLE → PROCESSING. */
-    public void startProcessing(long expectedAmount, String paymentKey, LocalDateTime processingAt) {
-        requireConfirmable(expectedAmount);
+    public void startProcessing(long requestedAmount, String paymentKey, LocalDateTime processingAt) {
+        status.requireConfirmable();
+        requireRequestedAmount(requestedAmount);
         requireSamePaymentKey(paymentKey);
         this.status = PaymentAttemptStatus.PROCESSING;
         this.paymentKey = paymentKey;
@@ -123,20 +115,21 @@ public class PaymentAttempt {
         this.failReason = null;
     }
 
-    /** 제한 시간을 넘긴 PROCESSING 요청을 동일 paymentKey로 다시 선점한다. */
-    public void restartProcessing(String paymentKey, LocalDateTime processingAt) {
+    /** 제한 시간을 넘긴 PROCESSING 요청을 동일 금액/paymentKey로 다시 선점한다. */
+    public void restartProcessing(long requestedAmount, String paymentKey, LocalDateTime processingAt) {
         requireStatus(PaymentAttemptStatus.PROCESSING);
-        requireSamePaymentKey(paymentKey);
+        requireMatchingConfirmRequest(requestedAmount, paymentKey);
         this.processingAt = processingAt;
     }
 
     /** PG 승인 또는 amount=0 내부 승인이 끝나 도메인 생성을 수행할 수 있다. */
     public void markApproved(String pgRef, LocalDateTime approvedAt) {
         requireStatus(PaymentAttemptStatus.PROCESSING);
-        if (amount > 0 && (pgRef == null || pgRef.isBlank())) {
+        boolean hasPgRef = pgRef != null && !pgRef.isBlank();
+        if (amount > 0 && !hasPgRef) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 승인 결과의 paymentKey가 누락되었습니다.");
         }
-        if (amount == 0 && pgRef != null && !pgRef.isBlank()) {
+        if (amount == 0 && hasPgRef) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "0원 결제에는 PG 승인 키를 저장할 수 없습니다.");
         }
         this.status = PaymentAttemptStatus.APPROVED;
@@ -207,13 +200,14 @@ public class PaymentAttempt {
     public long getVersion() { return version; }
 
     private void requireSamePaymentKey(String requestedPaymentKey) {
+        boolean hasRequestedPaymentKey = requestedPaymentKey != null && !requestedPaymentKey.isBlank();
         if (amount == 0) {
-            if (requestedPaymentKey != null && !requestedPaymentKey.isBlank()) {
+            if (hasRequestedPaymentKey) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "0원 결제에는 paymentKey를 사용할 수 없습니다.");
             }
             return;
         }
-        if (requestedPaymentKey == null || requestedPaymentKey.isBlank()) {
+        if (!hasRequestedPaymentKey) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "paymentKey가 누락되었습니다.");
         }
         if (paymentKey != null && !paymentKey.equals(requestedPaymentKey)) {

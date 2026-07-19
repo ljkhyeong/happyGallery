@@ -15,10 +15,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static java.util.stream.Collectors.toMap;
 
 @Service
 public class DefaultProductQnaService implements ProductQnaUseCase {
@@ -109,7 +110,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     private Map<Long, User> batchFetchUsers(List<ProductQna> qnaList) {
         List<Long> userIds = qnaList.stream().map(ProductQna::getUserId).distinct().toList();
         return userReader.findAllById(userIds).stream()
-                .collect(Collectors.toMap(User::getId, Function.identity()));
+                .collect(toMap(User::getId, Function.identity()));
     }
 
     private static String userName(Map<Long, User> userMap, Long userId) {
