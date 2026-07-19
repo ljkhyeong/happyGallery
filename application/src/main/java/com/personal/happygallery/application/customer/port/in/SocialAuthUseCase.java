@@ -5,14 +5,9 @@ import com.personal.happygallery.domain.user.SocialProvider;
 
 public interface SocialAuthUseCase {
 
-    record SocialLoginCommand(SocialProvider provider, String authorizationCode,
-                              String redirectUri, String state) {}
+    record SocialLoginCommand(SocialProvider provider, String providerId, String email, String name) {}
 
     record SocialLoginResult(User user, boolean newUser) {}
-
-    record AuthorizationUrlResult(String url, String state) {}
-
-    AuthorizationUrlResult buildAuthorizationUrl(SocialProvider provider, String redirectUri);
 
     SocialLoginResult socialLogin(SocialLoginCommand command);
 }

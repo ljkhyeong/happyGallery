@@ -18,9 +18,9 @@ GOOGLE_OAUTH_REDIRECT_URI=$(require_env_value GOOGLE_OAUTH_REDIRECT_URI "$releas
 NAVER_OAUTH_REDIRECT_URI=$(require_env_value NAVER_OAUTH_REDIRECT_URI "$release_env")
 export PUBLIC_HOST ACME_EMAIL APP_IMAGE FRONTEND_IMAGE APP_IMAGE_DIGEST FRONTEND_IMAGE_DIGEST IMAGE_TAG
 
-[ "$GOOGLE_OAUTH_REDIRECT_URI" = "https://$PUBLIC_HOST/auth/callback/google" ] \
+[ "$GOOGLE_OAUTH_REDIRECT_URI" = "https://$PUBLIC_HOST/api/v1/auth/social/callback/google" ] \
     || die "GOOGLE_OAUTH_REDIRECT_URI가 공개 host의 exact callback과 다릅니다."
-[ "$NAVER_OAUTH_REDIRECT_URI" = "https://$PUBLIC_HOST/auth/callback/naver" ] \
+[ "$NAVER_OAUTH_REDIRECT_URI" = "https://$PUBLIC_HOST/api/v1/auth/social/callback/naver" ] \
     || die "NAVER_OAUTH_REDIRECT_URI가 공개 host의 exact callback과 다릅니다."
 
 case "$APP_IMAGE" in

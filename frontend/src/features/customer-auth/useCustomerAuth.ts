@@ -1,7 +1,6 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, ApiError } from "@/shared/api";
+import { api } from "@/shared/api";
 import { normalizePhone } from "@/shared/validation/phone";
-import type { SocialProvider } from "@/features/customer-auth/socialAuth";
 
 interface CustomerUserResponse {
   id: number;
@@ -9,11 +8,6 @@ interface CustomerUserResponse {
   name: string;
   phone: string;
   phoneVerified: boolean;
-}
-
-interface SocialLoginResponse {
-  user: CustomerUserResponse;
-  newUser: boolean;
 }
 
 export interface CustomerUser {
@@ -36,12 +30,6 @@ interface CustomerAuthContextValue {
     phone: string,
     verificationCode: string,
   ) => Promise<boolean>;
-  socialLogin: (
-    provider: SocialProvider,
-    code: string,
-    redirectUri: string,
-    state: string,
-  ) => Promise<{ ok: boolean; newUser: boolean; errorCode?: string }>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -111,31 +99,6 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const socialLogin = useCallback(
-    async (
-      provider: SocialProvider,
-      code: string,
-      redirectUri: string,
-      state: string,
-    ): Promise<{ ok: boolean; newUser: boolean; errorCode?: string }> => {
-      try {
-        const res = await api<SocialLoginResponse>(`/auth/social/${provider}`, {
-          method: "POST",
-          body: { code, redirectUri, state },
-        });
-        setUser(res.user);
-        return { ok: true, newUser: res.newUser };
-      } catch (error) {
-        return {
-          ok: false,
-          newUser: false,
-          errorCode: error instanceof ApiError ? error.code : undefined,
-        };
-      }
-    },
-    [],
-  );
-
   const logout = useCallback(async () => {
     try {
       await api("/auth/logout", { method: "POST" });
@@ -154,7 +117,6 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         signup,
-        socialLogin,
         logout,
         refresh: fetchMe,
       },

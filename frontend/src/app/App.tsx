@@ -114,7 +114,7 @@ export function App() {
                 <Route path="/my/passes" element={<LazyRoute><MyPassesPage /></LazyRoute>} />
                 <Route path="/my/inquiries" element={<LazyRoute><MyInquiriesPage /></LazyRoute>} />
                 <Route path="/my/inquiries/new" element={<LazyRoute><MyInquiryCreatePage /></LazyRoute>} />
-                <Route path="/auth/callback/:provider" element={<LazyRoute><SocialCallbackPage /></LazyRoute>} />
+                <Route path="/auth/callback" element={<LazyRoute><SocialCallbackPage /></LazyRoute>} />
                 <Route path="/login" element={<LazyRoute><LoginPage /></LazyRoute>} />
                 <Route path="/signup" element={<LazyRoute><SignupPage /></LazyRoute>} />
                 <Route path="/admin" element={<LazyRoute><AdminPage /></LazyRoute>} />

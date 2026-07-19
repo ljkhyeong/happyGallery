@@ -18,9 +18,9 @@ Naver 로그인을 추가하면 비밀번호 회원이 Google과 Naver를 함께
 3. 외부 provider ID는 원문 대신 `provider_id_hmac`로 저장하고 `(provider, provider_id_hmac)`를 유일하게 유지해 외부 계정 하나가 여러 회원에 연결되지 않도록 한다.
 4. `(user_id, provider)`를 유일하게 유지해 한 회원은 제공자별 계정을 하나씩만 연결한다.
 5. 소셜 로그인 시 외부 계정이 이미 연결되어 있으면 해당 회원으로 로그인한다. 외부 계정 연결이 없고 이메일이 기존 회원과 겹치면 제공자와 관계없이 자동 병합하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다.
-6. URL 발급 시 생성한 OAuth `state`는 서버 세션에 provider별로 저장하고, 코드 교환 요청에서 일치 여부를 확인한 뒤 제거한다.
-7. 제공자별 authorize/token/profile 응답 차이는 외부 어댑터가 처리하고, 애플리케이션 서비스는 공통 `OAuthUserInfo`만 사용한다.
-8. Google과 Naver 모두 `state`를 필수로 검증한다. 운영 배포 전 구 Google 콜백 호환 분기를 제거해 누락 요청도 허용하지 않는다.
+6. Spring Security OAuth2 Client가 만든 authorization request와 OAuth `state`는 callback 전까지만 서버 세션에 저장하고, callback에서 일치 여부를 확인한 뒤 제거한다.
+7. 제공자별 authorize/token/profile 응답 차이는 OAuth2 Client와 web security 어댑터가 처리하고, 애플리케이션 서비스는 공통 `SocialLoginCommand(provider, providerId, email, name)`만 사용한다.
+8. Google과 Naver 모두 `state`를 필수로 검증한다. 브라우저가 code, `state`, `redirectUri`를 별도 JSON API로 전달하는 호환 경로는 두지 않는다.
 9. Google은 UserInfo의 `email_verified=true`인 프로필만 수용한다.
 10. 들어오는 소셜 이메일의 소유 확인만으로 기존 서비스 계정 소유자까지 증명할 수는 없다. 따라서 이메일만으로 로컬·Google·Naver 계정을 자동 병합하지 않는다.
 11. 이메일 충돌이 없는 Naver 신규 가입은 허용하되, Naver가 이메일 검증 상태를 제공하지 않는 한 이메일 선점 위험은 남는다. 자체 이메일 검증 또는 임시 계정 모델을 도입하기 전까지 이메일 충돌은 계정 공유 대신 명시적 오류로 종료한다.

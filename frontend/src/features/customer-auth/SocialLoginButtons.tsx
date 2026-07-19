@@ -1,48 +1,25 @@
 import { useState } from "react";
 import { Button } from "react-bootstrap";
-import { api } from "@/shared/api";
+import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 import {
-  buildSocialRedirectUri,
   SOCIAL_PROVIDER_DETAILS,
   SOCIAL_PROVIDERS,
   type SocialProvider,
 } from "@/features/customer-auth/socialAuth";
 
-interface AuthorizationUrlResponse {
-  url: string;
-  state: string;
-}
-
 interface SocialLoginButtonsProps {
   action: "로그인" | "회원가입";
   returnTo: string;
-  onError: (message: string) => void;
 }
 
-export function SocialLoginButtons({ action, returnTo, onError }: SocialLoginButtonsProps) {
+export function SocialLoginButtons({ action, returnTo }: SocialLoginButtonsProps) {
   const [startingProvider, setStartingProvider] = useState<SocialProvider | null>(null);
 
-  async function startSocialLogin(provider: SocialProvider) {
-    const details = SOCIAL_PROVIDER_DETAILS[provider];
-    const redirectUri = buildSocialRedirectUri(provider);
-
-    onError("");
+  function startSocialLogin(provider: SocialProvider) {
     setStartingProvider(provider);
-
-    try {
-      const authorization = await api<AuthorizationUrlResponse>(`/auth/social/${provider}/url`, {
-        params: { redirectUri },
-      });
-
-      sessionStorage.setItem(SESSION_KEYS.socialLoginReturnTo, returnTo);
-      sessionStorage.setItem(details.stateStorageKey, authorization.state);
-      window.location.assign(authorization.url);
-    } catch {
-      sessionStorage.removeItem(details.stateStorageKey);
-      setStartingProvider(null);
-      onError(`${details.label} ${action} 준비에 실패했습니다.`);
-    }
+    sessionStorage.setItem(SESSION_KEYS.socialLoginReturnTo, resolveSafeReturnTo(returnTo));
+    window.location.assign(`/api/v1/auth/social/authorization/${provider}`);
   }
 
   return (
@@ -58,7 +35,7 @@ export function SocialLoginButtons({ action, returnTo, onError }: SocialLoginBut
             variant="outline-dark"
             className={details.buttonClassName}
             disabled={startingProvider !== null}
-            onClick={() => void startSocialLogin(provider)}
+            onClick={() => startSocialLogin(provider)}
           >
             <span className="social-login-button-content">
               {details.iconSrc && (

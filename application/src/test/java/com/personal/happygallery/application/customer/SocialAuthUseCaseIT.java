@@ -33,14 +33,14 @@ class SocialAuthUseCaseIT {
     void logsInWithExistingNaverAccount() {
         var firstLogin = socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.NAVER,
-                "naver-code",
-                "https://happygallery.example/auth/callback/naver",
-                "naver-state"));
+                "naver-account-id",
+                "social-test@example.com",
+                "테스트 네이버 사용자"));
         var secondLogin = socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.NAVER,
-                "naver-code",
-                "https://happygallery.example/auth/callback/naver",
-                "naver-state"));
+                "naver-account-id",
+                "social-test@example.com",
+                "테스트 네이버 사용자"));
 
         assertSoftly(softly -> {
             softly.assertThat(firstLogin.newUser()).isTrue();
@@ -55,15 +55,15 @@ class SocialAuthUseCaseIT {
     void rejectsSocialAccountAutoLinkByEmail() {
         socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.NAVER,
-                "naver-code",
-                "https://happygallery.example/auth/callback/naver",
-                "naver-state"));
+                "naver-account-id",
+                "social-test@example.com",
+                "테스트 네이버 사용자"));
 
         assertThatThrownBy(() -> socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.GOOGLE,
-                "google-code",
-                "https://happygallery.example/auth/callback/google",
-                "google-state")))
+                "google-account-id",
+                "social-test@example.com",
+                "테스트 구글 사용자")))
                 .isInstanceOf(HappyGalleryException.class)
                 .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);

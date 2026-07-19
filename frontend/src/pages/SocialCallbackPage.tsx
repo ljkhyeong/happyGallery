@@ -1,20 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert, Container } from "react-bootstrap";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import {
-  buildSocialRedirectUri,
-  isSocialProvider,
-  SOCIAL_PROVIDER_DETAILS,
-} from "@/features/customer-auth/socialAuth";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { getUserMessage } from "@/shared/lib";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 import { LoadingSpinner } from "@/shared/ui";
 
 export function SocialCallbackPage() {
-  const { provider: providerParam } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { socialLogin, refresh } = useCustomerAuth();
+  const { refresh } = useCustomerAuth();
   const [error, setError] = useState("");
   const handled = useRef(false);
 
@@ -24,53 +20,26 @@ export function SocialCallbackPage() {
     }
     handled.current = true;
 
-    if (!isSocialProvider(providerParam)) {
-      setError("지원하지 않는 소셜 로그인 요청입니다.");
+    const errorCode = searchParams.get("error");
+    if (errorCode) {
+      sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
+      setError(getUserMessage(errorCode) ?? "소셜 로그인에 실패했습니다. 다시 시도해 주세요.");
       return;
     }
 
-    const provider = providerParam;
-    const details = SOCIAL_PROVIDER_DETAILS[provider];
-    const code = searchParams.get("code");
-    const returnedState = searchParams.get("state");
-    const savedState = sessionStorage.getItem(details.stateStorageKey);
-
-    sessionStorage.removeItem(details.stateStorageKey);
-
-    if (!code) {
-      setError(`${details.label} 인증이 완료되지 않았습니다. 다시 시도해주세요.`);
-      return;
-    }
-
-    if (!savedState || !returnedState || returnedState !== savedState) {
-      setError("잘못된 소셜 로그인 요청입니다. 다시 시도해주세요.");
-      return;
-    }
-
-    const redirectUri = buildSocialRedirectUri(provider);
-
-    void socialLogin(provider, code, redirectUri, returnedState).then(async (result) => {
-      if (!result.ok) {
-        if (result.errorCode === "SOCIAL_ACCOUNT_LINK_REQUIRED") {
-          setError("같은 이메일로 가입된 계정이 있습니다. 기존 로그인 수단을 이용해주세요.");
-          return;
-        }
-        setError(`${details.label} 로그인에 실패했습니다. 다시 시도해주세요.`);
-        return;
-      }
-
+    void (async () => {
       await refresh();
 
-      const returnTo = sessionStorage.getItem(SESSION_KEYS.socialLoginReturnTo) ?? "/";
+      const returnTo = resolveSafeReturnTo(sessionStorage.getItem(SESSION_KEYS.socialLoginReturnTo));
       sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
 
-      if (result.newUser) {
-        navigate("/my", { state: { phoneOnboarding: true } });
+      if (searchParams.get("newUser") === "true") {
+        navigate("/my", { replace: true, state: { phoneOnboarding: true } });
       } else {
-        navigate(returnTo);
+        navigate(returnTo, { replace: true });
       }
-    });
-  }, [navigate, providerParam, refresh, searchParams, socialLogin]);
+    })();
+  }, [navigate, refresh, searchParams]);
 
   if (error) {
     return (

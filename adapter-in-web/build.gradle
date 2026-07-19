@@ -7,6 +7,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	implementation 'io.sentry:sentry-spring-boot-4-starter:8.25.0'
 	compileOnly 'org.hibernate.orm:hibernate-core'
 

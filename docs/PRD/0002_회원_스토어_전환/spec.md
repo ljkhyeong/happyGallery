@@ -293,7 +293,7 @@
 - 장바구니: 현재 구현됨. 결제는 `POST /api/v1/payments/prepare`의 `ORDER`, `cartCheckout=true`로 시작하고 표준 confirm 경로에서 주문 생성과 결제 수량 차감을 함께 완료한다.
 - 리뷰/별점: 미구현.
 - Q&A: Product Q&A와 1:1 문의는 현재 구현됨.
-- 소셜 로그인: Google과 Naver 로그인을 지원하며, 서버 세션에 저장한 provider별 `state`와 exact redirect URI를 코드 교환 요청에서 함께 1회 검증하고 소비한다.
+- 소셜 로그인: Google과 Naver 로그인을 지원하며, Spring Security OAuth2 Client가 만든 authorization request와 `state`를 백엔드 callback까지 Redis HTTP 세션에 임시 보관하고 1회 검증·소비한다.
 - 네이버페이/스마트스토어 API 연동
 - 쿠폰/적립금/찜
 - 상품 이미지 CMS

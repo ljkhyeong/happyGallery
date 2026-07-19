@@ -17,8 +17,8 @@ Toss Payments confirm/cancel 호출도 같은 외부 HTTP 경계에 포함된다
 
 ### 1. `prod` 프로필의 외부 HTTP 호출은 Apache HttpClient 5 기반 연결 풀을 사용한다
 
-- `RestClient`는 유지한다.
-- request factory만 `HttpComponentsClientHttpRequestFactory`로 바꾼다.
+- 일반 외부 API는 `RestClient`, OAuth token 교환은 Spring Security의 `RestClientAuthorizationCodeTokenResponseClient`, OAuth UserInfo는 `DefaultOAuth2UserService`를 사용한다.
+- 각 클라이언트의 request factory를 `HttpComponentsClientHttpRequestFactory`로 바꾼다.
 - 풀은 서비스별로 분리한다.
   - Kakao 알림톡
   - NHN SMS

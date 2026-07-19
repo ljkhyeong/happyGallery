@@ -4,9 +4,6 @@ spring:
       on-profile: test
 
 app:
-  social-login:
-    google-redirect-uri: "http://localhost:3000/auth/callback/google"
-    naver-redirect-uri: "http://localhost:3000/auth/callback/naver"
   admin:
     api-key: dev-admin-key
     enable-api-key-auth: true

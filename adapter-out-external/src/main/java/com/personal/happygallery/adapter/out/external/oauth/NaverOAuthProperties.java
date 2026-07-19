@@ -9,10 +9,6 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "app.external.naver-oauth")
 public record NaverOAuthProperties(
-        @DefaultValue("") String clientId,
-        @DefaultValue("") String clientSecret,
-        @DefaultValue("https://nid.naver.com/oauth2.0/token") String tokenUrl,
-        @DefaultValue("https://openapi.naver.com/v1/nid/me") String userInfoUrl,
         @Min(1) @DefaultValue("5000") long timeoutMillis,
         @Min(1) @DefaultValue("2000") long connectTimeoutMillis,
         @Min(1) @DefaultValue("1000") long acquireTimeoutMillis,

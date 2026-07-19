@@ -3,13 +3,17 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.CustomerLoginRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.SignupRequest;
-import com.personal.happygallery.adapter.in.web.customer.dto.SocialLoginRequest;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
+import com.personal.happygallery.adapter.in.web.security.customer.SocialLoginAuthenticationHandler;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,12 +22,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -42,6 +53,7 @@ class CustomerAuthUseCaseIT {
     @Autowired ObjectMapper objectMapper;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PhoneVerificationReaderPort phoneVerificationReader;
+    @Autowired SocialLoginAuthenticationHandler socialLoginAuthenticationHandler;
 
     MockMvc mockMvc;
 
@@ -180,117 +192,67 @@ class CustomerAuthUseCaseIT {
                 .andExpect(cookie().maxAge("HG_SESSION", 0));
     }
 
-    @DisplayName("소셜 로그인 state가 세션과 다르면 로그인을 거절한다")
+    @DisplayName("소셜 로그인 시작은 서버가 만든 state와 고정 callback으로 제공자에 이동한다")
     @Test
-    void socialLogin_rejectsMismatchedState() throws Exception {
-        String redirectUri = "http://localhost:3000/auth/callback/naver";
-        var authorizationResult = mockMvc.perform(get("/api/v1/auth/social/naver/url")
-                        .param("redirectUri", redirectUri))
-                .andExpect(status().isOk())
+    void socialLogin_redirectsToProviderWithServerAuthorizationRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/social/authorization/google"))
+                .andExpect(status().is3xxRedirection())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
-                .andExpect(jsonPath("$.url").value(startsWith(
-                        redirectUri + "?code=fake-naver-code&state=")))
+                .andExpect(header().string(HttpHeaders.LOCATION,
+                        startsWith("https://accounts.google.com/o/oauth2/v2/auth")))
+                .andExpect(header().string(HttpHeaders.LOCATION,
+                        containsString("state=")))
+                .andExpect(header().string(HttpHeaders.LOCATION,
+                        containsString("redirect_uri=")))
                 .andExpect(cookie().exists("HG_SESSION"))
                 .andReturn();
-
-        var sessionCookie = authorizationResult.getResponse().getCookie("HG_SESSION");
-
-        mockMvc.perform(post("/api/v1/auth/social/naver")
-                        .with(csrf())
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new SocialLoginRequest("oauth-code", redirectUri, "wrong-state"))))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_FAILED"));
     }
 
-    @DisplayName("소셜 로그인 redirectUri가 URL 발급 시점과 다르면 로그인을 거절한다")
+    @DisplayName("소셜 로그인 callback의 state가 세션과 다르면 외부 토큰 교환 전에 실패한다")
     @Test
-    void socialLogin_rejectsMismatchedRedirectUri() throws Exception {
-        String redirectUri = "http://localhost:3000/auth/callback/google";
-        var authorizationResult = mockMvc.perform(get("/api/v1/auth/social/google/url")
-                        .param("redirectUri", redirectUri))
-                .andExpect(status().isOk())
+    void socialLogin_rejectsMismatchedState() throws Exception {
+        var authorizationResult = mockMvc.perform(get("/api/v1/auth/social/authorization/naver"))
+                .andExpect(status().is3xxRedirection())
                 .andReturn();
-        String state = objectMapper.readTree(authorizationResult.getResponse().getContentAsString())
-                .get("state")
-                .asText();
 
-        mockMvc.perform(post("/api/v1/auth/social/google")
-                        .with(csrf())
+        mockMvc.perform(get("/api/v1/auth/social/callback/naver")
                         .cookie(authorizationResult.getResponse().getCookie("HG_SESSION"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new SocialLoginRequest(
-                                "oauth-code",
-                                "https://attacker.example/auth/callback/google",
-                                state))))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_FAILED"));
+                        .param("code", "unused-code")
+                        .param("state", "wrong-state"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string(HttpHeaders.LOCATION,
+                        "/auth/callback?error=SOCIAL_LOGIN_FAILED"));
     }
 
-    @DisplayName("허용되지 않은 소셜 로그인 callback URL은 발급 단계에서 거절한다")
+    @DisplayName("검증된 Google 로그인은 회원 세션 하나로 전환된다")
     @Test
-    void socialLogin_rejectsDisallowedRedirectUriBeforeAuthorization() throws Exception {
-        mockMvc.perform(get("/api/v1/auth/social/google/url")
-                        .param("redirectUri", "https://attacker.example/auth/callback/google"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
-    }
+    void socialLogin_bindsCustomerSessionAfterVerifiedGoogleLogin() throws Exception {
+        Instant now = Instant.now();
+        OidcIdToken idToken = new OidcIdToken(
+                "google-id-token",
+                now,
+                now.plusSeconds(300),
+                Map.of(
+                        "sub", "google-account-id",
+                        "email", "google@example.com",
+                        "email_verified", true,
+                        "name", "구글 사용자"));
+        DefaultOidcUser principal = new DefaultOidcUser(List.of(), idToken, "sub");
+        OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
+                principal, principal.getAuthorities(), "google");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = new MockHttpSession();
+        session.setNew(false);
+        request.setSession(session);
+        String anonymousSessionId = session.getId();
+        MockHttpServletResponse response = new MockHttpServletResponse();
 
-    @DisplayName("소셜 로그인은 세션을 교체하고 사용한 state를 다시 허용하지 않는다")
-    @Test
-    void socialLogin_rotatesSessionAndConsumesState() throws Exception {
-        String redirectUri = "http://localhost:3000/auth/callback/google";
-        var authorizationResult = mockMvc.perform(get("/api/v1/auth/social/google/url")
-                        .param("redirectUri", redirectUri))
-                .andExpect(status().isOk())
-                .andReturn();
-        String state = objectMapper.readTree(authorizationResult.getResponse().getContentAsString())
-                .get("state")
-                .asText();
-        Cookie anonymousSession = authorizationResult.getResponse().getCookie("HG_SESSION");
+        socialLoginAuthenticationHandler.onAuthenticationSuccess(request, response, authentication);
 
-        var loginResult = mockMvc.perform(post("/api/v1/auth/social/google")
-                        .with(csrf())
-                        .cookie(anonymousSession)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new SocialLoginRequest(
-                                "fake-google-code", redirectUri, state))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.user.email").value("social-test@example.com"))
-                .andExpect(jsonPath("$.newUser").value(true))
-                .andReturn();
-        Cookie memberSession = loginResult.getResponse().getCookie("HG_SESSION");
-
-        assertThat(memberSession).isNotNull();
-        assertThat(memberSession.getValue()).isNotEqualTo(anonymousSession.getValue());
-        mockMvc.perform(get("/api/v1/me").cookie(memberSession))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("social-test@example.com"));
-
-        mockMvc.perform(post("/api/v1/auth/social/google")
-                        .with(csrf())
-                        .cookie(memberSession)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new SocialLoginRequest(
-                                "fake-google-code", redirectUri, state))))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_FAILED"));
-    }
-
-    @DisplayName("소셜 로그인 state가 비어 있으면 요청 검증에서 거절한다")
-    @Test
-    void socialLogin_rejectsMissingState() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/social/google")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new SocialLoginRequest(
-                                "legacy-google-code",
-                                "https://happygallery.example/auth/callback/google",
-                                null))))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+        assertThat(session.getAttribute(CustomerAuthenticationFilter.CUSTOMER_USER_ID_SESSION_ATTRIBUTE))
+                .isInstanceOf(Long.class);
+        assertThat(session.getId()).isNotEqualTo(anonymousSessionId);
+        assertThat(response.getRedirectedUrl()).isEqualTo("/auth/callback?newUser=true");
     }
 
     @DisplayName("기존 세션으로 로그인하면 세션 ID가 교체된다")

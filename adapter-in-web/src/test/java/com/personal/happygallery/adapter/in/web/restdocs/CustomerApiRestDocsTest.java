@@ -10,8 +10,6 @@ import com.personal.happygallery.adapter.in.web.customer.MeNotificationControlle
 import com.personal.happygallery.adapter.in.web.customer.MeOrderController;
 import com.personal.happygallery.adapter.in.web.customer.MePassController;
 import com.personal.happygallery.adapter.in.web.customer.MeProductQnaController;
-import com.personal.happygallery.adapter.in.web.customer.SocialLoginController;
-import com.personal.happygallery.adapter.in.web.config.properties.SocialLoginProperties;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
@@ -19,7 +17,6 @@ import com.personal.happygallery.application.booking.port.in.BookingRescheduleUs
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
-import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.application.notification.port.in.NotificationQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
@@ -31,15 +28,12 @@ import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.qna.ProductQna;
-import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.domain.user.User;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpHeaders;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.test.web.servlet.MockMvc;
@@ -47,7 +41,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -55,7 +48,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
@@ -64,7 +56,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private MockMvc mockMvc;
 
     private CustomerAuthUseCase customerAuthUseCase;
-    private SocialAuthUseCase socialAuthUseCase;
     private CartUseCase cartUseCase;
     private BookingQueryUseCase bookingQueryUseCase;
     private BookingRescheduleUseCase bookingRescheduleUseCase;
@@ -80,7 +71,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
         customerAuthUseCase = mock(CustomerAuthUseCase.class);
-        socialAuthUseCase = mock(SocialAuthUseCase.class);
         cartUseCase = mock(CartUseCase.class);
         bookingQueryUseCase = mock(BookingQueryUseCase.class);
         bookingRescheduleUseCase = mock(BookingRescheduleUseCase.class);
@@ -104,12 +94,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
 
         when(customerAuthUseCase.signup(any())).thenReturn(user);
         when(customerAuthUseCase.login(any())).thenReturn(user);
-        when(socialAuthUseCase.buildAuthorizationUrl(any(), any()))
-                .thenReturn(new SocialAuthUseCase.AuthorizationUrlResult(
-                        "https://accounts.google.com/o/oauth2/v2/auth?state=state-123",
-                        "state-123"));
-        when(socialAuthUseCase.socialLogin(any()))
-                .thenReturn(new SocialAuthUseCase.SocialLoginResult(user, false));
         when(cartUseCase.getCart(CUSTOMER_USER_ID))
                 .thenReturn(new CartUseCase.CartView(
                         List.of(new CartUseCase.CartItemView(1L, "시그니처 캔들", 39000L, 1, true)),
@@ -141,12 +125,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         CustomerSessionBinder customerSessionBinder = new CustomerSessionBinder(mock(CsrfTokenRepository.class));
         mockMvc = mockMvc(restDocumentation,
                 new CustomerAuthController(customerAuthUseCase, customerSessionBinder, rateLimitGuard),
-                new SocialLoginController(
-                        socialAuthUseCase,
-                        customerSessionBinder,
-                        new SocialLoginProperties(
-                                "https://happygallery.example/auth/callback/google",
-                                "https://happygallery.example/auth/callback/naver")),
                 new MeCartController(cartUseCase),
                 new MeBookingController(bookingQueryUseCase, bookingRescheduleUseCase,
                         bookingCancelUseCase, RestDocsFixtures.clock()),
@@ -201,46 +179,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void me() throws Exception {
         mockMvc.perform(get("/api/v1/me").with(customerUser()))
                 .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("구글 로그인 URL API를 문서화한다")
-    void google_auth_url() throws Exception {
-        mockMvc.perform(get("/api/v1/auth/social/google/url")
-                        .param("redirectUri", "https://happygallery.example/auth/callback/google"))
-                .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
-
-        verify(socialAuthUseCase).buildAuthorizationUrl(
-                SocialProvider.GOOGLE, "https://happygallery.example/auth/callback/google");
-    }
-
-    @Test
-    @DisplayName("네이버 로그인 API를 문서화한다")
-    void naver_login() throws Exception {
-        var authorizationResult = mockMvc.perform(get("/api/v1/auth/social/naver/url")
-                        .param("redirectUri", "https://happygallery.example/auth/callback/naver"))
-                .andExpect(status().isOk())
-                .andReturn();
-        var session = (MockHttpSession) authorizationResult.getRequest().getSession(false);
-
-        mockMvc.perform(post("/api/v1/auth/social/naver")
-                        .session(session)
-                        .contentType(APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "code": "oauth-code",
-                                  "redirectUri": "https://happygallery.example/auth/callback/naver",
-                                  "state": "state-123"
-                                }
-                                """))
-                .andExpect(status().isOk());
-
-        verify(socialAuthUseCase).socialLogin(new SocialAuthUseCase.SocialLoginCommand(
-                SocialProvider.NAVER,
-                "oauth-code",
-                "https://happygallery.example/auth/callback/naver",
-                "state-123"));
     }
 
     @Test

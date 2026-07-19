@@ -126,8 +126,8 @@ export VITE_SENTRY_DSN='선택값'
 `release.env.example`을 저장소 밖에 복사한다. OAuth callback은 아래 exact URL이어야 하며 Google/Naver 콘솔에도 똑같이 등록한다.
 
 ```text
-https://<PUBLIC_HOST>/auth/callback/google
-https://<PUBLIC_HOST>/auth/callback/naver
+https://<PUBLIC_HOST>/api/v1/auth/social/callback/google
+https://<PUBLIC_HOST>/api/v1/auth/social/callback/naver
 ```
 
 cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시 외부 TCP 80 접근이 필요하다. 공개 서비스는 Traefik 80/443뿐이며 app, MySQL, Redis, Prometheus와 Actuator는 ClusterIP/Pod 네트워크 밖으로 노출하지 않는다.

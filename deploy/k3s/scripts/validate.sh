@@ -75,9 +75,9 @@ grep -q 'imagePullPolicy: Never' "$rendered" || die "로컬 이미지 import 정
 grep -q 'app-management:8081' "$rendered" || die "Prometheus가 내부 관리 포트를 scrape하지 않습니다."
 grep -q 'alert: PaymentConfirmReconciliationRequired' "$rendered" \
     || die "결제 confirm 수동 대사 critical 알림이 없습니다."
-grep -q 'GOOGLE_OAUTH_REDIRECT_URI: https://gallery.example.com/auth/callback/google' "$rendered" \
+grep -q 'GOOGLE_OAUTH_REDIRECT_URI: https://gallery.example.com/api/v1/auth/social/callback/google' "$rendered" \
     || die "Google OAuth callback이 공개 host와 일치하지 않습니다."
-grep -q 'NAVER_OAUTH_REDIRECT_URI: https://gallery.example.com/auth/callback/naver' "$rendered" \
+grep -q 'NAVER_OAUTH_REDIRECT_URI: https://gallery.example.com/api/v1/auth/social/callback/naver' "$rendered" \
     || die "Naver OAuth callback이 공개 host와 일치하지 않습니다."
 
 if grep -Eq 'type: (NodePort|LoadBalancer)|hostPort:' "$rendered"; then

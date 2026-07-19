@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
-import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { buildAuthPageHref, resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { normalizePhone } from "@/shared/validation/phone";
@@ -11,7 +11,7 @@ export function SignupPage() {
   const { signup } = useCustomerAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get("redirect") ?? "/";
+  const redirectTo = resolveSafeReturnTo(searchParams.get("redirect"));
   const claimIntent = searchParams.get("claim") === "1" || redirectTo.includes("claim=1");
   const loginHref = buildAuthPageHref("/login", {
     redirectTo,
@@ -149,7 +149,7 @@ export function SignupPage() {
                 <span className="px-3 text-muted-soft small">또는</span>
                 <hr className="flex-grow-1" />
               </div>
-              <SocialLoginButtons action="회원가입" returnTo={redirectTo} onError={setError} />
+              <SocialLoginButtons action="회원가입" returnTo={redirectTo} />
               <div className="auth-footer-link mt-4">
                 이미 계정이 있으신가요? <Link to={loginHref}>로그인</Link>
               </div>

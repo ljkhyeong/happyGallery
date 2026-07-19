@@ -164,8 +164,10 @@ class RateLimitFilterTest {
                 .socialLogin(1)
                 .build(), mockRedis());
 
-        MockHttpServletResponse googleResponse = perform(filter, "POST", "/api/v1/auth/social/google");
-        MockHttpServletResponse naverResponse = perform(filter, "POST", "/api/v1/auth/social/naver");
+        MockHttpServletResponse googleResponse = perform(
+                filter, "GET", "/api/v1/auth/social/callback/google");
+        MockHttpServletResponse naverResponse = perform(
+                filter, "GET", "/api/v1/auth/social/callback/naver");
 
         assertSoftly(softly -> {
             softly.assertThat(googleResponse.getStatus()).isEqualTo(200);
@@ -173,16 +175,19 @@ class RateLimitFilterTest {
         });
     }
 
-    @DisplayName("소셜 로그인 URL 발급은 코드 교환과 분리된 처리율 제한을 사용한다")
+    @DisplayName("소셜 로그인 시작은 callback과 분리된 처리율 제한을 사용한다")
     @Test
     void limitsSocialLoginInitializationSeparately() throws Exception {
         RateLimitFilter filter = filter(new TestRateLimits()
                 .socialLogin(1)
                 .build(), mockRedis());
 
-        MockHttpServletResponse loginResponse = perform(filter, "POST", "/api/v1/auth/social/google");
-        MockHttpServletResponse firstUrlResponse = perform(filter, "GET", "/api/v1/auth/social/google/url");
-        MockHttpServletResponse secondUrlResponse = perform(filter, "GET", "/api/v1/auth/social/naver/url");
+        MockHttpServletResponse loginResponse = perform(
+                filter, "GET", "/api/v1/auth/social/callback/google");
+        MockHttpServletResponse firstUrlResponse = perform(
+                filter, "GET", "/api/v1/auth/social/authorization/google");
+        MockHttpServletResponse secondUrlResponse = perform(
+                filter, "GET", "/api/v1/auth/social/authorization/naver");
 
         assertSoftly(softly -> {
             softly.assertThat(loginResponse.getStatus()).isEqualTo(200);

@@ -29,7 +29,7 @@
 | `PHONE_VERIFICATION_IP` | 인증 코드 발송 | 5회/1분 |
 | `CUSTOMER_LOGIN_IP` | 회원 로그인 | 10회/1분 |
 | `CUSTOMER_SIGNUP_IP` | 회원가입 | 5회/1분 |
-| `SOCIAL_LOGIN_IP`, `SOCIAL_LOGIN_INIT_IP` | 소셜 코드 교환, URL 발급 | 각각 10회/1분 |
+| `SOCIAL_LOGIN_IP`, `SOCIAL_LOGIN_INIT_IP` | 소셜 callback, 로그인 시작 | 각각 10회/1분 |
 | `ADMIN_LOGIN_IP`, `ADMIN_SETUP_IP` | 관리자 로그인, 최초 설정 | 각각 5회/1분 |
 | `ADMIN_API_IP` | 나머지 관리자 API | 120회/1분 |
 | `PAYMENT_PREPARE_IP` | 결제 준비 | 30회/1분 |

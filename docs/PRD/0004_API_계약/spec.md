@@ -1271,69 +1271,42 @@ POST /api/v1/auth/signup
   - 같은 전화번호의 회원가입 인증 코드 시도는 5회/10분으로 제한한다.
   - 로그인 성공과 동일하게 세션 ID를 회전한다.
 
-#### 2.12.0.2 소셜 로그인 URL 발급
+#### 2.12.0.2 소셜 로그인 시작
 
 ```http
-GET /api/v1/auth/social/{provider}/url?redirectUri=https://www.happygallery.com/auth/callback/{provider}
+GET /api/v1/auth/social/authorization/{provider}
 ```
 
 - `{provider}`: `google` 또는 `naver`
-
-```json
-{
-  "url": "https://accounts.google.com/o/oauth2/v2/auth?...",
-  "state": "b4aa5f3d6c7e4f0f8b2c1d9e6a3b2c10"
-}
-```
-
-- 성공: `200 OK`
-- 응답 헤더: `Cache-Control: no-store`
+- 성공: `302 Found`, `Location`은 해당 제공자의 authorization endpoint
 - 에러:
-  - `400 INVALID_INPUT` — 지원하지 않는 provider, `redirectUri` 누락 또는 provider별 허용 callback URI와 불일치
-  - `429 TOO_MANY_REQUESTS` — URL 발급 IP 버킷 분당 10회 초과
+  - `429 TOO_MANY_REQUESTS` — 로그인 시작 IP 버킷 분당 10회 초과
 - 정책:
-  - 서버는 `redirectUri`가 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI`와 정확히 일치하는지 검증한다.
-  - 서버는 발급한 `state`와 검증된 `redirectUri`를 현재 세션의 provider별 값으로 함께 저장한다.
-  - 브라우저나 중간 캐시가 이전 세션의 `state`를 재사용하지 않도록 응답 캐시를 금지한다.
+  - 브라우저는 JSON URL 발급 API를 먼저 호출하지 않고 이 경로로 직접 이동한다.
+  - Spring Security OAuth2 Client가 `state`를 포함한 authorization request를 만들고 callback 전까지만 현재 Redis HTTP 세션에 저장한다.
+  - callback URI는 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI` 설정에 고정하며 브라우저 요청값으로 받지 않는다.
+  - Google은 `openid`, `profile`, `email` 범위의 OIDC 로그인을 사용한다. 로그인만을 위해 refresh token을 요청하거나 저장하지 않는다.
 
-#### 2.12.0.3 소셜 로그인 코드 교환
+#### 2.12.0.3 소셜 로그인 callback
 
 ```http
-POST /api/v1/auth/social/{provider}
-
-{
-  "code": "4/0AQSTgQExampleAuthCode",
-  "redirectUri": "https://www.happygallery.com/auth/callback/google",
-  "state": "b4aa5f3d6c7e4f0f8b2c1d9e6a3b2c10"
-}
+GET /api/v1/auth/social/callback/{provider}?code=...&state=...
 ```
 
-```json
-{
-  "user": {
-    "id": 7,
-    "email": "guest@example.com",
-    "name": "홍길동",
-    "phone": "",
-    "phoneVerified": false
-  },
-  "newUser": true
-}
-```
-
-- 성공: `200 OK`
-- 에러:
-  - `400 INVALID_INPUT` — `code`, `redirectUri`, `state` 누락
-  - `401 UNAUTHORIZED` — `SOCIAL_LOGIN_FAILED`
-  - `409 CONFLICT` — `SOCIAL_ACCOUNT_LINK_REQUIRED` (소셜 이메일이 기존 회원과 겹쳐 명시적 연결이 필요함)
-  - `429 TOO_MANY_REQUESTS` — 분당 10회 초과
+- 이 경로는 Google/Naver가 호출하는 backend callback이며 프런트가 직접 호출하지 않는다.
+- 성공: `302 Found` → `/auth/callback?newUser=true|false`
+- 실패: `302 Found` → `/auth/callback?error=SOCIAL_LOGIN_FAILED`
+- 기존 이메일과 충돌: `302 Found` → `/auth/callback?error=SOCIAL_ACCOUNT_LINK_REQUIRED`
+- 처리율 제한 초과: `429 TOO_MANY_REQUESTS`
 - 정책:
-  - 요청의 `state`, `redirectUri`는 URL 발급 시 서버 세션에 저장한 같은 provider의 값과 모두 일치해야 하며, 검증 후 함께 제거한다.
-  - Google과 Naver 모두 `state`가 필수다. 누락 요청은 형식 검증에서 거절하고, 불일치·재사용 요청은 `SOCIAL_LOGIN_FAILED`로 거절한다.
-  - 성공 시 일반 회원 로그인과 동일하게 세션 ID를 회전하고 `HG_SESSION`을 시작한다.
+  - Spring Security가 callback의 `state`와 세션의 authorization request를 비교하고 한 번 사용한 authorization request를 제거한 뒤 code를 토큰으로 교환한다.
+  - Google ID Token과 UserInfo, Naver UserInfo를 공통 소셜 프로필로 변환한 뒤에만 application의 계정 연결 트랜잭션을 시작한다.
+  - 성공 시 세션 ID를 한 번 회전하고 `customerUserId`만 장기 인증 상태로 저장한다.
+  - OAuth `SecurityContext`, access token, refresh token은 세션에 저장하지 않는다. 다음 요청은 기존 `CustomerAuthenticationFilter`가 `customerUserId`로 회원 principal을 다시 구성한다.
   - 성공 후 기존 CSRF 토큰이 폐기되므로 클라이언트는 새 CSRF 토큰을 발급받는다.
   - `newUser=true`인 경우 후속 전화번호 입력/인증 온보딩이 필요할 수 있다.
-  - 소셜 로그인 URL 발급과 코드 교환은 서로 분리된 IP 버킷으로 각각 분당 10회 제한한다.
+  - 소셜 로그인 시작과 callback은 서로 분리된 IP 버킷으로 각각 분당 10회 제한한다.
+
 #### ~~2.12.1 회원 예약 생성~~ (2026-04-22 제거)
 
 > 회원 예약 생성도 `POST /api/v1/payments/prepare` (`context=BOOKING`, `payload.userId` 지정) → `POST /api/v1/payments/confirm`으로 단일화됨. 8회권 사용 예약은 `payload.passId`를 채워 amount=0 → confirm 직접 호출 경로를 탄다. 2.15 결제 API 참조.

@@ -5,6 +5,8 @@ import com.personal.happygallery.adapter.in.web.config.properties.AdminPropertie
 import com.personal.happygallery.adapter.in.web.security.admin.AdminAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminAuthenticationProvider;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
+import com.personal.happygallery.adapter.in.web.security.customer.DiscardingOAuth2AuthorizedClientRepository;
+import com.personal.happygallery.adapter.in.web.security.customer.SocialLoginAuthenticationHandler;
 import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -12,18 +14,29 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
+import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.context.NullSecurityContextRepository;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -34,6 +47,11 @@ public class SecurityConfig {
 
     private static final String ADMIN_LOGIN_REQUIRED = "관리자 인증이 필요합니다.";
     private static final String CUSTOMER_LOGIN_REQUIRED = "로그인이 필요합니다.";
+    private static final String SOCIAL_AUTHORIZATION_BASE_URI = "/api/v1/auth/social/authorization";
+    private static final String SOCIAL_CALLBACK_BASE_URI = "/api/v1/auth/social/callback/*";
+    private static final RequestMatcher SOCIAL_OAUTH_ENDPOINTS = new OrRequestMatcher(
+            PathPatternRequestMatcher.withDefaults().matcher(SOCIAL_AUTHORIZATION_BASE_URI + "/**"),
+            PathPatternRequestMatcher.withDefaults().matcher("/api/v1/auth/social/callback/**"));
 
     @Bean
     AuthenticationProvider adminAuthenticationProvider(AdminAuthUseCase adminAuthUseCase,
@@ -104,6 +122,14 @@ public class SecurityConfig {
     SecurityFilterChain customerSecurityFilterChain(HttpSecurity http,
                                                     CustomerAuthUseCase customerAuthUseCase,
                                                     CookieCsrfTokenRepository csrfTokenRepository,
+                                                    SocialLoginAuthenticationHandler socialLoginHandler,
+                                                    OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest>
+                                                            socialOAuth2AccessTokenResponseClient,
+                                                    @Qualifier("naverOAuth2UserService")
+                                                    OAuth2UserService<OAuth2UserRequest, OAuth2User>
+                                                            naverOAuth2UserService,
+                                                    @Qualifier("googleOidcUserService")
+                                                    OAuth2UserService<OidcUserRequest, OidcUser> googleOidcUserService,
                                                     ObjectMapper objectMapper) throws Exception {
         http.authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/v1/me", "/api/v1/me/**").hasRole("CUSTOMER")
@@ -131,14 +157,35 @@ public class SecurityConfig {
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(authenticationEntryPoint(objectMapper, CUSTOMER_LOGIN_REQUIRED))
                         .accessDeniedHandler(accessDeniedHandler(objectMapper)))
+                .securityContext(context -> context
+                        .securityContextRepository(new NullSecurityContextRepository()))
+                .sessionManagement(session -> session
+                        .sessionFixation(fixation -> fixation.none()))
                 .csrf(csrf -> csrf
                         .spa()
                         .csrfTokenRepository(csrfTokenRepository))
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(endpoint -> endpoint
+                                .baseUri(SOCIAL_AUTHORIZATION_BASE_URI))
+                        .redirectionEndpoint(endpoint -> endpoint
+                                .baseUri(SOCIAL_CALLBACK_BASE_URI))
+                        .tokenEndpoint(endpoint -> endpoint
+                                .accessTokenResponseClient(socialOAuth2AccessTokenResponseClient))
+                        .userInfoEndpoint(endpoint -> endpoint
+                                .userService(naverOAuth2UserService)
+                                .oidcUserService(googleOidcUserService))
+                        .authorizedClientRepository(new DiscardingOAuth2AuthorizedClientRepository())
+                        .successHandler(socialLoginHandler)
+                        .failureHandler(socialLoginHandler))
                 .requestCache(cache -> cache.disable())
                 .logout(logout -> logout.disable())
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
-                .headers(headers -> headers.cacheControl(cache -> cache.disable()));
+                .headers(headers -> headers
+                        .cacheControl(cache -> cache.disable())
+                        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(
+                                SOCIAL_OAUTH_ENDPOINTS,
+                                new StaticHeadersWriter(HttpHeaders.CACHE_CONTROL, "no-store"))));
 
         return http.build();
     }

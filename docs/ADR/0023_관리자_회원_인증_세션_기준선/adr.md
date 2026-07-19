@@ -43,7 +43,7 @@
 - 세션 네임스페이스는 `hg:session`, 기본 만료는 7일이다.
 - 회원 인증이 필요하거나 선택적으로 사용되는 요청마다 `customerUserId`에 해당하는 회원을 확인하고 회원 principal과 `SecurityContext`를 구성한다.
 - `/api/v1/me/**`는 회원 principal이 필요하고, 결제·클라이언트 모니터링처럼 회원 인증이 선택인 API는 세션이 있을 때만 회원 principal을 사용한다.
-- 로그인·회원가입·소셜 로그인 성공 시 세션 ID를 회전한 뒤 `customerUserId`와 로그인 과정에서 필요한 세션 속성을 유지한다.
+- 로그인·회원가입·소셜 로그인 성공 시 세션 ID를 회전하고 `customerUserId`를 저장한다. OAuth authorization request는 callback에서 소비하며 로그인 이후 유지하지 않는다.
 - 관리자 Bearer 세션과 회원 HTTP 세션은 분리 유지한다.
 
 ### 4. 회원 쿠키 인증에는 SPA CSRF 보호를 적용한다
@@ -57,7 +57,7 @@
 
 - Spring Security의 기본 cache-control writer는 비활성화한다.
 - 공개 상품·클래스·공지 API의 ETag와 `304 Not Modified` 계약을 유지한다.
-- 소셜 로그인 URL처럼 응답별로 지정한 `Cache-Control: no-store`는 그대로 유지한다.
+- 소셜 로그인 시작·callback 응답에는 `Cache-Control: no-store`를 명시한다.
 - 다른 기본 보안 응답 헤더는 Spring Security 기준을 따른다.
 
 ### 6. API key는 로컬과 테스트용 폴백으로만 허용한다
@@ -75,9 +75,18 @@
 - setup token이 없거나 관리자 계정이 이미 있으면 엔드포인트는 `404`로 숨긴다.
 - 계정을 만든 뒤에는 운영자가 즉시 `ADMIN_SETUP_TOKEN`을 제거한다.
 
-### 8. 현재 필요하지 않은 Security 기능은 도입하지 않는다
+### 8. OAuth2 Client는 로그인 프로토콜만 담당한다
 
-- `oauth2-client`는 현재 Google/Naver URL 발급·코드 교환 API와 계정 연결 정책을 크게 바꾸므로 보류한다. 제3 제공자, refresh token 보관, 표준 OIDC 로그아웃이 필요할 때 재검토한다.
+- `spring-boot-starter-oauth2-client`가 Google/Naver authorization request, `state`, code 교환과 UserInfo/OIDC 검증을 담당한다.
+- 시작 경로는 `/api/v1/auth/social/authorization/{provider}`, backend callback은 `/api/v1/auth/social/callback/{provider}`로 고정한다.
+- authorization request와 `state`는 callback 전까지만 Spring Session Redis에 저장하고 검증 후 제거한다.
+- 제공자 인증이 끝난 뒤 application에는 `provider`, `providerId`, `email`, `name`만 전달한다. 소셜 계정 조회·이메일 충돌·회원 생성 정책은 application이 계속 소유한다.
+- OAuth 인증 `SecurityContext`와 authorized client의 access/refresh token은 저장하지 않는다. 로그인 성공 후 장기 인증 상태는 기존 `customerUserId` 하나만 사용한다.
+- Spring Security의 기본 세션 고정 보호는 customer 체인에서 중복 적용하지 않고, 모든 회원 인증 성공 경로가 `CustomerSessionBinder`에서 세션 ID를 한 번 회전한다.
+- 기존 Google/Naver별 Apache HttpClient 연결 풀과 acquire/connect/read timeout은 token·UserInfo 호출에도 유지한다.
+
+### 9. 현재 필요하지 않은 나머지 Security 기능은 도입하지 않는다
+
 - 회원은 Spring Session, 관리자는 즉시 폐기 가능한 opaque Redis 세션을 사용하므로 JWT와 OAuth2 Resource Server를 도입하지 않는다. 별도 인증 서버와 여러 Resource Server가 생길 때 재검토한다.
 - 현재 역할은 `CUSTOMER`, `ADMIN` 두 개이고 리소스 소유권은 application 조회·변경 유스케이스에서 검증하므로 `@EnableMethodSecurity`, `@PreAuthorize`를 중복 적용하지 않는다. 직원별 세부 권한이나 HTTP 외 진입점의 공통 권한 요구가 생길 때 재검토한다.
 - 프런트와 API는 Vite proxy와 운영 ingress 모두 same-origin이므로 CORS 허용 정책을 추가하지 않는다. origin을 분리할 때 exact allowlist와 credential 정책을 함께 도입한다.
@@ -85,14 +94,14 @@
 - remember-me는 별도 로그인 유지 UX가 없고 회원 세션 TTL이 7일이므로 도입하지 않는다. 브라우저 재시작 후 유지 요구가 생기면 persistent session cookie와 별도 remember token을 먼저 비교한다.
 - ACL은 단일 회원 소유 또는 전체 관리자 접근 모델에 비해 저장소·캐시·동기화 비용이 크므로 사용하지 않는다. 여러 사용자·그룹이 한 리소스의 권한을 공유할 때만 재검토한다.
 
-### 9. OAuth state와 redirect URI를 같은 서버 상태로 묶는다
+### 10. OAuth state와 redirect URI는 서버가 소유한다
 
 - Google/Naver callback URI는 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI` 설정값과 정확히 일치해야 한다.
-- URL 발급 시 검증한 redirect URI를 provider별 `state`와 함께 회원 세션에 저장한다.
-- 코드 교환 시 요청의 `state`, `redirectUri`가 세션 값과 모두 일치해야 하며 검증 시 두 값을 한 번에 제거한다.
-- 이 경계는 OAuth2 Client 전환 여부와 무관하게 유지한다.
+- 브라우저가 `redirectUri`를 보내지 않는다. Spring의 `ClientRegistration`이 고정 callback URI를 authorization·token 요청에 동일하게 사용한다.
+- Spring Security가 만든 authorization request와 `state`를 같은 HTTP 세션에 저장하고 callback에서 일치 여부를 확인한 뒤 한 번에 제거한다.
+- Naver token 요청에 필요한 `state`는 외부 callback 파라미터를 다시 신뢰하지 않고 세션에서 복원한 authorization request의 값을 사용한다.
 
-### 10. 인증 외 운영 주제는 전용 ADR에서 본다
+### 11. 인증 외 운영 주제는 전용 ADR에서 본다
 
 - requestId, 구조화 로그, 에러 추적: `ADR-0015`
 - 처리율 제한: `ADR-0017`
@@ -111,6 +120,7 @@
 - URL 인가와 요청별 인증 표현을 Spring Security 표준으로 관리한다.
 - 관리자와 회원의 서로 다른 세션 계약을 유지하면서 인증 경계를 분리한다.
 - 회원 쿠키 인증에 CSRF 보호와 로그인 시 세션 ID 회전을 적용한다.
+- OAuth 프로토콜 구현을 표준화하면서도 서비스 회원과 장기 세션 소유권은 기존 application 경계에 유지한다.
 - 최초 관리자 계정 생성 규칙이 운영 기준과 함께 정리된다.
 
 ### 단점

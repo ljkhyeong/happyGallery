@@ -171,10 +171,10 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `PASS_TOTAL_PRICE` | 백엔드 | 8회권 결제 금액 |
 | `GOOGLE_OAUTH_CLIENT_ID` | 백엔드 `prod` | Google 로그인 client ID |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Google 로그인 client secret |
-| `GOOGLE_OAUTH_REDIRECT_URI` | 백엔드 `prod` | Google에 등록한 exact callback URI |
+| `GOOGLE_OAUTH_REDIRECT_URI` | 백엔드 `prod` | Google에 등록한 exact backend callback URI (`https://<host>/api/v1/auth/social/callback/google`) |
 | `NAVER_OAUTH_CLIENT_ID` | 백엔드 `prod` | Naver 로그인 client ID |
 | `NAVER_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Naver 로그인 client secret |
-| `NAVER_OAUTH_REDIRECT_URI` | 백엔드 `prod` | Naver에 등록한 exact callback URI |
+| `NAVER_OAUTH_REDIRECT_URI` | 백엔드 `prod` | Naver에 등록한 exact backend callback URI (`https://<host>/api/v1/auth/social/callback/naver`) |
 | `SMS_API_KEY` | 백엔드 `prod` | NHN Cloud 일반·인증 SMS app key |
 | `SMS_API_SECRET` | 백엔드 `prod` | NHN Cloud SMS API secret |
 | `SMS_SENDER_NUMBER` | 백엔드 `prod` | 사전 등록한 SMS 발신 번호 |
@@ -193,7 +193,7 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 
 Naver 로그인 운영 등록 조건:
 
-- Naver Developers 애플리케이션에 서비스 origin과 정확한 콜백 URI `${서비스 origin}/auth/callback/naver`를 등록한다.
+- Naver Developers 애플리케이션에 서비스 origin과 정확한 백엔드 콜백 URI `${서비스 origin}/api/v1/auth/social/callback/naver`를 등록한다.
 - 회원 프로필의 이메일과 이름 제공 항목을 사용하도록 설정한다. 둘 중 하나가 제공되지 않으면 서비스 회원을 식별할 수 없어 로그인을 거절한다.
 - 로그인 버튼은 [Naver 로그인 버튼 사용 가이드](https://developers.naver.com/docs/login/bi/bi.md)의 공식 심벌과 지정 색상을 사용한다.
 

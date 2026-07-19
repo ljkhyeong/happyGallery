@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { buildAuthPageHref, resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 
@@ -10,7 +10,9 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get("redirect") ?? (location.state as { from?: string } | null)?.from ?? "/";
+  const returnTo = resolveSafeReturnTo(
+    searchParams.get("redirect") ?? (location.state as { from?: string } | null)?.from,
+  );
   const claimIntent = searchParams.get("claim") === "1" || returnTo.includes("claim=1");
   const signupHref = buildAuthPageHref("/signup", {
     redirectTo: returnTo,
@@ -112,7 +114,7 @@ export function LoginPage() {
                 <span className="px-3 text-muted-soft small">또는</span>
                 <hr className="flex-grow-1" />
               </div>
-              <SocialLoginButtons action="로그인" returnTo={returnTo} onError={setError} />
+              <SocialLoginButtons action="로그인" returnTo={returnTo} />
               <div className="auth-footer-link mt-4">
                 계정이 없으신가요? <Link to={signupHref}>회원가입</Link>
               </div>
