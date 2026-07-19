@@ -3,7 +3,7 @@ package com.personal.happygallery.application.payment.context.pass;
 import com.personal.happygallery.application.pass.port.in.PassPurchaseUseCase;
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedPassPayload;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -29,19 +29,20 @@ public class PassFulfiller implements PaymentFulfiller {
 
     @Override
     public void validateStoredPayload(PaymentAttempt attempt, PaymentPayload payload) {
-        if (!(payload instanceof PassPayload pp)) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 결제 payload가 아닙니다.");
+        if (!(payload instanceof PreparedPassPayload pp)) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "8회권 금액 정보가 없습니다. 결제를 다시 준비해 주세요.");
         }
-        if (pp.userId() == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 구매는 회원 인증이 필요합니다.");
+        if (pp.userId() == null || pp.totalPrice() != attempt.getAmount() || pp.totalPrice() <= 0L) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 8회권 금액이 결제 금액과 일치하지 않습니다.");
         }
     }
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public FulfillResult fulfill(PaymentPayload payload, String paymentKey) {
-        PassPayload pp = (PassPayload) payload;
-        PassPurchase purchase = passPurchaseUseCase.purchaseForMember(pp.userId());
+        PreparedPassPayload pp = (PreparedPassPayload) payload;
+        PassPurchase purchase = passPurchaseUseCase.purchaseForMember(pp.userId(), pp.totalPrice());
         purchase.recordPaymentKey(paymentKey);
         return new FulfillResult(purchase.getId(), null);
     }

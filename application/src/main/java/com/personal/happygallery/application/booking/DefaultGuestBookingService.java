@@ -7,7 +7,6 @@ import com.personal.happygallery.application.customer.port.out.PhoneVerification
 import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.DepositCalculator;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
@@ -60,6 +59,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
      *
      * @return 저장된 PhoneVerification (id, phone — code는 응답에 포함하지 않음)
      */
+    @Override
     public PhoneVerification sendVerificationCode(String phone) {
         String code = "%06d".formatted(random.nextInt(1_000_000));
         LocalDateTime expiresAt = LocalDateTime.now(clock)
@@ -71,6 +71,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
     }
 
     /** 게스트 예약을 생성한다. 비회원은 예약금 결제만 허용한다. */
+    @Override
     public GuestBookingResult createGuestBooking(CreateGuestBookingCommand command) {
         // 1. 인증 코드 검증 + Guest upsert
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(
@@ -92,13 +93,11 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         String accessToken = issued.tokenHash();
 
         creationSupport.requireValidDeposit(command.paymentMethod());
-        long depositAmount = DepositCalculator.of(slot);
-        long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
         Booking booking = Booking.forGuestDeposit(
                 guest,
                 slot,
-                depositAmount,
-                balanceAmount,
+                command.depositAmount(),
+                command.balanceAmount(),
                 command.paymentMethod(),
                 accessToken);
 

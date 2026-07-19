@@ -5,6 +5,7 @@ import com.personal.happygallery.application.payment.context.PaymentPreparer;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedPassPayload;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentContext;
@@ -32,6 +33,7 @@ public class PassPreparer implements PaymentPreparer {
         if (!auth.isMember() || pp.userId() == null || !pp.userId().equals(auth.userId())) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 구매는 회원 인증이 필요합니다.");
         }
-        return new PreparedPayment(priceProperties.totalPrice(), pp);
+        long totalPrice = priceProperties.totalPrice();
+        return new PreparedPayment(totalPrice, new PreparedPassPayload(pp.userId(), totalPrice));
     }
 }

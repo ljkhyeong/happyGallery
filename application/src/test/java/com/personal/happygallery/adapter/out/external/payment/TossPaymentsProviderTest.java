@@ -99,6 +99,34 @@ class TossPaymentsProviderTest {
         });
     }
 
+    @DisplayName("Toss 결제 확정 응답 식별자가 요청과 다르면 재시도 가능한 실패로 처리한다")
+    @Test
+    void confirm_responseIdentityMismatch_returnsRetryableFailure() {
+        RestClient.Builder builder = tossRestClientBuilder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
+
+        server.expect(requestTo("https://api.tosspayments.com/v1/payments/confirm"))
+                .andRespond(withSuccess("""
+                        {
+                          "paymentKey": "different-payment-key",
+                          "orderId": "different-order-id",
+                          "method": "카드",
+                          "approvedAt": "2026-04-23T10:00:00+09:00"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        PaymentConfirmResult result = provider.confirm(
+                "payment-key", "order-id", 10_000L, "confirm-idempotency-key");
+
+        server.verify();
+        assertSoftly(softly -> {
+            softly.assertThat(result.success()).isFalse();
+            softly.assertThat(result.retryable()).isTrue();
+            softly.assertThat(result.failReason()).contains("식별자");
+        });
+    }
+
     @DisplayName("Toss 환불은 Basic 인증과 취소 금액으로 cancel 요청을 보낸다")
     @Test
     void refund_sendsBasicAuthAndAmount_returnsSuccess() {

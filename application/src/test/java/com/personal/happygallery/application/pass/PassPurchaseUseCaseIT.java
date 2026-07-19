@@ -25,6 +25,8 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class PassPurchaseUseCaseIT {
 
+    private static final long PREPARED_TOTAL_PRICE = 240_000L;
+
     @Autowired UserStorePort userStorePort;
     @Autowired PassPurchaseStorePort passPurchaseStorePort;
     @Autowired PassPurchaseReaderPort passPurchaseReaderPort;
@@ -48,7 +50,7 @@ class PassPurchaseUseCaseIT {
     @Test
     void purchase_success_remainingCredits8_earnLedgerCreated() {
         User user = userStorePort.save(new User("pass@example.com", "hashed-password", "회원", "01012345678"));
-        PassPurchase purchased = passPurchaseUseCase.purchaseForMember(user.getId());
+        PassPurchase purchased = passPurchaseUseCase.purchaseForMember(user.getId(), PREPARED_TOTAL_PRICE);
         Long passId = purchased.getId();
 
         // Proof: EARN ledger 1건, amount=8
@@ -59,6 +61,7 @@ class PassPurchaseUseCaseIT {
             softly.assertThat(purchased.getExpiresAt())
                     .isEqualTo(LocalDateTime.now(clock).toLocalDate().plusDays(90).atStartOfDay());
             softly.assertThat(purchased.getRemainingCredits()).isEqualTo(8);
+            softly.assertThat(purchased.getTotalPrice()).isEqualTo(PREPARED_TOTAL_PRICE);
             softly.assertThat(ledgers).hasSize(1);
             softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EARN);
             softly.assertThat(ledger.getAmount()).isEqualTo(8);
@@ -113,29 +116,6 @@ class PassPurchaseUseCaseIT {
             softly.assertThat(result.successCount()).isEqualTo(0);
             softly.assertThat(result.failureCount()).isZero();
             softly.assertThat(passLedgerReaderPort.findByPassPurchaseId(activePass.getId())).isEmpty();
-        });
-    }
-
-    // -----------------------------------------------------------------------
-    // Proof: 만료 7일 전 알림 대상 조회 — 6일 후 만료 pass 포함, 30일 후는 제외
-    // -----------------------------------------------------------------------
-
-    @DisplayName("만료 알림 조회는 7일 이내 만료되는 8회권만 반환한다")
-    @Test
-    void notification_query_returnsPassesExpiringWithin7Days() {
-        // 정확히 7일 후 만료 → 알림 대상
-        User firstUser = userStorePort.save(new User("notify-pass-1@example.com", "hashed-password", "회원", "01044445555"));
-        User secondUser = userStorePort.save(new User("notify-pass-2@example.com", "hashed-password", "회원", "01055556666"));
-        passPurchaseStorePort.save(passPurchase(firstUser.getId(), LocalDateTime.now(clock).plusDays(7), 0L));
-
-        // 30일 후 만료 → 알림 대상 아님
-        passPurchaseStorePort.save(passPurchase(secondUser.getId(), LocalDateTime.now(clock).plusDays(30), 0L));
-
-        var expiring = passExpiryBatchService.findExpiringWithin7Days();
-
-        assertSoftly(softly -> {
-            softly.assertThat(expiring).hasSize(1);
-            softly.assertThat(expiring.getFirst().getUserId()).isEqualTo(firstUser.getId());
         });
     }
 

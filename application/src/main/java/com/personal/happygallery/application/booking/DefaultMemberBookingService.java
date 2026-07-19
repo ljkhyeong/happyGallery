@@ -4,7 +4,6 @@ import com.personal.happygallery.application.booking.port.in.MemberBookingUseCas
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.DepositCalculator;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -31,43 +30,34 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
         this.creationSupport = creationSupport;
     }
 
-    /**
-     * 회원 예약을 생성한다. {@code passId}가 있으면 8회권 결제, 없으면 예약금 결제.
-     * 예약금은 서버가 슬롯 클래스 가격의 10%로 직접 산출한다.
-     *
-     * @param userId        인증된 회원 ID
-     * @param slotId        예약 슬롯 ID
-     * @param paymentMethod 결제 수단 (passId가 null일 때)
-     * @param passId        8회권 ID (null이면 예약금 결제)
-     */
-    public Booking createMemberBooking(Long userId, Long slotId,
-                                        DepositPaymentMethod paymentMethod, Long passId) {
+    /** 결제 prepare 단계에서 확정한 예약금과 잔금으로 회원 예약을 생성한다. */
+    @Override
+    public Booking createMemberDepositBooking(Long userId, Long slotId,
+                                               DepositPaymentMethod paymentMethod,
+                                               long depositAmount, long balanceAmount) {
+        Slot slot = reserveSlot(userId, slotId);
+        creationSupport.requireValidDeposit(paymentMethod);
+        Booking booking = Booking.forMemberDeposit(
+                userId, slot, depositAmount, balanceAmount, paymentMethod);
+        return creationSupport.saveAndComplete(booking, slot);
+    }
 
-        // 1. 슬롯 활성 여부 확인
+    /** 회원이 소유한 8회권 크레딧으로 예약을 생성한다. */
+    @Override
+    public Booking createMemberPassBooking(Long userId, Long slotId, Long passId) {
+        Slot slot = reserveSlot(userId, slotId);
+        PassPurchase pass = creationSupport.requireOwnedPass(passId, userId);
+        Booking booking = creationSupport.save(Booking.forMemberPass(userId, slot, pass));
+        creationSupport.deductPassCredit(pass, booking.getId());
+        return creationSupport.complete(booking, slot);
+    }
+
+    private Slot reserveSlot(Long userId, Long slotId) {
         Slot slot = slotCapacitySupport.loadActiveSlot(slotId);
-
-        // 2. 중복 예약 확인
         if (bookingReaderPort.existsBookedBySlotIdAndUserId(slotId, userId)) {
             throw new DuplicateBookingException();
         }
-
-        // 3. 비관적 락 + 정원 증가 + 첫 예약이면 뒤쪽 버퍼 차단
         slotCapacitySupport.reserveCapacity(slotId);
-
-        Booking booking;
-        if (passId != null) {
-            PassPurchase pass = creationSupport.requireOwnedPass(passId, userId);
-            booking = Booking.forMemberPass(userId, slot, pass);
-            booking = creationSupport.save(booking);
-            creationSupport.deductPassCredit(pass, booking.getId());
-            return creationSupport.complete(booking, slot);
-        } else {
-            creationSupport.requireValidDeposit(paymentMethod);
-            long depositAmount = DepositCalculator.of(slot);
-            long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
-            booking = Booking.forMemberDeposit(userId, slot, depositAmount, balanceAmount, paymentMethod);
-        }
-
-        return creationSupport.saveAndComplete(booking, slot);
+        return slot;
     }
 }

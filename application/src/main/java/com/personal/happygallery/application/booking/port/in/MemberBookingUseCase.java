@@ -8,6 +8,9 @@ import com.personal.happygallery.domain.booking.DepositPaymentMethod;
  */
 public interface MemberBookingUseCase {
 
-    Booking createMemberBooking(Long userId, Long slotId,
-                                DepositPaymentMethod paymentMethod, Long passId);
+    Booking createMemberDepositBooking(Long userId, Long slotId,
+                                       DepositPaymentMethod paymentMethod,
+                                       long depositAmount, long balanceAmount);
+
+    Booking createMemberPassBooking(Long userId, Long slotId, Long passId);
 }

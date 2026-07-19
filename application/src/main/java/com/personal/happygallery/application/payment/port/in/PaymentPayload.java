@@ -6,18 +6,21 @@ import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import java.util.List;
 
 /**
- * prepare 단계에 들어오는 context별 결제 payload.
+ * prepare 입력과 confirm에서 사용할 서버 확정 스냅샷을 나타내는 context별 결제 payload.
  *
  * <p>{@link com.fasterxml.jackson.annotation.JsonTypeInfo} 기반 polymorphic 직렬화로
  * 암호화되어 {@link com.personal.happygallery.domain.payment.PaymentAttempt#getPayloadEnc()}에 저장되고,
- * confirm 시 fulfiller가 동일 클래스로 역직렬화해 도메인 저장에 사용한다.
+ * 공개 입력 record는 preparer까지만 사용하고, preparer가 만든 {@code Prepared*Payload}를 암호화해 저장한다.
+ * confirm 시 fulfiller가 서버 확정 record로 역직렬화해 도메인 저장에 사용한다.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
         @JsonSubTypes.Type(value = PaymentPayload.OrderPayload.class, name = "ORDER"),
         @JsonSubTypes.Type(value = PaymentPayload.PreparedOrderPayload.class, name = "PREPARED_ORDER"),
         @JsonSubTypes.Type(value = PaymentPayload.BookingPayload.class, name = "BOOKING"),
-        @JsonSubTypes.Type(value = PaymentPayload.PassPayload.class, name = "PASS")
+        @JsonSubTypes.Type(value = PaymentPayload.PreparedBookingPayload.class, name = "PREPARED_BOOKING"),
+        @JsonSubTypes.Type(value = PaymentPayload.PassPayload.class, name = "PASS"),
+        @JsonSubTypes.Type(value = PaymentPayload.PreparedPassPayload.class, name = "PREPARED_PASS")
 })
 public sealed interface PaymentPayload {
 
@@ -64,6 +67,30 @@ public sealed interface PaymentPayload {
             DepositPaymentMethod paymentMethod
     ) implements PaymentPayload {}
 
+    /** prepare에서 예약금과 잔금을 확정한 뒤 결제 시도에만 저장하는 예약 payload. */
+    record PreparedBookingPayload(
+            Long userId,
+            String phone,
+            String verificationCode,
+            String name,
+            Long slotId,
+            Long passId,
+            DepositPaymentMethod paymentMethod,
+            long depositAmount,
+            long balanceAmount
+    ) implements PaymentPayload {
+
+        public static PreparedBookingPayload from(
+                BookingPayload payload, long depositAmount, long balanceAmount) {
+            return new PreparedBookingPayload(
+                    payload.userId(), payload.phone(), payload.verificationCode(), payload.name(),
+                    payload.slotId(), payload.passId(), payload.paymentMethod(), depositAmount, balanceAmount);
+        }
+    }
+
     /** 8회권 구매 payload. 회원 전용 — userId 필수. */
     record PassPayload(Long userId) implements PaymentPayload {}
+
+    /** prepare에서 서버 가격을 확정한 뒤 결제 시도에만 저장하는 8회권 payload. */
+    record PreparedPassPayload(Long userId, long totalPrice) implements PaymentPayload {}
 }

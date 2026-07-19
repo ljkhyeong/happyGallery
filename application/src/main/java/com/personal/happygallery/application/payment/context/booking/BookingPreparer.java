@@ -5,6 +5,7 @@ import com.personal.happygallery.application.payment.context.PaymentPreparer;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedBookingPayload;
 import com.personal.happygallery.domain.booking.DepositCalculator;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
@@ -44,7 +45,7 @@ public class BookingPreparer implements PaymentPreparer {
             if (!auth.isMember() || !auth.userId().equals(bp.userId())) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 사용 예약은 회원 인증이 필요합니다.");
             }
-            return new PreparedPayment(0L, bp);
+            return new PreparedPayment(0L, PreparedBookingPayload.from(bp, 0L, 0L));
         }
 
         if (bp.paymentMethod() == null) {
@@ -66,17 +67,22 @@ public class BookingPreparer implements PaymentPreparer {
 
         Slot slot = slotReader.findById(bp.slotId())
                 .orElseThrow(NotFoundException.supplier("슬롯"));
+        long depositAmount = DepositCalculator.of(slot);
+        long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
         if (auth.isMember()) {
-            return new PreparedPayment(DepositCalculator.of(slot), bp);
+            return new PreparedPayment(
+                    depositAmount, PreparedBookingPayload.from(bp, depositAmount, balanceAmount));
         }
-        BookingPayload prepared = new BookingPayload(
+        PreparedBookingPayload prepared = new PreparedBookingPayload(
                 null,
                 KoreanPhoneNumber.required(bp.phone()),
                 bp.verificationCode(),
                 PersonalName.required(bp.name()),
                 bp.slotId(),
                 null,
-                bp.paymentMethod());
-        return new PreparedPayment(DepositCalculator.of(slot), prepared);
+                bp.paymentMethod(),
+                depositAmount,
+                balanceAmount);
+        return new PreparedPayment(depositAmount, prepared);
     }
 }

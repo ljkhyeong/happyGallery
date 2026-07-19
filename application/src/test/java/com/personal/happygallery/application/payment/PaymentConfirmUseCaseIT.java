@@ -1,11 +1,16 @@
 package com.personal.happygallery.application.payment;
 
+import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.application.booking.port.out.ClassStorePort;
+import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
+import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
@@ -18,6 +23,9 @@ import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
+import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -43,8 +51,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
+import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -66,6 +77,10 @@ class PaymentConfirmUseCaseIT {
     @Autowired RefundPort refundPort;
     @Autowired OrderReaderPort orderReader;
     @Autowired OrderItemPort orderItemPort;
+    @Autowired BookingReaderPort bookingReaderPort;
+    @Autowired PassPurchaseReaderPort passPurchaseReaderPort;
+    @Autowired ClassStorePort classStorePort;
+    @Autowired SlotStorePort slotStorePort;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired UserStorePort userStorePort;
@@ -118,6 +133,55 @@ class PaymentConfirmUseCaseIT {
         });
         verify(paymentProvider).confirm(
                 "payment-key-confirm", prepared.orderId(), prepared.amount(), prepared.orderId());
+    }
+
+    @DisplayName("confirm은 클래스 가격이 바뀌어도 prepare 시점 예약금과 잔금으로 예약을 저장한다")
+    @Test
+    void confirm_bookingClassPriceChanged_usesPreparedPriceSnapshot() {
+        User user = userStorePort.save(
+                new User("booking-payment-confirm@example.com", "hashed", "예약 회원", "01034563456"));
+        BookingClass bookingClass = classStorePort.save(
+                bookingClass("예약금 확정 클래스", "CRAFT", 120, 50_000L, 30));
+        Slot slot = slotStorePort.save(slot(bookingClass, FUTURE, FUTURE.plusHours(2)));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        user.getId(), null, null, null, slot.getId(), null, DepositPaymentMethod.CARD),
+                auth));
+        jdbcTemplate.update("UPDATE classes SET price = ? WHERE id = ?", 90_000L, bookingClass.getId());
+
+        PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
+                new ConfirmCommand("booking-payment-key", prepared.orderId(), prepared.amount(), auth));
+
+        var booking = bookingReaderPort.findById(result.domainId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(prepared.amount()).isEqualTo(5_000L);
+            softly.assertThat(booking.getDepositAmount()).isEqualTo(5_000L);
+            softly.assertThat(booking.getBalanceAmount()).isEqualTo(45_000L);
+            softly.assertThat(booking.getPaymentKey()).isEqualTo("confirmed-payment-key");
+        });
+    }
+
+    @DisplayName("confirm은 prepare에서 확정한 8회권 가격을 구매 내역에 저장한다")
+    @Test
+    void confirm_passPurchase_usesPreparedPriceSnapshot() {
+        User user = userStorePort.save(
+                new User("pass-payment-confirm@example.com", "hashed", "이용권 회원", "01045674567"));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.PASS,
+                new PassPayload(user.getId()),
+                auth));
+
+        PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
+                new ConfirmCommand("pass-payment-key", prepared.orderId(), prepared.amount(), auth));
+
+        var passPurchase = passPurchaseReaderPort.findById(result.domainId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(passPurchase.getTotalPrice()).isEqualTo(prepared.amount());
+            softly.assertThat(passPurchase.getPaymentKey()).isEqualTo("confirmed-payment-key");
+        });
     }
 
     @DisplayName("confirm은 결제를 준비한 회원과 다른 회원이면 PG 호출 전에 거부한다")

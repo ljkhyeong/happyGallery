@@ -35,6 +35,7 @@ public class TossPaymentsProvider implements PaymentProvider {
     private static final String CONFIRM_REJECTED = "PG가 결제 확정을 거절했습니다.";
     private static final String CONFIRM_RETRYABLE = "PG 결제 확정 요청을 재시도해야 합니다.";
     private static final String CONFIRM_ERROR = "PG 결제 확정 호출 중 오류가 발생했습니다.";
+    private static final String CONFIRM_IDENTITY_MISMATCH = "PG 결제 확정 응답 식별자가 요청과 일치하지 않습니다.";
     private static final String REFUND_REJECTED = "PG가 환불을 거절했습니다.";
     private static final String REFUND_RETRYABLE = "PG 환불 요청을 재시도해야 합니다.";
     private static final String REFUND_RESULT_UNKNOWN = "PG 통신 결과를 확인할 수 없습니다.";
@@ -59,6 +60,11 @@ public class TossPaymentsProvider implements PaymentProvider {
             if (response == null || !StringUtils.hasText(response.paymentKey())) {
                 log.warn("Toss confirm: null/invalid response orderId={}", orderId);
                 return PaymentConfirmResult.retryableFailure("PG 응답이 비어 있습니다.");
+            }
+            if (!paymentKey.equals(response.paymentKey()) || !orderId.equals(response.orderId())) {
+                log.warn("Toss confirm 응답 식별자 불일치 [requestOrderId={} responseOrderId={}]",
+                        orderId, response.orderId());
+                return PaymentConfirmResult.retryableFailure(CONFIRM_IDENTITY_MISMATCH);
             }
             return PaymentConfirmResult.success(
                     response.paymentKey(),
