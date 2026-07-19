@@ -75,7 +75,7 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
         }
 
         User user = userStore.save(User.fromSocialProfile(info.email(), info.name()));
-        linkSocialAccount(user, command.provider(), info.providerId());
+        socialAccountStore.save(new SocialAccount(user.getId(), command.provider(), info.providerId()));
         updateLastLogin(user);
 
         return new SocialLoginResult(user, true);
@@ -92,13 +92,6 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
     private User findSocialAccountUser(SocialAccount socialAccount) {
         return userReader.findById(socialAccount.getUserId())
                 .orElseThrow(() -> new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED));
-    }
-
-    private void linkSocialAccount(User user, SocialProvider provider, String providerId) {
-        if (socialAccountReader.existsByUserIdAndProvider(user.getId(), provider)) {
-            throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
-        }
-        socialAccountStore.save(new SocialAccount(user.getId(), provider, providerId));
     }
 
     private void updateLastLogin(User user) {

@@ -9,6 +9,4 @@ public interface SocialAccountRepository
         extends JpaRepository<SocialAccount, Long> {
 
     Optional<SocialAccount> findByProviderAndProviderIdHmac(SocialProvider provider, String providerIdHmac);
-
-    boolean existsByUserIdAndProvider(Long userId, SocialProvider provider);
 }

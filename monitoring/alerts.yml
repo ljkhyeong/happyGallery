@@ -56,6 +56,29 @@ groups:
         annotations:
           summary: "최근 5분 동안 PG 호출 대기열 거절이 발생했습니다 ({{ $value | printf \"%.0f\" }}건)"
 
+      - alert: NotificationTimeoutExecutorQueueHigh
+        expr: |
+          executor_queued_tasks{application="happygallery",name="notificationTimeoutExecutor"}
+          /
+          clamp_min(
+            executor_queued_tasks{application="happygallery",name="notificationTimeoutExecutor"}
+            + executor_queue_remaining_tasks{application="happygallery",name="notificationTimeoutExecutor"},
+            1
+          ) > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "알림 외부 호출 대기열 사용률이 80%를 초과합니다"
+
+      - alert: NotificationTimeoutExecutorRejected
+        expr: increase(happygallery_notification_executor_rejected_total{application="happygallery"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "최근 5분 동안 알림 외부 호출 대기열 거절이 발생했습니다 ({{ $value | printf \"%.0f\" }}건)"
+
       - alert: AppDown
         expr: up{job="happygallery"} == 0
         for: 1m

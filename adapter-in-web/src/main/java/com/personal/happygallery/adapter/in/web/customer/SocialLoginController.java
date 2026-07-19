@@ -16,7 +16,6 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -81,15 +80,6 @@ public class SocialLoginController {
                                          SocialProvider provider,
                                          String actualState) {
         HttpSession session = request.getSession(false);
-
-        // state를 보내지 않던 구 Google 콜백과의 롤링 배포 호환 분기다.
-        if (provider == SocialProvider.GOOGLE && !StringUtils.hasText(actualState)) {
-            if (session != null) {
-                session.removeAttribute(stateAttributeName(provider));
-            }
-            return null;
-        }
-
         if (session == null) {
             throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
         }

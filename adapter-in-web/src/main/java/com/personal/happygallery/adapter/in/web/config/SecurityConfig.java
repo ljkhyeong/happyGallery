@@ -8,9 +8,11 @@ import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthen
 import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.domain.error.ErrorCode;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ProviderManager;
@@ -22,10 +24,10 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import tools.jackson.databind.ObjectMapper;
-
-import static org.springframework.http.HttpMethod.GET;
-import static org.springframework.http.HttpMethod.POST;
 
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
@@ -45,6 +47,15 @@ public class SecurityConfig {
     }
 
     @Bean
+    RequestMatcher publicAdminEndpoints() {
+        return new OrRequestMatcher(
+                adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/login"),
+                adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/logout"),
+                adminEndpoint(HttpMethod.POST, "/api/v1/admin/setup"),
+                adminEndpoint(HttpMethod.GET, "/api/v1/admin/setup/status"));
+    }
+
+    @Bean
     CookieCsrfTokenRepository csrfTokenRepository() {
         return CookieCsrfTokenRepository.withHttpOnlyFalse();
     }
@@ -53,6 +64,8 @@ public class SecurityConfig {
     @Order(1)
     SecurityFilterChain adminSecurityFilterChain(HttpSecurity http,
                                                  AuthenticationManager adminAuthenticationManager,
+                                                 @Qualifier("publicAdminEndpoints")
+                                                 RequestMatcher publicAdminEndpoints,
                                                  ObjectMapper objectMapper) throws Exception {
         AuthenticationEntryPoint entryPoint = authenticationEntryPoint(objectMapper, ADMIN_LOGIN_REQUIRED);
         AccessDeniedHandler accessDeniedHandler = accessDeniedHandler(objectMapper);
@@ -61,17 +74,14 @@ public class SecurityConfig {
 
         http.securityMatcher("/api/v1/admin", "/api/v1/admin/**")
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(POST,
-                                "/api/v1/admin/auth/login",
-                                "/api/v1/admin/auth/logout",
-                                "/api/v1/admin/setup")
-                        .permitAll()
-                        .requestMatchers(GET,
-                                "/api/v1/admin/setup/status")
+                        .requestMatchers(publicAdminEndpoints)
                         .permitAll()
                         .anyRequest().hasRole("ADMIN"))
                 .addFilterBefore(
-                        new AdminAuthenticationFilter(adminAuthenticationManager, failureHandler),
+                        new AdminAuthenticationFilter(
+                                adminAuthenticationManager,
+                                failureHandler,
+                                publicAdminEndpoints),
                         AnonymousAuthenticationFilter.class)
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(entryPoint)
@@ -141,5 +151,9 @@ public class SecurityConfig {
     private AccessDeniedHandler accessDeniedHandler(ObjectMapper objectMapper) {
         return (request, response, exception) ->
                 FilterErrorResponseWriter.write(response, objectMapper, ErrorCode.FORBIDDEN);
+    }
+
+    private static RequestMatcher adminEndpoint(HttpMethod method, String path) {
+        return PathPatternRequestMatcher.withDefaults().matcher(method, path);
     }
 }

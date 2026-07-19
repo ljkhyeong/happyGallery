@@ -180,9 +180,9 @@ class CustomerAuthUseCaseIT {
                 .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_FAILED"));
     }
 
-    @DisplayName("state를 보내지 않는 기존 Google 콜백도 전환 배포 중에는 로그인된다")
+    @DisplayName("소셜 로그인 state가 비어 있으면 요청 검증에서 거절한다")
     @Test
-    void googleSocialLogin_acceptsLegacyRequestWithoutState() throws Exception {
+    void socialLogin_rejectsMissingState() throws Exception {
         mockMvc.perform(post("/api/v1/auth/social/google")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -190,9 +190,8 @@ class CustomerAuthUseCaseIT {
                                 "legacy-google-code",
                                 "https://happygallery.example/auth/callback/google",
                                 null))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.user.email").value("social-test@example.com"))
-                .andExpect(cookie().exists("HG_SESSION"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
     @DisplayName("기존 세션으로 로그인하면 세션 ID가 교체된다")

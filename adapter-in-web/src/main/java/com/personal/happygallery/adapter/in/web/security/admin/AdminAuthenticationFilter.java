@@ -6,15 +6,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -22,25 +19,22 @@ public final class AdminAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String ADMIN_KEY_HEADER = "X-Admin-Key";
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final RequestMatcher PUBLIC_ADMIN_ENDPOINTS = new OrRequestMatcher(
-            endpoint(HttpMethod.POST, "/api/v1/admin/auth/login"),
-            endpoint(HttpMethod.POST, "/api/v1/admin/auth/logout"),
-            endpoint(HttpMethod.POST, "/api/v1/admin/setup"),
-            endpoint(HttpMethod.GET, "/api/v1/admin/setup/status")
-    );
 
     private final AuthenticationManager authenticationManager;
     private final AuthenticationFailureHandler authenticationFailureHandler;
+    private final RequestMatcher publicAdminEndpoints;
 
     public AdminAuthenticationFilter(AuthenticationManager authenticationManager,
-                                     AuthenticationFailureHandler authenticationFailureHandler) {
+                                     AuthenticationFailureHandler authenticationFailureHandler,
+                                     RequestMatcher publicAdminEndpoints) {
         this.authenticationManager = authenticationManager;
         this.authenticationFailureHandler = authenticationFailureHandler;
+        this.publicAdminEndpoints = publicAdminEndpoints;
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return PUBLIC_ADMIN_ENDPOINTS.matches(request);
+        return publicAdminEndpoints.matches(request);
     }
 
     @Override
@@ -79,9 +73,5 @@ public final class AdminAuthenticationFilter extends OncePerRequestFilter {
             return AdminAuthenticationToken.apiKey(apiKey);
         }
         return null;
-    }
-
-    private static RequestMatcher endpoint(HttpMethod method, String path) {
-        return PathPatternRequestMatcher.withDefaults().matcher(method, path);
     }
 }

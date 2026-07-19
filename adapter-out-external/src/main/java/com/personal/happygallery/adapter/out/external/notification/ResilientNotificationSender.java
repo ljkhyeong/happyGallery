@@ -7,6 +7,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +60,9 @@ public class ResilientNotificationSender implements NotificationSender {
             return false;
         } catch (TimeoutException e) {
             log.warn("[{}] 발송 타임아웃 [timeoutMs={} event={}]", channel(), timeoutMillis, eventType);
+            return false;
+        } catch (RejectedExecutionException e) {
+            log.warn("[{}] 발송 대기열 포화 [event={}]", channel(), eventType);
             return false;
         } catch (Exception e) {
             Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);

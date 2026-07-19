@@ -7,6 +7,4 @@ import java.util.Optional;
 public interface SocialAccountReaderPort {
 
     Optional<SocialAccount> findByProviderAndProviderId(SocialProvider provider, String providerId);
-
-    boolean existsByUserIdAndProvider(Long userId, SocialProvider provider);
 }

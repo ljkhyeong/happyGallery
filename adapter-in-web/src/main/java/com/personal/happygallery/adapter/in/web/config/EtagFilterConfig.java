@@ -1,4 +1,4 @@
-package com.personal.happygallery.bootstrap.config;
+package com.personal.happygallery.adapter.in.web.config;
 
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;

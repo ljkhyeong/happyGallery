@@ -59,6 +59,17 @@ app:
     scheduler:
       pool-size: ${BATCH_SCHEDULER_POOL_SIZE:4}
   external:
+    notification:
+      timeout-millis: ${NOTIFICATION_TIMEOUT_MILLIS:3000}
+      thread-pool:
+        pool-size: ${NOTIFICATION_EXECUTOR_POOL_SIZE:6}
+        queue-capacity: ${NOTIFICATION_EXECUTOR_QUEUE_CAPACITY:20}
+      circuit-breaker:
+        failure-rate-threshold: ${NOTIFICATION_CB_FAILURE_RATE_THRESHOLD:50}
+        sliding-window-size: ${NOTIFICATION_CB_SLIDING_WINDOW_SIZE:20}
+        minimum-number-of-calls: ${NOTIFICATION_CB_MINIMUM_CALLS:10}
+        wait-duration-open-seconds: ${NOTIFICATION_CB_WAIT_OPEN_SECONDS:30}
+        permitted-calls-in-half-open-state: ${NOTIFICATION_CB_HALF_OPEN_CALLS:3}
     kakao:
       api-key: ${KAKAO_API_KEY:}
       sender-key: ${KAKAO_SENDER_KEY:}

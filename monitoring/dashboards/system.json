@@ -192,6 +192,34 @@
         }
       ],
       "fieldConfig": { "defaults": { "unit": "percentunit" } }
+    },
+    {
+      "id": 12,
+      "title": "Notification Timeout Executor Threads & Queue",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 48 },
+      "targets": [
+        {
+          "expr": "executor_active_threads{application=\"happygallery\",name=\"notificationTimeoutExecutor\"}",
+          "legendFormat": "active"
+        },
+        {
+          "expr": "executor_pool_size_threads{application=\"happygallery\",name=\"notificationTimeoutExecutor\"}",
+          "legendFormat": "pool size"
+        },
+        {
+          "expr": "executor_queued_tasks{application=\"happygallery\",name=\"notificationTimeoutExecutor\"}",
+          "legendFormat": "queued"
+        },
+        {
+          "expr": "executor_queue_remaining_tasks{application=\"happygallery\",name=\"notificationTimeoutExecutor\"}",
+          "legendFormat": "queue remaining"
+        },
+        {
+          "expr": "increase(happygallery_notification_executor_rejected_total{application=\"happygallery\"}[5m])",
+          "legendFormat": "rejected (5m)"
+        }
+      ]
     }
   ],
   "schemaVersion": 39

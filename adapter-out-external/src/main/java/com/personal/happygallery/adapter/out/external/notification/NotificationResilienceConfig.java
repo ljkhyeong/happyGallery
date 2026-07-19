@@ -4,11 +4,15 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import java.time.Duration;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,12 +51,26 @@ class NotificationResilienceConfig {
     @Bean(destroyMethod = "shutdown")
     ExecutorService notificationTimeoutExecutor(NotificationResilienceProperties properties,
                                                 MeterRegistry meterRegistry) {
-        ExecutorService rawExecutor = Executors.newFixedThreadPool(
-                Math.max(2, properties.circuitBreaker().permittedCallsInHalfOpenState() * 2),
+        NotificationResilienceProperties.ThreadPool threadPool = properties.threadPool();
+        Counter rejectedCounter = Counter.builder("happygallery.notification.executor.rejected")
+                .description("Notification timeout executor rejected task count")
+                .register(meterRegistry);
+        RejectedExecutionHandler abortPolicy = new ThreadPoolExecutor.AbortPolicy();
+        RejectedExecutionHandler countingAbortPolicy = (task, rejectedExecutor) -> {
+            rejectedCounter.increment();
+            abortPolicy.rejectedExecution(task, rejectedExecutor);
+        };
+        ThreadPoolExecutor rawExecutor = new ThreadPoolExecutor(
+                threadPool.poolSize(),
+                threadPool.poolSize(),
+                0L,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(threadPool.queueCapacity()),
                 Thread.ofPlatform()
                         .name("notification-timeout-", 1)
                         .daemon(true)
-                        .factory());
+                        .factory(),
+                countingAbortPolicy);
         return ExecutorServiceMetrics.monitor(
                 meterRegistry,
                 rawExecutor,
@@ -92,6 +110,11 @@ class NotificationResilienceConfig {
                 .minimumNumberOfCalls(cb.minimumNumberOfCalls())
                 .waitDurationInOpenState(Duration.ofSeconds(cb.waitDurationOpenSeconds()))
                 .permittedNumberOfCallsInHalfOpenState(cb.permittedCallsInHalfOpenState())
+                .recordResult(NotificationResilienceConfig::isFailureResult)
                 .build();
+    }
+
+    private static boolean isFailureResult(Object result) {
+        return result instanceof Boolean sent && !sent;
     }
 }

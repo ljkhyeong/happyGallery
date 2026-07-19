@@ -47,8 +47,6 @@ class SocialAuthUseCaseIT {
             softly.assertThat(secondLogin.newUser()).isFalse();
             softly.assertThat(secondLogin.user().getId()).isEqualTo(firstLogin.user().getId());
             softly.assertThat(socialAccountRepository.count()).isEqualTo(1);
-            softly.assertThat(socialAccountRepository.existsByUserIdAndProvider(
-                    firstLogin.user().getId(), SocialProvider.NAVER)).isTrue();
         });
     }
 
