@@ -132,7 +132,7 @@ public class BatchScheduler {
         return paymentAttemptExpiryBatchUseCase.expirePendingAttempts();
     }
 
-    /** 보존 기간이 지난 결제·휴대폰 인증 개인정보를 정리한다. 매일 03:30 실행. */
+    /** 보존 기간이 지난 결제·휴대폰 인증·장바구니 병합 기록을 정리한다. 매일 03:30 실행. */
     @BatchJob(id = "personal_data_retention", value = "개인정보 보존 기간 정리")
     @Scheduled(cron = "0 30 3 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPersonalDataRetention() {

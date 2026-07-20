@@ -17,8 +17,10 @@ import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
+import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
+import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
@@ -35,8 +37,9 @@ import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static com.personal.happygallery.support.TestFixtures.slot;
-import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @UseCaseIT
 class PaymentPrepareUseCaseTest {
@@ -111,5 +114,42 @@ class PaymentPrepareUseCaseTest {
                 AuthContext.member(user.getId()))))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("판매 중인 상품");
+    }
+
+    @DisplayName("주문 prepare는 상품별 수량과 안전 결제 금액 상한을 우회할 수 없다")
+    @Test
+    void prepare_rejectsExcessiveQuantityAndUnsafeAmount() {
+        User user = userStorePort.save(new User(
+                "order-limit@example.com", "hashed", "회원", "01077778888"));
+        Product product = productStorePort.save(readyStockProduct(
+                "고액 상품", PaymentAmountPolicy.MAX_AMOUNT));
+        AuthContext auth = AuthContext.member(user.getId());
+
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(new OrderItemRef(product.getId(), 100))),
+                auth)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(
+                                new OrderItemRef(product.getId(), 50),
+                                new OrderItemRef(product.getId(), 50))),
+                auth)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(new OrderItemRef(product.getId(), 2))),
+                auth)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
     }
 }

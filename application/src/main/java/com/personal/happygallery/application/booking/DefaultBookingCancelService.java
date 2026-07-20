@@ -98,8 +98,8 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
         }
 
         if (lockedPass != null) {
-            passCreditService.restoreCredit(lockedPass, booking.getId());
-            return new CancellationCompensation(true, null);
+            boolean restored = passCreditService.restoreCredit(lockedPass, booking.getId());
+            return new CancellationCompensation(restored, null);
         }
 
         Refund refund = refundExecutionService.requestBookingRefund(booking, booking.getDepositAmount());

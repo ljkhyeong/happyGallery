@@ -50,6 +50,7 @@
 - 노트북 내부 볼륨은 백업이 아니다. MySQL 데이터와 복구에 필요한 설정·암호화 키는 노트북과 물리적으로 분리된 저장소에 암호화해 백업한다.
 - Redis에는 세션과 처리율 제한처럼 재생성 가능한 상태만 저장한다. Redis 데이터를 별도 백업하지 않으며, 유실 시 전체 세션 로그아웃과 처리율 버킷 초기화를 허용한다.
 - 백업 주기, 보존 기간, 무결성 확인과 복원 훈련 절차를 운영 manifest와 함께 확정한다.
+- 운영 초기 논리 백업은 6시간마다 실행해 약 6시간 RPO를 수용한다. 거래량 증가나 더 짧은 RPO가 필요해지면 binlog 외부 연속 보관과 PITR로 전환한다.
 - 배포와 Flyway migration 전에는 복구 가능한 백업을 확인한다. 컨테이너 이미지 롤백이 데이터베이스 스키마를 되돌리지는 않는다.
 
 ### 5. secret은 저장소와 이미지 밖에서 주입한다
@@ -79,11 +80,13 @@
 - 이미지는 로컬 registry를 사용하거나 k3s containerd로 명시적으로 가져오며, 선택한 방식을 배포 절차에 고정한다.
 - 배포 전 build와 최소 검증을 통과시키고, 배포 후 rollout 상태와 health endpoint를 확인한다.
 - 직전 이미지와 manifest를 보존해 애플리케이션을 롤백한다. Flyway가 적용된 경우에는 데이터 호환성과 복원 필요 여부를 별도로 판단한다.
+- 현재 release의 app/frontend와 MySQL·Redis·Prometheus·Alertmanager image archive, digest metadata와 manifest를 commit SHA별 한 번 off-device 백업에 보존한다. 각 암호화 DB 백업은 Flyway version·active 암호화 키 ID·active/previous keyring fingerprint·키 회전 단계와 호환 release 경로를 기록한다. 복원 진입점은 키링을 대조하고, archive를 containerd에 가져온 뒤 모든 필수 이미지 digest를 확인한 다음에만 기존 DB를 교체한다. fingerprint만 기록하고 키 원문은 기존 분리 복구 저장소에 둔다.
 - 기존 AWS 자동 배포 workflow는 제거하며, k3s 배포 자동화는 manifest와 rollback 절차가 마련된 뒤 별도로 결정한다.
 
 ### 7. probe와 종료 유예를 배포 계약에 포함한다
 
 - manifest에는 startup/readiness/liveness probe를 정의하고 Spring Boot health endpoint를 기준으로 실제 기동 실패와 트래픽 수용 가능 상태를 구분한다.
+- 운영 readiness group에는 `readinessState`, `db`, `redis`를 포함한다. MySQL 또는 Redis가 준비되지 않으면 app과 관리 Service의 ready endpoint에서 제외되고 Prometheus scrape 실패를 통해 `AppDown` 경보도 발생한다. liveness에는 외부 의존성을 넣지 않아 저장소의 일시 장애만으로 재시작 루프를 만들지 않는다.
 - `terminationGracePeriodSeconds`는 애플리케이션 graceful shutdown 유예인 30초 이상으로 둔다.
 - ingress timeout과 keep-alive는 ADR-0030의 외부 HTTP 연결 풀·timeout 기준과 함께 검증한다.
 
@@ -101,7 +104,8 @@
 - Traefik 전달 헤더 기준, ingress·Prometheus만 허용하는 Actuator NetworkPolicy
 - 저장소 밖 env와 HTTPS webhook URL 파일에서 runtime Secret을 생성·교체하는 절차
 - commit SHA 이미지 build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback
-- `age` 암호화 off-device MySQL 백업, checksum·보존 정리, app 중지 후 복원·Redis 초기화 절차
+- 6시간 간격 `age` 암호화 off-device MySQL 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 복원·Redis 초기화 절차
+- 백업 성공 heartbeat와 systemd 실패 HTTPS webhook
 - active/previous AES·HMAC keyring, 키 ID가 포함된 암호문, 단일 트랜잭션 회전 실행기와 소셜 provider ID lazy backfill
 - app 중지·백업·Redis 초기화를 포함한 `rotate-data-keys.sh`, 유예 조건 확인 뒤 previous 키를 제거하는 `finalize-data-key-rotation.sh`
 

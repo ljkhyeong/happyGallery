@@ -50,4 +50,17 @@ class JdbcCartMergeRequestStoreAdapter implements CartMergeRequestStorePort {
                     : Registration.CONFLICT;
         }
     }
+
+    @Override
+    public int deleteCreatedBefore(LocalDateTime cutoff, int limit) {
+        return jdbc.sql("""
+                        DELETE FROM cart_merge_requests
+                        WHERE created_at < :cutoff
+                        ORDER BY created_at, user_id, idempotency_key
+                        LIMIT :limit
+                        """)
+                .param("cutoff", cutoff)
+                .param("limit", limit)
+                .update();
+    }
 }

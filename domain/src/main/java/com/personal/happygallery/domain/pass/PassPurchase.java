@@ -76,7 +76,7 @@ public class PassPurchase {
      * @throws PassCreditInsufficientException 잔여 크레딧 없음
      */
     private void requireUsable(LocalDateTime usedAt) {
-        if (!usedAt.isBefore(expiresAt)) {
+        if (isExpiredAt(usedAt)) {
             throw new PassExpiredException();
         }
         if (!hasRemainingCredits()) {
@@ -87,6 +87,11 @@ public class PassPurchase {
     /** 잔여 크레딧이 남아 있는지 확인한다. */
     public boolean hasRemainingCredits() {
         return remainingCredits > 0;
+    }
+
+    /** expiresAt은 exclusive 경계이므로 해당 시각부터 만료로 본다. */
+    public boolean isExpiredAt(LocalDateTime checkedAt) {
+        return !checkedAt.isBefore(expiresAt);
     }
 
     /**
@@ -114,6 +119,19 @@ public class PassPurchase {
      */
     public void expire() {
         this.remainingCredits = 0;
+    }
+
+    /**
+     * 만료 경계에 도달했다면 잔여 크레딧을 소멸시키고 소멸 수량을 반환한다.
+     * 이미 소멸했거나 아직 유효하면 0을 반환한다.
+     */
+    public int expireIfReached(LocalDateTime checkedAt) {
+        if (!isExpiredAt(checkedAt) || !hasRemainingCredits()) {
+            return 0;
+        }
+        int expiredCredits = remainingCredits;
+        expire();
+        return expiredCredits;
     }
 
     /** 크레딧 단가 = total_price / total_credits */

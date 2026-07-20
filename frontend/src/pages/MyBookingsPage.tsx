@@ -9,7 +9,7 @@ import { buildQuickStatusTabs, buildStatusFilterOptions } from "@/features/my/li
 import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, getStatusLabel } from "@/shared/ui";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
 
 const DEFAULT_SORT = "SOONEST";
 const BOOKING_SORT_OPTIONS = [
@@ -45,16 +45,16 @@ export function MyBookingsPage() {
   const sortedBookings = [...filteredBookings].sort((left, right) => {
     switch (sortValue) {
       case "LATEST":
-        return Date.parse(right.startAt) - Date.parse(left.startAt);
+        return parseApiDateTime(right.startAt) - parseApiDateTime(left.startAt);
       case "DEPOSIT_DESC":
         return right.depositAmount - left.depositAmount;
       case "SOONEST":
       default:
-        return Date.parse(left.startAt) - Date.parse(right.startAt);
+        return parseApiDateTime(left.startAt) - parseApiDateTime(right.startAt);
     }
   });
   const upcomingCount = (bookings ?? []).filter((booking) =>
-    booking.status === "BOOKED" && Date.parse(booking.startAt) >= Date.now(),
+    booking.status === "BOOKED" && parseApiDateTime(booking.startAt) >= Date.now(),
   ).length;
   const finishedCount = (bookings ?? []).filter((booking) =>
     ["COMPLETED", "CANCELED", "NO_SHOW"].includes(booking.status),

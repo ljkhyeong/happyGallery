@@ -1,6 +1,9 @@
 package com.personal.happygallery.domain.product;
 
 import com.personal.happygallery.domain.category.CategoryName;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,6 +18,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "products")
 public class Product {
+
+    public static final long MAX_PRICE = PaymentAmountPolicy.MAX_AMOUNT;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -62,6 +67,10 @@ public class Product {
      * @param price    가격 (원)
      */
     public Product(String name, ProductType type, String category, long price) {
+        if (price < 1L || price > MAX_PRICE) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "상품 가격은 1원 이상 허용 범위 이하여야 합니다.");
+        }
         this.name = name;
         this.type = type;
         this.category = CategoryName.optional(category);

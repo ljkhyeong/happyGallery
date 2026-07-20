@@ -1,12 +1,13 @@
 package com.personal.happygallery.application.cart.port.in;
 
+import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import java.util.List;
 import java.util.UUID;
 
 public interface CartUseCase {
 
     record CartItemView(Long productId, String productName, long price, int qty, boolean available) {
-        public long subtotal() { return price * qty; }
+        public long subtotal() { return OrderAmountCalculator.addLine(0L, qty, price); }
     }
 
     record CartView(List<CartItemView> items, long totalAmount) {}

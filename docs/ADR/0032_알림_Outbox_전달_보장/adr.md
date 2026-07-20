@@ -49,6 +49,7 @@
 - 같은 outbox idempotency key를 NHN Alimtalk의 `X-NC-API-IDEMPOTENCY-KEY`로 전달해 공식 10분 중복 요청 차단을 사용한다. 처리 토큰 재발급과 무관하게 외부 멱등키는 유지한다.
 - 같은 예약에서 여러 번 발생할 수 있는 `BOOKING_RESCHEDULED`는 요청 단위 idempotency key를 사용해 기존 반복 발송 의미를 보존한다.
 - 자동 재시도를 모두 소진한 outbox는 `FAILED`로 종결하고 `happygallery.notification.outbox.failed` 카운터를 올린다.
+- `PENDING`·`PROCESSING`·`FAILED`별 backlog 건수와 처리 기준 시각을 DB에서 주기적으로 집계한다. `PROCESSING`은 현재 선점의 `locked_at`이 2분 넘은 경우, `PENDING`은 `next_attempt_at`이 1분 넘게 지난 경우를 정체로 보고, `FAILED`는 최종 실패가 확정된 `processed_at`부터 경과 시간을 계산한다. 미래 재시도 예정 시각의 age는 0이므로 최대 5회 지수 백오프 중인 정상 대기는 경보를 울리지 않는다.
 - 관리자는 실패 outbox를 최대 100건씩 조회하고, 원래 행을 `PENDING`으로 다시 열 수 있다. 새 outbox나 새 멱등키를 만들지 않으므로 동일 이벤트가 별도 요청으로 중복 발송되는 것을 막는다.
 - 주문 결제와 8회권 구매도 주문/구매 트랜잭션 안에서 각각 `ORDER_PAID`, `PASS_PURCHASED` outbox를 저장한다.
 - 예약금·주문·8회권의 PG 환불 성공 처리도 `DEPOSIT_REFUNDED`, `ORDER_REFUNDED`, `PASS_REFUNDED` outbox 저장과 같은 `REQUIRES_NEW` 트랜잭션에 묶는다. 동기 outbox listener 예외를 삼키지 않으므로 저장 실패 시 로컬 환불 성공 반영이 롤백되고, 기존 PG 멱등키 복구가 다시 상태를 확정한다.
@@ -61,6 +62,7 @@
 - 외부 발송 성공 직후 프로세스가 종료되어 로컬 `SENT` 저장이 유실되거나, 실행 중단이 10분을 넘겨 NHN 중복 차단 창이 끝난 뒤 재시도되면 Alimtalk이 중복 발송될 수 있다.
 - NHN SMS API에는 이 outbox가 사용할 수 있는 동등한 멱등 계약이 없다. Alimtalk의 transport 결과가 불명인데 SMS fallback 또는 outbox 재시도가 이어지면 채널 간 중복이 발생할 수 있다.
 - transport 결과 불명에서 즉시 SMS fallback만 선택적으로 막으려면 제공자 상태 조회나 영속적인 채널별 `UNKNOWN` 상태가 필요하다. 일시·영구 실패 분류만으로는 외부의 실제 성공 여부를 확정할 수 없어 근거 없는 분기를 추가하지 않는다.
+- `notification_log`는 회원 알림함 목록·읽지 않은 건수·읽음 처리의 원본이고, terminal outbox의 UNIQUE 멱등키는 같은 도메인 이벤트의 재생성을 막는다. 현재 API는 알림함 조회 보존 기간을 제한하지 않고 outbox와 로그 사이에 삭제 가능성을 증명할 직접 참조도 없으므로 자동 삭제하지 않는다. 추후 조회 기간, 감사 보존 기간과 멱등키 tombstone 전략을 함께 정한 뒤 보존 배치를 도입한다.
 
 ---
 
@@ -90,6 +92,7 @@
 - outbox 멱등키 UNIQUE 제약을 이용하는 원자적 insert-if-absent 어댑터 적용
 - `NotificationRequestedEvent`에 aggregate/idempotency key 추가
 - 최종 실패 메트릭, 관리자 실패 목록·재처리 API와 화면 추가
+- outbox 상태별 backlog 건수·처리 기준 경과 시간과 DB 스냅샷 갱신 상태 메트릭, Prometheus 정체 경보와 Grafana 패널 추가
 - 환불 성공 알림 outbox의 원자적 저장과 `notification_log` 저장 실패 메트릭·재발송 방지 처리 추가
 - `notification_outbox.processing_token`, `version`과 NHN Alimtalk 멱등 헤더 적용
 - outbox 트랜잭션 보장 테스트:

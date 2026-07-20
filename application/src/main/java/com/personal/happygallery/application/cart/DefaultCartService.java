@@ -15,6 +15,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.ProductStatus;
+import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -64,10 +65,12 @@ public class DefaultCartService implements CartUseCase {
                         item.productId(), item.productName(), item.price(), item.qty(), isAvailable(item)))
                 .toList();
 
-        long total = views.stream()
-                .filter(CartItemView::available)
-                .mapToLong(CartItemView::subtotal)
-                .sum();
+        long total = 0L;
+        for (CartItemView item : views) {
+            if (item.available()) {
+                total = OrderAmountCalculator.addLine(total, item.qty(), item.price());
+            }
+        }
         return new CartView(views, total);
     }
 
@@ -94,7 +97,8 @@ public class DefaultCartService implements CartUseCase {
         Map<Long, Integer> quantitiesByProductId = new TreeMap<>();
         try {
             for (MergeItem item : items) {
-                quantitiesByProductId.merge(item.productId(), item.qty(), Math::addExact);
+                int quantity = quantitiesByProductId.merge(item.productId(), item.qty(), Math::addExact);
+                OrderAmountCalculator.requireQuantity(quantity);
             }
         } catch (ArithmeticException e) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "장바구니 수량이 너무 큽니다.");

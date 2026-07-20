@@ -182,7 +182,7 @@ cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시
 
 후속 배포는 Flyway 실행 전에 최근 암호화 백업이 필요하다. `VERIFIED_BACKUP_FILE`과 같은 이름의 `.sha256` 파일이 존재하고 48시간 이내여야 rollout이 진행된다.
 
-스크립트는 다음 순서로 실행한다.
+스크립트는 다음 순서로 실행한다. app Service는 전용 Traefik `ServersTransport`를 사용해 upstream 연결 3초, 응답 헤더 30초, idle keep-alive 15초를 적용한다. Redis는 256MiB 컨테이너 한도보다 낮은 192MiB에서 `noeviction`으로 쓰기를 거절해 커널 OOM 종료 대신 애플리케이션의 fail-open/fail-closed 정책으로 장애를 드러낸다.
 
 1. cert-manager/Traefik CRD, runtime Secret, containerd 이미지와 digest 일치 확인
 2. 실제 host, ACME email, commit SHA tag와 content digest로 manifest 렌더링
@@ -203,7 +203,7 @@ kubectl -n happygallery logs deployment/app --since=15m
 kubectl -n happygallery port-forward service/prometheus 9090:9090
 ```
 
-검증 스크립트는 모든 workload ready replica, MySQL PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
+검증 스크립트는 모든 workload ready replica, MySQL PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. 운영 readiness는 DB와 Redis를 포함하므로 둘 중 하나가 내려가면 app은 ready endpoint에서 제외되고 Prometheus `AppDown` 경보가 발생한다. 환불·알림 backlog는 상태별 건수와 처리 예정·선점 시각을 넘긴 경과 시간, 15초 DB 스냅샷 갱신 지연 경보로 별도 확인한다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
 
 호스트/공유기에서는 다음도 별도로 확인한다.
 
@@ -213,9 +213,11 @@ kubectl -n happygallery port-forward service/prometheus 9090:9090
 - 노트북 재부팅 후 k3s, PVC와 workload 자동 복구
 - `df -h`, `kubectl top` 또는 호스트 모니터링을 통한 디스크/메모리 여유
 
-## 7. 외부 암호화 백업
+## 7. 외부 암호화 복구 백업
 
 백업은 MySQL Pod에서 dump를 stdout으로만 내보내고 호스트가 `gzip -> age`로 암호화해 외부 mount에 직접 기록한다. 평문 SQL 파일은 생성하지 않는다. 성공 후 암호문 SHA-256 sidecar를 만들며 기본 보존 기간은 30일이다.
+
+DB만 복원되고 실행할 바이너리가 사라지는 상황을 막기 위해 같은 외부 매체의 `releases/<IMAGE_TAG>/`에는 호환 app/frontend와 MySQL·Redis·Prometheus·Alertmanager 이미지 archive, digest metadata와 렌더링 manifest를 commit SHA별 한 번 보존한다. 각 DB 백업의 `happygallery-<시각>.recovery.env`는 DB 파일, release 경로, Flyway schema version, active 암호화 키 ID·keyring SHA-256 fingerprint와 키 회전 단계를 묶는다. fingerprint는 키 원문을 저장하지 않으면서 같은 ID에 잘못된 키를 넣은 복구도 차단한다. release archive는 여러 DB 백업이 공유하므로 자동 보존 정리에서 삭제하지 않는다. 해당 release를 가리키는 DB 백업이 더 없고 별도 복원 검증을 마친 뒤에만 수동 삭제한다.
 
 1. 복원 전용 age identity를 노트북과 분리해 보관하고 public recipient만 노트북에 둔다.
 2. 외부 매체가 실제 mount된 상태에서 전용 백업 디렉터리에 marker를 한 번 만든다.
@@ -232,12 +234,14 @@ export BACKUP_AGE_RECIPIENT='age1...'
 ./deploy/k3s/scripts/prune-backups.sh
 ```
 
-systemd 일일 실행:
+systemd 6시간 간격 실행:
 
 ```bash
 sudo install -m 600 deploy/k3s/examples/backup.env.example /etc/happygallery/backup.env
+sudo install -m 600 deploy/k3s/examples/backup-alert.env.example /etc/happygallery/backup-alert.env
 sudo install -m 644 deploy/k3s/systemd/happygallery-backup.service.example /etc/systemd/system/happygallery-backup.service
 sudo install -m 644 deploy/k3s/systemd/happygallery-backup.timer.example /etc/systemd/system/happygallery-backup.timer
+sudo install -m 644 deploy/k3s/systemd/happygallery-backup-failure@.service.example /etc/systemd/system/happygallery-backup-failure@.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now happygallery-backup.timer
 systemctl list-timers happygallery-backup.timer
@@ -245,7 +249,7 @@ systemctl list-timers happygallery-backup.timer
 
 예시 unit은 저장소가 `/opt/happygallery`에 있다고 가정한다. 실제 checkout 경로와 `kubectl` 경로가 다르면 unit과 `/etc/happygallery/backup.env`를 함께 수정한다.
 
-백업 성공 알림은 systemd 실패 알림 또는 별도 호스트 모니터에 연결해야 한다. timer만 켜고 최근 파일과 journal을 확인하지 않으면 백업 완료로 보지 않는다.
+성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하면 별도 HTTPS webhook unit을 호출한다. 외부 uptime 모니터는 노트북 자체가 꺼진 경우에도 알 수 있도록 이 heartbeat가 7시간 넘게 갱신되지 않는지도 별도로 확인한다. 현재 논리 dump 기준 RPO는 약 6시간이며 PITR는 제공하지 않는다. 주문량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog를 외부 저장소로 연속 보관하는 PITR로 전환한다.
 
 ## 8. 복원 훈련
 
@@ -254,15 +258,11 @@ systemctl list-timers happygallery-backup.timer
 ```bash
 kubectl -n happygallery scale deployment/app --replicas=0
 
-CONFIRM_RESTORE=restore-happygallery \
-  ./deploy/k3s/scripts/restore-mysql.sh \
-  /mnt/off-device/happygallery/happygallery-YYYYMMDDTHHMMSSZ.sql.gz.age \
-  /secure/off-device/age-identity.txt
-
-# app이 0인 동안 백업 시점 DB schema와 호환되는 digest release를 먼저 지정한다.
+export CONFIRM_RESTORE=restore-happygallery
 export CONFIRM_RESTORED_RELEASE='<호환 release의 IMAGE_TAG>'
-./deploy/k3s/scripts/activate-restored-release.sh \
-  "$HOME/.local/state/happygallery/releases/<호환 release 디렉터리>"
+./deploy/k3s/scripts/restore-recovery-backup.sh \
+  /mnt/off-device/happygallery/happygallery-YYYYMMDDTHHMMSSZ.recovery.env \
+  /secure/off-device/age-identity.txt
 ./deploy/k3s/scripts/verify.sh gallery.example.com
 ```
 
@@ -273,7 +273,10 @@ export CONFIRM_RESTORED_RELEASE='<호환 release의 IMAGE_TAG>'
 - age 인증 복호화와 gzip 무결성 통과
 - 복원 후 `mysqlcheck` 통과
 - DB 시점과 불일치할 Redis 세션·rate-limit 상태 삭제
-- app이 0인 상태에서 선택한 release의 app/frontend digest 반영 후 app scale-up
+- runtime active/previous 암호화·HMAC·비회원 토큰 keyring의 ID/fingerprint와 백업 메타데이터 일치
+- 복원된 `flyway_schema_history`와 백업 메타데이터의 schema version 일치
+- DB를 DROP하기 전 외부 이미지 archive checksum 검증, 필요 이미지 containerd import, app/frontend와 MySQL·Redis·Prometheus·Alertmanager 전체 digest 재검증
+- app이 0인 상태에서 묶인 release의 app/frontend digest 반영 후 app scale-up
 
 복원 후 회원 로그인, 개인정보 복호화, 이름/전화번호 HMAC 조회, 주문·예약·결제 이력과 Flyway 상태를 확인한다. 백업 시점의 active/previous AES·HMAC 키링을 잃었거나 다른 키를 쓰면 데이터 복구가 완료된 것이 아니다. guest token 연속성이 필요하면 백업 시점 guest active/previous 키도 함께 복구한다.
 

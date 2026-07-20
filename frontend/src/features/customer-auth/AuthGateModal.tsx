@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Modal, Button, Form, Alert, Nav } from "react-bootstrap";
-import { useCustomerAuth } from "./useCustomerAuth";
+import { Modal, Button, Form, Nav } from "react-bootstrap";
+import { useCustomerAuth, type CustomerUser } from "./useCustomerAuth";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { normalizePhone } from "@/shared/validation/phone";
+import { ErrorAlert } from "@/shared/ui";
 
 type AuthPath = "login" | "signup" | "guest";
 
@@ -15,7 +16,7 @@ interface GuestInfo {
 interface Props {
   show: boolean;
   onClose: () => void;
-  onMemberConfirm: () => void;
+  onMemberConfirm: (member: CustomerUser) => void;
   onGuestConfirm: (info: GuestInfo) => void;
 }
 
@@ -28,7 +29,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
   const [signupName, setSignupName] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
   const [signupVerificationCode, setSignupVerificationCode] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // guest step
@@ -53,7 +54,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={onClose}>취소</Button>
-          <Button variant="primary" onClick={onMemberConfirm}>확인</Button>
+          <Button variant="primary" onClick={() => onMemberConfirm(user!)}>확인</Button>
         </Modal.Footer>
       </Modal>
     );
@@ -61,33 +62,35 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    setError(null);
     setSubmitting(true);
-    const ok = await login(email, password);
-    setSubmitting(false);
-    if (ok) {
-      onMemberConfirm();
-    } else {
-      setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+    try {
+      const member = await login(email, password);
+      onMemberConfirm(member);
+    } catch (requestError) {
+      setError(requestError);
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    setError(null);
     setSubmitting(true);
-    const ok = await signup(
-      email,
-      password,
-      signupName,
-      signupPhone,
-      signupVerificationCode,
-    );
-    setSubmitting(false);
-    if (ok) {
-      onMemberConfirm();
-    } else {
-      setError("회원가입에 실패했습니다. 인증코드와 가입 정보를 확인해주세요.");
+    try {
+      const member = await signup(
+        email,
+        password,
+        signupName,
+        signupPhone,
+        signupVerificationCode,
+      );
+      onMemberConfirm(member);
+    } catch (requestError) {
+      setError(requestError);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -115,7 +118,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
           </Nav.Item>
         </Nav>
 
-        {error && <Alert variant="danger" className="small">{error}</Alert>}
+        <ErrorAlert error={error} />
 
         {tab === "login" && (
           <Form onSubmit={handleLogin}>

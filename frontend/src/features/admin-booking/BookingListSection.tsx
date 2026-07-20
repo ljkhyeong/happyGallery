@@ -19,7 +19,7 @@ import {
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
 
 interface Props {
   adminKey: string;
@@ -205,14 +205,14 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
                         <Button
                           size="sm"
                           variant="outline-primary"
-                          title={Date.parse(b.endAt) > Date.now()
+                          title={parseApiDateTime(b.endAt) > Date.now()
                             ? "수업 종료 후 완료할 수 있습니다."
                             : b.balanceStatus === "UNPAID" && !b.arrears
                               ? "잔금을 결제하거나 미수로 표시해 주세요."
                               : undefined}
                           disabled={
                             mutationPending
-                            || Date.parse(b.endAt) > Date.now()
+                            || parseApiDateTime(b.endAt) > Date.now()
                             || (b.balanceStatus === "UNPAID" && !b.arrears)
                           }
                           onClick={() => completeMutation.mutate(b.bookingId)}

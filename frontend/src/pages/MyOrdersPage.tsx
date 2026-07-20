@@ -9,7 +9,7 @@ import { buildQuickStatusTabs, buildStatusFilterOptions } from "@/features/my/li
 import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, getStatusLabel } from "@/shared/ui";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
 
 const DEFAULT_SORT = "LATEST";
 const ORDER_SORT_OPTIONS = [
@@ -43,14 +43,14 @@ export function MyOrdersPage() {
   const sortedOrders = [...filteredOrders].sort((left, right) => {
     switch (sortValue) {
       case "OLDEST":
-        return Date.parse(left.createdAt) - Date.parse(right.createdAt);
+        return parseApiDateTime(left.createdAt) - parseApiDateTime(right.createdAt);
       case "AMOUNT_DESC":
         return right.totalAmount - left.totalAmount;
       case "AMOUNT_ASC":
         return left.totalAmount - right.totalAmount;
       case "LATEST":
       default:
-        return Date.parse(right.createdAt) - Date.parse(left.createdAt);
+        return parseApiDateTime(right.createdAt) - parseApiDateTime(left.createdAt);
     }
   });
   const activeCount = (orders ?? []).filter((order) =>

@@ -40,6 +40,7 @@
 - 운영자는 시작 응답의 `refundId`와 `GET /api/v1/admin/refunds/{refundId}`로 전체 상태를 조회한다. 수동 재시도 응답도 PG 호출 후 실제 저장 상태를 반환한다.
 - 프론트 고객 상세는 `REQUESTED`, `PROCESSING`을 짧게 폴링하고 자동 복구 대상인 `RETRYABLE`, `RECONCILIATION_REQUIRED`는 간격을 늘려 추적한다. 관리자 시작 화면은 `REQUESTED`, `PROCESSING`만 추적하고 조치 필요 상태는 결과 기반 알림과 실패 목록으로 전환한다.
 - `REQUESTED`, 재시도 시각이 지난 `RETRYABLE`·`RECONCILIATION_REQUIRED`, 1분 이상 멈춘 `PROCESSING`은 매분 최대 10건씩 복구한다. 복구 호출도 최초 멱등키를 재사용한다.
+- 복구 배치의 항목 성공은 dispatcher 호출 완료가 아니라 저장된 환불 상태가 `SUCCEEDED`에 도달한 경우만 뜻한다. 다른 실행이 이미 선점한 `PROCESSING`은 스킵하고, PG 시도 뒤 `FAILED`·`RETRYABLE`·`RECONCILIATION_REQUIRED`로 끝난 항목은 부분 실패로 집계한다.
 - 운영자 재시도는 `Propagation.NEVER` 경계에서 즉시 실행해 HTTP 응답 전에 성공 또는 재실패 상태를 확정한다.
 - `Refund`는 `bookingId`/`orderId`/`passPurchaseId`/`paymentAttemptId` 중 하나를 id-only 참조로 저장한다. 환불 이력은 재시도·운영 추적용 레코드이며,
   예약, 주문, 8회권 객체를 탐색하거나 상태를 변경하지 않는다.
@@ -71,6 +72,7 @@
 - `application/payment/RefundTransactionService`는 `REQUIRES_NEW`가 필요한 PG 실행 준비·재시도 검증·결과 업데이트를 어노테이션 트랜잭션으로 담당
 - `paymentKey` 누락처럼 PG 호출 전 확정 가능한 실패는 `claimRefundCall` 안에서 조회와 `FAILED` 저장을 한 트랜잭션으로 처리
 - `DefaultRefundRecoveryService`와 `BatchScheduler`는 미완료 환불을 주기적으로 복구
+- 상태별 미완료 건수와 처리 기준 시각(`REQUESTED=created_at`, `PROCESSING=processing_at`, `RETRYABLE/RECONCILIATION_REQUIRED=next_attempt_at`, `FAILED=updated_at`)을 DB에서 집계한다. 미래 재시도 시각의 age는 0으로 두고 실제 처리 지연과 운영자 조치 필요 backlog만 Prometheus 경보로 감시
 - `DefaultRefundQueryService`와 `AdminRefundController`는 관리자 환불 단건 상태 조회를 담당
 - 예약·주문 상세 응답은 소유권 검증 후 고객용 `amount`, `status`만 투영
 - 프론트 고객 상세와 관리자 환불 시작 화면은 `REQUESTED`, `PROCESSING` 동안 상태를 재조회

@@ -22,6 +22,7 @@ import com.personal.happygallery.adapter.out.persistence.product.InventoryAdjust
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
 import com.personal.happygallery.adapter.out.persistence.user.SocialAccountRepository;
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -49,6 +50,7 @@ public class TestCleanupSupport {
     private final ProductRepository productRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final UserRepository userRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public TestCleanupSupport(AdminUserRepository adminUserRepository,
                               BookingHistoryRepository bookingHistoryRepository,
@@ -71,7 +73,8 @@ public class TestCleanupSupport {
                               InventoryAdjustmentRepository inventoryAdjustmentRepository,
                               ProductRepository productRepository,
                               SocialAccountRepository socialAccountRepository,
-                              UserRepository userRepository) {
+                              UserRepository userRepository,
+                              JdbcTemplate jdbcTemplate) {
         this.adminUserRepository = adminUserRepository;
         this.bookingHistoryRepository = bookingHistoryRepository;
         this.bookingRepository = bookingRepository;
@@ -94,6 +97,7 @@ public class TestCleanupSupport {
         this.productRepository = productRepository;
         this.socialAccountRepository = socialAccountRepository;
         this.userRepository = userRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public void clearAdminUsers() {
@@ -168,6 +172,7 @@ public class TestCleanupSupport {
     }
 
     public void clearUsers() {
+        jdbcTemplate.update("DELETE FROM cart_merge_requests");
         socialAccountRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
         phoneVerificationRepository.deleteAllInBatch();

@@ -162,9 +162,19 @@ class NotificationOutboxUseCaseIT {
         outboxDispatcher.dispatchPending();
 
         NotificationOutbox failed = outboxRepository.findById(outbox.getId()).orElseThrow();
-        assertThat(failed.getStatus()).isEqualTo(NotificationOutboxStatus.PENDING);
-        assertThat(failed.getAttemptCount()).isOne();
-        assertThat(failed.getLastError()).startsWith("DISPATCH_EXCEPTION:");
+        var backlog = outboxRepository.summarizeUnresolvedBacklog();
+        assertSoftly(softly -> {
+            softly.assertThat(failed.getStatus()).isEqualTo(NotificationOutboxStatus.PENDING);
+            softly.assertThat(failed.getAttemptCount()).isOne();
+            softly.assertThat(failed.getLastError()).startsWith("DISPATCH_EXCEPTION:");
+            softly.assertThat(backlog)
+                    .singleElement()
+                    .satisfies(summary -> {
+                        softly.assertThat(summary.status()).isEqualTo(NotificationOutboxStatus.PENDING);
+                        softly.assertThat(summary.count()).isOne();
+                        softly.assertThat(summary.oldestActionAt()).isAfter(LocalDateTime.now(clock));
+                    });
+        });
     }
 
     @DisplayName("재선점 전 처리 토큰의 늦은 성공과 실패는 최신 outbox 상태를 덮지 않는다")

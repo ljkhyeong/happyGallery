@@ -60,6 +60,7 @@ Authorization: Bearer {token}
 ```
 
 - 성공: `204 No Content`
+- 관리자 클라이언트는 `204`를 받은 뒤에만 `sessionStorage`의 토큰을 제거한다. 요청 실패나 응답 유실 때는 현재 토큰을 유지하고 로그아웃 완료를 확인하지 못했음을 표시한다. 별도 API 요청에서 `401`을 받은 경우에는 이미 무효인 토큰이므로 서버 로그아웃 호출 없이 로컬 토큰을 제거한다.
 
 ```http
 PATCH /api/v1/admin/auth/password
@@ -168,6 +169,7 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 
 - 토큰이 없거나 일치하지 않으면 `403 FORBIDDEN`과 기존 에러 JSON 형식을 반환한다.
 - 로그인과 로그아웃 성공 후에는 기존 CSRF 토큰이 폐기되므로 다음 상태 변경 요청 전에 `GET /api/v1/auth/csrf`를 다시 호출한다.
+- 회원 클라이언트는 로그아웃 성공 응답 뒤에만 로컬 회원 상태를 제거한다. 실패나 응답 유실 때는 기존 상태를 유지하고 완료 여부를 확인하지 못했음을 표시한다.
 
 #### 응답 캐시 정책
 
@@ -184,6 +186,8 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 - Redis 처리율 제한 버킷은 IP, 전화번호, 주문번호 또는 회원 ID 원문 대신 HMAC 식별자를 사용한다.
 - 제한 초과는 `429 TOO_MANY_REQUESTS`와 `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` 헤더를 반환한다.
 - Redis 장애 시 일반 API와 결제 확정은 제한만 건너뛰며, 인증·관리·결제 준비·비밀번호 확인과 비용이 큰 쓰기 API는 `503 SERVICE_UNAVAILABLE`, `Retry-After: 1`을 반환한다.
+- 로그인·회원가입·관리자 로그인 클라이언트는 실패를 `boolean`으로 축약하지 않고 공통 `ErrorResponse`의 코드를 표시 규칙에 전달한다. 따라서 `401`, `409`, `429`, `503`을 자격 증명 오류 하나로 오인하지 않는다.
+- 웹 클라이언트는 offset 없는 `DATETIME` 응답을 `Asia/Seoul` 현지시각으로 해석한다. `Z` 또는 명시적 offset이 있는 값은 해당 절대 시각을 보존하며, 브라우저의 시스템 timezone에 의존해 offset 없는 값을 해석하지 않는다.
 
 ---
 
@@ -223,6 +227,7 @@ Authorization: Bearer {token}
   - `400 INVALID_INPUT` — 이름/카테고리 공란, durationMin/price/bufferMin 형식 오류
 - 정책:
   - `category`는 앞뒤 공백을 제거하고 대문자 토큰으로 정규화해 저장·응답한다.
+  - `price`는 1원 이상 `9,007,199,254,740,991원` 이하의 정수다.
 
 #### 2.1.2 슬롯 생성
 
@@ -449,6 +454,7 @@ Content-Type: application/json
 - 정책:
   - `category`는 선택값이며, 입력하면 앞뒤 공백을 제거하고 대문자 토큰으로 정규화해 저장·응답한다.
   - 공백 카테고리는 미입력과 동일하게 처리한다.
+  - `price`는 1원 이상 `9,007,199,254,740,991원` 이하의 정수다. 상한은 웹 클라이언트가 원 단위 금액을 정밀도 손실 없이 전달할 수 있는 기술 경계다.
 
 #### 2.3.2 전체 상품 목록 조회
 
@@ -736,6 +742,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 에러:
   - `404 NOT_FOUND` — passId 미존재
+  - `422 PASS_EXPIRED` — 만료된 8회권 환불 요청. 남아 있던 크레딧은 `EXPIRE` 처리되고 환불·미래 예약 취소는 실행하지 않음
 - 정책:
   - 미래 `BOOKED` 예약 자동 취소
   - `refundCredits = remainingCredits + 자동 취소한 미래 예약 수`
@@ -808,6 +815,8 @@ X-Access-Token: {accessToken}
   - 신규 주문의 `fulfillment`는 결제 confirm 시 함께 생성되며 고객이 선택한 `type`, 예상 출고일, 픽업 마감만 반환한다. 배송지 원문은 고객 응답에 포함하지 않는다.
   - 환불 이력이 있으면 `refund`에 `amount`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
   - `status=PICKUP_EXPIRED`는 기성품 미수령 환불이며 `refund`에 진행 상태를 반환한다. `status=PICKUP_FORFEITED`는 주문제작 상품의 미수령 종료이며 `refund=null`이다.
+  - 현재 회원·비회원 고객 일반 주문 취소 endpoint는 제공하지 않는다. `PAID_APPROVAL_PENDING` 주문도 관리자 승인·거절 또는 24시간 자동 환불로만 전이한다.
+  - 향후 고객 취소를 도입할 때는 `PAID_APPROVAL_PENDING` 전용 별도 취소 상태, 회원 세션/비회원 접근 토큰 소유권 검증, 재고 복구·이력·환불 요청 계약을 함께 추가한다. 기존 관리자 `REJECTED`는 고객 취소에 재사용하지 않는다.
 
 ### 2.7 주문 Admin API
 
@@ -1669,6 +1678,8 @@ POST /api/v1/auth/password/reset
 - `GET /api/v1/me/passes` — 회원 8회권 목록
 - `GET /api/v1/me/passes/{id}` — 회원 8회권 상세
 
+회원 주문도 현재 조회만 제공하며 고객 일반 주문 취소 endpoint는 없다.
+
 회원 예약 상세 응답은 `passBooking`과 `cancelPolicy`를 포함한다.
 
 ```json
@@ -1805,7 +1816,9 @@ Cookie: HG_SESSION={sessionToken}
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 장바구니는 회원 전용이며 `user_id + product_id` 단위로 중복 없이 관리한다.
+- 추가·수정·병합 수량은 상품별 1~99개다. 병합 요청에서 같은 상품이 여러 번 나오면 합산 수량에도 같은 상한을 적용한다.
 - 비회원 장바구니 병합의 멱등키 기록과 회원 장바구니 수량 변경은 같은 DB 트랜잭션으로 처리한다.
+- 장바구니 병합 멱등 응답은 요청 생성 후 7일간 보장한다. 클라이언트는 이 기간을 넘겨 같은 키를 재사용하지 않으며 서버는 보존 배치에서 오래된 기록을 정리한다.
 - 클라이언트는 병합 응답을 확인할 때까지 회원·멱등키·상품 스냅샷을 바꾸지 않는다. 성공 후 스냅샷 수량만 로컬 장바구니에서 차감하고, 도중에 추가된 수량은 새 멱등키로 이어서 병합한다.
 - 상품이 `ACTIVE`가 아니거나 재고가 없으면 `available=false`로 표시되며, checkout 시 구매 가능한 항목만 주문으로 전환한다.
 - 장바구니 prepare는 구매 가능한 항목만 서버에서 선택하고, confirm 성공 시 prepare에서 확정한 수량만 차감한다. 결제 진행 중 추가한 같은 상품 수량과 다른 상품은 유지한다.
@@ -1940,13 +1953,14 @@ Content-Type: application/json
 
 - 성공: `200 OK`
 - 에러:
-  - `400 INVALID_INPUT` — payload context와 `context` 필드 불일치, 항목 누락, 회원/비회원 정보 불일치 등
+  - `400 INVALID_INPUT` — payload context와 `context` 필드 불일치, 항목 누락, 상품별 수량 1~99 범위 위반, 주문 금액 안전 정수 범위 초과 또는 overflow, 회원/비회원 정보 불일치 등
   - `404 NOT_FOUND` — 상품/슬롯 미존재
   - `422 PAYMENT_METHOD_NOT_ALLOWED` — `BookingPayload.paymentMethod=BANK_TRANSFER`
 - 정책:
   - `payload.type`은 `ORDER` / `BOOKING` / `PASS` 중 하나로, 상위 `context`와 일치해야 한다.
   - 금액은 서버가 산출한다. 클라이언트가 `amount`를 보내도 무시되며, `payment_attempt.amount`는 서버 계산값이다.
-    - `ORDER`: 상품을 한 번에 조회한 뒤 항목별 `productId.price * qty` 합계
+  - 모든 컨텍스트의 최종 `amount`는 0원 이상 `9,007,199,254,740,991원` 이하의 웹 안전 정수여야 한다. 0원은 유효한 8회권 예약처럼 외부 PG 호출이 없는 내부 승인에만 사용한다.
+    - `ORDER`: 동일 `productId`의 수량을 먼저 합쳐 상품별 1~99개 제한을 적용하고, 상품을 한 번에 조회한 뒤 `productId.price * qty`를 overflow 검출 산술로 합산한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
     - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약), 없으면 `slot.bookingClass.price * 10%`
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
   - 서버는 prepare 시점의 `ORDER` 항목 단가, `BOOKING` 예약금·잔금, `PASS` 총 가격을 내부 payload로 저장한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장한다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
@@ -2048,8 +2062,10 @@ Content-Type: application/json
   - `409 DUPLICATE_BOOKING` — 동일 전화번호 + 동일 슬롯에 활성 예약 중복
   - `409 SLOT_NOT_AVAILABLE` — 결제 직전 비활성 슬롯
   - `409 PAYMENT_CONFIRM_IN_PROGRESS` — 동일 결제 confirm 처리 중
+  - `409 PAYMENT_RECONCILIATION_REQUIRED` — PG 승인 여부가 불명확해 운영자 대사가 필요함. 새 결제를 시작하지 않음
   - `500 INTERNAL_ERROR` — 저장된 결제 payload 직렬화/역직렬화 실패
-  - `502 PAYMENT_FAILED` — PG가 결제 확정 거절 (서킷 브레이커 OPEN/타임아웃 포함)
+  - `502 PAYMENT_FAILED` — PG가 결제 확정을 최종 거절
+  - `503 PAYMENT_CONFIRM_RETRYABLE` — 타임아웃·서킷 오픈·호출 대기열 포화처럼 같은 결제 정보로 재확인이 가능한 일시 실패
   - `410 PAYMENT_ATTEMPT_EXPIRED` — prepare 후 30분 동안 confirm을 시작하지 않아 만료됨
 - 정책:
   - `paymentKey`는 amount > 0 결제만 필수다. 8회권 사용 예약처럼 `payment_attempt.amount=0`인 경우 `paymentKey`는 비워서 보내고 PG 호출은 생략된다.
@@ -2059,6 +2075,7 @@ Content-Type: application/json
   - Toss 승인 응답의 `paymentKey`, `orderId`는 confirm 요청값과 모두 같아야 한다. 다르면 성공으로 저장하지 않고 같은 멱등키로 재확인 가능한 실패로 처리한다.
   - PG 성공은 별도 트랜잭션으로 `APPROVED`에 저장하고, 이후 도메인 저장과 `CONFIRMED` 전이는 한 트랜잭션으로 처리한다.
   - 이미 `CONFIRMED`인 결제를 같은 인증 주체·금액·paymentKey로 재호출하면 PG와 도메인 생성을 반복하지 않고 최초 `context`, `domainId`, `accessToken`을 그대로 반환한다.
+  - 성공 화면은 URL의 동일한 `paymentKey`, `orderId`, `amount`를 유지하고 `PAYMENT_CONFIRM_IN_PROGRESS`, `PAYMENT_CONFIRM_RETRYABLE`, 네트워크 오류 또는 필수 인프라 일시 장애에만 명시적 재확인을 제공한다. `PAYMENT_FAILED`와 `PAYMENT_RECONCILIATION_REQUIRED`처럼 최종 또는 운영자 확인이 필요한 상태에는 재확인을 제공하지 않는다.
   - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다. `FAILED`로 종결된 결제의 동일 confirm 재호출은 PG를 다시 호출하지 않고 저장된 실패 사유의 `502 PAYMENT_FAILED`를 반환한다.
   - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다. amount=0 내부 승인 실패는 외부 결제가 없으므로 보상 환불을 만들지 않는다.
   - PG 승인 상태 또는 보상 환불 요청 저장까지 실패해 `PROCESSING`·`RETRYABLE`·`APPROVED`가 1분 이상 남으면, 서버 배치가 매분 최대 10건을 자동 재개한다. `PROCESSING/RETRYABLE`은 저장된 요청과 같은 `orderId` 멱등키로 PG confirm을 재확인하고, `APPROVED`는 PG 호출 없이 fulfillment를 재개한다. 마지막 복구 시각을 저장해 건별 1분 backoff와 후보 순환을 적용한다. 생성 후 14일이 지난 유료 미확정 PG 호출은 자동·사용자 재승인 모두 막고 `RECONCILIATION_REQUIRED`로 격리하며, PG를 호출하지 않는 0원 결제는 기간과 무관하게 내부 처리를 재개한다. 복구는 저장 payload의 결제 주체를 사용하며 공개 confirm API의 요청·응답 형식은 바뀌지 않는다.
@@ -2147,6 +2164,7 @@ Content-Type: application/json
 | 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 |
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌에 의한 동시 변경 요청 |
 | 409 | `PAYMENT_CONFIRM_IN_PROGRESS` | 동일 결제의 confirm 요청이 이미 처리 중 |
+| 409 | `PAYMENT_RECONCILIATION_REQUIRED` | PG 승인 여부가 불명확해 운영자 확인이 필요하며 새 결제를 시작하면 안 됨 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치 등 비예약 운영 액션의 충돌 |
 | 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
 | 410 | `PAYMENT_ATTEMPT_EXPIRED` | 결제 준비 후 30분 안에 confirm을 시작하지 않음 |
@@ -2155,13 +2173,14 @@ Content-Type: application/json
 | 422 | `REFUND_NOT_ALLOWED` | 취소 보상 마감 이후 환불 요청 |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/일반 환불 시도 |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 |
-| 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 시도 |
+| 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 또는 전체 환불 시도 |
 | 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 크레딧 0인 8회권으로 예약 시도 |
 | 422 | `PAYMENT_METHOD_NOT_ALLOWED` | 계좌이체(`BANK_TRANSFER`)로 예약금 결제 시도 |
 | 422 | `PHONE_VERIFICATION_REQUIRED` | 회원 휴대폰이 없거나 소유 확인이 완료되지 않아 결제를 시작할 수 없음 |
 | 422 | `PASSWORD_UNCHANGED` | 현재와 같은 비밀번호로 변경·재설정 시도 |
 | 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
-| 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 거절 (서킷 브레이커 OPEN/타임아웃 포함) |
+| 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 최종 거절 |
+| 503 | `PAYMENT_CONFIRM_RETRYABLE` | PG 결제 확정 결과를 같은 결제 정보로 재확인할 수 있는 일시 실패 |
 | 503 | `SERVICE_UNAVAILABLE` | fail-closed 처리율 제한 저장소 장애 또는 인증 SMS 등 필수 외부 작업을 시작·완료할 수 없음 |
 
 ---

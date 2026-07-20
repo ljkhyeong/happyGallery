@@ -8,6 +8,7 @@ set -Eeuo pipefail
 
 require_command age
 require_command gzip
+require_command base64
 marker=${BACKUP_TARGET_MARKER:-$BACKUP_DIR/.happygallery-off-device-backup-target}
 [ -f "$marker" ] \
     || die "외부 백업 매체 marker가 없습니다. 매체가 실제로 mount됐는지 확인하세요: $marker"
@@ -18,9 +19,115 @@ kube -n "$NAMESPACE" wait --for=condition=Ready pod/mysql-0 --timeout=2m >/dev/n
 timestamp=$(date -u '+%Y%m%dT%H%M%SZ')
 backup="$BACKUP_DIR/happygallery-$timestamp.sql.gz.age"
 tmp="$backup.partial"
+recovery_metadata="$BACKUP_DIR/happygallery-$timestamp.recovery.env"
+recovery_metadata_tmp="$recovery_metadata.partial"
+release_state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
+current_release=$(CDPATH= cd -- "$release_state_root/current" 2>/dev/null && pwd) \
+    || die "현재 release 메타데이터를 찾을 수 없습니다: $release_state_root/current"
+release_metadata="$current_release/metadata.env"
+release_manifest="$current_release/manifests.yaml"
+validate_env_file "$release_metadata"
+[ -f "$release_manifest" ] || die "현재 release manifest를 찾을 수 없습니다: $release_manifest"
+
+APP_IMAGE=$(require_env_value APP_IMAGE "$release_metadata")
+FRONTEND_IMAGE=$(require_env_value FRONTEND_IMAGE "$release_metadata")
+APP_IMAGE_DIGEST=$(require_env_value APP_IMAGE_DIGEST "$release_metadata")
+FRONTEND_IMAGE_DIGEST=$(require_env_value FRONTEND_IMAGE_DIGEST "$release_metadata")
+IMAGE_TAG=$(require_env_value IMAGE_TAG "$release_metadata")
+release_backup_root="$BACKUP_DIR/releases"
+release_backup="$release_backup_root/$IMAGE_TAG"
+release_tmp="$release_backup.partial.$timestamp"
+MYSQL_IMAGE=docker.io/library/mysql:8.4.10
+REDIS_IMAGE=docker.io/library/redis:7.4.9-alpine
+PROMETHEUS_IMAGE=docker.io/prom/prometheus:v3.12.0-distroless
+ALERTMANAGER_IMAGE=docker.io/prom/alertmanager:v0.32.1
 umask 077
-rm -f "$tmp"
-trap 'rm -f "$tmp"' EXIT HUP INT TERM
+rm -f "$tmp" "$recovery_metadata_tmp"
+rm -rf "$release_tmp"
+cleanup_partial_backup() {
+    rm -f "$tmp" "$recovery_metadata_tmp"
+    rm -rf "$release_tmp"
+}
+trap cleanup_partial_backup EXIT HUP INT TERM
+
+if [ ! -d "$release_backup" ]; then
+    info "현재 release 이미지와 메타데이터를 외부 매체에 보존합니다: $IMAGE_TAG"
+    mkdir -p "$release_backup_root" "$release_tmp"
+    cp "$release_metadata" "$release_tmp/metadata.env"
+    cp "$release_manifest" "$release_tmp/manifests.yaml"
+    printf '%s  %s\n' "$(sha256_file "$release_tmp/metadata.env")" "metadata.env" \
+        > "$release_tmp/metadata.env.sha256"
+    printf '%s  %s\n' "$(sha256_file "$release_tmp/manifests.yaml")" "manifests.yaml" \
+        > "$release_tmp/manifests.yaml.sha256"
+    for runtime_image in \
+        "$MYSQL_IMAGE" "$REDIS_IMAGE" "$PROMETHEUS_IMAGE" "$ALERTMANAGER_IMAGE"; do
+        containerd_has_image "$runtime_image" \
+            || die "외부 복구 archive에 넣을 runtime 이미지를 찾을 수 없습니다: $runtime_image"
+    done
+    mysql_image_digest=$(containerd_image_digest "$MYSQL_IMAGE")
+    redis_image_digest=$(containerd_image_digest "$REDIS_IMAGE")
+    prometheus_image_digest=$(containerd_image_digest "$PROMETHEUS_IMAGE")
+    alertmanager_image_digest=$(containerd_image_digest "$ALERTMANAGER_IMAGE")
+    cat > "$release_tmp/runtime-images.env" <<EOF
+MYSQL_IMAGE=$MYSQL_IMAGE
+MYSQL_IMAGE_DIGEST=$mysql_image_digest
+REDIS_IMAGE=$REDIS_IMAGE
+REDIS_IMAGE_DIGEST=$redis_image_digest
+PROMETHEUS_IMAGE=$PROMETHEUS_IMAGE
+PROMETHEUS_IMAGE_DIGEST=$prometheus_image_digest
+ALERTMANAGER_IMAGE=$ALERTMANAGER_IMAGE
+ALERTMANAGER_IMAGE_DIGEST=$alertmanager_image_digest
+EOF
+    printf '%s  %s\n' "$(sha256_file "$release_tmp/runtime-images.env")" "runtime-images.env" \
+        > "$release_tmp/runtime-images.env.sha256"
+    images_archive="$release_tmp/images.tar"
+    k3s_ctr images export "$images_archive" \
+        "$APP_IMAGE@$APP_IMAGE_DIGEST" \
+        "$FRONTEND_IMAGE@$FRONTEND_IMAGE_DIGEST" \
+        "$MYSQL_IMAGE" "$REDIS_IMAGE" "$PROMETHEUS_IMAGE" "$ALERTMANAGER_IMAGE"
+    [ -s "$images_archive" ] || die "release 이미지 archive가 비어 있습니다."
+    printf '%s  %s\n' "$(sha256_file "$images_archive")" "images.tar" \
+        > "$images_archive.sha256"
+    chmod 600 "$release_tmp"/*
+    mv "$release_tmp" "$release_backup"
+else
+    verify_checksum "$release_backup/metadata.env"
+    verify_checksum "$release_backup/manifests.yaml"
+    verify_checksum "$release_backup/runtime-images.env"
+    validate_env_file "$release_backup/metadata.env"
+    [ "$(require_env_value APP_IMAGE_DIGEST "$release_backup/metadata.env")" = "$APP_IMAGE_DIGEST" ] \
+        || die "외부 release의 app digest가 현재 release와 다릅니다: $release_backup"
+    [ "$(require_env_value FRONTEND_IMAGE_DIGEST "$release_backup/metadata.env")" = "$FRONTEND_IMAGE_DIGEST" ] \
+        || die "외부 release의 frontend digest가 현재 release와 다릅니다: $release_backup"
+    verify_checksum "$release_backup/images.tar"
+fi
+
+flyway_schema_version=$(kube -n "$NAMESPACE" exec mysql-0 -- sh -ec '
+    exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -Nse \
+      "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank DESC LIMIT 1"
+')
+[ -n "$flyway_schema_version" ] || die "Flyway schema version을 확인할 수 없습니다."
+
+field_key_id_encoded=$(kube -n "$NAMESPACE" get secret happygallery-app \
+    -o 'jsonpath={.data.FIELD_ENCRYPTION_KEY_ID}')
+field_key_id=$(printf '%s' "$field_key_id_encoded" | decode_base64)
+[ -n "$field_key_id" ] || die "FIELD_ENCRYPTION_KEY_ID를 확인할 수 없습니다."
+key_rotation_phase=$(kube -n "$NAMESPACE" get secret happygallery-app \
+    -o 'jsonpath={.metadata.annotations.happygallery\.io/key-rotation-phase}' 2>/dev/null || true)
+[ -n "$key_rotation_phase" ] || key_rotation_phase=none
+
+secret_fingerprint() {
+    secret_key=$1
+    encoded=$(kube -n "$NAMESPACE" get secret happygallery-app \
+        -o "jsonpath={.data.$secret_key}")
+    printf '%s' "$encoded" | decode_base64 | sha256_stream
+}
+encrypt_key_sha256=$(secret_fingerprint ENCRYPT_KEY)
+hmac_key_sha256=$(secret_fingerprint HMAC_KEY)
+previous_encrypt_keys_sha256=$(secret_fingerprint PREVIOUS_ENCRYPT_KEYS)
+previous_hmac_keys_sha256=$(secret_fingerprint PREVIOUS_HMAC_KEYS)
+guest_token_key_sha256=$(secret_fingerprint GUEST_TOKEN_HMAC_SECRET)
+guest_token_previous_key_sha256=$(secret_fingerprint GUEST_TOKEN_PREVIOUS_HMAC_SECRET)
 
 info "MySQL 논리 무결성 검사를 실행합니다."
 kube -n "$NAMESPACE" exec mysql-0 -- sh -ec \
@@ -47,5 +154,27 @@ checksum=$(sha256_file "$backup")
 printf '%s  %s\n' "$checksum" "$(basename -- "$backup")" > "$backup.sha256"
 chmod 600 "$backup" "$backup.sha256"
 
-info "암호화 백업 완료: $backup"
+cat > "$recovery_metadata_tmp" <<EOF
+BACKUP_CREATED_AT=$timestamp
+DATABASE_BACKUP=$(basename -- "$backup")
+RELEASE_DIR=releases/$IMAGE_TAG
+IMAGE_TAG=$IMAGE_TAG
+APP_IMAGE_DIGEST=$APP_IMAGE_DIGEST
+FRONTEND_IMAGE_DIGEST=$FRONTEND_IMAGE_DIGEST
+FLYWAY_SCHEMA_VERSION=$flyway_schema_version
+FIELD_ENCRYPTION_KEY_ID=$field_key_id
+KEY_ROTATION_PHASE=$key_rotation_phase
+ENCRYPT_KEY_SHA256=$encrypt_key_sha256
+HMAC_KEY_SHA256=$hmac_key_sha256
+PREVIOUS_ENCRYPT_KEYS_SHA256=$previous_encrypt_keys_sha256
+PREVIOUS_HMAC_KEYS_SHA256=$previous_hmac_keys_sha256
+GUEST_TOKEN_HMAC_SECRET_SHA256=$guest_token_key_sha256
+GUEST_TOKEN_PREVIOUS_HMAC_SECRET_SHA256=$guest_token_previous_key_sha256
+EOF
+mv "$recovery_metadata_tmp" "$recovery_metadata"
+printf '%s  %s\n' "$(sha256_file "$recovery_metadata")" "$(basename -- "$recovery_metadata")" \
+    > "$recovery_metadata.sha256"
+chmod 600 "$recovery_metadata" "$recovery_metadata.sha256"
+
+info "암호화 DB와 호환 release 복구 묶음 완료: $backup"
 printf '%s\n' "$backup"

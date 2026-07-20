@@ -50,9 +50,6 @@ public class DefaultPaymentPrepareService implements PaymentPrepareUseCase {
         }
 
         PreparedPayment prepared = preparer.prepare(command.payload(), command.auth());
-        if (prepared.amount() < 0) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "결제 금액은 0 이상이어야 합니다.");
-        }
 
         String orderIdExternal = UUID.randomUUID().toString();
         String payloadJson = objectMapper.writeValueAsString(prepared.payload());

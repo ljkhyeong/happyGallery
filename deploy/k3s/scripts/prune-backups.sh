@@ -11,7 +11,10 @@ printf '%s' "$retention_days" | grep -Eq '^[1-9][0-9]*$' || die "BACKUP_RETENTIO
 [ "$retention_days" -ge 7 ] || die "백업 보존 기간은 최소 7일이어야 합니다."
 
 find "$BACKUP_DIR" -maxdepth 1 -type f \
-    \( -name 'happygallery-*.sql.gz.age' -o -name 'happygallery-*.sql.gz.age.sha256' \) \
+    \( -name 'happygallery-*.sql.gz.age' \
+       -o -name 'happygallery-*.sql.gz.age.sha256' \
+       -o -name 'happygallery-*.recovery.env' \
+       -o -name 'happygallery-*.recovery.env.sha256' \) \
     -mtime "+$retention_days" -print -delete
 
-info "$retention_days일보다 오래된 happygallery 백업만 정리했습니다."
+info "$retention_days일보다 오래된 DB 백업과 복구 메타데이터를 정리했습니다. release archive는 수동 검증 후 보존합니다."

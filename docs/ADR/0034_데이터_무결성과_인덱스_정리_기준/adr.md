@@ -24,6 +24,7 @@
 - `pass_purchases(expires_at)`는 `(expires_at, remaining_credits)`가 현재 모든 만료 조회를 대체하므로 제거한다.
 - 결제 시도 복구용 `(status, created_at)`과 기간·마감·발송·구매 시각 인덱스는 현재 조회 의미가 있으므로 유지한다.
 - `phone_verifications(expires_at, id)`는 만료 후 보존 기간이 지난 인증 행을 삭제할 때 전체 스캔과 실시간 인증 행 잠금 범위를 줄이므로 유지한다.
+- `cart_merge_requests(created_at, user_id, idempotency_key)`는 7일 멱등 보장 기간이 지난 기록을 작은 묶음으로 삭제할 때 사용한다. 기본 키는 사용자·멱등키 조회만 지원하므로 시간 선두 인덱스를 별도로 유지한다.
 - 최신순이 실제로 삽입 순번을 뜻하는 작은 목록은 쿼리 계약을 `id DESC`로 바꾼 뒤 별도 시간 인덱스를 제거할 수 있다.
   현재 시간 커서와 기간 조회는 `ORDER BY time DESC, id DESC`를 유지하며 ID를 동률 해소 키로 사용한다.
 

@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.batch;
 
+import com.personal.happygallery.application.cart.CartMergeRequestRetentionService;
 import com.personal.happygallery.application.customer.PhoneVerificationRetentionService;
 import com.personal.happygallery.application.payment.PaymentAttemptSensitiveDataCleanupProcessor;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
@@ -14,21 +15,25 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
 
     public static final Duration PAYMENT_ATTEMPT_RETENTION = Duration.ofDays(30);
     public static final Duration PHONE_VERIFICATION_RETENTION_AFTER_EXPIRY = Duration.ofDays(1);
+    public static final Duration CART_MERGE_REQUEST_RETENTION = Duration.ofDays(7);
     private static final int PAGE_SIZE = 100;
 
     private final PaymentAttemptReaderPort attemptReader;
     private final PaymentAttemptSensitiveDataCleanupProcessor attemptCleanupProcessor;
     private final PhoneVerificationRetentionService verificationRetentionService;
+    private final CartMergeRequestRetentionService cartMergeRequestRetentionService;
     private final Clock clock;
 
     public DefaultPersonalDataRetentionBatchService(
             PaymentAttemptReaderPort attemptReader,
             PaymentAttemptSensitiveDataCleanupProcessor attemptCleanupProcessor,
             PhoneVerificationRetentionService verificationRetentionService,
+            CartMergeRequestRetentionService cartMergeRequestRetentionService,
             Clock clock) {
         this.attemptReader = attemptReader;
         this.attemptCleanupProcessor = attemptCleanupProcessor;
         this.verificationRetentionService = verificationRetentionService;
+        this.cartMergeRequestRetentionService = cartMergeRequestRetentionService;
         this.clock = clock;
     }
 
@@ -46,6 +51,19 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
         LocalDateTime verificationCutoff = LocalDateTime.now(clock)
                 .minus(PHONE_VERIFICATION_RETENTION_AFTER_EXPIRY);
         int deletedVerificationCount = verificationRetentionService.deleteExpiredBefore(verificationCutoff);
-        return paymentResult.merge(BatchResult.successOnly(deletedVerificationCount));
+        LocalDateTime cartMergeCutoff = LocalDateTime.now(clock).minus(CART_MERGE_REQUEST_RETENTION);
+        int deletedCartMergeRequestCount = deleteCartMergeRequests(cartMergeCutoff);
+        return paymentResult.merge(BatchResult.successOnly(
+                Math.addExact(deletedVerificationCount, deletedCartMergeRequestCount)));
+    }
+
+    private int deleteCartMergeRequests(LocalDateTime cutoff) {
+        int total = 0;
+        int deleted;
+        do {
+            deleted = cartMergeRequestRetentionService.deleteBatchBefore(cutoff, PAGE_SIZE);
+            total = Math.addExact(total, deleted);
+        } while (deleted == PAGE_SIZE);
+        return total;
     }
 }

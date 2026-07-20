@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { Container, Navbar, Nav } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { CartBadge } from "@/features/cart/CartBadge";
 import { NotificationBell } from "@/features/notification/NotificationBell";
+import { useToast } from "./ToastContainer";
 
 const NAV_ITEMS = [
   { path: "/products", label: "작품" },
@@ -18,6 +20,22 @@ function isActive(pathname: string, itemPath: string): boolean {
 export function Layout() {
   const { pathname } = useLocation();
   const { user, isAuthenticated, isLoading, logout } = useCustomerAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const toast = useToast();
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      toast.show(
+        "로그아웃 완료를 확인하지 못해 현재 로그인 상태를 유지합니다. 잠시 후 다시 시도해 주세요.",
+        "danger",
+      );
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   return (
     <div className="d-flex flex-column min-vh-100">
@@ -85,9 +103,10 @@ export function Layout() {
                     <Nav.Link
                       as="button"
                       className="app-nav-link text-muted-soft btn btn-link p-0 border-0"
-                      onClick={() => logout()}
+                      onClick={handleLogout}
+                      disabled={loggingOut}
                     >
-                      로그아웃
+                      {loggingOut ? "로그아웃 중..." : "로그아웃"}
                     </Nav.Link>
                   </>
                 ) : (

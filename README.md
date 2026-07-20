@@ -60,6 +60,7 @@ npm run dev
 - 로컬과 개발 환경에서는 `X-Admin-Key: dev-admin-key`를 사용할 수 있다.
 - `prod`가 아닌 환경에서는 실제 알림·인증 SMS·결제 대신 테스트용 발송기와 `FakePaymentProvider`를 사용한다.
 - k3s 운영 배포의 Prometheus 경보는 내부 Alertmanager를 거쳐 저장소 밖 Secret으로 주입한 외부 HTTPS webhook에 전달한다. 노트북 자체 장애 감시는 별도 외부 uptime 서비스가 필요하다.
+- 운영 환경은 DB·Redis를 readiness에 포함하고, 환불·알림 outbox의 DB backlog 건수·상태별 처리 지연과 스냅샷 갱신 중단을 Prometheus·Grafana에서 감시한다.
 - `prod`가 아닌 환경의 Google/Naver 로그인은 외부 인증 화면 없이 테스트용 콜백으로 즉시 돌아온다.
 - `local`이 아닌 환경에서 최초 관리자 계정이 필요하면 `ADMIN_SETUP_TOKEN`을 주입하고 `/api/v1/admin/setup`을 호출한다.
 - 반복 E2E처럼 짧은 시간에 인증/관리 요청이 몰리는 로컬 검증에서는 `RATE_LIMIT_ENABLED=false`를 사용할 수 있다.

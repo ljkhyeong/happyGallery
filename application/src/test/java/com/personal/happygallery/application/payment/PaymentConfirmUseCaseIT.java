@@ -442,6 +442,46 @@ class PaymentConfirmUseCaseIT {
                 "payment-key-failure", prepared.orderId(), prepared.amount(), prepared.orderId());
     }
 
+    @DisplayName("PG 일시 실패는 재시도 가능 오류로 응답하고 같은 멱등키 재호출로 확정한다")
+    @Test
+    void confirm_retryablePgFailure_exposesRetryableErrorAndReusesIdempotencyKey() {
+        User user = userStorePort.save(new User(
+                "payment-retryable@example.com", "hashed", "회원", "01012123434"));
+        Product product = productStorePort.save(readyStockProduct("재시도 상품", 42_000L));
+        inventoryStorePort.save(inventory(product, 1));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(new OrderItemRef(product.getId(), 1))),
+                auth));
+        ConfirmCommand command = new ConfirmCommand(
+                "payment-key-retryable", prepared.orderId(), prepared.amount(), auth);
+        when(paymentProvider.confirm(any(), any(), anyLong(), any()))
+                .thenReturn(
+                        PaymentConfirmResult.retryableFailure("PG 일시 장애"),
+                        PaymentConfirmResult.success(
+                                "payment-key-retryable", "CARD", "2026-07-20T10:00:00+09:00"));
+
+        assertThatThrownBy(() -> confirmUseCase.confirm(command))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception -> assertSoftly(softly -> {
+                    softly.assertThat(exception.getErrorCode())
+                            .isEqualTo(ErrorCode.PAYMENT_CONFIRM_RETRYABLE);
+                    softly.assertThat(exception.getErrorCode().httpStatus).isEqualTo(503);
+                }));
+        PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(command);
+
+        assertSoftly(softly -> {
+            softly.assertThat(orderReader.findById(result.domainId())).isPresent();
+            softly.assertThat(attemptReader.findByOrderIdExternal(prepared.orderId()))
+                    .hasValueSatisfying(attempt -> softly.assertThat(attempt.getStatus())
+                            .isEqualTo(PaymentAttemptStatus.CONFIRMED));
+        });
+        verify(paymentProvider, times(2)).confirm(
+                "payment-key-retryable", prepared.orderId(), prepared.amount(), prepared.orderId());
+    }
+
     @DisplayName("배치가 실행되지 않아도 30분이 지난 PENDING 결제는 confirm 시 만료된다")
     @Test
     void confirm_expiredPendingAttempt_cancelsBeforePgCall() {

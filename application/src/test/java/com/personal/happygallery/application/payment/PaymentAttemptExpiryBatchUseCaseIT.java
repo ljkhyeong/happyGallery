@@ -122,6 +122,10 @@ class PaymentAttemptExpiryBatchUseCaseIT {
 
         saveDeliveredVerification("01011112222", "123456", now.minusDays(2));
         saveDeliveredVerification("01033334444", "654321", now.minusHours(12));
+        User cartUser = userStore.save(new User(
+                "retention-cart@example.com", "hashed", "장바구니 회원", "01055556666"));
+        UUID expiredMergeKey = insertCartMergeRequest(cartUser.getId(), now.minusDays(8));
+        UUID retainedMergeKey = insertCartMergeRequest(cartUser.getId(), now.minusDays(6));
 
         BatchResult result = retentionUseCase.cleanUpExpiredSensitiveData();
 
@@ -129,7 +133,7 @@ class PaymentAttemptExpiryBatchUseCaseIT {
         PaymentAttempt recoverable = attemptReader.findById(oldReconciliationRequired.getId()).orElseThrow();
         PaymentAttempt fresh = attemptReader.findById(freshConfirmed.getId()).orElseThrow();
         assertSoftly(softly -> {
-            softly.assertThat(result.successCount()).isEqualTo(2);
+            softly.assertThat(result.successCount()).isEqualTo(3);
             softly.assertThat(result.failureCount()).isZero();
             softly.assertThat(cleaned.getPayloadEnc()).isNull();
             softly.assertThat(cleaned.getFulfilledAccessTokenEnc()).isNull();
@@ -138,7 +142,33 @@ class PaymentAttemptExpiryBatchUseCaseIT {
             softly.assertThat(fresh.getFulfilledAccessTokenEnc()).isEqualTo("fresh-token");
             softly.assertThat(phoneVerificationReader.findLatestUnverifiedCode("01011112222")).isEmpty();
             softly.assertThat(phoneVerificationReader.findLatestUnverifiedCode("01033334444")).isPresent();
+            softly.assertThat(countCartMergeRequests(cartUser.getId())).isOne();
+            softly.assertThat(cartMergeRequestExists(cartUser.getId(), expiredMergeKey)).isFalse();
+            softly.assertThat(cartMergeRequestExists(cartUser.getId(), retainedMergeKey)).isTrue();
         });
+    }
+
+    private UUID insertCartMergeRequest(Long userId, LocalDateTime createdAt) {
+        UUID idempotencyKey = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO cart_merge_requests (user_id, idempotency_key, payload_hash, created_at)
+                VALUES (?, ?, ?, ?)
+                """, userId, idempotencyKey.toString(), "a".repeat(64), createdAt);
+        return idempotencyKey;
+    }
+
+    private long countCartMergeRequests(Long userId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM cart_merge_requests WHERE user_id = ?", Long.class, userId);
+    }
+
+    private boolean cartMergeRequestExists(Long userId, UUID idempotencyKey) {
+        return jdbcTemplate.queryForObject("""
+                SELECT EXISTS(
+                    SELECT 1 FROM cart_merge_requests
+                    WHERE user_id = ? AND idempotency_key = ?
+                )
+                """, Boolean.class, userId, idempotencyKey.toString());
     }
 
     private PaymentAttempt saveAttempt(String payload) {

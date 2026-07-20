@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.pass;
 
+import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -11,8 +12,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record PassPriceProperties(long totalPrice) {
 
     public PassPriceProperties {
-        if (totalPrice <= 0) {
-            throw new IllegalArgumentException("PASS_TOTAL_PRICE는 양수여야 합니다.");
+        if (totalPrice <= 0 || totalPrice > PaymentAmountPolicy.MAX_AMOUNT) {
+            throw new IllegalArgumentException("PASS_TOTAL_PRICE는 양수이며 웹 안전 정수 범위 이하여야 합니다.");
         }
     }
 }

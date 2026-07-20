@@ -220,6 +220,69 @@
           "legendFormat": "rejected (5m)"
         }
       ]
+    },
+    {
+      "id": 13,
+      "title": "Refund Backlog by Status",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 56 },
+      "targets": [
+        {
+          "expr": "max by (status) (happygallery_refund_backlog_count{application=\"happygallery\"})",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "Refund Backlog Oldest Action Age",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 56 },
+      "targets": [
+        {
+          "expr": "max by (status) (happygallery_refund_backlog_oldest_age_seconds{application=\"happygallery\"})",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 15,
+      "title": "Notification Outbox Backlog by Status",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 64 },
+      "targets": [
+        {
+          "expr": "max by (status) (happygallery_notification_outbox_backlog_count{application=\"happygallery\"})",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "Notification Outbox Oldest Action Age",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 64 },
+      "targets": [
+        {
+          "expr": "max by (status) (happygallery_notification_outbox_backlog_oldest_age_seconds{application=\"happygallery\"})",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 17,
+      "title": "Operational Backlog Snapshot Freshness",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 72 },
+      "targets": [
+        {
+          "expr": "max by (source) (happygallery_operational_backlog_refresh_age_seconds{application=\"happygallery\"})",
+          "legendFormat": "{{source}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
     }
   ],
   "schemaVersion": 39

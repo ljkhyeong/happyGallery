@@ -5,6 +5,7 @@ import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificati
 import { buildAuthPageHref, resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { ErrorAlert } from "@/shared/ui";
 import { normalizePhone } from "@/shared/validation/phone";
 
 export function SignupPage() {
@@ -22,19 +23,20 @@ export function SignupPage() {
   const [name, setName] = useState(searchParams.get("name") ?? "");
   const [phone, setPhone] = useState(normalizePhone(searchParams.get("phone") ?? ""));
   const [verificationCode, setVerificationCode] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    setError(null);
     setSubmitting(true);
-    const ok = await signup(email, password, name, phone, verificationCode);
-    setSubmitting(false);
-    if (ok) {
+    try {
+      await signup(email, password, name, phone, verificationCode);
       navigate(redirectTo);
-    } else {
-      setError("회원가입에 실패했습니다. 인증코드와 가입 정보를 확인해주세요.");
+    } catch (requestError) {
+      setError(requestError);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -82,7 +84,7 @@ export function SignupPage() {
           <Card className="auth-form-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5">
               <h3 className="mb-3">회원가입</h3>
-              {error && <Alert variant="danger">{error}</Alert>}
+              <ErrorAlert error={error} />
               {claimIntent && (
                 <Alert variant="info">
                   같은 휴대폰 번호로 가입하면 <strong>내 정보</strong>로 이동한 뒤 비회원 이력 가져오기를 바로 이어서 진행할 수 있습니다.

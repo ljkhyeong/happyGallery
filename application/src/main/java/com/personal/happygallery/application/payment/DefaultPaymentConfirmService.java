@@ -71,7 +71,10 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                         String reason = failureReason(pg.failReason(), "결제 확정에 실패했습니다.");
                         if (transactionService.tryRecordPgFailure(
                                 required.attemptId(), required.processingToken(), reason, pg.retryable())) {
-                            throw new HappyGalleryException(ErrorCode.PAYMENT_FAILED, reason);
+                            ErrorCode errorCode = pg.retryable()
+                                    ? ErrorCode.PAYMENT_CONFIRM_RETRYABLE
+                                    : ErrorCode.PAYMENT_FAILED;
+                            throw new HappyGalleryException(errorCode, reason);
                         }
                         step = transactionService.resolveAfterLostProcessingOwnership(command);
                         continue;

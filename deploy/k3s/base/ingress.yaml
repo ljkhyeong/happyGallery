@@ -13,6 +13,16 @@ spec:
     kind: ClusterIssuer
 ---
 apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: app-upstream
+spec:
+  forwardingTimeouts:
+    dialTimeout: 3s
+    responseHeaderTimeout: 30s
+    idleConnTimeout: 15s
+---
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: redirect-https

@@ -13,11 +13,13 @@ import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.PersonalName;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -66,18 +68,10 @@ public class OrderPreparer implements PaymentPreparer {
         } else if (CollectionUtils.isEmpty(op.items())) {
             items = List.of();
         } else {
-            items = op.items().stream().map(ItemToPrepare::from).toList();
+            items = mergeDirectItems(op.items());
         }
         if (items.isEmpty()) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 항목이 비었습니다.");
-        }
-        for (ItemToPrepare item : items) {
-            if (item == null || item.productId() == null) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 상품이 지정되지 않았습니다.");
-            }
-            if (item.qty() <= 0) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 수량은 1 이상이어야 합니다.");
-            }
         }
 
         Map<Long, Product> productsById = productReader.findAllById(items.stream()
@@ -89,9 +83,10 @@ public class OrderPreparer implements PaymentPreparer {
         List<PreparedOrderItem> preparedItems = items.stream()
                 .map(item -> prepareItem(item, productsById))
                 .toList();
-        long total = preparedItems.stream()
-                .mapToLong(item -> (long) item.qty() * item.unitPrice())
-                .sum();
+        long total = 0L;
+        for (PreparedOrderItem item : preparedItems) {
+            total = OrderAmountCalculator.addLine(total, item.qty(), item.unitPrice());
+        }
 
         String phone = auth.isMember() ? null : KoreanPhoneNumber.required(op.phone());
         String name = auth.isMember() ? null : PersonalName.required(op.name());
@@ -103,6 +98,25 @@ public class OrderPreparer implements PaymentPreparer {
     private List<ItemToPrepare> cartItems(Long userId) {
         return cartUseCase.getPurchasableItems(userId).stream()
                 .map(ItemToPrepare::from)
+                .toList();
+    }
+
+    private List<ItemToPrepare> mergeDirectItems(List<OrderItemRef> requestedItems) {
+        Map<Long, Integer> quantitiesByProductId = new LinkedHashMap<>();
+        for (OrderItemRef item : requestedItems) {
+            if (item == null || item.productId() == null) {
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 상품이 지정되지 않았습니다.");
+            }
+            OrderAmountCalculator.requireQuantity(item.qty());
+            try {
+                int quantity = quantitiesByProductId.merge(item.productId(), item.qty(), Math::addExact);
+                OrderAmountCalculator.requireQuantity(quantity);
+            } catch (ArithmeticException e) {
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 수량이 너무 큽니다.");
+            }
+        }
+        return quantitiesByProductId.entrySet().stream()
+                .map(entry -> new ItemToPrepare(null, entry.getKey(), entry.getValue()))
                 .toList();
     }
 
@@ -118,11 +132,6 @@ public class OrderPreparer implements PaymentPreparer {
     }
 
     private record ItemToPrepare(Long cartItemId, Long productId, int qty) {
-
-        private static ItemToPrepare from(OrderItemRef item) {
-            return item == null ? new ItemToPrepare(null, null, 0)
-                    : new ItemToPrepare(null, item.productId(), item.qty());
-        }
 
         private static ItemToPrepare from(CartPurchaseItem item) {
             return new ItemToPrepare(item.cartItemId(), item.productId(), item.qty());

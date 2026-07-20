@@ -8,9 +8,10 @@ interface Props {
   user: CustomerUser;
   nextBooking: MyBookingSummary | undefined;
   onLogout: () => void;
+  loggingOut: boolean;
 }
 
-export function MyDashboardHero({ user, nextBooking, onLogout }: Props) {
+export function MyDashboardHero({ user, nextBooking, onLogout, loggingOut }: Props) {
   return (
     <Card className="my-dashboard-hero mb-4 border-0">
       <Card.Body>
@@ -48,8 +49,8 @@ export function MyDashboardHero({ user, nextBooking, onLogout }: Props) {
             <LinkButton to="/passes/purchase" variant="outline-primary" size="sm">
               8회권 구매
             </LinkButton>
-            <Button variant="outline-secondary" size="sm" onClick={onLogout}>
-              로그아웃
+            <Button variant="outline-secondary" size="sm" onClick={onLogout} disabled={loggingOut}>
+              {loggingOut ? "로그아웃 중..." : "로그아웃"}
             </Button>
           </div>
         </div>

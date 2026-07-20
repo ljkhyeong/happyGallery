@@ -121,15 +121,31 @@ ruby -e '
 grep -q 'kind: StatefulSet' "$rendered" || die "MySQL StatefulSet이 없습니다."
 grep -q 'storageClassName: local-path-retain' "$rendered" || die "Retain PVC가 없습니다."
 grep -q 'terminationGracePeriodSeconds: 45' "$rendered" || die "앱 종료 유예가 없습니다."
+grep -q 'responseHeaderTimeout: 30s' "$rendered" || die "Traefik app 응답 헤더 timeout이 없습니다."
+grep -q 'idleConnTimeout: 15s' "$rendered" || die "Traefik app upstream keep-alive timeout이 없습니다."
+grep -q 'service.serverstransport: happygallery-app-upstream@kubernetescrd' "$rendered" \
+    || die "app Service가 전용 Traefik ServersTransport를 사용하지 않습니다."
+grep -q -- '--maxmemory 192mb --maxmemory-policy noeviction' "$rendered" \
+    || die "Redis memory 상한과 noeviction 정책이 없습니다."
 grep -q 'startupProbe:' "$rendered" || die "startup probe가 없습니다."
 grep -q 'readinessProbe:' "$rendered" || die "readiness probe가 없습니다."
 grep -q 'livenessProbe:' "$rendered" || die "liveness probe가 없습니다."
+grep -q 'include: readinessState,db,redis' "$REPO_ROOT/bootstrap/src/main/resources/application-prod.yml" \
+    || die "운영 readiness가 DB와 Redis를 포함하지 않습니다."
+grep -q '/actuator/health/readiness' "$SCRIPT_DIR/verify.sh" \
+    || die "운영 검증이 readiness endpoint를 확인하지 않습니다."
 grep -q 'imagePullPolicy: Never' "$rendered" || die "로컬 이미지 import 정책이 없습니다."
 grep -q 'app-management:8081' "$rendered" || die "Prometheus가 내부 관리 포트를 scrape하지 않습니다."
 grep -q 'alert: PaymentConfirmReconciliationRequired' "$rendered" \
     || die "결제 confirm 수동 대사 critical 알림이 없습니다."
 grep -q 'alert: NotificationLogPersistenceFailed' "$rendered" \
     || die "알림 감사 이력 저장 실패 알림이 없습니다."
+grep -q 'alert: RefundActionRequiredBacklog' "$rendered" \
+    || die "환불 조치 필요 backlog 알림이 없습니다."
+grep -q 'alert: NotificationOutboxPendingStalled' "$rendered" \
+    || die "알림 outbox 정체 알림이 없습니다."
+grep -q 'alert: OperationalBacklogRefreshStalled' "$rendered" \
+    || die "운영 backlog 스냅샷 정체 알림이 없습니다."
 grep -q 'alertmanager:9093' "$rendered" \
     || die "Prometheus와 Alertmanager 연결이 없습니다."
 grep -q 'url_file: /etc/alertmanager/secrets/webhook-url' "$rendered" \
@@ -161,6 +177,29 @@ grep -q 'rotate-data-keys.sh/finalize-data-key-rotation.sh' "$SCRIPT_DIR/create-
     || die "데이터 키/키링의 일반 Secret 교체 방지가 없습니다."
 grep -q 'activate-restored-release.sh' "$SCRIPT_DIR/restore-mysql.sh" \
     || die "복원 후 호환 digest 활성화 절차가 연결되지 않았습니다."
+grep -q 'k3s_ctr images export' "$SCRIPT_DIR/backup-mysql.sh" \
+    || die "off-device 백업에 호환 app/frontend 이미지 archive가 없습니다."
+grep -q 'FLYWAY_SCHEMA_VERSION=' "$SCRIPT_DIR/backup-mysql.sh" \
+    || die "복구 메타데이터에 Flyway version이 없습니다."
+grep -q 'FIELD_ENCRYPTION_KEY_ID=' "$SCRIPT_DIR/backup-mysql.sh" \
+    || die "복구 메타데이터에 암호화 키 ID가 없습니다."
+grep -q 'k3s_ctr images import' "$SCRIPT_DIR/prepare-restored-release-images.sh" \
+    || die "복원 release가 외부 이미지 archive를 containerd에 가져오지 않습니다."
+grep -q 'prepare-restored-release-images.sh.*release_dir' "$SCRIPT_DIR/restore-mysql.sh" \
+    || die "파괴적 DB 복원 전에 호환 release 이미지 선검증이 없습니다."
+grep -q 'restored_flyway_version' "$SCRIPT_DIR/restore-recovery-backup.sh" \
+    || die "복구 진입점이 restored Flyway version을 확인하지 않습니다."
+grep -q 'runtime_key_id.*expected_key_id' "$SCRIPT_DIR/restore-recovery-backup.sh" \
+    || die "복구 진입점이 runtime 암호화 키 ID를 확인하지 않습니다."
+grep -q 'runtime_rotation_phase.*expected_rotation_phase' "$SCRIPT_DIR/restore-recovery-backup.sh" \
+    || die "복구 진입점이 키 회전 단계를 확인하지 않습니다."
+grep -q 'verify_checksum.*images_archive' "$SCRIPT_DIR/restore-recovery-backup.sh" \
+    || die "복구 진입점이 이미지 archive 무결성을 선검증하지 않습니다."
+grep -q 'OnFailure=happygallery-backup-failure@%n.service' \
+    "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
+    || die "백업 실패 systemd 알림 연결이 없습니다."
+grep -q 'backup.last-success' "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
+    || die "백업 성공 heartbeat 파일이 없습니다."
 grep -q 'APP_IMAGE_DIGEST=' "$SCRIPT_DIR/build-import-images.sh" \
     || die "이미지 build/import 결과에 digest가 없습니다."
 if grep -Eq '(MYSQL_ROOT_PASSWORD|DB_PASSWORD|ENCRYPT_KEY|HMAC_KEY|PREVIOUS_ENCRYPT_KEYS|PREVIOUS_HMAC_KEYS|GUEST_TOKEN_HMAC_SECRET|GUEST_TOKEN_PREVIOUS_HMAC_SECRET|TOSS_SECRET_KEY): [^[:space:]]+' "$rendered"; then
@@ -214,6 +253,10 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   activation_flow = /app이 중지된 상태에서.*?set image deployment\/app.*?configured_app_ref=.*?scale deployment\/app --replicas=1/m
   abort "복원 release가 app scale-up 전에 호환 digest를 확정하지 않습니다." unless restored_release.match?(activation_flow)
   abort "복원 release 활성화 실패 시 app drain 보장이 없습니다." unless restored_release.match?(/on_activation_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
+
+  image_preflight = File.read(File.join(script_dir, "prepare-restored-release-images.sh"))
+  required_images = /containerd_has_image.*?app_ref.*?containerd_has_image.*?frontend_ref.*?MYSQL REDIS PROMETHEUS ALERTMANAGER.*?k3s_ctr images import.*?all_required_images_match/m
+  abort "DB 복원 전 app/frontend/runtime 이미지 import와 digest 재검증이 없습니다." unless image_preflight.match?(required_images)
 RUBY
 
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"

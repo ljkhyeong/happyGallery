@@ -3,9 +3,10 @@
 set -Eeuo pipefail
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 
-[ "$#" -eq 2 ] || die "사용법: $0 <backup.sql.gz.age> <age identity 파일>"
+[ "$#" -eq 3 ] || die "사용법: $0 <backup.sql.gz.age> <age identity 파일> <호환 release 디렉터리>"
 backup=$1
 identity=$2
+release_dir=$3
 [ -f "$backup" ] || die "백업 파일을 찾을 수 없습니다: $backup"
 require_private_file "$identity"
 require_command age
@@ -24,6 +25,7 @@ remaining_app_pods=$(kube -n "$NAMESPACE" get pods -l app.kubernetes.io/name=app
 [ -z "$remaining_app_pods" ] \
     || die "app Pod가 남아 있어 복원을 중단합니다."
 
+"$SCRIPT_DIR/prepare-restored-release-images.sh" "$release_dir"
 verify_checksum "$backup"
 info "age 인증과 gzip 스트림 무결성을 먼저 검사합니다."
 age --decrypt -i "$identity" "$backup" | gzip -t
@@ -46,4 +48,4 @@ info "DB 시점과 불일치하는 세션/처리율 상태를 Redis에서 제거
 kube -n "$NAMESPACE" exec deployment/redis -- sh -ec \
     'REDISCLI_AUTH="$REDIS_PASSWORD" exec redis-cli FLUSHALL' >/dev/null
 
-info "복원 완료. activate-restored-release.sh로 호환 digest를 먼저 지정한 뒤 app을 기동하고 전체 검증하세요."
+info "복원 완료. activate-restored-release.sh로 검증한 호환 digest를 지정한 뒤 app을 기동하고 전체 검증하세요."

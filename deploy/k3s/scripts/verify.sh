@@ -43,11 +43,11 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 attempt=0
-until curl -fsS "http://127.0.0.1:$port/actuator/health" | grep -q '"status":"UP"'; do
+until curl -fsS "http://127.0.0.1:$port/actuator/health/readiness" | grep -q '"status":"UP"'; do
     attempt=$((attempt + 1))
     [ "$attempt" -lt 20 ] || {
         cat "$log_file" >&2
-        die "내부 Actuator health 확인에 실패했습니다."
+        die "내부 Actuator readiness 확인에 실패했습니다."
     }
     sleep 1
 done

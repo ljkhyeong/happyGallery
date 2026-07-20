@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.notification;
 
+import com.personal.happygallery.application.notification.port.out.NotificationOutboxBacklogSummary;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import jakarta.persistence.LockModeType;
@@ -60,4 +61,27 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
                 staleBefore,
                 PageRequest.ofSize(limit));
     }
+
+    @Override
+    @Query("""
+            SELECT new com.personal.happygallery.application.notification.port.out.NotificationOutboxBacklogSummary(
+                n.status,
+                COUNT(n),
+                MIN(CASE
+                    WHEN n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.PENDING
+                        THEN n.nextAttemptAt
+                    WHEN n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.PROCESSING
+                        THEN COALESCE(n.lockedAt, n.createdAt)
+                    ELSE COALESCE(n.processedAt, n.createdAt)
+                END)
+            )
+            FROM NotificationOutbox n
+            WHERE n.status IN (
+                com.personal.happygallery.domain.notification.NotificationOutboxStatus.PENDING,
+                com.personal.happygallery.domain.notification.NotificationOutboxStatus.PROCESSING,
+                com.personal.happygallery.domain.notification.NotificationOutboxStatus.FAILED
+            )
+            GROUP BY n.status
+            """)
+    List<NotificationOutboxBacklogSummary> summarizeUnresolvedBacklog();
 }

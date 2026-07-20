@@ -118,6 +118,7 @@
   - `user_id(FK)`, `idempotency_key`, `payload_hash`, `created_at`
   - `(user_id, idempotency_key)`가 기본 키이며 정규화한 상품·수량의 SHA-256 해시를 함께 저장한다.
   - 비회원 장바구니 병합과 같은 트랜잭션에 삽입하며, 기존 키의 해시가 다르면 멱등키 재사용 충돌로 거절한다.
+  - 생성 후 7일 동안 재시도 응답을 보장하고, 이후 보존 배치가 `created_at` 순으로 100건씩 삭제한다.
 - 주문제작 여부는 별도 보조 테이블 없이 `products.type=MADE_TO_ORDER`로 판정한다.
 
 #### 주문과 이행
@@ -225,6 +226,7 @@ WHERE (user_id IS NULL AND guest_id IS NULL)
 - `user_social_accounts(provider, provider_id_hmac)` UNIQUE
 - `phone_verifications(phone_hmac, id)` 최신 인증 조회
 - `phone_verifications(expires_at, id)` 보존 기간 만료 삭제
+- `cart_merge_requests(created_at, user_id, idempotency_key)` 보존 기간 만료 삭제
 - `inventory(product_id, version)`
 - `inventory_adjustments(product_id, adjusted_at, id)` 최근 수동 조정 이력 조회
 - `notification_log(user_id, sent_at DESC)`

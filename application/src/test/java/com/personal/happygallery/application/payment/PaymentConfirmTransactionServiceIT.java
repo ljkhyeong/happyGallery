@@ -97,7 +97,8 @@ class PaymentConfirmTransactionServiceIT {
         assertThatThrownBy(() -> transactionService.resolveAfterLostProcessingOwnership(command))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {
                     assertSoftly(softly -> {
-                        softly.assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_FAILED);
+                        softly.assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.PAYMENT_CONFIRM_RETRYABLE);
                         softly.assertThat(exception.getMessage()).isEqualTo("새 실행권의 타임아웃");
                     });
                 });

@@ -6,6 +6,7 @@ set -Eeuo pipefail
 [ "$#" -eq 1 ] || die "사용법: $0 <호환 release 디렉터리>"
 release_dir=$(CDPATH= cd -- "$1" 2>/dev/null && pwd) \
     || die "호환 release 디렉터리를 찾을 수 없습니다: $1"
+"$SCRIPT_DIR/prepare-restored-release-images.sh" "$release_dir"
 metadata="$release_dir/metadata.env"
 validate_env_file "$metadata"
 
@@ -34,10 +35,6 @@ esac
 
 app_ref="$APP_IMAGE@$APP_IMAGE_DIGEST"
 frontend_ref="$FRONTEND_IMAGE@$FRONTEND_IMAGE_DIGEST"
-for reference in "$app_ref" "$frontend_ref"; do
-    containerd_has_image "$reference" \
-        || die "복원 release 이미지가 containerd에 남아 있지 않습니다: $reference"
-done
 
 replicas=$(kube -n "$NAMESPACE" get deployment app -o jsonpath='{.spec.replicas}')
 [ "${replicas:-0}" -eq 0 ] \

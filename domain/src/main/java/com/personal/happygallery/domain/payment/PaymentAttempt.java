@@ -103,6 +103,7 @@ public class PaymentAttempt {
      */
     public static PaymentAttempt start(String orderIdExternal, PaymentContext context,
                                        long amount, String payloadEnc) {
+        PaymentAmountPolicy.requireValid(amount);
         return new PaymentAttempt(orderIdExternal, context, amount, payloadEnc);
     }
 

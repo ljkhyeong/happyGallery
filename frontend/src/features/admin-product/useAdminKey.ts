@@ -18,32 +18,36 @@ export function useAdminKey() {
   }, []);
 
   const clearAdminKey = useCallback(() => {
-    const token = sessionStorage.getItem(TOKEN_KEY);
-    if (token) {
-      api("/admin/auth/logout", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
-    }
     sessionStorage.removeItem(TOKEN_KEY);
     setAdminKeyState("");
   }, []);
 
+  const logout = useCallback(async () => {
+    if (!adminKey) return;
+    await api("/admin/auth/logout", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminKey}` },
+    });
+    clearAdminKey();
+  }, [adminKey, clearAdminKey]);
+
   const login = useCallback(
-    async (username: string, password: string): Promise<boolean> => {
-      try {
-        const result = await api<LoginResponse>("/admin/auth/login", {
-          method: "POST",
-          body: { username, password },
-        });
-        setAdminKey(result.token);
-        return true;
-      } catch {
-        return false;
-      }
+    async (username: string, password: string): Promise<void> => {
+      const result = await api<LoginResponse>("/admin/auth/login", {
+        method: "POST",
+        body: { username, password },
+      });
+      setAdminKey(result.token);
     },
     [setAdminKey],
   );
 
-  return { adminKey, setAdminKey, clearAdminKey, login, isAuthenticated: adminKey.length > 0 };
+  return {
+    adminKey,
+    setAdminKey,
+    clearAdminKey,
+    login,
+    logout,
+    isAuthenticated: adminKey.length > 0,
+  };
 }

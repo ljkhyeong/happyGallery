@@ -26,4 +26,6 @@ public interface RefundPort {
     List<Refund> findActionRequiredAfter(LocalDateTime createdAt, Long id, int limit);
 
     List<Long> findRecoverableIds(LocalDateTime now, LocalDateTime staleBefore, int limit);
+
+    List<RefundBacklogSummary> summarizeUnresolvedBacklog();
 }

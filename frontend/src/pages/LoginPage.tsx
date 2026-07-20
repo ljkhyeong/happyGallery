@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation, useSearchParams } from "react-router-do
 import { buildAuthPageHref, resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { ErrorAlert } from "@/shared/ui";
 
 export function LoginPage() {
   const { login } = useCustomerAuth();
@@ -22,19 +23,20 @@ export function LoginPage() {
   });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    setError(null);
     setSubmitting(true);
-    const ok = await login(email, password);
-    setSubmitting(false);
-    if (ok) {
+    try {
+      await login(email, password);
       navigate(returnTo);
-    } else {
-      setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+    } catch (requestError) {
+      setError(requestError);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -73,7 +75,7 @@ export function LoginPage() {
           <Card className="auth-form-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5">
               <h3 className="mb-3">로그인</h3>
-              {error && <Alert variant="danger">{error}</Alert>}
+              <ErrorAlert error={error} />
               {claimIntent && (
                 <Alert variant="info">
                   로그인 후 <strong>내 정보</strong>에서 비회원 주문과 예약을 바로 가져올 수 있습니다.

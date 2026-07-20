@@ -18,7 +18,8 @@ import { MyBookingsSection } from "@/features/my/MyBookingsSection";
 import { MyPassesSection } from "@/features/my/MyPassesSection";
 import { MyInquiriesSection } from "@/features/my/MyInquiriesSection";
 import { getPassFilterKey } from "@/features/my/listUtils";
-import { LoadingSpinner } from "@/shared/ui";
+import { parseApiDateTime } from "@/shared/lib";
+import { LoadingSpinner, useToast } from "@/shared/ui";
 
 export function MyPage() {
   const navigate = useNavigate();
@@ -31,6 +32,8 @@ export function MyPage() {
   const [claimModalSource, setClaimModalSource] = useState<string | null>(null);
   const [showClaimEntryHint, setShowClaimEntryHint] = useState(false);
   const { user, isAuthenticated, isLoading: authLoading, logout, refresh } = useCustomerAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const toast = useToast();
 
   const { data: orders, isLoading: ordersLoading, error: ordersError } = useQuery({
     queryKey: ["my", "orders"],
@@ -63,8 +66,8 @@ export function MyPage() {
   const activePassCount = activePasses.length;
   const remainingCredits = activePasses.reduce((sum, pass) => sum + pass.remainingCredits, 0);
   const nextBooking = bookings
-    ?.filter((booking) => booking.status === "BOOKED" && Date.parse(booking.startAt) >= Date.now())
-    .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))[0];
+    ?.filter((booking) => booking.status === "BOOKED" && parseApiDateTime(booking.startAt) >= Date.now())
+    .sort((a, b) => parseApiDateTime(a.startAt) - parseApiDateTime(b.startAt))[0];
   const latestOrder = orders?.[0];
 
   const phoneOnboardingRequested = Boolean(
@@ -123,12 +126,28 @@ export function MyPage() {
     }
   };
 
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate("/");
+    } catch {
+      toast.show(
+        "로그아웃 완료를 확인하지 못해 현재 로그인 상태를 유지합니다. 잠시 후 다시 시도해 주세요.",
+        "danger",
+      );
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
   return (
     <Container className="page-container" style={{ maxWidth: 720 }}>
       <MyDashboardHero
         user={user!}
         nextBooking={nextBooking}
-        onLogout={() => { logout(); navigate("/"); }}
+        onLogout={handleLogout}
+        loggingOut={loggingOut}
       />
 
       <MyStatsRow

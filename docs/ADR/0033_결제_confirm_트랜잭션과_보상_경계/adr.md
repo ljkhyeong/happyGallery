@@ -64,7 +64,7 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 ### 3. 도메인 생성 금액은 prepare 시점에 확정한다
 
 - 공개 입력인 `OrderPayload`에는 `productId`, `qty`와 고객이 선택한 수령 방식, 배송 주문의 구조화된 배송지를 받는다.
-- `OrderPreparer`는 `ACTIVE` 상품을 ID 목록으로 한 번에 조회하고, 서버 상품가·수령 방식·배송지 스냅샷을 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만든다.
+- `OrderPreparer`는 동일 상품 요청을 먼저 합산해 상품별 1~99개 제한을 적용하고, `ACTIVE` 상품을 ID 목록으로 한 번에 조회한다. 서버 상품가·수령 방식·배송지 스냅샷을 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만들며, 상품가와 총액은 웹 안전 정수 상한을 넘지 않게 한다.
 - 내부용 payload는 AES-GCM으로 암호화해 `payment_attempt.payload_enc`에 저장하고, confirm 단계 결정과 fulfillment에서만 복호화한다. V46은 기존 평문 JSON도 암호문으로 전환한다.
 - confirm 단계 결정에서 항목 단가 합계와 `payment_attempt.amount`를 대조한 뒤 PG를 호출한다.
 - `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 단가로 `OrderItemRequest`를 만들며, 주문과 선택된 fulfillment를 같은 트랜잭션에 저장한다. 배송지는 별도 AES-GCM 암호문으로 `fulfillments.shipping_address_enc`에 보존한다.
@@ -96,8 +96,9 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 `CONFIRMED` 재호출은 최종 결과를 그대로 반환하므로 성공 응답 유실과 브라우저 새로고침도 멱등하다.
 재선점 뒤 이전 processing token으로 도착한 PG 실패는 저장하지 않는다. 이때 최신 상태가 `CONFIRMED`면
 저장된 결과를 반환하고, `APPROVED`면 PG 재호출 없이 fulfillment를 이어간다. 최신 상태가
-`PROCESSING`이면 `PAYMENT_CONFIRM_IN_PROGRESS`, `RETRYABLE/FAILED`면 저장된 이유의 `PAYMENT_FAILED`,
-보상·취소 상태면 `INVALID_INPUT`으로 종료하며 이전 요청에서 PG를 다시 호출하지 않는다.
+`PROCESSING`이면 `PAYMENT_CONFIRM_IN_PROGRESS`, `RETRYABLE`이면 `PAYMENT_CONFIRM_RETRYABLE`,
+`FAILED`면 저장된 이유의 `PAYMENT_FAILED`, `RECONCILIATION_REQUIRED`면
+`PAYMENT_RECONCILIATION_REQUIRED`, 보상·취소 상태면 `INVALID_INPUT`으로 종료하며 이전 요청에서 PG를 다시 호출하지 않는다.
 반면 이전 processing token의 PG 성공은 외부 승인 사실이므로, 최신 로컬 실패보다 우선해
 `APPROVED`로 화해하고 fulfillment를 이어간다.
 도메인 주문·예약에는 접근 토큰 해시만 유지하고, 재응답에 필요한 비회원 원문 토큰은
@@ -127,7 +128,7 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - Toss가 동일 멱등 응답을 보존하는 15일보다 여유를 둬, 생성 후 14일 이내인 `PROCESSING/RETRYABLE`만 PG에
   자동 재확인한다. 그보다 오래된 시도는 외부 승인 여부를 추측하지 않고 `RECONCILIATION_REQUIRED`로 전이해
   로컬 `FAILED` 오판과 보상 누락을 막는다. 동일한 상한은 사용자 confirm 재호출에도 적용하며, 상태 전이는
-  별도 트랜잭션에 커밋한 뒤 `PAYMENT_FAILED`를 반환한다. 이미 승인 키가 저장된 `APPROVED` fulfillment 재개에는
+  별도 트랜잭션에 커밋한 뒤 `PAYMENT_RECONCILIATION_REQUIRED`를 반환한다. 이미 승인 키가 저장된 `APPROVED` fulfillment 재개에는
   이 상한을 적용하지 않는다. 외부 PG 호출이 없는 amount=0 `PROCESSING`도 기간과 무관하게 내부 처리를 재개한다.
 - `RECONCILIATION_REQUIRED` 전이 시 `happygallery.payment.confirm.reconciliation_required` 카운터를 올리고
   Prometheus critical 알림을 발생시킨다. 운영자는 관리자 결제 대사 API에서 저장된 orderId로 Toss 조회 API를

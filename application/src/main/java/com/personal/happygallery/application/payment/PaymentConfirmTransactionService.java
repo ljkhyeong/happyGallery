@@ -378,10 +378,15 @@ class PaymentConfirmTransactionService {
     }
 
     private HappyGalleryException paymentFailure(PaymentAttempt attempt) {
+        ErrorCode errorCode = switch (attempt.getStatus()) {
+            case RETRYABLE -> ErrorCode.PAYMENT_CONFIRM_RETRYABLE;
+            case RECONCILIATION_REQUIRED -> ErrorCode.PAYMENT_RECONCILIATION_REQUIRED;
+            default -> ErrorCode.PAYMENT_FAILED;
+        };
         String reason = StringUtils.hasText(attempt.getFailReason())
                 ? attempt.getFailReason()
-                : ErrorCode.PAYMENT_FAILED.message;
-        return new HappyGalleryException(ErrorCode.PAYMENT_FAILED, reason);
+                : errorCode.message;
+        return new HappyGalleryException(errorCode, reason);
     }
 
     private boolean isStale(PaymentAttempt attempt, LocalDateTime now) {

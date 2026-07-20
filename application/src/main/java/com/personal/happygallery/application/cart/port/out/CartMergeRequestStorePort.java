@@ -13,4 +13,6 @@ public interface CartMergeRequestStorePort {
 
     Registration register(Long userId, UUID idempotencyKey, String payloadHash,
                           LocalDateTime createdAt);
+
+    int deleteCreatedBefore(LocalDateTime cutoff, int limit);
 }

@@ -1,0 +1,7 @@
+[Unit]
+Description=Notify happyGallery backup failure for %i
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/happygallery/backup-alert.env
+ExecStart=/opt/happygallery/deploy/k3s/scripts/notify-backup-failure.sh %i

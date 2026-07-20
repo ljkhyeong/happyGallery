@@ -214,6 +214,35 @@ class RefundExecutionServiceUseCaseIT {
         });
     }
 
+    @DisplayName("복구 PG 결과를 확인할 수 없으면 대사 상태로 남기고 배치 성공으로 집계하지 않는다")
+    @Test
+    void recoverPendingRefunds_reconciliationRequired_recordsPartialFailure() {
+        LocalDateTime paidAt = LocalDateTime.now(clock);
+        Order order = saveMemberOrder(paidAt);
+        Refund requestedRefund = refundRepository.save(
+                Refund.forOrder(order.getId(), 55_000L, "payment-key"));
+        when(paymentProvider.refund(any(), anyLong(), any()))
+                .thenReturn(RefundResult.reconciliationRequired("PG 호출 결과 불명"));
+
+        var result = refundRecoveryUseCase.recoverPendingRefunds();
+
+        Refund recovered = refundRepository.findById(requestedRefund.getId()).orElseThrow();
+        var backlog = refundRepository.summarizeUnresolvedBacklog();
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isZero();
+            softly.assertThat(result.failureCount()).isOne();
+            softly.assertThat(recovered.getStatus()).isEqualTo(RefundStatus.RECONCILIATION_REQUIRED);
+            softly.assertThat(recovered.getNextAttemptAt()).isAfter(LocalDateTime.now(clock));
+            softly.assertThat(backlog)
+                    .singleElement()
+                    .satisfies(summary -> {
+                        softly.assertThat(summary.status()).isEqualTo(RefundStatus.RECONCILIATION_REQUIRED);
+                        softly.assertThat(summary.count()).isOne();
+                        softly.assertThat(summary.oldestActionAt()).isAfter(LocalDateTime.now(clock));
+                    });
+        });
+    }
+
     @DisplayName("완료된 환불을 재시도하면 INVALID_INPUT 예외가 발생한다")
     @Test
     void retry_nonFailedRefund_throwsInvalidInput() {

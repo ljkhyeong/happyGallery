@@ -146,6 +146,16 @@ sha256_file() {
     fi
 }
 
+sha256_stream() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 | awk '{print $1}'
+    else
+        die "sha256sum 또는 shasum을 찾을 수 없습니다."
+    fi
+}
+
 verify_checksum() {
     file=$1
     checksum_file=$file.sha256
@@ -153,6 +163,16 @@ verify_checksum() {
     expected=$(awk 'NR == 1 { print $1 }' "$checksum_file")
     actual=$(sha256_file "$file")
     [ "$expected" = "$actual" ] || die "백업 체크섬이 일치하지 않습니다: $file"
+}
+
+decode_base64() {
+    if printf '' | base64 --decode >/dev/null 2>&1; then
+        base64 --decode
+    elif printf '' | base64 -d >/dev/null 2>&1; then
+        base64 -d
+    else
+        base64 -D
+    fi
 }
 
 base64_value() {

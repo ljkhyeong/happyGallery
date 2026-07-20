@@ -13,6 +13,7 @@ import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import java.util.List;
@@ -46,9 +47,11 @@ public class OrderFulfiller implements PaymentFulfiller {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "주문 단가 정보가 없습니다. 결제를 다시 준비해 주세요.");
         }
-        long preparedAmount = op.items().stream()
-                .mapToLong(item -> (long) item.qty() * item.unitPrice())
-                .sum();
+        long preparedAmount = 0L;
+        for (PaymentPayload.PreparedOrderItem item : op.items()) {
+            preparedAmount = OrderAmountCalculator.addLine(
+                    preparedAmount, item.qty(), item.unitPrice());
+        }
         if (preparedAmount != attempt.getAmount()) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 주문 금액이 결제 금액과 일치하지 않습니다.");
         }

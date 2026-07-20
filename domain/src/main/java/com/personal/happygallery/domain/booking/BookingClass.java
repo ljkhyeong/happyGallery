@@ -3,6 +3,7 @@ package com.personal.happygallery.domain.booking;
 import com.personal.happygallery.domain.category.CategoryName;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -46,6 +47,10 @@ public class BookingClass {
     protected BookingClass() {}
 
     public BookingClass(String name, String category, int durationMin, long price, int bufferMin) {
+        if (price < 1L || price > PaymentAmountPolicy.MAX_AMOUNT) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "클래스 가격은 1원 이상 허용 범위 이하여야 합니다.");
+        }
         this.name = requireName(name);
         this.category = CategoryName.required(category);
         this.durationMin = durationMin;

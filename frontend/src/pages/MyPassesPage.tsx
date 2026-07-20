@@ -14,7 +14,12 @@ import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
-import { customerRefundPollingInterval, formatDateTime, formatKRW } from "@/shared/lib";
+import {
+  customerRefundPollingInterval,
+  formatDateTime,
+  formatKRW,
+  parseApiDateTime,
+} from "@/shared/lib";
 
 const DEFAULT_SORT = "EXPIRY_ASC";
 const PASS_SORT_OPTIONS = [
@@ -54,18 +59,18 @@ export function MyPassesPage() {
   const sortedPasses = [...filteredPasses].sort((left, right) => {
     switch (sortValue) {
       case "PURCHASE_DESC":
-        return Date.parse(right.purchasedAt) - Date.parse(left.purchasedAt);
+        return parseApiDateTime(right.purchasedAt) - parseApiDateTime(left.purchasedAt);
       case "CREDITS_DESC":
         return right.remainingCredits - left.remainingCredits;
       case "EXPIRY_ASC":
       default:
-        return Date.parse(left.expiresAt) - Date.parse(right.expiresAt);
+        return parseApiDateTime(left.expiresAt) - parseApiDateTime(right.expiresAt);
     }
   });
   const quickTabs = buildPassTabs(passes ?? []);
   const activePassCount = (passes ?? []).filter((pass) => getPassFilterKey(pass) === "ACTIVE").length;
   const expiringSoonCount = (passes ?? []).filter((pass) => {
-    const expiresIn = Date.parse(pass.expiresAt) - Date.now();
+    const expiresIn = parseApiDateTime(pass.expiresAt) - Date.now();
     return getPassFilterKey(pass) === "ACTIVE" && expiresIn <= 7 * 24 * 60 * 60 * 1000;
   }).length;
   const remainingCredits = (passes ?? []).reduce((sum, pass) => sum + pass.remainingCredits, 0);

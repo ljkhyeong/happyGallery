@@ -4,7 +4,7 @@ import { Container, Card, Form, Row, Col, Button } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
 import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { useCustomerAuth, type CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 import { fetchMyPasses } from "@/features/my/api";
 import { isPassAvailableForBooking } from "@/features/my/listUtils";
 import {
@@ -22,6 +22,11 @@ interface GuestInfo {
   phone: string;
   verificationCode: string;
   name: string;
+}
+
+interface PaymentActor {
+  member?: CustomerUser;
+  guest?: GuestInfo;
 }
 
 export function BookingCreatePage() {
@@ -84,7 +89,9 @@ export function BookingCreatePage() {
   const formReady = selectedSlot !== null && passValid;
 
   const startPayment = useMutation({
-    mutationFn: async (guest?: GuestInfo) => {
+    mutationFn: async (actor?: PaymentActor) => {
+      const guest = actor?.guest;
+      const member = actor?.member ?? user;
       const payload: BookingPayload =
         guest
           ? {
@@ -97,7 +104,7 @@ export function BookingCreatePage() {
             }
           : {
               type: "BOOKING",
-              userId: user!.id,
+              userId: member!.id,
               slotId: selectedSlot!.id,
               passId: paymentPath === "pass" ? parsedPassId : undefined,
               paymentMethod: paymentPath === "pass" ? undefined : paymentMethod,
@@ -107,12 +114,12 @@ export function BookingCreatePage() {
         context: "BOOKING",
         payload,
         orderName: `예약 — ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
-        customerKey: user ? `member_${user.id}` : undefined,
-        customerName: guest?.name ?? user?.name,
-        customerPhone: guest?.phone ?? user?.phone ?? undefined,
+        customerKey: member ? `member_${member.id}` : undefined,
+        customerName: guest?.name ?? member?.name,
+        customerPhone: guest?.phone ?? member?.phone ?? undefined,
         returnHint: {
-          customerName: guest?.name ?? user?.name,
-          customerPhone: guest?.phone ?? user?.phone ?? undefined,
+          customerName: guest?.name ?? member?.name,
+          customerPhone: guest?.phone ?? member?.phone ?? undefined,
         },
         onZeroAmount: async (prep) => {
           const result = await confirmPayment({
@@ -250,13 +257,13 @@ export function BookingCreatePage() {
       <AuthGateModal
         show={showGate}
         onClose={() => setShowGate(false)}
-        onMemberConfirm={() => {
+        onMemberConfirm={(member) => {
           setShowGate(false);
-          startPayment.mutate(undefined);
+          startPayment.mutate({ member });
         }}
         onGuestConfirm={(info) => {
           setShowGate(false);
-          startPayment.mutate(info);
+          startPayment.mutate({ guest: info });
         }}
       />
     </Container>

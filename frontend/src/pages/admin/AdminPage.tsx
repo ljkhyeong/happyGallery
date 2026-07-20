@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Container, Card, Button } from "react-bootstrap";
 import { useAdminKey } from "@/features/admin-product/useAdminKey";
 import { AdminKeyGate } from "@/features/admin-product/AdminKeyGate";
@@ -22,9 +22,10 @@ import { AdminSearchSection } from "@/features/admin-search/AdminSearchSection";
 import { useToast } from "@/shared/ui";
 
 export function AdminPage() {
-  const { adminKey, clearAdminKey, login, isAuthenticated } = useAdminKey();
+  const { adminKey, clearAdminKey, login, logout, isAuthenticated } = useAdminKey();
   const toast = useToast();
   const handledExpiredKey = useRef<string | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleAuthError = useCallback(() => {
     if (handledExpiredKey.current === adminKey) return;
@@ -38,6 +39,20 @@ export function AdminPage() {
     toast.show("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.", "success");
   }, [clearAdminKey, toast]);
 
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      toast.show(
+        "로그아웃 완료를 확인하지 못해 관리자 세션과 현재 로그인 상태를 유지합니다.",
+        "danger",
+      );
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return <AdminKeyGate onLogin={login} />;
   }
@@ -46,8 +61,13 @@ export function AdminPage() {
     <Container className="page-container">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4 className="mb-0">관리자</h4>
-        <Button size="sm" variant="outline-secondary" onClick={clearAdminKey}>
-          로그아웃
+        <Button
+          size="sm"
+          variant="outline-secondary"
+          onClick={handleLogout}
+          disabled={loggingOut}
+        >
+          {loggingOut ? "로그아웃 중..." : "로그아웃"}
         </Button>
       </div>
 

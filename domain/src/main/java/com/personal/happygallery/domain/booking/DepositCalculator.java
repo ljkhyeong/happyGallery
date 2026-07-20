@@ -8,13 +8,11 @@ package com.personal.happygallery.domain.booking;
  */
 public final class DepositCalculator {
 
-    private static final int DEPOSIT_PERCENT = 10;
-
     private DepositCalculator() {}
 
     /** 슬롯의 클래스 가격 기준 10% 예약금. */
     public static long of(Slot slot) {
         long classPrice = slot.getBookingClass().getPrice();
-        return classPrice * DEPOSIT_PERCENT / 100;
+        return classPrice / 10;
     }
 }

@@ -193,7 +193,8 @@ class PaymentConfirmRecoveryUseCaseIT {
 
         assertThatThrownBy(() -> confirmUseCase.confirm(command))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_FAILED));
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.PAYMENT_RECONCILIATION_REQUIRED));
 
         assertThat(statusOf(first.attemptId())).isEqualTo(PaymentAttemptStatus.RECONCILIATION_REQUIRED);
         assertThat(meterRegistry

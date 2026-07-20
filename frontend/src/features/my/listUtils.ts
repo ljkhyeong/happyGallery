@@ -1,4 +1,5 @@
 import { getStatusLabel } from "@/shared/ui";
+import { parseApiDateTime } from "@/shared/lib";
 import type { MyPassSummary } from "./api";
 import type { MyFilterOption } from "./MyListFilterBar";
 
@@ -43,11 +44,11 @@ export function buildQuickStatusTabs(statuses: string[], maxTabs = 3): MyQuickTa
 
 export function getPassFilterKey(pass: MyPassSummary): string {
   if (pass.remainingCredits <= 0) return "USED_UP";
-  return Date.parse(pass.expiresAt) < Date.now() ? "EXPIRED" : "ACTIVE";
+  return parseApiDateTime(pass.expiresAt) < Date.now() ? "EXPIRED" : "ACTIVE";
 }
 
 export function isPassAvailableForBooking(pass: MyPassSummary): boolean {
-  const expiresAt = Date.parse(pass.expiresAt);
+  const expiresAt = parseApiDateTime(pass.expiresAt);
   return pass.refund === null
     && pass.remainingCredits > 0
     && Number.isFinite(expiresAt)

@@ -51,7 +51,7 @@ spec:
           args:
             - sh
             - -ec
-            - exec redis-server --save "" --appendonly no --notify-keyspace-events Egx --requirepass "$REDIS_PASSWORD"
+            - exec redis-server --save "" --appendonly no --notify-keyspace-events Egx --maxmemory 192mb --maxmemory-policy noeviction --requirepass "$REDIS_PASSWORD"
           envFrom:
             - secretRef:
                 name: happygallery-redis

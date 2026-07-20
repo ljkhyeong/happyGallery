@@ -33,7 +33,7 @@ data:
             labels:
               severity: critical
             annotations:
-              summary: happyGallery 앱이 응답하지 않습니다
+              summary: happyGallery 앱 또는 필수 DB·Redis 의존성이 준비되지 않았습니다
           - alert: HighErrorRate
             expr: rate(http_server_requests_seconds_count{application="happygallery",status=~"5.."}[5m]) > 0.5
             for: 2m
@@ -83,6 +83,20 @@ data:
               severity: critical
             annotations:
               summary: PG 멱등 안전 기간을 지나 수동 대사가 필요한 결제가 발생했습니다
+          - alert: RefundActionRequiredBacklog
+            expr: max(happygallery_refund_backlog_count{application="happygallery",status=~"failed|reconciliation_required"}) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: 운영자 확인이 필요한 환불이 DB backlog에 남아 있습니다
+          - alert: RefundRecoveryBacklogStalled
+            expr: max(happygallery_refund_backlog_oldest_age_seconds{application="happygallery",status=~"requested|processing|retryable"}) > 300
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: 자동 복구 대상 환불이 상태별 처리 기준 시각을 5분 넘겼습니다
           - alert: NotificationTimeoutExecutorRejected
             expr: increase(happygallery_notification_executor_rejected_total{application="happygallery"}[5m]) > 0
             for: 1m
@@ -104,6 +118,27 @@ data:
               severity: warning
             annotations:
               summary: 자동 재시도를 모두 소진한 알림이 발생했습니다
+          - alert: NotificationOutboxFailedBacklog
+            expr: max(happygallery_notification_outbox_backlog_count{application="happygallery",status="failed"}) > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: 운영자 재처리를 기다리는 실패 알림이 남아 있습니다
+          - alert: NotificationOutboxProcessingStalled
+            expr: max(happygallery_notification_outbox_backlog_oldest_age_seconds{application="happygallery",status="processing"}) > 120
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: 알림 outbox 선점이 2분 넘게 완료되지 않았습니다
+          - alert: NotificationOutboxPendingStalled
+            expr: max(happygallery_notification_outbox_backlog_oldest_age_seconds{application="happygallery",status="pending"}) > 60
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: 알림 outbox가 재시도 예정 시각을 1분 넘겼습니다
           - alert: NotificationLogPersistenceFailed
             expr: increase(happygallery_notification_log_persistence_failed_total{application="happygallery"}[5m]) > 0
             for: 1m
@@ -125,6 +160,20 @@ data:
               severity: critical
             annotations:
               summary: 결제·환불 복구 배치가 5분 넘게 정상 완료되지 않았습니다
+          - alert: OperationalBacklogRefreshFailed
+            expr: increase(happygallery_operational_backlog_refresh_failures_total{application="happygallery"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: 최근 5분 동안 운영 backlog DB 스냅샷 갱신이 실패했습니다
+          - alert: OperationalBacklogRefreshStalled
+            expr: max(happygallery_operational_backlog_refresh_age_seconds{application="happygallery"}) > 60
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: 환불·알림 backlog 스냅샷이 1분 넘게 갱신되지 않았습니다
 ---
 apiVersion: v1
 kind: Service

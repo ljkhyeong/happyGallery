@@ -44,7 +44,8 @@
 - `ResilientPaymentProvider.confirm(paymentKey, orderId, amount, idempotencyKey)`를 추가한다.
 - 서킷 오픈, 타임아웃, 예외는 같은 멱등키로 재시도할 수 있도록
   `PaymentConfirmResult.retryableFailure`로 표준화한다.
-- 애플리케이션은 confirm 실패를 `PAYMENT_FAILED`로 매핑하고 도메인 저장을 진행하지 않는다.
+- 애플리케이션은 최종 거절을 `PAYMENT_FAILED`, 같은 결제 정보로 재확인할 수 있는 일시 실패를
+  `PAYMENT_CONFIRM_RETRYABLE`로 매핑하고 도메인 저장을 진행하지 않는다.
 
 ### 5. TimeLimiter 실행기는 제한 큐와 즉시 거절 정책을 사용한다
 

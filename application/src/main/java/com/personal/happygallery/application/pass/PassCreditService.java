@@ -27,6 +27,7 @@ public interface PassCreditService {
      *
      * @param pass      잠금이 확보된 8회권
      * @param bookingId 복구 사유가 된 예약 ID
+     * @return 유효기간 안이라 크레딧을 복구했으면 true, 만료되어 소멸 처리했으면 false
      */
-    void restoreCredit(PassPurchase pass, Long bookingId);
+    boolean restoreCredit(PassPurchase pass, Long bookingId);
 }

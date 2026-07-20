@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.booking;
 
+import com.personal.happygallery.application.payment.port.out.RefundBacklogSummary;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.domain.booking.Refund;
 import jakarta.persistence.LockModeType;
@@ -78,4 +79,34 @@ public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPor
     List<Long> findRecoverableIds(@Param("now") LocalDateTime now,
                                   @Param("staleBefore") LocalDateTime staleBefore,
                                   @Param("limit") int limit);
+
+    @Override
+    @Query("""
+            SELECT new com.personal.happygallery.application.payment.port.out.RefundBacklogSummary(
+                r.status,
+                COUNT(r),
+                MIN(CASE
+                    WHEN r.status = com.personal.happygallery.domain.payment.RefundStatus.REQUESTED
+                        THEN r.createdAt
+                    WHEN r.status IN (
+                        com.personal.happygallery.domain.payment.RefundStatus.RETRYABLE,
+                        com.personal.happygallery.domain.payment.RefundStatus.RECONCILIATION_REQUIRED
+                    )
+                        THEN COALESCE(r.nextAttemptAt, r.createdAt)
+                    WHEN r.status = com.personal.happygallery.domain.payment.RefundStatus.PROCESSING
+                        THEN COALESCE(r.processingAt, r.createdAt)
+                    ELSE r.updatedAt
+                END)
+            )
+            FROM Refund r
+            WHERE r.status IN (
+                com.personal.happygallery.domain.payment.RefundStatus.REQUESTED,
+                com.personal.happygallery.domain.payment.RefundStatus.PROCESSING,
+                com.personal.happygallery.domain.payment.RefundStatus.RETRYABLE,
+                com.personal.happygallery.domain.payment.RefundStatus.RECONCILIATION_REQUIRED,
+                com.personal.happygallery.domain.payment.RefundStatus.FAILED
+            )
+            GROUP BY r.status
+            """)
+    List<RefundBacklogSummary> summarizeUnresolvedBacklog();
 }

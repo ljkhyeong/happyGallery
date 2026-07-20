@@ -24,14 +24,14 @@ interface CustomerAuthContextValue {
   user: CustomerUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<CustomerUser>;
   signup: (
     email: string,
     password: string,
     name: string,
     phone: string,
     verificationCode: string,
-  ) => Promise<boolean>;
+  ) => Promise<CustomerUser>;
   logout: () => Promise<void>;
   refresh: () => Promise<CustomerUser | null>;
 }
@@ -60,17 +60,13 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   }, [fetchMe]);
 
   const login = useCallback(
-    async (email: string, password: string): Promise<boolean> => {
-      try {
-        const me = await api<CustomerUserResponse>("/auth/login", {
-          method: "POST",
-          body: { email, password },
-        });
-        setUser(me);
-        return true;
-      } catch {
-        return false;
-      }
+    async (email: string, password: string): Promise<CustomerUser> => {
+      const me = await api<CustomerUserResponse>("/auth/login", {
+        method: "POST",
+        body: { email, password },
+      });
+      setUser(me);
+      return me;
     },
     [],
   );
@@ -82,33 +78,25 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       name: string,
       phone: string,
       verificationCode: string,
-    ): Promise<boolean> => {
-      try {
-        const me = await api<CustomerUserResponse>("/auth/signup", {
-          method: "POST",
-          body: {
-            email,
-            password,
-            name,
-            phone: normalizePhone(phone),
-            verificationCode,
-          },
-        });
-        setUser(me);
-        return true;
-      } catch {
-        return false;
-      }
+    ): Promise<CustomerUser> => {
+      const me = await api<CustomerUserResponse>("/auth/signup", {
+        method: "POST",
+        body: {
+          email,
+          password,
+          name,
+          phone: normalizePhone(phone),
+          verificationCode,
+        },
+      });
+      setUser(me);
+      return me;
     },
     [],
   );
 
   const logout = useCallback(async () => {
-    try {
-      await api("/auth/logout", { method: "POST" });
-    } catch {
-      // ignore
-    }
+    await api("/auth/logout", { method: "POST" });
     setUser(null);
   }, []);
 

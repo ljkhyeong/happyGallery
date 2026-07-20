@@ -9,6 +9,7 @@ import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
@@ -74,7 +75,7 @@ public class OrderService {
                                                FulfillmentType fulfillmentType,
                                                ShippingAddress shippingAddress) {
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
+        long totalAmount = totalAmount(items);
 
         GuestTokenService.IssuedToken issued = guestTokenService.issue();
         String rawToken = issued.rawToken();
@@ -101,7 +102,7 @@ public class OrderService {
                                    FulfillmentType fulfillmentType,
                                    ShippingAddress shippingAddress) {
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
+        long totalAmount = totalAmount(items);
 
         Order order = orderStore.save(
                 Order.forMember(userId, totalAmount, paidAt, paidAt.plusHours(24)));
@@ -134,6 +135,14 @@ public class OrderService {
                 .toList());
         items.forEach(item -> orderItemPort.save(
                 new OrderItem(order, item.productId(), item.qty(), item.unitPrice())));
+    }
+
+    private static long totalAmount(List<OrderItemRequest> items) {
+        long total = 0L;
+        for (OrderItemRequest item : items) {
+            total = OrderAmountCalculator.addLine(total, item.qty(), item.unitPrice());
+        }
+        return total;
     }
 
     private void saveFulfillment(Order order,

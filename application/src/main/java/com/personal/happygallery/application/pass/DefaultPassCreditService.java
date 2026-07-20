@@ -20,15 +20,18 @@ class DefaultPassCreditService implements PassCreditService {
     private final PassPurchaseReaderPort passPurchaseReader;
     private final PassPurchaseStorePort passPurchaseStore;
     private final PassLedgerStorePort passLedgerStore;
+    private final PassExpirationSupport expirationSupport;
     private final Clock clock;
 
     DefaultPassCreditService(PassPurchaseReaderPort passPurchaseReader,
                              PassPurchaseStorePort passPurchaseStore,
                              PassLedgerStorePort passLedgerStore,
+                             PassExpirationSupport expirationSupport,
                              Clock clock) {
         this.passPurchaseReader = passPurchaseReader;
         this.passPurchaseStore = passPurchaseStore;
         this.passLedgerStore = passLedgerStore;
+        this.expirationSupport = expirationSupport;
         this.clock = clock;
     }
 
@@ -61,10 +64,14 @@ class DefaultPassCreditService implements PassCreditService {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public void restoreCredit(PassPurchase pass, Long bookingId) {
+    public boolean restoreCredit(PassPurchase pass, Long bookingId) {
+        if (expirationSupport.expireIfReached(pass).expired()) {
+            return false;
+        }
         passLedgerStore.save(
                 new PassLedger(pass, PassLedgerType.REFUND, 1, bookingId));
         pass.refundCredit();
         passPurchaseStore.save(pass);
+        return true;
     }
 }

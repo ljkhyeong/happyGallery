@@ -73,4 +73,6 @@
 - `@BatchJob`은 고정된 영문 `id`와 한국어 로그 이름을 함께 가진다. `BatchLoggingAspect`는 실행 결과(`succeeded`, `partial`, `failed`), 항목 결과, 소요 시간과 마지막 정상 완료 Unix 시각을 Micrometer에 기록한다.
 - 결제·환불 복구 배치의 마지막 성공 gauge는 애플리케이션 시작 시 0으로 미리 등록한다. 한 작업이 한 번도 실행되지 않은 경우에도 시계열이 빠지지 않아 정체 알림이 이를 감지한다.
 - Prometheus는 최근 10분의 부분·전체 실패를 warning으로, 매분 실행되는 결제 준비 만료·결제 확정 복구·환불 복구 중 하나라도 마지막 정상 완료 뒤 5분을 넘기면 critical로 알린다.
+- `OperationalBacklogMetrics`는 환불과 알림 outbox를 상태별 `COUNT`와 처리 기준 시각의 `MIN` 그룹 쿼리로 15초마다 스냅샷한다. scrape마다 DB를 조회하지 않으며, 조회 실패 때 마지막 정상 값을 유지하고 갱신 실패 횟수와 마지막 정상 갱신 후 경과 시간을 별도 지표로 노출한다.
+- Prometheus는 환불 `FAILED`·`RECONCILIATION_REQUIRED`, 상태별 처리 기준 시각을 5분 넘긴 자동 복구 backlog, 알림 outbox `FAILED`, 선점 후 2분 넘은 `PROCESSING`, 재시도 예정 시각을 1분 넘긴 `PENDING`, 1분 넘게 중단된 스냅샷 갱신을 각각 알린다. future `next_attempt_at`의 age는 0이므로 정상 백오프는 정체로 보지 않는다. Grafana system dashboard도 같은 상태별 건수·처리 기준 경과 시간·스냅샷 갱신 나이를 표시한다.
 - 상태 변경형 대량 배치는 ID 오름차순 키셋을 사용한다. 실패한 항목도 현재 실행의 커서는 지나가고 다음 스케줄에서 재시도하므로, 같은 첫 페이지가 뒤 후보를 계속 가리는 문제를 막는다.

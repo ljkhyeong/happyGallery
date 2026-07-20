@@ -17,4 +17,5 @@ public interface NotificationOutboxPort {
 
     List<NotificationOutbox> findFailed(int limit);
 
+    List<NotificationOutboxBacklogSummary> summarizeUnresolvedBacklog();
 }

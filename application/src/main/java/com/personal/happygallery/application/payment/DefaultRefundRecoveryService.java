@@ -4,6 +4,7 @@ import com.personal.happygallery.application.batch.BatchExecutor;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.payment.port.in.RefundRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,9 +38,23 @@ public class DefaultRefundRecoveryService implements RefundRecoveryUseCase {
                 refundIds,
                 refundId -> refundId,
                 refundId -> {
-                    refundDispatcher.dispatch(refundId, "recovery refundId=" + refundId);
+                    RefundStatus status = refundDispatcher.dispatch(
+                            refundId, "recovery refundId=" + refundId).getStatus();
+                    if (status == RefundStatus.PROCESSING) {
+                        return false;
+                    }
+                    if (status != RefundStatus.SUCCEEDED) {
+                        throw new RefundRecoveryIncompleteException(status);
+                    }
                     return true;
                 },
                 "환불 복구");
+    }
+
+    private static final class RefundRecoveryIncompleteException extends RuntimeException {
+
+        private RefundRecoveryIncompleteException(RefundStatus status) {
+            super("환불 복구 미완료 상태: " + status);
+        }
     }
 }

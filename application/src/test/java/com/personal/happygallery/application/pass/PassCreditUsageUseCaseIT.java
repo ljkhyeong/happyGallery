@@ -46,6 +46,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -63,6 +64,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -95,6 +97,7 @@ class PassCreditUsageUseCaseIT {
     @Autowired PhoneVerificationReaderPort phoneVerificationReader;
     @Autowired NotificationLogProbe notificationLogProbe;
     @Autowired MemberBookingUseCase memberBookingUseCase;
+    @Autowired JdbcTemplate jdbcTemplate;
     @MockitoBean PaymentProvider paymentProvider;
 
     BookingClass cls;
@@ -239,6 +242,35 @@ class PassCreditUsageUseCaseIT {
         });
     }
 
+    @DisplayName("만료된 8회권 예약을 취소하면 크레딧을 복구하지 않고 잔액을 소멸시킨다")
+    @Test
+    void cancel_expiredPassBooking_doesNotRestoreCredit() throws Exception {
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Long bookingId = createPassBooking(slot.getId());
+        jdbcTemplate.update(
+                "UPDATE pass_purchases SET expires_at = ? WHERE id = ?",
+                LocalDateTime.now(clock), pass.getId());
+
+        mockMvc.perform(delete("/api/v1/me/bookings/{id}", bookingId)
+                        .with(csrf())
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELED"))
+                .andExpect(jsonPath("$.refundable").value(false));
+
+        PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
+        var ledgers = passLedgerRepository.findByPassPurchaseId(pass.getId());
+        assertSoftly(softly -> {
+            softly.assertThat(reloaded.getRemainingCredits()).isZero();
+            softly.assertThat(ledgers).extracting(ledger -> ledger.getType())
+                    .containsExactlyInAnyOrder(PassLedgerType.USE, PassLedgerType.EXPIRE);
+            softly.assertThat(ledgers).filteredOn(ledger -> ledger.getType() == PassLedgerType.EXPIRE)
+                    .singleElement()
+                    .satisfies(ledger -> softly.assertThat(ledger.getAmount()).isEqualTo(7));
+            softly.assertThat(ledgers).noneMatch(ledger -> ledger.getType() == PassLedgerType.REFUND);
+        });
+    }
+
     // -----------------------------------------------------------------------
     // Proof 3: 취소 보상 마감 이후 취소 → 크레딧 소멸 유지 (remaining=7)
     // -----------------------------------------------------------------------
@@ -364,6 +396,33 @@ class PassCreditUsageUseCaseIT {
             // Q1-T4: BookingHistory 적재 확인 (BOOKED×2 + CANCELED×2 = 4)
             softly.assertThat(historyCount).as("booking history count").isEqualTo(4L);
         });
+    }
+
+    @DisplayName("만료된 8회권은 전체 환불을 거절하고 EXPIRE 원장을 한 번만 기록한다")
+    @Test
+    void refund_expiredPass_isRejectedAndExpiredOnce() throws Exception {
+        jdbcTemplate.update(
+                "UPDATE pass_purchases SET expires_at = ? WHERE id = ?",
+                LocalDateTime.now(clock), pass.getId());
+
+        for (int attempt = 0; attempt < 2; attempt++) {
+            mockMvc.perform(post("/api/v1/admin/passes/{passId}/refund", pass.getId())
+                            .header("X-Admin-Key", ADMIN_KEY))
+                    .andExpect(status().isUnprocessableContent())
+                    .andExpect(jsonPath("$.code").value("PASS_EXPIRED"));
+        }
+
+        PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
+        var ledgers = passLedgerRepository.findByPassPurchaseId(pass.getId());
+        assertSoftly(softly -> {
+            softly.assertThat(reloaded.getRemainingCredits()).isZero();
+            softly.assertThat(ledgers).singleElement().satisfies(ledger -> {
+                softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EXPIRE);
+                softly.assertThat(ledger.getAmount()).isEqualTo(8);
+            });
+            softly.assertThat(refundRepository.count()).isZero();
+        });
+        verify(paymentProvider, never()).refund(any(), anyLong(), any());
     }
 
     @DisplayName("8회권 전체 환불 PG 실패 시 FAILED 환불 이력을 남긴다")

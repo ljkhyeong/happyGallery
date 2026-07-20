@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.cart;
 
+import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -35,6 +36,7 @@ public class CartItem {
     protected CartItem() {}
 
     public CartItem(Long userId, Long productId, int qty, LocalDateTime createdAt) {
+        OrderAmountCalculator.requireQuantity(qty);
         this.userId = userId;
         this.productId = productId;
         this.qty = qty;
@@ -43,13 +45,15 @@ public class CartItem {
     }
 
     public void addQty(int delta, LocalDateTime updatedAt) {
-        updateQty(this.qty + delta, updatedAt);
+        try {
+            updateQty(Math.addExact(this.qty, delta), updatedAt);
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException("장바구니 수량이 너무 큽니다.", e);
+        }
     }
 
     public void updateQty(int newQty, LocalDateTime updatedAt) {
-        if (newQty < 1) {
-            throw new IllegalArgumentException("수량은 1 이상이어야 합니다.");
-        }
+        OrderAmountCalculator.requireQuantity(newQty);
         this.qty = newQty;
         this.updatedAt = updatedAt;
     }
