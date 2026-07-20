@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.cart.port.in;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface CartUseCase {
 
@@ -14,11 +15,15 @@ public interface CartUseCase {
 
     record PurchasedItem(Long cartItemId, int qty) {}
 
+    record MergeItem(Long productId, int qty) {}
+
     CartView getCart(Long userId);
 
     List<CartPurchaseItem> getPurchasableItems(Long userId);
 
     void addItem(Long userId, Long productId, int qty);
+
+    void mergeItems(Long userId, UUID idempotencyKey, List<MergeItem> items);
 
     void updateItemQty(Long userId, Long productId, int qty);
 

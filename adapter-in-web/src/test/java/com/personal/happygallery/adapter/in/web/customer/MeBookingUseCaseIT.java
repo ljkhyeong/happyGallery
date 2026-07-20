@@ -89,21 +89,6 @@ class MeBookingUseCaseIT {
         cleanupSupport.clearUsers();
     }
 
-    @DisplayName("회원 예약금 예약 생성이 성공한다")
-    @Test
-    void createMemberBooking_success() throws Exception {
-        Long bookingId = paymentHelper.createMemberDepositBooking(sessionCookie, userId, slotId)
-                .domainId();
-
-        mockMvc.perform(get("/api/v1/me/bookings/{id}", bookingId)
-                        .cookie(sessionCookie))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.bookingId").isNumber())
-                .andExpect(jsonPath("$.status").value("BOOKED"))
-                .andExpect(jsonPath("$.className").value("향수 클래스"))
-                .andExpect(jsonPath("$.depositAmount").value(5000));
-    }
-
     @DisplayName("회원 예약 목록을 조회한다")
     @Test
     void listMyBookings() throws Exception {

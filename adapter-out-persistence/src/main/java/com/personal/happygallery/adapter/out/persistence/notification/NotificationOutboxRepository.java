@@ -22,9 +22,6 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
     NotificationOutbox save(NotificationOutbox outbox);
 
     @Override
-    boolean existsByIdempotencyKey(String idempotencyKey);
-
-    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT n FROM NotificationOutbox n WHERE n.id = :id")
     Optional<NotificationOutbox> findByIdForUpdate(@Param("id") Long id);

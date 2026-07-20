@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Table, Button } from "react-bootstrap";
 import { fetchFailedRefunds, retryRefund } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatKRW, formatDateTime } from "@/shared/lib";
 import type { AdminRefundStatus, FailedRefundResponse } from "@/shared/types";
 
@@ -17,18 +18,15 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [pendingId, setPendingId] = useState<number | null>(null);
+  const [cursor, setCursor] = useState<string | undefined>();
+  const [cursorHistory, setCursorHistory] = useState<(string | undefined)[]>([]);
 
-  const { data: refunds, isLoading, error } = useQuery({
-    queryKey: ["admin", "refunds", "failed"],
-    queryFn: () => fetchFailedRefunds(adminKey),
+  const { data: page, isLoading, error } = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "refunds", "failed", cursor],
+    queryFn: () => fetchFailedRefunds(adminKey, cursor),
     refetchInterval: 5_000,
   });
-
-  useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) {
-      onAuthError();
-    }
-  }, [error, onAuthError]);
+  const refunds = page?.content;
 
   const retry = useAdminMutation(onAuthError, {
     mutationFn: (refundId: number) => retryRefund(adminKey, refundId),
@@ -41,47 +39,85 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   });
 
   if (isLoading) return <LoadingSpinner />;
-  if (error) {
-    if (error instanceof ApiError && error.status === 401) return null;
-    return <ErrorAlert error={error} />;
+  if (error instanceof ApiError && error.status === 401) return null;
+  if (error && cursorHistory.length === 0) return <ErrorAlert error={error} />;
+  if (!refunds?.length && cursorHistory.length === 0) {
+    return <EmptyState message="확인이 필요한 환불이 없습니다." />;
   }
-  if (!refunds?.length) return <EmptyState message="확인이 필요한 환불이 없습니다." />;
+
+  function showNextPage() {
+    if (!page?.nextCursor) return;
+    setCursorHistory((history) => [...history, cursor]);
+    setCursor(page.nextCursor);
+  }
+
+  function showPreviousPage() {
+    setCursor(cursorHistory[cursorHistory.length - 1]);
+    setCursorHistory(cursorHistory.slice(0, -1));
+  }
 
   return (
-    <Table responsive hover size="sm">
-      <thead>
-        <tr>
-          <th>환불 ID</th>
-          <th>대상</th>
-          <th className="text-end">금액</th>
-          <th>상태</th>
-          <th className="text-end">시도</th>
-          <th>사유</th>
-          <th>발생일</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {refunds.map((r) => (
-          <tr key={r.refundId}>
-            <td>{r.refundId}</td>
-            <td>{refundTarget(r)}</td>
-            <td className="text-end">{formatKRW(r.amount)}</td>
-            <td>{refundStatusLabel(r.status)}</td>
-            <td className="text-end">{r.attemptCount}</td>
-            <td className="small">{r.failReason}</td>
-            <td className="small">{formatDateTime(r.createdAt)}</td>
-            <td>
-              <Button size="sm" variant="outline-warning"
-                disabled={pendingId === r.refundId}
-                onClick={() => retry.mutate(r.refundId)}>
-                {pendingId === r.refundId ? "..." : "재처리"}
-              </Button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
+    <>
+      {error && <ErrorAlert error={error} />}
+      {refunds && refunds.length > 0 ? (
+        <Table responsive hover size="sm">
+          <thead>
+            <tr>
+              <th>환불 ID</th>
+              <th>대상</th>
+              <th className="text-end">금액</th>
+              <th>상태</th>
+              <th className="text-end">시도</th>
+              <th>사유</th>
+              <th>발생일</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {refunds.map((r) => (
+              <tr key={r.refundId}>
+                <td>{r.refundId}</td>
+                <td>{refundTarget(r)}</td>
+                <td className="text-end">{formatKRW(r.amount)}</td>
+                <td>{refundStatusLabel(r.status)}</td>
+                <td className="text-end">{r.attemptCount}</td>
+                <td className="small">{r.failReason}</td>
+                <td className="small">{formatDateTime(r.createdAt)}</td>
+                <td>
+                  <Button size="sm" variant="outline-warning"
+                    disabled={pendingId === r.refundId}
+                    onClick={() => retry.mutate(r.refundId)}>
+                    {pendingId === r.refundId ? "..." : "재처리"}
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      ) : (
+        <EmptyState message="이 페이지에 확인이 필요한 환불이 없습니다." />
+      )}
+      {(cursorHistory.length > 0 || page?.hasMore) && (
+        <div className="d-flex justify-content-center gap-2 mb-3">
+          <Button
+            size="sm"
+            variant="outline-secondary"
+            disabled={cursorHistory.length === 0 || isLoading}
+            onClick={showPreviousPage}
+          >
+            이전
+          </Button>
+          <Button
+            size="sm"
+            variant="outline-primary"
+            disabled={!page?.hasMore || isLoading}
+            onClick={showNextPage}
+          >
+            다음
+          </Button>
+        </div>
+      )}
+    </>
   );
 }
 

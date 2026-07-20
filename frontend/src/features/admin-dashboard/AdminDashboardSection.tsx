@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState, type FormEvent } from "react";
 import { Alert, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
 import { ApiError } from "@/shared/api";
 import { formatKRW } from "@/shared/lib";
 import type { DashboardGranularity, DailyRevenue } from "@/shared/types";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { fetchDashboardSnapshot, fetchSalesSummary } from "./api";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
 interface Props {
   adminKey: string;
@@ -81,11 +81,11 @@ export function AdminDashboardSection({ adminKey, onAuthError }: Props) {
   const [rangeError, setRangeError] = useState<string | null>(null);
   const [granularity, setGranularity] = useState<DashboardGranularity>("DAILY");
 
-  const snapshotQuery = useQuery({
+  const snapshotQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "dashboard", "snapshot", range.from, range.to],
     queryFn: () => fetchDashboardSnapshot(adminKey, range),
   });
-  const salesQuery = useQuery({
+  const salesQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "dashboard", "sales", range.from, range.to, granularity],
     queryFn: () => fetchSalesSummary(adminKey, range, granularity),
   });
@@ -93,12 +93,6 @@ export function AdminDashboardSection({ adminKey, onAuthError }: Props) {
   const queryError = snapshotQuery.error ?? salesQuery.error;
   const isLoading = snapshotQuery.isLoading || salesQuery.isLoading;
   const isFetching = snapshotQuery.isFetching || salesQuery.isFetching;
-
-  useEffect(() => {
-    if (queryError instanceof ApiError && queryError.status === 401) {
-      onAuthError();
-    }
-  }, [onAuthError, queryError]);
 
   function applyRange(nextRange: DashboardRange) {
     setDraftRange(nextRange);

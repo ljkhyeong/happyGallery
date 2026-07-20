@@ -36,7 +36,7 @@
 
 - `NotificationEventType.PICKUP_DEADLINE_REMINDER` 추가.
 - `FulfillmentPort.findPickupsApproachingDeadline(from, to)`: `PICKUP_READY` 상태이고 `pickupDeadlineAt`이 `now~now+2h` 범위인 fulfillment를 조회.
-- `DefaultPickupDeadlineReminderBatchService`: 주문의 guest/user 분기 발송, `NotificationLogReaderPort`로 24시간 내 중복 방지.
+- `DefaultPickupDeadlineReminderBatchService`: 주문의 guest/user 분기 발송, `ORDER + orderId` outbox 멱등키로 주문별 중복 방지.
 - `BatchScheduler`에 매시간 정각 cron 등록.
 
 ### 3. 세션 쿠키 Secure 플래그

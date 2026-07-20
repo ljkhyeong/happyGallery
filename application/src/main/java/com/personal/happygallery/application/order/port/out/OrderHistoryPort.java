@@ -5,6 +5,5 @@ import java.util.List;
 
 public interface OrderHistoryPort {
     OrderApprovalHistory save(OrderApprovalHistory history);
-    List<OrderApprovalHistory> findByOrderId(Long orderId);
     List<OrderApprovalHistory> findByOrderIdOrderByDecidedAtAsc(Long orderId);
 }

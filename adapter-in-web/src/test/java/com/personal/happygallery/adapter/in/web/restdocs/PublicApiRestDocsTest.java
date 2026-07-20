@@ -105,7 +105,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(productQueryUseCase.listActiveCategories()).thenReturn(List.of("CANDLE", "PERFUME"));
         when(productQueryUseCase.getProduct(1L)).thenReturn(product);
         when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(qna));
-        when(qnaUseCase.verifyAndGet(eq(5L), any())).thenReturn(qna);
+        when(qnaUseCase.verifyAndGet(eq(1L), eq(5L), any())).thenReturn(qna);
         when(classQueryUseCase.listAll()).thenReturn(List.of(bookingClass));
         when(slotQueryUseCase.listAvailable(any(), any())).thenReturn(List.of(slot));
         when(guestBookingUseCase.sendVerificationCode(any())).thenReturn(phoneVerification);

@@ -9,6 +9,8 @@ public interface SlotReaderPort {
 
     Optional<Slot> findById(Long id);
 
+    List<Slot> findAllById(Iterable<Long> ids);
+
     boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
 
     List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);

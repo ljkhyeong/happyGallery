@@ -1,5 +1,6 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import type { CSSProperties } from "react";
-import { Container, Row, Col, Button } from "react-bootstrap";
+import { Container, Row, Col } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import studioHero from "@/assets/studio-hero.jpg";
@@ -35,9 +36,9 @@ export function HomePage() {
               직접 만드는 시간을 예약해 보세요.
             </p>
             <div className="store-hero-actions">
-              <Button as={Link as any} to="/products" variant="dark" size="lg">
+              <LinkButton to="/products" variant="dark" size="lg">
                 작품 둘러보기
-              </Button>
+              </LinkButton>
               <Link to="/bookings/new" className="store-hero-text-link">
                 클래스 예약하기 <span aria-hidden="true">→</span>
               </Link>
@@ -105,15 +106,14 @@ export function HomePage() {
               회원은 내 정보에서, 비회원은 발급받은 접근 토큰으로 확인할 수 있습니다.
             </p>
             <div className="lookup-panel-actions">
-              <Button as={Link as any} to="/my" variant="dark">내 정보</Button>
-              <Button
-                as={Link as any}
+              <LinkButton to="/my" variant="dark">내 정보</LinkButton>
+              <LinkButton
                 to="/guest"
                 state={{ monitoringSource: "home_lookup_panel" }}
                 variant="outline-dark"
               >
                 비회원 조회
-              </Button>
+              </LinkButton>
             </div>
           </section>
         </div>

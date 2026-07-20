@@ -45,8 +45,8 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
     /** 회원이 소유한 8회권 크레딧으로 예약을 생성한다. */
     @Override
     public Booking createMemberPassBooking(Long userId, Long slotId, Long passId) {
+        PassPurchase pass = creationSupport.requireOwnedPassForUpdate(passId, userId);
         Slot slot = reserveSlot(userId, slotId);
-        PassPurchase pass = creationSupport.requireOwnedPass(passId, userId);
         Booking booking = creationSupport.save(Booking.forMemberPass(userId, slot, pass));
         creationSupport.deductPassCredit(pass, booking.getId());
         return creationSupport.complete(booking, slot);

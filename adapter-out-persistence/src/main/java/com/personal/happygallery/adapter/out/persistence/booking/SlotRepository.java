@@ -13,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPort, SlotStorePort {
 
     @Override Optional<Slot> findById(Long id);
+    @Override List<Slot> findAllById(Iterable<Long> ids);
     @Override Slot save(Slot slot);
 
     /** 중복 슬롯 검사 — (class_id, start_at) UNIQUE 제약 반영 */

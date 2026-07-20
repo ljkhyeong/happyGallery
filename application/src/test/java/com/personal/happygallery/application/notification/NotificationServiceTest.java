@@ -4,6 +4,7 @@ import com.personal.happygallery.application.customer.GuestPersonalDataProtector
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.application.monitoring.AppMetrics;
 import com.personal.happygallery.domain.notification.NotificationChannel;
@@ -53,10 +54,10 @@ class NotificationServiceTest {
         NotificationService service = service(List.of(kakaoSender, smsSender), logStore, guestReader, userReader);
         when(kakaoSender.send(
                 IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
-                .thenReturn(true);
+                .thenReturn(NotificationSendResult.SUCCESS);
         when(kakaoSender.channel()).thenReturn(NotificationChannel.KAKAO);
 
-        boolean sent = service.sendToUser(
+        NotificationSendResult result = service.sendToUser(
                 10L,
                 IDEMPOTENCY_KEY,
                 "01012345678",
@@ -71,7 +72,7 @@ class NotificationServiceTest {
         verifyNoInteractions(smsSender);
         assertSoftly(softly -> {
             NotificationLog saved = captor.getValue();
-            softly.assertThat(sent).isTrue();
+            softly.assertThat(result).isEqualTo(NotificationSendResult.SUCCESS);
             softly.assertThat(saved.getGuestId()).isNull();
             softly.assertThat(saved.getUserId()).isEqualTo(10L);
             softly.assertThat(saved.getChannel()).isEqualTo(NotificationChannel.KAKAO);
@@ -82,7 +83,7 @@ class NotificationServiceTest {
         });
     }
 
-    @DisplayName("첫 알림 채널이 실패하면 실패 로그를 남기고 다음 채널 성공까지 이어서 시도한다")
+    @DisplayName("첫 알림 채널이 영구 거절되어도 실패 로그를 남기고 다음 채널을 시도한다")
     @Test
     void sendToGuest_firstChannelFails_fallsBackAndSavesEachResult() {
         NotificationSenderPort kakaoSender = mock(NotificationSenderPort.class);
@@ -92,13 +93,13 @@ class NotificationServiceTest {
         UserReaderPort userReader = mock(UserReaderPort.class);
         NotificationService service = service(List.of(kakaoSender, smsSender), logStore, guestReader, userReader);
         when(kakaoSender.send(IDEMPOTENCY_KEY, "01087654321", "게스트", NotificationEventType.REMINDER_D1))
-                .thenReturn(false);
+                .thenReturn(NotificationSendResult.PERMANENT_FAILURE);
         when(kakaoSender.channel()).thenReturn(NotificationChannel.KAKAO);
         when(smsSender.send(IDEMPOTENCY_KEY, "01087654321", "게스트", NotificationEventType.REMINDER_D1))
-                .thenReturn(true);
+                .thenReturn(NotificationSendResult.SUCCESS);
         when(smsSender.channel()).thenReturn(NotificationChannel.SMS);
 
-        boolean sent = service.sendToGuest(
+        NotificationSendResult result = service.sendToGuest(
                 20L,
                 IDEMPOTENCY_KEY,
                 "01087654321",
@@ -116,13 +117,13 @@ class NotificationServiceTest {
         assertSoftly(softly -> {
             NotificationLog kakaoLog = captor.getAllValues().getFirst();
             NotificationLog smsLog = captor.getAllValues().get(1);
-            softly.assertThat(sent).isTrue();
+            softly.assertThat(result).isEqualTo(NotificationSendResult.SUCCESS);
             softly.assertThat(kakaoLog.getGuestId()).isEqualTo(20L);
             softly.assertThat(kakaoLog.getUserId()).isNull();
             softly.assertThat(kakaoLog.getChannel()).isEqualTo(NotificationChannel.KAKAO);
             softly.assertThat(kakaoLog.getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
             softly.assertThat(kakaoLog.getStatus()).isEqualTo("FAILED");
-            softly.assertThat(kakaoLog.getFailReason()).isEqualTo("발송 실패");
+            softly.assertThat(kakaoLog.getFailReason()).isEqualTo("PERMANENT_FAILURE");
             softly.assertThat(kakaoLog.getSentAt()).isEqualTo(LocalDateTime.of(2026, 6, 27, 9, 0));
             softly.assertThat(smsLog.getGuestId()).isEqualTo(20L);
             softly.assertThat(smsLog.getUserId()).isNull();
@@ -146,7 +147,7 @@ class NotificationServiceTest {
         when(sender.send(IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
                 .thenThrow(new IllegalStateException("phone=01012345678 recipient=회원"));
 
-        boolean sent = service.sendToUser(
+        NotificationSendResult result = service.sendToUser(
                 10L,
                 IDEMPOTENCY_KEY,
                 "01012345678",
@@ -158,7 +159,7 @@ class NotificationServiceTest {
         verify(logStore).save(captor.capture());
         assertSoftly(softly -> {
             NotificationLog saved = captor.getValue();
-            softly.assertThat(sent).isFalse();
+            softly.assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
             softly.assertThat(saved.getStatus()).isEqualTo("FAILED");
             softly.assertThat(saved.getFailReason()).isEqualTo("DELIVERY_EXCEPTION");
         });
@@ -218,6 +219,43 @@ class NotificationServiceTest {
         });
     }
 
+    @DisplayName("모든 채널의 영구 실패는 outbox 재시도 없이 최종 실패로 기록한다")
+    @Test
+    void dispatchPending_permanentFailure_marksFinalFailure() {
+        NotificationOutboxTransactionService transactionService =
+                mock(NotificationOutboxTransactionService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+        NotificationOutboxDispatcher dispatcher =
+                new NotificationOutboxDispatcher(transactionService, notificationService);
+        var reservation = new NotificationOutboxReservation(99L, "processing-token");
+        var delivery = new NotificationOutboxDeliveryRequest(
+                99L,
+                NotificationRecipientType.USER,
+                null,
+                10L,
+                NotificationEventType.BOOKING_CONFIRMED,
+                IDEMPOTENCY_KEY);
+        when(transactionService.reserveDispatchable(50, 1)).thenReturn(List.of(reservation));
+        when(transactionService.loadRequest(99L, "processing-token")).thenReturn(Optional.of(delivery));
+        when(notificationService.sendByUserId(
+                10L, NotificationEventType.BOOKING_CONFIRMED, IDEMPOTENCY_KEY))
+                .thenReturn(NotificationSendResult.PERMANENT_FAILURE);
+        when(transactionService.markPermanentFailure(
+                99L, "processing-token", "PERMANENT_DELIVERY_FAILURE"))
+                .thenReturn(true);
+
+        var result = dispatcher.dispatchPending();
+
+        verify(transactionService).markPermanentFailure(
+                99L, "processing-token", "PERMANENT_DELIVERY_FAILURE");
+        verify(transactionService, never()).markDeliveryFailed(
+                anyLong(), anyString(), anyString(), anyInt());
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isZero();
+            softly.assertThat(result.failureCount()).isOne();
+        });
+    }
+
     @DisplayName("외부 발송 성공 후 감사 로그 저장이 실패해도 outbox를 재발송하지 않고 경고와 함께 완료한다")
     @Test
     void dispatchPending_deliverySucceedsButAuditFails_marksSentWithoutFallback() {
@@ -253,7 +291,7 @@ class NotificationServiceTest {
         when(userReader.findById(10L)).thenReturn(Optional.of(user));
         when(kakaoSender.channel()).thenReturn(NotificationChannel.KAKAO);
         when(kakaoSender.send(IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
-                .thenReturn(true);
+                .thenReturn(NotificationSendResult.SUCCESS);
         when(transactionService.markSentWithAuditFailure(
                 99L, "processing-token", "AUDIT_LOG_PERSISTENCE_FAILED"))
                 .thenReturn(true);

@@ -72,14 +72,14 @@
                 <include refid="searchConditions"/>
                 <include refid="keywordConditions"/>
             </where>
-            ORDER BY b.created_at DESC
+            ORDER BY b.created_at DESC, b.id DESC
             LIMIT #{size} OFFSET #{offset}
         ) sub ON b.id = sub.id
         JOIN slots s ON b.slot_id = s.id
         JOIN classes c ON b.class_id = c.id
         LEFT JOIN users u ON b.user_id = u.id
         LEFT JOIN guests g ON b.guest_id = g.id
-        ORDER BY b.created_at DESC
+        ORDER BY b.created_at DESC, b.id DESC
     </select>
 
     <select id="count" resultType="long">

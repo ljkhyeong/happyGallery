@@ -81,6 +81,11 @@ class NotificationOutboxTransactionService {
         return accepted;
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean markPermanentFailure(Long outboxId, String processingToken, String reason) {
+        return markDeliveryFailed(outboxId, processingToken, reason, 1);
+    }
+
     private NotificationOutbox findOutbox(Long outboxId) {
         return outboxPort.findById(outboxId)
                 .orElseThrow(() -> new IllegalStateException("알림 outbox 미존재: " + outboxId));

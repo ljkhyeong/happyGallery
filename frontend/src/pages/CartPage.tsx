@@ -1,3 +1,4 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Container, Card, Button, Row, Col, Table } from "react-bootstrap";
@@ -54,7 +55,7 @@ export function CartPage() {
         <Card className="text-center py-5">
           <Card.Body>
             <p className="mb-3">로그인하면 장바구니를 이용할 수 있습니다.</p>
-            <Button as={Link as any} to="/login" variant="primary">로그인</Button>
+            <LinkButton to="/login" variant="primary">로그인</LinkButton>
           </Card.Body>
         </Card>
       </Container>
@@ -67,7 +68,7 @@ export function CartPage() {
         <h2 className="mb-4">장바구니</h2>
         <EmptyState message="장바구니가 비어 있습니다." />
         <div className="text-center mt-3">
-          <Button as={Link as any} to="/products" variant="outline-primary">상품 보러 가기</Button>
+          <LinkButton to="/products" variant="outline-primary">상품 보러 가기</LinkButton>
         </div>
       </Container>
     );

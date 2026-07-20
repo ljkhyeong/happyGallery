@@ -1,21 +1,37 @@
 import { useState } from "react";
 import { Card, Badge, Button, Form, InputGroup } from "react-bootstrap";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { fetchAdminInquiries, replyInquiry } from "./api";
 import type { AdminInquiryResponse } from "./api";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
 interface Props {
   token: string;
   onAuthError: () => void;
 }
 
-export function AdminInquirySection({ token, onAuthError: _onAuthError }: Props) {
-  const { data: inquiries, isLoading, error } = useQuery({
-    queryKey: ["admin", "inquiries"],
-    queryFn: () => fetchAdminInquiries(token),
+export function AdminInquirySection({ token, onAuthError }: Props) {
+  const [cursor, setCursor] = useState<string | undefined>();
+  const [cursorHistory, setCursorHistory] = useState<(string | undefined)[]>([]);
+  const { data: page, isLoading, error } = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "inquiries", cursor],
+    queryFn: () => fetchAdminInquiries(token, cursor),
   });
+  const inquiries = page?.content;
+
+  function showNextPage() {
+    if (!page?.nextCursor) return;
+    setCursorHistory((history) => [...history, cursor]);
+    setCursor(page.nextCursor);
+  }
+
+  function showPreviousPage() {
+    setCursor(cursorHistory[cursorHistory.length - 1]);
+    setCursorHistory(cursorHistory.slice(0, -1));
+  }
 
   return (
     <div>
@@ -24,8 +40,33 @@ export function AdminInquirySection({ token, onAuthError: _onAuthError }: Props)
       <ErrorAlert error={error} />
       {inquiries && inquiries.length === 0 && <EmptyState message="문의가 없습니다." />}
       {inquiries?.map((inq) => (
-        <AdminInquiryItem key={inq.id} inquiry={inq} token={token} />
+        <AdminInquiryItem
+          key={inq.id}
+          inquiry={inq}
+          token={token}
+          onAuthError={onAuthError}
+        />
       ))}
+      {(cursorHistory.length > 0 || page?.hasMore) && (
+        <div className="d-flex justify-content-center gap-2 mt-3">
+          <Button
+            size="sm"
+            variant="outline-secondary"
+            disabled={cursorHistory.length === 0 || isLoading}
+            onClick={showPreviousPage}
+          >
+            이전
+          </Button>
+          <Button
+            size="sm"
+            variant="outline-primary"
+            disabled={!page?.hasMore || isLoading}
+            onClick={showNextPage}
+          >
+            다음
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -33,15 +74,17 @@ export function AdminInquirySection({ token, onAuthError: _onAuthError }: Props)
 function AdminInquiryItem({
   inquiry,
   token,
+  onAuthError,
 }: {
   inquiry: AdminInquiryResponse;
   token: string;
+  onAuthError: () => void;
 }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [replyText, setReplyText] = useState("");
 
-  const mutation = useMutation({
+  const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => replyInquiry(inquiry.id, replyText, token),
     onSuccess: () => {
       toast.show("답변이 등록되었습니다.");

@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.notification.dto.AlimtalkRequest;
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.util.List;
@@ -30,10 +31,10 @@ public class NhnAlimtalkSender implements NotificationSender {
     }
 
     @Override
-    public boolean send(String idempotencyKey,
-                        String phone,
-                        String recipientName,
-                        NotificationEventType eventType) {
+    public NotificationSendResult send(String idempotencyKey,
+                                       String phone,
+                                       String recipientName,
+                                       NotificationEventType eventType) {
         try {
             AlimtalkRequest request = new AlimtalkRequest(
                     properties.senderKey(),
@@ -52,17 +53,19 @@ public class NhnAlimtalkSender implements NotificationSender {
             if (response == null || !response.successful()) {
                 log.warn("[ALIMTALK] 발송 거절 [event={} resultCode={}]",
                         eventType, response == null ? "NO_BODY" : response.resultCode());
-                return false;
+                return response == null
+                        ? NotificationSendResult.TRANSIENT_FAILURE
+                        : response.failureResult();
             }
             log.info("[ALIMTALK] 발송 성공 event={}", eventType);
-            return true;
+            return NotificationSendResult.SUCCESS;
         } catch (RestClientResponseException exception) {
             log.warn("[ALIMTALK] HTTP {} event={}", exception.getStatusCode(), eventType);
-            return false;
+            return NhnNotificationFailureClassifier.classify(exception);
         } catch (Exception exception) {
             log.warn("[ALIMTALK] 발송 예외 [event={} type={}]",
                     eventType, exception.getClass().getSimpleName());
-            return false;
+            return NotificationSendResult.TRANSIENT_FAILURE;
         }
     }
 
@@ -91,6 +94,20 @@ public class NhnAlimtalkSender implements NotificationSender {
                 return "UNEXPECTED_SEND_RESULT_COUNT:" + message.sendResults().size();
             }
             return String.valueOf(message.sendResults().getFirst().resultCode());
+        }
+
+        private NotificationSendResult failureResult() {
+            if (header == null) {
+                return NotificationSendResult.TRANSIENT_FAILURE;
+            }
+            if (!header.isSuccessful() || header.resultCode() != 0) {
+                return NotificationSendResult.PERMANENT_FAILURE;
+            }
+            if (message == null || message.sendResults() == null
+                    || message.sendResults().size() != 1) {
+                return NotificationSendResult.TRANSIENT_FAILURE;
+            }
+            return NotificationSendResult.PERMANENT_FAILURE;
         }
     }
 

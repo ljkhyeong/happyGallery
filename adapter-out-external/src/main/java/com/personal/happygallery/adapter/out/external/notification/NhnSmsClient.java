@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.notification.dto.SmsRequest;
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,15 +21,15 @@ final class NhnSmsClient {
         this.restClient = restClient;
     }
 
-    boolean send(String phone, String message, String purpose) {
+    NotificationSendResult send(String phone, String message, String purpose) {
         return send(phone, message, purpose, "/sender/sms");
     }
 
-    boolean sendVerification(String phone, String message) {
+    NotificationSendResult sendVerification(String phone, String message) {
         return send(phone, message, "PHONE_VERIFICATION", "/sender/auth/sms");
     }
 
-    private boolean send(String phone, String message, String purpose, String senderPath) {
+    private NotificationSendResult send(String phone, String message, String purpose, String senderPath) {
         try {
             SmsRequest request = new SmsRequest(
                     message,
@@ -48,16 +49,18 @@ final class NhnSmsClient {
                             : String.valueOf(response.header().resultCode());
                 }
                 log.warn("[SMS] 발송 거절 [purpose={} resultCode={}]", purpose, resultCode);
-                return false;
+                return response == null || response.header() == null
+                        ? NotificationSendResult.TRANSIENT_FAILURE
+                        : NotificationSendResult.PERMANENT_FAILURE;
             }
             log.info("[SMS] 발송 성공 purpose={}", purpose);
-            return true;
+            return NotificationSendResult.SUCCESS;
         } catch (RestClientResponseException e) {
             log.warn("[SMS] HTTP {} purpose={}", e.getStatusCode(), purpose);
-            return false;
+            return NhnNotificationFailureClassifier.classify(e);
         } catch (Exception e) {
             log.warn("[SMS] 발송 예외 [purpose={} type={}]", purpose, e.getClass().getSimpleName());
-            return false;
+            return NotificationSendResult.TRANSIENT_FAILURE;
         }
     }
 

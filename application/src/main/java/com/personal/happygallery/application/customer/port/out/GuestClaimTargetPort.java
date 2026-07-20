@@ -12,11 +12,11 @@ import java.util.List;
  */
 public interface GuestClaimTargetPort {
 
-    List<Order> findOrdersByGuestId(Long guestId);
+    List<Order> findOrdersByGuestId(Long guestId, int limit);
 
     List<Order> findOrdersByIds(Collection<Long> ids);
 
-    List<Booking> findBookingsByGuestId(Long guestId);
+    List<Booking> findBookingsByGuestId(Long guestId, int limit);
 
     List<Booking> findBookingsByIds(Collection<Long> ids);
 

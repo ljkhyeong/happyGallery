@@ -34,10 +34,10 @@ class BookingCreationSupport {
         this.bookingSupport = bookingSupport;
     }
 
-    /** 예약 생성 전 회원의 8회권 소유권을 확인한다. */
+    /** 예약 생성 전 8회권 행을 잠그고 회원 소유권을 확인한다. */
     @Transactional(propagation = Propagation.MANDATORY)
-    PassPurchase requireOwnedPass(Long passId, Long ownerUserId) {
-        return passCreditService.requireOwned(passId, ownerUserId);
+    PassPurchase requireOwnedPassForUpdate(Long passId, Long ownerUserId) {
+        return passCreditService.requireOwnedForUpdate(passId, ownerUserId);
     }
 
     /** 예약 저장 후 사용 가능 여부를 검증하고 8회권 크레딧을 차감한다. */

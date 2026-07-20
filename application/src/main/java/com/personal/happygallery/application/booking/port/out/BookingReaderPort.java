@@ -10,8 +10,6 @@ public interface BookingReaderPort {
 
     Optional<Booking> findById(Long id);
 
-    long count();
-
     Optional<Booking> findDetailByIdAndAccessToken(Long id, String accessToken);
 
     List<Booking> findByUserIdWithDetails(Long userId);

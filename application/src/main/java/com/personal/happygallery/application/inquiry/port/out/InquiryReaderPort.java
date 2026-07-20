@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.inquiry.port.out;
 
 import com.personal.happygallery.domain.inquiry.Inquiry;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,5 +11,7 @@ public interface InquiryReaderPort {
 
     List<Inquiry> findByUserId(Long userId);
 
-    List<Inquiry> findAll();
+    List<Inquiry> findRecent(int limit);
+
+    List<Inquiry> findRecentAfter(LocalDateTime createdAt, Long id, int limit);
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col, ProgressBar } from "react-bootstrap";
 import { activateSlot, deactivateSlot, fetchClasses, fetchSlotsByClass } from "./api";
@@ -6,6 +6,7 @@ import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
 
 interface Props {
@@ -26,17 +27,11 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   });
 
   const classIdNum = Number(classId);
-  const { data: slots, isLoading, error } = useQuery({
+  const { data: slots, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "slots", classIdNum],
     queryFn: () => fetchSlotsByClass(adminKey, classIdNum),
     enabled: classIdNum > 0,
   });
-
-  useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) {
-      onAuthError();
-    }
-  }, [error, onAuthError]);
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: ({ slotId, activate }: { slotId: number; activate: boolean }) =>

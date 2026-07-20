@@ -7,6 +7,7 @@ import com.personal.happygallery.adapter.out.persistence.booking.BookingReposito
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import java.util.Collection;
 import java.util.List;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,8 +23,8 @@ class JpaGuestClaimTargetAdapter implements GuestClaimTargetPort {
     }
 
     @Override
-    public List<Order> findOrdersByGuestId(Long guestId) {
-        return orderRepository.findByGuestIdOrderByCreatedAtDesc(guestId);
+    public List<Order> findOrdersByGuestId(Long guestId, int limit) {
+        return orderRepository.findByGuestIdOrderByCreatedAtDesc(guestId, PageRequest.ofSize(limit));
     }
 
     @Override
@@ -32,13 +33,13 @@ class JpaGuestClaimTargetAdapter implements GuestClaimTargetPort {
     }
 
     @Override
-    public List<Booking> findBookingsByGuestId(Long guestId) {
-        return bookingRepository.findByGuestIdWithDetails(guestId);
+    public List<Booking> findBookingsByGuestId(Long guestId, int limit) {
+        return bookingRepository.findClaimPreviewByGuestId(guestId, PageRequest.ofSize(limit));
     }
 
     @Override
     public List<Booking> findBookingsByIds(Collection<Long> ids) {
-        return bookingRepository.findAllById(ids);
+        return bookingRepository.findClaimTargetsByIdIn(ids);
     }
 
     @Override

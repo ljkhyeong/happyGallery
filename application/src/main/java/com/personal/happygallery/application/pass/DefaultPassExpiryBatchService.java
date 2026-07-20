@@ -1,9 +1,9 @@
 package com.personal.happygallery.application.pass;
 
 import com.personal.happygallery.application.batch.BatchExecutor;
-import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.batch.BatchResult;
-import com.personal.happygallery.application.notification.port.out.NotificationLogReaderPort;
+import com.personal.happygallery.application.notification.NotificationOutboxService;
+import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
@@ -11,32 +11,24 @@ import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
 public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
 
     private final PassPurchaseReaderPort passPurchaseReader;
     private final PassExpireProcessor passExpireProcessor;
-    private final NotificationLogReaderPort notificationLogReader;
-    private final ApplicationEventPublisher eventPublisher;
+    private final NotificationOutboxService notificationOutboxService;
     private final Clock clock;
 
     public DefaultPassExpiryBatchService(PassPurchaseReaderPort passPurchaseReader,
-                                  PassExpireProcessor passExpireProcessor,
-                                  NotificationLogReaderPort notificationLogReader,
-                                  ApplicationEventPublisher eventPublisher,
-                                  Clock clock) {
+                                          PassExpireProcessor passExpireProcessor,
+                                          NotificationOutboxService notificationOutboxService,
+                                          Clock clock) {
         this.passPurchaseReader = passPurchaseReader;
         this.passExpireProcessor = passExpireProcessor;
-        this.notificationLogReader = notificationLogReader;
-        this.eventPublisher = eventPublisher;
+        this.notificationOutboxService = notificationOutboxService;
         this.clock = clock;
     }
 
@@ -67,31 +59,16 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
     /**
      * 만료 7일 전 PASS_EXPIRY_SOON 알림 발송 배치.
      *
-     * <p>중복 발송 체크 로직이 포함되어 범용 BatchExecutor를 사용하지 않는다.
-     *
      * @return 발송 건수
      */
     @Override
     public BatchResult sendExpiryNotifications() {
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime sentStart = now.toLocalDate().atStartOfDay();
-        LocalDateTime sentEnd = sentStart.plusDays(1);
         List<PassPurchase> expiring = findPassesExpiringInSevenDays(now);
-        Set<Long> notifiedUserIds = findNotifiedUserIds(expiring, sentStart, sentEnd);
 
         return BatchExecutor.execute(expiring,
                 PassPurchase::getId,
-                pass -> {
-                    if (notifiedUserIds.contains(pass.getUserId())) {
-                        return false;
-                    }
-                    eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                            pass.getUserId(),
-                            NotificationEventType.PASS_EXPIRY_SOON,
-                            "PASS_PURCHASE",
-                            pass.getId()));
-                    return true;
-                },
+                this::requestExpiryNotification,
                 "8회권 만료 알림");
     }
 
@@ -102,18 +79,12 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
                 .findByExpiresAtBetweenAndRemainingCreditsGreaterThan(targetStart, targetEnd, 0);
     }
 
-    private Set<Long> findNotifiedUserIds(List<PassPurchase> expiring,
-                                          LocalDateTime sentStart,
-                                          LocalDateTime sentEnd) {
-        List<Long> userIds = expiring.stream()
-                .map(PassPurchase::getUserId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-        if (userIds.isEmpty()) {
-            return Set.of();
-        }
-        return Set.copyOf(notificationLogReader.findSentUserIds(
-                userIds, NotificationEventType.PASS_EXPIRY_SOON, sentStart, sentEnd));
+    private boolean requestExpiryNotification(PassPurchase pass) {
+        NotificationRequestedEvent event = NotificationRequestedEvent.forUser(
+                pass.getUserId(),
+                NotificationEventType.PASS_EXPIRY_SOON,
+                "PASS_PURCHASE",
+                pass.getId());
+        return notificationOutboxService.enqueue(event);
     }
 }

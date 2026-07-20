@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import org.springframework.web.client.RestClient;
@@ -24,10 +25,10 @@ public class RealSmsSender implements NotificationSender {
     }
 
     @Override
-    public boolean send(String idempotencyKey,
-                        String phone,
-                        String recipientName,
-                        NotificationEventType eventType) {
+    public NotificationSendResult send(String idempotencyKey,
+                                       String phone,
+                                       String recipientName,
+                                       NotificationEventType eventType) {
         return smsClient.send(
                 phone,
                 SmsMessageCatalog.render(recipientName, eventType),

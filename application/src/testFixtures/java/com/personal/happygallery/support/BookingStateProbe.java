@@ -6,7 +6,8 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.application.booking.port.out.BookingHistoryPort;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
-import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.adapter.out.persistence.booking.BookingRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -14,17 +15,20 @@ import org.springframework.stereotype.Component;
 public class BookingStateProbe {
 
     private final BookingReaderPort bookingReaderPort;
+    private final BookingRepository bookingRepository;
     private final BookingHistoryPort bookingHistoryPort;
-    private final RefundPort refundPort;
+    private final RefundRepository refundRepository;
     private final SlotReaderPort slotReaderPort;
 
     public BookingStateProbe(BookingReaderPort bookingReaderPort,
+                             BookingRepository bookingRepository,
                              BookingHistoryPort bookingHistoryPort,
-                             RefundPort refundPort,
+                             RefundRepository refundRepository,
                              SlotReaderPort slotReaderPort) {
         this.bookingReaderPort = bookingReaderPort;
+        this.bookingRepository = bookingRepository;
         this.bookingHistoryPort = bookingHistoryPort;
-        this.refundPort = refundPort;
+        this.refundRepository = refundRepository;
         this.slotReaderPort = slotReaderPort;
     }
 
@@ -37,7 +41,7 @@ public class BookingStateProbe {
     }
 
     public long bookingCount() {
-        return bookingReaderPort.count();
+        return bookingRepository.count();
     }
 
     public long bookingHistoryCountByBookingId(Long bookingId) {
@@ -45,10 +49,10 @@ public class BookingStateProbe {
     }
 
     public List<Refund> refunds() {
-        return refundPort.findAll();
+        return refundRepository.findAll();
     }
 
     public long refundCount() {
-        return refundPort.count();
+        return refundRepository.count();
     }
 }

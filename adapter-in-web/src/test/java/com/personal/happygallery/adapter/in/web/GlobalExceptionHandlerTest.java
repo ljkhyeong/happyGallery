@@ -1,21 +1,30 @@
 package com.personal.happygallery.adapter.in.web;
 
+import com.personal.happygallery.adapter.in.web.booking.SlotController;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
+import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.order.Order;
 import java.sql.SQLException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import tools.jackson.core.JacksonException;
 
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.mockito.Mockito.mock;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
 class GlobalExceptionHandlerTest {
 
@@ -25,8 +34,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void optimisticLock_booking_mapsToBookingConflict() {
         ResponseEntity<ErrorResponse> response = handler.handleOptimisticLockingFailure(
-                new OptimisticLockingFailureException(
-                        "Object of class [" + Booking.class.getName() + "] with identifier [1]"));
+                new ObjectOptimisticLockingFailureException(Booking.class.getName(), 1L));
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(409);
@@ -38,8 +46,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void optimisticLock_nonBooking_mapsToConflict() {
         ResponseEntity<ErrorResponse> response = handler.handleOptimisticLockingFailure(
-                new OptimisticLockingFailureException(
-                        "Object of class [" + Order.class.getName() + "] with identifier [1]"));
+                new ObjectOptimisticLockingFailureException(Order.class.getName(), 1L));
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(409);
@@ -82,6 +89,22 @@ class GlobalExceptionHandlerTest {
             softly.assertThat(response.getBody()).isEqualTo(
                     ErrorResponse.of(ErrorCode.INVALID_INPUT, "요청 JSON 형식이 올바르지 않습니다."));
         });
+    }
+
+    @DisplayName("잘못된 슬롯 조회 파라미터는 INVALID_INPUT으로 매핑된다")
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "/api/v1/slots?classId=1&date=not-a-date",
+            "/api/v1/slots?date=2026-01-01"
+    })
+    void invalidQueryParameter_mapsToInvalidInput(String path) throws Exception {
+        var mockMvc = standaloneSetup(new SlotController(mock(SlotQueryUseCase.class)))
+                .setControllerAdvice(handler)
+                .build();
+
+        mockMvc.perform(get(path))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
     @DisplayName("내부 Jackson 처리 오류는 INTERNAL_ERROR로 매핑된다")

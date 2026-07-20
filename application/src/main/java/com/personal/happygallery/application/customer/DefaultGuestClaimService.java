@@ -144,12 +144,10 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
         return findGuest(user.getPhone())
                 .map(guest -> new ClaimPreview(
                         user.isPhoneVerified(),
-                        claimTargets.findOrdersByGuestId(guest.getId()).stream()
-                                .limit(PREVIEW_LIMIT)
+                        claimTargets.findOrdersByGuestId(guest.getId(), PREVIEW_LIMIT).stream()
                                 .map(ClaimOrderSummary::from)
                                 .toList(),
-                        claimTargets.findBookingsByGuestId(guest.getId()).stream()
-                                .limit(PREVIEW_LIMIT)
+                        claimTargets.findBookingsByGuestId(guest.getId(), PREVIEW_LIMIT).stream()
                                 .map(ClaimBookingSummary::from)
                                 .toList()))
                 .orElseGet(() -> new ClaimPreview(user.isPhoneVerified(), List.of(), List.of()));

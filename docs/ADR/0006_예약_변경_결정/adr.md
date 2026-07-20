@@ -62,20 +62,19 @@
 
 ---
 
-## 결정 5 — 슬롯 락 순서: new 먼저, old 나중
+## 결정 5 — 관련 클래스 선잠금 후 슬롯 변경
 
-**선택**: `SlotCapacitySupport.reserveCapacity(newSlotId)` → `releaseCapacity(oldSlotId)` 순서 고정.
+**선택**: 기존 슬롯과 새 슬롯이 속한 클래스 행을 PK 오름차순으로 모두 잠근 뒤
+`SlotCapacitySupport.reserveCapacity(newSlotId)` → `releaseCapacity(oldSlotId)`를 실행한다.
 
-**이유**: 새 슬롯 정원을 먼저 확보한 뒤 기존 슬롯 정원을 반납하는 기존 순서를 유지한다.
+**이유**:
+- 새 슬롯 정원을 먼저 확보한 뒤 기존 슬롯을 반납하는 업무 순서를 유지한다.
+- A→B와 B→A 변경이 동시에 실행돼도 두 트랜잭션이 클래스 락을 같은 순서로 획득한다.
+- 8회권 전체 환불처럼 여러 클래스의 슬롯을 한 번에 반납하는 흐름도 같은 클래스 선잠금 경계를 사용한다.
 
-**알려진 위험 (deadlock)**:
-- 트랜잭션 1: A→B 변경 (new=B 락 → old=A 락)
-- 트랜잭션 2: B→A 변경 (new=A 락 → old=B 락)
-- 두 트랜잭션이 동시에 실행되면 deadlock 이론적 가능
-
-**완화책**: 실운영 슬롯은 시간 순서로 배치되어 swap 변경은 발생 가능성 낮음.
-발생 시 DB lock wait timeout → 트랜잭션 롤백으로 자동 복구.
-근본 해결: 슬롯 ID 오름차순으로 락 획득 — §5.3 이후 리팩토링 시 적용 권장.
+**잠금 순서**: 8회권을 변경하는 흐름은 `pass_purchases → classes(PK ASC) → slots(PK ASC)`이고,
+일반 예약 변경은 `classes(PK ASC) → slots(PK ASC)`이다. 같은 클래스 안의 슬롯 범위 작업은 클래스 락으로
+직렬화하고 실제 슬롯 조회도 PK 순서로 잠근다.
 
 ---
 

@@ -12,6 +12,12 @@ import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +41,7 @@ class NotificationOutboxUseCaseIT {
     @Autowired ApplicationEventPublisher eventPublisher;
     @Autowired NotificationOutboxRepository outboxRepository;
     @Autowired NotificationOutboxDispatcher outboxDispatcher;
+    @Autowired NotificationOutboxService outboxService;
     @Autowired NotificationOutboxTransactionService outboxTransactionService;
     @Autowired UserStorePort userStorePort;
     @Autowired NotificationLogProbe notificationLogProbe;
@@ -93,6 +100,44 @@ class NotificationOutboxUseCaseIT {
                     assertThat(outboxRepository.findAll()).isEmpty();
                     assertThat(notificationLogProbe.all()).isEmpty();
                 });
+    }
+
+    @DisplayName("같은 멱등키의 동시 요청은 DB 유일 제약으로 outbox 한 건만 저장한다")
+    @Test
+    void enqueue_sameIdempotencyKeyConcurrently_insertsOnce() throws Exception {
+        User user = userStorePort.save(new User(
+                "outbox-concurrent@example.com", "hash", "회원", "01022223333"));
+        NotificationRequestedEvent event = NotificationRequestedEvent.forUser(
+                user.getId(), NotificationEventType.PASS_EXPIRY_SOON, "PASS_PURCHASE", 20L);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        Callable<Boolean> enqueue = () -> {
+            ready.countDown();
+            if (!start.await(2, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("동시 enqueue 시작 대기 시간 초과");
+            }
+            return Boolean.TRUE.equals(new TransactionTemplate(transactionManager)
+                    .execute(status -> outboxService.enqueue(event)));
+        };
+
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<Boolean> first = executor.submit(enqueue);
+            Future<Boolean> second = executor.submit(enqueue);
+            assertThat(ready.await(2, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            List<Boolean> results = List.of(
+                    first.get(5, TimeUnit.SECONDS),
+                    second.get(5, TimeUnit.SECONDS));
+
+            assertSoftly(softly -> {
+                softly.assertThat(results).containsExactlyInAnyOrder(true, false);
+                softly.assertThat(outboxRepository.findAll())
+                        .singleElement()
+                        .satisfies(outbox -> softly.assertThat(outbox.getIdempotencyKey())
+                                .isEqualTo(event.idempotencyKey()));
+            });
+        }
     }
 
     @DisplayName("알림 outbox dispatch는 활성 트랜잭션 안에서 실행하지 않는다")

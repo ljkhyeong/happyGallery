@@ -9,8 +9,6 @@ public interface NotificationOutboxPort {
 
     NotificationOutbox save(NotificationOutbox outbox);
 
-    boolean existsByIdempotencyKey(String idempotencyKey);
-
     Optional<NotificationOutbox> findById(Long id);
 
     Optional<NotificationOutbox> findByIdForUpdate(Long id);

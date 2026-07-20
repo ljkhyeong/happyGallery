@@ -4,6 +4,7 @@ import com.personal.happygallery.application.customer.GuestPersonalDataProtector
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.application.monitoring.AppMetrics;
 import com.personal.happygallery.domain.notification.NotificationChannel;
@@ -62,14 +63,16 @@ public class NotificationService {
 
     // -- outbox dispatcher 용 package-private 메서드 --
 
-    boolean sendToGuest(Long guestId, String idempotencyKey, String phone, String name,
-                        NotificationEventType eventType) {
+    NotificationSendResult sendToGuest(Long guestId, String idempotencyKey, String phone, String name,
+                                       NotificationEventType eventType) {
         return sendNotification(guestId, null, idempotencyKey, phone, name, eventType);
     }
 
-    boolean sendByGuestId(Long guestId, NotificationEventType eventType, String idempotencyKey) {
+    NotificationSendResult sendByGuestId(Long guestId,
+                                         NotificationEventType eventType,
+                                         String idempotencyKey) {
         if (guestId == null) {
-            return true;
+            return NotificationSendResult.SUCCESS;
         }
         return guestReader.findById(guestId)
                 .map(guest -> sendToGuest(
@@ -82,13 +85,15 @@ public class NotificationService {
                     if (!logRecipientNotFound(guestId, null, eventType)) {
                         throw NotificationAuditPersistenceException.afterCompletedDelivery();
                     }
-                    return true;
+                    return NotificationSendResult.PERMANENT_FAILURE;
                 });
     }
 
-    boolean sendByUserId(Long userId, NotificationEventType eventType, String idempotencyKey) {
+    NotificationSendResult sendByUserId(Long userId,
+                                        NotificationEventType eventType,
+                                        String idempotencyKey) {
         if (userId == null) {
-            return true;
+            return NotificationSendResult.SUCCESS;
         }
         return userReader.findById(userId)
                 .map(user -> sendToUser(userId, idempotencyKey, user.getPhone(), user.getName(), eventType))
@@ -96,51 +101,59 @@ public class NotificationService {
                     if (!logRecipientNotFound(null, userId, eventType)) {
                         throw NotificationAuditPersistenceException.afterCompletedDelivery();
                     }
-                    return true;
+                    return NotificationSendResult.PERMANENT_FAILURE;
                 });
     }
 
-    boolean sendToUser(Long userId, String idempotencyKey, String phone, String name,
-                       NotificationEventType eventType) {
+    NotificationSendResult sendToUser(Long userId, String idempotencyKey, String phone, String name,
+                                      NotificationEventType eventType) {
         return sendNotification(null, userId, idempotencyKey, phone, name, eventType);
     }
 
-    private boolean sendNotification(Long guestId, Long userId, String idempotencyKey,
-                                     String phone, String name,
-                                     NotificationEventType eventType) {
+    private NotificationSendResult sendNotification(Long guestId,
+                                                      Long userId,
+                                                      String idempotencyKey,
+                                                      String phone,
+                                                      String name,
+                                                      NotificationEventType eventType) {
         LocalDateTime sentAt = LocalDateTime.now(clock);
         Long recipientId = guestId != null ? guestId : userId;
         String recipientLabel = guestId != null ? "guestId" : "userId";
         boolean auditPersisted = true;
+        boolean transientFailure = false;
 
         for (NotificationSenderPort sender : senders) {
-            boolean success;
+            NotificationSendResult result;
             try {
-                success = sender.send(idempotencyKey, phone, name, eventType);
+                result = sender.send(idempotencyKey, phone, name, eventType);
             } catch (Exception e) {
                 log.warn("[알림] {} 발송 예외 [{}={} event={} type={}]",
                         sender.channel(), recipientLabel, recipientId, eventType, e.getClass().getSimpleName());
                 auditPersisted &= save(NotificationLog.failed(
                         guestId, userId, sender.channel(), eventType, DELIVERY_EXCEPTION, sentAt));
+                transientFailure = true;
                 continue;
             }
 
-            if (success) {
+            if (result.isSuccess()) {
                 auditPersisted &= save(
                         NotificationLog.success(guestId, userId, sender.channel(), eventType, sentAt));
                 if (!auditPersisted) {
                     throw NotificationAuditPersistenceException.afterCompletedDelivery();
                 }
-                return true;
+                return NotificationSendResult.SUCCESS;
             }
             auditPersisted &= save(NotificationLog.failed(
-                    guestId, userId, sender.channel(), eventType, "발송 실패", sentAt));
+                    guestId, userId, sender.channel(), eventType, result.name(), sentAt));
+            transientFailure |= result == NotificationSendResult.TRANSIENT_FAILURE;
         }
         log.error("[알림] 모든 채널 실패 [{}={} event={}]", recipientLabel, recipientId, eventType);
         if (!auditPersisted) {
             throw NotificationAuditPersistenceException.beforeCompletedDelivery();
         }
-        return false;
+        return transientFailure
+                ? NotificationSendResult.TRANSIENT_FAILURE
+                : NotificationSendResult.PERMANENT_FAILURE;
     }
 
     private boolean logRecipientNotFound(Long guestId, Long userId, NotificationEventType eventType) {

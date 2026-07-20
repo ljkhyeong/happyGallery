@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
+import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
@@ -38,11 +39,11 @@ public class InventoryService {
      *
      * <ol>
      *   <li>비관적 락({@code SELECT FOR UPDATE})으로 재고 row를 잠근다.</li>
-     *   <li>{@link com.personal.happygallery.domain.product.Inventory#deduct(int)}로 수량 검증과 차감을 함께 처리한다.</li>
+     *   <li>{@link Inventory#deduct(int)}로 수량 검증과 차감을 함께 처리한다.</li>
      *   <li>수량을 차감하고 저장한다.</li>
      * </ol>
      *
-     * <p>재고 부족 시 {@link com.personal.happygallery.domain.error.InventoryNotEnoughException} (409).
+     * <p>재고 부족 시 {@link InventoryNotEnoughException} (409).
      *
      * @param productId 상품 ID
      * @param qty       차감 수량
@@ -102,7 +103,7 @@ public class InventoryService {
         for (InventoryAdjustment adjustment : adjustments) {
             quantitiesByProductId.merge(
                     adjustment.productId(), adjustment.qty(),
-                    Integer::sum);
+                    Math::addExact);
         }
 
         List<Inventory> inventories = inventoryStorePort.findByProductIdInWithLock(

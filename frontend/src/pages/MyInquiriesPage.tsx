@@ -1,4 +1,5 @@
-import { Container, Card, Badge, Button } from "react-bootstrap";
+import { LinkButton } from "@/shared/ui/LinkButton";
+import { Container, Card, Badge } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchMyInquiries } from "@/features/my-inquiry/api";
@@ -34,9 +35,9 @@ export function MyInquiriesPage() {
     <Container className="page-container">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h4>내 문의</h4>
-        <Button as={Link as any} to="/my/inquiries/new" variant="primary" size="sm">
+        <LinkButton to="/my/inquiries/new" variant="primary" size="sm">
           문의 작성
-        </Button>
+        </LinkButton>
       </div>
 
       <ErrorAlert error={error} />

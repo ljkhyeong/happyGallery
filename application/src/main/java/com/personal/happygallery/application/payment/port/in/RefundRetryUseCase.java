@@ -1,7 +1,7 @@
 package com.personal.happygallery.application.payment.port.in;
 
 import com.personal.happygallery.domain.booking.Refund;
-import java.util.List;
+import com.personal.happygallery.application.shared.page.CursorPage;
 
 /**
  * 환불 재시도 유스케이스.
@@ -12,5 +12,5 @@ public interface RefundRetryUseCase {
 
     Refund retry(Long refundId);
 
-    List<Refund> listFailed();
+    CursorPage<Refund> listFailed(String cursor, int size);
 }

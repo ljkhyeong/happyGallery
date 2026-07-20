@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, ButtonGroup, Form, Modal, Table } from "react-bootstrap";
 import { adjustInventory, fetchInventoryAdjustments } from "./api";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
 import type { InventoryAdjustmentType, ProductResponse } from "@/shared/types";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
@@ -22,17 +23,11 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
   const [quantity, setQuantity] = useState("1");
   const [reason, setReason] = useState("");
 
-  const historyQuery = useQuery({
+  const historyQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products", product?.id, "inventory-adjustments"],
     queryFn: () => fetchInventoryAdjustments(adminKey, product!.id),
     enabled: product !== null,
   });
-
-  useEffect(() => {
-    if (historyQuery.error instanceof ApiError && historyQuery.error.status === 401) {
-      onAuthError();
-    }
-  }, [historyQuery.error, onAuthError]);
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => adjustInventory(adminKey, product!.id, {

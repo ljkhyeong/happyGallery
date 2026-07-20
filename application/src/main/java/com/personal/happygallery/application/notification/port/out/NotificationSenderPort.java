@@ -21,10 +21,10 @@ public interface NotificationSenderPort {
      * @param phone         수신자 전화번호
      * @param recipientName 수신자 이름
      * @param eventType     발송 이벤트 유형
-     * @return 발송 성공 여부
+     * @return 발송 성공 여부와 재시도 가능성
      */
-    boolean send(String idempotencyKey,
-                 String phone,
-                 String recipientName,
-                 NotificationEventType eventType);
+    NotificationSendResult send(String idempotencyKey,
+                                String phone,
+                                String recipientName,
+                                NotificationEventType eventType);
 }

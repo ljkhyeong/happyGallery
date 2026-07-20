@@ -42,11 +42,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     /** guest claim preview용 비회원 주문 조회 (최신순) */
     List<Order> findByGuestIdOrderByCreatedAtDesc(Long guestId);
 
-    /** 관리자 — 상태별 주문 조회 (최신순) */
-    @Override List<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status);
-
-    /** 관리자 — 전체 주문 조회 (최신순) */
-    @Override List<Order> findAllByOrderByCreatedAtDesc();
+    List<Order> findByGuestIdOrderByCreatedAtDesc(Long guestId, Pageable pageable);
 
     // ── 커서 기반 페이지네이션 ──
 

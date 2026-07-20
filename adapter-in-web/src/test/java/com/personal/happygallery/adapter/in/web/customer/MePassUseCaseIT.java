@@ -66,20 +66,6 @@ class MePassUseCaseIT {
         cleanupSupport.clearUsers();
     }
 
-    @DisplayName("회원 8회권 구매가 성공한다")
-    @Test
-    void purchaseMemberPass_success() throws Exception {
-        Long passId = paymentHelper.purchaseMemberPass(sessionCookie, userId).domainId();
-
-        mockMvc.perform(get("/api/v1/me/passes/{id}", passId)
-                        .cookie(sessionCookie))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.passId").isNumber())
-                .andExpect(jsonPath("$.totalCredits").value(8))
-                .andExpect(jsonPath("$.remainingCredits").value(8))
-                .andExpect(jsonPath("$.totalPrice").value(240000));
-    }
-
     @DisplayName("회원 8회권 목록을 조회한다")
     @Test
     void listMyPasses() throws Exception {

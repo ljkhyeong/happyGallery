@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
 import { createProduct } from "./api";
 import { ErrorAlert, useToast } from "@/shared/ui";
-import { ApiError } from "@/shared/api";
 import type { ProductType } from "@/shared/types";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 
 interface Props {
   adminKey: string;
@@ -19,7 +19,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("1");
 
-  const mutation = useMutation({
+  const mutation = useAdminMutation(onAuthError, {
     mutationFn: () =>
       createProduct(adminKey, {
         name,
@@ -33,11 +33,6 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
       setName("");
       setPrice("");
       setQuantity("1");
-    },
-    onError: (error) => {
-      if (error instanceof ApiError && error.status === 401) {
-        onAuthError();
-      }
     },
   });
 

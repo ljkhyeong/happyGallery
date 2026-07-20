@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.inquiry.port.in;
 
 import com.personal.happygallery.domain.inquiry.Inquiry;
+import com.personal.happygallery.application.shared.page.CursorPage;
 import java.util.List;
 
 /**
@@ -18,7 +19,7 @@ public interface InquiryUseCase {
 
     Inquiry findByIdAndUser(Long inquiryId, Long userId);
 
-    List<InquiryWithUser> listAll();
+    CursorPage<InquiryWithUser> listAll(String cursor, int size);
 
     InquiryWithUser findByIdForAdmin(Long inquiryId);
 

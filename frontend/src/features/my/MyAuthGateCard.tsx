@@ -1,4 +1,5 @@
-import { Button, Card } from "react-bootstrap";
+import { LinkButton } from "@/shared/ui/LinkButton";
+import { Card } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 
@@ -20,12 +21,12 @@ export function MyAuthGateCard({ title, description, showGuestLinks = false }: P
         <h5 className="mb-2">{title}</h5>
         <p className="text-muted-soft small mb-3">{description}</p>
         <div className="d-flex flex-wrap gap-2">
-          <Button as={Link as any} to={loginHref} variant="primary">
+          <LinkButton to={loginHref} variant="primary">
             로그인
-          </Button>
-          <Button as={Link as any} to={signupHref} variant="outline-dark">
+          </LinkButton>
+          <LinkButton to={signupHref} variant="outline-dark">
             회원가입
-          </Button>
+          </LinkButton>
         </div>
         {showGuestLinks && (
           <div className="d-flex flex-wrap gap-3 mt-4 small">

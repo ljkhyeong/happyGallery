@@ -1,13 +1,13 @@
 package com.personal.happygallery.adapter.in.web;
 
-import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitExceededException;
 import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitUnavailableException;
+import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.sentry.Sentry;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.hibernate.exception.ConstraintViolationException;
@@ -19,10 +19,14 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import tools.jackson.core.JacksonException;
 
 import static java.util.stream.Collectors.joining;
@@ -77,14 +81,26 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, "요청 JSON 형식이 올바르지 않습니다.", requestId()));
     }
 
+    @ExceptionHandler({
+            MethodArgumentTypeMismatchException.class,
+            ServletRequestBindingException.class,
+            HandlerMethodValidationException.class
+    })
+    public ResponseEntity<ErrorResponse> handleRequestBindingException(Exception e) {
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT.httpStatus)
+                .body(ErrorResponse.of(
+                        ErrorCode.INVALID_INPUT, "요청 파라미터가 올바르지 않습니다.", requestId()));
+    }
+
     /**
      * 서버 내부 직렬화/역직렬화 실패.
      * 요청 JSON 파싱 오류는 Spring의 HttpMessageNotReadableException 경로에서 400으로 처리한다.
      */
     @ExceptionHandler(JacksonException.class)
     public ResponseEntity<ErrorResponse> handleJacksonException(JacksonException e) {
-        log.error("JSON 처리 중 내부 오류 [type={}]", e.getClass().getSimpleName());
-        Sentry.captureMessage("JSON processing failed: " + e.getClass().getSimpleName());
+        log.error("JSON 처리 중 내부 오류", e);
+        Sentry.captureException(e);
         return ResponseEntity
                 .status(ErrorCode.INTERNAL_ERROR.httpStatus)
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
@@ -115,8 +131,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception e) {
-        log.error("처리되지 않은 예외 [type={}]", e.getClass().getSimpleName());
-        Sentry.captureMessage("Unhandled exception: " + e.getClass().getSimpleName());
+        log.error("처리되지 않은 예외", e);
+        Sentry.captureException(e);
         return ResponseEntity
                 .status(ErrorCode.INTERNAL_ERROR.httpStatus)
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
@@ -125,11 +141,6 @@ public class GlobalExceptionHandler {
     private static String requestId() {
         return MDC.get("requestId");
     }
-
-    private static final Map<String, ErrorCode> OPTIMISTIC_LOCK_HINTS = Map.of(
-            "domain.booking.booking", ErrorCode.BOOKING_CONFLICT,
-            "bookings", ErrorCode.BOOKING_CONFLICT
-    );
 
     private static final Set<String> DUPLICATE_BOOKING_CONSTRAINTS = Set.of(
             "uq_bookings_active_user_slot",
@@ -164,26 +175,15 @@ public class GlobalExceptionHandler {
     }
 
     private ErrorCode resolveOptimisticLockErrorCode(OptimisticLockingFailureException e) {
-        String details = collectExceptionDetails(e);
-        return OPTIMISTIC_LOCK_HINTS.entrySet().stream()
-                .filter(entry -> details.contains(entry.getKey()))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse(ErrorCode.CONFLICT);
-    }
-
-    private static String collectExceptionDetails(Throwable throwable) {
-        StringBuilder builder = new StringBuilder();
-        Throwable current = throwable;
+        Throwable current = e;
         while (current != null) {
-            if (current.getMessage() != null) {
-                if (!builder.isEmpty()) {
-                    builder.append(' ');
-                }
-                builder.append(current.getMessage().toLowerCase(Locale.ROOT));
+            if (current instanceof ObjectOptimisticLockingFailureException objectFailure
+                    && (Booking.class.equals(objectFailure.getPersistentClass())
+                    || Booking.class.getName().equals(objectFailure.getPersistentClassName()))) {
+                return ErrorCode.BOOKING_CONFLICT;
             }
             current = current.getCause();
         }
-        return builder.toString();
+        return ErrorCode.CONFLICT;
     }
 }

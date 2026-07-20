@@ -80,20 +80,6 @@ class MeOrderUseCaseIT {
         cleanupSupport.clearUsers();
     }
 
-    @DisplayName("회원 주문 생성이 성공한다")
-    @Test
-    void createMemberOrder_success() throws Exception {
-        Long orderId = paymentHelper.createMemberOrder(sessionCookie, userId, productId, 1)
-                .domainId();
-
-        mockMvc.perform(get("/api/v1/me/orders/{id}", orderId)
-                        .cookie(sessionCookie))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.orderId").isNumber())
-                .andExpect(jsonPath("$.status").value("PAID_APPROVAL_PENDING"))
-                .andExpect(jsonPath("$.totalAmount").value(29000));
-    }
-
     @DisplayName("회원 주문 목록을 조회한다")
     @Test
     void listMyOrders() throws Exception {

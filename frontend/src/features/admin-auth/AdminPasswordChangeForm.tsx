@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { Button, Form } from "react-bootstrap";
-import { ApiError } from "@/shared/api";
 import { ErrorAlert } from "@/shared/ui";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { changeAdminPassword } from "./api";
 
 interface Props {
@@ -21,14 +20,9 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
     && newPassword.length <= 100
     && confirmation === newPassword;
 
-  const mutation = useMutation({
+  const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => changeAdminPassword(adminKey, { currentPassword, newPassword }),
     onSuccess: onChanged,
-    onError: (error) => {
-      if (error instanceof ApiError && error.status === 401 && error.code === "UNAUTHORIZED") {
-        onAuthError();
-      }
-    },
   });
 
   return (

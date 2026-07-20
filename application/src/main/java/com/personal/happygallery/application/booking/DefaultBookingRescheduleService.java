@@ -13,6 +13,7 @@ import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.time.Clock;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -87,23 +88,24 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
         // 3. 새 슬롯 예약 가능 여부 빠른 체크 (락 전 — fast-fail)
         slotCapacitySupport.requireAvailableSlot(newSlotId);
 
-        // 4. 새 슬롯 확정 — 비관적 락 + 활성 재확인 + 정원 확보 + 첫 예약이면 버퍼 차단
+        // 4. 두 클래스 행을 PK 순서로 먼저 잠가 교차 클래스 변경의 교착을 방지
+        slotCapacitySupport.lockClassesForSlots(List.of(booking.getSlot().getId(), newSlotId));
+
+        // 5. 새 슬롯 확정 — 비관적 락 + 활성 재확인 + 정원 확보 + 첫 예약이면 버퍼 차단
         Slot newSlot = slotCapacitySupport.reserveCapacity(newSlotId);
 
-        // 5. 기존 슬롯 반납 — 비관적 락 + booked_count--
-        // 주의: reserveCapacity(new) 후 releaseCapacity(old) 순서 고정
-        //       swap 변경 시 deadlock 이론적 가능 (ADR-0006 참고)
+        // 6. 기존 슬롯 반납 — 비관적 락 + booked_count--
         Slot oldSlot = slotCapacitySupport.releaseCapacity(booking.getSlot().getId());
 
-        // 6. 이력 저장 (append-only)
+        // 7. 이력 저장 (append-only)
         bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
                 oldSlot, newSlot, "CUSTOMER", null);
 
-        // 7. 예약 업데이트 — @Version 충돌 시 OptimisticLockingFailureException → 409 BOOKING_CONFLICT
+        // 8. 예약 업데이트 — @Version 충돌 시 OptimisticLockingFailureException → 409 BOOKING_CONFLICT
         booking.reschedule(newSlot);
         Booking saved = bookingStorePort.save(booking);
 
-        // 8. 예약 변경 알림
+        // 9. 예약 변경 알림
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_RESCHEDULED);
 
         return saved;

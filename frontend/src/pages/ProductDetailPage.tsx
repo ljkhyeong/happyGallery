@@ -1,3 +1,4 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -252,14 +253,13 @@ export function ProductDetailPage() {
                   >
                     LOGIN & BUY
                   </Button>
-                  <Button
-                    as={Link as any}
+                  <LinkButton
                     to={signupHref}
                     variant="outline-dark"
                     className="w-100 mb-2"
                   >
                     JOIN & BUY
-                  </Button>
+                  </LinkButton>
                   <Button
                     variant="outline-dark"
                     className="w-100 mb-2"
@@ -271,14 +271,13 @@ export function ProductDetailPage() {
                   >
                     ADD TO CART
                   </Button>
-                  <Button
-                    as={Link as any}
+                  <LinkButton
                     to={guestFallbackPath}
                     variant="link"
                     className="w-100 text-muted-soft store-purchase-guest-link"
                   >
                     비회원 주문하기 →
-                  </Button>
+                  </LinkButton>
                   <p className="store-purchase-helper mb-0 mt-2">
                     비회원 주문은 별도 경로로 이어지며, 선택한 상품과 수량을 미리 담아둡니다.
                   </p>

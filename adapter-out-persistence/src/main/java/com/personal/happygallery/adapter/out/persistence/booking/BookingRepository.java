@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -63,6 +64,26 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             ORDER BY b.slot.startAt DESC
             """)
     List<Booking> findByGuestIdWithDetails(@Param("guestId") Long guestId);
+
+    /** guest claim preview용 상한 조회. */
+    @Query("""
+            SELECT b FROM Booking b
+            JOIN FETCH b.guest
+            JOIN FETCH b.bookingClass
+            JOIN FETCH b.slot
+            WHERE b.guest.id = :guestId
+            ORDER BY b.slot.startAt DESC
+            """)
+    List<Booking> findClaimPreviewByGuestId(@Param("guestId") Long guestId, Pageable pageable);
+
+    /** guest claim 실행에 필요한 소유자와 슬롯을 한 번에 조회한다. */
+    @Query("""
+            SELECT b FROM Booking b
+            JOIN FETCH b.guest
+            JOIN FETCH b.slot
+            WHERE b.id IN :ids
+            """)
+    List<Booking> findClaimTargetsByIdIn(@Param("ids") Collection<Long> ids);
 
     /** 동일 슬롯에 같은 회원의 활성 예약이 있는지 확인한다. */
     @Override
@@ -134,6 +155,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             WHERE b.passPurchase.id = :passId
               AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
               AND b.slot.startAt > :now
+            ORDER BY b.slot.id
             """)
     List<Booking> findFutureBookedPassBookings(@Param("passId") Long passId,
                                                @Param("now") LocalDateTime now);

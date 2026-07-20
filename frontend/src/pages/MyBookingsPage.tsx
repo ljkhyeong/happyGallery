@@ -1,5 +1,6 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Card, Col, Container, Row } from "react-bootstrap";
+import { Card, Col, Container, Row } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { fetchMyBookings } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
@@ -81,9 +82,9 @@ export function MyBookingsPage() {
           <Link to="/my" className="text-decoration-none small">
             &larr; 내 정보
           </Link>
-          <Button as={Link as any} to="/bookings/new" variant="outline-secondary" size="sm">
+          <LinkButton to="/bookings/new" variant="outline-secondary" size="sm">
             새 예약 만들기
-          </Button>
+          </LinkButton>
         </div>
         <div className="my-section-kicker mb-2">My Bookings</div>
         <h4 className="mb-2">전체 예약</h4>

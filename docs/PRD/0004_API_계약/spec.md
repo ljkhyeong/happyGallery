@@ -1199,6 +1199,7 @@ Authorization: Bearer {token}
 - 정책:
   - `bookerType`은 `GUEST` 또는 `MEMBER`로 구분한다.
   - 비회원 이력 가져오기(claim) 이후 `userId`가 설정된 예약은 `MEMBER`로 표시한다.
+  - 선택 귀속 요청의 주문 ID와 예약 ID는 각각 최대 100건이며 모든 ID는 양수여야 한다.
   - User 정보는 batch fetch(`UserReaderPort.findAllById`)로 조합한다.
   - `date` 필수, `status`는 선택(미입력 시 전체).
 
@@ -1364,29 +1365,34 @@ Authorization: Bearer {token}
 #### 2.11.1 조치 필요 환불 목록 조회
 
 ```http
-GET /api/v1/admin/refunds/failed
+GET /api/v1/admin/refunds/failed?cursor={cursor}&size=20
 Authorization: Bearer {token}
 ```
 
 ```json
-[
-  {
-    "refundId": 42,
-    "bookingId": 15,
-    "orderId": null,
-    "passPurchaseId": null,
-    "paymentAttemptId": null,
-    "amount": 5000,
-    "status": "RECONCILIATION_REQUIRED",
-    "attemptCount": 1,
-    "failReason": "PG 응답 지연으로 환불 상태 확인이 필요합니다.",
-    "createdAt": "2026-03-01T14:30:00"
-  }
-]
+{
+  "content": [
+    {
+      "refundId": 42,
+      "bookingId": 15,
+      "orderId": null,
+      "passPurchaseId": null,
+      "paymentAttemptId": null,
+      "amount": 5000,
+      "status": "RECONCILIATION_REQUIRED",
+      "attemptCount": 1,
+      "failReason": "PG 응답 지연으로 환불 상태 확인이 필요합니다.",
+      "createdAt": "2026-03-01T14:30:00"
+    }
+  ],
+  "nextCursor": "MjAyNi0wMy0wMVQxNDozMDowMHw0Mg",
+  "hasMore": true
+}
 ```
 
 - 성공: `200 OK`
-- `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 상태를 반환한다.
+- `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 상태를 `(createdAt, id)` 최신순 커서 페이지로 반환한다.
+- `size` 기본값은 20이고 범위는 1~100이다. `hasMore=true`이면 `nextCursor`로 다음 페이지를 조회한다.
 
 #### 2.11.2 환불 상태 조회
 
@@ -1729,6 +1735,7 @@ Cookie: HG_SESSION={sessionToken}
 - 성공: `201 Created`
 - 에러:
   - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `400 INVALID_INPUT` — 비밀글인데 비밀번호가 비어 있음
   - `404 NOT_FOUND` — 상품 미존재
 - 정책:
   - 작성 주체는 회원(User)만 허용한다.
@@ -1783,6 +1790,11 @@ Cookie: HG_SESSION={sessionToken}
 - `POST /api/v1/me/cart/items`
   - 요청: `{ "productId": 1, "qty": 2 }`
   - 응답: `201 Created`
+- `POST /api/v1/me/cart/merge`
+  - 요청: `{ "idempotencyKey": "UUID", "items": [{ "productId": 1, "qty": 2 }] }`
+  - 응답: `204 No Content`
+  - 로그인 직전의 비회원 장바구니를 한 번에 합친다. 같은 회원과 멱등키의 재요청은 수량을 다시 더하지 않는다.
+  - 같은 회원과 멱등키로 다른 상품·수량을 보내면 `409 CONFLICT`로 거절한다.
 - `PUT /api/v1/me/cart/items/{productId}`
   - 요청: `{ "qty": 3 }`
   - 응답: `200 OK` 본문 없음
@@ -1793,6 +1805,8 @@ Cookie: HG_SESSION={sessionToken}
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 장바구니는 회원 전용이며 `user_id + product_id` 단위로 중복 없이 관리한다.
+- 비회원 장바구니 병합의 멱등키 기록과 회원 장바구니 수량 변경은 같은 DB 트랜잭션으로 처리한다.
+- 클라이언트는 병합 응답을 확인할 때까지 회원·멱등키·상품 스냅샷을 바꾸지 않는다. 성공 후 스냅샷 수량만 로컬 장바구니에서 차감하고, 도중에 추가된 수량은 새 멱등키로 이어서 병합한다.
 - 상품이 `ACTIVE`가 아니거나 재고가 없으면 `available=false`로 표시되며, checkout 시 구매 가능한 항목만 주문으로 전환한다.
 - 장바구니 prepare는 구매 가능한 항목만 서버에서 선택하고, confirm 성공 시 prepare에서 확정한 수량만 차감한다. 결제 진행 중 추가한 같은 상품 수량과 다른 상품은 유지한다.
 
@@ -1855,7 +1869,7 @@ POST /api/v1/products/{productId}/qna/{id}/verify
 - 성공: `200 OK`
 - 에러:
   - `400 INVALID_INPUT` — 비밀번호 불일치
-  - `404 NOT_FOUND` — Q&A 미존재
+  - `404 NOT_FOUND` — Q&A 미존재 또는 URL의 상품에 속하지 않음
 - 정책:
   - 비밀글이 아니면 그대로 상세를 반환한다.
   - 비밀번호가 일치하면 제목/본문/답변을 포함한 상세를 반환한다.
@@ -1874,13 +1888,14 @@ POST /api/v1/products/{productId}/qna/{id}/verify
 
 #### 2.14.2 관리자 1:1 문의 조회/답변
 
-- `GET /api/v1/admin/inquiries` — 전체 문의 목록 조회
+- `GET /api/v1/admin/inquiries?cursor={cursor}&size=20` — 최신 문의 커서 페이지 조회
 - `GET /api/v1/admin/inquiries/{id}` — 문의 상세 조회
 - `POST /api/v1/admin/inquiries/{id}/reply` — 문의 답변 등록
 
 정책:
 - 인증: `Authorization: Bearer {token}`
 - 회원 이름을 함께 반환한다.
+- 목록 응답은 `{content, nextCursor, hasMore}`이고 `size` 범위는 1~100이다.
 - 이미 답변이 있는 문의에 재답변을 시도하면 서버가 거절한다.
 
 ### 2.15 결제 API (`/api/v1/payments`)

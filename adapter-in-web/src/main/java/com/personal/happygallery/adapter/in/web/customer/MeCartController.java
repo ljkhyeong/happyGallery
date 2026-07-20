@@ -2,8 +2,10 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.cart.port.in.CartUseCase.CartView;
+import com.personal.happygallery.application.cart.port.in.CartUseCase.MergeItem;
 import com.personal.happygallery.adapter.in.web.customer.dto.AddCartItemRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.CartResponse;
+import com.personal.happygallery.adapter.in.web.customer.dto.MergeCartRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.UpdateCartItemRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import jakarta.validation.Valid;
@@ -40,6 +42,18 @@ public class MeCartController {
     public void addItem(@RequestBody @Valid AddCartItemRequest req,
                         @AuthenticationPrincipal CustomerPrincipal customer) {
         cartUseCase.addItem(customer.userId(), req.productId(), req.qty());
+    }
+
+    @PostMapping("/merge")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void mergeItems(@RequestBody @Valid MergeCartRequest request,
+                           @AuthenticationPrincipal CustomerPrincipal customer) {
+        cartUseCase.mergeItems(
+                customer.userId(),
+                request.idempotencyKey(),
+                request.items().stream()
+                        .map(item -> new MergeItem(item.productId(), item.qty()))
+                        .toList());
     }
 
     @PutMapping("/items/{productId}")

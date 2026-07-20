@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.application.batch.BatchResult;
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,9 @@ public class NotificationOutboxDispatcher {
     private static final int DISPATCH_LIMIT = 50;
     private static final int MAX_ATTEMPTS = 5;
     private static final int PROCESSING_TIMEOUT_MINUTES = 1;
-    private static final String ALL_CHANNELS_FAILED = "ALL_CHANNELS_FAILED";
+    private static final String TRANSIENT_DELIVERY_FAILURE = "TRANSIENT_DELIVERY_FAILURE";
+    private static final String PERMANENT_DELIVERY_FAILURE = "PERMANENT_DELIVERY_FAILURE";
+    private static final String DELIVERY_FAILED = "DELIVERY_FAILED";
     private static final String AUDIT_LOG_PERSISTENCE_FAILED = "AUDIT_LOG_PERSISTENCE_FAILED";
     private static final String DISPATCH_EXCEPTION = "DISPATCH_EXCEPTION";
 
@@ -41,7 +44,7 @@ public class NotificationOutboxDispatcher {
             try {
                 switch (dispatchReserved(reservation)) {
                     case SENT -> successCount++;
-                    case FAILED -> failureReasons.merge(ALL_CHANNELS_FAILED, 1, Integer::sum);
+                    case FAILED -> failureReasons.merge(DELIVERY_FAILED, 1, Integer::sum);
                     case STALE -> log.info("[알림 outbox] 오래된 실행 결과 무시 [outboxId={}]",
                             reservation.outboxId());
                 }
@@ -64,9 +67,9 @@ public class NotificationOutboxDispatcher {
             return DispatchOutcome.STALE;
         }
         NotificationOutboxDeliveryRequest delivery = request.get();
-        boolean sent;
+        NotificationSendResult result;
         try {
-            sent = switch (delivery.recipientType()) {
+            result = switch (delivery.recipientType()) {
                 case GUEST -> notificationService.sendByGuestId(
                         delivery.guestId(), delivery.eventType(), delivery.idempotencyKey());
                 case USER -> notificationService.sendByUserId(
@@ -82,21 +85,31 @@ public class NotificationOutboxDispatcher {
             return transactionService.markDeliveryFailed(
                     reservation.outboxId(),
                     reservation.processingToken(),
-                    ALL_CHANNELS_FAILED + ":" + AUDIT_LOG_PERSISTENCE_FAILED,
+                    TRANSIENT_DELIVERY_FAILURE + ":" + AUDIT_LOG_PERSISTENCE_FAILED,
                     MAX_ATTEMPTS)
                     ? DispatchOutcome.FAILED
                     : DispatchOutcome.STALE;
         }
 
-        if (sent) {
-            return transactionService.markSent(reservation.outboxId(), reservation.processingToken())
+        return switch (result) {
+            case SUCCESS -> transactionService.markSent(
+                    reservation.outboxId(), reservation.processingToken())
                     ? DispatchOutcome.SENT
                     : DispatchOutcome.STALE;
-        }
-        return transactionService.markDeliveryFailed(
-                reservation.outboxId(), reservation.processingToken(), ALL_CHANNELS_FAILED, MAX_ATTEMPTS)
-                ? DispatchOutcome.FAILED
-                : DispatchOutcome.STALE;
+            case TRANSIENT_FAILURE -> transactionService.markDeliveryFailed(
+                    reservation.outboxId(),
+                    reservation.processingToken(),
+                    TRANSIENT_DELIVERY_FAILURE,
+                    MAX_ATTEMPTS)
+                    ? DispatchOutcome.FAILED
+                    : DispatchOutcome.STALE;
+            case PERMANENT_FAILURE -> transactionService.markPermanentFailure(
+                    reservation.outboxId(),
+                    reservation.processingToken(),
+                    PERMANENT_DELIVERY_FAILURE)
+                    ? DispatchOutcome.FAILED
+                    : DispatchOutcome.STALE;
+        };
     }
 
     private boolean recordDispatchException(NotificationOutboxReservation reservation,

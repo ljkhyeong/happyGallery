@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, Badge, Button, Form } from "react-bootstrap";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { fetchAdminNotices, createNotice, updateNotice, deleteNotice } from "./api";
 import type { NoticeListItem } from "@/shared/types";
-import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 
@@ -17,7 +17,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const { data: notices, isLoading, error } = useQuery({
+  const { data: notices, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "notices"],
     queryFn: () => fetchAdminNotices(adminKey),
   });
@@ -87,12 +87,6 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
       createMutation.mutate();
     }
   };
-
-  useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) {
-      onAuthError();
-    }
-  }, [error, onAuthError]);
 
   return (
     <div>

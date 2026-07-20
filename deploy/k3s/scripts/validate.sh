@@ -193,9 +193,6 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "유실된 Redis Secret의 안전한 재생성 경로가 없습니다." unless redis_rotation.match?(/Redis Secret이 없어 app을 중지.*?create secret generic happygallery-redis/m)
   abort "Redis 회전 실패 시 app drain 보장이 없습니다." unless redis_rotation.match?(/on_rotation_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
 
-  mysql_rotation = File.read(File.join(script_dir, "rotate-mysql-credentials.sh"))
-  abort "MySQL 회전 실패 시 app drain 보장이 없습니다." unless mysql_rotation.match?(/on_rotation_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
-
   data_rotation = File.read(File.join(script_dir, "rotate-data-keys.sh"))
   data_rotation_flow = /키 회전 중 쓰기를 막기 위해.*?scale deployment\/app --replicas=0.*?wait_for_no_pods.*?fresh off-device.*?backup-mysql\.sh.*?verify_checksum.*?kind: Job.*?SERVER_PORT.*?MANAGEMENT_PORT.*?KEY_ROTATION_ENABLED.*?wait_for_rotation_job.*?runtime Secret을 새 active.*?patch secret happygallery-app.*?FLUSHALL.*?scale deployment\/app --replicas=1/m
   abort "데이터 키 회전의 drain/backup/Job/Secret/Redis/app 순서가 깨졌습니다." unless data_rotation.match?(data_rotation_flow)
@@ -219,4 +216,6 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "복원 release 활성화 실패 시 app drain 보장이 없습니다." unless restored_release.match?(/on_activation_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
 RUBY
 
-info "k3s manifest와 운영 스크립트 정적 검증 완료"
+bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
+
+info "k3s manifest와 운영 스크립트 검증 완료"

@@ -56,7 +56,7 @@ public class DefaultPassRefundService implements PassRefundUseCase {
      */
     @Override
     public PassRefundResult refundPass(Long passId) {
-        PassPurchase pass = passPurchaseReader.findById(passId)
+        PassPurchase pass = passPurchaseReader.findByIdForUpdate(passId)
                 .orElseThrow(NotFoundException.supplier("8회권"));
 
         // 1. 미래 BOOKED 예약 자동 취소

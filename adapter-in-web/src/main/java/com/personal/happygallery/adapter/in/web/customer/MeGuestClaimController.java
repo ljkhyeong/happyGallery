@@ -42,7 +42,7 @@ public class MeGuestClaimController {
 
     @PostMapping
     public GuestClaimUseCase.ClaimResult claimGuestRecords(
-            @RequestBody ClaimGuestRecordsRequest req,
+            @RequestBody @Valid ClaimGuestRecordsRequest req,
             @AuthenticationPrincipal CustomerPrincipal customer) {
         return guestClaim.claim(customer.userId(), req.orderIds(), req.bookingIds());
     }

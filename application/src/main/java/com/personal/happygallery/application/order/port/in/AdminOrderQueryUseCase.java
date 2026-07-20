@@ -11,8 +11,6 @@ import java.util.List;
  */
 public interface AdminOrderQueryUseCase {
 
-    List<AdminOrderResponse> listOrders(OrderStatus status);
-
     CursorPage<AdminOrderResponse> listOrders(OrderStatus status, String cursor, int size);
 
     AdminOrderFulfillmentResponse getFulfillment(Long orderId);

@@ -1,6 +1,7 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Card, Container } from "react-bootstrap";
+import { Card, Container } from "react-bootstrap";
 import { CancelButton } from "@/features/booking-manage/CancelButton";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
@@ -65,9 +66,9 @@ export function MyBookingDetailPage() {
           <Link to="/my/bookings" className="text-decoration-none small">
             &larr; 내 예약
           </Link>
-          <Button as={Link as any} to="/bookings/new" variant="outline-secondary" size="sm">
+          <LinkButton to="/bookings/new" variant="outline-secondary" size="sm">
             새 예약 만들기
-          </Button>
+          </LinkButton>
         </div>
         <div className="my-section-kicker mb-2">My Booking</div>
         <h4 className="mb-2">예약 상세</h4>

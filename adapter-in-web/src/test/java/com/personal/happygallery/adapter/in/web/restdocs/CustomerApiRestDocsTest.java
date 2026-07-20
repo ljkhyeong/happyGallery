@@ -262,6 +262,21 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("비회원 장바구니 병합 API를 문서화한다")
+    void merge_guest_cart() throws Exception {
+        mockMvc.perform(post("/api/v1/me/cart/merge")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "idempotencyKey": "e3668dc3-fdd1-45a8-ac19-25f5753157b0",
+                                  "items": [{"productId": 1, "qty": 2}]
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     @DisplayName("장바구니 수량 변경 API를 문서화한다")
     void update_cart_item() throws Exception {
         mockMvc.perform(put("/api/v1/me/cart/items/{productId}", 1L)

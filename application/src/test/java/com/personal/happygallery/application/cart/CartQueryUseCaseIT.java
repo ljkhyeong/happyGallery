@@ -6,11 +6,15 @@ import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.cart.CartItem;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @UseCaseIT
@@ -54,5 +60,31 @@ class CartQueryUseCaseIT {
                             unavailableProduct.getId(), "재고 없는 상품", 15_000L, 1, false));
             softly.assertThat(cart.totalAmount()).isEqualTo(78_000L);
         });
+    }
+
+    @DisplayName("장바구니 병합은 같은 요청을 한 번만 반영하고 멱등키 재사용을 거절한다")
+    @Test
+    void mergeItems_isIdempotent() {
+        User user = userStore.save(new User(
+                "cart-merge@example.com", "hashed", "병합 회원", "01098765432"));
+        Product product = productStore.save(readyStockProduct("병합 상품", 10_000L));
+        UUID idempotencyKey = UUID.randomUUID();
+        List<CartUseCase.MergeItem> items = List.of(
+                new CartUseCase.MergeItem(product.getId(), 2));
+
+        cartUseCase.mergeItems(user.getId(), idempotencyKey, items);
+        cartUseCase.mergeItems(user.getId(), idempotencyKey, items);
+
+        assertThat(cartUseCase.getCart(user.getId()).items())
+                .singleElement()
+                .extracting(CartUseCase.CartItemView::qty)
+                .isEqualTo(2);
+        assertThatThrownBy(() -> cartUseCase.mergeItems(
+                user.getId(), idempotencyKey,
+                List.of(new CartUseCase.MergeItem(product.getId(), 3))))
+                .isInstanceOfSatisfying(
+                        HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.CONFLICT));
     }
 }

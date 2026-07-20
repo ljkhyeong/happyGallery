@@ -107,6 +107,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -254,7 +255,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(noticeQueryUseCase.getDetail(1L)).thenReturn(notice);
         when(noticeAdminUseCase.create(any(), any(), anyBoolean())).thenReturn(notice);
         when(noticeAdminUseCase.update(eq(1L), any(), any(), anyBoolean())).thenReturn(notice);
-        when(refundRetryUseCase.listFailed()).thenReturn(List.of());
+        when(refundRetryUseCase.listFailed(isNull(), anyInt()))
+                .thenReturn(new CursorPage<>(List.of(), null, false));
         when(refundRetryUseCase.retry(anyLong())).thenReturn(orderRefund);
         when(refundQueryUseCase.getRefund(anyLong())).thenReturn(orderRefund);
         NotificationOutbox retriedNotification = NotificationOutbox.from(
@@ -272,7 +274,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                         "PG 승인 확인 후 서비스 처리를 완료했습니다."));
         when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(qna));
         when(qnaUseCase.replyAndGet(eq(5L), any(), eq(ADMIN_USER_ID))).thenReturn(qna);
-        when(inquiryUseCase.listAll()).thenReturn(List.of(inquiry));
+        when(inquiryUseCase.listAll(isNull(), anyInt()))
+                .thenReturn(new CursorPage<>(List.of(inquiry), null, false));
         when(inquiryUseCase.findByIdForAdmin(9L)).thenReturn(inquiry);
         when(inquiryUseCase.replyAndGet(eq(9L), any(), eq(ADMIN_USER_ID))).thenReturn(inquiry);
         when(passExpiryBatchUseCase.expireAll()).thenReturn(batchResult());
@@ -857,7 +860,9 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("관리자 실패 환불 목록 API를 문서화한다")
     void admin_list_failed_refunds() throws Exception {
         mockMvc.perform(get("/api/v1/admin/refunds/failed").with(adminUser()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.hasMore").value(false));
     }
 
     @Test
@@ -933,7 +938,9 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("관리자 문의 목록 API를 문서화한다")
     void admin_list_inquiries() throws Exception {
         mockMvc.perform(get("/api/v1/admin/inquiries").with(adminUser()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(9))
+                .andExpect(jsonPath("$.hasMore").value(false));
     }
 
     @Test

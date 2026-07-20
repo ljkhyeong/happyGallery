@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-07-19
+**갱신**: 2026-07-20
 
 ---
 
@@ -111,6 +111,13 @@
   - `id`, `product_id(FK)`, `type(INCREASE|DECREASE)`, `quantity`, `quantity_before`, `quantity_after`, `reason`
   - `adjusted_by_admin_id nullable`, `adjusted_by`, `adjusted_at`
   - 관리자 수동 조정은 `inventory` 행 잠금 안에서 수량 변경과 이력 저장을 같은 트랜잭션으로 처리한다.
+- `cart_items`
+  - `id`, `user_id(FK)`, `product_id(FK)`, `qty`, `created_at`, `updated_at`
+  - `(user_id, product_id)`를 유일하게 유지한다.
+- `cart_merge_requests`
+  - `user_id(FK)`, `idempotency_key`, `payload_hash`, `created_at`
+  - `(user_id, idempotency_key)`가 기본 키이며 정규화한 상품·수량의 SHA-256 해시를 함께 저장한다.
+  - 비회원 장바구니 병합과 같은 트랜잭션에 삽입하며, 기존 키의 해시가 다르면 멱등키 재사용 충돌로 거절한다.
 - 주문제작 여부는 별도 보조 테이블 없이 `products.type=MADE_TO_ORDER`로 판정한다.
 
 #### 주문과 이행

@@ -1,7 +1,8 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
-import { Container, Card, Button, Badge } from "react-bootstrap";
-import { Link, useLocation } from "react-router-dom";
+import { Container, Card, Badge } from "react-bootstrap";
+import { useLocation } from "react-router-dom";
 import { cancelBooking, fetchBooking, rescheduleBooking } from "@/features/booking-manage/api";
 import { BookingLookupForm } from "@/features/booking-manage/BookingLookupForm";
 import { BookingDetail } from "@/features/booking-manage/BookingDetail";
@@ -95,30 +96,28 @@ export function BookingManagePage() {
             회원은 <strong>내 정보</strong>에서 예약 목록과 상세를 바로 확인하고 더 자연스럽게 이어갈 수 있습니다.
           </p>
           <div className="d-flex flex-wrap gap-2">
-            <Button as={Link as any} to="/my" variant="dark" size="sm">
+            <LinkButton to="/my" variant="dark" size="sm">
               회원 내 정보
-            </Button>
-            <Button
-              as={Link as any}
+            </LinkButton>
+            <LinkButton
               to={claimLoginHref}
               variant="outline-secondary"
               size="sm"
               onClick={() => trackGuestMemberCta("guest_booking_lookup", "login")}
             >
               로그인하고 가져오기
-            </Button>
-            <Button
-              as={Link as any}
+            </LinkButton>
+            <LinkButton
               to={claimSignupHref}
               variant="outline-secondary"
               size="sm"
               onClick={() => trackGuestMemberCta("guest_booking_lookup", "signup")}
             >
               회원가입
-            </Button>
-            <Button as={Link as any} to="/bookings/new" variant="outline-secondary" size="sm">
+            </LinkButton>
+            <LinkButton to="/bookings/new" variant="outline-secondary" size="sm">
               새 예약 만들기
-            </Button>
+            </LinkButton>
           </div>
           <div className="guest-route-note mt-3">
             <div className="guest-route-note-title">Guest route policy</div>

@@ -1,7 +1,8 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Button, Form, Badge, Alert } from "react-bootstrap";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
 import { OrderItemsForm } from "@/features/order/OrderItemsForm";
@@ -90,13 +91,13 @@ export function OrderCreatePage() {
           이 페이지는 비회원 주문이나 다중 상품 주문이 필요한 경우를 위한 fallback 화면으로 유지됩니다.
         </p>
         <div className="d-flex flex-wrap gap-2">
-          <Button as={Link as any} to="/products" variant="dark" size="sm">
+          <LinkButton to="/products" variant="dark" size="sm">
             상품 보러가기
-          </Button>
+          </LinkButton>
           {!user && (
-            <Button as={Link as any} to="/login" variant="outline-secondary" size="sm">
+            <LinkButton to="/login" variant="outline-secondary" size="sm">
               로그인 후 주문하기
-            </Button>
+            </LinkButton>
           )}
         </div>
         {hasPrefilledItem && (
@@ -125,18 +126,17 @@ export function OrderCreatePage() {
               </div>
             </div>
             <div className="d-flex flex-wrap gap-2">
-              <Button as={Link as any} to="/products" variant="dark" size="sm">
+              <LinkButton to="/products" variant="dark" size="sm">
                 상품 먼저 고르기
-              </Button>
-              <Button
-                as={Link as any}
+              </LinkButton>
+              <LinkButton
                 to="/guest"
                 state={{ monitoringSource: "order_manual_entry_gate" }}
                 variant="outline-secondary"
                 size="sm"
               >
                 비회원 조회 안내
-              </Button>
+              </LinkButton>
               <Button
                 variant="outline-primary"
                 size="sm"

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Col, Form, Row } from "react-bootstrap";
-import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { createClass } from "./api";
@@ -36,11 +35,6 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
       setDurationMin("120");
       setPrice("50000");
       setBufferMin("30");
-    },
-    onError: (error) => {
-      if (error instanceof ApiError && error.status === 401) {
-        onAuthError();
-      }
     },
   });
 

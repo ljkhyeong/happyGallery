@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { Container, Card, Button } from "react-bootstrap";
 import { useAdminKey } from "@/features/admin-product/useAdminKey";
 import { AdminKeyGate } from "@/features/admin-product/AdminKeyGate";
@@ -24,11 +24,14 @@ import { useToast } from "@/shared/ui";
 export function AdminPage() {
   const { adminKey, clearAdminKey, login, isAuthenticated } = useAdminKey();
   const toast = useToast();
+  const handledExpiredKey = useRef<string | null>(null);
 
   const handleAuthError = useCallback(() => {
+    if (handledExpiredKey.current === adminKey) return;
+    handledExpiredKey.current = adminKey;
     clearAdminKey();
     toast.show("인증이 만료되었습니다. 다시 로그인해 주세요.", "warning");
-  }, [clearAdminKey, toast]);
+  }, [adminKey, clearAdminKey, toast]);
 
   const handlePasswordChanged = useCallback(() => {
     clearAdminKey();

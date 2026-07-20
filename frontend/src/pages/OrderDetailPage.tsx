@@ -1,7 +1,8 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Container, Card, Form, Button, Row, Col, Badge } from "react-bootstrap";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { fetchOrder } from "@/features/order/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
@@ -87,30 +88,28 @@ export function OrderDetailPage() {
             주문을 계속 관리할 계획이면 회원으로 전환해 <strong>내 정보</strong>에서 바로 확인하는 흐름을 권장합니다.
           </p>
           <div className="d-flex flex-wrap gap-2">
-            <Button as={Link as any} to="/my" variant="dark" size="sm">
+            <LinkButton to="/my" variant="dark" size="sm">
               회원 내 정보
-            </Button>
-            <Button
-              as={Link as any}
+            </LinkButton>
+            <LinkButton
               to={claimLoginHref}
               variant="outline-secondary"
               size="sm"
               onClick={() => trackGuestMemberCta("guest_order_lookup", "login")}
             >
               로그인하고 가져오기
-            </Button>
-            <Button
-              as={Link as any}
+            </LinkButton>
+            <LinkButton
               to={claimSignupHref}
               variant="outline-secondary"
               size="sm"
               onClick={() => trackGuestMemberCta("guest_order_lookup", "signup")}
             >
               회원가입
-            </Button>
-            <Button as={Link as any} to="/products" variant="outline-secondary" size="sm">
+            </LinkButton>
+            <LinkButton to="/products" variant="outline-secondary" size="sm">
               상품 보러가기
-            </Button>
+            </LinkButton>
           </div>
           <div className="guest-route-note mt-3">
             <div className="guest-route-note-title">Guest route policy</div>

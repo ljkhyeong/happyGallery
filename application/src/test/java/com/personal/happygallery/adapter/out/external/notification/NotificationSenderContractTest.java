@@ -1,9 +1,11 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.util.Arrays;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -16,6 +18,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 
 class NotificationSenderContractTest {
 
@@ -50,11 +53,11 @@ class NotificationSenderContractTest {
                         """))
                 .andRespond(withSuccess(alimtalkSuccessResponse(), MediaType.APPLICATION_JSON));
 
-        boolean sent = sender.send(
+        NotificationSendResult result = sender.send(
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
 
         server.verify();
-        assertSoftly(softly -> softly.assertThat(sent).isTrue());
+        assertSoftly(softly -> softly.assertThat(result).isEqualTo(NotificationSendResult.SUCCESS));
     }
 
     @DisplayName("NHN 알림톡의 수신자별 결과 코드가 실패면 HTTP 200도 발송 실패로 판정한다")
@@ -87,11 +90,12 @@ class NotificationSenderContractTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        boolean sent = sender.send(
+        NotificationSendResult result = sender.send(
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
 
         server.verify();
-        assertSoftly(softly -> softly.assertThat(sent).isFalse());
+        assertSoftly(softly -> softly.assertThat(result)
+                .isEqualTo(NotificationSendResult.PERMANENT_FAILURE));
     }
 
     @DisplayName("모든 알림톡 이벤트는 NHN 템플릿 코드 길이 계약을 지킨다")
@@ -126,11 +130,11 @@ class NotificationSenderContractTest {
                         """))
                 .andRespond(withSuccess(successResponse(), MediaType.APPLICATION_JSON));
 
-        boolean sent = sender.send(
+        NotificationSendResult result = sender.send(
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
 
         server.verify();
-        assertSoftly(softly -> softly.assertThat(sent).isTrue());
+        assertSoftly(softly -> softly.assertThat(result).isEqualTo(NotificationSendResult.SUCCESS));
     }
 
     @DisplayName("휴대폰 인증 SMS는 인증 코드와 유효 시간을 NHN Cloud 요청으로 보낸다")
@@ -180,11 +184,30 @@ class NotificationSenderContractTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        boolean sent = sender.send(
+        NotificationSendResult result = sender.send(
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
 
         server.verify();
-        assertSoftly(softly -> softly.assertThat(sent).isFalse());
+        assertSoftly(softly -> softly.assertThat(result)
+                .isEqualTo(NotificationSendResult.PERMANENT_FAILURE));
+    }
+
+    @DisplayName("NHN Cloud의 503 응답은 재시도 가능한 SMS 실패로 분류한다")
+    @Test
+    void sms_send_classifiesServerErrorAsTransientFailure() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://sms.api.nhncloudservice.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RealSmsSender sender = new RealSmsSender(smsProperties(), builder.build());
+
+        server.expect(requestTo("https://sms.api.nhncloudservice.com/sms/v3.0/appKeys/api-key/sender/sms"))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+
+        NotificationSendResult result = sender.send(
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
+
+        server.verify();
+        assertSoftly(softly -> softly.assertThat(result)
+                .isEqualTo(NotificationSendResult.TRANSIENT_FAILURE));
     }
 
     private static String successResponse() {

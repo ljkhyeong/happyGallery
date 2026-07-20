@@ -5,10 +5,10 @@ import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.product.Inventory;
-import com.personal.happygallery.application.order.port.out.FulfillmentPort;
-import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
+import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
+import com.personal.happygallery.adapter.out.persistence.order.FulfillmentRepository;
+import com.personal.happygallery.adapter.out.persistence.order.OrderApprovalHistoryRepository;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
-import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import java.util.List;
 import java.util.Optional;
@@ -19,20 +19,20 @@ public class OrderStateProbe {
 
     private final OrderReaderPort orderReaderPort;
     private final InventoryReaderPort inventoryReaderPort;
-    private final RefundPort refundPort;
-    private final OrderHistoryPort orderHistoryPort;
-    private final FulfillmentPort fulfillmentPort;
+    private final RefundRepository refundRepository;
+    private final OrderApprovalHistoryRepository orderHistoryRepository;
+    private final FulfillmentRepository fulfillmentRepository;
 
     public OrderStateProbe(OrderReaderPort orderReaderPort,
                            InventoryReaderPort inventoryReaderPort,
-                           RefundPort refundPort,
-                           OrderHistoryPort orderHistoryPort,
-                           FulfillmentPort fulfillmentPort) {
+                           RefundRepository refundRepository,
+                           OrderApprovalHistoryRepository orderHistoryRepository,
+                           FulfillmentRepository fulfillmentRepository) {
         this.orderReaderPort = orderReaderPort;
         this.inventoryReaderPort = inventoryReaderPort;
-        this.refundPort = refundPort;
-        this.orderHistoryPort = orderHistoryPort;
-        this.fulfillmentPort = fulfillmentPort;
+        this.refundRepository = refundRepository;
+        this.orderHistoryRepository = orderHistoryRepository;
+        this.fulfillmentRepository = fulfillmentRepository;
     }
 
     public Order getOrder(Long orderId) {
@@ -44,26 +44,26 @@ public class OrderStateProbe {
     }
 
     public List<Refund> refunds() {
-        return refundPort.findAll();
+        return refundRepository.findAll();
     }
 
     public long refundCount() {
-        return refundPort.count();
+        return refundRepository.count();
     }
 
     public List<OrderApprovalHistory> orderApprovalHistory(Long orderId) {
-        return orderHistoryPort.findByOrderId(orderId);
+        return orderHistoryRepository.findByOrderId(orderId);
     }
 
     public List<OrderApprovalHistory> orderApprovalHistoryOrdered(Long orderId) {
-        return orderHistoryPort.findByOrderIdOrderByDecidedAtAsc(orderId);
+        return orderHistoryRepository.findByOrderIdOrderByDecidedAtAsc(orderId);
     }
 
     public Optional<Fulfillment> findFulfillmentByOrderId(Long orderId) {
-        return fulfillmentPort.findByOrderId(orderId);
+        return fulfillmentRepository.findByOrderId(orderId);
     }
 
     public List<Fulfillment> fulfillments() {
-        return fulfillmentPort.findAll();
+        return fulfillmentRepository.findAll();
     }
 }

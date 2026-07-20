@@ -90,6 +90,8 @@ docker compose up -d --build
 - API 계약 문서 테스트: `./gradlew --no-daemon :adapter-in-web:restDocsTest`
 - 앱 실행: `./gradlew :bootstrap:bootRun`
 
+`./gradlew build`의 `check` 단계에는 REST Docs 계약 테스트가 포함된다. 빠른 로컬 확인이 필요할 때만 위 개별 태스크를 사용한다.
+
 ### 프론트엔드
 
 - 개발 서버: `cd frontend && npm run dev`

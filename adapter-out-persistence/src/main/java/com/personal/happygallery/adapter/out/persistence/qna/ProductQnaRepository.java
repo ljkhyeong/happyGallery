@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ProductQnaRepository extends JpaRepository<ProductQna, Long>, ProductQnaReaderPort, ProductQnaStorePort {
 
     @Override Optional<ProductQna> findById(Long id);
+    @Override Optional<ProductQna> findByIdAndProductId(Long id, Long productId);
     @Override ProductQna save(ProductQna qna);
 
     List<ProductQna> findByProductIdOrderByCreatedAtDesc(Long productId);

@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.adapter.out.external.http.ExternalBaseUrl;
 import com.personal.happygallery.adapter.out.external.http.HttpPoolProperties;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -20,4 +21,9 @@ public record AlimtalkNotificationProperties(
         @Min(1) @DefaultValue("500") long acquireTimeoutMillis,
         @Min(1) @DefaultValue("20") int maxConnections,
         @Min(1) @DefaultValue("30000") long keepAliveMillis
-) implements HttpPoolProperties {}
+) implements HttpPoolProperties {
+
+    public AlimtalkNotificationProperties {
+        ExternalBaseUrl.requireHttpsOrigin(baseUrl, "알림톡");
+    }
+}

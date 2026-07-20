@@ -1,21 +1,23 @@
 import { useState } from "react";
 import { Card, Badge, Button, Form, InputGroup } from "react-bootstrap";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { fetchAdminQna, replyQna } from "./api";
 import type { AdminQnaResponse } from "./api";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
 interface Props {
   token: string;
   onAuthError: () => void;
 }
 
-export function AdminQnaSection({ token, onAuthError: _onAuthError }: Props) {
+export function AdminQnaSection({ token, onAuthError }: Props) {
   const [productId, setProductId] = useState("");
   const [searchId, setSearchId] = useState<number | null>(null);
 
-  const { data: qnaList, isLoading, error } = useQuery({
+  const { data: qnaList, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "qna", searchId],
     queryFn: () => fetchAdminQna(searchId!, token),
     enabled: searchId !== null,
@@ -48,7 +50,13 @@ export function AdminQnaSection({ token, onAuthError: _onAuthError }: Props) {
       {qnaList && qnaList.length === 0 && <EmptyState message="Q&A가 없습니다." />}
 
       {qnaList?.map((qna) => (
-        <AdminQnaItem key={qna.id} qna={qna} token={token} productId={searchId!} />
+        <AdminQnaItem
+          key={qna.id}
+          qna={qna}
+          token={token}
+          productId={searchId!}
+          onAuthError={onAuthError}
+        />
       ))}
     </div>
   );
@@ -58,16 +66,18 @@ function AdminQnaItem({
   qna,
   token,
   productId,
+  onAuthError,
 }: {
   qna: AdminQnaResponse;
   token: string;
   productId: number;
+  onAuthError: () => void;
 }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [replyText, setReplyText] = useState("");
 
-  const mutation = useMutation({
+  const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => replyQna(qna.id, replyText, token),
     onSuccess: () => {
       toast.show("답변이 등록되었습니다.");

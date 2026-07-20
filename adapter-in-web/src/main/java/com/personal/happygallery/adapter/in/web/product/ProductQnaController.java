@@ -35,7 +35,7 @@ public class ProductQnaController {
     public ProductQnaDetail verify(@PathVariable Long productId,
                                    @PathVariable Long id,
                                    @RequestBody @Valid VerifyQnaPasswordRequest request) {
-        QnaWithAuthor result = qnaUseCase.verifyAndGet(id, request.password());
+        QnaWithAuthor result = qnaUseCase.verifyAndGet(productId, id, request.password());
         return ProductQnaDetail.from(result);
     }
 }

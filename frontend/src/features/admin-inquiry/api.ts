@@ -1,4 +1,5 @@
 import { api } from "@/shared/api";
+import type { CursorPage } from "@/shared/types";
 
 export interface AdminInquiryResponse {
   id: number;
@@ -11,9 +12,13 @@ export interface AdminInquiryResponse {
   createdAt: string;
 }
 
-export function fetchAdminInquiries(token: string): Promise<AdminInquiryResponse[]> {
-  return api<AdminInquiryResponse[]>("/admin/inquiries", {
+export function fetchAdminInquiries(
+  token: string,
+  cursor?: string,
+): Promise<CursorPage<AdminInquiryResponse>> {
+  return api<CursorPage<AdminInquiryResponse>>("/admin/inquiries", {
     headers: { Authorization: `Bearer ${token}` },
+    params: { cursor, size: "20" },
   });
 }
 

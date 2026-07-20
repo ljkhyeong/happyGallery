@@ -10,6 +10,7 @@ import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,6 +66,9 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
     }
 
     private CancelResult cancelInternal(Booking booking) {
+        PassPurchase lockedPass = booking.isPassBooking()
+                ? passCreditService.requireForUpdate(booking.getPassPurchase().getId())
+                : null;
         booking.cancel();
 
         // 1. 슬롯 반납 — 비관적 락 + booked_count--
@@ -74,7 +78,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
         bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null);
 
         // 3. 환불/크레딧 복구 등 취소 보상 처리
-        CancellationCompensation compensation = applyCancellationCompensation(booking, slot);
+        CancellationCompensation compensation = applyCancellationCompensation(booking, slot, lockedPass);
 
         // 4. 예약 취소 저장
         bookingStorePort.save(booking);
@@ -85,14 +89,16 @@ public class DefaultBookingCancelService implements BookingCancelUseCase {
         return new CancelResult(booking, compensation.refundable(), compensation.refund());
     }
 
-    private CancellationCompensation applyCancellationCompensation(Booking booking, Slot slot) {
+    private CancellationCompensation applyCancellationCompensation(Booking booking,
+                                                                    Slot slot,
+                                                                    PassPurchase lockedPass) {
         boolean refundable = TimeBoundary.isRefundable(slot.getStartAt(), clock);
         if (!refundable) {
             return new CancellationCompensation(false, null);
         }
 
-        if (booking.isPassBooking()) {
-            passCreditService.restoreCredit(booking.getPassPurchase().getId(), booking.getId());
+        if (lockedPass != null) {
+            passCreditService.restoreCredit(lockedPass, booking.getId());
             return new CancellationCompensation(true, null);
         }
 

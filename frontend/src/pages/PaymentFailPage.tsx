@@ -1,5 +1,6 @@
-import { Container, Alert, Button } from "react-bootstrap";
-import { Link, useSearchParams } from "react-router-dom";
+import { LinkButton } from "@/shared/ui/LinkButton";
+import { Container, Alert } from "react-bootstrap";
+import { useSearchParams } from "react-router-dom";
 
 export function PaymentFailPage() {
   const [params] = useSearchParams();
@@ -15,8 +16,8 @@ export function PaymentFailPage() {
         {code && <p className="text-muted small mb-0">코드: {code}</p>}
       </Alert>
       <div className="d-flex gap-2">
-        <Button as={Link as any} to="/" variant="outline-secondary">홈으로</Button>
-        <Button as={Link as any} to="/products" variant="primary">상품 둘러보기</Button>
+        <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
+        <LinkButton to="/products" variant="primary">상품 둘러보기</LinkButton>
       </div>
     </Container>
   );

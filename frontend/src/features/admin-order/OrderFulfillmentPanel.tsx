@@ -1,15 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
 import { Alert } from "react-bootstrap";
 import { fetchOrderFulfillment } from "./api";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
 interface Props {
   orderId: number;
   adminKey: string;
+  onAuthError: () => void;
 }
 
-export function OrderFulfillmentPanel({ orderId, adminKey }: Props) {
-  const { data, isLoading, error } = useQuery({
+export function OrderFulfillmentPanel({ orderId, adminKey, onAuthError }: Props) {
+  const { data, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "orders", orderId, "fulfillment"],
     queryFn: () => fetchOrderFulfillment(adminKey, orderId),
   });

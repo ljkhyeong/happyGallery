@@ -7,7 +7,6 @@ import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
-import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.ShippingAddressProtector;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
@@ -22,11 +21,12 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareCommand;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
-import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.adapter.out.persistence.cart.CartItemRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
+import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -89,8 +89,8 @@ class PaymentConfirmUseCaseIT {
     @Autowired PaymentPrepareUseCase prepareUseCase;
     @Autowired PaymentConfirmUseCase confirmUseCase;
     @Autowired PaymentAttemptReaderPort attemptReader;
-    @Autowired RefundPort refundPort;
-    @Autowired OrderReaderPort orderReader;
+    @Autowired RefundRepository refundRepository;
+    @Autowired OrderRepository orderReader;
     @Autowired OrderItemPort orderItemPort;
     @Autowired FulfillmentPort fulfillmentPort;
     @Autowired ShippingAddressProtector shippingAddressProtector;
@@ -289,7 +289,7 @@ class PaymentConfirmUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(replay).isEqualTo(first);
             softly.assertThat(first.accessToken()).isNotBlank();
-            softly.assertThat(orderReader.findAllByOrderByCreatedAtDesc()).hasSize(1);
+            softly.assertThat(orderReader.count()).isOne();
             softly.assertThat(attempt.getFulfilledDomainId()).isEqualTo(first.domainId());
             softly.assertThat(attempt.getFulfilledAccessTokenEnc())
                     .isNotBlank()
@@ -436,7 +436,7 @@ class PaymentConfirmUseCaseIT {
             softly.assertThat(transactionActiveDuringPgCall.get()).isFalse();
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.FAILED);
             softly.assertThat(attempt.getFailReason()).isEqualTo("PG 승인 거절");
-            softly.assertThat(orderReader.findAllByOrderByCreatedAtDesc()).isEmpty();
+            softly.assertThat(orderReader.count()).isZero();
         });
         verify(paymentProvider, times(1)).confirm(
                 "payment-key-failure", prepared.orderId(), prepared.amount(), prepared.orderId());
@@ -494,7 +494,7 @@ class PaymentConfirmUseCaseIT {
                 .pollInterval(25, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> {
                     var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
-                    var refunds = refundPort.findAll();
+                    var refunds = refundRepository.findAll();
                     assertSoftly(softly -> {
                         softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.COMPENSATED);
                         softly.assertThat(refunds).singleElement().satisfies(refund -> {
@@ -505,7 +505,7 @@ class PaymentConfirmUseCaseIT {
                     });
                 });
 
-        var refund = refundPort.findAll().getFirst();
+        var refund = refundRepository.findAll().getFirst();
         verify(paymentProvider).refund(
                 "confirmed-payment-key", prepared.amount(), refund.getIdempotencyKey());
     }
@@ -610,7 +610,7 @@ class PaymentConfirmUseCaseIT {
             var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
             assertSoftly(softly -> {
                 softly.assertThat(staleResult).isEqualTo(latestResult);
-                softly.assertThat(orderReader.findAllByOrderByCreatedAtDesc()).hasSize(1);
+                softly.assertThat(orderReader.count()).isOne();
                 softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             });
             verify(paymentProvider, times(2)).confirm(

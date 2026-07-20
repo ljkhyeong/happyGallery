@@ -1,6 +1,7 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Container } from "react-bootstrap";
+import { Container } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { api } from "@/shared/api";
@@ -57,9 +58,9 @@ export function MyOrderDetailPage() {
           <Link to="/my/orders" className="text-decoration-none small">
             &larr; 내 주문
           </Link>
-          <Button as={Link as any} to="/products" variant="outline-secondary" size="sm">
+          <LinkButton to="/products" variant="outline-secondary" size="sm">
             스토어 둘러보기
-          </Button>
+          </LinkButton>
         </div>
         <div className="my-section-kicker mb-2">My Order</div>
         <h4 className="mb-2">주문 상세</h4>

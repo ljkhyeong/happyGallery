@@ -10,6 +10,8 @@ public interface PassPurchaseReaderPort {
 
     Optional<PassPurchase> findById(Long id);
 
+    Optional<PassPurchase> findByIdForUpdate(Long id);
+
     List<PassPurchase> findByUserIdOrderByPurchasedAtDesc(Long userId);
 
     List<PassPurchase> findExpiredWithRemainingCreditsAfterId(

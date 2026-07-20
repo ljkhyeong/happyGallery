@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button, Table } from "react-bootstrap";
 import { fetchFailedNotifications, retryNotification } from "./api";
 import { ApiError } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
 import type { FailedNotificationResponse } from "@/shared/types";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
 interface Props {
@@ -18,15 +19,11 @@ export function FailedNotificationSection({ adminKey, onAuthError }: Props) {
   const toast = useToast();
   const [pendingId, setPendingId] = useState<number | null>(null);
   const queryKey = ["admin", "notifications", "failed"];
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
     queryFn: () => fetchFailedNotifications(adminKey),
     refetchInterval: 10_000,
   });
-
-  useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) onAuthError();
-  }, [error, onAuthError]);
 
   const retry = useAdminMutation(onAuthError, {
     mutationFn: (outboxId: number) => retryNotification(adminKey, outboxId),

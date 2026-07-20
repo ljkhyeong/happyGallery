@@ -3,7 +3,7 @@ package com.personal.happygallery.application.payment;
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
-import com.personal.happygallery.application.order.port.out.OrderReaderPort;
+import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.application.payment.PaymentConfirmTransactionService.PgConfirmationRequired;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmRecoveryUseCase;
@@ -19,7 +19,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
-import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
@@ -68,8 +68,8 @@ class PaymentConfirmRecoveryUseCaseIT {
     @Autowired PaymentReconciliationAdminUseCase reconciliationAdminUseCase;
     @Autowired PaymentConfirmTransactionService transactionService;
     @Autowired PaymentAttemptReaderPort attemptReader;
-    @Autowired RefundPort refundPort;
-    @Autowired OrderReaderPort orderReader;
+    @Autowired RefundRepository refundRepository;
+    @Autowired OrderRepository orderReader;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired UserStorePort userStorePort;
@@ -285,7 +285,7 @@ class PaymentConfirmRecoveryUseCaseIT {
             softly.assertThat(result.successCount()).isZero();
             softly.assertThat(result.failureCount()).isOne();
             softly.assertThat(statusOf(attemptId)).isEqualTo(PaymentAttemptStatus.FAILED);
-            softly.assertThat(refundPort.findAll()).isEmpty();
+            softly.assertThat(refundRepository.findAll()).isEmpty();
         });
         verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
         verify(paymentProvider, never()).refund(any(), anyLong(), any());
@@ -412,11 +412,11 @@ class PaymentConfirmRecoveryUseCaseIT {
             softly.assertThat(result.successCount()).isOne();
             softly.assertThat(result.failureCount()).isOne();
             softly.assertThat(statusOf(succeedingAttemptId)).isEqualTo(PaymentAttemptStatus.CONFIRMED);
-            softly.assertThat(orderReader.findAllByOrderByCreatedAtDesc()).isEmpty();
+            softly.assertThat(orderReader.count()).isZero();
         });
         await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> assertThat(refundPort.findAll())
+                .untilAsserted(() -> assertThat(refundRepository.findAll())
                         .singleElement()
                         .satisfies(refund -> assertSoftly(softly -> {
                             softly.assertThat(refund.getPaymentAttemptId()).isEqualTo(failedAttemptId);

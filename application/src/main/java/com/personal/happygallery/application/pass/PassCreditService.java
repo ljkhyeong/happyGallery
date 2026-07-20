@@ -7,8 +7,11 @@ import com.personal.happygallery.domain.pass.PassPurchase;
  */
 public interface PassCreditService {
 
-    /** 소유권이 확인된 회원 8회권을 예약 생성에 연결한다. */
-    PassPurchase requireOwned(Long passId, Long ownerUserId);
+    /** 8회권 행을 잠그고 회원 소유권을 확인한다. 슬롯 잠금보다 먼저 호출해야 한다. */
+    PassPurchase requireOwnedForUpdate(Long passId, Long ownerUserId);
+
+    /** 8회권 행을 잠근다. 슬롯 잠금보다 먼저 호출해야 한다. */
+    PassPurchase requireForUpdate(Long passId);
 
     /**
      * 예약 생성 완료 후 8회권 크레딧 1회를 차감한다.
@@ -22,8 +25,8 @@ public interface PassCreditService {
     /**
      * 예약 취소 시 8회권 크레딧 1회 복구.
      *
-     * @param passId    8회권 ID
+     * @param pass      잠금이 확보된 8회권
      * @param bookingId 복구 사유가 된 예약 ID
      */
-    void restoreCredit(Long passId, Long bookingId);
+    void restoreCredit(PassPurchase pass, Long bookingId);
 }

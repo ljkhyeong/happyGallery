@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Table, Button, Form, Row, Col } from "react-bootstrap";
 import type { AdminOrderResponse } from "@/shared/types";
 import { fetchOrders } from "./api";
@@ -7,6 +6,7 @@ import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui
 import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { useOrderMutations } from "./useOrderMutations";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { OrderActionCell } from "./OrderActionCell";
 import { OrderHistoryPanel } from "./OrderHistoryPanel";
 import { OrderFulfillmentPanel } from "./OrderFulfillmentPanel";
@@ -51,7 +51,7 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
 
   const mutations = useOrderMutations({ adminKey, onAuthError, onInvalidate: resetPagination });
 
-  const { data: page, isLoading, error, isFetching } = useQuery({
+  const { data: page, isLoading, error, isFetching } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "orders", statusFilter, cursor],
     queryFn: () => fetchOrders(adminKey, statusFilter || undefined, cursor),
   });
@@ -62,10 +62,6 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
       setHasMore(page.hasMore);
     }
   }, [page, cursor]);
-
-  useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) onAuthError();
-  }, [error, onAuthError]);
 
   return (
     <div>
@@ -139,11 +135,19 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
       )}
 
       {historyOrderId != null && (
-        <OrderHistoryPanel orderId={historyOrderId} adminKey={adminKey} />
+        <OrderHistoryPanel
+          orderId={historyOrderId}
+          adminKey={adminKey}
+          onAuthError={onAuthError}
+        />
       )}
 
       {fulfillmentOrderId != null && (
-        <OrderFulfillmentPanel orderId={fulfillmentOrderId} adminKey={adminKey} />
+        <OrderFulfillmentPanel
+          orderId={fulfillmentOrderId}
+          adminKey={adminKey}
+          onAuthError={onAuthError}
+        />
       )}
 
       {mutations.lastError && !(mutations.lastError instanceof ApiError && mutations.lastError.status === 401) && (

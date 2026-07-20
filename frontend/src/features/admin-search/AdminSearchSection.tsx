@@ -1,5 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, type FormEvent } from "react";
 import { Badge, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
 import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
@@ -11,6 +10,7 @@ import {
   type AdminSearchResult,
   type AdminSearchTarget,
 } from "./api";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
 interface Props {
   adminKey: string;
@@ -173,17 +173,11 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<AdminSearchCriteria | null>(null);
 
-  const query = useQuery({
+  const query = useAdminQuery(onAuthError, {
     queryKey: ["admin", "search", submitted],
     queryFn: () => searchAdminRecords(adminKey, submitted!),
     enabled: submitted != null,
   });
-
-  useEffect(() => {
-    if (query.error instanceof ApiError && query.error.status === 401) {
-      onAuthError();
-    }
-  }, [onAuthError, query.error]);
 
   function selectTarget(nextTarget: AdminSearchTarget) {
     setTarget(nextTarget);

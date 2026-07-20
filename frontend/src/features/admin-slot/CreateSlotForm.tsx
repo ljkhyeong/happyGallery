@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
 import { createSlot, fetchClasses } from "./api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { ErrorAlert, useToast, LoadingSpinner } from "@/shared/ui";
-import { ApiError } from "@/shared/api";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 
 interface Props {
   adminKey: string;
@@ -23,7 +23,7 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
     staleTime: REFERENCE_DATA_STALE_TIME,
   });
 
-  const mutation = useMutation({
+  const mutation = useAdminMutation(onAuthError, {
     mutationFn: () =>
       createSlot(adminKey, {
         classId: Number(classId),
@@ -33,11 +33,6 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
       toast.show(`슬롯 #${slot.id} 생성 완료`);
       queryClient.invalidateQueries({ queryKey: ["admin", "slots"] });
       setStartAt("");
-    },
-    onError: (error) => {
-      if (error instanceof ApiError && error.status === 401) {
-        onAuthError();
-      }
     },
   });
 

@@ -33,7 +33,7 @@ final class ResilientNotificationCall {
         this.timeoutMillis = timeoutMillis;
     }
 
-    boolean execute(NotificationChannel channel, String operation, Supplier<Boolean> call) {
+    <T> T execute(NotificationChannel channel, String operation, Supplier<T> call, T failureResult) {
         try {
             return circuitBreaker.executeCallable(() -> timeLimiter.executeFutureSupplier(
                     () -> CompletableFuture.supplyAsync(call, executor)));
@@ -54,6 +54,6 @@ final class ResilientNotificationCall {
                         channel, operation, cause.getClass().getSimpleName());
             }
         }
-        return false;
+        return failureResult;
     }
 }

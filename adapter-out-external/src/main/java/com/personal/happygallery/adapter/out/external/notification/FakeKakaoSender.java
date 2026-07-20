@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import org.slf4j.Logger;
@@ -25,11 +26,11 @@ public class FakeKakaoSender implements NotificationSender {
     }
 
     @Override
-    public boolean send(String idempotencyKey,
-                        String phone,
-                        String recipientName,
-                        NotificationEventType eventType) {
+    public NotificationSendResult send(String idempotencyKey,
+                                       String phone,
+                                       String recipientName,
+                                       NotificationEventType eventType) {
         log.info("[FAKE-KAKAO] event={}", eventType);
-        return true;
+        return NotificationSendResult.SUCCESS;
     }
 }

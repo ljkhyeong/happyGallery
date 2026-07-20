@@ -8,5 +8,7 @@ public interface ProductQnaReaderPort {
 
     Optional<ProductQna> findById(Long id);
 
+    Optional<ProductQna> findByIdAndProductId(Long id, Long productId);
+
     List<ProductQna> findByProductId(Long productId);
 }

@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.http.HttpPoolProperties;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.timelimiter.TimeLimiter;
@@ -116,7 +117,7 @@ class NotificationResilienceConfig {
                                                      @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
                                                      NotificationResilienceProperties resilience) {
         validateTimeoutHierarchy(resilience, props);
-        PhoneVerificationSender raw = new RealPhoneVerificationSender(props, smsRestClient);
+        RealPhoneVerificationSender raw = new RealPhoneVerificationSender(props, smsRestClient);
         return new ResilientPhoneVerificationSender(
                 raw,
                 circuitBreaker,
@@ -137,7 +138,7 @@ class NotificationResilienceConfig {
     }
 
     private static boolean isFailureResult(Object result) {
-        return result instanceof Boolean sent && !sent;
+        return result == NotificationSendResult.TRANSIENT_FAILURE;
     }
 
     private static void validateTimeoutHierarchy(NotificationResilienceProperties resilience,

@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button, Table } from "react-bootstrap";
 import { fetchPaymentReconciliations, reconcilePayment } from "./api";
 import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import type { PaymentReconciliationRequiredResponse } from "@/shared/types";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
 interface Props {
@@ -19,15 +20,11 @@ export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [pendingId, setPendingId] = useState<number | null>(null);
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
     queryFn: () => fetchPaymentReconciliations(adminKey),
     refetchInterval: 10_000,
   });
-
-  useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) onAuthError();
-  }, [error, onAuthError]);
 
   const reconcile = useAdminMutation(onAuthError, {
     mutationFn: (attemptId: number) => reconcilePayment(adminKey, attemptId),

@@ -12,6 +12,7 @@ import com.personal.happygallery.domain.error.SlotNotAvailableException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,28 @@ class SlotCapacitySupport {
                 .orElseThrow(NotFoundException.supplier("슬롯"));
         if (!slot.isReservableAt(LocalDateTime.now(clock))) {
             throw new SlotNotAvailableException();
+        }
+    }
+
+    /** 다중 슬롯 작업 전에 관련 클래스 행을 PK 순서로 모두 잠근다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    void lockClassesForSlots(List<Long> slotIds) {
+        Set<Long> expectedSlotIds = Set.copyOf(slotIds);
+        if (expectedSlotIds.isEmpty()) {
+            return;
+        }
+
+        List<Slot> slots = slotReaderPort.findAllById(expectedSlotIds);
+        if (slots.size() != expectedSlotIds.size()) {
+            throw new NotFoundException("슬롯");
+        }
+        List<Long> classIds = slots.stream()
+                .map(slot -> slot.getBookingClass().getId())
+                .distinct()
+                .sorted()
+                .toList();
+        if (classReaderPort.findAllByIdForUpdate(classIds).size() != classIds.size()) {
+            throw new NotFoundException("클래스");
         }
     }
 

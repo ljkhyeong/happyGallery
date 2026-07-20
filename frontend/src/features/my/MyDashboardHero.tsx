@@ -1,5 +1,5 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { Badge, Button, Card } from "react-bootstrap";
-import { Link } from "react-router-dom";
 import type { CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 import type { MyBookingSummary } from "./api";
 import { formatDateTime } from "@/shared/lib";
@@ -39,15 +39,15 @@ export function MyDashboardHero({ user, nextBooking, onLogout }: Props) {
             )}
           </div>
           <div className="d-flex flex-wrap align-content-start gap-2">
-            <Button as={Link as any} to="/products" variant="dark" size="sm">
+            <LinkButton to="/products" variant="dark" size="sm">
               상품 보러가기
-            </Button>
-            <Button as={Link as any} to="/bookings/new" variant="outline-primary" size="sm">
+            </LinkButton>
+            <LinkButton to="/bookings/new" variant="outline-primary" size="sm">
               체험 예약
-            </Button>
-            <Button as={Link as any} to="/passes/purchase" variant="outline-primary" size="sm">
+            </LinkButton>
+            <LinkButton to="/passes/purchase" variant="outline-primary" size="sm">
               8회권 구매
-            </Button>
+            </LinkButton>
             <Button variant="outline-secondary" size="sm" onClick={onLogout}>
               로그아웃
             </Button>

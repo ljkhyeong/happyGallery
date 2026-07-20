@@ -44,6 +44,7 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.util.stream.LongStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -197,6 +198,23 @@ class CustomerGuestClaimUseCaseIT {
             softly.assertThat(unchanged.getUserId()).isNull();
             softly.assertThat(unchanged.getGuest().getId()).isEqualTo(guest.getId());
         });
+    }
+
+    @DisplayName("비회원 이력 가져오기는 주문과 예약 ID를 각각 100건까지만 받는다")
+    @Test
+    void claimGuestRecords_rejectsTooManyIds() throws Exception {
+        Cookie sessionCookie = customerHelper.signupAndGetSessionCookie(
+                "claim-limit@example.com", "010-1234-5678");
+        List<Long> tooManyIds = LongStream.rangeClosed(1, 101).boxed().toList();
+
+        mockMvc.perform(post("/api/v1/me/guest-claims")
+                        .with(csrf())
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new ClaimGuestRecordsRequest(tooManyIds, List.of()))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
 }

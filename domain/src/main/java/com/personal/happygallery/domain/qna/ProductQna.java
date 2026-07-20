@@ -50,6 +50,9 @@ public class ProductQna {
 
     public ProductQna(Long productId, Long userId, String title, String content,
                       boolean secret, String passwordHash) {
+        if (secret && (passwordHash == null || passwordHash.isBlank())) {
+            throw new IllegalArgumentException("비밀 Q&A에는 비밀번호 해시가 필요합니다.");
+        }
         this.productId = productId;
         this.userId = userId;
         this.title = title;

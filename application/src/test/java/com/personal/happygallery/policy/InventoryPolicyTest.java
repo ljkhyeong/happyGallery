@@ -6,6 +6,7 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -40,6 +41,16 @@ class InventoryPolicyTest {
         }
         assertThatThrownBy(() -> inventory.deduct(requestQuantity))
                 .isInstanceOf(InventoryNotEnoughException.class);
+    }
+
+    @DisplayName("재고 생성과 변경은 음수 또는 0인 변경 수량을 허용하지 않는다")
+    @Test
+    void inventory_rejectsInvalidQuantities() {
+        Inventory inventory = inventory(1);
+
+        assertThatThrownBy(() -> inventory(-1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> inventory.deduct(0)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> inventory.restore(-1)).isInstanceOf(IllegalArgumentException.class);
     }
 
     private static Stream<Arguments> deductCases() {

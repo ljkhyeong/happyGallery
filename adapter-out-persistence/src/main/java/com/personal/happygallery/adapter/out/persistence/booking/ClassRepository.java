@@ -20,6 +20,11 @@ public interface ClassRepository extends JpaRepository<BookingClass, Long>, Clas
     @Query("SELECT c FROM BookingClass c WHERE c.id = :id")
     Optional<BookingClass> findByIdForUpdate(@Param("id") Long id);
 
+    @Override
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM BookingClass c WHERE c.id IN :ids ORDER BY c.id")
+    List<BookingClass> findAllByIdForUpdate(@Param("ids") List<Long> ids);
+
     @Override BookingClass save(BookingClass bookingClass);
 
     @Override

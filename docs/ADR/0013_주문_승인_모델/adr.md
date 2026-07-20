@@ -85,10 +85,10 @@ API Key 폴백 경로와 배치 자동환불(`AUTO_REFUND`), 픽업 만료(`PICK
 
 ### 8. 픽업 마감 알림의 연관 데이터는 일괄 조회한다
 
-픽업 마감 임박 fulfillment와 주문 수신자를 projection JOIN으로 한 번에 조회한다. 최근 24시간 성공 알림
-이력도 회원 userId와 비회원 guestId 목록별로 각각 한 번에 조회한다.
-중복 발송 정책은 유지하되 후보 수에 비례하는 읽기 쿼리를 만들지 않는다. 알림 outbox 저장과 dispatch는
-건별 실패 격리·재시도 경계를 유지한다.
+픽업 마감 임박 fulfillment와 주문 수신자를 projection JOIN으로 한 번에 조회한다.
+같은 수신자가 여러 주문을 가질 수 있으므로 수신자 단위 최근 발송 이력으로 후보를 제거하지 않는다.
+각 주문은 `recipient + PICKUP_DEADLINE_REMINDER + ORDER + orderId` outbox 멱등키로 한 번만 저장하고,
+알림 outbox 저장과 dispatch는 건별 실패 격리·재시도 경계를 유지한다.
 
 ### 9. 고객이 선택한 이행 방식을 승인 이후에도 유지한다
 

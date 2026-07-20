@@ -119,7 +119,7 @@ CONFIRM_DATA_KEY_FINALIZATION=finalize-happygallery-data-keys \
 
 finalize는 `user_social_accounts.provider_id_enc IS NULL`이 0건이고 guest 보존기한이 지났는지 확인한다. app을 0 replica로 만든 뒤 previous 키를 제거하고 원래 replica를 복구하며, 실패 시 app을 0으로 유지한다. `finalizing` 단계에서 중단되면 같은 명령으로 재개한다. 성공 후 `/etc/happygallery/app.env`의 세 previous 값도 비운다. runtime에서 제거한 구키도 해당 키에 결합된 보존 백업이 남아 있는 동안 off-device recovery bundle에서는 폐기하지 않는다.
 
-기존 MySQL 자격증명은 유지보수 창에서 DB 계정과 Kubernetes Secret을 함께 회전한다. 새 비밀번호는 저장소 밖 600 권한 파일로 준비하고, 성공 후 `/etc/happygallery/mysql.env`의 `MYSQL_ROOT_PASSWORD`/`MYSQL_PASSWORD`와 `/etc/happygallery/app.env`의 `DB_PASSWORD`도 같은 값으로 갱신한다. 스크립트는 app Pod가 실제로 모두 종료된 뒤 두 계정을 한 SQL 문장으로 바꾸고, Secret 갱신, MySQL 재시작, app 재기동 순서로 처리한다. 중간 실패 시 app은 중지 상태로 남겨 불일치 자격증명으로 쓰기가 재개되지 않게 한다.
+기존 MySQL 자격증명은 유지보수 창에서 DB 계정과 Kubernetes Secret을 함께 회전한다. 새 비밀번호는 저장소 밖 600 권한 파일로 준비하고, 성공 후 `/etc/happygallery/mysql.env`의 `MYSQL_ROOT_PASSWORD`/`MYSQL_PASSWORD`와 `/etc/happygallery/app.env`의 `DB_PASSWORD`도 같은 값으로 갱신한다. 스크립트는 app Pod가 실제로 모두 종료된 뒤 두 계정을 한 SQL 문장으로 바꾸고, Secret 갱신, MySQL 재시작, app 재기동 순서로 처리한다. `started`, `db-updated`, `secrets-updated`, `completed` 단계를 Secret annotation에 기록해 같은 회전 파일로 재개하며, 중간 실패 시 app은 중지 상태로 남긴다. `completed` 기록이 있어도 DB root/app 접속, MySQL·app Secret 값, 원래 app replica 복구 여부를 다시 확인하고 drift가 있으면 같은 목표로 복구한다. 부분 실패와 완료 응답 유실 재개 경로는 `scripts/validate.sh`의 fake kubectl 실행 테스트로 검증한다.
 
 ```bash
 sudo install -m 600 -o "$USER" -g "$(id -gn)" \

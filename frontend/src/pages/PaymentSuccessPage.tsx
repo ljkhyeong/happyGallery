@@ -1,6 +1,7 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect, useRef, useState } from "react";
 import { Container, Spinner, Button } from "react-bootstrap";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   confirmPayment,
   consumePaymentReturnHint,
@@ -73,46 +74,44 @@ export function PaymentSuccessPage() {
 function PaymentSuccessNext({ result }: { result: ConfirmPaymentResponse }) {
   if (result.context === "PASS") {
     return (
-      <Button as={Link as any} to="/my/passes" variant="primary">
+      <LinkButton to="/my/passes" variant="primary">
         내 8회권 확인하기
-      </Button>
+      </LinkButton>
     );
   }
   if (result.context === "ORDER") {
     if (result.accessToken) {
       return (
-        <Button
-          as={Link as any}
+        <LinkButton
           to="/guest/orders"
           state={{ orderId: result.domainId, token: result.accessToken }}
           variant="primary"
         >
           비회원 주문 확인하기
-        </Button>
+        </LinkButton>
       );
     }
     return (
-      <Button as={Link as any} to={`/my/orders/${result.domainId}`} variant="primary">
+      <LinkButton to={`/my/orders/${result.domainId}`} variant="primary">
         내 주문 상세 보기
-      </Button>
+      </LinkButton>
     );
   }
   // BOOKING
   if (result.accessToken) {
     return (
-      <Button
-        as={Link as any}
+      <LinkButton
         to="/guest/bookings"
         state={{ bookingId: result.domainId, token: result.accessToken }}
         variant="primary"
       >
         비회원 예약 확인하기
-      </Button>
+      </LinkButton>
     );
   }
   return (
-    <Button as={Link as any} to={`/my/bookings/${result.domainId}`} variant="primary">
+    <LinkButton to={`/my/bookings/${result.domainId}`} variant="primary">
       내 예약 상세 보기
-    </Button>
+    </LinkButton>
   );
 }

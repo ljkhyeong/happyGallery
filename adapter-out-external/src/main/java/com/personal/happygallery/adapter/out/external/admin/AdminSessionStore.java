@@ -12,6 +12,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
@@ -21,6 +23,28 @@ public class AdminSessionStore implements AdminSessionPort {
     private static final Duration SESSION_TTL = Duration.ofHours(8);
     private static final String KEY_PREFIX = "admin:session:";
     private static final String ADMIN_INDEX_PREFIX = "admin:sessions:";
+    private static final RedisScript<Long> CREATE_SESSION_SCRIPT = new DefaultRedisScript<>("""
+            local setResult = redis.pcall('SET', KEYS[1], ARGV[1], 'PX', ARGV[3])
+            if type(setResult) == 'table' and setResult.err then
+                return setResult
+            end
+
+            local addResult = redis.pcall('SADD', KEYS[2], ARGV[2])
+            if type(addResult) == 'table' and addResult.err then
+                redis.call('DEL', KEYS[1])
+                return addResult
+            end
+
+            local expireResult = redis.pcall('PEXPIRE', KEYS[2], ARGV[3])
+            if type(expireResult) == 'table' and expireResult.err then
+                redis.call('DEL', KEYS[1])
+                if addResult == 1 then
+                    redis.call('SREM', KEYS[2], ARGV[2])
+                end
+                return expireResult
+            end
+            return 1
+            """, Long.class);
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -46,17 +70,31 @@ public class AdminSessionStore implements AdminSessionPort {
         String tokenHash = blindIndexer.index(token);
         AdminSession session = new AdminSession(
                 adminUserId, username, credentialVersion, Instant.now(clock));
+        String encryptedSession = serializeAndEncrypt(session);
+        String sessionKey = sessionKey(tokenHash);
+        String indexKey = adminIndexKey(adminUserId, credentialVersion);
         try {
-            String json = objectMapper.writeValueAsString(session);
-            redisTemplate.opsForValue().set(sessionKey(tokenHash), fieldEncryptor.encrypt(json), SESSION_TTL);
-            String indexKey = adminIndexKey(adminUserId, credentialVersion);
-            redisTemplate.opsForSet().add(indexKey, tokenHash);
-            redisTemplate.expire(indexKey, SESSION_TTL);
+            Long result = redisTemplate.execute(
+                    CREATE_SESSION_SCRIPT,
+                    List.of(sessionKey, indexKey),
+                    encryptedSession,
+                    tokenHash,
+                    Long.toString(SESSION_TTL.toMillis()));
+            if (result == null || result != 1L) {
+                throw new IllegalStateException("관리자 세션 Redis 저장 결과를 확인할 수 없습니다.");
+            }
         } catch (Exception e) {
-            redisTemplate.delete(sessionKey(tokenHash));
-            throw new IllegalStateException("관리자 세션 직렬화 실패", e);
+            throw new IllegalStateException("관리자 세션 Redis 저장 실패", e);
         }
         return token;
+    }
+
+    private String serializeAndEncrypt(AdminSession session) {
+        try {
+            return fieldEncryptor.encrypt(objectMapper.writeValueAsString(session));
+        } catch (Exception e) {
+            throw new IllegalStateException("관리자 세션 데이터 생성 실패", e);
+        }
     }
 
     @Override

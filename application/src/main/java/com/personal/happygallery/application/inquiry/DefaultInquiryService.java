@@ -4,6 +4,9 @@ import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.inquiry.port.out.InquiryReaderPort;
 import com.personal.happygallery.application.inquiry.port.out.InquiryStorePort;
+import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.user.User;
@@ -60,12 +63,23 @@ public class DefaultInquiryService implements InquiryUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<InquiryWithUser> listAll() {
-        List<Inquiry> inquiries = inquiryReader.findAll();
+    public CursorPage<InquiryWithUser> listAll(String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        int fetchSize = pageSize + 1;
+        List<Inquiry> inquiries;
+        if (cursor == null) {
+            inquiries = inquiryReader.findRecent(fetchSize);
+        } else {
+            var cursorParam = CursorUtils.decode(cursor);
+            inquiries = inquiryReader.findRecentAfter(
+                    cursorParam.timestamp(), cursorParam.id(), fetchSize);
+        }
         Map<Long, User> userMap = batchFetchUsers(inquiries);
-        return inquiries.stream()
+        List<InquiryWithUser> items = inquiries.stream()
                 .map(i -> new InquiryWithUser(i, userName(userMap, i.getUserId())))
                 .toList();
+        return CursorPage.of(items, pageSize, item -> CursorUtils.encode(
+                item.inquiry().getCreatedAt(), item.inquiry().getId()));
     }
 
     @Override

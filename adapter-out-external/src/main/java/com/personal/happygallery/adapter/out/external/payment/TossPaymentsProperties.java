@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
+import com.personal.happygallery.adapter.out.external.http.ExternalBaseUrl;
 import com.personal.happygallery.adapter.out.external.http.HttpPoolProperties;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -22,4 +23,9 @@ public record TossPaymentsProperties(
         @Min(1) @DefaultValue("1000") long acquireTimeoutMillis,
         @Min(1) @DefaultValue("10") int maxConnections,
         @Min(1) @DefaultValue("30000") long keepAliveMillis
-) implements HttpPoolProperties {}
+) implements HttpPoolProperties {
+
+    public TossPaymentsProperties {
+        ExternalBaseUrl.requireHttpsOrigin(baseUrl, "Toss Payments");
+    }
+}

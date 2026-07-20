@@ -1,9 +1,9 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.adapter.out.external.http.ExternalBaseUrl;
 import com.personal.happygallery.adapter.out.external.http.HttpPoolProperties;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import java.net.URI;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
@@ -23,26 +23,6 @@ public record SmsNotificationProperties(
 ) implements HttpPoolProperties {
 
     public SmsNotificationProperties {
-        validateBaseUrl(baseUrl);
-    }
-
-    private static void validateBaseUrl(String value) {
-        if (value == null || value.isBlank()) {
-            return;
-        }
-        URI uri;
-        try {
-            uri = URI.create(value);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException("SMS base URL 형식이 올바르지 않습니다.", exception);
-        }
-        if (!"https".equalsIgnoreCase(uri.getScheme())
-                || uri.getHost() == null
-                || uri.getUserInfo() != null
-                || uri.getQuery() != null
-                || uri.getFragment() != null
-                || !(uri.getPath().isEmpty() || "/".equals(uri.getPath()))) {
-            throw new IllegalArgumentException("SMS base URL은 경로가 없는 HTTPS 주소여야 합니다.");
-        }
+        ExternalBaseUrl.requireHttpsOrigin(baseUrl, "SMS");
     }
 }

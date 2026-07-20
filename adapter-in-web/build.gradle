@@ -11,9 +11,8 @@ dependencies {
 	implementation 'org.springframework.session:spring-session-core'
 	implementation 'io.sentry:sentry-spring-boot-4-starter:8.25.0'
 	compileOnly 'org.hibernate.orm:hibernate-core'
+	compileOnly 'org.springframework:spring-orm'
 
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
 	testImplementation testFixtures(project(":application"))
@@ -46,4 +45,8 @@ tasks.register('restDocsTest', Test) {
 
 tasks.named('test') {
 	useJUnitPlatform { excludeTags 'restdocs' }
+}
+
+tasks.named('check') {
+	dependsOn tasks.named('restDocsTest')
 }

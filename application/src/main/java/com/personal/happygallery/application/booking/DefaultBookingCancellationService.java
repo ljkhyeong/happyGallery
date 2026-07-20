@@ -47,6 +47,9 @@ class DefaultBookingCancellationService implements BookingCancellationService {
     public int cancelLinkedBookings(Long passId) {
         List<Booking> futureBookings = bookingReader.findFutureBookedPassBookings(
                 passId, LocalDateTime.now(clock));
+        slotCapacitySupport.lockClassesForSlots(futureBookings.stream()
+                .map(booking -> booking.getSlot().getId())
+                .toList());
 
         futureBookings.forEach(booking -> cancelOne(booking, passId));
 

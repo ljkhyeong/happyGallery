@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -32,13 +33,13 @@ class ResilientNotificationSenderTest {
         meterRegistry.close();
     }
 
-    @DisplayName("발송 실패 결과가 누적되면 서킷이 열리고 이후 호출을 차단한다")
+    @DisplayName("일시 발송 실패가 누적되면 서킷이 열리고 이후 호출을 차단한다")
     @Test
-    void send_falseResultsAccumulate_circuitOpenFastFail() {
+    void send_transientFailuresAccumulate_circuitOpenFastFail() {
         AtomicInteger calls = new AtomicInteger();
         NotificationSender delegate = sender((idempotencyKey, phone, name, eventType) -> {
             calls.incrementAndGet();
-            return false;
+            return NotificationSendResult.TRANSIENT_FAILURE;
         });
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
@@ -47,14 +48,40 @@ class ResilientNotificationSenderTest {
 
         resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
         resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
-        boolean sent = resilientSender.send(
+        NotificationSendResult result = resilientSender.send(
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
 
         assertSoftly(softly -> {
-            softly.assertThat(sent).isFalse();
+            softly.assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
             softly.assertThat(calls).hasValue(2);
             softly.assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.OPEN);
             softly.assertThat(circuitBreaker.getMetrics().getNumberOfFailedCalls()).isEqualTo(2);
+        });
+    }
+
+    @DisplayName("영구 발송 거절은 다음 채널로 넘기되 서킷 장애율에는 포함하지 않는다")
+    @Test
+    void send_permanentFailures_doNotOpenCircuit() {
+        AtomicInteger calls = new AtomicInteger();
+        NotificationSender delegate = sender((idempotencyKey, phone, name, eventType) -> {
+            calls.incrementAndGet();
+            return NotificationSendResult.PERMANENT_FAILURE;
+        });
+        NotificationResilienceProperties properties = properties(2, 2, 1, 1);
+        NotificationResilienceConfig config = new NotificationResilienceConfig();
+        CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(properties);
+        ResilientNotificationSender resilientSender = createSender(delegate, circuitBreaker, config, properties);
+
+        resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+        resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+        NotificationSendResult result = resilientSender.send(
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+
+        assertSoftly(softly -> {
+            softly.assertThat(result).isEqualTo(NotificationSendResult.PERMANENT_FAILURE);
+            softly.assertThat(calls).hasValue(3);
+            softly.assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
+            softly.assertThat(circuitBreaker.getMetrics().getNumberOfFailedCalls()).isZero();
         });
     }
 
@@ -70,7 +97,7 @@ class ResilientNotificationSenderTest {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            return true;
+            return NotificationSendResult.SUCCESS;
         });
         NotificationResilienceProperties properties = properties(20, 20, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
@@ -80,9 +107,9 @@ class ResilientNotificationSenderTest {
                 config,
                 properties);
 
-        CompletableFuture<Boolean> running = CompletableFuture.supplyAsync(() -> resilientSender.send(
+        CompletableFuture<NotificationSendResult> running = CompletableFuture.supplyAsync(() -> resilientSender.send(
                 IDEMPOTENCY_KEY, "01011111111", "첫 번째", NotificationEventType.BOOKING_CONFIRMED));
-        CompletableFuture<Boolean> queued = null;
+        CompletableFuture<NotificationSendResult> queued = null;
         try {
             assertThat(callStarted.await(1, TimeUnit.SECONDS)).isTrue();
             queued = CompletableFuture.supplyAsync(() -> resilientSender.send(
@@ -93,11 +120,11 @@ class ResilientNotificationSenderTest {
                             .gauge()
                             .value()).isEqualTo(1));
 
-            boolean sent = resilientSender.send(
+            NotificationSendResult result = resilientSender.send(
                     IDEMPOTENCY_KEY, "01033333333", "세 번째", NotificationEventType.BOOKING_CONFIRMED);
 
             assertSoftly(softly -> {
-                softly.assertThat(sent).isFalse();
+                softly.assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
                 softly.assertThat(meterRegistry.counter("happygallery.notification.executor.rejected").count())
                         .isEqualTo(1);
             });
@@ -141,10 +168,10 @@ class ResilientNotificationSenderTest {
             }
 
             @Override
-            public boolean send(String idempotencyKey,
-                                String phone,
-                                String recipientName,
-                                NotificationEventType eventType) {
+            public NotificationSendResult send(String idempotencyKey,
+                                               String phone,
+                                               String recipientName,
+                                               NotificationEventType eventType) {
                 return behavior.send(idempotencyKey, phone, recipientName, eventType);
             }
         };
@@ -152,9 +179,9 @@ class ResilientNotificationSenderTest {
 
     @FunctionalInterface
     private interface SendBehavior {
-        boolean send(String idempotencyKey,
-                     String phone,
-                     String recipientName,
-                     NotificationEventType eventType);
+        NotificationSendResult send(String idempotencyKey,
+                                    String phone,
+                                    String recipientName,
+                                    NotificationEventType eventType);
     }
 }

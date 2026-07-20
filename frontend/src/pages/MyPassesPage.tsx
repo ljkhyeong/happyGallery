@@ -1,5 +1,6 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Card, Col, Container, Row } from "react-bootstrap";
+import { Card, Col, Container, Row } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { fetchMyPasses } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
@@ -91,9 +92,9 @@ export function MyPassesPage() {
           <Link to="/my" className="text-decoration-none small">
             &larr; 내 정보
           </Link>
-          <Button as={Link as any} to="/passes/purchase" variant="outline-secondary" size="sm">
+          <LinkButton to="/passes/purchase" variant="outline-secondary" size="sm">
             8회권 구매
-          </Button>
+          </LinkButton>
         </div>
         <div className="my-section-kicker mb-2">My Passes</div>
         <h4 className="mb-2">전체 8회권</h4>
@@ -159,15 +160,14 @@ export function MyPassesPage() {
               <Col xs={12} md={4} className="text-md-end">
                 <small className="d-block text-muted-soft">~{formatDateTime(pass.expiresAt)}</small>
                 {isPassAvailableForBooking(pass) && (
-                  <Button
-                    as={Link as any}
+                  <LinkButton
                     to={`/bookings/new?passId=${pass.passId}`}
                     variant="outline-primary"
                     size="sm"
                     className="mt-2"
                   >
                     이 8회권으로 예약
-                  </Button>
+                  </LinkButton>
                 )}
               </Col>
             </Row>

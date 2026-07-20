@@ -1,5 +1,6 @@
+import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect } from "react";
-import { Badge, Button, Card, Col, Container, Row } from "react-bootstrap";
+import { Badge, Card, Col, Container, Row } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { trackClientEvent, trackGuestMemberCta } from "@/features/monitoring/api";
@@ -82,24 +83,22 @@ export function GuestLookupPage() {
             </p>
           </div>
           <div className="d-flex flex-wrap gap-2">
-            <Button
-              as={Link as any}
+            <LinkButton
               to={claimLoginHref}
               variant="dark"
               size="sm"
               onClick={() => trackGuestMemberCta("guest_lookup_hub", "login")}
             >
               로그인하고 가져오기
-            </Button>
-            <Button
-              as={Link as any}
+            </LinkButton>
+            <LinkButton
               to={claimSignupHref}
               variant="outline-secondary"
               size="sm"
               onClick={() => trackGuestMemberCta("guest_lookup_hub", "signup")}
             >
               회원가입
-            </Button>
+            </LinkButton>
           </div>
         </Card.Body>
       </Card>

@@ -1,9 +1,14 @@
 import { adminHeaders as h, api } from "@/shared/api";
-import type { FailedRefundResponse } from "@/shared/types";
-import type { AdminRefundStatus } from "@/shared/types";
+import type { AdminRefundStatus, CursorPage, FailedRefundResponse } from "@/shared/types";
 
-export function fetchFailedRefunds(adminKey: string): Promise<FailedRefundResponse[]> {
-  return api("/admin/refunds/failed", { headers: h(adminKey) });
+export function fetchFailedRefunds(
+  adminKey: string,
+  cursor?: string,
+): Promise<CursorPage<FailedRefundResponse>> {
+  return api("/admin/refunds/failed", {
+    headers: h(adminKey),
+    params: { cursor, size: "20" },
+  });
 }
 
 export function fetchRefund(adminKey: string, refundId: number): Promise<AdminRefundStatus> {

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Table } from "react-bootstrap";
 import { fetchProducts, updateProductStatus } from "./api";
 import { InventoryAdjustmentModal } from "./InventoryAdjustmentModal";
@@ -7,6 +7,7 @@ import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatKRW, PRODUCT_TYPE_LABEL } from "@/shared/lib";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
 interface Props {
   adminKey: string;
@@ -17,16 +18,10 @@ export function ProductListSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
-  const { data: products, isLoading, error } = useQuery({
+  const { data: products, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products"],
     queryFn: () => fetchProducts(adminKey),
   });
-
-  useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) {
-      onAuthError();
-    }
-  }, [error, onAuthError]);
 
   const statusMutation = useAdminMutation(onAuthError, {
     mutationFn: ({ id, active }: { id: number; active: boolean }) =>

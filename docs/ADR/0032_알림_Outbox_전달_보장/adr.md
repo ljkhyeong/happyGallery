@@ -17,6 +17,8 @@
 ## 결정 사항
 
 - 일반 알림 요청은 도메인 트랜잭션 안에서 `notification_outbox`에 먼저 저장한다.
+- outbox 저장은 사전 `exists` 조회에 의존하지 않고 멱등키 UNIQUE 제약에 직접 insert한다. 같은 키의 동시 요청 중
+  한 건만 저장되며, 동기 listener가 원 업무 트랜잭션에 참여하므로 저장 실패는 원 업무와 함께 롤백된다.
 - `NotificationEventListener`의 동기 `@EventListener`는 외부 채널을 호출하지 않고 outbox 저장과
   `NotificationOutboxEnqueuedEvent` 발행만 담당한다.
 - 내부 outbox 저장 이벤트는 `@TransactionalEventListener(AFTER_COMMIT)`에서 받아
@@ -30,12 +32,20 @@
 - `PROCESSING`이 1분 넘게 유지된 outbox는 오래된 실행으로 보고 재선점한다. 정상 알림 transport 상한 5초보다 충분히 길고 NHN 멱등키의 10분 중복 차단 창보다 짧아, 중단된 실행의 복구를 중복 차단 창 안에서 시작한다.
 - `NotificationOutboxScheduler`는 주기적으로 pending/오래된 processing outbox를 다시 dispatch해 즉시 dispatch 실패와 재시작 상황을 복구한다.
 - 실제 채널 fallback 순서와 발송 결과 이력은 기존 `NotificationService`와 `notification_log`가 유지한다. 운영 1순위는 NHN Cloud Alimtalk v2.2, 2순위는 NHN Cloud SMS다.
-- Alimtalk·SMS sender의 `false` 결과도 채널별 CircuitBreaker 실패로 집계한다. timeout 보조 executor는 제한 큐와 즉시 거절 정책을 사용하며, 큐 포화는 해당 채널 실패로 반환해 다음 채널 fallback을 계속한다.
+- Alimtalk·SMS sender는 성공·영구 거절·일시 실패를 구분한다. 408·425·429·5xx·timeout·통신 예외와 큐 포화 같은
+  일시 실패만 채널별 CircuitBreaker 장애율에 반영하고, 영구 거절도 기존처럼 다음 채널 fallback으로 넘긴다.
+  모든 채널이 영구 거절하면 outbox를 즉시 `FAILED`로 종결하고, 하나라도 일시 실패면 최대 5회 백오프 재시도한다.
+  인증 SMS도 같은 typed 결과를 resilience 경계까지 유지해 영구 거절이 공유 SMS CircuitBreaker를 열지 않게 한다.
+  timeout 보조 executor는 제한 큐와 즉시 거절 정책을 사용한다.
 - NHN transport의 acquire·connect·response timeout 합을 바깥 TimeLimiter보다 작게 두어, TimeLimiter가 끝난 뒤에도 blocking HTTP 호출이 남아 다음 채널과 겹치는 기본 설정을 허용하지 않는다.
 - `notificationTimeoutExecutor`의 queued/remaining task와 `happygallery.notification.executor.rejected`를 수집하고, 대기열 80% 지속 또는 거절 발생 시 운영 알림을 보낸다.
 - 전화번호 평문은 outbox에 저장하지 않는다. outbox는 `guest_id` 또는 `user_id`만 저장하고, 발송 시점에 기존 조회/복호화 경로를 사용한다.
 - outbox의 `recipient_type`과 수신자 ID는 DB CHECK로 일치시키고, outbox와 발송 로그 모두 회원·비회원 수신자 중 정확히 하나만 갖도록 강제한다.
 - aggregate가 명확한 일회성 알림은 `recipient + eventType + aggregateType + aggregateId` idempotency key로 outbox 중복 저장을 막는다.
+- 픽업 마감 임박 알림은 수신자 단위 최근 발송 이력으로 후보를 제거하지 않고 `ORDER + orderId` 단위로 멱등 처리한다.
+  같은 고객의 여러 픽업 주문은 각각 알리고 동일 주문의 반복 배치만 하나의 outbox로 합친다.
+- 8회권 만료 임박 알림은 사용자 단위가 아니라 `PASS_PURCHASE + passId` 단위로 멱등 처리한다. 같은 회원의 여러 8회권은 각각 알리고, 같은 구매 건의 수동·정기 배치 중복 실행은 하나의 outbox로 합친다.
+- 픽업·8회권 알림 배치는 원자적 outbox insert 결과를 성공 건수로 사용한다. 중복 키로 저장되지 않은 요청을 성공으로 집계하지 않는다.
 - 같은 outbox idempotency key를 NHN Alimtalk의 `X-NC-API-IDEMPOTENCY-KEY`로 전달해 공식 10분 중복 요청 차단을 사용한다. 처리 토큰 재발급과 무관하게 외부 멱등키는 유지한다.
 - 같은 예약에서 여러 번 발생할 수 있는 `BOOKING_RESCHEDULED`는 요청 단위 idempotency key를 사용해 기존 반복 발송 의미를 보존한다.
 - 자동 재시도를 모두 소진한 outbox는 `FAILED`로 종결하고 `happygallery.notification.outbox.failed` 카운터를 올린다.
@@ -50,7 +60,7 @@
 - NHN Alimtalk의 멱등키 중복 차단은 10분 동안만 유효하고, 공식 문서에는 중복 요청만 식별하는 전용 `resultCode`가 없다. 임의의 오류 문자열이나 결과 코드를 중복 성공으로 해석하지 않는다.
 - 외부 발송 성공 직후 프로세스가 종료되어 로컬 `SENT` 저장이 유실되거나, 실행 중단이 10분을 넘겨 NHN 중복 차단 창이 끝난 뒤 재시도되면 Alimtalk이 중복 발송될 수 있다.
 - NHN SMS API에는 이 outbox가 사용할 수 있는 동등한 멱등 계약이 없다. Alimtalk의 transport 결과가 불명인데 SMS fallback 또는 outbox 재시도가 이어지면 채널 간 중복이 발생할 수 있다.
-- transport 결과 불명에서 즉시 SMS fallback만 선택적으로 막으려면 제공자 상태 조회나 영속적인 채널별 `UNKNOWN` 상태가 필요하다. 현재 제공자 계약과 boolean sender 결과만으로는 성공·실패를 안전하게 구분할 수 없어 근거 없는 분기를 추가하지 않는다.
+- transport 결과 불명에서 즉시 SMS fallback만 선택적으로 막으려면 제공자 상태 조회나 영속적인 채널별 `UNKNOWN` 상태가 필요하다. 일시·영구 실패 분류만으로는 외부의 실제 성공 여부를 확정할 수 없어 근거 없는 분기를 추가하지 않는다.
 
 ---
 
@@ -76,7 +86,8 @@
 - `NotificationOutboxService`, `NotificationOutboxDispatcher`, `NotificationOutboxTransactionService`, `NotificationOutboxScheduler` 추가
 - `NotificationEventListener`를 outbox 저장용 동기 리스너와 내부 이벤트의 `AFTER_COMMIT` 비동기 dispatch 리스너로 분리
 - `NotificationOutboxDispatcher#dispatchPending`에 `Propagation.NEVER` 적용
-- `NotificationResilienceConfig`에 boolean 실패 집계, 제한 큐 timeout executor와 대기열·거절 메트릭 적용
+- `NotificationResilienceConfig`에 일시 실패 집계, 제한 큐 timeout executor와 대기열·거절 메트릭 적용
+- outbox 멱등키 UNIQUE 제약을 이용하는 원자적 insert-if-absent 어댑터 적용
 - `NotificationRequestedEvent`에 aggregate/idempotency key 추가
 - 최종 실패 메트릭, 관리자 실패 목록·재처리 API와 화면 추가
 - 환불 성공 알림 outbox의 원자적 저장과 `notification_log` 저장 실패 메트릭·재발송 방지 처리 추가

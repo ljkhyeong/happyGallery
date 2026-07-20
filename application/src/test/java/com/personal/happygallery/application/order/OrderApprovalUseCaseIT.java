@@ -331,12 +331,12 @@ class OrderApprovalUseCaseIT {
 
         mockMvc.perform(get("/api/v1/admin/refunds/failed"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].refundId").value(refund.getId()))
-                .andExpect(jsonPath("$[0].bookingId", nullValue()))
-                .andExpect(jsonPath("$[0].orderId").value(order.getId()))
-                .andExpect(jsonPath("$[0].amount").value(90000))
-                .andExpect(jsonPath("$[0].status").value("FAILED"))
-                .andExpect(jsonPath("$[0].attemptCount").value(1))
-                .andExpect(jsonPath("$[0].failReason").value("PG 점검중"));
+                .andExpect(jsonPath("$.content[0].refundId").value(refund.getId()))
+                .andExpect(jsonPath("$.content[0].bookingId", nullValue()))
+                .andExpect(jsonPath("$.content[0].orderId").value(order.getId()))
+                .andExpect(jsonPath("$.content[0].amount").value(90000))
+                .andExpect(jsonPath("$.content[0].status").value("FAILED"))
+                .andExpect(jsonPath("$.content[0].attemptCount").value(1))
+                .andExpect(jsonPath("$.content[0].failReason").value("PG 점검중"));
     }
 }

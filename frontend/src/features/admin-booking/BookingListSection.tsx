@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col } from "react-bootstrap";
 import {
   completeBooking,
@@ -18,6 +18,7 @@ import {
 } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 
 interface Props {
@@ -43,17 +44,11 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
   const [date, setDate] = useState(todayStr);
   const [statusFilter, setStatusFilter] = useState("");
 
-  const { data: bookings, isLoading, error } = useQuery({
+  const { data: bookings, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "bookings", date, statusFilter],
     queryFn: () => fetchBookings(adminKey, date, statusFilter || undefined),
     enabled: date.length > 0,
   });
-
-  useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) {
-      onAuthError();
-    }
-  }, [error, onAuthError]);
 
   const noShowMutation = useAdminMutation(onAuthError, {
     mutationFn: (bookingId: number) => markNoShow(adminKey, bookingId),

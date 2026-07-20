@@ -21,11 +21,9 @@ public interface RefundPort {
 
     List<Refund> findByPassPurchaseIdIn(List<Long> passPurchaseIds);
 
-    List<Refund> findAll();
+    List<Refund> findActionRequired(int limit);
 
-    long count();
-
-    List<Refund> findActionRequired();
+    List<Refund> findActionRequiredAfter(LocalDateTime createdAt, Long id, int limit);
 
     List<Long> findRecoverableIds(LocalDateTime now, LocalDateTime staleBefore, int limit);
 }

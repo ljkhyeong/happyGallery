@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import org.springframework.web.client.RestClient;
 
 /** 운영 환경에서 인증 코드를 NHN Cloud SMS로 발송한다. */
@@ -16,6 +17,10 @@ public class RealPhoneVerificationSender implements PhoneVerificationSender {
 
     @Override
     public boolean send(String phone, String verificationCode) {
+        return sendResult(phone, verificationCode).isSuccess();
+    }
+
+    NotificationSendResult sendResult(String phone, String verificationCode) {
         return smsClient.sendVerification(phone, MESSAGE_FORMAT.formatted(verificationCode));
     }
 }

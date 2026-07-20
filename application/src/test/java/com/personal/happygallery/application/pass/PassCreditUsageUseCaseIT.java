@@ -9,6 +9,7 @@ import com.personal.happygallery.adapter.out.persistence.booking.RefundRepositor
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
+import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
@@ -32,6 +33,12 @@ import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
@@ -87,6 +94,7 @@ class PassCreditUsageUseCaseIT {
     @Autowired ObjectMapper objectMapper;
     @Autowired PhoneVerificationReaderPort phoneVerificationReader;
     @Autowired NotificationLogProbe notificationLogProbe;
+    @Autowired MemberBookingUseCase memberBookingUseCase;
     @MockitoBean PaymentProvider paymentProvider;
 
     BookingClass cls;
@@ -149,6 +157,55 @@ class PassCreditUsageUseCaseIT {
                 softly.assertThat(booking.isPassBooking()).isTrue();
                 softly.assertThat(booking.getBalanceStatus()).isEqualTo(BalanceStatus.PAID);
             }
+        });
+    }
+
+    @DisplayName("같은 8회권으로 서로 다른 클래스에 동시에 예약해도 크레딧과 원장이 모두 반영된다")
+    @Test
+    void concurrentBookings_withSamePass_areSerializedByPassLock() throws Exception {
+        int bookingCount = 4;
+        List<Long> slotIds = new ArrayList<>();
+        for (int i = 0; i < bookingCount; i++) {
+            BookingClass bookingClass = classRepository.save(defaultBookingClass());
+            LocalDateTime startAt = FUTURE.plusDays(i);
+            slotIds.add(slotRepository.save(slot(bookingClass, startAt, startAt.plusHours(2))).getId());
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(bookingCount);
+        CountDownLatch ready = new CountDownLatch(bookingCount);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<?>> bookings = new ArrayList<>();
+        try {
+            for (Long slotId : slotIds) {
+                bookings.add(executor.submit(() -> {
+                    ready.countDown();
+                    start.await();
+                    return memberBookingUseCase.createMemberPassBooking(
+                            pass.getUserId(), slotId, pass.getId());
+                }));
+            }
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            for (Future<?> booking : bookings) {
+                booking.get(15, TimeUnit.SECONDS);
+            }
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
+
+        PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
+        var useLedgers = passLedgerRepository.findByPassPurchaseId(pass.getId()).stream()
+                .filter(ledger -> ledger.getType() == PassLedgerType.USE)
+                .toList();
+        assertSoftly(softly -> {
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(8 - bookingCount);
+            softly.assertThat(useLedgers).hasSize(bookingCount);
+            softly.assertThat(useLedgers).extracting(ledger -> ledger.getRelatedBookingId())
+                    .doesNotHaveDuplicates();
+            softly.assertThat(bookingRepository.findAll()).hasSize(bookingCount);
+            softly.assertThat(slotRepository.findAll())
+                    .allMatch(savedSlot -> savedSlot.getBookedCount() == 1);
         });
     }
 
@@ -330,9 +387,9 @@ class PassCreditUsageUseCaseIT {
         mockMvc.perform(get("/api/v1/admin/refunds/failed")
                         .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].passPurchaseId").value(pass.getId()))
-                .andExpect(jsonPath("$[0].bookingId").value(nullValue()))
-                .andExpect(jsonPath("$[0].orderId").value(nullValue()));
+                .andExpect(jsonPath("$.content[0].passPurchaseId").value(pass.getId()))
+                .andExpect(jsonPath("$.content[0].bookingId").value(nullValue()))
+                .andExpect(jsonPath("$.content[0].orderId").value(nullValue()));
 
         assertSoftly(softly -> {
             softly.assertThat(refund.getPassPurchaseId()).isEqualTo(pass.getId());

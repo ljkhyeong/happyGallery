@@ -11,6 +11,7 @@ import { ProductDetailPage } from "@/pages/ProductDetailPage";
 import { OrderCreatePage } from "@/pages/OrderCreatePage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { CustomerAuthProvider } from "@/features/customer-auth/useCustomerAuth";
+import { CartProvider } from "@/features/cart/CartProvider";
 import "@/styles/global.scss";
 
 const GuestLookupPage = lazy(() =>
@@ -92,45 +93,47 @@ function LazyRoute({ children }: { children: ReactNode }) {
 export function App() {
   return (
     <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <CustomerAuthProvider>
-        <ToastProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route element={<Layout />}>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/notices/:id" element={<LazyRoute><NoticeDetailPage /></LazyRoute>} />
-                <Route path="/products" element={<ProductListPage />} />
-                <Route path="/products/:id" element={<ProductDetailPage />} />
-                <Route path="/bookings/new" element={<BookingCreatePage />} />
-                <Route path="/guest" element={<LazyRoute><GuestLookupPage /></LazyRoute>} />
-                <Route path="/guest/bookings" element={<LazyRoute><BookingManagePage /></LazyRoute>} />
-                <Route path="/passes/purchase" element={<LazyRoute><PassPurchasePage /></LazyRoute>} />
-                <Route path="/cart" element={<LazyRoute><CartPage /></LazyRoute>} />
-                <Route path="/orders/new" element={<OrderCreatePage />} />
-                <Route path="/guest/orders" element={<LazyRoute><OrderDetailPage /></LazyRoute>} />
-                <Route path="/my" element={<LazyRoute><MyPage /></LazyRoute>} />
-                <Route path="/my/orders" element={<LazyRoute><MyOrdersPage /></LazyRoute>} />
-                <Route path="/my/bookings/:id" element={<LazyRoute><MyBookingDetailPage /></LazyRoute>} />
-                <Route path="/my/bookings" element={<LazyRoute><MyBookingsPage /></LazyRoute>} />
-                <Route path="/my/orders/:id" element={<LazyRoute><MyOrderDetailPage /></LazyRoute>} />
-                <Route path="/my/passes" element={<LazyRoute><MyPassesPage /></LazyRoute>} />
-                <Route path="/my/inquiries" element={<LazyRoute><MyInquiriesPage /></LazyRoute>} />
-                <Route path="/my/inquiries/new" element={<LazyRoute><MyInquiryCreatePage /></LazyRoute>} />
-                <Route path="/auth/callback" element={<LazyRoute><SocialCallbackPage /></LazyRoute>} />
-                <Route path="/login" element={<LazyRoute><LoginPage /></LazyRoute>} />
-                <Route path="/signup" element={<LazyRoute><SignupPage /></LazyRoute>} />
-                <Route path="/forgot-password" element={<LazyRoute><ForgotPasswordPage /></LazyRoute>} />
-                <Route path="/admin" element={<LazyRoute><AdminPage /></LazyRoute>} />
-                <Route path="/payments/success" element={<LazyRoute><PaymentSuccessPage /></LazyRoute>} />
-                <Route path="/payments/fail" element={<LazyRoute><PaymentFailPage /></LazyRoute>} />
-                <Route path="*" element={<NotFoundPage />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </ToastProvider>
-      </CustomerAuthProvider>
-    </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <CustomerAuthProvider>
+          <ToastProvider>
+            <CartProvider>
+              <BrowserRouter>
+                <Routes>
+                  <Route element={<Layout />}>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/notices/:id" element={<LazyRoute><NoticeDetailPage /></LazyRoute>} />
+                    <Route path="/products" element={<ProductListPage />} />
+                    <Route path="/products/:id" element={<ProductDetailPage />} />
+                    <Route path="/bookings/new" element={<BookingCreatePage />} />
+                    <Route path="/guest" element={<LazyRoute><GuestLookupPage /></LazyRoute>} />
+                    <Route path="/guest/bookings" element={<LazyRoute><BookingManagePage /></LazyRoute>} />
+                    <Route path="/passes/purchase" element={<LazyRoute><PassPurchasePage /></LazyRoute>} />
+                    <Route path="/cart" element={<LazyRoute><CartPage /></LazyRoute>} />
+                    <Route path="/orders/new" element={<OrderCreatePage />} />
+                    <Route path="/guest/orders" element={<LazyRoute><OrderDetailPage /></LazyRoute>} />
+                    <Route path="/my" element={<LazyRoute><MyPage /></LazyRoute>} />
+                    <Route path="/my/orders" element={<LazyRoute><MyOrdersPage /></LazyRoute>} />
+                    <Route path="/my/bookings/:id" element={<LazyRoute><MyBookingDetailPage /></LazyRoute>} />
+                    <Route path="/my/bookings" element={<LazyRoute><MyBookingsPage /></LazyRoute>} />
+                    <Route path="/my/orders/:id" element={<LazyRoute><MyOrderDetailPage /></LazyRoute>} />
+                    <Route path="/my/passes" element={<LazyRoute><MyPassesPage /></LazyRoute>} />
+                    <Route path="/my/inquiries" element={<LazyRoute><MyInquiriesPage /></LazyRoute>} />
+                    <Route path="/my/inquiries/new" element={<LazyRoute><MyInquiryCreatePage /></LazyRoute>} />
+                    <Route path="/auth/callback" element={<LazyRoute><SocialCallbackPage /></LazyRoute>} />
+                    <Route path="/login" element={<LazyRoute><LoginPage /></LazyRoute>} />
+                    <Route path="/signup" element={<LazyRoute><SignupPage /></LazyRoute>} />
+                    <Route path="/forgot-password" element={<LazyRoute><ForgotPasswordPage /></LazyRoute>} />
+                    <Route path="/admin" element={<LazyRoute><AdminPage /></LazyRoute>} />
+                    <Route path="/payments/success" element={<LazyRoute><PaymentSuccessPage /></LazyRoute>} />
+                    <Route path="/payments/fail" element={<LazyRoute><PaymentFailPage /></LazyRoute>} />
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Route>
+                </Routes>
+              </BrowserRouter>
+            </CartProvider>
+          </ToastProvider>
+        </CustomerAuthProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }
