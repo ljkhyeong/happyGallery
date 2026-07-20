@@ -64,15 +64,15 @@ class RefundTransactionService {
         LocalDateTime now = LocalDateTime.now(clock);
         String processingToken = refund.startProcessing(now, now.minus(PROCESSING_TIMEOUT));
         if (processingToken == null) {
-            return RefundCall.completed(refund);
+            return new RefundCall.Skipped(refund);
         }
         if (!StringUtils.hasText(refund.getPaymentKey())) {
             refund.markFailed(processingToken, MISSING_PAYMENT_KEY_REASON);
             Refund failedRefund = refundPort.save(refund);
             markPaymentAttemptCompensationFailed(failedRefund, MISSING_PAYMENT_KEY_REASON);
-            return RefundCall.completed(failedRefund);
+            return new RefundCall.Skipped(failedRefund);
         }
-        return RefundCall.ready(
+        return new RefundCall.Required(
                 refund.getId(), refund.getPaymentKey(), refund.getAmount(), refund.getIdempotencyKey(), processingToken);
     }
 
@@ -225,21 +225,14 @@ class RefundTransactionService {
                         refund.getId())));
     }
 
-    record RefundCall(Long refundId, String paymentKey, long amount,
-                      String idempotencyKey, String processingToken, Refund completedRefund) {
+    sealed interface RefundCall permits RefundCall.Required, RefundCall.Skipped {
 
-        static RefundCall ready(Long refundId, String paymentKey, long amount,
-                                String idempotencyKey, String processingToken) {
-            return new RefundCall(refundId, paymentKey, amount, idempotencyKey, processingToken, null);
-        }
+        record Required(Long refundId,
+                        String paymentKey,
+                        long amount,
+                        String idempotencyKey,
+                        String processingToken) implements RefundCall {}
 
-        static RefundCall completed(Refund refund) {
-            return new RefundCall(
-                    refund.getId(), null, refund.getAmount(), refund.getIdempotencyKey(), null, refund);
-        }
-
-        boolean readyForPgCall() {
-            return completedRefund == null;
-        }
+        record Skipped(Refund refund) implements RefundCall {}
     }
 }

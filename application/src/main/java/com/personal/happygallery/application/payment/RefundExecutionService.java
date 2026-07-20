@@ -37,7 +37,7 @@ public class RefundExecutionService {
     @Transactional(propagation = Propagation.MANDATORY)
     public Refund requestOrderRefund(Long orderId, long amount, String paymentKey) {
         Refund refund = refundPort.save(Refund.forOrder(orderId, amount, paymentKey));
-        requestExecution(refund.getId(), "orderId=" + orderId);
+        publishExecutionRequested(refund.getId(), "orderId=" + orderId);
         return refund;
     }
 
@@ -45,7 +45,7 @@ public class RefundExecutionService {
     @Transactional(propagation = Propagation.MANDATORY)
     public Refund requestBookingRefund(Booking booking, long amount) {
         Refund refund = refundPort.save(Refund.forBooking(booking, amount));
-        requestExecution(refund.getId(), "bookingId=" + booking.getId());
+        publishExecutionRequested(refund.getId(), "bookingId=" + booking.getId());
         return refund;
     }
 
@@ -53,7 +53,7 @@ public class RefundExecutionService {
     @Transactional(propagation = Propagation.MANDATORY)
     public Refund requestPassRefund(Long passPurchaseId, long amount, String paymentKey) {
         Refund refund = refundPort.save(Refund.forPass(passPurchaseId, amount, paymentKey));
-        requestExecution(refund.getId(), "passPurchaseId=" + passPurchaseId);
+        publishExecutionRequested(refund.getId(), "passPurchaseId=" + passPurchaseId);
         return refund;
     }
 
@@ -61,7 +61,7 @@ public class RefundExecutionService {
     @Transactional(propagation = Propagation.MANDATORY)
     public Refund requestPaymentAttemptRefund(Long paymentAttemptId, long amount, String paymentKey) {
         Refund refund = refundPort.save(Refund.forPaymentAttempt(paymentAttemptId, amount, paymentKey));
-        requestExecution(refund.getId(), "paymentAttemptId=" + paymentAttemptId);
+        publishExecutionRequested(refund.getId(), "paymentAttemptId=" + paymentAttemptId);
         return refund;
     }
 
@@ -70,7 +70,7 @@ public class RefundExecutionService {
         return refundDispatcher.dispatch(refundId, "retry refundId=" + refundId);
     }
 
-    private void requestExecution(Long refundId, String target) {
+    private void publishExecutionRequested(Long refundId, String target) {
         eventPublisher.publishEvent(new RefundExecutionRequestedEvent(refundId, target));
     }
 }

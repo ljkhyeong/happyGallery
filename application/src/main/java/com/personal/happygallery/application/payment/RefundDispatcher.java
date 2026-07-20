@@ -26,31 +26,39 @@ class RefundDispatcher {
     @Transactional(propagation = Propagation.NEVER)
     public Refund dispatch(Long refundId, String target) {
         RefundCall refundCall = transactionService.claimRefundCall(refundId);
-        if (!refundCall.readyForPgCall()) {
-            return refundCall.completedRefund();
-        }
+        return switch (refundCall) {
+            case RefundCall.Required required -> dispatchRequired(required, target);
+            case RefundCall.Skipped skipped -> skipped.refund();
+        };
+    }
 
+    private Refund dispatchRequired(RefundCall.Required refundCall, String target) {
         RefundResult result = callPayment(refundCall, target);
         return switch (result.outcome()) {
             case SUCCESS -> transactionService.markSucceeded(
-                    refundId, refundCall.processingToken(), result.refundTransactionKey());
+                    refundCall.refundId(), refundCall.processingToken(), result.refundTransactionKey());
             case FINAL_FAILURE -> {
-                log.warn("환불 최종 실패 [{} refundId={}] reason={}", target, refundId, result.failReason());
-                yield transactionService.markFailed(refundId, refundCall.processingToken(), result.failReason());
+                log.warn("환불 최종 실패 [{} refundId={}] reason={}",
+                        target, refundCall.refundId(), result.failReason());
+                yield transactionService.markFailed(
+                        refundCall.refundId(), refundCall.processingToken(), result.failReason());
             }
             case RETRYABLE_FAILURE -> {
-                log.warn("환불 재시도 예약 [{} refundId={}] reason={}", target, refundId, result.failReason());
-                yield transactionService.markRetryable(refundId, refundCall.processingToken(), result.failReason());
+                log.warn("환불 재시도 예약 [{} refundId={}] reason={}",
+                        target, refundCall.refundId(), result.failReason());
+                yield transactionService.markRetryable(
+                        refundCall.refundId(), refundCall.processingToken(), result.failReason());
             }
             case RECONCILIATION_REQUIRED -> {
-                log.warn("환불 상태 확인 필요 [{} refundId={}] reason={}", target, refundId, result.failReason());
+                log.warn("환불 상태 확인 필요 [{} refundId={}] reason={}",
+                        target, refundCall.refundId(), result.failReason());
                 yield transactionService.markReconciliationRequired(
-                        refundId, refundCall.processingToken(), result.failReason());
+                        refundCall.refundId(), refundCall.processingToken(), result.failReason());
             }
         };
     }
 
-    private RefundResult callPayment(RefundCall refundCall, String target) {
+    private RefundResult callPayment(RefundCall.Required refundCall, String target) {
         try {
             RefundResult result = paymentPort.refund(
                     refundCall.paymentKey(), refundCall.amount(), refundCall.idempotencyKey());
