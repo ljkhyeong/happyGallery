@@ -19,5 +19,9 @@ public interface UserReaderPort {
 
     boolean existsByEmail(String email);
 
+    boolean existsByPhone(String phone);
+
+    boolean existsByPhoneAndIdNot(String phone, Long excludedUserId);
+
     List<User> findAllById(Iterable<Long> ids);
 }

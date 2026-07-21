@@ -14,7 +14,7 @@ import {
 } from "@/features/payment";
 import { formatDateTime } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
-import type { DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
+import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
 
 type PaymentPath = "deposit" | "pass";
 
@@ -37,6 +37,7 @@ export function BookingCreatePage() {
   const passPrefillApplied = useRef(false);
 
   const [selectedSlot, setSelectedSlot] = useState<PublicSlotResponse | null>(null);
+  const [selectedClass, setSelectedClass] = useState<ClassResponse | null>(null);
   const [paymentPath, setPaymentPath] = useState<PaymentPath>("deposit");
   const [paymentMethod, setPaymentMethod] = useState<DepositPaymentMethod>("CARD");
   const [passId, setPassId] = useState("");
@@ -47,7 +48,10 @@ export function BookingCreatePage() {
     queryFn: fetchMyPasses,
     enabled: isAuthenticated,
   });
-  const availablePasses = (passes ?? []).filter(isPassAvailableForBooking);
+  const availablePasses = (passes ?? [])
+    .filter(isPassAvailableForBooking)
+    .filter((pass) => pass.planCode === "LEGACY_ALL_CLASSES"
+      || (selectedClass?.passEligible === true && selectedClass.category !== "PERFUME"));
   const requestedPassId = Number(searchParams.get("passId"));
   const hasRequestedPass = Number.isSafeInteger(requestedPassId) && requestedPassId > 0;
 
@@ -63,24 +67,31 @@ export function BookingCreatePage() {
   }, [isAuthenticated, paymentPath]);
 
   useEffect(() => {
-    if (!isAuthenticated || passes === undefined || passPrefillApplied.current) {
+    if (!isAuthenticated || passes === undefined || passPrefillApplied.current || !hasRequestedPass) {
       return;
     }
+    const requestedPass = passes.find((pass) => pass.passId === requestedPassId);
+    if (!requestedPass || !isPassAvailableForBooking(requestedPass)) {
+      passPrefillApplied.current = true;
+      return;
+    }
+    if (requestedPass.planCode !== "LEGACY_ALL_CLASSES" && selectedClass === null) {
+      return;
+    }
+
     passPrefillApplied.current = true;
-    if (hasRequestedPass && passes.some(
-      (pass) => pass.passId === requestedPassId && isPassAvailableForBooking(pass),
-    )) {
+    if (availablePasses.some((pass) => pass.passId === requestedPassId)) {
       setPaymentPath("pass");
       setPassId(String(requestedPassId));
     }
-  }, [hasRequestedPass, isAuthenticated, passes, requestedPassId]);
+  }, [availablePasses, hasRequestedPass, isAuthenticated, passes, requestedPassId, selectedClass]);
 
   useEffect(() => {
     if (paymentPath === "pass" && passId && passes !== undefined
-      && !passes.some((pass) => String(pass.passId) === passId && isPassAvailableForBooking(pass))) {
+      && !availablePasses.some((pass) => String(pass.passId) === passId)) {
       setPassId("");
     }
-  }, [passId, passes, paymentPath]);
+  }, [availablePasses, passId, passes, paymentPath]);
 
   const parsedPassId = Number(passId);
   const passValid = isAuthenticated && paymentPath === "pass"
@@ -150,6 +161,7 @@ export function BookingCreatePage() {
             selectedSlotId={selectedSlot?.id ?? null}
             onSelect={(slot) => setSelectedSlot(slot)}
             onDeselect={() => setSelectedSlot(null)}
+            onClassChange={setSelectedClass}
           />
         </Card.Body>
       </Card>
@@ -218,7 +230,7 @@ export function BookingCreatePage() {
                   </option>
                   {availablePasses.map((pass) => (
                     <option key={pass.passId} value={pass.passId}>
-                      8회권 #{pass.passId} · 잔여 {pass.remainingCredits}회 · 만료 {formatDateTime(pass.expiresAt)}
+                      {pass.planName} #{pass.passId} · 잔여 {pass.remainingCredits}회 · 만료 {formatDateTime(pass.expiresAt)}
                     </option>
                   ))}
                 </Form.Select>

@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: happygallery
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   security:
     oauth2:
       client:
@@ -162,6 +166,11 @@ app:
     hmac-secret: ${GUEST_TOKEN_HMAC_SECRET:}
     previous-hmac-secret: ${GUEST_TOKEN_PREVIOUS_HMAC_SECRET:}
     expiry-hours: ${GUEST_TOKEN_EXPIRY_HOURS:168}
+    recovery-expiry-hours: ${GUEST_TOKEN_RECOVERY_EXPIRY_HOURS:24}
+  media:
+    storage-path: ${MEDIA_STORAGE_PATH:./data/media}
+  order:
+    shipping-fee: ${ORDER_SHIPPING_FEE:0}
   pass:
     total-price: ${PASS_TOTAL_PRICE:240000}
   rate-limit:
@@ -181,12 +190,16 @@ app:
       payment-confirm: { capacity: 60, window: 1m }
       product-qna-verify: { capacity: 10, window: 1m }
       guest-claim-verify: { capacity: 10, window: 1m }
+      guest-record-recovery: { capacity: 10, window: 1m }
       client-monitoring: { capacity: 60, window: 1m }
+      order-customer-action: { capacity: 30, window: 1m }
     subject:
       phone-verification: { capacity: 3, window: 10m }
       phone-verification-attempt: { capacity: 5, window: 10m }
       payment-confirm: { capacity: 20, window: 1m }
       guest-claim-verify: { capacity: 5, window: 1m }
+      guest-record-recovery: { capacity: 5, window: 10m }
+      pass-refund: { capacity: 3, window: 10m }
 
 management:
   server:

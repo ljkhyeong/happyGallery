@@ -129,7 +129,12 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: media
+              mountPath: /var/lib/happygallery/media
       volumes:
         - name: tmp
           emptyDir:
             sizeLimit: 256Mi
+        - name: media
+          persistentVolumeClaim:
+            claimName: app-media

@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.pass;
 
+import com.personal.happygallery.application.pass.port.in.MemberPassRefundUseCase;
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase;
 import com.personal.happygallery.domain.error.PassExpiredException;
 import org.springframework.stereotype.Service;
@@ -7,7 +8,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class DefaultPassRefundService implements PassRefundUseCase {
+public class DefaultPassRefundService implements PassRefundUseCase, MemberPassRefundUseCase {
 
     private final PassRefundTransactionService transactionService;
 
@@ -16,7 +17,7 @@ public class DefaultPassRefundService implements PassRefundUseCase {
     }
 
     /**
-     * 8회권 전체 환불. 관리자 호출.
+     * 8회권 전체 환불. 관리자와 소유권 검증을 마친 회원 호출이 같은 정산 흐름을 사용한다.
      *
      * <ol>
      *   <li>미래 BOOKED 예약 자동 취소 (슬롯 booked_count--, 이력 기록)</li>
@@ -33,6 +34,13 @@ public class DefaultPassRefundService implements PassRefundUseCase {
     @Transactional(propagation = Propagation.NEVER)
     public PassRefundResult refundPass(Long passId) {
         return transactionService.refundIfActive(passId)
+                .orElseThrow(PassExpiredException::new);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public PassRefundResult refundMyPass(Long passId, Long userId) {
+        return transactionService.refundOwnedIfActive(passId, userId)
                 .orElseThrow(PassExpiredException::new);
     }
 }

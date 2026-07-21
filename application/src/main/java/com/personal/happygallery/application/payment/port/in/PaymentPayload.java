@@ -82,11 +82,15 @@ public sealed interface PaymentPayload {
             List<PreparedOrderItem> items,
             boolean cartCheckout,
             FulfillmentType fulfillmentType,
-            ShippingAddress shippingAddress
+            ShippingAddress shippingAddress,
+            long shippingFee
     ) implements PaymentPayload {
 
         public PreparedOrderPayload {
             requireFulfillment(fulfillmentType, shippingAddress);
+            if (shippingFee < 0L || (fulfillmentType == FulfillmentType.PICKUP && shippingFee != 0L)) {
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수령 방법과 배송비가 일치하지 않습니다.");
+            }
         }
 
         public PreparedOrderPayload(Long userId,
@@ -94,14 +98,20 @@ public sealed interface PaymentPayload {
                                     String verificationCode,
                                     String name,
                                     List<PreparedOrderItem> items) {
-            this(userId, phone, verificationCode, name, items, false, FulfillmentType.PICKUP, null);
+            this(userId, phone, verificationCode, name, items, false, FulfillmentType.PICKUP, null, 0L);
         }
     }
 
-    record PreparedOrderItem(Long cartItemId, Long productId, int qty, long unitPrice) {
+    record PreparedOrderItem(
+            Long cartItemId,
+            Long productId,
+            String productName,
+            int qty,
+            long unitPrice
+    ) {
 
-        public PreparedOrderItem(Long productId, int qty, long unitPrice) {
-            this(null, productId, qty, unitPrice);
+        public PreparedOrderItem(Long productId, String productName, int qty, long unitPrice) {
+            this(null, productId, productName, qty, unitPrice);
         }
     }
 

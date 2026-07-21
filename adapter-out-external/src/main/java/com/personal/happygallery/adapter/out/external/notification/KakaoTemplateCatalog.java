@@ -20,9 +20,15 @@ public final class KakaoTemplateCatalog {
             case BOOKING_CANCELED -> "HG_BOOKING_CANCELED";
             case DEPOSIT_REFUNDED -> "HG_DEPOSIT_REFUNDED";
             case ORDER_PAID -> "HG_ORDER_PAID";
+            case ORDER_APPROVED -> "HG_ORDER_APPROVED";
+            case ORDER_PICKUP_READY -> "HG_PICKUP_READY";
+            case ORDER_SHIPPED -> "HG_ORDER_SHIPPED";
+            case ORDER_DELAY_REQUESTED -> "HG_ORDER_DELAY";
             case ORDER_REFUNDED -> "HG_ORDER_REFUNDED";
             case PASS_PURCHASED -> "HG_PASS_PURCHASED";
             case PASS_REFUNDED -> "HG_PASS_REFUNDED";
+            case INQUIRY_ANSWERED -> "HG_INQUIRY_ANSWERED";
+            case PRODUCT_QNA_ANSWERED -> "HG_QNA_ANSWERED";
             case REMINDER_D1 -> "HG_REMINDER_D1";
             case REMINDER_SAME_DAY -> "HG_REMINDER_SAME_DAY";
             case PASS_EXPIRY_SOON -> "HG_PASS_EXPIRY_SOON";

@@ -55,6 +55,10 @@ export function isPassAvailableForBooking(pass: MyPassSummary): boolean {
     && expiresAt > Date.now();
 }
 
+export function isPassRefundable(pass: MyPassSummary): boolean {
+  return isPassAvailableForBooking(pass);
+}
+
 export function buildPassTabs(passes: MyPassSummary[]): MyQuickTab[] {
   const counts = {
     ACTIVE: 0,

@@ -3,7 +3,8 @@ import { Container, Badge } from "react-bootstrap";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { GuestClaimModal } from "@/features/customer-claim/GuestClaimModal";
-import { InitialPhoneRegistrationModal } from "@/features/customer-auth/InitialPhoneRegistrationModal";
+import { AccountWithdrawalModal } from "@/features/customer-auth/AccountWithdrawalModal";
+import { MemberPhoneUpdateModal } from "@/features/customer-auth/MemberPhoneUpdateModal";
 import { PasswordChangeModal } from "@/features/customer-auth/PasswordChangeModal";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { fetchMyBookings, fetchMyOrders, fetchMyPasses } from "@/features/my/api";
@@ -12,7 +13,7 @@ import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyDashboardHero } from "@/features/my/MyDashboardHero";
 import { MyStatsRow } from "@/features/my/MyStatsRow";
 import { MyClaimCard } from "@/features/my/MyClaimCard";
-import { MyPasswordCard } from "@/features/my/MyPasswordCard";
+import { MyAccountCard } from "@/features/my/MyAccountCard";
 import { MyOrdersSection } from "@/features/my/MyOrdersSection";
 import { MyBookingsSection } from "@/features/my/MyBookingsSection";
 import { MyPassesSection } from "@/features/my/MyPassesSection";
@@ -28,10 +29,11 @@ export function MyPage() {
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showPhoneRegistration, setShowPhoneRegistration] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [showWithdrawal, setShowWithdrawal] = useState(false);
   const [phoneOnboardingHandled, setPhoneOnboardingHandled] = useState(false);
   const [claimModalSource, setClaimModalSource] = useState<string | null>(null);
   const [showClaimEntryHint, setShowClaimEntryHint] = useState(false);
-  const { user, isAuthenticated, isLoading: authLoading, logout, refresh } = useCustomerAuth();
+  const { user, isAuthenticated, isLoading: authLoading, logout, withdraw, refresh } = useCustomerAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const toast = useToast();
 
@@ -166,13 +168,14 @@ export function MyPage() {
         onOpenClaim={handleOpenClaim}
       />
 
-      <MyPasswordCard
+      <MyAccountCard
         user={user!}
         onChangePassword={() => setShowPasswordChange(true)}
-        onRegisterPhone={() => {
+        onUpdatePhone={() => {
           setPhoneOnboardingHandled(false);
           setShowPhoneRegistration(true);
         }}
+        onWithdraw={() => setShowWithdrawal(true)}
       />
 
       <MyOrdersSection
@@ -211,11 +214,22 @@ export function MyPage() {
         />
       )}
 
-      <InitialPhoneRegistrationModal
+      <MemberPhoneUpdateModal
         show={showPhoneRegistration}
+        currentPhone={user!.phone}
         onClose={closePhoneRegistration}
-        onRegistered={async () => {
+        onUpdated={async () => {
           await refresh();
+        }}
+      />
+
+      <AccountWithdrawalModal
+        show={showWithdrawal}
+        onClose={() => setShowWithdrawal(false)}
+        onWithdraw={async () => {
+          await withdraw();
+          toast.show("회원 탈퇴가 완료되었습니다.");
+          navigate("/", { replace: true });
         }}
       />
 

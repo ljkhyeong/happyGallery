@@ -24,4 +24,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmailHmacForUpdate(@Param("emailHmac") String emailHmac);
 
     boolean existsByEmailHmac(String emailHmac);
+
+    boolean existsByPhoneHmac(String phoneHmac);
+
+    boolean existsByPhoneHmacAndIdNot(String phoneHmac, Long excludedUserId);
 }

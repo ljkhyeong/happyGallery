@@ -11,4 +11,6 @@ public interface SocialAccountRepository
 
     List<SocialAccount> findByProviderAndProviderIdHmacIn(
             SocialProvider provider, Collection<String> providerIdHmacs);
+
+    void deleteByUserId(Long userId);
 }

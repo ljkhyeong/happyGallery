@@ -13,9 +13,13 @@ interface Props {
 export function OrderActionCell({ orderId, status, fulfillmentType, mutations }: Props) {
   const [pickupDeadline, setPickupDeadline] = useState("");
   const [shipDateValue, setShipDateValue] = useState("");
+  const [carrier, setCarrier] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
 
   const disabled = mutations.pendingId === orderId;
   const pending = disabled;
+  const pickupDeadlineIsFuture = pickupDeadline.length > 0
+    && new Date(pickupDeadline).getTime() > Date.now();
 
   switch (status) {
     case "PAID_APPROVAL_PENDING":
@@ -32,7 +36,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
         </div>
       );
     case "IN_PRODUCTION":
-    case "DELAY_REQUESTED":
+    case "DELAY_ACCEPTED":
       return (
         <div className="d-flex gap-1 flex-wrap">
           <Button size="sm" variant="info" disabled={disabled}
@@ -42,16 +46,10 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
           {status === "IN_PRODUCTION" && (
             <Button size="sm" variant="outline-warning" disabled={disabled}
               onClick={() => mutations.delay.mutate(orderId)}>
-              {pending ? "..." : "지연"}
+              {pending ? "..." : "지연 제안"}
             </Button>
           )}
-          {status === "IN_PRODUCTION" && (
-            <Button size="sm" variant="outline-danger" disabled={disabled}
-              onClick={() => mutations.delayCancel.mutate(orderId)}>
-              {pending ? "..." : "지연 거절 취소"}
-            </Button>
-          )}
-          {status === "DELAY_REQUESTED" && (
+          {status === "DELAY_ACCEPTED" && (
             <Button size="sm" variant="outline-success" disabled={disabled}
               onClick={() => mutations.resumeProduction.mutate(orderId)}>
               {pending ? "..." : "재개"}
@@ -68,6 +66,13 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
           )}
         </div>
       );
+    case "DELAY_CONSENT_PENDING":
+      return (
+        <Button size="sm" variant="outline-danger" disabled={disabled}
+          onClick={() => mutations.delayCancel.mutate(orderId)}>
+          {pending ? "..." : "거절 처리"}
+        </Button>
+      );
     case "APPROVED_FULFILLMENT_PENDING":
       return (
         <div className="d-flex gap-1 flex-wrap">
@@ -75,9 +80,10 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
             <InputGroup size="sm" style={{ width: "auto" }}>
               <Form.Control type="datetime-local" value={pickupDeadline}
                 onChange={(e) => setPickupDeadline(e.target.value)}
+                required
                 style={{ maxWidth: 200 }} />
-              <Button variant="outline-primary" disabled={disabled}
-                onClick={() => mutations.pickup.mutate({ id: orderId, body: { pickupDeadlineAt: pickupDeadline || undefined } })}>
+              <Button variant="outline-primary" disabled={disabled || !pickupDeadlineIsFuture}
+                onClick={() => mutations.pickup.mutate({ id: orderId, body: { pickupDeadlineAt: pickupDeadline } })}>
                 {pending ? "..." : "픽업 준비"}
               </Button>
             </InputGroup>
@@ -102,8 +108,18 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
               출고일
             </Button>
           </InputGroup>
-          <Button size="sm" variant="primary" disabled={disabled}
-            onClick={() => mutations.shipped.mutate(orderId)}>
+          <Form.Control size="sm" aria-label="택배사" placeholder="택배사"
+            value={carrier} onChange={(e) => setCarrier(e.target.value)}
+            style={{ width: 120 }} />
+          <Form.Control size="sm" aria-label="운송장 번호" placeholder="운송장 번호"
+            value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)}
+            style={{ width: 170 }} />
+          <Button size="sm" variant="primary"
+            disabled={disabled || !carrier.trim() || !trackingNumber.trim()}
+            onClick={() => mutations.shipped.mutate({
+              id: orderId,
+              body: { carrier: carrier.trim(), trackingNumber: trackingNumber.trim() },
+            })}>
             {pending ? "..." : "배송 출발"}
           </Button>
         </div>

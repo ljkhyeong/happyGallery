@@ -87,7 +87,8 @@ class ConcurrentOrderUseCaseIT {
                 try {
                     startLatch.await();
                     orderService.createMemberOrder(member.getId(),
-                            List.of(new OrderService.OrderItemRequest(product.getId(), 1, 50000L)));
+                            List.of(new OrderService.OrderItemRequest(
+                                    product.getId(), product.getName(), 1, 50000L)));
                     successes.incrementAndGet();
                 } catch (InventoryNotEnoughException e) {
                     failures.incrementAndGet();

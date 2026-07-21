@@ -1,11 +1,14 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
+import com.personal.happygallery.adapter.in.web.admin.dto.MarkShippedRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.ShippingResponse;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
+import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,9 +34,10 @@ public class AdminOrderShippingController {
     /** POST /api/v1/admin/orders/{id}/mark-shipped — 배송 출발 (SHIPPING_PREPARING → SHIPPED) */
     @PostMapping("/{id}/mark-shipped")
     public ShippingResponse markShipped(@PathVariable Long id,
+                                        @Valid @RequestBody MarkShippedRequest request,
                                         @AuthenticationPrincipal AdminPrincipal admin) {
         OrderShippingUseCase.ShippingResult result = orderShippingUseCase.markShipped(
-                id, admin.adminUserId());
+                id, request.carrier(), request.trackingNumber(), admin.adminUserId());
         return ShippingResponse.from(result);
     }
 

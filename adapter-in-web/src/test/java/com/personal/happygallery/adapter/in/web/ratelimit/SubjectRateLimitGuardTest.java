@@ -49,6 +49,23 @@ class SubjectRateLimitGuardTest {
                 .doesNotContain(PHONE);
     }
 
+    @DisplayName("동일 회원의 8회권 환불 요청이 한도를 넘으면 429 예외를 발생시킨다")
+    @Test
+    void rejectsRepeatedPassRefundByUser() {
+        RateLimitProperties properties = properties();
+        AtomicReference<String> redisKey = new AtomicReference<>();
+        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
+                properties,
+                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
+
+        guard.checkPassRefund(42L);
+
+        assertThatThrownBy(() -> guard.checkPassRefund(42L))
+                .isInstanceOf(RateLimitExceededException.class);
+        assertThat(redisKey.get())
+                .isEqualTo("test:rate:PASS_REFUND_USER:" + BLIND_INDEXER.index("42"));
+    }
+
     @SuppressWarnings("unchecked")
     private static StringRedisTemplate mockRedis(AtomicReference<String> redisKey) {
         AtomicLong count = new AtomicLong();
@@ -81,13 +98,17 @@ class SubjectRateLimitGuardTest {
                         generousLimit,
                         generousLimit,
                         generousLimit,
+                        generousLimit,
+                        generousLimit,
                         generousLimit
                 ),
                 new SubjectRules(
                         new Rule(1, Duration.ofMinutes(1)),
                         generousLimit,
                         generousLimit,
-                        generousLimit
+                        generousLimit,
+                        generousLimit,
+                        new Rule(1, Duration.ofMinutes(10))
                 )
         );
     }

@@ -23,7 +23,7 @@ public class AdminOrderProductionController {
         this.orderProductionUseCase = orderProductionUseCase;
     }
 
-    /** POST /api/v1/admin/orders/{id}/resume-production — 지연 요청에서 제작 재개 (DELAY_REQUESTED → IN_PRODUCTION) */
+    /** POST /api/v1/admin/orders/{id}/resume-production — 지연 수락에서 제작 재개 (DELAY_ACCEPTED → IN_PRODUCTION) */
     @PostMapping("/{id}/resume-production")
     public OrderProductionResponse resumeProduction(@PathVariable Long id,
                                                     @AuthenticationPrincipal AdminPrincipal admin) {
@@ -32,7 +32,7 @@ public class AdminOrderProductionController {
         return OrderProductionResponse.from(result);
     }
 
-    /** POST /api/v1/admin/orders/{id}/complete-production — 제작 완료 (IN_PRODUCTION/DELAY_REQUESTED → APPROVED_FULFILLMENT_PENDING) */
+    /** POST /api/v1/admin/orders/{id}/complete-production — 제작 완료 (IN_PRODUCTION/DELAY_ACCEPTED → APPROVED_FULFILLMENT_PENDING) */
     @PostMapping("/{id}/complete-production")
     public OrderProductionResponse completeProduction(@PathVariable Long id,
                                                       @AuthenticationPrincipal AdminPrincipal admin) {
@@ -50,10 +50,10 @@ public class AdminOrderProductionController {
         return OrderProductionResponse.from(result);
     }
 
-    /** POST /api/v1/admin/orders/{id}/delay — 고객 동의 후 배송 지연 상태로 전환 */
+    /** POST /api/v1/admin/orders/{id}/delay — 제작 지연을 제안하고 고객 응답 대기 */
     @PostMapping("/{id}/delay")
-    public OrderProductionResponse requestDelay(@PathVariable Long id) {
-        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.requestDelay(id);
+    public OrderProductionResponse proposeDelay(@PathVariable Long id) {
+        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.proposeDelay(id);
         return OrderProductionResponse.from(result);
     }
 

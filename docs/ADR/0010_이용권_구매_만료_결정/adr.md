@@ -16,6 +16,17 @@
 
 ## 결정 사항
 
+### 0. 구매 시점에 이용권 계획을 스냅샷으로 저장
+
+**결정**: 신규 구매는 `PassPlan.REGULAR_CRAFT_8`로 확정하고 `pass_purchases.plan_code`에 저장한다.
+계획은 표시 이름과 사용 가능 클래스 정책을 함께 가진 판매 계약이다. 정책을 바꿀 때 기존 enum 상수의 의미를
+수정하지 않고 새 계획 코드를 추가한다. 정책 도입 전 구매 건은 `LEGACY_ALL_CLASSES`로 이관한다.
+
+**이유**:
+- 판매 뒤 클래스 정책이 바뀌어도 구매 당시 계약을 재현할 수 있다.
+- 목록·상세 응답의 `planCode`, `planName`과 예약 시 사용 가능 여부를 같은 값에서 만든다.
+- 향수 원데이 클래스와 관리자가 `passEligible=false`로 지정한 클래스에는 `REGULAR_CRAFT_8`을 사용할 수 없다.
+
 ### 1. `expires_at` 저장 타입: `LocalDateTime`
 
 **결정**: DB 컬럼(`DATETIME(6)`)과 동일하게 `LocalDateTime` 사용. `expires_at`은 마지막 사용 가능일 다음날 00:00 KST를 나타내는 exclusive 만료 경계로 저장한다.
@@ -59,9 +70,9 @@
 
 ---
 
-### 4. `EARN` ledger: 구매 시점에 즉시 기록
+### 4. `EARN` ledger: 회원 구매 생성 시점에 즉시 기록
 
-**결정**: `purchaseForGuest()` 내부에서 `PassPurchase` 저장 직후 `PassLedger(EARN, 8)` 기록.
+**결정**: 결제 confirm이 회원 8회권 구매를 확정하면 `purchaseForMember()`가 `PassPurchase`를 저장하고 같은 트랜잭션에서 `PassLedger(EARN, totalCredits)`를 기록한다.
 
 **이유**: "크레딧이 돈이다" 원칙 — 크레딧 잔액 변동은 반드시 ledger 기록이 선행 또는 동반되어야 한다.
 
@@ -102,11 +113,11 @@
 | `PassLedger.java` | domain | pass_ledger 엔티티 (append-only) |
 | `PassPurchaseRepository.java` | infra | 만료/알림 대상 쿼리 |
 | `PassLedgerRepository.java` | infra | CRUD |
-| `PassPurchaseService.java` | app | 구매 생성 |
-| `PassExpiryBatchService.java` | app | 만료 처리 + 알림 대상 조회 |
-| `PassController.java` | app | `POST /passes/guest` |
-| `AdminPassController.java` | app | `POST /admin/passes/expire` |
-| `PassPurchaseUseCaseIT.java` | app-test | 5개 통합 테스트 (전체 통과) |
+| `DefaultPassPurchaseService.java` | application | 회원 구매 생성과 `EARN` 원장 기록 |
+| `DefaultPassExpiryBatchService.java` | application | 만료 처리 + 알림 대상 조회 |
+| `PaymentController.java` | adapter-in-web | `POST /api/v1/payments/prepare`, `POST /api/v1/payments/confirm` |
+| `AdminPassController.java` | adapter-in-web | `POST /api/v1/admin/passes/expire` |
+| `PassPurchaseUseCaseIT.java` | application-test | 구매·만료 통합 흐름 검증 |
 
 ---
 
@@ -133,3 +144,9 @@
 - 구매 생성: `POST /api/v1/payments/prepare` (`context=PASS`) → `POST /api/v1/payments/confirm`
 - `GET /api/v1/me/passes`, `GET /api/v1/me/passes/{id}`는 회원 8회권 조회 전용으로 유지한다.
 - 가격은 클라이언트가 보내지 않고 서버 설정 `app.pass.total-price` (`PASS_TOTAL_PRICE`, 기본 240000)으로 확정한다.
+
+## Update (2026-07-21)
+
+- 신규 구매의 계획은 `REGULAR_CRAFT_8`로 고정하고 `plan_code`에 스냅샷으로 저장한다.
+- 회원 8회권 목록·상세는 `planCode`, `planName`과 환불 진행 상태를 함께 반환한다.
+- 정규 공예 8회권은 `passEligible=true`이면서 카테고리가 `PERFUME`가 아닌 클래스에만 사용할 수 있다.

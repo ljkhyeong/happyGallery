@@ -5,6 +5,7 @@ import type {
   InventoryAdjustmentResponse,
   ProductResponse,
   ProductStatus,
+  UpdateProductRequest,
 } from "@/shared/types";
 
 export function fetchProducts(adminKey: string): Promise<ProductResponse[]> {
@@ -16,6 +17,18 @@ export function fetchProducts(adminKey: string): Promise<ProductResponse[]> {
 export function createProduct(adminKey: string, body: CreateProductRequest): Promise<ProductResponse> {
   return api<ProductResponse>("/admin/products", {
     method: "POST",
+    headers: h(adminKey),
+    body,
+  });
+}
+
+export function updateProduct(
+  adminKey: string,
+  productId: number,
+  body: UpdateProductRequest,
+): Promise<ProductResponse> {
+  return api<ProductResponse>(`/admin/products/${productId}`, {
+    method: "PATCH",
     headers: h(adminKey),
     body,
   });

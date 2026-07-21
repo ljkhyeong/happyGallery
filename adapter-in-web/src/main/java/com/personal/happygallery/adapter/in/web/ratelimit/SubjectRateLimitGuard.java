@@ -39,6 +39,16 @@ public class SubjectRateLimitGuard {
                 properties.subject().guestClaimVerify(), FAIL_CLOSED);
     }
 
+    public void checkGuestRecordRecovery(String phone) {
+        check("GUEST_RECORD_RECOVERY_PHONE", phone,
+                properties.subject().guestRecordRecovery(), FAIL_CLOSED);
+    }
+
+    public void checkPassRefund(long userId) {
+        check("PASS_REFUND_USER", String.valueOf(userId),
+                properties.subject().passRefund(), FAIL_CLOSED);
+    }
+
     private void check(String ruleId, String subject, Rule rule, RateLimitFailureMode failureMode) {
         if (!properties.enabled()) {
             return;

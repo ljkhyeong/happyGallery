@@ -2,6 +2,7 @@ import { Alert } from "react-bootstrap";
 import { fetchOrderFulfillment } from "./api";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { formatDate } from "@/shared/lib";
 
 interface Props {
   orderId: number;
@@ -39,6 +40,9 @@ export function OrderFulfillmentPanel({ orderId, adminKey, onAuthError }: Props)
           {address.addressLine2 && <div>{address.addressLine2}</div>}
         </div>
       )}
+      {data.expectedShipDate && <div className="mt-2">예상 출고일: {formatDate(data.expectedShipDate)}</div>}
+      {data.carrier && <div>택배사: {data.carrier}</div>}
+      {data.trackingNumber && <div>운송장 번호: {data.trackingNumber}</div>}
     </Alert>
   );
 }

@@ -8,6 +8,8 @@ export interface ProductDetailResponse {
   type: ProductType;
   category: string | null;
   price: number;
+  description: string | null;
+  imageUrl: string | null;
   available: boolean;
 }
 
@@ -17,6 +19,8 @@ export interface ProductResponse {
   type: ProductType;
   category: string | null;
   price: number;
+  description: string | null;
+  imageUrl: string | null;
   status: ProductStatus;
   available: boolean;
   quantity: number;
@@ -28,6 +32,16 @@ export interface CreateProductRequest {
   category?: string;
   price: number;
   quantity: number;
+  description?: string;
+  imageUrl?: string;
+}
+
+export interface UpdateProductRequest {
+  name: string;
+  category?: string;
+  price: number;
+  description?: string;
+  imageUrl?: string;
 }
 
 export type InventoryAdjustmentType = "INCREASE" | "DECREASE";

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Button, ButtonGroup, Col, Form, Row } from "react-bootstrap";
 import type { FulfillmentType, ShippingAddress } from "@/features/payment";
+import { useOrderPricePolicy } from "@/features/order/useOrderPricePolicy";
+import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
+import { formatKRW } from "@/shared/lib";
 
 export interface FulfillmentSelection {
   fulfillmentType: FulfillmentType | null;
@@ -68,6 +71,9 @@ interface Props {
 }
 
 export function FulfillmentForm({ value, onChange }: Props) {
+  const { data: pricePolicy, isLoading: isPricePolicyLoading, isError: isPricePolicyError } =
+    useOrderPricePolicy();
+
   const updateAddress = (field: keyof ShippingAddress, fieldValue: string) => {
     onChange({
       ...value,
@@ -92,14 +98,31 @@ export function FulfillmentForm({ value, onChange }: Props) {
         <Button
           type="button"
           variant={value.fulfillmentType === "SHIPPING" ? "dark" : "outline-dark"}
+          disabled={!pricePolicy}
           onClick={() => onChange({ ...value, fulfillmentType: "SHIPPING" })}
         >
-          택배 배송
+          <span className="d-block">택배 배송</span>
+          <small className="d-block">
+            {isPricePolicyLoading
+              ? "배송비 확인 중"
+              : pricePolicy?.shippingFee === 0
+                ? "무료"
+                : pricePolicy
+                  ? formatKRW(pricePolicy.shippingFee)
+                  : "선택 불가"}
+          </small>
         </Button>
       </ButtonGroup>
 
+      {isPricePolicyError && (
+        <div className="small text-danger mb-3">배송비 정보를 불러오지 못해 택배를 선택할 수 없습니다.</div>
+      )}
+
       {value.fulfillmentType === "PICKUP" && (
-        <div className="small text-muted-soft">준비 완료 알림을 받은 뒤 매장에서 수령합니다.</div>
+        <>
+          <div className="small text-muted-soft mb-3">준비 완료 알림을 받은 뒤 매장에서 수령합니다.</div>
+          <WorkshopVisitInfo compact />
+        </>
       )}
 
       {value.fulfillmentType === "SHIPPING" && (

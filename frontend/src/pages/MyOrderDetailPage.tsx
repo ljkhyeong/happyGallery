@@ -1,11 +1,13 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Container } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { api } from "@/shared/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
+import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
+import { cancelMyOrder, respondToMyOrderDelay } from "@/features/order/api";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import type { OrderDetailResponse } from "@/shared/types";
 import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
@@ -17,7 +19,7 @@ export function MyOrderDetailPage() {
   const validOrderId = isPositiveSafeIntegerString(id);
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
 
-  const { data: order, isLoading, error } = useQuery({
+  const { data: order, isLoading, error, refetch } = useQuery({
     queryKey: ["my", "orders", orderId],
     queryFn: () => api<OrderDetailResponse>(`/me/orders/${orderId}`),
     enabled: isAuthenticated && validOrderId,
@@ -26,6 +28,15 @@ export function MyOrderDetailPage() {
         state.data?.refund?.status,
         state.dataUpdateCount + state.fetchFailureCount,
       ),
+  });
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelMyOrder(orderId),
+    onSuccess: () => refetch(),
+  });
+  const delayMutation = useMutation({
+    mutationFn: (decision: "ACCEPT" | "REJECT") =>
+      respondToMyOrderDelay(orderId, decision),
+    onSuccess: () => refetch(),
   });
 
   if (!validOrderId) return <NotFoundPage />;
@@ -69,7 +80,14 @@ export function MyOrderDetailPage() {
         </p>
       </div>
       {error && <ErrorAlert error={error} />}
+      <ErrorAlert error={cancelMutation.error ?? delayMutation.error} />
       <OrderDetailCard order={order} />
+      <OrderCustomerActionPanel
+        status={order.status}
+        pending={cancelMutation.isPending || delayMutation.isPending}
+        onCancel={() => cancelMutation.mutate()}
+        onDelayDecision={(decision) => delayMutation.mutate(decision)}
+      />
     </Container>
   );
 }

@@ -15,9 +15,7 @@ import java.util.List;
  */
 public interface ProductAdminUseCase {
 
-    record RegisterResult(Product product, Inventory inventory) {}
-
-    record StatusChangeResult(Product product, Inventory inventory) {}
+    record ProductInventoryResult(Product product, Inventory inventory) {}
 
     record AdjustInventoryCommand(
             Long productId,
@@ -29,9 +27,13 @@ public interface ProductAdminUseCase {
     ) {}
 
     /** 카테고리를 포함하여 상품 등록. */
-    RegisterResult register(String name, ProductType type, String category, long price, int quantity);
+    ProductInventoryResult register(String name, ProductType type, String category, long price,
+                                    int quantity, String description, String imageUrl);
 
-    StatusChangeResult changeStatus(Long productId, ProductStatus status);
+    ProductInventoryResult update(Long productId, String name, String category, long price,
+                                  String description, String imageUrl);
+
+    ProductInventoryResult changeStatus(Long productId, ProductStatus status);
 
     InventoryAdjustment adjustInventory(AdjustInventoryCommand command);
 

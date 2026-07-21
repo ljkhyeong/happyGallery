@@ -12,12 +12,24 @@ public enum NotificationEventType {
     DEPOSIT_REFUNDED,
     /** 주문 결제 완료 */
     ORDER_PAID,
+    /** 주문 승인 */
+    ORDER_APPROVED,
+    /** 픽업 준비 완료 */
+    ORDER_PICKUP_READY,
+    /** 배송 시작 */
+    ORDER_SHIPPED,
+    /** 제작 지연 안내 */
+    ORDER_DELAY_REQUESTED,
     /** 주문 환불 */
     ORDER_REFUNDED,
     /** 8회권 구매 완료 */
     PASS_PURCHASED,
     /** 8회권 환불 완료 */
     PASS_REFUNDED,
+    /** 1:1 문의 답변 등록 */
+    INQUIRY_ANSWERED,
+    /** 상품 Q&A 답변 등록 */
+    PRODUCT_QNA_ANSWERED,
     /** D-1 리마인드 (배치) */
     REMINDER_D1,
     /** 당일 아침 리마인드 (배치) */

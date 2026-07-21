@@ -25,6 +25,16 @@ public interface ClassRepository extends JpaRepository<BookingClass, Long>, Clas
     @Query("SELECT c FROM BookingClass c WHERE c.id IN :ids ORDER BY c.id")
     List<BookingClass> findAllByIdForUpdate(@Param("ids") List<Long> ids);
 
+    @Override
+    @Query("SELECT c FROM BookingClass c ORDER BY c.createdAt DESC, c.id DESC")
+    List<BookingClass> findAll();
+
+    @Override
+    @Query("SELECT c FROM BookingClass c " +
+           "WHERE c.status = com.personal.happygallery.domain.booking.BookingClassStatus.ACTIVE " +
+           "ORDER BY c.createdAt DESC, c.id DESC")
+    List<BookingClass> findAllActive();
+
     @Override BookingClass save(BookingClass bookingClass);
 
     @Override

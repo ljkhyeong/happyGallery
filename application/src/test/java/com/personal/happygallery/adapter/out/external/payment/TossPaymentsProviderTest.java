@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
+import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -231,10 +232,12 @@ class TossPaymentsProviderTest {
                 .andRespond(withSuccess("""
                         {
                           "paymentKey": "payment-key",
+                          "status": "CANCELED",
                           "lastTransactionKey": "refund-transaction-key",
                           "cancels": [
                             {
                               "transactionKey": "refund-transaction-key",
+                              "cancelAmount": 5000,
                               "cancelStatus": "DONE"
                             }
                           ]
@@ -304,6 +307,100 @@ class TossPaymentsProviderTest {
             softly.assertThat(result.reconciliationRequired()).isFalse();
             softly.assertThat(result.refundTransactionKey()).isNull();
             softly.assertThat(result.failReason()).isEqualTo("PG가 환불을 거절했습니다.");
+        });
+    }
+
+    @DisplayName("Toss 환불 조회는 완료 상태와 취소 금액이 일치하는 거래를 확정한다")
+    @Test
+    void lookupRefund_matchingDoneCancel_returnsRefunded() {
+        RestClient.Builder builder = tossRestClientBuilder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
+
+        server.expect(requestTo("https://api.tosspayments.com/v1/payments/payment-key"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, basicAuth(PROPERTIES.secretKey())))
+                .andRespond(withSuccess("""
+                        {
+                          "paymentKey": "payment-key",
+                          "status": "PARTIAL_CANCELED",
+                          "lastTransactionKey": "refund-transaction-key",
+                          "cancels": [
+                            {
+                              "transactionKey": "refund-transaction-key",
+                              "cancelAmount": 5000,
+                              "cancelStatus": "DONE"
+                            }
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        RefundLookupResult result = provider.lookupRefund("payment-key", 5_000L);
+
+        server.verify();
+        assertSoftly(softly -> {
+            softly.assertThat(result.status()).isEqualTo(RefundLookupResult.Status.REFUNDED);
+            softly.assertThat(result.paymentKey()).isEqualTo("payment-key");
+            softly.assertThat(result.cancelAmount()).isEqualTo(5_000L);
+            softly.assertThat(result.refundTransactionKey()).isEqualTo("refund-transaction-key");
+        });
+    }
+
+    @DisplayName("Toss 환불 조회의 취소 금액이 다르면 완료로 확정하지 않는다")
+    @Test
+    void lookupRefund_cancelAmountMismatch_returnsReviewRequired() {
+        RestClient.Builder builder = tossRestClientBuilder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
+
+        server.expect(requestTo("https://api.tosspayments.com/v1/payments/payment-key"))
+                .andRespond(withSuccess("""
+                        {
+                          "paymentKey": "payment-key",
+                          "status": "PARTIAL_CANCELED",
+                          "lastTransactionKey": "other-refund-transaction-key",
+                          "cancels": [
+                            {
+                              "transactionKey": "other-refund-transaction-key",
+                              "cancelAmount": 3000,
+                              "cancelStatus": "DONE"
+                            }
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        RefundLookupResult result = provider.lookupRefund("payment-key", 5_000L);
+
+        server.verify();
+        assertSoftly(softly -> {
+            softly.assertThat(result.status()).isEqualTo(RefundLookupResult.Status.REVIEW_REQUIRED);
+            softly.assertThat(result.refundTransactionKey()).isNull();
+            softly.assertThat(result.reason()).contains("금액");
+        });
+    }
+
+    @DisplayName("Toss 환불 조회에 취소 이력이 없으면 안전한 재호출 가능 상태로 반환한다")
+    @Test
+    void lookupRefund_withoutCancels_returnsNotRefunded() {
+        RestClient.Builder builder = tossRestClientBuilder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
+
+        server.expect(requestTo("https://api.tosspayments.com/v1/payments/payment-key"))
+                .andRespond(withSuccess("""
+                        {
+                          "paymentKey": "payment-key",
+                          "status": "DONE",
+                          "cancels": []
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        RefundLookupResult result = provider.lookupRefund("payment-key", 5_000L);
+
+        server.verify();
+        assertSoftly(softly -> {
+            softly.assertThat(result.status()).isEqualTo(RefundLookupResult.Status.NOT_REFUNDED);
+            softly.assertThat(result.paymentKey()).isEqualTo("payment-key");
         });
     }
 

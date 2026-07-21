@@ -16,5 +16,7 @@ public interface ClassReaderPort {
 
     List<BookingClass> findAll();
 
+    List<BookingClass> findAllActive();
+
     long count();
 }

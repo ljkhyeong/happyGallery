@@ -1,4 +1,4 @@
-package com.personal.happygallery.adapter.in.web.admin.dto;
+package com.personal.happygallery.adapter.in.web.payment.dto;
 
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase;
 import com.personal.happygallery.domain.payment.RefundStatus;

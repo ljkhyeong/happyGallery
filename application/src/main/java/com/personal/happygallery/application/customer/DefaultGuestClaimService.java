@@ -78,7 +78,8 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     public ClaimResult claim(Long userId,
                              List<Long> orderIds,
                              List<Long> bookingIds) {
-        User user = findUser(userId);
+        User user = userReader.findByIdForUpdate(userId)
+                .orElseThrow(NotFoundException.supplier("회원"));
         requirePhoneVerified(user);
 
         Guest guest = findGuest(user.getPhone())

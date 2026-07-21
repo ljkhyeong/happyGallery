@@ -42,6 +42,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             """)
     List<Booking> findByUserIdWithDetails(@Param("userId") Long userId);
 
+    @Query("""
+            SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+            FROM Booking b
+            WHERE b.userId = :userId
+              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
+            """)
+    boolean existsBookedByUserId(@Param("userId") Long userId);
+
     @Override
     @Query("""
             SELECT b FROM Booking b

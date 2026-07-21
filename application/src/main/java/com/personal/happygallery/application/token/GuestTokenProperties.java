@@ -12,7 +12,8 @@ import org.springframework.validation.annotation.Validated;
 public record GuestTokenProperties(
         @NotBlank @Size(min = 32) String hmacSecret,
         @DefaultValue("") String previousHmacSecret,
-        @Min(1) @DefaultValue("168") long expiryHours
+        @Min(1) @DefaultValue("168") long expiryHours,
+        @Min(1) @DefaultValue("24") long recoveryExpiryHours
 ) {
 
     public GuestTokenProperties {

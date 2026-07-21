@@ -165,6 +165,59 @@ verify_checksum() {
     [ "$expected" = "$actual" ] || die "백업 체크섬이 일치하지 않습니다: $file"
 }
 
+verify_recovery_bundle_files() {
+    bundle_metadata=$1
+    [ -f "$bundle_metadata" ] || die "복구 메타데이터를 찾을 수 없습니다: $bundle_metadata"
+    require_private_file "$bundle_metadata"
+    verify_checksum "$bundle_metadata"
+    validate_env_file "$bundle_metadata"
+
+    bundle_database_name=$(require_env_value DATABASE_BACKUP "$bundle_metadata")
+    bundle_media_name=$(require_env_value MEDIA_BACKUP "$bundle_metadata")
+    bundle_image_tag=$(require_env_value IMAGE_TAG "$bundle_metadata")
+    bundle_release_relative=$(require_env_value RELEASE_DIR "$bundle_metadata")
+    bundle_app_digest=$(require_env_value APP_IMAGE_DIGEST "$bundle_metadata")
+    bundle_frontend_digest=$(require_env_value FRONTEND_IMAGE_DIGEST "$bundle_metadata")
+
+    case "$bundle_database_name" in
+        */*|.|..) die "DATABASE_BACKUP은 복구 메타데이터와 같은 디렉터리의 파일명이어야 합니다." ;;
+    esac
+    case "$bundle_media_name" in
+        */*|.|..) die "MEDIA_BACKUP은 복구 메타데이터와 같은 디렉터리의 파일명이어야 합니다." ;;
+    esac
+    printf '%s' "$bundle_image_tag" | grep -Eq '^[A-Fa-f0-9]{12,40}$' \
+        || die "복구 메타데이터의 IMAGE_TAG 형식이 올바르지 않습니다."
+    [ "$bundle_release_relative" = "releases/$bundle_image_tag" ] \
+        || die "RELEASE_DIR은 IMAGE_TAG와 일치하는 releases/<IMAGE_TAG> 형식이어야 합니다."
+
+    bundle_root=$(CDPATH= cd -- "$(dirname -- "$bundle_metadata")" 2>/dev/null && pwd) \
+        || die "복구 묶음 디렉터리를 찾을 수 없습니다: $bundle_metadata"
+    bundle_database="$bundle_root/$bundle_database_name"
+    bundle_media="$bundle_root/$bundle_media_name"
+    bundle_release="$bundle_root/$bundle_release_relative"
+    bundle_release_metadata="$bundle_release/metadata.env"
+    bundle_release_manifest="$bundle_release/manifests.yaml"
+    bundle_runtime_metadata="$bundle_release/runtime-images.env"
+    bundle_images_archive="$bundle_release/images.tar"
+
+    for bundle_file in \
+        "$bundle_database" "$bundle_media" \
+        "$bundle_release_metadata" "$bundle_release_manifest" \
+        "$bundle_runtime_metadata" "$bundle_images_archive"; do
+        [ -f "$bundle_file" ] || die "복구 묶음 파일을 찾을 수 없습니다: $bundle_file"
+        verify_checksum "$bundle_file"
+    done
+    validate_env_file "$bundle_release_metadata"
+    validate_env_file "$bundle_runtime_metadata"
+
+    [ "$(require_env_value IMAGE_TAG "$bundle_release_metadata")" = "$bundle_image_tag" ] \
+        || die "복구 메타데이터와 release IMAGE_TAG가 다릅니다."
+    [ "$(require_env_value APP_IMAGE_DIGEST "$bundle_release_metadata")" = "$bundle_app_digest" ] \
+        || die "복구 메타데이터와 release app digest가 다릅니다."
+    [ "$(require_env_value FRONTEND_IMAGE_DIGEST "$bundle_release_metadata")" = "$bundle_frontend_digest" ] \
+        || die "복구 메타데이터와 release frontend digest가 다릅니다."
+}
+
 decode_base64() {
     if printf '' | base64 --decode >/dev/null 2>&1; then
         base64 --decode
@@ -177,4 +230,78 @@ decode_base64() {
 
 base64_value() {
     printf '%s' "$1" | base64 | tr -d '\n'
+}
+
+media_helper_pod_name() {
+    printf '%s' "${MEDIA_HELPER_POD:-media-maintenance}"
+}
+
+ensure_media_pvc() {
+    if kube -n "$NAMESPACE" get pvc app-media >/dev/null 2>&1; then
+        return
+    fi
+    info "기존 클러스터의 첫 미디어 백업을 위해 app-media PVC를 먼저 생성합니다."
+    kube -n "$NAMESPACE" apply -f "$BASE_DIR/app-media-pvc.yaml" >/dev/null
+}
+
+start_media_helper() {
+    image=$1
+    helper_pod=$(media_helper_pod_name)
+
+    kube -n "$NAMESPACE" delete pod "$helper_pod" --ignore-not-found --wait=true >/dev/null
+    kube -n "$NAMESPACE" apply -f - >/dev/null <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: $helper_pod
+  labels:
+    app.kubernetes.io/name: media-maintenance
+    app.kubernetes.io/part-of: happygallery
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: media-maintenance
+      image: $image
+      imagePullPolicy: Never
+      command: ["sh", "-ec", "trap : TERM INT; sleep 3600 & wait"]
+      resources:
+        requests:
+          cpu: 25m
+          memory: 64Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]
+      volumeMounts:
+        - name: media
+          mountPath: /media
+        - name: tmp
+          mountPath: /tmp
+  volumes:
+    - name: media
+      persistentVolumeClaim:
+        claimName: app-media
+    - name: tmp
+      emptyDir:
+        sizeLimit: 64Mi
+EOF
+    kube -n "$NAMESPACE" wait --for=condition=Ready "pod/$helper_pod" --timeout=2m >/dev/null
+    kube -n "$NAMESPACE" exec "$helper_pod" -- tar --version >/dev/null
+}
+
+stop_media_helper() {
+    helper_pod=$(media_helper_pod_name)
+    kube -n "$NAMESPACE" delete pod "$helper_pod" --ignore-not-found --wait=true >/dev/null 2>&1 || true
 }

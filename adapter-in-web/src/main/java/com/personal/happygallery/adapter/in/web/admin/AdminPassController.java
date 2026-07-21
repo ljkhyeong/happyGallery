@@ -4,7 +4,7 @@ import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase;
 import com.personal.happygallery.adapter.in.web.admin.dto.BatchResponse;
-import com.personal.happygallery.adapter.in.web.admin.dto.PassRefundResponse;
+import com.personal.happygallery.adapter.in.web.payment.dto.PassRefundResponse;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

@@ -4,9 +4,11 @@ export type OrderStatus =
   | "PAID_APPROVAL_PENDING"
   | "APPROVED_FULFILLMENT_PENDING"
   | "REJECTED"
+  | "CUSTOMER_CANCELED"
   | "AUTO_REFUND_TIMEOUT"
   | "IN_PRODUCTION"
-  | "DELAY_REQUESTED"
+  | "DELAY_CONSENT_PENDING"
+  | "DELAY_ACCEPTED"
   | "DELAY_REJECTED_CANCELED"
   | "SHIPPING_PREPARING"
   | "SHIPPED"
@@ -32,6 +34,34 @@ export interface SlotResponse {
 export interface CreateSlotRequest {
   classId: number;
   startAt: string;
+}
+
+export type BulkSlotStatus =
+  | "CREATABLE"
+  | "CREATED"
+  | "SKIPPED_DUPLICATE"
+  | "SKIPPED_PAST";
+
+export interface BulkSlotRequest {
+  classId: number;
+  dateFrom: string;
+  dateTo: string;
+  weekdays: string[];
+  startTimes: string[];
+}
+
+export interface BulkSlotResponse {
+  totalCount: number;
+  creatableCount: number;
+  createdCount: number;
+  skippedCount: number;
+  items: Array<{
+    slotId: number | null;
+    startAt: string;
+    endAt: string;
+    status: BulkSlotStatus;
+    bufferBlocked: boolean;
+  }>;
 }
 
 export interface BatchResponse {
@@ -133,7 +163,14 @@ export interface AdminOrderResponse {
   orderNumber: string;
   status: OrderStatus;
   totalAmount: number;
+  shippingFee: number;
   fulfillmentType: "SHIPPING" | "PICKUP" | null;
+  items: Array<{
+    productId: number;
+    productName: string;
+    qty: number;
+    unitPrice: number;
+  }>;
   paidAt: string | null;
   approvalDeadlineAt: string | null;
   createdAt: string;
@@ -151,18 +188,30 @@ export interface AdminOrderFulfillmentResponse {
   } | null;
   expectedShipDate: string | null;
   pickupDeadlineAt: string | null;
+  carrier: string | null;
+  trackingNumber: string | null;
 }
 
 export interface ShippingResponse {
   orderId: number;
   status: OrderStatus;
   expectedShipDate: string | null;
+  carrier: string | null;
+  trackingNumber: string | null;
+}
+
+export interface MarkShippedRequest {
+  carrier: string;
+  trackingNumber: string;
 }
 
 export type OrderApprovalDecision =
   | "APPROVE"
   | "REJECT"
+  | "CUSTOMER_CANCEL"
   | "DELAY"
+  | "DELAY_ACCEPT"
+  | "DELAY_REJECT"
   | "DELAY_CANCEL"
   | "AUTO_REFUND"
   | "PRODUCTION_COMPLETE"

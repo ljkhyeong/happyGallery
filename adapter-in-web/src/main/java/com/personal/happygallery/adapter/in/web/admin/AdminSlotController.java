@@ -1,9 +1,12 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
-import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
-import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
+import com.personal.happygallery.adapter.in.web.admin.dto.BulkSlotRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.BulkSlotResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.CreateSlotRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SlotResponse;
+import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
+import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotCommand;
+import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.domain.booking.Slot;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -47,6 +50,16 @@ public class AdminSlotController {
         return SlotResponse.from(slot);
     }
 
+    @PostMapping("/bulk/preview")
+    public BulkSlotResponse previewBulkSlots(@RequestBody @Valid BulkSlotRequest request) {
+        return BulkSlotResponse.from(slotManagementUseCase.previewBulkSlots(toCommand(request)));
+    }
+
+    @PostMapping("/bulk")
+    public BulkSlotResponse createBulkSlots(@RequestBody @Valid BulkSlotRequest request) {
+        return BulkSlotResponse.from(slotManagementUseCase.createBulkSlots(toCommand(request)));
+    }
+
     /** PATCH /api/v1/admin/slots/{id}/deactivate — 슬롯 비활성화 */
     @PatchMapping("/{id}/deactivate")
     public SlotResponse deactivateSlot(@PathVariable Long id) {
@@ -59,5 +72,14 @@ public class AdminSlotController {
     public SlotResponse activateSlot(@PathVariable Long id) {
         Slot slot = slotManagementUseCase.activateSlot(id);
         return SlotResponse.from(slot);
+    }
+
+    private BulkSlotCommand toCommand(BulkSlotRequest request) {
+        return new BulkSlotCommand(
+                request.classId(),
+                request.dateFrom(),
+                request.dateTo(),
+                request.weekdays(),
+                request.startTimes());
     }
 }

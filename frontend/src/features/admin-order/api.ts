@@ -1,5 +1,5 @@
 import { adminHeaders as h, api } from "@/shared/api";
-import type { CursorPage, AdminOrderResponse, AdminOrderFulfillmentResponse, OrderProductionResponse, OrderRejectResponse, OrderDelayCancellationResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest, ShippingResponse, OrderHistoryResponse } from "@/shared/types";
+import type { CursorPage, AdminOrderResponse, AdminOrderFulfillmentResponse, OrderProductionResponse, OrderRejectResponse, OrderDelayCancellationResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest, ShippingResponse, MarkShippedRequest, OrderHistoryResponse } from "@/shared/types";
 
 export function fetchOrders(
   adminKey: string,
@@ -36,7 +36,7 @@ export function setExpectedShipDate(adminKey: string, id: number, body: SetExpec
   return api(`/admin/orders/${id}/expected-ship-date`, { method: "PATCH", headers: h(adminKey), body });
 }
 
-export function requestDelay(adminKey: string, id: number): Promise<OrderProductionResponse> {
+export function proposeDelay(adminKey: string, id: number): Promise<OrderProductionResponse> {
   return api(`/admin/orders/${id}/delay`, { method: "POST", headers: h(adminKey) });
 }
 
@@ -60,8 +60,8 @@ export function prepareShipping(adminKey: string, id: number): Promise<ShippingR
   return api(`/admin/orders/${id}/prepare-shipping`, { method: "POST", headers: h(adminKey) });
 }
 
-export function markShipped(adminKey: string, id: number): Promise<ShippingResponse> {
-  return api(`/admin/orders/${id}/mark-shipped`, { method: "POST", headers: h(adminKey) });
+export function markShipped(adminKey: string, id: number, body: MarkShippedRequest): Promise<ShippingResponse> {
+  return api(`/admin/orders/${id}/mark-shipped`, { method: "POST", headers: h(adminKey), body });
 }
 
 export function markDelivered(adminKey: string, id: number): Promise<ShippingResponse> {

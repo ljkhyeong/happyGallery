@@ -64,6 +64,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
@@ -84,6 +85,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @UseCaseIT
+@TestPropertySource(properties = "app.order.shipping-fee=3000")
 class PaymentConfirmUseCaseIT {
 
     @Autowired PaymentPrepareUseCase prepareUseCase;
@@ -186,7 +188,7 @@ class PaymentConfirmUseCaseIT {
         });
     }
 
-    @DisplayName("confirm은 상품 가격이 바뀌어도 prepare 시점 단가로 주문을 저장한다")
+    @DisplayName("confirm은 상품 정보가 바뀌어도 prepare 시점 상품명과 단가로 주문을 저장한다")
     @Test
     void confirm_productPriceChanged_usesPreparedPriceSnapshot() {
         User user = userStorePort.save(new User("payment-confirm@example.com", "hashed", "회원", "01056785678"));
@@ -197,7 +199,9 @@ class PaymentConfirmUseCaseIT {
                 PaymentContext.ORDER,
                 new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
                 auth));
-        jdbcTemplate.update("UPDATE products SET price = ? WHERE id = ?", 99_000L, product.getId());
+        jdbcTemplate.update(
+                "UPDATE products SET name = ?, price = ? WHERE id = ?",
+                "변경된 상품명", 99_000L, product.getId());
 
         PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
                 new ConfirmCommand("payment-key-confirm", prepared.orderId(), prepared.amount(), auth));
@@ -212,6 +216,7 @@ class PaymentConfirmUseCaseIT {
             softly.assertThat(order.getTotalAmount()).isEqualTo(31_000L);
             softly.assertThat(order.getPaymentKey()).isEqualTo("confirmed-payment-key");
             softly.assertThat(orderItems).hasSize(1);
+            softly.assertThat(orderItems.getFirst().getProductName()).isEqualTo("확정 상품");
             softly.assertThat(orderItems.getFirst().getUnitPrice()).isEqualTo(31_000L);
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             softly.assertThat(attempt.getPaymentKey()).isEqualTo("payment-key-confirm");
@@ -250,7 +255,11 @@ class PaymentConfirmUseCaseIT {
                 new ConfirmCommand("shipping-payment-key", prepared.orderId(), prepared.amount(), auth));
 
         var fulfillment = fulfillmentPort.findByOrderId(result.domainId()).orElseThrow();
+        var order = orderReader.findById(result.domainId()).orElseThrow();
         assertSoftly(softly -> {
+            softly.assertThat(prepared.amount()).isEqualTo(47_000L);
+            softly.assertThat(order.getShippingFee()).isEqualTo(3_000L);
+            softly.assertThat(order.getTotalAmount()).isEqualTo(47_000L);
             softly.assertThat(fulfillment.getType()).isEqualTo(FulfillmentType.SHIPPING);
             softly.assertThat(fulfillment.getShippingAddressEnc())
                     .isNotBlank()
@@ -518,12 +527,14 @@ class PaymentConfirmUseCaseIT {
     void confirm_fulfillmentFailure_compensatesApprovedPayment() {
         User user = userStorePort.save(new User("payment-compensation@example.com", "hashed", "회원", "01033334444"));
         Product product = productStorePort.save(readyStockProduct("보상 환불 상품", 52_000L));
-        inventoryStorePort.save(inventory(product, 0));
+        var availableInventory = inventoryStorePort.save(inventory(product, 1));
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
                 new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
                 auth));
+        availableInventory.deduct(1);
+        inventoryStorePort.save(availableInventory);
 
         assertThatThrownBy(() -> confirmUseCase.confirm(
                 new ConfirmCommand("payment-key-compensation", prepared.orderId(), prepared.amount(), auth)))

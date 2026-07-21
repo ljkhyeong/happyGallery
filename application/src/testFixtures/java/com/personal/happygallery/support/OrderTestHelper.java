@@ -80,6 +80,10 @@ public final class OrderTestHelper {
         return createPaidOrder(name, ProductType.MADE_TO_ORDER, price, FulfillmentType.SHIPPING);
     }
 
+    public OrderFixture createReadyStockPaidShippingOrder(String name, long price, long shippingFee) {
+        return createPaidOrder(name, ProductType.READY_STOCK, price, FulfillmentType.SHIPPING, shippingFee);
+    }
+
     public OrderFixture createExpiredReadyStockPendingOrder(String name, long price) {
         return createExpiredPendingOrder(name, ProductType.READY_STOCK, price);
     }
@@ -109,15 +113,21 @@ public final class OrderTestHelper {
 
     private OrderFixture createPaidOrder(
             String name, ProductType type, long price, FulfillmentType fulfillmentType) {
+        return createPaidOrder(name, type, price, fulfillmentType, 0L);
+    }
+
+    private OrderFixture createPaidOrder(
+            String name, ProductType type, long price, FulfillmentType fulfillmentType, long shippingFee) {
         Product product = createProduct(name, type, price, 1);
         User member = createMemberOwner();
         Order order = orderService.createMemberOrder(
                 member.getId(),
-                List.of(new OrderService.OrderItemRequest(product.getId(), 1, price)),
+                List.of(new OrderService.OrderItemRequest(product.getId(), product.getName(), 1, price)),
                 fulfillmentType,
                 fulfillmentType == FulfillmentType.SHIPPING
                         ? new ShippingAddress("주문 테스트 회원", "01012345678", "06236", "서울시 강남구 테헤란로 1", null)
-                        : null);
+                        : null,
+                shippingFee);
         return new OrderFixture(product, order);
     }
 
@@ -130,7 +140,7 @@ public final class OrderTestHelper {
         LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
         Order order = orderStorePort.save(
                 Order.forMember(member.getId(), price, paidAt, paidAt.plusHours(24)));
-        orderItemPort.save(new OrderItem(order, product.getId(), 1, price));
+        orderItemPort.save(new OrderItem(order, product.getId(), product.getName(), 1, price));
 
         Inventory inventory = inventoryReaderPort.findByProductId(product.getId()).orElseThrow();
         inventory.deduct(1);

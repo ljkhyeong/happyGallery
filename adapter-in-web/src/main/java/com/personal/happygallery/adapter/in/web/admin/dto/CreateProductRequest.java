@@ -10,9 +10,11 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 public record CreateProductRequest(
-        @NotBlank String name,
+        @NotBlank @Size(max = Product.MAX_NAME_LENGTH) String name,
         @NotNull ProductType type,
         @Size(max = 50) String category,
         @Positive @Max(Product.MAX_PRICE) long price,
-        @Min(1) int quantity
+        @Min(1) int quantity,
+        @Size(max = Product.MAX_DESCRIPTION_LENGTH) String description,
+        @Size(max = Product.MAX_IMAGE_URL_LENGTH) String imageUrl
 ) {}

@@ -8,5 +8,7 @@ import java.util.List;
  */
 public interface ClassQueryUseCase {
 
+    List<BookingClass> listActive();
+
     List<BookingClass> listAll();
 }

@@ -5,15 +5,17 @@ import { fetchClasses, fetchAvailableSlots } from "./api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
-import type { PublicSlotResponse } from "@/shared/types";
+import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
+import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 
 interface Props {
   selectedSlotId: number | null;
   onSelect: (slot: PublicSlotResponse) => void;
   onDeselect?: () => void;
+  onClassChange?: (bookingClass: ClassResponse | null) => void;
 }
 
-export function SlotSelectionStep({ selectedSlotId, onSelect, onDeselect }: Props) {
+export function SlotSelectionStep({ selectedSlotId, onSelect, onDeselect, onClassChange }: Props) {
   const [classId, setClassId] = useState("");
   const [date, setDate] = useState("");
 
@@ -24,6 +26,7 @@ export function SlotSelectionStep({ selectedSlotId, onSelect, onDeselect }: Prop
   });
 
   const classIdNum = Number(classId);
+  const selectedClass = classes?.find((bookingClass) => bookingClass.id === classIdNum) ?? null;
   const { data: slots, isLoading: slotsLoading, error: slotsError } = useQuery({
     queryKey: ["slots", classIdNum, date],
     queryFn: () => fetchAvailableSlots(classIdNum, date),
@@ -41,7 +44,12 @@ export function SlotSelectionStep({ selectedSlotId, onSelect, onDeselect }: Prop
             {classesLoading ? (
               <LoadingSpinner text="클래스 로딩..." />
             ) : (
-              <Form.Select value={classId} onChange={(e) => { setClassId(e.target.value); onDeselect?.(); }}>
+              <Form.Select value={classId} onChange={(e) => {
+                const nextId = Number(e.target.value);
+                setClassId(e.target.value);
+                onClassChange?.(classes?.find((bookingClass) => bookingClass.id === nextId) ?? null);
+                onDeselect?.();
+              }}>
                 <option value="">선택하세요</option>
                 {classes?.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -63,6 +71,29 @@ export function SlotSelectionStep({ selectedSlotId, onSelect, onDeselect }: Prop
           </Form.Group>
         </Col>
       </Row>
+
+      {selectedClass && (
+        <section className="booking-class-detail mb-3">
+          {selectedClass.imageUrl && (
+            <img src={selectedClass.imageUrl} alt={`${selectedClass.name} 대표 이미지`} />
+          )}
+          {selectedClass.description && <p>{selectedClass.description}</p>}
+          <div className="d-flex flex-wrap gap-4 small">
+            {selectedClass.targetAudience && (
+              <div>
+                <strong className="d-block mb-1">대상</strong>
+                <span>{selectedClass.targetAudience}</span>
+              </div>
+            )}
+            {selectedClass.preparationInfo && (
+              <div>
+                <strong className="d-block mb-1">준비물</strong>
+                <span>{selectedClass.preparationInfo}</span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <ErrorAlert error={slotsError} />
 
@@ -92,6 +123,8 @@ export function SlotSelectionStep({ selectedSlotId, onSelect, onDeselect }: Prop
           ))}
         </ListGroup>
       )}
+
+      {selectedSlotId != null && <WorkshopVisitInfo compact />}
     </div>
   );
 }

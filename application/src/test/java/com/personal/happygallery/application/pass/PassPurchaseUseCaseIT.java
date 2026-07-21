@@ -9,6 +9,7 @@ import com.personal.happygallery.application.pass.port.out.PassLedgerReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.domain.pass.PassLedgerType;
+import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.user.User;
@@ -65,6 +66,7 @@ class PassPurchaseUseCaseIT {
                     .isEqualTo(LocalDateTime.now(clock).toLocalDate().plusDays(90).atStartOfDay());
             softly.assertThat(purchased.getRemainingCredits()).isEqualTo(8);
             softly.assertThat(purchased.getTotalPrice()).isEqualTo(PREPARED_TOTAL_PRICE);
+            softly.assertThat(purchased.getPlan()).isEqualTo(PassPlan.REGULAR_CRAFT_8);
             softly.assertThat(ledgers).hasSize(1);
             softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EARN);
             softly.assertThat(ledger.getAmount()).isEqualTo(8);

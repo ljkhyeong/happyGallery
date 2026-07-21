@@ -65,11 +65,16 @@ public class Inventory {
      * @param qty 차감 수량
      */
     public void deduct(int qty) {
+        requireSufficient(qty);
+        this.quantity -= qty;
+    }
+
+    /** 현재 수량으로 요청을 처리할 수 있는지 변경 없이 검증한다. */
+    public void requireSufficient(int qty) {
         requirePositive(qty);
         if (this.quantity < qty) {
             throw new InventoryNotEnoughException();
         }
-        this.quantity -= qty;
     }
 
     /**

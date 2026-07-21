@@ -1,19 +1,21 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useQuery } from "@tanstack/react-query";
-import { Card, Col, Container, Row } from "react-bootstrap";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Button, Card, Col, Container, Modal, Row } from "react-bootstrap";
 import { Link } from "react-router-dom";
-import { fetchMyPasses } from "@/features/my/api";
+import { fetchMyPasses, refundMyPass, type MyPassSummary } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import {
   buildPassTabs,
   getPassFilterKey,
   isPassAvailableForBooking,
+  isPassRefundable,
 } from "@/features/my/listUtils";
 import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
-import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import {
   customerRefundPollingInterval,
   formatDateTime,
@@ -29,7 +31,10 @@ const PASS_SORT_OPTIONS = [
 ];
 
 export function MyPassesPage() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const [refundTarget, setRefundTarget] = useState<MyPassSummary | null>(null);
   const {
     searchQuery,
     statusFilter: passFilter,
@@ -74,6 +79,21 @@ export function MyPassesPage() {
     return getPassFilterKey(pass) === "ACTIVE" && expiresIn <= 7 * 24 * 60 * 60 * 1000;
   }).length;
   const remainingCredits = (passes ?? []).reduce((sum, pass) => sum + pass.remainingCredits, 0);
+  const refundMutation = useMutation({
+    mutationFn: (passId: number) => refundMyPass(passId),
+    onSuccess: async (result) => {
+      setRefundTarget(null);
+      await queryClient.invalidateQueries({ queryKey: ["my", "passes"] });
+      if (result.refundStatus) {
+        toast.show(
+          `환불 요청 접수: ${result.refundCredits}회분 ${formatKRW(result.refundAmount)}, 미래 예약 ${result.canceledBookings}건 취소`,
+          "info",
+        );
+      } else {
+        toast.show("환불 금액 없이 8회권 정산이 완료되었습니다.");
+      }
+    },
+  });
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -153,7 +173,7 @@ export function MyPassesPage() {
           <Card.Body className="py-3 px-3">
             <Row className="align-items-center g-2">
               <Col xs={12} md={4}>
-                <div className="fw-semibold small">8회권 #{pass.passId}</div>
+                <div className="fw-semibold small">{pass.planName} #{pass.passId}</div>
                 <small className="text-muted-soft">구매 {formatDateTime(pass.purchasedAt)}</small>
               </Col>
               <Col xs={6} md={2}>
@@ -164,22 +184,75 @@ export function MyPassesPage() {
               </Col>
               <Col xs={12} md={4} className="text-md-end">
                 <small className="d-block text-muted-soft">~{formatDateTime(pass.expiresAt)}</small>
-                {isPassAvailableForBooking(pass) && (
-                  <LinkButton
-                    to={`/bookings/new?passId=${pass.passId}`}
-                    variant="outline-primary"
-                    size="sm"
-                    className="mt-2"
-                  >
-                    이 8회권으로 예약
-                  </LinkButton>
-                )}
+                <div className="d-flex flex-wrap justify-content-md-end gap-2 mt-2">
+                  {isPassAvailableForBooking(pass) && (
+                    <LinkButton
+                      to={`/bookings/new?passId=${pass.passId}`}
+                      variant="outline-primary"
+                      size="sm"
+                    >
+                      이 8회권으로 예약
+                    </LinkButton>
+                  )}
+                  {isPassRefundable(pass) && (
+                    <Button
+                      type="button"
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => {
+                        refundMutation.reset();
+                        setRefundTarget(pass);
+                      }}
+                    >
+                      환불 요청
+                    </Button>
+                  )}
+                </div>
               </Col>
             </Row>
             <RefundProgressAlert refund={pass.refund} />
           </Card.Body>
         </Card>
       ))}
+
+      <Modal
+        show={refundTarget !== null}
+        onHide={() => {
+          if (!refundMutation.isPending) setRefundTarget(null);
+        }}
+        centered
+      >
+        <Modal.Header closeButton={!refundMutation.isPending}>
+          <Modal.Title>8회권 환불 요청</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <ErrorAlert error={refundMutation.error} />
+          <p className="mb-2">
+            미래 예약은 자동으로 취소되며, 현재 잔여 횟수와 취소되는 예약 횟수를 합산해 회당 구매 단가로 환불합니다.
+          </p>
+          {refundTarget && (
+            <p className="text-muted-soft small mb-0">
+              {refundTarget.planName} #{refundTarget.passId} · 현재 잔여 {refundTarget.remainingCredits}회
+            </p>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            disabled={refundMutation.isPending}
+            onClick={() => setRefundTarget(null)}
+          >
+            취소
+          </Button>
+          <Button
+            variant="danger"
+            disabled={!refundTarget || refundMutation.isPending}
+            onClick={() => refundTarget && refundMutation.mutate(refundTarget.passId)}
+          >
+            {refundMutation.isPending ? "요청 중..." : "환불 요청"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 }

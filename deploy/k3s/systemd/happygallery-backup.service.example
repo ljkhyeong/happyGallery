@@ -1,5 +1,5 @@
 [Unit]
-Description=happyGallery encrypted MySQL backup
+Description=happyGallery encrypted database and media backup
 After=k3s.service network-online.target
 Requires=k3s.service
 OnFailure=happygallery-backup-failure@%n.service

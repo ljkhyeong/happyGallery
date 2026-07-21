@@ -51,14 +51,27 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
      * </ol>
      */
     @Override
-    public RegisterResult register(String name, ProductType type, String category, long price, int quantity) {
-        Product product = productStorePort.save(new Product(name, type, category, price));
+    public ProductInventoryResult register(String name, ProductType type, String category, long price,
+                                           int quantity, String description, String imageUrl) {
+        Product product = productStorePort.save(
+                new Product(name, type, category, price, description, imageUrl));
         Inventory inventory = inventoryService.create(product, quantity);
-        return new RegisterResult(product, inventory);
+        return new ProductInventoryResult(product, inventory);
     }
 
     @Override
-    public StatusChangeResult changeStatus(Long productId, ProductStatus status) {
+    public ProductInventoryResult update(Long productId, String name, String category, long price,
+                                         String description, String imageUrl) {
+        Product product = productReaderPort.findById(productId)
+                .orElseThrow(NotFoundException.supplier("상품"));
+        product.updateDetails(name, category, price, description, imageUrl);
+        Inventory inventory = inventoryReaderPort.findByProductId(productId)
+                .orElseThrow(NotFoundException.supplier("재고"));
+        return new ProductInventoryResult(productStorePort.save(product), inventory);
+    }
+
+    @Override
+    public ProductInventoryResult changeStatus(Long productId, ProductStatus status) {
         Product product = productReaderPort.findById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
         switch (status) {
@@ -68,7 +81,7 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
         Product saved = productStorePort.save(product);
         Inventory inventory = inventoryReaderPort.findByProductId(productId)
                 .orElseThrow(NotFoundException.supplier("재고"));
-        return new StatusChangeResult(saved, inventory);
+        return new ProductInventoryResult(saved, inventory);
     }
 
     @Override

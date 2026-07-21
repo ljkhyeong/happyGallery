@@ -128,6 +128,8 @@ public class Booking {
 
     /** 회원 8회권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null. */
     public static Booking forMemberPass(Long userId, Slot slot, PassPurchase passPurchase) {
+        passPurchase.requireApplicableToClass(
+                slot.getBookingClass().getCategory(), slot.getBookingClass().isPassEligible());
         return new Booking(null, userId, slot, 0, 0, null, passPurchase, null);
     }
 
@@ -137,6 +139,11 @@ public class Booking {
      */
     public void reschedule(Slot newSlot) {
         status.requireBooked();
+        if (isPassBooking()) {
+            passPurchase.requireApplicableToClass(
+                    newSlot.getBookingClass().getCategory(), newSlot.getBookingClass().isPassEligible());
+        }
+        this.bookingClass = newSlot.getBookingClass();
         this.slot = newSlot;
     }
 
@@ -208,6 +215,15 @@ public class Booking {
         requireExactlyOneOwner(null, userId);
         this.userId = userId;
         this.guest = null;
+        this.accessToken = null;
+    }
+
+    /** 휴대폰 소유 확인 후 비회원 예약의 관리 토큰을 교체한다. */
+    public void replaceGuestAccessToken(String accessToken) {
+        if (guest == null) {
+            throw new IllegalStateException("회원 예약에는 비회원 접근 토큰을 발급할 수 없습니다.");
+        }
+        this.accessToken = accessToken;
     }
 
     /** 결제 confirm 성공 후 원결제 식별자와 예약금 결제 시각을 저장한다. */

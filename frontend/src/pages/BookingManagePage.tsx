@@ -2,7 +2,7 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Container, Card, Badge } from "react-bootstrap";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { cancelBooking, fetchBooking, rescheduleBooking } from "@/features/booking-manage/api";
 import { BookingLookupForm } from "@/features/booking-manage/BookingLookupForm";
 import { BookingDetail } from "@/features/booking-manage/BookingDetail";
@@ -12,6 +12,7 @@ import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { ErrorAlert } from "@/shared/ui";
 import { customerRefundPollingInterval } from "@/shared/lib";
+import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
 
 interface LocationState {
   bookingId?: number;
@@ -28,11 +29,22 @@ interface BookingLookup {
 
 export function BookingManagePage() {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const navState = location.state as LocationState | null;
+  const [initialCredentials] = useState(() => {
+    const queryBookingId = Number(searchParams.get("bookingId"));
+    const bookingId = navState?.bookingId
+      ?? (Number.isSafeInteger(queryBookingId) && queryBookingId > 0 ? queryBookingId : undefined);
+    const token = navState?.token ?? loadGuestRecordRecovery()?.accessToken ?? "";
+    return { bookingId, token: token.trim() };
+  });
   const [lookup, setLookup] = useState<BookingLookup | null>(() =>
-    navState?.bookingId && navState.token
+    initialCredentials.bookingId && initialCredentials.token
       ? {
-          credentials: { bookingId: navState.bookingId, token: navState.token.trim() },
+          credentials: {
+            bookingId: initialCredentials.bookingId,
+            token: initialCredentials.token,
+          },
           requestId: crypto.randomUUID(),
         }
       : null,
@@ -137,8 +149,10 @@ export function BookingManagePage() {
           <BookingLookupForm
             onLookup={handleLookup}
             isLoading={isFetching}
-            initialBookingId={navState?.bookingId ? String(navState.bookingId) : undefined}
-            initialToken={navState?.token}
+            initialBookingId={initialCredentials.bookingId
+              ? String(initialCredentials.bookingId)
+              : undefined}
+            initialToken={initialCredentials.token || undefined}
           />
         </Card.Body>
       </Card>

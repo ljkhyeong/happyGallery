@@ -20,6 +20,7 @@ import com.personal.happygallery.adapter.in.web.admin.AdminProductQnaController;
 import com.personal.happygallery.adapter.in.web.admin.AdminRefundController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSetupController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSlotController;
+import com.personal.happygallery.adapter.in.web.admin.AdminWorkshopProfileController;
 import com.personal.happygallery.adapter.in.web.admin.LocalPhoneVerificationController;
 import com.personal.happygallery.adapter.in.web.admin.LocalRefundFailureController;
 import com.personal.happygallery.adapter.in.web.config.properties.AdminSetupProperties;
@@ -32,7 +33,11 @@ import com.personal.happygallery.application.booking.port.in.AdminBookingRespons
 import com.personal.happygallery.application.booking.port.in.BookingNoShowUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
 import com.personal.happygallery.application.booking.port.in.ClassManagementUseCase;
+import com.personal.happygallery.application.booking.port.in.ClassQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
+import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotItem;
+import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotResult;
+import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotStatus;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.application.customer.port.in.DevPhoneVerificationQueryUseCase;
 import com.personal.happygallery.application.dashboard.dto.DailyRevenue;
@@ -73,6 +78,7 @@ import com.personal.happygallery.application.search.port.in.AdminBookingSearchUs
 import com.personal.happygallery.application.search.port.in.AdminOrderSearchUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.OffsetPage;
+import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.order.Order;
@@ -90,6 +96,7 @@ import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductStatus;
+import com.personal.happygallery.domain.store.WorkshopProfile;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -129,6 +136,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     private ProductAdminUseCase productAdminUseCase;
     private ProductQueryUseCase productQueryUseCase;
     private ClassManagementUseCase classManagementUseCase;
+    private ClassQueryUseCase classQueryUseCase;
     private SlotManagementUseCase slotManagementUseCase;
     private SlotQueryUseCase slotQueryUseCase;
     private AdminBookingQueryUseCase adminBookingQueryUseCase;
@@ -155,6 +163,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     private PassRefundUseCase passRefundUseCase;
     private DevPhoneVerificationQueryUseCase phoneVerificationQueryUseCase;
     private DevRefundFailureUseCase devRefundFailureUseCase;
+    private WorkshopProfileUseCase workshopProfileUseCase;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -164,6 +173,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         productAdminUseCase = mock(ProductAdminUseCase.class);
         productQueryUseCase = mock(ProductQueryUseCase.class);
         classManagementUseCase = mock(ClassManagementUseCase.class);
+        classQueryUseCase = mock(ClassQueryUseCase.class);
         slotManagementUseCase = mock(SlotManagementUseCase.class);
         slotQueryUseCase = mock(SlotQueryUseCase.class);
         adminBookingQueryUseCase = mock(AdminBookingQueryUseCase.class);
@@ -190,6 +200,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         passRefundUseCase = mock(PassRefundUseCase.class);
         phoneVerificationQueryUseCase = mock(DevPhoneVerificationQueryUseCase.class);
         devRefundFailureUseCase = mock(DevRefundFailureUseCase.class);
+        workshopProfileUseCase = mock(WorkshopProfileUseCase.class);
 
         ProductQueryUseCase.ProductWithInventory product = RestDocsFixtures.productWithInventory();
         ProductQueryUseCase.ProductWithInventory inactiveProduct =
@@ -205,19 +216,38 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         InquiryUseCase.InquiryWithUser inquiry = inquiry();
         when(adminAuthUseCase.login("admin", "admin123456")).thenReturn("admin-session-token");
         when(adminSetupUseCase.isAvailable()).thenReturn(true);
-        when(productAdminUseCase.register(any(), any(), any(), anyLong(), anyInt()))
-                .thenReturn(new ProductAdminUseCase.RegisterResult(product.product(), product.inventory()));
+        when(productAdminUseCase.register(any(), any(), any(), anyLong(), anyInt(), any(), any()))
+                .thenReturn(new ProductAdminUseCase.ProductInventoryResult(
+                        product.product(), product.inventory()));
         when(productQueryUseCase.listAllProducts()).thenReturn(List.of(product));
+        when(productAdminUseCase.update(eq(1L), any(), any(), anyLong(), any(), any()))
+                .thenReturn(new ProductAdminUseCase.ProductInventoryResult(
+                        product.product(), product.inventory()));
         when(productAdminUseCase.changeStatus(1L, ProductStatus.INACTIVE))
-                .thenReturn(new ProductAdminUseCase.StatusChangeResult(
+                .thenReturn(new ProductAdminUseCase.ProductInventoryResult(
                         inactiveProduct.product(), inactiveProduct.inventory()));
         when(productAdminUseCase.adjustInventory(any())).thenReturn(inventoryAdjustment);
         when(productAdminUseCase.listRecentInventoryAdjustments(1L))
                 .thenReturn(List.of(inventoryAdjustment));
-        when(classManagementUseCase.createClass(any(), any(), anyInt(), anyLong(), anyInt()))
+        when(classManagementUseCase.createClass(any()))
                 .thenReturn(bookingClass);
+        when(classQueryUseCase.listAll()).thenReturn(List.of(bookingClass));
         when(slotQueryUseCase.listByClass(1L)).thenReturn(List.of(slot));
         when(slotManagementUseCase.createSlot(any(), any())).thenReturn(slot);
+        when(slotManagementUseCase.previewBulkSlots(any())).thenReturn(new BulkSlotResult(List.of(
+                new BulkSlotItem(
+                        null,
+                        LocalDateTime.of(2026, 5, 7, 19, 0),
+                        LocalDateTime.of(2026, 5, 7, 21, 0),
+                        BulkSlotStatus.CREATABLE,
+                        false))));
+        when(slotManagementUseCase.createBulkSlots(any())).thenReturn(new BulkSlotResult(List.of(
+                new BulkSlotItem(
+                        42L,
+                        LocalDateTime.of(2026, 5, 7, 19, 0),
+                        LocalDateTime.of(2026, 5, 7, 21, 0),
+                        BulkSlotStatus.CREATED,
+                        false))));
         when(slotManagementUseCase.deactivateSlot(42L)).thenReturn(slot);
         when(slotManagementUseCase.activateSlot(42L)).thenReturn(slot);
         when(adminBookingQueryUseCase.listBookings(any(), any())).thenReturn(List.of(adminBookingResponse()));
@@ -238,7 +268,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(orderProductionUseCase.completeProduction(200L, ADMIN_USER_ID))
                 .thenReturn(production(OrderStatus.APPROVED_FULFILLMENT_PENDING));
         when(orderProductionUseCase.setExpectedShipDate(eq(200L), any())).thenReturn(production(OrderStatus.IN_PRODUCTION));
-        when(orderProductionUseCase.requestDelay(200L)).thenReturn(production(OrderStatus.DELAY_REQUESTED));
+        when(orderProductionUseCase.proposeDelay(200L))
+                .thenReturn(production(OrderStatus.DELAY_CONSENT_PENDING));
         when(orderProductionUseCase.cancelForDelayRejection(200L, ADMIN_USER_ID))
                 .thenReturn(new OrderProductionUseCase.DelayCancellationResult(
                         production(OrderStatus.DELAY_REJECTED_CANCELED), orderRefund));
@@ -246,7 +277,9 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(pickup(OrderStatus.PICKUP_READY));
         when(orderPickupUseCase.confirmPickup(200L, ADMIN_USER_ID)).thenReturn(pickup(OrderStatus.PICKED_UP));
         when(orderShippingUseCase.prepareShipping(200L, ADMIN_USER_ID)).thenReturn(shipping(OrderStatus.SHIPPING_PREPARING));
-        when(orderShippingUseCase.markShipped(200L, ADMIN_USER_ID)).thenReturn(shipping(OrderStatus.SHIPPED));
+        when(orderShippingUseCase.markShipped(
+                200L, "CJ대한통운", "1234567890", ADMIN_USER_ID))
+                .thenReturn(shipping(OrderStatus.SHIPPED));
         when(orderShippingUseCase.markDelivered(200L, ADMIN_USER_ID)).thenReturn(shipping(OrderStatus.DELIVERED));
         when(adminOrderQueryUseCase.getOrderHistory(200L)).thenReturn(List.of(orderHistory()));
         when(pickupExpireBatchUseCase.expirePickups()).thenReturn(batchResult());
@@ -282,13 +315,16 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(passRefundUseCase.refundPass(300L))
                 .thenReturn(new PassRefundUseCase.PassRefundResult(1, 7, 210000L, 900L, RefundStatus.REQUESTED));
         when(phoneVerificationQueryUseCase.findLatestUnverifiedCode("01012345678")).thenReturn(Optional.of("123456"));
+        WorkshopProfile workshop = workshopProfile();
+        when(workshopProfileUseCase.get()).thenReturn(workshop);
+        when(workshopProfileUseCase.update(any())).thenReturn(workshop);
 
         mockMvc = mockMvc(restDocumentation,
                 new AdminLoginController(adminAuthUseCase),
                 new AdminCredentialController(adminCredentialUseCase),
                 new AdminSetupController(new AdminSetupProperties("setup-token"), adminSetupUseCase),
                 new AdminProductController(productAdminUseCase, productQueryUseCase),
-                new AdminClassController(classManagementUseCase),
+                new AdminClassController(classManagementUseCase, classQueryUseCase),
                 new AdminSlotController(slotManagementUseCase, slotQueryUseCase),
                 new AdminBookingController(
                         adminBookingQueryUseCase,
@@ -302,6 +338,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 new AdminOrderShippingController(orderShippingUseCase),
                 new AdminDashboardController(dashboardQueryUseCase),
                 new AdminNoticeController(noticeAdminUseCase, noticeQueryUseCase),
+                new AdminWorkshopProfileController(workshopProfileUseCase),
                 new AdminRefundController(refundRetryUseCase, refundQueryUseCase),
                 new AdminNotificationController(notificationFailureAdminUseCase),
                 new AdminPaymentReconciliationController(paymentReconciliationAdminUseCase),
@@ -396,6 +433,47 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("관리자 공방 방문 정보 수정 API를 문서화한다")
+    void admin_update_workshop_profile() throws Exception {
+        mockMvc.perform(put("/api/v1/admin/workshop")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "해피갤러리",
+                                  "phone": "02-123-4567",
+                                  "postalCode": "01234",
+                                  "addressLine1": "서울시 종로구 공방길 1",
+                                  "addressLine2": "2층",
+                                  "businessHours": "화-일 10:00-19:00",
+                                  "mapUrl": "https://map.example.com/happygallery",
+                                  "parkingInfo": "근처 공영주차장 이용"
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 상품 콘텐츠 수정 API를 문서화한다")
+    void admin_update_product() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/products/{id}", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "시그니처 캔들",
+                                  "category": "CANDLE",
+                                  "price": 42000,
+                                  "description": "소이 왁스로 만든 작품",
+                                  "imageUrl": "https://images.example.com/candle.jpg"
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("관리자 상품 상태 변경 API를 문서화한다")
     void admin_change_product_status() throws Exception {
         mockMvc.perform(patch("/api/v1/admin/products/{id}/status", 1L)
@@ -445,7 +523,11 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                                   "category": "PERFUME",
                                   "durationMin": 120,
                                   "price": 50000,
-                                  "bufferMin": 30
+                                  "bufferMin": 30,
+                                  "passEligible": false,
+                                  "description": "향을 조합해 나만의 향수를 만듭니다.",
+                                  "preparationInfo": "편한 복장",
+                                  "targetAudience": "향수 만들기가 처음인 분"
                                 }
                                 """))
                 .andExpect(status().isCreated());
@@ -475,6 +557,30 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                                 }
                                 """))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("관리자 슬롯 일괄 미리보기 API를 문서화한다")
+    void admin_preview_bulk_slots() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/slots/bulk/preview")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content(bulkSlotRequest()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.creatableCount").value(1));
+    }
+
+    @Test
+    @DisplayName("관리자 슬롯 일괄 생성 API를 문서화한다")
+    void admin_create_bulk_slots() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/slots/bulk")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content(bulkSlotRequest()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.createdCount").value(1));
     }
 
     @Test
@@ -699,7 +805,9 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     void admin_mark_shipped() throws Exception {
         mockMvc.perform(post("/api/v1/admin/orders/{id}/mark-shipped", 200L)
                         .with(adminUser())
-                        .header("Authorization", "Bearer admin-session-token"))
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"carrier\":\"CJ대한통운\",\"trackingNumber\":\"1234567890\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -1018,7 +1126,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     }
 
     private static AdminOrderResponse adminOrderResponse() {
-        return new AdminOrderResponse(200L, "ORD-00000200", "PAID_APPROVAL_PENDING", 39000L, "PICKUP",
+        return new AdminOrderResponse(200L, "ORD-00000200", "PAID_APPROVAL_PENDING", 39000L, 0L, "PICKUP",
+                List.of(new AdminOrderResponse.Item(1L, "시그니처 캔들", 1, 39000L)),
                 LocalDateTime.of(2026, 5, 1, 20, 55),
                 LocalDateTime.of(2026, 5, 1, 21, 15),
                 LocalDateTime.of(2026, 5, 1, 20, 50).atOffset(ZoneOffset.UTC));
@@ -1030,7 +1139,9 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 "SHIPPING",
                 new ShippingAddress("홍길동", "01012345678", "06236", "서울시 강남구 테헤란로 1", "2층"),
                 LocalDate.of(2026, 5, 8),
-                null);
+                null,
+                "CJ대한통운",
+                "1234567890");
     }
 
     private static AdminOrderSearchRow adminOrderSearchRow() {
@@ -1045,12 +1156,23 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         return new OrderProductionUseCase.ProductionResult(200L, status, LocalDate.of(2026, 5, 8));
     }
 
+    private static WorkshopProfile workshopProfile() {
+        WorkshopProfile profile = new WorkshopProfile("해피갤러리");
+        profile.update(
+                "해피갤러리", "02-123-4567", "01234",
+                "서울시 종로구 공방길 1", "2층", "화-일 10:00-19:00",
+                "https://map.example.com/happygallery", "근처 공영주차장 이용",
+                LocalDateTime.of(2026, 5, 1, 21, 0));
+        return profile;
+    }
+
     private static OrderPickupUseCase.PickupResult pickup(OrderStatus status) {
         return new OrderPickupUseCase.PickupResult(200L, status, LocalDateTime.of(2026, 5, 10, 21, 0));
     }
 
     private static OrderShippingUseCase.ShippingResult shipping(OrderStatus status) {
-        return new OrderShippingUseCase.ShippingResult(200L, status, LocalDate.of(2026, 5, 8));
+        return new OrderShippingUseCase.ShippingResult(
+                200L, status, LocalDate.of(2026, 5, 8), "CJ대한통운", "1234567890");
     }
 
     private static OrderHistoryResponse orderHistory() {
@@ -1071,6 +1193,18 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(adjustment.getAdjustedBy()).thenReturn("admin");
         when(adjustment.getAdjustedAt()).thenReturn(LocalDateTime.of(2026, 5, 1, 21, 5));
         return adjustment;
+    }
+
+    private static String bulkSlotRequest() {
+        return """
+                {
+                  "classId": 1,
+                  "dateFrom": "2026-05-07",
+                  "dateTo": "2026-05-31",
+                  "weekdays": ["THURSDAY", "SATURDAY"],
+                  "startTimes": ["10:00:00", "14:00:00"]
+                }
+                """;
     }
 
     private static BatchResult batchResult() {

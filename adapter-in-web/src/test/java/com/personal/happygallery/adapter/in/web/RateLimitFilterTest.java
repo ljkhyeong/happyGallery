@@ -93,6 +93,23 @@ class RateLimitFilterTest {
         });
     }
 
+    @DisplayName("고객 주문 취소는 전용 처리율 제한을 적용한다")
+    @Test
+    void returns429_whenOrderCustomerActionLimitExceeded() throws Exception {
+        RateLimitFilter filter = filter(new TestRateLimits()
+                .orderCustomerAction(1)
+                .defaultApi(100)
+                .build(), mockRedis());
+
+        MockHttpServletResponse firstResponse = perform(filter, "DELETE", "/api/v1/orders/1");
+        MockHttpServletResponse secondResponse = perform(filter, "DELETE", "/api/v1/orders/1");
+
+        assertSoftly(softly -> {
+            softly.assertThat(firstResponse.getStatus()).isEqualTo(200);
+            softly.assertThat(secondResponse.getStatus()).isEqualTo(429);
+        });
+    }
+
     @DisplayName("trustForwardedHeaders가 false이면 X-Forwarded-For를 무시하고 remoteAddr를 사용한다")
     @Test
     void usesRemoteAddr_whenTrustForwardedHeadersDisabled() {
@@ -309,6 +326,7 @@ class RateLimitFilterTest {
                 "/api/v1/auth/password/reset",
                 "/api/v1/products/1/qna/5/verify",
                 "/api/v1/me/guest-claims/verify",
+                "/api/v1/guest-records/recovery",
                 "/api/v1/monitoring/client-events"
         );
     }
@@ -353,7 +371,9 @@ class RateLimitFilterTest {
         private long paymentConfirm = 100;
         private long productQnaVerify = 100;
         private long guestClaimVerify = 100;
+        private long guestRecordRecovery = 100;
         private long clientMonitoring = 100;
+        private long orderCustomerAction = 100;
 
         private TestRateLimits trustForwardedHeaders(boolean value) {
             trustForwardedHeaders = value;
@@ -406,7 +426,13 @@ class RateLimitFilterTest {
             paymentConfirm = capacity;
             productQnaVerify = capacity;
             guestClaimVerify = capacity;
+            guestRecordRecovery = capacity;
             clientMonitoring = capacity;
+            return this;
+        }
+
+        private TestRateLimits orderCustomerAction(long capacity) {
+            orderCustomerAction = capacity;
             return this;
         }
 
@@ -428,9 +454,13 @@ class RateLimitFilterTest {
                             perMinute(paymentConfirm),
                             perMinute(productQnaVerify),
                             perMinute(guestClaimVerify),
-                            perMinute(clientMonitoring)
+                            perMinute(guestRecordRecovery),
+                            perMinute(clientMonitoring),
+                            perMinute(orderCustomerAction)
                     ),
                     new SubjectRules(
+                            perMinute(100),
+                            perMinute(100),
                             perMinute(100),
                             perMinute(100),
                             perMinute(100),

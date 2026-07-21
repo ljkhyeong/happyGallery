@@ -1,9 +1,13 @@
 package com.personal.happygallery.domain.pass;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.PassCreditInsufficientException;
 import com.personal.happygallery.domain.error.PassExpiredException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -29,6 +33,10 @@ public class PassPurchase {
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan_code", nullable = false, updatable = false, length = 30)
+    private PassPlan plan;
+
     @Column(name = "total_credits", nullable = false)
     private int totalCredits;
 
@@ -50,10 +58,12 @@ public class PassPurchase {
     private PassPurchase(Long userId,
                          LocalDateTime purchasedAt,
                          LocalDateTime expiresAt,
-                         long totalPrice) {
+                         long totalPrice,
+                         PassPlan plan) {
         this.userId = userId;
         this.purchasedAt = purchasedAt;
         this.expiresAt = expiresAt;
+        this.plan = plan;
         this.totalCredits = 8;
         this.remainingCredits = 8;
         this.totalPrice = totalPrice;
@@ -63,8 +73,16 @@ public class PassPurchase {
     public static PassPurchase forMember(Long userId,
                                          LocalDateTime purchasedAt,
                                          LocalDateTime expiresAt,
-                                         long totalPrice) {
-        return new PassPurchase(userId, purchasedAt, expiresAt, totalPrice);
+                                         long totalPrice,
+                                         PassPlan plan) {
+        return new PassPurchase(userId, purchasedAt, expiresAt, totalPrice, plan);
+    }
+
+    /** 구매 시 확정한 상품 정책에 현재 클래스 카테고리가 포함되는지 검증한다. */
+    public void requireApplicableToClass(String category, boolean passEligible) {
+        if (!plan.supportsClass(category, passEligible)) {
+            throw new HappyGalleryException(ErrorCode.PASS_NOT_APPLICABLE);
+        }
     }
 
     /**
@@ -153,6 +171,7 @@ public class PassPurchase {
     public Long getUserId() { return userId; }
     public LocalDateTime getPurchasedAt() { return purchasedAt; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
+    public PassPlan getPlan() { return plan; }
     public int getTotalCredits() { return totalCredits; }
     public int getRemainingCredits() { return remainingCredits; }
     public long getTotalPrice() { return totalPrice; }

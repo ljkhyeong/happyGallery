@@ -16,6 +16,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -24,6 +25,7 @@ import tools.jackson.databind.ObjectMapper;
 import static com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode.FAIL_CLOSED;
 import static com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode.FAIL_OPEN;
 import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
 
@@ -58,8 +60,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "PRODUCT_QNA_VERIFY_IP", pathPattern(POST, "/api/v1/products/{productId}/qna/{id}/verify"), FAIL_CLOSED);
     private static final LimitRule GUEST_CLAIM_VERIFY_RULE = new LimitRule(
             "GUEST_CLAIM_VERIFY_IP", pathPattern(POST, "/api/v1/me/guest-claims/verify"), FAIL_CLOSED);
+    private static final LimitRule GUEST_RECORD_RECOVERY_RULE = new LimitRule(
+            "GUEST_RECORD_RECOVERY_IP", pathPattern(POST, "/api/v1/guest-records/recovery"), FAIL_CLOSED);
     private static final LimitRule CLIENT_MONITORING_RULE = new LimitRule(
             "CLIENT_MONITORING_IP", pathPattern(POST, "/api/v1/monitoring/client-events"), FAIL_CLOSED);
+    private static final LimitRule ORDER_CUSTOMER_ACTION_RULE = new LimitRule(
+            "ORDER_CUSTOMER_ACTION_IP",
+            new OrRequestMatcher(
+                    pathPattern(DELETE, "/api/v1/orders/{id}"),
+                    pathPattern(POST, "/api/v1/orders/{id}/delay-response"),
+                    pathPattern(DELETE, "/api/v1/me/orders/{id}"),
+                    pathPattern(POST, "/api/v1/me/orders/{id}/delay-response")),
+            FAIL_CLOSED);
     private static final LimitRule ADMIN_API_RULE = new LimitRule(
             "ADMIN_API_IP", pathPattern("/api/v1/admin/**"), FAIL_CLOSED);
     private static final LimitRule DEFAULT_API_RULE = new LimitRule(
@@ -154,8 +166,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (matches(request, GUEST_CLAIM_VERIFY_RULE)) {
             return new ResolvedRule(GUEST_CLAIM_VERIFY_RULE, properties.ip().guestClaimVerify());
         }
+        if (matches(request, GUEST_RECORD_RECOVERY_RULE)) {
+            return new ResolvedRule(GUEST_RECORD_RECOVERY_RULE, properties.ip().guestRecordRecovery());
+        }
         if (matches(request, CLIENT_MONITORING_RULE)) {
             return new ResolvedRule(CLIENT_MONITORING_RULE, properties.ip().clientMonitoring());
+        }
+        if (matches(request, ORDER_CUSTOMER_ACTION_RULE)) {
+            return new ResolvedRule(
+                    ORDER_CUSTOMER_ACTION_RULE, properties.ip().orderCustomerAction());
         }
         if (matches(request, ADMIN_API_RULE)) {
             return new ResolvedRule(ADMIN_API_RULE, properties.ip().adminApi());

@@ -13,6 +13,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -61,6 +62,7 @@ class RefundTransactionService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public RefundCall claimRefundCall(Long refundId) {
         Refund refund = findRefundForUpdate(refundId);
+        RefundStatus statusBeforeClaim = refund.getStatus();
         LocalDateTime now = LocalDateTime.now(clock);
         String processingToken = refund.startProcessing(now, now.minus(PROCESSING_TIMEOUT));
         if (processingToken == null) {
@@ -72,7 +74,11 @@ class RefundTransactionService {
             markPaymentAttemptCompensationFailed(failedRefund, MISSING_PAYMENT_KEY_REASON);
             return new RefundCall.Skipped(failedRefund);
         }
-        return new RefundCall.Required(
+        if (statusBeforeClaim == RefundStatus.RECONCILIATION_REQUIRED) {
+            return new RefundCall.LookupRequired(
+                    refund.getId(), refund.getPaymentKey(), refund.getAmount(), processingToken);
+        }
+        return new RefundCall.CancelRequired(
                 refund.getId(), refund.getPaymentKey(), refund.getAmount(), refund.getIdempotencyKey(), processingToken);
     }
 
@@ -225,13 +231,18 @@ class RefundTransactionService {
                         refund.getId())));
     }
 
-    sealed interface RefundCall permits RefundCall.Required, RefundCall.Skipped {
+    sealed interface RefundCall permits RefundCall.CancelRequired, RefundCall.LookupRequired, RefundCall.Skipped {
 
-        record Required(Long refundId,
-                        String paymentKey,
-                        long amount,
-                        String idempotencyKey,
-                        String processingToken) implements RefundCall {}
+        record CancelRequired(Long refundId,
+                              String paymentKey,
+                              long amount,
+                              String idempotencyKey,
+                              String processingToken) implements RefundCall {}
+
+        record LookupRequired(Long refundId,
+                              String paymentKey,
+                              long amount,
+                              String processingToken) implements RefundCall {}
 
         record Skipped(Refund refund) implements RefundCall {}
     }

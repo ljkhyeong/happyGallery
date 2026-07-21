@@ -143,9 +143,12 @@ public class SecurityConfig {
                                 "/api/v1/auth/**",
                                 "/api/v1/payments/**",
                                 "/api/v1/monitoring/client-events",
+                                "/api/v1/guest-records/recovery",
                                 "/api/v1/bookings/**",
                                 "/api/v1/orders/**",
                                 "/api/v1/products/**",
+                                "/api/v1/media/images/**",
+                                "/api/v1/workshop",
                                 "/api/v1/classes/**",
                                 "/api/v1/slots/**",
                                 "/api/v1/notices/**")

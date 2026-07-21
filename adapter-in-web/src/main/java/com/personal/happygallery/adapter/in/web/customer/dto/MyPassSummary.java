@@ -6,13 +6,16 @@ import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public record MyPassSummary(Long passId, LocalDateTime purchasedAt,
+public record MyPassSummary(Long passId, String planCode, String planName,
+                             LocalDateTime purchasedAt,
                              LocalDateTime expiresAt, int totalCredits,
                              int remainingCredits, long totalPrice,
                              RefundProgressResponse refund) {
     public static MyPassSummary from(PassView view) {
         PassPurchase p = view.pass();
-        return new MyPassSummary(p.getId(), p.getPurchasedAt(), p.getExpiresAt(),
+        return new MyPassSummary(
+                p.getId(), p.getPlan().name(), p.getPlan().getDisplayName(),
+                p.getPurchasedAt(), p.getExpiresAt(),
                 p.getTotalCredits(), p.getRemainingCredits(), p.getTotalPrice(),
                 view.refund() == null ? null : RefundProgressResponse.from(view.refund()));
     }

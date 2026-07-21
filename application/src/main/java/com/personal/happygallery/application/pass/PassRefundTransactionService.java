@@ -11,6 +11,7 @@ import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import java.util.Objects;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,12 +50,25 @@ class PassRefundTransactionService {
     Optional<PassRefundResult> refundIfActive(Long passId) {
         PassPurchase pass = passPurchaseReader.findByIdForUpdate(passId)
                 .orElseThrow(NotFoundException.supplier("8회권"));
+        return refundLockedPass(pass);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    Optional<PassRefundResult> refundOwnedIfActive(Long passId, Long userId) {
+        PassPurchase pass = passPurchaseReader.findByIdForUpdate(passId)
+                .filter(lockedPass -> Objects.equals(lockedPass.getUserId(), userId))
+                .orElseThrow(NotFoundException.supplier("8회권"));
+        return refundLockedPass(pass);
+    }
+
+    private Optional<PassRefundResult> refundLockedPass(PassPurchase pass) {
         if (expirationSupport.expireIfReached(pass).expired()) {
             return Optional.empty();
         }
 
-        int cancelledCount = bookingCancellationService.cancelLinkedBookings(passId);
-        int refundCredits = Math.min(pass.getTotalCredits(), pass.getRemainingCredits() + cancelledCount);
+        int cancelledCount = bookingCancellationService.cancelLinkedBookings(pass.getId());
+        int refundCredits = Math.clamp(
+                pass.getRemainingCredits() + cancelledCount, 0, pass.getTotalCredits());
         long refundAmount = pass.calculateRefundAmount(refundCredits);
         Refund refund = refundAmount > 0
                 ? refundExecutionService.requestPassRefund(pass.getId(), refundAmount, pass.getPaymentKey())
@@ -67,7 +81,7 @@ class PassRefundTransactionService {
         passPurchaseStore.save(pass);
 
         log.info("Pass환불 처리 완료 [passId={}] 취소예약={}건, 환불크레딧={}, 환불금액={}, refundId={}, refundStatus={}",
-                passId, cancelledCount, refundCredits, refundAmount,
+                pass.getId(), cancelledCount, refundCredits, refundAmount,
                 refund != null ? refund.getId() : null,
                 refund != null ? refund.getStatus() : null);
 

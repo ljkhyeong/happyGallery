@@ -9,6 +9,7 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
@@ -61,7 +62,12 @@ public final class TestFixtures {
     }
 
     public static PassPurchase passPurchase(Long userId, LocalDateTime expiresAt, long totalPrice) {
-        return PassPurchase.forMember(userId, expiresAt.minusDays(90), expiresAt, totalPrice);
+        return PassPurchase.forMember(
+                userId,
+                expiresAt.minusDays(90),
+                expiresAt,
+                totalPrice,
+                PassPlan.REGULAR_CRAFT_8);
     }
 
     public static Product readyStockProduct(String name, long price) {

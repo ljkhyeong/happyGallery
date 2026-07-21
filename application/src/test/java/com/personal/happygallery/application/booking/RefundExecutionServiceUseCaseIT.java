@@ -4,6 +4,7 @@ import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.dashboard.port.in.DashboardQueryUseCase;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.payment.port.in.RefundRecoveryUseCase;
+import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -39,6 +40,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -243,6 +245,71 @@ class RefundExecutionServiceUseCaseIT {
         });
     }
 
+    @DisplayName("대사 필요 환불은 PG 취소 이력을 조회해 완료된 동일 금액 거래만 성공 처리한다")
+    @Test
+    void recoverPendingRefunds_reconciliationRequired_looksUpAndCompletesRefund() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        Order order = saveMemberOrder(now);
+        Refund refund = saveReconciliationRequiredRefund(order, now);
+        when(paymentProvider.lookupRefund("payment-key", 55_000L))
+                .thenReturn(RefundLookupResult.refunded(
+                        "payment-key", 55_000L, "refund-transaction-key"));
+
+        var result = refundRecoveryUseCase.recoverPendingRefunds();
+
+        Refund recovered = refundRepository.findById(refund.getId()).orElseThrow();
+        verify(paymentProvider).lookupRefund("payment-key", 55_000L);
+        verify(paymentProvider, never()).refund(any(), anyLong(), any());
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isOne();
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(recovered.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
+            softly.assertThat(recovered.getRefundTransactionKey()).isEqualTo("refund-transaction-key");
+        });
+    }
+
+    @DisplayName("PG 조회에 취소 이력이 없으면 대사 환불을 재호출 가능 상태로만 전환한다")
+    @Test
+    void recoverPendingRefunds_reconciliationWithoutCancel_marksRetryableWithoutRefundCall() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        Order order = saveMemberOrder(now);
+        Refund refund = saveReconciliationRequiredRefund(order, now);
+        when(paymentProvider.lookupRefund("payment-key", 55_000L))
+                .thenReturn(RefundLookupResult.notRefunded(
+                        "payment-key", "PG에 완료된 환불 이력이 없습니다."));
+
+        var result = refundRecoveryUseCase.recoverPendingRefunds();
+
+        Refund recovered = refundRepository.findById(refund.getId()).orElseThrow();
+        verify(paymentProvider).lookupRefund("payment-key", 55_000L);
+        verify(paymentProvider, never()).refund(any(), anyLong(), any());
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isZero();
+            softly.assertThat(result.failureCount()).isOne();
+            softly.assertThat(recovered.getStatus()).isEqualTo(RefundStatus.RETRYABLE);
+            softly.assertThat(recovered.getNextAttemptAt()).isAfter(now);
+        });
+    }
+
+    @DisplayName("운영자 명시적 재시도는 최초 멱등키로 환불 요청을 다시 실행한다")
+    @Test
+    void retryRefund_reconciliationRequired_reusesIdempotencyKey() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        Order order = saveMemberOrder(now);
+        Refund refund = saveReconciliationRequiredRefund(order, now);
+        when(paymentProvider.refund(any(), anyLong(), any()))
+                .thenReturn(RefundResult.success("refund-transaction-key"));
+
+        Refund result = refundExecutionService.retryRefund(refund.getId());
+
+        verify(paymentProvider).refund("payment-key", 55_000L, refund.getIdempotencyKey());
+        verify(paymentProvider, never()).lookupRefund(any(), anyLong());
+        assertSoftly(softly -> {
+            softly.assertThat(result.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
+            softly.assertThat(result.getRefundTransactionKey()).isEqualTo("refund-transaction-key");
+        });
+    }
+
     @DisplayName("완료된 환불을 재시도하면 INVALID_INPUT 예외가 발생한다")
     @Test
     void retry_nonFailedRefund_throwsInvalidInput() {
@@ -261,5 +328,13 @@ class RefundExecutionServiceUseCaseIT {
                             softly.assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
                             softly.assertThat(e.getMessage()).contains("조치 필요 상태 환불만");
                         }));
+    }
+
+    private Refund saveReconciliationRequiredRefund(Order order, LocalDateTime now) {
+        Refund refund = Refund.forOrder(order.getId(), 55_000L, "payment-key");
+        String processingToken = refund.startProcessing(now.minusMinutes(2), now.minusMinutes(3));
+        refund.markReconciliationRequired(
+                processingToken, "PG 호출 결과 불명", now.minusSeconds(1));
+        return refundRepository.save(refund);
     }
 }

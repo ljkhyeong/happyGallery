@@ -9,6 +9,7 @@ set -Eeuo pipefail
 require_command age
 require_command gzip
 require_command base64
+require_command tar
 marker=${BACKUP_TARGET_MARKER:-$BACKUP_DIR/.happygallery-off-device-backup-target}
 [ -f "$marker" ] \
     || die "외부 백업 매체 marker가 없습니다. 매체가 실제로 mount됐는지 확인하세요: $marker"
@@ -19,8 +20,13 @@ kube -n "$NAMESPACE" wait --for=condition=Ready pod/mysql-0 --timeout=2m >/dev/n
 timestamp=$(date -u '+%Y%m%dT%H%M%SZ')
 backup="$BACKUP_DIR/happygallery-$timestamp.sql.gz.age"
 tmp="$backup.partial"
+media_backup="$BACKUP_DIR/happygallery-$timestamp.media.tar.gz.age"
+media_tmp="$media_backup.partial"
 recovery_metadata="$BACKUP_DIR/happygallery-$timestamp.recovery.env"
 recovery_metadata_tmp="$recovery_metadata.partial"
+tmp_checksum="$tmp.sha256"
+media_tmp_checksum="$media_tmp.sha256"
+recovery_metadata_tmp_checksum="$recovery_metadata_tmp.sha256"
 release_state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
 current_release=$(CDPATH= cd -- "$release_state_root/current" 2>/dev/null && pwd) \
     || die "현재 release 메타데이터를 찾을 수 없습니다: $release_state_root/current"
@@ -42,10 +48,25 @@ REDIS_IMAGE=docker.io/library/redis:7.4.9-alpine
 PROMETHEUS_IMAGE=docker.io/prom/prometheus:v3.12.0-distroless
 ALERTMANAGER_IMAGE=docker.io/prom/alertmanager:v0.32.1
 umask 077
-rm -f "$tmp" "$recovery_metadata_tmp"
+for target in \
+    "$backup" "$backup.sha256" "$media_backup" "$media_backup.sha256" \
+    "$recovery_metadata" "$recovery_metadata.sha256"; do
+    [ ! -e "$target" ] || die "같은 시각의 백업 파일이 이미 존재합니다: $target"
+done
+rm -f \
+    "$tmp" "$tmp_checksum" \
+    "$media_tmp" "$media_tmp_checksum" \
+    "$recovery_metadata_tmp" "$recovery_metadata_tmp_checksum"
 rm -rf "$release_tmp"
+media_helper_started=false
 cleanup_partial_backup() {
-    rm -f "$tmp" "$recovery_metadata_tmp"
+    if [ "$media_helper_started" = true ]; then
+        stop_media_helper
+    fi
+    rm -f \
+        "$tmp" "$tmp_checksum" \
+        "$media_tmp" "$media_tmp_checksum" \
+        "$recovery_metadata_tmp" "$recovery_metadata_tmp_checksum"
     rm -rf "$release_tmp"
 }
 trap cleanup_partial_backup EXIT HUP INT TERM
@@ -148,15 +169,28 @@ kube -n "$NAMESPACE" exec mysql-0 -- sh -ec '
 ' | gzip -9 | age -r "$BACKUP_AGE_RECIPIENT" -o "$tmp"
 
 [ -s "$tmp" ] || die "생성된 백업 파일이 비어 있습니다."
-mv "$tmp" "$backup"
-trap - EXIT HUP INT TERM
-checksum=$(sha256_file "$backup")
-printf '%s  %s\n' "$checksum" "$(basename -- "$backup")" > "$backup.sha256"
-chmod 600 "$backup" "$backup.sha256"
+checksum=$(sha256_file "$tmp")
+printf '%s  %s\n' "$checksum" "$(basename -- "$backup")" > "$tmp_checksum"
+chmod 600 "$tmp" "$tmp_checksum"
+
+info "상품 이미지 볼륨을 외부 매체에 age 암호화합니다."
+ensure_media_pvc
+media_helper_started=true
+start_media_helper "$APP_IMAGE@$APP_IMAGE_DIGEST"
+kube -n "$NAMESPACE" exec "$(media_helper_pod_name)" -- tar -C /media -cf - . \
+    | gzip -9 \
+    | age -r "$BACKUP_AGE_RECIPIENT" -o "$media_tmp"
+[ -s "$media_tmp" ] || die "생성된 미디어 백업 파일이 비어 있습니다."
+printf '%s  %s\n' "$(sha256_file "$media_tmp")" "$(basename -- "$media_backup")" \
+    > "$media_tmp_checksum"
+chmod 600 "$media_tmp" "$media_tmp_checksum"
+stop_media_helper
+media_helper_started=false
 
 cat > "$recovery_metadata_tmp" <<EOF
 BACKUP_CREATED_AT=$timestamp
 DATABASE_BACKUP=$(basename -- "$backup")
+MEDIA_BACKUP=$(basename -- "$media_backup")
 RELEASE_DIR=releases/$IMAGE_TAG
 IMAGE_TAG=$IMAGE_TAG
 APP_IMAGE_DIGEST=$APP_IMAGE_DIGEST
@@ -171,10 +205,19 @@ PREVIOUS_HMAC_KEYS_SHA256=$previous_hmac_keys_sha256
 GUEST_TOKEN_HMAC_SECRET_SHA256=$guest_token_key_sha256
 GUEST_TOKEN_PREVIOUS_HMAC_SECRET_SHA256=$guest_token_previous_key_sha256
 EOF
-mv "$recovery_metadata_tmp" "$recovery_metadata"
-printf '%s  %s\n' "$(sha256_file "$recovery_metadata")" "$(basename -- "$recovery_metadata")" \
-    > "$recovery_metadata.sha256"
-chmod 600 "$recovery_metadata" "$recovery_metadata.sha256"
+printf '%s  %s\n' "$(sha256_file "$recovery_metadata_tmp")" "$(basename -- "$recovery_metadata")" \
+    > "$recovery_metadata_tmp_checksum"
+chmod 600 "$recovery_metadata_tmp" "$recovery_metadata_tmp_checksum"
 
-info "암호화 DB와 호환 release 복구 묶음 완료: $backup"
+# recovery.env가 보일 때는 모든 archive와 sidecar가 이미 완성된 상태여야 한다.
+mv "$tmp" "$backup"
+mv "$tmp_checksum" "$backup.sha256"
+mv "$media_tmp" "$media_backup"
+mv "$media_tmp_checksum" "$media_backup.sha256"
+mv "$recovery_metadata_tmp_checksum" "$recovery_metadata.sha256"
+mv "$recovery_metadata_tmp" "$recovery_metadata"
+
+trap - EXIT HUP INT TERM
+
+info "암호화 DB·미디어와 호환 release 복구 묶음 완료: $recovery_metadata"
 printf '%s\n' "$backup"

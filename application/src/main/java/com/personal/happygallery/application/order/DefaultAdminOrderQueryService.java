@@ -2,6 +2,7 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.in.AdminOrderQueryUseCase;
 import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
+import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
@@ -11,6 +12,7 @@ import com.personal.happygallery.application.order.port.in.AdminOrderResponse;
 import com.personal.happygallery.application.order.port.in.AdminOrderFulfillmentResponse;
 import com.personal.happygallery.application.order.port.in.OrderHistoryResponse;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
@@ -20,6 +22,7 @@ import java.util.function.Function;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toMap;
 
 @Service
@@ -28,15 +31,18 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
 
     private final OrderReaderPort orderReaderPort;
     private final OrderHistoryPort orderHistoryPort;
+    private final OrderItemPort orderItemPort;
     private final FulfillmentPort fulfillmentPort;
     private final ShippingAddressProtector shippingAddressProtector;
 
     public DefaultAdminOrderQueryService(OrderReaderPort orderReaderPort,
                                          OrderHistoryPort orderHistoryPort,
+                                         OrderItemPort orderItemPort,
                                          FulfillmentPort fulfillmentPort,
                                          ShippingAddressProtector shippingAddressProtector) {
         this.orderReaderPort = orderReaderPort;
         this.orderHistoryPort = orderHistoryPort;
+        this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
         this.shippingAddressProtector = shippingAddressProtector;
     }
@@ -90,12 +96,17 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
         if (orders.isEmpty()) {
             return List.of();
         }
-        Map<Long, Fulfillment> fulfillmentsByOrderId = fulfillmentPort.findByOrderIdIn(
-                        orders.stream().map(Order::getId).toList())
+        List<Long> orderIds = orders.stream().map(Order::getId).toList();
+        Map<Long, Fulfillment> fulfillmentsByOrderId = fulfillmentPort.findByOrderIdIn(orderIds)
                 .stream()
                 .collect(toMap(Fulfillment::getOrderId, Function.identity()));
+        Map<Long, List<OrderItem>> itemsByOrderId = orderItemPort.findByOrderIdIn(orderIds).stream()
+                .collect(groupingBy(item -> item.getOrder().getId()));
         return orders.stream()
-                .map(order -> AdminOrderResponse.from(order, fulfillmentsByOrderId.get(order.getId())))
+                .map(order -> AdminOrderResponse.from(
+                        order,
+                        fulfillmentsByOrderId.get(order.getId()),
+                        itemsByOrderId.getOrDefault(order.getId(), List.of())))
                 .toList();
     }
 }

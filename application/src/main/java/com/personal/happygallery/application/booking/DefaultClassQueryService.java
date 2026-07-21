@@ -22,4 +22,10 @@ public class DefaultClassQueryService implements ClassQueryUseCase {
     public List<BookingClass> listAll() {
         return classReaderPort.findAll();
     }
+
+    /** 공개 가능한 활성 클래스 목록 조회 */
+    @Override
+    public List<BookingClass> listActive() {
+        return classReaderPort.findAllActive();
+    }
 }

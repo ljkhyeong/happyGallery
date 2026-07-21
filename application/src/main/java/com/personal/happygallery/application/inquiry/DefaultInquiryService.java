@@ -9,12 +9,15 @@ import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.inquiry.Inquiry;
+import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,15 +29,18 @@ public class DefaultInquiryService implements InquiryUseCase {
     private final InquiryReaderPort inquiryReader;
     private final InquiryStorePort inquiryStore;
     private final UserReaderPort userReader;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     public DefaultInquiryService(InquiryReaderPort inquiryReader,
                                  InquiryStorePort inquiryStore,
                                  UserReaderPort userReader,
+                                 ApplicationEventPublisher eventPublisher,
                                  Clock clock) {
         this.inquiryReader = inquiryReader;
         this.inquiryStore = inquiryStore;
         this.userReader = userReader;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -95,10 +101,15 @@ public class DefaultInquiryService implements InquiryUseCase {
     @Override
     @Transactional
     public InquiryWithUser replyAndGet(Long inquiryId, String replyContent, Long adminId) {
-        Inquiry inquiry = inquiryReader.findById(inquiryId)
+        Inquiry inquiry = inquiryReader.findByIdForUpdate(inquiryId)
                 .orElseThrow(NotFoundException.supplier("문의"));
         inquiry.reply(replyContent, adminId, LocalDateTime.now(clock));
         inquiry = inquiryStore.save(inquiry);
+        eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
+                inquiry.getUserId(),
+                NotificationEventType.INQUIRY_ANSWERED,
+                "INQUIRY",
+                inquiry.getId()));
         String name = userReader.findById(inquiry.getUserId())
                 .map(User::getName).orElse("탈퇴회원");
         return new InquiryWithUser(inquiry, name);

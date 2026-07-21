@@ -27,6 +27,7 @@ import {
   isFulfillmentComplete,
   useFulfillmentSelection,
 } from "@/features/order/FulfillmentForm";
+import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 
 const MAX_QTY = 99;
 
@@ -76,7 +77,7 @@ export function ProductDetailPage() {
   if (error) return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   if (!product) return null;
 
-  const totalAmount = product.price * qty;
+  const itemAmount = product.price * qty;
   const canBuy = product.available && qty >= 1 && qty <= MAX_QTY;
   const canCheckout = canBuy && isFulfillmentComplete(fulfillment);
   const guestFallbackPath = `/orders/new?productId=${productId}&qty=${qty}`;
@@ -98,14 +99,19 @@ export function ProductDetailPage() {
         <Col lg={7} className="anim-fade-up anim-delay-1">
           <Card className="store-detail-card border-0">
             <Card.Body className="p-0">
+              {product.imageUrl && (
+                <div className="store-detail-media mb-4">
+                  <img src={product.imageUrl} alt={product.name} />
+                </div>
+              )}
               <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
                 <div>
                   <div className="store-detail-kicker mb-2">{PRODUCT_TYPE_LABEL[product.type] ?? product.type}</div>
                   <h2 className="store-detail-title mb-2">{product.name}</h2>
                   <p className="text-muted-soft store-section-desc mb-0">
-                    {product.type === "MADE_TO_ORDER"
+                    {product.description || (product.type === "MADE_TO_ORDER"
                       ? "주문 승인 후 제작을 시작하는 공방 제작 상품입니다."
-                      : "재고 수량 기준으로 바로 주문을 접수하는 판매 상품입니다."}
+                      : "재고 수량 기준으로 바로 주문을 접수하는 판매 상품입니다.")}
                   </p>
                 </div>
                 <Badge bg={product.available ? "dark" : "secondary"} className="badge-status py-2 px-3">
@@ -172,7 +178,7 @@ export function ProductDetailPage() {
                       value={qty}
                       onChange={(e) => {
                         const v = Number(e.target.value);
-                        if (v >= 1 && v <= MAX_QTY) setQty(v);
+                        if (Number.isInteger(v) && v >= 1 && v <= MAX_QTY) setQty(v);
                       }}
                       className="text-center store-purchase-qty-input"
                     />
@@ -199,12 +205,11 @@ export function ProductDetailPage() {
                   <span className="text-muted-soft store-purchase-line">선택 수량</span>
                   <span className="store-purchase-line">{qty}개</span>
                 </div>
-                <div className="d-flex justify-content-between align-items-center pt-3 mt-2 store-purchase-total-divider">
-                  <span className="store-purchase-total-label">총 금액</span>
-                  <span className="store-purchase-total-value">
-                    {formatKRW(totalAmount)}
-                  </span>
-                </div>
+                <OrderPriceSummary
+                  itemAmount={itemAmount}
+                  fulfillmentType={fulfillment.fulfillmentType}
+                  className="pt-2"
+                />
               </div>
 
               {!authLoading && isAuthenticated && (

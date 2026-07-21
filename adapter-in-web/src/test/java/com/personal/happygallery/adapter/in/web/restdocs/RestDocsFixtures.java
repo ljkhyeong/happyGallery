@@ -5,6 +5,7 @@ import com.personal.happygallery.application.product.port.in.ProductQueryUseCase
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.BookingClassStatus;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
@@ -17,6 +18,7 @@ import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
@@ -73,6 +75,11 @@ final class RestDocsFixtures {
         when(bookingClass.getDurationMin()).thenReturn(120);
         when(bookingClass.getPrice()).thenReturn(50000L);
         when(bookingClass.getBufferMin()).thenReturn(30);
+        when(bookingClass.isPassEligible()).thenReturn(false);
+        when(bookingClass.getDescription()).thenReturn("향을 조합해 나만의 향수를 만듭니다.");
+        when(bookingClass.getPreparationInfo()).thenReturn("편한 복장");
+        when(bookingClass.getTargetAudience()).thenReturn("향수 만들기가 처음인 분");
+        when(bookingClass.getStatus()).thenReturn(BookingClassStatus.ACTIVE);
         return bookingClass;
     }
 
@@ -133,6 +140,7 @@ final class RestDocsFixtures {
     static OrderItem orderItem() {
         OrderItem item = mock(OrderItem.class);
         when(item.getProductId()).thenReturn(1L);
+        when(item.getProductName()).thenReturn("시그니처 캔들");
         when(item.getQty()).thenReturn(1);
         when(item.getUnitPrice()).thenReturn(39000L);
         return item;
@@ -143,6 +151,8 @@ final class RestDocsFixtures {
         when(fulfillment.getType()).thenReturn(FulfillmentType.PICKUP);
         when(fulfillment.getExpectedShipDate()).thenReturn(LocalDate.of(2026, 5, 8));
         when(fulfillment.getPickupDeadlineAt()).thenReturn(NOW.plusDays(3));
+        when(fulfillment.getCarrier()).thenReturn("CJ대한통운");
+        when(fulfillment.getTrackingNumber()).thenReturn("1234567890");
         return fulfillment;
     }
 
@@ -173,6 +183,7 @@ final class RestDocsFixtures {
     static PassPurchase passPurchase() {
         PassPurchase pass = mock(PassPurchase.class);
         when(pass.getId()).thenReturn(300L);
+        when(pass.getPlan()).thenReturn(PassPlan.REGULAR_CRAFT_8);
         when(pass.getPurchasedAt()).thenReturn(NOW.minusDays(1));
         when(pass.getExpiresAt()).thenReturn(NOW.plusDays(89));
         when(pass.getTotalCredits()).thenReturn(8);

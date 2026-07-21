@@ -42,6 +42,9 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
             throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
         phoneOwnershipVerification.verify(command.phone(), command.verificationCode());
+        if (userReader.existsByPhone(command.phone())) {
+            throw new HappyGalleryException(ErrorCode.PHONE_ALREADY_IN_USE);
+        }
         User user = new User(
                 command.email(),
                 passwordEncoder.encode(command.rawPassword()),

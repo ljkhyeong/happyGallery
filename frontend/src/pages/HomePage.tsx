@@ -9,6 +9,7 @@ import { ProductCard } from "@/features/product/ProductCard";
 import { NoticeListWidget } from "@/features/notice/NoticeListWidget";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 
 export function HomePage() {
   const { data: products, isLoading, isError, error } = useQuery({
@@ -97,7 +98,11 @@ export function HomePage() {
           </div>
         </section>
 
-        <div className="home-info-grid anim-fade-up anim-delay-2">
+        <section className="home-workshop-section anim-fade-up anim-delay-2">
+          <WorkshopVisitInfo />
+        </section>
+
+        <div className="home-info-grid anim-fade-up anim-delay-3">
           <NoticeListWidget />
           <section className="lookup-panel">
             <p className="store-section-kicker">내 기록 찾기</p>

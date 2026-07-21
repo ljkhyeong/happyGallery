@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
+import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.concurrent.CompletableFuture;
@@ -213,6 +214,23 @@ class ResilientPaymentProviderTest {
         assertThat(result.status()).isEqualTo(PaymentLookupResult.Status.REVIEW_REQUIRED);
     }
 
+    @DisplayName("환불 조회 불가가 누적되면 서킷이 열려 조회를 빠르게 차단한다")
+    @Test
+    void lookupRefund_unavailableAccumulates_circuitOpenFastFail() {
+        PaymentProvider delegate = refundLookupOnlyDelegate((paymentKey, amount) ->
+                RefundLookupResult.unavailable(paymentKey, "PG 환불 조회 실패"));
+        provider = createProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1));
+
+        provider.lookupRefund("payment-key-1", 10_000L);
+        provider.lookupRefund("payment-key-2", 10_000L);
+        RefundLookupResult result = provider.lookupRefund("payment-key-3", 10_000L);
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.status()).isEqualTo(RefundLookupResult.Status.UNAVAILABLE);
+            softly.assertThat(result.reason()).contains("일시 차단");
+        });
+    }
+
     private ResilientPaymentProvider createProvider(PaymentProvider delegate,
                                                     ExternalPaymentProperties properties) {
         PaymentResilienceConfig config = new PaymentResilienceConfig();
@@ -274,6 +292,11 @@ class ResilientPaymentProviderTest {
             public PaymentLookupResult lookupByOrderId(String orderId) {
                 throw new UnsupportedOperationException();
             }
+
+            @Override
+            public RefundLookupResult lookupRefund(String paymentKey, long amount) {
+                throw new UnsupportedOperationException();
+            }
         };
     }
 
@@ -292,6 +315,11 @@ class ResilientPaymentProviderTest {
 
             @Override
             public PaymentLookupResult lookupByOrderId(String orderId) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public RefundLookupResult lookupRefund(String paymentKey, long amount) {
                 throw new UnsupportedOperationException();
             }
         };
@@ -314,6 +342,36 @@ class ResilientPaymentProviderTest {
             public PaymentLookupResult lookupByOrderId(String orderId) {
                 return lookupBehavior.lookup(orderId);
             }
+
+            @Override
+            public RefundLookupResult lookupRefund(String paymentKey, long amount) {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+
+    private static PaymentProvider refundLookupOnlyDelegate(RefundLookupBehavior lookupBehavior) {
+        return new PaymentProvider() {
+            @Override
+            public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
+                                                String idempotencyKey) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public PaymentLookupResult lookupByOrderId(String orderId) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public RefundLookupResult lookupRefund(String paymentKey, long amount) {
+                return lookupBehavior.lookup(paymentKey, amount);
+            }
         };
     }
 
@@ -330,5 +388,10 @@ class ResilientPaymentProviderTest {
     @FunctionalInterface
     private interface LookupBehavior {
         PaymentLookupResult lookup(String orderId);
+    }
+
+    @FunctionalInterface
+    private interface RefundLookupBehavior {
+        RefundLookupResult lookup(String paymentKey, long amount);
     }
 }

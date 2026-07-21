@@ -31,4 +31,7 @@ public interface PaymentPort {
      * @return 성공, 최종 실패, 재시도 가능 실패, 상태 확인 필요 중 하나와 관련 상세값
      */
     RefundResult refund(String paymentKey, long amount, String idempotencyKey);
+
+    /** 원결제 조회 응답의 취소 이력에서 해당 금액의 완료된 환불을 확인한다. */
+    RefundLookupResult lookupRefund(String paymentKey, long amount);
 }

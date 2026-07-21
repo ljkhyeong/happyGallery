@@ -8,9 +8,16 @@ import java.time.LocalDate;
 public record ShippingResponse(
         Long orderId,
         OrderStatus status,
-        LocalDate expectedShipDate
+        LocalDate expectedShipDate,
+        String carrier,
+        String trackingNumber
 ) {
     public static ShippingResponse from(ShippingResult result) {
-        return new ShippingResponse(result.orderId(), result.status(), result.expectedShipDate());
+        return new ShippingResponse(
+                result.orderId(),
+                result.status(),
+                result.expectedShipDate(),
+                result.carrier(),
+                result.trackingNumber());
     }
 }

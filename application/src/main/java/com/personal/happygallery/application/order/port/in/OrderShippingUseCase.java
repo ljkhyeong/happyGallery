@@ -12,15 +12,26 @@ import java.time.LocalDate;
  */
 public interface OrderShippingUseCase {
 
-    record ShippingResult(Long orderId, OrderStatus status, LocalDate expectedShipDate) {
+    record ShippingResult(
+            Long orderId,
+            OrderStatus status,
+            LocalDate expectedShipDate,
+            String carrier,
+            String trackingNumber
+    ) {
         public static ShippingResult of(Order order, Fulfillment fulfillment) {
-            return new ShippingResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
+            return new ShippingResult(
+                    order.getId(),
+                    order.getStatus(),
+                    fulfillment.getExpectedShipDate(),
+                    fulfillment.getCarrier(),
+                    fulfillment.getTrackingNumber());
         }
     }
 
     ShippingResult prepareShipping(Long orderId, Long adminId);
 
-    ShippingResult markShipped(Long orderId, Long adminId);
+    ShippingResult markShipped(Long orderId, String carrier, String trackingNumber, Long adminId);
 
     ShippingResult markDelivered(Long orderId, Long adminId);
 }

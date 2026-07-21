@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
-import com.personal.happygallery.adapter.in.web.customer.dto.RegisterInitialPhoneRequest;
+import com.personal.happygallery.adapter.in.web.customer.dto.UpdateMemberPhoneRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
@@ -34,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MemberPhoneRegistrationUseCaseIT {
 
     private static final String PHONE = "01012345678";
+    private static final String CHANGED_PHONE = "01087654321";
 
     @Autowired WebApplicationContext context;
     @Autowired ObjectMapper objectMapper;
@@ -59,7 +60,7 @@ class MemberPhoneRegistrationUseCaseIT {
         cleanupSupport.clearUsers();
     }
 
-    @DisplayName("소셜 신규 회원은 결제 전에 인증한 휴대폰 번호를 최초 등록한다")
+    @DisplayName("회원은 인증한 휴대폰 번호를 등록하고 다시 변경할 수 있다")
     @Test
     void socialMemberRegistersVerifiedPhoneBeforePayment() throws Exception {
         User socialUser = socialAuth.socialLogin(new SocialLoginCommand(
@@ -92,7 +93,7 @@ class MemberPhoneRegistrationUseCaseIT {
                         .session(session)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new RegisterInitialPhoneRequest(PHONE, code))))
+                                new UpdateMemberPhoneRequest(PHONE, code))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phone").value(PHONE))
                 .andExpect(jsonPath("$.phoneVerified").value(true));
@@ -104,6 +105,25 @@ class MemberPhoneRegistrationUseCaseIT {
             softly.assertThat(registered.getPhoneEnc()).isNotEqualTo(PHONE);
             softly.assertThat(registered.getPhoneHmac()).isNotBlank();
         });
+        String originalPhoneHmac = registered.getPhoneHmac();
+
+        String changeCode = guestBookingUseCase.sendVerificationCode(CHANGED_PHONE).getCode();
+        mockMvc.perform(patch("/api/v1/me/phone")
+                        .with(csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new UpdateMemberPhoneRequest(CHANGED_PHONE, changeCode))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phone").value(CHANGED_PHONE));
+
+        User changed = userReader.findById(socialUser.getId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(changed.getPhone()).isEqualTo(CHANGED_PHONE);
+            softly.assertThat(changed.isPhoneVerified()).isTrue();
+            softly.assertThat(changed.getPhoneEnc()).isNotEqualTo(CHANGED_PHONE);
+            softly.assertThat(changed.getPhoneHmac()).isNotEqualTo(originalPhoneHmac);
+        });
 
         mockMvc.perform(post("/api/v1/payments/prepare")
                         .with(csrf())
@@ -112,6 +132,40 @@ class MemberPhoneRegistrationUseCaseIT {
                         .content(prepareBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.context").value("PASS"));
+    }
+
+    @DisplayName("다른 회원이 사용하는 휴대폰 번호로 변경할 수 없다")
+    @Test
+    void rejectPhoneAlreadyUsedByAnotherMember() throws Exception {
+        User owner = socialAuth.socialLogin(new SocialLoginCommand(
+                SocialProvider.NAVER,
+                "phone-owner-naver-id",
+                "phone-owner@example.com",
+                "번호 소유자")).user();
+        String ownerCode = guestBookingUseCase.sendVerificationCode(PHONE).getCode();
+        mockMvc.perform(patch("/api/v1/me/phone")
+                        .with(csrf())
+                        .session(customerSession(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new UpdateMemberPhoneRequest(PHONE, ownerCode))))
+                .andExpect(status().isOk());
+
+        User another = socialAuth.socialLogin(new SocialLoginCommand(
+                SocialProvider.NAVER,
+                "phone-another-naver-id",
+                "phone-another@example.com",
+                "다른 회원")).user();
+        String anotherCode = guestBookingUseCase.sendVerificationCode(PHONE).getCode();
+
+        mockMvc.perform(patch("/api/v1/me/phone")
+                        .with(csrf())
+                        .session(customerSession(another))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new UpdateMemberPhoneRequest(PHONE, anotherCode))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PHONE_ALREADY_IN_USE"));
     }
 
     private MockHttpSession customerSession(User user) {

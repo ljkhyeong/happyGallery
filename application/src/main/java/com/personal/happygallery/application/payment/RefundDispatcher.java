@@ -2,13 +2,16 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.payment.RefundTransactionService.RefundCall;
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
+import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.domain.booking.Refund;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 class RefundDispatcher {
@@ -27,13 +30,14 @@ class RefundDispatcher {
     public Refund dispatch(Long refundId, String target) {
         RefundCall refundCall = transactionService.claimRefundCall(refundId);
         return switch (refundCall) {
-            case RefundCall.Required required -> dispatchRequired(required, target);
+            case RefundCall.CancelRequired required -> dispatchCancel(required, target);
+            case RefundCall.LookupRequired required -> dispatchLookup(required, target);
             case RefundCall.Skipped skipped -> skipped.refund();
         };
     }
 
-    private Refund dispatchRequired(RefundCall.Required refundCall, String target) {
-        RefundResult result = callPayment(refundCall, target);
+    private Refund dispatchCancel(RefundCall.CancelRequired refundCall, String target) {
+        RefundResult result = callRefund(refundCall, target);
         return switch (result.outcome()) {
             case SUCCESS -> transactionService.markSucceeded(
                     refundCall.refundId(), refundCall.processingToken(), result.refundTransactionKey());
@@ -58,7 +62,31 @@ class RefundDispatcher {
         };
     }
 
-    private RefundResult callPayment(RefundCall.Required refundCall, String target) {
+    private Refund dispatchLookup(RefundCall.LookupRequired refundCall, String target) {
+        RefundLookupResult result = lookupRefund(refundCall, target);
+        return switch (result.status()) {
+            case REFUNDED -> completeReconciledRefund(refundCall, result);
+            case NOT_REFUNDED -> transactionService.markRetryable(
+                    refundCall.refundId(), refundCall.processingToken(), result.reason());
+            case REVIEW_REQUIRED, UNAVAILABLE -> transactionService.markReconciliationRequired(
+                    refundCall.refundId(), refundCall.processingToken(), result.reason());
+        };
+    }
+
+    private Refund completeReconciledRefund(RefundCall.LookupRequired refundCall, RefundLookupResult result) {
+        if (!Objects.equals(refundCall.paymentKey(), result.paymentKey())
+                || refundCall.amount() != result.cancelAmount()
+                || !StringUtils.hasText(result.refundTransactionKey())) {
+            return transactionService.markReconciliationRequired(
+                    refundCall.refundId(),
+                    refundCall.processingToken(),
+                    "PG 환불 조회 결과가 저장된 요청과 일치하지 않습니다.");
+        }
+        return transactionService.markSucceeded(
+                refundCall.refundId(), refundCall.processingToken(), result.refundTransactionKey());
+    }
+
+    private RefundResult callRefund(RefundCall.CancelRequired refundCall, String target) {
         try {
             RefundResult result = paymentPort.refund(
                     refundCall.paymentKey(), refundCall.amount(), refundCall.idempotencyKey());
@@ -69,6 +97,21 @@ class RefundDispatcher {
             log.error("환불 호출 예외 [{} refundId={} type={}]",
                     target, refundCall.refundId(), e.getClass().getSimpleName());
             return RefundResult.reconciliationRequired("PG 호출 결과를 확인할 수 없습니다.");
+        }
+    }
+
+    private RefundLookupResult lookupRefund(RefundCall.LookupRequired refundCall, String target) {
+        try {
+            RefundLookupResult result = paymentPort.lookupRefund(refundCall.paymentKey(), refundCall.amount());
+            return result != null
+                    ? result
+                    : RefundLookupResult.unavailable(
+                            refundCall.paymentKey(), "PG 환불 조회 응답이 비어 있습니다.");
+        } catch (Exception e) {
+            log.error("환불 조회 예외 [{} refundId={} type={}]",
+                    target, refundCall.refundId(), e.getClass().getSimpleName());
+            return RefundLookupResult.unavailable(
+                    refundCall.paymentKey(), "PG 환불 조회 결과를 확인할 수 없습니다.");
         }
     }
 }

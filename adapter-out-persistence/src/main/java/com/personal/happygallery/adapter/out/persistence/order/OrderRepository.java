@@ -39,6 +39,23 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     /** 회원 — 자기 주문 조회 (최신순) */
     @Override List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    @Query("""
+            SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END
+            FROM Order o
+            WHERE o.userId = :userId
+              AND o.status IN (
+                  com.personal.happygallery.domain.order.OrderStatus.PAID_APPROVAL_PENDING,
+                  com.personal.happygallery.domain.order.OrderStatus.APPROVED_FULFILLMENT_PENDING,
+                  com.personal.happygallery.domain.order.OrderStatus.IN_PRODUCTION,
+                  com.personal.happygallery.domain.order.OrderStatus.DELAY_CONSENT_PENDING,
+                  com.personal.happygallery.domain.order.OrderStatus.DELAY_ACCEPTED,
+                  com.personal.happygallery.domain.order.OrderStatus.SHIPPING_PREPARING,
+                  com.personal.happygallery.domain.order.OrderStatus.SHIPPED,
+                  com.personal.happygallery.domain.order.OrderStatus.PICKUP_READY
+              )
+            """)
+    boolean existsUnfinishedByUserId(@Param("userId") Long userId);
+
     /** guest claim preview용 비회원 주문 조회 (최신순) */
     List<Order> findByGuestIdOrderByCreatedAtDesc(Long guestId);
 
@@ -55,7 +72,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     @Override
     @Query(value = """
             SELECT id, user_id, guest_id, access_token, payment_key, status,
-                   total_amount, paid_at, approval_deadline_at, version, created_at
+                   total_amount, shipping_fee, paid_at, approval_deadline_at, version, created_at
             FROM orders
             WHERE (created_at, id) < (:cursorCreatedAt, :cursorId)
             ORDER BY created_at DESC, id DESC
@@ -77,7 +94,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     @Override
     @Query(value = """
             SELECT id, user_id, guest_id, access_token, payment_key, status,
-                   total_amount, paid_at, approval_deadline_at, version, created_at
+                   total_amount, shipping_fee, paid_at, approval_deadline_at, version, created_at
             FROM orders
             WHERE status = :#{#status.name()}
               AND (created_at, id) < (:cursorCreatedAt, :cursorId)

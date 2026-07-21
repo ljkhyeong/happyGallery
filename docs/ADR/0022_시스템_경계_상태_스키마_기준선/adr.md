@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-07-20
+**갱신**: 2026-07-21
 
 ---
 
@@ -48,14 +48,18 @@
 
 - `PAID_APPROVAL_PENDING`
 - `APPROVED_FULFILLMENT_PENDING`
-- `DELAY_REQUESTED`
-- `DELAY_REJECTED_CANCELED`
 - `REJECTED`
+- `CUSTOMER_CANCELED`
 - `AUTO_REFUND_TIMEOUT`
+- `IN_PRODUCTION`
+- `DELAY_CONSENT_PENDING`
+- `DELAY_ACCEPTED`
+- `DELAY_REJECTED_CANCELED`
 - 픽업: `PICKUP_READY` -> `PICKED_UP` / 기성품 `PICKUP_EXPIRED` / 주문제작 `PICKUP_FORFEITED`
-- 제작: `IN_PRODUCTION` -> `DELAY_REQUESTED` -> `APPROVED_FULFILLMENT_PENDING`
-- 제작 지연 거절: `IN_PRODUCTION` -> `DELAY_REJECTED_CANCELED`
+- 제작: `IN_PRODUCTION` -> `DELAY_CONSENT_PENDING` -> 고객 수락 `DELAY_ACCEPTED` / 고객 거절 `DELAY_REJECTED_CANCELED`
+- 제작 재개·완료: `DELAY_ACCEPTED` -> `IN_PRODUCTION` / `APPROVED_FULFILLMENT_PENDING`
 - 배송: `APPROVED_FULFILLMENT_PENDING` -> `SHIPPING_PREPARING` -> `SHIPPED` -> `DELIVERED`
+- V74는 기존 `DELAY_REQUESTED` 값을 의미가 분명한 `DELAY_ACCEPTED`로 일괄 이관한다. 알림 이벤트 `ORDER_DELAY_REQUESTED`는 고객에게 동의를 요청한 사건 이름이므로 변경하지 않는다.
 
 예약 상태:
 
@@ -84,10 +88,12 @@
   - `id=1`인 단일 행만 유지한다. 개인정보 키 회전 트랜잭션이 `FOR UPDATE NOWAIT`로 잠가 중복 회전을 커밋·롤백까지 직렬화한다.
 
 - `users`
-  - `id`, `email_enc`, `email_hmac`, `password_hash nullable`, `credential_version`, `version`, `name_enc`, `name_hmac`, `phone_enc nullable`, `phone_hmac nullable`, `phone_verified`, `last_login_at`, `created_at`
+  - `id`, `email_enc`, `email_hmac`, `password_hash nullable`, `credential_version`, `version`, `name_enc`, `name_hmac`, `phone_enc nullable`, `phone_hmac nullable`, `phone_verified`, `last_login_at`, `withdrawn_at nullable`, `created_at`
   - 이메일·이름·전화번호 평문 컬럼은 두지 않는다. 복호화가 필요한 값은 `*_enc`, 정확 일치 조회는 `*_hmac`를 사용한다.
   - `credential_version`은 비밀번호 해시 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다.
   - `version`은 로그인 시각·휴대폰 확인·비밀번호처럼 같은 회원 행을 갱신하는 경로의 stale update를 막는 JPA 낙관적 락 버전이다.
+  - `phone_hmac`은 null을 허용하되 값이 있으면 회원 전체에서 유일하다. 전화번호 변경은 새 번호 SMS 소유 확인 뒤 이 제약과 애플리케이션 조회로 중복을 거절한다.
+  - 탈퇴는 미완료 주문, `BOOKED` 예약, 사용 가능한 미만료 8회권, 미완료 환불이 없을 때만 허용한다. 이메일·이름을 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한 뒤 `withdrawn_at`과 자격 버전을 갱신한다. 이후 일반 회원 조회와 로그인에서 제외하고 기존 세션을 폐기한다.
 - `user_social_accounts`
   - `id`, `user_id`, `provider(GOOGLE|NAVER)`, `provider_id_enc nullable`, `provider_id_hmac`, `created_at`
   - 외부 식별자는 provider 내부에서만 고유하므로 `(provider, provider_id_hmac)`를 유일하게 유지한다. 평문은 저장하지 않고, V63 이전 행의 nullable 암호문은 다음 소셜 로그인에서 채운다.
@@ -103,7 +109,8 @@
 #### 상품과 재고
 
 - `products`
-  - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `category nullable`, `price`, `status(ACTIVE|INACTIVE)`
+  - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `category nullable`, `price`, `description nullable`, `image_url nullable`, `status(ACTIVE|INACTIVE)`
+  - 관리자는 표시 정보와 대표 이미지를 수정하고 상태를 별도 변경한다. 공개 목록과 주문 prepare는 `ACTIVE` 상품만 대상으로 한다. 기존 상세 URL은 비활성 상품도 조회하되 `available=false`로 표시한다.
 - `inventory`
   - `product_id(PK/FK)`, `quantity`, `version`, `updated_at`
   - `quantity >= 0`을 DB `CHECK` 제약으로도 강제한다.
@@ -127,18 +134,22 @@
   - `id`, `user_id nullable`, `guest_id nullable`
   - `user_id`, `guest_id` 중 정확히 하나만 존재하도록 `chk_orders_exactly_one_owner` `CHECK` 제약으로 강제한다.
   - `access_token VARCHAR(64)` — SHA-256 hex 해시 저장
-  - `status`, `total_amount`, `paid_at`, `approval_deadline_at`, `bundle_id nullable`, `payment_key nullable`, `version`
+  - `status`, `total_amount`, `shipping_fee`, `paid_at`, `approval_deadline_at`, `bundle_id nullable`, `payment_key nullable`, `version`
+  - `total_amount`는 상품 합계와 배송비를 포함한다. 배송비는 prepare 당시 서버 정책을 `shipping_fee`에 스냅샷으로 저장하고 픽업은 0원이다.
 - `order_items`
-  - `id`, `order_id`, `product_id`, `qty`, `unit_price`
+  - `id`, `order_id`, `product_id`, `product_name`, `qty`, `unit_price`
+  - `product_name`, `unit_price`는 상품 변경과 무관하게 결제 준비 시점 표시를 보존한다. 기존 `products.name VARCHAR(255)` 전체를 손실 없이 이관할 수 있도록 상품명 스냅샷도 `VARCHAR(255)`를 사용한다.
 - `order_approvals`
   - `id`, `order_id`, `decided_by_admin_id`, `decision`, `reason`, `decided_at`
 - `fulfillments`
-  - `id`, `order_id(unique)`, `type(SHIPPING|PICKUP)`, `expected_ship_date`, `pickup_deadline_at`, `shipping_address_enc nullable`, `version`
+  - `id`, `order_id(unique)`, `type(SHIPPING|PICKUP)`, `expected_ship_date`, `pickup_deadline_at`, `shipping_address_enc nullable`, `carrier nullable`, `tracking_number nullable`, `version`
   - 주문 confirm 시 고객이 선택한 타입으로 함께 생성한다. `SHIPPING`의 구조화 배송지는 AES-GCM 암호문으로 저장하고 관리자 단건 이행 조회에서만 복호화한다.
+  - `carrier`, `tracking_number`는 배송 출발 시 한 쌍으로 저장한다. 픽업에는 둘 다 저장하지 않으며 DB `CHECK`로 강제한다.
 - `refunds`
   - `id`, `order_id nullable`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
   - 네 참조 중 정확히 하나, `amount`, `payment_key`, `refund_transaction_key`, `idempotency_key UNIQUE`, `fail_reason`
   - `status(REQUESTED|PROCESSING|RETRYABLE|RECONCILIATION_REQUIRED|SUCCEEDED|FAILED)`, `processing_at`, `processing_token`, `attempt_count`, `next_attempt_at`, `created_at`, `updated_at`, `version`
+  - `RECONCILIATION_REQUIRED` 재선점은 취소 재호출보다 PG 취소 내역 조회를 먼저 수행한다. 실제 완료 취소면 성공으로 화해하고 미취소가 확정된 경우만 `RETRYABLE`로 전환한다.
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
   - `processing_at nullable`, `processing_token nullable`, `payment_key nullable`, `confirmed_payment_key nullable`, `fail_reason nullable`
@@ -152,7 +163,8 @@
 #### 클래스, 슬롯, 예약
 
 - `classes`
-  - `id`, `name`, `category`, `duration_min`, `price`, `buffer_unit=30`
+  - `id`, `name`, `category`, `duration_min`, `price`, `buffer_min`, `description nullable`, `image_url nullable`, `preparation_info nullable`, `target_audience nullable`, `pass_eligible`, `status(ACTIVE|INACTIVE)`
+  - 공개 목록과 슬롯 생성·결제는 `ACTIVE` 클래스만 대상으로 한다. `pass_eligible`은 구매한 `PassPlan`의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
 - `slots`
   - `id`, `class_id`, `start_at`, `end_at`, `capacity=8`, `booked_count`, `admin_active`, `buffer_block_count`
   - 실제 활성 상태는 `admin_active=true AND buffer_block_count=0`으로 판정한다.
@@ -166,8 +178,14 @@
 - `booking_history`
   - `id`, `booking_id`, `action`, `from_slot_id`, `to_slot_id`, `actor`, `reason`, `created_at`
 
-카테고리는 정책 분기를 만들지 않는 표시·필터용 값이므로 enum이 아니라 문자열로 저장한다.
-저장·조회 필터 기준은 앞뒤 공백을 제거한 대문자 토큰이다.
+카테고리는 고정 enum이 아니라 확장 가능한 문자열로 저장하며, 저장·조회 필터 기준은 앞뒤 공백을 제거한 대문자 토큰이다.
+다만 구매 시 확정한 `PassPlan`은 이 정규화 토큰과 `pass_eligible`을 함께 사용해 이용권 적용 가능 여부를 판단한다.
+
+#### 공방 프로필
+
+- `workshop_profiles`
+  - `id=1`, `name`, `phone nullable`, `postal_code nullable`, `address_line1 nullable`, `address_line2 nullable`, `business_hours nullable`, `map_url nullable`, `parking_info nullable`, `updated_at`
+  - 단일 행 `CHECK(id=1)`로 공방 안내를 관리한다. 공개 API는 같은 프로필을 반환하고 관리자 API만 수정한다.
 
 #### 주문·예약 소유자 제약 배포
 
@@ -190,6 +208,21 @@ WHERE (user_id IS NULL AND guest_id IS NULL)
    OR (user_id IS NOT NULL AND guest_id IS NOT NULL);
 ```
 
+#### 회원 전화번호 유일 제약 배포
+
+- `V73`은 `withdrawn_at` 추가, `phone_hmac` UNIQUE 추가와 기존 일반 인덱스 제거를 하나의 MySQL 8 atomic `ALTER TABLE` 문으로 실행한다. 중복 때문에 UNIQUE 생성이 실패해도 앞선 컬럼 추가만 남는 부분 적용을 허용하지 않는다.
+- 배포 전 아래 조회 결과가 0행인지 확인한다. 중복 회원을 자동 병합하거나 임의로 한 행을 선택하지 않는다.
+
+```sql
+SELECT phone_hmac, COUNT(*) AS duplicate_count, GROUP_CONCAT(id ORDER BY id) AS user_ids
+FROM users
+WHERE phone_hmac IS NOT NULL
+GROUP BY phone_hmac
+HAVING COUNT(*) > 1;
+```
+
+- 중복이 있으면 거래·본인 확인 이력을 기준으로 유지할 회원을 수동 결정한다. 나머지 회원은 `phone_enc`, `phone_hmac`를 `NULL`, `phone_verified`를 `FALSE`로 바꾸고 자격·낙관적 락 버전을 함께 갱신한 뒤 재검사한다. 서로 다른 회원의 주문·예약·결제 이력을 자동으로 합치지 않는다.
+
 #### Q&A와 문의
 
 - `product_qna`
@@ -211,7 +244,8 @@ WHERE (user_id IS NULL AND guest_id IS NULL)
 #### 8회권
 
 - `pass_purchases`
-  - `id`, `user_id`, `purchased_at`, `expires_at`, `total_credits=8`, `remaining_credits`, `total_price`, `payment_key nullable`, `version`
+  - `id`, `user_id`, `purchased_at`, `expires_at`, `plan_code`, `total_credits=8`, `remaining_credits`, `total_price`, `payment_key nullable`, `version`
+  - `plan_code`는 구매 시점 이용권 계약 스냅샷이다. 신규 구매는 `REGULAR_CRAFT_8`, 정책 도입 전 데이터는 `LEGACY_ALL_CLASSES`를 사용한다.
 - `pass_ledger`
   - `id`, `pass_purchase_id`, `type(EARN|USE|REFUND|EXPIRE)`, `amount`, `related_booking_id nullable`, `created_at`
 
@@ -221,7 +255,7 @@ WHERE (user_id IS NULL AND guest_id IS NULL)
 - `payment_attempt(order_id_external)` UNIQUE
 - `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
 - `payment_attempt(status, confirm_recovery_attempted_at, created_at)` confirm 자동 복구 backoff·후보 조회
-- `users(email_hmac)` UNIQUE, `users(name_hmac)` 정확 일치 검색
+- `users(email_hmac)` UNIQUE, `users(phone_hmac)` UNIQUE, `users(name_hmac)` 정확 일치 검색
 - `guests(phone_hmac)` UNIQUE, `guests(name_hmac)` 정확 일치 검색
 - `user_social_accounts(provider, provider_id_hmac)` UNIQUE
 - `phone_verifications(phone_hmac, id)` 최신 인증 조회

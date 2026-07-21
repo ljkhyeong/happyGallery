@@ -1,8 +1,16 @@
 import { adminHeaders as h, api } from "@/shared/api";
-import type { SlotResponse, CreateSlotRequest, ClassResponse } from "@/shared/types";
+import type {
+  BulkSlotRequest,
+  BulkSlotResponse,
+  ClassResponse,
+  CreateSlotRequest,
+  SlotResponse,
+} from "@/shared/types";
 
-export function fetchClasses(): Promise<ClassResponse[]> {
-  return api<ClassResponse[]>("/classes");
+export function fetchClasses(adminKey: string): Promise<ClassResponse[]> {
+  return api<ClassResponse[]>("/admin/classes", {
+    headers: h(adminKey),
+  });
 }
 
 export function fetchSlotsByClass(adminKey: string, classId: number): Promise<SlotResponse[]> {
@@ -14,6 +22,28 @@ export function fetchSlotsByClass(adminKey: string, classId: number): Promise<Sl
 
 export function createSlot(adminKey: string, body: CreateSlotRequest): Promise<SlotResponse> {
   return api<SlotResponse>("/admin/slots", {
+    method: "POST",
+    headers: h(adminKey),
+    body,
+  });
+}
+
+export function previewBulkSlots(
+  adminKey: string,
+  body: BulkSlotRequest,
+): Promise<BulkSlotResponse> {
+  return api<BulkSlotResponse>("/admin/slots/bulk/preview", {
+    method: "POST",
+    headers: h(adminKey),
+    body,
+  });
+}
+
+export function createBulkSlots(
+  adminKey: string,
+  body: BulkSlotRequest,
+): Promise<BulkSlotResponse> {
+  return api<BulkSlotResponse>("/admin/slots/bulk", {
     method: "POST",
     headers: h(adminKey),
     body,

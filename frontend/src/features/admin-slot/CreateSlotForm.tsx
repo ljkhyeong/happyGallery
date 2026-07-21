@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
 import { createSlot, fetchClasses } from "./api";
-import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { ErrorAlert, useToast, LoadingSpinner } from "@/shared/ui";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
 interface Props {
   adminKey: string;
@@ -17,11 +17,11 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
   const [classId, setClassId] = useState("");
   const [startAt, setStartAt] = useState("");
 
-  const { data: classes, isLoading: classesLoading } = useQuery({
-    queryKey: ["classes"],
-    queryFn: fetchClasses,
-    staleTime: REFERENCE_DATA_STALE_TIME,
+  const { data: classes, isLoading: classesLoading } = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "classes"],
+    queryFn: () => fetchClasses(adminKey),
   });
+  const activeClasses = classes?.filter((bookingClass) => bookingClass.status === "ACTIVE");
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () =>
@@ -36,7 +36,7 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
     },
   });
 
-  const hasClasses = (classes?.length ?? 0) > 0;
+  const hasClasses = (activeClasses?.length ?? 0) > 0;
   const valid = hasClasses && Number(classId) > 0 && Boolean(startAt);
 
   if (classesLoading) return <LoadingSpinner text="클래스 목록 로딩 중..." />;
@@ -59,7 +59,7 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
               disabled={!hasClasses}
             >
               <option value="">{hasClasses ? "선택..." : "먼저 클래스를 생성하세요"}</option>
-              {classes?.map((c) => (
+              {activeClasses?.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.durationMin}분)
                 </option>

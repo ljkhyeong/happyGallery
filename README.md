@@ -7,13 +7,16 @@
 
 | 사용자 | 주요 기능 |
 | --- | --- |
-| 비회원 | 휴대폰 인증 기반 주문/예약 생성, 토큰 기반 조회, 회원가입 후 기존 이력 가져오기 |
-| 회원 | SMS 소유 확인 회원가입, 상품 주문, 클래스 예약, 8회권 구매/사용, 장바구니, 알림함, 마이페이지 |
-| 관리자 | 상품/클래스/슬롯 관리, 주문 승인/거절/배송/픽업, 예약 운영, 환불 재시도, Q&A/문의 답변 |
+| 비회원 | 휴대폰 인증 기반 주문/예약 생성, 토큰 기반 조회·취소·지연 응답, SMS 기반 조회 정보 복구, 회원가입 후 기존 이력 가져오기 |
+| 회원 | 상품 주문·취소·지연 응답, 클래스 예약, 8회권 구매·사용·환불, 장바구니, 알림함, 휴대폰 변경·회원 탈퇴 |
+| 관리자 | 상품·클래스 콘텐츠/이미지, 공방 프로필·슬롯 일괄 관리, 주문 승인/거절/배송/픽업, 환불 재처리, Q&A/문의 답변 |
 
 - 주문/예약/8회권은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm` 표준 결제 경로를 사용한다. confirm은 선점·PG 승인·도메인 저장 트랜잭션을 분리하고 Toss 멱등키와 실패 보상 환불을 사용한다.
 - 8회권 사용 예약은 운영자가 일정을 일괄 배정하지 않는다. 회원이 예약 가능 슬롯을 직접 선택해 한 회차씩 예약하고 크레딧 1회를 사용한다.
-- 환불은 요청 이력을 먼저 커밋한 뒤 PG를 호출한다. 실행 유실·일시 실패·결과 불명 상태는 최초 멱등키를 유지한 채 매분 복구하며, PG 호출 실행기는 제한 큐와 즉시 거절 정책으로 보호한다.
+- 정규 공예 8회권은 구매 시 계획을 저장하고, 운영자가 사용 가능으로 지정한 비향수 클래스에만 적용한다. 회원은 내 8회권에서 잔여 횟수 정산 환불을 요청하고 진행 상태를 조회한다.
+- 환불은 요청 이력을 먼저 커밋한 뒤 PG를 호출한다. 실행 유실·일시 실패는 최초 멱등키로 복구하고, 결과 불명 상태는 PG 취소 내역을 먼저 조회해 성공 여부를 화해한 뒤에만 취소 재호출 여부를 결정한다.
+- 배송 주문은 `ORDER_SHIPPING_FEE` 고정액을 결제 준비 시 확정해 주문에 저장한다. 상품명·단가, 배송비와 택배사·운송장 정보는 과거 주문을 재현할 수 있게 스냅샷으로 유지한다.
+- 상품·클래스 설명과 대표 이미지, 공방 주소·영업·주차 안내를 관리자 화면에서 관리한다. 반복 슬롯은 기간·요일·시각 조합을 미리 본 뒤 일괄 생성한다.
 - 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
 - 브라우저의 비관리자 상태 변경 요청은 `XSRF-TOKEN` 쿠키와 `X-XSRF-TOKEN` 헤더로 CSRF를 방어한다.
 - 상세 요구사항은 [기준 스펙](docs/PRD/0001_기준_스펙/spec.md), HTTP 계약은 [API 계약](docs/PRD/0004_API_계약/spec.md)을 기준으로 본다.
@@ -158,7 +161,7 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 - 프론트엔드와 API는 같은 origin으로 제공하고 외부에는 ingress의 HTTP/HTTPS 포트만 연다.
 - 애플리케이션, MySQL, Redis와 관리·모니터링 포트는 외부에 직접 공개하지 않는다.
 - Docker Compose는 로컬 개발, 통합 검증과 복구 진단용이다. 현재 `local` 프로필과 개발 기본값을 사용하므로 운영 배포 기준이 아니다.
-- [`deploy/k3s`](deploy/k3s/README.md)에 namespace, ingress/TLS, MySQL PVC, 비공개 Actuator/Prometheus, secret 주입, 불변 이미지 import, rollout·rollback, 암호화 백업·복원 절차를 둔다.
+- [`deploy/k3s`](deploy/k3s/README.md)에 namespace, ingress/TLS, MySQL·미디어 PVC, 비공개 Actuator/Prometheus, secret 주입, 불변 이미지 import, rollout·rollback, DB·미디어 암호화 백업·복원 절차를 둔다.
 - 현재 공개 운영 주소와 자동 배포 workflow는 없다. 실제 노트북에서 DNS·공유기·방화벽·TLS·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
 
 운영 목표와 불변 조건은 [ADR-0037 자가 호스팅 배포 토폴로지 기준](docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)을 따른다. 이전 AWS 구조와 배포 설정은 [Idea-0028](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md), [Idea-0029](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md), [Idea-0039](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)에 역사 기록으로 남긴다.
@@ -176,6 +179,9 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `NOTIFICATION_TIMEOUT_MILLIS` | 백엔드 | 알림 외부 호출 전체 TimeLimiter, 기본 `5000` |
 | `ALIMTALK_TIMEOUT_MILLIS` / `SMS_TIMEOUT_MILLIS` | 백엔드 `prod` | NHN 응답 대기 상한, 기본 `2000` (연결 풀 `500` + 연결 `1000`보다 바깥 TimeLimiter가 크게 유지돼야 함) |
 | `PASS_TOTAL_PRICE` | 백엔드 | 8회권 결제 금액 |
+| `ORDER_SHIPPING_FEE` | 백엔드 | 배송 주문에 더하는 고정 배송비, 기본 `0`원 |
+| `MEDIA_STORAGE_PATH` | 백엔드 | 관리자 업로드 이미지 저장 경로, 로컬 기본 `./data/media` |
+| `GUEST_TOKEN_RECOVERY_EXPIRY_HOURS` | 백엔드 | 비회원 조회 정보 복구 토큰 수명, 기본 `24`시간 |
 | `GOOGLE_OAUTH_CLIENT_ID` | 백엔드 `prod` | Google 로그인 client ID |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Google 로그인 client secret |
 | `GOOGLE_OAUTH_REDIRECT_URI` | 백엔드 `prod` | Google에 등록한 exact backend callback URI (`https://<host>/api/v1/auth/social/callback/google`) |

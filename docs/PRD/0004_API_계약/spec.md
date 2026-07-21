@@ -207,7 +207,12 @@ Authorization: Bearer {token}
   "category": "PERFUME",
   "durationMin": 120,
   "price": 50000,
-  "bufferMin": 30
+  "bufferMin": 30,
+  "passEligible": false,
+  "description": "나만의 향을 조합하는 원데이 클래스입니다.",
+  "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
+  "preparationInfo": "향에 민감하면 미리 알려주세요.",
+  "targetAudience": "만 14세 이상"
 }
 ```
 
@@ -218,16 +223,24 @@ Authorization: Bearer {token}
   "category": "PERFUME",
   "durationMin": 120,
   "price": 50000,
-  "bufferMin": 30
+  "bufferMin": 30,
+  "passEligible": false,
+  "description": "나만의 향을 조합하는 원데이 클래스입니다.",
+  "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
+  "preparationInfo": "향에 민감하면 미리 알려주세요.",
+  "targetAudience": "만 14세 이상",
+  "status": "ACTIVE"
 }
 ```
 
 - 성공: `201 Created`
 - 에러:
-  - `400 INVALID_INPUT` — 이름/카테고리 공란, durationMin/price/bufferMin 형식 오류
+  - `400 INVALID_INPUT` — 이름/카테고리 공란, durationMin/price/bufferMin 형식 오류, `passEligible` 누락 또는 콘텐츠 길이 초과
 - 정책:
   - `category`는 앞뒤 공백을 제거하고 대문자 토큰으로 정규화해 저장·응답한다.
   - `price`는 1원 이상 `9,007,199,254,740,991원` 이하의 정수다.
+  - `description`, `imageUrl`, `preparationInfo`, `targetAudience`는 선택값이다. `imageUrl`은 관리자 미디어 업로드 응답 경로 또는 유효한 URL을 사용한다.
+  - 새 클래스는 `ACTIVE`로 생성된다. `passEligible`은 구매한 이용권 계획의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
 
 #### 2.1.2 슬롯 생성
 
@@ -309,6 +322,36 @@ Authorization: Bearer {token}
   - `adminActive`만 `true`로 복구한다.
   - `bufferBlocked=true`이면 활성화 후에도 `isActive=false`다.
 
+#### 2.1.5 클래스 전체 조회·수정·상태 변경
+
+- `GET /api/v1/admin/classes` — `ACTIVE`, `INACTIVE` 클래스를 모두 반환한다.
+- `PATCH /api/v1/admin/classes/{id}` — 이름·카테고리·가격·`passEligible`·설명·대표 이미지·준비물·대상 안내를 수정한다. 운영 시간과 버퍼는 기존 예약 시간축에 영향을 주므로 이 API에서 바꾸지 않는다.
+- `PATCH /api/v1/admin/classes/{id}/status` — `{ "status": "ACTIVE|INACTIVE" }`로 공개·예약 가능 상태를 변경한다.
+- 성공: `200 OK`, 응답은 2.1.1의 클래스 응답과 같다.
+- `INACTIVE` 클래스는 공개 목록, 새 슬롯 생성과 결제 prepare 대상에서 제외한다. 기존 예약 이력은 유지한다.
+
+#### 2.1.6 슬롯 일괄 미리보기·생성
+
+```http
+POST /api/v1/admin/slots/bulk/preview
+POST /api/v1/admin/slots/bulk
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "classId": 1,
+  "dateFrom": "2026-08-01",
+  "dateTo": "2026-08-31",
+  "weekdays": ["TUESDAY", "THURSDAY"],
+  "startTimes": ["10:00:00", "14:00:00"]
+}
+```
+
+- 기간은 시작일·종료일을 포함해 최대 93일, 요일은 최대 7개, 시작 시각은 최대 24개이며 생성 후보는 최대 500개다.
+- 미리보기는 DB를 바꾸지 않고 `CREATABLE`, `SKIPPED_DUPLICATE`, `SKIPPED_PAST`와 `bufferBlocked`를 반환한다.
+- 실제 생성은 만들 수 있는 후보를 `CREATED`로 반환하고 과거·중복 후보는 항목별로 건너뛴다. 응답에는 `totalCount`, `creatableCount`, `createdCount`, `skippedCount`, `items`가 포함된다.
+- 비활성 또는 없는 클래스, 역전된 날짜, 빈 요일/시각, 상한 초과는 거절한다.
+
 ### 2.2 공개 조회 API
 
 #### 2.2.1 공개 상품 목록 조회
@@ -325,6 +368,8 @@ GET /api/v1/products
     "type": "READY_STOCK",
     "category": "CANDLE",
     "price": 39000,
+    "description": "천연 소이 왁스로 만든 캔들입니다.",
+    "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
     "available": true
   }
 ]
@@ -349,7 +394,10 @@ GET /api/v1/products/{id}
   "id": 1,
   "name": "시그니처 캔들",
   "type": "READY_STOCK",
+  "category": "CANDLE",
   "price": 39000,
+  "description": "천연 소이 왁스로 만든 캔들입니다.",
+  "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
   "available": true
 }
 ```
@@ -376,14 +424,20 @@ GET /api/v1/classes
     "category": "PERFUME",
     "durationMin": 120,
     "price": 50000,
-    "bufferMin": 30
+    "bufferMin": 30,
+    "passEligible": false,
+    "description": "나만의 향을 만드는 원데이 클래스입니다.",
+    "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
+    "preparationInfo": null,
+    "targetAudience": "만 14세 이상",
+    "status": "ACTIVE"
   }
 ]
 ```
 
 - 성공: `200 OK`
 - 정책:
-  - 현재 등록된 전체 클래스를 반환한다.
+  - `ACTIVE` 클래스만 반환한다. 관리자는 별도 전체 조회 API를 사용한다.
   - 프론트 예약 생성 화면은 이 응답을 기준으로 클래스 선택지를 구성한다.
   - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
   - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
@@ -430,7 +484,9 @@ Content-Type: application/json
   "type": "READY_STOCK",
   "category": "CANDLE",
   "price": 39000,
-  "quantity": 5
+  "quantity": 5,
+  "description": "천연 소이 왁스로 만든 캔들입니다.",
+  "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg"
 }
 ```
 
@@ -441,6 +497,8 @@ Content-Type: application/json
   "type": "READY_STOCK",
   "category": "CANDLE",
   "price": 39000,
+  "description": "천연 소이 왁스로 만든 캔들입니다.",
+  "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
   "status": "ACTIVE",
   "available": true,
   "quantity": 5
@@ -455,6 +513,7 @@ Content-Type: application/json
   - `category`는 선택값이며, 입력하면 앞뒤 공백을 제거하고 대문자 토큰으로 정규화해 저장·응답한다.
   - 공백 카테고리는 미입력과 동일하게 처리한다.
   - `price`는 1원 이상 `9,007,199,254,740,991원` 이하의 정수다. 상한은 웹 클라이언트가 원 단위 금액을 정밀도 손실 없이 전달할 수 있는 기술 경계다.
+  - `description`, `imageUrl`은 선택값이며 `imageUrl`은 `/`로 시작하는 서비스 경로 또는 `http(s)` URL이어야 한다.
 
 #### 2.3.2 전체 상품 목록 조회
 
@@ -549,6 +608,26 @@ Authorization: Bearer {token}
 - 성공: `200 OK` — 최신순 최대 50건, 각 항목은 재고 수동 조정 응답과 동일
 - 에러:
   - `404 NOT_FOUND` — 상품 미존재
+
+#### 2.3.6 상품 표시 정보 수정
+
+```http
+PATCH /api/v1/admin/products/{id}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "시그니처 캔들 리뉴얼",
+  "category": "CANDLE",
+  "price": 42000,
+  "description": "리뉴얼한 향과 용기를 적용했습니다.",
+  "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg"
+}
+```
+
+- 성공: `200 OK`, 현재 재고를 포함한 `ProductResponse` 반환
+- 상품 유형과 재고 수량, 판매 상태는 이 API에서 바꾸지 않는다. 재고와 상태는 각 전용 API를 사용한다.
+- 이미 결제된 주문은 `order_items.product_name`, `unit_price` 스냅샷을 사용하므로 상품명·가격 변경의 영향을 받지 않는다.
 
 ### 2.4 예약 API
 
@@ -729,6 +808,8 @@ POST /api/v1/admin/passes/{passId}/refund
 Authorization: Bearer {token}
 ```
 
+관리자 응답은 운영용 환불 식별자를 포함한다.
+
 ```json
 {
   "canceledBookings": 2,
@@ -739,10 +820,28 @@ Authorization: Bearer {token}
 }
 ```
 
+이용권 소유 회원은 같은 정산 흐름을 아래 경로로 호출한다. 회원 응답에는 내부 환불 식별자를 포함하지 않는다.
+
+```http
+POST /api/v1/me/passes/{passId}/refund
+Cookie: HG_SESSION={sessionToken}
+```
+
+```json
+{
+  "canceledBookings": 2,
+  "refundCredits": 8,
+  "refundAmount": 240000,
+  "refundStatus": "REQUESTED"
+}
+```
+
 - 성공: `200 OK`
 - 에러:
   - `404 NOT_FOUND` — passId 미존재
+  - `401 UNAUTHORIZED` — 회원 경로에 세션 없음
   - `422 PASS_EXPIRED` — 만료된 8회권 환불 요청. 남아 있던 크레딧은 `EXPIRE` 처리되고 환불·미래 예약 취소는 실행하지 않음
+  - `429 TOO_MANY_REQUESTS` — 회원 환불 요청 처리율 제한 초과
 - 정책:
   - 미래 `BOOKED` 예약 자동 취소
   - `refundCredits = remainingCredits + 자동 취소한 미래 예약 수`
@@ -750,8 +849,8 @@ Authorization: Bearer {token}
   - `REFUND` ledger 기록 후 `remaining_credits = 0`
   - `payment_key` 기반 PG 환불 요청 이력을 `refunds`에 `REQUESTED`로 남기고, 부모 트랜잭션 커밋 이후 PG 환불을 실행
   - PG 결과는 비동기로 `SUCCEEDED`, `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 중 하나에 반영된다. 미완료 상태는 같은 멱등키로 자동 복구하며 운영자가 수동 재처리할 수도 있다.
-  - `200 OK`와 `refundStatus=REQUESTED`는 미래 예약 취소·크레딧 정산·환불 요청 접수 완료를 뜻한다. `refundAmount=0`이면 `refundId`, `refundStatus`는 `null`이며 PG 환불은 실행하지 않는다.
-  - `refundId`가 있으면 `GET /api/v1/admin/refunds/{refundId}`로 실제 PG 처리 상태를 조회한다.
+  - `200 OK`와 `refundStatus=REQUESTED`는 미래 예약 취소·크레딧 정산·환불 요청 접수 완료를 뜻한다. `refundAmount=0`이면 관리자 응답의 `refundId`와 두 응답의 `refundStatus`는 `null`이며 PG 환불은 실행하지 않는다.
+  - 관리자 환불 응답의 `refundId`는 `GET /api/v1/admin/refunds/{refundId}`로 실제 PG 처리 상태를 조회한다. 회원은 관리자 API를 사용하지 않고 `GET /api/v1/me/passes` 또는 `GET /api/v1/me/passes/{passId}`의 `refund.amount`, `refund.status`로 자신의 환불 진행 상태를 확인한다.
   - 단가 = `totalPrice / totalCredits`
 
 #### 2.5.5 만료 배치 수동 트리거
@@ -791,17 +890,20 @@ X-Access-Token: {accessToken}
 {
   "orderId": 12,
   "status": "PAID_APPROVAL_PENDING",
-  "totalAmount": 118000,
+  "totalAmount": 121000,
+  "shippingFee": 3000,
   "paidAt": "2026-03-08T20:30:00",
   "approvalDeadlineAt": "2026-03-09T20:30:00",
   "items": [
-    { "productId": 1, "qty": 2, "unitPrice": 39000 },
-    { "productId": 3, "qty": 1, "unitPrice": 40000 }
+    { "productId": 1, "productName": "시그니처 캔들", "qty": 2, "unitPrice": 39000 },
+    { "productId": 3, "productName": "우드 트레이", "qty": 1, "unitPrice": 40000 }
   ],
   "fulfillment": {
     "type": "SHIPPING",
     "expectedShipDate": null,
-    "pickupDeadlineAt": null
+    "pickupDeadlineAt": null,
+    "carrier": null,
+    "trackingNumber": null
   },
   "refund": null
 }
@@ -811,12 +913,28 @@ X-Access-Token: {accessToken}
 - 에러:
   - `404 NOT_FOUND` — orderId 미존재 또는 token 불일치
 - 정책:
-  - `X-Access-Token` 헤더의 토큰을 SHA-256 해시하여 DB 저장값과 비교한다.
-  - 신규 주문의 `fulfillment`는 결제 confirm 시 함께 생성되며 고객이 선택한 `type`, 예상 출고일, 픽업 마감만 반환한다. 배송지 원문은 고객 응답에 포함하지 않는다.
+  - 신규 서명 토큰은 HMAC 서명과 만료 시각을 검증한 뒤 서명된 claim의 nonce 해시를 DB 저장값과 비교한다. 레거시 32자 16진수 토큰은 전체 원문의 SHA-256 해시를 비교하는 호환 경로를 유지한다.
+  - 신규 주문의 `fulfillment`는 결제 confirm 시 함께 생성되며 고객이 선택한 `type`, 예상 출고일, 픽업 마감과 배송 추적 정보를 반환한다. 배송지 원문은 고객 응답에 포함하지 않는다.
+  - `shippingFee`는 prepare 당시 서버 정책 스냅샷이다. `totalAmount`에는 상품 합계와 배송비가 모두 포함되며 픽업 주문의 배송비는 0원이다.
+  - 각 항목의 `productName`, `unitPrice`는 prepare 당시 스냅샷이다. 배송 출발 뒤에는 `carrier`, `trackingNumber`를 함께 반환한다.
   - 환불 이력이 있으면 `refund`에 `amount`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
   - `status=PICKUP_EXPIRED`는 기성품 미수령 환불이며 `refund`에 진행 상태를 반환한다. `status=PICKUP_FORFEITED`는 주문제작 상품의 미수령 종료이며 `refund=null`이다.
-  - 현재 회원·비회원 고객 일반 주문 취소 endpoint는 제공하지 않는다. `PAID_APPROVAL_PENDING` 주문도 관리자 승인·거절 또는 24시간 자동 환불로만 전이한다.
-  - 향후 고객 취소를 도입할 때는 `PAID_APPROVAL_PENDING` 전용 별도 취소 상태, 회원 세션/비회원 접근 토큰 소유권 검증, 재고 복구·이력·환불 요청 계약을 함께 추가한다. 기존 관리자 `REJECTED`는 고객 취소에 재사용하지 않는다.
+  - `DELETE /api/v1/orders/{id}`는 비회원 접근 토큰으로, `DELETE /api/v1/me/orders/{id}`는 회원 세션으로 본인 주문을 확인한다. `PAID_APPROVAL_PENDING`만 `CUSTOMER_CANCELED`로 전이하고 재고 복구·이력·환불 요청을 함께 처리한다.
+  - `POST /api/v1/orders/{id}/delay-response`와 `POST /api/v1/me/orders/{id}/delay-response`는 `{ "decision": "ACCEPT|REJECT" }`를 받는다. `DELAY_CONSENT_PENDING`에서 수락하면 `DELAY_ACCEPTED`, 거절하면 `DELAY_REJECTED_CANCELED`와 전액 환불 요청으로 전이한다.
+  - 고객 액션 응답은 `{orderId,status,refund}`다. `refund`가 `REQUESTED`여도 PG 완료를 뜻하지 않으며 주문 상세에서 진행 상태를 다시 확인한다.
+
+#### 2.6.3 주문 가격 정책 조회
+
+```http
+GET /api/v1/orders/policy
+```
+
+```json
+{ "shippingFee": 3000 }
+```
+
+- 인증 없이 결제 전 고정 배송비를 조회한다. 실제 결제 금액은 prepare 시 서버 설정으로 다시 확정한다.
+- `PICKUP`은 이 값과 무관하게 배송비 0원이다. 현재 무료 배송 임계값은 없고 운영 기본값은 `ORDER_SHIPPING_FEE=0`이다.
 
 ### 2.7 주문 Admin API
 
@@ -834,8 +952,13 @@ Authorization: Bearer {token}
       "orderId": 123,
       "orderNumber": "ORD-00000123",
       "status": "PAID_APPROVAL_PENDING",
-      "totalAmount": 118000,
+      "totalAmount": 121000,
+      "shippingFee": 3000,
       "fulfillmentType": "SHIPPING",
+      "items": [
+        { "productId": 1, "productName": "시그니처 캔들", "qty": 2, "unitPrice": 39000 },
+        { "productId": 3, "productName": "우드 트레이", "qty": 1, "unitPrice": 40000 }
+      ],
       "paidAt": "2026-03-24T11:32:10",
       "createdAt": "2026-03-24T02:32:10Z"
     }
@@ -874,7 +997,9 @@ Authorization: Bearer {token}
     "addressLine2": "2층"
   },
   "expectedShipDate": null,
-  "pickupDeadlineAt": null
+  "pickupDeadlineAt": null,
+  "carrier": null,
+  "trackingNumber": null
 }
 ```
 
@@ -949,13 +1074,14 @@ Authorization: Bearer {token}
   - 요청: `{ "expectedShipDate": "2026-04-15" }`
   - 응답: `{ "orderId": 5, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
   - 정책:
-    - `IN_PRODUCTION`, `DELAY_REQUESTED`, `SHIPPING_PREPARING` 상태에서만 설정 가능
+    - `IN_PRODUCTION`, `DELAY_CONSENT_PENDING`, `DELAY_ACCEPTED`, `SHIPPING_PREPARING` 상태에서만 설정 가능
     - `SHIPPING` 타입 fulfillment에서만 설정 가능 (`PICKUP` 타입은 400)
 - `POST /api/v1/admin/orders/{id}/delay`
-  - 응답: `{ "orderId": 5, "status": "DELAY_REQUESTED", "expectedShipDate": "2026-04-15" }`
+  - 응답: `{ "orderId": 5, "status": "DELAY_CONSENT_PENDING", "expectedShipDate": "2026-04-15" }`
   - 정책:
-    - `IN_PRODUCTION`에서만 지연 요청 가능
-    - 고객이 지연을 수락한 뒤 호출하는 운영 액션이다.
+    - `IN_PRODUCTION`에서만 지연 제안 가능
+    - 고객 동의가 끝난 것으로 간주하지 않는다. 회원·비회원 고객 응답 API가 수락하면 `DELAY_ACCEPTED`, 거절하면 `DELAY_REJECTED_CANCELED`로 전이한다.
+    - 지연 동의 요청 알림 이벤트명은 사건 의미를 나타내는 `ORDER_DELAY_REQUESTED`를 유지한다.
 - `POST /api/v1/admin/orders/{id}/cancel-for-delay-rejection`
   - 응답:
     ```json
@@ -974,15 +1100,15 @@ Authorization: Bearer {token}
     ```
   - 정책:
     - 고객이 제안된 지연을 수락하기 전에 거절한 경우 사용한다.
-    - `IN_PRODUCTION`에서만 지연 거절 취소 가능
+    - `DELAY_CONSENT_PENDING`에서만 지연 거절 취소 가능
     - 재고 복구 + 환불 실행 + `DELAY_REJECTED_CANCELED` 전이
     - 응답의 `REQUESTED`는 로컬 취소와 환불 요청 접수 완료를 뜻하며 PG 환불 완료를 뜻하지 않는다.
     - 이력은 `DELAY_CANCEL`로 기록하고 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
-    - `DELAY_REQUESTED`는 이미 지연을 수락한 상태이므로 400으로 거절한다.
+    - `DELAY_ACCEPTED`는 이미 지연을 수락한 상태이므로 400으로 거절한다.
 - `POST /api/v1/admin/orders/{id}/resume-production`
   - 응답: `{ "orderId": 5, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
   - 정책:
-    - `DELAY_REQUESTED`에서만 제작 재개 가능
+    - `DELAY_ACCEPTED`에서만 제작 재개 가능
     - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다
 - `POST /api/v1/admin/orders/{id}/prepare-pickup`
   - 요청: `{ "pickupDeadlineAt": "2026-04-16T18:00:00" }`
@@ -1046,9 +1172,9 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 에러:
   - `404 NOT_FOUND` — orderId 미존재
-  - `400 INVALID_INPUT` — `IN_PRODUCTION` 또는 `DELAY_REQUESTED` 상태가 아닌 주문
+  - `400 INVALID_INPUT` — `IN_PRODUCTION` 또는 `DELAY_ACCEPTED` 상태가 아닌 주문
 - 정책:
-  - `IN_PRODUCTION` 또는 `DELAY_REQUESTED` → `APPROVED_FULFILLMENT_PENDING`
+  - `IN_PRODUCTION` 또는 `DELAY_ACCEPTED` → `APPROVED_FULFILLMENT_PENDING`
   - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
   - API Key 폴백 경로는 `null`일 수 있다.
 
@@ -1056,9 +1182,18 @@ Authorization: Bearer {token}
 
 ```http
 POST /api/v1/admin/orders/{id}/prepare-shipping
-POST /api/v1/admin/orders/{id}/mark-shipped
 POST /api/v1/admin/orders/{id}/mark-delivered
 Authorization: Bearer {token}
+```
+
+배송 출발은 택배사와 운송장 번호를 함께 받는다.
+
+```http
+POST /api/v1/admin/orders/{id}/mark-shipped
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{ "carrier": "CJ대한통운", "trackingNumber": "123456789012" }
 ```
 
 ```json
@@ -1066,7 +1201,7 @@ Authorization: Bearer {token}
 ```
 
 ```json
-{ "orderId": 5, "status": "SHIPPED", "expectedShipDate": "2026-04-15" }
+{ "orderId": 5, "status": "SHIPPED", "expectedShipDate": "2026-04-15", "carrier": "CJ대한통운", "trackingNumber": "123456789012" }
 ```
 
 ```json
@@ -1076,6 +1211,7 @@ Authorization: Bearer {token}
 - 정책:
   - `APPROVED_FULFILLMENT_PENDING` → `SHIPPING_PREPARING` → `SHIPPED` → `DELIVERED` 순서만 허용한다.
   - 결제 시 고객이 `SHIPPING`을 선택한 주문만 배송 흐름을 시작할 수 있다. 픽업 주문은 상태 변경 전에 거절한다.
+  - `mark-shipped`의 `carrier`와 `trackingNumber`는 공백일 수 없고 각각 최대 50자, 100자다. 두 값은 fulfillment에 한 쌍으로 저장하고 고객·관리자 상세에 노출한다.
   - 각 전이는 `order_approvals` 이력에 `PREPARE_SHIPPING`, `SHIP`, `DELIVER`로 기록한다.
   - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
 
@@ -1101,7 +1237,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - 처리 시간 순으로 정렬된 전체 이력을 반환한다.
-  - `decision`: `APPROVE`, `REJECT`, `DELAY`, `DELAY_CANCEL`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PICKUP_READY`, `PICKUP_COMPLETE`, `PICKUP_EXPIRED`, `PICKUP_FORFEITED`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
+  - `decision`: `APPROVE`, `REJECT`, `CUSTOMER_CANCEL`, `DELAY`, `DELAY_ACCEPT`, `DELAY_REJECT`, `DELAY_CANCEL`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PICKUP_READY`, `PICKUP_COMPLETE`, `PICKUP_EXPIRED`, `PICKUP_FORFEITED`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
 
 ### 2.8 공지사항 API
 
@@ -1448,6 +1584,9 @@ Authorization: Bearer {token}
 - 정책:
   - `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 상태를 재처리할 수 있다.
   - 성공 시 `SUCCEEDED`, 명시적 거절 시 `FAILED`, 실행 전 일시 실패 시 `RETRYABLE`, 결과 불명 시 `RECONCILIATION_REQUIRED`가 된다.
+  - `RECONCILIATION_REQUIRED`는 Toss cancel을 바로 다시 호출하지 않는다. `paymentKey`로 결제와 취소 내역을 조회해 요청 금액과 정확히 같은 최신 `DONE` 취소, `transactionKey`, 결제 상태 `CANCELED|PARTIAL_CANCELED`를 모두 확인하면 `SUCCEEDED`로 화해한다.
+  - 취소 내역이 없고 결제 상태가 `DONE`이면 미취소로 확정해 `RETRYABLE`로 바꾼다. 다음 실행부터 최초 멱등키로 cancel을 호출한다. 금액·상태 모순이나 조회 실패는 `RECONCILIATION_REQUIRED`를 유지해 중복 취소를 피한다.
+  - PG 조회 응답의 `paymentKey`, 취소 금액, `transactionKey`가 저장 요청과 일치하는지 결과 저장 전에 다시 확인한다.
   - PG 호출 전 선점과 호출 후 결과 저장은 부모 주문/예약 트랜잭션 및 PG 네트워크 구간과 분리된 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다.
   - `paymentAttemptId`가 있으면 PG 승인 후 주문·예약·8회권 생성에 실패한 결제의 보상 환불이다.
   - 최초 환불과 자동·수동 재처리는 같은 `refunds.idempotency_key`를 Toss `Idempotency-Key` 헤더로 사용한다.
@@ -1575,7 +1714,7 @@ GET /api/v1/auth/social/callback/{provider}?code=...&state=...
   - `newUser=true`이면 프런트는 마이페이지의 최초 전화번호 등록 온보딩을 연다. callback 상태를 잃고 마이페이지에 직접 진입해도 현재 회원의 `phone=null`이면 같은 온보딩을 연다.
   - 소셜 로그인 시작과 callback은 서로 분리된 IP 버킷으로 각각 분당 10회 제한한다.
 
-#### 2.12.0.4 소셜 회원 최초 휴대폰 등록
+#### 2.12.0.4 회원 휴대폰 등록·변경
 
 ```http
 PATCH /api/v1/me/phone
@@ -1603,12 +1742,13 @@ Cookie: HG_SESSION={sessionToken}
   - `400 INVALID_INPUT` — 요청 형식 또는 전화번호 형식 불일치
   - `400 PHONE_VERIFICATION_FAILED` — 같은 전화번호의 미소모·유효 인증 코드가 아님
   - `401 UNAUTHORIZED` — 회원 세션 없음
-  - `409 PHONE_ALREADY_REGISTERED` — 이미 전화번호가 등록된 회원
+  - `409 PHONE_ALREADY_IN_USE` — 다른 회원이 이미 사용하는 전화번호
   - `429 TOO_MANY_REQUESTS` — 같은 전화번호의 인증 코드 확인 시도 초과
 - 정책:
   - 인증 코드 발급은 2.4.1의 `POST /api/v1/bookings/phone-verifications`를 사용한다.
-  - 회원 행 잠금 아래 인증 코드를 한 번 소비하고 `phone_enc`, `phone_hmac`, `phone_verified=true`를 같은 트랜잭션에서 저장한다.
-  - 이 API는 `phone=null`인 회원의 최초 등록 전용이다. 이미 저장된 번호의 재확인과 비회원 이력 가져오기는 `/api/v1/me/guest-claims/**` 계약을 사용한다.
+  - 회원 행 잠금 아래 새 번호의 인증 코드를 한 번 소비하고 `phone_enc`, `phone_hmac`, `phone_verified=true`를 같은 트랜잭션에서 저장한다.
+  - 전화번호가 없는 소셜 회원의 최초 등록과 기존 회원의 번호 변경에 같은 API를 사용한다. `users.phone_hmac`은 null 외 값에 UNIQUE 제약을 적용한다.
+  - 비회원 이력 가져오기는 `/api/v1/me/guest-claims/**` 계약을 사용하며 번호 변경만으로 자동 이관하지 않는다.
   - `GET /api/v1/me`의 `phone`은 최초 등록 전 `null`일 수 있다.
 
 #### 2.12.0.5 로그인 비밀번호 변경
@@ -1661,6 +1801,22 @@ POST /api/v1/auth/password/reset
   - `password_hash=null`인 소셜 전용 회원도 성공할 수 있으며, 성공 후 이메일 로그인이 활성화된다.
   - 성공하면 `credential_version`을 증가시키고 해당 회원의 모든 세션을 무효화한다.
 
+#### 2.12.0.7 회원 탈퇴
+
+```http
+DELETE /api/v1/me
+Cookie: HG_SESSION={sessionToken}
+```
+
+- 성공: `204 No Content`, 현재 세션을 포함한 기존 회원 세션 폐기
+- 에러:
+  - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `422 ACCOUNT_WITHDRAWAL_BLOCKED` — 미완료 주문, `BOOKED` 예약, 사용 가능한 미만료 8회권 또는 미완료 환불이 있음
+- 정책:
+  - 회원 행을 잠그고 차단 활동을 다시 확인해 탈퇴와 새 거래 생성을 직렬화한다.
+  - 이메일·이름은 재사용 가능한 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한다. `withdrawnAt`과 새 자격 버전을 저장하며 주문·예약·정산 이력은 보존한다.
+  - 탈퇴 회원은 로그인과 일반 회원 조회에서 제외한다. 커밋 뒤 이전 자격 버전의 Redis 세션을 폐기한다.
+
 #### ~~2.12.1 회원 예약 생성~~ (2026-04-22 제거)
 
 > 회원 예약 생성도 `POST /api/v1/payments/prepare` (`context=BOOKING`, `payload.userId` 지정) → `POST /api/v1/payments/confirm`으로 단일화됨. 8회권 사용 예약은 `payload.passId`를 채워 amount=0 → confirm 직접 호출 경로를 탄다. 2.15 결제 API 참조.
@@ -1677,8 +1833,11 @@ POST /api/v1/auth/password/reset
 - `GET /api/v1/me/orders/{id}` — 회원 주문 상세
 - `GET /api/v1/me/passes` — 회원 8회권 목록
 - `GET /api/v1/me/passes/{id}` — 회원 8회권 상세
+- `POST /api/v1/me/passes/{id}/refund` — 소유한 8회권 잔여 횟수 정산 환불
+- `DELETE /api/v1/me/orders/{id}` — 승인 대기 주문 취소
+- `POST /api/v1/me/orders/{id}/delay-response` — 제작 지연 제안 수락/거절
 
-회원 주문도 현재 조회만 제공하며 고객 일반 주문 취소 endpoint는 없다.
+회원 주문 액션은 세션 소유권을 검증한다. 취소는 `PAID_APPROVAL_PENDING`, 지연 응답은 `DELAY_CONSENT_PENDING`에서만 허용하며 응답의 환불 상태는 실제 PG 완료와 분리한다.
 
 회원 예약 상세 응답은 `passBooking`과 `cancelPolicy`를 포함한다.
 
@@ -1710,6 +1869,8 @@ POST /api/v1/auth/password/reset
 ```json
 {
   "passId": 300,
+  "planCode": "REGULAR_CRAFT_8",
+  "planName": "정규 공예 8회권",
   "purchasedAt": "2026-07-01T10:00:00",
   "expiresAt": "2026-09-29T00:00:00",
   "totalCredits": 8,
@@ -1726,6 +1887,7 @@ POST /api/v1/auth/password/reset
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 다른 회원의 리소스 접근 시 `404 NOT_FOUND`
 - 8회권 예약에서 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`이면 취소해도 크레딧이 복구되지 않는다. 취소 확인창과 완료 알림은 이 사실을 한국어로 명확히 알린다.
+- 신규 `REGULAR_CRAFT_8`은 `passEligible=true`이고 카테고리가 `PERFUME`가 아닌 클래스에만 사용할 수 있다.
 - 회원 예약·주문 상세와 8회권 목록·상세의 `refund`는 `{amount,status}` 또는 `null` 계약을 사용한다. 본인 소유권 검증 후 조회하며 내부 환불 ID와 실패 사유는 노출하지 않는다.
 - 환불 상태는 `REQUESTED`, `PROCESSING`, `RETRYABLE`, `RECONCILIATION_REQUIRED`, `SUCCEEDED`, `FAILED` 중 하나다. 고객 화면은 비종결 상태만 제한된 간격으로 다시 조회한다.
 
@@ -1898,6 +2060,7 @@ POST /api/v1/products/{productId}/qna/{id}/verify
 - 인증: `Authorization: Bearer {token}`
 - 답변 작성 시 `replyContent`, `repliedAt`, `repliedBy`를 기록한다.
 - 이미 답변이 있는 글에 재답변을 시도하면 서버가 거절한다.
+- 답변 저장과 `PRODUCT_QNA_ANSWERED` 회원 알림 outbox insert를 같은 트랜잭션으로 처리한다. 멱등키는 회원·이벤트·`PRODUCT_QNA`·Q&A ID 조합이다.
 
 #### 2.14.2 관리자 1:1 문의 조회/답변
 
@@ -1910,6 +2073,7 @@ POST /api/v1/products/{productId}/qna/{id}/verify
 - 회원 이름을 함께 반환한다.
 - 목록 응답은 `{content, nextCursor, hasMore}`이고 `size` 범위는 1~100이다.
 - 이미 답변이 있는 문의에 재답변을 시도하면 서버가 거절한다.
+- 답변 저장과 `INQUIRY_ANSWERED` 회원 알림 outbox insert를 같은 트랜잭션으로 처리한다. 외부 Alimtalk/SMS 발송은 커밋 뒤 실행하며 같은 문의의 중복 발송 요청은 멱등키로 합친다.
 
 ### 2.15 결제 API (`/api/v1/payments`)
 
@@ -1960,12 +2124,13 @@ Content-Type: application/json
   - `payload.type`은 `ORDER` / `BOOKING` / `PASS` 중 하나로, 상위 `context`와 일치해야 한다.
   - 금액은 서버가 산출한다. 클라이언트가 `amount`를 보내도 무시되며, `payment_attempt.amount`는 서버 계산값이다.
   - 모든 컨텍스트의 최종 `amount`는 0원 이상 `9,007,199,254,740,991원` 이하의 웹 안전 정수여야 한다. 0원은 유효한 8회권 예약처럼 외부 PG 호출이 없는 내부 승인에만 사용한다.
-    - `ORDER`: 동일 `productId`의 수량을 먼저 합쳐 상품별 1~99개 제한을 적용하고, 상품을 한 번에 조회한 뒤 `productId.price * qty`를 overflow 검출 산술로 합산한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
+    - `ORDER`: 동일 `productId`의 수량을 먼저 합쳐 상품별 1~99개 제한을 적용하고, 상품을 한 번에 조회한 뒤 `productId.price * qty`를 overflow 검출 산술로 합산한다. `SHIPPING`이면 `app.order.shipping-fee`의 고정액을 더하고 `PICKUP`이면 0원을 더한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
     - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약), 없으면 `slot.bookingClass.price * 10%`
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
-  - 서버는 prepare 시점의 `ORDER` 항목 단가, `BOOKING` 예약금·잔금, `PASS` 총 가격을 내부 payload로 저장한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장한다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
+  - 서버는 prepare 시점의 `ORDER` 상품명·항목 단가·배송비, `BOOKING` 예약금·잔금, `PASS` 총 가격과 계획을 내부 payload로 저장한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장한다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
   - `ORDER` payload는 `fulfillmentType=SHIPPING|PICKUP`을 반드시 포함한다. `SHIPPING`은 구조화된 `shippingAddress`가 필수이고 `PICKUP`은 `shippingAddress=null`이어야 한다.
+  - 클라이언트는 `GET /api/v1/orders/policy`의 `shippingFee`를 사전 표시용으로 사용하되 요청 금액으로 보내지 않는다. prepare가 현재 설정을 다시 읽어 확정하고 주문에 스냅샷으로 저장한다.
   - 직접 주문과 장바구니 주문 모두 `ACTIVE` 상품만 확정한다. 판매 중지 상품은 재고가 남아 있어도 `400 INVALID_INPUT`으로 거절한다.
   - 회원 장바구니는 `cartCheckout=true`를 지정한다. 이때 서버는 클라이언트의 `items`를 사용하지 않고 장바구니에서 구매 가능한 항목을 확정한다.
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
@@ -2029,6 +2194,7 @@ Content-Type: application/json
 ```
 
 - 8회권 사용 예약은 회원이 예약 가능 슬롯을 직접 선택해 한 회차씩 생성하며, 성공할 때마다 크레딧 1회를 차감한다.
+- 신규 8회권 구매는 `REGULAR_CRAFT_8` 계획으로 확정한다. 해당 이용권은 클래스의 `passEligible=true`와 비향수 카테고리를 모두 충족해야 예약 prepare가 성공한다.
 - 운영자가 8회 일정을 일괄 배정하는 별도 API는 제공하지 않는다.
 
 #### 2.15.2 결제 확정 (confirm)
@@ -2129,6 +2295,80 @@ Content-Type: application/json
 - 관리자 Bearer 인증을 통과해야 한다.
 - 다음 PG 환불 1건만 실패시키고, 실패 사유는 재시도 검증에 사용한다.
 
+### 2.18 비회원 조회 정보 복구
+
+```http
+POST /api/v1/guest-records/recovery
+Content-Type: application/json
+
+{ "phone": "01012345678", "verificationCode": "483921" }
+```
+
+```json
+{
+  "accessToken": "signed-token",
+  "expiresAt": "2026-07-22T10:00:00Z",
+  "orders": [
+    { "orderId": 12, "status": "PAID_APPROVAL_PENDING", "totalAmount": 39000, "createdAt": "2026-07-20T01:00:00Z" }
+  ],
+  "bookings": [
+    { "bookingId": 21, "status": "BOOKED", "className": "도자기 정규반", "startAt": "2026-07-25T10:00:00", "endAt": "2026-07-25T12:00:00" }
+  ]
+}
+```
+
+- 기존 인증 코드 발송 API로 SMS 소유 확인을 시작한다. 성공 시 인증 코드를 한 번 소비하고 같은 비회원의 모든 주문·예약에 새 복구 토큰 해시를 저장한다.
+- 복구 토큰 기본 수명은 24시간이다. 응답에 포함된 모든 대상에 같은 `X-Access-Token`을 사용하며 교체 직후 이전 토큰은 무효다.
+- 프론트는 복구 결과와 토큰을 만료 시각까지만 현재 브라우저 탭의 `sessionStorage`에 보관한다. 주문·예약 ID는 URL 쿼리로 전달하고 토큰은 URL에 넣지 않아, 목록 이동과 새로고침 뒤에도 같은 복구 세션을 이어간다.
+- 같은 전화번호의 비회원이 없어도 존재 여부 오류 대신 새 토큰과 빈 목록을 반환한다.
+- IP와 전화번호별 처리율 제한은 Redis 장애 시 fail-closed로 동작한다.
+
+### 2.19 공방 프로필·이미지 미디어
+
+#### 2.19.1 공방 프로필
+
+- `GET /api/v1/workshop` — 인증 없이 공방 안내 조회
+- `GET /api/v1/admin/workshop` — 관리자 조회
+- `PUT /api/v1/admin/workshop` — 관리자 전체 갱신
+
+```json
+{
+  "name": "해피갤러리",
+  "phone": "01012345678",
+  "postalCode": "06236",
+  "addressLine1": "서울시 강남구 테헤란로 1",
+  "addressLine2": "2층",
+  "businessHours": "화-토 10:00-18:00",
+  "mapUrl": "https://map.example.com/workshop",
+  "parkingInfo": "건물 뒤편 2대 가능",
+  "updatedAt": "2026-07-21T10:00:00"
+}
+```
+
+- `name`은 필수이고 나머지 안내 필드는 선택값이다. 공개·관리자 응답은 같은 구조를 사용한다.
+
+#### 2.19.2 이미지 업로드·조회
+
+```http
+POST /api/v1/admin/media/images
+Authorization: Bearer {token}
+Content-Type: multipart/form-data
+
+file={JPEG|PNG|WebP binary}
+```
+
+```json
+{
+  "fileName": "21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
+  "url": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg"
+}
+```
+
+- 비어 있지 않은 JPEG, PNG, WebP 파일만 허용하며 요청 MIME과 파일 시그니처를 함께 확인한다. 파일 상한은 5MiB다.
+- UUID 파일명으로 원자 저장하고 상품·클래스 `imageUrl`에는 반환된 경로를 사용한다.
+- `GET /api/v1/media/images/{fileName}`은 인증 없이 실제 이미지 MIME으로 반환하고 `Cache-Control: public, max-age=31536000, immutable`을 적용한다.
+- 허용된 UUID 파일명 형식이 아니거나 파일이 없으면 `404 NOT_FOUND`다.
+
 ---
 
 ## 3. API 에러 계약
@@ -2167,6 +2407,7 @@ Content-Type: application/json
 | 409 | `PAYMENT_RECONCILIATION_REQUIRED` | PG 승인 여부가 불명확해 운영자 확인이 필요하며 새 결제를 시작하면 안 됨 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치 등 비예약 운영 액션의 충돌 |
 | 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
+| 409 | `PHONE_ALREADY_IN_USE` | 회원가입 또는 휴대폰 변경 번호를 다른 회원이 이미 사용 중 |
 | 410 | `PAYMENT_ATTEMPT_EXPIRED` | 결제 준비 후 30분 안에 confirm을 시작하지 않음 |
 | 410 | `PAYMENT_RESULT_RETENTION_EXPIRED` | 최종 결제 결과의 30일 재조회 보존 기간이 지남 |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 |
@@ -2175,9 +2416,12 @@ Content-Type: application/json
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 |
 | 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 또는 전체 환불 시도 |
 | 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 크레딧 0인 8회권으로 예약 시도 |
+| 422 | `PASS_NOT_APPLICABLE` | 이용권 계획이 선택 클래스 카테고리 또는 `passEligible` 조건을 충족하지 않음 |
+| 422 | `CLASS_INACTIVE` | 비활성 클래스로 슬롯 생성 또는 예약·결제 시도 |
 | 422 | `PAYMENT_METHOD_NOT_ALLOWED` | 계좌이체(`BANK_TRANSFER`)로 예약금 결제 시도 |
 | 422 | `PHONE_VERIFICATION_REQUIRED` | 회원 휴대폰이 없거나 소유 확인이 완료되지 않아 결제를 시작할 수 없음 |
 | 422 | `PASSWORD_UNCHANGED` | 현재와 같은 비밀번호로 변경·재설정 시도 |
+| 422 | `ACCOUNT_WITHDRAWAL_BLOCKED` | 진행 중인 거래·환불 또는 사용 가능한 8회권이 있어 탈퇴할 수 없음 |
 | 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 최종 거절 |
 | 503 | `PAYMENT_CONFIRM_RETRYABLE` | PG 결제 확정 결과를 같은 결제 정보로 재확인할 수 있는 일시 실패 |

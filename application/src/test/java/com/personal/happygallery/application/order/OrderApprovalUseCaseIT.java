@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.NotificationService;
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.AdminOrderQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderAutoRefundBatchUseCase;
@@ -19,6 +20,7 @@ import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -67,6 +69,7 @@ class OrderApprovalUseCaseIT {
     @Autowired OrderApprovalUseCase orderApprovalService;
     @Autowired AdminOrderQueryUseCase adminOrderQueryUseCase;
     @Autowired OrderAutoRefundBatchUseCase orderAutoRefundBatchService;
+    @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired OrderService orderService;
     @Autowired Clock clock;
     @MockitoBean NotificationService notificationService;
@@ -113,6 +116,10 @@ class OrderApprovalUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(firstPage.hasMore()).isTrue();
+            softly.assertThat(firstPage.content().getFirst().items())
+                    .singleElement()
+                    .satisfies(item -> softly.assertThat(item.productName())
+                            .isIn("커서 상품 1", "커서 상품 2", "커서 상품 3"));
             softly.assertThat(secondPage.content()).hasSize(1);
             softly.assertThat(firstStatusPage.hasMore()).isTrue();
             softly.assertThat(secondStatusPage.content()).hasSize(1);
@@ -133,6 +140,9 @@ class OrderApprovalUseCaseIT {
             softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE);
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .extracting("eventType")
+                    .contains(NotificationEventType.ORDER_APPROVED);
         });
     }
 

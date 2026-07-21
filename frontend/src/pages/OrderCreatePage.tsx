@@ -11,7 +11,7 @@ import {
   executePaymentFlow,
   type OrderPayload,
 } from "@/features/payment";
-import { ErrorAlert } from "@/shared/ui";
+import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import type { OrderItemInput } from "@/shared/types";
 import {
   FulfillmentForm,
@@ -19,13 +19,14 @@ import {
   isFulfillmentComplete,
   useFulfillmentSelection,
 } from "@/features/order/FulfillmentForm";
+import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 
 type Step = "verify" | "items";
 const MAX_QTY = 99;
 
 export function OrderCreatePage() {
   const [searchParams] = useSearchParams();
-  const { user } = useCustomerAuth();
+  const { user, isLoading: authLoading } = useCustomerAuth();
   const [step, setStep] = useState<Step>(user ? "items" : "verify");
   const [manualEntryConfirmed, setManualEntryConfirmed] = useState(false);
   const [phone, setPhone] = useState("");
@@ -33,6 +34,7 @@ export function OrderCreatePage() {
   const [name, setName] = useState(user?.name ?? "");
   const [nameTouched, setNameTouched] = useState(false);
   const [items, setItems] = useState<OrderItemInput[]>([]);
+  const [itemAmount, setItemAmount] = useState(0);
   const [fulfillment, setFulfillment] = useFulfillmentSelection(
     user?.name ?? name,
     user?.phone ?? phone,
@@ -55,6 +57,12 @@ export function OrderCreatePage() {
     }
     setItems([]);
   }, [hasPrefilledItem, normalizedPrefilledQty, prefilledProductId]);
+
+  useEffect(() => {
+    if (!user) return;
+    setStep("items");
+    setName((current) => current || user.name);
+  }, [user]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -80,6 +88,10 @@ export function OrderCreatePage() {
       });
     },
   });
+
+  if (authLoading) {
+    return <Container className="page-container"><LoadingSpinner /></Container>;
+  }
 
   return (
     <Container className="page-container" style={{ maxWidth: 640 }}>
@@ -194,7 +206,11 @@ export function OrderCreatePage() {
           <Card className="mb-4">
             <Card.Header>{user ? "2." : "3."} 상품 선택</Card.Header>
             <Card.Body>
-              <OrderItemsForm items={items} onChange={setItems} />
+              <OrderItemsForm
+                items={items}
+                onChange={setItems}
+                onItemAmountChange={setItemAmount}
+              />
             </Card.Body>
           </Card>
 
@@ -202,6 +218,16 @@ export function OrderCreatePage() {
             <Card.Header>{user ? "3." : "4."} 수령 방법</Card.Header>
             <Card.Body>
               <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
+            </Card.Body>
+          </Card>
+
+          <Card className="mb-4">
+            <Card.Header>{user ? "4." : "5."} 결제 금액</Card.Header>
+            <Card.Body>
+              <OrderPriceSummary
+                itemAmount={itemAmount}
+                fulfillmentType={fulfillment.fulfillmentType}
+              />
             </Card.Body>
           </Card>
 

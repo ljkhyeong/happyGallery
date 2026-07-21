@@ -1,5 +1,5 @@
 import { api } from "@/shared/api";
-import type { RefundProgress } from "@/shared/types";
+import type { MemberPassRefundResponse, RefundProgress } from "@/shared/types";
 
 export interface MyOrderSummary {
   orderId: number;
@@ -20,6 +20,8 @@ export interface MyBookingSummary {
 
 export interface MyPassSummary {
   passId: number;
+  planCode: "LEGACY_ALL_CLASSES" | "REGULAR_CRAFT_8";
+  planName: string;
   purchasedAt: string;
   expiresAt: string;
   totalCredits: number;
@@ -38,4 +40,8 @@ export function fetchMyBookings() {
 
 export function fetchMyPasses() {
   return api<MyPassSummary[]>("/me/passes");
+}
+
+export function refundMyPass(passId: number) {
+  return api<MemberPassRefundResponse>(`/me/passes/${passId}/refund`, { method: "POST" });
 }

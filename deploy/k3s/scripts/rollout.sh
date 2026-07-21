@@ -62,12 +62,11 @@ for image_and_digest in \
 done
 
 if kube -n "$NAMESPACE" get statefulset mysql >/dev/null 2>&1; then
-    backup_file=$(require_env_value VERIFIED_BACKUP_FILE "$release_env")
-    [ -f "$backup_file" ] || die "검증할 배포 전 백업이 없습니다: $backup_file"
-    verify_checksum "$backup_file"
-    recent=$(find "$backup_file" -prune -mtime -2 -print)
+    recovery_bundle=$(require_env_value VERIFIED_RECOVERY_BUNDLE "$release_env")
+    verify_recovery_bundle_files "$recovery_bundle"
+    recent=$(find "$recovery_bundle" -prune -mtime -2 -print)
     [ -n "$recent" ] || die "배포 전 백업이 48시간보다 오래됐습니다. 새 백업을 만드세요."
-    info "배포 전 암호화 백업의 체크섬과 생성 시각을 확인했습니다."
+    info "배포 전 DB·미디어·호환 release 복구 묶음과 생성 시각을 확인했습니다."
 fi
 
 state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}

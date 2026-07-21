@@ -36,6 +36,18 @@ class GuestTokenServiceTest {
                 .isInstanceOf(InvalidTokenException.class);
     }
 
+    @DisplayName("복구용 관리 토큰은 일반 비회원 토큰보다 짧게 만료한다")
+    @Test
+    void issueRecoveryToken_usesRecoveryExpiry() {
+        GuestTokenService service = service(ACTIVE_SECRET, PREVIOUS_SECRET);
+
+        GuestTokenService.IssuedToken issued = service.issueRecoveryToken();
+
+        assertThat(issued.expiresAt()).isEqualTo(NOW.plus(Duration.ofHours(24)));
+        assertThat(AccessTokenSigner.verify(issued.rawToken(), ACTIVE_SECRET, NOW).expiry())
+                .isEqualTo(issued.expiresAt());
+    }
+
     @DisplayName("이전 키로 발급된 기존 서명 토큰도 검증한다")
     @Test
     void resolveTokenHash_tokenSignedWithPreviousSecret_returnsNonceHash() {
@@ -69,7 +81,7 @@ class GuestTokenServiceTest {
     }
 
     private GuestTokenService service(String activeSecret, String previousSecret) {
-        GuestTokenProperties properties = new GuestTokenProperties(activeSecret, previousSecret, 168);
+        GuestTokenProperties properties = new GuestTokenProperties(activeSecret, previousSecret, 168, 24);
         return new GuestTokenService(properties, Clock.fixed(NOW, UTC));
     }
 }

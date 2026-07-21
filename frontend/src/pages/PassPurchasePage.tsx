@@ -32,7 +32,8 @@ export function PassPurchasePage() {
       <Card className="mb-3">
         <Card.Body>
           <p className="text-muted-soft small mb-0">
-            8회권을 구매하면 90일간 8회 수업을 이용할 수 있습니다.
+            정규 공예 8회권을 구매하면 90일간 8회 수업을 이용할 수 있습니다.
+            향수 원데이 클래스에는 사용할 수 없습니다.
             예약 시 8회권을 선택하면 예약금 없이 횟수가 차감됩니다.
           </p>
         </Card.Body>

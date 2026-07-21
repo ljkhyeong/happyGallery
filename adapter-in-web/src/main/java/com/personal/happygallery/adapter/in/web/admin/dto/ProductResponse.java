@@ -12,6 +12,8 @@ public record ProductResponse(
         String type,
         String category,
         long price,
+        String description,
+        String imageUrl,
         String status,
         boolean available,
         int quantity
@@ -20,11 +22,7 @@ public record ProductResponse(
         return from(r.product(), r.inventory());
     }
 
-    public static ProductResponse from(ProductAdminUseCase.RegisterResult r) {
-        return from(r.product(), r.inventory());
-    }
-
-    public static ProductResponse from(ProductAdminUseCase.StatusChangeResult r) {
+    public static ProductResponse from(ProductAdminUseCase.ProductInventoryResult r) {
         return from(r.product(), r.inventory());
     }
 
@@ -35,6 +33,8 @@ public record ProductResponse(
                 product.getType().name(),
                 product.getCategory(),
                 product.getPrice(),
+                product.getDescription(),
+                product.getImageUrl(),
                 product.getStatus().name(),
                 product.getStatus() == ProductStatus.ACTIVE && inventory.isAvailable(),
                 inventory.getQuantity()

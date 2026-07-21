@@ -4,6 +4,7 @@ namespace: happygallery
 resources:
   - namespace.yaml
   - storage-class.yaml
+  - app-media-pvc.yaml
   - app-config.yaml
   - mysql.yaml
   - redis.yaml

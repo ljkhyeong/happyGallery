@@ -42,6 +42,18 @@ ruby -e '
   abort "app/frontend 이미지는 sha256 digest로 고정해야 합니다." unless release_deployments.size == 2 && release_deployments.all? do |d|
     d.dig("spec", "template", "spec", "containers", 0, "image")&.match?(/@sha256:[a-f0-9]{64}\z/)
   end
+  media_pvc = documents.find { |d| d["kind"] == "PersistentVolumeClaim" && d.dig("metadata", "name") == "app-media" }
+  abort "app-media PVC는 local-path-retain 5Gi ReadWriteOnce여야 합니다." unless media_pvc &&
+    media_pvc.dig("spec", "storageClassName") == "local-path-retain" &&
+    media_pvc.dig("spec", "accessModes") == ["ReadWriteOnce"] &&
+    media_pvc.dig("spec", "resources", "requests", "storage") == "5Gi"
+  app_deployment = release_deployments.find { |d| d.dig("metadata", "name") == "app" }
+  app_container = app_deployment&.dig("spec", "template", "spec", "containers", 0)
+  media_mount = app_container&.fetch("volumeMounts", [])&.find { |mount| mount["name"] == "media" }
+  media_volume = app_deployment&.dig("spec", "template", "spec", "volumes")&.find { |volume| volume["name"] == "media" }
+  abort "app-media PVC가 app의 미디어 저장 경로에 연결되지 않았습니다." unless
+    media_mount&.dig("mountPath") == "/var/lib/happygallery/media" &&
+    media_volume&.dig("persistentVolumeClaim", "claimName") == "app-media"
   singleton_deployments = documents.select do |d|
     d["kind"] == "Deployment" && %w[redis alertmanager].include?(d.dig("metadata", "name"))
   end
@@ -183,6 +195,15 @@ grep -q 'FLYWAY_SCHEMA_VERSION=' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "복구 메타데이터에 Flyway version이 없습니다."
 grep -q 'FIELD_ENCRYPTION_KEY_ID=' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "복구 메타데이터에 암호화 키 ID가 없습니다."
+grep -q 'ensure_media_pvc' "$SCRIPT_DIR/backup-mysql.sh" \
+    || die "기존 클러스터의 첫 미디어 백업을 위한 PVC 사전 생성이 없습니다."
+grep -q 'VERIFIED_RECOVERY_BUNDLE' "$SCRIPT_DIR/rollout.sh" \
+    || die "rollout이 완성된 복구 묶음 marker를 요구하지 않습니다."
+grep -q 'verify_recovery_bundle_files.*recovery_bundle' "$SCRIPT_DIR/rollout.sh" \
+    || die "rollout이 DB·미디어·release 복구 묶음 전체를 검증하지 않습니다."
+if grep -q 'VERIFIED_BACKUP_FILE' "$SCRIPT_DIR/rollout.sh"; then
+    die "rollout에 DB 단일 파일만 검증하는 이전 계약이 남아 있습니다."
+fi
 grep -q 'k3s_ctr images import' "$SCRIPT_DIR/prepare-restored-release-images.sh" \
     || die "복원 release가 외부 이미지 archive를 containerd에 가져오지 않습니다."
 grep -q 'prepare-restored-release-images.sh.*release_dir' "$SCRIPT_DIR/restore-mysql.sh" \
@@ -257,6 +278,14 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   image_preflight = File.read(File.join(script_dir, "prepare-restored-release-images.sh"))
   required_images = /containerd_has_image.*?app_ref.*?containerd_has_image.*?frontend_ref.*?MYSQL REDIS PROMETHEUS ALERTMANAGER.*?k3s_ctr images import.*?all_required_images_match/m
   abort "DB 복원 전 app/frontend/runtime 이미지 import와 digest 재검증이 없습니다." unless image_preflight.match?(required_images)
+
+  common = File.read(File.join(script_dir, "common.sh"))
+  bundle_validation = /verify_recovery_bundle_files\(\).*?require_private_file.*?verify_checksum.*?DATABASE_BACKUP.*?MEDIA_BACKUP.*?RELEASE_DIR.*?metadata\.env.*?manifests\.yaml.*?runtime-images\.env.*?images\.tar.*?verify_checksum/m
+  abort "복구 묶음 marker와 DB·미디어·release sidecar 전체 검증이 없습니다." unless common.match?(bundle_validation)
+
+  backup = File.read(File.join(script_dir, "backup-mysql.sh"))
+  bundle_publish = /mv "\$tmp" "\$backup".*?mv "\$tmp_checksum" "\$backup\.sha256".*?mv "\$media_tmp" "\$media_backup".*?mv "\$media_tmp_checksum" "\$media_backup\.sha256".*?mv "\$recovery_metadata_tmp_checksum" "\$recovery_metadata\.sha256".*?mv "\$recovery_metadata_tmp" "\$recovery_metadata"/m
+  abort "recovery.env가 모든 archive와 sidecar 뒤에 commit marker로 게시되지 않습니다." unless backup.match?(bundle_publish)
 RUBY
 
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"

@@ -390,7 +390,7 @@ class PaymentConfirmRecoveryUseCaseIT {
         User orderUser = userStorePort.save(new User(
                 "recover-compensation@example.com", "hashed", "회원", "01010000005"));
         Product product = productStorePort.save(readyStockProduct("복구 보상 상품", 52_000L));
-        inventoryStorePort.save(inventory(product, 0));
+        var availableInventory = inventoryStorePort.save(inventory(product, 1));
         AuthContext orderAuth = AuthContext.member(orderUser.getId());
         PaymentPrepareUseCase.PrepareResult orderPrepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
@@ -398,6 +398,8 @@ class PaymentConfirmRecoveryUseCaseIT {
                         orderUser.getId(), null, null, null,
                         List.of(new OrderItemRef(product.getId(), 1))),
                 orderAuth));
+        availableInventory.deduct(1);
+        inventoryStorePort.save(availableInventory);
         Long failedAttemptId = approve(
                 new PreparedPayment(orderPrepared.orderId(), orderPrepared.amount(), orderAuth),
                 "compensation-payment-key");

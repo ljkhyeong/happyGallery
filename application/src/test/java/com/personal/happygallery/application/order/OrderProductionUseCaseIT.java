@@ -1,8 +1,10 @@
 package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
+import com.personal.happygallery.application.order.port.in.OrderCustomerActionUseCase;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
@@ -16,7 +18,9 @@ import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
+import com.personal.happygallery.domain.order.OrderDelayDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.support.OrderTestHelper;
@@ -62,8 +66,10 @@ class OrderProductionUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired OrderApprovalUseCase orderApprovalService;
     @Autowired OrderProductionUseCase orderProductionService;
+    @Autowired OrderCustomerActionUseCase orderCustomerActionUseCase;
     @Autowired OrderPickupUseCase orderPickupService;
     @Autowired OrderShippingUseCase orderShippingService;
+    @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired OrderService orderService;
     OrderTestHelper orderHelper;
 
@@ -145,24 +151,27 @@ class OrderProductionUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // DELAY_REQUESTED 전환 (고객 동의)
+    // DELAY_ACCEPTED 전환 (고객 동의)
     // -----------------------------------------------------------------------
 
-    @DisplayName("배송 지연 요청 시 주문 상태가 DELAY_REQUESTED로 전이된다")
+    @DisplayName("관리자가 제작 지연을 제안하면 고객 응답 대기 상태와 알림이 기록된다")
     @Test
-    void requestDelay_transitionsToDelayRequested() {
+    void proposeDelay_transitionsToConsentPending() {
         Order order = orderHelper.createMadeToOrderPaidOrder("지연 상품", 180000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
 
-        orderProductionService.requestDelay(order.getId());
+        orderProductionService.proposeDelay(order.getId());
 
         Order updated = orderStateProbe.getOrder(order.getId());
         Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
         assertSoftly(softly -> {
-            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_REQUESTED);
+            softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_CONSENT_PENDING);
             softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY);
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .extracting("eventType")
+                    .contains(NotificationEventType.ORDER_DELAY_REQUESTED);
         });
     }
 
@@ -173,6 +182,7 @@ class OrderProductionUseCaseIT {
                 orderHelper.createMadeToOrderPaidOrder("지연 거절 취소 상품", 180000L);
         Order order = fixture.order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
+        orderProductionService.proposeDelay(order.getId());
 
         var result = orderProductionService.cancelForDelayRejection(order.getId(), 1L);
 
@@ -189,17 +199,22 @@ class OrderProductionUseCaseIT {
             softly.assertThat(result.refund().getStatus()).isEqualTo(RefundStatus.REQUESTED);
             softly.assertThat(histories)
                     .extracting("decision")
-                    .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY_CANCEL);
-            softly.assertThat(histories.get(1).getDecidedByAdminId()).isEqualTo(1L);
+                    .containsExactly(
+                            OrderApprovalDecision.APPROVE,
+                            OrderApprovalDecision.DELAY,
+                            OrderApprovalDecision.DELAY_CANCEL);
+            softly.assertThat(histories.get(2).getDecidedByAdminId()).isEqualTo(1L);
         });
     }
 
-    @DisplayName("지연 요청 상태에서는 지연 거절 취소를 할 수 없다")
+    @DisplayName("지연 수락 상태에서는 지연 거절 취소를 할 수 없다")
     @Test
     void cancelForDelayRejection_afterDelayAccepted_throwsInvalidInput() {
         Order order = orderHelper.createMadeToOrderPaidOrder("지연 수락 후 취소 불가 상품", 180000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
-        orderProductionService.requestDelay(order.getId());
+        orderProductionService.proposeDelay(order.getId());
+        orderCustomerActionUseCase.respondToMemberDelay(
+                order.getId(), order.getUserId(), OrderDelayDecision.ACCEPT);
 
         assertThatThrownBy(() -> orderProductionService.cancelForDelayRejection(order.getId(), 1L))
                 .isInstanceOf(HappyGalleryException.class)
@@ -207,7 +222,7 @@ class OrderProductionUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
-                    .isEqualTo(OrderStatus.DELAY_REQUESTED);
+                    .isEqualTo(OrderStatus.DELAY_ACCEPTED);
             softly.assertThat(orderStateProbe.refunds()).isEmpty();
         });
     }
@@ -258,14 +273,16 @@ class OrderProductionUseCaseIT {
         });
     }
 
-    @DisplayName("DELAY_REQUESTED 상태에서도 제작 완료 처리가 가능하다")
+    @DisplayName("지연 수락 상태에서도 제작 완료 처리가 가능하다")
     @Test
     void completeProduction_fromDelayRequested_alsoWorks() {
         Order order = orderHelper.createMadeToOrderPaidOrder("지연 후 제작완료 상품", 180000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
-        orderProductionService.requestDelay(order.getId());
+        orderProductionService.proposeDelay(order.getId());
+        orderCustomerActionUseCase.respondToMemberDelay(
+                order.getId(), order.getUserId(), OrderDelayDecision.ACCEPT);
 
-        // DELAY_REQUESTED → completeProduction → APPROVED_FULFILLMENT_PENDING
+        // DELAY_ACCEPTED → completeProduction → APPROVED_FULFILLMENT_PENDING
         orderProductionService.completeProduction(order.getId(), null);
 
         Order updated = orderStateProbe.getOrder(order.getId());
@@ -273,15 +290,17 @@ class OrderProductionUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // DELAY_REQUESTED → resumeProduction → IN_PRODUCTION
+    // DELAY_ACCEPTED → resumeProduction → IN_PRODUCTION
     // -----------------------------------------------------------------------
 
-    @DisplayName("지연 요청 상태에서 제작을 재개하면 IN_PRODUCTION으로 전이된다")
+    @DisplayName("지연 수락 상태에서 제작을 재개하면 IN_PRODUCTION으로 전이된다")
     @Test
     void resumeProduction_fromDelayRequested_transitionsToInProduction() {
         Order order = orderHelper.createMadeToOrderPaidOrder("재개 상품", 180000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
-        orderProductionService.requestDelay(order.getId());
+        orderProductionService.proposeDelay(order.getId());
+        orderCustomerActionUseCase.respondToMemberDelay(
+                order.getId(), order.getUserId(), OrderDelayDecision.ACCEPT);
 
         orderProductionService.resumeProduction(order.getId(), 1L);
 
@@ -293,6 +312,7 @@ class OrderProductionUseCaseIT {
                     .containsExactly(
                             OrderApprovalDecision.APPROVE,
                             OrderApprovalDecision.DELAY,
+                            OrderApprovalDecision.DELAY_ACCEPT,
                             OrderApprovalDecision.RESUME_PRODUCTION);
         });
     }
@@ -320,6 +340,9 @@ class OrderProductionUseCaseIT {
             softly.assertThat(fulfillment.getType())
                     .isEqualTo(FulfillmentType.PICKUP);
             softly.assertThat(fulfillment.getPickupDeadlineAt()).isNotNull();
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .extracting("eventType")
+                    .contains(NotificationEventType.ORDER_PICKUP_READY);
         });
     }
 
@@ -378,7 +401,7 @@ class OrderProductionUseCaseIT {
                 .isEqualTo(OrderStatus.SHIPPING_PREPARING);
 
         // SHIPPING_PREPARING → SHIPPED
-        orderShippingService.markShipped(order.getId(), 1L);
+        orderShippingService.markShipped(order.getId(), "CJ대한통운", "1234567890", 1L);
         assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
                 .isEqualTo(OrderStatus.SHIPPED);
 
@@ -391,12 +414,20 @@ class OrderProductionUseCaseIT {
         var decisions = orderStateProbe.orderApprovalHistoryOrdered(order.getId()).stream()
                 .map(h -> h.getDecision())
                 .toList();
-        assertThat(decisions).containsExactly(
-                OrderApprovalDecision.APPROVE,
-                OrderApprovalDecision.PRODUCTION_COMPLETE,
-                OrderApprovalDecision.PREPARE_SHIPPING,
-                OrderApprovalDecision.SHIP,
-                OrderApprovalDecision.DELIVER);
+        Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(decisions).containsExactly(
+                    OrderApprovalDecision.APPROVE,
+                    OrderApprovalDecision.PRODUCTION_COMPLETE,
+                    OrderApprovalDecision.PREPARE_SHIPPING,
+                    OrderApprovalDecision.SHIP,
+                    OrderApprovalDecision.DELIVER);
+            softly.assertThat(fulfillment.getCarrier()).isEqualTo("CJ대한통운");
+            softly.assertThat(fulfillment.getTrackingNumber()).isEqualTo("1234567890");
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .extracting("eventType")
+                    .contains(NotificationEventType.ORDER_SHIPPED);
+        });
     }
 
     @DisplayName("관리자는 고객이 선택한 수령 방법과 다른 이행 흐름을 시작할 수 없다")

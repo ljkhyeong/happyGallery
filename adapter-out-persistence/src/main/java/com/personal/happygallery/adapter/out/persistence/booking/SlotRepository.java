@@ -26,6 +26,7 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     @Override
     @Query("SELECT s FROM Slot s " +
            "WHERE s.bookingClass.id = :classId " +
+           "AND s.bookingClass.status = com.personal.happygallery.domain.booking.BookingClassStatus.ACTIVE " +
            "AND s.startAt >= :dayStart AND s.startAt < :dayEnd " +
            "AND s.startAt > :now " +
            "AND s.adminActive = true " +

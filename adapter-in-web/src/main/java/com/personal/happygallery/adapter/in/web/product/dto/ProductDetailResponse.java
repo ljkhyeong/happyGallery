@@ -11,6 +11,8 @@ public record ProductDetailResponse(
         String type,
         String category,
         long price,
+        String description,
+        String imageUrl,
         boolean available
 ) {
     public static ProductDetailResponse from(ProductQueryUseCase.ProductWithInventory r) {
@@ -22,6 +24,8 @@ public record ProductDetailResponse(
                 product.getType().name(),
                 product.getCategory(),
                 product.getPrice(),
+                product.getDescription(),
+                product.getImageUrl(),
                 product.getStatus() == ProductStatus.ACTIVE && inventory.isAvailable()
         );
     }

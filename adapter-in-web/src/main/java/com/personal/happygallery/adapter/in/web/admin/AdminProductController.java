@@ -2,13 +2,14 @@ package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.AdjustInventoryCommand;
-import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.RegisterResult;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.ProductInventoryResult;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdjustInventoryRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.CreateProductRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.InventoryAdjustmentResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.ProductResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateProductStatusRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.UpdateProductRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -40,9 +41,18 @@ public class AdminProductController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ProductResponse register(@RequestBody @Valid CreateProductRequest request) {
-        RegisterResult result = productAdminUseCase.register(
-                request.name(), request.type(), request.category(), request.price(), request.quantity());
+        ProductInventoryResult result = productAdminUseCase.register(
+                request.name(), request.type(), request.category(), request.price(), request.quantity(),
+                request.description(), request.imageUrl());
         return ProductResponse.from(result);
+    }
+
+    @PatchMapping("/{id}")
+    public ProductResponse update(@PathVariable Long id,
+                                  @RequestBody @Valid UpdateProductRequest request) {
+        return ProductResponse.from(productAdminUseCase.update(
+                id, request.name(), request.category(), request.price(),
+                request.description(), request.imageUrl()));
     }
 
     /** GET /api/v1/admin/products — 판매 중지 상품을 포함한 전체 목록 */

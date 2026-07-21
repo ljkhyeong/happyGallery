@@ -28,6 +28,9 @@ import java.util.Objects;
 @Table(name = "fulfillments")
 public class Fulfillment {
 
+    public static final int MAX_CARRIER_LENGTH = 50;
+    public static final int MAX_TRACKING_NUMBER_LENGTH = 100;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -47,6 +50,12 @@ public class Fulfillment {
 
     @Column(name = "shipping_address_enc", length = 4096)
     private String shippingAddressEnc;
+
+    @Column(length = MAX_CARRIER_LENGTH)
+    private String carrier;
+
+    @Column(name = "tracking_number", length = MAX_TRACKING_NUMBER_LENGTH)
+    private String trackingNumber;
 
     @Version
     @Column(nullable = false)
@@ -88,6 +97,14 @@ public class Fulfillment {
         }
     }
 
+    /** 배송 출발 시 고객에게 노출할 택배사와 운송장 번호를 함께 기록한다. */
+    public void recordShipment(String carrier, String trackingNumber) {
+        requireShippingType();
+        this.carrier = requireTrackingText(carrier, "택배사", MAX_CARRIER_LENGTH);
+        this.trackingNumber = requireTrackingText(
+                trackingNumber, "운송장 번호", MAX_TRACKING_NUMBER_LENGTH);
+    }
+
     public void setPickupDeadline(LocalDateTime pickupDeadlineAt) {
         requirePickupType();
         this.pickupDeadlineAt = requirePickupDeadlineAt(pickupDeadlineAt);
@@ -108,11 +125,25 @@ public class Fulfillment {
         return pickupDeadlineAt;
     }
 
+    private static String requireTrackingText(String value, String fieldName, int maxLength) {
+        if (value == null || value.isBlank()) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, fieldName + "는 필수입니다.");
+        }
+        String normalized = value.strip();
+        if (normalized.length() > maxLength) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, fieldName + "는 " + maxLength + "자 이하여야 합니다.");
+        }
+        return normalized;
+    }
+
     public Long getId() { return id; }
     public Long getOrderId() { return orderId; }
     public FulfillmentType getType() { return type; }
     public LocalDate getExpectedShipDate() { return expectedShipDate; }
     public LocalDateTime getPickupDeadlineAt() { return pickupDeadlineAt; }
     public String getShippingAddressEnc() { return shippingAddressEnc; }
+    public String getCarrier() { return carrier; }
+    public String getTrackingNumber() { return trackingNumber; }
     public long getVersion() { return version; }
 }

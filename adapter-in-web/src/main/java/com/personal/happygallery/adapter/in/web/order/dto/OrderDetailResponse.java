@@ -13,25 +13,31 @@ public record OrderDetailResponse(
         Long orderId,
         String status,
         long totalAmount,
+        long shippingFee,
         LocalDateTime paidAt,
         LocalDateTime approvalDeadlineAt,
         List<ItemDto> items,
         FulfillmentDto fulfillment,
         RefundProgressResponse refund
 ) {
-    public record ItemDto(Long productId, int qty, long unitPrice) {
+    public record ItemDto(Long productId, String productName, int qty, long unitPrice) {
         public static ItemDto from(OrderItem item) {
-            return new ItemDto(item.getProductId(), item.getQty(), item.getUnitPrice());
+            return new ItemDto(
+                    item.getProductId(), item.getProductName(), item.getQty(), item.getUnitPrice());
         }
     }
 
     public record FulfillmentDto(String type, LocalDate expectedShipDate,
-                                 LocalDateTime pickupDeadlineAt) {
+                                 LocalDateTime pickupDeadlineAt,
+                                 String carrier,
+                                 String trackingNumber) {
         public static FulfillmentDto from(Fulfillment f) {
             return new FulfillmentDto(
                     f.getType().name(),
                     f.getExpectedShipDate(),
-                    f.getPickupDeadlineAt()
+                    f.getPickupDeadlineAt(),
+                    f.getCarrier(),
+                    f.getTrackingNumber()
             );
         }
     }
@@ -42,6 +48,7 @@ public record OrderDetailResponse(
                 order.getId(),
                 order.getStatus().name(),
                 order.getTotalAmount(),
+                order.getShippingFee(),
                 order.getPaidAt(),
                 order.getApprovalDeadlineAt(),
                 detail.items().stream().map(ItemDto::from).toList(),

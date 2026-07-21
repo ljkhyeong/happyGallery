@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.out.persistence.order;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -13,6 +14,10 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long>, Ord
     @Override OrderItem save(OrderItem item);
 
     @Override List<OrderItem> findByOrder(Order order);
+
+    @Override
+    @Query("SELECT oi FROM OrderItem oi WHERE oi.order.id IN :orderIds ORDER BY oi.id")
+    List<OrderItem> findByOrderIdIn(@Param("orderIds") Collection<Long> orderIds);
 
     /** 주문 내 제작 상품 존재 여부 — N+1 방지용 단일 쿼리 */
     @Override

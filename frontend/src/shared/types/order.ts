@@ -10,6 +10,7 @@ export interface OrderDetailResponse {
   orderId: number;
   status: OrderStatus;
   totalAmount: number;
+  shippingFee: number;
   paidAt: string;
   approvalDeadlineAt: string;
   items: OrderItemDto[];
@@ -17,8 +18,25 @@ export interface OrderDetailResponse {
   refund: RefundProgress | null;
 }
 
+export interface OrderPricePolicyResponse {
+  shippingFee: number;
+}
+
+export type OrderDelayDecision = "ACCEPT" | "REJECT";
+
+export interface OrderDelayResponseRequest {
+  decision: OrderDelayDecision;
+}
+
+export interface OrderCustomerActionResponse {
+  orderId: number;
+  status: OrderStatus;
+  refund: RefundProgress | null;
+}
+
 export interface OrderItemDto {
   productId: number;
+  productName: string;
   qty: number;
   unitPrice: number;
 }
@@ -29,4 +47,6 @@ export interface FulfillmentDto {
   type: FulfillmentType;
   expectedShipDate: string | null;
   pickupDeadlineAt: string | null;
+  carrier: string | null;
+  trackingNumber: string | null;
 }

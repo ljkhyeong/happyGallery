@@ -9,12 +9,16 @@ import com.personal.happygallery.application.payment.port.in.PaymentPayload.Orde
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedOrderItem;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedOrderPayload;
+import com.personal.happygallery.application.order.OrderPriceProperties;
+import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
+import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
@@ -32,11 +36,18 @@ import static java.util.stream.Collectors.toMap;
 public class OrderPreparer implements PaymentPreparer {
 
     private final ProductReaderPort productReader;
+    private final InventoryReaderPort inventoryReader;
     private final CartUseCase cartUseCase;
+    private final OrderPriceProperties orderPriceProperties;
 
-    public OrderPreparer(ProductReaderPort productReader, CartUseCase cartUseCase) {
+    public OrderPreparer(ProductReaderPort productReader,
+                         InventoryReaderPort inventoryReader,
+                         CartUseCase cartUseCase,
+                         OrderPriceProperties orderPriceProperties) {
         this.productReader = productReader;
+        this.inventoryReader = inventoryReader;
         this.cartUseCase = cartUseCase;
+        this.orderPriceProperties = orderPriceProperties;
     }
 
     @Override
@@ -74,25 +85,33 @@ public class OrderPreparer implements PaymentPreparer {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 항목이 비었습니다.");
         }
 
-        Map<Long, Product> productsById = productReader.findAllById(items.stream()
-                        .map(ItemToPrepare::productId)
-                        .distinct()
-                        .toList())
+        List<Long> productIds = items.stream()
+                .map(ItemToPrepare::productId)
+                .distinct()
+                .toList();
+        Map<Long, Product> productsById = productReader.findAllById(productIds)
                 .stream()
                 .collect(toMap(Product::getId, Function.identity()));
+        Map<Long, Inventory> inventoriesByProductId = inventoryReader.findByProductIdIn(productIds)
+                .stream()
+                .collect(toMap(Inventory::getProductId, Function.identity()));
         List<PreparedOrderItem> preparedItems = items.stream()
-                .map(item -> prepareItem(item, productsById))
+                .map(item -> prepareItem(item, productsById, inventoriesByProductId))
                 .toList();
         long total = 0L;
         for (PreparedOrderItem item : preparedItems) {
             total = OrderAmountCalculator.addLine(total, item.qty(), item.unitPrice());
         }
+        long shippingFee = op.fulfillmentType() == FulfillmentType.SHIPPING
+                ? orderPriceProperties.shippingFee()
+                : 0L;
+        total = OrderAmountCalculator.addShippingFee(total, shippingFee);
 
         String phone = auth.isMember() ? null : KoreanPhoneNumber.required(op.phone());
         String name = auth.isMember() ? null : PersonalName.required(op.name());
         return new PreparedPayment(total, new PreparedOrderPayload(
                 op.userId(), phone, op.verificationCode(), name, preparedItems, op.cartCheckout(),
-                op.fulfillmentType(), op.shippingAddress()));
+                op.fulfillmentType(), op.shippingAddress(), shippingFee));
     }
 
     private List<ItemToPrepare> cartItems(Long userId) {
@@ -120,7 +139,9 @@ public class OrderPreparer implements PaymentPreparer {
                 .toList();
     }
 
-    private PreparedOrderItem prepareItem(ItemToPrepare item, Map<Long, Product> productsById) {
+    private PreparedOrderItem prepareItem(ItemToPrepare item,
+                                          Map<Long, Product> productsById,
+                                          Map<Long, Inventory> inventoriesByProductId) {
         Product product = productsById.get(item.productId());
         if (product == null) {
             throw new NotFoundException("상품");
@@ -128,7 +149,13 @@ public class OrderPreparer implements PaymentPreparer {
         if (product.getStatus() != ProductStatus.ACTIVE) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "판매 중인 상품만 주문할 수 있습니다.");
         }
-        return new PreparedOrderItem(item.cartItemId(), item.productId(), item.qty(), product.getPrice());
+        Inventory inventory = inventoriesByProductId.get(item.productId());
+        if (inventory == null) {
+            throw new NotFoundException("재고");
+        }
+        inventory.requireSufficient(item.qty());
+        return new PreparedOrderItem(
+                item.cartItemId(), item.productId(), product.getName(), item.qty(), product.getPrice());
     }
 
     private record ItemToPrepare(Long cartItemId, Long productId, int qty) {

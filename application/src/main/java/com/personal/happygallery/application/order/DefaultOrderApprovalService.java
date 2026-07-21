@@ -10,6 +10,7 @@ import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -37,17 +38,20 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
     private final OrderItemPort orderItemPort;
     private final OrderHistoryPort orderHistoryPort;
     private final OrderRefundSupport orderRefundSupport;
+    private final OrderNotificationSupport orderNotificationSupport;
 
     public DefaultOrderApprovalService(OrderReaderPort orderReader,
                                 OrderStorePort orderStore,
                                 OrderItemPort orderItemPort,
                                 OrderHistoryPort orderHistoryPort,
-                                OrderRefundSupport orderRefundSupport) {
+                                OrderRefundSupport orderRefundSupport,
+                                OrderNotificationSupport orderNotificationSupport) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
         this.orderHistoryPort = orderHistoryPort;
         this.orderRefundSupport = orderRefundSupport;
+        this.orderNotificationSupport = orderNotificationSupport;
     }
 
     /**
@@ -74,7 +78,9 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.APPROVE, adminId, null));
         log.info("order approved [orderId={} adminId={} madeToOrder={}]", orderId, adminId, isMadeToOrder);
-        return orderStore.save(order);
+        Order saved = orderStore.save(order);
+        orderNotificationSupport.notifyCustomer(saved, NotificationEventType.ORDER_APPROVED);
+        return saved;
     }
 
     /**

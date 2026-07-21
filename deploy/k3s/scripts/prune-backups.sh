@@ -13,8 +13,10 @@ printf '%s' "$retention_days" | grep -Eq '^[1-9][0-9]*$' || die "BACKUP_RETENTIO
 find "$BACKUP_DIR" -maxdepth 1 -type f \
     \( -name 'happygallery-*.sql.gz.age' \
        -o -name 'happygallery-*.sql.gz.age.sha256' \
+       -o -name 'happygallery-*.media.tar.gz.age' \
+       -o -name 'happygallery-*.media.tar.gz.age.sha256' \
        -o -name 'happygallery-*.recovery.env' \
        -o -name 'happygallery-*.recovery.env.sha256' \) \
     -mtime "+$retention_days" -print -delete
 
-info "$retention_days일보다 오래된 DB 백업과 복구 메타데이터를 정리했습니다. release archive는 수동 검증 후 보존합니다."
+info "$retention_days일보다 오래된 DB·미디어 백업과 복구 메타데이터를 정리했습니다. release archive는 수동 검증 후 보존합니다."

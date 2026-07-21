@@ -19,6 +19,7 @@ import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
@@ -116,13 +117,16 @@ class PaymentPrepareUseCaseTest {
                 .hasMessageContaining("판매 중인 상품");
     }
 
-    @DisplayName("주문 prepare는 상품별 수량과 안전 결제 금액 상한을 우회할 수 없다")
+    @DisplayName("주문 prepare는 상품별 수량과 재고 및 안전 결제 금액 상한을 우회할 수 없다")
     @Test
     void prepare_rejectsExcessiveQuantityAndUnsafeAmount() {
         User user = userStorePort.save(new User(
                 "order-limit@example.com", "hashed", "회원", "01077778888"));
         Product product = productStorePort.save(readyStockProduct(
                 "고액 상품", PaymentAmountPolicy.MAX_AMOUNT));
+        inventoryStorePort.save(inventory(product, 99));
+        Product lowStockProduct = productStorePort.save(readyStockProduct("재고 부족 상품", 10_000L));
+        inventoryStorePort.save(inventory(lowStockProduct, 1));
         AuthContext auth = AuthContext.member(user.getId());
 
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
@@ -151,5 +155,12 @@ class PaymentPrepareUseCaseTest {
                 auth)))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(new OrderItemRef(lowStockProduct.getId(), 2))),
+                auth)))
+                .isInstanceOf(InventoryNotEnoughException.class);
     }
 }

@@ -5,7 +5,15 @@ export interface ClassResponse {
   durationMin: number;
   price: number;
   bufferMin: number;
+  passEligible: boolean;
+  description: string | null;
+  imageUrl: string | null;
+  preparationInfo: string | null;
+  targetAudience: string | null;
+  status: ClassStatus;
 }
+
+export type ClassStatus = "ACTIVE" | "INACTIVE";
 
 export interface CreateClassRequest {
   name: string;
@@ -13,4 +21,20 @@ export interface CreateClassRequest {
   durationMin: number;
   price: number;
   bufferMin: number;
+  passEligible: boolean;
+  description?: string;
+  imageUrl?: string;
+  preparationInfo?: string;
+  targetAudience?: string;
+}
+
+export interface UpdateClassRequest {
+  name: string;
+  category: string;
+  price: number;
+  passEligible: boolean;
+  description?: string;
+  imageUrl?: string;
+  preparationInfo?: string;
+  targetAudience?: string;
 }

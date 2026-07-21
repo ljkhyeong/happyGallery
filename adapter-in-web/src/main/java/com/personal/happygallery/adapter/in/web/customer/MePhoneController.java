@@ -1,10 +1,10 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.customer.dto.CustomerUserResponse;
-import com.personal.happygallery.adapter.in.web.customer.dto.RegisterInitialPhoneRequest;
+import com.personal.happygallery.adapter.in.web.customer.dto.UpdateMemberPhoneRequest;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
-import com.personal.happygallery.application.customer.port.in.InitialMemberPhoneRegistrationUseCase;
+import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.User;
 import jakarta.validation.Valid;
@@ -18,22 +18,22 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/me/phone")
 public class MePhoneController {
 
-    private final InitialMemberPhoneRegistrationUseCase phoneRegistration;
+    private final MemberPhoneUpdateUseCase phoneUpdate;
     private final SubjectRateLimitGuard rateLimitGuard;
 
-    public MePhoneController(InitialMemberPhoneRegistrationUseCase phoneRegistration,
+    public MePhoneController(MemberPhoneUpdateUseCase phoneUpdate,
                              SubjectRateLimitGuard rateLimitGuard) {
-        this.phoneRegistration = phoneRegistration;
+        this.phoneUpdate = phoneUpdate;
         this.rateLimitGuard = rateLimitGuard;
     }
 
     @PatchMapping
-    public CustomerUserResponse registerInitialPhone(
-            @RequestBody @Valid RegisterInitialPhoneRequest request,
+    public CustomerUserResponse updatePhone(
+            @RequestBody @Valid UpdateMemberPhoneRequest request,
             @AuthenticationPrincipal CustomerPrincipal customer) {
         String phone = KoreanPhoneNumber.required(request.phone());
         rateLimitGuard.checkPhoneVerificationAttempt(phone);
-        User user = phoneRegistration.register(
+        User user = phoneUpdate.update(
                 customer.userId(), phone, request.verificationCode());
         return CustomerUserResponse.from(user);
     }

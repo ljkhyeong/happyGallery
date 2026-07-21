@@ -1,8 +1,10 @@
 package com.personal.happygallery.adapter.in.web.order;
 
+import com.personal.happygallery.adapter.in.web.order.dto.OrderDetailResponse;
+import com.personal.happygallery.adapter.in.web.order.dto.OrderPricePolicyResponse;
+import com.personal.happygallery.application.order.OrderPriceProperties;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase.OrderDetail;
-import com.personal.happygallery.adapter.in.web.order.dto.OrderDetailResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -20,9 +22,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
     private final OrderQueryUseCase orderQueryUseCase;
+    private final OrderPriceProperties orderPriceProperties;
 
-    public OrderController(OrderQueryUseCase orderQueryUseCase) {
+    public OrderController(OrderQueryUseCase orderQueryUseCase,
+                           OrderPriceProperties orderPriceProperties) {
         this.orderQueryUseCase = orderQueryUseCase;
+        this.orderPriceProperties = orderPriceProperties;
+    }
+
+    @GetMapping("/policy")
+    public OrderPricePolicyResponse getPricePolicy() {
+        return new OrderPricePolicyResponse(orderPriceProperties.shippingFee());
     }
 
     /** GET /api/v1/orders/{id} — 주문 상세 조회 (X-Access-Token 헤더) */

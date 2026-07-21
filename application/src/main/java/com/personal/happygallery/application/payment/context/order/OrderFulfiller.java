@@ -49,9 +49,14 @@ public class OrderFulfiller implements PaymentFulfiller {
         }
         long preparedAmount = 0L;
         for (PaymentPayload.PreparedOrderItem item : op.items()) {
+            if (item.productName() == null || item.productName().isBlank()) {
+                throw new HappyGalleryException(
+                        ErrorCode.INVALID_INPUT, "주문 상품명 정보가 없습니다. 결제를 다시 준비해 주세요.");
+            }
             preparedAmount = OrderAmountCalculator.addLine(
                     preparedAmount, item.qty(), item.unitPrice());
         }
+        preparedAmount = OrderAmountCalculator.addShippingFee(preparedAmount, op.shippingFee());
         if (preparedAmount != attempt.getAmount()) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 주문 금액이 결제 금액과 일치하지 않습니다.");
         }
@@ -62,12 +67,13 @@ public class OrderFulfiller implements PaymentFulfiller {
     public FulfillResult fulfill(PaymentPayload payload, String paymentKey) {
         PreparedOrderPayload op = (PreparedOrderPayload) payload;
         List<OrderItemRequest> orderItems = op.items().stream()
-                .map(item -> new OrderItemRequest(item.productId(), item.qty(), item.unitPrice()))
+                .map(item -> new OrderItemRequest(
+                        item.productId(), item.productName(), item.qty(), item.unitPrice()))
                 .toList();
 
         if (op.userId() != null) {
             Order order = orderService.createMemberOrder(
-                    op.userId(), orderItems, op.fulfillmentType(), op.shippingAddress());
+                    op.userId(), orderItems, op.fulfillmentType(), op.shippingAddress(), op.shippingFee());
             order.recordPaymentKey(paymentKey);
             if (op.cartCheckout()) {
                 cartUseCase.removePurchasedItems(op.userId(), op.items().stream()
@@ -78,7 +84,7 @@ public class OrderFulfiller implements PaymentFulfiller {
         }
         Guest guest = verifiedGuestResolver.resolveVerifiedGuest(op.phone(), op.verificationCode(), op.name());
         OrderCreationResult result = orderService.createPaidOrder(
-                guest.getId(), orderItems, op.fulfillmentType(), op.shippingAddress());
+                guest.getId(), orderItems, op.fulfillmentType(), op.shippingAddress(), op.shippingFee());
         result.order().recordPaymentKey(paymentKey);
         return new FulfillResult(result.order().getId(), result.rawAccessToken());
     }

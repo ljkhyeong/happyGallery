@@ -20,5 +20,7 @@ data:
   SENTRY_ENVIRONMENT: production
   SENTRY_RELEASE: happygallery@__IMAGE_TAG__
   PASS_TOTAL_PRICE: "240000"
+  ORDER_SHIPPING_FEE: "0"
+  MEDIA_STORAGE_PATH: /var/lib/happygallery/media
   GOOGLE_OAUTH_REDIRECT_URI: https://__PUBLIC_HOST__/api/v1/auth/social/callback/google
   NAVER_OAUTH_REDIRECT_URI: https://__PUBLIC_HOST__/api/v1/auth/social/callback/naver

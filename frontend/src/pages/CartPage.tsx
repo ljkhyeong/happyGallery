@@ -13,6 +13,7 @@ import {
   isFulfillmentComplete,
   useFulfillmentSelection,
 } from "@/features/order/FulfillmentForm";
+import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 
 export function CartPage() {
   const { isAuthenticated, user } = useCustomerAuth();
@@ -159,10 +160,11 @@ export function CartPage() {
                 <span className="text-muted">상품 수</span>
                 <span>{items.length}종</span>
               </div>
-              <div className="d-flex justify-content-between pt-2 border-top mb-3">
-                <span className="fw-semibold">총 금액</span>
-                <span className="fs-5 fw-bold">{formatKRW(totalAmount)}</span>
-              </div>
+              <OrderPriceSummary
+                itemAmount={totalAmount}
+                fulfillmentType={fulfillment.fulfillmentType}
+                className="mb-3"
+              />
 
               <div className="mb-3">
                 <FulfillmentForm value={fulfillment} onChange={setFulfillment} />

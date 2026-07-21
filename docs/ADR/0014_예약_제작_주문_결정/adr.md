@@ -9,7 +9,8 @@
 
 spec.md §3.2: MADE_TO_ORDER 상품 주문이 승인되면 즉시 제작 시작(IN_PRODUCTION).
 제작 시작 이후 일반 취소/거절 환불은 불가하다. 예상 출고일을 관리자가 설정·노출한다.
-고객 동의 시 DELAY_REQUESTED 상태로 전환하고, 고객이 지연을 수락하기 전에 거절하면 별도 취소 상태로 전환한다.
+관리자가 지연을 제안하면 고객 응답 대기 상태로 전환하고, 고객이 수락하면 `DELAY_ACCEPTED`,
+거절하면 별도 취소 상태로 전환한다.
 제작이 완료되면 주문은 픽업/배송 공통 이행 흐름(APPROVED_FULFILLMENT_PENDING)으로 다시 합류해야 한다.
 회원 바로 주문·장바구니와 비회원 주문 모두 결제 전에 픽업 또는 배송을 선택하므로, 제작 완료 뒤 관리자가
 수령 방식을 임의로 바꾸지 않고 결제 시점 선택을 유지해야 한다.
@@ -27,13 +28,13 @@ PAID_APPROVAL_PENDING
     ↓ 관리자 승인 (approve)
 IN_PRODUCTION          ← 환불 불가 시작점
     ├─ 예상 출고일 설정 (setExpectedShipDate) → 상태 변화 없음
-    ├─ 고객 지연 거절 취소 (cancelForDelayRejection)
-           ↓
-    DELAY_REJECTED_CANCELED
-    ├─ 고객 동의 지연 (requestDelay)
-           ↓
-    DELAY_REQUESTED
-    ├─ 제작 재개 (resumeProduction) → IN_PRODUCTION
+    ├─ 관리자 지연 제안 (proposeDelay)
+    │      ↓
+    │  DELAY_CONSENT_PENDING
+    │      ├─ 고객 수락 → DELAY_ACCEPTED
+    │      │      ├─ 제작 재개 (resumeProduction) → IN_PRODUCTION
+    │      │      └─ 제작 완료 (completeProduction) → APPROVED_FULFILLMENT_PENDING
+    │      └─ 고객 거절 → DELAY_REJECTED_CANCELED
     └─ 제작 완료 (completeProduction)
            ↓
     APPROVED_FULFILLMENT_PENDING
@@ -70,15 +71,15 @@ READY_STOCK 상품은 기존 흐름 유지: approve → APPROVED_FULFILLMENT_PEN
 
 ### 4. 환불 불가 가드
 
-`OrderStatus.requireCancellable()` — IN_PRODUCTION 또는 DELAY_REQUESTED 상태에서 호출 시
+`OrderStatus.requireCancellable()` — IN_PRODUCTION, DELAY_CONSENT_PENDING 또는 DELAY_ACCEPTED 상태에서 호출 시
 `ProductionRefundNotAllowedException`(422 `PRODUCTION_REFUND_NOT_ALLOWED`)을 던진다.
 
 `Order.reject()`에 이 가드를 추가하여 제작 중 거절을 차단한다.
 
-고객이 지연을 수락하기 전에 거절한 경우는 일반 취소가 아니라 지연 거절 취소로 다룬다.
-`OrderStatus.requireDelayRejectionCancelable()`은 `IN_PRODUCTION`에서만 통과하고,
+고객이 관리자 지연 제안을 거절한 경우는 일반 취소가 아니라 지연 거절 취소로 다룬다.
+`OrderStatus.requireDelayRejectionCancelable()`은 `DELAY_CONSENT_PENDING`에서만 통과하고,
 서비스는 주문을 `DELAY_REJECTED_CANCELED`로 전이한 뒤 환불·재고 복구를 수행한다.
-이미 `DELAY_REQUESTED`로 전이된 주문은 고객이 지연을 수락한 상태이므로 이 경로를 허용하지 않는다.
+이미 `DELAY_ACCEPTED`로 전이된 주문은 고객이 지연을 수락한 상태이므로 이 경로를 허용하지 않는다.
 
 제작 완료 후 픽업 흐름에 합류해도 제작 시작 이력은 사라지지 않는다. 픽업 마감까지 미수령하면
 `PICKUP_FORFEITED` 상태와 이력만 남기고 `Refund` 생성과 재고 복구는 수행하지 않는다.
@@ -86,27 +87,32 @@ READY_STOCK 상품은 기존 흐름 유지: approve → APPROVED_FULFILLMENT_PEN
 ### 5. 서비스 분리
 
 - `OrderApprovalService`: approve (MADE_TO_ORDER 감지 포함) / reject
-- `OrderProductionService`: setExpectedShipDate / requestDelay / cancelForDelayRejection
+- `OrderProductionService`: setExpectedShipDate / proposeDelay / resumeProduction / completeProduction
+- `OrderCustomerActionService`: 회원·비회원 소유권 검증 후 지연 수락 또는 거절 처리
 - `OrderShippingService`: prepareShipping / markShipped / markDelivered
 
 ### 6. API
 
 | Method  | Path                                    | 설명                        |
 |---------|-----------------------------------------|-----------------------------|
-| `PATCH` | `/admin/orders/{id}/expected-ship-date` | 예상 출고일 설정/갱신        |
-| `POST`  | `/admin/orders/{id}/delay`              | 배송 지연 상태 전환 (고객 동의) |
-| `POST`  | `/admin/orders/{id}/cancel-for-delay-rejection` | 고객 지연 거절 취소 (IN_PRODUCTION → DELAY_REJECTED_CANCELED) |
-| `POST`  | `/admin/orders/{id}/resume-production`  | 지연 → 제작 재개 (DELAY_REQUESTED → IN_PRODUCTION) |
-| `POST`  | `/admin/orders/{id}/complete-production`| 제작 완료 → 이행 대기 상태 복귀 |
-| `POST`  | `/admin/orders/{id}/prepare-shipping`   | 배송 준비 시작 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) |
-| `POST`  | `/admin/orders/{id}/mark-shipped`       | 배송 출발 (SHIPPING_PREPARING → SHIPPED) |
-| `POST`  | `/admin/orders/{id}/mark-delivered`     | 배송 완료 (SHIPPED → DELIVERED) |
-| `GET`   | `/admin/orders/{id}/fulfillment`        | 관리자 이행 방식·배송지 상세 조회 |
-| `GET`   | `/admin/orders/{id}/history`            | 주문 처리 이력 조회 |
+| `PATCH` | `/api/v1/admin/orders/{id}/expected-ship-date` | 예상 출고일 설정/갱신        |
+| `POST`  | `/api/v1/admin/orders/{id}/delay`              | 제작 지연 제안 (`IN_PRODUCTION` → `DELAY_CONSENT_PENDING`) |
+| `POST`  | `/api/v1/me/orders/{id}/delay-response` | 회원이 지연 제안 수락/거절 |
+| `POST`  | `/api/v1/orders/{id}/delay-response` | 비회원이 접근 토큰으로 지연 제안 수락/거절 |
+| `POST`  | `/api/v1/admin/orders/{id}/cancel-for-delay-rejection` | 관리자 보조 지연 거절 취소 |
+| `POST`  | `/api/v1/admin/orders/{id}/resume-production`  | 지연 수락 → 제작 재개 (DELAY_ACCEPTED → IN_PRODUCTION) |
+| `POST`  | `/api/v1/admin/orders/{id}/complete-production`| 제작 완료 → 이행 대기 상태 복귀 |
+| `POST`  | `/api/v1/admin/orders/{id}/prepare-shipping`   | 배송 준비 시작 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) |
+| `POST`  | `/api/v1/admin/orders/{id}/mark-shipped`       | 택배사·운송장 번호를 저장하고 배송 출발 |
+| `POST`  | `/api/v1/admin/orders/{id}/mark-delivered`     | 배송 완료 (SHIPPED → DELIVERED) |
+| `GET`   | `/api/v1/admin/orders/{id}/fulfillment`        | 관리자 이행 방식·배송지 상세 조회 |
+| `GET`   | `/api/v1/admin/orders/{id}/history`            | 주문 처리 이력 조회 |
 
 관리자 주문 처리 API는 Bearer 세션에서 검증된 admin id를 `order_approvals`에 기록한다.
-`setExpectedShipDate`는 `IN_PRODUCTION`, `DELAY_REQUESTED`, `SHIPPING_PREPARING` 상태의 SHIPPING fulfillment에서만 허용한다.
+`setExpectedShipDate`는 `IN_PRODUCTION`, `DELAY_CONSENT_PENDING`, `DELAY_ACCEPTED`, `SHIPPING_PREPARING` 상태의 SHIPPING fulfillment에서만 허용한다.
 `Fulfillment.setExpectedShipDate()`가 SHIPPING 타입을 직접 검증해 변경 메서드 밖의 중복 사전 검증을 두지 않는다.
+`mark-shipped`는 `carrier`와 `trackingNumber`를 필수로 받고 둘을 한 쌍으로 저장한다. 픽업 fulfillment에는
+운송 정보를 저장할 수 없다.
 
 ---
 

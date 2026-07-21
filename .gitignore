@@ -37,3 +37,6 @@ memory/
 ## CODEX
 .gradle-codex/
 .codex/
+
+## Local persistent data
+/data/

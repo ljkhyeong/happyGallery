@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.application.customer.MemberAccountGuard;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
@@ -38,6 +39,7 @@ public class OrderService {
     private final ApplicationEventPublisher eventPublisher;
     private final GuestTokenService guestTokenService;
     private final ShippingAddressProtector shippingAddressProtector;
+    private final MemberAccountGuard memberAccountGuard;
     private final Clock clock;
 
     public OrderService(OrderStorePort orderStore,
@@ -47,6 +49,7 @@ public class OrderService {
                         ApplicationEventPublisher eventPublisher,
                         GuestTokenService guestTokenService,
                         ShippingAddressProtector shippingAddressProtector,
+                        MemberAccountGuard memberAccountGuard,
                         Clock clock) {
         this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
@@ -55,6 +58,7 @@ public class OrderService {
         this.eventPublisher = eventPublisher;
         this.guestTokenService = guestTokenService;
         this.shippingAddressProtector = shippingAddressProtector;
+        this.memberAccountGuard = memberAccountGuard;
         this.clock = clock;
     }
 
@@ -74,14 +78,22 @@ public class OrderService {
     public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
                                                FulfillmentType fulfillmentType,
                                                ShippingAddress shippingAddress) {
+        return createPaidOrder(guestId, items, fulfillmentType, shippingAddress, 0L);
+    }
+
+    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
+                                               FulfillmentType fulfillmentType,
+                                               ShippingAddress shippingAddress,
+                                               long shippingFee) {
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        long totalAmount = totalAmount(items);
+        long totalAmount = totalAmount(items, shippingFee);
+        requireMatchingShippingFee(fulfillmentType, shippingFee);
 
         GuestTokenService.IssuedToken issued = guestTokenService.issue();
         String rawToken = issued.rawToken();
         String tokenHash = issued.tokenHash();
         Order order = orderStore.save(
-                Order.forGuest(guestId, tokenHash, totalAmount, paidAt, paidAt.plusHours(24)));
+                Order.forGuest(guestId, tokenHash, totalAmount, shippingFee, paidAt, paidAt.plusHours(24)));
 
         saveItemsAndDeductInventory(order, items);
         saveFulfillment(order, fulfillmentType, shippingAddress);
@@ -101,11 +113,20 @@ public class OrderService {
     public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
                                    FulfillmentType fulfillmentType,
                                    ShippingAddress shippingAddress) {
+        return createMemberOrder(userId, items, fulfillmentType, shippingAddress, 0L);
+    }
+
+    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
+                                   FulfillmentType fulfillmentType,
+                                   ShippingAddress shippingAddress,
+                                   long shippingFee) {
+        memberAccountGuard.requireActiveForUpdate(userId);
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        long totalAmount = totalAmount(items);
+        long totalAmount = totalAmount(items, shippingFee);
+        requireMatchingShippingFee(fulfillmentType, shippingFee);
 
         Order order = orderStore.save(
-                Order.forMember(userId, totalAmount, paidAt, paidAt.plusHours(24)));
+                Order.forMember(userId, totalAmount, shippingFee, paidAt, paidAt.plusHours(24)));
 
         saveItemsAndDeductInventory(order, items);
         saveFulfillment(order, fulfillmentType, shippingAddress);
@@ -134,15 +155,22 @@ public class OrderService {
                 .map(item -> new InventoryAdjustment(item.productId(), item.qty()))
                 .toList());
         items.forEach(item -> orderItemPort.save(
-                new OrderItem(order, item.productId(), item.qty(), item.unitPrice())));
+                new OrderItem(
+                        order, item.productId(), item.productName(), item.qty(), item.unitPrice())));
     }
 
-    private static long totalAmount(List<OrderItemRequest> items) {
+    private static long totalAmount(List<OrderItemRequest> items, long shippingFee) {
         long total = 0L;
         for (OrderItemRequest item : items) {
             total = OrderAmountCalculator.addLine(total, item.qty(), item.unitPrice());
         }
-        return total;
+        return OrderAmountCalculator.addShippingFee(total, shippingFee);
+    }
+
+    private static void requireMatchingShippingFee(FulfillmentType fulfillmentType, long shippingFee) {
+        if (fulfillmentType != FulfillmentType.SHIPPING && shippingFee != 0L) {
+            throw new IllegalArgumentException("픽업 주문에는 배송비를 적용할 수 없습니다.");
+        }
     }
 
     private void saveFulfillment(Order order,
@@ -159,7 +187,7 @@ public class OrderService {
         fulfillmentPort.save(fulfillment);
     }
 
-    public record OrderItemRequest(Long productId, int qty, long unitPrice) {}
+    public record OrderItemRequest(Long productId, String productName, int qty, long unitPrice) {}
 
     public record OrderCreationResult(Order order, String rawAccessToken) {}
 }

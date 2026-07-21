@@ -8,6 +8,8 @@ import com.personal.happygallery.application.qna.port.out.ProductQnaStorePort;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
@@ -15,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -31,19 +34,22 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     private final UserReaderPort userReader;
     private final Clock clock;
     private final PasswordEncoder passwordEncoder;
+    private final ApplicationEventPublisher eventPublisher;
 
     public DefaultProductQnaService(ProductQnaReaderPort qnaReader,
                                     ProductQnaStorePort qnaStore,
                                     ProductReaderPort productReader,
                                     UserReaderPort userReader,
                                     Clock clock,
-                                    PasswordEncoder passwordEncoder) {
+                                    PasswordEncoder passwordEncoder,
+                                    ApplicationEventPublisher eventPublisher) {
         this.qnaReader = qnaReader;
         this.qnaStore = qnaStore;
         this.productReader = productReader;
         this.userReader = userReader;
         this.clock = clock;
         this.passwordEncoder = passwordEncoder;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -89,10 +95,15 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     @Override
     @Transactional
     public QnaWithAuthor replyAndGet(Long qnaId, String replyContent, Long adminId) {
-        ProductQna qna = qnaReader.findById(qnaId)
+        ProductQna qna = qnaReader.findByIdForUpdate(qnaId)
                 .orElseThrow(NotFoundException.supplier("Q&A"));
         qna.reply(replyContent, adminId, LocalDateTime.now(clock));
         qna = qnaStore.save(qna);
+        eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
+                qna.getUserId(),
+                NotificationEventType.PRODUCT_QNA_ANSWERED,
+                "PRODUCT_QNA",
+                qna.getId()));
         String authorName = userReader.findById(qna.getUserId())
                 .map(User::getName).orElse("탈퇴회원");
         return new QnaWithAuthor(qna, authorName);

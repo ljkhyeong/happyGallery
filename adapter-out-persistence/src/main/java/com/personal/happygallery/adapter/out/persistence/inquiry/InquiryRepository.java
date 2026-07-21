@@ -9,13 +9,21 @@ import java.util.Optional;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
 
 public interface InquiryRepository extends JpaRepository<Inquiry, Long>, InquiryReaderPort, InquiryStorePort {
 
     @Override Optional<Inquiry> findById(Long id);
     @Override Inquiry save(Inquiry inquiry);
+
+    @Override
+    @Lock(PESSIMISTIC_WRITE)
+    @Query("SELECT i FROM Inquiry i WHERE i.id = :id")
+    Optional<Inquiry> findByIdForUpdate(@Param("id") Long id);
 
     List<Inquiry> findByUserIdOrderByCreatedAtDesc(Long userId);
 

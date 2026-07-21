@@ -15,6 +15,8 @@ import jakarta.persistence.Table;
 @Table(name = "order_items")
 public class OrderItem {
 
+    public static final int MAX_PRODUCT_NAME_LENGTH = 255;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -25,6 +27,9 @@ public class OrderItem {
 
     @Column(name = "product_id", nullable = false)
     private Long productId;
+
+    @Column(name = "product_name", nullable = false, length = MAX_PRODUCT_NAME_LENGTH)
+    private String productName;
 
     @Column(nullable = false)
     private int qty;
@@ -39,12 +44,14 @@ public class OrderItem {
      *
      * @param order     소속 주문
      * @param productId 상품 ID
-     * @param qty       수량
-     * @param unitPrice 단가 (원)
+     * @param productName 결제 준비 시점 상품명
+     * @param qty         수량
+     * @param unitPrice   단가 (원)
      */
-    public OrderItem(Order order, Long productId, int qty, long unitPrice) {
+    public OrderItem(Order order, Long productId, String productName, int qty, long unitPrice) {
         this.order = order;
         this.productId = productId;
+        this.productName = productName;
         this.qty = qty;
         this.unitPrice = unitPrice;
     }
@@ -52,6 +59,7 @@ public class OrderItem {
     public Long getId() { return id; }
     public Order getOrder() { return order; }
     public Long getProductId() { return productId; }
+    public String getProductName() { return productName; }
     public int getQty() { return qty; }
     public long getUnitPrice() { return unitPrice; }
 }

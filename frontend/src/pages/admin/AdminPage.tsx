@@ -5,7 +5,9 @@ import { AdminKeyGate } from "@/features/admin-product/AdminKeyGate";
 import { ProductListSection } from "@/features/admin-product/ProductListSection";
 import { CreateProductForm } from "@/features/admin-product/CreateProductForm";
 import { CreateClassForm } from "@/features/admin-class/CreateClassForm";
+import { ClassListSection } from "@/features/admin-class/ClassListSection";
 import { CreateSlotForm } from "@/features/admin-slot/CreateSlotForm";
+import { BulkSlotForm } from "@/features/admin-slot/BulkSlotForm";
 import { SlotListSection } from "@/features/admin-slot/SlotListSection";
 import { BookingListSection } from "@/features/admin-booking/BookingListSection";
 import { OrderListSection } from "@/features/admin-order/OrderListSection";
@@ -19,6 +21,7 @@ import { AdminNoticeSection } from "@/features/admin-notice/AdminNoticeSection";
 import { AdminPasswordChangeForm } from "@/features/admin-auth/AdminPasswordChangeForm";
 import { AdminDashboardSection } from "@/features/admin-dashboard/AdminDashboardSection";
 import { AdminSearchSection } from "@/features/admin-search/AdminSearchSection";
+import { WorkshopProfileForm } from "@/features/admin-workshop/WorkshopProfileForm";
 import { useToast } from "@/shared/ui";
 
 export function AdminPage() {
@@ -101,6 +104,13 @@ export function AdminPage() {
       </Card>
 
       <Card className="mb-4">
+        <Card.Header>공방 방문 정보</Card.Header>
+        <Card.Body>
+          <WorkshopProfileForm adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-4">
         <Card.Header>상품 등록</Card.Header>
         <Card.Body>
           <CreateProductForm adminKey={adminKey} onAuthError={handleAuthError} />
@@ -122,9 +132,23 @@ export function AdminPage() {
       </Card>
 
       <Card className="mb-4">
+        <Card.Header>클래스 목록</Card.Header>
+        <Card.Body>
+          <ClassListSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-4">
         <Card.Header>슬롯 생성</Card.Header>
         <Card.Body>
           <CreateSlotForm adminKey={adminKey} onAuthError={handleAuthError} />
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-4">
+        <Card.Header>슬롯 일괄 생성</Card.Header>
+        <Card.Body>
+          <BulkSlotForm adminKey={adminKey} onAuthError={handleAuthError} />
         </Card.Body>
       </Card>
 

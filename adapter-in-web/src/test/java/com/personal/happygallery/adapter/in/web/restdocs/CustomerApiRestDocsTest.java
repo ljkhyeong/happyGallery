@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.in.web.customer.CustomerSessionBinder;
 import com.personal.happygallery.adapter.in.web.customer.CustomerAuthController;
 import com.personal.happygallery.adapter.in.web.customer.CustomerCredentialController;
 import com.personal.happygallery.adapter.in.web.customer.MeBookingController;
+import com.personal.happygallery.adapter.in.web.customer.MeAccountController;
 import com.personal.happygallery.adapter.in.web.customer.MeCartController;
 import com.personal.happygallery.adapter.in.web.customer.MeGuestClaimController;
 import com.personal.happygallery.adapter.in.web.customer.MeInquiryController;
@@ -20,17 +21,21 @@ import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerCredentialUseCase;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
-import com.personal.happygallery.application.customer.port.in.InitialMemberPhoneRegistrationUseCase;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
+import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.application.notification.port.in.NotificationQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
+import com.personal.happygallery.application.pass.port.in.MemberPassRefundUseCase;
 import com.personal.happygallery.application.pass.port.in.PassQueryUseCase;
+import com.personal.happygallery.application.pass.port.in.PassRefundUseCase.PassRefundResult;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.user.User;
 import java.time.LocalDateTime;
@@ -68,9 +73,11 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private BookingCancelUseCase bookingCancelUseCase;
     private OrderQueryUseCase orderQueryUseCase;
     private PassQueryUseCase passQueryUseCase;
+    private MemberPassRefundUseCase memberPassRefundUseCase;
     private NotificationQueryUseCase notificationQueryUseCase;
     private GuestClaimUseCase guestClaimUseCase;
-    private InitialMemberPhoneRegistrationUseCase phoneRegistrationUseCase;
+    private MemberPhoneUpdateUseCase phoneUpdateUseCase;
+    private CustomerAccountLifecycleUseCase accountLifecycleUseCase;
     private InquiryUseCase inquiryUseCase;
     private ProductQnaUseCase qnaUseCase;
     private SubjectRateLimitGuard rateLimitGuard;
@@ -85,9 +92,11 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         bookingCancelUseCase = mock(BookingCancelUseCase.class);
         orderQueryUseCase = mock(OrderQueryUseCase.class);
         passQueryUseCase = mock(PassQueryUseCase.class);
+        memberPassRefundUseCase = mock(MemberPassRefundUseCase.class);
         notificationQueryUseCase = mock(NotificationQueryUseCase.class);
         guestClaimUseCase = mock(GuestClaimUseCase.class);
-        phoneRegistrationUseCase = mock(InitialMemberPhoneRegistrationUseCase.class);
+        phoneUpdateUseCase = mock(MemberPhoneUpdateUseCase.class);
+        accountLifecycleUseCase = mock(CustomerAccountLifecycleUseCase.class);
         inquiryUseCase = mock(InquiryUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
         rateLimitGuard = mock(SubjectRateLimitGuard.class);
@@ -119,6 +128,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         PassQueryUseCase.PassView passView = new PassQueryUseCase.PassView(pass, null);
         when(passQueryUseCase.listMyPasses(CUSTOMER_USER_ID)).thenReturn(List.of(passView));
         when(passQueryUseCase.findMyPass(300L, CUSTOMER_USER_ID)).thenReturn(passView);
+        when(memberPassRefundUseCase.refundMyPass(300L, CUSTOMER_USER_ID))
+                .thenReturn(new PassRefundResult(1, 8, 240000L, 901L, RefundStatus.REQUESTED));
         when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), any(), eq(0), eq(20)))
                 .thenReturn(List.of());
         when(notificationQueryUseCase.countUnread(CUSTOMER_USER_ID, null)).thenReturn(3L);
@@ -126,7 +137,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(guestClaimUseCase.verifyPhoneAndPreview(CUSTOMER_USER_ID, "123456")).thenReturn(claimPreview(true));
         when(guestClaimUseCase.claim(eq(CUSTOMER_USER_ID), any(), any()))
                 .thenReturn(new GuestClaimUseCase.ClaimResult(1, 1));
-        when(phoneRegistrationUseCase.register(CUSTOMER_USER_ID, "01012345678", "123456"))
+        when(phoneUpdateUseCase.update(CUSTOMER_USER_ID, "01012345678", "123456"))
                 .thenReturn(user);
         when(customerCredentialUseCase.resetPassword(any()))
                 .thenReturn(CUSTOMER_USER_ID);
@@ -145,10 +156,11 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 new MeBookingController(bookingQueryUseCase, bookingRescheduleUseCase,
                         bookingCancelUseCase, RestDocsFixtures.clock()),
                 new MeOrderController(orderQueryUseCase),
-                new MePassController(passQueryUseCase),
+                new MePassController(passQueryUseCase, memberPassRefundUseCase, rateLimitGuard),
                 new MeNotificationController(notificationQueryUseCase),
                 new MeGuestClaimController(guestClaimUseCase, rateLimitGuard),
-                new MePhoneController(phoneRegistrationUseCase, rateLimitGuard),
+                new MePhoneController(phoneUpdateUseCase, rateLimitGuard),
+                new MeAccountController(accountLifecycleUseCase, customerSessionBinder),
                 new MeInquiryController(inquiryUseCase),
                 new MeProductQnaController(qnaUseCase));
     }
@@ -199,8 +211,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("회원 최초 휴대폰 등록 API를 문서화한다")
-    void register_initial_phone() throws Exception {
+    @DisplayName("회원 휴대폰 변경 API를 문서화한다")
+    void update_phone() throws Exception {
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(customerUser())
                         .contentType(APPLICATION_JSON)
@@ -211,6 +223,13 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                 }
                                 """))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("회원 탈퇴 API를 문서화한다")
+    void withdraw_account() throws Exception {
+        mockMvc.perform(delete("/api/v1/me").with(customerUser()))
+                .andExpect(status().isNoContent());
     }
 
     @Test
@@ -353,6 +372,18 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void get_my_pass() throws Exception {
         mockMvc.perform(get("/api/v1/me/passes/{id}", 300L).with(customerUser()))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("내 8회권 정산 환불 API를 문서화한다")
+    void refund_my_pass() throws Exception {
+        mockMvc.perform(post("/api/v1/me/passes/{id}/refund", 300L).with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.canceledBookings").value(1))
+                .andExpect(jsonPath("$.refundCredits").value(8))
+                .andExpect(jsonPath("$.refundAmount").value(240000))
+                .andExpect(jsonPath("$.refundStatus").value("REQUESTED"))
+                .andExpect(jsonPath("$.refundId").doesNotExist());
     }
 
     @Test

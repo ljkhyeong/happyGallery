@@ -21,6 +21,7 @@ import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedgerType;
+import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
@@ -54,6 +55,7 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.TestFixtures.slot;
@@ -71,6 +73,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -117,7 +120,7 @@ class PassCreditUsageUseCaseIT {
         cleanupSupport.clearBookingWithPassAndRefundData();
         cleanupSupport.clearNotificationLogs();
 
-        cls = classRepository.save(defaultBookingClass());
+        cls = classRepository.save(bookingClass("우드 정규 클래스", "WOOD", 120, 50_000L, 30));
         cleanupSupport.clearUsers();
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("FAKE-TEST-PASS-REF"));
@@ -163,15 +166,109 @@ class PassCreditUsageUseCaseIT {
         });
     }
 
+    @DisplayName("정규 공예 8회권은 8회권 사용 불가로 설정한 공예 클래스에 사용할 수 없다")
+    @Test
+    void book_with_regularCraftPass_forIneligibleCraftClass_returns422WithoutMutation() throws Exception {
+        BookingClass ineligibleClass = classRepository.save(new BookingClass(
+                "우드 원데이 클래스",
+                "WOOD",
+                120,
+                50_000L,
+                30,
+                false,
+                null,
+                null,
+                null,
+                null));
+        Slot ineligibleSlot = slotRepository.save(slot(ineligibleClass, FUTURE, FUTURE.plusHours(2)));
+        PaymentTestHelper.PreparedPayment prepared = paymentHelper.preparePayment(
+                PaymentContext.BOOKING,
+                passBookingPayload(pass, ineligibleSlot),
+                sessionCookie);
+
+        mockMvc.perform(post("/api/v1/payments/confirm")
+                        .with(csrf())
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(confirmRequest(prepared)))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("PASS_NOT_APPLICABLE"));
+
+        PassPurchase reloadedPass = passPurchaseRepository.findById(pass.getId()).orElseThrow();
+        Slot reloadedSlot = slotRepository.findById(ineligibleSlot.getId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(8);
+            softly.assertThat(reloadedSlot.getBookedCount()).isZero();
+            softly.assertThat(bookingRepository.findAll()).isEmpty();
+            softly.assertThat(passLedgerRepository.findByPassPurchaseId(pass.getId())).isEmpty();
+        });
+    }
+
+    @DisplayName("정책 도입 전에 구매한 8회권은 기존처럼 향수 클래스에도 사용할 수 있다")
+    @Test
+    void book_with_legacyPass_forPerfumeClass_preservesPreviousContract() throws Exception {
+        jdbcTemplate.update(
+                "UPDATE pass_purchases SET plan_code = 'LEGACY_ALL_CLASSES' WHERE id = ?",
+                pass.getId());
+        BookingClass perfumeClass = classRepository.save(defaultBookingClass());
+        Slot perfumeSlot = slotRepository.save(slot(perfumeClass, FUTURE, FUTURE.plusHours(2)));
+
+        PaymentTestHelper.ConfirmedPayment confirmed = paymentHelper.createMemberPassBooking(
+                sessionCookie, pass.getUserId(), perfumeSlot.getId(), pass.getId());
+
+        PassPurchase reloadedPass = passPurchaseRepository.findById(pass.getId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(confirmed.domainId()).isPositive();
+            softly.assertThat(reloadedPass.getPlan()).isEqualTo(PassPlan.LEGACY_ALL_CLASSES);
+            softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(7);
+            softly.assertThat(slotRepository.findById(perfumeSlot.getId()).orElseThrow().getBookedCount())
+                    .isEqualTo(1);
+        });
+    }
+
+    @DisplayName("정규 공예 8회권 예약은 향수 원데이 클래스 슬롯으로 변경할 수 없다")
+    @Test
+    void reschedule_regularCraftPassBooking_toPerfumeClass_returns422WithoutMutation() throws Exception {
+        Slot originalSlot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Long bookingId = createPassBooking(originalSlot.getId());
+        BookingClass perfumeClass = classRepository.save(defaultBookingClass());
+        Slot perfumeSlot = slotRepository.save(
+                slot(perfumeClass, FUTURE.plusDays(1), FUTURE.plusDays(1).plusHours(2)));
+
+        mockMvc.perform(patch("/api/v1/me/bookings/{id}/reschedule", bookingId)
+                        .with(csrf())
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newSlotId\":" + perfumeSlot.getId() + "}"))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("PASS_NOT_APPLICABLE"));
+
+        assertSoftly(softly -> {
+            softly.assertThat(bookingRepository.findById(bookingId).orElseThrow().getSlot().getId())
+                    .isEqualTo(originalSlot.getId());
+            softly.assertThat(slotRepository.findById(originalSlot.getId()).orElseThrow().getBookedCount())
+                    .isEqualTo(1);
+            softly.assertThat(slotRepository.findById(perfumeSlot.getId()).orElseThrow().getBookedCount())
+                    .isZero();
+            softly.assertThat(passPurchaseRepository.findById(pass.getId()).orElseThrow().getRemainingCredits())
+                    .isEqualTo(7);
+        });
+    }
+
     @DisplayName("같은 8회권으로 서로 다른 클래스에 동시에 예약해도 크레딧과 원장이 모두 반영된다")
     @Test
     void concurrentBookings_withSamePass_areSerializedByPassLock() throws Exception {
         int bookingCount = 4;
         List<Long> slotIds = new ArrayList<>();
         for (int i = 0; i < bookingCount; i++) {
-            BookingClass bookingClass = classRepository.save(defaultBookingClass());
+            BookingClass eligibleClass = classRepository.save(bookingClass(
+                    "정규 공예 클래스 " + i,
+                    i % 2 == 0 ? "WOOD" : "KNIT",
+                    120,
+                    50_000L,
+                    30));
             LocalDateTime startAt = FUTURE.plusDays(i);
-            slotIds.add(slotRepository.save(slot(bookingClass, startAt, startAt.plusHours(2))).getId());
+            slotIds.add(slotRepository.save(slot(eligibleClass, startAt, startAt.plusHours(2))).getId());
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(bookingCount);

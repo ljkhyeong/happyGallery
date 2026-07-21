@@ -5,6 +5,7 @@ import { createProduct } from "./api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { ProductType } from "@/shared/types";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { AdminImageField } from "@/features/admin-media/AdminImageField";
 
 interface Props {
   adminKey: string;
@@ -16,23 +17,34 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
   const toast = useToast();
   const [name, setName] = useState("");
   const [type, setType] = useState<ProductType>("READY_STOCK");
+  const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () =>
       createProduct(adminKey, {
         name,
         type,
+        category: category.trim() || undefined,
         price: Number(price),
         quantity: Number(quantity),
+        description: description.trim() || undefined,
+        imageUrl: imageUrl.trim() || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product-categories"] });
       toast.show("상품이 등록되었습니다.");
       setName("");
+      setCategory("");
       setPrice("");
       setQuantity("1");
+      setDescription("");
+      setImageUrl("");
     },
   });
 
@@ -46,12 +58,13 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
       }}
     >
       <ErrorAlert error={mutation.error} />
-      <Row className="g-2 align-items-end">
-        <Col xs={12} md={3}>
+      <Row className="g-3 align-items-end">
+        <Col xs={12} md={4}>
           <Form.Group controlId="admin-product-name">
             <Form.Label>상품명</Form.Label>
             <Form.Control
               value={name}
+              maxLength={100}
               onChange={(e) => setName(e.target.value)}
               placeholder="상품명"
             />
@@ -64,6 +77,17 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
               <option value="READY_STOCK">기존 재고</option>
               <option value="MADE_TO_ORDER">예약 제작</option>
             </Form.Select>
+          </Form.Group>
+        </Col>
+        <Col xs={12} sm={6} md={2}>
+          <Form.Group controlId="admin-product-category">
+            <Form.Label>카테고리</Form.Label>
+            <Form.Control
+              value={category}
+              maxLength={50}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="WOOD"
+            />
           </Form.Group>
         </Col>
         <Col xs={12} sm={6} md={2}>
@@ -89,7 +113,30 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
             />
           </Form.Group>
         </Col>
-        <Col xs={12} sm={6} md={3}>
+        <Col xs={12} md={6}>
+          <AdminImageField
+            adminKey={adminKey}
+            value={imageUrl}
+            onChange={setImageUrl}
+            onAuthError={onAuthError}
+            controlId="admin-product-image"
+            previewAlt="등록할 상품 대표 이미지 미리보기"
+          />
+        </Col>
+        <Col xs={12} md={6}>
+          <Form.Group controlId="admin-product-description">
+            <Form.Label>상세 설명</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={2}
+              value={description}
+              maxLength={5000}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="소재, 크기, 관리 방법을 입력하세요."
+            />
+          </Form.Group>
+        </Col>
+        <Col xs={12} md={{ span: 3, offset: 9 }}>
           <Button type="submit" variant="primary" className="w-100" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? "등록 중..." : "상품 등록"}
           </Button>

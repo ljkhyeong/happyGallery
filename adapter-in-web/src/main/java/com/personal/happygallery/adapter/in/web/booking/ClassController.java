@@ -17,10 +17,10 @@ public class ClassController {
         this.classQueryUseCase = classQueryUseCase;
     }
 
-    /** GET /api/v1/classes — 전체 클래스 목록 */
+    /** GET /api/v1/classes — 현재 운영 중인 클래스 목록 */
     @GetMapping
     public List<ClassResponse> listClasses() {
-        return classQueryUseCase.listAll().stream()
+        return classQueryUseCase.listActive().stream()
                 .map(ClassResponse::from)
                 .toList();
     }

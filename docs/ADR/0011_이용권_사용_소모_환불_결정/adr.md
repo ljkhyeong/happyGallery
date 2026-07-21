@@ -22,6 +22,8 @@
 8회권 전체 환불처럼 단일 예약이 원인이 아닌 원장은 `related_booking_id`를 비운다.
 예약 생성에서는 회원 소유권만 먼저 확인하고, `PassPurchase.useCredit(usedAt)`이 만료·잔여 크레딧 검증과
 차감을 한 번에 수행한다. 이후 `USE` 원장을 같은 트랜잭션에 저장하며, 어느 한쪽이라도 실패하면 모두 롤백한다.
+크레딧 차감 전에는 구매 시 저장한 `PassPlan`으로 클래스 카테고리와 `passEligible`을 함께 검증한다.
+신규 `REGULAR_CRAFT_8`은 `passEligible=true`인 정규 공예 클래스에만 사용할 수 있고 `PERFUME`에는 사용할 수 없다.
 `UNIQUE(related_booking_id, type)`으로 같은 예약에 `USE` 또는 예약 취소 `REFUND`가 중복 기록되는 것도 차단한다.
 
 **이유**:
@@ -73,11 +75,13 @@
 
 ## 결정 4: 정산 환불 — PG 환불 이력과 재시도
 
-**결정**: `PassRefundService.refundPass()`는 미래 예약 취소, 잔여 크레딧 소멸, REFUND ledger 기록과 함께 `payment_key` 기반 PG 환불을 요청한다. 환불 이력은 `refunds.pass_purchase_id`로 8회권을 추적하며, 명시적 거절은 `FAILED`, 일시 실패와 결과 불명은 자동 복구 가능한 상태로 남긴다. 자동 취소한 미래 예약은 아직 사용하지 않은 크레딧이므로 `refundCredits = remainingCredits + canceledFutureBookings`로 정산한다.
+**결정**: 관리자와 이용권 소유 회원은 같은 정산 유스케이스로 전체 환불을 요청할 수 있다. 회원 경로는
+`POST /api/v1/me/passes/{id}/refund`이며 세션 소유권을 검증하고 사용자별 처리율 제한을 적용한다.
+`PassRefundService.refundPass()`는 미래 예약 취소, 잔여 크레딧 소멸, REFUND ledger 기록과 함께 `payment_key` 기반 PG 환불을 요청한다. 환불 이력은 `refunds.pass_purchase_id`로 8회권을 추적하며, 명시적 거절은 `FAILED`, 일시 실패와 결과 불명은 자동 복구 가능한 상태로 남긴다. 자동 취소한 미래 예약은 아직 사용하지 않은 크레딧이므로 `refundCredits = remainingCredits + canceledFutureBookings`로 정산한다.
 `expiresAt`에 도달한 이용권은 이 정산 환불 대상에서 제외한다.
 
 **이유**:
-- 8회권 환불은 잔여 크레딧 정산, 미래 예약 취소, 운영자 확인이 함께 필요한 관리자 액션이다.
+- 8회권 환불은 잔여 크레딧 정산, 미래 예약 취소와 PG 환불 추적이 한 번에 필요한 소유자 또는 관리자 액션이다.
 - `refundAmount = refundCredits × (totalPrice / totalCredits)` 로 단순 계산
 - 주문/예약 환불과 동일하게 PG 호출 실패를 durable한 환불 이력으로 남겨야 실제 금전 환불과 도메인 상태의 불일치를 운영자가 추적할 수 있다.
 
@@ -85,6 +89,7 @@
 - PG 환불이 완료되지 않아도 미래 예약 취소와 크레딧 소멸은 완료된다. 자동 복구와 관리자 재처리 API로 금전 환불을 보완한다.
 - 결제 API 도입 후 `totalPrice`는 서버 설정 `PASS_TOTAL_PRICE`로 확정되지만, 기존 데이터에 `totalPrice=0`이 있으면 환불액도 0으로 계산된다.
 - 과거 데이터에 `payment_key`가 없으면 PG 환불을 실행할 수 없으므로 `FAILED` 이력으로 남긴 뒤 운영자가 수동 확인한다.
+- 회원 환불 응답은 취소 예약 수·환불 크레딧·금액과 접수된 `refundId`, 현재 `refundStatus`를 반환한다. 실제 PG 완료 여부는 내 8회권 목록·상세의 환불 진행 상태로 다시 확인한다.
 
 ---
 

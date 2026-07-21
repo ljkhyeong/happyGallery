@@ -4,6 +4,7 @@ import { Badge, Card, Col, Container, Row } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { trackClientEvent, trackGuestMemberCta } from "@/features/monitoring/api";
+import { GuestRecordRecoverySection } from "@/features/guest-recovery/GuestRecordRecoverySection";
 
 export function GuestLookupPage() {
   const location = useLocation();
@@ -48,6 +49,8 @@ export function GuestLookupPage() {
           </div>
         </Card.Body>
       </Card>
+
+      <GuestRecordRecoverySection />
 
       <Row xs={1} md={2} className="g-3 mb-4">
         <Col>

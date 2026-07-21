@@ -4,7 +4,7 @@ import com.personal.happygallery.adapter.in.web.customer.dto.ChangePasswordReque
 import com.personal.happygallery.adapter.in.web.customer.dto.CustomerLoginRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.ResetPasswordRequest;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
-import com.personal.happygallery.application.customer.port.in.InitialMemberPhoneRegistrationUseCase;
+import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLoginCommand;
 import com.personal.happygallery.application.customer.port.out.CustomerSessionRevocationPort;
@@ -54,7 +54,7 @@ class CustomerCredentialUseCaseIT {
     @Autowired PhoneVerificationReaderPort phoneVerificationReader;
     @Autowired GuestBookingUseCase guestBookingUseCase;
     @Autowired SocialAuthUseCase socialAuth;
-    @Autowired InitialMemberPhoneRegistrationUseCase phoneRegistration;
+    @Autowired MemberPhoneUpdateUseCase phoneUpdate;
     @Autowired UserReaderPort userReader;
     @Autowired CustomerSessionRevocationPort sessionRevocation;
     @Autowired FindByIndexNameSessionRepository<? extends Session> sessionRepository;
@@ -142,7 +142,7 @@ class CustomerCredentialUseCaseIT {
                 socialUser.getId(), socialUser.getCredentialVersion()));
 
         String registrationCode = guestBookingUseCase.sendVerificationCode(phone).getCode();
-        phoneRegistration.register(socialUser.getId(), phone, registrationCode);
+        phoneUpdate.update(socialUser.getId(), phone, registrationCode);
         String resetCode = guestBookingUseCase.sendVerificationCode(phone).getCode();
 
         mockMvc.perform(post("/api/v1/auth/password/reset")

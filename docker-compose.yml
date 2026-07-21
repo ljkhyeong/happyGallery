@@ -51,7 +51,11 @@ services:
       DB_USERNAME: ${MYSQL_USER:-happygallery}
       DB_PASSWORD: ${MYSQL_PASSWORD:-password}
       ADMIN_API_KEY: ${ADMIN_API_KEY:-dev-admin-key}
+      ORDER_SHIPPING_FEE: ${ORDER_SHIPPING_FEE:-0}
       REDIS_HOST: redis
+      MEDIA_STORAGE_PATH: /app/data/media
+    volumes:
+      - media_data:/app/data/media
     depends_on:
       mysql:
         condition: service_healthy
@@ -109,5 +113,6 @@ services:
 
 volumes:
   mysql_data:
+  media_data:
   prometheus_data:
   grafana_data:

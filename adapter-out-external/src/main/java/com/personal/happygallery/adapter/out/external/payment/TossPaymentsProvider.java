@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
+import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import java.util.List;
 import org.slf4j.Logger;
@@ -41,7 +42,9 @@ public class TossPaymentsProvider implements PaymentProvider {
     private static final String REFUND_REJECTED = "PG가 환불을 거절했습니다.";
     private static final String REFUND_RETRYABLE = "PG 환불 요청을 재시도해야 합니다.";
     private static final String REFUND_RESULT_UNKNOWN = "PG 통신 결과를 확인할 수 없습니다.";
+    private static final String REFUND_LOOKUP_UNAVAILABLE = "PG 환불 조회 결과를 확인할 수 없습니다.";
     private static final String NOT_FOUND_PAYMENT_CODE = "NOT_FOUND_PAYMENT";
+    private static final String CANCEL_DONE = "DONE";
 
     private final RestClient restClient;
 
@@ -129,12 +132,12 @@ public class TossPaymentsProvider implements PaymentProvider {
                     .body(body)
                     .retrieve()
                     .body(RefundResponse.class);
-            String refundTransactionKey = refundTransactionKey(response);
-            if (refundTransactionKey == null) {
-                log.warn("Toss refund 응답에 refund transactionKey가 없습니다.");
-                return RefundResult.reconciliationRequired("PG 환불 거래 키가 비어 있어 상태 확인이 필요합니다.");
+            RefundLookupResult lookup = resolveRefund(response, paymentKey, amount);
+            if (lookup.status() == RefundLookupResult.Status.REFUNDED) {
+                return RefundResult.success(lookup.refundTransactionKey());
             }
-            return RefundResult.success(refundTransactionKey);
+            log.warn("Toss refund 응답을 환불 완료로 확정할 수 없습니다. [status={}]", lookup.status());
+            return RefundResult.reconciliationRequired(lookup.reason());
         } catch (RestClientResponseException e) {
             log.warn("Toss refund 거절 [status={}]", e.getStatusCode());
             if (isRetryableStatus(e)) {
@@ -150,6 +153,23 @@ public class TossPaymentsProvider implements PaymentProvider {
         }
     }
 
+    @Override
+    public RefundLookupResult lookupRefund(String paymentKey, long amount) {
+        try {
+            RefundResponse response = restClient.get()
+                    .uri("/v1/payments/{paymentKey}", paymentKey)
+                    .retrieve()
+                    .body(RefundResponse.class);
+            return resolveRefund(response, paymentKey, amount);
+        } catch (RestClientResponseException e) {
+            log.warn("Toss 환불 조회 실패 [status={}]", e.getStatusCode());
+            return RefundLookupResult.unavailable(paymentKey, REFUND_LOOKUP_UNAVAILABLE);
+        } catch (Exception e) {
+            log.warn("Toss 환불 조회 예외 [type={}]", e.getClass().getSimpleName());
+            return RefundLookupResult.unavailable(paymentKey, REFUND_LOOKUP_UNAVAILABLE);
+        }
+    }
+
     private record ConfirmRequest(String paymentKey, String orderId, long amount) {}
 
     private record ConfirmResponse(String paymentKey, String orderId, String method, String approvedAt) {}
@@ -158,23 +178,43 @@ public class TossPaymentsProvider implements PaymentProvider {
 
     private record RefundRequest(String cancelReason, long cancelAmount) {}
 
-    private String refundTransactionKey(RefundResponse response) {
+    private RefundLookupResult resolveRefund(RefundResponse response, String paymentKey, long amount) {
         if (response == null) {
-            return null;
+            return RefundLookupResult.unavailable(paymentKey, "PG 환불 조회 응답이 비어 있습니다.");
         }
-        if (StringUtils.hasText(response.lastTransactionKey())) {
-            return response.lastTransactionKey();
+        if (!paymentKey.equals(response.paymentKey())) {
+            return RefundLookupResult.reviewRequired(paymentKey, "PG 환불 조회 식별자가 일치하지 않습니다.");
         }
         if (CollectionUtils.isEmpty(response.cancels())) {
-            return null;
+            if ("DONE".equals(response.status())) {
+                return RefundLookupResult.notRefunded(paymentKey, "PG에 완료된 환불 이력이 없습니다.");
+            }
+            return RefundLookupResult.reviewRequired(
+                    paymentKey, "PG 결제 상태와 환불 이력의 상태 확인이 필요합니다: " + response.status());
         }
+
         for (CancelResponse cancel : response.cancels().reversed()) {
-            String transactionKey = cancel.transactionKey();
-            if (StringUtils.hasText(transactionKey)) {
-                return transactionKey;
+            if (cancel.cancelAmount() == amount
+                    && CANCEL_DONE.equals(cancel.cancelStatus())
+                    && StringUtils.hasText(cancel.transactionKey())) {
+                if (!isCanceledPaymentStatus(response.status())) {
+                    return RefundLookupResult.reviewRequired(
+                            paymentKey, "PG 취소 이력과 결제 상태가 일치하지 않습니다.");
+                }
+                return RefundLookupResult.refunded(paymentKey, cancel.cancelAmount(), cancel.transactionKey());
             }
         }
-        return null;
+
+        boolean hasRequestedAmount = response.cancels().stream()
+                .anyMatch(cancel -> cancel.cancelAmount() == amount);
+        String reason = hasRequestedAmount
+                ? "요청 금액의 PG 취소가 아직 완료 상태가 아닙니다."
+                : "PG 취소 금액이 저장된 환불 요청과 일치하지 않습니다.";
+        return RefundLookupResult.reviewRequired(paymentKey, reason);
+    }
+
+    private boolean isCanceledPaymentStatus(String status) {
+        return "CANCELED".equals(status) || "PARTIAL_CANCELED".equals(status);
     }
 
     private boolean isRetryableStatus(RestClientResponseException exception) {
@@ -198,9 +238,12 @@ public class TossPaymentsProvider implements PaymentProvider {
         }
     }
 
-    private record RefundResponse(String paymentKey, String lastTransactionKey, List<CancelResponse> cancels) {}
+    private record RefundResponse(
+            String paymentKey,
+            String status,
+            List<CancelResponse> cancels) {}
 
-    private record CancelResponse(String transactionKey) {}
+    private record CancelResponse(String transactionKey, long cancelAmount, String cancelStatus) {}
 
     private record TossErrorResponse(String code, String message) {}
 }

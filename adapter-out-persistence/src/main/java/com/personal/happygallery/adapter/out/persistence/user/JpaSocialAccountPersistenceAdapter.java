@@ -49,6 +49,11 @@ class JpaSocialAccountPersistenceAdapter implements SocialAccountReaderPort, Soc
         return saved;
     }
 
+    @Override
+    public void deleteByUserId(Long userId) {
+        repository.deleteByUserId(userId);
+    }
+
     private SocialAccount restoreAndBackfill(SocialAccount account, String providerId) {
         account.restoreProviderId(providerId);
         String activeHmac = blindIndexKeyRing.index(providerId);

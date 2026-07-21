@@ -1,0 +1,3 @@
+UPDATE orders
+SET status = 'DELAY_ACCEPTED'
+WHERE status = 'DELAY_REQUESTED';

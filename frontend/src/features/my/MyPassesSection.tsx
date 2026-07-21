@@ -34,7 +34,7 @@ export function MyPassesSection({ passes, isLoading, error, totalCount }: Props)
           <Card.Body className="py-3 px-3">
             <Row className="align-items-center g-2">
               <Col xs={12} md={4}>
-                <div className="fw-semibold small">8회권 #{p.passId}</div>
+                <div className="fw-semibold small">{p.planName} #{p.passId}</div>
                 <small className="text-muted-soft">구매 {formatDateTime(p.purchasedAt)}</small>
               </Col>
               <Col xs={6} md={4}>

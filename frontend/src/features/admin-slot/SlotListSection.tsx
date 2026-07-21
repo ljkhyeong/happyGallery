@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col, ProgressBar } from "react-bootstrap";
 import { activateSlot, deactivateSlot, fetchClasses, fetchSlotsByClass } from "./api";
-import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
@@ -20,10 +19,9 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const [classId, setClassId] = useState("");
   const [pendingId, setPendingId] = useState<number | null>(null);
 
-  const { data: classes } = useQuery({
-    queryKey: ["classes"],
-    queryFn: fetchClasses,
-    staleTime: REFERENCE_DATA_STALE_TIME,
+  const { data: classes } = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "classes"],
+    queryFn: () => fetchClasses(adminKey),
   });
 
   const classIdNum = Number(classId);
@@ -54,7 +52,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
               <option value="">클래스를 선택하세요</option>
               {classes?.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} ({c.durationMin}분)
+                  {c.name} ({c.durationMin}분{c.status === "INACTIVE" ? ", 운영 중지" : ""})
                 </option>
               ))}
             </Form.Select>

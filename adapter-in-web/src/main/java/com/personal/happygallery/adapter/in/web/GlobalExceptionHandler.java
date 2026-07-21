@@ -25,6 +25,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import tools.jackson.core.JacksonException;
@@ -79,6 +80,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ErrorCode.INVALID_INPUT.httpStatus)
                 .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, "요청 JSON 형식이 올바르지 않습니다.", requestId()));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceeded() {
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT.httpStatus)
+                .body(ErrorResponse.of(
+                        ErrorCode.INVALID_INPUT, "이미지는 5MB 이하여야 합니다.", requestId()));
     }
 
     @ExceptionHandler({
@@ -147,12 +156,19 @@ public class GlobalExceptionHandler {
             "uq_bookings_active_guest_slot"
     );
 
+    private static final String DUPLICATE_USER_PHONE_CONSTRAINT = "uq_users_phone_hmac";
+
     private ErrorCode resolveDataIntegrityErrorCode(DataIntegrityViolationException e) {
-        return findConstraintName(e)
+        Optional<String> constraint = findConstraintName(e)
                 .map(GlobalExceptionHandler::normalizeConstraintName)
-                .filter(DUPLICATE_BOOKING_CONSTRAINTS::contains)
-                .map(name -> ErrorCode.DUPLICATE_BOOKING)
-                .orElse(ErrorCode.INVALID_INPUT);
+                .filter(StringUtils::hasText);
+        if (constraint.filter(DUPLICATE_BOOKING_CONSTRAINTS::contains).isPresent()) {
+            return ErrorCode.DUPLICATE_BOOKING;
+        }
+        if (constraint.filter(DUPLICATE_USER_PHONE_CONSTRAINT::equals).isPresent()) {
+            return ErrorCode.PHONE_ALREADY_IN_USE;
+        }
+        return ErrorCode.INVALID_INPUT;
     }
 
     private static String normalizeConstraintName(String constraintName) {

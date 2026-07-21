@@ -72,8 +72,9 @@ function requiresCsrf(path: string, method: string | undefined): boolean {
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, params, headers: customHeaders, ...rest } = options;
   const headers = new Headers(customHeaders);
+  const multipartBody = body instanceof FormData;
 
-  if (body !== undefined) {
+  if (body !== undefined && !multipartBody) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -89,7 +90,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     response = await fetch(buildUrl(path, params), {
       ...rest,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : multipartBody ? body : JSON.stringify(body),
       signal: controller.signal,
       credentials: "include",
     });

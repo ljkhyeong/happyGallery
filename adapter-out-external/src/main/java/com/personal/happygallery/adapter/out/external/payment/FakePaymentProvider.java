@@ -2,10 +2,11 @@ package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
+import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import java.time.OffsetDateTime;
-import java.util.UUID;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
@@ -21,6 +22,8 @@ public class FakePaymentProvider implements PaymentProvider {
 
     private final LocalRefundFailureScript localRefundFailureScript;
     private final Map<String, PaymentLookupResult> confirmedPayments = new ConcurrentHashMap<>();
+    private final Map<String, RefundLookupResult> refundedPayments = new ConcurrentHashMap<>();
+    private final Map<String, String> refundTransactionsByIdempotencyKey = new ConcurrentHashMap<>();
 
     public FakePaymentProvider(ObjectProvider<LocalRefundFailureScript> localRefundFailureScriptProvider) {
         this.localRefundFailureScript = localRefundFailureScriptProvider.getIfAvailable();
@@ -50,6 +53,18 @@ public class FakePaymentProvider implements PaymentProvider {
                 return RefundResult.failure(reason.get());
             }
         }
-        return RefundResult.success("FAKE-REFUND-" + UUID.randomUUID());
+        String refundTransactionKey = refundTransactionsByIdempotencyKey.computeIfAbsent(
+                idempotencyKey, key -> "FAKE-REFUND-" + UUID.randomUUID());
+        refundedPayments.put(
+                paymentKey,
+                RefundLookupResult.refunded(paymentKey, amount, refundTransactionKey));
+        return RefundResult.success(refundTransactionKey);
+    }
+
+    @Override
+    public RefundLookupResult lookupRefund(String paymentKey, long amount) {
+        return refundedPayments.getOrDefault(
+                paymentKey,
+                RefundLookupResult.notRefunded(paymentKey, "가짜 PG에 완료된 환불이 없습니다."));
     }
 }

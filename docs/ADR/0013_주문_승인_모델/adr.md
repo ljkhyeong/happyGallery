@@ -23,10 +23,14 @@
 PAID_APPROVAL_PENDING  (approval_deadline_at = paidAt + 24h)
     ├─ 관리자 승인 → APPROVED_FULFILLMENT_PENDING
     ├─ 관리자 거절 → REJECTED
+    ├─ 고객 취소 → CUSTOMER_CANCELED
     └─ 24h 초과 배치 → AUTO_REFUND_TIMEOUT
 ```
 
-이미 환불된 상태(REJECTED, AUTO_REFUND_TIMEOUT, PICKUP_EXPIRED, DELAY_REJECTED_CANCELED)에서
+고객 취소는 제작·이행 시작 전인 `PAID_APPROVAL_PENDING`에서만 허용한다. 회원은 세션의 본인 주문,
+비회원은 주문 접근 토큰으로 소유권을 확인한다. 관리자 거절 의미인 `REJECTED`를 재사용하지 않는다.
+
+이미 환불된 상태(REJECTED, CUSTOMER_CANCELED, AUTO_REFUND_TIMEOUT, PICKUP_EXPIRED, DELAY_REJECTED_CANCELED)에서
 승인/거절 재시도 → `AlreadyRefundedException` (409).
 이 가드는 `OrderStatus.requireApprovalPending()`에서 적용한다.
 
@@ -35,7 +39,8 @@ PAID_APPROVAL_PENDING  (approval_deadline_at = paidAt + 24h)
 
 ### 2. 환불·재고 복구 순서
 
-거절/자동환불 트랜잭션에서는 반드시 **재고 복구 → 환불 요청 기록 생성** 순으로 처리하고,
+거절/고객 취소/자동환불 트랜잭션에서는 **상태·이력 기록, 재고 복구, 환불 요청 생성**을
+한 트랜잭션으로 처리하고,
 커밋 이후 PG 환불을 호출한다. 명시적 거절은 `FAILED`, 일시 실패와 결과 불명은 자동 복구 가능한 상태로 남는다.
 
 픽업 만료는 기성품 주문에만 같은 보상 흐름을 적용한다. 주문제작 상품이 하나라도 포함된 주문은
@@ -95,6 +100,14 @@ API Key 폴백 경로와 배치 자동환불(`AUTO_REFUND`), 픽업 만료(`PICK
 - 주문 confirm 시 `SHIPPING` 또는 `PICKUP` fulfillment를 주문과 같은 트랜잭션에 저장한다.
 - 관리자는 `SHIPPING` 주문에만 배송 준비를, `PICKUP` 주문에만 픽업 준비를 시작할 수 있다. 반대 흐름은 주문 상태를 바꾸기 전에 거절한다.
 - 픽업 마감은 주입된 `Clock` 기준 현재보다 이후인 값만 받는다. 만료 배치는 이후 실제 시간이 경과한 fulfillment만 처리한다.
+
+### 10. 결제 시점 표시·금액 스냅샷을 주문에 유지한다
+
+- `order_items.product_name`과 `unit_price`는 prepare에서 확정한 상품 표시와 단가를 저장한다. 상품명이 바뀌어도 과거 주문에는 결제 당시 이름을 보여준다.
+- 배송 주문은 서버 설정 `app.order.shipping-fee`를 결제 금액에 한 번 더하고 `orders.shipping_fee`에 저장한다. 픽업 주문의 배송비는 항상 0원이다.
+- 주문 거절·고객 취소·자동 환불·지연 거절의 전액 환불은 배송비가 포함된 `order.totalAmount`를 사용한다.
+- 배송 출발 시 `carrier`, `tracking_number`를 함께 받아 fulfillment에 저장하고 고객·관리자 상세에 같은 운송 정보를 반환한다.
+- 현재 배송비 정책은 주문 금액과 무관한 고정액이며 `GET /api/v1/orders/policy`로 공개한다. 무료 배송 임계값은 두지 않는다.
 
 ---
 

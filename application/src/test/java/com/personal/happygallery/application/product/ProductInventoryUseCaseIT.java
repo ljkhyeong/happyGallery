@@ -25,6 +25,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -54,7 +55,7 @@ class ProductInventoryUseCaseIT {
     // Proof: 상품 등록 → 201, DB에 inventory row 생성
     // -----------------------------------------------------------------------
 
-    @DisplayName("상품 등록 성공 시 재고 레코드가 함께 생성된다")
+    @DisplayName("상품 등록과 콘텐츠 수정 결과가 공개 상세에 반영된다")
     @Test
     void registerProduct_success_createsInventory() throws Exception {
         String resp = mockMvc.perform(post("/api/v1/admin/products")
@@ -65,7 +66,9 @@ class ProductInventoryUseCaseIT {
                                   "type": "READY_STOCK",
                                   "category": " wood ",
                                   "price": 35000,
-                                  "quantity": 1
+                                  "quantity": 1,
+                                  "description": "월넛 원목으로 만든 수납함",
+                                  "imageUrl": "https://images.example.com/wood-box.jpg"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -74,6 +77,8 @@ class ProductInventoryUseCaseIT {
                 .andExpect(jsonPath("$.type").value("READY_STOCK"))
                 .andExpect(jsonPath("$.category").value("WOOD"))
                 .andExpect(jsonPath("$.price").value(35000))
+                .andExpect(jsonPath("$.description").value("월넛 원목으로 만든 수납함"))
+                .andExpect(jsonPath("$.imageUrl").value("https://images.example.com/wood-box.jpg"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.available").value(true))
                 .andExpect(jsonPath("$.quantity").value(1))
@@ -93,6 +98,27 @@ class ProductInventoryUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(productId))
                 .andExpect(jsonPath("$[0].category").value("WOOD"));
+
+        mockMvc.perform(patch("/api/v1/admin/products/{id}", productId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "나무 수납함 L",
+                                  "category": "wood",
+                                  "price": 39000,
+                                  "description": "크기와 마감 정보를 보완한 설명",
+                                  "imageUrl": "https://images.example.com/wood-box-large.jpg"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("나무 수납함 L"))
+                .andExpect(jsonPath("$.price").value(39000));
+
+        mockMvc.perform(get("/api/v1/products/{id}", productId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.description").value("크기와 마감 정보를 보완한 설명"))
+                .andExpect(jsonPath("$.imageUrl")
+                        .value("https://images.example.com/wood-box-large.jpg"));
     }
 
     // -----------------------------------------------------------------------

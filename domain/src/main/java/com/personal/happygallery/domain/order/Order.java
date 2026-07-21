@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.order;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -45,6 +47,9 @@ public class Order {
     @Column(name = "total_amount", nullable = false)
     private long totalAmount;
 
+    @Column(name = "shipping_fee", nullable = false)
+    private long shippingFee;
+
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
@@ -60,13 +65,17 @@ public class Order {
 
     protected Order() {}
 
-    private Order(Long userId, Long guestId, String accessToken, long totalAmount,
+    private Order(Long userId, Long guestId, String accessToken, long totalAmount, long shippingFee,
                   LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
         requireExactlyOneOwner(userId, guestId);
+        if (shippingFee < 0L || shippingFee > totalAmount) {
+            throw new IllegalArgumentException("배송비는 0원 이상이며 총 결제 금액을 넘을 수 없습니다.");
+        }
         this.userId = userId;
         this.guestId = guestId;
         this.accessToken = accessToken;
         this.totalAmount = totalAmount;
+        this.shippingFee = shippingFee;
         this.paidAt = paidAt;
         this.approvalDeadlineAt = approvalDeadlineAt;
         this.status = OrderStatus.PAID_APPROVAL_PENDING;
@@ -81,13 +90,23 @@ public class Order {
     /** 비회원 주문 생성. 초기 상태는 {@link OrderStatus#PAID_APPROVAL_PENDING}. */
     public static Order forGuest(Long guestId, String accessToken, long totalAmount,
                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return new Order(null, guestId, accessToken, totalAmount, paidAt, approvalDeadlineAt);
+        return forGuest(guestId, accessToken, totalAmount, 0L, paidAt, approvalDeadlineAt);
+    }
+
+    public static Order forGuest(Long guestId, String accessToken, long totalAmount, long shippingFee,
+                                 LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
+        return new Order(null, guestId, accessToken, totalAmount, shippingFee, paidAt, approvalDeadlineAt);
     }
 
     /** 회원 주문 생성. guest 대신 user_id를 설정한다. */
     public static Order forMember(Long userId, long totalAmount,
                                   LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return new Order(userId, null, null, totalAmount, paidAt, approvalDeadlineAt);
+        return forMember(userId, totalAmount, 0L, paidAt, approvalDeadlineAt);
+    }
+
+    public static Order forMember(Long userId, long totalAmount, long shippingFee,
+                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
+        return new Order(userId, null, null, totalAmount, shippingFee, paidAt, approvalDeadlineAt);
     }
 
     /**
@@ -105,13 +124,19 @@ public class Order {
      * 관리자 거절 처리. 환불·재고 복구는 서비스 레이어에서 선행한다.
      * 이미 환불된 주문에 대한 호출은 {@link com.personal.happygallery.domain.error.AlreadyRefundedException}을 던진다.
      * 승인 대기 상태({@link OrderStatus#PAID_APPROVAL_PENDING})가 아니면 400을 던진다.
-     * 제작 중인 주문({@link OrderStatus#IN_PRODUCTION}, {@link OrderStatus#DELAY_REQUESTED})은
+     * 제작 중인 주문({@link OrderStatus#IN_PRODUCTION}, {@link OrderStatus#DELAY_ACCEPTED})은
      * {@link com.personal.happygallery.domain.error.ProductionRefundNotAllowedException}을 던진다.
      */
     public void reject() {
         this.status.requireCancellable();
         this.status.requireApprovalPending();
         this.status = OrderStatus.REJECTED;
+    }
+
+    /** 고객이 관리자 승인 전에 주문을 직접 취소한다. */
+    public void cancelByCustomer() {
+        this.status.requireCustomerCancellationAllowed();
+        this.status = OrderStatus.CUSTOMER_CANCELED;
     }
 
     /**
@@ -123,18 +148,27 @@ public class Order {
         this.status = OrderStatus.IN_PRODUCTION;
     }
 
-    /**
-     * 고객 동의 하에 배송 지연 상태로 전환한다.
-     * {@link OrderStatus#IN_PRODUCTION} 상태가 아니면 {@code 400 INVALID_INPUT}을 던진다.
-     */
-    public void requestDelay() {
+    /** 관리자가 제작 일정 지연을 제안하고 고객 응답을 기다린다. */
+    public void proposeDelay() {
         this.status.requireInProduction();
-        this.status = OrderStatus.DELAY_REQUESTED;
+        this.status = OrderStatus.DELAY_CONSENT_PENDING;
+    }
+
+    /** 고객이 제작 일정 지연 제안을 수락하거나 거절한다. */
+    public void respondToDelay(OrderDelayDecision decision) {
+        this.status.requireDelayConsentPending();
+        if (decision == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지연 제안 응답은 필수입니다.");
+        }
+        this.status = switch (decision) {
+            case ACCEPT -> OrderStatus.DELAY_ACCEPTED;
+            case REJECT -> OrderStatus.DELAY_REJECTED_CANCELED;
+        };
     }
 
     /**
      * 고객이 제작 지연을 거절해 주문을 취소한다.
-     * {@link OrderStatus#IN_PRODUCTION} 상태에서만 허용한다.
+     * {@link OrderStatus#DELAY_CONSENT_PENDING} 상태에서만 허용한다.
      */
     public void cancelForDelayRejection() {
         this.status.requireDelayRejectionCancelable();
@@ -142,16 +176,16 @@ public class Order {
     }
 
     /**
-     * 지연 요청 상태에서 제작을 재개한다.
-     * {@link OrderStatus#DELAY_REQUESTED} 상태가 아니면 400을 던진다.
+     * 지연 수락 상태에서 제작을 재개한다.
+     * {@link OrderStatus#DELAY_ACCEPTED} 상태가 아니면 400을 던진다.
      */
     public void resumeProduction() {
-        this.status.requireDelayRequested();
+        this.status.requireDelayAccepted();
         this.status = OrderStatus.IN_PRODUCTION;
     }
 
     /**
-     * 제작 완료 처리. {@link OrderStatus#IN_PRODUCTION} 또는 {@link OrderStatus#DELAY_REQUESTED}
+     * 제작 완료 처리. {@link OrderStatus#IN_PRODUCTION} 또는 {@link OrderStatus#DELAY_ACCEPTED}
      * 상태에서만 호출 가능하며, {@link OrderStatus#APPROVED_FULFILLMENT_PENDING}으로 전이한다.
      */
     public void completeProduction() {
@@ -235,6 +269,15 @@ public class Order {
         requireExactlyOneOwner(userId, null);
         this.userId = userId;
         this.guestId = null;
+        this.accessToken = null;
+    }
+
+    /** 휴대폰 소유 확인 후 비회원 주문의 관리 토큰을 교체한다. */
+    public void replaceGuestAccessToken(String accessToken) {
+        if (guestId == null) {
+            throw new IllegalStateException("회원 주문에는 비회원 접근 토큰을 발급할 수 없습니다.");
+        }
+        this.accessToken = accessToken;
     }
 
     /** 결제 confirm 성공 후 원결제 paymentKey를 저장한다. */
@@ -249,6 +292,7 @@ public class Order {
     public String getPaymentKey() { return paymentKey; }
     public OrderStatus getStatus() { return status; }
     public long getTotalAmount() { return totalAmount; }
+    public long getShippingFee() { return shippingFee; }
     public LocalDateTime getPaidAt() { return paidAt; }
     public LocalDateTime getApprovalDeadlineAt() { return approvalDeadlineAt; }
     public long getVersion() { return version; }

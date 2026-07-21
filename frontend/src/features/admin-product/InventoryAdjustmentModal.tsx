@@ -40,6 +40,7 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
       setQuantity("1");
       setReason("");
       queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({
         queryKey: ["admin", "products", product?.id, "inventory-adjustments"],
       });

@@ -5,6 +5,7 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { CartBadge } from "@/features/cart/CartBadge";
 import { NotificationBell } from "@/features/notification/NotificationBell";
 import { useToast } from "./ToastContainer";
+import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 
 const NAV_ITEMS = [
   { path: "/products", label: "작품" },
@@ -22,6 +23,7 @@ export function Layout() {
   const { user, isAuthenticated, isLoading, logout } = useCustomerAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const toast = useToast();
+  const { data: workshop } = useWorkshopProfile();
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -142,6 +144,12 @@ export function Layout() {
       <footer className="app-footer text-center py-4 small">
         <Container style={{ maxWidth: 1100 }}>
           <div className="app-footer-brand">happyGallery</div>
+          {workshop?.addressLine1 && (
+            <div className="app-footer-contact">
+              {[workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" ")}
+              {workshop.phone && ` · ${workshop.phone}`}
+            </div>
+          )}
           <span>&copy; {new Date().getFullYear()} 손으로 만든 작품과 공방의 시간을 전합니다.</span>
         </Container>
       </footer>

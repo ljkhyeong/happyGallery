@@ -58,6 +58,7 @@ export function MyOrdersPage() {
       "PICKED_UP",
       "DELIVERED",
       "REJECTED",
+      "CUSTOMER_CANCELED",
       "AUTO_REFUND_TIMEOUT",
       "PICKUP_EXPIRED",
       "PICKUP_FORFEITED",

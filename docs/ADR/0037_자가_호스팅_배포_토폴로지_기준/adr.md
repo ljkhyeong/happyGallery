@@ -1,7 +1,7 @@
 # ADR-0037: 자가 호스팅 배포 토폴로지 기준
 
 **날짜**: 2026-07-18
-**최종 갱신**: 2026-07-19
+**최종 갱신**: 2026-07-21
 **상태**: Accepted
 
 ---
@@ -47,11 +47,28 @@
 ### 4. 상태 저장소는 영속 볼륨과 별도 백업을 전제로 한다
 
 - MySQL과 Redis는 cluster 내부 Service로만 접근한다. MySQL은 명시적인 영속 볼륨을 사용하고, Redis 영속화 여부는 세션 연속성 요구에 맞춰 정한다.
-- 노트북 내부 볼륨은 백업이 아니다. MySQL 데이터와 복구에 필요한 설정·암호화 키는 노트북과 물리적으로 분리된 저장소에 암호화해 백업한다.
+- 노트북 내부 볼륨은 백업이 아니다. MySQL 데이터, 관리자가 업로드한 상품 이미지와 복구에 필요한 설정·암호화 키는 노트북과 물리적으로 분리된 저장소에 암호화해 백업한다.
 - Redis에는 세션과 처리율 제한처럼 재생성 가능한 상태만 저장한다. Redis 데이터를 별도 백업하지 않으며, 유실 시 전체 세션 로그아웃과 처리율 버킷 초기화를 허용한다.
 - 백업 주기, 보존 기간, 무결성 확인과 복원 훈련 절차를 운영 manifest와 함께 확정한다.
-- 운영 초기 논리 백업은 6시간마다 실행해 약 6시간 RPO를 수용한다. 거래량 증가나 더 짧은 RPO가 필요해지면 binlog 외부 연속 보관과 PITR로 전환한다.
+- 운영 초기 복구 백업은 6시간마다 실행한다. 같은 시각 식별자의 MySQL 논리 백업과 미디어 볼륨 archive를 하나의 복구 묶음으로 관리해 약 6시간 RPO를 수용한다. 거래량 증가나 더 짧은 RPO가 필요해지면 DB는 binlog 외부 연속 보관과 PITR로 전환하고 미디어는 증분 복제를 함께 검토한다.
 - 배포와 Flyway migration 전에는 복구 가능한 백업을 확인한다. 컨테이너 이미지 롤백이 데이터베이스 스키마를 되돌리지는 않는다.
+
+#### 4.1 상품 이미지 저장과 공개 계약
+
+- 관리자 인증이 필요한 `POST /api/v1/admin/media/images`가 multipart의 `file` 한 개를 받고, 애플리케이션 파일 시스템에 UUID 파일명으로 저장한다. DB에는 바이너리를 넣지 않고 상품·클래스가 반환된 `/api/v1/media/images/{fileName}` URL을 참조한다.
+- 공개 조회 API는 로그인 없이 이미지를 반환한다. 파일명은 UUID와 `jpg`, `png`, `webp` 확장자 조합만 허용하고 경로 정규화 후 저장 디렉터리 바로 아래 파일만 읽어 경로 이탈을 막는다. 응답은 실제 형식의 `Content-Type`과 365일 public immutable cache 정책을 사용한다.
+- 업로드는 JPEG, PNG, WebP만 허용한다. 요청 `Content-Type`만 신뢰하지 않고 각 형식의 magic signature를 함께 검사한다. Spring multipart 제한은 파일 5MB, 요청 전체 6MB이고, 서비스도 비어 있는 파일과 `5 * 1024 * 1024`바이트를 넘는 byte 배열을 거부한다.
+- 파일은 같은 저장 디렉터리에 임시 파일로 쓴 뒤 atomic move를 우선 사용해 완성되지 않은 파일이 공개 경로에 보이지 않게 한다. 현재 구현은 UUID 이름의 파일을 덮어쓰거나 삭제하지 않는 append-only 모델이다.
+- 로컬 기본 경로는 `./data/media`다. k3s 운영에서는 `MEDIA_STORAGE_PATH=/var/lib/happygallery/media`로 고정하고, `ReadWriteOnce`, 5Gi, `local-path-retain` StorageClass의 `app-media` PVC를 그 경로에 mount한다.
+- manifest는 특정 `hostPath`를 직접 지정하지 않는다. 실제 노트북 디렉터리 배치는 k3s local-path provisioner가 관리하며, 운영 스크립트는 그 경로를 하드코딩하지 않고 `app-media` PVC를 maintenance Pod에 mount해 백업·복원한다. PVC는 app Deployment와 분리한 manifest로 두고, 미디어 기능 도입 전 클러스터에서는 배포 전 백업이 이를 먼저 안전하게 생성할 수 있게 한다. `Retain` reclaim policy는 오삭제 완화 수단일 뿐 백업으로 간주하지 않는다.
+
+#### 4.2 DB와 미디어의 일관 복구 단위
+
+- 백업은 먼저 `mysqldump --single-transaction`으로 DB 시점을 확정하고 그다음 `app-media` PVC를 tar archive로 읽는다. 현재 이미지 파일은 DB 참조가 생기기 전에 저장되고 이후 수정·삭제되지 않으므로, 뒤 시점의 미디어 archive에는 DB 스냅샷이 참조하는 파일이 포함된다. 동시 업로드로 참조되지 않은 새 파일이 더 포함될 수는 있지만 복원 정합성을 깨지 않는다.
+- 이 순서의 안전성은 append-only 전제에 의존한다. 이미지 교체나 물리 삭제 기능을 추가하면 쓰기 중지, 볼륨 snapshot 또는 DB와 미디어를 함께 고정하는 별도 프로토콜을 먼저 도입한다.
+- 같은 UTC 시각으로 만든 DB 암호문, 미디어 암호문과 `happygallery-<시각>.recovery.env`를 하나의 복구 단위로 취급한다. 두 archive는 평문 파일을 남기지 않고 각각 `gzip -> age`로 외부 mount에 기록하며 SHA-256 sidecar를 검증한다. 백업은 모든 archive와 sidecar를 먼저 완성하고 `recovery.env`를 마지막에 원자적으로 게시한다. 이 commit marker가 없으면 중단된 불완전 묶음으로 보고 rollout과 복원에 사용하지 않는다. rollout은 marker, DB·미디어, 호환 release metadata·manifest·runtime image metadata·image archive의 sidecar 전체를 검증한다. 서로 다른 시각의 DB와 미디어를 임의로 조합해 복원하지 않는다.
+- 외부 백업 위치는 `BACKUP_DIR`로 지정한 USB, NAS 또는 원격 mount다. marker 파일이 없으면 백업을 중단해 외부 매체가 빠진 상태에서 노트북의 빈 mountpoint에 기록하는 일을 막는다.
+- 복원은 app replica와 잔여 Pod가 모두 0인 상태에서만 수행한다. 묶음의 DB·미디어 checksum, age·gzip·tar 무결성, 호환 이미지 digest, Flyway version과 키링 fingerprint를 확인하고 DB와 `app-media` PVC를 같은 묶음으로 교체한 뒤 Redis 세션·처리율 상태를 비운다. 검증 중 하나라도 실패하면 app을 중지 상태로 유지한다.
 
 ### 5. secret은 저장소와 이미지 밖에서 주입한다
 
@@ -98,13 +115,15 @@
 
 ## 현재 구현 상태와 남은 작업
 
-2026-07-19 기준 `deploy/k3s`에 다음 산출물을 구현했다.
+2026-07-21 기준 `deploy/k3s`에 다음 산출물을 구현했다.
 
 - namespace, app/frontend/MySQL/Redis/Prometheus/Alertmanager workload, ClusterIP Service, TLS Ingress와 MySQL Retain PVC
+- 관리자 전용 이미지 업로드, 공개 immutable 이미지 조회, 파일 형식·용량 검증과 원자적 로컬 파일 저장
+- 5Gi `app-media` Retain PVC를 `/var/lib/happygallery/media`에 mount하고 maintenance Pod를 통해서만 백업·복원하는 구성
 - Traefik 전달 헤더 기준, ingress·Prometheus만 허용하는 Actuator NetworkPolicy
 - 저장소 밖 env와 HTTPS webhook URL 파일에서 runtime Secret을 생성·교체하는 절차
 - commit SHA 이미지 build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback
-- 6시간 간격 `age` 암호화 off-device MySQL 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 복원·Redis 초기화 절차
+- 6시간 간격 `age` 암호화 off-device MySQL·상품 이미지 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 DB·미디어 복원·Redis 초기화 절차
 - 백업 성공 heartbeat와 systemd 실패 HTTPS webhook
 - active/previous AES·HMAC keyring, 키 ID가 포함된 암호문, 단일 트랜잭션 회전 실행기와 소셜 provider ID lazy backfill
 - app 중지·백업·Redis 초기화를 포함한 `rotate-data-keys.sh`, 유예 조건 확인 뒤 previous 키를 제거하는 `finalize-data-key-rotation.sh`
@@ -112,7 +131,7 @@
 다음은 대상 노트북과 외부 환경에서만 완료할 수 있다.
 
 - k3s와 cert-manager 설치, DNS, 공유기 포트 전달, 호스트 방화벽과 실제 TLS 발급
-- 실제 외부 매체 또는 원격 mount 백업, 분리 보관한 age·필드 암호화 키로 복원 훈련
+- 실제 외부 매체 또는 원격 mount 백업, 분리 보관한 age·필드 암호화 키로 DB·상품 이미지 복원 훈련
 - 실제 운영 키로 필드·비회원 토큰 회전과 previous 키 제거, 회전 전후 백업 복원 훈련
 - 외부 uptime 감시와 전원·디스크·네트워크 장애 알림. 애플리케이션 메트릭은 내부 Alertmanager에서 외부 HTTPS webhook으로 전달하지만 노트북 자체 중단은 감지할 수 없다.
 - 실제 브라우저의 세션·CSRF·OAuth·결제·SMS 핵심 흐름 검증과 공개 운영 주소 확정

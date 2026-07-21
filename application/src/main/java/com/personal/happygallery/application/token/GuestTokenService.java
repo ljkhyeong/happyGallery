@@ -30,9 +30,18 @@ public class GuestTokenService {
 
     /** 서명된 토큰을 발급하고, DB 저장용 nonce 해시를 반환한다. */
     public IssuedToken issue() {
-        Instant expiry = clock.instant().plus(Duration.ofHours(properties.expiryHours()));
+        return issue(Duration.ofHours(properties.expiryHours()));
+    }
+
+    /** 휴대폰 재인증 뒤 사용할 수명이 짧은 관리 토큰을 발급한다. */
+    public IssuedToken issueRecoveryToken() {
+        return issue(Duration.ofHours(properties.recoveryExpiryHours()));
+    }
+
+    private IssuedToken issue(Duration validity) {
+        Instant expiry = clock.instant().plus(validity);
         AccessTokenSigner.SignedToken signed = AccessTokenSigner.sign(expiry, properties.hmacSecret());
-        return new IssuedToken(signed.rawToken(), signed.nonceHash());
+        return new IssuedToken(signed.rawToken(), signed.nonceHash(), expiry);
     }
 
     /**
@@ -67,5 +76,5 @@ public class GuestTokenService {
         }
     }
 
-    public record IssuedToken(String rawToken, String tokenHash) {}
+    public record IssuedToken(String rawToken, String tokenHash, Instant expiresAt) {}
 }

@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 import com.personal.happygallery.adapter.in.web.booking.BookingController;
 import com.personal.happygallery.adapter.in.web.booking.ClassController;
 import com.personal.happygallery.adapter.in.web.booking.SlotController;
+import com.personal.happygallery.adapter.in.web.customer.GuestRecordRecoveryController;
 import com.personal.happygallery.adapter.in.web.monitoring.ClientMonitoringController;
 import com.personal.happygallery.adapter.in.web.notice.NoticeController;
 import com.personal.happygallery.adapter.in.web.order.OrderController;
@@ -10,6 +11,7 @@ import com.personal.happygallery.adapter.in.web.payment.PaymentController;
 import com.personal.happygallery.adapter.in.web.product.ProductController;
 import com.personal.happygallery.adapter.in.web.product.ProductQnaController;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
+import com.personal.happygallery.adapter.in.web.workshop.WorkshopProfileController;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
@@ -17,14 +19,17 @@ import com.personal.happygallery.application.booking.port.in.ClassQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
+import com.personal.happygallery.application.customer.port.in.GuestRecordRecoveryUseCase;
 import com.personal.happygallery.application.monitoring.port.in.ClientMonitoringUseCase;
 import com.personal.happygallery.application.notice.port.in.NoticeQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
+import com.personal.happygallery.application.order.OrderPriceProperties;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
 import com.personal.happygallery.application.product.ProductFilter;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
+import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.PhoneVerification;
@@ -33,6 +38,10 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.domain.store.WorkshopProfile;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -70,7 +79,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     private PaymentConfirmUseCase paymentConfirmUseCase;
     private NoticeQueryUseCase noticeQueryUseCase;
     private ClientMonitoringUseCase clientMonitoringUseCase;
+    private GuestRecordRecoveryUseCase guestRecordRecoveryUseCase;
     private SubjectRateLimitGuard rateLimitGuard;
+    private WorkshopProfileUseCase workshopProfileUseCase;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -88,7 +99,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         paymentConfirmUseCase = mock(PaymentConfirmUseCase.class);
         noticeQueryUseCase = mock(NoticeQueryUseCase.class);
         clientMonitoringUseCase = mock(ClientMonitoringUseCase.class);
+        guestRecordRecoveryUseCase = mock(GuestRecordRecoveryUseCase.class);
         rateLimitGuard = mock(SubjectRateLimitGuard.class);
+        workshopProfileUseCase = mock(WorkshopProfileUseCase.class);
 
         ProductQueryUseCase.ProductWithInventory product = RestDocsFixtures.productWithInventory();
         ProductQnaUseCase.QnaWithAuthor qna = qna();
@@ -106,7 +119,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(productQueryUseCase.getProduct(1L)).thenReturn(product);
         when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(qna));
         when(qnaUseCase.verifyAndGet(eq(1L), eq(5L), any())).thenReturn(qna);
-        when(classQueryUseCase.listAll()).thenReturn(List.of(bookingClass));
+        when(classQueryUseCase.listActive()).thenReturn(List.of(bookingClass));
         when(slotQueryUseCase.listAvailable(any(), any())).thenReturn(List.of(slot));
         when(guestBookingUseCase.sendVerificationCode(any())).thenReturn(phoneVerification);
         when(bookingQueryUseCase.getBookingByToken(eq(100L), any()))
@@ -124,6 +137,24 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new PaymentConfirmUseCase.ConfirmResult(PaymentContext.ORDER, 200L, "guest-access-token"));
         when(noticeQueryUseCase.listAll()).thenReturn(List.of(notice));
         when(noticeQueryUseCase.getDetail(1L)).thenReturn(notice);
+        when(guestRecordRecoveryUseCase.recover(eq("01012345678"), eq("123456")))
+                .thenReturn(new GuestRecordRecoveryUseCase.RecoveryResult(
+                        "guest-recovery-token",
+                        Instant.parse("2026-05-02T00:00:00Z"),
+                        List.of(new GuestRecordRecoveryUseCase.RecoveredOrder(
+                                200L, "PAID_APPROVAL_PENDING", 39_000L,
+                                OffsetDateTime.parse("2026-05-01T00:00:00Z"))),
+                        List.of(new GuestRecordRecoveryUseCase.RecoveredBooking(
+                                100L, "BOOKED", "향수 클래스",
+                                LocalDateTime.parse("2026-05-07T10:00:00"),
+                                LocalDateTime.parse("2026-05-07T12:00:00")))));
+        WorkshopProfile workshop = new WorkshopProfile("해피갤러리");
+        workshop.update(
+                "해피갤러리", "02-123-4567", "01234",
+                "서울시 종로구 공방길 1", "2층", "화-일 10:00-19:00",
+                "https://map.example.com/happygallery", "근처 공영주차장 이용",
+                LocalDateTime.of(2026, 5, 1, 21, 0));
+        when(workshopProfileUseCase.get()).thenReturn(workshop);
 
         mockMvc = mockMvc(restDocumentation,
                 new ProductController(productQueryUseCase),
@@ -133,9 +164,11 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 new BookingController(guestBookingUseCase, bookingQueryUseCase,
                         bookingRescheduleUseCase, bookingCancelUseCase, guestPersonalDataProtector,
                         rateLimitGuard, RestDocsFixtures.clock()),
-                new OrderController(orderQueryUseCase),
+                new OrderController(orderQueryUseCase, new OrderPriceProperties(3_000L)),
                 new PaymentController(paymentPrepareUseCase, paymentConfirmUseCase, rateLimitGuard),
                 new NoticeController(noticeQueryUseCase),
+                new WorkshopProfileController(workshopProfileUseCase),
+                new GuestRecordRecoveryController(guestRecordRecoveryUseCase, rateLimitGuard),
                 new ClientMonitoringController(clientMonitoringUseCase));
     }
 
@@ -185,6 +218,15 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void list_classes() throws Exception {
         mockMvc.perform(get("/api/v1/classes"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("공개 공방 방문 정보 API를 문서화한다")
+    void get_workshop_profile() throws Exception {
+        mockMvc.perform(get("/api/v1/workshop"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("해피갤러리"))
+                .andExpect(jsonPath("$.addressLine1").value("서울시 종로구 공방길 1"));
     }
 
     @Test
@@ -238,6 +280,28 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void get_guest_order() throws Exception {
         mockMvc.perform(get("/api/v1/orders/{id}", 200L)
                         .header("X-Access-Token", "guest-access-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("주문 배송비 정책 API를 문서화한다")
+    void get_order_price_policy() throws Exception {
+        mockMvc.perform(get("/api/v1/orders/policy"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shippingFee").value(3000));
+    }
+
+    @Test
+    @DisplayName("비회원 주문·예약 접근 권한 복구 API를 문서화한다")
+    void recover_guest_records() throws Exception {
+        mockMvc.perform(post("/api/v1/guest-records/recovery")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "phone": "01012345678",
+                                  "verificationCode": "123456"
+                                }
+                                """))
                 .andExpect(status().isOk());
     }
 

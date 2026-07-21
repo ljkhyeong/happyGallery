@@ -7,3 +7,10 @@ export interface PassRefundResponse {
   refundId: number | null;
   refundStatus: RefundStatus | null;
 }
+
+export interface MemberPassRefundResponse {
+  canceledBookings: number;
+  refundCredits: number;
+  refundAmount: number;
+  refundStatus: RefundStatus | null;
+}

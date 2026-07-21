@@ -1,14 +1,16 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
-import { skipToken, useQuery } from "@tanstack/react-query";
+import { skipToken, useMutation, useQuery } from "@tanstack/react-query";
 import { Container, Card, Form, Button, Row, Col, Badge } from "react-bootstrap";
-import { useLocation } from "react-router-dom";
-import { fetchOrder } from "@/features/order/api";
+import { useLocation, useSearchParams } from "react-router-dom";
+import { cancelGuestOrder, fetchOrder, respondToGuestOrderDelay } from "@/features/order/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
+import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { ErrorAlert } from "@/shared/ui";
 import { customerRefundPollingInterval } from "@/shared/lib";
+import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
 
 interface LocationState {
   orderId?: number;
@@ -25,13 +27,23 @@ interface OrderLookup {
 
 export function OrderDetailPage() {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const navState = location.state as LocationState | null;
-  const [orderId, setOrderId] = useState(navState?.orderId ? String(navState.orderId) : "");
-  const [token, setToken] = useState(navState?.token ?? "");
+  const [initialCredentials] = useState(() => {
+    const queryOrderId = Number(searchParams.get("orderId"));
+    const orderId = navState?.orderId
+      ?? (Number.isSafeInteger(queryOrderId) && queryOrderId > 0 ? queryOrderId : undefined);
+    const token = navState?.token ?? loadGuestRecordRecovery()?.accessToken ?? "";
+    return { orderId, token: token.trim() };
+  });
+  const [orderId, setOrderId] = useState(
+    initialCredentials.orderId ? String(initialCredentials.orderId) : "",
+  );
+  const [token, setToken] = useState(initialCredentials.token);
   const [lookup, setLookup] = useState<OrderLookup | null>(() =>
-    navState?.orderId && navState.token
+    initialCredentials.orderId && initialCredentials.token
       ? {
-          credentials: { id: navState.orderId, token: navState.token.trim() },
+          credentials: { id: initialCredentials.orderId, token: initialCredentials.token },
           requestId: crypto.randomUUID(),
         }
       : null,
@@ -51,6 +63,19 @@ export function OrderDetailPage() {
         state.data?.refund?.status,
         state.dataUpdateCount + state.fetchFailureCount,
       ),
+  });
+  const cancelMutation = useMutation({
+    mutationFn: ({ id, token: accessToken }: { id: number; token: string }) =>
+      cancelGuestOrder(id, accessToken),
+    onSuccess: () => refetchOrder(),
+  });
+  const delayMutation = useMutation({
+    mutationFn: ({ id, token: accessToken, decision }: {
+      id: number;
+      token: string;
+      decision: "ACCEPT" | "REJECT";
+    }) => respondToGuestOrderDelay(id, accessToken, decision),
+    onSuccess: () => refetchOrder(),
   });
 
   function handleLookup() {
@@ -155,7 +180,21 @@ export function OrderDetailPage() {
 
       <ErrorAlert error={order ? null : error} />
 
-      {order && <OrderDetailCard order={order} />}
+      <ErrorAlert error={cancelMutation.error ?? delayMutation.error} />
+      {order && (
+        <>
+          <OrderDetailCard order={order} />
+          <OrderCustomerActionPanel
+            status={order.status}
+            pending={cancelMutation.isPending || delayMutation.isPending}
+            onCancel={() => lookup && cancelMutation.mutate(lookup.credentials)}
+            onDelayDecision={(decision) => lookup && delayMutation.mutate({
+              ...lookup.credentials,
+              decision,
+            })}
+          />
+        </>
+      )}
     </Container>
   );
 }

@@ -21,7 +21,8 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "PAID_APPROVAL_PENDING", label: "승인 대기" },
   { value: "APPROVED_FULFILLMENT_PENDING", label: "이행 대기" },
   { value: "IN_PRODUCTION", label: "제작 중" },
-  { value: "DELAY_REQUESTED", label: "지연 요청" },
+  { value: "DELAY_CONSENT_PENDING", label: "지연 응답 대기" },
+  { value: "DELAY_ACCEPTED", label: "지연 수락" },
   { value: "DELAY_REJECTED_CANCELED", label: "지연 거절 취소" },
   { value: "SHIPPING_PREPARING", label: "배송 준비" },
   { value: "SHIPPED", label: "배송 중" },
@@ -30,6 +31,7 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "PICKED_UP", label: "픽업 완료" },
   { value: "COMPLETED", label: "완료" },
   { value: "REJECTED", label: "거절" },
+  { value: "CUSTOMER_CANCELED", label: "고객 취소" },
   { value: "AUTO_REFUND_TIMEOUT", label: "자동 환불" },
   { value: "PICKUP_EXPIRED", label: "픽업 만료 환불" },
   { value: "PICKUP_FORFEITED", label: "픽업 미수령 종료" },
@@ -94,13 +96,14 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
           <Table responsive hover size="sm">
             <thead>
               <tr>
-                <th>주문번호</th><th>상태</th><th>수령</th><th>금액</th><th>결제일</th><th>생성일</th><th>액션</th><th></th>
+                <th>주문번호</th><th>상품</th><th>상태</th><th>수령</th><th>금액</th><th>결제일</th><th>생성일</th><th>액션</th><th></th>
               </tr>
             </thead>
             <tbody>
               {allOrders.map((o) => (
                 <tr key={o.orderId}>
                   <td>{o.orderNumber}</td>
+                  <td><small>{o.items.map((item) => `${item.productName} x ${item.qty}`).join(", ")}</small></td>
                   <td><StatusBadge status={o.status} /></td>
                   <td>{o.fulfillmentType === "SHIPPING" ? "택배" : o.fulfillmentType === "PICKUP" ? "픽업" : "-"}</td>
                   <td>{formatKRW(o.totalAmount)}</td>

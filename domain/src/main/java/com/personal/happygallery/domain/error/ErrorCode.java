@@ -28,7 +28,7 @@ public enum ErrorCode {
 
     // 409 Conflict — 상태 충돌
     EMAIL_ALREADY_EXISTS(409, "이미 사용 중인 이메일입니다."),
-    PHONE_ALREADY_REGISTERED(409, "이미 휴대폰 번호가 등록되어 있습니다."),
+    PHONE_ALREADY_IN_USE(409, "이미 다른 회원이 사용 중인 휴대폰 번호입니다."),
     LOCAL_PASSWORD_NOT_SET(409, "이메일 로그인 비밀번호가 없습니다. 휴대폰 인증으로 비밀번호를 설정해주세요."),
     SOCIAL_ACCOUNT_LINK_REQUIRED(409, "같은 이메일로 가입된 계정이 있습니다. 기존 로그인 수단을 이용해주세요."),
     ALREADY_REFUNDED(409, "이미 환불된 건입니다."),
@@ -51,7 +51,10 @@ public enum ErrorCode {
     CHANGE_NOT_ALLOWED(422, "변경 가능 시간이 지났습니다."),
     PASS_EXPIRED(422, "이용권이 만료되었습니다."),
     PASS_CREDIT_INSUFFICIENT(422, "이용권 잔여 횟수가 부족합니다."),
+    PASS_NOT_APPLICABLE(422, "선택한 클래스에는 이 이용권을 사용할 수 없습니다."),
+    CLASS_INACTIVE(422, "현재 운영하지 않는 클래스입니다."),
     PHONE_VERIFICATION_REQUIRED(422, "휴대폰 인증을 완료한 뒤 다시 시도해주세요."),
+    ACCOUNT_WITHDRAWAL_BLOCKED(422, "진행 중인 주문, 예약, 환불 또는 사용 가능한 8회권이 있어 탈퇴할 수 없습니다."),
     PASSWORD_UNCHANGED(422, "현재 비밀번호와 다른 새 비밀번호를 입력해주세요."),
     PAYMENT_METHOD_NOT_ALLOWED(422, "예약금은 카드 또는 간편결제만 허용됩니다. 계좌이체는 사용할 수 없습니다."),
 

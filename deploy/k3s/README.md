@@ -180,7 +180,7 @@ cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시
 ./deploy/k3s/scripts/rollout.sh /etc/happygallery/release.env
 ```
 
-후속 배포는 Flyway 실행 전에 최근 암호화 백업이 필요하다. `VERIFIED_BACKUP_FILE`과 같은 이름의 `.sha256` 파일이 존재하고 48시간 이내여야 rollout이 진행된다.
+후속 배포는 Flyway 실행 전에 최근 암호화 복구 묶음이 필요하다. `VERIFIED_RECOVERY_BUNDLE`에는 마지막에 게시된 `happygallery-<시각>.recovery.env` 경로를 넣는다. rollout은 이 commit marker와 checksum이 48시간 이내인지, marker가 가리키는 DB·미디어 archive와 각 sidecar, 호환 release의 metadata·manifest·runtime image metadata·image archive와 각 sidecar가 모두 존재하고 일치하는지 확인한 뒤에만 진행한다.
 
 스크립트는 다음 순서로 실행한다. app Service는 전용 Traefik `ServersTransport`를 사용해 upstream 연결 3초, 응답 헤더 30초, idle keep-alive 15초를 적용한다. Redis는 256MiB 컨테이너 한도보다 낮은 192MiB에서 `noeviction`으로 쓰기를 거절해 커널 OOM 종료 대신 애플리케이션의 fail-open/fail-closed 정책으로 장애를 드러낸다.
 
@@ -215,9 +215,11 @@ kubectl -n happygallery port-forward service/prometheus 9090:9090
 
 ## 7. 외부 암호화 복구 백업
 
-백업은 MySQL Pod에서 dump를 stdout으로만 내보내고 호스트가 `gzip -> age`로 암호화해 외부 mount에 직접 기록한다. 평문 SQL 파일은 생성하지 않는다. 성공 후 암호문 SHA-256 sidecar를 만들며 기본 보존 기간은 30일이다.
+백업은 MySQL Pod에서 dump를 stdout으로만 내보내고 호스트가 `gzip -> age`로 암호화해 외부 mount에 직접 기록한다. 이어 전용 유지보수 Pod가 `app-media` PVC를 읽어 상품 이미지 archive도 같은 방식으로 암호화한다. 평문 SQL이나 이미지 archive는 생성하지 않는다. 각 암호문에 SHA-256 sidecar를 만들며 기본 보존 기간은 30일이다. 미디어 기능 도입 전부터 운영한 클러스터에 PVC가 아직 없으면 백업 스크립트가 독립된 `app-media-pvc.yaml`을 먼저 적용하므로, 새 app manifest를 배포하기 전에도 기존 DB와 빈 미디어 볼륨을 하나의 복구 묶음으로 만들 수 있다.
 
-DB만 복원되고 실행할 바이너리가 사라지는 상황을 막기 위해 같은 외부 매체의 `releases/<IMAGE_TAG>/`에는 호환 app/frontend와 MySQL·Redis·Prometheus·Alertmanager 이미지 archive, digest metadata와 렌더링 manifest를 commit SHA별 한 번 보존한다. 각 DB 백업의 `happygallery-<시각>.recovery.env`는 DB 파일, release 경로, Flyway schema version, active 암호화 키 ID·keyring SHA-256 fingerprint와 키 회전 단계를 묶는다. fingerprint는 키 원문을 저장하지 않으면서 같은 ID에 잘못된 키를 넣은 복구도 차단한다. release archive는 여러 DB 백업이 공유하므로 자동 보존 정리에서 삭제하지 않는다. 해당 release를 가리키는 DB 백업이 더 없고 별도 복원 검증을 마친 뒤에만 수동 삭제한다.
+DB 스냅샷을 먼저 만들고 미디어를 뒤이어 보관한다. 이미지 파일은 UUID 이름으로 추가된 뒤 수정·삭제하지 않으므로 이 순서에서는 DB가 참조하는 파일이 미디어 백업에서 빠지지 않는다. `happygallery-<시각>.recovery.env`의 `DATABASE_BACKUP`과 `MEDIA_BACKUP`은 분리해서 복원할 수 없는 하나의 복구 단위다.
+
+DB만 복원되고 실행할 바이너리가 사라지는 상황을 막기 위해 같은 외부 매체의 `releases/<IMAGE_TAG>/`에는 호환 app/frontend와 MySQL·Redis·Prometheus·Alertmanager 이미지 archive, digest metadata와 렌더링 manifest를 commit SHA별 한 번 보존한다. 각 복구 백업의 `happygallery-<시각>.recovery.env`는 DB·미디어 파일, release 경로, Flyway schema version, active 암호화 키 ID·keyring SHA-256 fingerprint와 키 회전 단계를 묶는다. fingerprint는 키 원문을 저장하지 않으면서 같은 ID에 잘못된 키를 넣은 복구도 차단한다. 모든 산출물은 먼저 `.partial`로 완성하고 DB·미디어 archive와 sidecar, recovery sidecar 순서로 이름을 확정한 뒤 `recovery.env`를 마지막에 게시한다. 따라서 같은 시각의 `recovery.env`가 없는 중단 산출물은 완성된 복구 묶음으로 사용하지 않는다. release archive는 여러 복구 백업이 공유하므로 자동 보존 정리에서 삭제하지 않는다. 해당 release를 가리키는 복구 백업이 더 없고 별도 복원 검증을 마친 뒤에만 수동 삭제한다.
 
 1. 복원 전용 age identity를 노트북과 분리해 보관하고 public recipient만 노트북에 둔다.
 2. 외부 매체가 실제 mount된 상태에서 전용 백업 디렉터리에 marker를 한 번 만든다.
@@ -249,7 +251,7 @@ systemctl list-timers happygallery-backup.timer
 
 예시 unit은 저장소가 `/opt/happygallery`에 있다고 가정한다. 실제 checkout 경로와 `kubectl` 경로가 다르면 unit과 `/etc/happygallery/backup.env`를 함께 수정한다.
 
-성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하면 별도 HTTPS webhook unit을 호출한다. 외부 uptime 모니터는 노트북 자체가 꺼진 경우에도 알 수 있도록 이 heartbeat가 7시간 넘게 갱신되지 않는지도 별도로 확인한다. 현재 논리 dump 기준 RPO는 약 6시간이며 PITR는 제공하지 않는다. 주문량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog를 외부 저장소로 연속 보관하는 PITR로 전환한다.
+성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하면 별도 HTTPS webhook unit을 호출한다. 외부 uptime 모니터는 노트북 자체가 꺼진 경우에도 알 수 있도록 이 heartbeat가 7시간 넘게 갱신되지 않는지도 별도로 확인한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
 
 ## 8. 복원 훈련
 
@@ -272,13 +274,14 @@ export CONFIRM_RESTORED_RELEASE='<호환 release의 IMAGE_TAG>'
 - ciphertext SHA-256 일치
 - age 인증 복호화와 gzip 무결성 통과
 - 복원 후 `mysqlcheck` 통과
+- 미디어 archive checksum·tar 무결성 통과 후 `app-media` PVC를 같은 백업 시점으로 교체
 - DB 시점과 불일치할 Redis 세션·rate-limit 상태 삭제
 - runtime active/previous 암호화·HMAC·비회원 토큰 keyring의 ID/fingerprint와 백업 메타데이터 일치
 - 복원된 `flyway_schema_history`와 백업 메타데이터의 schema version 일치
 - DB를 DROP하기 전 외부 이미지 archive checksum 검증, 필요 이미지 containerd import, app/frontend와 MySQL·Redis·Prometheus·Alertmanager 전체 digest 재검증
 - app이 0인 상태에서 묶인 release의 app/frontend digest 반영 후 app scale-up
 
-복원 후 회원 로그인, 개인정보 복호화, 이름/전화번호 HMAC 조회, 주문·예약·결제 이력과 Flyway 상태를 확인한다. 백업 시점의 active/previous AES·HMAC 키링을 잃었거나 다른 키를 쓰면 데이터 복구가 완료된 것이 아니다. guest token 연속성이 필요하면 백업 시점 guest active/previous 키도 함께 복구한다.
+복원 후 회원 로그인, 개인정보 복호화, 이름/전화번호 HMAC 조회, 주문·예약·결제 이력, 상품 이미지 응답과 Flyway 상태를 확인한다. 백업 시점의 active/previous AES·HMAC 키링을 잃었거나 다른 키를 쓰면 데이터 복구가 완료된 것이 아니다. guest token 연속성이 필요하면 백업 시점 guest active/previous 키도 함께 복구한다.
 
 ## 9. rollback
 
@@ -301,4 +304,4 @@ rollback은 보존된 전체 manifest를 재적용하지 않는다. digest로 �
 ./deploy/k3s/scripts/validate.sh
 ```
 
-이 검증은 Kustomize 렌더링, YAML 파싱, shell 구문, probe/종료 유예/PVC/내부 Prometheus/OAuth callback, app/frontend digest 고정, Redis·Alertmanager 단일 인스턴스의 `Recreate`, 복원 전 Pod 종료와 호환 digest 선반영 순서, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.
+이 검증은 Kustomize 렌더링, YAML 파싱, shell 구문, probe/종료 유예/app-media PVC와 mount/내부 Prometheus/OAuth callback, app/frontend digest 고정, Redis·Alertmanager 단일 인스턴스의 `Recreate`, 복원 전 Pod 종료와 호환 digest 선반영 순서, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.

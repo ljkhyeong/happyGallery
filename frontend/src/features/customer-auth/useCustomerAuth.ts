@@ -1,4 +1,5 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/shared/api";
 import { normalizePhone } from "@/shared/validation/phone";
 
@@ -33,27 +34,37 @@ interface CustomerAuthContextValue {
     verificationCode: string,
   ) => Promise<CustomerUser>;
   logout: () => Promise<void>;
+  withdraw: () => Promise<void>;
   refresh: () => Promise<CustomerUser | null>;
 }
 
 const CustomerAuthContext = createContext<CustomerAuthContextValue | null>(null);
 
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<CustomerUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const clearCustomerQueries = useCallback(() => {
+    queryClient.removeQueries({
+      predicate: ({ queryKey }) => queryKey[0] === "my" || queryKey[0] === "me",
+    });
+  }, [queryClient]);
 
   const fetchMe = useCallback(async () => {
     try {
       const me = await api<CustomerUserResponse>("/me");
+      clearCustomerQueries();
       setUser(me);
       return me;
     } catch {
+      clearCustomerQueries();
       setUser(null);
       return null;
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [clearCustomerQueries]);
 
   useEffect(() => {
     void fetchMe();
@@ -65,10 +76,11 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         method: "POST",
         body: { email, password },
       });
+      clearCustomerQueries();
       setUser(me);
       return me;
     },
-    [],
+    [clearCustomerQueries],
   );
 
   const signup = useCallback(
@@ -89,16 +101,24 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           verificationCode,
         },
       });
+      clearCustomerQueries();
       setUser(me);
       return me;
     },
-    [],
+    [clearCustomerQueries],
   );
 
   const logout = useCallback(async () => {
     await api("/auth/logout", { method: "POST" });
+    clearCustomerQueries();
     setUser(null);
-  }, []);
+  }, [clearCustomerQueries]);
+
+  const withdraw = useCallback(async () => {
+    await api("/me", { method: "DELETE" });
+    clearCustomerQueries();
+    setUser(null);
+  }, [clearCustomerQueries]);
 
   return createElement(
     CustomerAuthContext,
@@ -110,6 +130,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         login,
         signup,
         logout,
+        withdraw,
         refresh: fetchMe,
       },
     },

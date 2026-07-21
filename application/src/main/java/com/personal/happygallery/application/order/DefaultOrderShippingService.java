@@ -11,6 +11,7 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,15 +30,18 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     private final OrderStorePort orderStore;
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
+    private final OrderNotificationSupport orderNotificationSupport;
 
     public DefaultOrderShippingService(OrderReaderPort orderReader,
                                        OrderStorePort orderStore,
                                        FulfillmentPort fulfillmentPort,
-                                       OrderHistoryPort orderHistoryPort) {
+                                       OrderHistoryPort orderHistoryPort,
+                                       OrderNotificationSupport orderNotificationSupport) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
+        this.orderNotificationSupport = orderNotificationSupport;
     }
 
     /**
@@ -64,15 +68,19 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
      */
     @Override
     @OptimisticLockRetryable
-    public ShippingResult markShipped(Long orderId, Long adminId) {
+    public ShippingResult markShipped(
+            Long orderId, String carrier, String trackingNumber, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         fulfillment.requireShippingType();
         order.markShipped();
+        fulfillment.recordShipment(carrier, trackingNumber);
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.SHIP, adminId, null));
+        fulfillmentPort.save(fulfillment);
         orderStore.save(order);
+        orderNotificationSupport.notifyCustomer(order, NotificationEventType.ORDER_SHIPPED);
 
         return ShippingResult.of(order, fulfillment);
     }

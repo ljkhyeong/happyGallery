@@ -13,6 +13,7 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
@@ -34,17 +35,20 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
     private final OrderStorePort orderStore;
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
+    private final OrderNotificationSupport orderNotificationSupport;
     private final Clock clock;
 
     public DefaultOrderPickupService(OrderReaderPort orderReader,
                                      OrderStorePort orderStore,
                                      FulfillmentPort fulfillmentPort,
                                      OrderHistoryPort orderHistoryPort,
+                                     OrderNotificationSupport orderNotificationSupport,
                                      Clock clock) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
+        this.orderNotificationSupport = orderNotificationSupport;
         this.clock = clock;
     }
 
@@ -73,6 +77,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PICKUP_READY, adminId, null));
         orderStore.save(order);
+        orderNotificationSupport.notifyCustomer(order, NotificationEventType.ORDER_PICKUP_READY);
 
         return PickupResult.of(order, fulfillment);
     }

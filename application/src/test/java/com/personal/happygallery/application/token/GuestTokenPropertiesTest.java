@@ -14,8 +14,8 @@ class GuestTokenPropertiesTest {
     @Test
     void constructor_previousSecret_acceptsBlankOrAtLeast32Characters() {
         assertThatNoException()
-                .isThrownBy(() -> new GuestTokenProperties(ACTIVE_SECRET, "", 168));
-        assertThatThrownBy(() -> new GuestTokenProperties(ACTIVE_SECRET, "short-secret", 168))
+                .isThrownBy(() -> new GuestTokenProperties(ACTIVE_SECRET, "", 168, 24));
+        assertThatThrownBy(() -> new GuestTokenProperties(ACTIVE_SECRET, "short-secret", 168, 24))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("이전 게스트 토큰 HMAC 키는 32자 이상이어야 합니다.");
     }
@@ -23,7 +23,7 @@ class GuestTokenPropertiesTest {
     @DisplayName("활성 키와 이전 키는 서로 달라야 한다")
     @Test
     void constructor_sameSecrets_throwsIllegalArgumentException() {
-        assertThatThrownBy(() -> new GuestTokenProperties(ACTIVE_SECRET, ACTIVE_SECRET, 168))
+        assertThatThrownBy(() -> new GuestTokenProperties(ACTIVE_SECRET, ACTIVE_SECRET, 168, 24))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("활성 키와 이전 게스트 토큰 HMAC 키는 달라야 합니다.");
     }

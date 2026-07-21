@@ -35,8 +35,14 @@
   - `FAILED`: PG가 명시적으로 거절했거나 `paymentKey`가 없어 자동 재처리가 의미 없음
   - `RETRYABLE`: 큐 거절·서킷 오픈·명시적 일시 오류처럼 PG 호출을 안전하게 다시 실행할 수 있음
   - `RECONCILIATION_REQUIRED`: 타임아웃·통신 단절처럼 PG 반영 여부를 알 수 없음
+- `RECONCILIATION_REQUIRED`는 취소 API를 곧바로 다시 호출하지 않는다. 다음 선점은
+  `PaymentPort.lookupRefund(paymentKey, amount)`로 Toss 결제 상태와 취소 내역을 먼저 조회한다.
+  - 요청 금액과 정확히 같은 최신 취소가 `DONE`이고 `transactionKey`가 있으며 결제 상태가 `CANCELED` 또는 `PARTIAL_CANCELED`이면 `SUCCEEDED`로 확정한다.
+  - 취소 내역이 없고 결제 상태가 `DONE`이면 `NOT_REFUNDED`로 판단해 `RETRYABLE`로 돌린다. 다음 실행부터 최초 멱등키로 취소 API를 호출한다.
+  - 금액·상태가 모순되거나 취소 거래 식별자가 없으면 `REVIEW_REQUIRED`, 조회 통신 실패는 `UNAVAILABLE`로 보고 `RECONCILIATION_REQUIRED`를 유지한다.
+  - 조회 응답의 `paymentKey`, 취소 금액, `transactionKey`를 다시 검증한 뒤에만 성공 결과를 저장한다.
 - 취소·거절·8회권 환불 시작 API는 부모 트랜잭션에 저장된 `REQUESTED` 상태를 반환한다. 이 응답을 PG 환불 완료로 표현하지 않는다.
-- 고객은 기존 소유권 검증을 통과한 예약·주문 상세에서 환불 `amount`, `status`만 확인한다. 순차 ID인 `refundId`와 실패 사유·시도 횟수는 노출하지 않는다.
+- 고객은 기존 소유권 검증을 통과한 예약·주문 목록·상세에서 환불 `amount`, `status`만 확인하며 실패 사유·시도 횟수를 노출하지 않는다. 회원 8회권 환불 접수 응답은 후속 상태 조회를 위해 `refundId`를 반환한다.
 - 운영자는 시작 응답의 `refundId`와 `GET /api/v1/admin/refunds/{refundId}`로 전체 상태를 조회한다. 수동 재시도 응답도 PG 호출 후 실제 저장 상태를 반환한다.
 - 프론트 고객 상세는 `REQUESTED`, `PROCESSING`을 짧게 폴링하고 자동 복구 대상인 `RETRYABLE`, `RECONCILIATION_REQUIRED`는 간격을 늘려 추적한다. 관리자 시작 화면은 `REQUESTED`, `PROCESSING`만 추적하고 조치 필요 상태는 결과 기반 알림과 실패 목록으로 전환한다.
 - `REQUESTED`, 재시도 시각이 지난 `RETRYABLE`·`RECONCILIATION_REQUIRED`, 1분 이상 멈춘 `PROCESSING`은 매분 최대 10건씩 복구한다. 복구 호출도 최초 멱등키를 재사용한다.
@@ -58,6 +64,7 @@
 | 장점 | 부모 트랜잭션 롤백 시 로컬 상태와 맞지 않는 외부 환불 호출이 발생하지 않는다 |
 | 장점 | 실행 이벤트 유실이나 인스턴스 중단 뒤에도 커밋된 환불 요청을 자동 복구한다 |
 | 장점 | 명시적 실패와 결과 불명을 구분해 성공한 환불을 실패로 오판하지 않는다 |
+| 장점 | 타임아웃 뒤 PG 조회로 실제 취소 결과를 화해한 다음에만 취소 재호출 여부를 결정한다 |
 | 장점 | 운영자 재시도 API(`/api/v1/admin/refunds/failed`, `/retry`) 신뢰성이 올라간다 |
 | 단점 | 환불 요청 API 응답 시점에는 실제 PG 결과가 아직 `REQUESTED`일 수 있다 |
 | 대응 | 결과 기반 알림, 소유권이 검증된 고객 상세, 관리자 상태 조회·실패 목록으로 실제 PG 상태를 확인한다 |

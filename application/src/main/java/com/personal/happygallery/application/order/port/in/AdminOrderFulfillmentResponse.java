@@ -11,7 +11,9 @@ public record AdminOrderFulfillmentResponse(
         String type,
         ShippingAddress shippingAddress,
         LocalDate expectedShipDate,
-        LocalDateTime pickupDeadlineAt
+        LocalDateTime pickupDeadlineAt,
+        String carrier,
+        String trackingNumber
 ) {
 
     public static AdminOrderFulfillmentResponse from(
@@ -21,6 +23,8 @@ public record AdminOrderFulfillmentResponse(
                 fulfillment.getType().name(),
                 shippingAddress,
                 fulfillment.getExpectedShipDate(),
-                fulfillment.getPickupDeadlineAt());
+                fulfillment.getPickupDeadlineAt(),
+                fulfillment.getCarrier(),
+                fulfillment.getTrackingNumber());
     }
 }

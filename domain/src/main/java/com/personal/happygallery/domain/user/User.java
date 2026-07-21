@@ -61,6 +61,9 @@ public class User {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    @Column(name = "withdrawn_at")
+    private LocalDateTime withdrawnAt;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -118,6 +121,7 @@ public class User {
     public String getPhoneHmac() { return phoneHmac; }
     public boolean isPhoneVerified() { return phoneVerified; }
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
+    public LocalDateTime getWithdrawnAt() { return withdrawnAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 
     public void updateLastLoginAt(LocalDateTime loginAt) {
@@ -131,6 +135,25 @@ public class User {
     public void registerVerifiedPhone(String phone) {
         this.phone = KoreanPhoneNumber.required(phone);
         this.phoneVerified = true;
+    }
+
+    public boolean isActive() {
+        return withdrawnAt == null;
+    }
+
+    /** 거래 FK는 유지하면서 로그인 자격과 개인정보를 폐기한다. */
+    public void withdraw(String anonymizedEmail, String anonymizedName, LocalDateTime withdrawnAt) {
+        if (!isActive()) {
+            return;
+        }
+        this.email = EmailAddress.required(anonymizedEmail);
+        this.name = PersonalName.required(anonymizedName);
+        this.phone = null;
+        this.passwordHash = null;
+        this.phoneVerified = false;
+        this.lastLoginAt = null;
+        this.withdrawnAt = withdrawnAt;
+        this.credentialVersion = Math.incrementExact(credentialVersion);
     }
 
     public boolean hasLocalPassword() {

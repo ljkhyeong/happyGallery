@@ -24,6 +24,18 @@ public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPor
     @Override List<Refund> findByPassPurchaseIdIn(List<Long> passPurchaseIds);
 
     @Query("""
+            SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END
+            FROM Refund r
+            WHERE r.status <> com.personal.happygallery.domain.payment.RefundStatus.SUCCEEDED
+              AND (
+                  r.orderId IN (SELECT o.id FROM Order o WHERE o.userId = :userId)
+                  OR r.bookingId IN (SELECT b.id FROM Booking b WHERE b.userId = :userId)
+                  OR r.passPurchaseId IN (SELECT p.id FROM PassPurchase p WHERE p.userId = :userId)
+              )
+            """)
+    boolean existsUnresolvedByUserId(@Param("userId") Long userId);
+
+    @Query("""
             SELECT r FROM Refund r
             WHERE r.status IN (
                 com.personal.happygallery.domain.payment.RefundStatus.FAILED,
