@@ -13,6 +13,7 @@ let csrfTokenRequest: Promise<string> | undefined;
 interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   params?: Record<string, string | number | undefined>;
+  rawBody?: BodyInit | null;
 }
 
 function buildUrl(path: string, params?: Record<string, string | number | undefined>): string {
@@ -69,8 +70,14 @@ function requiresCsrf(path: string, method: string | undefined): boolean {
   return !adminRequest && !SAFE_METHODS.has(normalizedMethod);
 }
 
+function serializeBody(body: unknown, rawBody: BodyInit | null | undefined): BodyInit | null | undefined {
+  if (rawBody !== undefined) return rawBody;
+  if (body === undefined || body instanceof FormData) return body;
+  return JSON.stringify(body);
+}
+
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, params, headers: customHeaders, ...rest } = options;
+  const { body, params, rawBody, headers: customHeaders, ...rest } = options;
   const headers = new Headers(customHeaders);
   const multipartBody = body instanceof FormData;
 
@@ -90,7 +97,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     response = await fetch(buildUrl(path, params), {
       ...rest,
       headers,
-      body: body === undefined ? undefined : multipartBody ? body : JSON.stringify(body),
+      body: serializeBody(body, rawBody),
       signal: controller.signal,
       credentials: "include",
     });

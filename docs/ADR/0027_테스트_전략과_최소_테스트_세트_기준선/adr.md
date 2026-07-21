@@ -51,6 +51,7 @@
 
 - 외부 클라이언트가 호출하는 HTTP API는 Spring REST Docs 기반 테스트로 요청/응답 예시를 생성한다.
 - REST Docs 테스트는 컨트롤러의 HTTP 계약, 인증 헤더, 상태 코드, 에러 포맷을 얇게 문서화한다.
+- Controller/DTO 기반 OpenAPI 생성과 TypeScript client 동기화는 [ADR-0038](../0038_OpenAPI_TypeScript_Client_자동_생성/adr.md)을 따르며, 같은 동작을 확인하는 중복 컨트롤러 테스트를 추가하지 않는다.
 - 비즈니스 분기와 정책 검증은 유스케이스/도메인 정책 테스트에 둔다.
 - API 명세는 어차피 유지해야 하는 운영 계약이므로, 외부 노출 API 전수에 REST Docs 테스트를 두는 것은 최소 고가치 테스트 원칙과 충돌하지 않는다.
 

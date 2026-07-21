@@ -1,17 +1,14 @@
-export type ProductType = "READY_STOCK" | "MADE_TO_ORDER";
-export type ProductStatus = "ACTIVE" | "INACTIVE";
-export type ProductSortOrder = "newest" | "price_asc" | "price_desc";
+import type {
+  ListProductsParams,
+  ListProductsSort,
+  ProductDetailResponse as GeneratedProductDetailResponse,
+  ProductDetailResponseType,
+} from "@/generated/api/product";
 
-export interface ProductDetailResponse {
-  id: number;
-  name: string;
-  type: ProductType;
-  category: string | null;
-  price: number;
-  description: string | null;
-  imageUrl: string | null;
-  available: boolean;
-}
+export type ProductType = ProductDetailResponseType;
+export type ProductStatus = "ACTIVE" | "INACTIVE";
+export type ProductSortOrder = ListProductsSort;
+export type ProductDetailResponse = GeneratedProductDetailResponse;
 
 export interface ProductResponse {
   id: number;
@@ -65,9 +62,4 @@ export interface InventoryAdjustmentResponse {
   adjustedAt: string;
 }
 
-export interface ProductFilterParams {
-  type?: ProductType;
-  category?: string;
-  keyword?: string;
-  sort?: ProductSortOrder;
-}
+export type ProductFilterParams = ListProductsParams;

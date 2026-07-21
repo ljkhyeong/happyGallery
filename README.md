@@ -26,7 +26,7 @@
 ### 요구사항
 
 - Java 21
-- Node.js 20+
+- Node.js 22.18+
 - Docker / Docker Compose
 
 ### 실행
@@ -92,14 +92,17 @@ docker compose up -d --build
 - 정책 테스트: `./gradlew :application:policyTest`
 - 통합 테스트: `./gradlew --no-daemon :application:useCaseTest`
 - API 계약 문서 테스트: `./gradlew --no-daemon :adapter-in-web:restDocsTest`
+- OpenAPI 스냅샷 갱신: `./gradlew --no-daemon :adapter-in-web:openapi3`
 - 앱 실행: `./gradlew :bootstrap:bootRun`
 
-`./gradlew build`의 `check` 단계에는 REST Docs 계약 테스트가 포함된다. 빠른 로컬 확인이 필요할 때만 위 개별 태스크를 사용한다.
+`./gradlew build`의 `check` 단계에는 REST Docs 계약 테스트와 Controller/DTO 대비 OpenAPI 스냅샷 drift 검증이 포함된다. 빠른 로컬 확인이 필요할 때만 위 개별 태스크를 사용한다.
 
 ### 프론트엔드
 
 - 개발 서버: `cd frontend && npm run dev`
 - 프로덕션 빌드: `cd frontend && npm run build`
+- TypeScript API client 생성: `cd frontend && npm run api:generate`
+- 생성 client 최신 상태 검증: `cd frontend && npm run api:check`
 - E2E 브라우저 설치: `cd frontend && npm run e2e:install`
 - E2E smoke: `cd frontend && npm run e2e`
 - E2E 도메인별 실행: `cd frontend && npm run e2e:payment`, `npm run e2e:identity`, `npm run e2e:admin`
@@ -109,6 +112,9 @@ docker compose up -d --build
 
 - `@UseCaseIT`는 MySQL/Redis Testcontainers와 고정 `Clock`을 사용한다.
 - REST Docs 스니펫은 `:adapter-in-web:restDocsTest`가 `adapter-in-web/build/generated-snippets`에 생성한다.
+- Springdoc은 Controller와 웹 DTO에서 키 순서를 정규화한 `docs/PRD/0004_API_계약/openapi3.json`을 만들고, Orval은 이를 `frontend/src/generated/api`의 TypeScript client와 DTO로 변환한다.
+- REST Docs는 실제 HTTP 요청·응답 예시를 검증하고, OpenAPI 스냅샷은 기계 판독 계약과 프론트 생성 코드의 원본을 담당한다.
+- 현재 React 실사용 전환 범위는 공개 상품 목록·카테고리·상세 조회다. 새 엔드포인트는 필수값·nullable·enum 정확성을 확인한 뒤 같은 방식으로 전환한다.
 - Playwright 실행 전 백엔드는 `http://localhost:8080`에서 실행 중이어야 한다.
 - 기본 E2E는 `@smoke` 대표 경로만 실행한다. 전체 P8 회귀는 `e2e:full` 또는 도메인별 스크립트로 실행한다.
 
@@ -125,6 +131,7 @@ docker compose up -d --build
 | `application/` | 유스케이스, 서비스, 배치, 포트 정의 |
 | `domain/` | 도메인 모델, 정책, 예외 |
 | `frontend/` | React 기반 사용자 화면과 관리자 화면 |
+| `frontend/src/generated/api/` | OpenAPI 파생 TypeScript client와 DTO, 수동 편집 금지 |
 | `monitoring/` | Prometheus, Grafana, Alertmanager 설정 |
 
 - 의존 방향: `bootstrap -> adapter-in-web/out-* -> application -> domain`
@@ -133,13 +140,14 @@ docker compose up -d --build
 ## 기술 스택
 
 - 백엔드: Spring Boot 4.0.2, Spring Security, Java 21, Gradle
-- 프론트엔드: Vite, React 19, TypeScript
+- 프론트엔드: Vite, React 19, TypeScript, Orval
 - 데이터베이스: MySQL 8, Flyway
 - 세션과 캐시: Redis, Spring Session
 - 인프라 목표: 단일 노트북 k3s, Kubernetes Ingress, MySQL 영속 볼륨, cluster 내부 Redis
 - 로컬 개발·복구 진단: Docker Compose, Nginx
 - 모니터링: Actuator, Prometheus, Grafana, Sentry
-- 테스트: JUnit 5, Testcontainers, Spring REST Docs, Playwright
+- API 계약: Spring REST Docs, Springdoc OpenAPI
+- 테스트: JUnit 5, Testcontainers, Playwright
 
 ### 프론트엔드 디자인 기준
 

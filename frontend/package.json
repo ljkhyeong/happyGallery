@@ -3,9 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "api:generate": "orval --config orval.config.ts",
+    "api:check": "npm run api:generate && git diff --exit-code -- src/generated/api && test -z \"$(git ls-files --others --exclude-standard -- src/generated/api)\"",
     "preview": "vite preview",
     "e2e": "playwright test --grep @smoke",
     "e2e:full": "playwright test",
@@ -31,6 +36,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "orval": "8.22.0",
     "sass-embedded": "^1.97.3",
     "typescript": "~5.7.0",
     "vite": "^6.2.0"

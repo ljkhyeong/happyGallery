@@ -10,6 +10,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	implementation 'org.springframework.session:spring-session-core'
 	implementation 'io.sentry:sentry-spring-boot-4-starter:8.25.0'
+	implementation 'io.swagger.core.v3:swagger-annotations-jakarta:2.2.47'
 	compileOnly 'org.hibernate.orm:hibernate-core'
 	compileOnly 'org.springframework:spring-orm'
 
@@ -24,6 +25,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
+	testImplementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:3.0.3'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:testcontainers-mysql'
@@ -33,6 +35,8 @@ dependencies {
 }
 
 def snippetsDir = layout.buildDirectory.dir('generated-snippets')
+def generatedOpenApi = layout.buildDirectory.file('api-spec/openapi3.json')
+def openApiSnapshot = rootProject.layout.projectDirectory.file('docs/PRD/0004_API_계약/openapi3.json')
 
 tasks.register('restDocsTest', Test) {
 	group = 'verification'
@@ -44,9 +48,51 @@ tasks.register('restDocsTest', Test) {
 }
 
 tasks.named('test') {
-	useJUnitPlatform { excludeTags 'restdocs' }
+	useJUnitPlatform { excludeTags 'restdocs', 'openapi' }
+}
+
+tasks.register('openApiTest', Test) {
+	group = 'verification'
+	description = 'Controller와 DTO에서 OpenAPI 명세 생성'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	outputs.file generatedOpenApi
+	systemProperty 'openapi.output', generatedOpenApi.get().asFile.absolutePath
+	useJUnitPlatform { includeTags 'openapi' }
+}
+
+tasks.register('openapi3') {
+	group = 'documentation'
+	description = '생성한 OpenAPI 명세를 커밋 대상 스냅샷에 반영'
+	dependsOn tasks.named('openApiTest')
+	inputs.file generatedOpenApi
+	outputs.file openApiSnapshot
+	doLast {
+		copy {
+			from generatedOpenApi
+			into openApiSnapshot.asFile.parentFile
+		}
+	}
+}
+
+tasks.register('verifyOpenApi') {
+	group = 'verification'
+	description = 'Controller/DTO와 커밋된 OpenAPI 스냅샷의 일치 여부 검증'
+	dependsOn tasks.named('openApiTest')
+	inputs.file generatedOpenApi
+	inputs.file openApiSnapshot
+	doLast {
+		File generated = generatedOpenApi.get().asFile
+		File snapshot = openApiSnapshot.asFile
+		if (!snapshot.exists() || generated.getText('UTF-8') != snapshot.getText('UTF-8')) {
+			throw new GradleException(
+					'OpenAPI 스냅샷이 Controller/DTO와 다릅니다. ' +
+					'./gradlew --no-daemon :adapter-in-web:openapi3 를 실행하세요.')
+		}
+	}
 }
 
 tasks.named('check') {
 	dependsOn tasks.named('restDocsTest')
+	dependsOn tasks.named('verifyOpenApi')
 }
