@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.persistence.cart;
 
 import com.personal.happygallery.application.cart.port.out.CartReadModelPort;
 import com.personal.happygallery.domain.product.ProductStatus;
+import com.personal.happygallery.domain.product.ProductType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import java.util.List;
@@ -22,6 +23,7 @@ public class JpaCartReadModelAdapter implements CartReadModelPort {
                         SELECT item.id AS cartItemId,
                                product.id AS productId,
                                product.name AS productName,
+                               product.type AS productType,
                                product.price AS price,
                                item.qty AS qty,
                                product.status AS productStatus,
@@ -44,6 +46,7 @@ public class JpaCartReadModelAdapter implements CartReadModelPort {
                 row.get("cartItemId", Long.class),
                 row.get("productId", Long.class),
                 row.get("productName", String.class),
+                row.get("productType", ProductType.class),
                 row.get("price", Long.class),
                 row.get("qty", Integer.class),
                 row.get("productStatus", ProductStatus.class),

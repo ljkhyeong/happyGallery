@@ -55,9 +55,11 @@ class CartQueryUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(cart.items()).containsExactly(
                     new CartUseCase.CartItemView(
-                            availableProduct.getId(), "재고 상품", 39_000L, 2, true),
+                            availableProduct.getId(), "재고 상품", availableProduct.getType(),
+                            39_000L, 2, true),
                     new CartUseCase.CartItemView(
-                            unavailableProduct.getId(), "재고 없는 상품", 15_000L, 1, false));
+                            unavailableProduct.getId(), "재고 없는 상품", unavailableProduct.getType(),
+                            15_000L, 1, false));
             softly.assertThat(cart.totalAmount()).isEqualTo(78_000L);
         });
     }

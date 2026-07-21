@@ -58,14 +58,15 @@
 - 관리자 인증이 필요한 `POST /api/v1/admin/media/images`가 multipart의 `file` 한 개를 받고, 애플리케이션 파일 시스템에 UUID 파일명으로 저장한다. DB에는 바이너리를 넣지 않고 상품·클래스가 반환된 `/api/v1/media/images/{fileName}` URL을 참조한다.
 - 공개 조회 API는 로그인 없이 이미지를 반환한다. 파일명은 UUID와 `jpg`, `png`, `webp` 확장자 조합만 허용하고 경로 정규화 후 저장 디렉터리 바로 아래 파일만 읽어 경로 이탈을 막는다. 응답은 실제 형식의 `Content-Type`과 365일 public immutable cache 정책을 사용한다.
 - 업로드는 JPEG, PNG, WebP만 허용한다. 요청 `Content-Type`만 신뢰하지 않고 각 형식의 magic signature를 함께 검사한다. Spring multipart 제한은 파일 5MB, 요청 전체 6MB이고, 서비스도 비어 있는 파일과 `5 * 1024 * 1024`바이트를 넘는 byte 배열을 거부한다.
-- 파일은 같은 저장 디렉터리에 임시 파일로 쓴 뒤 atomic move를 우선 사용해 완성되지 않은 파일이 공개 경로에 보이지 않게 한다. 현재 구현은 UUID 이름의 파일을 덮어쓰거나 삭제하지 않는 append-only 모델이다.
+- 파일은 같은 저장 디렉터리에 임시 파일로 쓴 뒤 atomic move를 우선 사용해 완성되지 않은 파일이 공개 경로에 보이지 않게 한다. 참조 중인 UUID 파일은 덮어쓰지 않는 불변 모델이다. 상품·클래스가 참조하지 않는 파일은 첫 보존 배치에서 `.orphaned` 마커로 최초 관찰 시각을 기록한다. 7일 뒤 삭제 후보가 되면 상품·클래스 참조를 다시 읽고, 여전히 참조가 없을 때만 매일 03:30 보존 배치가 파일과 마커를 함께 삭제한다. 로컬 이미지 URL을 상품·클래스에 저장하는 트랜잭션과 보존 배치는 `image_media_reference_lock` 단일 행을 함께 잠근다. URL 저장은 잠금 뒤 실제 파일 존재를 확인하고, 보존 배치는 잠금을 유지한 채 참조 재조회와 파일 삭제를 끝내므로 참조 저장과 삭제 사이 경쟁으로 dangling URL이 생기지 않는다.
 - 로컬 기본 경로는 `./data/media`다. k3s 운영에서는 `MEDIA_STORAGE_PATH=/var/lib/happygallery/media`로 고정하고, `ReadWriteOnce`, 5Gi, `local-path-retain` StorageClass의 `app-media` PVC를 그 경로에 mount한다.
+- 애플리케이션은 저장소 사용량을 5분마다 `happygallery.media.storage` gauge로 갱신한다. Prometheus는 4Gi(5Gi의 80%) 초과가 10분 지속되거나 갱신 실패가 발생하거나 마지막 정상 갱신 후 15분이 지나면 경보를 보내며, 용량과 PVC mount, 고아 파일, 백업 상태를 점검한다.
 - manifest는 특정 `hostPath`를 직접 지정하지 않는다. 실제 노트북 디렉터리 배치는 k3s local-path provisioner가 관리하며, 운영 스크립트는 그 경로를 하드코딩하지 않고 `app-media` PVC를 maintenance Pod에 mount해 백업·복원한다. PVC는 app Deployment와 분리한 manifest로 두고, 미디어 기능 도입 전 클러스터에서는 배포 전 백업이 이를 먼저 안전하게 생성할 수 있게 한다. `Retain` reclaim policy는 오삭제 완화 수단일 뿐 백업으로 간주하지 않는다.
 
 #### 4.2 DB와 미디어의 일관 복구 단위
 
-- 백업은 먼저 `mysqldump --single-transaction`으로 DB 시점을 확정하고 그다음 `app-media` PVC를 tar archive로 읽는다. 현재 이미지 파일은 DB 참조가 생기기 전에 저장되고 이후 수정·삭제되지 않으므로, 뒤 시점의 미디어 archive에는 DB 스냅샷이 참조하는 파일이 포함된다. 동시 업로드로 참조되지 않은 새 파일이 더 포함될 수는 있지만 복원 정합성을 깨지 않는다.
-- 이 순서의 안전성은 append-only 전제에 의존한다. 이미지 교체나 물리 삭제 기능을 추가하면 쓰기 중지, 볼륨 snapshot 또는 DB와 미디어를 함께 고정하는 별도 프로토콜을 먼저 도입한다.
+- 백업 스크립트는 원래 app replica 수를 확인하고 1이면 0으로 축소해 Pod 종료를 기다린다. 쓰기가 중단된 한 구간 안에서 `mysqldump --single-transaction`으로 DB 시점을 확정하고 `app-media` PVC를 tar archive로 읽은 뒤 원래 replica를 복구한다. 키 회전처럼 이미 0 replica인 호출은 그대로 유지한다. 이 방식은 짧은 계획 중단을 수용하는 대신 DB 참조와 미디어 파일, 03:30 보존 배치가 백업 중 바뀌는 경쟁을 막는다.
+- systemd 정기 백업은 `Asia/Seoul`을 명시해 00:30·06:30·12:30·18:30에 실행하고 고아 정리는 03:30에 실행한다. 시간 분리는 운영 부하를 나누기 위한 것이며 정합성의 근거로 사용하지 않는다. 수동 실행이나 `Persistent=true` 보충 실행이 겹쳐도 app 쓰기 중단 구간이 동일한 상호 배제를 제공한다.
 - 같은 UTC 시각으로 만든 DB 암호문, 미디어 암호문과 `happygallery-<시각>.recovery.env`를 하나의 복구 단위로 취급한다. 두 archive는 평문 파일을 남기지 않고 각각 `gzip -> age`로 외부 mount에 기록하며 SHA-256 sidecar를 검증한다. 백업은 모든 archive와 sidecar를 먼저 완성하고 `recovery.env`를 마지막에 원자적으로 게시한다. 이 commit marker가 없으면 중단된 불완전 묶음으로 보고 rollout과 복원에 사용하지 않는다. rollout은 marker, DB·미디어, 호환 release metadata·manifest·runtime image metadata·image archive의 sidecar 전체를 검증한다. 서로 다른 시각의 DB와 미디어를 임의로 조합해 복원하지 않는다.
 - 외부 백업 위치는 `BACKUP_DIR`로 지정한 USB, NAS 또는 원격 mount다. marker 파일이 없으면 백업을 중단해 외부 매체가 빠진 상태에서 노트북의 빈 mountpoint에 기록하는 일을 막는다.
 - 복원은 app replica와 잔여 Pod가 모두 0인 상태에서만 수행한다. 묶음의 DB·미디어 checksum, age·gzip·tar 무결성, 호환 이미지 digest, Flyway version과 키링 fingerprint를 확인하고 DB와 `app-media` PVC를 같은 묶음으로 교체한 뒤 Redis 세션·처리율 상태를 비운다. 검증 중 하나라도 실패하면 app을 중지 상태로 유지한다.
@@ -84,8 +85,8 @@
 3. 스크립트는 현재 app digest와 같은 servlet 이미지를 `SERVER_PORT=0`, `MANAGEMENT_PORT=0`으로 기동하는 임시 유지보수 Job에만 새 active·구 previous 키를 주입한다. Job은 Service가 없고 기본 deny NetworkPolicy가 적용되어 외부 ingress를 받지 않는다. 회전 runner는 `data_key_rotation_lock` 단일 행을 트랜잭션 잠금으로 선점하고 600초 제한의 단일 트랜잭션에서 AES 재암호화, HMAC 재생성과 `phone_verifications` 전량 삭제를 수행한 뒤 context를 닫는다.
 4. Job이 성공한 뒤에만 runtime Secret을 새 active·구 previous 키로 전환하고 백업명·키 ID·비회원 토큰 제거 가능 시각을 annotation으로 기록한다. 이어 Redis를 비워 관리자·회원 세션과 처리율 제한 상태를 초기화하고 app을 새 keyring으로 기동한다. 진행 중이던 휴대폰 인증과 전체 로그인 세션이 무효화되는 점을 유지보수 공지에 포함한다.
 5. `provider_id_enc IS NULL`인 기존 소셜 계정은 previous HMAC 후보로 로그인할 때 active AES/HMAC으로 lazy backfill한다. 이 건수가 0이 되기 전에는 previous HMAC 키를 유지한다.
-6. 비회원 토큰 previous 키는 runtime 전환 시각부터 설정된 토큰 TTL에 1시간의 운영 여유를 더한 시각까지 유지한다. 기본 TTL 168시간에서는 최소 169시간이다.
-7. 운영자는 새 키 기준 백업과 복원 가능성을 확인한 뒤 [`finalize-data-key-rotation.sh`](../../../deploy/k3s/scripts/finalize-data-key-rotation.sh)를 실행한다. finalizer는 비회원 토큰 유예와 `provider_id_enc IS NULL` 0건을 확인하고 app을 다시 0 replica로 축소한 뒤 소셜 조건을 재검사해 runtime previous 키를 제거한다. 보존 중인 과거 백업에 필요한 키는 분리 복구 저장소에서 해당 백업과 같은 기간 유지한다.
+6. 비회원 토큰 previous 키는 runtime 전환 시각부터 일반·복구·결제 상태 조회 토큰 TTL 중 최댓값에 1시간의 운영 여유를 더한 시각까지 유지한다. 기본 결제 상태 조회 TTL 720시간에서는 최소 721시간이다. 이 키는 결제 prepare의 비회원 인증 증거도 서명하므로, 회전 경계 전에 준비되어 아직 fulfillment 가능한 결제 시도가 남아 있으면 기간이 지나도 제거하지 않는다.
+7. 운영자는 새 키 기준 백업과 복원 가능성을 확인한 뒤 [`finalize-data-key-rotation.sh`](../../../deploy/k3s/scripts/finalize-data-key-rotation.sh)를 실행한다. finalizer는 비회원 토큰 유예, `provider_id_enc IS NULL` 0건, 회전 경계 전 fulfillment 가능 비회원 결제 0건을 확인하고 app을 다시 0 replica로 축소한 뒤 같은 조건을 재검사해 runtime previous 키를 제거한다. 보존 중인 과거 백업에 필요한 키는 분리 복구 저장소에서 해당 백업과 같은 기간 유지한다.
 
 스크립트는 runtime Secret의 `runtime-transitioned`, `completed`, `finalized` phase annotation으로 같은 target 키에 대한 재실행과 finalization 조건을 구분한다. 회전 또는 검증이 실패하면 새·구 키를 모두 보존하고 app을 0 replica로 유지한다. 트랜잭션 롤백 여부, MySQL 상태와 백업 복원 필요성을 확인하기 전에는 정상 app을 다시 기동하거나 previous 키를 제거하지 않는다.
 
@@ -123,7 +124,7 @@
 - Traefik 전달 헤더 기준, ingress·Prometheus만 허용하는 Actuator NetworkPolicy
 - 저장소 밖 env와 HTTPS webhook URL 파일에서 runtime Secret을 생성·교체하는 절차
 - commit SHA 이미지 build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback
-- 6시간 간격 `age` 암호화 off-device MySQL·상품 이미지 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 DB·미디어 복원·Redis 초기화 절차
+- 6시간 간격 app 쓰기 중단 후 `age` 암호화 off-device MySQL·상품 이미지 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 DB·미디어 복원·Redis 초기화 절차
 - 백업 성공 heartbeat와 systemd 실패 HTTPS webhook
 - active/previous AES·HMAC keyring, 키 ID가 포함된 암호문, 단일 트랜잭션 회전 실행기와 소셜 provider ID lazy backfill
 - app 중지·백업·Redis 초기화를 포함한 `rotate-data-keys.sh`, 유예 조건 확인 뒤 previous 키를 제거하는 `finalize-data-key-rotation.sh`

@@ -89,7 +89,9 @@ export function MyBookingDetailPage() {
               가능한 다른 슬롯으로 즉시 변경합니다. 변경 후에는 현재 예약 상세가 새 슬롯 기준으로 갱신됩니다.
             </p>
             <RescheduleForm
+              classId={booking.classId}
               currentSlotId={booking.slotId}
+              currentStartAt={booking.startAt}
               onReschedule={(newSlotId) => rescheduleMyBooking(booking.bookingId, newSlotId)}
               onSuccess={() => {
                 void refetch();

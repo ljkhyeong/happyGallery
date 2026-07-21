@@ -1,5 +1,10 @@
 import { api } from "@/shared/api";
-import type { BookingDetailResponse, RescheduleResponse, CancelResponse } from "@/shared/types";
+import type {
+  BookingDetailResponse,
+  RescheduleResponse,
+  CancelResponse,
+  PublicSlotResponse,
+} from "@/shared/types";
 
 export function fetchBooking(bookingId: number, token: string): Promise<BookingDetailResponse> {
   return api<BookingDetailResponse>(`/bookings/${bookingId}`, {
@@ -17,6 +22,13 @@ export function rescheduleBooking(
     headers: { "X-Access-Token": token },
     body: { newSlotId },
   });
+}
+
+export function fetchRescheduleSlots(
+  classId: number,
+  date: string,
+): Promise<PublicSlotResponse[]> {
+  return api<PublicSlotResponse[]>("/slots", { params: { classId, date } });
 }
 
 export function cancelBooking(bookingId: number, token: string): Promise<CancelResponse> {

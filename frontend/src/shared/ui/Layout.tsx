@@ -141,16 +141,45 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <footer className="app-footer text-center py-4 small">
+      <footer className="app-footer py-4 small">
         <Container style={{ maxWidth: 1100 }}>
-          <div className="app-footer-brand">happyGallery</div>
-          {workshop?.addressLine1 && (
-            <div className="app-footer-contact">
-              {[workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" ")}
-              {workshop.phone && ` · ${workshop.phone}`}
+          <div className="app-footer-grid">
+            <div>
+              <div className="app-footer-brand">happyGallery</div>
+              {workshop?.introduction && (
+                <p className="app-footer-introduction">{workshop.introduction}</p>
+              )}
             </div>
-          )}
-          <span>&copy; {new Date().getFullYear()} 손으로 만든 작품과 공방의 시간을 전합니다.</span>
+            <div className="app-footer-business">
+              <strong>{workshop?.name ?? "해피갤러리"}</strong>
+              {workshop?.businessRegistrationNumber && (
+                <span>사업자등록번호 {workshop.businessRegistrationNumber}</span>
+              )}
+              {workshop?.representativeName && <span>대표자 {workshop.representativeName}</span>}
+              {workshop?.mailOrderRegistrationNumber && (
+                <span>통신판매업 신고번호 {workshop.mailOrderRegistrationNumber}</span>
+              )}
+              {workshop?.addressLine1 && (
+                <span>{[workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" ")}</span>
+              )}
+              <div className="app-footer-contact">
+                {workshop?.phone && (
+                  <a href={`tel:${workshop.phone.replace(/\D/g, "")}`}>{workshop.phone}</a>
+                )}
+                {workshop?.email && <a href={`mailto:${workshop.email}`}>{workshop.email}</a>}
+                {workshop?.kakaoTalkId && <span>카카오톡 {workshop.kakaoTalkId}</span>}
+                {workshop?.naverTalkEnabled && <span>원데이클래스·단체수업: 네이버톡톡</span>}
+              </div>
+            </div>
+            <nav className="app-footer-links" aria-label="정책 및 사업자 정보">
+              <Link to="/terms">이용약관</Link>
+              <Link to="/privacy">개인정보처리방침</Link>
+              <Link to="/business-info">사업자 정보</Link>
+            </nav>
+          </div>
+          <div className="app-footer-copyright">
+            &copy; {new Date().getFullYear()} {workshop?.name ?? "해피갤러리"}
+          </div>
         </Container>
       </footer>
     </div>

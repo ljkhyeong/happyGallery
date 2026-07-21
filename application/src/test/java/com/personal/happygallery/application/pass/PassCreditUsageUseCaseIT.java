@@ -73,7 +73,6 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -223,35 +222,6 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(7);
             softly.assertThat(slotRepository.findById(perfumeSlot.getId()).orElseThrow().getBookedCount())
                     .isEqualTo(1);
-        });
-    }
-
-    @DisplayName("정규 공예 8회권 예약은 향수 원데이 클래스 슬롯으로 변경할 수 없다")
-    @Test
-    void reschedule_regularCraftPassBooking_toPerfumeClass_returns422WithoutMutation() throws Exception {
-        Slot originalSlot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
-        Long bookingId = createPassBooking(originalSlot.getId());
-        BookingClass perfumeClass = classRepository.save(defaultBookingClass());
-        Slot perfumeSlot = slotRepository.save(
-                slot(perfumeClass, FUTURE.plusDays(1), FUTURE.plusDays(1).plusHours(2)));
-
-        mockMvc.perform(patch("/api/v1/me/bookings/{id}/reschedule", bookingId)
-                        .with(csrf())
-                        .cookie(sessionCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"newSlotId\":" + perfumeSlot.getId() + "}"))
-                .andExpect(status().isUnprocessableContent())
-                .andExpect(jsonPath("$.code").value("PASS_NOT_APPLICABLE"));
-
-        assertSoftly(softly -> {
-            softly.assertThat(bookingRepository.findById(bookingId).orElseThrow().getSlot().getId())
-                    .isEqualTo(originalSlot.getId());
-            softly.assertThat(slotRepository.findById(originalSlot.getId()).orElseThrow().getBookedCount())
-                    .isEqualTo(1);
-            softly.assertThat(slotRepository.findById(perfumeSlot.getId()).orElseThrow().getBookedCount())
-                    .isZero();
-            softly.assertThat(passPurchaseRepository.findById(pass.getId()).orElseThrow().getRemainingCredits())
-                    .isEqualTo(7);
         });
     }
 
@@ -407,6 +377,10 @@ class PassCreditUsageUseCaseIT {
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         Long bookingId = createPassBooking(slot.getId());
+        LocalDateTime now = LocalDateTime.now(clock);
+        jdbcTemplate.update(
+                "UPDATE slots SET start_at = ?, end_at = ? WHERE id = ?",
+                now.minusHours(2), now, slot.getId());
 
         mockMvc.perform(post("/api/v1/admin/bookings/{id}/no-show", bookingId)
                         .header("X-Admin-Key", ADMIN_KEY))
@@ -422,6 +396,29 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(ledgers).hasSize(1);
             softly.assertThat(ledgers.getFirst().getType()).isEqualTo(PassLedgerType.USE);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
+        });
+    }
+
+    @DisplayName("수업 종료 전에는 노쇼 처리할 수 없다")
+    @Test
+    void mark_no_show_before_class_end_returns_400() throws Exception {
+        Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Long bookingId = createPassBooking(slot.getId());
+
+        mockMvc.perform(post("/api/v1/admin/bookings/{id}/no-show", bookingId)
+                        .header("X-Admin-Key", ADMIN_KEY))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+
+        assertSoftly(softly -> {
+            softly.assertThat(bookingRepository.findById(bookingId))
+                    .hasValueSatisfying(booking -> softly.assertThat(booking.getStatus())
+                            .isEqualTo(BookingStatus.BOOKED));
+            softly.assertThat(passLedgerRepository.findByPassPurchaseId(pass.getId()))
+                    .singleElement()
+                    .satisfies(ledger -> softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.USE));
+            softly.assertThat(passPurchaseRepository.findById(pass.getId()).orElseThrow().getRemainingCredits())
+                    .isEqualTo(7);
         });
     }
 

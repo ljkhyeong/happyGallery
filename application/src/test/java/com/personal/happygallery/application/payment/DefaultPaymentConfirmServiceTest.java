@@ -32,7 +32,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class DefaultPaymentConfirmServiceTest {
 
-    private static final ConfirmCommand COMMAND = new ConfirmCommand(
+    private static final ConfirmCommand COMMAND = ConfirmCommand.trustedRecovery(
             "payment-key", "order-id", 10_000L, AuthContext.guest());
 
     @Mock PaymentPort paymentPort;
@@ -130,7 +130,7 @@ class DefaultPaymentConfirmServiceTest {
     @Test
     void confirm_stalePgFailure_returnsLatestCompletedResult() {
         PgConfirmationRequired required = paidConfirmationRequired();
-        ConfirmResult completed = new ConfirmResult(PaymentContext.ORDER, 10L, null);
+        ConfirmResult completed = new ConfirmResult(PaymentContext.ORDER, 10L, null, false);
         when(transactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
         when(paymentPort.confirm("payment-key", "order-id", 10_000L, "order-id"))
                 .thenReturn(PaymentConfirmResult.failure("PG 거절"));
@@ -148,7 +148,7 @@ class DefaultPaymentConfirmServiceTest {
         PgConfirmationRequired required = paidConfirmationRequired();
         ReadyForFulfillment ready = new ReadyForFulfillment(
                 1L, "order-id", 10_000L, "confirmed-key");
-        ConfirmResult completed = new ConfirmResult(PaymentContext.ORDER, 10L, null);
+        ConfirmResult completed = new ConfirmResult(PaymentContext.ORDER, 10L, null, false);
         when(transactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
         when(paymentPort.confirm("payment-key", "order-id", 10_000L, "order-id"))
                 .thenReturn(PaymentConfirmResult.success("confirmed-key", "CARD", "approved-at"));

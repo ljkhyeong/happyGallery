@@ -188,8 +188,9 @@ class PaymentConfirmRecoveryUseCaseIT {
         double metricBefore = meterRegistry
                 .counter("happygallery.payment.confirm.reconciliation_required")
                 .count();
-        ConfirmCommand command = new ConfirmCommand(
-                "manual-reconciliation-payment-key", prepared.orderId(), prepared.amount(), prepared.auth());
+        ConfirmCommand command = ConfirmCommand.customerRequest(
+                "manual-reconciliation-payment-key", prepared.orderId(), prepared.amount(),
+                prepared.auth(), null);
 
         assertThatThrownBy(() -> confirmUseCase.confirm(command))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
@@ -254,8 +255,9 @@ class PaymentConfirmRecoveryUseCaseIT {
                     assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.FAILED);
                     assertThat(attempt.getPayloadEnc()).isNull();
                 });
-        assertThatThrownBy(() -> confirmUseCase.confirm(new ConfirmCommand(
-                "reconciliation-failed-key", prepared.orderId(), prepared.amount(), prepared.auth())))
+        assertThatThrownBy(() -> confirmUseCase.confirm(ConfirmCommand.customerRequest(
+                "reconciliation-failed-key", prepared.orderId(), prepared.amount(),
+                prepared.auth(), null)))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_FAILED));
         verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
@@ -272,7 +274,8 @@ class PaymentConfirmRecoveryUseCaseIT {
                 new BookingPayload(user.getId(), null, null, null, 999_991L, 999_992L, null),
                 auth));
         transactionService.resolveConfirmationStep(
-                new ConfirmCommand(null, prepared.orderId(), prepared.amount(), auth));
+                ConfirmCommand.customerRequest(
+                        null, prepared.orderId(), prepared.amount(), auth, prepared.statusToken()));
         Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow().getId();
         jdbcTemplate.update(
                 "UPDATE payment_attempt SET created_at = ?, processing_at = ? WHERE id = ?",
@@ -441,7 +444,8 @@ class PaymentConfirmRecoveryUseCaseIT {
 
     private PgConfirmationRequired beginConfirm(PreparedPayment prepared, String paymentKey) {
         return (PgConfirmationRequired) transactionService.resolveConfirmationStep(
-                new ConfirmCommand(paymentKey, prepared.orderId(), prepared.amount(), prepared.auth()));
+                ConfirmCommand.customerRequest(
+                        paymentKey, prepared.orderId(), prepared.amount(), prepared.auth(), null));
     }
 
     private Long approve(PreparedPayment prepared, String paymentKey) {

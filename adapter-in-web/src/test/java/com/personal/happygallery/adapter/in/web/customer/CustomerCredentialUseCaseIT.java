@@ -36,6 +36,7 @@ import tools.jackson.databind.ObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -178,6 +179,36 @@ class CustomerCredentialUseCaseIT {
         credentialScopes.add(new CredentialScope(
                 socialUser.getId(), resetUser.getCredentialVersion()));
         login(email, RESET_PASSWORD);
+    }
+
+    @Test
+    @DisplayName("소셜 계정 연결을 해제하면 자격 버전을 올리고 기존 회원 세션을 모두 폐기한다")
+    void unlinkSocialAccountRevokesAllSessions() throws Exception {
+        String email = "social-unlink@example.com";
+        CustomerTestHelper customerHelper =
+                new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader);
+        Cookie firstSession = customerHelper.signupAndGetSessionCookie(email, "01056781234");
+        User user = userReader.findByEmail(email).orElseThrow();
+        long oldCredentialVersion = user.getCredentialVersion();
+        credentialScopes.add(new CredentialScope(user.getId(), oldCredentialVersion));
+        socialAuth.linkSocialAccount(new SocialAuthUseCase.SocialLinkCommand(
+                user.getId(), oldCredentialVersion, SocialProvider.GOOGLE, "unlink-google-id"));
+        Cookie secondSession = login(email, CURRENT_PASSWORD);
+
+        mockMvc.perform(delete("/api/v1/me/social-accounts/google")
+                        .with(csrf())
+                        .cookie(firstSession))
+                .andExpect(status().isNoContent());
+
+        assertThat(sessionRepository.findByPrincipalName(
+                principalName(user.getId(), oldCredentialVersion))).isEmpty();
+        mockMvc.perform(get("/api/v1/me").cookie(firstSession))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/me").cookie(secondSession))
+                .andExpect(status().isUnauthorized());
+        assertThat(userReader.findById(user.getId()).orElseThrow().getCredentialVersion())
+                .isEqualTo(oldCredentialVersion + 1);
+        assertThat(socialAuth.listLinkedProviders(user.getId())).isEmpty();
     }
 
     private Cookie login(String email, String password) throws Exception {

@@ -445,6 +445,10 @@
           "cancelPolicy" : {
             "$ref" : "#/components/schemas/BookingCancelPolicyResponse"
           },
+          "classId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "className" : {
             "type" : "string"
           },
@@ -697,6 +701,10 @@
           "productName" : {
             "type" : "string"
           },
+          "productType" : {
+            "enum" : [ "READY_STOCK", "MADE_TO_ORDER" ],
+            "type" : "string"
+          },
           "qty" : {
             "format" : "int32",
             "type" : "integer"
@@ -903,8 +911,11 @@
       },
       "ConfirmPaymentResponse" : {
         "properties" : {
+          "accessRecoveryRequired" : {
+            "type" : "boolean"
+          },
           "accessToken" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "context" : {
             "enum" : [ "ORDER", "BOOKING", "PASS" ],
@@ -912,9 +923,10 @@
           },
           "domainId" : {
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           }
         },
+        "required" : [ "accessRecoveryRequired", "accessToken", "context", "domainId" ],
         "type" : "object"
       },
       "CreateClassRequest" : {
@@ -1524,6 +1536,21 @@
         },
         "type" : "object"
       },
+      "MadeToOrderConsent" : {
+        "properties" : {
+          "agreedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "disclosure" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "MarkPickupReadyRequest" : {
         "properties" : {
           "pickupDeadlineAt" : {
@@ -1628,6 +1655,10 @@
           },
           "cancelPolicy" : {
             "$ref" : "#/components/schemas/BookingCancelPolicyResponse"
+          },
+          "classId" : {
+            "format" : "int64",
+            "type" : "integer"
           },
           "className" : {
             "type" : "string"
@@ -1800,10 +1831,19 @@
       },
       "NotificationResponse" : {
         "properties" : {
-          "channel" : {
+          "aggregateId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "aggregateType" : {
+            "type" : [ "string", "null" ]
+          },
+          "deliveredAt" : {
+            "format" : "date-time",
             "type" : "string"
           },
           "eventType" : {
+            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
             "type" : "string"
           },
           "id" : {
@@ -1815,16 +1855,10 @@
           },
           "readAt" : {
             "format" : "date-time",
-            "type" : "string"
-          },
-          "sentAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "status" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           }
         },
+        "required" : [ "aggregateId", "aggregateType", "deliveredAt", "eventType", "id", "read", "readAt" ],
         "type" : "object"
       },
       "OffsetPageAdminBookingSearchRow" : {
@@ -2022,6 +2056,12 @@
               },
               "type" : "array"
             },
+            "madeToOrderConsent" : {
+              "type" : "boolean"
+            },
+            "madeToOrderConsentVersion" : {
+              "type" : "string"
+            },
             "name" : {
               "type" : "string"
             },
@@ -2044,6 +2084,12 @@
       },
       "OrderPricePolicyResponse" : {
         "properties" : {
+          "madeToOrderConsentText" : {
+            "type" : "string"
+          },
+          "madeToOrderConsentVersion" : {
+            "type" : "string"
+          },
           "shippingFee" : {
             "format" : "int64",
             "type" : "integer"
@@ -2115,6 +2161,24 @@
           },
           "type" : "object"
         } ]
+      },
+      "PassPaymentPolicyResponse" : {
+        "properties" : {
+          "totalCredits" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalPrice" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "validityDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "totalCredits", "totalPrice", "validityDays" ],
+        "type" : "object"
       },
       "PassRefundResponse" : {
         "properties" : {
@@ -2200,6 +2264,74 @@
         },
         "type" : "object"
       },
+      "PaymentStatusRecoveryResponse" : {
+        "properties" : {
+          "expiresAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "payments" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PaymentSummary"
+            },
+            "type" : "array"
+          },
+          "statusToken" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "expiresAt", "payments", "statusToken" ],
+        "type" : "object"
+      },
+      "PaymentStatusResponse" : {
+        "properties" : {
+          "accessRecoveryRequired" : {
+            "type" : "boolean"
+          },
+          "accessToken" : {
+            "type" : [ "string", "null" ]
+          },
+          "amount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "context" : {
+            "enum" : [ "ORDER", "BOOKING", "PASS" ],
+            "type" : "string"
+          },
+          "domainId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "status" : {
+            "enum" : [ "READY", "CONFIRMING", "RETRYABLE", "COMPLETED", "FAILED", "REVIEW_REQUIRED", "REFUNDING", "REFUNDED", "SUPPORT_REQUIRED", "EXPIRED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "accessRecoveryRequired", "accessToken", "amount", "context", "domainId", "status" ],
+        "type" : "object"
+      },
+      "PaymentSummary" : {
+        "properties" : {
+          "amount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "context" : {
+            "enum" : [ "ORDER", "BOOKING", "PASS" ],
+            "type" : "string"
+          },
+          "orderId" : {
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "READY", "CONFIRMING", "RETRYABLE", "COMPLETED", "FAILED", "REVIEW_REQUIRED", "REFUNDING", "REFUNDED", "SUPPORT_REQUIRED", "EXPIRED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "context", "orderId", "status" ],
+        "type" : "object"
+      },
       "PeriodSalesSummary" : {
         "properties" : {
           "avgOrderValue" : {
@@ -2274,8 +2406,12 @@
           },
           "orderId" : {
             "type" : "string"
+          },
+          "statusToken" : {
+            "type" : [ "string", "null" ]
           }
         },
+        "required" : [ "amount", "context", "orderId", "statusToken" ],
         "type" : "object"
       },
       "PreparedBookingPayload" : {
@@ -2290,6 +2426,9 @@
             "depositAmount" : {
               "format" : "int64",
               "type" : "integer"
+            },
+            "guestVerificationProof" : {
+              "type" : "string"
             },
             "name" : {
               "type" : "string"
@@ -2312,9 +2451,6 @@
             "userId" : {
               "format" : "int64",
               "type" : "integer"
-            },
-            "verificationCode" : {
-              "type" : "string"
             }
           },
           "type" : "object"
@@ -2356,11 +2492,17 @@
               "enum" : [ "SHIPPING", "PICKUP" ],
               "type" : "string"
             },
+            "guestVerificationProof" : {
+              "type" : "string"
+            },
             "items" : {
               "items" : {
                 "$ref" : "#/components/schemas/PreparedOrderItem"
               },
               "type" : "array"
+            },
+            "madeToOrderConsent" : {
+              "$ref" : "#/components/schemas/MadeToOrderConsent"
             },
             "name" : {
               "type" : "string"
@@ -2378,9 +2520,6 @@
             "userId" : {
               "format" : "int64",
               "type" : "integer"
-            },
-            "verificationCode" : {
-              "type" : "string"
             }
           },
           "type" : "object"
@@ -2602,6 +2741,22 @@
         "type" : "object"
       },
       "RecoverGuestRecordsRequest" : {
+        "properties" : {
+          "phone" : {
+            "minLength" : 1,
+            "pattern" : "^01[0-9]{8,9}$",
+            "type" : "string"
+          },
+          "verificationCode" : {
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$",
+            "type" : "string"
+          }
+        },
+        "required" : [ "phone", "verificationCode" ],
+        "type" : "object"
+      },
+      "RecoverPaymentStatusesRequest" : {
         "properties" : {
           "phone" : {
             "minLength" : 1,
@@ -2927,6 +3082,28 @@
         },
         "type" : "object"
       },
+      "SocialAccountAuthorizationResponse" : {
+        "properties" : {
+          "authorizationUrl" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "authorizationUrl" ],
+        "type" : "object"
+      },
+      "SocialAccountsResponse" : {
+        "properties" : {
+          "linkedProviders" : {
+            "items" : {
+              "enum" : [ "GOOGLE", "NAVER" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "linkedProviders" ],
+        "type" : "object"
+      },
       "StatusCount" : {
         "properties" : {
           "count" : {
@@ -2969,6 +3146,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "count" ],
         "type" : "object"
       },
       "UpdateBookingArrearsRequest" : {
@@ -3135,6 +3313,31 @@
             "minLength" : 0,
             "type" : "string"
           },
+          "businessRegistrationNumber" : {
+            "pattern" : "^\\d{3}-\\d{2}-\\d{5}$",
+            "type" : "string"
+          },
+          "email" : {
+            "format" : "email",
+            "maxLength" : 254,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "introduction" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "kakaoTalkId" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "mailOrderRegistrationNumber" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
           "mapUrl" : {
             "maxLength" : 500,
             "minLength" : 0,
@@ -3144,6 +3347,9 @@
             "maxLength" : 100,
             "minLength" : 0,
             "type" : "string"
+          },
+          "naverTalkEnabled" : {
+            "type" : "boolean"
           },
           "parkingInfo" : {
             "maxLength" : 1000,
@@ -3157,6 +3363,11 @@
           },
           "postalCode" : {
             "maxLength" : 20,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "representativeName" : {
+            "maxLength" : 100,
             "minLength" : 0,
             "type" : "string"
           }
@@ -3195,11 +3406,29 @@
           "businessHours" : {
             "type" : "string"
           },
+          "businessRegistrationNumber" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "introduction" : {
+            "type" : "string"
+          },
+          "kakaoTalkId" : {
+            "type" : "string"
+          },
+          "mailOrderRegistrationNumber" : {
+            "type" : "string"
+          },
           "mapUrl" : {
             "type" : "string"
           },
           "name" : {
             "type" : "string"
+          },
+          "naverTalkEnabled" : {
+            "type" : "boolean"
           },
           "parkingInfo" : {
             "type" : "string"
@@ -3208,6 +3437,9 @@
             "type" : "string"
           },
           "postalCode" : {
+            "type" : "string"
+          },
+          "representativeName" : {
             "type" : "string"
           },
           "updatedAt" : {
@@ -3945,7 +4177,7 @@
     },
     "/api/v1/admin/inquiries" : {
       "get" : {
-        "operationId" : "list_6",
+        "operationId" : "list_5",
         "parameters" : [ {
           "in" : "query",
           "name" : "cursor",
@@ -5040,7 +5272,7 @@
     },
     "/api/v1/admin/qna" : {
       "get" : {
-        "operationId" : "list_5",
+        "operationId" : "list_4",
         "parameters" : [ {
           "in" : "query",
           "name" : "productId",
@@ -5716,6 +5948,34 @@
         "tags" : [ "class-controller" ]
       }
     },
+    "/api/v1/guest-records/payment-status-recovery" : {
+      "post" : {
+        "operationId" : "recoverGuestPaymentStatuses",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RecoverPaymentStatusesRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PaymentStatusRecoveryResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "guest-record-recovery-controller" ]
+      }
+    },
     "/api/v1/guest-records/recovery" : {
       "post" : {
         "operationId" : "recover",
@@ -6139,7 +6399,7 @@
     },
     "/api/v1/me/notifications" : {
       "get" : {
-        "operationId" : "list_4",
+        "operationId" : "listMyNotifications",
         "parameters" : [ {
           "in" : "query",
           "name" : "page",
@@ -6179,7 +6439,7 @@
     },
     "/api/v1/me/notifications/read-all" : {
       "patch" : {
-        "operationId" : "markAllAsRead",
+        "operationId" : "markAllMyNotificationsAsRead",
         "responses" : {
           "200" : {
             "description" : "OK"
@@ -6190,7 +6450,7 @@
     },
     "/api/v1/me/notifications/unread-count" : {
       "get" : {
-        "operationId" : "unreadCount",
+        "operationId" : "getMyUnreadNotificationCount",
         "responses" : {
           "200" : {
             "content" : {
@@ -6208,7 +6468,7 @@
     },
     "/api/v1/me/notifications/{id}/read" : {
       "patch" : {
-        "operationId" : "markAsRead",
+        "operationId" : "markMyNotificationAsRead",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -6497,6 +6757,71 @@
         "tags" : [ "me-product-qna-controller" ]
       }
     },
+    "/api/v1/me/social-accounts" : {
+      "get" : {
+        "operationId" : "getMySocialAccounts",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SocialAccountsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-social-account-controller" ]
+      }
+    },
+    "/api/v1/me/social-accounts/{provider}" : {
+      "delete" : {
+        "operationId" : "unlinkMySocialAccount",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "provider",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "google", "naver" ],
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "me-social-account-controller" ]
+      }
+    },
+    "/api/v1/me/social-accounts/{provider}/authorization" : {
+      "post" : {
+        "operationId" : "startMySocialAccountLink",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "provider",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "google", "naver" ],
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SocialAccountAuthorizationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-social-account-controller" ]
+      }
+    },
     "/api/v1/media/images/{fileName}" : {
       "get" : {
         "operationId" : "get_2",
@@ -6723,7 +7048,15 @@
     },
     "/api/v1/payments/confirm" : {
       "post" : {
-        "operationId" : "confirm",
+        "operationId" : "confirmPayment",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Payment-Status-Token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -6749,9 +7082,27 @@
         "tags" : [ "payment-controller" ]
       }
     },
+    "/api/v1/payments/pass-policy" : {
+      "get" : {
+        "operationId" : "getPassPaymentPolicy",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PassPaymentPolicyResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "payment-query-controller" ]
+      }
+    },
     "/api/v1/payments/prepare" : {
       "post" : {
-        "operationId" : "prepare",
+        "operationId" : "preparePayment",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -6775,6 +7126,39 @@
           }
         },
         "tags" : [ "payment-controller" ]
+      }
+    },
+    "/api/v1/payments/{orderId}" : {
+      "get" : {
+        "operationId" : "getPaymentStatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "orderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Payment-Status-Token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PaymentStatusResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "payment-query-controller" ]
       }
     },
     "/api/v1/products" : {

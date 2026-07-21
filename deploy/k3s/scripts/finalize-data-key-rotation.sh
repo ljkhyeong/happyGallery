@@ -20,6 +20,7 @@ annotation() {
         phase) path='happygallery\.io/key-rotation-phase' ;;
         target) path='happygallery\.io/key-rotation-target-key-id' ;;
         guest-until) path='happygallery\.io/guest-previous-valid-until-epoch' ;;
+        guest-proof-cutover) path='happygallery\.io/guest-proof-previous-issued-before-epoch' ;;
         finalize-replicas) path='happygallery\.io/key-finalization-original-replicas' ;;
         *) die "알 수 없는 key rotation annotation입니다: $name" ;;
     esac
@@ -31,6 +32,27 @@ pending_social_accounts() {
     kube -n "$NAMESPACE" exec mysql-0 -- sh -ec \
         'exec mysql -N -s -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e \
           "SELECT COUNT(*) FROM user_social_accounts WHERE provider_id_enc IS NULL"'
+}
+
+pending_payment_owner_hmacs() {
+    target_key_id=$1
+    query="SELECT COUNT(*) FROM payment_attempt
+           WHERE owner_phone_hmac IS NOT NULL
+             AND (owner_phone_hmac_key_id IS NULL OR owner_phone_hmac_key_id <> '$target_key_id')"
+    kube -n "$NAMESPACE" exec mysql-0 -- sh -ec \
+        'exec mysql -N -s -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "$1"' sh "$query"
+}
+
+pending_guest_payment_proofs() {
+    cutover_epoch=$1
+    query="SET time_zone = '+00:00';
+           SELECT COUNT(*) FROM payment_attempt
+            WHERE owner_phone_hmac IS NOT NULL
+              AND payload_enc IS NOT NULL
+              AND created_at < FROM_UNIXTIME($cutover_epoch)
+              AND status IN ('PENDING','PROCESSING','RETRYABLE','APPROVED','RECONCILIATION_REQUIRED')"
+    kube -n "$NAMESPACE" exec mysql-0 -- sh -ec \
+        'exec mysql -N -s -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "$1"' sh "$query"
 }
 
 kube -n "$NAMESPACE" get deployment app >/dev/null
@@ -88,11 +110,24 @@ printf '%s' "$guest_previous_valid_until" | grep -Eq '^[1-9][0-9]*$' \
 now_epoch=$(date +%s)
 [ "$now_epoch" -ge "$guest_previous_valid_until" ] \
     || die "기존 비회원 토큰 보존기한이 지나지 않았습니다: not-before-epoch=$guest_previous_valid_until"
+guest_proof_cutover=$(annotation guest-proof-cutover)
+printf '%s' "$guest_proof_cutover" | grep -Eq '^[1-9][0-9]*$' \
+    || die "비회원 결제 인증 증거 회전 경계 annotation이 올바르지 않습니다."
 
 pending=$(pending_social_accounts)
 printf '%s' "$pending" | grep -Eq '^[0-9]+$' || die "소셜 provider ID 백필 건수를 확인할 수 없습니다."
 [ "$pending" -eq 0 ] \
     || die "provider_id_enc가 없는 소셜 계정이 $pending 건 남아 previous HMAC 키를 제거할 수 없습니다."
+pending_payment_hmacs=$(pending_payment_owner_hmacs "$target_key_id")
+printf '%s' "$pending_payment_hmacs" | grep -Eq '^[0-9]+$' \
+    || die "이전 키 비회원 결제 휴대폰 HMAC 건수를 확인할 수 없습니다."
+[ "$pending_payment_hmacs" -eq 0 ] \
+    || die "이전 키 비회원 결제 휴대폰 HMAC이 $pending_payment_hmacs 건 남아 previous HMAC 키를 제거할 수 없습니다. 결제 보존 배치 완료 후 다시 실행하세요."
+pending_guest_proofs=$(pending_guest_payment_proofs "$guest_proof_cutover")
+printf '%s' "$pending_guest_proofs" | grep -Eq '^[0-9]+$' \
+    || die "이전 guest 키로 발급된 결제 인증 증거 건수를 확인할 수 없습니다."
+[ "$pending_guest_proofs" -eq 0 ] \
+    || die "이전 guest 키가 필요한 미완료 비회원 결제가 $pending_guest_proofs 건 남아 키를 제거할 수 없습니다. 먼저 결제 복구·대사를 완료하세요."
 
 finalization_started=false
 on_finalization_error() {
@@ -131,6 +166,12 @@ wait_for_no_pods "$NAMESPACE" 'app.kubernetes.io/name=app' 120
 pending=$(pending_social_accounts)
 [ "$pending" -eq 0 ] \
     || die "app 중지 후 provider_id_enc NULL 행이 발견되어 previous 키 제거를 중단합니다: $pending"
+pending_payment_hmacs=$(pending_payment_owner_hmacs "$target_key_id")
+[ "$pending_payment_hmacs" -eq 0 ] \
+    || die "app 중지 후 이전 키 비회원 결제 휴대폰 HMAC이 발견되어 previous 키 제거를 중단합니다: $pending_payment_hmacs"
+pending_guest_proofs=$(pending_guest_payment_proofs "$guest_proof_cutover")
+[ "$pending_guest_proofs" -eq 0 ] \
+    || die "app 중지 후 이전 guest 키가 필요한 미완료 비회원 결제가 발견되어 previous 키 제거를 중단합니다: $pending_guest_proofs"
 
 empty_encoded=$(base64_value '')
 finalized_at_epoch=$(date +%s)

@@ -2,6 +2,7 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.pass.PassPriceProperties;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
@@ -11,15 +12,19 @@ import com.personal.happygallery.application.payment.port.in.PaymentPayload.Orde
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareCommand;
+import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
+import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
@@ -27,6 +32,8 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,12 +54,15 @@ class PaymentPrepareUseCaseTest {
 
     @Autowired PaymentPrepareUseCase prepareUseCase;
     @Autowired PaymentAttemptReaderPort attemptReader;
+    @Autowired PaymentStatusQueryUseCase statusQueryUseCase;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired UserStorePort userStorePort;
+    @Autowired PhoneVerificationStorePort phoneVerificationStorePort;
     @Autowired PassPriceProperties passPriceProperties;
+    @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
 
     @BeforeEach
@@ -87,6 +97,7 @@ class PaymentPrepareUseCaseTest {
 
         assertSoftly(softly -> {
             softly.assertThat(order.amount()).isEqualTo(58_000L);
+            softly.assertThat(order.statusToken()).isNull();
             softly.assertThat(booking.amount()).isEqualTo(5_000L);
             softly.assertThat(pass.amount()).isEqualTo(passPriceProperties.totalPrice());
             softly.assertThat(attemptReader.findByOrderIdExternal(order.orderId()))
@@ -95,6 +106,40 @@ class PaymentPrepareUseCaseTest {
                         softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PENDING);
                     });
         });
+    }
+
+    @DisplayName("비회원 prepare는 인증 코드를 한 번 소비하고 결제 상태 토큰을 발급한다")
+    @Test
+    void prepare_guestIssuesPaymentStatusToken() {
+        Product product = productStorePort.save(readyStockProduct("비회원 결제 상품", 29_000L));
+        inventoryStorePort.save(inventory(product, 1));
+        saveVerification("01012341234", "123456");
+
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        null, "01012341234", "123456", "비회원",
+                        List.of(new OrderItemRef(product.getId(), 1))),
+                AuthContext.guest()));
+
+        var status = statusQueryUseCase.getStatus(
+                prepared.orderId(), AuthContext.guest(), prepared.statusToken());
+        assertSoftly(softly -> {
+            softly.assertThat(prepared.statusToken()).isNotBlank();
+            softly.assertThat(status.status())
+                    .isEqualTo(PaymentStatusQueryUseCase.CustomerPaymentStatus.READY);
+            softly.assertThat(status.amount()).isEqualTo(29_000L);
+        });
+        assertThatThrownBy(() -> statusQueryUseCase.getStatus(
+                prepared.orderId(), AuthContext.guest(), "wrong-token"))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        null, "01012341234", "123456", "비회원",
+                        List.of(new OrderItemRef(product.getId(), 1))),
+                AuthContext.guest())))
+                .isInstanceOf(PhoneVerificationFailedException.class);
     }
 
     @DisplayName("직접 주문 prepare는 판매 중지 상품을 결제 대상으로 확정하지 않는다")
@@ -162,5 +207,12 @@ class PaymentPrepareUseCaseTest {
                         List.of(new OrderItemRef(lowStockProduct.getId(), 2))),
                 auth)))
                 .isInstanceOf(InventoryNotEnoughException.class);
+    }
+
+    private void saveVerification(String phone, String code) {
+        PhoneVerification verification = new PhoneVerification(
+                phone, code, LocalDateTime.now(clock).plusMinutes(5));
+        verification.markDelivered();
+        phoneVerificationStorePort.save(verification);
     }
 }

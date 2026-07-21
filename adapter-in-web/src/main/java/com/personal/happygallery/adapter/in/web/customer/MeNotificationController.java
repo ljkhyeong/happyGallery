@@ -4,6 +4,7 @@ import com.personal.happygallery.application.notification.port.in.NotificationQu
 import com.personal.happygallery.adapter.in.web.customer.dto.NotificationResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.UnreadCountResponse;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +25,7 @@ public class MeNotificationController {
     }
 
     @GetMapping
+    @Operation(operationId = "listMyNotifications")
     public List<NotificationResponse> list(@RequestParam(defaultValue = "0") int page,
                                            @RequestParam(defaultValue = "20") int size,
                                            @AuthenticationPrincipal CustomerPrincipal customer) {
@@ -33,18 +35,21 @@ public class MeNotificationController {
     }
 
     @GetMapping("/unread-count")
+    @Operation(operationId = "getMyUnreadNotificationCount")
     public UnreadCountResponse unreadCount(@AuthenticationPrincipal CustomerPrincipal customer) {
         long count = notificationQuery.countUnread(customer.userId(), null);
         return new UnreadCountResponse(count);
     }
 
     @PatchMapping("/{id}/read")
+    @Operation(operationId = "markMyNotificationAsRead")
     public void markAsRead(@PathVariable Long id,
                            @AuthenticationPrincipal CustomerPrincipal customer) {
         notificationQuery.markAsRead(id, customer.userId(), null);
     }
 
     @PatchMapping("/read-all")
+    @Operation(operationId = "markAllMyNotificationsAsRead")
     public void markAllAsRead(@AuthenticationPrincipal CustomerPrincipal customer) {
         notificationQuery.markAllAsRead(customer.userId(), null);
     }

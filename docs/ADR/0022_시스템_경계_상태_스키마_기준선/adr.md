@@ -135,6 +135,7 @@
   - `user_id`, `guest_id` 중 정확히 하나만 존재하도록 `chk_orders_exactly_one_owner` `CHECK` 제약으로 강제한다.
   - `access_token VARCHAR(64)` — SHA-256 hex 해시 저장
   - `status`, `total_amount`, `shipping_fee`, `paid_at`, `approval_deadline_at`, `bundle_id nullable`, `payment_key nullable`, `version`
+  - `made_to_order_consent_version`, `made_to_order_consent_disclosure`, `made_to_order_consent_at` nullable — 주문제작 상품 결제 전 별도 고지·동의 스냅샷
   - `total_amount`는 상품 합계와 배송비를 포함한다. 배송비는 prepare 당시 서버 정책을 `shipping_fee`에 스냅샷으로 저장하고 픽업은 0원이다.
 - `order_items`
   - `id`, `order_id`, `product_id`, `product_name`, `qty`, `unit_price`
@@ -184,8 +185,8 @@
 #### 공방 프로필
 
 - `workshop_profiles`
-  - `id=1`, `name`, `phone nullable`, `postal_code nullable`, `address_line1 nullable`, `address_line2 nullable`, `business_hours nullable`, `map_url nullable`, `parking_info nullable`, `updated_at`
-  - 단일 행 `CHECK(id=1)`로 공방 안내를 관리한다. 공개 API는 같은 프로필을 반환하고 관리자 API만 수정한다.
+  - `id=1`, `name`, `phone nullable`, `postal_code nullable`, `address_line1 nullable`, `address_line2 nullable`, `business_hours nullable`, `map_url nullable`, `parking_info nullable`, `business_registration_number nullable`, `representative_name nullable`, `email nullable`, `mail_order_registration_number nullable`, `introduction nullable`, `kakao_talk_id nullable`, `naver_talk_enabled`, `updated_at`
+  - 단일 행 `CHECK(id=1)`로 방문 안내와 공개 사업자 정보를 함께 관리한다. 공개 API는 같은 프로필을 반환하고 관리자 API만 수정한다.
 
 #### 주문·예약 소유자 제약 배포
 
@@ -238,7 +239,7 @@ HAVING COUNT(*) > 1;
 #### 알림 outbox
 
 - `notification_outbox`
-  - `id`, 수신자 식별자, `event_type`, `idempotency_key`, `status`, 재시도 시각과 횟수
+  - `id`, 수신자 식별자, `event_type`, `idempotency_key`, `status`, 재시도 시각과 횟수, `processed_at`, `read_at`
   - `processing_token`, `locked_at`, `version`으로 재선점 전 실행의 오래된 결과 반영을 차단한다.
 
 #### 8회권
@@ -263,8 +264,12 @@ HAVING COUNT(*) > 1;
 - `cart_merge_requests(created_at, user_id, idempotency_key)` 보존 기간 만료 삭제
 - `inventory(product_id, version)`
 - `inventory_adjustments(product_id, adjusted_at, id)` 최근 수동 조정 이력 조회
-- `notification_log(user_id, sent_at DESC)`
-- `notification_log(guest_id, sent_at DESC)`
+- `notification_outbox(user_id, status, processed_at DESC, id DESC)` 회원 알림함 조회
+- `notification_outbox(guest_id, status, processed_at DESC, id DESC)` 수신자별 발송 완료 조회
+- `notification_outbox(status, processed_at, id)` 발송 완료 보존 정리
+- `notification_log(sent_at, id)` 채널 감사 로그 보존 정리
+- `notification_log(user_id, event_type, status, sent_at)` 회원 알림 중복 확인
+- `notification_log(guest_id, event_type, status, sent_at)` 비회원 알림 중복 확인
 - `refunds(status, created_at)`
 - `refunds(status, next_attempt_at, created_at)`
 - `refunds(status, processing_at, created_at)`

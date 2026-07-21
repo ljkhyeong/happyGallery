@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.out.persistence.payment;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
+import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,6 +32,21 @@ public interface PaymentAttemptRepository
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select attempt from PaymentAttempt attempt where attempt.orderIdExternal = :orderIdExternal")
     Optional<PaymentAttempt> findByOrderIdExternalForUpdate(@Param("orderIdExternal") String orderIdExternal);
+
+    @Override
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select attempt
+            from PaymentAttempt attempt
+            where attempt.ownerUserId is null
+              and attempt.ownerPhoneHmac in :phoneHmacCandidates
+              and (attempt.status not in :terminalStatuses or attempt.createdAt >= :terminalCutoff)
+            order by attempt.id
+            """)
+    List<PaymentAttempt> findGuestRecoveryCandidatesForUpdate(
+            @Param("phoneHmacCandidates") List<String> phoneHmacCandidates,
+            @Param("terminalStatuses") List<PaymentAttemptStatus> terminalStatuses,
+            @Param("terminalCutoff") LocalDateTime terminalCutoff);
 
     @Override
     @Query(value = """
@@ -90,7 +106,10 @@ public interface PaymentAttemptRepository
             WHERE status IN ('CONFIRMED', 'FAILED', 'COMPENSATED', 'CANCELED')
               AND created_at <= :createdBefore
               AND id > :afterId
-              AND (payload_enc IS NOT NULL OR fulfilled_access_token_enc IS NOT NULL)
+              AND (payload_enc IS NOT NULL
+                   OR fulfilled_access_token_enc IS NOT NULL
+                   OR owner_phone_hmac IS NOT NULL
+                   OR status_access_token_hash IS NOT NULL)
             ORDER BY id
             LIMIT :limit
             """, nativeQuery = true)

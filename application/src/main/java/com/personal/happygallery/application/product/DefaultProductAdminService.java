@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
+import com.personal.happygallery.application.media.ImageMediaReferenceGuard;
 import com.personal.happygallery.application.product.port.out.InventoryAdjustmentHistoryPort;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
@@ -26,6 +27,7 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
     private final InventoryReaderPort inventoryReaderPort;
     private final InventoryAdjustmentHistoryPort adjustmentHistoryPort;
     private final InventoryService inventoryService;
+    private final ImageMediaReferenceGuard imageMediaReferenceGuard;
     private final Clock clock;
 
     public DefaultProductAdminService(ProductStorePort productStorePort,
@@ -33,12 +35,14 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
                                       InventoryReaderPort inventoryReaderPort,
                                       InventoryAdjustmentHistoryPort adjustmentHistoryPort,
                                       InventoryService inventoryService,
+                                      ImageMediaReferenceGuard imageMediaReferenceGuard,
                                       Clock clock) {
         this.productStorePort = productStorePort;
         this.productReaderPort = productReaderPort;
         this.inventoryReaderPort = inventoryReaderPort;
         this.adjustmentHistoryPort = adjustmentHistoryPort;
         this.inventoryService = inventoryService;
+        this.imageMediaReferenceGuard = imageMediaReferenceGuard;
         this.clock = clock;
     }
 
@@ -53,6 +57,7 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
     @Override
     public ProductInventoryResult register(String name, ProductType type, String category, long price,
                                            int quantity, String description, String imageUrl) {
+        imageMediaReferenceGuard.validateAssignment(imageUrl);
         Product product = productStorePort.save(
                 new Product(name, type, category, price, description, imageUrl));
         Inventory inventory = inventoryService.create(product, quantity);
@@ -62,6 +67,7 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
     @Override
     public ProductInventoryResult update(Long productId, String name, String category, long price,
                                          String description, String imageUrl) {
+        imageMediaReferenceGuard.validateAssignment(imageUrl);
         Product product = productReaderPort.findById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
         product.updateDetails(name, category, price, description, imageUrl);

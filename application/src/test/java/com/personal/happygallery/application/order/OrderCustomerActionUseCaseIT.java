@@ -16,6 +16,8 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderDelayDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
@@ -25,6 +27,7 @@ import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -177,7 +180,11 @@ class OrderCustomerActionUseCaseIT {
         OrderService.OrderCreationResult result = orderService.createPaidOrder(
                 guest.getId(),
                 List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, price)));
+                        product.getId(), product.getName(), 1, price)),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                MadeToOrderConsent.current(LocalDateTime.of(2026, 1, 1, 0, 0)));
         return new GuestOrderFixture(product, result.order(), result.rawAccessToken());
     }
 

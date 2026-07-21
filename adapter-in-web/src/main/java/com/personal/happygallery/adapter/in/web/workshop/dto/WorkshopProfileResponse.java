@@ -12,6 +12,13 @@ public record WorkshopProfileResponse(
         String businessHours,
         String mapUrl,
         String parkingInfo,
+        String businessRegistrationNumber,
+        String representativeName,
+        String email,
+        String mailOrderRegistrationNumber,
+        String introduction,
+        String kakaoTalkId,
+        boolean naverTalkEnabled,
         LocalDateTime updatedAt
 ) {
     public static WorkshopProfileResponse from(WorkshopProfile profile) {
@@ -24,6 +31,13 @@ public record WorkshopProfileResponse(
                 profile.getBusinessHours(),
                 profile.getMapUrl(),
                 profile.getParkingInfo(),
+                profile.getBusinessRegistrationNumber(),
+                profile.getRepresentativeName(),
+                profile.getEmail(),
+                profile.getMailOrderRegistrationNumber(),
+                profile.getIntroduction(),
+                profile.getKakaoTalkId(),
+                profile.isNaverTalkEnabled(),
                 profile.getUpdatedAt());
     }
 }

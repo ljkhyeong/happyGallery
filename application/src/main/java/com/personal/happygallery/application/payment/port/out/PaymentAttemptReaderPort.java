@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.payment.port.out;
 
 import com.personal.happygallery.domain.payment.PaymentAttempt;
+import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,12 @@ public interface PaymentAttemptReaderPort {
     Optional<PaymentAttempt> findByOrderIdExternal(String orderIdExternal);
 
     Optional<PaymentAttempt> findByOrderIdExternalForUpdate(String orderIdExternal);
+
+    /** 휴대폰 소유 확인으로 복구할 결제 시도를 교착 방지를 위해 ID 순서로 잠근다. */
+    List<PaymentAttempt> findGuestRecoveryCandidatesForUpdate(
+            List<String> phoneHmacCandidates,
+            List<PaymentAttemptStatus> terminalStatuses,
+            LocalDateTime terminalCutoff);
 
     /** confirm 도중 중단된 PROCESSING/RETRYABLE/APPROVED 시도 ID를 오래된 순서로 조회한다. */
     List<Long> findConfirmRecoveryCandidateIds(LocalDateTime activityStaleBefore,

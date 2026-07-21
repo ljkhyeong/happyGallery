@@ -21,6 +21,7 @@ public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPor
     @Override Optional<Refund> findByBookingId(Long bookingId);
     @Override Optional<Refund> findByOrderId(Long orderId);
     @Override Optional<Refund> findByPassPurchaseId(Long passPurchaseId);
+    @Override Optional<Refund> findByPaymentAttemptId(Long paymentAttemptId);
     @Override List<Refund> findByPassPurchaseIdIn(List<Long> passPurchaseIds);
 
     @Query("""

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Form, Button, Row, Col, ListGroup, Badge } from "react-bootstrap";
 import { fetchProducts } from "@/features/product/api";
@@ -6,16 +6,34 @@ import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import type { OrderItemInput, ProductDetailResponse } from "@/shared/types";
+import type { ProductType } from "@/shared/types/product";
 
 interface Props {
   items: OrderItemInput[];
   onChange: (items: OrderItemInput[]) => void;
   onItemAmountChange: (amount: number) => void;
+  onProductTypesChange: (types: ProductType[]) => void;
 }
 
 const MAX_QTY = 99;
 
-export function OrderItemsForm({ items, onChange, onItemAmountChange }: Props) {
+function getProductTypes(
+  items: OrderItemInput[],
+  productsById: Map<number, ProductDetailResponse>,
+): ProductType[] {
+  return Array.from(new Set(
+    items
+      .map((item) => productsById.get(item.productId)?.type)
+      .filter((type): type is ProductType => type !== undefined),
+  ));
+}
+
+export function OrderItemsForm({
+  items,
+  onChange,
+  onItemAmountChange,
+  onProductTypesChange,
+}: Props) {
   const [selectedId, setSelectedId] = useState("");
   const [qty, setQty] = useState("1");
 
@@ -25,12 +43,17 @@ export function OrderItemsForm({ items, onChange, onItemAmountChange }: Props) {
     staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
-  const productMap = new Map<number, ProductDetailResponse>(
-    products?.map((p) => [p.id, p]) ?? [],
-  );
+  const productMap = useMemo(() => new Map<number, ProductDetailResponse>(
+    products?.map((product) => [product.id, product]) ?? [],
+  ), [products]);
 
   const qtyNum = Number(qty);
   const qtyValid = Number.isInteger(qtyNum) && qtyNum >= 1 && qtyNum <= MAX_QTY;
+
+  const updateItems = (nextItems: OrderItemInput[]) => {
+    onChange(nextItems);
+    onProductTypesChange(getProductTypes(nextItems, productMap));
+  };
 
   const addItem = () => {
     const pid = Number(selectedId);
@@ -38,26 +61,35 @@ export function OrderItemsForm({ items, onChange, onItemAmountChange }: Props) {
       const existing = items.find((i) => i.productId === pid);
       if (existing) {
         const newQty = Math.min(existing.qty + qtyNum, MAX_QTY);
-        onChange(items.map((i) => (i.productId === pid ? { ...i, qty: newQty } : i)));
+        updateItems(items.map((i) => (i.productId === pid ? { ...i, qty: newQty } : i)));
       } else {
-        onChange([...items, { productId: pid, qty: qtyNum }]);
+        updateItems([...items, { productId: pid, qty: qtyNum }]);
       }
       setQty("1");
     }
   };
 
   const removeItem = (productId: number) => {
-    onChange(items.filter((i) => i.productId !== productId));
+    updateItems(items.filter((i) => i.productId !== productId));
   };
 
   const totalAmount = items.reduce((sum, item) => {
     const product = productMap.get(item.productId);
     return sum + (product ? product.price * item.qty : 0);
   }, 0);
+  const selectedProductTypes = useMemo(
+    () => getProductTypes(items, productMap),
+    [items, productMap],
+  );
 
   useEffect(() => {
     onItemAmountChange(totalAmount);
   }, [onItemAmountChange, totalAmount]);
+
+  useEffect(() => {
+    if (!products) return;
+    onProductTypesChange(selectedProductTypes);
+  }, [onProductTypesChange, products, selectedProductTypes]);
 
   if (isLoading) return <LoadingSpinner text="상품 로딩..." />;
   if (error) return <ErrorAlert error={error} />;

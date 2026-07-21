@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
 import { sendVerification } from "./api";
@@ -28,6 +28,7 @@ export function PhoneVerificationStep({
   confirming = false,
   confirmDisabled = false,
 }: Props) {
+  const fieldId = useId();
   const [phone, setPhone] = useState(normalizePhone(initialPhone));
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
@@ -61,7 +62,7 @@ export function PhoneVerificationStep({
 
       <Row className="g-2 align-items-end mb-3">
         <Col xs={12} sm={8}>
-          <Form.Group controlId="verification-phone">
+          <Form.Group controlId={`${fieldId}-phone`}>
             <Form.Label>휴대폰 번호</Form.Label>
             <Form.Control
               value={phone}
@@ -94,7 +95,7 @@ export function PhoneVerificationStep({
         <>
           <Row className="g-2 align-items-end">
             <Col xs={12} sm={8}>
-              <Form.Group controlId="verification-code">
+              <Form.Group controlId={`${fieldId}-code`}>
                 <Form.Label>인증코드</Form.Label>
                 <Form.Control
                   value={code}

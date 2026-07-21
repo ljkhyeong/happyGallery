@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { trackClientEvent, trackGuestMemberCta } from "@/features/monitoring/api";
 import { GuestRecordRecoverySection } from "@/features/guest-recovery/GuestRecordRecoverySection";
+import { GuestPaymentStatusRecoverySection } from "@/features/guest-payment-recovery/GuestPaymentStatusRecoverySection";
 
 export function GuestLookupPage() {
   const location = useLocation();
@@ -34,7 +35,7 @@ export function GuestLookupPage() {
           <Badge bg="light" text="dark" className="mb-3">Guest Support Route</Badge>
           <h3 className="mb-2">비회원 조회 안내</h3>
           <p className="text-muted-soft mb-3">
-            비회원 조회는 이미 완료한 주문과 예약을 확인하는 보조 경로입니다.
+            비회원 조회는 완료한 주문·예약과 결제 도중 놓친 처리 결과를 확인하는 보조 경로입니다.
             반복 조회나 이후 관리가 필요하면 회원 전환 후 <strong>`/my`</strong>에서 이어서 보는 흐름을 권장합니다.
           </p>
           <div className="guest-route-note mb-0">
@@ -51,6 +52,8 @@ export function GuestLookupPage() {
       </Card>
 
       <GuestRecordRecoverySection />
+
+      <GuestPaymentStatusRecoverySection />
 
       <Row xs={1} md={2} className="g-3 mb-4">
         <Col>

@@ -7,6 +7,7 @@ import com.personal.happygallery.adapter.in.web.security.admin.AdminAuthenticati
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.customer.DiscardingOAuth2AuthorizedClientRepository;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialLoginAuthenticationHandler;
+import com.personal.happygallery.adapter.in.web.security.customer.SocialOAuth2AuthorizationRequestResolver;
 import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -123,6 +124,8 @@ public class SecurityConfig {
                                                     CustomerAuthUseCase customerAuthUseCase,
                                                     CookieCsrfTokenRepository csrfTokenRepository,
                                                     SocialLoginAuthenticationHandler socialLoginHandler,
+                                                    SocialOAuth2AuthorizationRequestResolver
+                                                            socialAuthorizationRequestResolver,
                                                     OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest>
                                                             socialOAuth2AccessTokenResponseClient,
                                                     @Qualifier("naverOAuth2UserService")
@@ -144,6 +147,7 @@ public class SecurityConfig {
                                 "/api/v1/payments/**",
                                 "/api/v1/monitoring/client-events",
                                 "/api/v1/guest-records/recovery",
+                                "/api/v1/guest-records/payment-status-recovery",
                                 "/api/v1/bookings/**",
                                 "/api/v1/orders/**",
                                 "/api/v1/products/**",
@@ -169,7 +173,8 @@ public class SecurityConfig {
                         .csrfTokenRepository(csrfTokenRepository))
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(endpoint -> endpoint
-                                .baseUri(SOCIAL_AUTHORIZATION_BASE_URI))
+                                .baseUri(SOCIAL_AUTHORIZATION_BASE_URI)
+                                .authorizationRequestResolver(socialAuthorizationRequestResolver))
                         .redirectionEndpoint(endpoint -> endpoint
                                 .baseUri(SOCIAL_CALLBACK_BASE_URI))
                         .tokenEndpoint(endpoint -> endpoint

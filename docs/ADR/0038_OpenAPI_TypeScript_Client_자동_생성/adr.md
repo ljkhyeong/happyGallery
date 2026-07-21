@@ -26,13 +26,14 @@
 - 생성 함수는 `generatedApiClient` custom mutator를 통해 기존 `api()`를 호출한다. 인증, CSRF, timeout, 오류 변환과 관측 동작은 바뀌지 않는다.
 - React Query hook은 생성하지 않는다. query key, cache, invalidation과 화면 흐름은 기존 feature code가 소유한다.
 - 생성 파일은 수동 편집하지 않고 프론트 독립 Docker build를 위해 Git에 커밋한다.
+- 여러 Orval 대상이 같은 `src/generated/api`를 사용하므로 생성 명령이 디렉터리를 시작 시 한 번만 비운다. 각 대상의 `clean`은 끄고 서로의 결과를 삭제하지 않게 한다.
 
 ### 3. 엔드포인트는 schema 정확성을 확인하며 전환한다
 
-- 첫 실사용 범위는 `GET /api/v1/products`, `GET /api/v1/products/categories`, `GET /api/v1/products/{id}`다.
+- 생성 client 실사용 범위는 공개 상품 조회, 회원 소셜 계정 관리, 회원 알림함, 고객 결제 상태·8회권 가격 정책 조회다. 기능 코드는 생성 함수를 얇게 감싸고 React Query 상태와 화면 흐름만 소유한다.
 - 연동 대상은 고유하고 안정적인 `operationId`를 사용하고, 응답의 필수값·nullable·enum을 OpenAPI에 정확히 표현한다.
 - 연동된 서버 request/response DTO는 생성 타입을 원본으로 사용한다. 화면 form state와 view model은 수동 타입으로 유지할 수 있다.
-- 결제 union payload, multipart, 관리자·비회원 인증 헤더 등은 생성 결과와 호출 옵션을 확인한 뒤 순차 전환한다.
+- 결제 `prepare`의 union payload와 multipart, 관리자 API는 생성 결과와 호출 옵션을 확인한 뒤 순차 전환한다. 단순 조회와 명시적으로 모델링된 비회원 인증 헤더는 schema가 정확하면 먼저 전환한다.
 
 ### 4. CI에서 생성물 drift를 차단한다
 

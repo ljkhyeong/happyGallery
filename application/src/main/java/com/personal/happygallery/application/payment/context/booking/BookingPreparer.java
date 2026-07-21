@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.payment.context.booking;
 
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.application.payment.GuestPaymentVerificationService;
 import com.personal.happygallery.application.payment.context.PaymentPreparer;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
@@ -22,9 +23,13 @@ import org.springframework.stereotype.Component;
 public class BookingPreparer implements PaymentPreparer {
 
     private final SlotReaderPort slotReader;
+    private final GuestPaymentVerificationService guestPaymentVerification;
 
-    public BookingPreparer(SlotReaderPort slotReader) {
+    public BookingPreparer(
+            SlotReaderPort slotReader,
+            GuestPaymentVerificationService guestPaymentVerification) {
         this.slotReader = slotReader;
+        this.guestPaymentVerification = guestPaymentVerification;
     }
 
     @Override
@@ -33,7 +38,7 @@ public class BookingPreparer implements PaymentPreparer {
     }
 
     @Override
-    public PreparedPayment prepare(PaymentPayload payload, AuthContext auth) {
+    public PreparedPayment prepare(String paymentOrderId, PaymentPayload payload, AuthContext auth) {
         if (!(payload instanceof BookingPayload bp)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "예약 결제 payload가 아닙니다.");
         }
@@ -45,7 +50,7 @@ public class BookingPreparer implements PaymentPreparer {
             if (!auth.isMember() || !auth.userId().equals(bp.userId())) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 사용 예약은 회원 인증이 필요합니다.");
             }
-            return new PreparedPayment(0L, PreparedBookingPayload.from(bp, 0L, 0L));
+            return new PreparedPayment(0L, PreparedBookingPayload.fromMember(bp, 0L, 0L));
         }
 
         if (bp.paymentMethod() == null) {
@@ -71,13 +76,17 @@ public class BookingPreparer implements PaymentPreparer {
         long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
         if (auth.isMember()) {
             return new PreparedPayment(
-                    depositAmount, PreparedBookingPayload.from(bp, depositAmount, balanceAmount));
+                    depositAmount, PreparedBookingPayload.fromMember(bp, depositAmount, balanceAmount));
         }
+        String phone = KoreanPhoneNumber.required(bp.phone());
+        String name = PersonalName.required(bp.name());
+        String guestVerificationProof = guestPaymentVerification.consumeAndIssue(
+                PaymentContext.BOOKING, paymentOrderId, phone, bp.verificationCode());
         PreparedBookingPayload prepared = new PreparedBookingPayload(
                 null,
-                KoreanPhoneNumber.required(bp.phone()),
-                bp.verificationCode(),
-                PersonalName.required(bp.name()),
+                phone,
+                guestVerificationProof,
+                name,
                 bp.slotId(),
                 null,
                 bp.paymentMethod(),

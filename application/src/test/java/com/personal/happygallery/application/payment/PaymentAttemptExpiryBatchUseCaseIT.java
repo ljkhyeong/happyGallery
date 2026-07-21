@@ -2,7 +2,6 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.batch.BatchResult;
-import com.personal.happygallery.application.batch.DefaultPersonalDataRetentionBatchService;
 import com.personal.happygallery.application.batch.PersonalDataRetentionBatchUseCase;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
@@ -17,6 +16,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareResult;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
+import com.personal.happygallery.application.token.GuestTokenProperties;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -56,6 +56,7 @@ class PaymentAttemptExpiryBatchUseCaseIT {
     @Autowired UserStorePort userStore;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired Clock clock;
+    @Autowired GuestTokenProperties guestTokenProperties;
     @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean PaymentProvider paymentProvider;
 
@@ -98,8 +99,8 @@ class PaymentAttemptExpiryBatchUseCaseIT {
             softly.assertThat(pending.getStatus()).isEqualTo(PaymentAttemptStatus.PENDING);
             softly.assertThat(pending.getPayloadEnc()).isNotBlank();
         });
-        assertThatThrownBy(() -> confirmUseCase.confirm(new ConfirmCommand(
-                "expired-payment-key", expired.orderId(), expired.amount(), auth)))
+        assertThatThrownBy(() -> confirmUseCase.confirm(ConfirmCommand.customerRequest(
+                "expired-payment-key", expired.orderId(), expired.amount(), auth, null)))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_ATTEMPT_EXPIRED));
         verifyNoInteractions(paymentProvider);
@@ -110,7 +111,7 @@ class PaymentAttemptExpiryBatchUseCaseIT {
     void cleanUpExpiredSensitiveData_preservesRecoverableRecords() {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime paymentCutoff = LocalDateTime.ofInstant(
-                clock.instant().minus(DefaultPersonalDataRetentionBatchService.PAYMENT_ATTEMPT_RETENTION),
+                clock.instant().minus(guestTokenProperties.accessExpiry()),
                 ZoneOffset.UTC);
         PaymentAttempt oldConfirmed = saveAttempt("old-payload");
         PaymentAttempt oldReconciliationRequired = saveAttempt("recovery-payload");
@@ -172,8 +173,8 @@ class PaymentAttemptExpiryBatchUseCaseIT {
     }
 
     private PaymentAttempt saveAttempt(String payload) {
-        return attemptStore.save(PaymentAttempt.start(
-                UUID.randomUUID().toString(), PaymentContext.PASS, 1_000L, payload));
+        return attemptStore.save(PaymentAttempt.startForMember(
+                UUID.randomUUID().toString(), PaymentContext.PASS, 1_000L, payload, 1L));
     }
 
     private void saveDeliveredVerification(String phone, String code, LocalDateTime expiresAt) {

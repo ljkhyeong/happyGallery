@@ -26,6 +26,8 @@ spring:
 app:
   admin:
     enable-api-key-auth: false
+  payment:
+    require-complete-business-profile: true
 
 logging:
   level:

@@ -26,7 +26,7 @@ public class PassPreparer implements PaymentPreparer {
     }
 
     @Override
-    public PreparedPayment prepare(PaymentPayload payload, AuthContext auth) {
+    public PreparedPayment prepare(String paymentOrderId, PaymentPayload payload, AuthContext auth) {
         if (!(payload instanceof PassPayload pp)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 결제 payload가 아닙니다.");
         }

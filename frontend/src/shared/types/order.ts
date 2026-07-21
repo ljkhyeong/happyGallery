@@ -20,6 +20,8 @@ export interface OrderDetailResponse {
 
 export interface OrderPricePolicyResponse {
   shippingFee: number;
+  madeToOrderConsentVersion: string;
+  madeToOrderConsentText: string;
 }
 
 export type OrderDelayDecision = "ACCEPT" | "REJECT";

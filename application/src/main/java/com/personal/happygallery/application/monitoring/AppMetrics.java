@@ -34,10 +34,18 @@ import org.springframework.stereotype.Component;
 @Component
 public class AppMetrics {
 
-    private static final List<String> MONITORED_RECOVERY_JOBS = List.of(
+    private static final List<String> MONITORED_BATCH_JOBS = List.of(
+            "order_auto_refund",
+            "pickup_expire",
+            "pass_expiry",
+            "pass_expiry_notification",
+            "pickup_deadline_reminder",
+            "booking_d1_reminder",
+            "booking_same_day_reminder",
             "refund_recovery",
             "payment_confirm_recovery",
-            "payment_attempt_expiry");
+            "payment_attempt_expiry",
+            "personal_data_retention");
 
     private final MeterRegistry registry;
     private final Counter guestClaimCompleted;
@@ -45,6 +53,9 @@ public class AppMetrics {
     private final Counter notificationOutboxFailed;
     private final Counter notificationLogPersistenceFailed;
     private final Counter customerSessionRevocationFailed;
+    private final Counter mediaStorageRefreshFailed;
+    private final AtomicLong mediaStorageBytes = new AtomicLong();
+    private final AtomicLong mediaStorageLastSuccessSeconds = new AtomicLong();
     private final ConcurrentMap<String, AtomicLong> batchLastSuccessSeconds = new ConcurrentHashMap<>();
 
     public AppMetrics(MeterRegistry registry) {
@@ -67,7 +78,18 @@ public class AppMetrics {
                         "happygallery.customer.session.revocation_failed")
                 .description("회원 자격 증명 변경 후 이전 버전 Redis 세션 폐기 실패")
                 .register(registry);
-        MONITORED_RECOVERY_JOBS.forEach(this::batchLastSuccess);
+        this.mediaStorageRefreshFailed = Counter.builder("happygallery.media.storage.refresh_failed")
+                .description("이미지 저장소 사용량 갱신 실패")
+                .register(registry);
+        Gauge.builder("happygallery.media.storage", mediaStorageBytes, AtomicLong::get)
+                .description("자가 호스팅 이미지 저장소 사용량")
+                .baseUnit("bytes")
+                .register(registry);
+        Gauge.builder("happygallery.media.storage.last_success", mediaStorageLastSuccessSeconds, AtomicLong::get)
+                .description("이미지 저장소 사용량을 마지막으로 정상 갱신한 Unix 시각")
+                .baseUnit("seconds")
+                .register(registry);
+        MONITORED_BATCH_JOBS.forEach(this::batchLastSuccess);
     }
 
     /**
@@ -108,6 +130,15 @@ public class AppMetrics {
     /** 자격 증명 변경 이후 이전 버전 Redis 회원 세션 삭제가 실패한 건수를 기록한다. */
     public void incrementCustomerSessionRevocationFailure() {
         customerSessionRevocationFailed.increment();
+    }
+
+    public void recordMediaStorageUsage(long bytes) {
+        mediaStorageBytes.set(bytes);
+        mediaStorageLastSuccessSeconds.set(Instant.now().getEpochSecond());
+    }
+
+    public void incrementMediaStorageRefreshFailure() {
+        mediaStorageRefreshFailed.increment();
     }
 
     /** 배치의 정상 또는 부분 실패 결과와 처리 건수를 기록한다. */

@@ -20,6 +20,12 @@ import {
   useFulfillmentSelection,
 } from "@/features/order/FulfillmentForm";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
+import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
+import {
+  isMadeToOrderConsentVersionMismatch,
+  useMadeToOrderConsent,
+} from "@/features/order/useMadeToOrderConsent";
+import type { ProductType } from "@/shared/types/product";
 
 type Step = "verify" | "items";
 const MAX_QTY = 99;
@@ -34,12 +40,16 @@ export function OrderCreatePage() {
   const [name, setName] = useState(user?.name ?? "");
   const [nameTouched, setNameTouched] = useState(false);
   const [items, setItems] = useState<OrderItemInput[]>([]);
+  const [selectedProductTypes, setSelectedProductTypes] = useState<ProductType[] | null>(null);
   const [itemAmount, setItemAmount] = useState(0);
   const [fulfillment, setFulfillment] = useFulfillmentSelection(
     user?.name ?? name,
     user?.phone ?? phone,
   );
   const normalizedName = name.trim();
+  const productTypesReady = selectedProductTypes !== null;
+  const requiresMadeToOrderConsent = selectedProductTypes?.includes("MADE_TO_ORDER") ?? false;
+  const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
 
   const prefilledProductId = Number(searchParams.get("productId"));
   const requestedQty = Number(searchParams.get("qty") ?? "1");
@@ -50,6 +60,7 @@ export function OrderCreatePage() {
   const shouldShowManualEntryGate = !user && !hasPrefilledItem && !manualEntryConfirmed;
 
   useEffect(() => {
+    setSelectedProductTypes(null);
     if (hasPrefilledItem) {
       setItems([{ productId: prefilledProductId, qty: normalizedPrefilledQty }]);
       setManualEntryConfirmed(true);
@@ -69,10 +80,14 @@ export function OrderCreatePage() {
       const payload: OrderPayload = user
         ? {
             type: "ORDER", userId: user.id, name: normalizedName || user.name, items,
+            madeToOrderConsent: consent.agreed,
+            madeToOrderConsentVersion: consent.version,
             ...fulfillmentPayload(fulfillment),
           }
         : {
             type: "ORDER", phone, verificationCode: code, name: normalizedName, items,
+            madeToOrderConsent: consent.agreed,
+            madeToOrderConsentVersion: consent.version,
             ...fulfillmentPayload(fulfillment),
           };
       await executePaymentFlow({
@@ -87,7 +102,9 @@ export function OrderCreatePage() {
         returnHint: { customerName: normalizedName, customerPhone: phone },
       });
     },
+    onError: consent.handleSubmissionError,
   });
+  const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(mutation.error);
 
   if (authLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -210,6 +227,7 @@ export function OrderCreatePage() {
                 items={items}
                 onChange={setItems}
                 onItemAmountChange={setItemAmount}
+                onProductTypesChange={setSelectedProductTypes}
               />
             </Card.Body>
           </Card>
@@ -231,12 +249,23 @@ export function OrderCreatePage() {
             </Card.Body>
           </Card>
 
-          <ErrorAlert error={mutation.error} />
+          <ErrorAlert error={consentVersionMismatch ? null : mutation.error} />
+          <MadeToOrderConsent
+            required={requiresMadeToOrderConsent}
+            policy={consent.policyQuery.data}
+            isLoading={consent.policyQuery.isLoading}
+            isFetching={consent.policyQuery.isFetching}
+            error={consent.policyQuery.error}
+            checked={consent.checked}
+            onChange={consent.setChecked}
+            versionMismatch={consent.versionMismatch}
+            refreshRequired={consent.refreshRequired}
+          />
 
           <Button
             variant="primary" size="lg" className="w-100"
-            disabled={!normalizedName || items.length === 0
-              || !isFulfillmentComplete(fulfillment) || mutation.isPending}
+            disabled={!normalizedName || items.length === 0 || !productTypesReady
+              || !isFulfillmentComplete(fulfillment) || !consent.ready || mutation.isPending}
             onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
             {mutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
           </Button>

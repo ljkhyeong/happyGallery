@@ -86,9 +86,15 @@ class KeyRotationUseCaseIT {
         Guest guest = guestRepository.save(new Guest(
                 oldEncryptor.encrypt("회전 비회원"), oldIndexer.index("회전 비회원"),
                 oldEncryptor.encrypt("01087654321"), oldIndexer.index("01087654321")));
-        PaymentAttempt attempt = paymentAttemptRepository.save(PaymentAttempt.start(
-                UUID.randomUUID().toString(), PaymentContext.PASS, 240_000L,
-                oldEncryptor.encrypt("{\"userId\":" + user.getId() + '}')));
+        String paymentPhone = "01022223333";
+        PaymentAttempt attempt = paymentAttemptRepository.save(PaymentAttempt.startForGuest(
+                UUID.randomUUID().toString(), PaymentContext.BOOKING, 10_000L,
+                oldEncryptor.encrypt("""
+                        {"type":"PREPARED_BOOKING","userId":null,"phone":"01022223333",
+                         "guestVerificationProof":"v1.proof.signature","name":"회전 비회원","slotId":1,"passId":null,
+                         "paymentMethod":"CARD","depositAmount":10000,"balanceAmount":90000}
+                        """),
+                oldIndexer.index(paymentPhone), "v1", "a".repeat(64)));
         LocalDateTime paidAt = LocalDateTime.of(2030, 1, 1, 10, 0);
         Order order = orderRepository.save(Order.forMember(
                 user.getId(), 50_000L, paidAt, paidAt.plusHours(24)));
@@ -118,6 +124,10 @@ class KeyRotationUseCaseIT {
             softly.assertThat(value("users", "email_enc", user.getId())).startsWith("hg:v2:");
             softly.assertThat(value("guests", "phone_enc", guest.getId())).startsWith("hg:v2:");
             softly.assertThat(value("payment_attempt", "payload_enc", attempt.getId())).startsWith("hg:v2:");
+            softly.assertThat(value("payment_attempt", "owner_phone_hmac", attempt.getId()))
+                    .isEqualTo(activeIndexKeyRing.index(paymentPhone));
+            softly.assertThat(value("payment_attempt", "owner_phone_hmac_key_id", attempt.getId()))
+                    .isEqualTo("v2");
             softly.assertThat(value("fulfillments", "shipping_address_enc", fulfillment.getId()))
                     .startsWith("hg:v2:");
             softly.assertThat(value("user_social_accounts", "provider_id_enc", encryptedSocial.getId()))

@@ -28,6 +28,11 @@ import {
   useFulfillmentSelection,
 } from "@/features/order/FulfillmentForm";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
+import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
+import {
+  isMadeToOrderConsentVersionMismatch,
+  useMadeToOrderConsent,
+} from "@/features/order/useMadeToOrderConsent";
 
 const MAX_QTY = 99;
 
@@ -49,6 +54,8 @@ export function ProductDetailPage() {
     enabled: validProductId,
     staleTime: PUBLIC_DATA_STALE_TIME,
   });
+  const requiresMadeToOrderConsent = product?.type === "MADE_TO_ORDER";
+  const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
 
   const orderMutation = useMutation({
     mutationFn: async () => {
@@ -58,6 +65,8 @@ export function ProductDetailPage() {
         userId: user.id,
         name: user.name,
         items: [{ productId, qty }],
+        madeToOrderConsent: consent.agreed,
+        madeToOrderConsentVersion: consent.version,
         ...fulfillmentPayload(fulfillment),
       };
       await executePaymentFlow({
@@ -70,7 +79,9 @@ export function ProductDetailPage() {
         returnHint: { customerName: user.name, customerPhone: user.phone ?? undefined },
       });
     },
+    onError: consent.handleSubmissionError,
   });
+  const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(orderMutation.error);
 
   if (!validProductId) return <NotFoundPage />;
   if (isLoading) return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -95,7 +106,7 @@ export function ProductDetailPage() {
         <span className="store-detail-breadcrumb-current">{product.name}</span>
       </div>
 
-      <Row className="g-5 align-items-start">
+      <Row className="gx-0 gy-4 gx-lg-5 align-items-start">
         <Col lg={7} className="anim-fade-up anim-delay-1">
           <Card className="store-detail-card border-0">
             <Card.Body className="p-0">
@@ -218,15 +229,26 @@ export function ProductDetailPage() {
                 </div>
               )}
 
-              <ErrorAlert error={orderMutation.error} />
+              <ErrorAlert error={consentVersionMismatch ? null : orderMutation.error} />
 
               {!authLoading && isAuthenticated ? (
                 <>
+                  <MadeToOrderConsent
+                    required={requiresMadeToOrderConsent}
+                    policy={consent.policyQuery.data}
+                    isLoading={consent.policyQuery.isLoading}
+                    isFetching={consent.policyQuery.isFetching}
+                    error={consent.policyQuery.error}
+                    checked={consent.checked}
+                    onChange={consent.setChecked}
+                    versionMismatch={consent.versionMismatch}
+                    refreshRequired={consent.refreshRequired}
+                  />
                   <Button
                     variant="dark"
                     size="lg"
                     className="w-100 mb-2 store-purchase-btn-primary"
-                    disabled={!canCheckout || orderMutation.isPending}
+                    disabled={!canCheckout || !consent.ready || orderMutation.isPending}
                     onClick={() => orderMutation.mutate()}
                   >
                     {orderMutation.isPending ? "PROCESSING..." : "BUY NOW"}

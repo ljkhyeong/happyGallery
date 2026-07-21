@@ -65,6 +65,17 @@ optional_secret_value() {
     [ -z "$encoded" ] || printf '%s' "$encoded" | base64 --decode
 }
 
+effective_app_config_value() {
+    key=$1
+    default_value=$2
+    value=$(optional_secret_value "$key")
+    if [ -z "$value" ]; then
+        value=$(kube -n "$NAMESPACE" get configmap app-config -o "jsonpath={.data.$key}")
+    fi
+    [ -n "$value" ] || value=$default_value
+    printf '%s' "$value"
+}
+
 rotation_phase() {
     kube -n "$NAMESPACE" get secret happygallery-app \
         -o 'jsonpath={.metadata.annotations.happygallery\.io/key-rotation-phase}'
@@ -386,13 +397,22 @@ EOF
     kube -n "$NAMESPACE" logs job/happygallery-data-key-rotation --tail=200
     cleanup_temporary_resources
 
-    guest_expiry_hours=$(optional_secret_value GUEST_TOKEN_EXPIRY_HOURS)
-    [ -n "$guest_expiry_hours" ] || guest_expiry_hours=168
-    printf '%s' "$guest_expiry_hours" | grep -Eq '^[1-9][0-9]{0,3}$' \
-        || die "GUEST_TOKEN_EXPIRY_HOURS는 1~9999 범위의 정수여야 합니다."
-    [ "$guest_expiry_hours" -ge 168 ] || guest_expiry_hours=168
+    guest_expiry_hours=$(effective_app_config_value GUEST_TOKEN_EXPIRY_HOURS 720)
+    recovery_expiry_hours=$(effective_app_config_value GUEST_TOKEN_RECOVERY_EXPIRY_HOURS 24)
+    for key_and_value in \
+        "GUEST_TOKEN_EXPIRY_HOURS|$guest_expiry_hours" \
+        "GUEST_TOKEN_RECOVERY_EXPIRY_HOURS|$recovery_expiry_hours"; do
+        key=${key_and_value%%|*}
+        value=${key_and_value#*|}
+        printf '%s' "$value" | grep -Eq '^[1-9][0-9]{0,3}$' \
+            || die "$key 값은 1~9999 범위의 정수여야 합니다."
+    done
+    guest_previous_ttl_hours=$guest_expiry_hours
+    for value in "$guest_expiry_hours" "$recovery_expiry_hours"; do
+        [ "$value" -le "$guest_previous_ttl_hours" ] || guest_previous_ttl_hours=$value
+    done
     transitioned_at_epoch=$(date +%s)
-    guest_previous_valid_until_epoch=$((transitioned_at_epoch + (guest_expiry_hours + 1) * 3600))
+    guest_previous_valid_until_epoch=$((transitioned_at_epoch + (guest_previous_ttl_hours + 1) * 3600))
     backup_name=$(basename -- "$fresh_backup")
 
     info "Job 성공 후 runtime Secret을 새 active/구 previous 키로 전환합니다."
@@ -403,9 +423,10 @@ EOF
     previous_hmac_encoded=$(base64_value "$source_key_id=$current_hmac_key")
     new_guest_encoded=$(base64_value "$new_guest_key")
     previous_guest_encoded=$(base64_value "$current_guest_key")
-    printf '{"metadata":{"annotations":{"happygallery.io/key-rotation-phase":"runtime-transitioned","happygallery.io/key-rotation-source-key-id":"%s","happygallery.io/key-rotation-target-key-id":"%s","happygallery.io/key-rotation-original-replicas":"%s","happygallery.io/key-rotation-backup":"%s","happygallery.io/guest-previous-valid-until-epoch":"%s"}},"data":{"FIELD_ENCRYPTION_KEY_ID":"%s","ENCRYPT_KEY":"%s","HMAC_KEY":"%s","PREVIOUS_ENCRYPT_KEYS":"%s","PREVIOUS_HMAC_KEYS":"%s","GUEST_TOKEN_HMAC_SECRET":"%s","GUEST_TOKEN_PREVIOUS_HMAC_SECRET":"%s"}}' \
+    printf '{"metadata":{"annotations":{"happygallery.io/key-rotation-phase":"runtime-transitioned","happygallery.io/key-rotation-source-key-id":"%s","happygallery.io/key-rotation-target-key-id":"%s","happygallery.io/key-rotation-original-replicas":"%s","happygallery.io/key-rotation-backup":"%s","happygallery.io/guest-previous-valid-until-epoch":"%s","happygallery.io/guest-proof-previous-issued-before-epoch":"%s"}},"data":{"FIELD_ENCRYPTION_KEY_ID":"%s","ENCRYPT_KEY":"%s","HMAC_KEY":"%s","PREVIOUS_ENCRYPT_KEYS":"%s","PREVIOUS_HMAC_KEYS":"%s","GUEST_TOKEN_HMAC_SECRET":"%s","GUEST_TOKEN_PREVIOUS_HMAC_SECRET":"%s"}}' \
         "$source_key_id" "$target_key_id" "$original_replicas" "$backup_name" \
-        "$guest_previous_valid_until_epoch" "$new_key_id_encoded" "$new_encrypt_encoded" \
+        "$guest_previous_valid_until_epoch" "$transitioned_at_epoch" \
+        "$new_key_id_encoded" "$new_encrypt_encoded" \
         "$new_hmac_encoded" "$previous_encrypt_encoded" "$previous_hmac_encoded" \
         "$new_guest_encoded" "$previous_guest_encoded" \
         | kube -n "$NAMESPACE" patch secret happygallery-app \

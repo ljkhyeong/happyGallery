@@ -134,17 +134,27 @@ public class Booking {
     }
 
     /**
-     * 예약 슬롯을 변경한다. 상태는 BOOKED를 유지한다.
+     * 같은 클래스의 슬롯으로 예약을 변경한다. 상태는 BOOKED를 유지한다.
      * 호출 후 저장 시 {@code @Version}으로 낙관적 락 충돌을 감지한다.
      */
     public void reschedule(Slot newSlot) {
         status.requireBooked();
+        if (!isSameBookingClass(newSlot)) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "같은 클래스의 슬롯으로만 예약을 변경할 수 있습니다.");
+        }
         if (isPassBooking()) {
             passPurchase.requireApplicableToClass(
                     newSlot.getBookingClass().getCategory(), newSlot.getBookingClass().isPassEligible());
         }
-        this.bookingClass = newSlot.getBookingClass();
         this.slot = newSlot;
+    }
+
+    private boolean isSameBookingClass(Slot newSlot) {
+        BookingClass newBookingClass = newSlot.getBookingClass();
+        return bookingClass == newBookingClass
+                || (bookingClass.getId() != null && bookingClass.getId().equals(newBookingClass.getId()));
     }
 
     /**
@@ -166,9 +176,12 @@ public class Booking {
                 && (balanceAmount == 0 || balanceStatus != BalanceStatus.PAID);
     }
 
-    /** 결석 처리. 크레딧은 예약 시 이미 소모되었으므로 상태만 변경. */
-    public void markNoShow() {
+    /** 수업 종료 후 결석 처리. 크레딧은 예약 시 이미 소모되었으므로 상태만 변경. */
+    public void markNoShow(LocalDateTime now) {
         status.requireBooked();
+        if (now.isBefore(slot.getEndAt())) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수업 종료 전에는 노쇼 처리할 수 없습니다.");
+        }
         this.status = BookingStatus.NO_SHOW;
     }
 

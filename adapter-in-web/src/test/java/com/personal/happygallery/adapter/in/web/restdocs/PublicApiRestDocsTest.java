@@ -8,6 +8,7 @@ import com.personal.happygallery.adapter.in.web.monitoring.ClientMonitoringContr
 import com.personal.happygallery.adapter.in.web.notice.NoticeController;
 import com.personal.happygallery.adapter.in.web.order.OrderController;
 import com.personal.happygallery.adapter.in.web.payment.PaymentController;
+import com.personal.happygallery.adapter.in.web.payment.PaymentQueryController;
 import com.personal.happygallery.adapter.in.web.product.ProductController;
 import com.personal.happygallery.adapter.in.web.product.ProductQnaController;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
@@ -26,6 +27,10 @@ import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.application.order.OrderPriceProperties;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentStatusRecoveryUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase.CustomerPaymentStatus;
+import com.personal.happygallery.application.pass.PassPriceProperties;
 import com.personal.happygallery.application.product.ProductFilter;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
@@ -60,6 +65,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 
 class PublicApiRestDocsTest extends RestDocsTestSupport {
 
@@ -77,6 +83,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     private OrderQueryUseCase orderQueryUseCase;
     private PaymentPrepareUseCase paymentPrepareUseCase;
     private PaymentConfirmUseCase paymentConfirmUseCase;
+    private PaymentStatusQueryUseCase paymentStatusQueryUseCase;
+    private PaymentStatusRecoveryUseCase paymentStatusRecoveryUseCase;
     private NoticeQueryUseCase noticeQueryUseCase;
     private ClientMonitoringUseCase clientMonitoringUseCase;
     private GuestRecordRecoveryUseCase guestRecordRecoveryUseCase;
@@ -97,6 +105,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         orderQueryUseCase = mock(OrderQueryUseCase.class);
         paymentPrepareUseCase = mock(PaymentPrepareUseCase.class);
         paymentConfirmUseCase = mock(PaymentConfirmUseCase.class);
+        paymentStatusQueryUseCase = mock(PaymentStatusQueryUseCase.class);
+        paymentStatusRecoveryUseCase = mock(PaymentStatusRecoveryUseCase.class);
         noticeQueryUseCase = mock(NoticeQueryUseCase.class);
         clientMonitoringUseCase = mock(ClientMonitoringUseCase.class);
         guestRecordRecoveryUseCase = mock(GuestRecordRecoveryUseCase.class);
@@ -132,9 +142,23 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new BookingCancelUseCase.CancelResult(booking, true, bookingRefund));
         when(orderQueryUseCase.getOrderByToken(eq(200L), any())).thenReturn(orderDetail);
         when(paymentPrepareUseCase.prepare(any()))
-                .thenReturn(new PaymentPrepareUseCase.PrepareResult("pay_20260501_0001", 39000L, PaymentContext.ORDER));
+                .thenReturn(new PaymentPrepareUseCase.PrepareResult(
+                        "pay_20260501_0001", 39000L, PaymentContext.ORDER, "payment-status-token"));
         when(paymentConfirmUseCase.confirm(any()))
-                .thenReturn(new PaymentConfirmUseCase.ConfirmResult(PaymentContext.ORDER, 200L, "guest-access-token"));
+                .thenReturn(new PaymentConfirmUseCase.ConfirmResult(
+                        PaymentContext.ORDER, 200L, "guest-access-token", false));
+        when(paymentStatusQueryUseCase.getStatus(any(), any(), any()))
+                .thenReturn(new PaymentStatusQueryUseCase.PaymentStatusResult(
+                        PaymentContext.ORDER, 39_000L, CustomerPaymentStatus.REFUNDING, null, null, false));
+        when(paymentStatusRecoveryUseCase.recover(eq("01012345678"), eq("123456")))
+                .thenReturn(new PaymentStatusRecoveryUseCase.RecoveryResult(
+                        "recovered-payment-status-token",
+                        Instant.parse("2026-05-31T00:00:00Z"),
+                        List.of(new PaymentStatusRecoveryUseCase.RecoveredPayment(
+                                "pay_20260501_0001",
+                                PaymentContext.ORDER,
+                                39_000L,
+                                CustomerPaymentStatus.REFUNDING))));
         when(noticeQueryUseCase.listAll()).thenReturn(List.of(notice));
         when(noticeQueryUseCase.getDetail(1L)).thenReturn(notice);
         when(guestRecordRecoveryUseCase.recover(eq("01012345678"), eq("123456")))
@@ -150,9 +174,13 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                 LocalDateTime.parse("2026-05-07T12:00:00")))));
         WorkshopProfile workshop = new WorkshopProfile("해피갤러리");
         workshop.update(
-                "해피갤러리", "02-123-4567", "01234",
-                "서울시 종로구 공방길 1", "2층", "화-일 10:00-19:00",
-                "https://map.example.com/happygallery", "근처 공영주차장 이용",
+                "해피갤러리", "010-9635-5608", null,
+                "충북 충주시 계명대로 161", "1층", null,
+                null, null, "303-11-87052",
+                null, null, null,
+                "해피갤러리는 빈티지 가죽공예, 레진아트, 플루이드아트, 톨페인팅, 냅킨아트, "
+                        + "양말목공예, 하바리움, 위빙, POP 원데이클래스부터 자격증반, 창업반을 운영합니다.",
+                "ssim1972", true,
                 LocalDateTime.of(2026, 5, 1, 21, 0));
         when(workshopProfileUseCase.get()).thenReturn(workshop);
 
@@ -166,9 +194,11 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                         rateLimitGuard, RestDocsFixtures.clock()),
                 new OrderController(orderQueryUseCase, new OrderPriceProperties(3_000L)),
                 new PaymentController(paymentPrepareUseCase, paymentConfirmUseCase, rateLimitGuard),
+                new PaymentQueryController(paymentStatusQueryUseCase, new PassPriceProperties(240_000L)),
                 new NoticeController(noticeQueryUseCase),
                 new WorkshopProfileController(workshopProfileUseCase),
-                new GuestRecordRecoveryController(guestRecordRecoveryUseCase, rateLimitGuard),
+                new GuestRecordRecoveryController(
+                        guestRecordRecoveryUseCase, paymentStatusRecoveryUseCase, rateLimitGuard),
                 new ClientMonitoringController(clientMonitoringUseCase));
     }
 
@@ -221,12 +251,20 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("공개 공방 방문 정보 API를 문서화한다")
+    @DisplayName("공개 공방과 사업자 정보 API를 문서화한다")
     void get_workshop_profile() throws Exception {
         mockMvc.perform(get("/api/v1/workshop"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("해피갤러리"))
-                .andExpect(jsonPath("$.addressLine1").value("서울시 종로구 공방길 1"));
+                .andExpect(jsonPath("$.phone").value("010-9635-5608"))
+                .andExpect(jsonPath("$.addressLine1").value("충북 충주시 계명대로 161"))
+                .andExpect(jsonPath("$.addressLine2").value("1층"))
+                .andExpect(jsonPath("$.businessRegistrationNumber").value("303-11-87052"))
+                .andExpect(jsonPath("$.representativeName").isEmpty())
+                .andExpect(jsonPath("$.email").isEmpty())
+                .andExpect(jsonPath("$.mailOrderRegistrationNumber").isEmpty())
+                .andExpect(jsonPath("$.kakaoTalkId").value("ssim1972"))
+                .andExpect(jsonPath("$.naverTalkEnabled").value(true));
     }
 
     @Test
@@ -288,7 +326,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void get_order_price_policy() throws Exception {
         mockMvc.perform(get("/api/v1/orders/policy"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.shippingFee").value(3000));
+                .andExpect(jsonPath("$.shippingFee").value(3000))
+                .andExpect(jsonPath("$.madeToOrderConsentVersion").value("2026-07-21-v1"))
+                .andExpect(jsonPath("$.madeToOrderConsentText").isNotEmpty());
     }
 
     @Test
@@ -306,6 +346,24 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("비회원 결제 상태 조회 권한 복구 API를 문서화한다")
+    void recover_guest_payment_statuses() throws Exception {
+        mockMvc.perform(post("/api/v1/guest-records/payment-status-recovery")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "phone": "01012345678",
+                                  "verificationCode": "123456"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.statusToken").value("recovered-payment-status-token"))
+                .andExpect(jsonPath("$.payments[0].orderId").value("pay_20260501_0001"))
+                .andExpect(jsonPath("$.payments[0].status").value("REFUNDING"));
+    }
+
+    @Test
     @DisplayName("결제 prepare API를 문서화한다")
     void prepare_payment() throws Exception {
         mockMvc.perform(post("/api/v1/payments/prepare")
@@ -320,11 +378,13 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                     "items": [],
                                     "cartCheckout": true,
                                     "fulfillmentType": "PICKUP",
-                                    "shippingAddress": null
+                                    "shippingAddress": null,
+                                    "madeToOrderConsent": false
                                   }
                                 }
                                 """))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"));
     }
 
     @Test
@@ -340,7 +400,28 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                   "amount": 39000
                                 }
                                 """))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"));
+    }
+
+    @Test
+    @DisplayName("소유권을 확인하는 결제 상태 조회 API를 문서화한다")
+    void get_payment_status() throws Exception {
+        mockMvc.perform(get("/api/v1/payments/{orderId}", "pay_20260501_0001")
+                .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.status").value("REFUNDING"));
+    }
+
+    @Test
+    @DisplayName("8회권 결제 정책 조회 API를 문서화한다")
+    void get_pass_payment_policy() throws Exception {
+        mockMvc.perform(get("/api/v1/payments/pass-policy"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalPrice").value(240000))
+                .andExpect(jsonPath("$.totalCredits").value(8))
+                .andExpect(jsonPath("$.validityDays").value(90));
     }
 
     @Test

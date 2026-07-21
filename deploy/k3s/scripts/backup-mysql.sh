@@ -16,6 +16,12 @@ marker=${BACKUP_TARGET_MARKER:-$BACKUP_DIR/.happygallery-off-device-backup-targe
 
 kube -n "$NAMESPACE" get pod mysql-0 >/dev/null
 kube -n "$NAMESPACE" wait --for=condition=Ready pod/mysql-0 --timeout=2m >/dev/null
+kube -n "$NAMESPACE" get deployment app >/dev/null
+original_app_replicas=$(kube -n "$NAMESPACE" get deployment app -o jsonpath='{.spec.replicas}')
+case "$original_app_replicas" in
+    0|1) ;;
+    *) die "백업은 단일 app replica 구성에서만 실행할 수 있습니다: $original_app_replicas" ;;
+esac
 
 timestamp=$(date -u '+%Y%m%dT%H%M%SZ')
 backup="$BACKUP_DIR/happygallery-$timestamp.sql.gz.age"
@@ -59,6 +65,18 @@ rm -f \
     "$recovery_metadata_tmp" "$recovery_metadata_tmp_checksum"
 rm -rf "$release_tmp"
 media_helper_started=false
+app_restore_required=false
+
+restore_app() {
+    [ "$app_restore_required" = true ] || return 0
+    info "백업 전 app replica를 복구합니다: $original_app_replicas"
+    kube -n "$NAMESPACE" scale deployment/app --replicas="$original_app_replicas" >/dev/null
+    if [ "$original_app_replicas" -eq 1 ]; then
+        kube -n "$NAMESPACE" rollout status deployment/app --timeout=8m
+    fi
+    app_restore_required=false
+}
+
 cleanup_partial_backup() {
     if [ "$media_helper_started" = true ]; then
         stop_media_helper
@@ -68,6 +86,7 @@ cleanup_partial_backup() {
         "$media_tmp" "$media_tmp_checksum" \
         "$recovery_metadata_tmp" "$recovery_metadata_tmp_checksum"
     rm -rf "$release_tmp"
+    restore_app
 }
 trap cleanup_partial_backup EXIT HUP INT TERM
 
@@ -150,6 +169,13 @@ previous_hmac_keys_sha256=$(secret_fingerprint PREVIOUS_HMAC_KEYS)
 guest_token_key_sha256=$(secret_fingerprint GUEST_TOKEN_HMAC_SECRET)
 guest_token_previous_key_sha256=$(secret_fingerprint GUEST_TOKEN_PREVIOUS_HMAC_SECRET)
 
+if [ "$original_app_replicas" -eq 1 ]; then
+    info "DB와 미디어를 같은 쓰기 중단 구간에 보관하기 위해 app을 0 replica로 축소합니다."
+    app_restore_required=true
+    kube -n "$NAMESPACE" scale deployment/app --replicas=0 >/dev/null
+    wait_for_no_pods "$NAMESPACE" 'app.kubernetes.io/name=app' 120
+fi
+
 info "MySQL 논리 무결성 검사를 실행합니다."
 kube -n "$NAMESPACE" exec mysql-0 -- sh -ec \
     'exec mysqlcheck --check --all-databases -uroot -p"$MYSQL_ROOT_PASSWORD"' >/dev/null
@@ -186,6 +212,7 @@ printf '%s  %s\n' "$(sha256_file "$media_tmp")" "$(basename -- "$media_backup")"
 chmod 600 "$media_tmp" "$media_tmp_checksum"
 stop_media_helper
 media_helper_started=false
+restore_app
 
 cat > "$recovery_metadata_tmp" <<EOF
 BACKUP_CREATED_AT=$timestamp

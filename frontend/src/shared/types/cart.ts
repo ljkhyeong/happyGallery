@@ -1,3 +1,5 @@
+import type { ProductType } from "./product";
+
 export interface CartItemResponse {
   productId: number;
   productName: string;
@@ -5,6 +7,7 @@ export interface CartItemResponse {
   qty: number;
   subtotal: number;
   available: boolean;
+  productType: ProductType;
 }
 
 export interface CartResponse {

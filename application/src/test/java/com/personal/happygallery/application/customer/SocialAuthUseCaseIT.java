@@ -3,6 +3,7 @@ package com.personal.happygallery.application.customer;
 import com.personal.happygallery.adapter.out.persistence.user.SocialAccountRepository;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLoginCommand;
+import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLinkCommand;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.SocialProvider;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -71,6 +73,31 @@ class SocialAuthUseCaseIT {
                 .isInstanceOf(HappyGalleryException.class)
                 .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
+    }
+
+    @DisplayName("로그인한 회원은 소셜 계정을 명시적으로 연결하고 마지막 로그인 수단은 해제하지 못한다")
+    @Test
+    void linksAndSafelyUnlinksSocialAccounts() {
+        var naverLogin = socialAuth.socialLogin(new SocialLoginCommand(
+                SocialProvider.NAVER,
+                "naver-account-id",
+                "social-link@example.com",
+                "소셜 연결 사용자"));
+
+        socialAuth.linkSocialAccount(new SocialLinkCommand(
+                naverLogin.user().getId(),
+                naverLogin.user().getCredentialVersion(),
+                SocialProvider.GOOGLE,
+                "google-account-id"));
+        socialAuth.unlinkSocialAccount(naverLogin.user().getId(), SocialProvider.NAVER);
+
+        assertThat(socialAuth.listLinkedProviders(naverLogin.user().getId()))
+                .containsExactly(SocialProvider.GOOGLE);
+        assertThatThrownBy(() -> socialAuth.unlinkSocialAccount(
+                naverLogin.user().getId(), SocialProvider.GOOGLE))
+                .isInstanceOf(HappyGalleryException.class)
+                .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.LAST_LOGIN_METHOD_REQUIRED);
     }
 
 }

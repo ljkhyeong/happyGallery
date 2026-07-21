@@ -19,6 +19,8 @@ public interface RefundPort {
 
     Optional<Refund> findByPassPurchaseId(Long passPurchaseId);
 
+    Optional<Refund> findByPaymentAttemptId(Long paymentAttemptId);
+
     List<Refund> findByPassPurchaseIdIn(List<Long> passPurchaseIds);
 
     List<Refund> findActionRequired(int limit);

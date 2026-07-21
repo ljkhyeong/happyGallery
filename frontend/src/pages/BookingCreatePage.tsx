@@ -12,7 +12,7 @@ import {
   executePaymentFlow,
   type BookingPayload,
 } from "@/features/payment";
-import { formatDateTime } from "@/shared/lib";
+import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
 
@@ -98,6 +98,9 @@ export function BookingCreatePage() {
     ? Number.isSafeInteger(parsedPassId) && parsedPassId > 0
     : true;
   const formReady = selectedSlot !== null && passValid;
+  const classPrice = selectedClass?.price ?? 0;
+  const depositAmount = Math.floor(classPrice / 10);
+  const balanceAmount = classPrice - depositAmount;
 
   const startPayment = useMutation({
     mutationFn: async (actor?: PaymentActor) => {
@@ -208,10 +211,25 @@ export function BookingCreatePage() {
                       <option value="EASY_PAY">간편결제</option>
                     </Form.Select>
                     <Form.Text className="text-muted">
-                      예약금은 클래스 가격의 10%로 자동 산출됩니다.
+                      결제 직전 서버가 슬롯과 현재 가격을 다시 확인해 금액을 확정합니다.
                     </Form.Text>
                   </Form.Group>
                 </Col>
+                {selectedClass && (
+                  <Col xs={12}>
+                    <dl className="row small mb-0 mt-2">
+                      <dt className="col-6 fw-normal text-muted">클래스 전체 금액</dt>
+                      <dd className="col-6 text-end mb-2">{formatKRW(classPrice)}</dd>
+                      <dt className="col-6 fw-normal text-muted">지금 결제할 예약금</dt>
+                      <dd className="col-6 text-end mb-2 fw-semibold">{formatKRW(depositAmount)}</dd>
+                      <dt className="col-6 fw-normal text-muted">체험 당일 현장 잔금</dt>
+                      <dd className="col-6 text-end mb-0">{formatKRW(balanceAmount)}</dd>
+                    </dl>
+                    <p className="text-muted-soft small mt-3 mb-0">
+                      체험일 00:00 전까지 취소하면 예약금을 환불하며, 이후에는 환불되지 않습니다.
+                    </p>
+                  </Col>
+                )}
               </Row>
             ) : (
               <Form.Group controlId="booking-pass" className="mb-3">

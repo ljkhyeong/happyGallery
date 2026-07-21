@@ -14,12 +14,21 @@ import {
   useFulfillmentSelection,
 } from "@/features/order/FulfillmentForm";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
+import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
+import {
+  isMadeToOrderConsentVersionMismatch,
+  useMadeToOrderConsent,
+} from "@/features/order/useMadeToOrderConsent";
 
 export function CartPage() {
   const { isAuthenticated, user } = useCustomerAuth();
   const { items, totalAmount, isLoading, updateQty, removeItem } = useCart();
   const [fulfillment, setFulfillment] = useFulfillmentSelection(user?.name, user?.phone ?? undefined);
   const availableItems = items.filter((item) => item.available);
+  const requiresMadeToOrderConsent = availableItems.some(
+    (item) => item.productType === "MADE_TO_ORDER",
+  );
+  const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
   const checkout = useMutation({
     mutationFn: async () => {
       if (!user) {
@@ -30,6 +39,8 @@ export function CartPage() {
         userId: user.id,
         items: [],
         cartCheckout: true,
+        madeToOrderConsent: consent.agreed,
+        madeToOrderConsentVersion: consent.version,
         ...fulfillmentPayload(fulfillment),
       };
       await executePaymentFlow({
@@ -43,7 +54,9 @@ export function CartPage() {
         returnHint: { customerName: user.name },
       });
     },
+    onError: consent.handleSubmissionError,
   });
+  const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(checkout.error);
 
   if (isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -170,13 +183,24 @@ export function CartPage() {
                 <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
               </div>
 
-              <ErrorAlert error={checkout.error} />
+              <ErrorAlert error={consentVersionMismatch ? null : checkout.error} />
+              <MadeToOrderConsent
+                required={requiresMadeToOrderConsent}
+                policy={consent.policyQuery.data}
+                isLoading={consent.policyQuery.isLoading}
+                isFetching={consent.policyQuery.isFetching}
+                error={consent.policyQuery.error}
+                checked={consent.checked}
+                onChange={consent.setChecked}
+                versionMismatch={consent.versionMismatch}
+                refreshRequired={consent.refreshRequired}
+              />
               <Button
                 variant="primary"
                 size="lg"
                 className="w-100"
                 disabled={checkout.isPending || availableItems.length === 0
-                  || !isFulfillmentComplete(fulfillment)}
+                  || !isFulfillmentComplete(fulfillment) || !consent.ready}
                 onClick={handleCheckout}
               >
                 {checkout.isPending ? "결제 준비 중..." : "결제하기"}

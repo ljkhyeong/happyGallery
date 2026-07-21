@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 @Entity
 @Table(name = "workshop_profiles")
@@ -21,6 +22,13 @@ public class WorkshopProfile {
     public static final int MAX_BUSINESS_HOURS_LENGTH = 1_000;
     public static final int MAX_MAP_URL_LENGTH = 500;
     public static final int MAX_PARKING_INFO_LENGTH = 1_000;
+    public static final int MAX_BUSINESS_REGISTRATION_NUMBER_LENGTH = 20;
+    public static final int MAX_REPRESENTATIVE_NAME_LENGTH = 100;
+    public static final int MAX_EMAIL_LENGTH = 254;
+    public static final int MAX_MAIL_ORDER_REGISTRATION_NUMBER_LENGTH = 100;
+    public static final int MAX_INTRODUCTION_LENGTH = 2_000;
+    public static final int MAX_KAKAO_TALK_ID_LENGTH = 100;
+    private static final String BUSINESS_REGISTRATION_NUMBER_PATTERN = "^\\d{3}-\\d{2}-\\d{5}$";
 
     @Id
     private Long id;
@@ -49,6 +57,27 @@ public class WorkshopProfile {
     @Column(name = "parking_info", length = MAX_PARKING_INFO_LENGTH)
     private String parkingInfo;
 
+    @Column(name = "business_registration_number", length = MAX_BUSINESS_REGISTRATION_NUMBER_LENGTH)
+    private String businessRegistrationNumber;
+
+    @Column(name = "representative_name", length = MAX_REPRESENTATIVE_NAME_LENGTH)
+    private String representativeName;
+
+    @Column(length = MAX_EMAIL_LENGTH)
+    private String email;
+
+    @Column(name = "mail_order_registration_number", length = MAX_MAIL_ORDER_REGISTRATION_NUMBER_LENGTH)
+    private String mailOrderRegistrationNumber;
+
+    @Column(length = MAX_INTRODUCTION_LENGTH)
+    private String introduction;
+
+    @Column(name = "kakao_talk_id", length = MAX_KAKAO_TALK_ID_LENGTH)
+    private String kakaoTalkId;
+
+    @Column(name = "naver_talk_enabled", nullable = false)
+    private boolean naverTalkEnabled;
+
     @Column(name = "updated_at", nullable = false, insertable = false)
     private LocalDateTime updatedAt;
 
@@ -61,7 +90,10 @@ public class WorkshopProfile {
 
     public void update(String name, String phone, String postalCode,
                        String addressLine1, String addressLine2, String businessHours,
-                       String mapUrl, String parkingInfo, LocalDateTime updatedAt) {
+                       String mapUrl, String parkingInfo, String businessRegistrationNumber,
+                       String representativeName, String email, String mailOrderRegistrationNumber,
+                       String introduction, String kakaoTalkId, boolean naverTalkEnabled,
+                       LocalDateTime updatedAt) {
         this.name = required(name, "공방명", MAX_NAME_LENGTH);
         this.phone = optional(phone, "연락처", MAX_PHONE_LENGTH);
         this.postalCode = optional(postalCode, "우편번호", MAX_POSTAL_CODE_LENGTH);
@@ -70,7 +102,33 @@ public class WorkshopProfile {
         this.businessHours = optional(businessHours, "운영시간", MAX_BUSINESS_HOURS_LENGTH);
         this.mapUrl = optionalHttpUrl(mapUrl);
         this.parkingInfo = optional(parkingInfo, "주차 안내", MAX_PARKING_INFO_LENGTH);
+        this.businessRegistrationNumber = optionalBusinessRegistrationNumber(businessRegistrationNumber);
+        this.representativeName = optional(
+                representativeName, "대표자명", MAX_REPRESENTATIVE_NAME_LENGTH);
+        this.email = optionalEmail(email);
+        this.mailOrderRegistrationNumber = optional(
+                mailOrderRegistrationNumber,
+                "통신판매업 신고번호",
+                MAX_MAIL_ORDER_REGISTRATION_NUMBER_LENGTH);
+        this.introduction = optional(introduction, "공방 소개", MAX_INTRODUCTION_LENGTH);
+        this.kakaoTalkId = optional(kakaoTalkId, "카카오톡 ID", MAX_KAKAO_TALK_ID_LENGTH);
+        this.naverTalkEnabled = naverTalkEnabled;
         this.updatedAt = updatedAt;
+    }
+
+    private static String optionalBusinessRegistrationNumber(String value) {
+        String normalized = optional(
+                value, "사업자등록번호", MAX_BUSINESS_REGISTRATION_NUMBER_LENGTH);
+        if (normalized == null || normalized.matches(BUSINESS_REGISTRATION_NUMBER_PATTERN)) {
+            return normalized;
+        }
+        throw new HappyGalleryException(
+                ErrorCode.INVALID_INPUT, "사업자등록번호는 000-00-00000 형식이어야 합니다.");
+    }
+
+    private static String optionalEmail(String value) {
+        String normalized = optional(value, "전자우편주소", MAX_EMAIL_LENGTH);
+        return normalized == null ? null : normalized.toLowerCase(Locale.ROOT);
     }
 
     private static String required(String value, String fieldName, int maxLength) {
@@ -119,5 +177,21 @@ public class WorkshopProfile {
     public String getBusinessHours() { return businessHours; }
     public String getMapUrl() { return mapUrl; }
     public String getParkingInfo() { return parkingInfo; }
+    public String getBusinessRegistrationNumber() { return businessRegistrationNumber; }
+    public String getRepresentativeName() { return representativeName; }
+    public String getEmail() { return email; }
+    public String getMailOrderRegistrationNumber() { return mailOrderRegistrationNumber; }
+    public String getIntroduction() { return introduction; }
+    public String getKakaoTalkId() { return kakaoTalkId; }
+    public boolean isNaverTalkEnabled() { return naverTalkEnabled; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+
+    public boolean hasCompleteOnlineSalesDisclosure() {
+        return phone != null
+                && addressLine1 != null
+                && businessRegistrationNumber != null
+                && representativeName != null
+                && email != null
+                && mailOrderRegistrationNumber != null;
+    }
 }

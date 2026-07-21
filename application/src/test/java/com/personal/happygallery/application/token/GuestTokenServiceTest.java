@@ -29,8 +29,8 @@ class GuestTokenServiceTest {
                 issued.rawToken(), ACTIVE_SECRET, NOW);
 
         assertSoftly(softly -> {
-            softly.assertThat(claims.nonceHash()).isEqualTo(issued.tokenHash());
-            softly.assertThat(claims.expiry()).isEqualTo(NOW.plus(Duration.ofHours(168)));
+            softly.assertThat(issued.tokenHash()).isEqualTo(AccessTokenHasher.hash(issued.rawToken()));
+            softly.assertThat(claims.expiry()).isEqualTo(NOW.plus(Duration.ofDays(30)));
         });
         assertThatThrownBy(() -> AccessTokenSigner.verify(issued.rawToken(), PREVIOUS_SECRET, NOW))
                 .isInstanceOf(InvalidTokenException.class);
@@ -48,15 +48,39 @@ class GuestTokenServiceTest {
                 .isEqualTo(issued.expiresAt());
     }
 
+    @DisplayName("결제 상태 조회 토큰은 결과 보존 기간 뒤 만료한다")
+    @Test
+    void issuePaymentStatusToken_expiresAfterThirtyDays() {
+        GuestTokenService.IssuedToken issued = service(ACTIVE_SECRET, PREVIOUS_SECRET)
+                .issuePaymentStatusToken();
+
+        assertThat(issued.expiresAt()).isEqualTo(NOW.plus(Duration.ofHours(720)));
+        GuestTokenService expiredTokenVerifier = serviceAt(
+                ACTIVE_SECRET, PREVIOUS_SECRET, NOW.plus(Duration.ofHours(720)));
+        assertThatThrownBy(() -> expiredTokenVerifier.resolveTokenHash(issued.rawToken()))
+                .isInstanceOf(NotFoundException.class);
+    }
+
     @DisplayName("이전 키로 발급된 기존 서명 토큰도 검증한다")
     @Test
-    void resolveTokenHash_tokenSignedWithPreviousSecret_returnsNonceHash() {
+    void resolveTokenHash_tokenSignedWithPreviousSecret_returnsTokenHash() {
         GuestTokenService service = service(ACTIVE_SECRET, PREVIOUS_SECRET);
         AccessTokenSigner.SignedToken previousToken = AccessTokenSigner.sign(
                 NOW.plus(Duration.ofHours(1)), PREVIOUS_SECRET);
 
         assertThat(service.resolveTokenHash(previousToken.rawToken()))
-                .isEqualTo(previousToken.nonceHash());
+                .isEqualTo(previousToken.tokenHash());
+    }
+
+    @DisplayName("서명 토큰에서 추출한 nonce만 제출하면 거절한다")
+    @Test
+    void resolveTokenHash_extractedNonce_throwsNotFoundException() {
+        GuestTokenService service = service(ACTIVE_SECRET, PREVIOUS_SECRET);
+        GuestTokenService.IssuedToken issued = service.issue();
+        String nonce = AccessTokenSigner.verify(issued.rawToken(), ACTIVE_SECRET, NOW).nonce();
+
+        assertThatThrownBy(() -> service.resolveTokenHash(nonce))
+                .isInstanceOf(NotFoundException.class);
     }
 
     @DisplayName("활성 키와 이전 키에 모두 맞지 않는 서명 토큰은 찾을 수 없음으로 변환한다")
@@ -70,18 +94,22 @@ class GuestTokenServiceTest {
                 .isInstanceOf(NotFoundException.class);
     }
 
-    @DisplayName("서명 없는 레거시 토큰은 기존처럼 전체 토큰 해시를 반환한다")
+    @DisplayName("서명 없는 레거시 토큰은 거절한다")
     @Test
-    void resolveTokenHash_legacyToken_returnsRawTokenHash() {
+    void resolveTokenHash_legacyToken_throwsNotFoundException() {
         GuestTokenService service = service(ACTIVE_SECRET, "");
         String legacyToken = "0123456789abcdef0123456789abcdef";
 
-        assertThat(service.resolveTokenHash(legacyToken))
-                .isEqualTo(AccessTokenHasher.hash(legacyToken));
+        assertThatThrownBy(() -> service.resolveTokenHash(legacyToken))
+                .isInstanceOf(NotFoundException.class);
     }
 
     private GuestTokenService service(String activeSecret, String previousSecret) {
-        GuestTokenProperties properties = new GuestTokenProperties(activeSecret, previousSecret, 168, 24);
-        return new GuestTokenService(properties, Clock.fixed(NOW, UTC));
+        return serviceAt(activeSecret, previousSecret, NOW);
+    }
+
+    private GuestTokenService serviceAt(String activeSecret, String previousSecret, Instant now) {
+        GuestTokenProperties properties = new GuestTokenProperties(activeSecret, previousSecret, 720, 24);
+        return new GuestTokenService(properties, Clock.fixed(now, UTC));
     }
 }

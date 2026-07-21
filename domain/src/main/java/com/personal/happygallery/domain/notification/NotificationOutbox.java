@@ -68,6 +68,9 @@ public class NotificationOutbox {
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
     @Column(name = "last_error", length = LAST_ERROR_LIMIT)
     private String lastError;
 
@@ -210,6 +213,15 @@ public class NotificationOutbox {
         this.lastError = null;
     }
 
+    public void markRead(LocalDateTime now) {
+        if (status != NotificationOutboxStatus.SENT) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "발송이 완료된 알림만 읽음 처리할 수 있습니다.");
+        }
+        if (readAt == null) {
+            readAt = now;
+        }
+    }
+
     private void clearProcessing() {
         this.lockedAt = null;
         this.processingToken = null;
@@ -236,6 +248,8 @@ public class NotificationOutbox {
     public LocalDateTime getLockedAt() { return lockedAt; }
     public String getProcessingToken() { return processingToken; }
     public LocalDateTime getProcessedAt() { return processedAt; }
+    public LocalDateTime getReadAt() { return readAt; }
+    public boolean isRead() { return readAt != null; }
     public String getLastError() { return lastError; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public long getVersion() { return version; }

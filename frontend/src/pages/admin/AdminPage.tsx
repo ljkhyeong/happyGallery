@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState } from "react";
-import { Container, Card, Button } from "react-bootstrap";
+import { useCallback, useRef, useState, type ReactNode } from "react";
+import { Button, Container, Form, Nav } from "react-bootstrap";
+import { useSearchParams } from "react-router-dom";
 import { useAdminKey } from "@/features/admin-product/useAdminKey";
 import { AdminKeyGate } from "@/features/admin-product/AdminKeyGate";
 import { ProductListSection } from "@/features/admin-product/ProductListSection";
@@ -24,11 +25,61 @@ import { AdminSearchSection } from "@/features/admin-search/AdminSearchSection";
 import { WorkshopProfileForm } from "@/features/admin-workshop/WorkshopProfileForm";
 import { useToast } from "@/shared/ui";
 
+const ADMIN_VIEWS = [
+  {
+    value: "today",
+    label: "오늘 할 일",
+    description: "금전·전달 장애와 오늘 처리할 주문·예약을 우선 확인합니다.",
+  },
+  {
+    value: "overview",
+    label: "현황·검색",
+    description: "매출과 운영 지표를 보고 주문·예약을 검색합니다.",
+  },
+  { value: "orders", label: "주문", description: "주문 승인부터 배송·픽업까지 처리합니다." },
+  {
+    value: "bookings",
+    label: "예약·8회권",
+    description: "날짜별 예약과 8회권 정산을 관리합니다.",
+  },
+  { value: "products", label: "상품", description: "상품 정보와 판매 상태, 재고를 관리합니다." },
+  {
+    value: "classes",
+    label: "클래스·슬롯",
+    description: "클래스와 예약 가능한 일정을 관리합니다.",
+  },
+  {
+    value: "support",
+    label: "고객 응대",
+    description: "공지사항과 상품 Q&A, 1:1 문의를 처리합니다.",
+  },
+  { value: "settings", label: "설정", description: "공개 공방 정보와 관리자 비밀번호를 관리합니다." },
+] as const;
+
+type AdminView = (typeof ADMIN_VIEWS)[number]["value"];
+
+function isAdminView(value: string | null): value is AdminView {
+  return ADMIN_VIEWS.some((view) => view.value === value);
+}
+
+function AdminPanel({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="admin-workspace-panel">
+      <h5>{title}</h5>
+      {children}
+    </section>
+  );
+}
+
 export function AdminPage() {
   const { adminKey, clearAdminKey, login, logout, isAuthenticated } = useAdminKey();
   const toast = useToast();
   const handledExpiredKey = useRef<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedView = searchParams.get("view");
+  const activeView: AdminView = isAdminView(requestedView) ? requestedView : "today";
+  const activeViewInfo = ADMIN_VIEWS.find((view) => view.value === activeView)!;
 
   const handleAuthError = useCallback(() => {
     if (handledExpiredKey.current === adminKey) return;
@@ -56,13 +107,19 @@ export function AdminPage() {
     }
   };
 
+  function selectView(view: AdminView) {
+    const next = new URLSearchParams(searchParams);
+    next.set("view", view);
+    setSearchParams(next);
+  }
+
   if (!isAuthenticated) {
     return <AdminKeyGate onLogin={login} />;
   }
 
   return (
-    <Container className="page-container">
-      <div className="d-flex justify-content-between align-items-center mb-4">
+    <Container className="page-container admin-workspace">
+      <header className="admin-workspace-header">
         <h4 className="mb-0">관리자</h4>
         <Button
           size="sm"
@@ -72,145 +129,146 @@ export function AdminPage() {
         >
           {loggingOut ? "로그아웃 중..." : "로그아웃"}
         </Button>
+      </header>
+
+      <Form.Select
+        className="admin-workspace-mobile-nav d-sm-none"
+        aria-label="관리 메뉴"
+        value={activeView}
+        onChange={(event) => selectView(event.target.value as AdminView)}
+      >
+        {ADMIN_VIEWS.map((view) => (
+          <option key={view.value} value={view.value}>{view.label}</option>
+        ))}
+      </Form.Select>
+
+      <Nav
+        variant="tabs"
+        className="admin-workspace-nav d-none d-sm-flex"
+        activeKey={activeView}
+        onSelect={(view) => view && selectView(view as AdminView)}
+      >
+        {ADMIN_VIEWS.map((view) => (
+          <Nav.Item key={view.value}>
+            <Nav.Link eventKey={view.value}>{view.label}</Nav.Link>
+          </Nav.Item>
+        ))}
+      </Nav>
+
+      <div className="admin-workspace-title">
+        <h5>{activeViewInfo.label}</h5>
+        <p>{activeViewInfo.description}</p>
       </div>
 
-      <div className="mb-4">
-        <AdminDashboardSection adminKey={adminKey} onAuthError={handleAuthError} />
-      </div>
+      {activeView === "today" && (
+        <>
+          <AdminPanel title="결제 대사 필요">
+            <PaymentReconciliationSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="환불 확인 필요">
+            <FailedRefundSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="알림 재처리 필요">
+            <FailedNotificationSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="승인 대기 주문">
+            <OrderListSection
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+              initialStatus="PAID_APPROVAL_PENDING"
+            />
+          </AdminPanel>
+          <AdminPanel title="오늘 예약">
+            <BookingListSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+        </>
+      )}
 
-      <Card className="mb-4">
-        <Card.Header>주문·예약 검색</Card.Header>
-        <Card.Body>
-          <AdminSearchSection adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
+      {activeView === "overview" && (
+        <>
+          <AdminDashboardSection adminKey={adminKey} onAuthError={handleAuthError} />
+          <AdminPanel title="주문·예약 검색">
+            <AdminSearchSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+        </>
+      )}
 
-      <Card className="mb-4">
-        <Card.Header>관리자 비밀번호</Card.Header>
-        <Card.Body>
-          <AdminPasswordChangeForm
-            adminKey={adminKey}
-            onAuthError={handleAuthError}
-            onChanged={handlePasswordChanged}
-          />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>공지사항 관리</Card.Header>
-        <Card.Body>
-          <AdminNoticeSection adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>공방 방문 정보</Card.Header>
-        <Card.Body>
-          <WorkshopProfileForm adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>상품 등록</Card.Header>
-        <Card.Body>
-          <CreateProductForm adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>상품 목록</Card.Header>
-        <Card.Body>
-          <ProductListSection adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>클래스 생성</Card.Header>
-        <Card.Body>
-          <CreateClassForm adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>클래스 목록</Card.Header>
-        <Card.Body>
-          <ClassListSection adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>슬롯 생성</Card.Header>
-        <Card.Body>
-          <CreateSlotForm adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>슬롯 일괄 생성</Card.Header>
-        <Card.Body>
-          <BulkSlotForm adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>슬롯 목록</Card.Header>
-        <Card.Body>
-          <SlotListSection adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>예약 목록</Card.Header>
-        <Card.Body>
-          <BookingListSection adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>주문 목록</Card.Header>
-        <Card.Body>
+      {activeView === "orders" && (
+        <AdminPanel title="주문 목록">
           <OrderListSection adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
+        </AdminPanel>
+      )}
 
-      <div className="mb-4">
-        <PassActionPanel adminKey={adminKey} onAuthError={handleAuthError} />
-      </div>
+      {activeView === "bookings" && (
+        <>
+          <AdminPanel title="예약 목록">
+            <BookingListSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="8회권 관리">
+            <PassActionPanel adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+        </>
+      )}
 
-      <Card className="mb-4">
-        <Card.Header>환불 확인 필요</Card.Header>
-        <Card.Body>
-          <FailedRefundSection adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
+      {activeView === "products" && (
+        <>
+          <AdminPanel title="상품 등록">
+            <CreateProductForm adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="상품 목록">
+            <ProductListSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+        </>
+      )}
 
-      <Card className="mb-4">
-        <Card.Header>결제 대사 필요</Card.Header>
-        <Card.Body>
-          <PaymentReconciliationSection adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
+      {activeView === "classes" && (
+        <>
+          <AdminPanel title="클래스 생성">
+            <CreateClassForm adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="클래스 목록">
+            <ClassListSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="슬롯 생성">
+            <CreateSlotForm adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="슬롯 일괄 생성">
+            <BulkSlotForm adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="슬롯 목록">
+            <SlotListSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+        </>
+      )}
 
-      <Card className="mb-4">
-        <Card.Header>알림 재처리 필요</Card.Header>
-        <Card.Body>
-          <FailedNotificationSection adminKey={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
+      {activeView === "support" && (
+        <>
+          <AdminPanel title="공지사항 관리">
+            <AdminNoticeSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="Q&A 관리">
+            <AdminQnaSection token={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="1:1 문의 관리">
+            <AdminInquirySection token={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+        </>
+      )}
 
-      <Card className="mb-4">
-        <Card.Header>Q&A 관리</Card.Header>
-        <Card.Body>
-          <AdminQnaSection token={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Header>1:1 문의 관리</Card.Header>
-        <Card.Body>
-          <AdminInquirySection token={adminKey} onAuthError={handleAuthError} />
-        </Card.Body>
-      </Card>
+      {activeView === "settings" && (
+        <>
+          <AdminPanel title="공방 공개 정보">
+            <WorkshopProfileForm adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="관리자 비밀번호">
+            <AdminPasswordChangeForm
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+              onChanged={handlePasswordChanged}
+            />
+          </AdminPanel>
+        </>
+      )}
     </Container>
   );
 }

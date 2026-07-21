@@ -327,6 +327,7 @@ class RateLimitFilterTest {
                 "/api/v1/products/1/qna/5/verify",
                 "/api/v1/me/guest-claims/verify",
                 "/api/v1/guest-records/recovery",
+                "/api/v1/guest-records/payment-status-recovery",
                 "/api/v1/monitoring/client-events"
         );
     }

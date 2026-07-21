@@ -168,10 +168,12 @@ export function BookingManagePage() {
               <Card.Header>예약 변경</Card.Header>
               <Card.Body>
                 <p className="text-muted-soft small mb-3">
-                  새 슬롯 ID를 입력하면 동일한 비회원 토큰으로 예약 시간을 다시 잡을 수 있습니다.
+                  같은 클래스의 예약 가능한 날짜와 시간으로 변경할 수 있습니다.
                 </p>
                 <RescheduleForm
+                  classId={booking.classId}
                   currentSlotId={booking.slotId}
+                  currentStartAt={booking.startAt}
                   onReschedule={(newSlotId) => rescheduleBooking(booking.bookingId, newSlotId, currentToken)}
                   onSuccess={refreshBooking}
                 />

@@ -14,10 +14,15 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareResult;
 import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,6 +35,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/payments")
 public class PaymentController {
+
+    private static final String PAYMENT_STATUS_TOKEN_HEADER = "X-Payment-Status-Token";
 
     private final PaymentPrepareUseCase prepareUseCase;
     private final PaymentConfirmUseCase confirmUseCase;
@@ -44,8 +51,10 @@ public class PaymentController {
     }
 
     @PostMapping("/prepare")
+    @Operation(operationId = "preparePayment")
     public PreparePaymentResponse prepare(@RequestBody @Valid PreparePaymentRequest req,
-                                          @AuthenticationPrincipal CustomerPrincipal customer) {
+                                          @AuthenticationPrincipal CustomerPrincipal customer,
+                                          HttpServletResponse response) {
         if (customer != null && (!customer.phoneVerified() || customer.phone() == null)) {
             throw new PhoneVerificationRequiredException();
         }
@@ -53,18 +62,29 @@ public class PaymentController {
                 ? AuthContext.member(customer.userId())
                 : AuthContext.guest();
         PrepareResult result = prepareUseCase.prepare(new PrepareCommand(req.context(), req.payload(), auth));
+        setNoStore(response);
         return PreparePaymentResponse.from(result);
     }
 
     @PostMapping("/confirm")
+    @Operation(operationId = "confirmPayment")
     public ConfirmPaymentResponse confirm(@RequestBody @Valid ConfirmPaymentRequest req,
-                                          @AuthenticationPrincipal CustomerPrincipal customer) {
+                                          @RequestHeader(value = PAYMENT_STATUS_TOKEN_HEADER, required = false)
+                                          String statusToken,
+                                          @AuthenticationPrincipal CustomerPrincipal customer,
+                                          HttpServletResponse response) {
         rateLimitGuard.checkPaymentConfirm(req.orderId());
         AuthContext auth = customer != null
                 ? AuthContext.member(customer.userId())
                 : AuthContext.guest();
         ConfirmResult result = confirmUseCase.confirm(
-                new ConfirmCommand(req.paymentKey(), req.orderId(), req.amount(), auth));
+                ConfirmCommand.customerRequest(
+                        req.paymentKey(), req.orderId(), req.amount(), auth, statusToken));
+        setNoStore(response);
         return ConfirmPaymentResponse.from(result);
+    }
+
+    private void setNoStore(HttpServletResponse response) {
+        response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.noStore().getHeaderValue());
     }
 }

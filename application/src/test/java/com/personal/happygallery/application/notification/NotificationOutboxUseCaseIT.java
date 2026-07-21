@@ -1,8 +1,12 @@
 package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationLogRepository;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.notification.port.in.NotificationQueryUseCase;
+import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
@@ -43,6 +47,8 @@ class NotificationOutboxUseCaseIT {
     @Autowired NotificationOutboxDispatcher outboxDispatcher;
     @Autowired NotificationOutboxService outboxService;
     @Autowired NotificationOutboxTransactionService outboxTransactionService;
+    @Autowired NotificationQueryUseCase notificationQueryUseCase;
+    @Autowired NotificationLogRepository notificationLogRepository;
     @Autowired UserStorePort userStorePort;
     @Autowired NotificationLogProbe notificationLogProbe;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -76,6 +82,45 @@ class NotificationOutboxUseCaseIT {
                     assertThat(outboxes).hasSize(1);
                     assertThat(outboxes.getFirst().getStatus()).isEqualTo(NotificationOutboxStatus.SENT);
                 });
+    }
+
+    @DisplayName("회원 알림함은 채널별 감사 로그가 아니라 발송된 논리 이벤트를 한 건으로 조회한다")
+    @Test
+    void memberInbox_readsSentOutboxInsteadOfChannelAuditLogs() {
+        User user = userStorePort.save(new User("inbox@example.com", "hash", "회원", "01055556666"));
+        LocalDateTime now = LocalDateTime.now(clock);
+        NotificationOutbox outbox = outboxRepository.save(NotificationOutbox.from(
+                NotificationRequestedEvent.forUser(
+                        user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 10L),
+                now));
+        String token = outbox.markProcessing(now);
+        outbox.markSent(token, now);
+        outboxRepository.save(outbox);
+        notificationLogRepository.save(NotificationLog.failed(
+                null, user.getId(), NotificationChannel.KAKAO,
+                NotificationEventType.ORDER_PAID, "PERMANENT_FAILURE", now));
+        notificationLogRepository.save(NotificationLog.success(
+                null, user.getId(), NotificationChannel.SMS,
+                NotificationEventType.ORDER_PAID, now));
+
+        var notifications = notificationQueryUseCase.listNotifications(user.getId(), null, 0, 20);
+
+        assertSoftly(softly -> {
+            softly.assertThat(notifications)
+                    .singleElement()
+                    .satisfies(notification -> {
+                        softly.assertThat(notification.id()).isEqualTo(outbox.getId());
+                        softly.assertThat(notification.eventType()).isEqualTo(NotificationEventType.ORDER_PAID);
+                        softly.assertThat(notification.aggregateType()).isEqualTo("ORDER");
+                        softly.assertThat(notification.aggregateId()).isEqualTo(10L);
+                        softly.assertThat(notification.isRead()).isFalse();
+                    });
+            softly.assertThat(notificationQueryUseCase.countUnread(user.getId(), null)).isOne();
+        });
+
+        notificationQueryUseCase.markAsRead(outbox.getId(), user.getId(), null);
+
+        assertThat(notificationQueryUseCase.countUnread(user.getId(), null)).isZero();
     }
 
     @DisplayName("알림 이벤트가 발행된 트랜잭션이 롤백되면 outbox도 생성되지 않는다")

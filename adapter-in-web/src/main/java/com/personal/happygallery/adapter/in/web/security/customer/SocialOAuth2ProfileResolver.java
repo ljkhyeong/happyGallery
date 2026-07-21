@@ -14,36 +14,57 @@ import org.springframework.util.StringUtils;
 @Component
 public class SocialOAuth2ProfileResolver {
 
-    public SocialLoginCommand resolve(Authentication authentication) {
-        if (!(authentication instanceof OAuth2AuthenticationToken token)) {
-            throw socialLoginFailed();
-        }
-
+    public SocialIdentity resolveIdentity(Authentication authentication) {
+        OAuth2AuthenticationToken token = requiredToken(authentication);
         SocialProvider provider = SocialProvider.fromPath(token.getAuthorizedClientRegistrationId());
         return switch (provider) {
-            case GOOGLE -> googleProfile(provider, token);
-            case NAVER -> naverProfile(provider, token.getPrincipal().getAttributes());
+            case GOOGLE -> new SocialIdentity(provider, required(googleUser(token).getSubject()));
+            case NAVER -> new SocialIdentity(
+                    provider, required(token.getPrincipal().getAttributes().get("id")));
         };
     }
 
-    private SocialLoginCommand googleProfile(SocialProvider provider, OAuth2AuthenticationToken token) {
-        if (!(token.getPrincipal() instanceof OidcUser user)
-                || !Boolean.TRUE.equals(user.getEmailVerified())) {
+    public SocialLoginCommand resolveLogin(Authentication authentication) {
+        OAuth2AuthenticationToken token = requiredToken(authentication);
+        SocialIdentity identity = resolveIdentity(token);
+        return switch (identity.provider()) {
+            case GOOGLE -> googleProfile(identity, token);
+            case NAVER -> naverProfile(identity, token.getPrincipal().getAttributes());
+        };
+    }
+
+    private SocialLoginCommand googleProfile(SocialIdentity identity, OAuth2AuthenticationToken token) {
+        OidcUser user = googleUser(token);
+        if (!Boolean.TRUE.equals(user.getEmailVerified())) {
             throw socialLoginFailed();
         }
         return new SocialLoginCommand(
-                provider,
-                required(user.getSubject()),
+                identity.provider(),
+                identity.providerId(),
                 required(user.getEmail()),
                 required(user.getFullName()));
     }
 
-    private SocialLoginCommand naverProfile(SocialProvider provider, Map<String, Object> attributes) {
+    private SocialLoginCommand naverProfile(SocialIdentity identity, Map<String, Object> attributes) {
         return new SocialLoginCommand(
-                provider,
-                required(attributes.get("id")),
+                identity.provider(),
+                identity.providerId(),
                 required(attributes.get("email")),
                 required(attributes.get("name")));
+    }
+
+    private OAuth2AuthenticationToken requiredToken(Authentication authentication) {
+        if (!(authentication instanceof OAuth2AuthenticationToken token)) {
+            throw socialLoginFailed();
+        }
+        return token;
+    }
+
+    private OidcUser googleUser(OAuth2AuthenticationToken token) {
+        if (!(token.getPrincipal() instanceof OidcUser user)) {
+            throw socialLoginFailed();
+        }
+        return user;
     }
 
     private String required(Object value) {
@@ -56,4 +77,6 @@ public class SocialOAuth2ProfileResolver {
     private HappyGalleryException socialLoginFailed() {
         return new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
     }
+
+    public record SocialIdentity(SocialProvider provider, String providerId) {}
 }

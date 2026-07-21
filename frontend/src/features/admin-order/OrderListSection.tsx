@@ -14,6 +14,7 @@ import { OrderFulfillmentPanel } from "./OrderFulfillmentPanel";
 interface Props {
   adminKey: string;
   onAuthError: () => void;
+  initialStatus?: string;
 }
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
@@ -37,8 +38,8 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "PICKUP_FORFEITED", label: "픽업 미수령 종료" },
 ];
 
-export function OrderListSection({ adminKey, onAuthError }: Props) {
-  const [statusFilter, setStatusFilter] = useState("");
+export function OrderListSection({ adminKey, onAuthError, initialStatus = "" }: Props) {
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [historyOrderId, setHistoryOrderId] = useState<number | null>(null);
   const [fulfillmentOrderId, setFulfillmentOrderId] = useState<number | null>(null);
   const [allOrders, setAllOrders] = useState<AdminOrderResponse[]>([]);

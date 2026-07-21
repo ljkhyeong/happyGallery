@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
+import com.personal.happygallery.adapter.in.web.security.customer.SocialAccountLinkIntentStore;
 import com.personal.happygallery.domain.user.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,6 +28,7 @@ public class CustomerSessionBinder {
 
     public void bind(HttpServletRequest request, HttpServletResponse response, User user) {
         HttpSession session = request.getSession();
+        SocialAccountLinkIntentStore.clear(session);
         if (!session.isNew()) {
             request.changeSessionId();
         }

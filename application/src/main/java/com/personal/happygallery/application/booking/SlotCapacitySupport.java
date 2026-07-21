@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
+import com.personal.happygallery.application.booking.port.out.BookingClassLockPort;
 import com.personal.happygallery.application.booking.port.out.SlotLockPort;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
@@ -23,29 +24,33 @@ class SlotCapacitySupport {
 
     private final SlotReaderPort slotReaderPort;
     private final ClassReaderPort classReaderPort;
+    private final BookingClassLockPort bookingClassLockPort;
     private final SlotLockPort slotLockPort;
     private final SlotStorePort slotStorePort;
     private final Clock clock;
 
     SlotCapacitySupport(SlotReaderPort slotReaderPort,
                         ClassReaderPort classReaderPort,
+                        BookingClassLockPort bookingClassLockPort,
                         SlotLockPort slotLockPort,
                         SlotStorePort slotStorePort,
                         Clock clock) {
         this.slotReaderPort = slotReaderPort;
         this.classReaderPort = classReaderPort;
+        this.bookingClassLockPort = bookingClassLockPort;
         this.slotLockPort = slotLockPort;
         this.slotStorePort = slotStorePort;
         this.clock = clock;
     }
 
     /** 잠금 전에 존재 여부와 활성 상태를 빠르게 확인한다. */
-    void requireAvailableSlot(Long slotId) {
+    Slot requireAvailableSlot(Long slotId) {
         Slot slot = slotReaderPort.findById(slotId)
                 .orElseThrow(NotFoundException.supplier("슬롯"));
         if (!slot.isReservableAt(LocalDateTime.now(clock))) {
             throw new SlotNotAvailableException();
         }
+        return slot;
     }
 
     /** 다중 슬롯 작업 전에 관련 클래스 행을 PK 순서로 모두 잠근다. */
@@ -126,7 +131,7 @@ class SlotCapacitySupport {
         Slot sourceSnapshot = slotReaderPort.findById(slotId)
                 .orElseThrow(NotFoundException.supplier("슬롯"));
         Long classId = sourceSnapshot.getBookingClass().getId();
-        BookingClass lockedClass = classReaderPort.findByIdForUpdate(classId)
+        BookingClass lockedClass = bookingClassLockPort.lockFresh(classId)
                 .orElseThrow(NotFoundException.supplier("클래스"));
         LocalDateTime windowEnd = SlotBufferPolicy.bufferWindowEnd(
                 sourceSnapshot.getEndAt(), lockedClass.getBufferMin());

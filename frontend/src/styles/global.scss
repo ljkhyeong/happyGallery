@@ -56,6 +56,78 @@
 }
 
 // Admin operations
+.admin-workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-workspace-nav {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.admin-workspace-nav .nav-link {
+  min-height: 2.75rem;
+  color: var(--hg-ink-soft);
+  white-space: nowrap;
+}
+
+.admin-workspace-nav .nav-link.active {
+  color: var(--hg-dark);
+  font-weight: 700;
+}
+
+.admin-workspace-mobile-nav {
+  margin-bottom: 1rem;
+}
+
+.admin-workspace-title {
+  padding-block: 1.5rem 1rem;
+  border-bottom: 1px solid var(--hg-dark);
+}
+
+.admin-workspace-title h5,
+.admin-workspace-title p,
+.admin-workspace-panel > h5 {
+  margin: 0;
+}
+
+.admin-workspace-title p {
+  margin-top: 0.35rem;
+  color: var(--hg-ink-soft);
+  font-size: 0.875rem;
+}
+
+.admin-workspace-panel {
+  padding-block: 1.5rem;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.admin-workspace-panel > h5 {
+  margin-bottom: 1rem;
+  font-size: 1rem;
+}
+
+.admin-workspace-panel:last-child {
+  border-bottom: 0;
+}
+
+.admin-workspace-title + .admin-dashboard {
+  border-top: 0;
+}
+
+.admin-qna-product-filter {
+  max-width: 24rem;
+}
+
+.admin-pass-refund {
+  max-width: 36rem;
+}
+
 .admin-dashboard {
   padding-block: 1.5rem;
   border-block: 1px solid var(--hg-border);
@@ -1622,6 +1694,13 @@ textarea {
   font-weight: 400;
 }
 
+.workshop-visit-introduction {
+  margin: 1rem 0 0;
+  color: var(--hg-ink-soft);
+  line-height: 1.75;
+  white-space: pre-line;
+}
+
 .workshop-visit-details {
   display: grid;
   grid-template-columns: max-content 1fr;
@@ -1655,6 +1734,128 @@ textarea {
   color: var(--hg-ink-soft);
 }
 
+.app-footer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(16rem, 1fr) auto;
+  gap: 2rem;
+  align-items: start;
+}
+
+.app-footer-introduction {
+  max-width: 36rem;
+  margin: 0;
+  color: rgba(255, 253, 248, 0.68);
+  line-height: 1.75;
+}
+
+.app-footer-business {
+  display: grid;
+  gap: 0.35rem;
+  color: rgba(255, 253, 248, 0.68);
+
+  strong {
+    color: #FFFDF8;
+  }
+}
+
+.app-footer-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0.25rem 0 0;
+  color: rgba(255, 253, 248, 0.68);
+}
+
+.app-footer a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+}
+
+.app-footer a:hover,
+.app-footer a:focus-visible {
+  color: #FFFDF8;
+}
+
+.app-footer-links {
+  display: grid;
+  gap: 0.55rem;
+  white-space: nowrap;
+}
+
+.app-footer-copyright {
+  margin-top: 1.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 253, 248, 0.14);
+  color: rgba(255, 253, 248, 0.45);
+}
+
+.legal-page-header {
+  margin-bottom: 3rem;
+
+  h1 {
+    margin-bottom: 0.75rem;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: 2.5rem;
+    letter-spacing: 0;
+  }
+
+  p:last-child {
+    margin: 0;
+    color: var(--hg-ink-soft);
+  }
+}
+
+.legal-page-lead {
+  margin-bottom: 2.5rem;
+  color: var(--hg-dark);
+  font-size: 1.05rem;
+  line-height: 1.85;
+  white-space: pre-line;
+}
+
+.legal-page section {
+  padding-block: 1.75rem;
+  border-top: 1px solid var(--hg-border);
+
+  h2 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    letter-spacing: 0;
+  }
+
+  p,
+  li {
+    line-height: 1.8;
+  }
+
+  p:last-child,
+  ul:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.business-info-list {
+  margin: 0;
+  border-top: 1px solid var(--hg-border);
+}
+
+.business-info-list > div {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr);
+  gap: 1rem;
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--hg-border);
+
+  dt {
+    color: var(--hg-ink-soft);
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
 .admin-image-preview {
   display: flex;
   gap: 0.75rem;
@@ -1671,6 +1872,22 @@ textarea {
 @media (max-width: 767.98px) {
   .workshop-visit-info {
     grid-template-columns: 1fr;
+  }
+
+  .app-footer-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .app-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .business-info-list > div {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
   }
 }
 

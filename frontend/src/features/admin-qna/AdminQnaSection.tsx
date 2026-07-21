@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, Badge, Button, Form, InputGroup } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchAdminQna, replyQna } from "./api";
+import { fetchProducts } from "@/features/admin-product/api";
 import type { AdminQnaResponse } from "./api";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
@@ -14,37 +15,44 @@ interface Props {
 }
 
 export function AdminQnaSection({ token, onAuthError }: Props) {
-  const [productId, setProductId] = useState("");
-  const [searchId, setSearchId] = useState<number | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+
+  const productsQuery = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "products"],
+    queryFn: () => fetchProducts(token),
+  });
 
   const { data: qnaList, isLoading, error } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "qna", searchId],
-    queryFn: () => fetchAdminQna(searchId!, token),
-    enabled: searchId !== null,
+    queryKey: ["admin", "qna", selectedProductId],
+    queryFn: () => fetchAdminQna(selectedProductId!, token),
+    enabled: selectedProductId !== null,
   });
 
   return (
     <div>
-      <h5 className="mb-3">Q&A 관리</h5>
-      <Form
-        className="mb-3 d-flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const id = Number(productId);
-          if (id > 0) setSearchId(id);
-        }}
-      >
-        <Form.Control
-          placeholder="상품 ID"
-          value={productId}
-          onChange={(e) => setProductId(e.target.value)}
-          style={{ width: 120 }}
-        />
-        <Button type="submit" size="sm" variant="outline-primary">
-          조회
-        </Button>
-      </Form>
+      <Form.Group className="admin-qna-product-filter mb-3" controlId="admin-qna-product">
+        <Form.Label>상품</Form.Label>
+        <Form.Select
+          value={selectedProductId ?? ""}
+          disabled={productsQuery.isLoading || !productsQuery.data?.length}
+          onChange={(event) => {
+            const value = event.target.value;
+            setSelectedProductId(value ? Number(value) : null);
+          }}
+        >
+          <option value="">상품을 선택하세요</option>
+          {productsQuery.data?.map((product) => (
+            <option key={product.id} value={product.id}>{product.name}</option>
+          ))}
+        </Form.Select>
+      </Form.Group>
 
+      {productsQuery.isLoading && <LoadingSpinner text="상품을 불러오는 중..." />}
+      <ErrorAlert error={productsQuery.error} />
+      {productsQuery.data?.length === 0 && <EmptyState message="등록된 상품이 없습니다." />}
+      {selectedProductId === null && productsQuery.data && productsQuery.data.length > 0 && (
+        <EmptyState message="상품을 선택하면 Q&A를 확인할 수 있습니다." />
+      )}
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} />
       {qnaList && qnaList.length === 0 && <EmptyState message="Q&A가 없습니다." />}
@@ -54,7 +62,7 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
           key={qna.id}
           qna={qna}
           token={token}
-          productId={searchId!}
+          productId={selectedProductId!}
           onAuthError={onAuthError}
         />
       ))}

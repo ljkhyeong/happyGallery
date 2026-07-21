@@ -13,7 +13,9 @@ import com.personal.happygallery.adapter.in.web.customer.MeOrderController;
 import com.personal.happygallery.adapter.in.web.customer.MePassController;
 import com.personal.happygallery.adapter.in.web.customer.MePhoneController;
 import com.personal.happygallery.adapter.in.web.customer.MeProductQnaController;
+import com.personal.happygallery.adapter.in.web.customer.MeSocialAccountController;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
+import com.personal.happygallery.adapter.in.web.security.customer.SocialAccountLinkIntentStore;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
@@ -23,6 +25,7 @@ import com.personal.happygallery.application.customer.port.in.CustomerCredential
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
+import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.application.notification.port.in.NotificationQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
@@ -34,10 +37,13 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.RefundStatus;
+import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.domain.user.SocialProvider;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -48,6 +54,7 @@ import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -67,6 +74,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
 
     private CustomerAuthUseCase customerAuthUseCase;
     private CustomerCredentialUseCase customerCredentialUseCase;
+    private SocialAuthUseCase socialAuthUseCase;
     private CartUseCase cartUseCase;
     private BookingQueryUseCase bookingQueryUseCase;
     private BookingRescheduleUseCase bookingRescheduleUseCase;
@@ -86,6 +94,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void setUp(RestDocumentationContextProvider restDocumentation) {
         customerAuthUseCase = mock(CustomerAuthUseCase.class);
         customerCredentialUseCase = mock(CustomerCredentialUseCase.class);
+        socialAuthUseCase = mock(SocialAuthUseCase.class);
         cartUseCase = mock(CartUseCase.class);
         bookingQueryUseCase = mock(BookingQueryUseCase.class);
         bookingRescheduleUseCase = mock(BookingRescheduleUseCase.class);
@@ -114,7 +123,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(customerAuthUseCase.login(any())).thenReturn(user);
         when(cartUseCase.getCart(CUSTOMER_USER_ID))
                 .thenReturn(new CartUseCase.CartView(
-                        List.of(new CartUseCase.CartItemView(1L, "시그니처 캔들", 39000L, 1, true)),
+                        List.of(new CartUseCase.CartItemView(
+                                1L, "시그니처 캔들", ProductType.READY_STOCK, 39000L, 1, true)),
                         39000L));
         when(bookingQueryUseCase.listMyBookings(CUSTOMER_USER_ID)).thenReturn(List.of(booking));
         when(bookingQueryUseCase.findMyBooking(100L, CUSTOMER_USER_ID))
@@ -131,7 +141,13 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(memberPassRefundUseCase.refundMyPass(300L, CUSTOMER_USER_ID))
                 .thenReturn(new PassRefundResult(1, 8, 240000L, 901L, RefundStatus.REQUESTED));
         when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), any(), eq(0), eq(20)))
-                .thenReturn(List.of());
+                .thenReturn(List.of(new NotificationQueryUseCase.NotificationView(
+                        1L,
+                        NotificationEventType.ORDER_PAID,
+                        "ORDER",
+                        200L,
+                        LocalDateTime.of(2026, 3, 28, 9, 15),
+                        null)));
         when(notificationQueryUseCase.countUnread(CUSTOMER_USER_ID, null)).thenReturn(3L);
         when(guestClaimUseCase.preview(CUSTOMER_USER_ID)).thenReturn(claimPreview(false));
         when(guestClaimUseCase.verifyPhoneAndPreview(CUSTOMER_USER_ID, "123456")).thenReturn(claimPreview(true));
@@ -141,6 +157,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(user);
         when(customerCredentialUseCase.resetPassword(any()))
                 .thenReturn(CUSTOMER_USER_ID);
+        when(socialAuthUseCase.listLinkedProviders(CUSTOMER_USER_ID))
+                .thenReturn(List.of(SocialProvider.GOOGLE));
         when(inquiryUseCase.create(eq(CUSTOMER_USER_ID), any(), any())).thenReturn(inquiry);
         when(inquiryUseCase.listByUser(CUSTOMER_USER_ID)).thenReturn(List.of(inquiry));
         when(inquiryUseCase.findByIdAndUser(9L, CUSTOMER_USER_ID)).thenReturn(inquiry);
@@ -161,6 +179,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 new MeGuestClaimController(guestClaimUseCase, rateLimitGuard),
                 new MePhoneController(phoneUpdateUseCase, rateLimitGuard),
                 new MeAccountController(accountLifecycleUseCase, customerSessionBinder),
+                new MeSocialAccountController(
+                        socialAuthUseCase,
+                        new SocialAccountLinkIntentStore(RestDocsFixtures.clock()),
+                        customerSessionBinder),
                 new MeInquiryController(inquiryUseCase),
                 new MeProductQnaController(qnaUseCase));
     }
@@ -229,6 +251,33 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("회원 탈퇴 API를 문서화한다")
     void withdraw_account() throws Exception {
         mockMvc.perform(delete("/api/v1/me").with(customerUser()))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("연결된 소셜 계정 조회 API를 문서화한다")
+    void get_social_accounts() throws Exception {
+        mockMvc.perform(get("/api/v1/me/social-accounts").with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.linkedProviders[0]").value("GOOGLE"));
+    }
+
+    @Test
+    @DisplayName("소셜 계정 연결 시작 API를 문서화한다")
+    void start_social_account_link() throws Exception {
+        mockMvc.perform(post("/api/v1/me/social-accounts/{provider}/authorization", "naver")
+                        .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authorizationUrl")
+                        .value(startsWith(
+                                "/api/v1/auth/social/authorization/naver?linkAttempt=")));
+    }
+
+    @Test
+    @DisplayName("소셜 계정 연결 해제 API를 문서화한다")
+    void unlink_social_account() throws Exception {
+        mockMvc.perform(delete("/api/v1/me/social-accounts/{provider}", "google")
+                        .with(customerUser()))
                 .andExpect(status().isNoContent());
     }
 
@@ -393,7 +442,14 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         .with(customerUser())
                         .param("page", "0")
                         .param("size", "20"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].eventType").value("ORDER_PAID"))
+                .andExpect(jsonPath("$[0].aggregateType").value("ORDER"))
+                .andExpect(jsonPath("$[0].aggregateId").value(200))
+                .andExpect(jsonPath("$[0].deliveredAt").value("2026-03-28T09:15:00"))
+                .andExpect(jsonPath("$[0].readAt").doesNotExist())
+                .andExpect(jsonPath("$[0].read").value(false));
     }
 
     @Test

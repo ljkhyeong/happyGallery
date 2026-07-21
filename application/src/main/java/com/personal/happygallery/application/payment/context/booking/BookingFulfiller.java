@@ -1,7 +1,7 @@
 package com.personal.happygallery.application.payment.context.booking;
 
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
-import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase.CreateGuestBookingCommand;
+import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase.CreatePaymentGuestBookingCommand;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase.GuestBookingResult;
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
@@ -58,7 +58,7 @@ public class BookingFulfiller implements PaymentFulfiller {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentPayload payload, String paymentKey) {
+    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload) {
         PreparedBookingPayload bp = (PreparedBookingPayload) payload;
 
         if (bp.userId() != null) {
@@ -67,14 +67,16 @@ public class BookingFulfiller implements PaymentFulfiller {
                     : memberBookingUseCase.createMemberDepositBooking(
                             bp.userId(), bp.slotId(), bp.paymentMethod(),
                             bp.depositAmount(), bp.balanceAmount());
-            booking.recordPaymentConfirmation(paymentKey, LocalDateTime.now(clock));
+            booking.recordPaymentConfirmation(attempt.getConfirmedPaymentKey(), LocalDateTime.now(clock));
             return new FulfillResult(booking.getId(), null);
         }
 
-        GuestBookingResult result = guestBookingUseCase.createGuestBooking(
-                new CreateGuestBookingCommand(bp.phone(), bp.verificationCode(), bp.name(),
+        GuestBookingResult result = guestBookingUseCase.createPaymentGuestBooking(
+                new CreatePaymentGuestBookingCommand(
+                        attempt.getOrderIdExternal(), bp.phone(), bp.guestVerificationProof(), bp.name(),
                         bp.slotId(), bp.paymentMethod(), bp.depositAmount(), bp.balanceAmount()));
-        result.booking().recordPaymentConfirmation(paymentKey, LocalDateTime.now(clock));
+        result.booking().recordPaymentConfirmation(
+                attempt.getConfirmedPaymentKey(), LocalDateTime.now(clock));
         return new FulfillResult(result.booking().getId(), result.rawAccessToken());
     }
 }

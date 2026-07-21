@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public record BookingDetailResponse(
         Long bookingId,
         String bookingNumber,
+        Long classId,
         Long slotId,
         LocalDateTime startAt,
         LocalDateTime endAt,
@@ -32,6 +33,7 @@ public record BookingDetailResponse(
         return new BookingDetailResponse(
                 booking.getId(),
                 "BK-%08d".formatted(booking.getId()),
+                booking.getBookingClass().getId(),
                 booking.getSlot().getId(),
                 booking.getSlot().getStartAt(),
                 booking.getSlot().getEndAt(),

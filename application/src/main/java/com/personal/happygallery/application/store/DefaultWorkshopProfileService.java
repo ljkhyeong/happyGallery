@@ -39,7 +39,10 @@ public class DefaultWorkshopProfileService implements WorkshopProfileUseCase {
         profile.update(
                 command.name(), command.phone(), command.postalCode(),
                 command.addressLine1(), command.addressLine2(), command.businessHours(),
-                command.mapUrl(), command.parkingInfo(), LocalDateTime.now(clock));
+                command.mapUrl(), command.parkingInfo(), command.businessRegistrationNumber(),
+                command.representativeName(), command.email(), command.mailOrderRegistrationNumber(),
+                command.introduction(), command.kakaoTalkId(), command.naverTalkEnabled(),
+                LocalDateTime.now(clock));
         return storePort.save(profile);
     }
 }

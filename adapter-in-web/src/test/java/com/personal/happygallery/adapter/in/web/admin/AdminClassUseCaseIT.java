@@ -55,7 +55,6 @@ class AdminClassUseCaseIT {
                                   "bufferMin": 30,
                                   "passEligible": false,
                                   "description": "향을 조합하는 원데이 클래스",
-                                  "imageUrl": "/api/v1/media/images/class.webp",
                                   "preparationInfo": "편한 복장",
                                   "targetAudience": "향수 만들기가 처음인 분"
                                 }

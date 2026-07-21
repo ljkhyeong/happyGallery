@@ -81,6 +81,7 @@ class GuestBookingUseCaseIT {
     @Autowired PlatformTransactionManager transactionManager;
     @MockitoBean PhoneVerificationSender phoneVerificationSender;
 
+    Long classId;
     Long slotId;
     static final String PHONE = "01012345678";
     BookingTestHelper helper;
@@ -94,6 +95,7 @@ class GuestBookingUseCaseIT {
         when(phoneVerificationSender.send(anyString(), anyString())).thenReturn(true);
 
         BookingClass cls = classStorePort.save(defaultBookingClass());
+        classId = cls.getId();
         Slot slot = slotStorePort.save(
                 slot(cls, LocalDateTime.of(2026, 3, 2, 10, 0),
                         LocalDateTime.of(2026, 3, 2, 12, 0)));
@@ -232,7 +234,7 @@ class GuestBookingUseCaseIT {
                 .doesNotContain(verificationCode);
 
         PaymentTestHelper.ConfirmedPayment confirmed = paymentHelper.confirmPayment(
-                prepared.orderId(), prepared.amount(), "test-payment-key");
+                prepared, "test-payment-key");
         BookingTestHelper.CreatedBooking created = new BookingTestHelper.CreatedBooking(
                 confirmed.domainId(), confirmed.accessToken());
 
@@ -324,6 +326,7 @@ class GuestBookingUseCaseIT {
                 bookingPayload(PHONE, code2, "홍길동", slotId, DepositPaymentMethod.CARD));
         mockMvc.perform(post("/api/v1/payments/confirm")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header(PaymentTestHelper.PAYMENT_STATUS_TOKEN_HEADER, prepared.statusToken())
                         .content(confirmRequest(prepared, "test-payment-key")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("DUPLICATE_BOOKING"));
@@ -334,12 +337,13 @@ class GuestBookingUseCaseIT {
     void createGuestBooking_wrongCode_returns400() throws Exception {
         helper.sendVerificationAndGetCode(PHONE); // 코드 발급 (소모 안 함)
 
-        PaymentTestHelper.PreparedPayment prepared = paymentHelper.preparePayment(
-                PaymentContext.BOOKING,
-                bookingPayload(PHONE, "000000", "홍길동", slotId, DepositPaymentMethod.CARD));
-        mockMvc.perform(post("/api/v1/payments/confirm")
+        mockMvc.perform(post("/api/v1/payments/prepare")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(confirmRequest(prepared, "test-payment-key")))
+                        .content(objectMapper.writeValueAsString(new PreparePaymentRequest(
+                                PaymentContext.BOOKING,
+                                bookingPayload(
+                                        PHONE, "000000", "홍길동", slotId,
+                                        DepositPaymentMethod.CARD)))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("PHONE_VERIFICATION_FAILED"));
     }
@@ -362,6 +366,7 @@ class GuestBookingUseCaseIT {
                 bookingPayload(phone, code, "초과예약자", slotId, DepositPaymentMethod.CARD));
         mockMvc.perform(post("/api/v1/payments/confirm")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header(PaymentTestHelper.PAYMENT_STATUS_TOKEN_HEADER, prepared.statusToken())
                         .content(confirmRequest(prepared, "test-payment-key")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CAPACITY_EXCEEDED"));
@@ -381,6 +386,7 @@ class GuestBookingUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(created.bookingId()))
                 .andExpect(jsonPath("$.bookingNumber").value("BK-%08d".formatted(created.bookingId())))
+                .andExpect(jsonPath("$.classId").value(classId))
                 .andExpect(jsonPath("$.status").value("BOOKED"))
                 .andExpect(jsonPath("$.guestName").value("홍길동"))
                 .andExpect(jsonPath("$.guestPhone").value("010****5678"))

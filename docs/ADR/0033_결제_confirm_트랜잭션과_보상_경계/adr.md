@@ -1,7 +1,7 @@
 # ADR-0033: 결제 confirm 트랜잭션과 보상 경계
 
 **날짜**: 2026-07-12  
-**최종 갱신**: 2026-07-19
+**최종 갱신**: 2026-07-21
 **상태**: Accepted
 
 ---
@@ -56,8 +56,10 @@ Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며,
 `PaymentPayload.userId()`와 현재 `AuthContext.userId()`를 공통 비교한다. 각
 `PaymentFulfiller.validateStoredPayload()`는 컨텍스트별 저장 payload 불변식을 검증하고, 주문·예약·8회권은 저장된
 가격 스냅샷과 `PaymentAttempt.amount`까지 비교한다. fulfillment는
-현재 인증 정보를 다시 받지 않고 검증된 저장 payload의 `userId`를 사용한다. 비회원 연락처의 입력 형태는
-prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 fulfillment의 `VerifiedGuestResolver`가 담당한다.
+현재 인증 정보를 다시 받지 않고 검증된 저장 payload의 `userId`를 사용한다. 비회원 주문·예약은
+prepare 트랜잭션에서 휴대폰 인증 코드를 잠금 후 소비하고, `context + orderId + 정규화 전화번호 + nonce`에
+HMAC 서명한 증거만 서버 확정 payload에 저장한다. fulfillment의 `VerifiedGuestResolver`는 현재
+`PaymentAttempt`와 전화번호에 대한 증거 서명을 확인하며 원 인증 코드를 다시 조회하거나 소비하지 않는다.
 `CONFIRMED`에는 생성된 도메인 ID와 비회원 접근 토큰 암호문을 함께 저장한다. 같은 사용자·금액·paymentKey의
 재호출은 PG와 fulfillment를 반복하지 않고 저장된 결과를 복호화해 같은 응답을 반환한다.
 
@@ -65,7 +67,7 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 
 - 공개 입력인 `OrderPayload`에는 `productId`, `qty`와 고객이 선택한 수령 방식, 배송 주문의 구조화된 배송지를 받는다.
 - `OrderPreparer`는 동일 상품 요청을 먼저 합산해 상품별 1~99개 제한을 적용하고, `ACTIVE` 상품을 ID 목록으로 한 번에 조회한다. 서버 상품가·수령 방식·배송지 스냅샷을 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만들며, 상품가와 총액은 웹 안전 정수 상한을 넘지 않게 한다.
-- 내부용 payload는 AES-GCM으로 암호화해 `payment_attempt.payload_enc`에 저장하고, confirm 단계 결정과 fulfillment에서만 복호화한다. V46은 기존 평문 JSON도 암호문으로 전환한다.
+- 내부용 payload는 AES-GCM으로 암호화해 `payment_attempt.payload_enc`에 저장하고, confirm 단계 결정과 fulfillment에서만 복호화한다. 비회원 공개 입력의 인증 코드 원문은 저장하지 않고 결제 귀속 HMAC 증거로 교체한다. V46은 기존 평문 JSON도 암호문으로 전환한다.
 - confirm 단계 결정에서 항목 단가 합계와 `payment_attempt.amount`를 대조한 뒤 PG를 호출한다.
 - `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 단가로 `OrderItemRequest`를 만들며, 주문과 선택된 fulfillment를 같은 트랜잭션에 저장한다. 배송지는 별도 AES-GCM 암호문으로 `fulfillments.shipping_address_enc`에 보존한다.
 - `BookingPreparer`는 예약금과 잔금을 `PreparedBookingPayload`에, `PassPreparer`는 총 가격을 `PreparedPassPayload`에 저장한다.
@@ -139,8 +141,8 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - confirm을 시작하지 않은 `PENDING`은 30분 유효시간을 둔다. confirm 진입과 만료 배치 모두 행 잠금 아래
   같은 UTC `created_at` 경계를 확인하고, 만료 시 `CANCELED` 전이와 암호화 payload 제거를 먼저 커밋한다. confirm은 payload
   복호화와 PG 호출을 시도하지 않고 `PAYMENT_ATTEMPT_EXPIRED`를 반환하며, 배치는 confirm 요청이 없는 레코드를 일괄 정리한다.
-- `CONFIRMED`, `FAILED`, `COMPENSATED`, `CANCELED`은 생성 30일 뒤 `payload_enc`와
-  `fulfilled_access_token_enc`만 제거한다. 상태·금액·PG 식별자·도메인 ID는 감사에 남기고,
+- `CONFIRMED`, `FAILED`, `COMPENSATED`, `CANCELED`은 생성 30일 뒤 `payload_enc`,
+  `fulfilled_access_token_enc`, `owner_phone_hmac`과 `status_access_token_hash`를 제거한다. 상태·금액·PG 식별자·도메인 ID는 감사에 남기고,
   `RECONCILIATION_REQUIRED`와 보상 진행 상태는 복구 가능성을 위해 정리하지 않는다. 정리 후 재조회는
   `PAYMENT_RESULT_RETENTION_EXPIRED`로 명확히 종료한다.
 - 환불 성공 시각은 `refunds.succeeded_at`에 별도로 저장한다. 고객 순매출은 환불 요청·실패 시점이 아니라
@@ -148,6 +150,24 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - 후보 조회는 잠그지 않지만 실제 confirm의 비관적 잠금과 processing token fencing을 그대로 사용한다.
   따라서 사용자 요청이나 여러 서버의 복구 배치가 겹쳐도 PG 결과와 도메인 생성은 한 실행권만 반영한다.
   `PENDING`과 최종·보상 상태는 자동 confirm 대상이 아니다.
+
+### 7. 고객 결제 상태 조회는 prepare 소유권으로 제한한다
+
+PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원래 도메인 예외로 끝날 수 있지만,
+외부 결제는 이미 성립했고 보상 환불은 비동기로 진행된다. 이 상태를 일반 결제 실패로 표시해 재결제를
+유도하지 않도록 고객용 결제 상태 조회를 제공한다.
+
+- 회원 prepare는 `payment_attempt.owner_user_id`를 저장하고 조회 시 현재 고객 세션과 비교한다.
+- 비회원 prepare는 30일 만료 HMAC 서명 토큰을 발급한다. 원문은 응답으로만 전달하고
+  `payment_attempt.status_access_token_hash`에는 서명 토큰 전체의 SHA-256 해시만 저장한다. 별도로 정규화 휴대폰의
+  active HMAC을 `owner_phone_hmac`에 저장해 브라우저 저장소 전체 유실에도 SMS 소유 확인으로 결제 목록을 찾는다.
+- `orderId`는 조회 키일 뿐 인증 자격이 아니다. 결제 미존재와 소유권 불일치는 모두 `NOT_FOUND`로 처리한다.
+- SMS 소유 확인 복구는 active·previous 휴대폰 HMAC 후보로 최근 30일 최종 결제와 미종결 결제를 찾고 ID 순으로
+  잠근 뒤 공통 새 상태 조회 토큰으로 모두 교체한다. 응답이 `orderId` 목록을 함께 주므로 기존 orderId가 없어도
+  복구할 수 있고, 이전 상태 조회 토큰은 즉시 무효가 된다.
+- 고객 응답은 진행 단계와 금액, 완료된 도메인 연결 정보만 제공한다. 내부 실패 사유, 환불 ID와 PG 키는
+  관리자 복구 정보이므로 노출하지 않는다.
+- confirm 응답이 유실된 비회원 결제가 `CONFIRMED`이면 기존 암호문에서 주문·예약 접근 토큰을 복원해 반환한다.
 
 ## 결과
 
@@ -160,6 +180,8 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 | 장점 | 타임아웃 재시도가 같은 Toss 멱등키를 사용한다 |
 | 장점 | prepare 이후 상품·클래스·8회권 가격이 바뀌어도 PG 승인 금액과 저장 도메인 금액이 일치한다 |
 | 장점 | 저장에 성공한 PG 승인 후 로컬 실패가 durable한 보상 환불과 운영자 재시도 대상으로 남는다 |
+| 장점 | 고객이 재결제하지 않고 승인·보상환불 진행 결과를 안전하게 확인할 수 있다 |
+| 장점 | 비회원이 브라우저 저장소 전체를 잃어도 SMS 소유 확인으로 결제 orderId와 상태 조회 자격을 함께 복구한다 |
 | 장점 | 보상 요청 저장 트랜잭션까지 실패해도 남은 결제 중간 상태를 배치가 자동 재개한다 |
 | 단점 | confirm 상태와 보상 상태가 늘어나 운영 조회가 복잡해진다 |
 | 단점 | 비회원 confirm 재응답을 위해 결제 시도 보존 기간 동안 접근 토큰 암호문을 추가 관리한다 |
@@ -175,6 +197,7 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - `PaymentPayload.PreparedOrderPayload`, `PreparedBookingPayload`, `PreparedPassPayload`
 - `ProductReaderPort`, `ProductRepository`, `CartUseCase`
 - `PaymentAttempt`, `PaymentAttemptStatus`
+- `DefaultPaymentStatusQueryService`, `PaymentStatusQueryUseCase`, `PaymentQueryController`
 - `RefundExecutionService`, `RefundTransactionService`, `Refund`
 - `TossPaymentsProvider`
 - `V41__harden_payment_confirm_boundary.sql`
@@ -184,3 +207,4 @@ prepare가 저장 전에 검증하고, 실제 휴대폰 인증 코드 소비는 
 - `V51__track_payment_confirm_recovery.sql`
 - `V58__track_refund_success_time.sql`
 - `V60__normalize_revenue_timestamps_to_seoul.sql`
+- `V76__secure_payment_attempt_status_lookup.sql`

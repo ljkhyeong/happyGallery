@@ -23,6 +23,16 @@ const VARIANT_MAP: Record<string, string> = {
   SHIPPING_PREPARING: "info",
   SHIPPED: "primary",
   DELIVERED: "success",
+  // Payment
+  READY: "secondary",
+  CONFIRMING: "info",
+  RETRYABLE: "warning",
+  FAILED: "danger",
+  REVIEW_REQUIRED: "warning",
+  REFUNDING: "info",
+  REFUNDED: "success",
+  SUPPORT_REQUIRED: "warning",
+  EXPIRED: "secondary",
 };
 
 const LABEL_MAP: Record<string, string> = {
@@ -46,6 +56,15 @@ const LABEL_MAP: Record<string, string> = {
   SHIPPING_PREPARING: "배송 준비",
   SHIPPED: "배송 중",
   DELIVERED: "배송 완료",
+  READY: "결제 준비",
+  CONFIRMING: "확인 중",
+  RETRYABLE: "재확인 필요",
+  FAILED: "승인 실패",
+  REVIEW_REQUIRED: "결제사 확인",
+  REFUNDING: "환불 중",
+  REFUNDED: "환불 완료",
+  SUPPORT_REQUIRED: "확인 필요",
+  EXPIRED: "만료",
 };
 
 export function getStatusLabel(status: string) {

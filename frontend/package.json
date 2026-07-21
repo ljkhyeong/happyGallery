@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "api:generate": "orval --config orval.config.ts",
+    "api:generate": "rm -rf src/generated/api && orval --config orval.config.ts",
     "api:check": "npm run api:generate && git diff --exit-code -- src/generated/api && test -z \"$(git ls-files --others --exclude-standard -- src/generated/api)\"",
     "preview": "vite preview",
     "e2e": "playwright test --grep @smoke",

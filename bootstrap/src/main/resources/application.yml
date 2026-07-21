@@ -165,10 +165,12 @@ app:
   guest-token:
     hmac-secret: ${GUEST_TOKEN_HMAC_SECRET:}
     previous-hmac-secret: ${GUEST_TOKEN_PREVIOUS_HMAC_SECRET:}
-    expiry-hours: ${GUEST_TOKEN_EXPIRY_HOURS:168}
+    expiry-hours: ${GUEST_TOKEN_EXPIRY_HOURS:720}
     recovery-expiry-hours: ${GUEST_TOKEN_RECOVERY_EXPIRY_HOURS:24}
   media:
     storage-path: ${MEDIA_STORAGE_PATH:./data/media}
+  payment:
+    require-complete-business-profile: false
   order:
     shipping-fee: ${ORDER_SHIPPING_FEE:0}
   pass:

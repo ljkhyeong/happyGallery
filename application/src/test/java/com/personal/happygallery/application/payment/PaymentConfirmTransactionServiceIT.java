@@ -124,7 +124,8 @@ class PaymentConfirmTransactionServiceIT {
         TransactionTemplate transaction = new TransactionTemplate(transactionManager);
 
         transaction.executeWithoutResult(status -> assertThatThrownBy(() -> confirmUseCase.confirm(
-                new ConfirmCommand("payment-key", "order-id", 10_000L, AuthContext.guest())))
+                ConfirmCommand.customerRequest(
+                        "payment-key", "order-id", 10_000L, AuthContext.guest(), "status-token")))
                 .isInstanceOf(IllegalTransactionStateException.class));
     }
 
@@ -144,7 +145,7 @@ class PaymentConfirmTransactionServiceIT {
 
     private record PreparedPass(String orderId, long amount, AuthContext auth) {
         ConfirmCommand command(String paymentKey) {
-            return new ConfirmCommand(paymentKey, orderId, amount, auth);
+            return ConfirmCommand.customerRequest(paymentKey, orderId, amount, auth, null);
         }
     }
 }

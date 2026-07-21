@@ -24,8 +24,12 @@ import {
 
 const CART_KEY = ["me", "cart"] as const;
 
+type CartItemView = Omit<CartItemResponse, "productType"> & {
+  productType: CartItemResponse["productType"] | null;
+};
+
 interface CartContextValue {
-  items: CartItemResponse[];
+  items: CartItemView[];
   totalAmount: number;
   itemCount: number;
   isLoading: boolean;
@@ -150,6 +154,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         qty: item.qty,
         subtotal: 0,
         available: true,
+        productType: null,
       })),
       totalAmount: 0,
       itemCount: guestItemCount,

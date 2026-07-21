@@ -282,7 +282,7 @@
 
 - 주문과 예약, 8회권 구매는 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm`으로 생성한다.
 - 로그인 사용자는 `HG_SESSION` 쿠키와 payload의 `userId`가 일치해야 한다.
-- 비회원 주문/예약은 payload의 `phone`, `verificationCode`, `name`으로 confirm 단계에서 휴대폰 인증을 검증한다.
+- 비회원 주문/예약은 prepare 단계에서 payload의 `phone`, `verificationCode`, `name`을 검증하고 인증 코드를 소비한다. 암호화한 내부 payload에는 결제 주문 ID·전화번호·결제 문맥에 귀속된 서버 증명만 저장하고, confirm은 이 증명을 검증한다.
 - 8회권 구매는 회원 전용이며 `context=PASS` payload로 결제한다.
 
 ---

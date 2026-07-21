@@ -35,6 +35,7 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 - 공개 DNS A/AAAA 레코드가 노트북의 실제 공개 주소를 가리켜야 한다. 공유기 포트 전달과 호스트 방화벽은 TCP 80/443만 허용한다.
 - CGNAT이면 일반 포트 전달만으로 외부 공개가 불가능하다. 공인 IP 또는 통제 가능한 터널/프록시를 먼저 준비하고 전달 헤더 신뢰 경계를 다시 설계한다.
 - MySQL 백업 대상은 노트북 내부 디스크가 아닌 분리된 USB 디스크, NAS 또는 원격 mount여야 한다.
+- 공개 결제 운영 전 대표자명, 전자우편주소와 통신판매업 신고번호를 관리자 공방 정보에 모두 입력하고 `/terms`, `/privacy`, `/business-info` 및 footer 표시를 실제 정보와 대조한다. `prod` 프로필은 필수 온라인 판매 고지가 완성될 때까지 결제 prepare를 `503`으로 차단하며, 현재 저장소에는 제공되지 않은 세 항목을 임의 값으로 넣지 않는다.
 
 k3s 설정 예시:
 
@@ -110,14 +111,14 @@ CONFIRM_DATA_KEY_ROTATION=rotate-happygallery-data-keys \
 
 성공 직후 `/etc/happygallery/app.env`도 현재 runtime Secret과 같은 active/previous 상태로 갱신한다. 값은 로그에 출력되지 않으므로 새 키 파일과 분리 보관한 구키를 사용한다. `PREVIOUS_ENCRYPT_KEYS`와 `PREVIOUS_HMAC_KEYS` 형식은 `sourceKeyId=64자리hex`이며, `GUEST_TOKEN_PREVIOUS_HMAC_SECRET`에는 구 guest key를 둔다. 이전 키가 남아 있는 동안 새 회전을 시작할 수 없다.
 
-기존 소셜 계정은 다음 OAuth 로그인 때 `provider_id_enc`와 새 HMAC을 lazy backfill한다. 구 guest token verifier는 최소 168시간과 회전 당시 설정된 토큰 TTL 중 더 긴 값에 1시간 안전 여유를 더한 시각까지 유지한다. 두 조건이 모두 끝난 뒤 previous AES/HMAC/guest 키를 한 번에 제거한다.
+기존 소셜 계정은 다음 OAuth 로그인 때 `provider_id_enc`와 새 HMAC을 lazy backfill한다. 비회원 결제 휴대폰 HMAC은 암호화 payload가 남아 있으면 Job이 새 키로 재생성한다. 만료 결제처럼 payload가 이미 제거된 행은 구 HMAC과 키 ID를 30일 보존 정리 때까지 유지한다. 구 guest token verifier는 일반·복구·결제 상태 조회 토큰 TTL 중 최댓값(기본 720시간)에 1시간 안전 여유를 더한 시각까지 유지한다. 같은 키로 서명한 비회원 결제 인증 증거도 있으므로, 회전 경계 전에 준비되어 아직 fulfillment 가능한 결제가 모두 완료·보상·대사 종결된 뒤 previous AES/HMAC/guest 키를 한 번에 제거한다.
 
 ```bash
 CONFIRM_DATA_KEY_FINALIZATION=finalize-happygallery-data-keys \
   ./deploy/k3s/scripts/finalize-data-key-rotation.sh
 ```
 
-finalize는 `user_social_accounts.provider_id_enc IS NULL`이 0건이고 guest 보존기한이 지났는지 확인한다. app을 0 replica로 만든 뒤 previous 키를 제거하고 원래 replica를 복구하며, 실패 시 app을 0으로 유지한다. `finalizing` 단계에서 중단되면 같은 명령으로 재개한다. 성공 후 `/etc/happygallery/app.env`의 세 previous 값도 비운다. runtime에서 제거한 구키도 해당 키에 결합된 보존 백업이 남아 있는 동안 off-device recovery bundle에서는 폐기하지 않는다.
+finalize는 `user_social_accounts.provider_id_enc IS NULL`, active 키 ID가 아닌 `payment_attempt.owner_phone_hmac`, 회전 경계 전에 준비된 fulfillment 가능 비회원 결제가 모두 0건이고 guest 보존기한이 지났는지 확인한다. app을 0 replica로 만든 뒤 같은 조건을 다시 확인하고 previous 키를 제거해 원래 replica를 복구하며, 실패 시 app을 0으로 유지한다. `finalizing` 단계에서 중단되면 같은 명령으로 재개한다. 성공 후 `/etc/happygallery/app.env`의 세 previous 값도 비운다. runtime에서 제거한 구키도 해당 키에 결합된 보존 백업이 남아 있는 동안 off-device recovery bundle에서는 폐기하지 않는다.
 
 기존 MySQL 자격증명은 유지보수 창에서 DB 계정과 Kubernetes Secret을 함께 회전한다. 새 비밀번호는 저장소 밖 600 권한 파일로 준비하고, 성공 후 `/etc/happygallery/mysql.env`의 `MYSQL_ROOT_PASSWORD`/`MYSQL_PASSWORD`와 `/etc/happygallery/app.env`의 `DB_PASSWORD`도 같은 값으로 갱신한다. 스크립트는 app Pod가 실제로 모두 종료된 뒤 두 계정을 한 SQL 문장으로 바꾸고, Secret 갱신, MySQL 재시작, app 재기동 순서로 처리한다. `started`, `db-updated`, `secrets-updated`, `completed` 단계를 Secret annotation에 기록해 같은 회전 파일로 재개하며, 중간 실패 시 app은 중지 상태로 남긴다. `completed` 기록이 있어도 DB root/app 접속, MySQL·app Secret 값, 원래 app replica 복구 여부를 다시 확인하고 drift가 있으면 같은 목표로 복구한다. 부분 실패와 완료 응답 유실 재개 경로는 `scripts/validate.sh`의 fake kubectl 실행 테스트로 검증한다.
 
@@ -215,9 +216,9 @@ kubectl -n happygallery port-forward service/prometheus 9090:9090
 
 ## 7. 외부 암호화 복구 백업
 
-백업은 MySQL Pod에서 dump를 stdout으로만 내보내고 호스트가 `gzip -> age`로 암호화해 외부 mount에 직접 기록한다. 이어 전용 유지보수 Pod가 `app-media` PVC를 읽어 상품 이미지 archive도 같은 방식으로 암호화한다. 평문 SQL이나 이미지 archive는 생성하지 않는다. 각 암호문에 SHA-256 sidecar를 만들며 기본 보존 기간은 30일이다. 미디어 기능 도입 전부터 운영한 클러스터에 PVC가 아직 없으면 백업 스크립트가 독립된 `app-media-pvc.yaml`을 먼저 적용하므로, 새 app manifest를 배포하기 전에도 기존 DB와 빈 미디어 볼륨을 하나의 복구 묶음으로 만들 수 있다.
+백업 스크립트는 원래 app replica를 확인하고 1이면 0으로 축소해 Pod 종료를 기다린다. 이어 MySQL Pod의 dump를 stdout으로만 내보내 호스트가 `gzip -> age`로 암호화해 외부 mount에 직접 기록하고, 전용 유지보수 Pod가 `app-media` PVC를 읽어 상품 이미지 archive도 같은 방식으로 암호화한다. 미디어 archive가 끝나면 원래 replica를 복구하며, 키 회전처럼 이미 0이었던 경우에는 계속 0으로 유지한다. 이 짧은 계획 중단으로 DB·미디어 백업과 애플리케이션 보존 배치·관리자 쓰기를 상호 배제한다. 평문 SQL이나 이미지 archive는 생성하지 않는다. 각 암호문에 SHA-256 sidecar를 만들며 기본 보존 기간은 30일이다. 미디어 기능 도입 전부터 운영한 클러스터에 PVC가 아직 없으면 백업 스크립트가 독립된 `app-media-pvc.yaml`을 먼저 적용하므로, 새 app manifest를 배포하기 전에도 기존 DB와 빈 미디어 볼륨을 하나의 복구 묶음으로 만들 수 있다.
 
-DB 스냅샷을 먼저 만들고 미디어를 뒤이어 보관한다. 이미지 파일은 UUID 이름으로 추가된 뒤 수정·삭제하지 않으므로 이 순서에서는 DB가 참조하는 파일이 미디어 백업에서 빠지지 않는다. `happygallery-<시각>.recovery.env`의 `DATABASE_BACKUP`과 `MEDIA_BACKUP`은 분리해서 복원할 수 없는 하나의 복구 단위다.
+app 쓰기가 중단된 상태에서 DB 스냅샷을 먼저 만들고 미디어를 뒤이어 보관한다. `happygallery-<시각>.recovery.env`의 `DATABASE_BACKUP`과 `MEDIA_BACKUP`은 분리해서 복원할 수 없는 하나의 복구 단위다.
 
 DB만 복원되고 실행할 바이너리가 사라지는 상황을 막기 위해 같은 외부 매체의 `releases/<IMAGE_TAG>/`에는 호환 app/frontend와 MySQL·Redis·Prometheus·Alertmanager 이미지 archive, digest metadata와 렌더링 manifest를 commit SHA별 한 번 보존한다. 각 복구 백업의 `happygallery-<시각>.recovery.env`는 DB·미디어 파일, release 경로, Flyway schema version, active 암호화 키 ID·keyring SHA-256 fingerprint와 키 회전 단계를 묶는다. fingerprint는 키 원문을 저장하지 않으면서 같은 ID에 잘못된 키를 넣은 복구도 차단한다. 모든 산출물은 먼저 `.partial`로 완성하고 DB·미디어 archive와 sidecar, recovery sidecar 순서로 이름을 확정한 뒤 `recovery.env`를 마지막에 게시한다. 따라서 같은 시각의 `recovery.env`가 없는 중단 산출물은 완성된 복구 묶음으로 사용하지 않는다. release archive는 여러 복구 백업이 공유하므로 자동 보존 정리에서 삭제하지 않는다. 해당 release를 가리키는 복구 백업이 더 없고 별도 복원 검증을 마친 뒤에만 수동 삭제한다.
 
@@ -236,7 +237,7 @@ export BACKUP_AGE_RECIPIENT='age1...'
 ./deploy/k3s/scripts/prune-backups.sh
 ```
 
-systemd 6시간 간격 실행:
+systemd 6시간 간격 실행(예시 timer가 `Asia/Seoul`을 명시한다):
 
 ```bash
 sudo install -m 600 deploy/k3s/examples/backup.env.example /etc/happygallery/backup.env
@@ -304,4 +305,4 @@ rollback은 보존된 전체 manifest를 재적용하지 않는다. digest로 �
 ./deploy/k3s/scripts/validate.sh
 ```
 
-이 검증은 Kustomize 렌더링, YAML 파싱, shell 구문, probe/종료 유예/app-media PVC와 mount/내부 Prometheus/OAuth callback, app/frontend digest 고정, Redis·Alertmanager 단일 인스턴스의 `Recreate`, 복원 전 Pod 종료와 호환 digest 선반영 순서, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.
+이 검증은 Kustomize 렌더링, YAML 파싱, shell 구문, probe/종료 유예/app-media PVC와 mount/내부 Prometheus/OAuth callback, app/frontend digest 고정, Redis·Alertmanager 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, 복원 전 Pod 종료와 호환 digest 선반영 순서, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.

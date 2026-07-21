@@ -20,7 +20,8 @@ class PaymentAttemptPolicyTest {
     @DisplayName("준비된 결제 시도는 선점과 PG 승인을 거쳐 확정된다")
     @Test
     void pendingAttempt_canBeConfirmed_whenAmountMatches() {
-        PaymentAttempt attempt = PaymentAttempt.start("order-id", PaymentContext.ORDER, 10_000L, "{}");
+        PaymentAttempt attempt = PaymentAttempt.startForMember(
+                "order-id", PaymentContext.ORDER, 10_000L, "{}", 1L);
         LocalDateTime processingAt = LocalDateTime.of(2026, 4, 23, 9, 59);
         LocalDateTime approvedAt = LocalDateTime.of(2026, 4, 23, 10, 0);
 
@@ -42,7 +43,8 @@ class PaymentAttemptPolicyTest {
     @DisplayName("결제 선점은 금액이 다르면 상태를 변경하지 않는다")
     @Test
     void startProcessing_rejectsConfirm_whenAmountDiffers() {
-        PaymentAttempt attempt = PaymentAttempt.start("order-id", PaymentContext.BOOKING, 10_000L, "{}");
+        PaymentAttempt attempt = PaymentAttempt.startForMember(
+                "order-id", PaymentContext.BOOKING, 10_000L, "{}", 1L);
         LocalDateTime processingAt = LocalDateTime.of(2026, 4, 23, 10, 0);
 
         assertThatThrownBy(() -> attempt.startProcessing(9_000L, "payment-key", processingAt))
@@ -64,7 +66,8 @@ class PaymentAttemptPolicyTest {
     @DisplayName("실패 처리된 결제 시도는 다시 확정할 수 없다")
     @Test
     void failedAttempt_rejectsConfirm() {
-        PaymentAttempt attempt = PaymentAttempt.start("order-id", PaymentContext.PASS, 240_000L, "{}");
+        PaymentAttempt attempt = PaymentAttempt.startForMember(
+                "order-id", PaymentContext.PASS, 240_000L, "{}", 1L);
         String processingToken = attempt.startProcessing(
                 240_000L, "payment-key", LocalDateTime.of(2026, 4, 23, 10, 0));
         attempt.markProcessingFailed(processingToken, "PG 거절");
@@ -82,7 +85,8 @@ class PaymentAttemptPolicyTest {
     @DisplayName("재선점된 결제는 이전 실행권 토큰의 직접 승인과 실패 저장을 거부한다")
     @Test
     void restartedAttempt_ignoresResultsFromPreviousProcessingToken() {
-        PaymentAttempt attempt = PaymentAttempt.start("order-id", PaymentContext.ORDER, 10_000L, "{}");
+        PaymentAttempt attempt = PaymentAttempt.startForMember(
+                "order-id", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String firstToken = attempt.startProcessing(
                 10_000L, "payment-key", LocalDateTime.of(2026, 7, 19, 10, 0));
         String secondToken = attempt.restartProcessing(
@@ -108,16 +112,16 @@ class PaymentAttemptPolicyTest {
     @DisplayName("늦게 도착한 PG 성공은 새 실행권의 실패 상태를 승인으로 화해한다")
     @Test
     void reconcileLatePgApproval_overridesNewerLocalFailure() {
-        PaymentAttempt retryable = PaymentAttempt.start(
-                "retryable-order", PaymentContext.ORDER, 10_000L, "{}");
+        PaymentAttempt retryable = PaymentAttempt.startForMember(
+                "retryable-order", PaymentContext.ORDER, 10_000L, "{}", 1L);
         retryable.startProcessing(
                 10_000L, "retryable-payment-key", LocalDateTime.of(2026, 7, 19, 10, 0));
         String retryableOwner = retryable.restartProcessing(
                 10_000L, "retryable-payment-key", LocalDateTime.of(2026, 7, 19, 10, 2));
         retryable.markRetryable(retryableOwner, "새 실행권의 일시 실패");
 
-        PaymentAttempt failed = PaymentAttempt.start(
-                "failed-order", PaymentContext.ORDER, 20_000L, "{}");
+        PaymentAttempt failed = PaymentAttempt.startForMember(
+                "failed-order", PaymentContext.ORDER, 20_000L, "{}", 1L);
         failed.startProcessing(
                 20_000L, "failed-payment-key", LocalDateTime.of(2026, 7, 19, 10, 0));
         String failedOwner = failed.restartProcessing(
@@ -140,37 +144,37 @@ class PaymentAttemptPolicyTest {
     @Test
     void confirmRecoveryCandidate_usesProcessingAndApprovalBoundaries() {
         LocalDateTime boundary = LocalDateTime.of(2026, 7, 19, 10, 0);
-        PaymentAttempt staleProcessing = PaymentAttempt.start(
-                "stale-processing", PaymentContext.ORDER, 10_000L, "{}");
+        PaymentAttempt staleProcessing = PaymentAttempt.startForMember(
+                "stale-processing", PaymentContext.ORDER, 10_000L, "{}", 1L);
         staleProcessing.startProcessing(10_000L, "processing-key", boundary);
-        PaymentAttempt freshProcessing = PaymentAttempt.start(
-                "fresh-processing", PaymentContext.ORDER, 10_000L, "{}");
+        PaymentAttempt freshProcessing = PaymentAttempt.startForMember(
+                "fresh-processing", PaymentContext.ORDER, 10_000L, "{}", 1L);
         freshProcessing.startProcessing(10_000L, "processing-key", boundary.plusNanos(1));
-        PaymentAttempt retryable = PaymentAttempt.start(
-                "retryable", PaymentContext.ORDER, 10_000L, "{}");
+        PaymentAttempt retryable = PaymentAttempt.startForMember(
+                "retryable", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String retryableToken = retryable.startProcessing(10_000L, "retryable-key", boundary);
         retryable.markRetryable(retryableToken, "PG 일시 실패");
         boolean retryableAtBoundary = retryable.isConfirmRecoveryCandidate(boundary, boundary);
         retryable.markConfirmRecoveryAttempted(boundary.plusNanos(1));
 
-        PaymentAttempt staleApproved = PaymentAttempt.start(
-                "stale-approved", PaymentContext.ORDER, 10_000L, "{}");
+        PaymentAttempt staleApproved = PaymentAttempt.startForMember(
+                "stale-approved", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String staleToken = staleApproved.startProcessing(
                 10_000L, "approved-key", boundary.minusMinutes(10));
         staleApproved.markApproved(staleToken, "confirmed-key", boundary);
-        PaymentAttempt freshApproved = PaymentAttempt.start(
-                "fresh-approved", PaymentContext.ORDER, 10_000L, "{}");
+        PaymentAttempt freshApproved = PaymentAttempt.startForMember(
+                "fresh-approved", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String freshToken = freshApproved.startProcessing(
                 10_000L, "approved-key", boundary.minusMinutes(10));
         freshApproved.markApproved(freshToken, "confirmed-key", boundary.plusNanos(1));
 
-        PaymentAttempt confirmed = PaymentAttempt.start(
-                "confirmed", PaymentContext.ORDER, 10_000L, "{}");
+        PaymentAttempt confirmed = PaymentAttempt.startForMember(
+                "confirmed", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String confirmedToken = confirmed.startProcessing(10_000L, "confirmed-key", boundary.minusMinutes(10));
         confirmed.markApproved(confirmedToken, "confirmed-key", boundary.minusMinutes(5));
         confirmed.markConfirmed(1L, null);
-        PaymentAttempt zeroAmount = PaymentAttempt.start(
-                "zero-amount", PaymentContext.BOOKING, 0L, "{}");
+        PaymentAttempt zeroAmount = PaymentAttempt.startForMember(
+                "zero-amount", PaymentContext.BOOKING, 0L, "{}", 1L);
         zeroAmount.startProcessing(0L, null, boundary.minusYears(1));
 
         assertSoftly(softly -> {

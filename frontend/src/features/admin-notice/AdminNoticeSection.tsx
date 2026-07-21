@@ -90,8 +90,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5 className="mb-0">공지사항 관리</h5>
+      <div className="d-flex justify-content-end mb-3">
         <Button size="sm" variant="outline-primary" onClick={() => { resetForm(); setShowForm(!showForm); }}>
           {showForm ? "취소" : "새 공지 작성"}
         </Button>

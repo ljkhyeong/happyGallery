@@ -37,6 +37,8 @@ export const NOTIFICATION_EVENT_LABEL: Record<string, string> = {
   ORDER_REFUNDED: "주문 환불",
   PASS_PURCHASED: "8회권 결제 완료",
   PASS_REFUNDED: "8회권 환불 완료",
+  INQUIRY_ANSWERED: "1:1 문의 답변",
+  PRODUCT_QNA_ANSWERED: "상품 Q&A 답변",
   REMINDER_D1: "내일 예약 알림",
   REMINDER_SAME_DAY: "오늘 예약 알림",
   PASS_EXPIRY_SOON: "8회권 만료 임박",

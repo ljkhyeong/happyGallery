@@ -674,6 +674,7 @@ X-Access-Token: {accessToken}
 {
   "bookingId": 1,
   "bookingNumber": "BK-00000001",
+  "classId": 1,
   "slotId": 42,
   "startAt": "2026-03-01T10:00:00",
   "endAt": "2026-03-01T12:00:00",
@@ -728,7 +729,7 @@ X-Access-Token: {accessToken}
 
 - 성공: `200 OK`
 - 에러:
-  - `400 INVALID_INPUT` — 동일 슬롯으로 변경 시도
+  - `400 INVALID_INPUT` — 동일 슬롯 또는 다른 클래스의 슬롯으로 변경 시도
   - `404 NOT_FOUND` — 예약 미존재 또는 token 불일치
   - `409 CAPACITY_EXCEEDED` — 새 슬롯 정원 초과
   - `409 DUPLICATE_BOOKING` — 동일 전화번호 + 새 슬롯에 활성 예약이 이미 존재
@@ -737,6 +738,7 @@ X-Access-Token: {accessToken}
   - `422 CHANGE_NOT_ALLOWED` — 현재 슬롯 시작 1시간 이내
 - 정책:
   - 현재 슬롯 시작 1시간 전까지 횟수 제한 없이 변경 가능
+  - 현재 예약과 같은 클래스의 활성·미래·예약 가능 슬롯으로만 변경 가능
   - 변경마다 `booking_history`에 `RESCHEDULED` 이력 누적
   - `bookings` 행은 항상 1건 유지한다.
 
@@ -800,8 +802,9 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 에러:
   - `404 NOT_FOUND` — bookingId 미존재
-  - `400 INVALID_INPUT` — `BOOKED` 상태가 아닌 예약
+  - `400 INVALID_INPUT` — `BOOKED` 상태가 아니거나 수업 종료 전인 예약
 - 정책:
+  - 서버 `Clock` 기준으로 슬롯 종료 시각에 도달한 뒤에만 처리할 수 있다.
   - 크레딧은 예약 시 `USE` ledger로 이미 소모되어 추가 변동이 없다.
 
 #### 2.5.4 8회권 전체 환불
@@ -848,7 +851,7 @@ Cookie: HG_SESSION={sessionToken}
 - 정책:
   - 미래 `BOOKED` 예약 자동 취소
   - `refundCredits = remainingCredits + 자동 취소한 미래 예약 수`
-  - `refundAmount = refundCredits × (totalPrice / totalCredits)`
+  - `refundAmount = (totalPrice × refundCredits) / totalCredits` (원 단위 미만 버림, 전체 횟수 환불은 원결제액과 동일)
   - `REFUND` ledger 기록 후 `remaining_credits = 0`
   - `payment_key` 기반 PG 환불 요청 이력을 `refunds`에 `REQUESTED`로 남기고, 부모 트랜잭션 커밋 이후 PG 환불을 실행
   - PG 결과는 비동기로 `SUCCEEDED`, `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 중 하나에 반영된다. 미완료 상태는 같은 멱등키로 자동 복구하며 운영자가 수동 재처리할 수도 있다.
@@ -916,7 +919,7 @@ X-Access-Token: {accessToken}
 - 에러:
   - `404 NOT_FOUND` — orderId 미존재 또는 token 불일치
 - 정책:
-  - 신규 서명 토큰은 HMAC 서명과 만료 시각을 검증한 뒤 서명된 claim의 nonce 해시를 DB 저장값과 비교한다. 레거시 32자 16진수 토큰은 전체 원문의 SHA-256 해시를 비교하는 호환 경로를 유지한다.
+  - 비회원 접근 토큰은 HMAC 서명과 만료 시각을 검증한 뒤 서명 토큰 전체의 SHA-256 해시를 DB 저장값과 비교한다. 서명 없는 32자 16진수 토큰은 허용하지 않으며, 신규 토큰에서 추출한 nonce만으로 서명·만료 검사를 우회할 수 없다.
   - 신규 주문의 `fulfillment`는 결제 confirm 시 함께 생성되며 고객이 선택한 `type`, 예상 출고일, 픽업 마감과 배송 추적 정보를 반환한다. 배송지 원문은 고객 응답에 포함하지 않는다.
   - `shippingFee`는 prepare 당시 서버 정책 스냅샷이다. `totalAmount`에는 상품 합계와 배송비가 모두 포함되며 픽업 주문의 배송비는 0원이다.
   - 각 항목의 `productName`, `unitPrice`는 prepare 당시 스냅샷이다. 배송 출발 뒤에는 `carrier`, `trackingNumber`를 함께 반환한다.
@@ -933,11 +936,16 @@ GET /api/v1/orders/policy
 ```
 
 ```json
-{ "shippingFee": 3000 }
+{
+  "shippingFee": 3000,
+  "madeToOrderConsentVersion": "2026-07-21-v1",
+  "madeToOrderConsentText": "주문제작 상품은 결제 후 관리자 승인으로 제작이 시작되면 ..."
+}
 ```
 
 - 인증 없이 결제 전 고정 배송비를 조회한다. 실제 결제 금액은 prepare 시 서버 설정으로 다시 확정한다.
 - `PICKUP`은 이 값과 무관하게 배송비 0원이다. 현재 무료 배송 임계값은 없고 운영 기본값은 `ORDER_SHIPPING_FEE=0`이다.
+- 주문제작 상품이 포함된 화면은 같은 응답의 동의 문구를 별도 필수 체크로 표시한다. 클라이언트는 prepare에 조회한 `madeToOrderConsentVersion`과 `madeToOrderConsent=true`를 제출한다. 서버 현재 버전과 다르면 새 안내를 다시 조회하도록 `400 INVALID_INPUT`으로 거절한다.
 
 ### 2.7 주문 Admin API
 
@@ -1640,6 +1648,7 @@ Authorization: Bearer {token}
 - 소셜 계정은 `user_social_accounts`에 `(provider, provider_id_hmac)`로 저장한다. 한 회원은 Google과 Naver 계정을 각각 하나씩 연결할 수 있다.
 - Google은 `email_verified=true`인 프로필만 수용한다.
 - 외부 provider ID가 처음인데 같은 이메일의 기존 회원이 있으면 제공자와 관계없이 자동 연결하지 않는다. 이미 연결된 provider ID 로그인과 이메일 충돌이 없는 신규 가입만 허용한다.
+- Naver 이메일은 신규 소셜 회원 프로필에는 사용하지만 기존 회원 자동 병합이나 추가 연결의 소유권 증명으로 사용하지 않는다.
 - 소셜 로그인으로 새로 생성된 회원은 `password_hash`가 비어 있을 수 있다.
 - 회원 응답의 `localPasswordEnabled`는 이메일 로그인 비밀번호가 설정되어 있는지를 나타낸다.
 - 이메일은 앞뒤 공백을 제거한 소문자, 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일한다. 응답에는 복호화한 값을 반환한다.
@@ -1707,17 +1716,65 @@ GET /api/v1/auth/social/callback/{provider}?code=...&state=...
 - 성공: `302 Found` → `/auth/callback?newUser=true|false`
 - 실패: `302 Found` → `/auth/callback?error=SOCIAL_LOGIN_FAILED`
 - 기존 이메일과 충돌: `302 Found` → `/auth/callback?error=SOCIAL_ACCOUNT_LINK_REQUIRED`
+- 명시적 계정 연결 성공: `302 Found` → `/auth/callback?linked=GOOGLE|NAVER`
 - 처리율 제한 초과: `429 TOO_MANY_REQUESTS`
 - 정책:
   - Spring Security가 callback의 `state`와 세션의 authorization request를 비교하고 한 번 사용한 authorization request를 제거한 뒤 code를 토큰으로 교환한다.
-  - Google ID Token과 UserInfo, Naver UserInfo를 공통 소셜 프로필로 변환한 뒤에만 application의 계정 연결 트랜잭션을 시작한다.
+  - 연결 callback은 Google ID Token 또는 Naver UserInfo에서 provider와 provider ID를 먼저 확인한 뒤 application의 계정 연결 트랜잭션을 시작한다. 일반 로그인·신규 가입일 때만 이메일과 이름을 포함한 전체 소셜 프로필을 요구한다.
   - 성공 시 세션 ID를 한 번 회전하고 `customerUserId`, `customerCredentialVersion`, `userId:credentialVersion` 형식의 principal 인덱스를 장기 인증 상태로 저장한다.
   - OAuth `SecurityContext`, access token, refresh token은 세션에 저장하지 않는다. 다음 요청은 기존 `CustomerAuthenticationFilter`가 `customerUserId`로 회원 principal을 다시 구성한다.
   - 성공 후 기존 CSRF 토큰이 폐기되므로 클라이언트는 새 CSRF 토큰을 발급받는다.
   - `newUser=true`이면 프런트는 마이페이지의 최초 전화번호 등록 온보딩을 연다. callback 상태를 잃고 마이페이지에 직접 진입해도 현재 회원의 `phone=null`이면 같은 온보딩을 연다.
   - 소셜 로그인 시작과 callback은 서로 분리된 IP 버킷으로 각각 분당 10회 제한한다.
 
-#### 2.12.0.4 회원 휴대폰 등록·변경
+#### 2.12.0.4 소셜 계정 연결 관리
+
+```http
+GET /api/v1/me/social-accounts
+Cookie: HG_SESSION={sessionToken}
+```
+
+```json
+{
+  "linkedProviders": ["GOOGLE", "NAVER"]
+}
+```
+
+```http
+POST /api/v1/me/social-accounts/{provider}/authorization
+Cookie: HG_SESSION={sessionToken}
+X-XSRF-TOKEN: {csrfToken}
+```
+
+```json
+{
+  "authorizationUrl": "/api/v1/auth/social/authorization/google?linkAttempt={oneTimeAttemptId}"
+}
+```
+
+```http
+DELETE /api/v1/me/social-accounts/{provider}
+Cookie: HG_SESSION={sessionToken}
+X-XSRF-TOKEN: {csrfToken}
+```
+
+- `{provider}`: `google` 또는 `naver`
+- 조회 성공: `200 OK`
+- 연결 시작 성공: `200 OK`, 브라우저가 응답의 일회성 `linkAttempt`가 포함된 same-origin `authorizationUrl`로 이동
+- 연결 해제 성공: `204 No Content`, 현재 세션을 포함한 기존 회원 세션 폐기
+- 에러:
+  - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `409 LAST_LOGIN_METHOD_REQUIRED` — 해제하면 로컬 비밀번호와 소셜 계정이 모두 사라짐
+- 정책:
+  - 연결 시작은 SPA CSRF 검증을 통과한 로그인 세션에서만 5분짜리 연결 의도와 일회성 `linkAttempt`를 만든다. 연결 의도에는 회원 ID, 자격 버전, provider를 저장한다.
+  - `linkAttempt`가 일치하는 authorization request가 처음 생성될 때 Spring Security가 만든 OAuth `state`를 연결 의도에 결합한다. 일반 소셜 로그인 시작이나 다른 연결 시도는 이 의도를 이어받지 않는다.
+  - 이어지는 OAuth callback은 결합된 `state`, 연결 의도의 provider·만료·자격 버전과 현재 HTTP 세션의 회원 ID·자격 버전을 모두 확인한다.
+  - provider ID만 외부 계정 식별과 연결에 사용한다. provider 이메일·이름은 연결 대상 회원을 찾거나 기존 계정 소유권을 증명하는 데 사용하지 않는다.
+  - 같은 외부 계정의 재연결은 멱등 처리하지만, 다른 회원의 외부 계정이나 같은 provider의 다른 계정을 자동 이전·교체하지 않는다.
+  - 해제 뒤에도 로컬 비밀번호 또는 다른 소셜 계정이 하나 이상 남아야 한다. 성공하면 `credential_version`을 증가시키고 모든 기존 회원 세션을 폐기해 남은 로그인 수단으로 다시 로그인하게 한다.
+  - 연결 callback에서 외부 계정이 다른 회원에게 이미 연결되어 있으면 `/auth/callback?error=SOCIAL_ACCOUNT_ALREADY_LINKED`, 현재 회원에게 같은 provider의 다른 계정이 있으면 `/auth/callback?error=SOCIAL_PROVIDER_ALREADY_LINKED`로 이동한다. 연결 의도가 만료됐거나 현재 자격 버전과 다르면 `SOCIAL_LOGIN_FAILED`로 종료한다.
+
+#### 2.12.0.5 회원 휴대폰 등록·변경
 
 ```http
 PATCH /api/v1/me/phone
@@ -1754,7 +1811,7 @@ Cookie: HG_SESSION={sessionToken}
   - 비회원 이력 가져오기는 `/api/v1/me/guest-claims/**` 계약을 사용하며 번호 변경만으로 자동 이관하지 않는다.
   - `GET /api/v1/me`의 `phone`은 최초 등록 전 `null`일 수 있다.
 
-#### 2.12.0.5 로그인 비밀번호 변경
+#### 2.12.0.6 로그인 비밀번호 변경
 
 ```http
 PATCH /api/v1/me/password
@@ -1776,9 +1833,9 @@ Cookie: HG_SESSION={sessionToken}
 - 정책:
   - 현재 비밀번호는 `PasswordEncoder.matches(...)`로 확인하고 새 비밀번호는 BCrypt로 다시 해시한다.
   - 성공하면 `credential_version`을 증가시키고 현재 요청을 포함한 모든 회원 세션을 무효화한다.
-  - 소셜 로그인만 사용하는 회원은 이 API 대신 2.12.0.6의 SMS 재설정으로 최초 로컬 비밀번호를 설정한다.
+  - 소셜 로그인만 사용하는 회원은 이 API 대신 2.12.0.7의 SMS 재설정으로 최초 로컬 비밀번호를 설정한다.
 
-#### 2.12.0.6 검증된 휴대폰으로 비밀번호 재설정
+#### 2.12.0.7 검증된 휴대폰으로 비밀번호 재설정
 
 ```http
 POST /api/v1/auth/password/reset
@@ -1804,7 +1861,7 @@ POST /api/v1/auth/password/reset
   - `password_hash=null`인 소셜 전용 회원도 성공할 수 있으며, 성공 후 이메일 로그인이 활성화된다.
   - 성공하면 `credential_version`을 증가시키고 해당 회원의 모든 세션을 무효화한다.
 
-#### 2.12.0.7 회원 탈퇴
+#### 2.12.0.8 회원 탈퇴
 
 ```http
 DELETE /api/v1/me
@@ -1847,6 +1904,7 @@ Cookie: HG_SESSION={sessionToken}
 ```json
 {
   "bookingId": 1,
+  "classId": 1,
   "slotId": 42,
   "status": "BOOKED",
   "className": "향수 클래스",
@@ -1997,10 +2055,10 @@ Cookie: HG_SESSION={sessionToken}
 [
   {
     "id": 101,
-    "channel": "KAKAO",
     "eventType": "ORDER_PAID",
-    "status": "SUCCESS",
-    "sentAt": "2026-03-28T09:15:00",
+    "aggregateType": "ORDER",
+    "aggregateId": 42,
+    "deliveredAt": "2026-03-28T09:15:00",
     "readAt": null,
     "read": false
   }
@@ -2018,8 +2076,9 @@ Cookie: HG_SESSION={sessionToken}
 - 인증 실패 시 `401 UNAUTHORIZED`
 - `page`는 0 이상, `size`는 1~100이어야 하며 표현 가능한 OFFSET 범위를 넘으면 `400 INVALID_INPUT`으로 거절한다.
 - 본인 알림만 조회/읽음 처리할 수 있고, 타인 알림 ID는 찾을 수 없는 것처럼 거절한다.
-- 목록은 `sentAt DESC` 기준 페이지네이션으로 조회한다.
+- 목록은 발송 완료된 논리 알림을 `deliveredAt DESC` 기준으로 페이지네이션하며, 카카오톡 실패 후 SMS 성공처럼 채널 로그가 여러 건이어도 한 건만 반환한다.
 - `readAt != null`이면 `read=true`로 본다.
+- 발송 완료 알림과 최종 실패로 종결된 outbox는 각각 `processed_at`부터 180일 뒤 채널 감사 로그와 함께 보존 배치에서 삭제한다. 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 이 정책으로 삭제하지 않는다.
 
 ### 2.13 공개 Product Q&A API
 #### 2.13.1 상품 Q&A 목록 조회
@@ -2105,7 +2164,8 @@ Content-Type: application/json
       { "productId": 1, "qty": 2 }
     ],
     "fulfillmentType": "PICKUP",
-    "shippingAddress": null
+    "shippingAddress": null,
+    "madeToOrderConsent": false
   }
 }
 ```
@@ -2114,13 +2174,15 @@ Content-Type: application/json
 {
   "orderId": "f2d3a1b4-9d24-4f0a-8a8a-7c8b06f5b1a2",
   "amount": 78000,
-  "context": "ORDER"
+  "context": "ORDER",
+  "statusToken": null
 }
 ```
 
 - 성공: `200 OK`
 - 에러:
   - `400 INVALID_INPUT` — payload context와 `context` 필드 불일치, 항목 누락, 상품별 수량 1~99 범위 위반, 주문 금액 안전 정수 범위 초과 또는 overflow, 회원/비회원 정보 불일치 등
+  - `400 PHONE_VERIFICATION_FAILED` — 비회원 전화번호와 인증 코드가 일치하지 않거나, 코드가 만료·소모됨
   - `404 NOT_FOUND` — 상품/슬롯 미존재
   - `422 PAYMENT_METHOD_NOT_ALLOWED` — `BookingPayload.paymentMethod=BANK_TRANSFER`
 - 정책:
@@ -2130,14 +2192,17 @@ Content-Type: application/json
     - `ORDER`: 동일 `productId`의 수량을 먼저 합쳐 상품별 1~99개 제한을 적용하고, 상품을 한 번에 조회한 뒤 `productId.price * qty`를 overflow 검출 산술로 합산한다. `SHIPPING`이면 `app.order.shipping-fee`의 고정액을 더하고 `PICKUP`이면 0원을 더한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
     - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약), 없으면 `slot.bookingClass.price * 10%`
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
-  - 서버는 prepare 시점의 `ORDER` 상품명·항목 단가·배송비, `BOOKING` 예약금·잔금, `PASS` 총 가격과 계획을 내부 payload로 저장한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장한다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
+  - 서버는 prepare 시점의 `ORDER` 상품명·항목 단가·배송비, `BOOKING` 예약금·잔금, `PASS` 총 가격과 계획을 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
   - `ORDER` payload는 `fulfillmentType=SHIPPING|PICKUP`을 반드시 포함한다. `SHIPPING`은 구조화된 `shippingAddress`가 필수이고 `PICKUP`은 `shippingAddress=null`이어야 한다.
+  - 주문제작 상품이 하나라도 포함되면 `madeToOrderConsentVersion`이 현재 정책 버전과 일치하고 `madeToOrderConsent=true`여야 한다. 서버는 현재 동의 문구 버전·전문·서버 동의 시각을 내부 payload에 확정하고 confirm 시 `orders`로 옮긴다. 기성품만 포함되면 이 값과 무관하게 동의 스냅샷을 만들지 않는다.
   - 클라이언트는 `GET /api/v1/orders/policy`의 `shippingFee`를 사전 표시용으로 사용하되 요청 금액으로 보내지 않는다. prepare가 현재 설정을 다시 읽어 확정하고 주문에 스냅샷으로 저장한다.
   - 직접 주문과 장바구니 주문 모두 `ACTIVE` 상품만 확정한다. 판매 중지 상품은 재고가 남아 있어도 `400 INVALID_INPUT`으로 거절한다.
   - 회원 장바구니는 `cartCheckout=true`를 지정한다. 이때 서버는 클라이언트의 `items`를 사용하지 않고 장바구니에서 구매 가능한 항목을 확정한다.
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
+  - `PREPARED_ORDER`, `PREPARED_BOOKING`, `PREPARED_PASS`는 서버 암호화 스냅샷 전용 타입이다. 공개 prepare 요청으로 보내면 context preparer의 입력 타입 검증에서 `400 INVALID_INPUT`으로 거절한다.
   - prepare 응답의 `orderId`는 Toss 결제창에 그대로 전달한다.
+  - 회원 응답의 `statusToken`은 `null`이다. 비회원 응답에는 30일 만료 HMAC 서명 토큰을 반환하며 프론트는 URL이 아닌 session storage에 보관한다. DB에는 서명 토큰 전체의 SHA-256 해시만 저장한다.
 
 ##### Payload 구조
 
@@ -2150,6 +2215,8 @@ Content-Type: application/json
   "verificationCode": "483921",
   "name": "홍길동",
   "items": [{ "productId": 1, "qty": 2 }],
+  "madeToOrderConsentVersion": "2026-07-21-v1",
+  "madeToOrderConsent": true,
   "fulfillmentType": "SHIPPING",
   "shippingAddress": {
     "recipientName": "홍길동",
@@ -2166,6 +2233,8 @@ Content-Type: application/json
   "userId": 7,
   "items": [],
   "cartCheckout": true,
+  "madeToOrderConsentVersion": null,
+  "madeToOrderConsent": false,
   "fulfillmentType": "PICKUP",
   "shippingAddress": null
 }
@@ -2205,6 +2274,7 @@ Content-Type: application/json
 ```http
 POST /api/v1/payments/confirm
 Cookie: HG_SESSION={sessionToken}   # 회원 경로일 때만
+X-Payment-Status-Token: {prepareStatusToken}  # 비회원 경로일 때만
 Content-Type: application/json
 
 {
@@ -2218,14 +2288,15 @@ Content-Type: application/json
 {
   "context": "ORDER",
   "domainId": 12,
-  "accessToken": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+  "accessToken": "eyJ...signed-token",
+  "accessRecoveryRequired": false
 }
 ```
 
 - 성공: `200 OK`
 - 에러:
   - `400 INVALID_INPUT` — prepare 시점 amount와 불일치, payload 인증 정보 불일치
-  - `404 NOT_FOUND` — `payment_attempt` 미존재
+  - `404 NOT_FOUND` — `payment_attempt` 미존재 또는 prepare 소유권 불일치
   - `409 INVENTORY_NOT_ENOUGH` — 결제 직전 재고 부족
   - `409 CAPACITY_EXCEEDED` — 결제 직전 슬롯 정원 초과
   - `409 DUPLICATE_BOOKING` — 동일 전화번호 + 동일 슬롯에 활성 예약 중복
@@ -2243,18 +2314,95 @@ Content-Type: application/json
   - Toss `Idempotency-Key`는 prepare에서 생성한 `orderId`를 사용하며 같은 결제 재시도에서 변경하지 않는다.
   - Toss 승인 응답의 `paymentKey`, `orderId`는 confirm 요청값과 모두 같아야 한다. 다르면 성공으로 저장하지 않고 같은 멱등키로 재확인 가능한 실패로 처리한다.
   - PG 성공은 별도 트랜잭션으로 `APPROVED`에 저장하고, 이후 도메인 저장과 `CONFIRMED` 전이는 한 트랜잭션으로 처리한다.
+  - 비회원 주문·예약 fulfillment는 내부 proof의 HMAC을 현재 또는 이전 게스트 토큰 키로 검증하고, proof의 context·orderId·정규화 전화번호가 현재 `PaymentAttempt` 및 저장 payload와 모두 일치할 때만 Guest와 도메인을 생성한다. 원 인증 코드가 prepare 뒤 만료되어도 이미 소비된 결제 귀속 증거는 해당 결제 시도에서 유효하다.
   - 이미 `CONFIRMED`인 결제를 같은 인증 주체·금액·paymentKey로 재호출하면 PG와 도메인 생성을 반복하지 않고 최초 `context`, `domainId`, `accessToken`을 그대로 반환한다.
   - 성공 화면은 URL의 동일한 `paymentKey`, `orderId`, `amount`를 유지하고 `PAYMENT_CONFIRM_IN_PROGRESS`, `PAYMENT_CONFIRM_RETRYABLE`, 네트워크 오류 또는 필수 인프라 일시 장애에만 명시적 재확인을 제공한다. `PAYMENT_FAILED`와 `PAYMENT_RECONCILIATION_REQUIRED`처럼 최종 또는 운영자 확인이 필요한 상태에는 재확인을 제공하지 않는다.
   - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다. `FAILED`로 종결된 결제의 동일 confirm 재호출은 PG를 다시 호출하지 않고 저장된 실패 사유의 `502 PAYMENT_FAILED`를 반환한다.
   - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다. amount=0 내부 승인 실패는 외부 결제가 없으므로 보상 환불을 만들지 않는다.
-  - PG 승인 상태 또는 보상 환불 요청 저장까지 실패해 `PROCESSING`·`RETRYABLE`·`APPROVED`가 1분 이상 남으면, 서버 배치가 매분 최대 10건을 자동 재개한다. `PROCESSING/RETRYABLE`은 저장된 요청과 같은 `orderId` 멱등키로 PG confirm을 재확인하고, `APPROVED`는 PG 호출 없이 fulfillment를 재개한다. 마지막 복구 시각을 저장해 건별 1분 backoff와 후보 순환을 적용한다. 생성 후 14일이 지난 유료 미확정 PG 호출은 자동·사용자 재승인 모두 막고 `RECONCILIATION_REQUIRED`로 격리하며, PG를 호출하지 않는 0원 결제는 기간과 무관하게 내부 처리를 재개한다. 복구는 저장 payload의 결제 주체를 사용하며 공개 confirm API의 요청·응답 형식은 바뀌지 않는다.
+  - PG 승인 상태 또는 보상 환불 요청 저장까지 실패해 `PROCESSING`·`RETRYABLE`·`APPROVED`가 1분 이상 남으면, 서버 배치가 매분 최대 10건을 자동 재개한다. `PROCESSING/RETRYABLE`은 저장된 요청과 같은 `orderId` 멱등키로 PG confirm을 재확인하고, `APPROVED`는 PG 호출 없이 fulfillment를 재개한다. 마지막 복구 시각을 저장해 건별 1분 backoff와 후보 순환을 적용한다. 생성 후 14일이 지난 유료 미확정 PG 호출은 자동·사용자 재승인 모두 막고 `RECONCILIATION_REQUIRED`로 격리하며, PG를 호출하지 않는 0원 결제는 기간과 무관하게 내부 처리를 재개한다. 내부 복구는 저장 payload의 결제 주체를 사용하는 전용 명령으로만 인증 검증을 우회한다. 공개 confirm은 회원 세션 소유자 또는 비회원 `X-Payment-Status-Token`이 prepare 소유권과 일치해야 한다.
   - confirm 요청 `paymentKey`는 `payment_attempt.payment_key`, PG 승인 응답의 `paymentKey`는 `payment_attempt.confirmed_payment_key`와 생성된 도메인 레코드의 `payment_key`에 저장한다. 이후 환불은 승인 응답의 `paymentKey`를 PG cancel 호출의 원결제 식별자로 사용한다.
   - 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장한다. 자동·수동 재처리는 `refunds.payment_key`와 최초 `idempotency_key`를 다시 사용한다.
-  - 비회원 경로의 신규 `accessToken`은 HMAC-SHA256 서명과 기본 7일 만료 시각을 포함한다. 주문·예약에는 nonce의 SHA-256 해시만 저장하며, 서명 없는 32자 hex 토큰은 기존 데이터 조회용 폴백으로만 허용한다. 응답 유실 뒤 동일 confirm 재호출을 위해 원문 토큰은 `payment_attempt`에 AES-GCM 암호문으로 저장한다. 회원 경로는 `accessToken=null`.
+  - 비회원 경로의 `accessToken`은 HMAC-SHA256 서명과 기본 30일 만료 시각을 포함한다. 주문·예약에는 서명 토큰 전체의 SHA-256 해시만 저장하며, 서명 없는 토큰은 허용하지 않는다. 응답 유실 뒤 동일 confirm 재호출을 위해 원문 토큰은 `payment_attempt`에 AES-GCM 암호문으로 저장한다. 재호출 시에도 토큰 서명·만료와 현재 주문·예약의 비회원 소유권·저장 해시를 다시 확인한다. 이미 회원에게 귀속됐거나 토큰이 교체·만료된 경우 `accessToken=null`, `accessRecoveryRequired=true`를 반환한다. 회원 경로는 두 값이 각각 `null`, `false`다.
   - `domainId`는 context에 따라 `orderId`(`ORDER`), `bookingId`(`BOOKING`), `passId`(`PASS`)다.
-  - 비회원 휴대폰 인증 실패는 confirm 단계에서 fulfillment가 호출하는 `VerifiedGuestResolver`가 던지는 `400 PHONE_VERIFICATION_FAILED`로 매핑된다.
+  - 내부 결제 귀속 증거가 없거나 위조·재사용되어 현재 결제 시도와 일치하지 않으면 fulfillment를 중단하고 `400 INVALID_INPUT`으로 처리한다. PG가 이미 승인됐다면 기존 보상 환불 경계를 따른다.
   - confirm은 행 잠금 아래 30분 유효시간을 다시 확인하고, 경계를 넘긴 `PENDING`을 `CANCELED`로 전이한 뒤 `payload_enc`를 제거하고 `410 PAYMENT_ATTEMPT_EXPIRED`를 반환한다. 매분 배치도 같은 기준으로 confirm을 시작하지 않은 결제를 일괄 정리한다. 만료된 orderId는 새 prepare부터 다시 시작해야 한다.
-  - 최종 상태인 결제 시도는 생성 30일 뒤 `payload_enc`와 `fulfilled_access_token_enc`를 제거한다. 이후 같은 orderId로 결과를 다시 요청하면 `410 PAYMENT_RESULT_RETENTION_EXPIRED`를 반환한다. 결제 감사 필드와 복구·대사·보상 진행 상태는 유지한다.
+  - prepare·confirm 성공 응답과 고객 상태 조회 응답은 `Cache-Control: no-store`로 반환한다.
+  - 최종 상태인 결제 시도는 생성 30일 뒤 `payload_enc`, `fulfilled_access_token_enc`, `owner_phone_hmac`과 `status_access_token_hash`를 제거한다. 이후 같은 orderId로 confirm 결과를 재요청하면 `410 PAYMENT_RESULT_RETENTION_EXPIRED`를 반환한다. 결제 감사 필드와 복구·대사·보상 진행 상태는 유지한다.
+
+#### 2.15.3 고객 결제 상태 조회
+
+```http
+GET /api/v1/payments/{orderId}
+Cookie: HG_SESSION={sessionToken}                 # 회원
+X-Payment-Status-Token: {prepareStatusToken}      # 비회원
+```
+
+```json
+{
+  "context": "ORDER",
+  "amount": 78000,
+  "status": "REFUNDING",
+  "domainId": null,
+  "accessToken": null,
+  "accessRecoveryRequired": false
+}
+```
+
+- 회원은 prepare 당시 저장한 `owner_user_id`와 현재 세션 사용자 ID가 같아야 한다.
+- 비회원은 prepare 응답 또는 SMS 결제 상태 복구에서 받은 서명 토큰을 헤더로 보내며, 서명·만료 검증 뒤 토큰 전체 해시가 저장값과 같아야 한다. `orderId`만으로는 조회하지 않는다.
+- 결제 미존재와 소유권 불일치는 모두 `404 NOT_FOUND`로 응답해 결제 존재 여부를 노출하지 않는다.
+- 고객 상태는 `READY`, `CONFIRMING`, `RETRYABLE`, `COMPLETED`, `FAILED`, `REVIEW_REQUIRED`, `REFUNDING`, `REFUNDED`, `SUPPORT_REQUIRED`, `EXPIRED`다.
+- `COMPLETED`만 `domainId`를 반환한다. 비회원 완료 결제는 응답 유실 복구를 위해 현재 주문·예약의 비회원 소유권과 저장 해시까지 일치하는 유효한 `accessToken`만 반환한다. 토큰을 안전하게 복원할 수 없으면 `accessRecoveryRequired=true`로 휴대폰 인증 복구가 필요함을 알린다.
+- 실패 사유, `refundId`, PG 식별자, 재시도 횟수는 고객 응답에 포함하지 않는다.
+- 모든 응답은 `Cache-Control: no-store`로 반환한다.
+
+#### 2.15.4 비회원 결제 상태 조회 권한 복구
+
+```http
+POST /api/v1/guest-records/payment-status-recovery
+Content-Type: application/json
+
+{
+  "phone": "01012345678",
+  "verificationCode": "123456"
+}
+```
+
+```json
+{
+  "statusToken": "signed-payment-status-token",
+  "expiresAt": "2026-08-20T00:00:00Z",
+  "payments": [
+    {
+      "orderId": "f2d3a1b4-9d24-4f0a-8a8a-7c8b06f5b1a2",
+      "context": "ORDER",
+      "amount": 78000,
+      "status": "REFUNDING"
+    }
+  ]
+}
+```
+
+- `operationId`: `recoverGuestPaymentStatuses`
+- SMS 인증 코드를 검증·소모한 뒤 같은 휴대폰 소유의 생성 30일 이내 최종 결제와 미종결 결제를 함께 복구한다. `orderId`를 요청에 요구하지 않으므로 브라우저 탭 저장소 전체 유실도 복구할 수 있다.
+- 서버는 대상 결제를 ID 순서로 잠그고 공통 새 `statusToken` 해시로 교체한다. 응답 뒤에는 이전 prepare·복구 토큰이 모두 즉시 무효다.
+- `expiresAt`은 공통 토큰 자체의 만료 시각이다. 개별 최종 결제는 생성 30일 보존 경계가 먼저 오면 해당 행의 조회 토큰 해시가 제거되어 더 일찍 조회가 끝날 수 있다.
+- 결제 미존재와 휴대폰 소유 불일치는 모두 `404 NOT_FOUND`로 응답하며, SMS 코드는 두 경우 모두 먼저 소모한다.
+- `payments[].status`는 고객 결제 상태 조회와 같은 enum을 사용한다. 실패 원인, PG 식별자와 환불 내부 ID는 반환하지 않는다.
+- IP·휴대폰별 복구 처리율 제한을 적용하고 성공 응답은 `Cache-Control: no-store`로 반환한다.
+
+#### 2.15.5 8회권 결제 정책 조회
+
+```http
+GET /api/v1/payments/pass-policy
+```
+
+```json
+{ "totalPrice": 240000, "totalCredits": 8, "validityDays": 90 }
+```
+
+- 프론트는 결제 전에 서버 설정 가격, 이용 횟수와 기간을 표시한다.
+- 표시값을 결제 요청 금액으로 신뢰하지 않는다. 최종 금액은 prepare가 현재 서버 설정으로 다시 확정한다.
 
 ---
 
@@ -2337,18 +2485,26 @@ Content-Type: application/json
 ```json
 {
   "name": "해피갤러리",
-  "phone": "01012345678",
-  "postalCode": "06236",
-  "addressLine1": "서울시 강남구 테헤란로 1",
-  "addressLine2": "2층",
-  "businessHours": "화-토 10:00-18:00",
-  "mapUrl": "https://map.example.com/workshop",
-  "parkingInfo": "건물 뒤편 2대 가능",
+  "phone": "010-9635-5608",
+  "postalCode": null,
+  "addressLine1": "충북 충주시 계명대로 161",
+  "addressLine2": "1층",
+  "businessHours": null,
+  "mapUrl": null,
+  "parkingInfo": null,
+  "businessRegistrationNumber": "303-11-87052",
+  "representativeName": null,
+  "email": null,
+  "mailOrderRegistrationNumber": null,
+  "introduction": "해피갤러리는 빈티지 가죽공예, 레진아트, 플루이드아트, 톨페인팅, 냅킨아트, 양말목공예, 하바리움, 위빙, POP 원데이클래스부터 자격증반, 창업반을 운영합니다.",
+  "kakaoTalkId": "ssim1972",
+  "naverTalkEnabled": true,
   "updatedAt": "2026-07-21T10:00:00"
 }
 ```
 
-- `name`은 필수이고 나머지 안내 필드는 선택값이다. 공개·관리자 응답은 같은 구조를 사용한다.
+- `name`과 `naverTalkEnabled`는 필수이고 나머지 안내 필드는 선택값이다. `businessRegistrationNumber`는 값이 있으면 `000-00-00000` 형식이고, `email`은 표준 이메일 형식과 254자 상한을 적용해 소문자로 저장한다. 공개·관리자 응답은 같은 구조를 사용한다.
+- 현재 제공된 정보에는 대표자명, 전자우편주소와 통신판매업 신고번호가 없으므로 세 필드는 `null`로 유지한다. `prod`에서는 이 값들과 연락처·주소·사업자등록번호가 모두 입력되기 전 결제 prepare를 `503 SERVICE_UNAVAILABLE`로 차단한다.
 
 #### 2.19.2 이미지 업로드·조회
 

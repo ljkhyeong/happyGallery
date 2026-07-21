@@ -56,6 +56,15 @@ public class Order {
     @Column(name = "approval_deadline_at")
     private LocalDateTime approvalDeadlineAt;
 
+    @Column(name = "made_to_order_consent_version", length = 30)
+    private String madeToOrderConsentVersion;
+
+    @Column(name = "made_to_order_consent_disclosure", length = 1000)
+    private String madeToOrderConsentDisclosure;
+
+    @Column(name = "made_to_order_consent_at")
+    private LocalDateTime madeToOrderConsentAt;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -66,7 +75,8 @@ public class Order {
     protected Order() {}
 
     private Order(Long userId, Long guestId, String accessToken, long totalAmount, long shippingFee,
-                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
+                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt,
+                  MadeToOrderConsent madeToOrderConsent) {
         requireExactlyOneOwner(userId, guestId);
         if (shippingFee < 0L || shippingFee > totalAmount) {
             throw new IllegalArgumentException("배송비는 0원 이상이며 총 결제 금액을 넘을 수 없습니다.");
@@ -79,6 +89,11 @@ public class Order {
         this.paidAt = paidAt;
         this.approvalDeadlineAt = approvalDeadlineAt;
         this.status = OrderStatus.PAID_APPROVAL_PENDING;
+        if (madeToOrderConsent != null) {
+            this.madeToOrderConsentVersion = madeToOrderConsent.version();
+            this.madeToOrderConsentDisclosure = madeToOrderConsent.disclosure();
+            this.madeToOrderConsentAt = madeToOrderConsent.agreedAt();
+        }
     }
 
     private static void requireExactlyOneOwner(Long userId, Long guestId) {
@@ -95,7 +110,16 @@ public class Order {
 
     public static Order forGuest(Long guestId, String accessToken, long totalAmount, long shippingFee,
                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return new Order(null, guestId, accessToken, totalAmount, shippingFee, paidAt, approvalDeadlineAt);
+        return forGuest(
+                guestId, accessToken, totalAmount, shippingFee, paidAt, approvalDeadlineAt, null);
+    }
+
+    public static Order forGuest(Long guestId, String accessToken, long totalAmount, long shippingFee,
+                                 LocalDateTime paidAt, LocalDateTime approvalDeadlineAt,
+                                 MadeToOrderConsent madeToOrderConsent) {
+        return new Order(
+                null, guestId, accessToken, totalAmount, shippingFee,
+                paidAt, approvalDeadlineAt, madeToOrderConsent);
     }
 
     /** 회원 주문 생성. guest 대신 user_id를 설정한다. */
@@ -106,7 +130,15 @@ public class Order {
 
     public static Order forMember(Long userId, long totalAmount, long shippingFee,
                                   LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return new Order(userId, null, null, totalAmount, shippingFee, paidAt, approvalDeadlineAt);
+        return forMember(userId, totalAmount, shippingFee, paidAt, approvalDeadlineAt, null);
+    }
+
+    public static Order forMember(Long userId, long totalAmount, long shippingFee,
+                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt,
+                                  MadeToOrderConsent madeToOrderConsent) {
+        return new Order(
+                userId, null, null, totalAmount, shippingFee,
+                paidAt, approvalDeadlineAt, madeToOrderConsent);
     }
 
     /**
@@ -145,6 +177,10 @@ public class Order {
      */
     public void approveAsProduction() {
         this.status.requireApprovalPending();
+        if (madeToOrderConsentAt == null) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "주문제작 동의 기록이 없어 제작을 시작할 수 없습니다.");
+        }
         this.status = OrderStatus.IN_PRODUCTION;
     }
 
@@ -295,6 +331,9 @@ public class Order {
     public long getShippingFee() { return shippingFee; }
     public LocalDateTime getPaidAt() { return paidAt; }
     public LocalDateTime getApprovalDeadlineAt() { return approvalDeadlineAt; }
+    public String getMadeToOrderConsentVersion() { return madeToOrderConsentVersion; }
+    public String getMadeToOrderConsentDisclosure() { return madeToOrderConsentDisclosure; }
+    public LocalDateTime getMadeToOrderConsentAt() { return madeToOrderConsentAt; }
     public long getVersion() { return version; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

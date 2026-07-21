@@ -71,6 +71,18 @@ public class PaymentAttempt {
     @Column(name = "fulfilled_domain_id")
     private Long fulfilledDomainId;
 
+    @Column(name = "owner_user_id")
+    private Long ownerUserId;
+
+    @Column(name = "owner_phone_hmac", length = 64)
+    private String ownerPhoneHmac;
+
+    @Column(name = "owner_phone_hmac_key_id", length = 32)
+    private String ownerPhoneHmacKeyId;
+
+    @Column(name = "status_access_token_hash", length = 64)
+    private String statusAccessTokenHash;
+
     @Lob
     @Column(name = "fulfilled_access_token_enc", columnDefinition = "MEDIUMTEXT")
     private String fulfilledAccessTokenEnc;
@@ -98,13 +110,43 @@ public class PaymentAttempt {
         this.payloadEnc = payloadEnc;
     }
 
-    /**
-     * prepare 단계 엔트리. status는 PENDING으로 시작. createdAt은 DB default로 채워진다.
-     */
-    public static PaymentAttempt start(String orderIdExternal, PaymentContext context,
-                                       long amount, String payloadEnc) {
+    private PaymentAttempt(String orderIdExternal, PaymentContext context, long amount, String payloadEnc,
+                           Long ownerUserId, String ownerPhoneHmac, String ownerPhoneHmacKeyId,
+                           String statusAccessTokenHash) {
+        this(orderIdExternal, context, amount, payloadEnc);
+        this.ownerUserId = ownerUserId;
+        this.ownerPhoneHmac = ownerPhoneHmac;
+        this.ownerPhoneHmacKeyId = ownerPhoneHmacKeyId;
+        this.statusAccessTokenHash = statusAccessTokenHash;
+    }
+
+    public static PaymentAttempt startForMember(String orderIdExternal, PaymentContext context,
+                                                long amount, String payloadEnc, Long ownerUserId) {
         PaymentAmountPolicy.requireValid(amount);
-        return new PaymentAttempt(orderIdExternal, context, amount, payloadEnc);
+        if (ownerUserId == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "결제 회원 정보가 누락되었습니다.");
+        }
+        return new PaymentAttempt(
+                orderIdExternal, context, amount, payloadEnc, ownerUserId, null, null, null);
+    }
+
+    public static PaymentAttempt startForGuest(String orderIdExternal, PaymentContext context,
+                                               long amount, String payloadEnc, String ownerPhoneHmac,
+                                               String ownerPhoneHmacKeyId,
+                                               String statusAccessTokenHash) {
+        PaymentAmountPolicy.requireValid(amount);
+        if (ownerPhoneHmac == null || ownerPhoneHmac.isBlank()) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비회원 결제 휴대폰 정보가 누락되었습니다.");
+        }
+        if (ownerPhoneHmacKeyId == null || ownerPhoneHmacKeyId.isBlank()) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비회원 결제 휴대폰 키 정보가 누락되었습니다.");
+        }
+        if (statusAccessTokenHash == null || statusAccessTokenHash.isBlank()) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비회원 결제 조회 정보가 누락되었습니다.");
+        }
+        return new PaymentAttempt(
+                orderIdExternal, context, amount, payloadEnc, null,
+                ownerPhoneHmac, ownerPhoneHmacKeyId, statusAccessTokenHash);
     }
 
     /** 기존 결제 시도와 동일한 confirm 요청인지 상태와 무관하게 금액/paymentKey를 비교한다. */
@@ -315,17 +357,33 @@ public class PaymentAttempt {
                 && (createdAt == null || createdAt.isBefore(automaticRetrySafeSince));
     }
 
-    /** 보존 기간이 지난 최종 결제 시도의 개인정보 암호문만 제거한다. */
+    /** 보존 기간이 지난 최종 결제 시도의 개인정보와 비회원 조회 자격을 제거한다. */
     public boolean clearSensitiveDataBefore(LocalDateTime cutoff) {
         if (!status.isSensitiveDataCleanupAllowed()
                 || createdAt == null
                 || createdAt.isAfter(cutoff)
-                || (payloadEnc == null && fulfilledAccessTokenEnc == null)) {
+                || (payloadEnc == null && fulfilledAccessTokenEnc == null
+                    && ownerPhoneHmac == null && ownerPhoneHmacKeyId == null
+                    && statusAccessTokenHash == null)) {
             return false;
         }
         payloadEnc = null;
         fulfilledAccessTokenEnc = null;
+        ownerPhoneHmac = null;
+        ownerPhoneHmacKeyId = null;
+        statusAccessTokenHash = null;
         return true;
+    }
+
+    /** 휴대폰 소유 확인 뒤 이 비회원 결제 시도의 조회 자격을 새 토큰으로 교체한다. */
+    public void replaceStatusAccessToken(String tokenHash) {
+        if (ownerUserId != null || ownerPhoneHmac == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비회원 결제 조회 자격을 갱신할 수 없습니다.");
+        }
+        if (tokenHash == null || tokenHash.isBlank()) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비회원 결제 조회 정보가 누락되었습니다.");
+        }
+        statusAccessTokenHash = tokenHash;
     }
 
     public Long getId() { return id; }
@@ -338,6 +396,10 @@ public class PaymentAttempt {
     public String getFailReason() { return failReason; }
     public String getPayloadEnc() { return payloadEnc; }
     public Long getFulfilledDomainId() { return fulfilledDomainId; }
+    public Long getOwnerUserId() { return ownerUserId; }
+    public String getOwnerPhoneHmac() { return ownerPhoneHmac; }
+    public String getOwnerPhoneHmacKeyId() { return ownerPhoneHmacKeyId; }
+    public String getStatusAccessTokenHash() { return statusAccessTokenHash; }
     public String getFulfilledAccessTokenEnc() { return fulfilledAccessTokenEnc; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getProcessingAt() { return processingAt; }

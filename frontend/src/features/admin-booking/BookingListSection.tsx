@@ -222,7 +222,10 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
                         <Button
                           size="sm"
                           variant="outline-danger"
-                          disabled={mutationPending}
+                          title={parseApiDateTime(b.endAt) > Date.now()
+                            ? "수업 종료 후 노쇼 처리할 수 있습니다."
+                            : undefined}
+                          disabled={mutationPending || parseApiDateTime(b.endAt) > Date.now()}
                           onClick={() => noShowMutation.mutate(b.bookingId)}
                         >
                           노쇼

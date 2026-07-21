@@ -41,6 +41,8 @@ class PaymentConfirmTransactionService {
     private final PaymentAttemptReaderPort attemptReader;
     private final PaymentAttemptStorePort attemptStore;
     private final RefundExecutionService refundExecutionService;
+    private final PaymentAttemptAccessVerifier accessVerifier;
+    private final CompletedGuestAccessTokenResolver accessTokenResolver;
     private final Map<PaymentContext, PaymentFulfiller> fulfillers;
     private final ObjectMapper objectMapper;
     private final FieldEncryptor fieldEncryptor;
@@ -49,6 +51,8 @@ class PaymentConfirmTransactionService {
     PaymentConfirmTransactionService(PaymentAttemptReaderPort attemptReader,
                                      PaymentAttemptStorePort attemptStore,
                                      RefundExecutionService refundExecutionService,
+                                     PaymentAttemptAccessVerifier accessVerifier,
+                                     CompletedGuestAccessTokenResolver accessTokenResolver,
                                      List<PaymentFulfiller> fulfillers,
                                      ObjectMapper objectMapper,
                                      FieldEncryptor fieldEncryptor,
@@ -56,6 +60,8 @@ class PaymentConfirmTransactionService {
         this.attemptReader = attemptReader;
         this.attemptStore = attemptStore;
         this.refundExecutionService = refundExecutionService;
+        this.accessVerifier = accessVerifier;
+        this.accessTokenResolver = accessTokenResolver;
         this.fulfillers = new EnumMap<>(PaymentContext.class);
         for (PaymentFulfiller fulfiller : fulfillers) {
             PaymentContext context = fulfiller.context();
@@ -71,6 +77,7 @@ class PaymentConfirmTransactionService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ConfirmationStep resolveConfirmationStep(ConfirmCommand command) {
         PaymentAttempt attempt = findForUpdate(command.orderId());
+        requireAccess(attempt, command);
         if (attempt.getStatus() == PaymentAttemptStatus.CANCELED) {
             throw new HappyGalleryException(ErrorCode.PAYMENT_ATTEMPT_EXPIRED);
         }
@@ -159,7 +166,7 @@ class PaymentConfirmTransactionService {
             AuthContext auth = payload.userId() == null
                     ? AuthContext.guest()
                     : AuthContext.member(payload.userId());
-            return new RecoveryReady(new ConfirmCommand(
+            return new RecoveryReady(ConfirmCommand.trustedRecovery(
                     attempt.getPaymentKey(), attempt.getOrderIdExternal(), attempt.getAmount(), auth));
         } catch (RuntimeException failure) {
             return new RecoveryPreparationFailed(failure);
@@ -248,13 +255,13 @@ class PaymentConfirmTransactionService {
         }
         PaymentPayload payload = deserialize(attempt.getPayloadEnc());
         PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
-        PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(payload, attempt.getConfirmedPaymentKey());
+        PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(attempt, payload);
         String accessTokenEnc = fulfilled.rawAccessToken() == null
                 ? null
                 : fieldEncryptor.encrypt(fulfilled.rawAccessToken());
         attempt.markConfirmed(fulfilled.domainId(), accessTokenEnc);
         attemptStore.save(attempt);
-        return new ConfirmResult(attempt.getContext(), fulfilled.domainId(), fulfilled.rawAccessToken());
+        return confirmedResult(attempt);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -311,6 +318,7 @@ class PaymentConfirmTransactionService {
 
     private PaymentAttempt findValidatedAttemptForUpdate(ConfirmCommand command) {
         PaymentAttempt attempt = findForUpdate(command.orderId());
+        requireAccess(attempt, command);
         if (attempt.getStatus() == PaymentAttemptStatus.CANCELED) {
             throw new HappyGalleryException(ErrorCode.PAYMENT_ATTEMPT_EXPIRED);
         }
@@ -320,7 +328,7 @@ class PaymentConfirmTransactionService {
 
     private PaymentAttempt findForUpdate(String orderId) {
         return attemptReader.findByOrderIdExternalForUpdate(orderId)
-                .orElseThrow(() -> new NotFoundException("결제 시도"));
+                .orElseThrow(() -> new NotFoundException("결제"));
     }
 
     private void validateAttempt(PaymentAttempt attempt, ConfirmCommand command) {
@@ -332,7 +340,7 @@ class PaymentConfirmTransactionService {
         }
         PaymentPayload payload = deserialize(attempt.getPayloadEnc());
         fulfiller(attempt.getContext()).validateStoredPayload(attempt, payload);
-        requireSameActor(payload, command.auth());
+        requireSameActor(payload, command);
     }
 
     private PaymentFulfiller fulfiller(PaymentContext context) {
@@ -343,10 +351,19 @@ class PaymentConfirmTransactionService {
         return fulfiller;
     }
 
-    private void requireSameActor(PaymentPayload payload, AuthContext auth) {
-        if (!Objects.equals(payload.userId(), auth.userId())) {
+    private void requireAccess(PaymentAttempt attempt, ConfirmCommand command) {
+        if (!command.trustedInternalRecovery()) {
+            accessVerifier.requireCustomerAccess(attempt, command.auth(), command.statusToken());
+        }
+    }
+
+    private void requireSameActor(PaymentPayload payload, ConfirmCommand command) {
+        if (!Objects.equals(payload.userId(), command.auth().userId())) {
+            if (!command.trustedInternalRecovery()) {
+                throw new NotFoundException("결제");
+            }
             throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, "결제를 준비한 사용자와 현재 인증 정보가 일치하지 않습니다.");
+                    ErrorCode.INVALID_INPUT, "복구할 결제의 사용자 정보가 저장값과 일치하지 않습니다.");
         }
     }
 
@@ -359,10 +376,12 @@ class PaymentConfirmTransactionService {
         if (attempt.getFulfilledDomainId() == null) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "완료된 결제 결과가 없습니다.");
         }
-        String accessToken = attempt.getFulfilledAccessTokenEnc() == null
-                ? null
-                : fieldEncryptor.decrypt(attempt.getFulfilledAccessTokenEnc());
-        return new ConfirmResult(attempt.getContext(), attempt.getFulfilledDomainId(), accessToken);
+        CompletedGuestAccessTokenResolver.ResolvedAccess access = accessTokenResolver.resolve(attempt);
+        return new ConfirmResult(
+                attempt.getContext(),
+                attempt.getFulfilledDomainId(),
+                access.accessToken(),
+                access.recoveryRequired());
     }
 
     private ReadyForFulfillment readyForFulfillment(PaymentAttempt attempt) {

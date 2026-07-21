@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -39,6 +40,76 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
     default List<NotificationOutbox> findFailed(int limit) {
         return findFailedPage(PageRequest.ofSize(limit));
     }
+
+    @Query("""
+            SELECT n
+            FROM NotificationOutbox n
+            WHERE n.userId = :userId
+              AND n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.SENT
+            ORDER BY n.processedAt DESC, n.id DESC
+            """)
+    List<NotificationOutbox> findSentByUserId(@Param("userId") Long userId, Pageable pageable);
+
+    @Override
+    default List<NotificationOutbox> findSentByUserId(Long userId, int limit, int offset) {
+        return findSentByUserId(userId, PageRequest.of(offset / limit, limit));
+    }
+
+    @Query("""
+            SELECT n
+            FROM NotificationOutbox n
+            WHERE n.guestId = :guestId
+              AND n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.SENT
+            ORDER BY n.processedAt DESC, n.id DESC
+            """)
+    List<NotificationOutbox> findSentByGuestId(@Param("guestId") Long guestId, Pageable pageable);
+
+    @Override
+    default List<NotificationOutbox> findSentByGuestId(Long guestId, int limit, int offset) {
+        return findSentByGuestId(guestId, PageRequest.of(offset / limit, limit));
+    }
+
+    @Override
+    @Query("""
+            SELECT COUNT(n)
+            FROM NotificationOutbox n
+            WHERE n.userId = :userId
+              AND n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.SENT
+              AND n.readAt IS NULL
+            """)
+    long countUnreadSentByUserId(@Param("userId") Long userId);
+
+    @Override
+    @Query("""
+            SELECT COUNT(n)
+            FROM NotificationOutbox n
+            WHERE n.guestId = :guestId
+              AND n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.SENT
+              AND n.readAt IS NULL
+            """)
+    long countUnreadSentByGuestId(@Param("guestId") Long guestId);
+
+    @Override
+    @Modifying
+    @Query("""
+            UPDATE NotificationOutbox n
+            SET n.readAt = :readAt
+            WHERE n.userId = :userId
+              AND n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.SENT
+              AND n.readAt IS NULL
+            """)
+    void markAllSentReadByUserId(@Param("userId") Long userId, @Param("readAt") LocalDateTime readAt);
+
+    @Override
+    @Modifying
+    @Query("""
+            UPDATE NotificationOutbox n
+            SET n.readAt = :readAt
+            WHERE n.guestId = :guestId
+              AND n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.SENT
+              AND n.readAt IS NULL
+            """)
+    void markAllSentReadByGuestId(@Param("guestId") Long guestId, @Param("readAt") LocalDateTime readAt);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

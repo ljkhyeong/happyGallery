@@ -4,12 +4,18 @@ import com.personal.happygallery.application.crypto.VersionedFieldEncryptor;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.FulfillmentRotatedRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.GuestRotatedRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.IdentifiedRow;
+import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.PaymentAttemptEncryptedRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.PaymentAttemptRotatedRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.SocialAccountRotatedRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.UserRotatedRow;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedBookingPayload;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
+import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class DefaultKeyRotationService implements KeyRotationUseCase {
@@ -19,13 +25,16 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
     private final KeyRotationDataPort dataPort;
     private final VersionedFieldEncryptor fieldEncryptor;
     private final BlindIndexKeyRing blindIndexKeyRing;
+    private final ObjectMapper objectMapper;
 
     public DefaultKeyRotationService(KeyRotationDataPort dataPort,
                                      VersionedFieldEncryptor fieldEncryptor,
-                                     BlindIndexKeyRing blindIndexKeyRing) {
+                                     BlindIndexKeyRing blindIndexKeyRing,
+                                     ObjectMapper objectMapper) {
         this.dataPort = dataPort;
         this.fieldEncryptor = fieldEncryptor;
         this.blindIndexKeyRing = blindIndexKeyRing;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -71,11 +80,39 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
 
     private int rotatePaymentAttempts() {
         return rotatePages((afterId, limit) -> dataPort.findPaymentAttemptsAfterId(afterId, limit), row -> {
+            String payloadJson = decryptNullable(row.payloadEnc());
             dataPort.updatePaymentAttempt(new PaymentAttemptRotatedRow(
-                    row.id(), reencryptNullable(row.payloadEnc()),
-                    reencryptNullable(row.accessTokenEnc())));
+                    row.id(),
+                    encryptNullable(payloadJson),
+                    reencryptNullable(row.accessTokenEnc()),
+                    rotateOwnerPhoneHmac(row.ownerPhoneHmac(), payloadJson),
+                    rotateOwnerPhoneHmacKeyId(row, payloadJson)));
             return true;
         });
+    }
+
+    private String rotateOwnerPhoneHmac(String ownerPhoneHmac, String payloadJson) {
+        if (ownerPhoneHmac == null) {
+            return null;
+        }
+        if (payloadJson == null) {
+            return ownerPhoneHmac;
+        }
+        PaymentPayload payload = objectMapper.readValue(payloadJson, PaymentPayload.class);
+        String phone = switch (payload) {
+            case PreparedOrderPayload order -> order.phone();
+            case PreparedBookingPayload booking -> booking.phone();
+            default -> throw new IllegalStateException("비회원 결제 휴대폰을 찾을 수 없는 payload입니다.");
+        };
+        return blindIndexKeyRing.index(KoreanPhoneNumber.required(phone));
+    }
+
+    private String rotateOwnerPhoneHmacKeyId(
+            PaymentAttemptEncryptedRow row, String payloadJson) {
+        if (row.ownerPhoneHmac() == null) {
+            return null;
+        }
+        return payloadJson == null ? row.ownerPhoneHmacKeyId() : blindIndexKeyRing.activeKeyId();
     }
 
     private int rotateFulfillments() {
@@ -122,6 +159,10 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
 
     private String reencryptNullable(String encrypted) {
         return encrypted == null ? null : fieldEncryptor.reencrypt(encrypted);
+    }
+
+    private String encryptNullable(String plaintext) {
+        return plaintext == null ? null : fieldEncryptor.encrypt(plaintext);
     }
 
     private static <T extends IdentifiedRow> int rotatePages(PageReader<T> reader, RowRotator<T> rotator) {

@@ -9,7 +9,8 @@ export function WorkshopVisitInfo({ compact = false }: Props) {
   if (!profile) return null;
 
   const address = [profile.addressLine1, profile.addressLine2].filter(Boolean).join(" ");
-  const hasDetails = address || profile.phone || profile.businessHours || profile.parkingInfo;
+  const hasDetails = address || profile.phone || profile.businessHours || profile.parkingInfo
+    || profile.introduction || profile.kakaoTalkId || profile.naverTalkEnabled;
   if (!hasDetails) return null;
 
   return (
@@ -17,10 +18,13 @@ export function WorkshopVisitInfo({ compact = false }: Props) {
       <div>
         <p className="store-section-kicker mb-2">VISIT</p>
         <h2 className="workshop-visit-name">{profile.name}</h2>
+        {profile.introduction && <p className="workshop-visit-introduction">{profile.introduction}</p>}
       </div>
       <dl className="workshop-visit-details mb-0">
         {address && <><dt>주소</dt><dd>{address}</dd></>}
-        {profile.phone && <><dt>연락처</dt><dd><a href={`tel:${profile.phone}`}>{profile.phone}</a></dd></>}
+        {profile.phone && <><dt>전화</dt><dd><a href={`tel:${profile.phone.replace(/\D/g, "")}`}>{profile.phone}</a></dd></>}
+        {profile.kakaoTalkId && <><dt>카카오톡</dt><dd>{profile.kakaoTalkId}</dd></>}
+        {profile.naverTalkEnabled && <><dt>수업 문의</dt><dd>원데이클래스·단체수업 네이버톡톡</dd></>}
         {profile.businessHours && <><dt>운영시간</dt><dd>{profile.businessHours}</dd></>}
         {profile.parkingInfo && <><dt>주차</dt><dd>{profile.parkingInfo}</dd></>}
       </dl>

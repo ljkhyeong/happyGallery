@@ -87,10 +87,13 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
     @Override
     public List<PaymentAttemptEncryptedRow> findPaymentAttemptsAfterId(long afterId, int limit) {
         return jdbc.sql("""
-                        SELECT id, payload_enc, fulfilled_access_token_enc
+                        SELECT id, payload_enc, fulfilled_access_token_enc,
+                               owner_phone_hmac, owner_phone_hmac_key_id
                         FROM payment_attempt
                         WHERE id > :afterId
-                          AND (payload_enc IS NOT NULL OR fulfilled_access_token_enc IS NOT NULL)
+                          AND (payload_enc IS NOT NULL
+                               OR fulfilled_access_token_enc IS NOT NULL
+                               OR owner_phone_hmac IS NOT NULL)
                         ORDER BY id
                         LIMIT :limit
                         """)
@@ -98,7 +101,9 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
                 .param("limit", limit)
                 .query((rs, rowNum) -> new PaymentAttemptEncryptedRow(
                         rs.getLong("id"), rs.getString("payload_enc"),
-                        rs.getString("fulfilled_access_token_enc")))
+                        rs.getString("fulfilled_access_token_enc"),
+                        rs.getString("owner_phone_hmac"),
+                        rs.getString("owner_phone_hmac_key_id")))
                 .list();
     }
 
@@ -107,7 +112,9 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
         jdbc.sql("""
                         UPDATE payment_attempt
                         SET payload_enc = :payloadEnc,
-                            fulfilled_access_token_enc = :accessTokenEnc
+                            fulfilled_access_token_enc = :accessTokenEnc,
+                            owner_phone_hmac = :ownerPhoneHmac,
+                            owner_phone_hmac_key_id = :ownerPhoneHmacKeyId
                         WHERE id = :id
                         """)
                 .paramSource(row)

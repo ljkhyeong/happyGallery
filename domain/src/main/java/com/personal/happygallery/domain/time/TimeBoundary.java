@@ -11,6 +11,8 @@ import java.time.ZonedDateTime;
  */
 public final class TimeBoundary {
 
+    public static final int PASS_VALIDITY_DAYS = 90;
+
     private TimeBoundary() {}
 
     // ── 취소 보상 경계 ─────────────────────────────────────────────────────────
@@ -63,7 +65,7 @@ public final class TimeBoundary {
     public static ZonedDateTime passExpiresAt(ZonedDateTime purchasedAt) {
         return purchasedAt.withZoneSameInstant(Clocks.SEOUL)
                 .toLocalDate()
-                .plusDays(90)
+                .plusDays(PASS_VALIDITY_DAYS)
                 .atStartOfDay(Clocks.SEOUL);
     }
 

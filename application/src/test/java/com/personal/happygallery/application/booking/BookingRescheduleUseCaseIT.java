@@ -150,6 +150,36 @@ class BookingRescheduleUseCaseIT {
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
+    @DisplayName("다른 클래스 슬롯으로 예약을 변경하면 금액과 정원을 유지하고 400을 반환한다")
+    @Test
+    void reschedule_differentClass_returns400WithoutChangingBooking() throws Exception {
+        Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        BookingClass otherClass = classStorePort.save(
+                new BookingClass("레진 클래스", "RESIN", 90, 80_000L, 20));
+        Slot otherClassSlot = slotStorePort.save(
+                slot(otherClass, FUTURE.plusHours(4), FUTURE.plusMinutes(330)));
+        BookingTestHelper.CreatedBooking booking =
+                helper.createVerifiedCardBooking("01033330002", fromSlot.getId());
+
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
+                        .header("X-Access-Token", booking.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rescheduleRequest(otherClassSlot.getId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+
+        var savedBooking = bookingStateProbe.getBooking(booking.bookingId());
+        assertSoftly(softly -> {
+            softly.assertThat(savedBooking.getBookingClass().getId()).isEqualTo(cls.getId());
+            softly.assertThat(savedBooking.getSlot().getId()).isEqualTo(fromSlot.getId());
+            softly.assertThat(savedBooking.getDepositAmount()).isEqualTo(5_000L);
+            softly.assertThat(savedBooking.getBalanceAmount()).isEqualTo(45_000L);
+            softly.assertThat(bookingStateProbe.getSlot(fromSlot.getId()).getBookedCount()).isEqualTo(1);
+            softly.assertThat(bookingStateProbe.getSlot(otherClassSlot.getId()).getBookedCount()).isZero();
+            softly.assertThat(bookingStateProbe.bookingHistoryCountByBookingId(booking.bookingId())).isEqualTo(1L);
+        });
+    }
+
     // -----------------------------------------------------------------------
     // 409 — 비활성 슬롯으로 변경 시도
     // -----------------------------------------------------------------------

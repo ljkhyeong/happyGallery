@@ -1,3 +1,8 @@
+import type {
+  PassPaymentPolicyResponse as GeneratedPassPaymentPolicyResponse,
+  PaymentStatusResponse as GeneratedPaymentStatusResponse,
+} from "@/generated/api/paymentQuery";
+
 export type PaymentContext = "ORDER" | "BOOKING" | "PASS";
 export type DepositPaymentMethod = "CARD" | "EASY_PAY";
 
@@ -24,6 +29,8 @@ export interface OrderPayload {
   name?: string | null;
   items: OrderItemRef[];
   cartCheckout?: boolean;
+  madeToOrderConsent: boolean;
+  madeToOrderConsentVersion: string | null;
   fulfillmentType: FulfillmentType;
   shippingAddress: ShippingAddress | null;
 }
@@ -50,10 +57,16 @@ export interface PreparePaymentResponse {
   orderId: string;
   amount: number;
   context: PaymentContext;
+  statusToken: string | null;
 }
 
 export interface ConfirmPaymentResponse {
   context: PaymentContext;
-  domainId: number;
+  domainId: number | null;
   accessToken: string | null;
+  accessRecoveryRequired: boolean;
 }
+
+export type PaymentStatusResponse = GeneratedPaymentStatusResponse;
+export type CustomerPaymentStatus = PaymentStatusResponse["status"];
+export type PassPaymentPolicyResponse = GeneratedPassPaymentPolicyResponse;

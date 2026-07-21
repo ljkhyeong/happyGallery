@@ -1,12 +1,17 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Container, Card, Button } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
-import { executePaymentFlow } from "@/features/payment";
-import { ErrorAlert } from "@/shared/ui";
+import { executePaymentFlow, fetchPassPaymentPolicy } from "@/features/payment";
+import { formatKRW } from "@/shared/lib";
+import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
 export function PassPurchasePage() {
   const { isAuthenticated, user } = useCustomerAuth();
+  const policyQuery = useQuery({
+    queryKey: ["payment", "pass-policy"],
+    queryFn: fetchPassPaymentPolicy,
+  });
 
   const purchaseMutation = useMutation({
     mutationFn: async () => {
@@ -31,11 +36,25 @@ export function PassPurchasePage() {
 
       <Card className="mb-3">
         <Card.Body>
-          <p className="text-muted-soft small mb-0">
-            정규 공예 8회권을 구매하면 90일간 8회 수업을 이용할 수 있습니다.
-            향수 원데이 클래스에는 사용할 수 없습니다.
-            예약 시 8회권을 선택하면 예약금 없이 횟수가 차감됩니다.
-          </p>
+          <h6 className="mb-3">정규 공예 8회권</h6>
+          {policyQuery.isLoading && <LoadingSpinner text="판매 정책 확인 중..." />}
+          <ErrorAlert error={policyQuery.error} />
+          {policyQuery.data && (
+            <>
+              <dl className="row mb-3">
+                <dt className="col-6 fw-normal text-muted">결제 금액</dt>
+                <dd className="col-6 text-end fw-semibold">{formatKRW(policyQuery.data.totalPrice)}</dd>
+                <dt className="col-6 fw-normal text-muted">이용 횟수</dt>
+                <dd className="col-6 text-end">{policyQuery.data.totalCredits}회</dd>
+                <dt className="col-6 fw-normal text-muted">이용 기간</dt>
+                <dd className="col-6 text-end mb-0">결제일 포함 {policyQuery.data.validityDays}일</dd>
+              </dl>
+              <p className="text-muted-soft small mb-0">
+                향수 원데이 클래스에는 사용할 수 없습니다. 예약할 때 8회권을 선택하면
+                별도 예약금 없이 1회가 차감됩니다.
+              </p>
+            </>
+          )}
         </Card.Body>
       </Card>
 
@@ -43,8 +62,8 @@ export function PassPurchasePage() {
         <Card.Body>
           <h6 className="mb-2">결제 정보</h6>
           <p className="text-muted-soft small mb-0">
-            결제 금액은 서버에서 확정되며, 다음 단계에서 토스 결제창으로 이동합니다.
-            환불 시 잔여 횟수 기준으로 정산됩니다.
+            표시 금액은 서버 판매 정책이며 prepare 단계에서 다시 확정됩니다.
+            환불 금액은 사용한 횟수를 제외한 잔여 횟수를 기준으로 계산합니다.
           </p>
         </Card.Body>
       </Card>
@@ -54,7 +73,7 @@ export function PassPurchasePage() {
       {isAuthenticated ? (
         <Button
           variant="primary" size="lg" className="w-100"
-          disabled={purchaseMutation.isPending}
+          disabled={purchaseMutation.isPending || !policyQuery.data}
           onClick={() => purchaseMutation.mutate()}
         >
           {purchaseMutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}

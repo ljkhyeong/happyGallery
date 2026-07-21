@@ -12,6 +12,7 @@ export function SocialCallbackPage() {
   const navigate = useNavigate();
   const { refresh } = useCustomerAuth();
   const [error, setError] = useState("");
+  const [linkCallback, setLinkCallback] = useState(false);
   const handled = useRef(false);
 
   useEffect(() => {
@@ -20,8 +21,12 @@ export function SocialCallbackPage() {
     }
     handled.current = true;
 
+    const pendingSocialAccountLink = sessionStorage.getItem(SESSION_KEYS.socialAccountLink);
+    sessionStorage.removeItem(SESSION_KEYS.socialAccountLink);
+
     const errorCode = searchParams.get("error");
     if (errorCode) {
+      setLinkCallback(pendingSocialAccountLink !== null);
       sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
       setError(getUserMessage(errorCode) ?? "소셜 로그인에 실패했습니다. 다시 시도해 주세요.");
       return;
@@ -29,6 +34,12 @@ export function SocialCallbackPage() {
 
     void (async () => {
       const user = await refresh();
+
+      const linkedProvider = searchParams.get("linked");
+      if (linkedProvider) {
+        navigate("/my", { replace: true, state: { socialAccountLinked: linkedProvider } });
+        return;
+      }
 
       const returnTo = resolveSafeReturnTo(sessionStorage.getItem(SESSION_KEYS.socialLoginReturnTo));
       sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
@@ -45,7 +56,9 @@ export function SocialCallbackPage() {
     return (
       <Container className="page-container" style={{ maxWidth: 480 }}>
         <Alert variant="danger" className="mt-5">{error}</Alert>
-        <a href="/login">로그인 페이지로 돌아가기</a>
+        <a href={linkCallback ? "/my" : "/login"}>
+          {linkCallback ? "마이페이지로 돌아가기" : "로그인 페이지로 돌아가기"}
+        </a>
       </Container>
     );
   }

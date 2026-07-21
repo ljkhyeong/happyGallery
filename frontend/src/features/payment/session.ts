@@ -5,6 +5,7 @@
  * 다음 화면으로 react-router history state로 전달해 URL 노출 없이 자동 조회한다.
  */
 export const PAYMENT_RETURN_KEY = "hg_payment_return_hint";
+const PAYMENT_STATUS_TOKEN_PREFIX = "hg_payment_status_token:";
 
 export interface PaymentReturnHint {
   customerName?: string;
@@ -27,5 +28,30 @@ export function consumePaymentReturnHint(): PaymentReturnHint | null {
     return JSON.parse(raw) as PaymentReturnHint;
   } catch {
     return null;
+  }
+}
+
+export function storePaymentStatusToken(orderId: string, token: string | null): void {
+  if (!token) return;
+  try {
+    sessionStorage.setItem(`${PAYMENT_STATUS_TOKEN_PREFIX}${orderId}`, token);
+  } catch {
+    // sessionStorage 비활성 환경 — 회원 결제는 세션으로, 비회원은 고객센터 복구 경로로 확인한다.
+  }
+}
+
+export function readPaymentStatusToken(orderId: string): string | null {
+  try {
+    return sessionStorage.getItem(`${PAYMENT_STATUS_TOKEN_PREFIX}${orderId}`);
+  } catch {
+    return null;
+  }
+}
+
+export function removePaymentStatusToken(orderId: string): void {
+  try {
+    sessionStorage.removeItem(`${PAYMENT_STATUS_TOKEN_PREFIX}${orderId}`);
+  } catch {
+    // 세션 저장소를 사용할 수 없으면 정리할 값도 없다.
   }
 }

@@ -1,11 +1,16 @@
-import { LinkButton } from "@/shared/ui/LinkButton";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Container, Spinner, Button } from "react-bootstrap";
+import { Alert, Container, Spinner, Button } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   confirmPayment,
   consumePaymentReturnHint,
+  fetchPaymentStatus,
+  PaymentCompletionNext,
+  PaymentStatusNotice,
+  readPaymentStatusToken,
+  shouldPollPaymentStatus,
   type ConfirmPaymentResponse,
+  type PaymentStatusResponse,
 } from "@/features/payment";
 import { isPositiveSafeIntegerString } from "@/shared/lib";
 import { ErrorAlert } from "@/shared/ui";
@@ -31,14 +36,46 @@ export function PaymentSuccessPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<unknown>(null);
   const [result, setResult] = useState<ConfirmPaymentResponse | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatusResponse | null>(null);
+  const [statusError, setStatusError] = useState("");
   const [confirming, setConfirming] = useState(true);
   const calledRef = useRef(false);
+  const latestStatusRequestRef = useRef(0);
+  const completedRef = useRef(false);
 
-  const paymentKey = params.get("paymentKey")?.trim() ?? "";
-  const orderId = params.get("orderId")?.trim() ?? "";
-  const amountStr = params.get("amount");
+  const callbackRef = useRef({
+    paymentKey: params.get("paymentKey")?.trim() ?? "",
+    orderId: params.get("orderId")?.trim() ?? "",
+    amount: params.get("amount"),
+  });
+  const paymentKey = callbackRef.current.paymentKey;
+  const orderId = callbackRef.current.orderId;
+  const amountStr = callbackRef.current.amount;
   const amount = Number(amountStr);
   const validAmount = isPositiveSafeIntegerString(amountStr);
+
+  const checkStatus = useCallback(async () => {
+    if (!orderId) throw new Error("결제 주문번호가 없습니다.");
+    const requestId = ++latestStatusRequestRef.current;
+    const status = await fetchPaymentStatus(orderId, readPaymentStatusToken(orderId));
+    if (requestId !== latestStatusRequestRef.current || completedRef.current) {
+      return status;
+    }
+    setStatusError("");
+    setPaymentStatus(status);
+    if (status.status === "COMPLETED" && status.domainId != null) {
+      completedRef.current = true;
+      setResult({
+        context: status.context,
+        domainId: status.domainId,
+        accessToken: status.accessToken,
+        accessRecoveryRequired: status.accessRecoveryRequired,
+      });
+      setError(null);
+      consumePaymentReturnHint();
+    }
+    return status;
+  }, [orderId]);
 
   const runConfirm = useCallback(async () => {
     if (!paymentKey || !orderId || !validAmount) {
@@ -48,17 +85,28 @@ export function PaymentSuccessPage() {
     }
 
     setError(null);
+    setStatusError("");
+    setPaymentStatus(null);
     setConfirming(true);
     try {
-      const response = await confirmPayment({ paymentKey, orderId, amount });
+      const response = await confirmPayment(
+        { paymentKey, orderId, amount },
+        readPaymentStatusToken(orderId),
+      );
+      completedRef.current = true;
       setResult(response);
       consumePaymentReturnHint();
     } catch (requestError) {
       setError(requestError);
+      try {
+        await checkStatus();
+      } catch {
+        // 과거 결제나 유실된 비회원 토큰은 기존 confirm 오류 안내를 유지한다.
+      }
     } finally {
       setConfirming(false);
     }
-  }, [paymentKey, orderId, amount, validAmount]);
+  }, [paymentKey, orderId, amount, validAmount, checkStatus]);
 
   useEffect(() => {
     if (calledRef.current) return;
@@ -66,11 +114,68 @@ export function PaymentSuccessPage() {
     void runConfirm();
   }, [runConfirm]);
 
+  useEffect(() => {
+    window.history.replaceState(window.history.state, "", "/payments/success");
+  }, []);
+
+  useEffect(() => {
+    const polling = shouldPollPaymentStatus(paymentStatus?.status);
+    if (!polling) return;
+    let active = true;
+    let timer: number | undefined;
+
+    const poll = async () => {
+      try {
+        const status = await checkStatus();
+        const shouldContinue = shouldPollPaymentStatus(status.status);
+        if (active && shouldContinue) {
+          timer = window.setTimeout(() => void poll(), 3_000);
+        }
+      } catch {
+        if (active) {
+          setStatusError("상태를 새로 확인하지 못했습니다. 잠시 후 자동으로 다시 확인합니다.");
+          timer = window.setTimeout(() => void poll(), 3_000);
+        }
+      }
+    };
+
+    timer = window.setTimeout(() => void poll(), 3_000);
+    return () => {
+      active = false;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [checkStatus, paymentStatus?.status]);
+
   if (confirming) {
     return (
       <Container className="page-container text-center" style={{ maxWidth: 540 }}>
         <Spinner animation="border" role="status" className="mb-3" />
         <p className="text-muted-soft">결제를 확정하고 있습니다...</p>
+      </Container>
+    );
+  }
+
+  if (paymentStatus && paymentStatus.status !== "COMPLETED") {
+    return (
+      <Container className="page-container" style={{ maxWidth: 540 }}>
+        <PaymentStatusNotice status={paymentStatus} />
+        {statusError && <Alert variant="warning" className="mt-3 mb-0">{statusError}</Alert>}
+        <div className="d-flex gap-2 mt-3">
+          {(paymentStatus.status === "READY" || paymentStatus.status === "RETRYABLE") && (
+            <Button variant="primary" onClick={() => void runConfirm()}>
+              결제 결과 다시 확인
+            </Button>
+          )}
+          {(paymentStatus.status === "REVIEW_REQUIRED"
+            || paymentStatus.status === "SUPPORT_REQUIRED") && (
+            <Button variant="primary" onClick={() => void checkStatus().catch(() => {
+              setStatusError("상태를 새로 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+            })}>
+              상태 새로고침
+            </Button>
+          )}
+          <Button variant="outline-secondary" onClick={() => navigate("/")}>홈으로</Button>
+        </div>
       </Container>
     );
   }
@@ -106,52 +211,7 @@ export function PaymentSuccessPage() {
     <Container className="page-container" style={{ maxWidth: 540 }}>
       <h4 className="mb-4">결제 완료</h4>
       <p className="text-muted-soft mb-4">결제가 정상 처리되었습니다.</p>
-      <PaymentSuccessNext result={result} />
+      <PaymentCompletionNext result={result} />
     </Container>
-  );
-}
-
-function PaymentSuccessNext({ result }: { result: ConfirmPaymentResponse }) {
-  if (result.context === "PASS") {
-    return (
-      <LinkButton to="/my/passes" variant="primary">
-        내 8회권 확인하기
-      </LinkButton>
-    );
-  }
-  if (result.context === "ORDER") {
-    if (result.accessToken) {
-      return (
-        <LinkButton
-          to="/guest/orders"
-          state={{ orderId: result.domainId, token: result.accessToken }}
-          variant="primary"
-        >
-          비회원 주문 확인하기
-        </LinkButton>
-      );
-    }
-    return (
-      <LinkButton to={`/my/orders/${result.domainId}`} variant="primary">
-        내 주문 상세 보기
-      </LinkButton>
-    );
-  }
-  // BOOKING
-  if (result.accessToken) {
-    return (
-      <LinkButton
-        to="/guest/bookings"
-        state={{ bookingId: result.domainId, token: result.accessToken }}
-        variant="primary"
-      >
-        비회원 예약 확인하기
-      </LinkButton>
-    );
-  }
-  return (
-    <LinkButton to={`/my/bookings/${result.domainId}`} variant="primary">
-      내 예약 상세 보기
-    </LinkButton>
   );
 }

@@ -20,6 +20,8 @@ import java.time.LocalDateTime;
 @Table(name = "pass_purchases")
 public class PassPurchase {
 
+    public static final int TOTAL_CREDITS = 8;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -64,8 +66,8 @@ public class PassPurchase {
         this.purchasedAt = purchasedAt;
         this.expiresAt = expiresAt;
         this.plan = plan;
-        this.totalCredits = 8;
-        this.remainingCredits = 8;
+        this.totalCredits = TOTAL_CREDITS;
+        this.remainingCredits = TOTAL_CREDITS;
         this.totalPrice = totalPrice;
     }
 
@@ -157,9 +159,9 @@ public class PassPurchase {
         return totalCredits == 0 ? 0 : totalPrice / totalCredits;
     }
 
-    /** 지정 크레딧 기반 환불 금액 계산 = refund_credits * unit_price */
+    /** 지정 크레딧을 총 결제액에 비례해 정산한다. 전 횟수 환불은 원결제액과 같다. */
     public long calculateRefundAmount(int refundCredits) {
-        return (long) refundCredits * unitPrice();
+        return Math.multiplyExact(totalPrice, refundCredits) / totalCredits;
     }
 
     /** 결제 confirm 성공 후 원결제 paymentKey를 저장한다. */

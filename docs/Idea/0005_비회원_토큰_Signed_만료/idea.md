@@ -1,6 +1,6 @@
 # Idea-0005: Guest Token — Signed Short-lived Token 전환
 
-> **구현 완료** — HMAC-SHA256 서명 + 만료(7일) 토큰 발급·검증 전환 완료. 레거시 토큰 듀얼 모드 폴백 지원. ADR-0024 갱신 대상.
+> **구현 완료** — HMAC-SHA256 서명 + 만료(30일) 토큰 발급·검증 전환 완료. 서비스 공개 전 서명 없는 토큰 호환 경로를 제거했으며, 만료·분실은 휴대폰 소유 확인 기반 복구로 처리한다. 현재 기준은 ADR-0024를 따른다.
 
 ## 배경
 ADR-0024에서 단기 조치(SHA-256 해시 저장)는 완료했지만, 전달 방식·만료·브라우저 저장 측면은 아직 개선 여지가 있다.
@@ -10,7 +10,7 @@ ADR-0024에서 단기 조치(SHA-256 해시 저장)는 완료했지만, 전달 �
 | 항목 | 현재 (단기 완료) | 목표 |
 |------|------------------|------|
 | 전달 방식 | `X-Access-Token` 헤더 (쿼리 파라미터 폐지 완료) | 유지 또는 `Authorization: Bearer` 전환 |
-| 만료 | 없음 | 생성 후 7일 (또는 슬롯 종료 후 24시간) |
+| 만료 | 없음 | 생성 후 30일 |
 | 토큰 형식 | opaque 32자 hex (DB에 SHA-256 해시 저장) | signed JWT (HMAC-SHA256) with expiry claim |
 | 갱신 | 없음 | refresh 없음 (단발성 guest 조작) |
 | 브라우저 저장 | 성공 화면에서 1회 표시 + 복사 버튼, 조회 페이지 자동 연결 | httpOnly cookie 또는 sessionStorage |
@@ -37,5 +37,5 @@ ADR-0024에서 단기 조치(SHA-256 해시 저장)는 완료했지만, 전달 �
 - SHA-256 해시 저장 + V18 backfill (T1-T2, T1-T5)
 - 프론트엔드 성공 화면 1회 표시 + 복사 + 자동 연결 (T1-T4)
 - HMAC-SHA256 서명 + 만료 타임스탬프 토큰 발급 (`AccessTokenSigner`, `GuestTokenService`)
-- 레거시 토큰(32자 hex) 듀얼 모드 폴백 검증
-- `GuestTokenProperties` 설정 (`app.guest-token.hmac-secret`, `expiry-hours: 168`)
+- 서명 없는 토큰 거절과 휴대폰 소유 확인 기반 복구
+- `GuestTokenProperties` 설정 (`app.guest-token.hmac-secret`, `expiry-hours: 720`)

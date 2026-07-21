@@ -35,7 +35,6 @@ export function AdminInquirySection({ token, onAuthError }: Props) {
 
   return (
     <div>
-      <h5 className="mb-3">1:1 문의 관리</h5>
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} />
       {inquiries && inquiries.length === 0 && <EmptyState message="문의가 없습니다." />}

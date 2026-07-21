@@ -433,7 +433,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("관리자 공방 방문 정보 수정 API를 문서화한다")
+    @DisplayName("관리자 공방과 사업자 정보 수정 API를 문서화한다")
     void admin_update_workshop_profile() throws Exception {
         mockMvc.perform(put("/api/v1/admin/workshop")
                         .with(adminUser())
@@ -442,16 +442,25 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                         .content("""
                                 {
                                   "name": "해피갤러리",
-                                  "phone": "02-123-4567",
-                                  "postalCode": "01234",
-                                  "addressLine1": "서울시 종로구 공방길 1",
-                                  "addressLine2": "2층",
-                                  "businessHours": "화-일 10:00-19:00",
-                                  "mapUrl": "https://map.example.com/happygallery",
-                                  "parkingInfo": "근처 공영주차장 이용"
+                                  "phone": "010-9635-5608",
+                                  "postalCode": null,
+                                  "addressLine1": "충북 충주시 계명대로 161",
+                                  "addressLine2": "1층",
+                                  "businessHours": null,
+                                  "mapUrl": null,
+                                  "parkingInfo": null,
+                                  "businessRegistrationNumber": "303-11-87052",
+                                  "representativeName": null,
+                                  "email": null,
+                                  "mailOrderRegistrationNumber": null,
+                                  "introduction": "해피갤러리는 빈티지 가죽공예, 레진아트, 플루이드아트, 톨페인팅, 냅킨아트, 양말목공예, 하바리움, 위빙, POP 원데이클래스부터 자격증반, 창업반을 운영합니다.",
+                                  "kakaoTalkId": "ssim1972",
+                                  "naverTalkEnabled": true
                                 }
                                 """))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.businessRegistrationNumber").value("303-11-87052"))
+                .andExpect(jsonPath("$.naverTalkEnabled").value(true));
     }
 
     @Test
@@ -1159,9 +1168,13 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     private static WorkshopProfile workshopProfile() {
         WorkshopProfile profile = new WorkshopProfile("해피갤러리");
         profile.update(
-                "해피갤러리", "02-123-4567", "01234",
-                "서울시 종로구 공방길 1", "2층", "화-일 10:00-19:00",
-                "https://map.example.com/happygallery", "근처 공영주차장 이용",
+                "해피갤러리", "010-9635-5608", null,
+                "충북 충주시 계명대로 161", "1층", null,
+                null, null,
+                "303-11-87052", null, null, null,
+                "해피갤러리는 빈티지 가죽공예, 레진아트, 플루이드아트, 톨페인팅, 냅킨아트, "
+                        + "양말목공예, 하바리움, 위빙, POP 원데이클래스부터 자격증반, 창업반을 운영합니다.",
+                "ssim1972", true,
                 LocalDateTime.of(2026, 5, 1, 21, 0));
         return profile;
     }

@@ -72,7 +72,9 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     @Override
     @Query(value = """
             SELECT id, user_id, guest_id, access_token, payment_key, status,
-                   total_amount, shipping_fee, paid_at, approval_deadline_at, version, created_at
+                   total_amount, shipping_fee, paid_at, approval_deadline_at,
+                   made_to_order_consent_version, made_to_order_consent_disclosure,
+                   made_to_order_consent_at, version, created_at
             FROM orders
             WHERE (created_at, id) < (:cursorCreatedAt, :cursorId)
             ORDER BY created_at DESC, id DESC
@@ -94,7 +96,9 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     @Override
     @Query(value = """
             SELECT id, user_id, guest_id, access_token, payment_key, status,
-                   total_amount, shipping_fee, paid_at, approval_deadline_at, version, created_at
+                   total_amount, shipping_fee, paid_at, approval_deadline_at,
+                   made_to_order_consent_version, made_to_order_consent_disclosure,
+                   made_to_order_consent_at, version, created_at
             FROM orders
             WHERE status = :#{#status.name()}
               AND (created_at, id) < (:cursorCreatedAt, :cursorId)

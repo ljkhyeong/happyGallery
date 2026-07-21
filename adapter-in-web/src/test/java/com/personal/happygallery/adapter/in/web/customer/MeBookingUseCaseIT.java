@@ -52,6 +52,7 @@ class MeBookingUseCaseIT {
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
+    Long classId;
     Long slotId;
     Long slot2Id;
     Cookie sessionCookie;
@@ -70,6 +71,7 @@ class MeBookingUseCaseIT {
         customerHelper = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader);
 
         BookingClass cls = classStorePort.save(defaultBookingClass());
+        classId = cls.getId();
         Slot s1 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE, BookingTestHelper.FUTURE.plusHours(2)));
         Slot s2 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE.plusDays(1), BookingTestHelper.FUTURE.plusDays(1).plusHours(2)));
         slotId = s1.getId();
@@ -110,6 +112,7 @@ class MeBookingUseCaseIT {
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
+                .andExpect(jsonPath("$.classId").value(classId))
                 .andExpect(jsonPath("$.status").value("BOOKED"))
                 .andExpect(jsonPath("$.className").value("향수 클래스"))
                 .andExpect(jsonPath("$.balanceStatus").value("UNPAID"))

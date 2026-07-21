@@ -1,7 +1,9 @@
 package com.personal.happygallery.adapter.in.web.security.customer;
 
 import com.personal.happygallery.adapter.in.web.customer.CustomerSessionBinder;
+import com.personal.happygallery.adapter.in.web.security.customer.SocialOAuth2ProfileResolver.SocialIdentity;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
+import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLinkCommand;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import jakarta.servlet.ServletException;
@@ -29,14 +31,17 @@ public class SocialLoginAuthenticationHandler
 
     private final SocialAuthUseCase socialAuth;
     private final SocialOAuth2ProfileResolver profileResolver;
+    private final SocialAccountLinkIntentStore linkIntentStore;
     private final CustomerSessionBinder customerSessionBinder;
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
     public SocialLoginAuthenticationHandler(SocialAuthUseCase socialAuth,
                                             SocialOAuth2ProfileResolver profileResolver,
+                                            SocialAccountLinkIntentStore linkIntentStore,
                                             CustomerSessionBinder customerSessionBinder) {
         this.socialAuth = socialAuth;
         this.profileResolver = profileResolver;
+        this.linkIntentStore = linkIntentStore;
         this.customerSessionBinder = customerSessionBinder;
     }
 
@@ -45,19 +50,30 @@ public class SocialLoginAuthenticationHandler
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException {
         try {
-            SocialAuthUseCase.SocialLoginResult result = socialAuth.socialLogin(
-                    profileResolver.resolve(authentication));
+            SocialIdentity identity = profileResolver.resolveIdentity(authentication);
+            var linkIntent = linkIntentStore.consume(request, identity.provider());
+            if (linkIntent.isPresent()) {
+                socialAuth.linkSocialAccount(new SocialLinkCommand(
+                        linkIntent.get().userId(),
+                        linkIntent.get().credentialVersion(),
+                        identity.provider(),
+                        identity.providerId()));
+                redirect(request, response, "linked", identity.provider().name());
+                return;
+            }
+
+            SocialAuthUseCase.SocialLoginCommand profile = profileResolver.resolveLogin(authentication);
+            SocialAuthUseCase.SocialLoginResult result = socialAuth.socialLogin(profile);
             customerSessionBinder.bind(request, response, result.user());
             redirect(request, response, "newUser", String.valueOf(result.newUser()));
         } catch (HappyGalleryException exception) {
-            ErrorCode errorCode = exception.getErrorCode() == ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED
-                    ? ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED
-                    : ErrorCode.SOCIAL_LOGIN_FAILED;
+            ErrorCode errorCode = socialErrorCode(exception.getErrorCode());
             redirect(request, response, "error", errorCode.name());
         } catch (RuntimeException exception) {
             log.error("Social login completion failed", exception);
             redirect(request, response, "error", ErrorCode.SOCIAL_LOGIN_FAILED.name());
         } finally {
+            linkIntentStore.clear(request);
             SecurityContextHolder.clearContext();
         }
     }
@@ -67,6 +83,7 @@ public class SocialLoginAuthenticationHandler
                                         HttpServletResponse response,
                                         org.springframework.security.core.AuthenticationException exception)
             throws IOException, ServletException {
+        linkIntentStore.clear(request);
         if (exception instanceof OAuth2AuthenticationException oauth2Exception) {
             log.warn("Social OAuth authentication failed: {}", oauth2Exception.getError().getErrorCode());
         } else {
@@ -74,6 +91,16 @@ public class SocialLoginAuthenticationHandler
         }
         SecurityContextHolder.clearContext();
         redirect(request, response, "error", ErrorCode.SOCIAL_LOGIN_FAILED.name());
+    }
+
+    private ErrorCode socialErrorCode(ErrorCode errorCode) {
+        return switch (errorCode) {
+            case SOCIAL_ACCOUNT_LINK_REQUIRED,
+                 SOCIAL_ACCOUNT_ALREADY_LINKED,
+                 SOCIAL_PROVIDER_ALREADY_LINKED,
+                 LAST_LOGIN_METHOD_REQUIRED -> errorCode;
+            default -> ErrorCode.SOCIAL_LOGIN_FAILED;
+        };
     }
 
     private void redirect(HttpServletRequest request,

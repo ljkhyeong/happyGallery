@@ -14,6 +14,7 @@ import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -85,6 +86,15 @@ public class OrderService {
                                                FulfillmentType fulfillmentType,
                                                ShippingAddress shippingAddress,
                                                long shippingFee) {
+        return createPaidOrder(
+                guestId, items, fulfillmentType, shippingAddress, shippingFee, null);
+    }
+
+    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
+                                               FulfillmentType fulfillmentType,
+                                               ShippingAddress shippingAddress,
+                                               long shippingFee,
+                                               MadeToOrderConsent madeToOrderConsent) {
         LocalDateTime paidAt = LocalDateTime.now(clock);
         long totalAmount = totalAmount(items, shippingFee);
         requireMatchingShippingFee(fulfillmentType, shippingFee);
@@ -93,7 +103,9 @@ public class OrderService {
         String rawToken = issued.rawToken();
         String tokenHash = issued.tokenHash();
         Order order = orderStore.save(
-                Order.forGuest(guestId, tokenHash, totalAmount, shippingFee, paidAt, paidAt.plusHours(24)));
+                Order.forGuest(
+                        guestId, tokenHash, totalAmount, shippingFee,
+                        paidAt, paidAt.plusHours(24), madeToOrderConsent));
 
         saveItemsAndDeductInventory(order, items);
         saveFulfillment(order, fulfillmentType, shippingAddress);
@@ -120,13 +132,24 @@ public class OrderService {
                                    FulfillmentType fulfillmentType,
                                    ShippingAddress shippingAddress,
                                    long shippingFee) {
+        return createMemberOrder(
+                userId, items, fulfillmentType, shippingAddress, shippingFee, null);
+    }
+
+    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
+                                   FulfillmentType fulfillmentType,
+                                   ShippingAddress shippingAddress,
+                                   long shippingFee,
+                                   MadeToOrderConsent madeToOrderConsent) {
         memberAccountGuard.requireActiveForUpdate(userId);
         LocalDateTime paidAt = LocalDateTime.now(clock);
         long totalAmount = totalAmount(items, shippingFee);
         requireMatchingShippingFee(fulfillmentType, shippingFee);
 
         Order order = orderStore.save(
-                Order.forMember(userId, totalAmount, shippingFee, paidAt, paidAt.plusHours(24)));
+                Order.forMember(
+                        userId, totalAmount, shippingFee,
+                        paidAt, paidAt.plusHours(24), madeToOrderConsent));
 
         saveItemsAndDeductInventory(order, items);
         saveFulfillment(order, fulfillmentType, shippingAddress);

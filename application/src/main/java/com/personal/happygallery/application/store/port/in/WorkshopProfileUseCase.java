@@ -12,7 +12,14 @@ public interface WorkshopProfileUseCase {
             String addressLine2,
             String businessHours,
             String mapUrl,
-            String parkingInfo
+            String parkingInfo,
+            String businessRegistrationNumber,
+            String representativeName,
+            String email,
+            String mailOrderRegistrationNumber,
+            String introduction,
+            String kakaoTalkId,
+            boolean naverTalkEnabled
     ) {}
 
     WorkshopProfile get();

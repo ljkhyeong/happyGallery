@@ -61,7 +61,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final LimitRule GUEST_CLAIM_VERIFY_RULE = new LimitRule(
             "GUEST_CLAIM_VERIFY_IP", pathPattern(POST, "/api/v1/me/guest-claims/verify"), FAIL_CLOSED);
     private static final LimitRule GUEST_RECORD_RECOVERY_RULE = new LimitRule(
-            "GUEST_RECORD_RECOVERY_IP", pathPattern(POST, "/api/v1/guest-records/recovery"), FAIL_CLOSED);
+            "GUEST_RECORD_RECOVERY_IP",
+            new OrRequestMatcher(
+                    pathPattern(POST, "/api/v1/guest-records/recovery"),
+                    pathPattern(POST, "/api/v1/guest-records/payment-status-recovery")),
+            FAIL_CLOSED);
     private static final LimitRule CLIENT_MONITORING_RULE = new LimitRule(
             "CLIENT_MONITORING_IP", pathPattern(POST, "/api/v1/monitoring/client-events"), FAIL_CLOSED);
     private static final LimitRule ORDER_CUSTOMER_ACTION_RULE = new LimitRule(

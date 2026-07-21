@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Nav, Badge, Card, Button } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+import type { NotificationResponse } from "@/generated/api/notification";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useUnreadCount, useNotificationList, useMarkAsRead, useMarkAllAsRead } from "./useNotifications";
 import { NOTIFICATION_EVENT_LABEL } from "@/shared/lib";
@@ -7,6 +9,7 @@ import { formatRelativeTime } from "./formatRelativeTime";
 
 export function NotificationBell() {
   const { isAuthenticated } = useCustomerAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -71,27 +74,58 @@ export function NotificationBell() {
             {notifications.length === 0 ? (
               <div className="text-center text-muted py-4 small">알림이 없습니다.</div>
             ) : (
-              notifications.map((n) => (
-                <div
-                  key={n.id}
-                  className={`px-3 py-2 border-bottom small ${n.read ? "" : "bg-light"}`}
-                  style={{ cursor: n.read ? "default" : "pointer" }}
-                  onClick={() => {
-                    if (!n.read) markRead.mutate(n.id);
-                  }}
-                >
-                  <div className="fw-semibold">
-                    {NOTIFICATION_EVENT_LABEL[n.eventType] ?? n.eventType}
+              notifications.map((notification) => {
+                const target = notificationTarget(notification);
+                return (
+                  <div
+                    key={notification.id}
+                    className={`px-3 py-2 border-bottom small ${notification.read ? "" : "bg-light"}`}
+                    style={{ cursor: target || !notification.read ? "pointer" : "default" }}
+                    onClick={() => {
+                      if (!notification.read) markRead.mutate(notification.id);
+                      if (target) {
+                        setOpen(false);
+                        navigate(target);
+                      }
+                    }}
+                  >
+                    <div className="fw-semibold">
+                      {NOTIFICATION_EVENT_LABEL[notification.eventType] ?? notification.eventType}
+                    </div>
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>
+                      {formatRelativeTime(notification.deliveredAt)}
+                    </div>
                   </div>
-                  <div className="text-muted" style={{ fontSize: "0.75rem" }}>
-                    {n.channel} &middot; {formatRelativeTime(n.sentAt)}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </Card.Body>
         </Card>
       )}
     </div>
   );
+}
+
+function notificationTarget(notification: NotificationResponse): string | null {
+  const aggregateId = notification.aggregateId;
+  switch (notification.aggregateType) {
+    case "ORDER":
+      return aggregateId ? `/my/orders/${aggregateId}` : "/my/orders";
+    case "BOOKING":
+      return aggregateId ? `/my/bookings/${aggregateId}` : "/my/bookings";
+    case "PASS_PURCHASE":
+      return "/my/passes";
+    case "INQUIRY":
+      return "/my/inquiries";
+    default:
+      return fallbackTarget(notification.eventType);
+  }
+}
+
+function fallbackTarget(eventType: string): string | null {
+  if (eventType.startsWith("ORDER_") || eventType === "ORDER_REFUNDED") return "/my/orders";
+  if (eventType.startsWith("BOOKING_") || eventType === "DEPOSIT_REFUNDED"
+    || eventType.startsWith("REMINDER_")) return "/my/bookings";
+  if (eventType.startsWith("PASS_")) return "/my/passes";
+  return null;
 }

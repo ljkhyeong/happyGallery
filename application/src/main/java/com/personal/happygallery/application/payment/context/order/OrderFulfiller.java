@@ -64,7 +64,7 @@ public class OrderFulfiller implements PaymentFulfiller {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentPayload payload, String paymentKey) {
+    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload) {
         PreparedOrderPayload op = (PreparedOrderPayload) payload;
         List<OrderItemRequest> orderItems = op.items().stream()
                 .map(item -> new OrderItemRequest(
@@ -73,8 +73,9 @@ public class OrderFulfiller implements PaymentFulfiller {
 
         if (op.userId() != null) {
             Order order = orderService.createMemberOrder(
-                    op.userId(), orderItems, op.fulfillmentType(), op.shippingAddress(), op.shippingFee());
-            order.recordPaymentKey(paymentKey);
+                    op.userId(), orderItems, op.fulfillmentType(), op.shippingAddress(),
+                    op.shippingFee(), op.madeToOrderConsent());
+            order.recordPaymentKey(attempt.getConfirmedPaymentKey());
             if (op.cartCheckout()) {
                 cartUseCase.removePurchasedItems(op.userId(), op.items().stream()
                         .map(item -> new PurchasedItem(item.cartItemId(), item.qty()))
@@ -82,10 +83,16 @@ public class OrderFulfiller implements PaymentFulfiller {
             }
             return new FulfillResult(order.getId(), null);
         }
-        Guest guest = verifiedGuestResolver.resolveVerifiedGuest(op.phone(), op.verificationCode(), op.name());
+        Guest guest = verifiedGuestResolver.resolveWithPaymentProof(
+                PaymentContext.ORDER,
+                attempt.getOrderIdExternal(),
+                op.phone(),
+                op.guestVerificationProof(),
+                op.name());
         OrderCreationResult result = orderService.createPaidOrder(
-                guest.getId(), orderItems, op.fulfillmentType(), op.shippingAddress(), op.shippingFee());
-        result.order().recordPaymentKey(paymentKey);
+                guest.getId(), orderItems, op.fulfillmentType(), op.shippingAddress(),
+                op.shippingFee(), op.madeToOrderConsent());
+        result.order().recordPaymentKey(attempt.getConfirmedPaymentKey());
         return new FulfillResult(result.order().getId(), result.rawAccessToken());
     }
 }

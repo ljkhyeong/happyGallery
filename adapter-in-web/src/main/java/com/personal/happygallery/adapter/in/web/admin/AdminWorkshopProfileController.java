@@ -31,6 +31,8 @@ public class AdminWorkshopProfileController {
         return WorkshopProfileResponse.from(useCase.update(new UpdateCommand(
                 request.name(), request.phone(), request.postalCode(),
                 request.addressLine1(), request.addressLine2(), request.businessHours(),
-                request.mapUrl(), request.parkingInfo())));
+                request.mapUrl(), request.parkingInfo(), request.businessRegistrationNumber(),
+                request.representativeName(), request.email(), request.mailOrderRegistrationNumber(),
+                request.introduction(), request.kakaoTalkId(), request.naverTalkEnabled())));
     }
 }

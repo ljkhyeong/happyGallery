@@ -1,5 +1,9 @@
 import { preparePayment } from "./api";
-import { storePaymentReturnHint, type PaymentReturnHint } from "./session";
+import {
+  storePaymentReturnHint,
+  storePaymentStatusToken,
+  type PaymentReturnHint,
+} from "./session";
 import { requestTossPayment } from "./TossCheckout";
 import type { PaymentContext, PaymentPayload, PreparePaymentResponse } from "./types";
 
@@ -26,6 +30,7 @@ export async function executePaymentFlow<T extends PaymentPayload>(
   args: ExecutePaymentFlowArgs<T>,
 ): Promise<void> {
   const prep = await preparePayment(args.context, args.payload);
+  storePaymentStatusToken(prep.orderId, prep.statusToken);
 
   if (prep.amount === 0) {
     if (!args.onZeroAmount) {

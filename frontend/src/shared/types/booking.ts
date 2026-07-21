@@ -23,6 +23,7 @@ export interface SendVerificationResponse {
 export interface BookingDetailResponse {
   bookingId: number;
   bookingNumber: string;
+  classId: number;
   slotId: number;
   startAt: string;
   endAt: string;
@@ -38,6 +39,7 @@ export interface BookingDetailResponse {
 
 export interface MyBookingDetailResponse {
   bookingId: number;
+  classId: number;
   slotId: number;
   startAt: string;
   endAt: string;

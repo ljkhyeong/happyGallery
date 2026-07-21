@@ -40,10 +40,10 @@ public class PassFulfiller implements PaymentFulfiller {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentPayload payload, String paymentKey) {
+    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload) {
         PreparedPassPayload pp = (PreparedPassPayload) payload;
         PassPurchase purchase = passPurchaseUseCase.purchaseForMember(pp.userId(), pp.totalPrice());
-        purchase.recordPaymentKey(paymentKey);
+        purchase.recordPaymentKey(attempt.getConfirmedPaymentKey());
         return new FulfillResult(purchase.getId(), null);
     }
 }

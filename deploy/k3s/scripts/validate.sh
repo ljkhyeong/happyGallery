@@ -49,6 +49,15 @@ ruby -e '
     media_pvc.dig("spec", "resources", "requests", "storage") == "5Gi"
   app_deployment = release_deployments.find { |d| d.dig("metadata", "name") == "app" }
   app_container = app_deployment&.dig("spec", "template", "spec", "containers", 0)
+  app_config = documents.find { |d| d["kind"] == "ConfigMap" && d.dig("metadata", "name") == "app-config" }
+  token_ttls = app_config&.fetch("data", {})&.slice(
+    "GUEST_TOKEN_EXPIRY_HOURS",
+    "GUEST_TOKEN_RECOVERY_EXPIRY_HOURS"
+  )
+  abort "비회원 토큰 TTL 기준이 app-config에 고정되지 않았습니다." unless token_ttls == {
+    "GUEST_TOKEN_EXPIRY_HOURS" => "720",
+    "GUEST_TOKEN_RECOVERY_EXPIRY_HOURS" => "24"
+  }
   media_mount = app_container&.fetch("volumeMounts", [])&.find { |mount| mount["name"] == "media" }
   media_volume = app_deployment&.dig("spec", "template", "spec", "volumes")&.find { |volume| volume["name"] == "media" }
   abort "app-media PVC가 app의 미디어 저장 경로에 연결되지 않았습니다." unless
@@ -260,11 +269,15 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "데이터 키 회전 Job이 외부 Service와 분리된 key-rotation label을 쓰지 않습니다." unless data_rotation.match?(/app\.kubernetes\.io\/name: key-rotation/)
   abort "데이터 키 회전 실패 시 app drain 보장이 없습니다." unless data_rotation.match?(/on_rotation_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
   abort "데이터 키 회전이 guest previous 보존기한을 기록하지 않습니다." unless data_rotation.include?("guest-previous-valid-until-epoch")
+  abort "데이터 키 회전이 guest 결제 인증 증거 경계를 기록하지 않습니다." unless data_rotation.include?("guest-proof-previous-issued-before-epoch")
   abort "데이터 키 회전 시작 상태와 원래 replica 기록이 없습니다." unless data_rotation.match?(/key-rotation-phase.*?started.*?key-rotation-original-replicas/m)
   abort "runtime app에서 key rotation 실행을 차단하지 않습니다." unless data_rotation.match?(/current_rotation_enabled.*?''\|false/m)
 
   data_finalization = File.read(File.join(script_dir, "finalize-data-key-rotation.sh"))
   abort "previous 키 finalize가 소셜 provider ID 백필을 검사하지 않습니다." unless data_finalization.include?("provider_id_enc IS NULL")
+  abort "previous 키 finalize가 비회원 결제 휴대폰 HMAC 키 전환을 검사하지 않습니다." unless data_finalization.include?("owner_phone_hmac_key_id")
+  abort "previous guest 키 finalize가 회전 전 비회원 결제 인증 증거를 검사하지 않습니다." unless data_finalization.include?("pending_guest_payment_proofs")
+  abort "guest 결제 인증 증거 회전 경계 annotation이 없습니다." unless data_finalization.include?("guest-proof-previous-issued-before-epoch")
   finalization_flow = /guest_previous_valid_until.*?now_epoch.*?scale deployment\/app --replicas=0.*?wait_for_no_pods.*?pending=\$\(pending_social_accounts\).*?PREVIOUS_ENCRYPT_KEYS.*?PREVIOUS_HMAC_KEYS.*?GUEST_TOKEN_PREVIOUS_HMAC_SECRET.*?scale deployment\/app --replicas=1/m
   abort "previous 키 finalize의 guest 유예/social 백필/drain/Secret/app 순서가 깨졌습니다." unless data_finalization.match?(finalization_flow)
   abort "previous 키 finalize 실패 시 app drain 보장이 없습니다." unless data_finalization.match?(/on_finalization_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
@@ -284,8 +297,15 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "복구 묶음 marker와 DB·미디어·release sidecar 전체 검증이 없습니다." unless common.match?(bundle_validation)
 
   backup = File.read(File.join(script_dir, "backup-mysql.sh"))
+  backup_exclusion = /original_app_replicas=.*?scale deployment\/app --replicas=0.*?wait_for_no_pods.*?mysqldump.*?start_media_helper.*?restore_app/m
+  abort "백업의 app 쓰기 중단과 원래 replica 복구 순서가 깨졌습니다." unless backup.match?(backup_exclusion)
+  abort "백업 실패 시 원래 app replica 복구가 없습니다." unless backup.match?(/cleanup_partial_backup\(\).*?restore_app/m)
   bundle_publish = /mv "\$tmp" "\$backup".*?mv "\$tmp_checksum" "\$backup\.sha256".*?mv "\$media_tmp" "\$media_backup".*?mv "\$media_tmp_checksum" "\$media_backup\.sha256".*?mv "\$recovery_metadata_tmp_checksum" "\$recovery_metadata\.sha256".*?mv "\$recovery_metadata_tmp" "\$recovery_metadata"/m
   abort "recovery.env가 모든 archive와 sidecar 뒤에 commit marker로 게시되지 않습니다." unless backup.match?(bundle_publish)
+
+  backup_timer = File.read(File.join(script_dir, "..", "systemd", "happygallery-backup.timer.example"))
+  abort "백업 timer의 네 실행 시각에 Asia/Seoul이 명시되지 않았습니다." unless
+    backup_timer.scan(/^OnCalendar=.*Asia\/Seoul$/).size == 4
 RUBY
 
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"

@@ -1,5 +1,6 @@
 import { Button, Card } from "react-bootstrap";
 import { Link } from "react-router-dom";
+import { SocialAccountSection } from "@/features/customer-auth/SocialAccountSection";
 import type { CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 
 interface Props {
@@ -49,6 +50,8 @@ export function MyAccountCard({ user, onChangePassword, onUpdatePhone, onWithdra
             {user.phone ? "변경" : "등록"}
           </Button>
         </div>
+
+        <SocialAccountSection localPasswordEnabled={user.localPasswordEnabled} />
 
         <div className="d-flex justify-content-between align-items-start gap-3 border-top mt-3 pt-3">
           <div>

@@ -13,6 +13,7 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.payment.PaymentContext;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -81,32 +82,48 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
     /** 게스트 예약을 생성한다. 비회원은 예약금 결제만 허용한다. */
     @Override
     public GuestBookingResult createGuestBooking(CreateGuestBookingCommand command) {
-        // 1. 인증 코드 검증 + Guest upsert
-        Guest guest = verifiedGuestResolver.resolveVerifiedGuest(
+        Guest guest = verifiedGuestResolver.resolveWithVerificationCode(
                 command.phone(), command.code(), command.name());
+        return createBooking(
+                guest, command.slotId(), command.paymentMethod(),
+                command.depositAmount(), command.balanceAmount());
+    }
 
-        // 2. 슬롯 예약 가능 여부 확인 (락 전 빠른 체크)
-        slotCapacitySupport.requireAvailableSlot(command.slotId());
+    @Override
+    public GuestBookingResult createPaymentGuestBooking(CreatePaymentGuestBookingCommand command) {
+        Guest guest = verifiedGuestResolver.resolveWithPaymentProof(
+                PaymentContext.BOOKING,
+                command.paymentOrderId(), command.phone(), command.verificationProof(), command.name());
+        return createBooking(
+                guest, command.slotId(), command.paymentMethod(),
+                command.depositAmount(), command.balanceAmount());
+    }
 
-        // 3. 중복 예약 확인
-        if (bookingReaderPort.existsBookedBySlotIdAndGuestId(command.slotId(), guest.getId())) {
+    private GuestBookingResult createBooking(
+            Guest guest,
+            Long slotId,
+            DepositPaymentMethod paymentMethod,
+            long depositAmount,
+            long balanceAmount) {
+        slotCapacitySupport.requireAvailableSlot(slotId);
+
+        if (bookingReaderPort.existsBookedBySlotIdAndGuestId(slotId, guest.getId())) {
             throw new DuplicateBookingException();
         }
 
-        // 4. 비관적 락 + 정원 증가 + 첫 예약이면 뒤쪽 버퍼 차단
-        Slot slot = slotCapacitySupport.reserveCapacity(command.slotId());
+        Slot slot = slotCapacitySupport.reserveCapacity(slotId);
 
         GuestTokenService.IssuedToken issued = guestTokenService.issue();
         String rawToken = issued.rawToken();
         String accessToken = issued.tokenHash();
 
-        creationSupport.requireValidDeposit(command.paymentMethod());
+        creationSupport.requireValidDeposit(paymentMethod);
         Booking booking = Booking.forGuestDeposit(
                 guest,
                 slot,
-                command.depositAmount(),
-                command.balanceAmount(),
-                command.paymentMethod(),
+                depositAmount,
+                balanceAmount,
+                paymentMethod,
                 accessToken);
 
         booking = creationSupport.saveAndComplete(booking, slot);

@@ -45,10 +45,14 @@ public interface KeyRotationDataPort {
     record GuestRotatedRow(long id, String nameEnc, String nameHmac,
                            String phoneEnc, String phoneHmac) {}
 
-    record PaymentAttemptEncryptedRow(long id, String payloadEnc, String accessTokenEnc)
+    record PaymentAttemptEncryptedRow(
+            long id, String payloadEnc, String accessTokenEnc,
+            String ownerPhoneHmac, String ownerPhoneHmacKeyId)
             implements IdentifiedRow {}
 
-    record PaymentAttemptRotatedRow(long id, String payloadEnc, String accessTokenEnc) {}
+    record PaymentAttemptRotatedRow(
+            long id, String payloadEnc, String accessTokenEnc,
+            String ownerPhoneHmac, String ownerPhoneHmacKeyId) {}
 
     record FulfillmentEncryptedRow(long id, String shippingAddressEnc) implements IdentifiedRow {}
 

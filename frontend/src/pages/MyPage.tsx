@@ -6,6 +6,7 @@ import { GuestClaimModal } from "@/features/customer-claim/GuestClaimModal";
 import { AccountWithdrawalModal } from "@/features/customer-auth/AccountWithdrawalModal";
 import { MemberPhoneUpdateModal } from "@/features/customer-auth/MemberPhoneUpdateModal";
 import { PasswordChangeModal } from "@/features/customer-auth/PasswordChangeModal";
+import { SOCIAL_PROVIDER_DETAILS, type SocialProvider } from "@/features/customer-auth/socialAuth";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { fetchMyBookings, fetchMyOrders, fetchMyPasses } from "@/features/my/api";
 import { fetchMyInquiries } from "@/features/my-inquiry/api";
@@ -72,9 +73,22 @@ export function MyPage() {
     .sort((a, b) => parseApiDateTime(a.startAt) - parseApiDateTime(b.startAt))[0];
   const latestOrder = orders?.[0];
 
-  const phoneOnboardingRequested = Boolean(
-    (location.state as { phoneOnboarding?: boolean } | null)?.phoneOnboarding,
-  );
+  const navigationState = location.state as {
+    phoneOnboarding?: boolean;
+    socialAccountLinked?: string;
+  } | null;
+  const phoneOnboardingRequested = Boolean(navigationState?.phoneOnboarding);
+  const linkedSocialProvider = navigationState?.socialAccountLinked;
+
+  useEffect(() => {
+    if (!isAuthenticated || !linkedSocialProvider) {
+      return;
+    }
+    const provider = linkedSocialProvider.toLowerCase() as SocialProvider;
+    const providerLabel = SOCIAL_PROVIDER_DETAILS[provider]?.label ?? "소셜 계정";
+    toast.show(`${providerLabel} 계정을 연결했습니다.`, "success");
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [isAuthenticated, linkedSocialProvider, location.pathname, location.search, navigate, toast]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.phone !== null || phoneOnboardingHandled) {

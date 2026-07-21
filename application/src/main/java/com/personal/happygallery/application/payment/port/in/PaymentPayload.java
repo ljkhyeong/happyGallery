@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -46,7 +47,9 @@ public sealed interface PaymentPayload {
             List<OrderItemRef> items,
             boolean cartCheckout,
             FulfillmentType fulfillmentType,
-            ShippingAddress shippingAddress
+            ShippingAddress shippingAddress,
+            String madeToOrderConsentVersion,
+            boolean madeToOrderConsent
     ) implements PaymentPayload {
 
         public OrderPayload {
@@ -69,21 +72,34 @@ public sealed interface PaymentPayload {
                             boolean cartCheckout) {
             this(userId, phone, verificationCode, name, items, cartCheckout, FulfillmentType.PICKUP, null);
         }
+
+        public OrderPayload(Long userId,
+                            String phone,
+                            String verificationCode,
+                            String name,
+                            List<OrderItemRef> items,
+                            boolean cartCheckout,
+                            FulfillmentType fulfillmentType,
+                            ShippingAddress shippingAddress) {
+            this(userId, phone, verificationCode, name, items, cartCheckout,
+                    fulfillmentType, shippingAddress, null, false);
+        }
     }
 
     record OrderItemRef(Long productId, int qty) {}
 
-    /** prepare에서 서버 상품가를 확정한 뒤 결제 시도에만 저장하는 주문 payload. */
+    /** prepare에서 서버 상품가와 비회원 결제 인증 증거를 확정한 뒤 암호화 저장하는 주문 payload. */
     record PreparedOrderPayload(
             Long userId,
             String phone,
-            String verificationCode,
+            String guestVerificationProof,
             String name,
             List<PreparedOrderItem> items,
             boolean cartCheckout,
             FulfillmentType fulfillmentType,
             ShippingAddress shippingAddress,
-            long shippingFee
+            long shippingFee,
+            MadeToOrderConsent madeToOrderConsent
     ) implements PaymentPayload {
 
         public PreparedOrderPayload {
@@ -95,10 +111,24 @@ public sealed interface PaymentPayload {
 
         public PreparedOrderPayload(Long userId,
                                     String phone,
-                                    String verificationCode,
+                                    String guestVerificationProof,
                                     String name,
                                     List<PreparedOrderItem> items) {
-            this(userId, phone, verificationCode, name, items, false, FulfillmentType.PICKUP, null, 0L);
+            this(userId, phone, guestVerificationProof, name, items,
+                    false, FulfillmentType.PICKUP, null, 0L);
+        }
+
+        public PreparedOrderPayload(Long userId,
+                                    String phone,
+                                    String guestVerificationProof,
+                                    String name,
+                                    List<PreparedOrderItem> items,
+                                    boolean cartCheckout,
+                                    FulfillmentType fulfillmentType,
+                                    ShippingAddress shippingAddress,
+                                    long shippingFee) {
+            this(userId, phone, guestVerificationProof, name, items, cartCheckout,
+                    fulfillmentType, shippingAddress, shippingFee, null);
         }
     }
 
@@ -132,7 +162,7 @@ public sealed interface PaymentPayload {
     record PreparedBookingPayload(
             Long userId,
             String phone,
-            String verificationCode,
+            String guestVerificationProof,
             String name,
             Long slotId,
             Long passId,
@@ -141,10 +171,10 @@ public sealed interface PaymentPayload {
             long balanceAmount
     ) implements PaymentPayload {
 
-        public static PreparedBookingPayload from(
+        public static PreparedBookingPayload fromMember(
                 BookingPayload payload, long depositAmount, long balanceAmount) {
             return new PreparedBookingPayload(
-                    payload.userId(), payload.phone(), payload.verificationCode(), payload.name(),
+                    payload.userId(), null, null, null,
                     payload.slotId(), payload.passId(), payload.paymentMethod(), depositAmount, balanceAmount);
         }
     }

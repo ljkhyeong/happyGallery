@@ -8,16 +8,18 @@
 | 사용자 | 주요 기능 |
 | --- | --- |
 | 비회원 | 휴대폰 인증 기반 주문/예약 생성, 토큰 기반 조회·취소·지연 응답, SMS 기반 조회 정보 복구, 회원가입 후 기존 이력 가져오기 |
-| 회원 | 상품 주문·취소·지연 응답, 클래스 예약, 8회권 구매·사용·환불, 장바구니, 알림함, 휴대폰 변경·회원 탈퇴 |
-| 관리자 | 상품·클래스 콘텐츠/이미지, 공방 프로필·슬롯 일괄 관리, 주문 승인/거절/배송/픽업, 환불 재처리, Q&A/문의 답변 |
+| 회원 | 상품 주문·취소·지연 응답, 클래스 예약, 8회권 구매·사용·환불, 장바구니, 알림함, 소셜 계정·휴대폰 관리, 회원 탈퇴 |
+| 관리자 | 오늘 할 일 중심 운영 화면, 상품·클래스 콘텐츠/이미지, 공방 프로필·슬롯 일괄 관리, 주문 승인/거절/배송/픽업, 환불 재처리, Q&A/문의 답변 |
 
-- 주문/예약/8회권은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm` 표준 결제 경로를 사용한다. confirm은 선점·PG 승인·도메인 저장 트랜잭션을 분리하고 Toss 멱등키와 실패 보상 환불을 사용한다.
+- 주문/예약/8회권은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm` 표준 결제 경로를 사용한다. confirm은 선점·PG 승인·도메인 저장 트랜잭션을 분리하고 Toss 멱등키와 실패 보상 환불을 사용하며, 고객은 소유권이 확인된 `GET /api/v1/payments/{orderId}`로 처리 결과를 확인한다. 비회원이 브라우저 저장소를 잃으면 SMS 인증 기반 `POST /api/v1/guest-records/payment-status-recovery`로 결제 ID 목록과 공통 상태 조회 토큰을 함께 복구한다.
 - 8회권 사용 예약은 운영자가 일정을 일괄 배정하지 않는다. 회원이 예약 가능 슬롯을 직접 선택해 한 회차씩 예약하고 크레딧 1회를 사용한다.
 - 정규 공예 8회권은 구매 시 계획을 저장하고, 운영자가 사용 가능으로 지정한 비향수 클래스에만 적용한다. 회원은 내 8회권에서 잔여 횟수 정산 환불을 요청하고 진행 상태를 조회한다.
 - 환불은 요청 이력을 먼저 커밋한 뒤 PG를 호출한다. 실행 유실·일시 실패는 최초 멱등키로 복구하고, 결과 불명 상태는 PG 취소 내역을 먼저 조회해 성공 여부를 화해한 뒤에만 취소 재호출 여부를 결정한다.
 - 배송 주문은 `ORDER_SHIPPING_FEE` 고정액을 결제 준비 시 확정해 주문에 저장한다. 상품명·단가, 배송비와 택배사·운송장 정보는 과거 주문을 재현할 수 있게 스냅샷으로 유지한다.
-- 상품·클래스 설명과 대표 이미지, 공방 주소·영업·주차 안내를 관리자 화면에서 관리한다. 반복 슬롯은 기간·요일·시각 조합을 미리 본 뒤 일괄 생성한다.
+- 상품·클래스 설명과 대표 이미지, 공방 주소·영업·주차·소개·사업자·문의 정보를 관리자 화면에서 관리한다. 공개 footer와 이용약관·개인정보처리방침·사업자 정보 화면은 같은 공방 프로필을 사용한다. 반복 슬롯은 기간·요일·시각 조합을 미리 본 뒤 일괄 생성한다.
+- 기준 공방 프로필은 `해피갤러리`, `충북 충주시 계명대로 161 1층`, `010-9635-5608`, 사업자등록번호 `303-11-87052`, 카카오톡 `ssim1972`, 네이버톡톡 문의 사용으로 시작한다. 제공되지 않은 대표자명·전자우편주소·통신판매업 신고번호는 `null`로 유지한다.
 - 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
+- Google·Naver 계정은 마이페이지에서 일회성 연결 시도와 OAuth `state`를 검증해 명시적으로 연결·해제하며, 이메일 일치만으로 기존 회원과 자동 병합하지 않는다.
 - 브라우저의 비관리자 상태 변경 요청은 `XSRF-TOKEN` 쿠키와 `X-XSRF-TOKEN` 헤더로 CSRF를 방어한다.
 - 상세 요구사항은 [기준 스펙](docs/PRD/0001_기준_스펙/spec.md), HTTP 계약은 [API 계약](docs/PRD/0004_API_계약/spec.md)을 기준으로 본다.
 
@@ -63,7 +65,7 @@ npm run dev
 - 로컬과 개발 환경에서는 `X-Admin-Key: dev-admin-key`를 사용할 수 있다.
 - `prod`가 아닌 환경에서는 실제 알림·인증 SMS·결제 대신 테스트용 발송기와 `FakePaymentProvider`를 사용한다.
 - k3s 운영 배포의 Prometheus 경보는 내부 Alertmanager를 거쳐 저장소 밖 Secret으로 주입한 외부 HTTPS webhook에 전달한다. 노트북 자체 장애 감시는 별도 외부 uptime 서비스가 필요하다.
-- 운영 환경은 DB·Redis를 readiness에 포함하고, 환불·알림 outbox의 DB backlog 건수·상태별 처리 지연과 스냅샷 갱신 중단을 Prometheus·Grafana에서 감시한다.
+- 운영 환경은 DB·Redis를 readiness에 포함하고, 환불·알림 outbox의 DB backlog, 모든 정기 배치의 마지막 정상 완료 시각과 이미지 저장소 용량을 Prometheus·Grafana에서 감시한다.
 - `prod`가 아닌 환경의 Google/Naver 로그인은 외부 인증 화면 없이 테스트용 콜백으로 즉시 돌아온다.
 - `local`이 아닌 환경에서 최초 관리자 계정이 필요하면 `ADMIN_SETUP_TOKEN`을 주입하고 `/api/v1/admin/setup`을 호출한다.
 - 반복 E2E처럼 짧은 시간에 인증/관리 요청이 몰리는 로컬 검증에서는 `RATE_LIMIT_ENABLED=false`를 사용할 수 있다.
@@ -171,6 +173,7 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 - Docker Compose는 로컬 개발, 통합 검증과 복구 진단용이다. 현재 `local` 프로필과 개발 기본값을 사용하므로 운영 배포 기준이 아니다.
 - [`deploy/k3s`](deploy/k3s/README.md)에 namespace, ingress/TLS, MySQL·미디어 PVC, 비공개 Actuator/Prometheus, secret 주입, 불변 이미지 import, rollout·rollback, DB·미디어 암호화 백업·복원 절차를 둔다.
 - 현재 공개 운영 주소와 자동 배포 workflow는 없다. 실제 노트북에서 DNS·공유기·방화벽·TLS·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
+- 공개 결제 운영 전 관리자 공방 정보에 대표자명, 전자우편주소와 통신판매업 신고번호를 모두 입력하고 footer·사업자 정보 화면을 확인해야 한다. `prod` 프로필은 연락처·주소·사업자등록번호를 포함한 필수 온라인 판매 고지가 완성되기 전 모든 결제 prepare를 `503`으로 차단한다. 제공되지 않은 값은 임의로 채우지 않으며, 표시 근거는 전자상거래법 [제10조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022342373)와 [제13조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022341933)다.
 
 운영 목표와 불변 조건은 [ADR-0037 자가 호스팅 배포 토폴로지 기준](docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)을 따른다. 이전 AWS 구조와 배포 설정은 [Idea-0028](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md), [Idea-0029](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md), [Idea-0039](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)에 역사 기록으로 남긴다.
 
@@ -189,6 +192,7 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `PASS_TOTAL_PRICE` | 백엔드 | 8회권 결제 금액 |
 | `ORDER_SHIPPING_FEE` | 백엔드 | 배송 주문에 더하는 고정 배송비, 기본 `0`원 |
 | `MEDIA_STORAGE_PATH` | 백엔드 | 관리자 업로드 이미지 저장 경로, 로컬 기본 `./data/media` |
+| `GUEST_TOKEN_EXPIRY_HOURS` | 백엔드 | 비회원 주문·예약 접근 및 결제 상태 조회 토큰 수명, 기본 `720`시간 |
 | `GUEST_TOKEN_RECOVERY_EXPIRY_HOURS` | 백엔드 | 비회원 조회 정보 복구 토큰 수명, 기본 `24`시간 |
 | `GOOGLE_OAUTH_CLIENT_ID` | 백엔드 `prod` | Google 로그인 client ID |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Google 로그인 client secret |

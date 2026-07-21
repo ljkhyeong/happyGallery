@@ -4,7 +4,10 @@ import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.Ima
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.StoredImage;
 import com.personal.happygallery.application.media.port.out.ImageMediaStoragePort;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -50,6 +53,37 @@ class DefaultImageMediaServiceTest {
         @Override
         public Optional<byte[]> read(String fileName) {
             return Optional.ofNullable(files.get(fileName));
+        }
+
+        @Override
+        public boolean exists(String fileName) {
+            return files.containsKey(fileName);
+        }
+
+        @Override
+        public List<String> findStoredImageNames() {
+            return List.of();
+        }
+
+        @Override
+        public boolean markOrphanCandidate(String fileName, Instant observedAt, Duration gracePeriod) {
+            return false;
+        }
+
+        @Override
+        public void clearOrphanMarker(String fileName) {
+        }
+
+        @Override
+        public void delete(String fileName) {
+            files.remove(fileName);
+        }
+
+        @Override
+        public long usedBytes() {
+            return files.values().stream()
+                    .mapToLong(bytes -> bytes.length)
+                    .sum();
         }
     }
 }

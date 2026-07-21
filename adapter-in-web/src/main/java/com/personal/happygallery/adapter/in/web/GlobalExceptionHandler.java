@@ -157,6 +157,10 @@ public class GlobalExceptionHandler {
     );
 
     private static final String DUPLICATE_USER_PHONE_CONSTRAINT = "uq_users_phone_hmac";
+    private static final String DUPLICATE_SOCIAL_IDENTITY_CONSTRAINT =
+            "uq_user_social_accounts_provider_identity";
+    private static final String DUPLICATE_SOCIAL_PROVIDER_CONSTRAINT =
+            "uq_user_social_accounts_user_provider";
 
     private ErrorCode resolveDataIntegrityErrorCode(DataIntegrityViolationException e) {
         Optional<String> constraint = findConstraintName(e)
@@ -167,6 +171,12 @@ public class GlobalExceptionHandler {
         }
         if (constraint.filter(DUPLICATE_USER_PHONE_CONSTRAINT::equals).isPresent()) {
             return ErrorCode.PHONE_ALREADY_IN_USE;
+        }
+        if (constraint.filter(DUPLICATE_SOCIAL_IDENTITY_CONSTRAINT::equals).isPresent()) {
+            return ErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED;
+        }
+        if (constraint.filter(DUPLICATE_SOCIAL_PROVIDER_CONSTRAINT::equals).isPresent()) {
+            return ErrorCode.SOCIAL_PROVIDER_ALREADY_LINKED;
         }
         return ErrorCode.INVALID_INPUT;
     }

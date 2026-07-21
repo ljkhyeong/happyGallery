@@ -17,6 +17,9 @@ import "@/styles/global.scss";
 const GuestLookupPage = lazy(() =>
   import("@/pages/GuestLookupPage").then((module) => ({ default: module.GuestLookupPage })),
 );
+const GuestPaymentStatusPage = lazy(() =>
+  import("@/pages/GuestPaymentStatusPage").then((module) => ({ default: module.GuestPaymentStatusPage })),
+);
 const BookingManagePage = lazy(() =>
   import("@/pages/BookingManagePage").then((module) => ({ default: module.BookingManagePage })),
 );
@@ -77,6 +80,15 @@ const PaymentSuccessPage = lazy(() =>
 const PaymentFailPage = lazy(() =>
   import("@/pages/PaymentFailPage").then((module) => ({ default: module.PaymentFailPage })),
 );
+const TermsPage = lazy(() =>
+  import("@/pages/TermsPage").then((module) => ({ default: module.TermsPage })),
+);
+const PrivacyPolicyPage = lazy(() =>
+  import("@/pages/PrivacyPolicyPage").then((module) => ({ default: module.PrivacyPolicyPage })),
+);
+const BusinessInfoPage = lazy(() =>
+  import("@/pages/BusinessInfoPage").then((module) => ({ default: module.BusinessInfoPage })),
+);
 
 function RouteFallback() {
   return (
@@ -106,6 +118,7 @@ export function App() {
                     <Route path="/products/:id" element={<ProductDetailPage />} />
                     <Route path="/bookings/new" element={<BookingCreatePage />} />
                     <Route path="/guest" element={<LazyRoute><GuestLookupPage /></LazyRoute>} />
+                    <Route path="/guest/payments/:orderId" element={<LazyRoute><GuestPaymentStatusPage /></LazyRoute>} />
                     <Route path="/guest/bookings" element={<LazyRoute><BookingManagePage /></LazyRoute>} />
                     <Route path="/passes/purchase" element={<LazyRoute><PassPurchasePage /></LazyRoute>} />
                     <Route path="/cart" element={<LazyRoute><CartPage /></LazyRoute>} />
@@ -126,6 +139,9 @@ export function App() {
                     <Route path="/admin" element={<LazyRoute><AdminPage /></LazyRoute>} />
                     <Route path="/payments/success" element={<LazyRoute><PaymentSuccessPage /></LazyRoute>} />
                     <Route path="/payments/fail" element={<LazyRoute><PaymentFailPage /></LazyRoute>} />
+                    <Route path="/terms" element={<LazyRoute><TermsPage /></LazyRoute>} />
+                    <Route path="/privacy" element={<LazyRoute><PrivacyPolicyPage /></LazyRoute>} />
+                    <Route path="/business-info" element={<LazyRoute><BusinessInfoPage /></LazyRoute>} />
                     <Route path="*" element={<NotFoundPage />} />
                   </Route>
                 </Routes>
