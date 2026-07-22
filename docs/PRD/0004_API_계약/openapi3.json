@@ -3301,75 +3301,102 @@
           "addressLine1" : {
             "maxLength" : 200,
             "minLength" : 0,
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "addressLine2" : {
             "maxLength" : 200,
             "minLength" : 0,
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "businessHours" : {
             "maxLength" : 1000,
             "minLength" : 0,
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "businessRegistrationNumber" : {
             "pattern" : "^\\d{3}-\\d{2}-\\d{5}$",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "email" : {
             "format" : "email",
             "maxLength" : 254,
             "minLength" : 0,
-            "type" : "string"
+            "type" : [ "string", "null" ]
+          },
+          "instagramUrl" : {
+            "format" : "uri",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "pattern" : "^[hH][tT][tT][pP][sS]?://.+",
+            "type" : [ "string", "null" ]
           },
           "introduction" : {
             "maxLength" : 2000,
             "minLength" : 0,
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "kakaoTalkId" : {
             "maxLength" : 100,
             "minLength" : 0,
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "mailOrderRegistrationNumber" : {
             "maxLength" : 100,
             "minLength" : 0,
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "mapUrl" : {
+            "format" : "uri",
             "maxLength" : 500,
             "minLength" : 0,
-            "type" : "string"
+            "pattern" : "^[hH][tT][tT][pP][sS]?://.+",
+            "type" : [ "string", "null" ]
           },
           "name" : {
             "maxLength" : 100,
-            "minLength" : 0,
+            "minLength" : 1,
             "type" : "string"
           },
-          "naverTalkEnabled" : {
-            "type" : "boolean"
+          "naverBlogUrl" : {
+            "format" : "uri",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "pattern" : "^[hH][tT][tT][pP][sS]?://.+",
+            "type" : [ "string", "null" ]
+          },
+          "naverTalkUrl" : {
+            "format" : "uri",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "pattern" : "^[hH][tT][tT][pP][sS]?://.+",
+            "type" : [ "string", "null" ]
           },
           "parkingInfo" : {
             "maxLength" : 1000,
             "minLength" : 0,
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "phone" : {
             "maxLength" : 30,
             "minLength" : 0,
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "postalCode" : {
             "maxLength" : 20,
             "minLength" : 0,
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "representativeName" : {
             "maxLength" : 100,
             "minLength" : 0,
-            "type" : "string"
+            "type" : [ "string", "null" ]
+          },
+          "smartStoreUrl" : {
+            "format" : "uri",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "pattern" : "^[hH][tT][tT][pP][sS]?://.+",
+            "type" : [ "string", "null" ]
           }
         },
         "required" : [ "name" ],
@@ -3398,55 +3425,70 @@
       "WorkshopProfileResponse" : {
         "properties" : {
           "addressLine1" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "addressLine2" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "businessHours" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "businessRegistrationNumber" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "email" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
+          },
+          "instagramUrl" : {
+            "format" : "uri",
+            "type" : [ "string", "null" ]
           },
           "introduction" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "kakaoTalkId" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "mailOrderRegistrationNumber" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "mapUrl" : {
-            "type" : "string"
+            "format" : "uri",
+            "type" : [ "string", "null" ]
           },
           "name" : {
             "type" : "string"
           },
-          "naverTalkEnabled" : {
-            "type" : "boolean"
+          "naverBlogUrl" : {
+            "format" : "uri",
+            "type" : [ "string", "null" ]
+          },
+          "naverTalkUrl" : {
+            "format" : "uri",
+            "type" : [ "string", "null" ]
           },
           "parkingInfo" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "phone" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "postalCode" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "representativeName" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
+          },
+          "smartStoreUrl" : {
+            "format" : "uri",
+            "type" : [ "string", "null" ]
           },
           "updatedAt" : {
             "format" : "date-time",
             "type" : "string"
           }
         },
+        "required" : [ "addressLine1", "addressLine2", "businessHours", "businessRegistrationNumber", "email", "instagramUrl", "introduction", "kakaoTalkId", "mailOrderRegistrationNumber", "mapUrl", "name", "naverBlogUrl", "naverTalkUrl", "parkingInfo", "phone", "postalCode", "representativeName", "smartStoreUrl", "updatedAt" ],
         "type" : "object"
       }
     }
@@ -5633,7 +5675,7 @@
     },
     "/api/v1/admin/workshop" : {
       "get" : {
-        "operationId" : "get",
+        "operationId" : "getAdminWorkshopProfile",
         "responses" : {
           "200" : {
             "content" : {
@@ -5649,7 +5691,7 @@
         "tags" : [ "admin-workshop-profile-controller" ]
       },
       "put" : {
-        "operationId" : "update",
+        "operationId" : "updateAdminWorkshopProfile",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -7376,7 +7418,7 @@
     },
     "/api/v1/workshop" : {
       "get" : {
-        "operationId" : "get_1",
+        "operationId" : "getWorkshopProfile",
         "responses" : {
           "200" : {
             "content" : {

@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.in.web.media;
 
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase;
+import io.swagger.v3.oas.annotations.Operation;
 import java.time.Duration;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ public class ImageMediaController {
     }
 
     @GetMapping("/{fileName}")
+    @Operation(operationId = "get_2")
     public ResponseEntity<byte[]> get(@PathVariable String fileName) {
         ImageMediaUseCase.ImageContent image = imageMediaUseCase.get(fileName);
         return ResponseEntity.ok()

@@ -26,7 +26,10 @@ const initialForm = {
   mailOrderRegistrationNumber: "",
   introduction: "",
   kakaoTalkId: "",
-  naverTalkEnabled: false,
+  naverTalkUrl: "",
+  naverBlogUrl: "",
+  instagramUrl: "",
+  smartStoreUrl: "",
 };
 
 export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
@@ -55,7 +58,10 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
       mailOrderRegistrationNumber: query.data.mailOrderRegistrationNumber ?? "",
       introduction: query.data.introduction ?? "",
       kakaoTalkId: query.data.kakaoTalkId ?? "",
-      naverTalkEnabled: query.data.naverTalkEnabled,
+      naverTalkUrl: query.data.naverTalkUrl ?? "",
+      naverBlogUrl: query.data.naverBlogUrl ?? "",
+      instagramUrl: query.data.instagramUrl ?? "",
+      smartStoreUrl: query.data.smartStoreUrl ?? "",
     });
   }, [query.data]);
 
@@ -75,7 +81,10 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
       mailOrderRegistrationNumber: form.mailOrderRegistrationNumber.trim() || null,
       introduction: form.introduction.trim() || null,
       kakaoTalkId: form.kakaoTalkId.trim() || null,
-      naverTalkEnabled: form.naverTalkEnabled,
+      naverTalkUrl: form.naverTalkUrl.trim() || null,
+      naverBlogUrl: form.naverBlogUrl.trim() || null,
+      instagramUrl: form.instagramUrl.trim() || null,
+      smartStoreUrl: form.smartStoreUrl.trim() || null,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "workshop-profile"] });
@@ -132,17 +141,11 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
             />
           </Form.Group>
         </Col>
-        <Col md={4} className="d-flex align-items-end">
-          <Form.Check
-            id="admin-workshop-naver-talk"
-            type="switch"
-            label="네이버톡톡 문의 사용"
-            checked={form.naverTalkEnabled}
-            onChange={(e) => setForm((current) => ({
-              ...current,
-              naverTalkEnabled: e.target.checked,
-            }))}
-          />
+        <Col md={8}>
+          <Form.Group controlId="admin-workshop-naver-talk-url">
+            <Form.Label>네이버톡톡 URL</Form.Label>
+            <Form.Control type="url" value={form.naverTalkUrl} maxLength={500} onChange={(e) => update("naverTalkUrl", e.target.value)} />
+          </Form.Group>
         </Col>
         <Col md={4}>
           <Form.Group controlId="admin-workshop-representative-name">
@@ -213,6 +216,24 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
               maxLength={2000}
               onChange={(e) => update("introduction", e.target.value)}
             />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group controlId="admin-workshop-naver-blog-url">
+            <Form.Label>네이버 블로그 URL</Form.Label>
+            <Form.Control type="url" value={form.naverBlogUrl} maxLength={500} onChange={(e) => update("naverBlogUrl", e.target.value)} />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group controlId="admin-workshop-instagram-url">
+            <Form.Label>인스타그램 URL</Form.Label>
+            <Form.Control type="url" value={form.instagramUrl} maxLength={500} onChange={(e) => update("instagramUrl", e.target.value)} />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group controlId="admin-workshop-smart-store-url">
+            <Form.Label>스마트스토어 URL</Form.Label>
+            <Form.Control type="url" value={form.smartStoreUrl} maxLength={500} onChange={(e) => update("smartStoreUrl", e.target.value)} />
           </Form.Group>
         </Col>
         <Col md={6}>

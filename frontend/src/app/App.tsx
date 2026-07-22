@@ -89,6 +89,12 @@ const PrivacyPolicyPage = lazy(() =>
 const BusinessInfoPage = lazy(() =>
   import("@/pages/BusinessInfoPage").then((module) => ({ default: module.BusinessInfoPage })),
 );
+const ClassListPage = lazy(() =>
+  import("@/pages/ClassListPage").then((module) => ({ default: module.ClassListPage })),
+);
+const GroupClassesPage = lazy(() =>
+  import("@/pages/GroupClassesPage").then((module) => ({ default: module.GroupClassesPage })),
+);
 
 function RouteFallback() {
   return (
@@ -116,6 +122,8 @@ export function App() {
                     <Route path="/notices/:id" element={<LazyRoute><NoticeDetailPage /></LazyRoute>} />
                     <Route path="/products" element={<ProductListPage />} />
                     <Route path="/products/:id" element={<ProductDetailPage />} />
+                    <Route path="/classes" element={<LazyRoute><ClassListPage /></LazyRoute>} />
+                    <Route path="/group-classes" element={<LazyRoute><GroupClassesPage /></LazyRoute>} />
                     <Route path="/bookings/new" element={<BookingCreatePage />} />
                     <Route path="/guest" element={<LazyRoute><GuestLookupPage /></LazyRoute>} />
                     <Route path="/guest/payments/:orderId" element={<LazyRoute><GuestPaymentStatusPage /></LazyRoute>} />

@@ -50,8 +50,8 @@ export function PassPurchasePage() {
                 <dd className="col-6 text-end mb-0">결제일 포함 {policyQuery.data.validityDays}일</dd>
               </dl>
               <p className="text-muted-soft small mb-0">
-                향수 원데이 클래스에는 사용할 수 없습니다. 예약할 때 8회권을 선택하면
-                별도 예약금 없이 1회가 차감됩니다.
+                8회권 사용이 허용된 정규 클래스에서만 사용할 수 있습니다. 예약할 때
+                8회권을 선택하면 별도 예약금 없이 1회가 차감됩니다.
               </p>
             </>
           )}

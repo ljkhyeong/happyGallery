@@ -1,128 +1,218 @@
-import { LinkButton } from "@/shared/ui/LinkButton";
 import type { CSSProperties } from "react";
-import { Container, Row, Col } from "react-bootstrap";
-import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import studioHero from "@/assets/studio-hero.jpg";
+import { Col, Container, Row } from "react-bootstrap";
+import { Link } from "react-router-dom";
+import heroWorkshop from "@/assets/happygallery/hero-workshop.jpg";
+import leatherClass from "@/assets/happygallery/leather-class.jpg";
+import groupResinClass from "@/assets/happygallery/group-resin-class.jpg";
+import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
+import { fetchClasses } from "@/features/booking-create/api";
+import { NoticeListWidget } from "@/features/notice/NoticeListWidget";
 import { fetchProducts } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
-import { NoticeListWidget } from "@/features/notice/NoticeListWidget";
-import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
+import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
+import { formatKRW } from "@/shared/lib";
+import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { LinkButton } from "@/shared/ui/LinkButton";
+
+const CRAFT_SPECIALTIES = [
+  "빈티지 가죽공예",
+  "레진아트",
+  "플루이드아트",
+  "톨페인팅",
+  "냅킨아트",
+  "양말목공예",
+  "하바리움",
+  "위빙",
+  "POP",
+] as const;
+
+const BLOG_STORIES = [
+  {
+    title: "빈티지가죽 카드지갑 원데이클래스",
+    label: "공방 클래스",
+    href: "https://blog.naver.com/ssim1972/224351321964",
+  },
+  {
+    title: "예성초등학교 레진아트 키링 수업",
+    label: "학교 출강",
+    href: "https://blog.naver.com/ssim1972/224329992719",
+  },
+  {
+    title: "새활용 양말목 생활소품",
+    label: "공예 이야기",
+    href: "https://blog.naver.com/ssim1972/224241899556",
+  },
+] as const;
 
 export function HomePage() {
-  const { data: products, isLoading, isError, error } = useQuery({
+  const productsQuery = useQuery({
     queryKey: ["products"],
     queryFn: () => fetchProducts(),
     staleTime: PUBLIC_DATA_STALE_TIME,
   });
+  const classesQuery = useQuery({
+    queryKey: ["classes"],
+    queryFn: fetchClasses,
+    staleTime: REFERENCE_DATA_STALE_TIME,
+  });
+  const { data: workshop } = useWorkshopProfile();
 
-  const featured = products?.filter((product) => product.available).slice(0, 6) ?? [];
-  const heroStyle = { "--hg-hero-image": `url(${studioHero})` } as CSSProperties;
+  const featuredProducts = productsQuery.data?.filter((product) => product.available).slice(0, 6) ?? [];
+  const featuredClasses = classesQuery.data?.slice(0, 4) ?? [];
+  const heroStyle = { "--hg-hero-image": `url(${heroWorkshop})` } as CSSProperties;
+  const blogUrl = workshop?.naverBlogUrl;
 
   return (
     <>
       <section className="store-hero" style={heroStyle}>
         <Container className="store-hero-inner">
           <div className="store-hero-content">
-            <p className="store-hero-badge">HANDMADE STORE &amp; WORKSHOP</p>
-            <h1 className="store-hero-title">
-              손으로 만든 하루를
-              <br />
-              가까이 두는 방법.
-            </h1>
+            <p className="store-hero-badge">충주 계명대로 공예공방</p>
+            <h1 className="store-hero-title">해피갤러리</h1>
+            <p className="store-hero-lead">손으로 만드는 즐거움이 오래 남는 곳</p>
             <p className="store-hero-copy">
-              공방에서 천천히 빚은 작품을 만나고,
-              직접 만드는 시간을 예약해 보세요.
+              원데이클래스부터 자격증반과 창업반까지,
+              다양한 공예를 배우고 나만의 작품을 완성해 보세요.
             </p>
             <div className="store-hero-actions">
-              <LinkButton to="/products" variant="dark" size="lg">
-                작품 둘러보기
-              </LinkButton>
-              <Link to="/bookings/new" className="store-hero-text-link">
-                클래스 예약하기 <span aria-hidden="true">→</span>
+              <LinkButton to="/classes" variant="dark" size="lg">클래스 둘러보기</LinkButton>
+              <Link to="/products" className="store-hero-text-link">
+                공방 작품 보기 <span aria-hidden="true">→</span>
               </Link>
             </div>
           </div>
         </Container>
       </section>
 
-      <Container className="page-container home-sections">
-        <section className="home-product-section anim-fade-up">
-          <div className="store-section-header">
+      <section className="home-band home-class-section anim-fade-up">
+        <Container>
+          <div className="store-section-header home-section-heading">
             <div>
-              <p className="store-section-kicker">오늘의 작품</p>
-              <h2 className="store-section-title">공방에서 바로 만날 수 있어요</h2>
+              <p className="store-section-kicker">해피갤러리 클래스</p>
+              <h2 className="store-section-title">오늘의 체험부터 오래 배우는 과정까지</h2>
               <p className="store-section-desc">
-                재고 작품과 주문 제작 작품을 한눈에 살펴보세요.
+                처음 만드는 분도 편안하게 시작할 수 있도록 수업별 시간과 준비물을 안내합니다.
               </p>
+            </div>
+            <Link to="/classes" className="store-section-link">
+              전체 클래스 보기 <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+
+          <p className="home-craft-specialties" aria-label="해피갤러리 공예 분야">
+            {CRAFT_SPECIALTIES.join(" · ")}
+          </p>
+
+          <div className="home-class-layout">
+            <figure className="home-class-media">
+              <img src={leatherClass} alt="해피갤러리 가죽공예 수업" />
+            </figure>
+            <div className="home-class-list">
+              {classesQuery.isLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
+              <ErrorAlert error={classesQuery.error} />
+              {featuredClasses.map((bookingClass) => (
+                <Link
+                  key={bookingClass.id}
+                  to={`/bookings/new?classId=${bookingClass.id}`}
+                  className="home-class-row"
+                >
+                  <div>
+                    <strong>{bookingClass.name}</strong>
+                    <span>{bookingClass.durationMin}분 · {formatKRW(bookingClass.price)}</span>
+                  </div>
+                  <span aria-hidden="true">↗</span>
+                </Link>
+              ))}
+              {!classesQuery.isLoading && !classesQuery.error && featuredClasses.length === 0 && (
+                <p className="text-muted-soft mb-0">예약 가능한 클래스를 준비하고 있습니다.</p>
+              )}
+            </div>
+          </div>
+        </Container>
+      </section>
+
+      <section className="home-group-band anim-fade-up anim-delay-1">
+        <Container className="home-editorial-layout">
+          <figure className="home-editorial-media">
+            <img src={groupResinClass} alt="해피갤러리 단체 레진아트 수업" />
+          </figure>
+          <div className="home-editorial-copy">
+            <p className="store-section-kicker">단체·기관 수업</p>
+            <h2>함께 만드는 시간이 필요한 곳으로 찾아갑니다</h2>
+            <p>
+              참여 인원과 장소, 원하는 공예를 알려주시면 수업에 맞는 재료와 진행 방법을 함께 정합니다.
+            </p>
+            <LinkButton to="/group-classes" variant="light">단체수업 알아보기</LinkButton>
+          </div>
+        </Container>
+      </section>
+
+      <section className="home-band home-story-section anim-fade-up anim-delay-2">
+        <Container className="home-story-layout">
+          <div className="home-story-copy">
+            <p className="store-section-kicker">공방 기록</p>
+            <h2>수업과 작품이 쌓여 온 해피갤러리의 시간</h2>
+            <p>
+              수강생과 함께 만든 작품, 새로운 재료를 만나는 과정, 공방의 일상을 네이버 블로그에 기록합니다.
+            </p>
+            <div className="home-story-links">
+              {BLOG_STORIES.map((story) => (
+                <a key={story.href} href={story.href} target="_blank" rel="noreferrer">
+                  <span>{story.label}</span>
+                  <strong>{story.title}</strong>
+                  <span aria-hidden="true">↗</span>
+                </a>
+              ))}
+            </div>
+            {blogUrl && (
+              <a className="store-section-link" href={blogUrl} target="_blank" rel="noreferrer">
+                모든 공방 기록 보기 <span aria-hidden="true">↗</span>
+              </a>
+            )}
+          </div>
+          <figure className="home-story-media">
+            <img src={upcyclingClass} alt="해피갤러리 업사이클링 공예 수업 기록" />
+          </figure>
+        </Container>
+      </section>
+
+      <section className="home-band home-product-section anim-fade-up anim-delay-3">
+        <Container>
+          <div className="store-section-header home-section-heading">
+            <div>
+              <p className="store-section-kicker">공방 작품</p>
+              <h2 className="store-section-title">해피갤러리에서 만든 작품을 만나보세요</h2>
+              <p className="store-section-desc">바로 구매할 수 있는 작품과 주문 제작 작품을 함께 소개합니다.</p>
             </div>
             <Link to="/products" className="store-section-link">
               모든 작품 보기 <span aria-hidden="true">→</span>
             </Link>
           </div>
-          {isLoading && <LoadingSpinner />}
-          {isError && <ErrorAlert error={error} />}
-          {featured.length > 0 && (
+          {productsQuery.isLoading && <LoadingSpinner />}
+          <ErrorAlert error={productsQuery.error} />
+          {featuredProducts.length > 0 && (
             <Row xs={1} sm={2} md={3} className="g-4">
-              {featured.map((product) => (
-                <Col key={product.id}>
-                  <ProductCard product={product} />
-                </Col>
+              {featuredProducts.map((product) => (
+                <Col key={product.id}><ProductCard product={product} /></Col>
               ))}
             </Row>
           )}
-          {!isLoading && featured.length === 0 && (
+          {!productsQuery.isLoading && !productsQuery.error && featuredProducts.length === 0 && (
             <p className="text-muted-soft">지금 소개할 작품을 준비하고 있습니다.</p>
           )}
-        </section>
+        </Container>
+      </section>
 
-        <section className="atelier-paths anim-fade-up anim-delay-1">
-          <div className="atelier-paths-intro">
-            <p className="store-section-kicker">AT THE ATELIER</p>
-            <h2>작품을 고르는 일부터<br />직접 만드는 시간까지</h2>
-            <p>처음 방문해도 편안하게 시작할 수 있도록 필요한 경로만 담았습니다.</p>
-          </div>
-          <div className="atelier-paths-links">
-            <Link to="/bookings/new" className="atelier-path-link">
-              <span className="atelier-path-meta">한 번의 공방 경험</span>
-              <strong>클래스 날짜와 시간 고르기</strong>
-              <span aria-hidden="true">↗</span>
-            </Link>
-            <Link to="/passes/purchase" className="atelier-path-link">
-              <span className="atelier-path-meta">꾸준한 작업을 위한</span>
-              <strong>8회권으로 공방 이어가기</strong>
-              <span aria-hidden="true">↗</span>
-            </Link>
-          </div>
-        </section>
+      <section className="home-band home-notice-section anim-fade-up">
+        <Container><NoticeListWidget /></Container>
+      </section>
 
-        <section className="home-workshop-section anim-fade-up anim-delay-2">
-          <WorkshopVisitInfo />
-        </section>
-
-        <div className="home-info-grid anim-fade-up anim-delay-3">
-          <NoticeListWidget />
-          <section className="lookup-panel">
-            <p className="store-section-kicker">내 기록 찾기</p>
-            <h2 className="lookup-panel-title">주문과 예약을 다시 확인하세요.</h2>
-            <p className="store-section-desc">
-              회원은 내 정보에서, 비회원은 발급받은 접근 토큰으로 확인할 수 있습니다.
-            </p>
-            <div className="lookup-panel-actions">
-              <LinkButton to="/my" variant="dark">내 정보</LinkButton>
-              <LinkButton
-                to="/guest"
-                state={{ monitoringSource: "home_lookup_panel" }}
-                variant="outline-dark"
-              >
-                비회원 조회
-              </LinkButton>
-            </div>
-          </section>
-        </div>
-      </Container>
+      <section className="home-band home-workshop-section anim-fade-up">
+        <Container><WorkshopVisitInfo /></Container>
+      </section>
     </>
   );
 }

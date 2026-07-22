@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.workshop;
 
 import com.personal.happygallery.adapter.in.web.workshop.dto.WorkshopProfileResponse;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,6 +18,7 @@ public class WorkshopProfileController {
     }
 
     @GetMapping
+    @Operation(operationId = "getWorkshopProfile")
     public WorkshopProfileResponse get() {
         return WorkshopProfileResponse.from(useCase.get());
     }

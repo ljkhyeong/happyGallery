@@ -1,25 +1,29 @@
 package com.personal.happygallery.adapter.in.web.workshop.dto;
 
 import com.personal.happygallery.domain.store.WorkshopProfile;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
 public record WorkshopProfileResponse(
-        String name,
-        String phone,
-        String postalCode,
-        String addressLine1,
-        String addressLine2,
-        String businessHours,
-        String mapUrl,
-        String parkingInfo,
-        String businessRegistrationNumber,
-        String representativeName,
-        String email,
-        String mailOrderRegistrationNumber,
-        String introduction,
-        String kakaoTalkId,
-        boolean naverTalkEnabled,
-        LocalDateTime updatedAt
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String phone,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String postalCode,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String addressLine1,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String addressLine2,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String businessHours,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true, format = "uri") String mapUrl,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String parkingInfo,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String businessRegistrationNumber,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String representativeName,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String email,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String mailOrderRegistrationNumber,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String introduction,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String kakaoTalkId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true, format = "uri") String naverTalkUrl,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true, format = "uri") String naverBlogUrl,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true, format = "uri") String instagramUrl,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true, format = "uri") String smartStoreUrl,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime updatedAt
 ) {
     public static WorkshopProfileResponse from(WorkshopProfile profile) {
         return new WorkshopProfileResponse(
@@ -37,7 +41,10 @@ public record WorkshopProfileResponse(
                 profile.getMailOrderRegistrationNumber(),
                 profile.getIntroduction(),
                 profile.getKakaoTalkId(),
-                profile.isNaverTalkEnabled(),
+                profile.getNaverTalkUrl(),
+                profile.getNaverBlogUrl(),
+                profile.getInstagramUrl(),
+                profile.getSmartStoreUrl(),
                 profile.getUpdatedAt());
     }
 }

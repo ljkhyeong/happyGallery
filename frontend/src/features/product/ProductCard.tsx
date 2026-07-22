@@ -26,7 +26,7 @@ export function ProductCard({ product }: Props) {
             )}
           </div>
           <Badge bg={product.available ? "dark" : "secondary"} className="badge-status">
-            {product.available ? "IN STOCK" : "SOLD OUT"}
+            {product.available ? "구매 가능" : "품절"}
           </Badge>
         </div>
         <Card.Title className="product-card-name mb-2">
@@ -41,7 +41,7 @@ export function ProductCard({ product }: Props) {
           <span className="product-card-price">
             {formatKRW(product.price)}
           </span>
-          <span className="product-card-cta">DETAIL →</span>
+          <span className="product-card-cta">자세히 보기 →</span>
         </div>
       </Card.Body>
     </Card>

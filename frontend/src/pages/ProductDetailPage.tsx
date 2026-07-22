@@ -99,9 +99,9 @@ export function ProductDetailPage() {
   return (
     <Container className="page-container">
       <div className="store-detail-breadcrumb anim-fade-up">
-        <Link to="/" className="store-detail-breadcrumb-link">HOME</Link>
+        <Link to="/" className="store-detail-breadcrumb-link">홈</Link>
         <span>/</span>
-        <Link to="/products" className="store-detail-breadcrumb-link">STORE</Link>
+        <Link to="/products" className="store-detail-breadcrumb-link">작품</Link>
         <span>/</span>
         <span className="store-detail-breadcrumb-current">{product.name}</span>
       </div>
@@ -126,7 +126,7 @@ export function ProductDetailPage() {
                   </p>
                 </div>
                 <Badge bg={product.available ? "dark" : "secondary"} className="badge-status py-2 px-3">
-                  {product.available ? "IN STOCK" : "SOLD OUT"}
+                  {product.available ? "구매 가능" : "품절"}
                 </Badge>
               </div>
 
@@ -134,16 +134,16 @@ export function ProductDetailPage() {
 
               <div className="store-detail-note-grid mb-4">
                 <div className="store-detail-note">
-                  <div className="store-detail-note-label">Process</div>
-                  <div className="store-detail-note-body">상품 상세에서 수량 선택 후 바로 주문</div>
+                  <div className="store-detail-note-label">주문</div>
+                  <div className="store-detail-note-body">수량과 수령 방법을 선택한 뒤 주문합니다</div>
                 </div>
                 <div className="store-detail-note">
-                  <div className="store-detail-note-label">Member</div>
-                  <div className="store-detail-note-body">결제 후 내 주문에서 즉시 확인</div>
+                  <div className="store-detail-note-label">회원</div>
+                  <div className="store-detail-note-body">결제 후 내 주문에서 바로 확인합니다</div>
                 </div>
                 <div className="store-detail-note">
-                  <div className="store-detail-note-label">Guest</div>
-                  <div className="store-detail-note-body">비회원 주문 경로로 계속 지원</div>
+                  <div className="store-detail-note-label">비회원</div>
+                  <div className="store-detail-note-body">휴대폰 인증 후 주문하고 조회합니다</div>
                 </div>
               </div>
 
@@ -162,7 +162,7 @@ export function ProductDetailPage() {
         <Col lg={5} className="anim-fade-up anim-delay-2">
           <Card className="purchase-panel store-purchase-card">
             <Card.Body className="p-4">
-              <div className="store-purchase-kicker mb-1">Order</div>
+              <div className="store-purchase-kicker mb-1">작품 주문</div>
               <h5 className="store-purchase-title mb-4">바로 주문하기</h5>
 
               <Row className="align-items-center g-3 mb-3">
@@ -251,7 +251,7 @@ export function ProductDetailPage() {
                     disabled={!canCheckout || !consent.ready || orderMutation.isPending}
                     onClick={() => orderMutation.mutate()}
                   >
-                    {orderMutation.isPending ? "PROCESSING..." : "BUY NOW"}
+                    {orderMutation.isPending ? "주문 처리 중..." : "바로 구매하기"}
                   </Button>
                   <Button
                     variant="outline-dark"
@@ -263,7 +263,7 @@ export function ProductDetailPage() {
                       toast.show("장바구니에 추가되었습니다.");
                     }}
                   >
-                    ADD TO CART
+                    장바구니 담기
                   </Button>
                   <p className="store-purchase-helper mb-0">
                     결제가 완료되면 바로 내 주문 상세로 이동합니다.
@@ -278,14 +278,14 @@ export function ProductDetailPage() {
                     disabled={!canBuy}
                     onClick={() => navigate(loginHref)}
                   >
-                    LOGIN & BUY
+                    로그인 후 구매하기
                   </Button>
                   <LinkButton
                     to={signupHref}
                     variant="outline-dark"
                     className="w-100 mb-2"
                   >
-                    JOIN & BUY
+                    회원가입 후 구매하기
                   </LinkButton>
                   <Button
                     variant="outline-dark"
@@ -296,7 +296,7 @@ export function ProductDetailPage() {
                       toast.show("장바구니에 추가되었습니다.");
                     }}
                   >
-                    ADD TO CART
+                    장바구니 담기
                   </Button>
                   <LinkButton
                     to={guestFallbackPath}

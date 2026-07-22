@@ -17,7 +17,7 @@
 - 환불은 요청 이력을 먼저 커밋한 뒤 PG를 호출한다. 실행 유실·일시 실패는 최초 멱등키로 복구하고, 결과 불명 상태는 PG 취소 내역을 먼저 조회해 성공 여부를 화해한 뒤에만 취소 재호출 여부를 결정한다.
 - 배송 주문은 `ORDER_SHIPPING_FEE` 고정액을 결제 준비 시 확정해 주문에 저장한다. 상품명·단가, 배송비와 택배사·운송장 정보는 과거 주문을 재현할 수 있게 스냅샷으로 유지한다.
 - 상품·클래스 설명과 대표 이미지, 공방 주소·영업·주차·소개·사업자·문의 정보를 관리자 화면에서 관리한다. 공개 footer와 이용약관·개인정보처리방침·사업자 정보 화면은 같은 공방 프로필을 사용한다. 반복 슬롯은 기간·요일·시각 조합을 미리 본 뒤 일괄 생성한다.
-- 기준 공방 프로필은 `해피갤러리`, `충북 충주시 계명대로 161 1층`, `010-9635-5608`, 사업자등록번호 `303-11-87052`, 카카오톡 `ssim1972`, 네이버톡톡 문의 사용으로 시작한다. 제공되지 않은 대표자명·전자우편주소·통신판매업 신고번호는 `null`로 유지한다.
+- 기준 공방 프로필은 `해피갤러리`, `충북 충주시 계명대로 161 1층`, 네이버 플레이스 `https://m.place.naver.com/place/21668321`, `010-9635-5608`, 대표 `홍지현`, 사업자등록번호 `303-11-87052`, 통신판매업 신고번호 `2011-충북 충주-127`, 전자우편 `ssi1972@naver.com`, 카카오톡 `ssim1972`를 사용한다. 네이버톡톡·네이버 블로그·인스타그램·스마트스토어 링크도 공방 프로필에서 함께 관리한다.
 - 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
 - Google·Naver 계정은 마이페이지에서 일회성 연결 시도와 OAuth `state`를 검증해 명시적으로 연결·해제하며, 이메일 일치만으로 기존 회원과 자동 병합하지 않는다.
 - 브라우저의 비관리자 상태 변경 요청은 `XSRF-TOKEN` 쿠키와 `X-XSRF-TOKEN` 헤더로 CSRF를 방어한다.
@@ -156,7 +156,7 @@ docker compose up -d --build
 - 햇빛이 드는 공방을 중심 이미지로 삼고 한지색, 점토색, 잎색을 기본 팔레트로 사용한다.
 - 본문은 Pretendard, 전시 제목과 브랜드 표기는 Gowun Batang 계열을 사용한다.
 - 공통 색상과 컴포넌트 변수는 `frontend/src/styles/_variables.scss`, 화면 스타일은 `frontend/src/styles/global.scss`에서 관리한다.
-- 홈 히어로 이미지는 `frontend/src/assets/studio-hero.jpg`를 사용하며, 모바일 구도와 `prefers-reduced-motion`을 함께 지원한다.
+- 홈과 클래스·단체수업 화면은 `frontend/src/assets/happygallery`의 실제 공방 사진을 사용한다. 사진 원문은 같은 디렉터리의 `SOURCES.md`에 기록하며, 외부 이미지 CDN에 런타임 의존하지 않는다.
 
 ## 운영/배포
 
@@ -173,7 +173,7 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 - Docker Compose는 로컬 개발, 통합 검증과 복구 진단용이다. 현재 `local` 프로필과 개발 기본값을 사용하므로 운영 배포 기준이 아니다.
 - [`deploy/k3s`](deploy/k3s/README.md)에 namespace, ingress/TLS, MySQL·미디어 PVC, 비공개 Actuator/Prometheus, secret 주입, 불변 이미지 import, rollout·rollback, DB·미디어 암호화 백업·복원 절차를 둔다.
 - 현재 공개 운영 주소와 자동 배포 workflow는 없다. 실제 노트북에서 DNS·공유기·방화벽·TLS·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
-- 공개 결제 운영 전 관리자 공방 정보에 대표자명, 전자우편주소와 통신판매업 신고번호를 모두 입력하고 footer·사업자 정보 화면을 확인해야 한다. `prod` 프로필은 연락처·주소·사업자등록번호를 포함한 필수 온라인 판매 고지가 완성되기 전 모든 결제 prepare를 `503`으로 차단한다. 제공되지 않은 값은 임의로 채우지 않으며, 표시 근거는 전자상거래법 [제10조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022342373)와 [제13조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022341933)다.
+- 기준 공방 프로필에는 공개 결제에 필요한 대표자명, 전자우편주소와 통신판매업 신고번호가 포함된다. 배포 전 footer·사업자 정보 화면의 표시값을 확인해야 하며, `prod` 프로필은 연락처·주소·사업자등록번호를 포함한 필수 온라인 판매 고지가 완성되기 전 모든 결제 prepare를 `503`으로 차단한다. 표시 근거는 전자상거래법 [제10조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022342373)와 [제13조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022341933)다.
 
 운영 목표와 불변 조건은 [ADR-0037 자가 호스팅 배포 토폴로지 기준](docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)을 따른다. 이전 AWS 구조와 배포 설정은 [Idea-0028](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md), [Idea-0029](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md), [Idea-0039](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)에 역사 기록으로 남긴다.
 

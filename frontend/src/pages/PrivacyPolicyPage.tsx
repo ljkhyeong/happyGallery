@@ -9,7 +9,7 @@ export function PrivacyPolicyPage() {
     workshop?.phone ? `전화 ${workshop.phone}` : null,
     workshop?.email ? `전자우편 ${workshop.email}` : null,
     workshop?.kakaoTalkId ? `카카오톡 ${workshop.kakaoTalkId}` : null,
-    workshop?.naverTalkEnabled ? "네이버톡톡" : null,
+    workshop?.naverTalkUrl ? "네이버톡톡" : null,
   ].filter(Boolean);
 
   return (

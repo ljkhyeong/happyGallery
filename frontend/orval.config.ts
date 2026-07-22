@@ -116,4 +116,27 @@ export default defineConfig({
       },
     },
   },
+  workshopApi: {
+    input: {
+      target: "../docs/PRD/0004_API_계약/openapi3.json",
+      filters: {
+        tags: ["workshop-profile-controller", "admin-workshop-profile-controller"],
+      },
+    },
+    output: {
+      target: "./src/generated/api/workshop.ts",
+      client: "fetch",
+      clean: false,
+      override: {
+        header: false,
+        fetch: {
+          includeHttpResponseReturnType: false,
+        },
+        mutator: {
+          path: "./src/shared/api/generatedClient.ts",
+          name: "generatedApiClient",
+        },
+      },
+    },
+  },
 });

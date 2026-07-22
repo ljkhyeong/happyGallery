@@ -2490,21 +2490,25 @@ Content-Type: application/json
   "addressLine1": "충북 충주시 계명대로 161",
   "addressLine2": "1층",
   "businessHours": null,
-  "mapUrl": null,
+  "mapUrl": "https://m.place.naver.com/place/21668321",
   "parkingInfo": null,
   "businessRegistrationNumber": "303-11-87052",
-  "representativeName": null,
-  "email": null,
-  "mailOrderRegistrationNumber": null,
+  "representativeName": "홍지현",
+  "email": "ssi1972@naver.com",
+  "mailOrderRegistrationNumber": "2011-충북 충주-127",
   "introduction": "해피갤러리는 빈티지 가죽공예, 레진아트, 플루이드아트, 톨페인팅, 냅킨아트, 양말목공예, 하바리움, 위빙, POP 원데이클래스부터 자격증반, 창업반을 운영합니다.",
   "kakaoTalkId": "ssim1972",
-  "naverTalkEnabled": true,
+  "naverTalkUrl": "https://talk.naver.com/w4xufy",
+  "naverBlogUrl": "https://blog.naver.com/ssim1972",
+  "instagramUrl": "https://www.instagram.com/happygallery_by/",
+  "smartStoreUrl": "https://smartstore.naver.com/happygallery",
   "updatedAt": "2026-07-21T10:00:00"
 }
 ```
 
-- `name`과 `naverTalkEnabled`는 필수이고 나머지 안내 필드는 선택값이다. `businessRegistrationNumber`는 값이 있으면 `000-00-00000` 형식이고, `email`은 표준 이메일 형식과 254자 상한을 적용해 소문자로 저장한다. 공개·관리자 응답은 같은 구조를 사용한다.
-- 현재 제공된 정보에는 대표자명, 전자우편주소와 통신판매업 신고번호가 없으므로 세 필드는 `null`로 유지한다. `prod`에서는 이 값들과 연락처·주소·사업자등록번호가 모두 입력되기 전 결제 prepare를 `503 SERVICE_UNAVAILABLE`로 차단한다.
+- `name`은 필수이고 나머지 안내 필드는 선택값이다. `businessRegistrationNumber`는 값이 있으면 `000-00-00000` 형식이고, `email`은 표준 이메일 형식과 254자 상한을 적용해 소문자로 저장한다. `mapUrl`, `naverTalkUrl`, `naverBlogUrl`, `instagramUrl`, `smartStoreUrl`은 값이 있으면 500자 이하의 HTTP(S) 주소여야 한다. 공개·관리자 응답은 같은 구조를 사용한다.
+- 기존 네이버톡톡 사용 여부 불리언 필드는 제거하고 `naverTalkUrl`로 대체한다. 네이버톡톡 문의 제공 여부는 `naverTalkUrl` 값의 존재로 판단하며, 클라이언트는 응답 URL을 그대로 링크에 사용한다.
+- 기준 프로필은 제공된 대표자명, 전자우편주소와 통신판매업 신고번호를 저장한다. `prod`에서는 이 값들과 연락처·주소·사업자등록번호가 모두 입력되기 전 결제 prepare를 `503 SERVICE_UNAVAILABLE`로 차단한다.
 
 #### 2.19.2 이미지 업로드·조회
 

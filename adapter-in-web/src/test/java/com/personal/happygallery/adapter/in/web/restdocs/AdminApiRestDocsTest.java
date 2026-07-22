@@ -447,20 +447,31 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                                   "addressLine1": "충북 충주시 계명대로 161",
                                   "addressLine2": "1층",
                                   "businessHours": null,
-                                  "mapUrl": null,
+                                  "mapUrl": "https://m.place.naver.com/place/21668321",
                                   "parkingInfo": null,
                                   "businessRegistrationNumber": "303-11-87052",
-                                  "representativeName": null,
-                                  "email": null,
-                                  "mailOrderRegistrationNumber": null,
+                                  "representativeName": "홍지현",
+                                  "email": "ssi1972@naver.com",
+                                  "mailOrderRegistrationNumber": "2011-충북 충주-127",
                                   "introduction": "해피갤러리는 빈티지 가죽공예, 레진아트, 플루이드아트, 톨페인팅, 냅킨아트, 양말목공예, 하바리움, 위빙, POP 원데이클래스부터 자격증반, 창업반을 운영합니다.",
                                   "kakaoTalkId": "ssim1972",
-                                  "naverTalkEnabled": true
+                                  "naverTalkUrl": "https://talk.naver.com/w4xufy",
+                                  "naverBlogUrl": "https://blog.naver.com/ssim1972",
+                                  "instagramUrl": "https://www.instagram.com/happygallery_by/",
+                                  "smartStoreUrl": "https://smartstore.naver.com/happygallery"
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.businessRegistrationNumber").value("303-11-87052"))
-                .andExpect(jsonPath("$.naverTalkEnabled").value(true));
+                .andExpect(jsonPath("$.representativeName").value("홍지현"))
+                .andExpect(jsonPath("$.email").value("ssi1972@naver.com"))
+                .andExpect(jsonPath("$.mailOrderRegistrationNumber").value("2011-충북 충주-127"))
+                .andExpect(jsonPath("$.naverTalkUrl").value("https://talk.naver.com/w4xufy"))
+                .andExpect(jsonPath("$.naverBlogUrl").value("https://blog.naver.com/ssim1972"))
+                .andExpect(jsonPath("$.instagramUrl")
+                        .value("https://www.instagram.com/happygallery_by/"))
+                .andExpect(jsonPath("$.smartStoreUrl")
+                        .value("https://smartstore.naver.com/happygallery"));
     }
 
     @Test
@@ -1170,11 +1181,15 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         profile.update(
                 "해피갤러리", "010-9635-5608", null,
                 "충북 충주시 계명대로 161", "1층", null,
-                null, null,
-                "303-11-87052", null, null, null,
+                "https://m.place.naver.com/place/21668321", null,
+                "303-11-87052", "홍지현", "ssi1972@naver.com", "2011-충북 충주-127",
                 "해피갤러리는 빈티지 가죽공예, 레진아트, 플루이드아트, 톨페인팅, 냅킨아트, "
                         + "양말목공예, 하바리움, 위빙, POP 원데이클래스부터 자격증반, 창업반을 운영합니다.",
-                "ssim1972", true,
+                "ssim1972",
+                "https://talk.naver.com/w4xufy",
+                "https://blog.naver.com/ssim1972",
+                "https://www.instagram.com/happygallery_by/",
+                "https://smartstore.naver.com/happygallery",
                 LocalDateTime.of(2026, 5, 1, 21, 0));
         return profile;
     }

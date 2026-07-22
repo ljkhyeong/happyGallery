@@ -78,7 +78,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
               value={name}
               maxLength={100}
               onChange={(e) => setName(e.target.value)}
-              placeholder="예: 향수 원데이"
+              placeholder="예: 레진아트 원데이"
             />
           </Form.Group>
         </Col>
@@ -89,7 +89,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
               value={category}
               maxLength={30}
               onChange={(e) => setCategory(e.target.value.toUpperCase())}
-              placeholder="예: PERFUME"
+              placeholder="예: RESIN"
             />
           </Form.Group>
         </Col>

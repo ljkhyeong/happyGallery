@@ -6,6 +6,7 @@ import com.personal.happygallery.adapter.in.web.admin.dto.CreateNoticeRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateNoticeRequest;
 import com.personal.happygallery.adapter.in.web.notice.dto.NoticeDetailResponse;
 import com.personal.happygallery.adapter.in.web.notice.dto.NoticeListResponse;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -47,6 +48,7 @@ public class AdminNoticeController {
     }
 
     @PutMapping("/{id}")
+    @Operation(operationId = "update_1")
     public NoticeDetailResponse update(@PathVariable Long id,
                                        @RequestBody @Valid UpdateNoticeRequest request) {
         return NoticeDetailResponse.from(

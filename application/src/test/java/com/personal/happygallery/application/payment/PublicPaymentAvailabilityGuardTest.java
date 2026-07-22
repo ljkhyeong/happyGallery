@@ -31,7 +31,8 @@ class PublicPaymentAvailabilityGuardTest {
                 "해피갤러리", "010-9635-5608", null,
                 "충북 충주시 계명대로 161", "1층", null, null, null,
                 "303-11-87052", "대표자", "owner@example.com", "신고번호",
-                null, "ssim1972", true, LocalDateTime.of(2026, 7, 21, 10, 0));
+                null, "ssim1972", null, null, null, null,
+                LocalDateTime.of(2026, 7, 21, 10, 0));
 
         assertThatCode(guard::requireAvailable).doesNotThrowAnyException();
     }

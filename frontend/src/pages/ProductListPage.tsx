@@ -53,12 +53,12 @@ export function ProductListPage() {
   return (
     <Container className="page-container">
       <section className="store-list-header mb-4 anim-fade-up">
-        <p className="store-section-kicker mb-2">Store</p>
+        <p className="store-section-kicker mb-2">해피갤러리 작품</p>
         <div className="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-end">
           <div>
-            <h3 className="store-list-title mb-1">ALL PRODUCTS</h3>
+            <h1 className="store-list-title mb-1">공방 작품</h1>
             <p className="text-muted-soft store-section-desc mb-0">
-              바로 판매 가능한 상품과 예약 제작 상품을 한 곳에서 확인하세요.
+              바로 구매할 수 있는 작품과 주문 후 제작하는 작품을 함께 소개합니다.
             </p>
           </div>
         </div>

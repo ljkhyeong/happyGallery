@@ -41,7 +41,9 @@ public class DefaultWorkshopProfileService implements WorkshopProfileUseCase {
                 command.addressLine1(), command.addressLine2(), command.businessHours(),
                 command.mapUrl(), command.parkingInfo(), command.businessRegistrationNumber(),
                 command.representativeName(), command.email(), command.mailOrderRegistrationNumber(),
-                command.introduction(), command.kakaoTalkId(), command.naverTalkEnabled(),
+                command.introduction(), command.kakaoTalkId(),
+                command.naverTalkUrl(), command.naverBlogUrl(),
+                command.instagramUrl(), command.smartStoreUrl(),
                 LocalDateTime.now(clock));
         return storePort.save(profile);
     }

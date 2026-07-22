@@ -48,8 +48,17 @@ export function BusinessInfoPage() {
         {workshop.kakaoTalkId && (
           <div><dt>카카오톡</dt><dd>{workshop.kakaoTalkId}</dd></div>
         )}
-        {workshop.naverTalkEnabled && (
-          <div><dt>수업 문의</dt><dd>원데이클래스·단체수업 네이버톡톡</dd></div>
+        {workshop.naverTalkUrl && (
+          <div>
+            <dt>수업 문의</dt>
+            <dd><a href={workshop.naverTalkUrl} target="_blank" rel="noreferrer">네이버톡톡</a></dd>
+          </div>
+        )}
+        {workshop.naverBlogUrl && (
+          <div>
+            <dt>공방 블로그</dt>
+            <dd><a href={workshop.naverBlogUrl} target="_blank" rel="noreferrer">네이버 블로그</a></dd>
+          </div>
         )}
       </dl>
     </Container>

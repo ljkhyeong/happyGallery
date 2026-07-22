@@ -185,8 +185,9 @@
 #### 공방 프로필
 
 - `workshop_profiles`
-  - `id=1`, `name`, `phone nullable`, `postal_code nullable`, `address_line1 nullable`, `address_line2 nullable`, `business_hours nullable`, `map_url nullable`, `parking_info nullable`, `business_registration_number nullable`, `representative_name nullable`, `email nullable`, `mail_order_registration_number nullable`, `introduction nullable`, `kakao_talk_id nullable`, `naver_talk_enabled`, `updated_at`
+  - `id=1`, `name`, `phone nullable`, `postal_code nullable`, `address_line1 nullable`, `address_line2 nullable`, `business_hours nullable`, `map_url nullable`, `parking_info nullable`, `business_registration_number nullable`, `representative_name nullable`, `email nullable`, `mail_order_registration_number nullable`, `introduction nullable`, `kakao_talk_id nullable`, `naver_talk_url nullable`, `naver_blog_url nullable`, `instagram_url nullable`, `smart_store_url nullable`, `updated_at`
   - 단일 행 `CHECK(id=1)`로 방문 안내와 공개 사업자 정보를 함께 관리한다. 공개 API는 같은 프로필을 반환하고 관리자 API만 수정한다.
+  - `V81`은 아직 운영 배포 전인 스키마에서 불리언 `naver_talk_enabled`를 URL 필드로 같은 릴리스에 대체하므로 기존 필드를 바로 제거한다. 이미 관리자가 입력한 프로필 값은 유지하고 비어 있는 기준 사업자 정보만 채운다. 최초 운영 배포 이후의 컬럼 대체는 구버전·신버전 애플리케이션의 공존을 고려해 추가-전환-제거 순서로 별도 마이그레이션한다.
 
 #### 주문·예약 소유자 제약 배포
 

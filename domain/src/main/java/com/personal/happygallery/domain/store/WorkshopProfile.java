@@ -20,7 +20,7 @@ public class WorkshopProfile {
     public static final int MAX_POSTAL_CODE_LENGTH = 20;
     public static final int MAX_ADDRESS_LENGTH = 200;
     public static final int MAX_BUSINESS_HOURS_LENGTH = 1_000;
-    public static final int MAX_MAP_URL_LENGTH = 500;
+    public static final int MAX_URL_LENGTH = 500;
     public static final int MAX_PARKING_INFO_LENGTH = 1_000;
     public static final int MAX_BUSINESS_REGISTRATION_NUMBER_LENGTH = 20;
     public static final int MAX_REPRESENTATIVE_NAME_LENGTH = 100;
@@ -51,7 +51,7 @@ public class WorkshopProfile {
     @Column(name = "business_hours", length = MAX_BUSINESS_HOURS_LENGTH)
     private String businessHours;
 
-    @Column(name = "map_url", length = MAX_MAP_URL_LENGTH)
+    @Column(name = "map_url", length = MAX_URL_LENGTH)
     private String mapUrl;
 
     @Column(name = "parking_info", length = MAX_PARKING_INFO_LENGTH)
@@ -75,8 +75,17 @@ public class WorkshopProfile {
     @Column(name = "kakao_talk_id", length = MAX_KAKAO_TALK_ID_LENGTH)
     private String kakaoTalkId;
 
-    @Column(name = "naver_talk_enabled", nullable = false)
-    private boolean naverTalkEnabled;
+    @Column(name = "naver_talk_url", length = MAX_URL_LENGTH)
+    private String naverTalkUrl;
+
+    @Column(name = "naver_blog_url", length = MAX_URL_LENGTH)
+    private String naverBlogUrl;
+
+    @Column(name = "instagram_url", length = MAX_URL_LENGTH)
+    private String instagramUrl;
+
+    @Column(name = "smart_store_url", length = MAX_URL_LENGTH)
+    private String smartStoreUrl;
 
     @Column(name = "updated_at", nullable = false, insertable = false)
     private LocalDateTime updatedAt;
@@ -92,7 +101,9 @@ public class WorkshopProfile {
                        String addressLine1, String addressLine2, String businessHours,
                        String mapUrl, String parkingInfo, String businessRegistrationNumber,
                        String representativeName, String email, String mailOrderRegistrationNumber,
-                       String introduction, String kakaoTalkId, boolean naverTalkEnabled,
+                       String introduction, String kakaoTalkId,
+                       String naverTalkUrl, String naverBlogUrl,
+                       String instagramUrl, String smartStoreUrl,
                        LocalDateTime updatedAt) {
         this.name = required(name, "공방명", MAX_NAME_LENGTH);
         this.phone = optional(phone, "연락처", MAX_PHONE_LENGTH);
@@ -100,7 +111,7 @@ public class WorkshopProfile {
         this.addressLine1 = optional(addressLine1, "기본 주소", MAX_ADDRESS_LENGTH);
         this.addressLine2 = optional(addressLine2, "상세 주소", MAX_ADDRESS_LENGTH);
         this.businessHours = optional(businessHours, "운영시간", MAX_BUSINESS_HOURS_LENGTH);
-        this.mapUrl = optionalHttpUrl(mapUrl);
+        this.mapUrl = optionalHttpUrl(mapUrl, "지도 URL");
         this.parkingInfo = optional(parkingInfo, "주차 안내", MAX_PARKING_INFO_LENGTH);
         this.businessRegistrationNumber = optionalBusinessRegistrationNumber(businessRegistrationNumber);
         this.representativeName = optional(
@@ -112,7 +123,10 @@ public class WorkshopProfile {
                 MAX_MAIL_ORDER_REGISTRATION_NUMBER_LENGTH);
         this.introduction = optional(introduction, "공방 소개", MAX_INTRODUCTION_LENGTH);
         this.kakaoTalkId = optional(kakaoTalkId, "카카오톡 ID", MAX_KAKAO_TALK_ID_LENGTH);
-        this.naverTalkEnabled = naverTalkEnabled;
+        this.naverTalkUrl = optionalHttpUrl(naverTalkUrl, "네이버톡톡 URL");
+        this.naverBlogUrl = optionalHttpUrl(naverBlogUrl, "네이버 블로그 URL");
+        this.instagramUrl = optionalHttpUrl(instagramUrl, "인스타그램 URL");
+        this.smartStoreUrl = optionalHttpUrl(smartStoreUrl, "스마트스토어 URL");
         this.updatedAt = updatedAt;
     }
 
@@ -151,8 +165,8 @@ public class WorkshopProfile {
         return normalized;
     }
 
-    private static String optionalHttpUrl(String value) {
-        String normalized = optional(value, "지도 URL", MAX_MAP_URL_LENGTH);
+    private static String optionalHttpUrl(String value, String fieldName) {
+        String normalized = optional(value, fieldName, MAX_URL_LENGTH);
         if (normalized == null) {
             return null;
         }
@@ -165,7 +179,8 @@ public class WorkshopProfile {
         } catch (IllegalArgumentException ignored) {
             // 아래의 일관된 도메인 오류로 변환한다.
         }
-        throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지도 URL은 http(s) 주소여야 합니다.");
+        throw new HappyGalleryException(
+                ErrorCode.INVALID_INPUT, fieldName + "은 http(s) 주소여야 합니다.");
     }
 
     public Long getId() { return id; }
@@ -183,7 +198,10 @@ public class WorkshopProfile {
     public String getMailOrderRegistrationNumber() { return mailOrderRegistrationNumber; }
     public String getIntroduction() { return introduction; }
     public String getKakaoTalkId() { return kakaoTalkId; }
-    public boolean isNaverTalkEnabled() { return naverTalkEnabled; }
+    public String getNaverTalkUrl() { return naverTalkUrl; }
+    public String getNaverBlogUrl() { return naverBlogUrl; }
+    public String getInstagramUrl() { return instagramUrl; }
+    public String getSmartStoreUrl() { return smartStoreUrl; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 
     public boolean hasCompleteOnlineSalesDisclosure() {

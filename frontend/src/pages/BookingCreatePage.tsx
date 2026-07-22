@@ -54,6 +54,10 @@ export function BookingCreatePage() {
       || (selectedClass?.passEligible === true && selectedClass.category !== "PERFUME"));
   const requestedPassId = Number(searchParams.get("passId"));
   const hasRequestedPass = Number.isSafeInteger(requestedPassId) && requestedPassId > 0;
+  const requestedClassId = Number(searchParams.get("classId"));
+  const initialClassId = Number.isSafeInteger(requestedClassId) && requestedClassId > 0
+    ? requestedClassId
+    : null;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -161,6 +165,7 @@ export function BookingCreatePage() {
       <Card className="mb-4">
         <Card.Body>
           <SlotSelectionStep
+            initialClassId={initialClassId}
             selectedSlotId={selectedSlot?.id ?? null}
             onSelect={(slot) => setSelectedSlot(slot)}
             onDeselect={() => setSelectedSlot(null)}

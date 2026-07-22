@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Form, Row, Col, ListGroup, Badge } from "react-bootstrap";
 import { fetchClasses, fetchAvailableSlots } from "./api";
@@ -9,17 +9,25 @@ import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 
 interface Props {
+  initialClassId?: number | null;
   selectedSlotId: number | null;
   onSelect: (slot: PublicSlotResponse) => void;
   onDeselect?: () => void;
   onClassChange?: (bookingClass: ClassResponse | null) => void;
 }
 
-export function SlotSelectionStep({ selectedSlotId, onSelect, onDeselect, onClassChange }: Props) {
-  const [classId, setClassId] = useState("");
+export function SlotSelectionStep({
+  initialClassId,
+  selectedSlotId,
+  onSelect,
+  onDeselect,
+  onClassChange,
+}: Props) {
+  const appliedInitialClassId = useRef<number | null | undefined>(undefined);
+  const [classId, setClassId] = useState(() => initialClassId ? String(initialClassId) : "");
   const [date, setDate] = useState("");
 
-  const { data: classes, isLoading: classesLoading } = useQuery({
+  const { data: classes, isLoading: classesLoading, error: classesError } = useQuery({
     queryKey: ["classes"],
     queryFn: fetchClasses,
     staleTime: REFERENCE_DATA_STALE_TIME,
@@ -27,10 +35,22 @@ export function SlotSelectionStep({ selectedSlotId, onSelect, onDeselect, onClas
 
   const classIdNum = Number(classId);
   const selectedClass = classes?.find((bookingClass) => bookingClass.id === classIdNum) ?? null;
+
+  useEffect(() => {
+    if (classes === undefined || appliedInitialClassId.current === initialClassId) {
+      return;
+    }
+    appliedInitialClassId.current = initialClassId;
+    const initialClass = classes.find((bookingClass) => bookingClass.id === initialClassId) ?? null;
+    setClassId(initialClass ? String(initialClass.id) : "");
+    onClassChange?.(initialClass);
+    onDeselect?.();
+  }, [classes, initialClassId, onClassChange, onDeselect]);
+
   const { data: slots, isLoading: slotsLoading, error: slotsError } = useQuery({
-    queryKey: ["slots", classIdNum, date],
-    queryFn: () => fetchAvailableSlots(classIdNum, date),
-    enabled: classIdNum > 0 && date.length > 0,
+    queryKey: ["slots", selectedClass?.id ?? 0, date],
+    queryFn: () => fetchAvailableSlots(selectedClass!.id, date),
+    enabled: selectedClass !== null && date.length > 0,
   });
 
   return (
@@ -71,6 +91,8 @@ export function SlotSelectionStep({ selectedSlotId, onSelect, onDeselect, onClas
           </Form.Group>
         </Col>
       </Row>
+
+      <ErrorAlert error={classesError} />
 
       {selectedClass && (
         <section className="booking-class-detail mb-3">

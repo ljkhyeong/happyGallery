@@ -11,6 +11,7 @@ import com.personal.happygallery.adapter.in.web.admin.dto.ProductResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateProductStatusRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateProductRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -48,6 +49,7 @@ public class AdminProductController {
     }
 
     @PatchMapping("/{id}")
+    @Operation(operationId = "update_2")
     public ProductResponse update(@PathVariable Long id,
                                   @RequestBody @Valid UpdateProductRequest request) {
         return ProductResponse.from(productAdminUseCase.update(

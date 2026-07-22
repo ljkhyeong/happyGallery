@@ -19,7 +19,10 @@ public interface WorkshopProfileUseCase {
             String mailOrderRegistrationNumber,
             String introduction,
             String kakaoTalkId,
-            boolean naverTalkEnabled
+            String naverTalkUrl,
+            String naverBlogUrl,
+            String instagramUrl,
+            String smartStoreUrl
     ) {}
 
     WorkshopProfile get();

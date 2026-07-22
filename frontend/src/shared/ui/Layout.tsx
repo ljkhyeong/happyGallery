@@ -8,14 +8,20 @@ import { useToast } from "./ToastContainer";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 
 const NAV_ITEMS = [
+  { path: "/classes", label: "클래스" },
+  { path: "/group-classes", label: "단체수업" },
   { path: "/products", label: "작품" },
-  { path: "/bookings/new", label: "클래스" },
   { path: "/passes/purchase", label: "8회권" },
 ] as const;
 
 function isActive(pathname: string, itemPath: string): boolean {
   if (itemPath === "/") return pathname === "/";
   return pathname === itemPath || pathname.startsWith(itemPath + "/");
+}
+
+function isMainNavActive(pathname: string, itemPath: string): boolean {
+  return isActive(pathname, itemPath)
+    || (itemPath === "/classes" && isActive(pathname, "/bookings/new"));
 }
 
 export function Layout() {
@@ -43,7 +49,7 @@ export function Layout() {
     <div className="d-flex flex-column min-vh-100">
       <div className="app-utility-bar">
         <Container className="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2" style={{ maxWidth: 1100 }}>
-          <div className="app-utility-copy">작품 주문 · 클래스 예약 · 8회권을 한곳에서</div>
+          <div className="app-utility-copy">충주 해피갤러리 · 공예 클래스와 핸드메이드 작품</div>
           <div className="d-flex flex-wrap align-items-center gap-3">
             {!isLoading && (
               isAuthenticated ? (
@@ -62,7 +68,6 @@ export function Layout() {
             >
               비회원 조회
             </Link>
-            <Link to="/admin" className="app-utility-link">ADMIN</Link>
           </div>
         </Container>
       </div>
@@ -70,8 +75,8 @@ export function Layout() {
       <Navbar expand="md" className="app-navbar" data-bs-theme="light">
         <Container style={{ maxWidth: 1100 }}>
           <Navbar.Brand as={Link} to="/" className="app-brand d-flex flex-column">
-            <span className="app-brand-mark">happyGallery</span>
-            <span className="app-brand-subtitle">작품과 시간이 머무는 공방</span>
+            <span className="app-brand-mark">해피갤러리</span>
+            <span className="app-brand-subtitle">CHUNGJU CRAFT ATELIER</span>
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="main-nav" />
           <Navbar.Collapse id="main-nav">
@@ -81,7 +86,7 @@ export function Layout() {
                   key={path}
                   as={Link}
                   to={path}
-                  active={isActive(pathname, path)}
+                  active={isMainNavActive(pathname, path)}
                   className="app-nav-link"
                 >
                   {label}
@@ -168,10 +173,21 @@ export function Layout() {
                 )}
                 {workshop?.email && <a href={`mailto:${workshop.email}`}>{workshop.email}</a>}
                 {workshop?.kakaoTalkId && <span>카카오톡 {workshop.kakaoTalkId}</span>}
-                {workshop?.naverTalkEnabled && <span>원데이클래스·단체수업: 네이버톡톡</span>}
+                {workshop?.naverTalkUrl ? (
+                  <a href={workshop.naverTalkUrl} target="_blank" rel="noreferrer">네이버톡톡 문의</a>
+                ) : null}
               </div>
             </div>
             <nav className="app-footer-links" aria-label="정책 및 사업자 정보">
+              {workshop?.naverBlogUrl && (
+                <a href={workshop.naverBlogUrl} target="_blank" rel="noreferrer">네이버 블로그</a>
+              )}
+              {workshop?.instagramUrl && (
+                <a href={workshop.instagramUrl} target="_blank" rel="noreferrer">인스타그램</a>
+              )}
+              {workshop?.smartStoreUrl && (
+                <a href={workshop.smartStoreUrl} target="_blank" rel="noreferrer">스마트스토어</a>
+              )}
               <Link to="/terms">이용약관</Link>
               <Link to="/privacy">개인정보처리방침</Link>
               <Link to="/business-info">사업자 정보</Link>
