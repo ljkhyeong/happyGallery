@@ -85,7 +85,7 @@ export function GuestPaymentStatusPage() {
         &larr; 복구한 결제 목록
       </Link>
       <div className="mb-4">
-        <div className="my-section-kicker mb-2">Payment Status</div>
+        <div className="my-section-kicker mb-2">결제 처리 현황</div>
         <h4 className="mb-2">결제 상태</h4>
         <p className="text-muted-soft small mb-0 text-break">결제번호 {orderId}</p>
       </div>

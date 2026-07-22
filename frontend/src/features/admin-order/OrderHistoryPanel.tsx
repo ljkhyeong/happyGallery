@@ -9,6 +9,7 @@ const DECISION_LABELS: Record<string, string> = {
   REJECT: "거절",
   DELAY: "지연 요청",
   AUTO_REFUND: "자동 환불",
+  SHIP_DATE_UPDATED: "예상 출고일 변경",
   PRODUCTION_COMPLETE: "제작 완료",
   RESUME_PRODUCTION: "제작 재개",
   PICKUP_READY: "픽업 준비",

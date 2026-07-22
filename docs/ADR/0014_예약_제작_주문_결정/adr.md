@@ -114,6 +114,7 @@ READY_STOCK 상품은 기존 흐름 유지: approve → APPROVED_FULFILLMENT_PEN
 | `GET`   | `/api/v1/admin/orders/{id}/history`            | 주문 처리 이력 조회 |
 
 관리자 주문 처리 API는 Bearer 세션에서 검증된 admin id를 `order_approvals`에 기록한다.
+`setExpectedShipDate`는 설정·갱신마다 `SHIP_DATE_UPDATED` 이력을 추가하고, 변경 전·후 날짜를 `reason`에 남긴다. `proposeDelay`의 `DELAY` 이력도 같은 Bearer admin id를 사용한다.
 `setExpectedShipDate`는 `IN_PRODUCTION`, `DELAY_CONSENT_PENDING`, `DELAY_ACCEPTED`, `SHIPPING_PREPARING` 상태의 SHIPPING fulfillment에서만 허용한다.
 `Fulfillment.setExpectedShipDate()`가 SHIPPING 타입을 직접 검증해 변경 메서드 밖의 중복 사전 검증을 두지 않는다.
 `mark-shipped`는 `carrier`와 `trackingNumber`를 필수로 받고 둘을 한 쌍으로 저장한다. 픽업 fulfillment에는
@@ -128,5 +129,5 @@ READY_STOCK 상품은 기존 흐름 유지: approve → APPROVED_FULFILLMENT_PEN
 | 혼합 주문 | MADE_TO_ORDER + READY_STOCK 상품이 같은 주문에 있으면 전체를 제작 주문으로 보아 IN_PRODUCTION으로 전이하고, 픽업 미수령 시에도 전체 주문을 환불하지 않는다. |
 | Fulfillment 상태 관리 | Fulfillment에 별도 `status` 컬럼은 없고 `Order.status`가 단일 소스다. 수령 방식은 결제 시점에 고정하며 제작 완료 뒤에도 변환하지 않는다. |
 | 배송지 노출 | 배송지 스냅샷은 암호문만 저장하고 고객 상세·관리자 목록에는 포함하지 않는다. 관리자 단건 이행 상세만 복호화한다. |
-| 배송·픽업 이력 관리 | 배송과 픽업 전이도 `order_approvals` append-only 이력으로 남기며, 운영 화면은 이를 시간순 조회한다. |
+| 제작·배송·픽업 이력 관리 | 예상 출고일 변경, 지연 제안, 배송과 픽업 전이를 `order_approvals` append-only 이력으로 남기며, 운영 화면은 이를 시간순 조회한다. |
 | 관리자 식별자 | Bearer 세션 경로는 admin id를 이력에 기록하고, API Key 폴백 경로는 null 이력이 존재할 수 있다. |

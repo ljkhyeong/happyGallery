@@ -6,9 +6,11 @@ import { fetchMyInquiries } from "@/features/my-inquiry/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 
 export function MyInquiriesPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const loginHref = buildAuthPageHref("/login", { redirectTo: "/my/inquiries" });
 
   const { data: inquiries, isLoading, error } = useQuery({
     queryKey: ["my", "inquiries"],
@@ -25,7 +27,7 @@ export function MyInquiriesPage() {
       <Container className="page-container">
         <Card className="text-center p-4">
           <p>로그인이 필요합니다.</p>
-          <Link to="/login?redirectTo=/my/inquiries">로그인</Link>
+          <Link to={loginHref}>로그인</Link>
         </Card>
       </Container>
     );

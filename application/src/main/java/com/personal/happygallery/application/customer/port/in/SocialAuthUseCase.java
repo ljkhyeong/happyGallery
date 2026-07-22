@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface SocialAuthUseCase {
 
-    record SocialLoginCommand(SocialProvider provider, String providerId, String email, String name) {}
+    record SocialLoginCommand(SocialProvider provider, String providerId, String verifiedEmail, String name) {}
 
     record SocialLoginResult(User user, boolean newUser) {}
 

@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /auth
+Disallow: /bookings/new
+Disallow: /cart
+Disallow: /forgot-password
+Disallow: /guest
+Disallow: /login
+Disallow: /my
+Disallow: /orders/new
+Disallow: /passes/purchase
+Disallow: /payments
+Disallow: /signup

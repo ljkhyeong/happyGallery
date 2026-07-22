@@ -36,7 +36,7 @@ export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initi
               value={bookingId}
               onChange={(e) => setBookingId(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, bookingId: true }))}
-              placeholder="예약 ID"
+              placeholder="예약 번호"
               isInvalid={touched.bookingId && !validBookingId}
             />
             <Form.Control.Feedback type="invalid">
@@ -46,16 +46,16 @@ export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initi
         </Col>
         <Col xs={12} sm={5}>
           <Form.Group controlId="booking-lookup-token">
-            <Form.Label>인증 토큰</Form.Label>
+            <Form.Label>조회 코드</Form.Label>
             <Form.Control
               value={token}
               onChange={(e) => setToken(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, token: true }))}
-              placeholder="예약 시 발급된 토큰"
+              placeholder="예약 시 발급된 조회 코드"
               isInvalid={touched.token && !normalizedToken}
             />
             <Form.Control.Feedback type="invalid">
-              인증 토큰을 입력해 주세요.
+              조회 코드를 입력해 주세요.
             </Form.Control.Feedback>
           </Form.Group>
         </Col>

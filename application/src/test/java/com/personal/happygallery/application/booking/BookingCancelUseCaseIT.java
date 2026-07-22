@@ -3,6 +3,8 @@ package com.personal.happygallery.application.booking;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
+import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase;
+import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.AdminCancelCommand;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -59,6 +61,7 @@ class BookingCancelUseCaseIT {
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired NotificationLogProbe notificationLogProbe;
     @Autowired BookingSettlementUseCase bookingSettlementUseCase;
+    @Autowired AdminBookingCancelUseCase adminBookingCancelUseCase;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
     @Autowired ObjectMapper objectMapper;
@@ -229,7 +232,7 @@ class BookingCancelUseCaseIT {
         Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
         BookingTestHelper.CreatedBooking booking =
                 helper.createVerifiedCardBooking("01088880008", slot.getId());
-        bookingSettlementUseCase.markBalancePaid(booking.bookingId());
+        bookingSettlementUseCase.markBalancePaid(booking.bookingId(), 1L);
 
         mockMvc.perform(delete("/api/v1/bookings/{id}", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken()))
@@ -241,6 +244,29 @@ class BookingCancelUseCaseIT {
                     .isEqualTo("BOOKED");
             softly.assertThat(bookingStateProbe.getSlot(slot.getId()).getBookedCount()).isEqualTo(1);
             softly.assertThat(bookingStateProbe.refundCount()).isZero();
+        });
+    }
+
+    @DisplayName("공방 사정 취소는 마감과 잔금 결제 여부와 관계없이 예약금 환불을 시작한다")
+    @Test
+    void adminCancel_afterDeadlineAndBalancePaid_startsDepositRefund() throws Exception {
+        LocalDateTime today14 = LocalDateTime.now(clock).toLocalDate().atTime(14, 0);
+        Slot slot = slotStorePort.save(slot(cls, today14, today14.plusHours(2)));
+        BookingTestHelper.CreatedBooking booking =
+                helper.createVerifiedCardBooking("01099990009", slot.getId());
+        bookingSettlementUseCase.markBalancePaid(booking.bookingId(), 1L);
+
+        AdminBookingCancelUseCase.AdminCancelResult result = adminBookingCancelUseCase.cancel(
+                new AdminCancelCommand(booking.bookingId(), 7L, "공방 사정으로 수업 취소"));
+
+        Refund refund = awaitRefundStatus(RefundStatus.SUCCEEDED);
+        assertSoftly(softly -> {
+            softly.assertThat(result.booking().getStatus().name()).isEqualTo("CANCELED");
+            softly.assertThat(result.balanceSettlementRequired()).isTrue();
+            softly.assertThat(result.refund()).isNotNull();
+            softly.assertThat(result.refund().getAmount()).isEqualTo(5000L);
+            softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
+            softly.assertThat(bookingStateProbe.getSlot(slot.getId()).getBookedCount()).isZero();
         });
     }
 

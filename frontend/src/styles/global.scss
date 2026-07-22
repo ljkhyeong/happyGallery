@@ -1231,6 +1231,27 @@
   border-width: 2px;
 }
 
+.store-mobile-purchase-cta {
+  display: none;
+}
+
+@media (max-width: 991.98px) {
+  .store-mobile-purchase-cta {
+    position: fixed;
+    left: 50%;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    z-index: 1020;
+    display: block;
+    width: min(calc(100vw - 2rem), 20rem);
+    transform: translateX(-50%);
+
+    .btn {
+      min-height: 44px;
+      box-shadow: 0 8px 24px rgba(42, 38, 34, 0.22);
+    }
+  }
+}
+
 // ── Responsive ─────────────────────────────────────────
 @media (max-width: 575.98px) {
   .page-container {

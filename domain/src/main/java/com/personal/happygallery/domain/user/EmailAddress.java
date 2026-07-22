@@ -14,4 +14,8 @@ public final class EmailAddress {
         }
         return value.strip().toLowerCase(Locale.ROOT);
     }
+
+    public static String optional(String value) {
+        return value == null ? null : required(value);
+    }
 }

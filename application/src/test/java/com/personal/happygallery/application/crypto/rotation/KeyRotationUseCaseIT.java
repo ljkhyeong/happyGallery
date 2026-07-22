@@ -79,10 +79,11 @@ class KeyRotationUseCaseIT {
         cleanup();
     }
 
-    @DisplayName("구키 개인정보를 활성 키로 일괄 전환하고 원문 없는 소셜 계정과 휴대폰 인증은 안전하게 처리한다")
+    @DisplayName("구키 개인정보를 전환하고 이메일 없는 회원과 원문 없는 소셜 계정을 안전하게 처리한다")
     @Test
     void rotate_reencryptsProtectedDataAndReportsLegacySocialAccount() {
         User user = seedLegacyUser("rotation@test.local", "회전 회원", "01012345678");
+        User naverUser = userStorePort.save(User.fromSocialProfile(null, "네이버 회원"));
         Guest guest = guestRepository.save(new Guest(
                 oldEncryptor.encrypt("회전 비회원"), oldIndexer.index("회전 비회원"),
                 oldEncryptor.encrypt("01087654321"), oldIndexer.index("01087654321")));
@@ -114,7 +115,7 @@ class KeyRotationUseCaseIT {
         KeyRotationUseCase.RotationResult result = keyRotationUseCase.rotate("v1");
 
         assertSoftly(softly -> {
-            softly.assertThat(result.users()).isEqualTo(1);
+            softly.assertThat(result.users()).isEqualTo(2);
             softly.assertThat(result.guests()).isEqualTo(1);
             softly.assertThat(result.paymentAttempts()).isEqualTo(1);
             softly.assertThat(result.fulfillments()).isEqualTo(1);
@@ -136,6 +137,8 @@ class KeyRotationUseCaseIT {
                     .isNull();
             softly.assertThat(value("users", "email_hmac", user.getId()))
                     .isEqualTo(activeIndexKeyRing.index("rotation@test.local"));
+            softly.assertThat(value("users", "email_enc", naverUser.getId())).isNull();
+            softly.assertThat(value("users", "email_hmac", naverUser.getId())).isNull();
             softly.assertThat(value("user_social_accounts", "provider_id_hmac", encryptedSocial.getId()))
                     .isEqualTo(activeIndexKeyRing.index("naver-rotation-id"));
             softly.assertThat(value("user_social_accounts", "provider_id_hmac", hmacOnlySocial.getId()))

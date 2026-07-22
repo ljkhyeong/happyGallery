@@ -6,6 +6,7 @@ import com.personal.happygallery.adapter.in.web.customer.dto.SignupRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialLoginAuthenticationHandler;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -25,7 +26,9 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -34,6 +37,7 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -53,6 +57,7 @@ class CustomerAuthUseCaseIT {
     @Autowired ObjectMapper objectMapper;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PhoneVerificationReaderPort phoneVerificationReader;
+    @Autowired UserReaderPort userReader;
     @Autowired SocialLoginAuthenticationHandler socialLoginAuthenticationHandler;
 
     MockMvc mockMvc;
@@ -253,6 +258,37 @@ class CustomerAuthUseCaseIT {
                 .isInstanceOf(Long.class);
         assertThat(session.getId()).isNotEqualTo(anonymousSessionId);
         assertThat(response.getRedirectedUrl()).isEqualTo("/auth/callback?newUser=true");
+    }
+
+    @DisplayName("네이버 로그인은 미검증 프로필 이메일을 회원 이메일로 저장하지 않는다")
+    @Test
+    void socialLogin_doesNotPersistNaverProfileEmail() throws Exception {
+        Map<String, Object> attributes = Map.of(
+                "id", "naver-account-id",
+                "email", "unverified@naver.com",
+                "name", "네이버 사용자");
+        DefaultOAuth2User principal = new DefaultOAuth2User(
+                List.of(new SimpleGrantedAuthority("ROLE_USER")), attributes, "id");
+        OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
+                principal, principal.getAuthorities(), "naver");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = new MockHttpSession();
+        session.setNew(false);
+        request.setSession(session);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        socialLoginAuthenticationHandler.onAuthenticationSuccess(request, response, authentication);
+
+        Long userId = (Long) session.getAttribute(
+                CustomerAuthenticationFilter.CUSTOMER_USER_ID_SESSION_ATTRIBUTE);
+        var user = userReader.findById(userId).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(user.getEmail()).isNull();
+            softly.assertThat(user.getEmailEnc()).isNull();
+            softly.assertThat(user.getEmailHmac()).isNull();
+            softly.assertThat(user.getName()).isEqualTo("네이버 사용자");
+            softly.assertThat(response.getRedirectedUrl()).isEqualTo("/auth/callback?newUser=true");
+        });
     }
 
     @DisplayName("기존 세션으로 로그인하면 세션 ID가 교체된다")

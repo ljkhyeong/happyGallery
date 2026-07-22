@@ -1,5 +1,7 @@
 import { adminHeaders as h, api } from "@/shared/api";
 import type {
+  AdminSlotSessionCancelRequest,
+  AdminSlotSessionCancelResponse,
   BulkSlotRequest,
   BulkSlotResponse,
   ClassResponse,
@@ -10,6 +12,18 @@ import type {
 export function fetchClasses(adminKey: string): Promise<ClassResponse[]> {
   return api<ClassResponse[]>("/admin/classes", {
     headers: h(adminKey),
+  });
+}
+
+export function cancelSlotSession(
+  adminKey: string,
+  slotId: number,
+  body: AdminSlotSessionCancelRequest,
+): Promise<AdminSlotSessionCancelResponse> {
+  return api<AdminSlotSessionCancelResponse>(`/admin/slots/${slotId}/cancel-session`, {
+    method: "POST",
+    headers: h(adminKey),
+    body,
   });
 }
 

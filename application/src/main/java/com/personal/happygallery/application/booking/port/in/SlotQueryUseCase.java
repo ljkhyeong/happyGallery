@@ -11,5 +11,7 @@ public interface SlotQueryUseCase {
 
     List<Slot> listAvailable(Long classId, LocalDate date);
 
+    List<Slot> listUpcoming(Long classId, int days);
+
     List<Slot> listByClass(Long classId);
 }

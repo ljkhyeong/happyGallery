@@ -135,7 +135,7 @@ class CustomerCredentialUseCaseIT {
         String email = "credential-social@example.com";
         String phone = "01098765432";
         User socialUser = socialAuth.socialLogin(new SocialLoginCommand(
-                SocialProvider.NAVER,
+                SocialProvider.GOOGLE,
                 "credential-social-provider-id",
                 email,
                 "소셜 회원")).user();

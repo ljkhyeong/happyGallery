@@ -9,6 +9,7 @@ import {
   loginAdmin,
   makePhoneNumber,
   makeUniqueLabel,
+  openAdminView,
   plusDays,
   readRouterState,
   toDateTimeLocalInput,
@@ -22,6 +23,7 @@ test("P8-1 @admin 상품 등록 후 관리자 목록에서 확인할 수 있다"
   const productName = makeUniqueLabel("P8-상품");
 
   await loginAdmin(page);
+  await openAdminView(page, "상품");
 
   const createCard = adminCard(page, "상품 등록");
   await createCard.getByLabel("상품명").fill(productName);
@@ -34,7 +36,7 @@ test("P8-1 @admin 상품 등록 후 관리자 목록에서 확인할 수 있다"
   expect(product.available).toBe(true);
 
   const listCard = adminCard(page, "상품 목록");
-  await expect(listCard.locator("tbody tr").filter({ hasText: productName })).toContainText("판매 가능");
+  await expect(listCard.locator("tbody tr").filter({ hasText: productName })).toContainText("판매 중");
 });
 
 test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준비, 픽업 완료까지 진행할 수 있다", async ({ page, request }) => {
@@ -51,7 +53,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
 
   await page.goto(`/products/${product.id}`);
   await page.getByRole("spinbutton", { name: "수량" }).fill("2");
-  await page.getByRole("button", { name: /비회원 주문하기/ }).click();
+  await page.getByRole("link", { name: /비회원 주문하기/ }).click();
 
   await expect(page).toHaveURL(new RegExp(`/orders/new\\?productId=${product.id}&qty=2$`));
   await expect(page.getByText("상품 상세에서 선택한 상품과 수량을 미리 담아두었습니다.")).toBeVisible();
@@ -61,10 +63,11 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   const prefilledItem = page.locator(".list-group-item").filter({ hasText: productName }).first();
   await expect(prefilledItem).toBeVisible();
   await expect(prefilledItem).toContainText("x2");
+  await page.getByRole("button", { name: "매장 픽업" }).click();
   await page.getByRole("button", { name: "결제 진행하기" }).click();
 
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-  await page.getByRole("button", { name: "비회원 주문 확인하기" }).click();
+  await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
   const guestOrderState = await readRouterState<{ orderId: number; token: string }>(page);
   const orderId = guestOrderState?.orderId;
   if (!orderId) {
@@ -74,6 +77,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   const approvalPendingOrder = await waitForOrder(request, orderId, "PAID_APPROVAL_PENDING");
 
   await loginAdmin(page);
+  await openAdminView(page, "주문");
   const orderCard = adminCard(page, "주문 목록");
   await orderCard.getByLabel("상태").selectOption("PAID_APPROVAL_PENDING");
   let row = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
@@ -96,8 +100,8 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   await waitForOrder(request, orderId, "PICKED_UP");
 
   await page.goto("/guest/orders");
-  await page.getByLabel("주문 ID").fill(String(orderId));
-  await page.getByLabel("인증 토큰").fill(guestOrderState!.token);
+  await page.getByLabel("주문 번호").fill(String(orderId));
+  await page.getByLabel("조회 코드").fill(guestOrderState!.token);
   await page.getByRole("button", { name: "조회" }).click();
 
   await expect(page.locator(".badge-status").filter({ hasText: "수령 완료" }).first()).toBeVisible();
@@ -128,10 +132,11 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
     await page.getByLabel("상품").selectOption(String(product.id));
     await page.getByLabel("수량").fill("1");
     await page.getByRole("button", { name: "추가" }).click();
+    await page.getByRole("button", { name: "매장 픽업" }).click();
     await page.getByRole("button", { name: "결제 진행하기" }).click();
 
     await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-    await page.getByRole("button", { name: "비회원 주문 확인하기" }).click();
+    await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
     const guestOrderState = await readRouterState<{ orderId: number; token: string }>(page);
     const orderId = guestOrderState?.orderId;
     if (!orderId) {
@@ -142,6 +147,7 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
     await armNextRefundFailure(request, failureReason);
 
     await loginAdmin(page);
+    await openAdminView(page, "주문");
     const orderCard = adminCard(page, "주문 목록");
     await orderCard.getByLabel("상태").selectOption("PAID_APPROVAL_PENDING");
     const orderRow = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
@@ -152,7 +158,7 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
     const failedRefund = await waitForFailedRefundByOrderId(request, orderId);
     expect(failedRefund.failReason).toContain(failureReason);
 
-    await page.reload();
+    await openAdminView(page, "오늘 할 일");
     const refundCard = adminCard(page, "환불 확인 필요");
     const refundRow = refundCard.locator("tbody tr").filter({ hasText: failureReason }).first();
     await expect(refundRow).toBeVisible();

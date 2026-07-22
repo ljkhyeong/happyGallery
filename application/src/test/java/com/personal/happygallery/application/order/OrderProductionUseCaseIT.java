@@ -7,6 +7,8 @@ import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderCustomerActionUseCase;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase;
+import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.ProposeDelayCommand;
+import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.SetExpectedShipDateCommand;
 import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
@@ -137,17 +139,36 @@ class OrderProductionUseCaseIT {
     // 예상 출고일 설정
     // -----------------------------------------------------------------------
 
-    @DisplayName("예상 출고일 설정 시 Fulfillment의 출고일이 갱신된다")
+    @DisplayName("예상 출고일 변경 시 관리자와 이전·이후 날짜가 이력에 기록된다")
     @Test
     void setExpectedShipDate_updatesShipDateOnFulfillment() {
         Order order = orderHelper.createMadeToOrderPaidShippingOrder("출고일 설정 상품", 150000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
 
-        LocalDate shipDate = LocalDate.of(2026, 4, 15);
-        orderProductionService.setExpectedShipDate(order.getId(), shipDate);
+        LocalDate firstShipDate = LocalDate.of(2026, 4, 15);
+        LocalDate changedShipDate = LocalDate.of(2026, 4, 20);
+        orderProductionService.setExpectedShipDate(
+                new SetExpectedShipDateCommand(order.getId(), firstShipDate, ADMIN_ID));
+        orderProductionService.setExpectedShipDate(
+                new SetExpectedShipDateCommand(order.getId(), changedShipDate, ADMIN_ID));
 
         Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
-        assertThat(fulfillment.getExpectedShipDate()).isEqualTo(shipDate);
+        var histories = orderStateProbe.orderApprovalHistory(order.getId());
+        assertSoftly(softly -> {
+            softly.assertThat(fulfillment.getExpectedShipDate()).isEqualTo(changedShipDate);
+            softly.assertThat(histories)
+                    .extracting("decision")
+                    .containsExactly(
+                            OrderApprovalDecision.APPROVE,
+                            OrderApprovalDecision.SHIP_DATE_UPDATED,
+                            OrderApprovalDecision.SHIP_DATE_UPDATED);
+            softly.assertThat(histories.get(1).getDecidedByAdminId()).isEqualTo(ADMIN_ID);
+            softly.assertThat(histories.get(1).getReason())
+                    .isEqualTo("예상 출고일: 미설정 -> 2026-04-15");
+            softly.assertThat(histories.get(2).getDecidedByAdminId()).isEqualTo(ADMIN_ID);
+            softly.assertThat(histories.get(2).getReason())
+                    .isEqualTo("예상 출고일: 2026-04-15 -> 2026-04-20");
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -160,15 +181,17 @@ class OrderProductionUseCaseIT {
         Order order = orderHelper.createMadeToOrderPaidOrder("지연 상품", 180000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
 
-        orderProductionService.proposeDelay(order.getId());
+        orderProductionService.proposeDelay(new ProposeDelayCommand(order.getId(), ADMIN_ID));
 
         Order updated = orderStateProbe.getOrder(order.getId());
         Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_CONSENT_PENDING);
-            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
+            var histories = orderStateProbe.orderApprovalHistory(order.getId());
+            softly.assertThat(histories)
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY);
+            softly.assertThat(histories.get(1).getDecidedByAdminId()).isEqualTo(ADMIN_ID);
             softly.assertThat(notificationOutboxRepository.findAll())
                     .extracting("eventType")
                     .contains(NotificationEventType.ORDER_DELAY_REQUESTED);
@@ -182,7 +205,7 @@ class OrderProductionUseCaseIT {
                 orderHelper.createMadeToOrderPaidOrder("지연 거절 취소 상품", 180000L);
         Order order = fixture.order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
-        orderProductionService.proposeDelay(order.getId());
+        orderProductionService.proposeDelay(new ProposeDelayCommand(order.getId(), ADMIN_ID));
 
         var result = orderProductionService.cancelForDelayRejection(order.getId(), 1L);
 
@@ -212,7 +235,7 @@ class OrderProductionUseCaseIT {
     void cancelForDelayRejection_afterDelayAccepted_throwsInvalidInput() {
         Order order = orderHelper.createMadeToOrderPaidOrder("지연 수락 후 취소 불가 상품", 180000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
-        orderProductionService.proposeDelay(order.getId());
+        orderProductionService.proposeDelay(new ProposeDelayCommand(order.getId(), ADMIN_ID));
         orderCustomerActionUseCase.respondToMemberDelay(
                 order.getId(), order.getUserId(), OrderDelayDecision.ACCEPT);
 
@@ -278,7 +301,7 @@ class OrderProductionUseCaseIT {
     void completeProduction_fromDelayRequested_alsoWorks() {
         Order order = orderHelper.createMadeToOrderPaidOrder("지연 후 제작완료 상품", 180000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
-        orderProductionService.proposeDelay(order.getId());
+        orderProductionService.proposeDelay(new ProposeDelayCommand(order.getId(), ADMIN_ID));
         orderCustomerActionUseCase.respondToMemberDelay(
                 order.getId(), order.getUserId(), OrderDelayDecision.ACCEPT);
 
@@ -298,7 +321,7 @@ class OrderProductionUseCaseIT {
     void resumeProduction_fromDelayRequested_transitionsToInProduction() {
         Order order = orderHelper.createMadeToOrderPaidOrder("재개 상품", 180000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
-        orderProductionService.proposeDelay(order.getId());
+        orderProductionService.proposeDelay(new ProposeDelayCommand(order.getId(), ADMIN_ID));
         orderCustomerActionUseCase.respondToMemberDelay(
                 order.getId(), order.getUserId(), OrderDelayDecision.ACCEPT);
 
@@ -466,7 +489,8 @@ class OrderProductionUseCaseIT {
         orderProductionService.completeProduction(order.getId(), 1L);
 
         assertThatThrownBy(() ->
-                orderProductionService.setExpectedShipDate(order.getId(), LocalDate.of(2026, 5, 1)))
+                orderProductionService.setExpectedShipDate(new SetExpectedShipDateCommand(
+                        order.getId(), LocalDate.of(2026, 5, 1), ADMIN_ID)))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("출고일");
     }
@@ -480,7 +504,8 @@ class OrderProductionUseCaseIT {
         orderShippingService.prepareShipping(order.getId(), 1L);
 
         LocalDate shipDate = LocalDate.of(2026, 5, 1);
-        orderProductionService.setExpectedShipDate(order.getId(), shipDate);
+        orderProductionService.setExpectedShipDate(
+                new SetExpectedShipDateCommand(order.getId(), shipDate, ADMIN_ID));
 
         Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
         assertThat(fulfillment.getExpectedShipDate()).isEqualTo(shipDate);

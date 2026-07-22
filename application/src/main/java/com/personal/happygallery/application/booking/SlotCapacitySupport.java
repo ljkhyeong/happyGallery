@@ -8,6 +8,8 @@ import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotBufferPolicy;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.SlotNotAvailableException;
 import java.time.Clock;
@@ -78,7 +80,7 @@ class SlotCapacitySupport {
     /** 슬롯을 잠근 뒤 활성 상태를 재확인하고 정원을 확보한다. 첫 예약이면 뒤쪽 버퍼를 차단한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Slot reserveCapacity(Long slotId) {
-        LockedSlotScope locked = lockSlotScope(slotId);
+        LockedSlotScope locked = lockCapacityScope(slotId);
         Slot slot = locked.source();
 
         if (!slot.isReservableAt(LocalDateTime.now(clock))) {
@@ -103,7 +105,24 @@ class SlotCapacitySupport {
     /** 슬롯을 잠근 뒤 정원을 반납한다. 마지막 예약이면 뒤쪽 버퍼 차단을 해제한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Slot releaseCapacity(Long slotId) {
-        LockedSlotScope locked = lockSlotScope(slotId);
+        return releaseCapacity(lockCapacityScope(slotId));
+    }
+
+    /** 신규 접수가 중단된 최신 슬롯 상태를 잠금 아래 확인하고 수업 취소 동안 잠금을 유지한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    LockedSlotScope lockInactiveSessionSlot(Long slotId) {
+        LockedSlotScope locked = lockCapacityScope(slotId);
+        if (locked.source().isAdminActive()) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "신규 접수를 중단한 비활성 슬롯만 수업을 취소할 수 있습니다.");
+        }
+        return locked;
+    }
+
+    /** 이미 잠근 수업 슬롯에서 예약 한 건의 정원을 반납한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    Slot releaseCapacity(LockedSlotScope locked) {
         Slot slot = locked.source();
         slot.decrementBookedCount();
         slotStorePort.save(slot);
@@ -127,7 +146,9 @@ class SlotCapacitySupport {
         }
     }
 
-    private LockedSlotScope lockSlotScope(Long slotId) {
+    /** 클래스와 슬롯 범위를 순서대로 잠그고 후속 정원 변경까지 유지할 범위를 반환한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    LockedSlotScope lockCapacityScope(Long slotId) {
         Slot sourceSnapshot = slotReaderPort.findById(slotId)
                 .orElseThrow(NotFoundException.supplier("슬롯"));
         Long classId = sourceSnapshot.getBookingClass().getId();
@@ -147,5 +168,5 @@ class SlotCapacitySupport {
         return new LockedSlotScope(source, bufferSlots);
     }
 
-    private record LockedSlotScope(Slot source, List<Slot> bufferSlots) {}
+    record LockedSlotScope(Slot source, List<Slot> bufferSlots) {}
 }

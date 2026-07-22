@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Form, Row, Col, ListGroup, Badge } from "react-bootstrap";
-import { fetchClasses, fetchAvailableSlots } from "./api";
+import { fetchClasses, fetchUpcomingSlots } from "./api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
-import { formatDateTime } from "@/shared/lib";
+import { formatDate, formatDateTime } from "@/shared/lib";
 import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 
@@ -15,6 +15,8 @@ interface Props {
   onDeselect?: () => void;
   onClassChange?: (bookingClass: ClassResponse | null) => void;
 }
+
+const UPCOMING_DAYS = 14;
 
 export function SlotSelectionStep({
   initialClassId,
@@ -43,19 +45,39 @@ export function SlotSelectionStep({
     appliedInitialClassId.current = initialClassId;
     const initialClass = classes.find((bookingClass) => bookingClass.id === initialClassId) ?? null;
     setClassId(initialClass ? String(initialClass.id) : "");
+    setDate("");
     onClassChange?.(initialClass);
     onDeselect?.();
   }, [classes, initialClassId, onClassChange, onDeselect]);
 
-  const { data: slots, isLoading: slotsLoading, error: slotsError } = useQuery({
-    queryKey: ["slots", selectedClass?.id ?? 0, date],
-    queryFn: () => fetchAvailableSlots(selectedClass!.id, date),
-    enabled: selectedClass !== null && date.length > 0,
+  const { data: upcomingSlots, isLoading: slotsLoading, error: slotsError } = useQuery({
+    queryKey: ["upcoming-slots", selectedClass?.id ?? 0, UPCOMING_DAYS],
+    queryFn: () => fetchUpcomingSlots(selectedClass!.id, UPCOMING_DAYS),
+    enabled: selectedClass !== null,
   });
+
+  const availableDates = useMemo(
+    () => Array.from(
+      new Set(upcomingSlots?.map((slot) => slot.startAt.slice(0, 10)) ?? []),
+    ).sort(),
+    [upcomingSlots],
+  );
+  const activeDate = availableDates.includes(date) ? date : (availableDates[0] ?? "");
+  const slots = useMemo(
+    () => upcomingSlots?.filter((slot) => slot.startAt.startsWith(activeDate)),
+    [activeDate, upcomingSlots],
+  );
+
+  useEffect(() => {
+    if (activeDate !== date) {
+      setDate(activeDate);
+      onDeselect?.();
+    }
+  }, [activeDate, date, onDeselect]);
 
   return (
     <div>
-      <h6 className="mb-3">2. 클래스 / 슬롯 선택</h6>
+      <h6 className="mb-3">2. 클래스 / 날짜 / 시간 선택</h6>
 
       <Row className="g-2 mb-3">
         <Col xs={12} sm={6}>
@@ -67,6 +89,7 @@ export function SlotSelectionStep({
               <Form.Select value={classId} onChange={(e) => {
                 const nextId = Number(e.target.value);
                 setClassId(e.target.value);
+                setDate("");
                 onClassChange?.(classes?.find((bookingClass) => bookingClass.id === nextId) ?? null);
                 onDeselect?.();
               }}>
@@ -83,11 +106,29 @@ export function SlotSelectionStep({
         <Col xs={12} sm={6}>
           <Form.Group controlId="booking-date-input">
             <Form.Label>날짜</Form.Label>
-            <Form.Control
-              type="date"
-              value={date}
+            <Form.Select
+              value={activeDate}
               onChange={(e) => { setDate(e.target.value); onDeselect?.(); }}
-            />
+              disabled={!selectedClass || slotsLoading || availableDates.length === 0}
+            >
+              <option value="" disabled>
+                {!selectedClass
+                  ? "클래스를 먼저 선택하세요"
+                  : slotsLoading
+                    ? "예약 가능일 조회 중..."
+                    : availableDates.length > 0
+                      ? "예약 가능한 날짜를 선택하세요"
+                      : "예약 가능한 날짜가 없습니다"}
+              </option>
+              {availableDates.map((availableDate) => (
+                <option key={availableDate} value={availableDate}>
+                  {formatDate(availableDate)}
+                </option>
+              ))}
+            </Form.Select>
+            <Form.Text className="text-muted">
+              앞으로 {UPCOMING_DAYS}일 안에 예약 가능한 날짜만 표시됩니다.
+            </Form.Text>
           </Form.Group>
         </Col>
       </Row>
@@ -121,8 +162,8 @@ export function SlotSelectionStep({
 
       {slotsLoading && <LoadingSpinner text="슬롯 조회 중..." />}
 
-      {slots && slots.length === 0 && (
-        <EmptyState message="예약 가능한 슬롯이 없습니다." />
+      {upcomingSlots && upcomingSlots.length === 0 && (
+        <EmptyState message={`앞으로 ${UPCOMING_DAYS}일 안에 예약 가능한 일정이 없습니다.`} />
       )}
 
       {slots && slots.length > 0 && (
@@ -130,6 +171,7 @@ export function SlotSelectionStep({
           {slots.map((slot) => (
             <ListGroup.Item
               key={slot.id}
+              data-slot-id={slot.id}
               action
               active={selectedSlotId === slot.id}
               onClick={() => onSelect(slot)}

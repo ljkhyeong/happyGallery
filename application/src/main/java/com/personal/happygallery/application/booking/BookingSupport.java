@@ -46,11 +46,16 @@ class BookingSupport {
                 .orElseThrow(NotFoundException.supplier("예약"));
     }
 
+    Booking findById(Long bookingId) {
+        return bookingReaderPort.findById(bookingId)
+                .orElseThrow(NotFoundException.supplier("예약"));
+    }
+
     @Transactional(propagation = Propagation.MANDATORY)
     void recordHistory(Booking booking, BookingHistoryAction action,
-                       Slot oldSlot, Slot newSlot, String actor, String reason) {
+                       Slot oldSlot, Slot newSlot, String actor, Long adminUserId, String reason) {
         bookingHistoryPort.save(
-                new BookingHistory(booking, action, oldSlot, newSlot, actor, reason));
+                new BookingHistory(booking, action, oldSlot, newSlot, actor, adminUserId, reason));
     }
 
     /** 예약 트랜잭션 안에서 guest/member 알림 요청을 outbox 이벤트로 발행한다. */

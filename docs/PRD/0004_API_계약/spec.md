@@ -473,6 +473,22 @@ GET /api/v1/slots?classId=1&date=2026-03-01
   - `admin_active = true`, `buffer_block_count = 0`이고 `booked_count < capacity`인 슬롯만 노출한다.
   - 정렬은 `startAt` 오름차순이다.
 
+#### 2.2.4.1 향후 예약 가능 슬롯 조회
+
+```http
+GET /api/v1/slots/upcoming?classId=1&days=14
+```
+
+응답 항목은 2.2.4의 공개 슬롯 응답과 같다.
+
+- 성공: `200 OK`
+- 에러:
+  - `400 INVALID_INPUT` — `classId` 누락 또는 `days`가 1~30 범위를 벗어남
+- 정책:
+  - `days`는 선택값이며 기본 14일, 최대 30일이다.
+  - 현재 시각 이후부터 KST 기준 오늘을 포함한 조회 마지막 날의 다음 날 00:00 전까지 예약 가능한 슬롯을 `startAt` 오름차순으로 반환한다.
+  - 프론트는 결과를 날짜별로 묶어, 빈 날짜를 하나씩 조회하지 않고 예약 가능한 날부터 표시한다.
+
 ### 2.3 관리자 상품 API
 
 #### 2.3.1 상품 등록
@@ -807,6 +823,52 @@ Authorization: Bearer {token}
   - 서버 `Clock` 기준으로 슬롯 종료 시각에 도달한 뒤에만 처리할 수 있다.
   - 크레딧은 예약 시 `USE` ledger로 이미 소모되어 추가 변동이 없다.
 
+#### 2.5.3.1 관리자 8회권 검색·상세 조회
+
+```http
+GET /api/v1/admin/passes/search?keyword=01096355608&page=0&size=20
+Authorization: Bearer {token}
+```
+
+```json
+{
+  "content": [
+    {
+      "passId": 12,
+      "passNumber": "PASS-00000012",
+      "customerName": "홍길동",
+      "customerPhone": "010****5608",
+      "status": "ACTIVE",
+      "remainingCredits": 5,
+      "totalCredits": 8,
+      "expiresAt": "2026-06-20T00:00:00",
+      "futureBookingCount": 2,
+      "expectedRefundAmount": 210000,
+      "refundStatus": null
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalCount": 1,
+  "totalPages": 1
+}
+```
+
+```http
+GET /api/v1/admin/passes/{passId}
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `401 UNAUTHORIZED` — 관리자 인증 실패
+  - `404 NOT_FOUND` — 상세 `passId` 미존재
+- 정책:
+  - 검색어는 선택값이다. 이름·정규화한 전화번호는 HMAC 정확 일치, `PASS-{8자리 숫자}`는 ID 정확 일치, 일반 숫자는 ID 부분 일치를 지원한다.
+  - `status`는 `ACTIVE`, `USED_UP`, `EXPIRED`, `REFUND_PENDING`, `REFUND_FAILED`, `REFUNDED` 중 하나다. 환불 이력이 있으면 환불 상태를 이용권 상태보다 우선한다.
+  - `expectedRefundAmount`는 현재 잔여 횟수와 자동 취소될 미래 `BOOKED` 예약 수를 합하되 총 횟수를 넘지 않도록 계산한다. 이미 환불 요청이 있으면 저장된 요청 금액을 반환한다.
+  - 전화번호는 가운데 자리를 마스킹한다. 목록에서 상세를 선택한 뒤 2.5.4의 환불 액션을 실행한다.
+
 #### 2.5.4 8회권 전체 환불
 
 ```http
@@ -1087,10 +1149,12 @@ Authorization: Bearer {token}
   - 정책:
     - `IN_PRODUCTION`, `DELAY_CONSENT_PENDING`, `DELAY_ACCEPTED`, `SHIPPING_PREPARING` 상태에서만 설정 가능
     - `SHIPPING` 타입 fulfillment에서만 설정 가능 (`PICKUP` 타입은 400)
+    - 설정·갱신마다 Bearer 세션의 관리자 ID로 `SHIP_DATE_UPDATED` 이력을 추가하며, `reason`은 `예상 출고일: {변경 전} -> {변경 후}` 형식이다. 날짜가 없으면 `미설정`으로 기록한다.
 - `POST /api/v1/admin/orders/{id}/delay`
   - 응답: `{ "orderId": 5, "status": "DELAY_CONSENT_PENDING", "expectedShipDate": "2026-04-15" }`
   - 정책:
     - `IN_PRODUCTION`에서만 지연 제안 가능
+    - Bearer 세션의 관리자 ID로 `DELAY` 이력을 추가한다.
     - 고객 동의가 끝난 것으로 간주하지 않는다. 회원·비회원 고객 응답 API가 수락하면 `DELAY_ACCEPTED`, 거절하면 `DELAY_REJECTED_CANCELED`로 전이한다.
     - 지연 동의 요청 알림 이벤트명은 사건 의미를 나타내는 `ORDER_DELAY_REQUESTED`를 유지한다.
 - `POST /api/v1/admin/orders/{id}/cancel-for-delay-rejection`
@@ -1248,7 +1312,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - 처리 시간 순으로 정렬된 전체 이력을 반환한다.
-  - `decision`: `APPROVE`, `REJECT`, `CUSTOMER_CANCEL`, `DELAY`, `DELAY_ACCEPT`, `DELAY_REJECT`, `DELAY_CANCEL`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PICKUP_READY`, `PICKUP_COMPLETE`, `PICKUP_EXPIRED`, `PICKUP_FORFEITED`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
+  - `decision`: `APPROVE`, `REJECT`, `CUSTOMER_CANCEL`, `SHIP_DATE_UPDATED`, `DELAY`, `DELAY_ACCEPT`, `DELAY_REJECT`, `DELAY_CANCEL`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PICKUP_READY`, `PICKUP_COMPLETE`, `PICKUP_EXPIRED`, `PICKUP_FORFEITED`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
 
 ### 2.8 공지사항 API
 
@@ -1465,6 +1529,73 @@ Authorization: Bearer {token}
   - `booking_history`에 `COMPLETED`를 기록한다.
   - 이미 진행된 수업을 닫는 상태 전이이므로 슬롯 정원과 버퍼 차단 수는 변경하지 않는다.
 
+#### 2.9.6 관리자 예약 취소
+
+```http
+POST /api/v1/admin/bookings/{bookingId}/cancel
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{ "reason": "강사 사정으로 수업 취소" }
+```
+
+```json
+{
+  "bookingId": 15,
+  "status": "CANCELED",
+  "passCreditRestored": false,
+  "depositRefundAmount": 5000,
+  "depositRefundStatus": "REQUESTED",
+  "balanceSettlementRequired": true,
+  "manualCompensationRequired": false
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `400 INVALID_INPUT` — 사유가 비었거나 200자를 초과함, 또는 `BOOKED` 상태가 아님
+  - `401 UNAUTHORIZED` — 관리자 인증 실패
+  - `404 NOT_FOUND` — bookingId 미존재
+  - `409 BOOKING_CONFLICT` — 동시 변경 충돌
+- 정책:
+  - 고객 취소 마감과 무관하게 슬롯 정원과 버퍼를 반납하고 예약을 `CANCELED`로 전이한다.
+  - 일반 예약은 예약금 전액의 비동기 PG 환불 요청을 생성한다. `depositRefundStatus=REQUESTED`는 접수 완료이며 PG 환불 완료가 아니다.
+  - 8회권 예약은 유효한 이용권이면 크레딧을 복구한다. 만료되어 복구할 수 없으면 `passCreditRestored=false`, `manualCompensationRequired=true`로 운영자 수동 보상을 알린다.
+  - 현장 잔금이 이미 결제된 일반 예약은 `balanceSettlementRequired=true`이며 서버가 예약금 외 잔금을 자동 환불하지 않는다.
+  - `booking_history`에 `actor=ADMIN`, Bearer 관리자 ID와 입력 사유를 저장하고 취소 알림 outbox를 같은 트랜잭션에서 생성한다.
+
+#### 2.9.7 관리자 수업 회차 취소
+
+```http
+POST /api/v1/admin/slots/{slotId}/cancel-session
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{ "reason": "강사 사정으로 해당 회차 폐강" }
+```
+
+```json
+{
+  "canceledBookings": 4,
+  "passCreditsRestored": 2,
+  "depositRefundsRequested": 2,
+  "balanceSettlementsRequired": 1,
+  "manualCompensationsRequired": 0
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `400 INVALID_INPUT` — 사유가 비었거나 200자를 초과함, 또는 슬롯이 관리자 비활성 상태가 아님
+  - `401 UNAUTHORIZED` — 관리자 인증 실패
+  - `404 NOT_FOUND` — slotId 미존재
+  - `409 BOOKING_CONFLICT` — 잠금 전 대상 확인 뒤 예약·8회권 연결이 동시에 변경됨
+- 정책:
+  - 운영자는 먼저 슬롯을 비활성화해 신규 접수를 중단해야 한다. 버퍼 때문에 일시적으로 예약 불가능할 뿐 `adminActive=true`인 슬롯은 회차 취소 대상이 아니다.
+  - 해당 슬롯의 현재 `BOOKED` 예약만 개별 관리자 취소와 같은 정책으로 한 트랜잭션에서 처리한다. 대상이 없으면 모든 집계가 0인 성공 응답을 반환한다.
+  - `depositRefundsRequested`는 PG 환불 요청 생성 건수이지 완료 건수가 아니다. `balanceSettlementsRequired`와 `manualCompensationsRequired`는 각각 현장 잔금과 복구 불가 8회권의 후속 수동 처리 건수다.
+  - 여러 8회권을 변경할 때 이용권 ID 오름차순으로 먼저 잠근 뒤 클래스와 슬롯을 잠그고, 취소 대상 예약은 마지막에 `FOR UPDATE`로 다시 조회한다.
+
 ### 2.10 관리자 대시보드 API
 
 관리자 인증은 `Authorization: Bearer {token}` 기준이며, 모든 응답은 `200 OK`를 반환한다.
@@ -1646,12 +1777,11 @@ Authorization: Bearer {token}
 - 상태를 변경하는 요청은 1.3의 SPA CSRF 계약에 따라 `X-XSRF-TOKEN` 헤더를 함께 보낸다.
 - 회원 로그인은 이메일/비밀번호(local)와 Google, Naver OAuth2를 함께 지원한다.
 - 소셜 계정은 `user_social_accounts`에 `(provider, provider_id_hmac)`로 저장한다. 한 회원은 Google과 Naver 계정을 각각 하나씩 연결할 수 있다.
-- Google은 `email_verified=true`인 프로필만 수용한다.
-- 외부 provider ID가 처음인데 같은 이메일의 기존 회원이 있으면 제공자와 관계없이 자동 연결하지 않는다. 이미 연결된 provider ID 로그인과 이메일 충돌이 없는 신규 가입만 허용한다.
-- Naver 이메일은 신규 소셜 회원 프로필에는 사용하지만 기존 회원 자동 병합이나 추가 연결의 소유권 증명으로 사용하지 않는다.
+- Google은 `email_verified=true`인 이메일만 기준 이메일 후보로 수용한다. 처음 보는 Google provider ID의 검증 이메일이 기존 회원과 겹치면 자동 연결하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다.
+- Naver 프로필 이메일은 검증된 기준 이메일로 간주하지 않아 충돌 조회와 신규 회원 저장에 사용하지 않는다. 신규 Naver 회원은 provider ID와 이름으로 생성하며 기준 이메일은 `null`이다.
 - 소셜 로그인으로 새로 생성된 회원은 `password_hash`가 비어 있을 수 있다.
-- 회원 응답의 `localPasswordEnabled`는 이메일 로그인 비밀번호가 설정되어 있는지를 나타낸다.
-- 이메일은 앞뒤 공백을 제거한 소문자, 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일한다. 응답에는 복호화한 값을 반환한다.
+- `CustomerUserResponse.email`은 nullable이다. `null`은 검증된 기준 이메일이 없다는 뜻이며, `localPasswordEnabled`는 이메일 로그인 비밀번호가 설정되어 있는지를 나타낸다.
+- 기준 이메일이 있으면 앞뒤 공백을 제거한 소문자, 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일한다. 응답에는 저장된 값을 복호화해 반환한다.
 
 #### 2.12.0.1 이메일 회원가입
 
@@ -1715,12 +1845,12 @@ GET /api/v1/auth/social/callback/{provider}?code=...&state=...
 - 이 경로는 Google/Naver가 호출하는 backend callback이며 프런트가 직접 호출하지 않는다.
 - 성공: `302 Found` → `/auth/callback?newUser=true|false`
 - 실패: `302 Found` → `/auth/callback?error=SOCIAL_LOGIN_FAILED`
-- 기존 이메일과 충돌: `302 Found` → `/auth/callback?error=SOCIAL_ACCOUNT_LINK_REQUIRED`
+- Google 검증 이메일이 기존 기준 이메일과 충돌: `302 Found` → `/auth/callback?error=SOCIAL_ACCOUNT_LINK_REQUIRED`
 - 명시적 계정 연결 성공: `302 Found` → `/auth/callback?linked=GOOGLE|NAVER`
 - 처리율 제한 초과: `429 TOO_MANY_REQUESTS`
 - 정책:
   - Spring Security가 callback의 `state`와 세션의 authorization request를 비교하고 한 번 사용한 authorization request를 제거한 뒤 code를 토큰으로 교환한다.
-  - 연결 callback은 Google ID Token 또는 Naver UserInfo에서 provider와 provider ID를 먼저 확인한 뒤 application의 계정 연결 트랜잭션을 시작한다. 일반 로그인·신규 가입일 때만 이메일과 이름을 포함한 전체 소셜 프로필을 요구한다.
+  - 연결 callback은 Google ID Token 또는 Naver UserInfo에서 provider와 provider ID를 먼저 확인한 뒤 application의 계정 연결 트랜잭션을 시작한다. 일반 로그인·신규 가입은 Google의 검증 이메일과 이름, Naver의 이름을 요구하며 Naver 프로필 이메일은 버린다.
   - 성공 시 세션 ID를 한 번 회전하고 `customerUserId`, `customerCredentialVersion`, `userId:credentialVersion` 형식의 principal 인덱스를 장기 인증 상태로 저장한다.
   - OAuth `SecurityContext`, access token, refresh token은 세션에 저장하지 않는다. 다음 요청은 기존 `CustomerAuthenticationFilter`가 `customerUserId`로 회원 principal을 다시 구성한다.
   - 성공 후 기존 CSRF 토큰이 폐기되므로 클라이언트는 새 CSRF 토큰을 발급받는다.
@@ -1789,7 +1919,7 @@ Cookie: HG_SESSION={sessionToken}
 ```json
 {
   "id": 7,
-  "email": "social@example.com",
+  "email": null,
   "name": "홍길동",
   "phone": "01012345678",
   "phoneVerified": true,
@@ -1833,7 +1963,7 @@ Cookie: HG_SESSION={sessionToken}
 - 정책:
   - 현재 비밀번호는 `PasswordEncoder.matches(...)`로 확인하고 새 비밀번호는 BCrypt로 다시 해시한다.
   - 성공하면 `credential_version`을 증가시키고 현재 요청을 포함한 모든 회원 세션을 무효화한다.
-  - 소셜 로그인만 사용하는 회원은 이 API 대신 2.12.0.7의 SMS 재설정으로 최초 로컬 비밀번호를 설정한다.
+  - 검증된 기준 이메일이 있는 소셜 전용 회원은 이 API 대신 2.12.0.7의 SMS 재설정으로 최초 로컬 비밀번호를 설정한다. 기준 이메일이 없는 Naver 전용 회원은 사용할 수 없다.
 
 #### 2.12.0.7 검증된 휴대폰으로 비밀번호 재설정
 
@@ -1856,9 +1986,9 @@ POST /api/v1/auth/password/reset
   - `429 TOO_MANY_REQUESTS` — IP 또는 전화번호별 확인 시도 초과
   - `503 SERVICE_UNAVAILABLE` — fail-closed 처리율 제한 저장소 장애
 - 정책:
-  - 이메일과 회원에게 저장된 `phoneVerified=true` 전화번호가 일치하고, 같은 번호의 미소모·유효 SMS 코드를 한 번 소비해야 한다.
+  - 검증된 기준 이메일이 저장된 회원만 사용할 수 있다. 이메일과 회원에게 저장된 `phoneVerified=true` 전화번호가 일치하고, 같은 번호의 미소모·유효 SMS 코드를 한 번 소비해야 한다.
   - 계정·전화번호·인증코드 중 어느 값이 틀렸는지는 `PASSWORD_RESET_FAILED` 하나로 응답해 계정 존재 여부를 구분하지 못하게 한다.
-  - `password_hash=null`인 소셜 전용 회원도 성공할 수 있으며, 성공 후 이메일 로그인이 활성화된다.
+  - `password_hash=null`이면서 기준 이메일이 있는 Google 소셜 전용 회원도 성공할 수 있으며, 성공 후 이메일 로그인이 활성화된다. 신규 Naver 전용 회원은 자체 이메일 검증·등록 기능이 도입되기 전까지 이 경로를 사용할 수 없다.
   - 성공하면 `credential_version`을 증가시키고 해당 회원의 모든 세션을 무효화한다.
 
 #### 2.12.0.8 회원 탈퇴
@@ -2163,6 +2293,7 @@ Content-Type: application/json
     "items": [
       { "productId": 1, "qty": 2 }
     ],
+    "cartCheckout": false,
     "fulfillmentType": "PICKUP",
     "shippingAddress": null,
     "madeToOrderConsent": false
@@ -2194,6 +2325,7 @@ Content-Type: application/json
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
   - 서버는 prepare 시점의 `ORDER` 상품명·항목 단가·배송비, `BOOKING` 예약금·잔금, `PASS` 총 가격과 계획을 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
+  - `cartCheckout`은 항상 명시한다. 직접 주문은 `false`, 회원 장바구니 주문은 `true`다.
   - `ORDER` payload는 `fulfillmentType=SHIPPING|PICKUP`을 반드시 포함한다. `SHIPPING`은 구조화된 `shippingAddress`가 필수이고 `PICKUP`은 `shippingAddress=null`이어야 한다.
   - 주문제작 상품이 하나라도 포함되면 `madeToOrderConsentVersion`이 현재 정책 버전과 일치하고 `madeToOrderConsent=true`여야 한다. 서버는 현재 동의 문구 버전·전문·서버 동의 시각을 내부 payload에 확정하고 confirm 시 `orders`로 옮긴다. 기성품만 포함되면 이 값과 무관하게 동의 스냅샷을 만들지 않는다.
   - 클라이언트는 `GET /api/v1/orders/policy`의 `shippingFee`를 사전 표시용으로 사용하되 요청 금액으로 보내지 않는다. prepare가 현재 설정을 다시 읽어 확정하고 주문에 스냅샷으로 저장한다.
@@ -2215,6 +2347,7 @@ Content-Type: application/json
   "verificationCode": "483921",
   "name": "홍길동",
   "items": [{ "productId": 1, "qty": 2 }],
+  "cartCheckout": false,
   "madeToOrderConsentVersion": "2026-07-21-v1",
   "madeToOrderConsent": true,
   "fulfillmentType": "SHIPPING",

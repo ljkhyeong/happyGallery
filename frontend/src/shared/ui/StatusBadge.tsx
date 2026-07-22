@@ -33,6 +33,11 @@ const VARIANT_MAP: Record<string, string> = {
   REFUNDED: "success",
   SUPPORT_REQUIRED: "warning",
   EXPIRED: "secondary",
+  // Pass
+  ACTIVE: "success",
+  USED_UP: "secondary",
+  REFUND_PENDING: "warning",
+  REFUND_FAILED: "danger",
 };
 
 const LABEL_MAP: Record<string, string> = {
@@ -65,6 +70,11 @@ const LABEL_MAP: Record<string, string> = {
   REFUNDED: "환불 완료",
   SUPPORT_REQUIRED: "확인 필요",
   EXPIRED: "만료",
+  // Pass
+  ACTIVE: "사용 가능",
+  USED_UP: "모두 사용",
+  REFUND_PENDING: "환불 처리 중",
+  REFUND_FAILED: "환불 확인 필요",
 };
 
 export function getStatusLabel(status: string) {

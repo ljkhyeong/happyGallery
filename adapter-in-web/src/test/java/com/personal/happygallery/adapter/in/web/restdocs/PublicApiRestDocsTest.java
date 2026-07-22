@@ -55,6 +55,7 @@ import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -131,6 +132,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(qnaUseCase.verifyAndGet(eq(1L), eq(5L), any())).thenReturn(qna);
         when(classQueryUseCase.listActive()).thenReturn(List.of(bookingClass));
         when(slotQueryUseCase.listAvailable(any(), any())).thenReturn(List.of(slot));
+        when(slotQueryUseCase.listUpcoming(any(), anyInt())).thenReturn(List.of(slot));
         when(guestBookingUseCase.sendVerificationCode(any())).thenReturn(phoneVerification);
         when(bookingQueryUseCase.getBookingByToken(eq(100L), any()))
                 .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null));
@@ -282,6 +284,15 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/slots")
                         .param("classId", "1")
                         .param("date", "2026-05-07"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("향후 공개 슬롯 목록 API를 문서화한다")
+    void list_upcoming_slots() throws Exception {
+        mockMvc.perform(get("/api/v1/slots/upcoming")
+                        .param("classId", "1")
+                        .param("days", "14"))
                 .andExpect(status().isOk());
     }
 

@@ -7,6 +7,7 @@ import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.user.EmailAddress;
 import com.personal.happygallery.domain.user.SocialAccount;
 import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.domain.user.User;
@@ -61,12 +62,15 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
             return new SocialLoginResult(user, false);
         }
 
-        Optional<User> existingUser = userReader.findByEmail(command.email());
-        if (existingUser.isPresent()) {
+        String canonicalEmail = switch (command.provider()) {
+            case GOOGLE -> EmailAddress.required(command.verifiedEmail());
+            case NAVER -> null;
+        };
+        if (canonicalEmail != null && userReader.findByEmail(canonicalEmail).isPresent()) {
             throw new HappyGalleryException(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
         }
 
-        User user = userStore.save(User.fromSocialProfile(command.email(), command.name()));
+        User user = userStore.save(User.fromSocialProfile(canonicalEmail, command.name()));
         socialAccountStore.save(new SocialAccount(user.getId(), command.provider(), command.providerId()));
         updateLastLogin(user);
 

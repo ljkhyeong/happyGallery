@@ -98,7 +98,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
         Slot oldSlot = slotCapacitySupport.releaseCapacity(slots.oldSlot().getId());
 
         bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
-                oldSlot, newSlot, "CUSTOMER", null);
+                oldSlot, newSlot, "CUSTOMER", null, null);
 
         Booking saved = bookingStorePort.save(booking);
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_RESCHEDULED);

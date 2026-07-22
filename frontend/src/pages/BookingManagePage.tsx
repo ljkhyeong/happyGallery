@@ -101,10 +101,10 @@ export function BookingManagePage() {
     <Container className="page-container">
       <Card className="legacy-order-banner mb-4 border-0">
         <Card.Body className="p-4">
-          <Badge bg="light" text="dark" className="mb-2">Guest Lookup</Badge>
+          <Badge bg="light" text="dark" className="mb-2">비회원 예약 관리</Badge>
           <h4 className="mb-2">비회원 예약 조회</h4>
           <p className="text-muted-soft mb-3">
-            이 경로는 이미 완료한 비회원 예약을 조회, 변경, 취소하는 보조 경로입니다.
+            완료한 비회원 예약을 조회하고, 가능한 예약은 변경하거나 취소할 수 있습니다.
             회원은 <strong>내 정보</strong>에서 예약 목록과 상세를 바로 확인하고 더 자연스럽게 이어갈 수 있습니다.
           </p>
           <div className="d-flex flex-wrap gap-2">
@@ -132,9 +132,9 @@ export function BookingManagePage() {
             </LinkButton>
           </div>
           <div className="guest-route-note mt-3">
-            <div className="guest-route-note-title">Guest route policy</div>
+            <div className="guest-route-note-title">조회 안내</div>
             <div className="small text-muted-soft">
-              비회원 예약은 토큰으로 바로 관리할 수 있고, 회원 전환 후에는 `/my`에서 같은 번호 기준 claim으로 이어서 볼 수 있습니다.
+              비회원 예약은 조회 코드로 관리할 수 있고, 회원가입 후에는 같은 번호의 이력을 내 정보로 가져올 수 있습니다.
             </div>
           </div>
         </Card.Body>
@@ -142,7 +142,7 @@ export function BookingManagePage() {
 
       <Card className="mb-4">
         <Card.Body>
-          <div className="legacy-order-step-label mb-2">예약 ID + 토큰 입력</div>
+          <div className="legacy-order-step-label mb-2">예약 번호와 조회 코드 입력</div>
           <p className="text-muted-soft small mb-3">
             조회가 끝나면 같은 화면에서 슬롯 변경과 취소까지 이어서 진행할 수 있습니다.
           </p>

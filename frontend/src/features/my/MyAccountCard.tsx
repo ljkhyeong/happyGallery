@@ -21,14 +21,16 @@ export function MyAccountCard({ user, onChangePassword, onUpdatePhone, onWithdra
             <p className="text-muted-soft small mb-0">
               {user.localPasswordEnabled
                 ? "변경하면 현재 로그인된 모든 기기에서 로그아웃됩니다."
-                : "휴대폰 인증으로 이메일 로그인 비밀번호를 설정할 수 있습니다."}
+                : user.email
+                  ? "휴대폰 인증으로 이메일 로그인 비밀번호를 설정할 수 있습니다."
+                  : "연결된 소셜 계정으로 로그인할 수 있습니다."}
             </p>
           </div>
           {user.localPasswordEnabled ? (
             <Button variant="outline-primary" size="sm" onClick={onChangePassword}>
               변경
             </Button>
-          ) : user.phone ? (
+          ) : user.email && user.phone ? (
             <Link
               className="btn btn-outline-primary btn-sm"
               to="/forgot-password"

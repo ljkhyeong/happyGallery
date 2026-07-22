@@ -171,6 +171,12 @@ public class Booking {
         this.status = BookingStatus.CANCELED;
     }
 
+    /** 공방 사정으로 예약을 취소한다. 고객 취소 제한과 관계없이 관리자 정산 흐름에서만 호출한다. */
+    public void cancelByAdmin() {
+        status.requireBooked();
+        this.status = BookingStatus.CANCELED;
+    }
+
     public boolean isCustomerCancellationAllowed() {
         return status == BookingStatus.BOOKED
                 && (balanceAmount == 0 || balanceStatus != BalanceStatus.PAID);

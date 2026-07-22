@@ -26,6 +26,7 @@ import {
   useMadeToOrderConsent,
 } from "@/features/order/useMadeToOrderConsent";
 import type { ProductType } from "@/shared/types/product";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 
 type Step = "verify" | "items";
 const MAX_QTY = 99;
@@ -58,6 +59,10 @@ export function OrderCreatePage() {
     ? Math.min(requestedQty, MAX_QTY)
     : 1;
   const shouldShowManualEntryGate = !user && !hasPrefilledItem && !manualEntryConfirmed;
+  const orderQuery = searchParams.toString();
+  const loginHref = buildAuthPageHref("/login", {
+    redirectTo: `/orders/new${orderQuery ? `?${orderQuery}` : ""}`,
+  });
 
   useEffect(() => {
     setSelectedProductTypes(null);
@@ -80,12 +85,14 @@ export function OrderCreatePage() {
       const payload: OrderPayload = user
         ? {
             type: "ORDER", userId: user.id, name: normalizedName || user.name, items,
+            cartCheckout: false,
             madeToOrderConsent: consent.agreed,
             madeToOrderConsentVersion: consent.version,
             ...fulfillmentPayload(fulfillment),
           }
         : {
             type: "ORDER", phone, verificationCode: code, name: normalizedName, items,
+            cartCheckout: false,
             madeToOrderConsent: consent.agreed,
             madeToOrderConsentVersion: consent.version,
             ...fulfillmentPayload(fulfillment),
@@ -113,18 +120,18 @@ export function OrderCreatePage() {
   return (
     <Container className="page-container" style={{ maxWidth: 640 }}>
       <div className="legacy-order-banner mb-4">
-        <Badge bg="light" text="dark" className="mb-2">Legacy Guest Fallback</Badge>
+        <Badge bg="light" text="dark" className="mb-2">비회원 주문</Badge>
         <h4 className="mb-2">비회원 주문</h4>
         <p className="text-muted-soft mb-3">
           회원 주문은 상품 상세에서 바로 진행하는 것이 기본 경로입니다.
-          이 페이지는 비회원 주문이나 다중 상품 주문이 필요한 경우를 위한 fallback 화면으로 유지됩니다.
+          비회원 주문이나 여러 상품을 한 번에 주문할 때 이 화면에서 계속 진행할 수 있습니다.
         </p>
         <div className="d-flex flex-wrap gap-2">
           <LinkButton to="/products" variant="dark" size="sm">
             상품 보러가기
           </LinkButton>
           {!user && (
-            <LinkButton to="/login" variant="outline-secondary" size="sm">
+            <LinkButton to={loginHref} variant="outline-secondary" size="sm">
               로그인 후 주문하기
             </LinkButton>
           )}
@@ -141,16 +148,15 @@ export function OrderCreatePage() {
         <Card className="mb-4 border-0 my-claim-card">
           <Card.Body className="p-4">
             <div className="legacy-order-step-label mb-2">권장 경로 확인</div>
-            <h5 className="mb-2">직접 진입한 비회원 주문은 보조 경로입니다</h5>
+            <h5 className="mb-2">주문할 상품을 먼저 선택해 주세요</h5>
             <p className="text-muted-soft mb-3">
-              일반적인 비회원 주문은 상품 상세에서 원하는 상품과 수량을 먼저 고른 뒤
-              `/orders/new?productId=&qty=`로 내려오는 흐름을 권장합니다.
-              이 화면은 다중 상품 수동 주문이나 운영 지원용 direct entry를 위해 유지합니다.
+              작품 목록에서 원하는 상품과 수량을 먼저 고르면 주문 정보를 자동으로 채워드립니다.
+              여러 상품을 직접 선택해 주문하려면 아래에서 계속 진행할 수 있습니다.
             </p>
             <div className="guest-route-note mb-3">
-              <div className="guest-route-note-title">Fallback policy</div>
+              <div className="guest-route-note-title">주문 안내</div>
               <div className="small text-muted-soft">
-                상품 선택이 아직 없다면 먼저 스토어를 둘러본 뒤 내려오는 편이 더 안전합니다.
+                상품 선택이 아직 없다면 먼저 작품을 둘러보는 편이 간편합니다.
                 계속 진행하면 비회원 다중 상품 주문을 수동으로 입력할 수 있습니다.
               </div>
             </div>

@@ -4,8 +4,8 @@ import {
   createAdminSlot,
   extractFirstNumber,
   fetchClasses,
+  fetchMyBookingSlot,
   findUniqueSlotStart,
-  formatTimeTokenForUi,
   installTossPaymentStub,
   loginCustomer,
   logoutCustomer,
@@ -27,15 +27,17 @@ test("P8-6 @payment 회원 가입 후 상품 상세에서 주문하고 내 주�
 
   await page.goto(`/products/${product.id}`);
   await page.getByRole("spinbutton", { name: "수량" }).fill("2");
-  await page.getByRole("button", { name: "BUY NOW" }).click();
+  await page.getByRole("button", { name: "매장 픽업" }).click();
+  await page.getByRole("button", { name: "바로 구매하기" }).click();
 
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-  await page.getByRole("button", { name: "내 주문 상세 보기" }).click();
+  await page.getByRole("link", { name: "내 주문 상세 보기" }).click();
   await expect(page).toHaveURL(/\/my\/orders\/\d+$/);
   const orderId = Number(page.url().match(/\/my\/orders\/(\d+)$/)?.[1]);
   await expect(page.getByRole("heading", { name: "주문 상품" })).toBeVisible();
-  await expect(page.getByRole("cell", { name: String(product.id), exact: true })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "₩66,000" })).toBeVisible();
+  const itemRow = page.getByRole("row").filter({ hasText: productName });
+  await expect(itemRow).toContainText("2");
+  await expect(itemRow).toContainText("₩66,000");
 
   await logoutCustomer(page);
   await page.goto("/my");
@@ -56,7 +58,7 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   const bookingClass = classes[0]!;
 
   const firstSlotStart = await findUniqueSlotStart(request, bookingClass.id, 6, 15, 5);
-  const secondSlotStart = await findUniqueSlotStart(request, bookingClass.id, 6, 18, 20);
+  const secondSlotStart = await findUniqueSlotStart(request, bookingClass.id, 7, 18, 20);
   const slotDate = toDateInput(firstSlotStart);
 
   const slot = await createAdminSlot(request, {
@@ -73,8 +75,8 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   await page.goto("/passes/purchase");
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "내 8회권 확인하기" })).toBeVisible();
-  await page.getByRole("button", { name: "내 8회권 확인하기" }).click();
+  await expect(page.getByRole("link", { name: "내 8회권 확인하기" })).toBeVisible();
+  await page.getByRole("link", { name: "내 8회권 확인하기" }).click();
   await expect(page).toHaveURL(/\/my\/passes$/);
   await expect(page.getByText("전체 8회권")).toBeVisible();
   const passCardText = await page.locator(".my-list-card").first().textContent();
@@ -88,19 +90,36 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
 
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
-  await page.getByLabel("날짜").fill(slotDate);
-  await page.locator(".list-group-item").filter({ hasText: formatTimeTokenForUi(slot.startAt) }).first().click();
+  await page.getByLabel("날짜").selectOption(slotDate);
+  await page.locator(`[data-slot-id="${slot.id}"]`).click();
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "내 예약 상세 보기" })).toBeVisible();
-  await page.getByRole("button", { name: "내 예약 상세 보기" }).click();
+  await expect(page.getByRole("link", { name: "내 예약 상세 보기" })).toBeVisible();
+  await page.getByRole("link", { name: "내 예약 상세 보기" }).click();
 
   await expect(page).toHaveURL(/\/my\/bookings\/\d+$/);
   const bookingId = Number(page.url().match(/\/my\/bookings\/(\d+)$/)?.[1]);
+  const booked = await fetchMyBookingSlot(page, bookingId);
+  const targetSlot = booked.slotId === slot.id ? secondSlot : slot;
+  const targetDate = targetSlot.id === slot.id
+    ? toDateInput(firstSlotStart)
+    : toDateInput(secondSlotStart);
+  expect([slot.id, secondSlot.id]).toContain(booked.slotId);
+
   await expect(page.getByText(bookingClass.name)).toBeVisible();
-  await page.getByLabel("새 슬롯 ID").fill(String(secondSlot.id));
-  await page.getByRole("button", { name: "예약 변경" }).click();
-  await expect(page.getByText(`현재 슬롯: #${secondSlot.id}`)).toBeVisible();
+  const rescheduleCard = page.locator(".card").filter({ hasText: "예약 변경" }).last();
+  const dateInput = rescheduleCard.getByLabel("변경할 날짜");
+  await dateInput.fill(targetDate);
+  await expect(dateInput).toHaveValue(targetDate);
+  const targetButton = rescheduleCard.locator(`[data-slot-id="${targetSlot.id}"]`);
+  await expect(targetButton).toBeVisible();
+  await targetButton.click();
+  const submitButton = rescheduleCard.getByRole("button", { name: "선택한 시간으로 변경" });
+  await expect(submitButton).toBeEnabled();
+  await submitButton.click();
+  await expect.poll(async () => (
+    await fetchMyBookingSlot(page, bookingId)
+  ).slotId).toBe(targetSlot.id);
 
   await page.getByRole("button", { name: "예약 취소" }).click();
   await page.getByRole("button", { name: "취소 확인" }).click();
@@ -131,6 +150,10 @@ test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미�
       contentType: "application/json",
       body: JSON.stringify({ count: 0 }),
     });
+  });
+
+  await page.route(/\/api\/v1\/slots(?:\?.*)?$/, async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
   });
 
   await page.route(/\/api\/v1\/me$/, async (route) => {
@@ -168,6 +191,7 @@ test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미�
       contentType: "application/json",
       body: JSON.stringify({
         bookingId,
+        classId: 1,
         slotId: 88,
         status: canceled ? "CANCELED" : "BOOKED",
         className: "8회권 취소 경고 클래스",
@@ -178,6 +202,7 @@ test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미�
         balanceStatus: "UNPAID",
         passBooking: true,
         cancelPolicy: {
+          cancellable: true,
           refundable: false,
           deadlineAt: "2026-07-12T00:00:00",
           passCreditRestorable: false,

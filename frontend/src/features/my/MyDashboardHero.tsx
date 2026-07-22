@@ -17,7 +17,7 @@ export function MyDashboardHero({ user, nextBooking, onLogout, loggingOut }: Pro
       <Card.Body>
         <div className="d-flex flex-column flex-lg-row justify-content-between gap-4">
           <div className="flex-grow-1">
-            <div className="my-section-kicker mb-2">Member Self Service</div>
+            <div className="my-section-kicker mb-2">내 정보</div>
             <h3 className="mb-2">{user.name}님, 다시 오셨네요</h3>
             <p className="text-muted-soft mb-3">
               최근 주문, 예약, 8회권 현황을 이 페이지에서 바로 관리할 수 있습니다.

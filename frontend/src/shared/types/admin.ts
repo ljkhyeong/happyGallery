@@ -1,4 +1,4 @@
-import type { AdminRefundStatus } from "./refund";
+import type { AdminRefundStatus, RefundStatus } from "./refund";
 
 export type OrderStatus =
   | "PAID_APPROVAL_PENDING"
@@ -29,6 +29,18 @@ export interface SlotResponse {
   adminActive: boolean;
   bufferBlocked: boolean;
   isActive: boolean;
+}
+
+export interface AdminSlotSessionCancelRequest {
+  reason: string;
+}
+
+export interface AdminSlotSessionCancelResponse {
+  canceledBookings: number;
+  passCreditsRestored: number;
+  depositRefundsRequested: number;
+  balanceSettlementsRequired: number;
+  manualCompensationsRequired: number;
 }
 
 export interface CreateSlotRequest {
@@ -81,6 +93,20 @@ export interface BookingSettlementResponse {
   balanceStatus: "UNPAID" | "PAID";
   balancePaidAt: string | null;
   arrears: boolean;
+}
+
+export interface AdminBookingCancelRequest {
+  reason: string;
+}
+
+export interface AdminBookingCancelResponse {
+  bookingId: number;
+  status: "CANCELED";
+  passCreditRestored: boolean;
+  depositRefundAmount: number;
+  depositRefundStatus: RefundStatus | null;
+  balanceSettlementRequired: boolean;
+  manualCompensationRequired: boolean;
 }
 
 export interface OrderProductionResponse {
@@ -214,6 +240,7 @@ export type OrderApprovalDecision =
   | "DELAY_REJECT"
   | "DELAY_CANCEL"
   | "AUTO_REFUND"
+  | "SHIP_DATE_UPDATED"
   | "PRODUCTION_COMPLETE"
   | "RESUME_PRODUCTION"
   | "PICKUP_READY"

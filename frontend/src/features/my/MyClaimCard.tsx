@@ -32,7 +32,7 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
         )}
         <div className="d-flex justify-content-between align-items-start gap-3">
           <div>
-            <div className="my-section-kicker mb-2">Guest Claim</div>
+            <div className="my-section-kicker mb-2">비회원 이력</div>
             <h6 className="mb-1">비회원 이력 가져오기</h6>
             <p className="text-muted-soft small mb-0">
               {!user.phone

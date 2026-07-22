@@ -19,6 +19,7 @@ import {
   isMadeToOrderConsentVersionMismatch,
   useMadeToOrderConsent,
 } from "@/features/order/useMadeToOrderConsent";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 
 export function CartPage() {
   const { isAuthenticated, user } = useCustomerAuth();
@@ -29,6 +30,7 @@ export function CartPage() {
     (item) => item.productType === "MADE_TO_ORDER",
   );
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
+  const loginHref = buildAuthPageHref("/login", { redirectTo: "/cart" });
   const checkout = useMutation({
     mutationFn: async () => {
       if (!user) {
@@ -69,7 +71,7 @@ export function CartPage() {
         <Card className="text-center py-5">
           <Card.Body>
             <p className="mb-3">로그인하면 장바구니를 이용할 수 있습니다.</p>
-            <LinkButton to="/login" variant="primary">로그인</LinkButton>
+            <LinkButton to={loginHref} variant="primary">로그인</LinkButton>
           </Card.Body>
         </Card>
       </Container>

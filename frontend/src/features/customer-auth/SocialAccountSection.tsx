@@ -15,6 +15,7 @@ import {
   startSocialAccountLink,
   unlinkSocialAccount,
 } from "@/features/customer-auth/socialAccountApi";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 
 interface Props {
   localPasswordEnabled: boolean;
@@ -30,7 +31,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
   const unlinkMutation = useMutation({
     mutationFn: unlinkSocialAccount,
     onSuccess: () => {
-      window.location.assign("/login?returnTo=/my");
+      window.location.assign(buildAuthPageHref("/login", { redirectTo: "/my" }));
     },
     onError: (error) => {
       const message = error instanceof ApiError

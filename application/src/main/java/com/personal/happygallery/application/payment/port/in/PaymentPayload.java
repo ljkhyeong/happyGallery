@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.payment.port.in;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
@@ -45,11 +46,11 @@ public sealed interface PaymentPayload {
             String verificationCode,
             String name,
             List<OrderItemRef> items,
-            boolean cartCheckout,
+            @JsonProperty(required = true) boolean cartCheckout,
             FulfillmentType fulfillmentType,
             ShippingAddress shippingAddress,
             String madeToOrderConsentVersion,
-            boolean madeToOrderConsent
+            @JsonProperty(required = true) boolean madeToOrderConsent
     ) implements PaymentPayload {
 
         public OrderPayload {

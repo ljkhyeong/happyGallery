@@ -49,7 +49,7 @@ public class SocialOAuth2ProfileResolver {
         return new SocialLoginCommand(
                 identity.provider(),
                 identity.providerId(),
-                required(attributes.get("email")),
+                null,
                 required(attributes.get("name")));
     }
 

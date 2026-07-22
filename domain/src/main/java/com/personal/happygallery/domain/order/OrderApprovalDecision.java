@@ -9,6 +9,7 @@ public enum OrderApprovalDecision {
     DELAY_REJECT,
     DELAY_CANCEL,
     AUTO_REFUND,
+    SHIP_DATE_UPDATED,
     PRODUCTION_COMPLETE,
     RESUME_PRODUCTION,
     PICKUP_READY,

@@ -39,13 +39,13 @@ class DefaultBookingNoShowService implements BookingNoShowUseCase {
      * @param bookingId 결석 처리할 예약 ID
      */
     @Override
-    public Booking markNoShow(Long bookingId) {
+    public Booking markNoShow(Long bookingId, Long adminId) {
         Booking booking = bookingReader.findById(bookingId)
                 .orElseThrow(NotFoundException.supplier("예약"));
 
         booking.markNoShow(LocalDateTime.now(clock));
         bookingSupport.recordHistory(booking, BookingHistoryAction.NO_SHOW,
-                booking.getSlot(), null, "ADMIN", null);
+                booking.getSlot(), null, "ADMIN", adminId, null);
         return bookingStore.save(booking);
     }
 }

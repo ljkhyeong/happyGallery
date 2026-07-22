@@ -1,8 +1,9 @@
-import { Container } from "react-bootstrap";
+import { Button, Container } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import groupResinClass from "@/assets/happygallery/group-resin-class.jpg";
 import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
+import { useToast } from "@/shared/ui";
 
 const PROCESS = [
   ["01", "수업 문의", "참여 인원과 장소, 희망 일정과 관심 공예를 알려주세요."],
@@ -11,9 +12,21 @@ const PROCESS = [
 ] as const;
 
 export function GroupClassesPage() {
+  const toast = useToast();
   const { data: workshop, isLoading } = useWorkshopProfile();
   const inquiryHref = workshop?.naverTalkUrl;
   const kakaoTalkId = workshop?.kakaoTalkId;
+  const phone = workshop?.phone;
+
+  const copyKakaoTalkId = async () => {
+    if (!kakaoTalkId) return;
+    try {
+      await navigator.clipboard.writeText(kakaoTalkId);
+      toast.show("카카오톡 ID를 복사했습니다.", "success");
+    } catch {
+      toast.show(`카카오톡에서 ${kakaoTalkId}를 검색해 주세요.`, "warning");
+    }
+  };
 
   return (
     <>
@@ -76,9 +89,18 @@ export function GroupClassesPage() {
                 네이버톡톡 문의
               </a>
             )}
-            {kakaoTalkId && <span>카카오톡 ID {kakaoTalkId}</span>}
+            {phone && (
+              <a className="btn btn-outline-dark btn-lg" href={`tel:${phone.replace(/\D/g, "")}`}>
+                전화 문의 {phone}
+              </a>
+            )}
+            {kakaoTalkId && (
+              <Button variant="link" className="p-0 text-start" onClick={() => void copyKakaoTalkId()}>
+                카카오톡 ID {kakaoTalkId} 복사
+              </Button>
+            )}
             {isLoading && <span>수업 문의 채널을 확인하고 있습니다.</span>}
-            {!isLoading && !inquiryHref && !kakaoTalkId && (
+            {!isLoading && !inquiryHref && !phone && !kakaoTalkId && (
               <span>수업 문의 채널을 준비하고 있습니다.</span>
             )}
             <Link to="/classes" className="store-section-link">개인 클래스 보기 →</Link>

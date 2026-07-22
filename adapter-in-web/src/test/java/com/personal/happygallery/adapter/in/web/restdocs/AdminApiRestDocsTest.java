@@ -20,6 +20,7 @@ import com.personal.happygallery.adapter.in.web.admin.AdminProductQnaController;
 import com.personal.happygallery.adapter.in.web.admin.AdminRefundController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSetupController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSlotController;
+import com.personal.happygallery.adapter.in.web.admin.AdminSlotSessionController;
 import com.personal.happygallery.adapter.in.web.admin.AdminWorkshopProfileController;
 import com.personal.happygallery.adapter.in.web.admin.LocalPhoneVerificationController;
 import com.personal.happygallery.adapter.in.web.admin.LocalRefundFailureController;
@@ -29,6 +30,9 @@ import com.personal.happygallery.application.admin.port.in.AdminCredentialUseCas
 import com.personal.happygallery.application.admin.port.in.AdminSetupUseCase;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
+import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase;
+import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.AdminCancelResult;
+import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionResult;
 import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
 import com.personal.happygallery.application.booking.port.in.BookingNoShowUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
@@ -65,6 +69,9 @@ import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase;
+import com.personal.happygallery.application.search.dto.AdminPassStatus;
+import com.personal.happygallery.application.search.dto.AdminPassView;
+import com.personal.happygallery.application.search.port.in.AdminPassQueryUseCase;
 import com.personal.happygallery.application.payment.port.in.DevRefundFailureUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentReconciliationAdminUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundRetryUseCase;
@@ -143,6 +150,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     private AdminBookingSearchUseCase adminBookingSearchUseCase;
     private BookingNoShowUseCase bookingNoShowUseCase;
     private BookingSettlementUseCase bookingSettlementUseCase;
+    private AdminBookingCancelUseCase adminBookingCancelUseCase;
     private AdminOrderQueryUseCase adminOrderQueryUseCase;
     private AdminOrderSearchUseCase adminOrderSearchUseCase;
     private OrderApprovalUseCase orderApprovalUseCase;
@@ -161,6 +169,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
     private InquiryUseCase inquiryUseCase;
     private PassExpiryBatchUseCase passExpiryBatchUseCase;
     private PassRefundUseCase passRefundUseCase;
+    private AdminPassQueryUseCase adminPassQueryUseCase;
     private DevPhoneVerificationQueryUseCase phoneVerificationQueryUseCase;
     private DevRefundFailureUseCase devRefundFailureUseCase;
     private WorkshopProfileUseCase workshopProfileUseCase;
@@ -180,6 +189,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         adminBookingSearchUseCase = mock(AdminBookingSearchUseCase.class);
         bookingNoShowUseCase = mock(BookingNoShowUseCase.class);
         bookingSettlementUseCase = mock(BookingSettlementUseCase.class);
+        adminBookingCancelUseCase = mock(AdminBookingCancelUseCase.class);
         adminOrderQueryUseCase = mock(AdminOrderQueryUseCase.class);
         adminOrderSearchUseCase = mock(AdminOrderSearchUseCase.class);
         orderApprovalUseCase = mock(OrderApprovalUseCase.class);
@@ -198,6 +208,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         inquiryUseCase = mock(InquiryUseCase.class);
         passExpiryBatchUseCase = mock(PassExpiryBatchUseCase.class);
         passRefundUseCase = mock(PassRefundUseCase.class);
+        adminPassQueryUseCase = mock(AdminPassQueryUseCase.class);
         phoneVerificationQueryUseCase = mock(DevPhoneVerificationQueryUseCase.class);
         devRefundFailureUseCase = mock(DevRefundFailureUseCase.class);
         workshopProfileUseCase = mock(WorkshopProfileUseCase.class);
@@ -211,6 +222,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         Booking booking = RestDocsFixtures.booking();
         Order order = RestDocsFixtures.order();
         Refund orderRefund = RestDocsFixtures.orderRefund();
+        Refund bookingRefund = RestDocsFixtures.bookingRefund();
         Notice notice = RestDocsFixtures.notice();
         ProductQnaUseCase.QnaWithAuthor qna = qna();
         InquiryUseCase.InquiryWithUser inquiry = inquiry();
@@ -253,10 +265,15 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(adminBookingQueryUseCase.listBookings(any(), any())).thenReturn(List.of(adminBookingResponse()));
         when(adminBookingSearchUseCase.search(any(), any(), any(), any(), eq(0), eq(20)))
                 .thenReturn(OffsetPage.of(List.of(adminBookingSearchRow()), 0, 20, 1));
-        when(bookingNoShowUseCase.markNoShow(100L)).thenReturn(booking);
-        when(bookingSettlementUseCase.markBalancePaid(100L)).thenReturn(booking);
-        when(bookingSettlementUseCase.updateArrears(eq(100L), anyBoolean())).thenReturn(booking);
-        when(bookingSettlementUseCase.complete(100L)).thenReturn(booking);
+        when(bookingNoShowUseCase.markNoShow(100L, ADMIN_USER_ID)).thenReturn(booking);
+        when(bookingSettlementUseCase.markBalancePaid(100L, ADMIN_USER_ID)).thenReturn(booking);
+        when(bookingSettlementUseCase.updateArrears(eq(100L), anyBoolean(), eq(ADMIN_USER_ID)))
+                .thenReturn(booking);
+        when(bookingSettlementUseCase.complete(100L, ADMIN_USER_ID)).thenReturn(booking);
+        when(adminBookingCancelUseCase.cancel(any()))
+                .thenReturn(new AdminCancelResult(booking, false, bookingRefund, false));
+        when(adminBookingCancelUseCase.cancelSession(any()))
+                .thenReturn(new CancelSessionResult(4, 2, 2, 1, 0));
         when(adminOrderQueryUseCase.listOrders(any(), any(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(adminOrderResponse()), "cursor-next", true));
         when(adminOrderQueryUseCase.getFulfillment(200L)).thenReturn(adminOrderFulfillmentResponse());
@@ -267,8 +284,8 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(orderProductionUseCase.resumeProduction(200L, ADMIN_USER_ID)).thenReturn(production(OrderStatus.IN_PRODUCTION));
         when(orderProductionUseCase.completeProduction(200L, ADMIN_USER_ID))
                 .thenReturn(production(OrderStatus.APPROVED_FULFILLMENT_PENDING));
-        when(orderProductionUseCase.setExpectedShipDate(eq(200L), any())).thenReturn(production(OrderStatus.IN_PRODUCTION));
-        when(orderProductionUseCase.proposeDelay(200L))
+        when(orderProductionUseCase.setExpectedShipDate(any())).thenReturn(production(OrderStatus.IN_PRODUCTION));
+        when(orderProductionUseCase.proposeDelay(any()))
                 .thenReturn(production(OrderStatus.DELAY_CONSENT_PENDING));
         when(orderProductionUseCase.cancelForDelayRejection(200L, ADMIN_USER_ID))
                 .thenReturn(new OrderProductionUseCase.DelayCancellationResult(
@@ -314,6 +331,21 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
         when(passExpiryBatchUseCase.expireAll()).thenReturn(batchResult());
         when(passRefundUseCase.refundPass(300L))
                 .thenReturn(new PassRefundUseCase.PassRefundResult(1, 7, 210000L, 900L, RefundStatus.REQUESTED));
+        AdminPassView adminPass = new AdminPassView(
+                300L,
+                "PASS-00000300",
+                "홍길동",
+                "01012345678",
+                AdminPassStatus.ACTIVE,
+                7,
+                8,
+                LocalDateTime.of(2026, 8, 1, 0, 0),
+                1,
+                280000L,
+                null);
+        when(adminPassQueryUseCase.search(any(), eq(0), eq(20)))
+                .thenReturn(OffsetPage.of(List.of(adminPass), 0, 20, 1));
+        when(adminPassQueryUseCase.get(300L)).thenReturn(adminPass);
         when(phoneVerificationQueryUseCase.findLatestUnverifiedCode("01012345678")).thenReturn(Optional.of("123456"));
         WorkshopProfile workshop = workshopProfile();
         when(workshopProfileUseCase.get()).thenReturn(workshop);
@@ -326,11 +358,13 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 new AdminProductController(productAdminUseCase, productQueryUseCase),
                 new AdminClassController(classManagementUseCase, classQueryUseCase),
                 new AdminSlotController(slotManagementUseCase, slotQueryUseCase),
+                new AdminSlotSessionController(adminBookingCancelUseCase),
                 new AdminBookingController(
                         adminBookingQueryUseCase,
                         adminBookingSearchUseCase,
                         bookingNoShowUseCase,
-                        bookingSettlementUseCase),
+                        bookingSettlementUseCase,
+                        adminBookingCancelUseCase),
                 new AdminOrderQueryController(adminOrderQueryUseCase, adminOrderSearchUseCase),
                 new AdminOrderApprovalController(orderApprovalUseCase),
                 new AdminOrderProductionController(orderProductionUseCase),
@@ -344,7 +378,7 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                 new AdminPaymentReconciliationController(paymentReconciliationAdminUseCase),
                 new AdminProductQnaController(qnaUseCase),
                 new AdminInquiryController(inquiryUseCase),
-                new AdminPassController(passExpiryBatchUseCase, passRefundUseCase),
+                new AdminPassController(passExpiryBatchUseCase, passRefundUseCase, adminPassQueryUseCase),
                 new LocalPhoneVerificationController(phoneVerificationQueryUseCase),
                 new LocalRefundFailureController(devRefundFailureUseCase));
     }
@@ -683,6 +717,36 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 예약 취소 API를 문서화한다")
+    void admin_cancel_booking() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/bookings/{bookingId}/cancel", 100L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"reason\":\"공방 사정으로 수업이 취소되었습니다.\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bookingId").value(100L))
+                .andExpect(jsonPath("$.depositRefundAmount").value(5000L))
+                .andExpect(jsonPath("$.manualCompensationRequired").value(false));
+    }
+
+    @Test
+    @DisplayName("관리자 수업 회차 취소 API를 문서화한다")
+    void admin_cancel_slot_session() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/slots/{slotId}/cancel-session", 42L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"reason\":\"강사 사정으로 해당 회차가 취소되었습니다.\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.canceledBookings").value(4))
+                .andExpect(jsonPath("$.passCreditsRestored").value(2))
+                .andExpect(jsonPath("$.depositRefundsRequested").value(2))
+                .andExpect(jsonPath("$.balanceSettlementsRequired").value(1))
+                .andExpect(jsonPath("$.manualCompensationsRequired").value(0));
     }
 
     @Test
@@ -1086,6 +1150,26 @@ class AdminApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("{\"replyContent\":\"마이페이지에서 변경할 수 있습니다.\"}"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 8회권 검색 API를 문서화한다")
+    void admin_search_passes() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/passes/search")
+                        .with(adminUser())
+                        .param("keyword", "01012345678")
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].passNumber").value("PASS-00000300"));
+    }
+
+    @Test
+    @DisplayName("관리자 8회권 상세 API를 문서화한다")
+    void admin_get_pass() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/passes/{passId}", 300L).with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.passId").value(300L));
     }
 
     @Test

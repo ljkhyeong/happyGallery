@@ -31,7 +31,7 @@ export function GuestRecordRecoverySection() {
       <Card.Body className="p-4">
         <PhoneVerificationStep
           title="주문·예약 조회 정보 복구"
-          description="주문 ID나 조회 토큰을 잃어버렸다면 결제·예약 때 사용한 휴대폰 번호를 인증하세요. 기존 토큰은 폐기되고 새 조회 토큰이 발급됩니다."
+          description="주문 번호나 조회 코드를 잃어버렸다면 결제·예약 때 사용한 휴대폰 번호를 인증하세요. 기존 조회 코드는 폐기되고 새 코드가 발급됩니다."
           confirmLabel="조회 정보 복구"
           confirming={recovery.isPending}
           onReset={() => {
@@ -53,7 +53,7 @@ export function GuestRecordRecoverySection() {
         {hasRecords && (
           <div className="mt-4">
             <Alert variant="success">
-              조회 정보를 복구했습니다. 새 토큰은 {formatDateTime(result.expiresAt)}까지 사용할 수 있습니다.
+              조회 정보를 복구했습니다. 새 조회 코드는 {formatDateTime(result.expiresAt)}까지 사용할 수 있습니다.
             </Alert>
 
             <Row className="g-4">

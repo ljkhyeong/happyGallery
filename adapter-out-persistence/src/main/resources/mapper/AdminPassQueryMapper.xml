@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.personal.happygallery.adapter.out.persistence.dashboard.mapper.AdminPassQueryMapper">
+
+    <sql id="keywordConditions">
+        <choose>
+            <when test="exactId != null">
+                AND p.id = #{exactId}
+            </when>
+            <when test="keyword != null and keyword != ''">
+                AND (
+                    CAST(p.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                    OR u.name_hmac = #{nameHmac}
+                    <if test="phoneHmac != null">
+                        OR u.phone_hmac = #{phoneHmac}
+                    </if>
+                )
+            </when>
+        </choose>
+    </sql>
+
+    <sql id="passProjection">
+        p.id                                                AS passId,
+        CONCAT('PASS-', LPAD(p.id, 8, '0'))                AS passNumber,
+        u.name_enc                                          AS customerNameEnc,
+        u.phone_enc                                         AS customerPhoneEnc,
+        p.expires_at                                        AS expiresAt,
+        p.total_credits                                     AS totalCredits,
+        p.remaining_credits                                 AS remainingCredits,
+        p.total_price                                       AS totalPrice,
+        (
+            SELECT COUNT(*)
+            FROM bookings b
+            JOIN slots s ON s.id = b.slot_id
+            WHERE b.pass_purchase_id = p.id
+              AND b.status = 'BOOKED'
+              AND s.start_at &gt; #{now}
+        )                                                   AS futureBookingCount,
+        r.amount                                            AS refundAmount,
+        r.status                                            AS refundStatus
+    </sql>
+
+    <!-- 먼저 pass ID만 페이징하고, 고객·환불·미래 예약 정보는 선택된 행에만 결합한다. -->
+    <select id="search" resultType="com.personal.happygallery.application.search.port.out.AdminPassQueryResult">
+        SELECT
+            <include refid="passProjection"/>
+        FROM pass_purchases p
+        JOIN (
+            SELECT p.id
+            FROM pass_purchases p
+            JOIN users u ON u.id = p.user_id
+            <where>
+                <include refid="keywordConditions"/>
+            </where>
+            ORDER BY p.purchased_at DESC, p.id DESC
+            LIMIT #{size} OFFSET #{offset}
+        ) selected ON selected.id = p.id
+        JOIN users u ON u.id = p.user_id
+        LEFT JOIN refunds r ON r.id = (
+            SELECT MAX(latest_refund.id)
+            FROM refunds latest_refund
+            WHERE latest_refund.pass_purchase_id = p.id
+        )
+        ORDER BY p.purchased_at DESC, p.id DESC
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM pass_purchases p
+        JOIN users u ON u.id = p.user_id
+        <where>
+            <include refid="keywordConditions"/>
+        </where>
+    </select>
+
+    <select id="findById" resultType="com.personal.happygallery.application.search.port.out.AdminPassQueryResult">
+        SELECT
+            <include refid="passProjection"/>
+        FROM pass_purchases p
+        JOIN users u ON u.id = p.user_id
+        LEFT JOIN refunds r ON r.id = (
+            SELECT MAX(latest_refund.id)
+            FROM refunds latest_refund
+            WHERE latest_refund.pass_purchase_id = p.id
+        )
+        WHERE p.id = #{passId}
+    </select>
+
+</mapper>

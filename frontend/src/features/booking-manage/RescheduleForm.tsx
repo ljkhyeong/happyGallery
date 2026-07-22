@@ -87,7 +87,9 @@ export function RescheduleForm({
           {availableSlots.map((slot) => (
             <ListGroup.Item
               key={slot.id}
+              data-slot-id={slot.id}
               action
+              type="button"
               active={selectedSlotId === slot.id}
               onClick={() => setSelectedSlotId(slot.id)}
               className="d-flex justify-content-between align-items-center gap-3"

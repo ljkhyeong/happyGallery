@@ -76,11 +76,33 @@ export function NotificationBell() {
             ) : (
               notifications.map((notification) => {
                 const target = notificationTarget(notification);
+                const actionable = Boolean(target) || !notification.read;
+                const content = (
+                  <>
+                    <div className="fw-semibold">
+                      {NOTIFICATION_EVENT_LABEL[notification.eventType] ?? notification.eventType}
+                    </div>
+                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>
+                      {formatRelativeTime(notification.deliveredAt)}
+                    </div>
+                  </>
+                );
+                const className = `w-100 text-start px-3 py-2 border-0 border-bottom small ${notification.read ? "bg-transparent" : "bg-light"}`;
+
+                if (!actionable) {
+                  return (
+                    <div key={notification.id} className={className}>
+                      {content}
+                    </div>
+                  );
+                }
+
                 return (
-                  <div
+                  <button
                     key={notification.id}
-                    className={`px-3 py-2 border-bottom small ${notification.read ? "" : "bg-light"}`}
-                    style={{ cursor: target || !notification.read ? "pointer" : "default" }}
+                    type="button"
+                    className={className}
+                    style={{ color: "inherit", font: "inherit" }}
                     onClick={() => {
                       if (!notification.read) markRead.mutate(notification.id);
                       if (target) {
@@ -89,13 +111,8 @@ export function NotificationBell() {
                       }
                     }}
                   >
-                    <div className="fw-semibold">
-                      {NOTIFICATION_EVENT_LABEL[notification.eventType] ?? notification.eventType}
-                    </div>
-                    <div className="text-muted" style={{ fontSize: "0.75rem" }}>
-                      {formatRelativeTime(notification.deliveredAt)}
-                    </div>
-                  </div>
+                    {content}
+                  </button>
                 );
               })
             )}

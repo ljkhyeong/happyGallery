@@ -38,9 +38,12 @@ public class BookingHistory {
     @JoinColumn(name = "to_slot_id")
     private Slot toSlot;
 
-    /** CUSTOMER | ADMIN */
+    /** CUSTOMER | ADMIN | SYSTEM */
     @Column(nullable = false, length = 10)
     private String actor;
+
+    @Column(name = "admin_user_id")
+    private Long adminUserId;
 
     @Column(length = 500)
     private String reason;
@@ -51,12 +54,13 @@ public class BookingHistory {
     protected BookingHistory() {}
 
     public BookingHistory(Booking booking, BookingHistoryAction action,
-                          Slot fromSlot, Slot toSlot, String actor, String reason) {
+                          Slot fromSlot, Slot toSlot, String actor, Long adminUserId, String reason) {
         this.booking = booking;
         this.action = action;
         this.fromSlot = fromSlot;
         this.toSlot = toSlot;
         this.actor = actor;
+        this.adminUserId = adminUserId;
         this.reason = reason;
     }
 
@@ -66,6 +70,7 @@ public class BookingHistory {
     public Slot getFromSlot() { return fromSlot; }
     public Slot getToSlot() { return toSlot; }
     public String getActor() { return actor; }
+    public Long getAdminUserId() { return adminUserId; }
     public String getReason() { return reason; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

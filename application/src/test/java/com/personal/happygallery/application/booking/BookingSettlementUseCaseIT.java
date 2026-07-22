@@ -40,6 +40,8 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class BookingSettlementUseCaseIT {
 
+    private static final long ADMIN_ID = 7L;
+
     @Autowired BookingSettlementUseCase settlementUseCase;
     @Autowired BookingReaderPort bookingReaderPort;
     @Autowired BookingStorePort bookingStorePort;
@@ -70,18 +72,18 @@ class BookingSettlementUseCaseIT {
         Booking booking = bookingStorePort.save(booking(
                 guest, slot, 5_000L, 45_000L, DepositPaymentMethod.CARD, accessToken()));
 
-        assertThatThrownBy(() -> settlementUseCase.complete(booking.getId()))
+        assertThatThrownBy(() -> settlementUseCase.complete(booking.getId(), ADMIN_ID))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("미수로 표시");
 
-        settlementUseCase.updateArrears(booking.getId(), true);
-        settlementUseCase.updateArrears(booking.getId(), true);
-        settlementUseCase.updateArrears(booking.getId(), false);
-        settlementUseCase.updateArrears(booking.getId(), true);
-        settlementUseCase.complete(booking.getId());
-        settlementUseCase.markBalancePaid(booking.getId());
-        settlementUseCase.markBalancePaid(booking.getId());
-        settlementUseCase.updateArrears(booking.getId(), false);
+        settlementUseCase.updateArrears(booking.getId(), true, ADMIN_ID);
+        settlementUseCase.updateArrears(booking.getId(), true, ADMIN_ID);
+        settlementUseCase.updateArrears(booking.getId(), false, ADMIN_ID);
+        settlementUseCase.updateArrears(booking.getId(), true, ADMIN_ID);
+        settlementUseCase.complete(booking.getId(), ADMIN_ID);
+        settlementUseCase.markBalancePaid(booking.getId(), ADMIN_ID);
+        settlementUseCase.markBalancePaid(booking.getId(), ADMIN_ID);
+        settlementUseCase.updateArrears(booking.getId(), false, ADMIN_ID);
 
         Booking settled = bookingReaderPort.findById(booking.getId()).orElseThrow();
         Slot occupiedSlot = slotReaderPort.findById(slot.getId()).orElseThrow();
@@ -105,6 +107,8 @@ class BookingSettlementUseCaseIT {
                             BookingHistoryAction.ARREARS_CLEARED);
             softly.assertThat(histories)
                     .allSatisfy(history -> softly.assertThat(history.getActor()).isEqualTo("ADMIN"));
+            softly.assertThat(histories)
+                    .allSatisfy(history -> softly.assertThat(history.getAdminUserId()).isEqualTo(ADMIN_ID));
         });
     }
 }

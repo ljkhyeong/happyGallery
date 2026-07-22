@@ -70,7 +70,7 @@ export function PhoneVerificationStep({
               onBlur={() => setTouched(true)}
               placeholder="01012345678"
               maxLength={11}
-              disabled={sent || lockPhone}
+              disabled={sent || lockPhone || sendMutation.isPending}
               isInvalid={showPhoneError}
             />
             <Form.Control.Feedback type="invalid">
@@ -101,6 +101,8 @@ export function PhoneVerificationStep({
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="인증코드 입력"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                 />
               </Form.Group>
             </Col>

@@ -17,6 +17,7 @@ export interface BookingClass {
   name: string;
   category: string;
   durationMin: number;
+  passEligible: boolean;
 }
 
 export interface AdminProduct {
@@ -51,6 +52,10 @@ export interface AdminBooking {
   depositAmount: number;
   balanceAmount: number;
   passBooking: boolean;
+}
+
+interface BookingSlotRef {
+  slotId: number;
 }
 
 export interface AdminOrder {
@@ -116,13 +121,6 @@ interface BrowserGlobalWithToss {
   };
 }
 
-const timeFormatter = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Asia/Seoul",
-  hour12: true,
-});
-
 export function makeUniqueLabel(prefix: string): string {
   const stamp = `${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(-9);
   return `${prefix}-${stamp}`;
@@ -185,16 +183,6 @@ export function toDateInput(date: Date): string {
 
 export function toDateTimeLocalInput(date: Date): string {
   return `${toDateInput(date)}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
-export function formatTimeTokenForUi(iso: string): string {
-  const parts = timeFormatter.formatToParts(new Date(iso));
-  const hour = parts.find((part) => part.type === "hour")?.value;
-  const minute = parts.find((part) => part.type === "minute")?.value;
-  if (!hour || !minute) {
-    throw new Error(`Could not format UI time token for ${iso}`);
-  }
-  return `${hour}:${minute}`;
 }
 
 export function extractFirstNumber(text: string, label: string): number {
@@ -260,6 +248,10 @@ export async function loginAdmin(page: Page) {
   }, [ADMIN_TOKEN_KEY, cachedAdminToken] as const);
   await page.reload();
   await expect(page.getByRole("heading", { name: "관리자" })).toBeVisible();
+}
+
+export async function openAdminView(page: Page, name: string) {
+  await page.getByRole("button", { name, exact: true }).click();
 }
 
 async function fetchVerificationCode(page: Page, phone: string): Promise<string> {
@@ -383,7 +375,7 @@ async function issueCustomerCsrfHeaders(page: Page): Promise<Record<string, stri
 }
 
 export function adminCard(page: Page, title: string): Locator {
-  return page.locator(".card").filter({ hasText: title }).first();
+  return page.locator(".admin-workspace-panel, .card").filter({ hasText: title }).first();
 }
 
 export async function apiGet<T>(
@@ -440,6 +432,27 @@ export async function apiDelete(
 
 export async function fetchClasses(request: APIRequestContext): Promise<BookingClass[]> {
   return apiGet<BookingClass[]>(request, "/classes");
+}
+
+export async function fetchGuestBookingSlot(
+  request: APIRequestContext,
+  bookingId: number,
+  token: string,
+): Promise<BookingSlotRef> {
+  const response = await request.get(`${BACKEND_BASE_URL}/bookings/${bookingId}`, {
+    headers: { "X-Access-Token": token },
+  });
+  expect(response.ok(), "Guest booking lookup API should succeed").toBeTruthy();
+  return (await response.json()) as BookingSlotRef;
+}
+
+export async function fetchMyBookingSlot(
+  page: Page,
+  bookingId: number,
+): Promise<BookingSlotRef> {
+  const response = await page.request.get(`${BACKEND_BASE_URL}/me/bookings/${bookingId}`);
+  expect(response.ok(), "Member booking lookup API should succeed").toBeTruthy();
+  return (await response.json()) as BookingSlotRef;
 }
 
 export async function fetchAdminProducts(request: APIRequestContext): Promise<AdminProduct[]> {
@@ -513,7 +526,12 @@ export async function fetchAdminOrders(
 }
 
 export async function fetchFailedRefunds(request: APIRequestContext): Promise<AdminFailedRefund[]> {
-  return apiGet<AdminFailedRefund[]>(request, "/admin/refunds/failed", { admin: true });
+  const page = await apiGet<CursorPage<AdminFailedRefund>>(
+    request,
+    "/admin/refunds/failed",
+    { admin: true },
+  );
+  return page.content;
 }
 
 export async function armNextRefundFailure(

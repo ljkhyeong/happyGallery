@@ -114,10 +114,10 @@ export function MyPage() {
   if (!isAuthenticated) {
     return (
       <Container className="page-container" style={{ maxWidth: 760 }}>
-        <Badge bg="light" text="dark" className="mb-3">Member Self Service</Badge>
+        <Badge bg="light" text="dark" className="mb-3">내 정보</Badge>
         <MyAuthGateCard
           title="로그인하고 주문, 예약, 8회권을 한 곳에서 관리하세요"
-          description="회원은 추가 휴대폰 인증 없이 내 주문과 예약, 8회권을 바로 확인할 수 있습니다. 비회원 조회가 필요하면 guest 경로를 그대로 사용할 수 있습니다."
+          description="회원은 추가 휴대폰 인증 없이 내 주문과 예약, 8회권을 바로 확인할 수 있습니다. 비회원 주문과 예약도 별도 조회 화면에서 확인할 수 있습니다."
           showGuestLinks
         />
       </Container>

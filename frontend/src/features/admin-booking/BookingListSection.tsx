@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Table, Button, Badge, Form, Row, Col } from "react-bootstrap";
+import { Table, Button, Badge, Form, Row, Col, Modal } from "react-bootstrap";
+import { CalendarX2 } from "lucide-react";
 import {
+  cancelBookingByAdmin,
   completeBooking,
   fetchBookings,
   markBalancePaid,
@@ -20,6 +22,7 @@ import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
+import type { AdminBookingCancelResponse, AdminBookingResponse, RefundStatus } from "@/shared/types";
 
 interface Props {
   adminKey: string;
@@ -38,11 +41,47 @@ function todayStr(): string {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
 }
 
+const REFUND_STATUS_LABEL: Record<RefundStatus, string> = {
+  REQUESTED: "요청 접수",
+  PROCESSING: "처리 중",
+  RETRYABLE: "재시도 대기",
+  RECONCILIATION_REQUIRED: "상태 확인 필요",
+  SUCCEEDED: "환불 완료",
+  FAILED: "환불 실패",
+};
+
+function cancelResultToast(result: AdminBookingCancelResponse) {
+  const compensation = result.depositRefundAmount > 0
+    ? `예약금 ${formatKRW(result.depositRefundAmount)} ${result.depositRefundStatus
+      ? REFUND_STATUS_LABEL[result.depositRefundStatus]
+      : "확인 필요"}`
+    : result.passCreditRestored
+      ? "8회권 1회 복구"
+      : result.manualCompensationRequired
+        ? "8회권 복구 수동 처리 필요"
+        : "자동 환불 없음";
+  const balance = result.balanceSettlementRequired ? "잔금 별도 정산 필요" : "잔금 별도 정산 없음";
+  const needsAttention = result.manualCompensationRequired
+    || result.balanceSettlementRequired
+    || result.depositRefundStatus === "FAILED"
+    || result.depositRefundStatus === "RETRYABLE"
+    || result.depositRefundStatus === "RECONCILIATION_REQUIRED";
+  const processing = result.depositRefundStatus === "REQUESTED"
+    || result.depositRefundStatus === "PROCESSING";
+
+  return {
+    message: `예약 #${result.bookingId} 취소 완료 · ${compensation} · ${balance}`,
+    variant: needsAttention ? "warning" : processing ? "info" : "success",
+  } as const;
+}
+
 export function BookingListSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [date, setDate] = useState(todayStr);
   const [statusFilter, setStatusFilter] = useState("");
+  const [cancelTarget, setCancelTarget] = useState<AdminBookingResponse | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
 
   const { data: bookings, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "bookings", date, statusFilter],
@@ -83,10 +122,23 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
     },
   });
 
+  const cancelMutation = useAdminMutation(onAuthError, {
+    mutationFn: ({ bookingId, reason }: { bookingId: number; reason: string }) =>
+      cancelBookingByAdmin(adminKey, bookingId, { reason }),
+    onSuccess: (res) => {
+      const notification = cancelResultToast(res);
+      toast.show(notification.message, notification.variant);
+      setCancelTarget(null);
+      setCancelReason("");
+      queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
+    },
+  });
+
   const mutationPending = noShowMutation.isPending
     || balancePaymentMutation.isPending
     || arrearsMutation.isPending
-    || completeMutation.isPending;
+    || completeMutation.isPending
+    || cancelMutation.isPending;
   const mutationError = noShowMutation.error
     ?? balancePaymentMutation.error
     ?? arrearsMutation.error
@@ -230,6 +282,19 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
                         >
                           노쇼
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          disabled={mutationPending}
+                          onClick={() => {
+                            cancelMutation.reset();
+                            setCancelReason("");
+                            setCancelTarget(b);
+                          }}
+                        >
+                          <CalendarX2 size={14} aria-hidden="true" className="me-1" />
+                          공방 취소
+                        </Button>
                       </>
                     )}
                   </div>
@@ -243,6 +308,66 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
       {mutationError && !(mutationError instanceof ApiError && mutationError.status === 401) && (
         <ErrorAlert error={mutationError} />
       )}
+
+      <Modal
+        show={cancelTarget !== null}
+        aria-labelledby="admin-booking-cancel-title"
+        onHide={() => {
+          if (!cancelMutation.isPending) setCancelTarget(null);
+        }}
+        centered
+      >
+        <Modal.Header closeButton={!cancelMutation.isPending}>
+          <Modal.Title id="admin-booking-cancel-title" className="fs-6">
+            공방 사정으로 예약 취소
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <ErrorAlert error={cancelMutation.error} />
+          {cancelTarget && (
+            <p className="small text-muted-soft mb-3">
+              {cancelTarget.bookingNumber} · {cancelTarget.bookerName} · {formatDateTime(cancelTarget.startAt)}
+            </p>
+          )}
+          <p className="mb-3">
+            예약을 취소하고 예약금 환불 또는 8회권 1회 복구를 시작합니다.
+            결제된 잔금은 결과에 따라 별도 정산이 필요할 수 있습니다.
+          </p>
+          <Form.Group controlId="admin-booking-cancel-reason">
+            <Form.Label>취소 사유</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              maxLength={200}
+              value={cancelReason}
+              disabled={cancelMutation.isPending}
+              onChange={(event) => setCancelReason(event.target.value)}
+              placeholder="고객에게 안내할 취소 사유를 입력하세요."
+              autoFocus
+            />
+            <Form.Text className="text-muted">{cancelReason.length}/200자</Form.Text>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            disabled={cancelMutation.isPending}
+            onClick={() => setCancelTarget(null)}
+          >
+            닫기
+          </Button>
+          <Button
+            variant="danger"
+            disabled={!cancelTarget || !cancelReason.trim() || cancelMutation.isPending}
+            onClick={() => cancelTarget && cancelMutation.mutate({
+              bookingId: cancelTarget.bookingId,
+              reason: cancelReason.trim(),
+            })}
+          >
+            {cancelMutation.isPending ? "취소 처리 중..." : "예약 취소 확정"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

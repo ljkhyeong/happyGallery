@@ -18,6 +18,10 @@ public interface BookingReaderPort {
 
     List<Booking> findByGuestIdWithDetails(Long guestId);
 
+    List<Long> findBookedPassIdsBySlotId(Long slotId);
+
+    List<Booking> findBookedBySlotIdForUpdate(Long slotId);
+
     boolean existsBookedBySlotIdAndGuestId(Long slotId, Long guestId);
 
     boolean existsBookedBySlotIdAndUserId(Long slotId, Long userId);

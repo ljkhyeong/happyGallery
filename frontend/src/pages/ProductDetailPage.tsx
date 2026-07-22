@@ -1,8 +1,9 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Container, Card, Badge, Button, Form, Row, Col } from "react-bootstrap";
+import { ShoppingBag } from "lucide-react";
 import { fetchProduct } from "@/features/product/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
@@ -45,6 +46,8 @@ export function ProductDetailPage() {
   const { isAuthenticated, isLoading: authLoading, user } = useCustomerAuth();
 
   const [qty, setQty] = useState(1);
+  const [showMobilePurchaseCta, setShowMobilePurchaseCta] = useState(false);
+  const purchasePanelRef = useRef<HTMLDivElement>(null);
   const [fulfillment, setFulfillment] = useFulfillmentSelection(user?.name, user?.phone ?? undefined);
   const { addItem: addToCart } = useCart();
 
@@ -65,6 +68,7 @@ export function ProductDetailPage() {
         userId: user.id,
         name: user.name,
         items: [{ productId, qty }],
+        cartCheckout: false,
         madeToOrderConsent: consent.agreed,
         madeToOrderConsentVersion: consent.version,
         ...fulfillmentPayload(fulfillment),
@@ -82,6 +86,18 @@ export function ProductDetailPage() {
     onError: consent.handleSubmissionError,
   });
   const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(orderMutation.error);
+
+  useEffect(() => {
+    const purchasePanel = purchasePanelRef.current;
+    if (!purchasePanel || !product) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry) return;
+      setShowMobilePurchaseCta(!entry.isIntersecting && entry.boundingClientRect.top > 0);
+    }, { rootMargin: "0px 0px -30% 0px" });
+    observer.observe(purchasePanel);
+    return () => observer.disconnect();
+  }, [product]);
 
   if (!validProductId) return <NotFoundPage />;
   if (isLoading) return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -160,7 +176,7 @@ export function ProductDetailPage() {
         </Col>
 
         <Col lg={5} className="anim-fade-up anim-delay-2">
-          <Card className="purchase-panel store-purchase-card">
+          <Card ref={purchasePanelRef} className="purchase-panel store-purchase-card">
             <Card.Body className="p-4">
               <div className="store-purchase-kicker mb-1">작품 주문</div>
               <h5 className="store-purchase-title mb-4">바로 주문하기</h5>
@@ -314,6 +330,23 @@ export function ProductDetailPage() {
           </Card>
         </Col>
       </Row>
+
+      {showMobilePurchaseCta && product.available && (
+        <div className="store-mobile-purchase-cta d-lg-none">
+          <Button
+            variant="dark"
+            size="sm"
+            className="w-100 d-flex align-items-center justify-content-center gap-2"
+            onClick={() => purchasePanelRef.current?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            })}
+          >
+            <ShoppingBag size={17} aria-hidden="true" />
+            구매 옵션 보기
+          </Button>
+        </div>
+      )}
 
       <ProductQnaSection productId={productId} />
     </Container>

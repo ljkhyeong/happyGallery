@@ -5,7 +5,7 @@ import { normalizePhone } from "@/shared/validation/phone";
 
 interface CustomerUserResponse {
   id: number;
-  email: string;
+  email: string | null;
   name: string;
   phone: string | null;
   phoneVerified: boolean;
@@ -14,7 +14,7 @@ interface CustomerUserResponse {
 
 export interface CustomerUser {
   id: number;
-  email: string;
+  email: string | null;
   name: string;
   phone: string | null;
   phoneVerified: boolean;

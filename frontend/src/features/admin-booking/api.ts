@@ -1,6 +1,8 @@
 import { adminHeaders as h, api } from "@/shared/api";
 import type {
   AdminBookingResponse,
+  AdminBookingCancelRequest,
+  AdminBookingCancelResponse,
   BookingNoShowResponse,
   BookingSettlementResponse,
 } from "@/shared/types";
@@ -13,6 +15,18 @@ export function fetchBookings(
   return api<AdminBookingResponse[]>("/admin/bookings", {
     headers: h(adminKey),
     params: { date, status },
+  });
+}
+
+export function cancelBookingByAdmin(
+  adminKey: string,
+  bookingId: number,
+  body: AdminBookingCancelRequest,
+): Promise<AdminBookingCancelResponse> {
+  return api<AdminBookingCancelResponse>(`/admin/bookings/${bookingId}/cancel`, {
+    method: "POST",
+    headers: h(adminKey),
+    body,
   });
 }
 

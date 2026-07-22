@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Container } from "react-bootstrap";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/shared/api";
-import { ErrorBoundary, Layout, LoadingSpinner, ToastProvider } from "@/shared/ui";
+import { ErrorBoundary, Layout, LoadingSpinner, PageMetadata, ToastProvider } from "@/shared/ui";
 import { HomePage } from "@/pages/HomePage";
 import { BookingCreatePage } from "@/pages/BookingCreatePage";
 import { ProductListPage } from "@/pages/ProductListPage";
@@ -116,6 +116,7 @@ export function App() {
           <ToastProvider>
             <CartProvider>
               <BrowserRouter>
+                <PageMetadata />
                 <Routes>
                   <Route element={<Layout />}>
                     <Route path="/" element={<HomePage />} />

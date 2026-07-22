@@ -61,7 +61,7 @@ class BookingCreationSupport {
     /** BOOKED 이력을 기록하고 예약 완료 알림을 요청한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Booking complete(Booking booking, Slot slot) {
-        bookingSupport.recordHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null);
+        bookingSupport.recordHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null, null);
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CONFIRMED);
         return booking;
     }

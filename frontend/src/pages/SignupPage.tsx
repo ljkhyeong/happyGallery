@@ -47,17 +47,17 @@ export function SignupPage() {
           <Card className="auth-hero-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5 d-flex flex-column">
               <Badge bg="light" text="dark" className="auth-kicker mb-3">
-                {claimIntent ? "Claim Onboarding" : "Member Signup"}
+                {claimIntent ? "비회원 이력 가져오기" : "회원가입"}
               </Badge>
               <h2 className="mb-3">
                 {claimIntent
                   ? "같은 번호의 비회원 이력을 회원 계정으로 연결할 준비가 됐습니다"
-                  : "회원가입하고 storefront와 예약 흐름을 한 번에 관리하세요"}
+                  : "회원가입하고 주문과 예약을 한 번에 관리하세요"}
               </h2>
               <p className="text-muted-soft mb-4">
                 {claimIntent
-                  ? "가입이 끝나면 `/my`로 이동하고, 비회원 이력 가져오기를 바로 이어서 진행할 수 있습니다."
-                  : "회원가입 후 `/my`에서 주문, 예약, 8회권을 한 곳에서 확인하고 관리할 수 있습니다."}
+                  ? "가입이 끝나면 내 정보에서 비회원 이력 가져오기를 바로 이어서 진행할 수 있습니다."
+                  : "회원가입 후 내 정보에서 주문, 예약, 8회권을 한 곳에서 확인하고 관리할 수 있습니다."}
               </p>
               {claimIntent && (name || phone) && (
                 <div className="auth-prefill-card mb-4">
@@ -70,7 +70,7 @@ export function SignupPage() {
               )}
               <div className="auth-benefit-list mb-4">
                 <div className="auth-benefit-item">회원 주문, 예약, 8회권 전체 목록과 필터 제공</div>
-                <div className="auth-benefit-item">비회원 이력 claim과 후속 조회를 `/my`에서 관리</div>
+                <div className="auth-benefit-item">비회원 이력 가져오기와 후속 조회를 내 정보에서 관리</div>
                 <div className="auth-benefit-item">상품 상세, 예약, 8회권 흐름에서 같은 세션 유지</div>
               </div>
               <div className="d-flex flex-wrap gap-3 mt-auto small">
@@ -92,7 +92,7 @@ export function SignupPage() {
               )}
               {!claimIntent && (
                 <p className="text-muted-soft small mb-4">
-                  가입이 끝나면 storefront 주문, 예약, 8회권 흐름이 같은 회원 세션으로 이어집니다.
+                  가입이 끝나면 작품 주문, 예약, 8회권 이용을 같은 회원 계정으로 이어갈 수 있습니다.
                 </p>
               )}
               <Form onSubmit={handleSubmit}>

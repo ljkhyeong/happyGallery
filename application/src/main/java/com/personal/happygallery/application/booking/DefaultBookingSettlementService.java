@@ -32,24 +32,24 @@ class DefaultBookingSettlementService implements BookingSettlementUseCase {
     }
 
     @Override
-    public Booking markBalancePaid(Long bookingId) {
+    public Booking markBalancePaid(Long bookingId, Long adminId) {
         Booking booking = findBooking(bookingId);
         BalanceStatus previousBalanceStatus = booking.getBalanceStatus();
         boolean wasArrears = booking.isArrearsFlag();
         booking.markBalancePaid(LocalDateTime.now(clock));
         if (previousBalanceStatus != booking.getBalanceStatus()) {
             bookingSupport.recordHistory(
-                    booking, BookingHistoryAction.BALANCE_PAID, null, null, "ADMIN", null);
+                    booking, BookingHistoryAction.BALANCE_PAID, null, null, "ADMIN", adminId, null);
         }
         if (wasArrears && !booking.isArrearsFlag()) {
             bookingSupport.recordHistory(
-                    booking, BookingHistoryAction.ARREARS_CLEARED, null, null, "ADMIN", null);
+                    booking, BookingHistoryAction.ARREARS_CLEARED, null, null, "ADMIN", adminId, null);
         }
         return bookingStorePort.save(booking);
     }
 
     @Override
-    public Booking updateArrears(Long bookingId, boolean arrears) {
+    public Booking updateArrears(Long bookingId, boolean arrears, Long adminId) {
         Booking booking = findBooking(bookingId);
         boolean previousArrears = booking.isArrearsFlag();
         booking.updateArrears(arrears);
@@ -57,17 +57,17 @@ class DefaultBookingSettlementService implements BookingSettlementUseCase {
             BookingHistoryAction action = booking.isArrearsFlag()
                     ? BookingHistoryAction.ARREARS_MARKED
                     : BookingHistoryAction.ARREARS_CLEARED;
-            bookingSupport.recordHistory(booking, action, null, null, "ADMIN", null);
+            bookingSupport.recordHistory(booking, action, null, null, "ADMIN", adminId, null);
         }
         return bookingStorePort.save(booking);
     }
 
     @Override
-    public Booking complete(Long bookingId) {
+    public Booking complete(Long bookingId, Long adminId) {
         Booking booking = findBooking(bookingId);
         booking.complete(LocalDateTime.now(clock));
         bookingSupport.recordHistory(
-                booking, BookingHistoryAction.COMPLETED, booking.getSlot(), null, "ADMIN", null);
+                booking, BookingHistoryAction.COMPLETED, booking.getSlot(), null, "ADMIN", adminId, null);
         return bookingStorePort.save(booking);
     }
 

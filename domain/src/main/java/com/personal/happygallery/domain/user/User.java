@@ -21,10 +21,10 @@ public class User {
     @Transient
     private String email;
 
-    @Column(name = "email_enc", nullable = false, length = 512)
+    @Column(name = "email_enc", length = 512)
     private String emailEnc;
 
-    @Column(name = "email_hmac", nullable = false, length = 64)
+    @Column(name = "email_hmac", length = 64)
     private String emailHmac;
 
     @Column(name = "password_hash")
@@ -82,7 +82,7 @@ public class User {
     }
 
     private User(String email, String name) {
-        this.email = EmailAddress.required(email);
+        this.email = EmailAddress.optional(email);
         this.passwordHash = null;
         this.name = PersonalName.required(name);
         this.phone = null;
@@ -101,7 +101,7 @@ public class User {
     }
 
     public void restoreProtectedFields(String email, String name, String phone) {
-        this.email = EmailAddress.required(email);
+        this.email = EmailAddress.optional(email);
         this.name = PersonalName.required(name);
         this.phone = KoreanPhoneNumber.optional(phone);
     }

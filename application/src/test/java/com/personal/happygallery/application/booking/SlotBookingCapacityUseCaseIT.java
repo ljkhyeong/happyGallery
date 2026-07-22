@@ -138,6 +138,26 @@ class SlotBookingCapacityUseCaseIT {
         });
     }
 
+    @DisplayName("향후 슬롯 조회는 오늘부터 지정 기간 안의 예약 가능 슬롯만 반환한다")
+    @Test
+    void listUpcoming_returnsOnlyAvailableSlotsInsideRange() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        Slot withinRange = slotRepository.save(
+                slot(bookingClass, now.plusDays(1), now.plusDays(1).plusHours(2)));
+        Slot atRangeEnd = slotRepository.save(
+                slot(bookingClass, now.toLocalDate().plusDays(14).atStartOfDay(),
+                        now.toLocalDate().plusDays(14).atTime(2, 0)));
+
+        List<Long> availableSlotIds = slotQueryService.listUpcoming(bookingClass.getId(), 14).stream()
+                .map(Slot::getId)
+                .toList();
+
+        assertSoftly(softly -> {
+            softly.assertThat(availableSlotIds).contains(withinRange.getId());
+            softly.assertThat(availableSlotIds).doesNotContain(atRangeEnd.getId());
+        });
+    }
+
     @DisplayName("예약 확정 시 슬롯 시작 시각이 되면 잠금 후 검증에서 거절한다")
     @Test
     void reserveCapacity_rejectsSlotStartingNow() {

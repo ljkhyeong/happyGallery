@@ -18,5 +18,5 @@ export function LinkButton({
     size && `btn-${size}`,
   ].filter(Boolean).join(" ");
 
-  return <Link {...linkProps} role={linkProps.role ?? "button"} className={classes} />;
+  return <Link {...linkProps} className={classes} />;
 }

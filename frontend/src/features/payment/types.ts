@@ -28,7 +28,7 @@ export interface OrderPayload {
   verificationCode?: string | null;
   name?: string | null;
   items: OrderItemRef[];
-  cartCheckout?: boolean;
+  cartCheckout: boolean;
   madeToOrderConsent: boolean;
   madeToOrderConsentVersion: string | null;
   fulfillmentType: FulfillmentType;

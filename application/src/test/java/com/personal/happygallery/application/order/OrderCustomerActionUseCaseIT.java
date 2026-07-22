@@ -5,6 +5,7 @@ import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderCustomerActionUseCase;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase;
+import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.ProposeDelayCommand;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
@@ -131,7 +132,7 @@ class OrderCustomerActionUseCaseIT {
     void acceptDelay_transitionsToDelayRequested() {
         Order order = orderHelper.createMadeToOrderPaidOrder("지연 수락 상품", 120_000L).order();
         orderApprovalUseCase.approve(order.getId(), 1L);
-        orderProductionUseCase.proposeDelay(order.getId());
+        orderProductionUseCase.proposeDelay(new ProposeDelayCommand(order.getId(), 1L));
 
         var result = orderCustomerActionUseCase.respondToMemberDelay(
                 order.getId(), order.getUserId(), OrderDelayDecision.ACCEPT);
@@ -153,7 +154,7 @@ class OrderCustomerActionUseCaseIT {
     void rejectGuestDelay_cancelsAndRequestsRefund() {
         GuestOrderFixture fixture = createGuestMadeToOrder("지연 거절 상품", 150_000L);
         orderApprovalUseCase.approve(fixture.order().getId(), 1L);
-        orderProductionUseCase.proposeDelay(fixture.order().getId());
+        orderProductionUseCase.proposeDelay(new ProposeDelayCommand(fixture.order().getId(), 1L));
 
         var result = orderCustomerActionUseCase.respondToGuestDelay(
                 fixture.order().getId(), fixture.accessToken(), OrderDelayDecision.REJECT);

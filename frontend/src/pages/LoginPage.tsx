@@ -47,7 +47,7 @@ export function LoginPage() {
           <Card className="auth-hero-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5 d-flex flex-column">
               <Badge bg="light" text="dark" className="auth-kicker mb-3">
-                {claimIntent ? "Guest Claim Login" : "Member Login"}
+                {claimIntent ? "비회원 이력 가져오기" : "회원 로그인"}
               </Badge>
               <h2 className="mb-3">
                 {claimIntent
@@ -56,13 +56,13 @@ export function LoginPage() {
               </h2>
               <p className="text-muted-soft mb-4">
                 {claimIntent
-                  ? "로그인 후 `/my`로 이동하면 비회원 이력 가져오기 모달이 바로 열립니다."
-                  : "회원은 `/my`에서 주문, 예약, 8회권을 추가 인증 없이 바로 확인할 수 있습니다."}
+                  ? "로그인 후 내 정보에서 비회원 이력 가져오기를 바로 이어서 진행합니다."
+                  : "회원은 내 정보에서 주문, 예약, 8회권을 추가 인증 없이 바로 확인할 수 있습니다."}
               </p>
               <div className="auth-benefit-list mb-4">
                 <div className="auth-benefit-item">주문, 예약, 8회권을 한 화면에서 관리</div>
-                <div className="auth-benefit-item">같은 번호의 비회원 이력 claim</div>
-                <div className="auth-benefit-item">필요 시 `/guest/**` 조회 경로도 계속 사용 가능</div>
+                <div className="auth-benefit-item">같은 번호의 비회원 이력 가져오기</div>
+                <div className="auth-benefit-item">기존 비회원 주문과 예약도 계속 조회 가능</div>
               </div>
               <div className="d-flex flex-wrap gap-3 mt-auto small">
                 <Link to="/guest/orders" className="auth-inline-link">비회원 주문 조회</Link>
@@ -83,7 +83,7 @@ export function LoginPage() {
               )}
               {!claimIntent && (
                 <p className="text-muted-soft small mb-4">
-                  지금 로그인하면 최근 주문 상태, 예약 상세, 8회권 잔여 횟수를 `/my`에서 바로 이어서 볼 수 있습니다.
+                  지금 로그인하면 최근 주문 상태, 예약 상세, 8회권 잔여 횟수를 내 정보에서 바로 이어서 볼 수 있습니다.
                 </p>
               )}
               <Form onSubmit={handleSubmit}>

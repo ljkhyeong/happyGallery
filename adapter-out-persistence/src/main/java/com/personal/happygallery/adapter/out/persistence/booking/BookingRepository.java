@@ -4,12 +4,14 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
+import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -72,6 +74,28 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             ORDER BY b.slot.startAt DESC
             """)
     List<Booking> findByGuestIdWithDetails(@Param("guestId") Long guestId);
+
+    /** 운영자 수업 취소가 클래스·슬롯보다 먼저 잠글 8회권 ID를 PK 순으로 조회한다. */
+    @Override
+    @Query("""
+            SELECT DISTINCT b.passPurchase.id FROM Booking b
+            WHERE b.slot.id = :slotId
+              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
+              AND b.passPurchase IS NOT NULL
+            ORDER BY b.passPurchase.id
+            """)
+    List<Long> findBookedPassIdsBySlotId(@Param("slotId") Long slotId);
+
+    /** 운영자 수업 취소 대상 — 슬롯 잠금 뒤 최신 BOOKED 예약 행만 ID 순으로 잠금 조회한다. */
+    @Override
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT b FROM Booking b
+            WHERE b.slot.id = :slotId
+              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
+            ORDER BY b.id
+            """)
+    List<Booking> findBookedBySlotIdForUpdate(@Param("slotId") Long slotId);
 
     /** guest claim preview용 상한 조회. */
     @Query("""

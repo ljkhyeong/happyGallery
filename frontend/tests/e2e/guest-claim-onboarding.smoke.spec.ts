@@ -6,7 +6,6 @@ import {
   createAdminSlot,
   fetchClasses,
   findUniqueSlotStart,
-  formatTimeTokenForUi,
   installTossPaymentStub,
   makePhoneNumber,
   makeUniqueLabel,
@@ -46,9 +45,10 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
   await page.getByLabel("상품").selectOption(String(product.id));
   await page.getByLabel("수량").fill("1");
   await page.getByRole("button", { name: "추가" }).click();
+  await page.getByRole("button", { name: "매장 픽업" }).click();
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-  await page.getByRole("button", { name: "비회원 주문 확인하기" }).click();
+  await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
   const guestOrderState = await readRouterState<{ orderId: number; token: string }>(page);
   const orderId = guestOrderState?.orderId;
   if (!orderId) {
@@ -57,12 +57,12 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
 
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
-  await page.getByLabel("날짜").fill(slotDate);
-  await page.locator(".list-group-item").filter({ hasText: formatTimeTokenForUi(slot.startAt) }).first().click();
+  await page.getByLabel("날짜").selectOption(slotDate);
+  await page.locator(`[data-slot-id="${slot.id}"]`).click();
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await completeGuestAuthGate(page, guestPhone, guestName);
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-  await page.getByRole("button", { name: "비회원 예약 확인하기" }).click();
+  await page.getByRole("link", { name: "비회원 예약 확인하기" }).click();
   const guestBookingState = await readRouterState<{ bookingId: number; token: string }>(page);
   const bookingId = guestBookingState?.bookingId;
   if (!bookingId) {
@@ -105,13 +105,15 @@ test("P8-9 @identity 비회원 주문 결제 후 조회 화면에서 회원 전�
   await page.getByLabel("상품").selectOption(String(product.id));
   await page.getByLabel("수량").fill("1");
   await page.getByRole("button", { name: "추가" }).click();
+  await page.getByRole("button", { name: "매장 픽업" }).click();
   await page.getByRole("button", { name: "결제 진행하기" }).click();
 
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-  await page.getByRole("button", { name: "비회원 주문 확인하기" }).click();
+  await expect(page.getByRole("link", { name: "회원가입하고 이력 가져오기" })).toBeVisible();
+  await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
 
   await expect(page.getByRole("heading", { name: "비회원 주문 조회" })).toBeVisible();
   await expect(page.locator(".card").filter({ hasText: /주문 #\d+/ }).last()).toBeVisible();
-  await expect(page.getByRole("button", { name: "회원가입" })).toBeVisible();
-  await expect(page.getByText("비회원 주문은 토큰으로 조회하고")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("link", { name: "회원가입" })).toBeVisible();
+  await expect(page.getByText("비회원 주문은 조회 코드로 확인하고")).toBeVisible();
 });

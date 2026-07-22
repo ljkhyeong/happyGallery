@@ -30,9 +30,9 @@ class SocialAuthUseCaseIT {
         cleanupSupport.clearUsers();
     }
 
-    @DisplayName("네이버 계정은 처음 로그인할 때 가입되고 이후 같은 계정으로 로그인된다")
+    @DisplayName("네이버 신규 계정은 프로필 이메일을 저장하지 않고 제공자 ID로 다시 로그인한다")
     @Test
-    void logsInWithExistingNaverAccount() {
+    void doesNotPersistNaverProfileEmail() {
         var firstLogin = socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.NAVER,
                 "naver-account-id",
@@ -41,7 +41,7 @@ class SocialAuthUseCaseIT {
         var secondLogin = socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.NAVER,
                 "naver-account-id",
-                "social-test@example.com",
+                "changed-profile@example.com",
                 "테스트 네이버 사용자"));
         var storedSocialAccount = socialAccountRepository.findAll().getFirst();
 
@@ -49,6 +49,9 @@ class SocialAuthUseCaseIT {
             softly.assertThat(firstLogin.newUser()).isTrue();
             softly.assertThat(secondLogin.newUser()).isFalse();
             softly.assertThat(secondLogin.user().getId()).isEqualTo(firstLogin.user().getId());
+            softly.assertThat(firstLogin.user().getEmail()).isNull();
+            softly.assertThat(firstLogin.user().getEmailEnc()).isNull();
+            softly.assertThat(firstLogin.user().getEmailHmac()).isNull();
             softly.assertThat(socialAccountRepository.count()).isEqualTo(1);
             softly.assertThat(storedSocialAccount.getProviderIdEnc())
                     .isNotBlank()
@@ -56,20 +59,20 @@ class SocialAuthUseCaseIT {
         });
     }
 
-    @DisplayName("소셜 이메일이 기존 회원과 같으면 제공자와 관계없이 자동 연결하지 않는다")
+    @DisplayName("검증된 Google 이메일이 기존 회원과 같으면 자동 연결하지 않는다")
     @Test
     void rejectsSocialAccountAutoLinkByEmail() {
         socialAuth.socialLogin(new SocialLoginCommand(
-                SocialProvider.NAVER,
-                "naver-account-id",
-                "social-test@example.com",
-                "테스트 네이버 사용자"));
-
-        assertThatThrownBy(() -> socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.GOOGLE,
                 "google-account-id",
                 "social-test@example.com",
-                "테스트 구글 사용자")))
+                "테스트 구글 사용자"));
+
+        assertThatThrownBy(() -> socialAuth.socialLogin(new SocialLoginCommand(
+                SocialProvider.GOOGLE,
+                "another-google-account-id",
+                "social-test@example.com",
+                "다른 구글 사용자")))
                 .isInstanceOf(HappyGalleryException.class)
                 .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);

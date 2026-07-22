@@ -55,11 +55,12 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
 
     private int rotateUsers() {
         return rotatePages((afterId, limit) -> dataPort.findUsersAfterId(afterId, limit), row -> {
-            String email = fieldEncryptor.decrypt(row.emailEnc());
+            String email = decryptNullable(row.emailEnc());
             String name = fieldEncryptor.decrypt(row.nameEnc());
             String phone = decryptNullable(row.phoneEnc());
             dataPort.updateUser(new UserRotatedRow(
-                    row.id(), fieldEncryptor.encrypt(email), blindIndexKeyRing.index(email),
+                    row.id(), encryptNullable(email),
+                    email == null ? null : blindIndexKeyRing.index(email),
                     fieldEncryptor.encrypt(name), blindIndexKeyRing.index(name),
                     phone == null ? null : fieldEncryptor.encrypt(phone),
                     phone == null ? null : blindIndexKeyRing.index(phone)));

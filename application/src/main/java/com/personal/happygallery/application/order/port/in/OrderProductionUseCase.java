@@ -13,6 +13,10 @@ import java.time.LocalDate;
  */
 public interface OrderProductionUseCase {
 
+    record SetExpectedShipDateCommand(Long orderId, LocalDate expectedShipDate, Long adminId) {}
+
+    record ProposeDelayCommand(Long orderId, Long adminId) {}
+
     record ProductionResult(Long orderId, OrderStatus status, LocalDate expectedShipDate) {
         public static ProductionResult of(Order order, Fulfillment fulfillment) {
             return new ProductionResult(order.getId(), order.getStatus(), fulfillment.getExpectedShipDate());
@@ -21,9 +25,9 @@ public interface OrderProductionUseCase {
 
     record DelayCancellationResult(ProductionResult production, Refund refund) {}
 
-    ProductionResult setExpectedShipDate(Long orderId, LocalDate expectedShipDate);
+    ProductionResult setExpectedShipDate(SetExpectedShipDateCommand command);
 
-    ProductionResult proposeDelay(Long orderId);
+    ProductionResult proposeDelay(ProposeDelayCommand command);
 
     DelayCancellationResult cancelForDelayRejection(Long orderId, Long adminId);
 

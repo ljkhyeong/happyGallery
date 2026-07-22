@@ -5,11 +5,13 @@ import { useMutation } from "@tanstack/react-query";
 import { createInquiry } from "@/features/my-inquiry/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 
 export function MyInquiryCreatePage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const loginHref = buildAuthPageHref("/login", { redirectTo: "/my/inquiries/new" });
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -31,7 +33,7 @@ export function MyInquiryCreatePage() {
       <Container className="page-container">
         <Card className="text-center p-4">
           <p>로그인이 필요합니다.</p>
-          <Link to="/login?redirectTo=/my/inquiries/new">로그인</Link>
+          <Link to={loginHref}>로그인</Link>
         </Card>
       </Container>
     );

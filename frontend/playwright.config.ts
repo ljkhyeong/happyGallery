@@ -24,6 +24,10 @@ export default defineConfig({
     ? undefined
     : {
         command: `npm run dev -- --host 127.0.0.1 --port ${frontendPort}`,
+        env: {
+          ...process.env,
+          VITE_TOSS_CLIENT_KEY: process.env.VITE_TOSS_CLIENT_KEY ?? "test_ck_e2e",
+        },
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         stdout: "ignore",

@@ -5,6 +5,8 @@ import com.personal.happygallery.adapter.in.web.admin.dto.OrderDelayCancellation
 import com.personal.happygallery.adapter.in.web.admin.dto.SetExpectedShipDateRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase;
+import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.ProposeDelayCommand;
+import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.SetExpectedShipDateCommand;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -44,16 +46,20 @@ public class AdminOrderProductionController {
     /** PATCH /api/v1/admin/orders/{id}/expected-ship-date — 예상 출고일 설정/갱신 */
     @PatchMapping("/{id}/expected-ship-date")
     public OrderProductionResponse setExpectedShipDate(@PathVariable Long id,
-                                                       @RequestBody SetExpectedShipDateRequest request) {
+                                                       @RequestBody SetExpectedShipDateRequest request,
+                                                       @AuthenticationPrincipal AdminPrincipal admin) {
         OrderProductionUseCase.ProductionResult result =
-                orderProductionUseCase.setExpectedShipDate(id, request.expectedShipDate());
+                orderProductionUseCase.setExpectedShipDate(new SetExpectedShipDateCommand(
+                        id, request.expectedShipDate(), admin.adminUserId()));
         return OrderProductionResponse.from(result);
     }
 
     /** POST /api/v1/admin/orders/{id}/delay — 제작 지연을 제안하고 고객 응답 대기 */
     @PostMapping("/{id}/delay")
-    public OrderProductionResponse proposeDelay(@PathVariable Long id) {
-        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.proposeDelay(id);
+    public OrderProductionResponse proposeDelay(@PathVariable Long id,
+                                                @AuthenticationPrincipal AdminPrincipal admin) {
+        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.proposeDelay(
+                new ProposeDelayCommand(id, admin.adminUserId()));
         return OrderProductionResponse.from(result);
     }
 

@@ -79,11 +79,12 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
     }
 
     private void protect(User user) {
-        String email = EmailAddress.required(user.getEmail());
+        String email = EmailAddress.optional(user.getEmail());
         String name = PersonalName.required(user.getName());
         String phone = user.getPhone();
         user.protect(
-                fieldEncryptor.encrypt(email), blindIndexer.index(email),
+                email == null ? null : fieldEncryptor.encrypt(email),
+                email == null ? null : blindIndexer.index(email),
                 fieldEncryptor.encrypt(name), blindIndexer.index(name),
                 phone == null ? null : fieldEncryptor.encrypt(phone),
                 phone == null ? null : blindIndexer.index(phone));
@@ -91,7 +92,7 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
 
     private User restore(User user) {
         user.restoreProtectedFields(
-                fieldEncryptor.decrypt(user.getEmailEnc()),
+                user.getEmailEnc() == null ? null : fieldEncryptor.decrypt(user.getEmailEnc()),
                 fieldEncryptor.decrypt(user.getNameEnc()),
                 user.getPhoneEnc() == null ? null : fieldEncryptor.decrypt(user.getPhoneEnc()));
         return user;
