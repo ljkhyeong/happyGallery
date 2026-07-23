@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
@@ -144,7 +145,9 @@ class ResilientNotificationSenderTest {
                                                       CircuitBreaker circuitBreaker,
                                                       NotificationResilienceConfig config,
                                                       NotificationResilienceProperties properties) {
-        timeoutExecutor = config.notificationTimeoutExecutor(properties, meterRegistry);
+        timeoutExecutor = config.notificationTimeoutExecutor(
+                properties,
+                new BoundedExecutorFactory(meterRegistry));
         return new ResilientNotificationSender(
                 delegate,
                 circuitBreaker,

@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.http.HttpPoolProperties;
+import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -8,15 +9,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import java.time.Duration;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -61,31 +55,15 @@ class NotificationResilienceConfig {
 
     @Bean(destroyMethod = "shutdown")
     ExecutorService notificationTimeoutExecutor(NotificationResilienceProperties properties,
-                                                MeterRegistry meterRegistry) {
+                                                BoundedExecutorFactory executorFactory) {
         NotificationResilienceProperties.ThreadPool threadPool = properties.threadPool();
-        Counter rejectedCounter = Counter.builder("happygallery.notification.executor.rejected")
-                .description("Notification timeout executor rejected task count")
-                .register(meterRegistry);
-        RejectedExecutionHandler abortPolicy = new ThreadPoolExecutor.AbortPolicy();
-        RejectedExecutionHandler countingAbortPolicy = (task, rejectedExecutor) -> {
-            rejectedCounter.increment();
-            abortPolicy.rejectedExecution(task, rejectedExecutor);
-        };
-        ThreadPoolExecutor rawExecutor = new ThreadPoolExecutor(
+        return executorFactory.create(
                 threadPool.poolSize(),
-                threadPool.poolSize(),
-                0L,
-                TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(threadPool.queueCapacity()),
-                Thread.ofPlatform()
-                        .name("notification-timeout-", 1)
-                        .daemon(true)
-                        .factory(),
-                countingAbortPolicy);
-        return ExecutorServiceMetrics.monitor(
-                meterRegistry,
-                rawExecutor,
-                "notificationTimeoutExecutor");
+                threadPool.queueCapacity(),
+                "notification-timeout-",
+                "notificationTimeoutExecutor",
+                "happygallery.notification.executor.rejected",
+                "Notification timeout executor rejected task count");
     }
 
     @Bean

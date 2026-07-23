@@ -83,9 +83,17 @@
 
 ### 4. 외부 호출 timeout용 `ExecutorService`는 제한 큐와 빠른 정리를 사용한다
 
-`PaymentResilienceConfig`와 `NotificationResilienceConfig`는 각각 PG와 알림 채널 timeout executor를 Spring 빈으로 생성한다.
-두 실행기는 고정 크기 `ArrayBlockingQueue`와 `AbortPolicy`를 사용해 대기 작업 수에 상한을 두고,
-큐 포화는 호출 스레드에서 실행하지 않고 즉시 재시도 가능한 실패 또는 채널 실패로 반환한다.
+`BoundedExecutorFactory`는 PG와 알림 채널 timeout executor에 공통으로 필요한 생성 정책을 소유한다.
+
+- core/max pool 크기가 같은 고정 thread pool
+- 고정 크기 `ArrayBlockingQueue`
+- daemon platform thread
+- 거절 횟수 counter와 Micrometer executor monitor 등록
+- 큐 포화 시 호출 스레드에서 실행하지 않는 `AbortPolicy`
+
+`PaymentResilienceConfig`와 `NotificationResilienceConfig`는 pool·queue 크기, thread/metric 이름과
+각 executor의 Spring 빈 수명주기를 결정한다. 큐 포화는 즉시 재시도 가능한 결제 실패 또는
+알림 채널 실패로 반환한다.
 
 결제의 `PaymentTimeoutExecutor.close()`는 빈 종료 시 다음 순서로 실행기를 정리한다.
 
@@ -130,12 +138,14 @@ timeout executor는 업무 후처리용 `notificationExecutor`와 다르게, 진
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/ResilientPaymentProvider.java`
   - 주입받은 보호 자원으로 PG 호출 실행과 결과 표준화
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentResilienceConfig.java`
-  - 제한 큐와 즉시 거절 정책을 적용한 executor 빈 생성
+  - 결제 executor 설정과 빈 수명주기 구성
   - CircuitBreaker, TimeLimiter, executor와 제공자 빈 조립
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentTimeoutExecutor.java`
   - Spring 빈 종료 시 2초 대기 후 강제 종료하는 수명주기 구현
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/notification/NotificationResilienceConfig.java`
-  - 알림 채널 timeout executor에 제한 큐·즉시 거절·큐/거절 메트릭 적용
+  - 알림 executor 설정과 Spring `shutdown` 수명주기 구성
+- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/resilience/BoundedExecutorFactory.java`
+  - timeout executor의 제한 큐·daemon thread·즉시 거절·큐/거절 메트릭 생성 정책 공용화
 
 ---
 
@@ -173,3 +183,4 @@ timeout executor는 업무 후처리용 `notificationExecutor`와 다르게, 진
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentResilienceConfig.java`
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentTimeoutExecutor.java`
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/ResilientPaymentProvider.java`
+- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/resilience/BoundedExecutorFactory.java`

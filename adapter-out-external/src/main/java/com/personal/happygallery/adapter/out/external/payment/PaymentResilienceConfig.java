@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
+import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
@@ -9,15 +10,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import java.time.Duration;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -52,32 +46,16 @@ class PaymentResilienceConfig {
 
     @Bean(destroyMethod = "close")
     PaymentTimeoutExecutor paymentTimeoutExecutor(ExternalPaymentProperties properties,
-                                                   MeterRegistry meterRegistry) {
+                                                   BoundedExecutorFactory executorFactory) {
         ExternalPaymentProperties.ThreadPool threadPool = properties.threadPool();
-        Counter rejectedCounter = Counter.builder("happygallery.payment.executor.rejected")
-                .description("PG timeout executor rejected task count")
-                .register(meterRegistry);
-        RejectedExecutionHandler abortPolicy = new ThreadPoolExecutor.AbortPolicy();
-        RejectedExecutionHandler countingAbortPolicy = (task, rejectedExecutor) -> {
-            rejectedCounter.increment();
-            abortPolicy.rejectedExecution(task, rejectedExecutor);
-        };
-        ThreadPoolExecutor rawExecutor = new ThreadPoolExecutor(
+        ExecutorService executor = executorFactory.create(
                 threadPool.poolSize(),
-                threadPool.poolSize(),
-                0L,
-                TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(threadPool.queueCapacity()),
-                Thread.ofPlatform()
-                        .name("payment-timeout-", 1)
-                        .daemon(true)
-                        .factory(),
-                countingAbortPolicy);
-        ExecutorService monitoredExecutor = ExecutorServiceMetrics.monitor(
-                meterRegistry,
-                rawExecutor,
-                "paymentTimeoutExecutor");
-        return new PaymentTimeoutExecutor(monitoredExecutor);
+                threadPool.queueCapacity(),
+                "payment-timeout-",
+                "paymentTimeoutExecutor",
+                "happygallery.payment.executor.rejected",
+                "PG timeout executor rejected task count");
+        return new PaymentTimeoutExecutor(executor);
     }
 
     @Bean

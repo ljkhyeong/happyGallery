@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
+import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
@@ -235,7 +236,9 @@ class ResilientPaymentProviderTest {
     private ResilientPaymentProvider createProvider(PaymentProvider delegate,
                                                     ExternalPaymentProperties properties) {
         PaymentResilienceConfig config = new PaymentResilienceConfig();
-        timeoutExecutor = config.paymentTimeoutExecutor(properties, meterRegistry);
+        timeoutExecutor = config.paymentTimeoutExecutor(
+                properties,
+                new BoundedExecutorFactory(meterRegistry));
         return config.resilientPaymentProvider(
                 delegate,
                 config.paymentCircuitBreaker(properties, CircuitBreakerRegistry.ofDefaults()),
