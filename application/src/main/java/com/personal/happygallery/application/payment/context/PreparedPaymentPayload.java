@@ -1,0 +1,117 @@
+package com.personal.happygallery.application.payment.context;
+
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.MadeToOrderConsent;
+import com.personal.happygallery.domain.order.ShippingAddress;
+import java.util.List;
+
+/**
+ * prepare에서 서버가 확정해 결제 시도에 암호화 저장하는 내부 스냅샷.
+ *
+ * <p>Jackson subtype 이름은 기존 저장 JSON과의 호환을 위해 변경하지 않는다.
+ */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+        @JsonSubTypes.Type(
+                value = PreparedPaymentPayload.PreparedOrderPayload.class,
+                name = "PREPARED_ORDER"),
+        @JsonSubTypes.Type(
+                value = PreparedPaymentPayload.PreparedBookingPayload.class,
+                name = "PREPARED_BOOKING"),
+        @JsonSubTypes.Type(
+                value = PreparedPaymentPayload.PreparedPassPayload.class,
+                name = "PREPARED_PASS")
+})
+public sealed interface PreparedPaymentPayload {
+
+    /** prepare 당시 결제 주체. 비회원이면 null이다. */
+    Long userId();
+
+    record PreparedOrderPayload(
+            Long userId,
+            String phone,
+            String guestVerificationProof,
+            String name,
+            List<PreparedOrderItem> items,
+            boolean cartCheckout,
+            FulfillmentType fulfillmentType,
+            ShippingAddress shippingAddress,
+            long shippingFee,
+            MadeToOrderConsent madeToOrderConsent
+    ) implements PreparedPaymentPayload {
+
+        public PreparedOrderPayload {
+            requireFulfillment(fulfillmentType, shippingAddress);
+            if (shippingFee < 0L || (fulfillmentType == FulfillmentType.PICKUP && shippingFee != 0L)) {
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수령 방법과 배송비가 일치하지 않습니다.");
+            }
+        }
+
+        public PreparedOrderPayload(Long userId,
+                                    String phone,
+                                    String guestVerificationProof,
+                                    String name,
+                                    List<PreparedOrderItem> items) {
+            this(userId, phone, guestVerificationProof, name, items,
+                    false, FulfillmentType.PICKUP, null, 0L);
+        }
+
+        public PreparedOrderPayload(Long userId,
+                                    String phone,
+                                    String guestVerificationProof,
+                                    String name,
+                                    List<PreparedOrderItem> items,
+                                    boolean cartCheckout,
+                                    FulfillmentType fulfillmentType,
+                                    ShippingAddress shippingAddress,
+                                    long shippingFee) {
+            this(userId, phone, guestVerificationProof, name, items, cartCheckout,
+                    fulfillmentType, shippingAddress, shippingFee, null);
+        }
+    }
+
+    record PreparedOrderItem(
+            Long cartItemId,
+            Long productId,
+            String productName,
+            int qty,
+            long unitPrice
+    ) {
+
+        public PreparedOrderItem(Long productId, String productName, int qty, long unitPrice) {
+            this(null, productId, productName, qty, unitPrice);
+        }
+    }
+
+    record PreparedBookingPayload(
+            Long userId,
+            String phone,
+            String guestVerificationProof,
+            String name,
+            Long slotId,
+            Long passId,
+            DepositPaymentMethod paymentMethod,
+            long depositAmount,
+            long balanceAmount
+    ) implements PreparedPaymentPayload {}
+
+    record PreparedPassPayload(Long userId, long totalPrice) implements PreparedPaymentPayload {}
+
+    private static void requireFulfillment(
+            FulfillmentType fulfillmentType, ShippingAddress shippingAddress) {
+        if (fulfillmentType == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수령 방법을 선택해 주세요.");
+        }
+        if (fulfillmentType == FulfillmentType.SHIPPING && shippingAddress == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "배송지는 필수입니다.");
+        }
+        if (fulfillmentType == FulfillmentType.PICKUP && shippingAddress != null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "픽업 주문에는 배송지를 입력할 수 없습니다.");
+        }
+    }
+}

@@ -2,10 +2,10 @@ package com.personal.happygallery.application.payment.context.pass;
 
 import com.personal.happygallery.application.pass.PassPriceProperties;
 import com.personal.happygallery.application.payment.context.PaymentPreparer;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedPassPayload;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedPassPayload;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentContext;

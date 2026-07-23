@@ -63,7 +63,7 @@ confirm 선점 조회에는 비관적 쓰기 잠금을 사용한다. `PROCESSING
 
 `resolveConfirmationStep()`은 nullable 값과 boolean 조합 대신 `Completed`, `ReadyForFulfillment`,
 `PgConfirmationRequired`, `ZeroAmountApprovalRequired` 중 하나를 반환한다. 이 단계 결정 시
-`PaymentPayload.userId()`와 현재 `AuthContext.userId()`를 공통 비교한다. 각
+저장 전용 `PreparedPaymentPayload.userId()`와 현재 `AuthContext.userId()`를 공통 비교한다. 각
 `PaymentFulfiller.validateStoredPayload()`는 컨텍스트별 저장 payload 불변식을 검증하고, 주문·예약·8회권은 저장된
 가격 스냅샷과 `PaymentAttempt.amount`까지 비교한다. fulfillment는
 현재 인증 정보를 다시 받지 않고 검증된 저장 payload의 `userId`를 사용한다. 비회원 주문·예약은
@@ -77,6 +77,10 @@ HMAC 서명한 증거만 서버 확정 payload에 저장한다. fulfillment의 `
 
 - 공개 입력인 `OrderPayload`에는 `productId`, `qty`와 고객이 선택한 수령 방식, 배송 주문의 구조화된 배송지를 받는다.
 - `OrderPreparer`는 동일 상품 요청을 먼저 합산해 상품별 1~99개 제한을 적용하고, `ACTIVE` 상품을 ID 목록으로 한 번에 조회한다. 서버 상품가·수령 방식·배송지 스냅샷을 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만들며, 상품가와 총액은 웹 안전 정수 상한을 넘지 않게 한다.
+- 공개 prepare 입력은 `PaymentPayload`의 `ORDER/BOOKING/PASS`만 허용한다. 서버 확정 스냅샷은 별도
+  `PreparedPaymentPayload`의 `PREPARED_ORDER/PREPARED_BOOKING/PREPARED_PASS`로 분리한다. 내부 스냅샷은
+  HTTP schema에 노출하지 않고, 공개 요청 타입은 fulfiller 계약에 전달하지 않는다. 저장 JSON의 기존 subtype
+  이름은 유지해 암호화된 레코드와 키 회전 호환성을 보존한다.
 - 내부용 payload는 AES-GCM으로 암호화해 `payment_attempt.payload_enc`에 저장하고, confirm 단계 결정과 fulfillment에서만 복호화한다. 비회원 공개 입력의 인증 코드 원문은 저장하지 않고 결제 귀속 HMAC 증거로 교체한다. V46은 기존 평문 JSON도 암호문으로 전환한다.
 - confirm 단계 결정에서 항목 단가 합계와 `payment_attempt.amount`를 대조한 뒤 PG를 호출한다.
 - `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 단가로 `OrderItemRequest`를 만들며, 주문과 선택된 fulfillment를 같은 트랜잭션에 저장한다. 배송지는 별도 AES-GCM 암호문으로 `fulfillments.shipping_address_enc`에 보존한다.
@@ -207,7 +211,7 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 - `DefaultPaymentAttemptExpiryBatchService`, `PaymentAttemptExpiryProcessor`
 - `DefaultPaymentReconciliationAdminService`, `PaymentReconciliationTransactionService`
 - `PaymentPreparer`, `PaymentFulfiller`, `OrderPreparer`, `OrderFulfiller`, `BookingFulfiller`, `PassFulfiller`
-- `PaymentPayload.PreparedOrderPayload`, `PreparedBookingPayload`, `PreparedPassPayload`
+- `PaymentPayload`, `PreparedPaymentPayload`
 - `ProductReaderPort`, `ProductRepository`, `CartUseCase`
 - `PaymentAttempt`, `PaymentAttemptStatus`
 - `DefaultPaymentStatusQueryService`, `PaymentStatusQueryUseCase`, `PaymentQueryController`

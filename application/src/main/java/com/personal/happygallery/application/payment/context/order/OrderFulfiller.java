@@ -7,8 +7,9 @@ import com.personal.happygallery.application.order.OrderService;
 import com.personal.happygallery.application.order.OrderService.OrderCreationResult;
 import com.personal.happygallery.application.order.OrderService.OrderItemRequest;
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedOrderPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -42,13 +43,13 @@ public class OrderFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    public void validateStoredPayload(PaymentAttempt attempt, PaymentPayload payload) {
+    public void validateStoredPayload(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         if (!(payload instanceof PreparedOrderPayload op)) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "주문 단가 정보가 없습니다. 결제를 다시 준비해 주세요.");
         }
         long preparedAmount = 0L;
-        for (PaymentPayload.PreparedOrderItem item : op.items()) {
+        for (PreparedOrderItem item : op.items()) {
             if (item.productName() == null || item.productName().isBlank()) {
                 throw new HappyGalleryException(
                         ErrorCode.INVALID_INPUT, "주문 상품명 정보가 없습니다. 결제를 다시 준비해 주세요.");
@@ -64,7 +65,7 @@ public class OrderFulfiller implements PaymentFulfiller {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload) {
+    public FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         PreparedOrderPayload op = (PreparedOrderPayload) payload;
         List<OrderItemRequest> orderItems = op.items().stream()
                 .map(item -> new OrderItemRequest(

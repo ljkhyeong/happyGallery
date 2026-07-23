@@ -1,8 +1,8 @@
 package com.personal.happygallery.application.payment;
 
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmResult;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -206,7 +206,7 @@ class PaymentConfirmClaimTransactionService {
             }
             throw new HappyGalleryException(ErrorCode.PAYMENT_RESULT_RETENTION_EXPIRED);
         }
-        PaymentPayload payload = attemptResolver.readPayload(attempt);
+        PreparedPaymentPayload payload = attemptResolver.readPayload(attempt);
         attemptResolver.validateStoredPayload(attempt, payload);
         requireSameActor(payload, command);
     }
@@ -217,7 +217,7 @@ class PaymentConfirmClaimTransactionService {
         }
     }
 
-    private void requireSameActor(PaymentPayload payload, ConfirmCommand command) {
+    private void requireSameActor(PreparedPaymentPayload payload, ConfirmCommand command) {
         if (!Objects.equals(payload.userId(), command.auth().userId())) {
             if (!command.trustedInternalRecovery()) {
                 throw new NotFoundException("결제");

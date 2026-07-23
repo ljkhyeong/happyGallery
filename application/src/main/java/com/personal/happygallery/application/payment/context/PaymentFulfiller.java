@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.payment.context;
 
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentContext;
 
@@ -16,16 +15,16 @@ public interface PaymentFulfiller {
     PaymentContext context();
 
     /** PG 호출 전에 저장 payload의 컨텍스트별 불변식을 검증한다. */
-    void validateStoredPayload(PaymentAttempt attempt, PaymentPayload payload);
+    void validateStoredPayload(PaymentAttempt attempt, PreparedPaymentPayload payload);
 
     /**
      * payload를 도메인 저장으로 풀어낸다.
      *
      * @param attempt 이번 결제 시도. proof 귀속 확인과 원결제 키 기록에 사용한다.
-     * @param payload 역직렬화된 prepare payload
+     * @param payload 역직렬화된 서버 확정 스냅샷
      * @return 생성된 도메인 ID + 비회원 access token (있으면)
      */
-    FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload);
+    FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload);
 
     record FulfillResult(Long domainId, String rawAccessToken) {}
 }

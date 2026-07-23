@@ -1,8 +1,8 @@
 package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmResult;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -38,16 +38,16 @@ class PaymentConfirmAttemptResolver {
         this.accessTokenResolver = accessTokenResolver;
     }
 
-    PaymentPayload readPayload(PaymentAttempt attempt) {
+    PreparedPaymentPayload readPayload(PaymentAttempt attempt) {
         String json = fieldEncryptor.decrypt(attempt.getPayloadEnc());
-        return objectMapper.readValue(json, PaymentPayload.class);
+        return objectMapper.readValue(json, PreparedPaymentPayload.class);
     }
 
-    void validateStoredPayload(PaymentAttempt attempt, PaymentPayload payload) {
+    void validateStoredPayload(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         fulfiller(attempt.getContext()).validateStoredPayload(attempt, payload);
     }
 
-    PaymentFulfiller.FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload) {
+    PaymentFulfiller.FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         return fulfiller(attempt.getContext()).fulfill(attempt, payload);
     }
 

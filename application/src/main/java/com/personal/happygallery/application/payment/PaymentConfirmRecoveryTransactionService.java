@@ -1,8 +1,8 @@
 package com.personal.happygallery.application.payment;
 
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -62,7 +62,7 @@ class PaymentConfirmRecoveryTransactionService {
         }
         attemptStore.save(attempt);
         try {
-            PaymentPayload payload = attemptResolver.readPayload(attempt);
+            PreparedPaymentPayload payload = attemptResolver.readPayload(attempt);
             AuthContext auth = payload.userId() == null
                     ? AuthContext.guest()
                     : AuthContext.member(payload.userId());

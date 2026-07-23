@@ -26,5 +26,5 @@ public interface PaymentPreparer {
      */
     PreparedPayment prepare(String paymentOrderId, PaymentPayload payload, AuthContext auth);
 
-    record PreparedPayment(long amount, PaymentPayload payload) {}
+    record PreparedPayment(long amount, PreparedPaymentPayload payload) {}
 }

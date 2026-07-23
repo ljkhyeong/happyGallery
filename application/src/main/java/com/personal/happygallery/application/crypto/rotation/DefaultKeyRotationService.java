@@ -8,9 +8,9 @@ import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.PaymentAttemptRotatedRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.SocialAccountRotatedRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.UserRotatedRow;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedBookingPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedOrderPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedBookingPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import org.springframework.stereotype.Service;
@@ -99,7 +99,8 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
         if (payloadJson == null) {
             return ownerPhoneHmac;
         }
-        PaymentPayload payload = objectMapper.readValue(payloadJson, PaymentPayload.class);
+        PreparedPaymentPayload payload =
+                objectMapper.readValue(payloadJson, PreparedPaymentPayload.class);
         String phone = switch (payload) {
             case PreparedOrderPayload order -> order.phone();
             case PreparedBookingPayload booking -> booking.phone();

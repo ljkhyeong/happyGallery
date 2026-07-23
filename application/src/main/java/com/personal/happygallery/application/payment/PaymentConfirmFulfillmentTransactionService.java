@@ -1,8 +1,8 @@
 package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmResult;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
@@ -52,7 +52,7 @@ class PaymentConfirmFulfillmentTransactionService {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
                     "승인된 결제만 도메인 생성에 사용할 수 있습니다.");
         }
-        PaymentPayload payload = attemptResolver.readPayload(attempt);
+        PreparedPaymentPayload payload = attemptResolver.readPayload(attempt);
         PaymentFulfiller.FulfillResult fulfilled = attemptResolver.fulfill(attempt, payload);
         String accessTokenEnc = fulfilled.rawAccessToken() == null
                 ? null

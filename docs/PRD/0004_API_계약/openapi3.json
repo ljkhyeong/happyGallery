@@ -1670,21 +1670,6 @@
         },
         "type" : "object"
       },
-      "MadeToOrderConsent" : {
-        "properties" : {
-          "agreedAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "disclosure" : {
-            "type" : "string"
-          },
-          "version" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
       "MarkPickupReadyRequest" : {
         "properties" : {
           "pickupDeadlineAt" : {
@@ -2544,12 +2529,6 @@
               "$ref" : "#/components/schemas/OrderPayload"
             }, {
               "$ref" : "#/components/schemas/PassPayload"
-            }, {
-              "$ref" : "#/components/schemas/PreparedBookingPayload"
-            }, {
-              "$ref" : "#/components/schemas/PreparedOrderPayload"
-            }, {
-              "$ref" : "#/components/schemas/PreparedPassPayload"
             } ]
           }
         },
@@ -2575,134 +2554,6 @@
         },
         "required" : [ "amount", "context", "orderId", "statusToken" ],
         "type" : "object"
-      },
-      "PreparedBookingPayload" : {
-        "allOf" : [ {
-          "$ref" : "#/components/schemas/PaymentPayload"
-        }, {
-          "properties" : {
-            "balanceAmount" : {
-              "format" : "int64",
-              "type" : "integer"
-            },
-            "depositAmount" : {
-              "format" : "int64",
-              "type" : "integer"
-            },
-            "guestVerificationProof" : {
-              "type" : "string"
-            },
-            "name" : {
-              "type" : "string"
-            },
-            "passId" : {
-              "format" : "int64",
-              "type" : "integer"
-            },
-            "paymentMethod" : {
-              "enum" : [ "CARD", "EASY_PAY", "BANK_TRANSFER" ],
-              "type" : "string"
-            },
-            "phone" : {
-              "type" : "string"
-            },
-            "slotId" : {
-              "format" : "int64",
-              "type" : "integer"
-            },
-            "userId" : {
-              "format" : "int64",
-              "type" : "integer"
-            }
-          },
-          "type" : "object"
-        } ]
-      },
-      "PreparedOrderItem" : {
-        "properties" : {
-          "cartItemId" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "productId" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "productName" : {
-            "type" : "string"
-          },
-          "qty" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "unitPrice" : {
-            "format" : "int64",
-            "type" : "integer"
-          }
-        },
-        "type" : "object"
-      },
-      "PreparedOrderPayload" : {
-        "allOf" : [ {
-          "$ref" : "#/components/schemas/PaymentPayload"
-        }, {
-          "properties" : {
-            "cartCheckout" : {
-              "type" : "boolean"
-            },
-            "fulfillmentType" : {
-              "enum" : [ "SHIPPING", "PICKUP" ],
-              "type" : "string"
-            },
-            "guestVerificationProof" : {
-              "type" : "string"
-            },
-            "items" : {
-              "items" : {
-                "$ref" : "#/components/schemas/PreparedOrderItem"
-              },
-              "type" : "array"
-            },
-            "madeToOrderConsent" : {
-              "$ref" : "#/components/schemas/MadeToOrderConsent"
-            },
-            "name" : {
-              "type" : "string"
-            },
-            "phone" : {
-              "type" : "string"
-            },
-            "shippingAddress" : {
-              "$ref" : "#/components/schemas/ShippingAddress"
-            },
-            "shippingFee" : {
-              "format" : "int64",
-              "type" : "integer"
-            },
-            "userId" : {
-              "format" : "int64",
-              "type" : "integer"
-            }
-          },
-          "type" : "object"
-        } ]
-      },
-      "PreparedPassPayload" : {
-        "allOf" : [ {
-          "$ref" : "#/components/schemas/PaymentPayload"
-        }, {
-          "properties" : {
-            "totalPrice" : {
-              "format" : "int64",
-              "type" : "integer"
-            },
-            "userId" : {
-              "format" : "int64",
-              "type" : "integer"
-            }
-          },
-          "type" : "object"
-        } ]
       },
       "ProductDetailResponse" : {
         "properties" : {

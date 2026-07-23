@@ -2,8 +2,8 @@ package com.personal.happygallery.application.payment.context.pass;
 
 import com.personal.happygallery.application.pass.port.in.PassPurchaseUseCase;
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedPassPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedPassPayload;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -28,7 +28,7 @@ public class PassFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    public void validateStoredPayload(PaymentAttempt attempt, PaymentPayload payload) {
+    public void validateStoredPayload(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         if (!(payload instanceof PreparedPassPayload pp)) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "8회권 금액 정보가 없습니다. 결제를 다시 준비해 주세요.");
@@ -40,7 +40,7 @@ public class PassFulfiller implements PaymentFulfiller {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload) {
+    public FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         PreparedPassPayload pp = (PreparedPassPayload) payload;
         PassPurchase purchase = passPurchaseUseCase.purchaseForMember(pp.userId(), pp.totalPrice());
         purchase.recordPaymentKey(attempt.getConfirmedPaymentKey());

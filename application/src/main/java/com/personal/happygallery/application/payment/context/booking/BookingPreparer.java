@@ -3,10 +3,10 @@ package com.personal.happygallery.application.payment.context.booking;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.application.payment.GuestPaymentVerificationService;
 import com.personal.happygallery.application.payment.context.PaymentPreparer;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedBookingPayload;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedBookingPayload;
 import com.personal.happygallery.domain.booking.DepositCalculator;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
@@ -50,7 +50,7 @@ public class BookingPreparer implements PaymentPreparer {
             if (!auth.isMember() || !auth.userId().equals(bp.userId())) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 사용 예약은 회원 인증이 필요합니다.");
             }
-            return new PreparedPayment(0L, PreparedBookingPayload.fromMember(bp, 0L, 0L));
+            return new PreparedPayment(0L, preparedForMember(bp, 0L, 0L));
         }
 
         if (bp.paymentMethod() == null) {
@@ -76,7 +76,7 @@ public class BookingPreparer implements PaymentPreparer {
         long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
         if (auth.isMember()) {
             return new PreparedPayment(
-                    depositAmount, PreparedBookingPayload.fromMember(bp, depositAmount, balanceAmount));
+                    depositAmount, preparedForMember(bp, depositAmount, balanceAmount));
         }
         String phone = KoreanPhoneNumber.required(bp.phone());
         String name = PersonalName.required(bp.name());
@@ -93,5 +93,19 @@ public class BookingPreparer implements PaymentPreparer {
                 depositAmount,
                 balanceAmount);
         return new PreparedPayment(depositAmount, prepared);
+    }
+
+    private PreparedBookingPayload preparedForMember(
+            BookingPayload payload, long depositAmount, long balanceAmount) {
+        return new PreparedBookingPayload(
+                payload.userId(),
+                null,
+                null,
+                null,
+                payload.slotId(),
+                payload.passId(),
+                payload.paymentMethod(),
+                depositAmount,
+                balanceAmount);
     }
 }

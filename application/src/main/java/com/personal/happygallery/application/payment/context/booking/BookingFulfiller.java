@@ -5,8 +5,8 @@ import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase.GuestBookingResult;
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedBookingPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedBookingPayload;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -39,7 +39,7 @@ public class BookingFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    public void validateStoredPayload(PaymentAttempt attempt, PaymentPayload payload) {
+    public void validateStoredPayload(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         if (!(payload instanceof PreparedBookingPayload bp)) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "예약 금액 정보가 없습니다. 결제를 다시 준비해 주세요.");
@@ -58,7 +58,7 @@ public class BookingFulfiller implements PaymentFulfiller {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload) {
+    public FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         PreparedBookingPayload bp = (PreparedBookingPayload) payload;
 
         if (bp.userId() != null) {

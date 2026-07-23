@@ -2,10 +2,10 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.payment.context.PaymentPreparer;
 import com.personal.happygallery.application.payment.context.PaymentPreparer.PreparedPayment;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedBookingPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedBookingPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
@@ -89,7 +89,7 @@ public class DefaultPaymentPrepareService implements PaymentPrepareUseCase {
                 issuedToken == null ? null : issuedToken.rawToken());
     }
 
-    private String guestPhone(PaymentPayload payload) {
+    private String guestPhone(PreparedPaymentPayload payload) {
         return switch (payload) {
             case PreparedOrderPayload order -> order.phone();
             case PreparedBookingPayload booking -> booking.phone();
