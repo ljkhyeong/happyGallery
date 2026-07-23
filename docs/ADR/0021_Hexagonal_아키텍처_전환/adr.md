@@ -2,6 +2,7 @@
 
 **날짜**: 2026-03-15  
 **상태**: Accepted
+**갱신**: 2026-07-24
 
 ---
 
@@ -16,13 +17,13 @@
 - 외부 연동 교체나 세션 저장소 변경 때 영향 범위가 넓어진다.
 - 테스트가 기술 구현에 쉽게 묶인다.
 
-한 번에 전체 구조를 다시 쓰는 방식은 운영 중인 서비스에 부담이 크다. 그래서 현재 저장소는 6개 모듈과 포트/어댑터 구조를 기준으로 유지한다.
+한 번에 전체 구조를 다시 쓰는 방식은 운영 중인 서비스에 부담이 크다. 그래서 현재 저장소는 6개 운영 코드 모듈과 포트/어댑터 구조를 기준으로 유지한다.
 
 ---
 
 ## 결정
 
-### 1. 백엔드는 6개 모듈로 나눈다
+### 1. 운영 코드는 6개 모듈로 나눈다
 
 - `bootstrap`: 앱 시작점, 환경 설정, Flyway, 로깅
 - `adapter-in-web`: HTTP API, 필터, 요청/응답 처리
@@ -32,6 +33,10 @@
 - `domain`: 핵심 도메인 모델과 규칙
 
 의존 방향은 `bootstrap -> adapter-in-web/out-* -> application -> domain` 으로 고정한다.
+
+통합 테스트에서 웹 DTO와 영속성 repository를 함께 사용해야 하는 fixture는 보조 모듈
+`test-support`의 test fixtures variant에 둔다. 이 모듈은 테스트 classpath에서만 소비하며,
+운영 코드 6개 모듈의 의존 방향이나 `bootstrap` 실행 산출물에는 포함하지 않는다.
 
 Gradle은 `java-library` 기준으로 구성한다. 공개 포트와 DTO 시그니처에 드러나는 하위 모듈·라이브러리는
 `api`로 선언하고, 서비스 구현·어댑터 구현에서만 쓰는 Spring/Jackson/Redis/JPA 의존성은 `implementation`으로 둔다.
@@ -106,7 +111,7 @@ Gradle은 `java-library` 기준으로 구성한다. 공개 포트와 DTO 시그�
 
 ## 구현 반영
 
-- `settings.gradle`의 6개 모듈 구조
+- `settings.gradle`의 6개 운영 코드 모듈과 테스트 보조 `test-support` 모듈
 - `build.gradle`의 `java-library` 공통 적용과 모듈별 `api`/`implementation` 의존성 분리
 - `application/**/port/in`, `application/**/port/out`
 - `adapter-in-web/**`, `adapter-out-persistence/**`, `adapter-out-external/**`

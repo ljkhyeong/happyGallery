@@ -2,6 +2,7 @@
 
 **날짜**: 2026-03-20  
 **상태**: Accepted
+**갱신**: 2026-07-24
 
 ---
 
@@ -39,10 +40,14 @@
 - `@AutoConfigureMockMvc(addFilters = true)`처럼 컨텍스트 캐시에 영향을 주는 방식은 기본값으로 두지 않는다.
 - 필요한 필터만 `MockMvcBuilders.webAppContextSetup(...).addFilters(...)`로 붙인다.
 
-### 5. `adapter-in-web` 테스트는 `application`의 test fixtures를 재사용한다
+### 5. 공통 fixture는 의존 대상에 따라 소유 모듈을 나눈다
 
-- 공통 테스트 인프라는 `application/src/testFixtures/**`에 둔다.
-- `adapter-in-web`는 `testFixtures(project(":application"))`를 사용해 같은 설정을 재사용한다.
+- 애플리케이션 포트와 도메인 타입만 사용하는 fixture, `@UseCaseIT`, Testcontainers 설정은
+  `application/src/testFixtures/**`에 둔다.
+- 웹 DTO, `MockMvc`, 영속성 repository를 사용하는 요청 helper, 상태 probe, DB 정리 지원은
+  `test-support/src/testFixtures/**`에 둔다.
+- `application`과 `adapter-in-web` 테스트는 필요한 두 test fixtures variant를 함께 사용한다.
+- `test-support`는 테스트 classpath 전용 보조 모듈이며 운영 산출물에는 포함하지 않는다.
 
 ### 6. DB 정리는 테스트가 사용하는 도메인 범위로 제한한다
 
@@ -74,9 +79,11 @@
 ## 구현 반영
 
 - `application/src/testFixtures/java/com/personal/happygallery/support/UseCaseIT.java`
-- `application/src/testFixtures/java/com/personal/happygallery/support/TestCleanupSupport.java`
 - `application/src/testFixtures/java/com/personal/happygallery/support/TestcontainersConfig.java`
 - `application/src/testFixtures/resources/application-test.yml`
+- `test-support/src/testFixtures/java/com/personal/happygallery/support/TestCleanupSupport.java`
+- `test-support/src/testFixtures/java/com/personal/happygallery/support/*TestHelper.java`
+- `test-support/src/testFixtures/java/com/personal/happygallery/support/*StateProbe.java`
 - `adapter-in-web/src/test/java/**`
 
 ---

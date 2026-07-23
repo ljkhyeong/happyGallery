@@ -48,18 +48,13 @@ dependencies {
 
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-	// test fixtures — 타 모듈 테스트가 consume 하는 공용 테스트 인프라 (support/**)
+	// application/domain 타입만 사용하는 공용 테스트 fixture
 	testFixturesApi project(":domain")
-	testFixturesApi project(":adapter-out-persistence")
-	testFixturesApi project(":adapter-in-web")
 	testFixturesApi 'org.springframework.boot:spring-boot-starter-test'
-	testFixturesApi 'org.springframework.boot:spring-boot-starter-data-jpa'
 	testFixturesApi 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testFixturesApi 'org.springframework.boot:spring-boot-starter-security-test'
 	testFixturesApi 'org.springframework.boot:spring-boot-testcontainers'
 	testFixturesApi 'org.testcontainers:testcontainers-mysql'
 	testFixturesApi 'org.testcontainers:testcontainers'
-	testFixturesApi 'org.awaitility:awaitility'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
@@ -80,6 +75,7 @@ dependencies {
 	testImplementation project(":adapter-out-persistence")
 	testImplementation project(":adapter-out-external")
 	testImplementation project(":adapter-in-web")
+	testImplementation testFixtures(project(":test-support"))
 	// bootstrap 의 @SpringBootApplication / Flyway / config 클래스가 @SpringBootTest 컨텍스트 부팅에 필요
 	testImplementation project(":bootstrap")
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

@@ -17,6 +17,7 @@ dependencies {
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
 	testImplementation testFixtures(project(":application"))
+	testImplementation testFixtures(project(":test-support"))
 	testImplementation project(":adapter-out-persistence")
 	testImplementation project(":adapter-out-external")
 	// bootstrap 의 @SpringBootApplication / Flyway / config 클래스가 @SpringBootTest 컨텍스트 부팅에 필요

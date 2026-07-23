@@ -138,11 +138,13 @@ docker compose up -d --build
 | `adapter-out-external/` | 결제, 알림, OAuth, Redis 세션, 외부 API 연동 |
 | `application/` | 유스케이스, 서비스, 배치, 포트 정의 |
 | `domain/` | 도메인 모델, 정책, 예외 |
+| `test-support/` | 웹 DTO·영속성 repository에 의존하는 통합 테스트 fixture |
 | `frontend/` | React 기반 사용자 화면과 관리자 화면 |
 | `frontend/src/generated/api/` | OpenAPI 파생 TypeScript client와 DTO, 수동 편집 금지 |
 | `monitoring/` | Prometheus, Grafana, Alertmanager 설정 |
 
-- 의존 방향: `bootstrap -> adapter-in-web/out-* -> application -> domain`
+- 운영 코드 의존 방향: `bootstrap -> adapter-in-web/out-* -> application -> domain`
+- `test-support`는 테스트 variant에서만 소비하며 운영 산출물에는 포함하지 않는다.
 - 일반 조회와 저장은 JPA, 관리자 검색과 대시보드 집계는 MyBatis를 사용한다.
 
 ## 기술 스택

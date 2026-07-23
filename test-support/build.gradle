@@ -1,0 +1,16 @@
+plugins {
+	id 'java-test-fixtures'
+}
+
+dependencies {
+	testFixturesApi project(":domain")
+	testFixturesApi project(":application")
+	testFixturesApi project(":adapter-in-web")
+	testFixturesApi project(":adapter-out-persistence")
+
+	testFixturesApi 'org.springframework.boot:spring-boot-starter-test'
+	testFixturesApi 'org.springframework.boot:spring-boot-starter-data-jpa'
+	testFixturesApi 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testFixturesApi 'org.springframework.boot:spring-boot-starter-security-test'
+	testFixturesApi 'org.awaitility:awaitility'
+}
