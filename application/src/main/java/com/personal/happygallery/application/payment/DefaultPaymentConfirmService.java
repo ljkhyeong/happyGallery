@@ -1,6 +1,13 @@
 package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.monitoring.AppMetrics;
+import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.Completed;
+import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.ConfirmationRejected;
+import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.ConfirmationStep;
+import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.Expired;
+import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.PgConfirmationRequired;
+import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.ReadyForFulfillment;
+import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.ZeroAmountApprovalRequired;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
@@ -23,85 +30,87 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
     private static final int MAX_FAILURE_REASON_LENGTH = 500;
 
     private final PaymentPort paymentPort;
-    private final PaymentConfirmTransactionService transactionService;
+    private final PaymentConfirmClaimTransactionService claimTransactionService;
+    private final PaymentConfirmFulfillmentTransactionService fulfillmentTransactionService;
     private final AppMetrics appMetrics;
 
     public DefaultPaymentConfirmService(PaymentPort paymentPort,
-                                        PaymentConfirmTransactionService transactionService,
+                                        PaymentConfirmClaimTransactionService claimTransactionService,
+                                        PaymentConfirmFulfillmentTransactionService fulfillmentTransactionService,
                                         AppMetrics appMetrics) {
         this.paymentPort = paymentPort;
-        this.transactionService = transactionService;
+        this.claimTransactionService = claimTransactionService;
+        this.fulfillmentTransactionService = fulfillmentTransactionService;
         this.appMetrics = appMetrics;
     }
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
     public ConfirmResult confirm(ConfirmCommand command) {
-        PaymentConfirmTransactionService.ConfirmationStep step =
-                transactionService.resolveConfirmationStep(command);
+        ConfirmationStep step = claimTransactionService.resolveConfirmationStep(command);
         while (true) {
             switch (step) {
-                case PaymentConfirmTransactionService.Completed completed -> {
+                case Completed completed -> {
                     return completed.result();
                 }
-                case PaymentConfirmTransactionService.ConfirmationRejected rejected -> {
+                case ConfirmationRejected rejected -> {
                     appMetrics.incrementPaymentConfirmReconciliationRequired();
                     log.error("결제 확정 자동 재확인 안전 기간 초과 — 수동 대사 필요 "
                                     + "[attemptId={}, orderId={}]",
                             rejected.attemptId(), command.orderId());
                     throw rejected.failure();
                 }
-                case PaymentConfirmTransactionService.Expired ignored ->
+                case Expired ignored ->
                         throw new HappyGalleryException(ErrorCode.PAYMENT_ATTEMPT_EXPIRED);
-                case PaymentConfirmTransactionService.ReadyForFulfillment ready -> {
+                case ReadyForFulfillment ready -> {
                     return fulfill(ready);
                 }
-                case PaymentConfirmTransactionService.ZeroAmountApprovalRequired required -> {
+                case ZeroAmountApprovalRequired required -> {
                     log.debug("amount=0 결제 — PG 호출 생략 [orderId={}]", required.orderId());
-                    if (transactionService.tryMarkApproved(
+                    if (claimTransactionService.tryMarkApproved(
                             required.attemptId(), required.processingToken(), null)) {
-                        return fulfill(new PaymentConfirmTransactionService.ReadyForFulfillment(
+                        return fulfill(new ReadyForFulfillment(
                                 required.attemptId(), required.orderId(), 0L, null));
                     }
-                    step = transactionService.resolveAfterLostProcessingOwnership(command);
+                    step = claimTransactionService.resolveAfterLostProcessingOwnership(command);
                 }
-                case PaymentConfirmTransactionService.PgConfirmationRequired required -> {
+                case PgConfirmationRequired required -> {
                     PaymentConfirmResult pg = callPayment(required);
                     if (!pg.success()) {
                         String reason = failureReason(pg.failReason(), "결제 확정에 실패했습니다.");
-                        if (transactionService.tryRecordPgFailure(
+                        if (claimTransactionService.tryRecordPgFailure(
                                 required.attemptId(), required.processingToken(), reason, pg.retryable())) {
                             ErrorCode errorCode = pg.retryable()
                                     ? ErrorCode.PAYMENT_CONFIRM_RETRYABLE
                                     : ErrorCode.PAYMENT_FAILED;
                             throw new HappyGalleryException(errorCode, reason);
                         }
-                        step = transactionService.resolveAfterLostProcessingOwnership(command);
+                        step = claimTransactionService.resolveAfterLostProcessingOwnership(command);
                         continue;
                     }
 
                     String confirmedPaymentKey = pg.paymentKey();
                     boolean approved;
                     try {
-                        approved = transactionService.tryMarkApproved(
+                        approved = claimTransactionService.tryMarkApproved(
                                 required.attemptId(), required.processingToken(), confirmedPaymentKey);
                     } catch (RuntimeException approvalFailure) {
                         compensateUnpersistedApproval(required, confirmedPaymentKey, approvalFailure);
                         throw approvalFailure;
                     }
                     if (approved) {
-                        return fulfill(new PaymentConfirmTransactionService.ReadyForFulfillment(
+                        return fulfill(new ReadyForFulfillment(
                                 required.attemptId(), required.orderId(), required.amount(), confirmedPaymentKey));
                     }
-                    step = transactionService.reconcileLatePgApproval(command, confirmedPaymentKey);
+                    step = claimTransactionService.reconcileLatePgApproval(command, confirmedPaymentKey);
                 }
             }
         }
     }
 
-    private ConfirmResult fulfill(PaymentConfirmTransactionService.ReadyForFulfillment ready) {
+    private ConfirmResult fulfill(ReadyForFulfillment ready) {
         try {
-            return transactionService.fulfillAndConfirm(ready.attemptId());
+            return fulfillmentTransactionService.fulfillAndConfirm(ready.attemptId());
         } catch (RuntimeException fulfillmentFailure) {
             if (ready.amount() > 0L) {
                 compensateAfterFulfillmentFailure(ready, fulfillmentFailure);
@@ -112,7 +121,7 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
         }
     }
 
-    private PaymentConfirmResult callPayment(PaymentConfirmTransactionService.PgConfirmationRequired required) {
+    private PaymentConfirmResult callPayment(PgConfirmationRequired required) {
         return requireNonNull(
                 paymentPort.confirm(
                         required.paymentKey(), required.orderId(), required.amount(), required.idempotencyKey()),
@@ -120,11 +129,11 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
     }
 
     private void compensateUnpersistedApproval(
-            PaymentConfirmTransactionService.PgConfirmationRequired required,
+            PgConfirmationRequired required,
             String confirmedPaymentKey,
             RuntimeException originalFailure) {
         try {
-            boolean requested = transactionService.requestCompensationForUnpersistedApproval(
+            boolean requested = fulfillmentTransactionService.requestCompensationForUnpersistedApproval(
                     required.attemptId(), required.processingToken(), confirmedPaymentKey,
                     "PG 승인 후 결제 상태 저장에 실패했습니다.");
             if (!requested) {
@@ -140,10 +149,10 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
     }
 
     private void compensateAfterFulfillmentFailure(
-            PaymentConfirmTransactionService.ReadyForFulfillment ready,
+            ReadyForFulfillment ready,
             RuntimeException originalFailure) {
         try {
-            boolean requested = transactionService.requestCompensationAfterFulfillmentFailure(
+            boolean requested = fulfillmentTransactionService.requestCompensationAfterFulfillmentFailure(
                     ready.attemptId(), ready.confirmedPaymentKey(),
                     "PG 승인 후 도메인 생성에 실패했습니다.");
             if (!requested) {
@@ -158,10 +167,10 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
         }
     }
 
-    private void recordZeroAmountFailure(PaymentConfirmTransactionService.ReadyForFulfillment ready,
+    private void recordZeroAmountFailure(ReadyForFulfillment ready,
                                          RuntimeException originalFailure) {
         try {
-            boolean recorded = transactionService.tryMarkZeroAmountFulfillmentFailed(
+            boolean recorded = fulfillmentTransactionService.tryMarkZeroAmountFulfillmentFailed(
                     ready.attemptId(), "도메인 생성에 실패했습니다.");
             if (!recorded) {
                 log.warn("stale amount=0 결제 실패 결과를 건너뜁니다 [attemptId={}, orderId={}]",

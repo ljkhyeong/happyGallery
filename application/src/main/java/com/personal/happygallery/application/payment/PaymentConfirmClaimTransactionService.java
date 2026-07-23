@@ -1,76 +1,49 @@
 package com.personal.happygallery.application.payment;
 
-import com.personal.happygallery.application.payment.context.PaymentFulfiller;
-import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmResult;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
-import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
-import com.personal.happygallery.domain.payment.PaymentContext;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import tools.jackson.databind.ObjectMapper;
 
 @Service
-class PaymentConfirmTransactionService {
+class PaymentConfirmClaimTransactionService {
 
     static final Duration CONFIRM_RECOVERY_DELAY = Duration.ofMinutes(1);
     static final Duration CONFIRM_AUTOMATIC_RETRY_MAX_AGE = Duration.ofDays(14);
-
-    private static final String CONFIRM_RECONCILIATION_REASON =
+    static final String CONFIRM_RECONCILIATION_REASON =
             "PG 멱등 응답 안전 기간이 지나 결제 상태 대사가 필요합니다.";
 
     private final PaymentAttemptReaderPort attemptReader;
     private final PaymentAttemptStorePort attemptStore;
-    private final RefundExecutionService refundExecutionService;
     private final PaymentAttemptAccessVerifier accessVerifier;
-    private final CompletedGuestAccessTokenResolver accessTokenResolver;
-    private final Map<PaymentContext, PaymentFulfiller> fulfillers;
-    private final ObjectMapper objectMapper;
-    private final FieldEncryptor fieldEncryptor;
+    private final PaymentConfirmAttemptResolver attemptResolver;
     private final Clock clock;
 
-    PaymentConfirmTransactionService(PaymentAttemptReaderPort attemptReader,
-                                     PaymentAttemptStorePort attemptStore,
-                                     RefundExecutionService refundExecutionService,
-                                     PaymentAttemptAccessVerifier accessVerifier,
-                                     CompletedGuestAccessTokenResolver accessTokenResolver,
-                                     List<PaymentFulfiller> fulfillers,
-                                     ObjectMapper objectMapper,
-                                     FieldEncryptor fieldEncryptor,
-                                     Clock clock) {
+    PaymentConfirmClaimTransactionService(PaymentAttemptReaderPort attemptReader,
+                                          PaymentAttemptStorePort attemptStore,
+                                          PaymentAttemptAccessVerifier accessVerifier,
+                                          PaymentConfirmAttemptResolver attemptResolver,
+                                          Clock clock) {
         this.attemptReader = attemptReader;
         this.attemptStore = attemptStore;
-        this.refundExecutionService = refundExecutionService;
         this.accessVerifier = accessVerifier;
-        this.accessTokenResolver = accessTokenResolver;
-        this.fulfillers = new EnumMap<>(PaymentContext.class);
-        for (PaymentFulfiller fulfiller : fulfillers) {
-            PaymentContext context = fulfiller.context();
-            if (this.fulfillers.put(context, fulfiller) != null) {
-                throw new IllegalStateException("결제 확정 전략이 중복 등록되었습니다: " + context);
-            }
-        }
-        this.objectMapper = objectMapper;
-        this.fieldEncryptor = fieldEncryptor;
+        this.attemptResolver = attemptResolver;
         this.clock = clock;
     }
 
@@ -94,7 +67,7 @@ class PaymentConfirmTransactionService {
 
         if (attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
             attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
-            return new Completed(confirmedResult(attempt));
+            return new Completed(attemptResolver.confirmedResult(attempt));
         }
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED) {
             attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
@@ -136,50 +109,13 @@ class PaymentConfirmTransactionService {
                 attempt.getPaymentKey(), processingToken);
     }
 
-    /**
-     * 배치가 저장된 결제 정보만으로 동일 confirm 요청을 복원한다.
-     *
-     * <p>후보 목록 조회 이후의 상태 변경을 반영하도록 행 잠금 아래 상태와 제한 시간을 다시 확인한다.
-     * 반환 후 경합은 실제 confirm의 실행권 선점과 멱등성 검증이 처리한다.
-     */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ConfirmRecoveryStep resolveConfirmRecovery(Long attemptId) {
-        PaymentAttempt attempt = findForUpdate(attemptId);
-        Instant nowInstant = clock.instant();
-        LocalDateTime now = LocalDateTime.ofInstant(nowInstant, clock.getZone());
-        LocalDateTime activityStaleBefore = now.minus(CONFIRM_RECOVERY_DELAY);
-        LocalDateTime createdAtStaleBeforeUtc = LocalDateTime.ofInstant(
-                nowInstant.minus(CONFIRM_RECOVERY_DELAY), ZoneOffset.UTC);
-        if (!attempt.isConfirmRecoveryCandidate(activityStaleBefore, createdAtStaleBeforeUtc)) {
-            return new RecoverySkipped();
-        }
-        attempt.markConfirmRecoveryAttempted(now);
-        if (attempt.requiresConfirmReconciliation(LocalDateTime.ofInstant(
-                nowInstant.minus(CONFIRM_AUTOMATIC_RETRY_MAX_AGE), ZoneOffset.UTC))) {
-            attempt.markConfirmReconciliationRequired(CONFIRM_RECONCILIATION_REASON);
-            attemptStore.save(attempt);
-            return new ReconciliationRequired();
-        }
-        attemptStore.save(attempt);
-        try {
-            PaymentPayload payload = deserialize(attempt.getPayloadEnc());
-            AuthContext auth = payload.userId() == null
-                    ? AuthContext.guest()
-                    : AuthContext.member(payload.userId());
-            return new RecoveryReady(ConfirmCommand.trustedRecovery(
-                    attempt.getPaymentKey(), attempt.getOrderIdExternal(), attempt.getAmount(), auth));
-        } catch (RuntimeException failure) {
-            return new RecoveryPreparationFailed(failure);
-        }
-    }
-
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ConfirmationStep resolveAfterLostProcessingOwnership(ConfirmCommand command) {
         PaymentAttempt attempt = findValidatedAttemptForUpdate(command);
         String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
         attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
         return switch (attempt.getStatus()) {
-            case CONFIRMED -> new Completed(confirmedResult(attempt));
+            case CONFIRMED -> new Completed(attemptResolver.confirmedResult(attempt));
             case APPROVED -> readyForFulfillment(attempt);
             case RETRYABLE, FAILED, RECONCILIATION_REQUIRED -> throw paymentFailure(attempt);
             case PENDING, PROCESSING ->
@@ -197,7 +133,7 @@ class PaymentConfirmTransactionService {
         attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
         if (attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
             requireSameConfirmedPaymentKey(attempt, confirmedPaymentKey);
-            return new Completed(confirmedResult(attempt));
+            return new Completed(attemptResolver.confirmedResult(attempt));
         }
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED) {
             requireSameConfirmedPaymentKey(attempt, confirmedPaymentKey);
@@ -243,74 +179,6 @@ class PaymentConfirmTransactionService {
         return true;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ConfirmResult fulfillAndConfirm(Long attemptId) {
-        PaymentAttempt attempt = findForUpdate(attemptId);
-        if (attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
-            return confirmedResult(attempt);
-        }
-        if (attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
-                    "승인된 결제만 도메인 생성에 사용할 수 있습니다.");
-        }
-        PaymentPayload payload = deserialize(attempt.getPayloadEnc());
-        PaymentFulfiller fulfiller = fulfiller(attempt.getContext());
-        PaymentFulfiller.FulfillResult fulfilled = fulfiller.fulfill(attempt, payload);
-        String accessTokenEnc = fulfilled.rawAccessToken() == null
-                ? null
-                : fieldEncryptor.encrypt(fulfilled.rawAccessToken());
-        attempt.markConfirmed(fulfilled.domainId(), accessTokenEnc);
-        attemptStore.save(attempt);
-        return confirmedResult(attempt);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean requestCompensationForUnpersistedApproval(Long attemptId,
-                                                             String processingToken,
-                                                             String confirmedPaymentKey,
-                                                             String reason) {
-        PaymentAttempt attempt = findForUpdate(attemptId);
-        if (attempt.getStatus() != PaymentAttemptStatus.PROCESSING
-                || !attempt.markApproved(processingToken, confirmedPaymentKey, LocalDateTime.now(clock))) {
-            return false;
-        }
-        requestCompensation(attempt, confirmedPaymentKey, reason);
-        return true;
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean requestCompensationAfterFulfillmentFailure(Long attemptId,
-                                                              String confirmedPaymentKey,
-                                                              String reason) {
-        PaymentAttempt attempt = findForUpdate(attemptId);
-        if (attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
-            return false;
-        }
-        requestCompensation(attempt, confirmedPaymentKey, reason);
-        return true;
-    }
-
-    private void requestCompensation(PaymentAttempt attempt,
-                                     String confirmedPaymentKey,
-                                     String reason) {
-        requireSameConfirmedPaymentKey(attempt, confirmedPaymentKey);
-        attempt.markCompensationRequested(reason);
-        attemptStore.save(attempt);
-        refundExecutionService.requestPaymentAttemptRefund(
-                attempt.getId(), attempt.getAmount(), confirmedPaymentKey);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean tryMarkZeroAmountFulfillmentFailed(Long attemptId, String reason) {
-        PaymentAttempt attempt = findForUpdate(attemptId);
-        if (attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
-            return false;
-        }
-        attempt.markFailed(reason);
-        attemptStore.save(attempt);
-        return true;
-    }
-
     private PaymentAttempt findForUpdate(Long attemptId) {
         return attemptReader.findByIdForUpdate(attemptId)
                 .orElseThrow(() -> new NotFoundException("결제 시도"));
@@ -338,17 +206,9 @@ class PaymentConfirmTransactionService {
             }
             throw new HappyGalleryException(ErrorCode.PAYMENT_RESULT_RETENTION_EXPIRED);
         }
-        PaymentPayload payload = deserialize(attempt.getPayloadEnc());
-        fulfiller(attempt.getContext()).validateStoredPayload(attempt, payload);
+        PaymentPayload payload = attemptResolver.readPayload(attempt);
+        attemptResolver.validateStoredPayload(attempt, payload);
         requireSameActor(payload, command);
-    }
-
-    private PaymentFulfiller fulfiller(PaymentContext context) {
-        PaymentFulfiller fulfiller = fulfillers.get(context);
-        if (fulfiller == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지원하지 않는 결제 컨텍스트입니다.");
-        }
-        return fulfiller;
     }
 
     private void requireAccess(PaymentAttempt attempt, ConfirmCommand command) {
@@ -365,23 +225,6 @@ class PaymentConfirmTransactionService {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "복구할 결제의 사용자 정보가 저장값과 일치하지 않습니다.");
         }
-    }
-
-    private PaymentPayload deserialize(String storedPayload) {
-        String json = fieldEncryptor.decrypt(storedPayload);
-        return objectMapper.readValue(json, PaymentPayload.class);
-    }
-
-    private ConfirmResult confirmedResult(PaymentAttempt attempt) {
-        if (attempt.getFulfilledDomainId() == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "완료된 결제 결과가 없습니다.");
-        }
-        CompletedGuestAccessTokenResolver.ResolvedAccess access = accessTokenResolver.resolve(attempt);
-        return new ConfirmResult(
-                attempt.getContext(),
-                attempt.getFulfilledDomainId(),
-                access.accessToken(),
-                access.recoveryRequired());
     }
 
     private ReadyForFulfillment readyForFulfillment(PaymentAttempt attempt) {
@@ -416,17 +259,6 @@ class PaymentConfirmTransactionService {
     sealed interface ConfirmationStep
             permits Completed, ConfirmationRejected, ReadyForFulfillment,
                     PgConfirmationRequired, ZeroAmountApprovalRequired, Expired {}
-
-    sealed interface ConfirmRecoveryStep
-            permits RecoverySkipped, ReconciliationRequired, RecoveryReady, RecoveryPreparationFailed {}
-
-    record RecoverySkipped() implements ConfirmRecoveryStep {}
-
-    record ReconciliationRequired() implements ConfirmRecoveryStep {}
-
-    record RecoveryReady(ConfirmCommand command) implements ConfirmRecoveryStep {}
-
-    record RecoveryPreparationFailed(RuntimeException failure) implements ConfirmRecoveryStep {}
 
     record Completed(ConfirmResult result) implements ConfirmationStep {}
 

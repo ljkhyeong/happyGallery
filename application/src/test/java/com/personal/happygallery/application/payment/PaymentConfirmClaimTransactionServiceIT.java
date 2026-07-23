@@ -1,8 +1,8 @@
 package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
-import com.personal.happygallery.application.payment.PaymentConfirmTransactionService.PgConfirmationRequired;
-import com.personal.happygallery.application.payment.PaymentConfirmTransactionService.ReadyForFulfillment;
+import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.PgConfirmationRequired;
+import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.ReadyForFulfillment;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
@@ -33,11 +33,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @UseCaseIT
-class PaymentConfirmTransactionServiceIT {
+class PaymentConfirmClaimTransactionServiceIT {
 
     @Autowired PaymentPrepareUseCase prepareUseCase;
     @Autowired PaymentConfirmUseCase confirmUseCase;
-    @Autowired PaymentConfirmTransactionService transactionService;
+    @Autowired PaymentConfirmClaimTransactionService claimTransactionService;
     @Autowired PaymentAttemptReaderPort attemptReader;
     @Autowired UserStorePort userStorePort;
     @Autowired PlatformTransactionManager transactionManager;
@@ -58,20 +58,20 @@ class PaymentConfirmTransactionServiceIT {
         ConfirmCommand command = prepared.command("payment-key");
 
         PgConfirmationRequired first = (PgConfirmationRequired)
-                transactionService.resolveConfirmationStep(command);
+                claimTransactionService.resolveConfirmationStep(command);
         makeProcessingStale(first.attemptId());
         PgConfirmationRequired second = (PgConfirmationRequired)
-                transactionService.resolveConfirmationStep(command);
+                claimTransactionService.resolveConfirmationStep(command);
 
         assertSoftly(softly -> {
             softly.assertThat(second.processingToken()).isNotEqualTo(first.processingToken());
-            softly.assertThat(transactionService.tryRecordPgFailure(
+            softly.assertThat(claimTransactionService.tryRecordPgFailure(
                     first.attemptId(), first.processingToken(), "늦게 도착한 실패", true)).isFalse();
-            softly.assertThat(transactionService.tryMarkApproved(
+            softly.assertThat(claimTransactionService.tryMarkApproved(
                     first.attemptId(), first.processingToken(), "confirmed-payment-key")).isFalse();
         });
 
-        assertThat(transactionService.tryMarkApproved(
+        assertThat(claimTransactionService.tryMarkApproved(
                 second.attemptId(), second.processingToken(), "confirmed-payment-key")).isTrue();
         assertThat(attemptReader.findByOrderIdExternal(prepared.orderId()))
                 .hasValueSatisfying(attempt -> assertSoftly(softly -> {
@@ -88,13 +88,13 @@ class PaymentConfirmTransactionServiceIT {
         ConfirmCommand command = prepared.command("payment-key");
 
         PgConfirmationRequired first = (PgConfirmationRequired)
-                transactionService.resolveConfirmationStep(command);
+                claimTransactionService.resolveConfirmationStep(command);
         makeProcessingStale(first.attemptId());
         PgConfirmationRequired second = (PgConfirmationRequired)
-                transactionService.resolveConfirmationStep(command);
-        assertThat(transactionService.tryRecordPgFailure(
+                claimTransactionService.resolveConfirmationStep(command);
+        assertThat(claimTransactionService.tryRecordPgFailure(
                 second.attemptId(), second.processingToken(), "새 실행권의 타임아웃", true)).isTrue();
-        assertThatThrownBy(() -> transactionService.resolveAfterLostProcessingOwnership(command))
+        assertThatThrownBy(() -> claimTransactionService.resolveAfterLostProcessingOwnership(command))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {
                     assertSoftly(softly -> {
                         softly.assertThat(exception.getErrorCode())
@@ -104,7 +104,7 @@ class PaymentConfirmTransactionServiceIT {
                 });
 
         ReadyForFulfillment reconciled = (ReadyForFulfillment)
-                transactionService.reconcileLatePgApproval(command, "confirmed-payment-key");
+                claimTransactionService.reconcileLatePgApproval(command, "confirmed-payment-key");
 
         assertSoftly(softly -> {
             softly.assertThat(reconciled.attemptId()).isEqualTo(first.attemptId());

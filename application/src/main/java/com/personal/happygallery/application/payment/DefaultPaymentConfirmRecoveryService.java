@@ -25,18 +25,18 @@ public class DefaultPaymentConfirmRecoveryService implements PaymentConfirmRecov
     private static final int BATCH_SIZE = 10;
 
     private final PaymentAttemptReaderPort attemptReader;
-    private final PaymentConfirmTransactionService transactionService;
+    private final PaymentConfirmRecoveryTransactionService recoveryTransactionService;
     private final PaymentConfirmUseCase paymentConfirmUseCase;
     private final AppMetrics appMetrics;
     private final Clock clock;
 
     public DefaultPaymentConfirmRecoveryService(PaymentAttemptReaderPort attemptReader,
-                                                PaymentConfirmTransactionService transactionService,
+                                                PaymentConfirmRecoveryTransactionService recoveryTransactionService,
                                                 PaymentConfirmUseCase paymentConfirmUseCase,
                                                 AppMetrics appMetrics,
                                                 Clock clock) {
         this.attemptReader = attemptReader;
-        this.transactionService = transactionService;
+        this.recoveryTransactionService = recoveryTransactionService;
         this.paymentConfirmUseCase = paymentConfirmUseCase;
         this.appMetrics = appMetrics;
         this.clock = clock;
@@ -45,7 +45,7 @@ public class DefaultPaymentConfirmRecoveryService implements PaymentConfirmRecov
     @Override
     public BatchResult recoverIncompleteConfirms() {
         Instant staleBefore = clock.instant()
-                .minus(PaymentConfirmTransactionService.CONFIRM_RECOVERY_DELAY);
+                .minus(PaymentConfirmClaimTransactionService.CONFIRM_RECOVERY_DELAY);
         LocalDateTime activityStaleBefore = LocalDateTime.ofInstant(staleBefore, clock.getZone());
         LocalDateTime createdAtStaleBeforeUtc = LocalDateTime.ofInstant(staleBefore, ZoneOffset.UTC);
         List<Long> attemptIds = attemptReader.findConfirmRecoveryCandidateIds(
@@ -58,15 +58,17 @@ public class DefaultPaymentConfirmRecoveryService implements PaymentConfirmRecov
     }
 
     private boolean recover(Long attemptId) {
-        return switch (transactionService.resolveConfirmRecovery(attemptId)) {
-            case PaymentConfirmTransactionService.RecoverySkipped ignored -> false;
-            case PaymentConfirmTransactionService.ReconciliationRequired ignored -> {
+        return switch (recoveryTransactionService.resolveConfirmRecovery(attemptId)) {
+            case PaymentConfirmRecoveryTransactionService.RecoverySkipped ignored -> false;
+            case PaymentConfirmRecoveryTransactionService.ReconciliationRequired ignored -> {
                 appMetrics.incrementPaymentConfirmReconciliationRequired();
                 log.error("결제 확정 자동 재확인 안전 기간 초과 — 수동 대사 필요 [attemptId={}]", attemptId);
                 yield true;
             }
-            case PaymentConfirmTransactionService.RecoveryReady ready -> confirmIfAvailable(ready.command());
-            case PaymentConfirmTransactionService.RecoveryPreparationFailed failed -> throw failed.failure();
+            case PaymentConfirmRecoveryTransactionService.RecoveryReady ready ->
+                    confirmIfAvailable(ready.command());
+            case PaymentConfirmRecoveryTransactionService.RecoveryPreparationFailed failed ->
+                    throw failed.failure();
         };
     }
 

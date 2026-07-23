@@ -4,7 +4,7 @@ import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
-import com.personal.happygallery.application.payment.PaymentConfirmTransactionService.PgConfirmationRequired;
+import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.PgConfirmationRequired;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
@@ -66,7 +66,7 @@ class PaymentConfirmRecoveryUseCaseIT {
     @Autowired PaymentConfirmRecoveryUseCase recoveryUseCase;
     @Autowired PaymentConfirmUseCase confirmUseCase;
     @Autowired PaymentReconciliationAdminUseCase reconciliationAdminUseCase;
-    @Autowired PaymentConfirmTransactionService transactionService;
+    @Autowired PaymentConfirmClaimTransactionService claimTransactionService;
     @Autowired PaymentAttemptReaderPort attemptReader;
     @Autowired RefundRepository refundRepository;
     @Autowired OrderRepository orderReader;
@@ -273,7 +273,7 @@ class PaymentConfirmRecoveryUseCaseIT {
                 PaymentContext.BOOKING,
                 new BookingPayload(user.getId(), null, null, null, 999_991L, 999_992L, null),
                 auth));
-        transactionService.resolveConfirmationStep(
+        claimTransactionService.resolveConfirmationStep(
                 ConfirmCommand.customerRequest(
                         null, prepared.orderId(), prepared.amount(), auth, prepared.statusToken()));
         Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow().getId();
@@ -443,14 +443,14 @@ class PaymentConfirmRecoveryUseCaseIT {
     }
 
     private PgConfirmationRequired beginConfirm(PreparedPayment prepared, String paymentKey) {
-        return (PgConfirmationRequired) transactionService.resolveConfirmationStep(
+        return (PgConfirmationRequired) claimTransactionService.resolveConfirmationStep(
                 ConfirmCommand.customerRequest(
                         paymentKey, prepared.orderId(), prepared.amount(), prepared.auth(), null));
     }
 
     private Long approve(PreparedPayment prepared, String paymentKey) {
         PgConfirmationRequired required = beginConfirm(prepared, paymentKey);
-        assertThat(transactionService.tryMarkApproved(
+        assertThat(claimTransactionService.tryMarkApproved(
                 required.attemptId(), required.processingToken(), "confirmed-payment-key")).isTrue();
         return required.attemptId();
     }

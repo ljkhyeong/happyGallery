@@ -1,7 +1,7 @@
 # ADR-0033: 결제 confirm 트랜잭션과 보상 경계
 
 **날짜**: 2026-07-12  
-**최종 갱신**: 2026-07-21
+**최종 갱신**: 2026-07-24
 **상태**: Accepted
 
 ---
@@ -44,8 +44,18 @@ Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며,
 - `COMPENSATION_FAILED`: 보상 환불 실패, 운영자 재시도 필요
 - `COMPENSATED`: 보상 환불 완료
 
-`PaymentConfirmTransactionService`의 각 변경은 `REQUIRES_NEW`로 실행한다. confirm 선점 조회에는
-비관적 쓰기 잠금을 사용한다. `PROCESSING`이 1분 이상 지속되면 같은 paymentKey 요청만 다시 선점할 수 있다.
+confirm 상태 변경은 트랜잭션 책임에 따라 세 개의 package-private 서비스로 분리하고 각 변경을
+`REQUIRES_NEW`로 실행한다.
+
+- `PaymentConfirmClaimTransactionService`: 실행권 선점, processing token fencing, PG 승인·실패 결과와 늦은 승인 화해
+- `PaymentConfirmFulfillmentTransactionService`: 도메인 생성과 `CONFIRMED` 저장, fulfillment 실패의 보상 요청
+- `PaymentConfirmRecoveryTransactionService`: 행 잠금 아래 복구 후보 재검증, 저장된 요청 복원과 대사 전환
+
+저장 payload 복호화, 컨텍스트별 fulfiller 선택, 완료 결과 복원은 비트랜잭션 협력 객체인
+`PaymentConfirmAttemptResolver`에서 공유한다. 따라서 트랜잭션 서비스 간 검증 구현을 중복하지 않으면서도
+오케스트레이터가 각 `REQUIRES_NEW` 빈을 거쳐 실제 트랜잭션 경계를 통과한다.
+
+confirm 선점 조회에는 비관적 쓰기 잠금을 사용한다. `PROCESSING`이 1분 이상 지속되면 같은 paymentKey 요청만 다시 선점할 수 있다.
 선점마다 `payment_attempt.processing_token`에 새 UUID를 저장하고, 일반 PG 승인·실패 결과는 현재 토큰과
 일치할 때만 반영한다. 재선점 뒤 늦게 도착한 실패는 버리지만, 외부에서 이미 성립한 PG 승인 성공은
 유실하면 안 된다. 같은 orderId·금액·paymentKey 요청임을 다시 검증하고 잠금 안에서 최신 상태가
@@ -188,7 +198,10 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 
 ## 구현 반영
 
-- `PaymentConfirmTransactionService`
+- `PaymentConfirmClaimTransactionService`
+- `PaymentConfirmFulfillmentTransactionService`
+- `PaymentConfirmRecoveryTransactionService`
+- `PaymentConfirmAttemptResolver`
 - `DefaultPaymentConfirmService`
 - `DefaultPaymentConfirmRecoveryService`, `PaymentConfirmRecoveryUseCase`, `BatchScheduler`
 - `DefaultPaymentAttemptExpiryBatchService`, `PaymentAttemptExpiryProcessor`

@@ -23,17 +23,17 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
     private final PaymentAttemptReaderPort attemptReader;
     private final PaymentPort paymentPort;
     private final PaymentReconciliationTransactionService reconciliationTransactionService;
-    private final PaymentConfirmTransactionService confirmTransactionService;
+    private final PaymentConfirmFulfillmentTransactionService fulfillmentTransactionService;
 
     public DefaultPaymentReconciliationAdminService(
             PaymentAttemptReaderPort attemptReader,
             PaymentPort paymentPort,
             PaymentReconciliationTransactionService reconciliationTransactionService,
-            PaymentConfirmTransactionService confirmTransactionService) {
+            PaymentConfirmFulfillmentTransactionService fulfillmentTransactionService) {
         this.attemptReader = attemptReader;
         this.paymentPort = paymentPort;
         this.reconciliationTransactionService = reconciliationTransactionService;
-        this.confirmTransactionService = confirmTransactionService;
+        this.fulfillmentTransactionService = fulfillmentTransactionService;
     }
 
     @Override
@@ -65,7 +65,7 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
         String confirmedPaymentKey = reconciliationTransactionService.recordApproved(
                 request.attemptId(), lookup);
         try {
-            ConfirmResult result = confirmTransactionService.fulfillAndConfirm(request.attemptId());
+            ConfirmResult result = fulfillmentTransactionService.fulfillAndConfirm(request.attemptId());
             return new ReconciliationResult(
                     request.attemptId(),
                     PaymentAttemptStatus.CONFIRMED,
@@ -73,7 +73,7 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
                     "PG 승인 확인 후 서비스 처리를 완료했습니다.");
         } catch (RuntimeException fulfillmentFailure) {
             try {
-                confirmTransactionService.requestCompensationAfterFulfillmentFailure(
+                fulfillmentTransactionService.requestCompensationAfterFulfillmentFailure(
                         request.attemptId(),
                         confirmedPaymentKey,
                         "PG 대사 승인 후 도메인 생성에 실패했습니다.");
