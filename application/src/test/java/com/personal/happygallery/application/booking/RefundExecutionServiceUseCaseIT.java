@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,11 +56,6 @@ class RefundExecutionServiceUseCaseIT {
     @Autowired Clock clock;
     @Autowired DashboardQueryUseCase dashboardQueryUseCase;
     @MockitoBean PaymentProvider paymentProvider;
-
-    @BeforeEach
-    void setUp() {
-        cleanup();
-    }
 
     @AfterEach
     void tearDown() {

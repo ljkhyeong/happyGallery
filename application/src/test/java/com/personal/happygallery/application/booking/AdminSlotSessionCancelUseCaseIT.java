@@ -90,7 +90,6 @@ class AdminSlotSessionCancelUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanup();
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("FAKE-SESSION-CANCEL-REFUND"));
         bookingClass = classStorePort.save(

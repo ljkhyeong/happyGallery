@@ -30,7 +30,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,8 +60,8 @@ class PaymentAttemptExpiryBatchUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean PaymentProvider paymentProvider;
 
-    @BeforeEach
-    void setUp() {
+    @AfterEach
+    void tearDown() {
         cleanupSupport.clearPassData();
         cleanupSupport.clearUsers();
     }

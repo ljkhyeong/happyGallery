@@ -96,7 +96,6 @@ class CustomerGuestClaimUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanup();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter)
                 .apply(springSecurity())

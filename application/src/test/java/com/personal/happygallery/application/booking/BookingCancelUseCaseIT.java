@@ -26,8 +26,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -78,10 +79,14 @@ class BookingCancelUseCaseIT {
                 .thenReturn(PaymentConfirmResult.success("FAKE-TEST-PG", "CARD", "2026-04-26T12:00:00+09:00"));
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("FAKE-TEST-REF"));
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearNotificationLogs();
 
         cls = classStorePort.save(defaultBookingClass());
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearNotificationLogs();
     }
 
     // -----------------------------------------------------------------------

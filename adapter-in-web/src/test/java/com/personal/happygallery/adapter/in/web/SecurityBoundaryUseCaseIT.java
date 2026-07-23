@@ -49,8 +49,6 @@ class SecurityBoundaryUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanupSupport.clearUsers();
-        cleanupSupport.clearAdminUsers();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter)
                 .apply(springSecurity())

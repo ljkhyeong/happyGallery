@@ -64,7 +64,6 @@ class CustomerAuthUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanupSupport.clearUsers();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter)
                 .apply(springSecurity())

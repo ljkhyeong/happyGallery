@@ -35,7 +35,7 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,8 +65,8 @@ class PaymentPrepareUseCaseTest {
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
 
-    @BeforeEach
-    void setUp() {
+    @AfterEach
+    void tearDown() {
         cleanupSupport.clearOrderData();
         cleanupSupport.clearBookingWithPassAndRefundData();
         cleanupSupport.clearUsers();

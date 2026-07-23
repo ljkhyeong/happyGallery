@@ -12,8 +12,9 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -57,9 +58,13 @@ class SlotBookingCapacityUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanupSupport.clearBookingData();
         bookingClass = classRepository.save(defaultBookingClass());
         mainSlot = slotRepository.save(slot(bookingClass, MAIN_START, MAIN_END));
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearBookingData();
     }
 
     @DisplayName("슬롯 정원 8명까지 예약 확정은 모두 성공한다")

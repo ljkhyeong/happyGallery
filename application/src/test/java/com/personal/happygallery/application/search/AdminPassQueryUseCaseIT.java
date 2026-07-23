@@ -30,7 +30,6 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,11 +48,6 @@ class AdminPassQueryUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired MockMvc mockMvc;
     @Autowired Clock clock;
-
-    @BeforeEach
-    void setUp() {
-        cleanup();
-    }
 
     @AfterEach
     void tearDown() {

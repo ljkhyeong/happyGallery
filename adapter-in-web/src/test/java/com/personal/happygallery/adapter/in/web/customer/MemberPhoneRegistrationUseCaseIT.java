@@ -47,8 +47,6 @@ class MemberPhoneRegistrationUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanupSupport.clearPassData();
-        cleanupSupport.clearUsers();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();

@@ -15,8 +15,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Set;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -55,9 +56,13 @@ class AdminSlotUseCaseIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
-        cleanupSupport.clearBookingData();
         bookingClass = classStorePort.save(defaultBookingClass());
         classId = bookingClass.getId();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearBookingData();
     }
 
     @DisplayName("관리자 슬롯 생성이 성공한다")

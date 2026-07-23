@@ -37,8 +37,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -91,7 +92,6 @@ class GuestBookingUseCaseIT {
     void setUp() {
         helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort, objectMapper);
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
-        cleanupSupport.clearBookingWithPassAndRefundData();
         when(phoneVerificationSender.send(anyString(), anyString())).thenReturn(true);
 
         BookingClass cls = classStorePort.save(defaultBookingClass());
@@ -100,6 +100,11 @@ class GuestBookingUseCaseIT {
                 slot(cls, LocalDateTime.of(2026, 3, 2, 10, 0),
                         LocalDateTime.of(2026, 3, 2, 12, 0)));
         slotId = slot.getId();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearBookingWithPassAndRefundData();
     }
 
     // -----------------------------------------------------------------------

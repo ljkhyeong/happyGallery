@@ -60,7 +60,6 @@ class OrderCustomerActionUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanup();
         orderHelper = new OrderTestHelper(
                 productStorePort,
                 inventoryStorePort,

@@ -16,7 +16,7 @@ import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,8 +31,8 @@ class NotificationRetentionUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
 
-    @BeforeEach
-    void setUp() {
+    @AfterEach
+    void tearDown() {
         cleanupSupport.clearNotificationLogs();
         cleanupSupport.clearUsers();
     }

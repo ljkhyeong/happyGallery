@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -81,14 +82,18 @@ class PaymentConfirmRecoveryUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
         when(paymentProvider.confirm(any(), any(), anyLong(), any()))
                 .thenReturn(PaymentConfirmResult.success(
                         "confirmed-payment-key", "CARD", "2026-07-19T10:00:00+09:00"));
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.retryableFailure("PG 환불 일시 실패"));
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearOrderData();
+        cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearUsers();
     }
 
     @DisplayName("오래된 PROCESSING 결제는 저장된 요청과 같은 멱등키로 자동 확정한다")

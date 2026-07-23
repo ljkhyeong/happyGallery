@@ -12,8 +12,9 @@ import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -52,9 +53,13 @@ class BookingRescheduleUseCaseIT {
     @BeforeEach
     void setUp() {
         helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort, objectMapper);
-        cleanupSupport.clearBookingWithPassAndRefundData();
 
         cls = classStorePort.save(defaultBookingClass());
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearBookingWithPassAndRefundData();
     }
 
     // -----------------------------------------------------------------------

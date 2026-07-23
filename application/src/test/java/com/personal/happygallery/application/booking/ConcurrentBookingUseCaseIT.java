@@ -18,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -47,11 +46,6 @@ class ConcurrentBookingUseCaseIT {
 
     private static final LocalDateTime SLOT_START = LocalDateTime.of(2026, 6, 1, 10, 0);
     private static final LocalDateTime SLOT_END   = LocalDateTime.of(2026, 6, 1, 12, 0);
-
-    @BeforeEach
-    void setUp() {
-        cleanup();
-    }
 
     @AfterEach
     void tearDown() {

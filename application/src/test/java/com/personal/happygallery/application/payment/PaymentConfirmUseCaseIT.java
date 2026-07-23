@@ -62,6 +62,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -119,15 +120,19 @@ class PaymentConfirmUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cartItemRepository.deleteAllInBatch();
-        cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
         when(paymentProvider.confirm(any(), any(), anyLong(), any()))
                 .thenReturn(PaymentConfirmResult.success(
                         "confirmed-payment-key", "CARD", "2026-07-12T10:00:00+09:00"));
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("compensation-refund-key"));
+    }
+
+    @AfterEach
+    void tearDown() {
+        cartItemRepository.deleteAllInBatch();
+        cleanupSupport.clearOrderData();
+        cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearUsers();
     }
 
     @DisplayName("장바구니 결제는 prepare 시점 항목으로 주문하고 결제 후 추가한 수량은 남긴다")

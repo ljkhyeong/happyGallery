@@ -12,8 +12,8 @@ import com.personal.happygallery.adapter.out.persistence.product.ProductReposito
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -46,8 +46,8 @@ class ProductInventoryUseCaseIT {
     @Autowired ProductAdminUseCase productAdminUseCase;
     @Autowired TestCleanupSupport cleanupSupport;
 
-    @BeforeEach
-    void setUp() {
+    @AfterEach
+    void tearDown() {
         cleanupSupport.clearProductData();
     }
 

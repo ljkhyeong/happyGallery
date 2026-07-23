@@ -77,7 +77,6 @@ class OrderProductionUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanup();
         SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(
                 AdminPrincipal.apiKey(), null, "ROLE_ADMIN"));
         orderHelper = new OrderTestHelper(

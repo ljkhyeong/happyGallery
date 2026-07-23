@@ -41,8 +41,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -116,11 +117,8 @@ class PassCreditUsageUseCaseIT {
                 .build();
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
         customerHelper = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader);
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearNotificationLogs();
 
         cls = classRepository.save(bookingClass("우드 정규 클래스", "WOOD", 120, 50_000L, 30));
-        cleanupSupport.clearUsers();
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("FAKE-TEST-PASS-REF"));
         sessionCookie = customerHelper.signupAndGetSessionCookie("pass-member@example.com", "01099990001");
@@ -128,6 +126,13 @@ class PassCreditUsageUseCaseIT {
         pass = passPurchase(userId, FUTURE.plusDays(90), 320_000L);
         pass.recordPaymentKey("test-pass-payment-key");
         pass = passPurchaseRepository.save(pass);
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearNotificationLogs();
+        cleanupSupport.clearUsers();
     }
 
     // -----------------------------------------------------------------------

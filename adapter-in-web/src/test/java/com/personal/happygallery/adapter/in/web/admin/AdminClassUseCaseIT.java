@@ -4,6 +4,7 @@ import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.domain.booking.BookingClassStatus;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,10 @@ class AdminClassUseCaseIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
+    }
+
+    @AfterEach
+    void tearDown() {
         cleanupSupport.clearBookingData();
     }
 

@@ -50,7 +50,6 @@ class ConcurrentOrderUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanup();
         orderHelper = new OrderTestHelper(
                 productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort,
                 userStorePort, orderService);

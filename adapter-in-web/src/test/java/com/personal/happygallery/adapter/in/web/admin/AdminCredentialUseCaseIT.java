@@ -42,7 +42,6 @@ class AdminCredentialUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanupSupport.clearAdminUsers();
         adminUserPort.save(new AdminUser("admin", passwordEncoder.encode(OLD_PASSWORD)));
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(SecurityMockMvcConfigurers.springSecurity())

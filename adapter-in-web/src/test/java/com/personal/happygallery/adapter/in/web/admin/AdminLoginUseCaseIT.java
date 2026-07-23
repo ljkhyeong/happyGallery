@@ -26,7 +26,6 @@ class AdminLoginUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanupSupport.clearAdminUsers();
         adminUserPort.save(new AdminUser(
                 "admin",
                 new BCryptPasswordEncoder().encode("admin1234")));

@@ -54,7 +54,6 @@ class MeOrderUseCaseIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        cleanup();
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(springSessionRepositoryFilter)
                 .apply(springSecurity())
