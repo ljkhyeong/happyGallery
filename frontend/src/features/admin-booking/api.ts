@@ -1,20 +1,24 @@
-import { adminHeaders as h, api } from "@/shared/api";
+import {
+  cancelAdminBooking,
+  complete,
+  listBookings,
+  markBalancePaid as markBalancePaidRequest,
+  markNoShow as markNoShowRequest,
+  updateArrears as updateArrearsRequest,
+} from "@/generated/api/adminBooking";
 import type {
-  AdminBookingResponse,
   AdminBookingCancelRequest,
-  AdminBookingCancelResponse,
-  BookingNoShowResponse,
-  BookingSettlementResponse,
-} from "@/shared/types";
+  ListBookingsStatus,
+} from "@/generated/api/adminBooking";
+import { adminHeaders } from "@/shared/api";
 
 export function fetchBookings(
   adminKey: string,
   date: string,
-  status?: string,
-): Promise<AdminBookingResponse[]> {
-  return api<AdminBookingResponse[]>("/admin/bookings", {
-    headers: h(adminKey),
-    params: { date, status },
+  status?: ListBookingsStatus,
+) {
+  return listBookings({ date, status }, {
+    headers: adminHeaders(adminKey),
   });
 }
 
@@ -22,31 +26,27 @@ export function cancelBookingByAdmin(
   adminKey: string,
   bookingId: number,
   body: AdminBookingCancelRequest,
-): Promise<AdminBookingCancelResponse> {
-  return api<AdminBookingCancelResponse>(`/admin/bookings/${bookingId}/cancel`, {
-    method: "POST",
-    headers: h(adminKey),
-    body,
+) {
+  return cancelAdminBooking(bookingId, body, {
+    headers: adminHeaders(adminKey),
   });
 }
 
 export function markNoShow(
   adminKey: string,
   bookingId: number,
-): Promise<BookingNoShowResponse> {
-  return api<BookingNoShowResponse>(`/admin/bookings/${bookingId}/no-show`, {
-    method: "POST",
-    headers: h(adminKey),
+) {
+  return markNoShowRequest(bookingId, {
+    headers: adminHeaders(adminKey),
   });
 }
 
 export function markBalancePaid(
   adminKey: string,
   bookingId: number,
-): Promise<BookingSettlementResponse> {
-  return api<BookingSettlementResponse>(`/admin/bookings/${bookingId}/balance-payment`, {
-    method: "POST",
-    headers: h(adminKey),
+) {
+  return markBalancePaidRequest(bookingId, {
+    headers: adminHeaders(adminKey),
   });
 }
 
@@ -54,20 +54,17 @@ export function updateArrears(
   adminKey: string,
   bookingId: number,
   arrears: boolean,
-): Promise<BookingSettlementResponse> {
-  return api<BookingSettlementResponse>(`/admin/bookings/${bookingId}/arrears`, {
-    method: "PUT",
-    headers: h(adminKey),
-    body: { arrears },
+) {
+  return updateArrearsRequest(bookingId, { arrears }, {
+    headers: adminHeaders(adminKey),
   });
 }
 
 export function completeBooking(
   adminKey: string,
   bookingId: number,
-): Promise<BookingSettlementResponse> {
-  return api<BookingSettlementResponse>(`/admin/bookings/${bookingId}/complete`, {
-    method: "POST",
-    headers: h(adminKey),
+) {
+  return complete(bookingId, {
+    headers: adminHeaders(adminKey),
   });
 }

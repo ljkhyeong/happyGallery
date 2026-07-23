@@ -139,4 +139,27 @@ export default defineConfig({
       },
     },
   },
+  adminBookingApi: {
+    input: {
+      target: "../docs/PRD/0004_API_계약/openapi3.json",
+      filters: {
+        tags: ["admin-booking-controller"],
+      },
+    },
+    output: {
+      target: "./src/generated/api/adminBooking.ts",
+      client: "fetch",
+      clean: false,
+      override: {
+        header: false,
+        fetch: {
+          includeHttpResponseReturnType: false,
+        },
+        mutator: {
+          path: "./src/shared/api/generatedClient.ts",
+          name: "generatedApiClient",
+        },
+      },
+    },
+  },
 });

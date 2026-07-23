@@ -14,7 +14,7 @@
 - 상세 요청/응답 스니펫은 `./gradlew --no-daemon :adapter-in-web:restDocsTest`로 생성되는 Spring REST Docs 결과(`adapter-in-web/build/generated-snippets`)를 기준으로 검증한다.
 - 기계 판독 계약은 Controller/웹 DTO에서 생성하는 `openapi3.json`이다. 이 파일과 `frontend/src/generated/api`는 직접 편집하지 않는다.
 - 신규 또는 변경 API는 REST Docs 테스트와 이 문서를 갱신하고 `:adapter-in-web:openapi3`, `cd frontend && npm run api:generate`를 같은 변경에서 실행한다.
-- 전체 `/api/v1/**` OpenAPI를 생성하되, React 생성 client의 현재 실사용 범위는 공개 상품 목록·카테고리·상세 조회다. 다른 API는 필수값·nullable·enum과 인증 헤더를 확인한 뒤 순차 전환한다.
+- 전체 `/api/v1/**` OpenAPI를 생성하되, React 생성 client는 공개 상품, 회원 소셜 계정·알림, 고객 결제 상태·복구, 공방 정보와 관리자 예약 API에 사용한다. 다른 API는 필수값·nullable·enum과 인증 헤더를 확인한 뒤 도메인 단위로 순차 전환한다.
 
 ---
 

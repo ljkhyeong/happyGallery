@@ -22,7 +22,12 @@ import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
-import type { AdminBookingCancelResponse, AdminBookingResponse, RefundStatus } from "@/shared/types";
+import type {
+  AdminBookingCancelResponse,
+  AdminBookingResponse,
+  ListBookingsStatus,
+} from "@/generated/api/adminBooking";
+import type { RefundStatus } from "@/shared/types";
 
 interface Props {
   adminKey: string;
@@ -79,7 +84,7 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [date, setDate] = useState(todayStr);
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | ListBookingsStatus>("");
   const [cancelTarget, setCancelTarget] = useState<AdminBookingResponse | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
@@ -160,7 +165,15 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
         <Col xs={12} sm={4}>
           <Form.Group controlId="admin-booking-status-filter">
             <Form.Label>상태</Form.Label>
-            <Form.Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <Form.Select
+              value={statusFilter}
+              onChange={(event) => {
+                const selected = STATUS_OPTIONS.find(
+                  (option) => option.value === event.target.value,
+                );
+                setStatusFilter(selected?.value ?? "");
+              }}
+            >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}

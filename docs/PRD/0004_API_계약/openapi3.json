@@ -62,7 +62,7 @@
           },
           "depositRefundStatus" : {
             "enum" : [ "REQUESTED", "PROCESSING", "RETRYABLE", "RECONCILIATION_REQUIRED", "SUCCEEDED", "FAILED" ],
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "manualCompensationRequired" : {
             "type" : "boolean"
@@ -71,9 +71,11 @@
             "type" : "boolean"
           },
           "status" : {
+            "enum" : [ "CANCELED" ],
             "type" : "string"
           }
         },
+        "required" : [ "balanceSettlementRequired", "bookingId", "depositRefundAmount", "depositRefundStatus", "manualCompensationRequired", "passCreditRestored", "status" ],
         "type" : "object"
       },
       "AdminBookingResponse" : {
@@ -87,18 +89,20 @@
           },
           "balancePaidAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "balanceStatus" : {
+            "enum" : [ "UNPAID", "PAID" ],
             "type" : "string"
           },
           "bookerName" : {
             "type" : "string"
           },
           "bookerPhone" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "bookerType" : {
+            "enum" : [ "GUEST", "MEMBER" ],
             "type" : "string"
           },
           "bookingId" : {
@@ -117,7 +121,7 @@
           },
           "depositPaidAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "endAt" : {
             "format" : "date-time",
@@ -131,9 +135,11 @@
             "type" : "string"
           },
           "status" : {
+            "enum" : [ "BOOKED", "CANCELED", "NO_SHOW", "COMPLETED" ],
             "type" : "string"
           }
         },
+        "required" : [ "arrears", "balanceAmount", "balancePaidAt", "balanceStatus", "bookerName", "bookerPhone", "bookerType", "bookingId", "bookingNumber", "className", "depositAmount", "depositPaidAt", "endAt", "passBooking", "startAt", "status" ],
         "type" : "object"
       },
       "AdminBookingSearchRow" : {
@@ -612,9 +618,11 @@
             "type" : "integer"
           },
           "status" : {
+            "enum" : [ "NO_SHOW" ],
             "type" : "string"
           }
         },
+        "required" : [ "bookingId", "status" ],
         "type" : "object"
       },
       "BookingPayload" : {
@@ -658,9 +666,10 @@
           },
           "balancePaidAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "balanceStatus" : {
+            "enum" : [ "UNPAID", "PAID" ],
             "type" : "string"
           },
           "bookingId" : {
@@ -668,9 +677,11 @@
             "type" : "integer"
           },
           "status" : {
+            "enum" : [ "BOOKED", "COMPLETED" ],
             "type" : "string"
           }
         },
+        "required" : [ "arrears", "balancePaidAt", "balanceStatus", "bookingId", "status" ],
         "type" : "object"
       },
       "BookingSummary" : {

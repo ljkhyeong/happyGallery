@@ -1,4 +1,4 @@
-import type { AdminRefundStatus, RefundStatus } from "./refund";
+import type { AdminRefundStatus } from "./refund";
 
 export type OrderStatus =
   | "PAID_APPROVAL_PENDING"
@@ -80,33 +80,6 @@ export interface BatchResponse {
   successCount: number;
   failureCount: number;
   failureReasons: Record<string, number>;
-}
-
-export interface BookingNoShowResponse {
-  bookingId: number;
-  status: string;
-}
-
-export interface BookingSettlementResponse {
-  bookingId: number;
-  status: string;
-  balanceStatus: "UNPAID" | "PAID";
-  balancePaidAt: string | null;
-  arrears: boolean;
-}
-
-export interface AdminBookingCancelRequest {
-  reason: string;
-}
-
-export interface AdminBookingCancelResponse {
-  bookingId: number;
-  status: "CANCELED";
-  passCreditRestored: boolean;
-  depositRefundAmount: number;
-  depositRefundStatus: RefundStatus | null;
-  balanceSettlementRequired: boolean;
-  manualCompensationRequired: boolean;
 }
 
 export interface OrderProductionResponse {
@@ -257,23 +230,4 @@ export interface OrderHistoryResponse {
   decidedByAdminId: number | null;
   reason: string | null;
   decidedAt: string;
-}
-
-export interface AdminBookingResponse {
-  bookingId: number;
-  bookingNumber: string;
-  bookerType: "GUEST" | "MEMBER";
-  bookerName: string;
-  bookerPhone: string;
-  className: string;
-  startAt: string;
-  endAt: string;
-  status: string;
-  depositAmount: number;
-  depositPaidAt: string | null;
-  balanceAmount: number;
-  balanceStatus: "UNPAID" | "PAID";
-  balancePaidAt: string | null;
-  arrears: boolean;
-  passBooking: boolean;
 }

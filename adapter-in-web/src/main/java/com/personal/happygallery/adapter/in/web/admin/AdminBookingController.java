@@ -3,13 +3,13 @@ package com.personal.happygallery.adapter.in.web.admin;
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingNoShowResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminBookingCancelRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminBookingCancelResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.AdminBookingResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingSettlementResponse;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.AdminCancelCommand;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateBookingArrearsRequest;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
-import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
 import com.personal.happygallery.application.booking.port.in.BookingNoShowUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
 import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
@@ -59,7 +59,9 @@ public class AdminBookingController {
     public List<AdminBookingResponse> listBookings(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) BookingStatus status) {
-        return adminBookingQueryUseCase.listBookings(date, status);
+        return adminBookingQueryUseCase.listBookings(date, status).stream()
+                .map(AdminBookingResponse::from)
+                .toList();
     }
 
     /** GET /api/v1/admin/bookings/search — 상태·날짜·키워드 기반 예약 검색 (OFFSET + 지연 조인) */

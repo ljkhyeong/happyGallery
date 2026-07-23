@@ -1,10 +1,11 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
 import com.personal.happygallery.domain.booking.Booking;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public record BookingNoShowResponse(
-        Long bookingId,
-        String status
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long bookingId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = "NO_SHOW") String status
 ) {
 
     public static BookingNoShowResponse from(Booking booking) {

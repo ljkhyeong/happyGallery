@@ -1,4 +1,8 @@
 import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
+import type {
+  AdminBookingResponse,
+  ListBookingsStatus,
+} from "../../src/generated/api/adminBooking";
 
 const ADMIN_KEY = process.env.PLAYWRIGHT_ADMIN_KEY ?? "dev-admin-key";
 const ADMIN_USERNAME = process.env.PLAYWRIGHT_ADMIN_USERNAME ?? "admin";
@@ -39,20 +43,7 @@ export interface AdminSlot {
   isActive: boolean;
 }
 
-export interface AdminBooking {
-  bookingId: number;
-  bookingNumber: string;
-  bookerType: "GUEST" | "MEMBER";
-  bookerName: string;
-  bookerPhone: string;
-  className: string;
-  startAt: string;
-  endAt: string;
-  status: string;
-  depositAmount: number;
-  balanceAmount: number;
-  passBooking: boolean;
-}
+export type AdminBooking = AdminBookingResponse;
 
 interface BookingSlotRef {
   slotId: number;
@@ -506,7 +497,7 @@ export async function createAdminSlot(
 export async function fetchAdminBookings(
   request: APIRequestContext,
   date: string,
-  status?: string,
+  status?: ListBookingsStatus,
 ): Promise<AdminBooking[]> {
   return apiGet<AdminBooking[]>(request, "/admin/bookings", {
     admin: true,
