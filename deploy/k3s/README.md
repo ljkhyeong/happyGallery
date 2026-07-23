@@ -14,6 +14,7 @@ prometheus -> app-management:8081/actuator/prometheus (cluster 내부 전용)
 
 단일 노트북, 디스크, 전원, 공유기, 인터넷 또는 k3s 장애는 전체 서비스 중단으로 이어진다. 이 구성은 고가용성을 제공하지 않는다.
 Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내부 Alertmanager가 저장소 밖 Secret의 HTTPS webhook으로 전달한다. 다만 둘 다 같은 노트북에 있으므로 노트북 자체 장애는 알릴 수 없다. 외부 uptime 감시와 webhook 수신자는 노트북 밖에 별도로 둔다.
+경보 규칙의 단일 원본은 저장소 루트의 `monitoring/alerts.yml`이다. 변경 후 `./deploy/k3s/scripts/sync-prometheus-alerts.sh`를 실행하면 kustomize가 읽는 `base/prometheus-alerts.generated.yml`이 갱신된다. 생성 파일을 직접 편집하지 않으며 `validate.sh`는 원본, 생성 파일과 최종 ConfigMap 중 하나라도 달라지면 실패한다.
 
 ## 디렉터리
 
@@ -28,7 +29,7 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 
 ## 1. 외부 전제
 
-- Linux 노트북 한 대에 단일 노드 k3s, Docker, Git, Java 21, Trivy, `age`, `curl`을 설치한다.
+- Linux 노트북 한 대에 단일 노드 k3s, Docker, Git, Java 21, Ruby, Trivy, `age`, `curl`을 설치한다.
 - k3s는 `secrets-encryption: true`로 설치하고 `/etc/rancher/k3s/k3s.yaml`을 root 또는 지정 운영자만 읽게 한다.
 - k3s 기본 Traefik과 local-path provisioner를 사용한다. 다른 Ingress/StorageClass를 쓰려면 manifest와 검증 스크립트를 함께 변경한다.
 - cert-manager `v1.20.2` 정적 manifest를 공식 release에서 받아 출처와 checksum/signature를 검증해 노트북에 보관한다.
@@ -234,7 +235,7 @@ kubectl -n happygallery port-forward service/prometheus 9090:9090
 
 app 쓰기가 중단된 상태에서 DB 스냅샷을 먼저 만들고 미디어를 뒤이어 보관한다. `happygallery-<시각>.recovery.env`의 `DATABASE_BACKUP`과 `MEDIA_BACKUP`은 분리해서 복원할 수 없는 하나의 복구 단위다.
 
-DB만 복원되고 실행할 바이너리가 사라지는 상황을 막기 위해 같은 외부 매체의 `releases/<IMAGE_TAG>/`에는 호환 app/frontend와 MySQL·Redis·Prometheus·Alertmanager 이미지 archive, digest metadata와 렌더링 manifest를 commit SHA별 한 번 보존한다. 각 복구 백업의 `happygallery-<시각>.recovery.env`는 DB·미디어 파일, release 경로, Flyway schema version, active 암호화 키 ID·keyring SHA-256 fingerprint와 키 회전 단계를 묶는다. fingerprint는 키 원문을 저장하지 않으면서 같은 ID에 잘못된 키를 넣은 복구도 차단한다. 모든 산출물은 먼저 `.partial`로 완성하고 DB·미디어 archive와 sidecar, recovery sidecar 순서로 이름을 확정한 뒤 `recovery.env`를 마지막에 게시한다. 따라서 같은 시각의 `recovery.env`가 없는 중단 산출물은 완성된 복구 묶음으로 사용하지 않는다. release archive는 여러 복구 백업이 공유하므로 자동 보존 정리에서 삭제하지 않는다. 해당 release를 가리키는 복구 백업이 더 없고 별도 복원 검증을 마친 뒤에만 수동 삭제한다.
+DB만 복원되고 실행할 바이너리가 사라지는 상황을 막기 위해 같은 외부 매체의 `releases/<IMAGE_TAG>/`에는 호환 app/frontend와 MySQL·Redis·Prometheus·Alertmanager 이미지 archive, digest metadata와 렌더링 manifest를 commit SHA별 한 번 보존한다. MySQL·Redis·Prometheus·Alertmanager 버전은 백업 스크립트에 다시 적지 않고 해당 release의 `manifests.yaml`에서 workload와 container 이름으로 추출한다. 추출한 참조는 고정 tag 또는 SHA-256 digest 형식이어야 하며, containerd의 실제 digest와 archive checksum을 기존과 같이 검증한다. 각 복구 백업의 `happygallery-<시각>.recovery.env`는 DB·미디어 파일, release 경로, Flyway schema version, active 암호화 키 ID·keyring SHA-256 fingerprint와 키 회전 단계를 묶는다. fingerprint는 키 원문을 저장하지 않으면서 같은 ID에 잘못된 키를 넣은 복구도 차단한다. 모든 산출물은 먼저 `.partial`로 완성하고 DB·미디어 archive와 sidecar, recovery sidecar 순서로 이름을 확정한 뒤 `recovery.env`를 마지막에 게시한다. 따라서 같은 시각의 `recovery.env`가 없는 중단 산출물은 완성된 복구 묶음으로 사용하지 않는다. release archive는 여러 복구 백업이 공유하므로 자동 보존 정리에서 삭제하지 않는다. 해당 release를 가리키는 복구 백업이 더 없고 별도 복원 검증을 마친 뒤에만 수동 삭제한다.
 
 1. 복원 전용 age identity를 노트북과 분리해 보관하고 public recipient만 노트북에 둔다.
 2. 외부 매체가 실제 mount된 상태에서 전용 백업 디렉터리에 marker를 한 번 만든다.
@@ -319,4 +320,4 @@ rollback은 보존된 전체 manifest를 재적용하지 않는다. digest로 �
 ./deploy/k3s/scripts/validate.sh
 ```
 
-이 검증은 Kustomize 렌더링, YAML 파싱, shell 구문, probe/종료 유예/app-media PVC와 mount/내부 Prometheus/OAuth callback, app/frontend digest 고정, 프런트 CSP Report-Only의 JSON-LD hash·외부 출처·Ingress 비중복, Redis·Alertmanager 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, 복원 전 Pod 종료와 호환 digest 선반영 순서, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 브라우저 CSP 콘솔, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.
+이 검증은 Kustomize 렌더링, YAML 파싱, Prometheus 경보 단일 원본 drift, release manifest의 runtime 이미지 추출, shell 구문, probe/종료 유예/app-media PVC와 mount/내부 Prometheus/OAuth callback, app/frontend digest 고정, 프런트 CSP Report-Only의 JSON-LD hash·외부 출처·Ingress 비중복, Redis·Alertmanager 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, 복원 전 Pod 종료와 호환 digest 선반영 순서, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 브라우저 CSP 콘솔, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.

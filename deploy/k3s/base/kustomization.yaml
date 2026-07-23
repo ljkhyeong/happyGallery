@@ -14,3 +14,9 @@ resources:
   - alertmanager.yaml
   - ingress.yaml
   - network-policy.yaml
+configMapGenerator:
+  - name: prometheus-alerts
+    files:
+      - alerts.yml=prometheus-alerts.generated.yml
+generatorOptions:
+  disableNameSuffixHash: true

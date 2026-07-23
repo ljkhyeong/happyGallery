@@ -1,7 +1,7 @@
 # ADR-0037: 자가 호스팅 배포 토폴로지 기준
 
 **날짜**: 2026-07-18
-**최종 갱신**: 2026-07-23
+**최종 갱신**: 2026-07-24
 **상태**: Accepted
 
 ---
@@ -100,7 +100,7 @@
 - 배포 전 build와 최소 검증을 통과시키고, 배포 후 rollout 상태와 health endpoint를 확인한다.
 - `codexReview`와 `main` 대상 PR은 Dependency Review, npm audit, ESLint·React Hooks와 app/frontend 컨테이너 Trivy HIGH/CRITICAL 검사를 실행한다. 실제 운영 반입 스크립트도 운영 설정으로 다시 빌드한 app/frontend 이미지의 HIGH/CRITICAL과 EOL OS를 import 전에 차단한다. Dependabot은 Gradle, npm, GitHub Actions와 Dockerfile의 첫 번째 `FROM` 이미지를 매주 확인하고 일반 버전 갱신 PR은 `codexReview`로 보낸다. 다단계 Dockerfile의 두 번째 이후 `FROM`은 Trivy와 명시적 버전 점검으로 관리한다. Dependabot 보안 갱신은 GitHub 정책상 기본 브랜치 `main`을 대상으로 하는 예외를 수용한다.
 - 직전 이미지와 manifest를 보존해 애플리케이션을 롤백한다. Flyway가 적용된 경우에는 데이터 호환성과 복원 필요 여부를 별도로 판단한다.
-- 현재 release의 app/frontend와 MySQL·Redis·Prometheus·Alertmanager image archive, digest metadata와 manifest를 commit SHA별 한 번 off-device 백업에 보존한다. 각 암호화 DB 백업은 Flyway version·active 암호화 키 ID·active/previous keyring fingerprint·키 회전 단계와 호환 release 경로를 기록한다. 복원 진입점은 키링을 대조하고, archive를 containerd에 가져온 뒤 모든 필수 이미지 digest를 확인한 다음에만 기존 DB를 교체한다. fingerprint만 기록하고 키 원문은 기존 분리 복구 저장소에 둔다.
+- 현재 release의 app/frontend와 MySQL·Redis·Prometheus·Alertmanager image archive, digest metadata와 manifest를 commit SHA별 한 번 off-device 백업에 보존한다. 네 runtime 이미지 참조는 별도 버전 상수로 복제하지 않고 보존된 release manifest의 workload와 container 이름으로 정확히 추출하며, containerd의 실제 digest를 함께 기록하고 검증한다. 각 암호화 DB 백업은 Flyway version·active 암호화 키 ID·active/previous keyring fingerprint·키 회전 단계와 호환 release 경로를 기록한다. 복원 진입점은 키링을 대조하고, archive를 containerd에 가져온 뒤 모든 필수 이미지 digest를 확인한 다음에만 기존 DB를 교체한다. fingerprint만 기록하고 키 원문은 기존 분리 복구 저장소에 둔다.
 - 기존 AWS 자동 배포 workflow는 제거하며, k3s 배포 자동화는 manifest와 rollback 절차가 마련된 뒤 별도로 결정한다.
 
 ### 7. probe와 종료 유예를 배포 계약에 포함한다

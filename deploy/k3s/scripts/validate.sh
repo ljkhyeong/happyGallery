@@ -6,6 +6,8 @@ set -eu
 require_command ruby
 require_command grep
 
+"$SCRIPT_DIR/sync-prometheus-alerts.sh" --check
+
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/happygallery-k3s-validate.XXXXXX")
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 rendered="$tmp_dir/rendered.yaml"
@@ -19,12 +21,27 @@ FRONTEND_IMAGE_DIGEST=sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 IMAGE_TAG=0123456789abcdef0123456789abcdef01234567 \
     "$SCRIPT_DIR/render-manifests.sh" "$rendered"
 
+runtime_images="$tmp_dir/runtime-images.env"
+ruby "$SCRIPT_DIR/runtime-images-from-manifest.rb" "$rendered" > "$runtime_images"
+validate_env_file "$runtime_images"
+[ "$(require_env_value MYSQL_IMAGE "$runtime_images")" = "mysql:8.4.10" ] \
+    || die "release manifest의 MySQL 이미지 추출이 올바르지 않습니다."
+[ "$(require_env_value REDIS_IMAGE "$runtime_images")" = "redis:7.4.9-alpine" ] \
+    || die "release manifest의 Redis 이미지 추출이 올바르지 않습니다."
+[ "$(require_env_value PROMETHEUS_IMAGE "$runtime_images")" = "prom/prometheus:v3.12.0-distroless" ] \
+    || die "release manifest의 Prometheus 이미지 추출이 올바르지 않습니다."
+[ "$(require_env_value ALERTMANAGER_IMAGE "$runtime_images")" = "prom/alertmanager:v0.32.1" ] \
+    || die "release manifest의 Alertmanager 이미지 추출이 올바르지 않습니다."
+
 ruby -e '
   require "yaml"
   documents = YAML.load_stream(File.read(ARGV.fetch(0)))
   abort "빈 Kubernetes 문서가 있습니다." if documents.any?(&:nil?)
   abort "apiVersion/kind가 없는 문서가 있습니다." unless documents.all? { |d| d["apiVersion"] && d["kind"] }
   abort "평문 Secret manifest를 만들 수 없습니다." if documents.any? { |d| d["kind"] == "Secret" }
+  alert_config = documents.find { |d| d["kind"] == "ConfigMap" && d.dig("metadata", "name") == "prometheus-alerts" }
+  canonical_alerts = File.read(ARGV.fetch(1))
+  abort "k3s Prometheus 경보가 canonical 원본과 다릅니다." unless alert_config&.dig("data", "alerts.yml") == canonical_alerts
   ingresses = documents.select { |d| d["kind"] == "Ingress" }
   ingress_headers = documents.select { |d| d["kind"] == "Middleware" }
                              .flat_map { |d| d.dig("spec", "headers", "customResponseHeaders")&.keys || [] }
@@ -102,7 +119,7 @@ ruby -e '
   redis_ports = redis_rules.flat_map { |rule| rule["ports"] || [] }.map { |port| port["port"] }.uniq
   abort "Redis ingress는 6379만 허용해야 합니다." unless redis_ports == [6379]
   puts "YAML 문서 #{documents.size}개 파싱 완료"
-' "$rendered"
+' "$rendered" "$REPO_ROOT/monitoring/alerts.yml"
 
 ruby -ropenssl -rbase64 -e '
   nginx_path = ARGV.pop
@@ -231,6 +248,11 @@ grep -q 'activate-restored-release.sh' "$SCRIPT_DIR/restore-mysql.sh" \
     || die "복원 후 호환 digest 활성화 절차가 연결되지 않았습니다."
 grep -q 'k3s_ctr images export' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "off-device 백업에 호환 app/frontend 이미지 archive가 없습니다."
+grep -q 'runtime-images-from-manifest.rb.*release_manifest' "$SCRIPT_DIR/backup-mysql.sh" \
+    || die "off-device 백업이 release manifest에서 runtime 이미지를 추출하지 않습니다."
+if grep -Eq '^(MYSQL|REDIS|PROMETHEUS|ALERTMANAGER)_IMAGE=[^$]' "$SCRIPT_DIR/backup-mysql.sh"; then
+    die "off-device 백업에 runtime 이미지가 하드코딩되어 있습니다."
+fi
 grep -q 'FLYWAY_SCHEMA_VERSION=' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "복구 메타데이터에 Flyway version이 없습니다."
 grep -q 'FIELD_ENCRYPTION_KEY_ID=' "$SCRIPT_DIR/backup-mysql.sh" \

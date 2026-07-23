@@ -10,6 +10,7 @@ require_command age
 require_command gzip
 require_command base64
 require_command tar
+require_command ruby
 marker=${BACKUP_TARGET_MARKER:-$BACKUP_DIR/.happygallery-off-device-backup-target}
 [ -f "$marker" ] \
     || die "외부 백업 매체 marker가 없습니다. 매체가 실제로 mount됐는지 확인하세요: $marker"
@@ -49,10 +50,36 @@ IMAGE_TAG=$(require_env_value IMAGE_TAG "$release_metadata")
 release_backup_root="$BACKUP_DIR/releases"
 release_backup="$release_backup_root/$IMAGE_TAG"
 release_tmp="$release_backup.partial.$timestamp"
-MYSQL_IMAGE=docker.io/library/mysql:8.4.10
-REDIS_IMAGE=docker.io/library/redis:7.4.9-alpine
-PROMETHEUS_IMAGE=docker.io/prom/prometheus:v3.12.0-distroless
-ALERTMANAGER_IMAGE=docker.io/prom/alertmanager:v0.32.1
+MYSQL_IMAGE=
+REDIS_IMAGE=
+PROMETHEUS_IMAGE=
+ALERTMANAGER_IMAGE=
+runtime_images=$(ruby "$SCRIPT_DIR/runtime-images-from-manifest.rb" "$release_manifest")
+while IFS='=' read -r key value; do
+    case "$key" in
+        MYSQL_IMAGE) MYSQL_IMAGE=$value ;;
+        REDIS_IMAGE) REDIS_IMAGE=$value ;;
+        PROMETHEUS_IMAGE) PROMETHEUS_IMAGE=$value ;;
+        ALERTMANAGER_IMAGE) ALERTMANAGER_IMAGE=$value ;;
+        *) die "알 수 없는 runtime image 항목입니다: $key" ;;
+    esac
+done <<< "$runtime_images"
+for runtime_image in \
+    "$MYSQL_IMAGE" "$REDIS_IMAGE" "$PROMETHEUS_IMAGE" "$ALERTMANAGER_IMAGE"; do
+    [ -n "$runtime_image" ] || die "release manifest에서 runtime image를 모두 확인하지 못했습니다."
+    containerd_has_image "$runtime_image" \
+        || die "외부 복구 archive에 넣을 runtime 이미지를 찾을 수 없습니다: $runtime_image"
+done
+mysql_image_digest=$(containerd_image_digest "$MYSQL_IMAGE")
+redis_image_digest=$(containerd_image_digest "$REDIS_IMAGE")
+prometheus_image_digest=$(containerd_image_digest "$PROMETHEUS_IMAGE")
+alertmanager_image_digest=$(containerd_image_digest "$ALERTMANAGER_IMAGE")
+for runtime_digest in \
+    "$mysql_image_digest" "$redis_image_digest" \
+    "$prometheus_image_digest" "$alertmanager_image_digest"; do
+    printf '%s' "$runtime_digest" | grep -Eq '^sha256:[a-f0-9]{64}$' \
+        || die "runtime 이미지 digest가 올바르지 않습니다: $runtime_digest"
+done
 umask 077
 for target in \
     "$backup" "$backup.sha256" "$media_backup" "$media_backup.sha256" \
@@ -99,15 +126,10 @@ if [ ! -d "$release_backup" ]; then
         > "$release_tmp/metadata.env.sha256"
     printf '%s  %s\n' "$(sha256_file "$release_tmp/manifests.yaml")" "manifests.yaml" \
         > "$release_tmp/manifests.yaml.sha256"
-    for runtime_image in \
-        "$MYSQL_IMAGE" "$REDIS_IMAGE" "$PROMETHEUS_IMAGE" "$ALERTMANAGER_IMAGE"; do
-        containerd_has_image "$runtime_image" \
-            || die "외부 복구 archive에 넣을 runtime 이미지를 찾을 수 없습니다: $runtime_image"
-    done
-    mysql_image_digest=$(containerd_image_digest "$MYSQL_IMAGE")
-    redis_image_digest=$(containerd_image_digest "$REDIS_IMAGE")
-    prometheus_image_digest=$(containerd_image_digest "$PROMETHEUS_IMAGE")
-    alertmanager_image_digest=$(containerd_image_digest "$ALERTMANAGER_IMAGE")
+    mysql_archive_image=$(normalize_image_reference "$MYSQL_IMAGE")
+    redis_archive_image=$(normalize_image_reference "$REDIS_IMAGE")
+    prometheus_archive_image=$(normalize_image_reference "$PROMETHEUS_IMAGE")
+    alertmanager_archive_image=$(normalize_image_reference "$ALERTMANAGER_IMAGE")
     cat > "$release_tmp/runtime-images.env" <<EOF
 MYSQL_IMAGE=$MYSQL_IMAGE
 MYSQL_IMAGE_DIGEST=$mysql_image_digest
@@ -124,7 +146,8 @@ EOF
     k3s_ctr images export "$images_archive" \
         "$APP_IMAGE@$APP_IMAGE_DIGEST" \
         "$FRONTEND_IMAGE@$FRONTEND_IMAGE_DIGEST" \
-        "$MYSQL_IMAGE" "$REDIS_IMAGE" "$PROMETHEUS_IMAGE" "$ALERTMANAGER_IMAGE"
+        "$mysql_archive_image" "$redis_archive_image" \
+        "$prometheus_archive_image" "$alertmanager_archive_image"
     [ -s "$images_archive" ] || die "release 이미지 archive가 비어 있습니다."
     printf '%s  %s\n' "$(sha256_file "$images_archive")" "images.tar" \
         > "$images_archive.sha256"
@@ -139,6 +162,21 @@ else
         || die "외부 release의 app digest가 현재 release와 다릅니다: $release_backup"
     [ "$(require_env_value FRONTEND_IMAGE_DIGEST "$release_backup/metadata.env")" = "$FRONTEND_IMAGE_DIGEST" ] \
         || die "외부 release의 frontend digest가 현재 release와 다릅니다: $release_backup"
+    verify_archived_runtime_image() {
+        prefix=$1
+        current_image=$2
+        current_digest=$3
+        archived_image=$(require_env_value "${prefix}_IMAGE" "$release_backup/runtime-images.env")
+        archived_digest=$(require_env_value "${prefix}_IMAGE_DIGEST" "$release_backup/runtime-images.env")
+        [ "$archived_image" = "$current_image" ] \
+            || die "외부 release의 $prefix 이미지가 현재 release manifest와 다릅니다: $release_backup"
+        [ "$archived_digest" = "$current_digest" ] \
+            || die "외부 release의 $prefix digest가 현재 containerd와 다릅니다: $release_backup"
+    }
+    verify_archived_runtime_image MYSQL "$MYSQL_IMAGE" "$mysql_image_digest"
+    verify_archived_runtime_image REDIS "$REDIS_IMAGE" "$redis_image_digest"
+    verify_archived_runtime_image PROMETHEUS "$PROMETHEUS_IMAGE" "$prometheus_image_digest"
+    verify_archived_runtime_image ALERTMANAGER "$ALERTMANAGER_IMAGE" "$alertmanager_image_digest"
     verify_checksum "$release_backup/images.tar"
 fi
 

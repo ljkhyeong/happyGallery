@@ -94,13 +94,38 @@ require_private_file() {
     [ -z "$exposed" ] || die "파일 권한을 600으로 제한한 뒤 다시 실행하세요: $file"
 }
 
+normalize_image_reference() {
+    image=$1
+    case "$image" in
+        *@*)
+            image_name=${image%%@*}
+            image_suffix=@${image#*@}
+            ;;
+        *)
+            image_name=$image
+            image_suffix=
+            ;;
+    esac
+
+    case "$image_name" in
+        */*)
+            registry=${image_name%%/*}
+            case "$registry" in
+                *.*|*:*|localhost) normalized=$image_name ;;
+                *) normalized="docker.io/$image_name" ;;
+            esac
+            ;;
+        *)
+            normalized="docker.io/library/$image_name"
+            ;;
+    esac
+
+    printf '%s%s' "$normalized" "$image_suffix"
+}
+
 containerd_has_image() {
     image=$1
-    normalized=$image
-    case "$image" in
-        */*) ;;
-        *) normalized="docker.io/library/$image" ;;
-    esac
+    normalized=$(normalize_image_reference "$image")
     images=$(k3s_ctr images list -q)
     printf '%s\n' "$images" | grep -Fx "$image" >/dev/null \
         || printf '%s\n' "$images" | grep -Fx "$normalized" >/dev/null
@@ -108,8 +133,9 @@ containerd_has_image() {
 
 containerd_image_digest() {
     image=$1
-    k3s_ctr images list | awk -v image="$image" '
-        NR > 1 && $1 == image {
+    normalized=$(normalize_image_reference "$image")
+    k3s_ctr images list | awk -v image="$image" -v normalized="$normalized" '
+        NR > 1 && ($1 == image || $1 == normalized) {
             print $3
             found = 1
             exit
