@@ -32,5 +32,18 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long>,
 
     @Override
     @Lock(PESSIMISTIC_WRITE)
+    @Query("""
+            select item
+              from CartItem item
+             where item.userId = :userId
+               and item.productId in :productIds
+             order by item.productId
+            """)
+    List<CartItem> findAllByUserIdAndProductIdInForUpdate(
+            @Param("userId") Long userId,
+            @Param("productIds") Collection<Long> productIds);
+
+    @Override
+    @Lock(PESSIMISTIC_WRITE)
     List<CartItem> findAllByUserIdAndIdInOrderByIdAsc(Long userId, Collection<Long> cartItemIds);
 }

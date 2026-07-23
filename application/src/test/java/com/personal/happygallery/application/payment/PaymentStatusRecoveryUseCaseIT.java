@@ -64,7 +64,9 @@ class PaymentStatusRecoveryUseCaseIT {
         inventoryStorePort.save(inventory(product, 2));
         PaymentPrepareUseCase.PrepareResult first = prepare(product, PHONE);
         PaymentPrepareUseCase.PrepareResult second = prepare(product, PHONE);
+        PaymentPrepareUseCase.PrepareResult third = prepare(product, PHONE);
         markCompensationRequested(first);
+        markCompensationSucceeded(second);
         String verificationCode = saveVerification(PHONE, "123456");
 
         PaymentStatusRecoveryUseCase.RecoveryResult recovered =
@@ -75,7 +77,7 @@ class PaymentStatusRecoveryUseCaseIT {
             softly.assertThat(recovered.expiresAt()).isAfter(clock.instant());
             softly.assertThat(recovered.payments())
                     .extracting(PaymentStatusRecoveryUseCase.RecoveredPayment::orderId)
-                    .containsExactly(first.orderId(), second.orderId());
+                    .containsExactly(first.orderId(), second.orderId(), third.orderId());
             softly.assertThat(recovered.payments())
                     .allSatisfy(payment -> {
                         softly.assertThat(payment.context()).isEqualTo(PaymentContext.ORDER);
@@ -83,6 +85,8 @@ class PaymentStatusRecoveryUseCaseIT {
                     });
             softly.assertThat(recovered.payments().getFirst().status())
                     .isEqualTo(PaymentStatusQueryUseCase.CustomerPaymentStatus.REFUNDING);
+            softly.assertThat(recovered.payments().get(1).status())
+                    .isEqualTo(PaymentStatusQueryUseCase.CustomerPaymentStatus.REFUNDED);
             softly.assertThat(recovered.payments().getLast().status())
                     .isEqualTo(PaymentStatusQueryUseCase.CustomerPaymentStatus.READY);
             softly.assertThat(statusQueryUseCase.getStatus(
@@ -90,6 +94,9 @@ class PaymentStatusRecoveryUseCaseIT {
                     .isEqualTo(PaymentStatusQueryUseCase.CustomerPaymentStatus.REFUNDING);
             softly.assertThat(statusQueryUseCase.getStatus(
                             second.orderId(), AuthContext.guest(), recovered.statusToken()).status())
+                    .isEqualTo(PaymentStatusQueryUseCase.CustomerPaymentStatus.REFUNDED);
+            softly.assertThat(statusQueryUseCase.getStatus(
+                            third.orderId(), AuthContext.guest(), recovered.statusToken()).status())
                     .isEqualTo(PaymentStatusQueryUseCase.CustomerPaymentStatus.READY);
         });
         assertThatThrownBy(() -> statusQueryUseCase.getStatus(
@@ -97,6 +104,9 @@ class PaymentStatusRecoveryUseCaseIT {
                 .isInstanceOf(NotFoundException.class);
         assertThatThrownBy(() -> statusQueryUseCase.getStatus(
                 second.orderId(), AuthContext.guest(), second.statusToken()))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> statusQueryUseCase.getStatus(
+                third.orderId(), AuthContext.guest(), third.statusToken()))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -126,15 +136,23 @@ class PaymentStatusRecoveryUseCaseIT {
                 AuthContext.guest()));
     }
 
-    private void markCompensationRequested(PaymentPrepareUseCase.PrepareResult prepared) {
+    private Refund markCompensationRequested(PaymentPrepareUseCase.PrepareResult prepared) {
         var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
         LocalDateTime now = LocalDateTime.now(clock);
         String processingToken = attempt.startProcessing(prepared.amount(), "compensation-key", now);
         attempt.markApproved(processingToken, "compensation-key", now);
         attempt.markCompensationRequested("주문 생성 실패");
         attemptStore.save(attempt);
-        refundRepository.save(Refund.forPaymentAttempt(
+        return refundRepository.save(Refund.forPaymentAttempt(
                 attempt.getId(), attempt.getAmount(), attempt.getConfirmedPaymentKey()));
+    }
+
+    private void markCompensationSucceeded(PaymentPrepareUseCase.PrepareResult prepared) {
+        Refund refund = markCompensationRequested(prepared);
+        LocalDateTime now = LocalDateTime.now(clock);
+        String processingToken = refund.startProcessing(now, now.minusMinutes(1));
+        refund.markSucceeded(processingToken, "refund-transaction-key", now);
+        refundRepository.save(refund);
     }
 
     private String saveVerification(String phone, String code) {

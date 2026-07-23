@@ -21,6 +21,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -118,8 +119,21 @@ public class DefaultCartService implements CartUseCase {
                 != quantitiesByProductId.size()) {
             throw new NotFoundException("상품");
         }
-        quantitiesByProductId.forEach(
-                (productId, qty) -> addItem(userId, productId, qty, changedAt));
+
+        Map<Long, CartItem> existingItemsByProductId = new HashMap<>();
+        for (CartItem item : cartItemReader.findAllByUserIdAndProductIdInForUpdate(
+                userId, quantitiesByProductId.keySet())) {
+            existingItemsByProductId.put(item.getProductId(), item);
+        }
+        for (Map.Entry<Long, Integer> entry : quantitiesByProductId.entrySet()) {
+            CartItem existingItem = existingItemsByProductId.get(entry.getKey());
+            if (existingItem != null) {
+                existingItem.addQty(entry.getValue(), changedAt);
+                continue;
+            }
+            cartItemStore.save(new CartItem(
+                    userId, entry.getKey(), entry.getValue(), changedAt));
+        }
     }
 
     private static String payloadHash(Map<Long, Integer> quantitiesByProductId) {

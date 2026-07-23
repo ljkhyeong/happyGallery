@@ -24,6 +24,7 @@ import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @UseCaseIT
@@ -64,26 +65,31 @@ class CartQueryUseCaseIT {
         });
     }
 
-    @DisplayName("장바구니 병합은 같은 요청을 한 번만 반영하고 멱등키 재사용을 거절한다")
+    @DisplayName("장바구니 병합은 기존 수량과 새 상품을 한 번만 반영하고 멱등키 재사용을 거절한다")
     @Test
     void mergeItems_isIdempotent() {
         User user = userStore.save(new User(
                 "cart-merge@example.com", "hashed", "병합 회원", "01098765432"));
-        Product product = productStore.save(readyStockProduct("병합 상품", 10_000L));
+        Product existingProduct = productStore.save(readyStockProduct("기존 병합 상품", 10_000L));
+        Product newProduct = productStore.save(readyStockProduct("새 병합 상품", 20_000L));
+        cartItemStore.save(new CartItem(
+                user.getId(), existingProduct.getId(), 1, LocalDateTime.now(clock)));
         UUID idempotencyKey = UUID.randomUUID();
         List<CartUseCase.MergeItem> items = List.of(
-                new CartUseCase.MergeItem(product.getId(), 2));
+                new CartUseCase.MergeItem(existingProduct.getId(), 2),
+                new CartUseCase.MergeItem(newProduct.getId(), 1));
 
         cartUseCase.mergeItems(user.getId(), idempotencyKey, items);
         cartUseCase.mergeItems(user.getId(), idempotencyKey, items);
 
         assertThat(cartUseCase.getCart(user.getId()).items())
-                .singleElement()
-                .extracting(CartUseCase.CartItemView::qty)
-                .isEqualTo(2);
+                .extracting(CartUseCase.CartItemView::productId, CartUseCase.CartItemView::qty)
+                .containsExactly(
+                        tuple(existingProduct.getId(), 3),
+                        tuple(newProduct.getId(), 1));
         assertThatThrownBy(() -> cartUseCase.mergeItems(
                 user.getId(), idempotencyKey,
-                List.of(new CartUseCase.MergeItem(product.getId(), 3))))
+                List.of(new CartUseCase.MergeItem(existingProduct.getId(), 3))))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode())

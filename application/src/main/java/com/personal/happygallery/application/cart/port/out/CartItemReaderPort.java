@@ -11,5 +11,7 @@ public interface CartItemReaderPort {
 
     Optional<CartItem> findByUserIdAndProductIdForUpdate(Long userId, Long productId);
 
+    List<CartItem> findAllByUserIdAndProductIdInForUpdate(Long userId, Collection<Long> productIds);
+
     List<CartItem> findAllByUserIdAndIdInOrderByIdAsc(Long userId, Collection<Long> cartItemIds);
 }
