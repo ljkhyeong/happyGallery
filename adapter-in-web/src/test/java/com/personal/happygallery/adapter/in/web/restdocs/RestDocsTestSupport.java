@@ -28,6 +28,14 @@ abstract class RestDocsTestSupport {
     protected static final Long ADMIN_USER_ID = 99L;
 
     protected MockMvc mockMvc(RestDocumentationContextProvider restDocumentation, Object... controllers) {
+        return mockMvc(restDocumentation, "{class-name}", controllers);
+    }
+
+    protected MockMvc mockMvc(
+            RestDocumentationContextProvider restDocumentation,
+            String snippetGroup,
+            Object... controllers
+    ) {
         return MockMvcBuilders.standaloneSetup(controllers)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
@@ -42,7 +50,7 @@ abstract class RestDocsTestSupport {
                         .operationPreprocessors()
                         .withRequestDefaults(prettyPrint())
                         .withResponseDefaults(prettyPrint()))
-                .alwaysDo(document("{class-name}/{method-name}"))
+                .alwaysDo(document(snippetGroup + "/{method-name}"))
                 .build();
     }
 
