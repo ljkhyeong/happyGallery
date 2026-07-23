@@ -15,6 +15,11 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, Long>, Adm
 
     @Override Optional<AdminUser> findByUsername(String username);
 
+    @Override
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM AdminUser a WHERE a.username = :username")
+    Optional<AdminUser> findByUsernameForUpdate(@Param("username") String username);
+
     @Override Optional<AdminUser> findById(Long id);
 
     @Override

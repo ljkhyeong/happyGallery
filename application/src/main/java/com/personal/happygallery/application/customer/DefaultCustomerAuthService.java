@@ -61,6 +61,9 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
                 .filter(User::hasLocalPassword)
                 .filter(u -> passwordEncoder.matches(command.rawPassword(), u.getPasswordHash()))
                 .orElseThrow(() -> new HappyGalleryException(ErrorCode.INVALID_CREDENTIALS));
+        if (passwordEncoder.upgradeEncoding(user.getPasswordHash())) {
+            user.upgradePasswordHash(passwordEncoder.encode(command.rawPassword()));
+        }
         user.updateLastLoginAt(LocalDateTime.now(clock));
         return user;
     }

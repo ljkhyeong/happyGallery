@@ -45,4 +45,8 @@ public class AdminUser {
         this.passwordHash = passwordHash;
         this.credentialVersion = Math.incrementExact(credentialVersion);
     }
+
+    public void upgradePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
 }

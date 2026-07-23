@@ -31,7 +31,7 @@ public class ProductQna {
     @Column(nullable = false)
     private boolean secret;
 
-    @Column(name = "password_hash", length = 60)
+    @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
     @Column(name = "reply_content", columnDefinition = "TEXT")

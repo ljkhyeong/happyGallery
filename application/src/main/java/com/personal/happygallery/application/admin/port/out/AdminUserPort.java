@@ -10,6 +10,8 @@ public interface AdminUserPort {
 
     Optional<AdminUser> findByUsername(String username);
 
+    Optional<AdminUser> findByUsernameForUpdate(String username);
+
     Optional<AdminUser> findById(Long id);
 
     Optional<AdminUser> findByIdForUpdate(Long id);

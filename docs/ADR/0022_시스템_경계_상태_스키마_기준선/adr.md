@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-07-21
+**갱신**: 2026-07-23
 
 ---
 
@@ -81,7 +81,7 @@
 
 - `admin_user`
   - `id`, `username(unique)`, `password_hash`, `credential_version`, `created_at`
-  - 비밀번호 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다.
+  - 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 실제 비밀번호 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 작업 강도만 승격할 때는 버전을 유지한다.
 - `admin_setup_lock`
   - `id=1`인 단일 행만 유지한다. 최초 관리자 생성 트랜잭션이 이 행을 `FOR UPDATE`로 잠가 동시 setup 요청을 직렬화한다.
 - `data_key_rotation_lock`
@@ -90,7 +90,8 @@
 - `users`
   - `id`, `email_enc`, `email_hmac`, `password_hash nullable`, `credential_version`, `version`, `name_enc`, `name_hmac`, `phone_enc nullable`, `phone_hmac nullable`, `phone_verified`, `last_login_at`, `withdrawn_at nullable`, `created_at`
   - 이메일·이름·전화번호 평문 컬럼은 두지 않는다. 복호화가 필요한 값은 `*_enc`, 정확 일치 조회는 `*_hmac`를 사용한다.
-  - `credential_version`은 비밀번호 해시 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다.
+  - 로컬 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다.
+  - `credential_version`은 실제 비밀번호·로그인 수단 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다. 로그인 중 BCrypt 작업 강도만 승격할 때는 버전을 유지한다.
   - `version`은 로그인 시각·휴대폰 확인·비밀번호처럼 같은 회원 행을 갱신하는 경로의 stale update를 막는 JPA 낙관적 락 버전이다.
   - `phone_hmac`은 null을 허용하되 값이 있으면 회원 전체에서 유일하다. 전화번호 변경은 새 번호 SMS 소유 확인 뒤 이 제약과 애플리케이션 조회로 중복을 거절한다.
   - 탈퇴는 미완료 주문, `BOOKED` 예약, 사용 가능한 미만료 8회권, 미완료 환불이 없을 때만 허용한다. 이메일·이름을 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한 뒤 `withdrawn_at`과 자격 버전을 갱신한다. 이후 일반 회원 조회와 로그인에서 제외하고 기존 세션을 폐기한다.
@@ -229,7 +230,8 @@ HAVING COUNT(*) > 1;
 
 - `product_qna`
   - `id`, `product_id`, `user_id`
-  - `title`, `content`, `secret`, `password_hash nullable`
+  - `title`, `content`, `secret`, `password_hash VARCHAR(255) nullable`
+  - 비밀글 비밀번호 해시는 회원·관리자와 같은 BCrypt 호환 형식으로 저장한다.
   - `reply_content nullable`, `replied_at nullable`, `replied_by nullable`, `created_at`
 
 - `inquiry`

@@ -165,6 +165,10 @@ public class User {
         this.credentialVersion = Math.incrementExact(credentialVersion);
     }
 
+    public void upgradePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public void markAuthenticationMethodsChanged() {
         this.credentialVersion = Math.incrementExact(credentialVersion);
     }

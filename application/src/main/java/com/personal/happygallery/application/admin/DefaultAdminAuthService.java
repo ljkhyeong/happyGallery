@@ -4,11 +4,13 @@ import com.personal.happygallery.application.admin.port.AdminSession;
 import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.application.admin.port.out.AdminSessionPort;
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
+import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.util.Optional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DefaultAdminAuthService implements AdminAuthUseCase {
@@ -25,13 +27,18 @@ public class DefaultAdminAuthService implements AdminAuthUseCase {
     }
 
     @Override
+    @Transactional
     public String login(String username, String rawPassword) {
-        return adminUserRepository.findByUsername(username)
+        AdminUser admin = adminUserRepository.findByUsernameForUpdate(username)
                 .filter(user -> passwordEncoder.matches(rawPassword, user.getPasswordHash()))
-                .map(user -> sessionPort.create(
-                        user.getId(), user.getUsername(), user.getCredentialVersion()))
                 .orElseThrow(() -> new HappyGalleryException(ErrorCode.INVALID_CREDENTIALS,
                         "아이디 또는 비밀번호가 올바르지 않습니다."));
+        if (passwordEncoder.upgradeEncoding(admin.getPasswordHash())) {
+            admin.upgradePasswordHash(passwordEncoder.encode(rawPassword));
+            adminUserRepository.save(admin);
+        }
+        return sessionPort.create(
+                admin.getId(), admin.getUsername(), admin.getCredentialVersion());
     }
 
     @Override
