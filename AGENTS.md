@@ -32,10 +32,11 @@
 - `adapter-in-web/`: 컨트롤러, 필터, resolver, 웹 전용 properties
 - `adapter-out-persistence/`: JPA repository, MyBatis mapper/adapter
 - `adapter-out-external/`: 결제, 알림, OAuth, Redis 세션, HTTP pool
-- `application/`: 유스케이스 인터페이스(`port.in`/`port.out`), service, batch, `java-test-fixtures` 기반 공용 test support
+- `application/`: 유스케이스 인터페이스(`port.in`/`port.out`), service, batch, application/domain 전용 공용 test fixture
+- `test-support/`: 웹 DTO와 영속성 repository에 의존하는 통합 테스트 fixture. 테스트 classpath에서만 사용
 - `domain/`: 엔티티, 정책 enum, 도메인 예외, 핵심 규칙
 - `frontend/src/generated/api/`: OpenAPI에서 생성한 TypeScript API client와 DTO, 수동 편집 금지
-- 의존 방향: `bootstrap → adapter-in-web/out-* → application → domain` (ArchUnit `LayerDependencyPolicyTest`로 강제)
+- 운영 코드 의존 방향: `bootstrap → adapter-in-web/out-* → application → domain` (ArchUnit `LayerDependencyPolicyTest`로 강제)
 
 ## 빌드, 테스트, 개발 명령어
 - 모든 명령은 저장소 루트 + Gradle Wrapper 기준
