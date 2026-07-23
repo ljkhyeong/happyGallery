@@ -1,0 +1,717 @@
+// ── Chungju happyGallery brand experience ─────────────
+.store-hero {
+  min-height: clamp(520px, calc(86svh - 118px), 700px);
+  background-position: center;
+}
+
+.store-hero-title {
+  margin-bottom: 0.65rem;
+  font-size: 6.75rem;
+  letter-spacing: 0;
+}
+
+.store-hero-lead {
+  margin-bottom: 1.25rem;
+  color: var(--hg-burgundy);
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 1.7rem;
+  font-weight: 700;
+}
+
+.home-band {
+  padding-block: clamp(4.5rem, 8vw, 7.5rem);
+}
+
+.home-section-heading,
+.class-catalog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 2rem;
+}
+
+.home-class-section {
+  background: var(--hg-mint);
+}
+
+.home-craft-specialties {
+  max-width: 62rem;
+  margin: 0 0 clamp(2.5rem, 5vw, 4rem);
+  color: var(--hg-olive);
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 1.3rem;
+  line-height: 2;
+}
+
+.home-class-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(20rem, 1.1fr);
+  gap: clamp(2rem, 6vw, 5.5rem);
+  align-items: center;
+}
+
+.home-class-media,
+.home-editorial-media,
+.home-story-media,
+.group-class-intro figure,
+.class-catalog-media {
+  margin: 0;
+  overflow: hidden;
+  background: var(--hg-surface-dim);
+}
+
+.home-class-media {
+  aspect-ratio: 4 / 5;
+}
+
+.home-class-media img,
+.home-editorial-media img,
+.home-story-media img,
+.group-class-intro img,
+.class-catalog-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home-class-media:hover img,
+.home-editorial-media:hover img,
+.home-story-media:hover img,
+.group-class-intro figure:hover img,
+.class-catalog-item:hover .class-catalog-media img {
+  transform: scale(1.025);
+}
+
+.home-class-list {
+  border-bottom: 1px solid rgba(42, 38, 34, 0.25);
+}
+
+.home-class-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  min-height: 6rem;
+  padding: 1.25rem 0;
+  color: var(--hg-dark);
+  border-top: 1px solid rgba(42, 38, 34, 0.25);
+  text-decoration: none;
+  transition: padding 220ms ease, color 220ms ease;
+}
+
+.home-class-row div {
+  min-width: 0;
+}
+
+.home-class-row strong,
+.home-class-row span {
+  display: block;
+}
+
+.home-class-row strong {
+  margin-bottom: 0.35rem;
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 1.4rem;
+}
+
+.home-class-row div span {
+  color: var(--hg-ink-soft);
+  font-size: 0.875rem;
+}
+
+.home-class-row > span {
+  flex: 0 0 auto;
+  color: var(--hg-burgundy);
+  font-size: 1.25rem;
+}
+
+.home-class-row:hover,
+.home-class-row:focus-visible {
+  padding-inline: 0.65rem;
+  color: var(--hg-burgundy);
+}
+
+.home-group-band {
+  padding-block: clamp(4.5rem, 8vw, 7.5rem);
+  color: #FFFDF8;
+  background: var(--hg-burgundy);
+}
+
+.home-editorial-layout,
+.home-story-layout,
+.group-class-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+  gap: clamp(2.5rem, 7vw, 7rem);
+  align-items: center;
+}
+
+.home-editorial-media {
+  aspect-ratio: 16 / 10;
+}
+
+.home-editorial-copy .store-section-kicker {
+  color: #F4DDE2;
+}
+
+.home-editorial-copy h2,
+.home-story-copy h2,
+.group-class-intro h2,
+.group-class-process h2,
+.group-class-inquiry h2 {
+  margin-bottom: 1.25rem;
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 3.25rem;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+.home-editorial-copy p:not(.store-section-kicker),
+.home-story-copy p:not(.store-section-kicker),
+.group-class-intro p:not(.store-section-kicker),
+.group-class-inquiry p:not(.store-section-kicker) {
+  margin-bottom: 1.75rem;
+  line-height: 1.85;
+}
+
+.home-editorial-copy p:not(.store-section-kicker) {
+  color: rgba(255, 253, 248, 0.72);
+}
+
+.home-story-section {
+  background: #FFFCF7;
+}
+
+.home-story-layout {
+  grid-template-columns: minmax(18rem, 0.8fr) minmax(0, 1.2fr);
+}
+
+.home-story-media {
+  aspect-ratio: 16 / 10;
+}
+
+.home-story-links {
+  margin-bottom: 1.5rem;
+  border-top: 1px solid var(--hg-border);
+}
+
+.home-story-links > a {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  min-height: 3.75rem;
+  color: var(--hg-dark);
+  border-bottom: 1px solid var(--hg-border);
+  text-decoration: none;
+}
+
+.home-story-links > a > span:first-child {
+  color: var(--hg-olive);
+  font-size: 0.75rem;
+}
+
+.home-story-links strong {
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.home-story-links > a > span:last-child {
+  color: var(--hg-burgundy);
+}
+
+.home-story-links > a:hover strong,
+.home-story-links > a:focus-visible strong {
+  color: var(--hg-burgundy);
+}
+
+.home-product-section {
+  background: #F3E6E8;
+}
+
+.home-product-section .store-section-desc,
+.home-product-section .text-muted-soft {
+  color: #6B625A;
+}
+
+.home-notice-section {
+  background: #FFFDF8;
+}
+
+.home-notice-section .store-section {
+  margin-bottom: 0 !important;
+}
+
+.home-workshop-section {
+  padding-block: clamp(4rem, 7vw, 6.5rem);
+  background: #EEF3F0;
+  border-top: 1px solid rgba(86, 103, 93, 0.22);
+  border-bottom: 0;
+}
+
+.workshop-visit-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  align-items: flex-start;
+}
+
+.class-catalog-hero,
+.group-class-hero {
+  position: relative;
+  min-height: clamp(440px, 68svh, 650px);
+  display: flex;
+  align-items: end;
+  isolation: isolate;
+}
+
+.class-catalog-hero {
+  color: #FFFFFF;
+  background-image: var(--hg-class-hero-image);
+  background-position: center;
+  background-size: cover;
+}
+
+.class-catalog-hero::before,
+.group-class-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(25, 30, 27, 0.48);
+}
+
+.class-catalog-hero-copy {
+  max-width: 40rem;
+  padding-block: clamp(3rem, 7vw, 5.5rem);
+}
+
+.class-catalog-hero .store-section-kicker,
+.group-class-hero .store-section-kicker {
+  color: #E8C3CA;
+}
+
+.class-catalog-hero h1,
+.group-class-hero h1 {
+  margin-bottom: 1.25rem;
+  color: #FFFFFF;
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 4.5rem;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.class-catalog-hero-copy > p:last-child,
+.group-class-hero-inner p:last-child {
+  max-width: 34rem;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 1rem;
+}
+
+.class-catalog-header {
+  margin-bottom: 3rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.class-catalog-header h2 {
+  margin: 0;
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 3rem;
+  font-weight: 400;
+}
+
+.class-catalog-list {
+  border-top: 1px solid var(--hg-dark);
+}
+
+.class-catalog-item {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: 1.5rem clamp(1.5rem, 4vw, 4rem);
+  padding-block: clamp(2rem, 5vw, 3.5rem);
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.class-catalog-item.has-media {
+  grid-template-columns: 3.5rem minmax(0, 1fr) minmax(14rem, 0.55fr);
+}
+
+.class-catalog-number {
+  color: var(--hg-burgundy);
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.class-catalog-title-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.class-catalog-title-row h3 {
+  margin-bottom: 1rem;
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 2.15rem;
+  font-weight: 400;
+}
+
+.class-catalog-title-row strong {
+  flex: 0 0 auto;
+  font-size: 0.95rem;
+}
+
+.class-catalog-description {
+  max-width: 42rem;
+  color: var(--hg-ink-soft);
+  line-height: 1.8;
+  white-space: pre-line;
+}
+
+.class-catalog-meta {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1.5rem 0 0;
+}
+
+.class-catalog-meta > div {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.class-catalog-meta dt {
+  color: var(--hg-olive);
+  font-size: 0.78rem;
+}
+
+.class-catalog-meta dd {
+  margin: 0;
+  font-size: 0.875rem;
+  white-space: pre-line;
+}
+
+.class-catalog-media {
+  aspect-ratio: 4 / 3;
+}
+
+.class-catalog-book-link {
+  grid-column: 2;
+  justify-self: start;
+  color: var(--hg-burgundy);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.class-catalog-item.has-media .class-catalog-book-link {
+  grid-column: 2 / 4;
+}
+
+.class-followup-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: clamp(4rem, 8vw, 7rem);
+  border-block: 1px solid var(--hg-dark);
+}
+
+.class-followup-links > a {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 1rem;
+  padding: 2rem;
+  color: var(--hg-dark);
+  text-decoration: none;
+}
+
+.class-followup-links > a + a {
+  border-left: 1px solid var(--hg-dark);
+}
+
+.class-followup-links span:first-child {
+  grid-column: 1;
+  color: var(--hg-ink-soft);
+  font-size: 0.8rem;
+}
+
+.class-followup-links strong {
+  grid-column: 1;
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 1.35rem;
+}
+
+.class-followup-links span:last-child {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  color: var(--hg-burgundy);
+}
+
+.group-class-hero {
+  overflow: hidden;
+  color: #FFFFFF;
+}
+
+.group-class-hero > img {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.group-class-hero-inner {
+  width: 100%;
+  padding-block: clamp(3rem, 7vw, 5.5rem);
+}
+
+.group-class-intro {
+  padding-bottom: clamp(4rem, 8vw, 7rem);
+}
+
+.group-class-intro figure {
+  aspect-ratio: 4 / 5;
+}
+
+.group-class-process {
+  padding-block: clamp(4rem, 8vw, 7rem);
+  border-block: 1px solid var(--hg-olive);
+}
+
+.group-class-process header {
+  margin-bottom: 3rem;
+}
+
+.group-class-process ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--hg-border);
+}
+
+.group-class-process li {
+  min-width: 0;
+  padding: 2rem;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.group-class-process li + li {
+  border-left: 1px solid var(--hg-border);
+}
+
+.group-class-process li > span {
+  color: var(--hg-burgundy);
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+}
+
+.group-class-process h3 {
+  margin: 1.75rem 0 0.75rem;
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 1.35rem;
+}
+
+.group-class-process li p {
+  margin: 0;
+  color: var(--hg-ink-soft);
+  line-height: 1.75;
+}
+
+.group-class-inquiry {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 3rem;
+  margin-top: clamp(4rem, 8vw, 7rem);
+  padding: clamp(2.5rem, 6vw, 5rem);
+  background: var(--hg-mint);
+}
+
+.group-class-inquiry > div:first-child {
+  max-width: 40rem;
+}
+
+.group-class-inquiry-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.group-class-inquiry-actions > span {
+  color: var(--hg-olive);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 991.98px) {
+  .home-class-layout,
+  .home-editorial-layout,
+  .home-story-layout,
+  .group-class-intro {
+    grid-template-columns: 1fr;
+  }
+
+  .home-class-media,
+  .group-class-intro figure {
+    aspect-ratio: 16 / 10;
+  }
+
+  .home-story-copy {
+    order: 2;
+  }
+
+  .home-story-media {
+    order: 1;
+  }
+
+  .class-catalog-item.has-media {
+    grid-template-columns: 3rem minmax(0, 1fr);
+  }
+
+  .class-catalog-media {
+    grid-column: 2;
+    max-width: 34rem;
+  }
+
+  .class-catalog-item.has-media .class-catalog-book-link {
+    grid-column: 2;
+  }
+
+  .group-class-inquiry {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .class-catalog-hero h1,
+  .group-class-hero h1 {
+    font-size: 4.25rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .store-hero {
+    min-height: clamp(520px, calc(84svh - 72px), 620px);
+    background-position: 58% center;
+  }
+
+  .store-hero-content {
+    padding-block: 12rem 2.5rem;
+  }
+
+  .store-hero-title {
+    font-size: 3.65rem;
+  }
+
+  .store-hero-copy {
+    font-size: 0.95rem;
+  }
+
+  .home-section-heading,
+  .class-catalog-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .home-editorial-media,
+  .home-story-media {
+    aspect-ratio: 4 / 3;
+  }
+
+  .home-story-links > a {
+    grid-template-columns: 1fr auto;
+    gap: 0.15rem 1rem;
+    padding-block: 0.8rem;
+  }
+
+  .home-story-links > a > span:first-child,
+  .home-story-links strong {
+    grid-column: 1;
+  }
+
+  .home-story-links > a > span:last-child {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+
+  .class-catalog-hero,
+  .group-class-hero {
+    min-height: 520px;
+  }
+
+  .home-editorial-copy h2,
+  .home-story-copy h2,
+  .group-class-intro h2,
+  .group-class-process h2,
+  .group-class-inquiry h2 {
+    font-size: 2.25rem;
+  }
+
+  .class-catalog-hero h1,
+  .group-class-hero h1 {
+    font-size: 2.5rem;
+  }
+
+  .class-catalog-header h2 {
+    font-size: 2.25rem;
+  }
+
+  .class-catalog-title-row h3 {
+    font-size: 1.65rem;
+  }
+
+  .class-catalog-item,
+  .class-catalog-item.has-media {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    gap: 1.25rem 1rem;
+  }
+
+  .class-catalog-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .class-catalog-media,
+  .class-catalog-book-link,
+  .class-catalog-item.has-media .class-catalog-book-link {
+    grid-column: 2;
+  }
+
+  .class-catalog-meta > div {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+
+  .class-followup-links,
+  .group-class-process ol {
+    grid-template-columns: 1fr;
+  }
+
+  .class-followup-links > a + a,
+  .group-class-process li + li {
+    border-left: 0;
+    border-top: 1px solid var(--hg-border);
+  }
+
+  .group-class-inquiry {
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+  }
+}
+
+@media (max-width: 359.98px) {
+  .class-catalog-hero h1,
+  .group-class-hero h1 {
+    font-size: 2.15rem;
+  }
+}

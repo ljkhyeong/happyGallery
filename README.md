@@ -163,7 +163,7 @@ docker compose up -d --build
 
 - 햇빛이 드는 공방을 중심 이미지로 삼고 한지색, 점토색, 잎색을 기본 팔레트로 사용한다.
 - 본문은 Pretendard, 전시 제목과 브랜드 표기는 Gowun Batang 계열을 사용한다.
-- 공통 색상과 컴포넌트 변수는 `frontend/src/styles/_variables.scss`, 화면 스타일은 `frontend/src/styles/global.scss`에서 관리한다.
+- 공통 색상과 컴포넌트 변수는 `frontend/src/styles/_variables.scss`에서 관리한다. `frontend/src/styles/global.scss`는 Bootstrap과 `_foundation.scss`, `_admin.scss`, `_storefront.scss`, `_atelier.scss`, `_brand.scss`의 로딩 순서만 소유한다.
 - 홈과 클래스·단체수업 화면은 `frontend/src/assets/happygallery`의 실제 공방 사진을 사용한다. 사진 원문은 같은 디렉터리의 `SOURCES.md`에 기록하며, 외부 이미지 CDN에 런타임 의존하지 않는다.
 - SPA 경로 변경 때 공개 화면의 제목·설명·Open Graph 메타를 갱신하고, 인증·결제·고객 이력·관리자 경로는 `noindex`와 `robots.txt`로 검색 노출 대상에서 제외한다.
 
