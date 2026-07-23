@@ -5,6 +5,7 @@ import com.personal.happygallery.adapter.in.web.config.properties.AdminPropertie
 import com.personal.happygallery.adapter.in.web.security.admin.AdminAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminAuthenticationProvider;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes;
 import com.personal.happygallery.adapter.in.web.security.customer.DiscardingOAuth2AuthorizedClientRepository;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialLoginAuthenticationHandler;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialOAuth2AuthorizationRequestResolver;
@@ -48,11 +49,6 @@ public class SecurityConfig {
 
     private static final String ADMIN_LOGIN_REQUIRED = "관리자 인증이 필요합니다.";
     private static final String CUSTOMER_LOGIN_REQUIRED = "로그인이 필요합니다.";
-    private static final String SOCIAL_AUTHORIZATION_BASE_URI = "/api/v1/auth/social/authorization";
-    private static final String SOCIAL_CALLBACK_BASE_URI = "/api/v1/auth/social/callback/*";
-    private static final RequestMatcher SOCIAL_OAUTH_ENDPOINTS = new OrRequestMatcher(
-            PathPatternRequestMatcher.withDefaults().matcher(SOCIAL_AUTHORIZATION_BASE_URI + "/**"),
-            PathPatternRequestMatcher.withDefaults().matcher("/api/v1/auth/social/callback/**"));
 
     @Bean
     AuthenticationProvider adminAuthenticationProvider(AdminAuthUseCase adminAuthUseCase,
@@ -72,6 +68,22 @@ public class SecurityConfig {
                 adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/logout"),
                 adminEndpoint(HttpMethod.POST, "/api/v1/admin/setup"),
                 adminEndpoint(HttpMethod.GET, "/api/v1/admin/setup/status"));
+    }
+
+    @Bean
+    RequestMatcher customerAuthenticationEndpoints() {
+        return new OrRequestMatcher(
+                endpoint(CustomerSecurityRoutes.MEMBER_API),
+                endpoint(CustomerSecurityRoutes.MEMBER_API_PATTERN),
+                endpoint(CustomerSecurityRoutes.PAYMENT_API_PATTERN),
+                endpoint(CustomerSecurityRoutes.CLIENT_MONITORING_API));
+    }
+
+    @Bean
+    RequestMatcher socialOAuthEndpoints() {
+        return new OrRequestMatcher(
+                endpoint(CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_PATTERN),
+                endpoint(CustomerSecurityRoutes.SOCIAL_CALLBACK_PATTERN));
     }
 
     @Bean
@@ -133,9 +145,16 @@ public class SecurityConfig {
                                                             naverOAuth2UserService,
                                                     @Qualifier("googleOidcUserService")
                                                     OAuth2UserService<OidcUserRequest, OidcUser> googleOidcUserService,
+                                                    @Qualifier("customerAuthenticationEndpoints")
+                                                    RequestMatcher customerAuthenticationEndpoints,
+                                                    @Qualifier("socialOAuthEndpoints")
+                                                    RequestMatcher socialOAuthEndpoints,
                                                     ObjectMapper objectMapper) throws Exception {
         http.authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/v1/me", "/api/v1/me/**").hasRole("CUSTOMER")
+                        .requestMatchers(
+                                CustomerSecurityRoutes.MEMBER_API,
+                                CustomerSecurityRoutes.MEMBER_API_PATTERN)
+                        .hasRole("CUSTOMER")
                         .requestMatchers(
                                 "/error",
                                 "/actuator",
@@ -144,8 +163,8 @@ public class SecurityConfig {
                                 "/actuator/metrics", "/actuator/metrics/**",
                                 "/actuator/prometheus",
                                 "/api/v1/auth/**",
-                                "/api/v1/payments/**",
-                                "/api/v1/monitoring/client-events",
+                                CustomerSecurityRoutes.PAYMENT_API_PATTERN,
+                                CustomerSecurityRoutes.CLIENT_MONITORING_API,
                                 "/api/v1/guest-records/recovery",
                                 "/api/v1/guest-records/payment-status-recovery",
                                 "/api/v1/bookings/**",
@@ -159,7 +178,9 @@ public class SecurityConfig {
                         .permitAll()
                         .anyRequest().denyAll())
                 .addFilterBefore(
-                        new CustomerAuthenticationFilter(customerAuthUseCase),
+                        new CustomerAuthenticationFilter(
+                                customerAuthUseCase,
+                                customerAuthenticationEndpoints),
                         AnonymousAuthenticationFilter.class)
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(authenticationEntryPoint(objectMapper, CUSTOMER_LOGIN_REQUIRED))
@@ -173,10 +194,10 @@ public class SecurityConfig {
                         .csrfTokenRepository(csrfTokenRepository))
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(endpoint -> endpoint
-                                .baseUri(SOCIAL_AUTHORIZATION_BASE_URI)
+                                .baseUri(CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_BASE_URI)
                                 .authorizationRequestResolver(socialAuthorizationRequestResolver))
                         .redirectionEndpoint(endpoint -> endpoint
-                                .baseUri(SOCIAL_CALLBACK_BASE_URI))
+                                .baseUri(CustomerSecurityRoutes.SOCIAL_CALLBACK_BASE_URI))
                         .tokenEndpoint(endpoint -> endpoint
                                 .accessTokenResponseClient(socialOAuth2AccessTokenResponseClient))
                         .userInfoEndpoint(endpoint -> endpoint
@@ -192,7 +213,7 @@ public class SecurityConfig {
                 .headers(headers -> headers
                         .cacheControl(cache -> cache.disable())
                         .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(
-                                SOCIAL_OAUTH_ENDPOINTS,
+                                socialOAuthEndpoints,
                                 new StaticHeadersWriter(HttpHeaders.CACHE_CONTROL, "no-store"))));
 
         return http.build();
@@ -210,5 +231,9 @@ public class SecurityConfig {
 
     private static RequestMatcher adminEndpoint(HttpMethod method, String path) {
         return PathPatternRequestMatcher.withDefaults().matcher(method, path);
+    }
+
+    private static RequestMatcher endpoint(String path) {
+        return PathPatternRequestMatcher.withDefaults().matcher(path);
     }
 }

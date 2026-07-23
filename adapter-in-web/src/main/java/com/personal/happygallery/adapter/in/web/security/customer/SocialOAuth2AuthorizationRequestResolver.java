@@ -14,15 +14,13 @@ import org.springframework.util.StringUtils;
 @Component
 public class SocialOAuth2AuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
-    private static final String AUTHORIZATION_REQUEST_BASE_URI = "/api/v1/auth/social/authorization";
-
     private final DefaultOAuth2AuthorizationRequestResolver delegate;
     private final SocialAccountLinkIntentStore linkIntentStore;
 
     public SocialOAuth2AuthorizationRequestResolver(ClientRegistrationRepository clientRegistrations,
                                                     SocialAccountLinkIntentStore linkIntentStore) {
         this.delegate = new DefaultOAuth2AuthorizationRequestResolver(
-                clientRegistrations, AUTHORIZATION_REQUEST_BASE_URI);
+                clientRegistrations, CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_BASE_URI);
         this.linkIntentStore = linkIntentStore;
     }
 

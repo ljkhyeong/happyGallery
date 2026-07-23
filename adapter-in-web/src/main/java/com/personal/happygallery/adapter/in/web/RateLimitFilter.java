@@ -24,8 +24,10 @@ import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode.FAIL_CLOSED;
 import static com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode.FAIL_OPEN;
-import static org.springframework.http.HttpMethod.GET;
+import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_PROVIDER_PATH;
+import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_CALLBACK_PROVIDER_PATH;
 import static org.springframework.http.HttpMethod.DELETE;
+import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
 
@@ -48,10 +50,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final LimitRule ADMIN_SETUP_RULE = new LimitRule(
             "ADMIN_SETUP_IP", pathPattern(POST, "/api/v1/admin/setup"), FAIL_CLOSED);
     private static final LimitRule SOCIAL_LOGIN_RULE = new LimitRule(
-            "SOCIAL_LOGIN_IP", pathPattern(GET, "/api/v1/auth/social/callback/{provider}"), FAIL_CLOSED);
+            "SOCIAL_LOGIN_IP", pathPattern(GET, SOCIAL_CALLBACK_PROVIDER_PATH), FAIL_CLOSED);
     private static final LimitRule SOCIAL_LOGIN_INIT_RULE = new LimitRule(
             "SOCIAL_LOGIN_INIT_IP",
-            pathPattern(GET, "/api/v1/auth/social/authorization/{provider}"), FAIL_CLOSED);
+            pathPattern(GET, SOCIAL_AUTHORIZATION_PROVIDER_PATH), FAIL_CLOSED);
     private static final LimitRule PAYMENT_PREPARE_RULE = new LimitRule(
             "PAYMENT_PREPARE_IP", pathPattern(POST, "/api/v1/payments/prepare"), FAIL_CLOSED);
     private static final LimitRule PAYMENT_CONFIRM_RULE = new LimitRule(

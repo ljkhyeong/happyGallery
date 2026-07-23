@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.adapter.in.web.customer.dto.SocialAccountAuthorizationResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.SocialAccountsResponse;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialAccountLinkIntentStore;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.domain.user.SocialProvider;
@@ -26,8 +27,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RestController
 @RequestMapping("/api/v1/me/social-accounts")
 public class MeSocialAccountController {
-
-    private static final String SOCIAL_AUTHORIZATION_PATH = "/api/v1/auth/social/authorization/";
 
     private final SocialAuthUseCase socialAuth;
     private final SocialAccountLinkIntentStore linkIntentStore;
@@ -59,8 +58,8 @@ public class MeSocialAccountController {
         String attemptId = linkIntentStore.start(
                 request, customer.userId(), customer.credentialVersion(), socialProvider);
         return new SocialAccountAuthorizationResponse(
-                UriComponentsBuilder.fromPath(
-                                SOCIAL_AUTHORIZATION_PATH + socialProvider.name().toLowerCase(Locale.ROOT))
+                UriComponentsBuilder.fromPath(CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_BASE_URI)
+                        .pathSegment(socialProvider.name().toLowerCase(Locale.ROOT))
                         .queryParam(SocialAccountLinkIntentStore.LINK_ATTEMPT_PARAMETER, attemptId)
                         .build()
                         .encode()

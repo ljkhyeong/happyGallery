@@ -13,8 +13,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -31,22 +29,18 @@ public final class CustomerAuthenticationFilter extends OncePerRequestFilter {
 
     private static final List<GrantedAuthority> CUSTOMER_AUTHORITIES =
             List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER"));
-    private static final RequestMatcher CUSTOMER_AUTHENTICATION_REQUESTS = new OrRequestMatcher(
-            PathPatternRequestMatcher.withDefaults().matcher("/api/v1/me"),
-            PathPatternRequestMatcher.withDefaults().matcher("/api/v1/me/**"),
-            PathPatternRequestMatcher.withDefaults().matcher("/api/v1/payments/**"),
-            PathPatternRequestMatcher.withDefaults().matcher("/api/v1/monitoring/client-events")
-    );
-
     private final CustomerAuthUseCase customerAuth;
+    private final RequestMatcher authenticationEndpoints;
 
-    public CustomerAuthenticationFilter(CustomerAuthUseCase customerAuth) {
+    public CustomerAuthenticationFilter(CustomerAuthUseCase customerAuth,
+                                        RequestMatcher authenticationEndpoints) {
         this.customerAuth = customerAuth;
+        this.authenticationEndpoints = authenticationEndpoints;
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !CUSTOMER_AUTHENTICATION_REQUESTS.matches(request);
+        return !authenticationEndpoints.matches(request);
     }
 
     @Override
