@@ -26,6 +26,11 @@ ruby -e '
   abort "apiVersion/kind가 없는 문서가 있습니다." unless documents.all? { |d| d["apiVersion"] && d["kind"] }
   abort "평문 Secret manifest를 만들 수 없습니다." if documents.any? { |d| d["kind"] == "Secret" }
   ingresses = documents.select { |d| d["kind"] == "Ingress" }
+  ingress_headers = documents.select { |d| d["kind"] == "Middleware" }
+                             .flat_map { |d| d.dig("spec", "headers", "customResponseHeaders")&.keys || [] }
+  abort "CSP는 frontend Nginx 한 곳에서만 설정해야 합니다." if ingress_headers.any? do |name|
+    name.downcase.start_with?("content-security-policy")
+  end
   paths = ingresses.flat_map { |d| d.dig("spec", "rules") || [] }
                    .flat_map { |r| r.dig("http", "paths") || [] }
   abort "Ingress가 Actuator를 외부에 노출합니다." if paths.any? { |p| p.fetch("path").start_with?("/actuator") }
@@ -98,6 +103,32 @@ ruby -e '
   abort "Redis ingress는 6379만 허용해야 합니다." unless redis_ports == [6379]
   puts "YAML 문서 #{documents.size}개 파싱 완료"
 ' "$rendered"
+
+ruby -ropenssl -rbase64 -e '
+  nginx_path = ARGV.pop
+  nginx = File.read(nginx_path)
+  abort "frontend Nginx에 CSP Report-Only가 없습니다." unless nginx.include?("Content-Security-Policy-Report-Only")
+  ARGV.each do |html_path|
+    html = File.read(html_path)
+    json_ld = html.match(%r{<script type="application/ld\+json">(.*?)</script>}m)&.[](1)
+    abort "JSON-LD script를 찾을 수 없습니다: #{html_path}" unless json_ld
+    json_ld_hash = "sha256-#{Base64.strict_encode64(OpenSSL::Digest::SHA256.digest(json_ld))}"
+    abort "JSON-LD CSP hash가 현재 index.html과 다릅니다: #{html_path}" unless nginx.include?(json_ld_hash)
+  end
+  %w[
+    https://js.tosspayments.com
+    https://cdn.jsdelivr.net
+    https://fonts.googleapis.com
+    https://fonts.gstatic.com
+    https://*.ingest.sentry.io
+  ].each do |source|
+    abort "CSP 외부 자원 허용 목록이 누락됐습니다: #{source}" unless nginx.include?(source)
+  end
+  abort "CSP Report-Only는 아직 중앙 report endpoint를 사용하지 않습니다." if nginx.match?(/\breport-(?:to|uri)\b/)
+' \
+    "$REPO_ROOT/frontend/index.html" \
+    ${REQUIRE_FRONTEND_DIST:+"$REPO_ROOT/frontend/dist/index.html"} \
+    "$REPO_ROOT/deploy/k3s/images/frontend-nginx.conf"
 
 for script in "$SCRIPT_DIR"/*.sh; do
     case "$(head -n 1 "$script")" in

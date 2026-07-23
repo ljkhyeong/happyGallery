@@ -4,7 +4,7 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { executePaymentFlow, fetchPassPaymentPolicy } from "@/features/payment";
 import { formatKRW } from "@/shared/lib";
-import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 
 export function PassPurchasePage() {
   const { isAuthenticated, user } = useCustomerAuth();
@@ -79,12 +79,12 @@ export function PassPurchasePage() {
           {purchaseMutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
         </Button>
       ) : (
-        <Button
-          as={"a" as any} href={loginHref}
+        <LinkButton
+          to={loginHref}
           variant="primary" size="lg" className="w-100"
         >
           로그인 후 구매하기
-        </Button>
+        </LinkButton>
       )}
     </Container>
   );

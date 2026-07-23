@@ -48,6 +48,8 @@
   - `./gradlew --no-daemon :adapter-in-web:openapi3`
   - `cd frontend && npm run api:generate`
   - `cd frontend && npm run api:check`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npm run audit:dependencies`
   - `docker compose up -d`
 - Testcontainers 계열은 기본적으로 `./gradlew --no-daemon ...`
 - Gradle JVM, 원격 GitHub/git, Docker, Playwright는 필요 시 바로 권한 상승 실행

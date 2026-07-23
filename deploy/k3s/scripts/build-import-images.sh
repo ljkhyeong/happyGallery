@@ -5,6 +5,7 @@ set -eu
 
 require_command docker
 require_command git
+require_command trivy
 
 cd "$REPO_ROOT"
 
@@ -51,6 +52,16 @@ docker build --pull \
     --build-arg "VITE_SENTRY_RELEASE=happygallery@$image_tag" \
     -f deploy/k3s/images/Dockerfile.frontend \
     -t "$frontend_image" .
+
+for image in "$app_image" "$frontend_image"; do
+    info "운영 반입 이미지를 검사합니다: $image"
+    trivy image \
+        --scanners vuln \
+        --exit-code 1 \
+        --exit-on-eol 1 \
+        --severity HIGH,CRITICAL \
+        "$image"
+done
 
 node_arch=$(kube get nodes -o jsonpath='{.items[0].status.nodeInfo.architecture}')
 for image in "$app_image" "$frontend_image"; do

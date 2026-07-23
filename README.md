@@ -68,7 +68,7 @@ npm run dev
 - 로컬과 개발 환경에서는 `X-Admin-Key: dev-admin-key`를 사용할 수 있다.
 - `prod`가 아닌 환경에서는 실제 알림·인증 SMS·결제 대신 테스트용 발송기와 `FakePaymentProvider`를 사용한다.
 - k3s 운영 배포의 Prometheus 경보는 내부 Alertmanager를 거쳐 저장소 밖 Secret으로 주입한 외부 HTTPS webhook에 전달한다. 노트북 자체 장애 감시는 별도 외부 uptime 서비스가 필요하다.
-- 운영 환경은 DB·Redis를 readiness에 포함하고, 환불·알림 outbox의 DB backlog, 모든 정기 배치의 마지막 정상 완료 시각과 이미지 저장소 용량을 Prometheus·Grafana에서 감시한다.
+- 운영 환경은 DB·Redis를 readiness에 포함하고, 환불·알림 outbox의 DB backlog, 결제·알림 CircuitBreaker 상태와 호출 결과, 모든 정기 배치의 마지막 정상 완료 시각과 이미지 저장소 용량을 Prometheus·Grafana에서 감시한다.
 - `prod`가 아닌 환경의 Google/Naver 로그인은 외부 인증 화면 없이 테스트용 콜백으로 즉시 돌아온다.
 - `local`이 아닌 환경에서 최초 관리자 계정이 필요하면 `ADMIN_SETUP_TOKEN`을 주입하고 `/api/v1/admin/setup`을 호출한다.
 - 반복 E2E처럼 짧은 시간에 인증/관리 요청이 몰리는 로컬 검증에서는 `RATE_LIMIT_ENABLED=false`를 사용할 수 있다.
@@ -106,6 +106,8 @@ docker compose up -d --build
 
 - 개발 서버: `cd frontend && npm run dev`
 - 프로덕션 빌드: `cd frontend && npm run build`
+- ESLint·React Hooks 검사: `cd frontend && npm run lint`
+- npm 고위험 취약점 검사: `cd frontend && npm run audit:dependencies`
 - TypeScript API client 생성: `cd frontend && npm run api:generate`
 - 생성 client 최신 상태 검증: `cd frontend && npm run api:check`
 - E2E 브라우저 설치: `cd frontend && npm run e2e:install`
@@ -122,6 +124,7 @@ docker compose up -d --build
 - 현재 React 실사용 전환 범위는 공개 상품 목록·카테고리·상세 조회다. 새 엔드포인트는 필수값·nullable·enum 정확성을 확인한 뒤 같은 방식으로 전환한다.
 - Playwright 실행 전 백엔드는 `http://localhost:8080`에서 실행 중이어야 한다.
 - 기본 E2E는 `@smoke` 대표 경로만 실행한다. 전체 P8 회귀는 `e2e:full` 또는 도메인별 스크립트로 실행한다.
+- `codexReview`와 `main` 대상 PR은 Gradle/npm/GitHub Actions 변경의 Dependency Review, npm audit, ESLint·React Hooks 검사와 app/frontend 컨테이너의 Trivy HIGH/CRITICAL 검사를 통과해야 한다. Dependabot은 Gradle, npm, GitHub Actions와 Dockerfile의 첫 번째 `FROM` 이미지를 매주 확인하고 일반 버전 갱신 PR은 `codexReview`로 보낸다. 다단계 Dockerfile의 두 번째 이후 `FROM`은 자동 갱신 대상이 아니므로 Trivy와 명시적 버전 점검으로 관리한다. GitHub 정책상 보안 갱신 PR은 기본 브랜치인 `main`을 대상으로 한다.
 
 테스트 선택 기준은 [ADR-0027](docs/ADR/0027_테스트_전략과_최소_테스트_세트_기준선/adr.md), E2E 실행 시간 조정 배경은 [Retrospective-0009](docs/Retrospective/0009_프론트_E2E_실행_시간_슬림화/retrospective.md)에 남긴다.
 
@@ -144,7 +147,7 @@ docker compose up -d --build
 
 ## 기술 스택
 
-- 백엔드: Spring Boot 4.0.2, Spring Security, Java 21, Gradle
+- 백엔드: Spring Boot 4.0.7, Spring Security, Java 21, Gradle
 - 프론트엔드: Vite, React 19, TypeScript, Orval
 - 데이터베이스: MySQL 8, Flyway
 - 세션과 캐시: Redis, Spring Session
@@ -176,6 +179,7 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 - 애플리케이션, MySQL, Redis와 관리·모니터링 포트는 외부에 직접 공개하지 않는다.
 - Docker Compose는 로컬 개발, 통합 검증과 복구 진단용이다. 현재 `local` 프로필과 개발 기본값을 사용하므로 운영 배포 기준이 아니다.
 - [`deploy/k3s`](deploy/k3s/README.md)에 namespace, ingress/TLS, MySQL·미디어 PVC, 비공개 Actuator/Prometheus, secret 주입, 불변 이미지 import, rollout·rollback, DB·미디어 암호화 백업·복원 절차를 둔다.
+- 운영 프런트 Nginx는 Toss SDK, 외부 폰트, Sentry와 JSON-LD hash를 반영한 CSP를 `Report-Only`로 제공한다. 아직 중앙 위반 수집기는 없으므로 배포 전 실제 브라우저 콘솔에서 핵심 화면을 확인한 뒤 강제 정책 전환을 별도로 결정한다.
 - 현재 공개 운영 주소와 자동 배포 workflow는 없다. 실제 노트북에서 DNS·공유기·방화벽·TLS·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
 - 기준 공방 프로필에는 공개 결제에 필요한 대표자명, 전자우편주소와 통신판매업 신고번호가 포함된다. 배포 전 footer·사업자 정보 화면의 표시값을 확인해야 하며, `prod` 프로필은 연락처·주소·사업자등록번호를 포함한 필수 온라인 판매 고지가 완성되기 전 모든 결제 prepare를 `503`으로 차단한다. 표시 근거는 전자상거래법 [제10조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022342373)와 [제13조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022341933)다.
 

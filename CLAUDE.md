@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Architecture
-멀티모듈 Gradle (Spring Boot 4.0.2 / Java 21). 모듈 구조·레이어링 → `happygallery-spring-backend` 스킬 참조.
+멀티모듈 Gradle (Spring Boot 4.0.7 / Java 21). 모듈 구조·레이어링 → `happygallery-spring-backend` 스킬 참조.
 
 **핵심 도메인 열거형** (`domain` 모듈):
 - `order`: OrderStatus, FulfillmentType, RefundStatus

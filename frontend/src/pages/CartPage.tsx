@@ -93,7 +93,7 @@ export function CartPage() {
   const handleCheckout = async () => {
     try {
       await checkout.mutateAsync();
-    } catch (err) {
+    } catch {
       // error handled by React Query
     }
   };

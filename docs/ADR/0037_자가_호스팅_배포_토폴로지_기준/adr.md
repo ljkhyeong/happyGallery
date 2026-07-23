@@ -1,7 +1,7 @@
 # ADR-0037: 자가 호스팅 배포 토폴로지 기준
 
 **날짜**: 2026-07-18
-**최종 갱신**: 2026-07-21
+**최종 갱신**: 2026-07-23
 **상태**: Accepted
 
 ---
@@ -36,6 +36,7 @@
 - 프론트엔드와 API는 같은 origin에서 제공한다.
 - 외부에는 ingress의 HTTP/HTTPS 포트만 열고 애플리케이션, MySQL, Redis와 관리·모니터링 포트는 직접 공개하지 않는다.
 - 인증서 발급·갱신, DNS, 공유기 포트 전달과 방화벽 규칙은 manifest와 운영 절차에서 구체화한다.
+- CSP는 HTML과 정적 자원을 반환하는 frontend Nginx가 한 번만 설정하고 Traefik Ingress에는 중복하지 않는다. Toss Payments, 외부 폰트, Sentry와 inline JSON-LD hash를 포함한 정책을 먼저 `Content-Security-Policy-Report-Only`로 배포한다. 중앙 report endpoint가 없는 현재 단계에서는 브라우저 콘솔 검증만 가능하다고 명시하며, 실제 위반 검토와 수집 개인정보 정책을 정한 뒤 강제 정책으로 전환한다.
 
 ### 3. 전달 헤더는 통제된 ingress만 신뢰한다
 
@@ -97,6 +98,7 @@
 - 백엔드와 프론트엔드 이미지는 검증한 commit SHA 또는 digest로 식별한다. 운영 manifest에서 `latest`만 참조하지 않는다.
 - 이미지는 로컬 registry를 사용하거나 k3s containerd로 명시적으로 가져오며, 선택한 방식을 배포 절차에 고정한다.
 - 배포 전 build와 최소 검증을 통과시키고, 배포 후 rollout 상태와 health endpoint를 확인한다.
+- `codexReview`와 `main` 대상 PR은 Dependency Review, npm audit, ESLint·React Hooks와 app/frontend 컨테이너 Trivy HIGH/CRITICAL 검사를 실행한다. 실제 운영 반입 스크립트도 운영 설정으로 다시 빌드한 app/frontend 이미지의 HIGH/CRITICAL과 EOL OS를 import 전에 차단한다. Dependabot은 Gradle, npm, GitHub Actions와 Dockerfile의 첫 번째 `FROM` 이미지를 매주 확인하고 일반 버전 갱신 PR은 `codexReview`로 보낸다. 다단계 Dockerfile의 두 번째 이후 `FROM`은 Trivy와 명시적 버전 점검으로 관리한다. Dependabot 보안 갱신은 GitHub 정책상 기본 브랜치 `main`을 대상으로 하는 예외를 수용한다.
 - 직전 이미지와 manifest를 보존해 애플리케이션을 롤백한다. Flyway가 적용된 경우에는 데이터 호환성과 복원 필요 여부를 별도로 판단한다.
 - 현재 release의 app/frontend와 MySQL·Redis·Prometheus·Alertmanager image archive, digest metadata와 manifest를 commit SHA별 한 번 off-device 백업에 보존한다. 각 암호화 DB 백업은 Flyway version·active 암호화 키 ID·active/previous keyring fingerprint·키 회전 단계와 호환 release 경로를 기록한다. 복원 진입점은 키링을 대조하고, archive를 containerd에 가져온 뒤 모든 필수 이미지 digest를 확인한 다음에만 기존 DB를 교체한다. fingerprint만 기록하고 키 원문은 기존 분리 복구 저장소에 둔다.
 - 기존 AWS 자동 배포 workflow는 제거하며, k3s 배포 자동화는 manifest와 rollback 절차가 마련된 뒤 별도로 결정한다.
@@ -116,18 +118,20 @@
 
 ## 현재 구현 상태와 남은 작업
 
-2026-07-21 기준 `deploy/k3s`에 다음 산출물을 구현했다.
+2026-07-23 기준 `deploy/k3s`에 다음 산출물을 구현했다.
 
 - namespace, app/frontend/MySQL/Redis/Prometheus/Alertmanager workload, ClusterIP Service, TLS Ingress와 MySQL Retain PVC
 - 관리자 전용 이미지 업로드, 공개 immutable 이미지 조회, 파일 형식·용량 검증과 원자적 로컬 파일 저장
 - 5Gi `app-media` Retain PVC를 `/var/lib/happygallery/media`에 mount하고 maintenance Pod를 통해서만 백업·복원하는 구성
 - Traefik 전달 헤더 기준, ingress·Prometheus만 허용하는 Actuator NetworkPolicy
+- frontend Nginx의 CSP Report-Only와 JSON-LD hash·외부 출처·Ingress 비중복 정적 검증
 - 저장소 밖 env와 HTTPS webhook URL 파일에서 runtime Secret을 생성·교체하는 절차
 - commit SHA 이미지 build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback
 - 6시간 간격 app 쓰기 중단 후 `age` 암호화 off-device MySQL·상품 이미지 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 DB·미디어 복원·Redis 초기화 절차
 - 백업 성공 heartbeat와 systemd 실패 HTTPS webhook
 - active/previous AES·HMAC keyring, 키 ID가 포함된 암호문, 단일 트랜잭션 회전 실행기와 소셜 provider ID lazy backfill
 - app 중지·백업·Redis 초기화를 포함한 `rotate-data-keys.sh`, 유예 조건 확인 뒤 previous 키를 제거하는 `finalize-data-key-rotation.sh`
+- Dependabot과 PR Dependency Review, npm audit, ESLint·React Hooks, app/frontend 컨테이너 Trivy 검사
 
 다음은 대상 노트북과 외부 환경에서만 완료할 수 있다.
 
@@ -135,7 +139,7 @@
 - 실제 외부 매체 또는 원격 mount 백업, 분리 보관한 age·필드 암호화 키로 DB·상품 이미지 복원 훈련
 - 실제 운영 키로 필드·비회원 토큰 회전과 previous 키 제거, 회전 전후 백업 복원 훈련
 - 외부 uptime 감시와 전원·디스크·네트워크 장애 알림. 애플리케이션 메트릭은 내부 Alertmanager에서 외부 HTTPS webhook으로 전달하지만 노트북 자체 중단은 감지할 수 없다.
-- 실제 브라우저의 세션·CSRF·OAuth·결제·SMS 핵심 흐름 검증과 공개 운영 주소 확정
+- 실제 브라우저의 세션·CSRF·OAuth·결제·SMS 핵심 흐름과 CSP Report-Only 콘솔 검증, 공개 운영 주소 확정
 
 따라서 저장소 구성은 `배포 준비 완료`, 실제 서비스는 위 검증 전까지 `운영 미개시`로 표현한다.
 

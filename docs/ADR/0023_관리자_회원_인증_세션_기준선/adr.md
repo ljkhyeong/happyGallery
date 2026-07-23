@@ -17,7 +17,7 @@
 
 ### 1. Spring Security 체인을 관리자와 회원·공개 요청으로 분리한다
 
-- Spring Boot 4.0.2 기준 `spring-boot-starter-security`를 사용한다.
+- Spring Boot 4.0.7 기준 `spring-boot-starter-security`를 사용한다.
 - 관리자 경로와 회원·공개 경로는 서로 다른 `SecurityFilterChain`이 처리한다.
 - 관리자 체인은 서버 HTTP 세션을 만들지 않고 Redis Bearer 세션 또는 local API key로 인증한다.
 - 회원·공개 체인은 `HG_SESSION`에서 회원 ID를 읽어 요청 범위의 회원 principal과 `SecurityContext`를 구성한다.

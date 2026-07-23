@@ -34,7 +34,7 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
     setLastError(null);
   }
 
-  function mut<T>(
+  function useOrderActionMutation<T>(
     fn: (id: number) => Promise<T>,
     label: string,
   ) {
@@ -47,7 +47,7 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
     });
   }
 
-  const approve = mut((id) => approveOrder(adminKey, id), "승인 완료");
+  const approve = useOrderActionMutation((id) => approveOrder(adminKey, id), "승인 완료");
   const reject = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => rejectOrder(adminKey, id),
     onMutate: startOrderAction,
@@ -59,8 +59,8 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
     onError: setLastError,
     onSettled: () => setPendingId(null),
   });
-  const completeProduction_ = mut((id) => completeProduction(adminKey, id), "제작 완료");
-  const delay = mut((id) => proposeDelay(adminKey, id), "지연 동의 요청");
+  const completeProduction_ = useOrderActionMutation((id) => completeProduction(adminKey, id), "제작 완료");
+  const delay = useOrderActionMutation((id) => proposeDelay(adminKey, id), "지연 동의 요청");
   const delayCancel = useAdminMutation(onAuthError, {
     mutationFn: (id: number) => cancelForDelayRejection(adminKey, id),
     onMutate: startOrderAction,
@@ -72,10 +72,10 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
     onError: setLastError,
     onSettled: () => setPendingId(null),
   });
-  const resumeProduction_ = mut((id) => resumeProduction(adminKey, id), "제작 재개");
-  const prepareShipping_ = mut((id) => prepareShipping(adminKey, id), "배송 준비");
-  const delivered = mut((id) => markDelivered(adminKey, id), "배송 완료");
-  const pickupDone = mut((id) => completePickup(adminKey, id), "픽업 완료");
+  const resumeProduction_ = useOrderActionMutation((id) => resumeProduction(adminKey, id), "제작 재개");
+  const prepareShipping_ = useOrderActionMutation((id) => prepareShipping(adminKey, id), "배송 준비");
+  const delivered = useOrderActionMutation((id) => markDelivered(adminKey, id), "배송 완료");
+  const pickupDone = useOrderActionMutation((id) => completePickup(adminKey, id), "픽업 완료");
 
   const pickup = useAdminMutation(onAuthError, {
     mutationFn: ({ id, body }: { id: number; body: MarkPickupReadyRequest }) => preparePickup(adminKey, id, body),

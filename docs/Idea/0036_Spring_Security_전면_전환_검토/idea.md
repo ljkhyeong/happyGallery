@@ -7,7 +7,7 @@
 
 ## 채택한 범위
 
-- Spring Boot 4.0.2 기준 `spring-boot-starter-security`를 사용한다.
+- Spring Boot 4.0.7 기준 `spring-boot-starter-security`를 사용한다.
 - 관리자 요청과 회원·공개 요청을 두 개의 `SecurityFilterChain`으로 분리한다.
 - 관리자 Redis Bearer 세션, local 전용 API key, 회원 `HG_SESSION`과 `customerUserId` 저장 계약은 유지한다.
 - 관리자·회원 인증은 요청마다 principal과 `SecurityContext`로 표현한다.

@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "lint": "eslint . --max-warnings 0",
+    "audit:dependencies": "npm audit --audit-level=high",
     "api:generate": "rm -rf src/generated/api && orval --config orval.config.ts",
     "api:check": "npm run api:generate && git diff --exit-code -- src/generated/api && test -z \"$(git ls-files --others --exclude-standard -- src/generated/api)\"",
     "preview": "vite preview",
@@ -32,14 +34,22 @@
     "react-router-dom": "^7.3.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
     "@types/node": "^25.3.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "eslint": "^10.7.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.7.0",
     "orval": "8.22.0",
     "sass-embedded": "^1.97.3",
     "typescript": "~5.7.0",
+    "typescript-eslint": "^8.65.0",
     "vite": "^6.2.0"
+  },
+  "overrides": {
+    "js-yaml": "^4.3.0"
   }
 }
