@@ -5,6 +5,7 @@ import com.personal.happygallery.application.customer.port.out.PhoneVerification
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import io.micrometer.core.instrument.Counter;
@@ -35,13 +36,19 @@ import org.springframework.web.client.RestClient;
 class NotificationResilienceConfig {
 
     @Bean
-    CircuitBreaker alimtalkNotificationCircuitBreaker(NotificationResilienceProperties properties) {
-        return CircuitBreaker.of("alimtalkNotification", circuitBreakerConfig(properties.circuitBreaker()));
+    CircuitBreaker alimtalkNotificationCircuitBreaker(NotificationResilienceProperties properties,
+                                                       CircuitBreakerRegistry circuitBreakerRegistry) {
+        return circuitBreakerRegistry.circuitBreaker(
+                "alimtalkNotification",
+                circuitBreakerConfig(properties.circuitBreaker()));
     }
 
     @Bean
-    CircuitBreaker smsNotificationCircuitBreaker(NotificationResilienceProperties properties) {
-        return CircuitBreaker.of("smsNotification", circuitBreakerConfig(properties.circuitBreaker()));
+    CircuitBreaker smsNotificationCircuitBreaker(NotificationResilienceProperties properties,
+                                                  CircuitBreakerRegistry circuitBreakerRegistry) {
+        return circuitBreakerRegistry.circuitBreaker(
+                "smsNotification",
+                circuitBreakerConfig(properties.circuitBreaker()));
     }
 
     @Bean

@@ -4,6 +4,7 @@ import com.personal.happygallery.application.notification.port.out.NotificationS
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -43,7 +44,8 @@ class ResilientNotificationSenderTest {
         });
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
-        CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(properties);
+        CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(
+                properties, CircuitBreakerRegistry.ofDefaults());
         ResilientNotificationSender resilientSender = createSender(delegate, circuitBreaker, config, properties);
 
         resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
@@ -69,7 +71,8 @@ class ResilientNotificationSenderTest {
         });
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
-        CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(properties);
+        CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(
+                properties, CircuitBreakerRegistry.ofDefaults());
         ResilientNotificationSender resilientSender = createSender(delegate, circuitBreaker, config, properties);
 
         resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
@@ -103,7 +106,7 @@ class ResilientNotificationSenderTest {
         NotificationResilienceConfig config = new NotificationResilienceConfig();
         ResilientNotificationSender resilientSender = createSender(
                 delegate,
-                config.alimtalkNotificationCircuitBreaker(properties),
+                config.alimtalkNotificationCircuitBreaker(properties, CircuitBreakerRegistry.ofDefaults()),
                 config,
                 properties);
 

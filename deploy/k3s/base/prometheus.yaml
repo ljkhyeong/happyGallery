@@ -69,6 +69,12 @@ data:
               severity: warning
             annotations:
               summary: PG 호출 대기열 거절이 발생했습니다
+          - alert: PaymentCircuitBreakerOpen
+            expr: max by (name) (resilience4j_circuitbreaker_state{application="happygallery",name="paymentProvider",state="open"}) == 1 or sum by (name) (increase(resilience4j_circuitbreaker_not_permitted_calls_total{application="happygallery",name="paymentProvider"}[2m])) > 0
+            labels:
+              severity: critical
+            annotations:
+              summary: PG 서킷 브레이커가 열렸거나 최근 호출을 차단했습니다
           - alert: PaymentExecutorQueueHigh
             expr: executor_queued_tasks{application="happygallery",name="paymentTimeoutExecutor"} / clamp_min(executor_queued_tasks{application="happygallery",name="paymentTimeoutExecutor"} + executor_queue_remaining_tasks{application="happygallery",name="paymentTimeoutExecutor"}, 1) > 0.8
             for: 2m
@@ -104,6 +110,12 @@ data:
               severity: warning
             annotations:
               summary: 알림 외부 호출 대기열 거절이 발생했습니다
+          - alert: NotificationCircuitBreakerOpen
+            expr: max by (name) (resilience4j_circuitbreaker_state{application="happygallery",name=~"alimtalkNotification|smsNotification",state="open"}) == 1 or sum by (name) (increase(resilience4j_circuitbreaker_not_permitted_calls_total{application="happygallery",name=~"alimtalkNotification|smsNotification"}[2m])) > 0
+            labels:
+              severity: warning
+            annotations:
+              summary: '{{ $labels.name }} 서킷 브레이커가 열렸거나 최근 호출을 차단했습니다'
           - alert: NotificationTimeoutExecutorQueueHigh
             expr: executor_queued_tasks{application="happygallery",name="notificationTimeoutExecutor"} / clamp_min(executor_queued_tasks{application="happygallery",name="notificationTimeoutExecutor"} + executor_queue_remaining_tasks{application="happygallery",name="notificationTimeoutExecutor"}, 1) > 0.8
             for: 2m

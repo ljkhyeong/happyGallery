@@ -61,6 +61,13 @@
 - `PaymentTimeoutExecutor`가 executor의 종료 수명주기를 담당한다.
 - `ResilientPaymentProvider`는 주입받은 보호 자원으로 PG 호출을 실행하고 결과를 표준화하는 역할만 담당한다.
 
+### 7. Registry 기반 표준 메트릭으로 결제와 알림 서킷을 함께 관측한다
+
+- 결제 `paymentProvider`, 알림 `alimtalkNotification`·`smsNotification` 서킷을 공용 `CircuitBreakerRegistry`에 등록한다.
+- `resilience4j-micrometer`의 tagged metrics를 `/actuator/prometheus`에 노출해 상태, 실패율, 성공·실패·차단 호출 수를 표준 태그로 조회한다.
+- 결제 서킷 `OPEN` 또는 최근 2분의 차단 호출은 결제·환불 중단이므로 즉시 critical로 평가한다. 알림 서킷도 같은 조건을 즉시 평가하되 채널 fallback과 outbox 재시도가 있으므로 warning으로 구분한다. 기본 `OPEN` 유지 시간과 같거나 긴 Prometheus `for`는 활성 트래픽에서 `HALF_OPEN` 전환을 놓칠 수 있어 두지 않는다.
+- 어노테이션 기반 실행으로 전환하지 않고 기존 typed result의 실패 집계 규칙과 명시적 호출 경계를 유지한다.
+
 ---
 
 ## 결과 (트레이드오프)
@@ -85,5 +92,6 @@
 - `PaymentProvider.confirm` 경로도 `CircuitBreaker + TimeLimiter` 보호 적용
 - PG timeout executor에 `ArrayBlockingQueue + AbortPolicy` 적용
 - 실행기 대기열·거절 메트릭과 Prometheus 알림 추가
+- 결제·알림 CircuitBreaker를 공용 Registry에 등록하고 Resilience4j Micrometer 상태·호출 결과 메트릭, Grafana 패널, `OPEN` 경보 추가
 - `adapter-out-external/build.gradle`에 Resilience4j 의존성 추가
 - `bootstrap/src/main/resources/application.yml`에 `app.external.payment.*` 설정 추가

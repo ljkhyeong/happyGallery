@@ -4,6 +4,7 @@ import com.personal.happygallery.application.payment.port.out.PaymentConfirmResu
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -237,7 +238,7 @@ class ResilientPaymentProviderTest {
         timeoutExecutor = config.paymentTimeoutExecutor(properties, meterRegistry);
         return config.resilientPaymentProvider(
                 delegate,
-                config.paymentCircuitBreaker(properties),
+                config.paymentCircuitBreaker(properties, CircuitBreakerRegistry.ofDefaults()),
                 config.paymentTimeLimiter(properties),
                 timeoutExecutor,
                 properties);

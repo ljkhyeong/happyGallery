@@ -6,6 +6,7 @@ import com.personal.happygallery.application.payment.port.out.RefundLookupResult
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import io.micrometer.core.instrument.Counter;
@@ -27,16 +28,18 @@ import org.springframework.context.annotation.Primary;
 class PaymentResilienceConfig {
 
     @Bean
-    CircuitBreaker paymentCircuitBreaker(ExternalPaymentProperties properties) {
+    CircuitBreaker paymentCircuitBreaker(ExternalPaymentProperties properties,
+                                         CircuitBreakerRegistry circuitBreakerRegistry) {
         ExternalPaymentProperties.CircuitBreaker cb = properties.circuitBreaker();
-        return CircuitBreaker.of("paymentProvider", CircuitBreakerConfig.custom()
+        CircuitBreakerConfig circuitBreakerConfig = CircuitBreakerConfig.custom()
                 .failureRateThreshold(cb.failureRateThreshold())
                 .slidingWindowSize(cb.slidingWindowSize())
                 .minimumNumberOfCalls(cb.minimumNumberOfCalls())
                 .waitDurationInOpenState(Duration.ofSeconds(cb.waitDurationOpenSeconds()))
                 .permittedNumberOfCallsInHalfOpenState(cb.permittedCallsInHalfOpenState())
                 .recordResult(PaymentResilienceConfig::isFailureResult)
-                .build());
+                .build();
+        return circuitBreakerRegistry.circuitBreaker("paymentProvider", circuitBreakerConfig);
     }
 
     @Bean

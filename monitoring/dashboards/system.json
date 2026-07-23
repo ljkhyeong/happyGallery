@@ -283,6 +283,47 @@
         }
       ],
       "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 18,
+      "title": "External Circuit Breaker State",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 80 },
+      "targets": [
+        {
+          "expr": "resilience4j_circuitbreaker_state{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification\"} == 1",
+          "legendFormat": "{{name}} {{state}}"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "External Circuit Breaker Failure Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 80 },
+      "targets": [
+        {
+          "expr": "resilience4j_circuitbreaker_failure_rate{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent" } }
+    },
+    {
+      "id": 20,
+      "title": "External Circuit Breaker Calls (5m)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 88 },
+      "targets": [
+        {
+          "expr": "sum by (name, kind) (increase(resilience4j_circuitbreaker_calls_seconds_count{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification\"}[5m]))",
+          "legendFormat": "{{name}} {{kind}}"
+        },
+        {
+          "expr": "sum by (name) (increase(resilience4j_circuitbreaker_not_permitted_calls_total{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification\"}[5m]))",
+          "legendFormat": "{{name}} not_permitted"
+        }
+      ]
     }
   ],
   "schemaVersion": 39
