@@ -7,6 +7,8 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -25,14 +27,37 @@ class ResilientNotificationSenderTest {
     private static final String IDEMPOTENCY_KEY = "notification-key";
 
     private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
-    private ExecutorService timeoutExecutor;
+    private final List<ExecutorService> timeoutExecutors = new ArrayList<>();
 
     @AfterEach
     void tearDown() {
-        if (timeoutExecutor != null) {
-            timeoutExecutor.shutdownNow();
-        }
+        timeoutExecutors.forEach(ExecutorService::shutdownNow);
         meterRegistry.close();
+    }
+
+    @DisplayName("호출이 시작된 뒤 타임아웃되면 발송 성공 여부를 알 수 없는 결과로 반환한다")
+    @Test
+    void send_timesOut_returnsDeliveryUnknown() {
+        NotificationSender delegate = sender((idempotencyKey, phone, name, eventType) -> {
+            try {
+                Thread.sleep(1_000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return NotificationSendResult.SUCCESS;
+        });
+        NotificationResilienceProperties properties = properties(30, 2, 2, 1, 1);
+        NotificationResilienceConfig config = new NotificationResilienceConfig();
+        ResilientNotificationSender resilientSender = createSender(
+                delegate,
+                config.alimtalkNotificationCircuitBreaker(properties, CircuitBreakerRegistry.ofDefaults()),
+                config,
+                properties);
+
+        NotificationSendResult result = resilientSender.send(
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+
+        assertThat(result).isEqualTo(NotificationSendResult.DELIVERY_UNKNOWN);
     }
 
     @DisplayName("일시 발송 실패가 누적되면 서킷이 열리고 이후 호출을 차단한다")
@@ -120,7 +145,7 @@ class ResilientNotificationSenderTest {
                     IDEMPOTENCY_KEY, "01022222222", "두 번째", NotificationEventType.BOOKING_CONFIRMED));
             await().atMost(1, TimeUnit.SECONDS).untilAsserted(() ->
                     assertThat(meterRegistry.get("executor.queued")
-                            .tag("name", "notificationTimeoutExecutor")
+                            .tag("name", "alimtalkNotificationTimeoutExecutor")
                             .gauge()
                             .value()).isEqualTo(1));
 
@@ -129,7 +154,8 @@ class ResilientNotificationSenderTest {
 
             assertSoftly(softly -> {
                 softly.assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
-                softly.assertThat(meterRegistry.counter("happygallery.notification.executor.rejected").count())
+                softly.assertThat(meterRegistry.counter(
+                                "happygallery.notification.alimtalk.executor.rejected").count())
                         .isEqualTo(1);
             });
         } finally {
@@ -141,13 +167,47 @@ class ResilientNotificationSenderTest {
         }
     }
 
+    @DisplayName("알림톡·일반 SMS·인증 SMS는 서로 다른 제한 실행기와 지표를 사용한다")
+    @Test
+    void notificationChannels_useIsolatedExecutorsAndMetrics() {
+        NotificationResilienceProperties properties = properties(2, 2, 1, 1);
+        NotificationResilienceConfig config = new NotificationResilienceConfig();
+        BoundedExecutorFactory executorFactory = new BoundedExecutorFactory(meterRegistry);
+
+        ExecutorService alimtalk = register(config.alimtalkNotificationTimeoutExecutor(
+                properties, executorFactory));
+        ExecutorService sms = register(config.smsNotificationTimeoutExecutor(
+                properties, executorFactory));
+        ExecutorService verification = register(config.phoneVerificationTimeoutExecutor(
+                properties, executorFactory));
+
+        assertSoftly(softly -> {
+            softly.assertThat(List.of(alimtalk, sms, verification)).doesNotHaveDuplicates();
+            softly.assertThat(meterRegistry.find("executor.queued")
+                    .tag("name", "alimtalkNotificationTimeoutExecutor")
+                    .gauge()).isNotNull();
+            softly.assertThat(meterRegistry.find("executor.queued")
+                    .tag("name", "smsNotificationTimeoutExecutor")
+                    .gauge()).isNotNull();
+            softly.assertThat(meterRegistry.find("executor.queued")
+                    .tag("name", "phoneVerificationTimeoutExecutor")
+                    .gauge()).isNotNull();
+            softly.assertThat(meterRegistry.find(
+                    "happygallery.notification.alimtalk.executor.rejected").counter()).isNotNull();
+            softly.assertThat(meterRegistry.find(
+                    "happygallery.notification.sms.executor.rejected").counter()).isNotNull();
+            softly.assertThat(meterRegistry.find(
+                    "happygallery.notification.phone_verification.executor.rejected").counter()).isNotNull();
+        });
+    }
+
     private ResilientNotificationSender createSender(NotificationSender delegate,
                                                       CircuitBreaker circuitBreaker,
                                                       NotificationResilienceConfig config,
                                                       NotificationResilienceProperties properties) {
-        timeoutExecutor = config.notificationTimeoutExecutor(
+        ExecutorService timeoutExecutor = register(config.alimtalkNotificationTimeoutExecutor(
                 properties,
-                new BoundedExecutorFactory(meterRegistry));
+                new BoundedExecutorFactory(meterRegistry)));
         return new ResilientNotificationSender(
                 delegate,
                 circuitBreaker,
@@ -160,10 +220,28 @@ class ResilientNotificationSenderTest {
                                                                 int minimumNumberOfCalls,
                                                                 int poolSize,
                                                                 int queueCapacity) {
+        return properties(3_000, slidingWindowSize, minimumNumberOfCalls, poolSize, queueCapacity);
+    }
+
+    private static NotificationResilienceProperties properties(long timeoutMillis,
+                                                                int slidingWindowSize,
+                                                                int minimumNumberOfCalls,
+                                                                int poolSize,
+                                                                int queueCapacity) {
         var threadPool = new NotificationResilienceProperties.ThreadPool(poolSize, queueCapacity);
         var circuitBreaker = new NotificationResilienceProperties.CircuitBreaker(
                 50f, slidingWindowSize, minimumNumberOfCalls, 30, 1);
-        return new NotificationResilienceProperties(3_000, threadPool, circuitBreaker);
+        return new NotificationResilienceProperties(
+                timeoutMillis,
+                threadPool,
+                threadPool,
+                threadPool,
+                circuitBreaker);
+    }
+
+    private ExecutorService register(ExecutorService executor) {
+        timeoutExecutors.add(executor);
+        return executor;
     }
 
     private static NotificationSender sender(SendBehavior behavior) {

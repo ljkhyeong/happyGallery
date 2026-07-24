@@ -1,7 +1,7 @@
 # ADR-0035: 다중 소셜 계정 모델
 
 **날짜**: 2026-07-17
-**최종 갱신**: 2026-07-22
+**최종 갱신**: 2026-07-24
 **상태**: Accepted
 
 ---
@@ -32,6 +32,13 @@ Naver 로그인을 추가하면 비밀번호 회원이 Google과 Naver를 함께
 16. callback에서는 결합된 `state`, provider, 연결 의도의 자격 버전과 현재 HTTP 세션·회원 행의 회원 ID와 자격 버전을 다시 확인한다. 연결에는 provider ID만 필요하다. 일반 로그인·신규 가입은 Google의 검증 이메일과 이름, Naver의 이름을 요구한다. 외부 계정이 다른 회원에 연결되어 있거나 같은 provider의 다른 계정이 이미 연결되어 있으면 자동 교체하지 않고 충돌로 종료한다.
 17. 회원은 연결된 provider를 직접 해제할 수 있지만, 로컬 비밀번호나 다른 소셜 계정 중 하나는 반드시 남겨 마지막 로그인 수단을 잃지 않게 한다. 해제 성공 시 자격 버전을 증가시키고 기존 회원 세션을 모두 폐기해 제거한 provider로 이미 만들어진 세션도 남기지 않는다.
 18. `CustomerUserResponse.email`은 검증된 기준 이메일이 없을 때 `null`이다. 따라서 신규 Naver 전용 회원은 자체 이메일 검증·등록 기능이 도입되기 전까지 이메일·휴대폰 기반 비밀번호 재설정으로 로컬 로그인 수단을 만들 수 없다.
+19. 동시에 들어온 최초 로그인 callback은 사전 조회만으로 직렬화하지 않는다. `IDENTITY` ID를 받기 위한
+    신규 회원 insert와 소셜 계정의 `saveAndFlush`가 각각
+    `users(email_hmac)`, `(provider, provider_id_hmac)`, `(user_id, provider)` 제약을 확인한다.
+    회원 저장 경계의 이메일 유일 제약은 `EMAIL_ALREADY_EXISTS`로 번역하고, 소셜 로그인은 이를
+    `SOCIAL_ACCOUNT_LINK_REQUIRED`로 재해석한다. 외부 계정이 먼저 연결되면
+    `SOCIAL_ACCOUNT_ALREADY_LINKED` 또는 `SOCIAL_PROVIDER_ALREADY_LINKED` 409로 종료한다.
+    사용자가 소셜 로그인을 새로 시작하면 이미 연결된 회원을 조회해 로그인한다.
 
 ## 마이그레이션
 

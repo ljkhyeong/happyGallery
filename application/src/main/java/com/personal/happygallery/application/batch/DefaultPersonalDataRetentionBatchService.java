@@ -62,7 +62,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
                 "결제 개인정보 정리");
 
         LocalDateTime verificationCutoff = now.minus(PHONE_VERIFICATION_RETENTION_AFTER_EXPIRY);
-        int deletedVerificationCount = verificationRetentionService.deleteExpiredBefore(verificationCutoff);
+        int deletedVerificationCount = deletePhoneVerifications(verificationCutoff);
         LocalDateTime cartMergeCutoff = now.minus(CART_MERGE_REQUEST_RETENTION);
         int deletedCartMergeRequestCount = deleteCartMergeRequests(cartMergeCutoff);
         int deletedImageCount = imageMediaRetentionService.deleteUnreferencedImages();
@@ -72,6 +72,16 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
         deletedCount = Math.addExact(deletedCount, deletedImageCount);
         deletedCount = Math.addExact(deletedCount, deletedNotificationCount);
         return paymentResult.merge(BatchResult.successOnly(deletedCount));
+    }
+
+    private int deletePhoneVerifications(LocalDateTime cutoff) {
+        int total = 0;
+        int deleted;
+        do {
+            deleted = verificationRetentionService.deleteBatchBefore(cutoff, PAGE_SIZE);
+            total = Math.addExact(total, deleted);
+        } while (deleted == PAGE_SIZE);
+        return total;
     }
 
     private int deleteCartMergeRequests(LocalDateTime cutoff) {

@@ -17,6 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -154,6 +155,28 @@ class ProductInventoryUseCaseIT {
                 .andExpect(jsonPath("$[0].id").value(product.getId()))
                 .andExpect(jsonPath("$[0].status").value("INACTIVE"))
                 .andExpect(jsonPath("$[0].available").value(false));
+    }
+
+    @DisplayName("먼저 읽은 상품 정보는 다른 관리자의 수정 결과를 덮어쓰지 못한다")
+    @Test
+    void updateProduct_withStaleVersion_throwsOptimisticLockFailure() {
+        Product staleProduct = productRepository.save(
+                readyStockProduct("동시 수정 작품", 48_000L));
+        inventoryRepository.save(inventory(staleProduct, 1));
+
+        productAdminUseCase.update(
+                staleProduct.getId(),
+                "먼저 반영된 이름",
+                null,
+                50_000L,
+                null,
+                null);
+        staleProduct.updateDetails("뒤늦게 저장한 이름", null, 52_000L, null, null);
+
+        assertThatThrownBy(() -> productRepository.saveAndFlush(staleProduct))
+                .isInstanceOf(ObjectOptimisticLockingFailureException.class);
+        assertThat(productRepository.findById(staleProduct.getId()).orElseThrow().getName())
+                .isEqualTo("먼저 반영된 이름");
     }
 
     // -----------------------------------------------------------------------

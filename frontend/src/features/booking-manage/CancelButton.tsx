@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Modal } from "react-bootstrap";
+import { invalidateSlotAvailability } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import type { BookingCancelPolicy, CancelResponse } from "@/shared/types";
@@ -51,6 +52,7 @@ export function CancelButton({
   buttonLabel = "예약 취소",
 }: Props) {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [showConfirm, setShowConfirm] = useState(false);
   const policyNotice = resolvePolicyNotice(cancelPolicy);
 
@@ -85,6 +87,7 @@ export function CancelButton({
       }
 
       toast.show(message, variant);
+      void invalidateSlotAvailability(queryClient);
       onSuccess();
     },
   });

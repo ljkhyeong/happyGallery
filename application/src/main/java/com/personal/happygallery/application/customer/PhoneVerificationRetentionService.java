@@ -16,7 +16,7 @@ public class PhoneVerificationRetentionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public int deleteExpiredBefore(LocalDateTime cutoff) {
-        return verificationStore.deleteExpiredBefore(cutoff);
+    public int deleteBatchBefore(LocalDateTime cutoff, int limit) {
+        return verificationStore.deleteExpiredBefore(cutoff, limit);
     }
 }

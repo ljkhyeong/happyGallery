@@ -5,7 +5,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.product.Product;
 import java.sql.SQLException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.DisplayName;
@@ -46,7 +46,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void optimisticLock_nonBooking_mapsToConflict() {
         ResponseEntity<ErrorResponse> response = handler.handleOptimisticLockingFailure(
-                new ObjectOptimisticLockingFailureException(Order.class.getName(), 1L));
+                new ObjectOptimisticLockingFailureException(Product.class.getName(), 1L));
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(409);

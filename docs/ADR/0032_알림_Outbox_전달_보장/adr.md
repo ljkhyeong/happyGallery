@@ -1,7 +1,7 @@
 # ADR-0032: 알림 Outbox 전달 보장
 
 **날짜**: 2026-07-04
-**최종 갱신**: 2026-07-21
+**최종 갱신**: 2026-07-24
 **상태**: Accepted
 
 ---
@@ -29,17 +29,24 @@
 - `NotificationOutboxDispatcher#dispatchPending`은 `Propagation.NEVER`로 외부 알림 호출이 활성 트랜잭션 안에서
   실행되지 않도록 선언적으로 강제한다.
 - outbox 예약과 결과 갱신은 짧은 `REQUIRES_NEW` 트랜잭션으로 처리하고, 발송 요청 조회는 `readOnly` 기본 전파를 사용한다.
+  한 실행은 최대 50건을 처리하되 한 건씩 선점하고 결과를 확정한 뒤 다음 건을 선점한다. 아직 외부 호출 순서를 기다리는 행까지
+  미리 `PROCESSING`으로 바꾸지 않아 같은 실행 안의 대기 시간 때문에 lease가 만료되는 일을 막는다.
 - outbox를 선점할 때마다 새 `processing_token`을 발급하고 요청 조회와 결과 반영에 함께 전달한다. `@Version`과 토큰이 오래된 실행의 성공·실패 결과가 최신 재선점 상태를 덮지 않게 한다.
 - `PROCESSING`이 1분 넘게 유지된 outbox는 오래된 실행으로 보고 재선점한다. 정상 알림 transport 상한 5초보다 충분히 길고 NHN 멱등키의 10분 중복 차단 창보다 짧아, 중단된 실행의 복구를 중복 차단 창 안에서 시작한다.
 - `NotificationOutboxScheduler`는 주기적으로 pending/오래된 processing outbox를 다시 dispatch해 즉시 dispatch 실패와 재시작 상황을 복구한다.
 - 실제 채널 fallback 순서와 발송 결과 이력은 기존 `NotificationService`와 `notification_log`가 유지한다. 운영 1순위는 NHN Cloud Alimtalk v2.2, 2순위는 NHN Cloud SMS다.
-- Alimtalk·SMS sender는 성공·영구 거절·일시 실패를 구분한다. 408·425·429·5xx·timeout·통신 예외와 큐 포화 같은
-  일시 실패만 채널별 CircuitBreaker 장애율에 반영하고, 영구 거절도 기존처럼 다음 채널 fallback으로 넘긴다.
-  모든 채널이 영구 거절하면 outbox를 즉시 `FAILED`로 종결하고, 하나라도 일시 실패면 최대 5회 백오프 재시도한다.
-  인증 SMS도 같은 typed 결과를 resilience 경계까지 유지해 영구 거절이 공유 SMS CircuitBreaker를 열지 않게 한다.
-  timeout 보조 executor는 제한 큐와 즉시 거절 정책을 사용한다.
+- Alimtalk·SMS sender는 성공·영구 거절·일시 실패·전달 결과 불명을 구분한다. 408·425·429·5xx, NHN SMS
+  `-9999` 시스템 오류와 `-2021` 발송 큐 저장 실패, DNS·라우팅·TCP 연결·TLS handshake/peer 검증·연결 풀 대기 실패처럼 제공자에 요청을 전달하기 전 확정된 실패는 다음 채널
+  fallback 및 최대 5회 백오프 재시도 대상으로 둔다. 요청을 쓴 뒤 응답 대기 timeout처럼 제공자 수락 여부를 알 수
+  없는 결과는 즉시 fallback과 자동 재시도를 중단하고,
+  기존 outbox `FAILED` 상태에 `DELIVERY_RESULT_UNKNOWN`을 남겨 운영자가 확인한 뒤 재처리하게 한다.
+  영구 거절은 서킷 장애율에 넣지 않고 기존처럼 다음 채널 fallback으로 넘긴다.
+- Alimtalk, 일반 SMS, 휴대폰 인증 SMS는 각각 별도 제한 큐 executor와 CircuitBreaker를 사용한다. 한 채널의 대기열 포화나
+  서킷 개방이 다른 채널의 실행 자원을 소진하지 않으며, 모든 timeout 보조 executor는 즉시 거절 정책을 사용한다.
 - NHN transport의 acquire·connect·response timeout 합을 바깥 TimeLimiter보다 작게 두어, TimeLimiter가 끝난 뒤에도 blocking HTTP 호출이 남아 다음 채널과 겹치는 기본 설정을 허용하지 않는다.
-- `notificationTimeoutExecutor`의 queued/remaining task와 `happygallery.notification.executor.rejected`를 수집하고, 대기열 80% 지속 또는 거절 발생 시 운영 알림을 보낸다.
+- 채널별 executor의 queued/remaining task와
+  `happygallery.notification.{alimtalk|sms|phone_verification}.executor.rejected`를 수집하고,
+  어느 한 대기열이라도 80%가 지속되거나 거절이 발생하면 채널을 구분해 운영 알림을 보낸다.
 - 전화번호 평문은 outbox에 저장하지 않는다. outbox는 `guest_id` 또는 `user_id`만 저장하고, 발송 시점에 기존 조회/복호화 경로를 사용한다.
 - outbox의 `recipient_type`과 수신자 ID는 DB CHECK로 일치시키고, outbox와 발송 로그 모두 회원·비회원 수신자 중 정확히 하나만 갖도록 강제한다.
 - aggregate가 명확한 일회성 알림은 `recipient + eventType + aggregateType + aggregateId` idempotency key로 outbox 중복 저장을 막는다.
@@ -53,21 +60,26 @@
 - 8회권 만료 임박 알림은 사용자 단위가 아니라 `PASS_PURCHASE + passId` 단위로 멱등 처리한다. 같은 회원의 여러 8회권은 각각 알리고, 같은 구매 건의 수동·정기 배치 중복 실행은 하나의 outbox로 합친다.
 - 픽업·8회권 알림 배치는 원자적 outbox insert 결과를 성공 건수로 사용한다. 중복 키로 저장되지 않은 요청을 성공으로 집계하지 않는다.
 - 같은 outbox idempotency key를 NHN Alimtalk의 `X-NC-API-IDEMPOTENCY-KEY`로 전달해 공식 10분 중복 요청 차단을 사용한다. 처리 토큰 재발급과 무관하게 외부 멱등키는 유지한다.
+- NHN SMS v3 계약에는 클라이언트 멱등키 필드나 헤더가 없다. 일반 SMS 요청에는 outbox 멱등키에서 만든
+  불투명 상관관계 ID를 제공자 `userId`에 전달해 운영 대사에 사용하되, 이를 중복 차단 계약으로 해석하지 않는다.
+  인증 SMS는 outbox를 사용하지 않으므로 이 상관관계 ID를 보내지 않는다.
 - 같은 예약에서 여러 번 발생할 수 있는 `BOOKING_RESCHEDULED`는 요청 단위 idempotency key를 사용해 기존 반복 발송 의미를 보존한다.
 - 자동 재시도를 모두 소진한 outbox는 `FAILED`로 종결하고 `happygallery.notification.outbox.failed` 카운터를 올린다.
 - `PENDING`·`PROCESSING`·`FAILED`별 backlog 건수와 처리 기준 시각을 DB에서 주기적으로 집계한다. `PROCESSING`은 현재 선점의 `locked_at`이 2분 넘은 경우, `PENDING`은 `next_attempt_at`이 1분 넘게 지난 경우를 정체로 보고, `FAILED`는 최종 실패가 확정된 `processed_at`부터 경과 시간을 계산한다. 미래 재시도 예정 시각의 age는 0이므로 최대 5회 지수 백오프 중인 정상 대기는 경보를 울리지 않는다.
 - 관리자는 실패 outbox를 최대 100건씩 조회하고, 원래 행을 `PENDING`으로 다시 열 수 있다. 새 outbox나 새 멱등키를 만들지 않으므로 동일 이벤트가 별도 요청으로 중복 발송되는 것을 막는다.
 - 주문 결제와 8회권 구매도 주문/구매 트랜잭션 안에서 각각 `ORDER_PAID`, `PASS_PURCHASED` outbox를 저장한다.
 - 예약금·주문·8회권의 PG 환불 성공 처리도 `DEPOSIT_REFUNDED`, `ORDER_REFUNDED`, `PASS_REFUNDED` outbox 저장과 같은 `REQUIRES_NEW` 트랜잭션에 묶는다. 동기 outbox listener 예외를 삼키지 않으므로 저장 실패 시 로컬 환불 성공 반영이 롤백되고, 기존 PG 멱등키 복구가 다시 상태를 확정한다.
-- 외부 채널 성공 뒤 `notification_log` 저장만 실패하면 성공한 메시지를 다시 보내지 않는다. outbox를 `SENT`로 끝내되 `last_error=AUDIT_LOG_PERSISTENCE_FAILED`와 `happygallery.notification.log.persistence_failed` 메트릭을 남긴다. 외부 성공 전 감사 로그 실패는 기존 전송 실패와 함께 outbox 재시도 대상으로 둔다.
+- 외부 채널 성공 뒤 `notification_log` 저장만 실패하면 성공한 메시지를 다시 보내지 않는다. outbox를 `SENT`로 끝내되 `last_error=AUDIT_LOG_PERSISTENCE_FAILED`와 `happygallery.notification.log.persistence_failed` 메트릭을 남긴다. 전송 결과 불명과 감사 로그 실패가 겹치면 `FAILED + DELIVERY_RESULT_UNKNOWN:AUDIT_LOG_PERSISTENCE_FAILED`로 종결해 재발송하지 않고 두 원인을 함께 보존한다. 외부 성공 전 감사 로그 실패는 기존 전송 실패와 함께 outbox 재시도 대상으로 둔다.
 
 ### 전달 보장 한계
 
 - 일반 알림은 **at-least-once** 전달이다. `processing_token`과 `@Version`은 오래된 로컬 결과가 최신 상태를 덮는 것을 막지만 외부 제공자의 실제 발송을 되돌리지는 못한다.
 - NHN Alimtalk의 멱등키 중복 차단은 10분 동안만 유효하고, 공식 문서에는 중복 요청만 식별하는 전용 `resultCode`가 없다. 임의의 오류 문자열이나 결과 코드를 중복 성공으로 해석하지 않는다.
 - 외부 발송 성공 직후 프로세스가 종료되어 로컬 `SENT` 저장이 유실되거나, 실행 중단이 10분을 넘겨 NHN 중복 차단 창이 끝난 뒤 재시도되면 Alimtalk이 중복 발송될 수 있다.
-- NHN SMS API에는 이 outbox가 사용할 수 있는 동등한 멱등 계약이 없다. Alimtalk의 transport 결과가 불명인데 SMS fallback 또는 outbox 재시도가 이어지면 채널 간 중복이 발생할 수 있다.
-- transport 결과 불명에서 즉시 SMS fallback만 선택적으로 막으려면 제공자 상태 조회나 영속적인 채널별 `UNKNOWN` 상태가 필요하다. 일시·영구 실패 분류만으로는 외부의 실제 성공 여부를 확정할 수 없어 근거 없는 분기를 추가하지 않는다.
+- NHN SMS API에는 이 outbox가 사용할 수 있는 동등한 멱등 계약이 없다. `userId` 상관관계 값은 조회·대사 보조값일 뿐
+  동일 요청의 재발송을 막지 않는다.
+- transport 결과 불명은 별도 outbox 상태를 늘리지 않고 `FAILED + DELIVERY_RESULT_UNKNOWN`으로 종결한다.
+  자동 중복 가능성은 낮추지만, 실제 미발송이었다면 운영 확인 전까지 전달이 지연되는 가용성 비용을 감수한다.
 - `notification_outbox`의 `SENT` 행은 회원 알림함 목록·읽지 않은 건수·읽음 처리의 원본이자 동일 도메인 이벤트의 멱등 기록이다. 알림함의 전달 시각은 도메인 이벤트 발생 시각이 아니라 외부 채널 전달 성공 후 로컬 `SENT`가 확정된 `processed_at`이다. `notification_log`는 카카오톡·SMS fallback을 포함한 채널별 감사 이력으로만 사용하므로 한 outbox에서 로그가 여러 건 생겨도 알림함은 중복되지 않는다.
 - 알림함 원본 전환 migration 이전에 이미 `SENT`였던 outbox는 `read_at=processed_at`으로 이관해 과거 알림 전체가 새 미확인 알림으로 보이지 않게 한다.
 - 발송 완료 `SENT`와 자동 재시도를 모두 소진한 최종 `FAILED` outbox는 처리 종료 시각인 `processed_at`부터 180일 보존한다. 채널 감사 로그도 180일 보존하며, 매일 보존 배치가 100건씩 짧게 삭제한다. 이 기간을 알림함 조회, 운영자 최종 실패 재처리와 동일 이벤트 멱등 보장 기간으로 공개한다. 아직 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 생성 시각이 오래돼도 자동 삭제하지 않는다.

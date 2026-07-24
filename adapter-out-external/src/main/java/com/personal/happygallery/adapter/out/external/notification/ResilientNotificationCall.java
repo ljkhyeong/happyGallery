@@ -33,27 +33,38 @@ final class ResilientNotificationCall {
         this.timeoutMillis = timeoutMillis;
     }
 
-    <T> T execute(NotificationChannel channel, String operation, Supplier<T> call, T failureResult) {
+    <T> T execute(NotificationChannel channel,
+                  String operation,
+                  Supplier<T> call,
+                  T unavailableResult,
+                  T unknownResult) {
         try {
             return circuitBreaker.executeCallable(() -> timeLimiter.executeFutureSupplier(
                     () -> CompletableFuture.supplyAsync(call, executor)));
         } catch (CallNotPermittedException e) {
             log.warn("[{}] 발송 차단 (circuit open) operation={}", channel, operation);
+            return unavailableResult;
         } catch (TimeoutException e) {
             log.warn("[{}] 발송 타임아웃 [timeoutMs={} operation={}]",
                     channel, timeoutMillis, operation);
+            return unknownResult;
         } catch (RejectedExecutionException e) {
             log.warn("[{}] 발송 대기열 포화 [operation={}]", channel, operation);
+            return unavailableResult;
         } catch (Exception e) {
             Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
             if (cause instanceof TimeoutException) {
                 log.warn("[{}] 발송 타임아웃 [timeoutMs={} operation={}]",
                         channel, timeoutMillis, operation);
-            } else {
-                log.warn("[{}] 발송 예외 [operation={} type={}]",
-                        channel, operation, cause.getClass().getSimpleName());
+                return unknownResult;
             }
+            if (cause instanceof RejectedExecutionException) {
+                log.warn("[{}] 발송 대기열 포화 [operation={}]", channel, operation);
+                return unavailableResult;
+            }
+            log.warn("[{}] 발송 예외 [operation={} type={}]",
+                    channel, operation, cause.getClass().getSimpleName());
+            return unknownResult;
         }
-        return failureResult;
     }
 }

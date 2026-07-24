@@ -22,7 +22,7 @@ public class ImageMediaController {
     }
 
     @GetMapping("/{fileName}")
-    @Operation(operationId = "get_2")
+    @Operation(operationId = "getImage")
     public ResponseEntity<byte[]> get(@PathVariable String fileName) {
         ImageMediaUseCase.ImageContent image = imageMediaUseCase.get(fileName);
         return ResponseEntity.ok()

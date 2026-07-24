@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Form, ListGroup } from "react-bootstrap";
 import { fetchRescheduleSlots } from "./api";
+import { invalidateSlotAvailability, queryKeys } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
@@ -23,6 +24,7 @@ export function RescheduleForm({
   successMessage = "예약이 변경되었습니다.",
 }: Props) {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [date, setDate] = useState(currentStartAt.slice(0, 10));
   const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
 
@@ -36,7 +38,7 @@ export function RescheduleForm({
     isLoading: slotsLoading,
     error: slotsError,
   } = useQuery({
-    queryKey: ["reschedule-slots", classId, date],
+    queryKey: queryKeys.slotAvailability.reschedule.byClassAndDate(classId, date),
     queryFn: () => fetchRescheduleSlots(classId, date),
     enabled: date.length > 0,
   });
@@ -46,6 +48,7 @@ export function RescheduleForm({
     onSuccess: () => {
       toast.show(successMessage);
       setSelectedSlotId(null);
+      void invalidateSlotAvailability(queryClient);
       onSuccess();
     },
   });

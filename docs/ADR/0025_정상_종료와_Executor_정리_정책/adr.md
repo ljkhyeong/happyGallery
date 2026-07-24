@@ -92,8 +92,8 @@
 - 큐 포화 시 호출 스레드에서 실행하지 않는 `AbortPolicy`
 
 `PaymentResilienceConfig`와 `NotificationResilienceConfig`는 pool·queue 크기, thread/metric 이름과
-각 executor의 Spring 빈 수명주기를 결정한다. 큐 포화는 즉시 재시도 가능한 결제 실패 또는
-알림 채널 실패로 반환한다.
+각 executor의 Spring 빈 수명주기를 결정한다. 알림톡·일반 SMS·휴대폰 인증 SMS는 서로 다른 executor로
+격리한다. 큐 포화는 호출 시작 전 실패이므로 즉시 재시도 가능한 결제 실패 또는 알림 채널 실패로 반환한다.
 
 결제의 `PaymentTimeoutExecutor.close()`는 빈 종료 시 다음 순서로 실행기를 정리한다.
 

@@ -131,7 +131,7 @@ class AdminBookingQueryUseCaseIT {
         });
     }
 
-    @DisplayName("포맷 예약번호는 정확 일치하고 일반 숫자는 예약 ID 부분 일치로 검색한다")
+    @DisplayName("표시 예약번호만 예약 ID 정확 일치 검색으로 처리한다")
     @Test
     void searchBookings_formattedBookingNumber_matchesExactId() {
         LocalDateTime slotStart = LocalDate.now(clock).plusDays(3).atTime(10, 0);
@@ -144,7 +144,7 @@ class AdminBookingQueryUseCaseIT {
 
         OffsetPage<AdminBookingSearchRow> exactResult = adminBookingSearchUseCase.search(
                 null, null, null, "BK-%08d".formatted(target.getId()), 0, 20);
-        OffsetPage<AdminBookingSearchRow> partialResult = adminBookingSearchUseCase.search(
+        OffsetPage<AdminBookingSearchRow> bareIdResult = adminBookingSearchUseCase.search(
                 null, null, null, String.valueOf(target.getId()), 0, 20);
 
         assertSoftly(softly -> {
@@ -152,9 +152,7 @@ class AdminBookingQueryUseCaseIT {
             softly.assertThat(exactResult.content())
                     .extracting(AdminBookingSearchRow::bookingId)
                     .containsExactly(target.getId());
-            softly.assertThat(partialResult.content())
-                    .extracting(AdminBookingSearchRow::bookingId)
-                    .contains(target.getId());
+            softly.assertThat(bareIdResult.content()).isEmpty();
         });
     }
 

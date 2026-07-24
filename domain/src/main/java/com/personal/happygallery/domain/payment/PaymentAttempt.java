@@ -259,6 +259,15 @@ public class PaymentAttempt {
         return true;
     }
 
+    /** 현재 선점자가 받은 PG 응답 정합성 이상을 수동 대사 대상으로 격리한다. */
+    public boolean markConfirmReconciliationRequired(String expectedProcessingToken, String reason) {
+        if (!ownsProcessing(expectedProcessingToken)) {
+            return false;
+        }
+        applyConfirmReconciliationRequired(reason);
+        return true;
+    }
+
     /** amount=0 내부 승인 뒤 도메인 생성이 실패했다. */
     public void markFailed(String reason) {
         requireStatus(PaymentAttemptStatus.APPROVED);
@@ -337,6 +346,10 @@ public class PaymentAttempt {
     /** Toss 멱등 응답 안전 구간을 지난 미확정 PG 호출을 수동 대사 대상으로 격리한다. */
     public void markConfirmReconciliationRequired(String reason) {
         requireStatus(PaymentAttemptStatus.PROCESSING, PaymentAttemptStatus.RETRYABLE);
+        applyConfirmReconciliationRequired(reason);
+    }
+
+    private void applyConfirmReconciliationRequired(String reason) {
         this.status = PaymentAttemptStatus.RECONCILIATION_REQUIRED;
         this.processingToken = null;
         this.failReason = reason;

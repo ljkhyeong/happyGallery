@@ -131,8 +131,12 @@ public class NotificationService {
                         sender.channel(), recipientLabel, recipientId, eventType, e.getClass().getSimpleName());
                 auditPersisted &= save(NotificationLog.failed(
                         guestId, userId, sender.channel(), eventType, DELIVERY_EXCEPTION, sentAt));
-                transientFailure = true;
-                continue;
+                log.error("[알림] 발송 결과 확인 필요 [{}={} event={}]",
+                        recipientLabel, recipientId, eventType);
+                if (!auditPersisted) {
+                    throw NotificationAuditPersistenceException.afterUnknownDelivery();
+                }
+                return NotificationSendResult.DELIVERY_UNKNOWN;
             }
 
             if (result.isSuccess()) {
@@ -145,6 +149,14 @@ public class NotificationService {
             }
             auditPersisted &= save(NotificationLog.failed(
                     guestId, userId, sender.channel(), eventType, result.name(), sentAt));
+            if (result == NotificationSendResult.DELIVERY_UNKNOWN) {
+                log.error("[알림] 발송 결과 확인 필요 [{}={} event={}]",
+                        recipientLabel, recipientId, eventType);
+                if (!auditPersisted) {
+                    throw NotificationAuditPersistenceException.afterUnknownDelivery();
+                }
+                return NotificationSendResult.DELIVERY_UNKNOWN;
+            }
             transientFailure |= result == NotificationSendResult.TRANSIENT_FAILURE;
         }
         log.error("[알림] 모든 채널 실패 [{}={} event={}]", recipientLabel, recipientId, eventType);
@@ -185,22 +197,26 @@ public class NotificationService {
 
 final class NotificationAuditPersistenceException extends RuntimeException {
 
-    private final boolean deliveryCompleted;
+    private final NotificationSendResult deliveryResult;
 
-    private NotificationAuditPersistenceException(boolean deliveryCompleted) {
+    private NotificationAuditPersistenceException(NotificationSendResult deliveryResult) {
         super("알림 결과 감사 이력을 저장하지 못했습니다.");
-        this.deliveryCompleted = deliveryCompleted;
+        this.deliveryResult = deliveryResult;
     }
 
     static NotificationAuditPersistenceException afterCompletedDelivery() {
-        return new NotificationAuditPersistenceException(true);
+        return new NotificationAuditPersistenceException(NotificationSendResult.SUCCESS);
     }
 
     static NotificationAuditPersistenceException beforeCompletedDelivery() {
-        return new NotificationAuditPersistenceException(false);
+        return new NotificationAuditPersistenceException(NotificationSendResult.TRANSIENT_FAILURE);
     }
 
-    boolean deliveryCompleted() {
-        return deliveryCompleted;
+    static NotificationAuditPersistenceException afterUnknownDelivery() {
+        return new NotificationAuditPersistenceException(NotificationSendResult.DELIVERY_UNKNOWN);
+    }
+
+    NotificationSendResult deliveryResult() {
+        return deliveryResult;
     }
 }

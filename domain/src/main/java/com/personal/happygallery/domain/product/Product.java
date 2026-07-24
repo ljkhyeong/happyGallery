@@ -12,6 +12,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.net.URI;
 import java.time.LocalDateTime;
 
@@ -51,6 +52,10 @@ public class Product {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private ProductStatus status;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -156,5 +161,6 @@ public class Product {
     public String getDescription() { return description; }
     public String getImageUrl() { return imageUrl; }
     public ProductStatus getStatus() { return status; }
+    public long getVersion() { return version; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

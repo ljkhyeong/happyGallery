@@ -3,7 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Table } from "react-bootstrap";
 import { ClassEditModal } from "./ClassEditModal";
 import { fetchAdminClasses, updateClassStatus } from "./api";
-import { ApiError } from "@/shared/api";
+import {
+  ApiError,
+  invalidateSlotAvailability,
+  queryKeys,
+} from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatKRW } from "@/shared/lib";
@@ -19,7 +23,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const { data: classes, isLoading, error } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "classes"],
+    queryKey: queryKeys.admin.classes,
     queryFn: () => fetchAdminClasses(adminKey),
   });
 
@@ -28,9 +32,9 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
       updateClassStatus(adminKey, id, active ? "ACTIVE" : "INACTIVE"),
     onMutate: ({ id }) => setPendingStatusId(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes"] });
-      queryClient.invalidateQueries({ queryKey: ["classes"] });
-      queryClient.invalidateQueries({ queryKey: ["slots"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes });
+      queryClient.invalidateQueries({ queryKey: queryKeys.catalog.classes });
+      void invalidateSlotAvailability(queryClient);
     },
     onSettled: () => setPendingStatusId(null),
   });

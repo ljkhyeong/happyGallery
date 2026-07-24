@@ -1,0 +1,2 @@
+ALTER TABLE products
+    ADD COLUMN version BIGINT NOT NULL DEFAULT 0 COMMENT '낙관적 락';

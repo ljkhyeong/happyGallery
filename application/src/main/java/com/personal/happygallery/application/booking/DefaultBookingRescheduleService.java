@@ -3,6 +3,7 @@ package com.personal.happygallery.application.booking;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
+import com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot;
 import com.personal.happygallery.domain.error.ChangeNotAllowedException;
 import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -85,17 +86,21 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
             throw new ChangeNotAllowedException();
         }
 
-        Slot oldSlot = booking.getSlot();
-        Slot newSlot = slotCapacitySupport.requireAvailableSlot(newSlotId);
-        return new RescheduleSlots(oldSlot, newSlot);
+        SlotSchedulingSnapshot newSlot = slotCapacitySupport.requireAvailableSlot(newSlotId);
+        if (!booking.getBookingClass().getId().equals(newSlot.classId())) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "같은 클래스의 슬롯으로만 예약을 변경할 수 있습니다.");
+        }
+        Long oldSlotId = booking.getSlot().getId();
+        return new RescheduleSlots(oldSlotId, newSlotId);
     }
 
     private Booking applyReschedule(Booking booking, RescheduleSlots slots) {
-        slotCapacitySupport.lockClassesForSlots(List.of(slots.oldSlot().getId(), slots.newSlot().getId()));
-        booking.reschedule(slots.newSlot());
-
-        Slot newSlot = slotCapacitySupport.reserveCapacity(slots.newSlot().getId());
-        Slot oldSlot = slotCapacitySupport.releaseCapacity(slots.oldSlot().getId());
+        slotCapacitySupport.lockClassesForSlots(List.of(slots.oldSlotId(), slots.newSlotId()));
+        Slot newSlot = slotCapacitySupport.reserveCapacity(slots.newSlotId());
+        Slot oldSlot = slotCapacitySupport.releaseCapacity(slots.oldSlotId());
+        booking.reschedule(newSlot);
 
         bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
                 oldSlot, newSlot, "CUSTOMER", null, null);
@@ -105,5 +110,5 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
         return saved;
     }
 
-    private record RescheduleSlots(Slot oldSlot, Slot newSlot) {}
+    private record RescheduleSlots(Long oldSlotId, Long newSlotId) {}
 }

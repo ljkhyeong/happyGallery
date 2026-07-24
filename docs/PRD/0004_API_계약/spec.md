@@ -864,7 +864,7 @@ Authorization: Bearer {token}
   - `401 UNAUTHORIZED` — 관리자 인증 실패
   - `404 NOT_FOUND` — 상세 `passId` 미존재
 - 정책:
-  - 검색어는 선택값이다. 이름·정규화한 전화번호는 HMAC 정확 일치, `PASS-{8자리 숫자}`는 ID 정확 일치, 일반 숫자는 ID 부분 일치를 지원한다.
+  - 검색어는 선택값이다. 이름·정규화한 전화번호는 HMAC 정확 일치, `PASS-{8자리 숫자}`는 ID 정확 일치를 지원한다. PK 인덱스를 사용할 수 없는 일반 숫자 ID 부분 검색은 제공하지 않는다.
   - `status`는 `ACTIVE`, `USED_UP`, `EXPIRED`, `REFUND_PENDING`, `REFUND_FAILED`, `REFUNDED` 중 하나다. 환불 이력이 있으면 환불 상태를 이용권 상태보다 우선한다.
   - `expectedRefundAmount`는 현재 잔여 횟수와 자동 취소될 미래 `BOOKED` 예약 수를 합하되 총 횟수를 넘지 않도록 계산한다. 이미 환불 요청이 있으면 저장된 요청 금액을 반환한다.
   - 전화번호는 가운데 자리를 마스킹한다. 목록에서 상세를 선택한 뒤 2.5.4의 환불 액션을 실행한다.
@@ -1111,7 +1111,7 @@ Authorization: Bearer {token}
 - 정책:
   - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
   - `page`는 0 미만이면 0으로, `size`는 1~100 범위로 보정하며 표현 가능한 OFFSET을 넘으면 `400 INVALID_INPUT`으로 거절한다.
-  - `keyword`가 `ORD-{숫자}` 형식의 주문번호이면 해당 주문 ID와 정확 일치로 검색한다. 그 외 숫자·문자열은 주문 ID 부분 일치 또는 회원·비회원 이름 정확 일치로 검색한다.
+  - `keyword`가 `ORD-{숫자}` 형식의 주문번호이면 해당 주문 ID와 정확 일치로 검색한다. 그 외 문자열은 회원·비회원 이름 HMAC 정확 일치로 검색하며 주문 ID 부분 검색은 제공하지 않는다.
   - `dateFrom`~`dateTo`는 KST 기준 주문 생성일 범위를 의미한다.
   - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
   - `createdAt`은 UTC 오프셋(`Z`)을 포함해 브라우저가 서울 시각으로 정확히 변환할 수 있게 한다.
@@ -1464,7 +1464,7 @@ Authorization: Bearer {token}
 - 정책:
   - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
   - `page`는 0 미만이면 0으로, `size`는 1~100 범위로 보정하며 표현 가능한 OFFSET을 넘으면 `400 INVALID_INPUT`으로 거절한다.
-  - `keyword`가 `BK-{숫자}` 형식의 예약번호이면 해당 예약 ID와 정확 일치로 검색한다. 그 외 숫자·문자열은 예약 ID 부분 일치 또는 회원·비회원 이름 정확 일치로 검색한다.
+  - `keyword`가 `BK-{숫자}` 형식의 예약번호이면 해당 예약 ID와 정확 일치로 검색한다. 그 외 문자열은 회원·비회원 이름 HMAC 정확 일치로 검색하며 예약 ID 부분 검색은 제공하지 않는다.
   - 날짜 필터는 슬롯 시작 시간(`slotStart`) 기준 KST 범위를 사용한다.
   - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
   - DB 생성 시각인 `createdAt`은 UTC 오프셋(`Z`)을 포함한다. 슬롯·예약금·잔금 시각은 서울 현지시각이다.

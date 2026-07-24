@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.booking;
 
 import com.personal.happygallery.application.booking.port.in.ClassQueryUseCase;
 import com.personal.happygallery.adapter.in.web.booking.dto.ClassResponse;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,6 +20,7 @@ public class ClassController {
 
     /** GET /api/v1/classes — 현재 운영 중인 클래스 목록 */
     @GetMapping
+    @Operation(operationId = "listPublicClasses")
     public List<ClassResponse> listClasses() {
         return classQueryUseCase.listActive().stream()
                 .map(ClassResponse::from)

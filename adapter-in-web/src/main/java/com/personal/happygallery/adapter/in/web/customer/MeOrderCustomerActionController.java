@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.in.web.order.dto.OrderCustomerActionRes
 import com.personal.happygallery.adapter.in.web.order.dto.OrderDelayResponseRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.application.order.port.in.OrderCustomerActionUseCase;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,6 +25,7 @@ public class MeOrderCustomerActionController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(operationId = "cancelMyOrder")
     public OrderCustomerActionResponse cancel(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomerPrincipal customer) {
@@ -32,6 +34,7 @@ public class MeOrderCustomerActionController {
     }
 
     @PostMapping("/{id}/delay-response")
+    @Operation(operationId = "respondToMyOrderDelay")
     public OrderCustomerActionResponse respondToDelay(
             @PathVariable Long id,
             @Valid @RequestBody OrderDelayResponseRequest request,

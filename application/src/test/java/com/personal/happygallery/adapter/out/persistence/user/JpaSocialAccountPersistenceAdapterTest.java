@@ -62,4 +62,5 @@ class JpaSocialAccountPersistenceAdapterTest {
         Arrays.fill(key, value);
         return key;
     }
+
 }

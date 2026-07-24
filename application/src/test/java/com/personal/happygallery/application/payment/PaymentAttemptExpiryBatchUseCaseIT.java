@@ -2,6 +2,7 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.batch.BatchResult;
+import com.personal.happygallery.application.batch.DefaultPersonalDataRetentionBatchService;
 import com.personal.happygallery.application.batch.PersonalDataRetentionBatchUseCase;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
@@ -122,6 +123,12 @@ class PaymentAttemptExpiryBatchUseCaseIT {
         markAttempt(freshConfirmed, "CONFIRMED", paymentCutoff.plusSeconds(1), "fresh-token");
 
         saveDeliveredVerification("01011112222", "123456", now.minusDays(2));
+        for (int i = 0; i < 100; i++) {
+            saveDeliveredVerification(
+                    "0108" + String.format("%07d", i),
+                    String.format("%06d", i),
+                    now.minusDays(2));
+        }
         saveDeliveredVerification("01033334444", "654321", now.minusHours(12));
         User cartUser = userStore.save(new User(
                 "retention-cart@example.com", "hashed", "장바구니 회원", "01055556666"));
@@ -134,7 +141,7 @@ class PaymentAttemptExpiryBatchUseCaseIT {
         PaymentAttempt recoverable = attemptReader.findById(oldReconciliationRequired.getId()).orElseThrow();
         PaymentAttempt fresh = attemptReader.findById(freshConfirmed.getId()).orElseThrow();
         assertSoftly(softly -> {
-            softly.assertThat(result.successCount()).isEqualTo(3);
+            softly.assertThat(result.successCount()).isEqualTo(103);
             softly.assertThat(result.failureCount()).isZero();
             softly.assertThat(cleaned.getPayloadEnc()).isNull();
             softly.assertThat(cleaned.getFulfilledAccessTokenEnc()).isNull();
@@ -143,10 +150,22 @@ class PaymentAttemptExpiryBatchUseCaseIT {
             softly.assertThat(fresh.getFulfilledAccessTokenEnc()).isEqualTo("fresh-token");
             softly.assertThat(phoneVerificationReader.findLatestUnverifiedCode("01011112222")).isEmpty();
             softly.assertThat(phoneVerificationReader.findLatestUnverifiedCode("01033334444")).isPresent();
+            softly.assertThat(countExpiredPhoneVerifications(verificationCutoff(now))).isZero();
             softly.assertThat(countCartMergeRequests(cartUser.getId())).isOne();
             softly.assertThat(cartMergeRequestExists(cartUser.getId(), expiredMergeKey)).isFalse();
             softly.assertThat(cartMergeRequestExists(cartUser.getId(), retainedMergeKey)).isTrue();
         });
+    }
+
+    private long countExpiredPhoneVerifications(LocalDateTime cutoff) {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM phone_verifications WHERE expires_at <= ?",
+                Long.class,
+                cutoff);
+    }
+
+    private LocalDateTime verificationCutoff(LocalDateTime now) {
+        return now.minus(DefaultPersonalDataRetentionBatchService.PHONE_VERIFICATION_RETENTION_AFTER_EXPIRY);
     }
 
     private UUID insertCartMergeRequest(Long userId, LocalDateTime createdAt) {

@@ -4,6 +4,7 @@ import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingClassLockPort;
 import com.personal.happygallery.application.booking.port.out.SlotLockPort;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
@@ -46,8 +47,8 @@ class SlotCapacitySupport {
     }
 
     /** 잠금 전에 존재 여부와 활성 상태를 빠르게 확인한다. */
-    Slot requireAvailableSlot(Long slotId) {
-        Slot slot = slotReaderPort.findById(slotId)
+    SlotSchedulingSnapshot requireAvailableSlot(Long slotId) {
+        SlotSchedulingSnapshot slot = slotReaderPort.findSchedulingSnapshotById(slotId)
                 .orElseThrow(NotFoundException.supplier("슬롯"));
         if (!slot.isReservableAt(LocalDateTime.now(clock))) {
             throw new SlotNotAvailableException();
@@ -63,12 +64,13 @@ class SlotCapacitySupport {
             return;
         }
 
-        List<Slot> slots = slotReaderPort.findAllById(expectedSlotIds);
+        List<SlotSchedulingSnapshot> slots =
+                slotReaderPort.findSchedulingSnapshotsByIdIn(expectedSlotIds);
         if (slots.size() != expectedSlotIds.size()) {
             throw new NotFoundException("슬롯");
         }
         List<Long> classIds = slots.stream()
-                .map(slot -> slot.getBookingClass().getId())
+                .map(SlotSchedulingSnapshot::classId)
                 .distinct()
                 .sorted()
                 .toList();
@@ -149,15 +151,15 @@ class SlotCapacitySupport {
     /** 클래스와 슬롯 범위를 순서대로 잠그고 후속 정원 변경까지 유지할 범위를 반환한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     LockedSlotScope lockCapacityScope(Long slotId) {
-        Slot sourceSnapshot = slotReaderPort.findById(slotId)
+        SlotSchedulingSnapshot sourceSnapshot = slotReaderPort.findSchedulingSnapshotById(slotId)
                 .orElseThrow(NotFoundException.supplier("슬롯"));
-        Long classId = sourceSnapshot.getBookingClass().getId();
+        Long classId = sourceSnapshot.classId();
         BookingClass lockedClass = bookingClassLockPort.lockFresh(classId)
                 .orElseThrow(NotFoundException.supplier("클래스"));
         LocalDateTime windowEnd = SlotBufferPolicy.bufferWindowEnd(
-                sourceSnapshot.getEndAt(), lockedClass.getBufferMin());
+                sourceSnapshot.endAt(), lockedClass.getBufferMin());
         List<Slot> lockedSlots = slotLockPort.lockScope(
-                classId, slotId, sourceSnapshot.getEndAt(), windowEnd);
+                classId, slotId, sourceSnapshot.endAt(), windowEnd);
         Slot source = lockedSlots.stream()
                 .filter(slot -> slot.getId().equals(slotId))
                 .findFirst()

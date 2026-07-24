@@ -5,6 +5,7 @@ import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase.QnaWi
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminQnaResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.QnaReplyRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,6 +28,7 @@ public class AdminProductQnaController {
     }
 
     @GetMapping
+    @Operation(operationId = "listAdminProductQna")
     public List<AdminQnaResponse> list(@RequestParam Long productId) {
         return qnaUseCase.listByProduct(productId).stream()
                 .map(AdminQnaResponse::from)

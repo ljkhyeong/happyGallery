@@ -38,6 +38,12 @@ public interface PhoneVerificationRepository extends JpaRepository<PhoneVerifica
                                              @Param("verificationId") Long verificationId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("delete from PhoneVerification verification where verification.expiresAt <= :cutoff")
-    int deleteExpiredBefore(@Param("cutoff") LocalDateTime cutoff);
+    @Query(value = """
+            DELETE FROM phone_verifications
+            WHERE expires_at <= :cutoff
+            ORDER BY expires_at, id
+            LIMIT :limit
+            """, nativeQuery = true)
+    int deleteExpiredBefore(@Param("cutoff") LocalDateTime cutoff,
+                            @Param("limit") int limit);
 }

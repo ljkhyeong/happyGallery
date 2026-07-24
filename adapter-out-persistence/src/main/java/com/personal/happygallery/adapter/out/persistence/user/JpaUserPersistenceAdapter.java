@@ -4,16 +4,24 @@ import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.EmailAddress;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.PersonalName;
 import com.personal.happygallery.domain.user.User;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 @Repository
 class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
+
+    private static final String DUPLICATE_EMAIL_CONSTRAINT = "uq_users_email_hmac";
 
     private final UserRepository userRepository;
     private final FieldEncryptor fieldEncryptor;
@@ -75,7 +83,14 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
     @Override
     public User save(User user) {
         protect(user);
-        return restore(userRepository.save(user));
+        try {
+            return restore(userRepository.save(user));
+        } catch (DataIntegrityViolationException exception) {
+            if (hasConstraint(exception, DUPLICATE_EMAIL_CONSTRAINT)) {
+                throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
+            }
+            throw exception;
+        }
     }
 
     private void protect(User user) {
@@ -104,5 +119,22 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
 
     private Optional<User> active(Optional<User> user) {
         return user.map(this::restore).filter(User::isActive);
+    }
+
+    private static boolean hasConstraint(Throwable throwable, String expectedConstraint) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof ConstraintViolationException violation
+                    && StringUtils.hasText(violation.getConstraintName())) {
+                String constraint = StringUtils.unqualify(violation.getConstraintName()
+                        .toLowerCase(Locale.ROOT)
+                        .replace("`", "")
+                        .replace("\"", "")
+                        .replace("'", ""));
+                return expectedConstraint.equals(constraint);
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

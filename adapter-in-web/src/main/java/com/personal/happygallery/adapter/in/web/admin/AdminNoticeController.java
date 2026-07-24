@@ -34,6 +34,7 @@ public class AdminNoticeController {
     }
 
     @GetMapping
+    @Operation(operationId = "listAdminNotices")
     public List<NoticeListResponse> list() {
         return noticeQueryUseCase.listAll().stream()
                 .map(NoticeListResponse::from)
@@ -41,6 +42,7 @@ public class AdminNoticeController {
     }
 
     @PostMapping
+    @Operation(operationId = "createAdminNotice")
     @ResponseStatus(HttpStatus.CREATED)
     public NoticeDetailResponse create(@RequestBody @Valid CreateNoticeRequest request) {
         return NoticeDetailResponse.from(
@@ -48,7 +50,7 @@ public class AdminNoticeController {
     }
 
     @PutMapping("/{id}")
-    @Operation(operationId = "update_1")
+    @Operation(operationId = "updateAdminNotice")
     public NoticeDetailResponse update(@PathVariable Long id,
                                        @RequestBody @Valid UpdateNoticeRequest request) {
         return NoticeDetailResponse.from(

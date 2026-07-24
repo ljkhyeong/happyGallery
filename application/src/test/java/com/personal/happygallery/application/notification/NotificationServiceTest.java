@@ -135,14 +135,16 @@ class NotificationServiceTest {
         });
     }
 
-    @DisplayName("알림 발송 예외는 원문 대신 고정 실패 사유로 기록한다")
+    @DisplayName("알림 발송 예외는 결과 불명으로 기록하고 다음 채널을 호출하지 않는다")
     @Test
-    void sendToUser_senderThrows_savesSanitizedFailureReason() {
+    void sendToUser_senderThrows_stopsFallbackAsDeliveryUnknown() {
         NotificationSenderPort sender = mock(NotificationSenderPort.class);
+        NotificationSenderPort fallbackSender = mock(NotificationSenderPort.class);
         NotificationLogStorePort logStore = mock(NotificationLogStorePort.class);
         GuestReaderPort guestReader = mock(GuestReaderPort.class);
         UserReaderPort userReader = mock(UserReaderPort.class);
-        NotificationService service = service(List.of(sender), logStore, guestReader, userReader);
+        NotificationService service = service(
+                List.of(sender, fallbackSender), logStore, guestReader, userReader);
         when(sender.channel()).thenReturn(NotificationChannel.SMS);
         when(sender.send(IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
                 .thenThrow(new IllegalStateException("phone=01012345678 recipient=회원"));
@@ -157,9 +159,10 @@ class NotificationServiceTest {
 
         ArgumentCaptor<NotificationLog> captor = ArgumentCaptor.forClass(NotificationLog.class);
         verify(logStore).save(captor.capture());
+        verifyNoInteractions(fallbackSender);
         assertSoftly(softly -> {
             NotificationLog saved = captor.getValue();
-            softly.assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
+            softly.assertThat(result).isEqualTo(NotificationSendResult.DELIVERY_UNKNOWN);
             softly.assertThat(saved.getStatus()).isEqualTo("FAILED");
             softly.assertThat(saved.getFailReason()).isEqualTo("DELIVERY_EXCEPTION");
         });
@@ -235,7 +238,8 @@ class NotificationServiceTest {
                 10L,
                 NotificationEventType.BOOKING_CONFIRMED,
                 IDEMPOTENCY_KEY);
-        when(transactionService.reserveDispatchable(50, 1)).thenReturn(List.of(reservation));
+        when(transactionService.reserveNextDispatchable(1))
+                .thenReturn(Optional.of(reservation), Optional.empty());
         when(transactionService.loadRequest(99L, "processing-token")).thenReturn(Optional.of(delivery));
         when(notificationService.sendByUserId(
                 10L, NotificationEventType.BOOKING_CONFIRMED, IDEMPOTENCY_KEY))
@@ -248,6 +252,45 @@ class NotificationServiceTest {
 
         verify(transactionService).markPermanentFailure(
                 99L, "processing-token", "PERMANENT_DELIVERY_FAILURE");
+        verify(transactionService, times(2)).reserveNextDispatchable(1);
+        verify(transactionService, never()).markDeliveryFailed(
+                anyLong(), anyString(), anyString(), anyInt());
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isZero();
+            softly.assertThat(result.failureCount()).isOne();
+        });
+    }
+
+    @DisplayName("발송 결과를 확인할 수 없으면 자동 재시도 없이 운영 확인 대상으로 남긴다")
+    @Test
+    void dispatchPending_deliveryUnknown_marksFinalFailure() {
+        NotificationOutboxTransactionService transactionService =
+                mock(NotificationOutboxTransactionService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+        NotificationOutboxDispatcher dispatcher =
+                new NotificationOutboxDispatcher(transactionService, notificationService);
+        var reservation = new NotificationOutboxReservation(99L, "processing-token");
+        when(transactionService.reserveNextDispatchable(1))
+                .thenReturn(Optional.of(reservation), Optional.empty());
+        when(transactionService.loadRequest(99L, "processing-token")).thenReturn(Optional.of(
+                new NotificationOutboxDeliveryRequest(
+                        99L,
+                        NotificationRecipientType.USER,
+                        null,
+                        10L,
+                        NotificationEventType.BOOKING_CONFIRMED,
+                        IDEMPOTENCY_KEY)));
+        when(notificationService.sendByUserId(
+                10L, NotificationEventType.BOOKING_CONFIRMED, IDEMPOTENCY_KEY))
+                .thenReturn(NotificationSendResult.DELIVERY_UNKNOWN);
+        when(transactionService.markPermanentFailure(
+                99L, "processing-token", "DELIVERY_RESULT_UNKNOWN"))
+                .thenReturn(true);
+
+        var result = dispatcher.dispatchPending();
+
+        verify(transactionService).markPermanentFailure(
+                99L, "processing-token", "DELIVERY_RESULT_UNKNOWN");
         verify(transactionService, never()).markDeliveryFailed(
                 anyLong(), anyString(), anyString(), anyInt());
         assertSoftly(softly -> {
@@ -279,7 +322,8 @@ class NotificationServiceTest {
                 new NotificationOutboxDispatcher(transactionService, service);
         User user = new User("audit@example.com", "hash", "회원", "01012345678");
         var reservation = new NotificationOutboxReservation(99L, "processing-token");
-        when(transactionService.reserveDispatchable(50, 1)).thenReturn(List.of(reservation));
+        when(transactionService.reserveNextDispatchable(1))
+                .thenReturn(Optional.of(reservation), Optional.empty());
         when(transactionService.loadRequest(99L, "processing-token")).thenReturn(Optional.of(
                 new NotificationOutboxDeliveryRequest(
                         99L,
@@ -309,6 +353,63 @@ class NotificationServiceTest {
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isOne();
             softly.assertThat(result.failureCount()).isZero();
+        });
+    }
+
+    @DisplayName("발송 결과 불명과 감사 로그 실패가 겹치면 재발송 없이 두 사유를 함께 기록한다")
+    @Test
+    void dispatchPending_deliveryUnknownAndAuditFails_marksFinalFailure() {
+        NotificationSenderPort sender = mock(NotificationSenderPort.class);
+        NotificationLogStorePort logStore = mock(NotificationLogStorePort.class);
+        UserReaderPort userReader = mock(UserReaderPort.class);
+        NotificationOutboxTransactionService transactionService =
+                mock(NotificationOutboxTransactionService.class);
+        NotificationService service = new NotificationService(
+                List.of(sender),
+                logStore,
+                mock(GuestReaderPort.class),
+                userReader,
+                mock(GuestPersonalDataProtector.class),
+                mock(AppMetrics.class),
+                CLOCK);
+        NotificationOutboxDispatcher dispatcher =
+                new NotificationOutboxDispatcher(transactionService, service);
+        User user = new User("unknown-audit@example.com", "hash", "회원", "01012345678");
+        var reservation = new NotificationOutboxReservation(99L, "processing-token");
+        when(transactionService.reserveNextDispatchable(1))
+                .thenReturn(Optional.of(reservation), Optional.empty());
+        when(transactionService.loadRequest(99L, "processing-token")).thenReturn(Optional.of(
+                new NotificationOutboxDeliveryRequest(
+                        99L,
+                        NotificationRecipientType.USER,
+                        null,
+                        10L,
+                        NotificationEventType.BOOKING_CONFIRMED,
+                        IDEMPOTENCY_KEY)));
+        when(userReader.findById(10L)).thenReturn(Optional.of(user));
+        when(sender.channel()).thenReturn(NotificationChannel.SMS);
+        when(sender.send(
+                IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
+                .thenReturn(NotificationSendResult.DELIVERY_UNKNOWN);
+        when(logStore.save(any(NotificationLog.class)))
+                .thenThrow(new IllegalStateException("database unavailable"));
+        when(transactionService.markPermanentFailure(
+                99L,
+                "processing-token",
+                "DELIVERY_RESULT_UNKNOWN:AUDIT_LOG_PERSISTENCE_FAILED"))
+                .thenReturn(true);
+
+        var result = dispatcher.dispatchPending();
+
+        verify(transactionService).markPermanentFailure(
+                99L,
+                "processing-token",
+                "DELIVERY_RESULT_UNKNOWN:AUDIT_LOG_PERSISTENCE_FAILED");
+        verify(transactionService, never()).markDeliveryFailed(
+                anyLong(), anyString(), anyString(), anyInt());
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isZero();
+            softly.assertThat(result.failureCount()).isOne();
         });
     }
 

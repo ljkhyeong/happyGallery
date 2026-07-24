@@ -4,7 +4,8 @@ package com.personal.happygallery.application.notification.port.out;
 public enum NotificationSendResult {
     SUCCESS,
     PERMANENT_FAILURE,
-    TRANSIENT_FAILURE;
+    TRANSIENT_FAILURE,
+    DELIVERY_UNKNOWN;
 
     public boolean isSuccess() {
         return this == SUCCESS;

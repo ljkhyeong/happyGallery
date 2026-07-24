@@ -70,7 +70,15 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
             throw new HappyGalleryException(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
         }
 
-        User user = userStore.save(User.fromSocialProfile(canonicalEmail, command.name()));
+        User user;
+        try {
+            user = userStore.save(User.fromSocialProfile(canonicalEmail, command.name()));
+        } catch (HappyGalleryException exception) {
+            if (exception.getErrorCode() == ErrorCode.EMAIL_ALREADY_EXISTS) {
+                throw new HappyGalleryException(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
+            }
+            throw exception;
+        }
         socialAccountStore.save(new SocialAccount(user.getId(), command.provider(), command.providerId()));
         updateLastLogin(user);
 
@@ -105,7 +113,7 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
             throw new HappyGalleryException(ErrorCode.SOCIAL_PROVIDER_ALREADY_LINKED);
         }
 
-        socialAccountStore.saveLink(new SocialAccount(
+        socialAccountStore.save(new SocialAccount(
                 command.userId(), command.provider(), command.providerId()));
     }
 

@@ -6,6 +6,7 @@ import com.personal.happygallery.adapter.in.web.admin.dto.AdminInquiryResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.InquiryReplyRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.shared.page.CursorPage;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +28,7 @@ public class AdminInquiryController {
     }
 
     @GetMapping
+    @Operation(operationId = "listAdminInquiries")
     public CursorPage<AdminInquiryResponse> list(
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int size) {
@@ -38,12 +40,14 @@ public class AdminInquiryController {
     }
 
     @GetMapping("/{id}")
+    @Operation(operationId = "getAdminInquiry")
     public AdminInquiryResponse detail(@PathVariable Long id) {
         InquiryWithUser inquiry = inquiryUseCase.findByIdForAdmin(id);
         return AdminInquiryResponse.from(inquiry);
     }
 
     @PostMapping("/{id}/reply")
+    @Operation(operationId = "replyToAdminInquiry")
     public AdminInquiryResponse reply(@PathVariable Long id,
                                       @RequestBody @Valid InquiryReplyRequest request,
                                       @AuthenticationPrincipal AdminPrincipal admin) {

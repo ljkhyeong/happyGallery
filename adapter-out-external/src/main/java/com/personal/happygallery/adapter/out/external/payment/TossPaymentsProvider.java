@@ -70,7 +70,7 @@ public class TossPaymentsProvider implements PaymentProvider {
             if (!paymentKey.equals(response.paymentKey()) || !orderId.equals(response.orderId())) {
                 log.warn("Toss confirm 응답 식별자 불일치 [requestOrderId={} responseOrderId={}]",
                         orderId, response.orderId());
-                return PaymentConfirmResult.retryableFailure(CONFIRM_IDENTITY_MISMATCH);
+                return PaymentConfirmResult.reconciliationRequired(CONFIRM_IDENTITY_MISMATCH);
             }
             return PaymentConfirmResult.success(
                     response.paymentKey(),

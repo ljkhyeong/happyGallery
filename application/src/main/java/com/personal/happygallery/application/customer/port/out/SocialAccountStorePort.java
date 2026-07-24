@@ -7,8 +7,6 @@ public interface SocialAccountStorePort {
 
     SocialAccount save(SocialAccount socialAccount);
 
-    SocialAccount saveLink(SocialAccount socialAccount);
-
     void deleteByUserIdAndProvider(Long userId, SocialProvider provider);
 
     void deleteByUserId(Long userId);

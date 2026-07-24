@@ -2,9 +2,13 @@ package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -15,6 +19,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.headerDoesNotExist;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -23,6 +28,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class NotificationSenderContractTest {
 
     private static final String IDEMPOTENCY_KEY = "USER:10:BOOKING_CONFIRMED:BOOKING:20";
+    private static final String SMS_CORRELATION_ID = "hg-" + UUID.nameUUIDFromBytes(
+            IDEMPOTENCY_KEY.getBytes(StandardCharsets.UTF_8));
 
     @DisplayName("NHN 알림톡은 v2.2 경로와 인증·멱등 헤더로 템플릿 치환 요청을 보낸다")
     @Test
@@ -117,6 +124,7 @@ class NotificationSenderContractTest {
 
         server.expect(requestTo("https://sms.api.nhncloudservice.com/sms/v3.0/appKeys/api-key/sender/sms"))
                 .andExpect(method(HttpMethod.POST))
+                .andExpect(jsonPath("$.userId").value(SMS_CORRELATION_ID))
                 .andExpect(content().json("""
                         {
                           "body": "[해피갤러리] 홍길동님, 오늘 체험이 예정되어 있습니다.",
@@ -147,6 +155,7 @@ class NotificationSenderContractTest {
         server.expect(requestTo("https://sms.api.nhncloudservice.com/sms/v3.0/appKeys/api-key/sender/auth/sms"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(headerDoesNotExist("X-NC-API-IDEMPOTENCY-KEY"))
+                .andExpect(jsonPath("$.userId").doesNotExist())
                 .andExpect(content().json("""
                         {
                           "body": "[해피갤러리] 인증번호는 123456입니다. 5분 안에 입력해주세요.",
@@ -190,6 +199,33 @@ class NotificationSenderContractTest {
         server.verify();
         assertSoftly(softly -> softly.assertThat(result)
                 .isEqualTo(NotificationSendResult.PERMANENT_FAILURE));
+    }
+
+    @DisplayName("NHN Cloud의 전송 전 시스템 오류는 재시도 가능한 SMS 실패로 분류한다")
+    @ParameterizedTest
+    @ValueSource(ints = {-9999, -2021})
+    void sms_send_classifiesPreSendSystemErrorAsTransientFailure(int resultCode) {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://sms.api.nhncloudservice.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RealSmsSender sender = new RealSmsSender(smsProperties(), builder.build());
+
+        server.expect(requestTo("https://sms.api.nhncloudservice.com/sms/v3.0/appKeys/api-key/sender/sms"))
+                .andRespond(withSuccess("""
+                        {
+                          "header": {
+                            "isSuccessful": false,
+                            "resultCode": %d,
+                            "resultMessage": "System error."
+                          }
+                        }
+                        """.formatted(resultCode), MediaType.APPLICATION_JSON));
+
+        NotificationSendResult result = sender.send(
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
+
+        server.verify();
+        assertSoftly(softly -> softly.assertThat(result)
+                .isEqualTo(NotificationSendResult.TRANSIENT_FAILURE));
     }
 
     @DisplayName("NHN Cloud의 503 응답은 재시도 가능한 SMS 실패로 분류한다")

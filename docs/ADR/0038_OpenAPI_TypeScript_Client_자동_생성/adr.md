@@ -26,12 +26,12 @@
 - 생성 함수는 `generatedApiClient` custom mutator를 통해 기존 `api()`를 호출한다. 인증, CSRF, timeout, 오류 변환과 관측 동작은 바뀌지 않는다.
 - React Query hook은 생성하지 않는다. query key, cache, invalidation과 화면 흐름은 기존 feature code가 소유한다.
 - 생성 파일은 수동 편집하지 않고 프론트 독립 Docker build를 위해 Git에 커밋한다.
-- 여러 Orval 대상이 같은 `src/generated/api`를 사용하므로 생성 명령이 디렉터리를 시작 시 한 번만 비운다. 각 대상의 `clean`은 끄고 서로의 결과를 삭제하지 않게 한다.
+- 여러 Orval 대상이 같은 `src/generated/api`를 사용하므로 생성 명령이 디렉터리를 시작 시 한 번만 비운다. 각 대상의 `clean`은 끄고 서로의 결과를 삭제하지 않게 한다. 공통 input·mutator 설정은 `generatedApi(target, tags)`가 한 곳에서 소유한다.
 
 ### 3. 엔드포인트는 schema 정확성을 확인하며 전환한다
 
 - 생성 client 실사용 범위는 공개 상품 조회, 회원 소셜 계정 관리, 회원 알림함, 고객 결제 상태·8회권 가격 정책 조회, 관리자 예약 조회·상태 변경이다. 기능 코드는 생성 함수를 얇게 감싸고 React Query 상태와 화면 흐름만 소유한다.
-- 연동 대상은 고유하고 안정적인 `operationId`를 사용하고, 응답의 필수값·nullable·enum을 OpenAPI에 정확히 표현한다.
+- 연동 대상은 고유하고 안정적인 `operationId`를 사용하고, 응답의 필수값·nullable·enum을 OpenAPI에 정확히 표현한다. 기존 고유 ID는 호환성을 위해 유지하고, 이름이 충돌하는 엔드포인트만 Controller에 명시적 ID를 둔다. 생성 테스트는 Springdoc 충돌 회피용 숫자 접미사(`*_1`, `*_2`)가 남으면 실패시킨다.
 - 연동된 서버 request/response DTO는 생성 타입을 원본으로 사용한다. 화면 form state와 view model은 수동 타입으로 유지할 수 있다.
 - 결제 `prepare`의 공개 union은 `ORDER/BOOKING/PASS`만 포함한다. 암호화 저장용 `PREPARED_*`는 별도
   application 타입으로 두어 OpenAPI와 생성 client 후보 schema에 노출하지 않는다.

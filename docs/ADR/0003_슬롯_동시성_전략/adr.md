@@ -29,15 +29,15 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 ### 구현 흐름 (`SlotCapacitySupport.reserveCapacity()`을 포함하는 단일 트랜잭션)
 
 ```
-1. 원인 슬롯의 불변 시간 정보에서 classId와 버퍼 범위를 계산
+1. 원인 슬롯의 scheduling projection에서 classId와 버퍼 범위를 계산
 
 2. classes 행을 SELECT FOR UPDATE로 잠금
    → 같은 클래스의 슬롯 생성·예약·반납을 직렬화
 
 3. JpaSlotLockAdapter.lockScope(classId, sourceSlotId, windowStart, windowEnd)
-   → 원인 슬롯과 버퍼 범위를 PK 오름차순으로 SELECT FOR UPDATE
+   → native scalar ID 조회로 원인 슬롯과 버퍼 범위를 PK 오름차순 SELECT FOR UPDATE
    → MySQL REPEATABLE READ의 이전 스냅샷이 아니라 잠금 현재 읽기로 직전에 생성된 슬롯까지 포함
-   → 후보 Slot만 detach하고 같은 잠금 트랜잭션에서 PK 조회로 다시 적재해 최신 상태 사용
+   → 이미 관리 중인 후보 Slot만 detach하고, 잠근 ID를 같은 트랜잭션에서 한 번에 다시 적재해 최신 상태 사용
 
 4. 주입된 Clock 기준으로 슬롯 시작 전이고 실제 활성 상태인지 재확인
    → 조회 이후 시간이 지났거나 관리자/버퍼 상태가 바뀌었으면 SlotNotAvailableException
@@ -68,11 +68,11 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 흐름은 기존 `classes → slots(PK 오름차순)` 순서를 유지하며, 클래스·슬롯을 잡은 뒤 8회권 행을 추가로
 잠그는 역순 경로는 두지 않는다.
 
-예약 생성·변경 흐름은 빠른 사전 확인에서 슬롯 엔티티를 이미 읽을 수 있다. 일반 조회가 먼저 MySQL
-`REPEATABLE READ` 스냅샷을 열어도 뒤의 `FOR UPDATE`는 현재 읽기로 실행되므로 클래스 락 대기 중 생성된
-버퍼 슬롯까지 찾는다. JPA 1차 캐시에 이미 있던 Slot 값은 자동 갱신을 보장하지 않고 `refresh`도 앞선
-스냅샷에서 신규 행을 못 찾을 수 있다. 잠금 어댑터는 범위 잠금으로 후보를 확정한 뒤 해당 Slot만 detach하고
-PK 잠금 조회로 다시 적재한다. 전체 영속성 컨텍스트를 비우지 않아 함께 처리 중인 다른 애그리거트는 유지된다.
+예약 생성·변경의 빠른 사전 확인과 클래스 ID 수집은 Slot 엔티티 대신 필요한 scheduling projection만 읽어
+1차 캐시에 오래된 Slot을 추가하지 않는다. 일반 조회가 먼저 MySQL `REPEATABLE READ` 스냅샷을 열어도 뒤의
+native `FOR UPDATE`는 현재 읽기로 실행되므로 클래스 락 대기 중 생성된 버퍼 슬롯까지 찾는다. 예약에서 이미
+참조해 관리 중인 Slot이 있으면 잠근 scalar ID만 `getReference`로 식별해 detach한 뒤, 잠근 ID 전체를 한 번에
+다시 적재한다. 전체 영속성 컨텍스트를 비우지 않아 함께 처리 중인 다른 애그리거트는 유지된다.
 
 규칙 적용 전에 이미 충돌한 예약 데이터는 자동 취소하지 않는다. 그러나 이후 예약 확정은 매번 잠긴
 버퍼 범위의 기존 예약을 확인하므로, 어느 쪽 슬롯이 먼저 예약됐는지와 관계없이 충돌을 새로 만들거나

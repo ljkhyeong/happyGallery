@@ -196,8 +196,9 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `VITE_API_TARGET` | 프론트 개발 서버 | `/api` 프록시 대상, 기본 `http://localhost:8080` |
 | `PAYMENT_EXECUTOR_POOL_SIZE` | 백엔드 | PG 호출 실행 스레드 수, 기본 `4` |
 | `PAYMENT_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | PG 호출 대기열 크기, 기본 `20` |
-| `NOTIFICATION_EXECUTOR_POOL_SIZE` | 백엔드 | Alimtalk·SMS timeout 보호 실행 스레드 수, 기본 `6` |
-| `NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | Alimtalk·SMS timeout 보호 대기열 크기, 기본 `20` |
+| `ALIMTALK_NOTIFICATION_EXECUTOR_POOL_SIZE` / `ALIMTALK_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | Alimtalk timeout 보호 실행기, 기본 `2` / `5` |
+| `SMS_NOTIFICATION_EXECUTOR_POOL_SIZE` / `SMS_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 일반 SMS timeout 보호 실행기, 기본 `2` / `5` |
+| `PHONE_VERIFICATION_EXECUTOR_POOL_SIZE` / `PHONE_VERIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 휴대폰 인증 SMS timeout 보호 실행기, 기본 `2` / `10` |
 | `NOTIFICATION_TIMEOUT_MILLIS` | 백엔드 | 알림 외부 호출 전체 TimeLimiter, 기본 `5000` |
 | `ALIMTALK_TIMEOUT_MILLIS` / `SMS_TIMEOUT_MILLIS` | 백엔드 `prod` | NHN 응답 대기 상한, 기본 `2000` (연결 풀 `500` + 연결 `1000`보다 바깥 TimeLimiter가 크게 유지돼야 함) |
 | `PASS_TOTAL_PRICE` | 백엔드 | 8회권 결제 금액 |

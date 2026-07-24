@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
 import { createSlot, fetchClasses } from "./api";
 import { ErrorAlert, useToast, LoadingSpinner } from "@/shared/ui";
+import { invalidateSlotAvailability, queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
@@ -18,7 +19,7 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
   const [startAt, setStartAt] = useState("");
 
   const { data: classes, isLoading: classesLoading } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "classes"],
+    queryKey: queryKeys.admin.classes,
     queryFn: () => fetchClasses(adminKey),
   });
   const activeClasses = classes?.filter((bookingClass) => bookingClass.status === "ACTIVE");
@@ -31,7 +32,8 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
       }),
     onSuccess: (slot) => {
       toast.show(`슬롯 #${slot.id} 생성 완료`);
-      queryClient.invalidateQueries({ queryKey: ["admin", "slots"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.slots.all });
+      void invalidateSlotAvailability(queryClient);
       setStartAt("");
     },
   });

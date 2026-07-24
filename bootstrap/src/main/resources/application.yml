@@ -100,9 +100,15 @@ app:
     notification:
       # transport 단계 합(기본 3.5초)이 끝난 뒤에만 바깥 TimeLimiter가 동작한다.
       timeout-millis: ${NOTIFICATION_TIMEOUT_MILLIS:5000}
-      thread-pool:
-        pool-size: ${NOTIFICATION_EXECUTOR_POOL_SIZE:6}
-        queue-capacity: ${NOTIFICATION_EXECUTOR_QUEUE_CAPACITY:20}
+      alimtalk-thread-pool:
+        pool-size: ${ALIMTALK_NOTIFICATION_EXECUTOR_POOL_SIZE:2}
+        queue-capacity: ${ALIMTALK_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY:5}
+      sms-thread-pool:
+        pool-size: ${SMS_NOTIFICATION_EXECUTOR_POOL_SIZE:2}
+        queue-capacity: ${SMS_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY:5}
+      phone-verification-thread-pool:
+        pool-size: ${PHONE_VERIFICATION_EXECUTOR_POOL_SIZE:2}
+        queue-capacity: ${PHONE_VERIFICATION_EXECUTOR_QUEUE_CAPACITY:10}
       circuit-breaker:
         failure-rate-threshold: ${NOTIFICATION_CB_FAILURE_RATE_THRESHOLD:50}
         sliding-window-size: ${NOTIFICATION_CB_SLIDING_WINDOW_SIZE:20}

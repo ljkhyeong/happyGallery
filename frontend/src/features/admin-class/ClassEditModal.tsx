@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Col, Form, Modal, Row } from "react-bootstrap";
 import { updateClass } from "./api";
+import { queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { ClassResponse } from "@/shared/types";
@@ -50,8 +51,8 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
       targetAudience: targetAudience.trim() || undefined,
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes"] });
-      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes });
+      queryClient.invalidateQueries({ queryKey: queryKeys.catalog.classes });
       toast.show("클래스 정보가 수정되었습니다.");
       onClose();
     },

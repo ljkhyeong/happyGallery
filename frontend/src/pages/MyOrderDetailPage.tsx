@@ -1,10 +1,10 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useParams, Link } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Container } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
-import { api } from "@/shared/api";
+import { api, queryKeys } from "@/shared/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { cancelMyOrder, respondToMyOrderDelay } from "@/features/order/api";
@@ -18,9 +18,10 @@ export function MyOrderDetailPage() {
   const orderId = Number(id);
   const validOrderId = isPositiveSafeIntegerString(id);
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const queryClient = useQueryClient();
 
-  const { data: order, isLoading, error, refetch } = useQuery({
-    queryKey: ["my", "orders", orderId],
+  const { data: order, isLoading, error } = useQuery({
+    queryKey: queryKeys.member.orders.detail(orderId),
     queryFn: () => api<OrderDetailResponse>(`/me/orders/${orderId}`),
     enabled: isAuthenticated && validOrderId,
     refetchInterval: ({ state }) =>
@@ -31,22 +32,20 @@ export function MyOrderDetailPage() {
   });
   const cancelMutation = useMutation({
     mutationFn: () => cancelMyOrder(orderId),
-    onSuccess: () => refetch(),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
   });
   const delayMutation = useMutation({
     mutationFn: (decision: "ACCEPT" | "REJECT") =>
       respondToMyOrderDelay(orderId, decision),
-    onSuccess: () => refetch(),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
   });
 
   if (!validOrderId) return <NotFoundPage />;
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
-  }
-
-  if (error && !order) {
-    return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
 
   if (!isAuthenticated) {
@@ -58,6 +57,10 @@ export function MyOrderDetailPage() {
         />
       </Container>
     );
+  }
+
+  if (error && !order) {
+    return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
 
   if (!order) return null;

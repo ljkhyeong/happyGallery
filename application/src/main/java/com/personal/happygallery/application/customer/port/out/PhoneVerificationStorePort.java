@@ -11,5 +11,5 @@ public interface PhoneVerificationStorePort {
 
     void invalidateEarlierUnconsumedForPhone(String phone, Long verificationId);
 
-    int deleteExpiredBefore(LocalDateTime cutoff);
+    int deleteExpiredBefore(LocalDateTime cutoff, int limit);
 }

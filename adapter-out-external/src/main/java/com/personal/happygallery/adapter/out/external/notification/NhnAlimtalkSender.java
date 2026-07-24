@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.ResourceAccessException;
 
 /** NHN Cloud Alimtalk v2.2 실제 발송 어댑터. */
 public class NhnAlimtalkSender implements NotificationSender {
@@ -54,7 +55,7 @@ public class NhnAlimtalkSender implements NotificationSender {
                 log.warn("[ALIMTALK] 발송 거절 [event={} resultCode={}]",
                         eventType, response == null ? "NO_BODY" : response.resultCode());
                 return response == null
-                        ? NotificationSendResult.TRANSIENT_FAILURE
+                        ? NotificationSendResult.DELIVERY_UNKNOWN
                         : response.failureResult();
             }
             log.info("[ALIMTALK] 발송 성공 event={}", eventType);
@@ -62,10 +63,14 @@ public class NhnAlimtalkSender implements NotificationSender {
         } catch (RestClientResponseException exception) {
             log.warn("[ALIMTALK] HTTP {} event={}", exception.getStatusCode(), eventType);
             return NhnNotificationFailureClassifier.classify(exception);
+        } catch (ResourceAccessException exception) {
+            log.warn("[ALIMTALK] 네트워크 예외 [event={} type={}]",
+                    eventType, exception.getClass().getSimpleName());
+            return NhnNotificationFailureClassifier.classify(exception);
         } catch (Exception exception) {
             log.warn("[ALIMTALK] 발송 예외 [event={} type={}]",
                     eventType, exception.getClass().getSimpleName());
-            return NotificationSendResult.TRANSIENT_FAILURE;
+            return NotificationSendResult.DELIVERY_UNKNOWN;
         }
     }
 
@@ -98,14 +103,14 @@ public class NhnAlimtalkSender implements NotificationSender {
 
         private NotificationSendResult failureResult() {
             if (header == null) {
-                return NotificationSendResult.TRANSIENT_FAILURE;
+                return NotificationSendResult.DELIVERY_UNKNOWN;
             }
             if (!header.isSuccessful() || header.resultCode() != 0) {
                 return NotificationSendResult.PERMANENT_FAILURE;
             }
             if (message == null || message.sendResults() == null
                     || message.sendResults().size() != 1) {
-                return NotificationSendResult.TRANSIENT_FAILURE;
+                return NotificationSendResult.DELIVERY_UNKNOWN;
             }
             return NotificationSendResult.PERMANENT_FAILURE;
         }

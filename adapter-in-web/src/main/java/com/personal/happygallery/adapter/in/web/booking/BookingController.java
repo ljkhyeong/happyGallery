@@ -14,6 +14,7 @@ import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationResp
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.time.Clock;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -96,6 +97,7 @@ public class BookingController {
 
     /** 비회원 예약 취소 — CANCELED 전이, D-1 이전이면 환불 요청 기록 */
     @DeleteMapping("/{bookingId}")
+    @Operation(operationId = "cancelGuestBooking")
     public CancelResponse cancelBooking(
             @PathVariable Long bookingId,
             @RequestHeader("X-Access-Token") String token) {

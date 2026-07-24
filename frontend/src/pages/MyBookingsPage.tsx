@@ -8,6 +8,7 @@ import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import { buildQuickStatusTabs, buildStatusFilterOptions } from "@/features/my/listUtils";
 import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { queryKeys } from "@/shared/api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, getStatusLabel } from "@/shared/ui";
 import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
 
@@ -23,7 +24,7 @@ export function MyBookingsPage() {
   const { searchQuery, statusFilter, sortValue, updateFilters, resetFilters } =
     useMyListFilters({ defaultSort: DEFAULT_SORT });
   const { data: bookings, isLoading, error } = useQuery({
-    queryKey: ["my", "bookings"],
+    queryKey: queryKeys.member.bookings.all,
     queryFn: fetchMyBookings,
     enabled: isAuthenticated,
   });

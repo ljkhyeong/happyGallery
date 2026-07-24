@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class OpenApiSpecGenerator {
 
+    private static final Pattern UNSTABLE_NUMERIC_SUFFIX = Pattern.compile(".+_\\d+$");
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -47,12 +50,29 @@ class OpenApiSpecGenerator {
                 .andReturn()
                 .getResponse()
                 .getContentAsString(StandardCharsets.UTF_8);
+        assertStableOperationIds(objectMapper.readValue(openApi, Map.class));
 
         String canonicalOpenApi = objectMapper.writerWithDefaultPrettyPrinter()
                 .writeValueAsString(sortObjectKeys(objectMapper.readValue(openApi, Object.class))) + "\n";
         Path output = Path.of(System.getProperty("openapi.output"));
         Files.createDirectories(output.getParent());
         Files.writeString(output, canonicalOpenApi, StandardCharsets.UTF_8);
+    }
+
+    private void assertStableOperationIds(Map<?, ?> document) {
+        Map<?, ?> paths = (Map<?, ?>) document.get("paths");
+        for (Object pathValue : paths.values()) {
+            Map<?, ?> operations = (Map<?, ?>) pathValue;
+            for (Object operationValue : operations.values()) {
+                if (!(operationValue instanceof Map<?, ?> operation)) {
+                    continue;
+                }
+                Object operationId = operation.get("operationId");
+                if (operationId instanceof String id && UNSTABLE_NUMERIC_SUFFIX.matcher(id).matches()) {
+                    throw new IllegalStateException("불안정한 OpenAPI operationId입니다: " + id);
+                }
+            }
+        }
     }
 
     private Object sortObjectKeys(Object value) {

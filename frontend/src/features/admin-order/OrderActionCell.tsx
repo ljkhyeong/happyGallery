@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Form, InputGroup } from "react-bootstrap";
 import type { OrderStatus } from "@/shared/types";
+import { parseApiDateTime } from "@/shared/lib";
 import type { OrderMutations } from "./useOrderMutations";
 
 interface Props {
@@ -19,7 +20,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
   const disabled = mutations.pendingId === orderId;
   const pending = disabled;
   const pickupDeadlineIsFuture = pickupDeadline.length > 0
-    && new Date(pickupDeadline).getTime() > Date.now();
+    && parseApiDateTime(pickupDeadline) > Date.now();
 
   switch (status) {
     case "PAID_APPROVAL_PENDING":

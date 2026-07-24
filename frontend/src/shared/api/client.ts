@@ -1,5 +1,9 @@
 import * as Sentry from "@sentry/react";
 import { ApiError } from "@/shared/api/error";
+import {
+  currentCustomerSessionVersion,
+  publishCustomerSessionExpired,
+} from "@/shared/api/customerSession";
 import type { ErrorResponse } from "@/shared/types/error";
 
 const BASE_URL = "/api/v1";
@@ -70,6 +74,10 @@ function requiresCsrf(path: string, method: string | undefined): boolean {
   return !adminRequest && !SAFE_METHODS.has(normalizedMethod);
 }
 
+function requiresCustomerSession(path: string): boolean {
+  return path === "/me" || path.startsWith("/me/");
+}
+
 function serializeBody(body: unknown, rawBody: BodyInit | null | undefined): BodyInit | null | undefined {
   if (rawBody !== undefined) return rawBody;
   if (body === undefined || body instanceof FormData) return body;
@@ -77,6 +85,9 @@ function serializeBody(body: unknown, rawBody: BodyInit | null | undefined): Bod
 }
 
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const customerSessionVersion = requiresCustomerSession(path)
+    ? currentCustomerSessionVersion()
+    : undefined;
   const { body, params, rawBody, headers: customHeaders, ...rest } = options;
   const headers = new Headers(customHeaders);
   const multipartBody = body instanceof FormData;
@@ -125,6 +136,9 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
         scope.setTag("api.status", response.status);
         Sentry.captureException(error);
       });
+    }
+    if (response.status === 401 && customerSessionVersion !== undefined) {
+      publishCustomerSessionExpired(customerSessionVersion);
     }
     throw error;
   }

@@ -5,6 +5,7 @@ import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase.QnaWi
 import com.personal.happygallery.adapter.in.web.product.dto.ProductQnaDetail;
 import com.personal.happygallery.adapter.in.web.product.dto.ProductQnaListItem;
 import com.personal.happygallery.adapter.in.web.product.dto.VerifyQnaPasswordRequest;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,7 @@ public class ProductQnaController {
     }
 
     @GetMapping
+    @Operation(operationId = "listProductQna")
     public List<ProductQnaListItem> list(@PathVariable Long productId) {
         return qnaUseCase.listByProduct(productId).stream()
                 .map(ProductQnaListItem::from)

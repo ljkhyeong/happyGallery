@@ -56,6 +56,7 @@ public class AdminBookingController {
 
     /** GET /api/v1/admin/bookings?date=2026-03-08&status=BOOKED — 날짜별 예약 조회 (상태 필터 선택) */
     @GetMapping
+    @Operation(operationId = "listBookings")
     public List<AdminBookingResponse> listBookings(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) BookingStatus status) {
@@ -66,6 +67,7 @@ public class AdminBookingController {
 
     /** GET /api/v1/admin/bookings/search — 상태·날짜·키워드 기반 예약 검색 (OFFSET + 지연 조인) */
     @GetMapping("/search")
+    @Operation(operationId = "searchBookings")
     public OffsetPage<AdminBookingSearchRow> searchBookings(
             @RequestParam(required = false) BookingStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
@@ -78,6 +80,7 @@ public class AdminBookingController {
 
     /** 결석 처리 — 8회권 크레딧 소멸 유지, 상태 NO_SHOW 전이 */
     @PostMapping("/{bookingId}/no-show")
+    @Operation(operationId = "markNoShow")
     public BookingNoShowResponse markNoShow(
             @PathVariable Long bookingId,
             @AuthenticationPrincipal AdminPrincipal admin) {
@@ -87,6 +90,7 @@ public class AdminBookingController {
 
     /** 현장 잔금 결제 완료 처리. */
     @PostMapping("/{bookingId}/balance-payment")
+    @Operation(operationId = "markBalancePaid")
     public BookingSettlementResponse markBalancePaid(
             @PathVariable Long bookingId,
             @AuthenticationPrincipal AdminPrincipal admin) {
@@ -96,6 +100,7 @@ public class AdminBookingController {
 
     /** 미수 여부를 명시적으로 설정한다. */
     @PutMapping("/{bookingId}/arrears")
+    @Operation(operationId = "updateArrears")
     public BookingSettlementResponse updateArrears(
             @PathVariable Long bookingId,
             @RequestBody @Valid UpdateBookingArrearsRequest request,
@@ -106,6 +111,7 @@ public class AdminBookingController {
 
     /** 수업이 끝난 BOOKED 예약을 완료한다. */
     @PostMapping("/{bookingId}/complete")
+    @Operation(operationId = "complete")
     public BookingSettlementResponse complete(
             @PathVariable Long bookingId,
             @AuthenticationPrincipal AdminPrincipal admin) {

@@ -110,8 +110,8 @@
 #### 상품과 재고
 
 - `products`
-  - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `category nullable`, `price`, `description nullable`, `image_url nullable`, `status(ACTIVE|INACTIVE)`
-  - 관리자는 표시 정보와 대표 이미지를 수정하고 상태를 별도 변경한다. 공개 목록과 주문 prepare는 `ACTIVE` 상품만 대상으로 한다. 기존 상세 URL은 비활성 상품도 조회하되 `available=false`로 표시한다.
+  - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `category nullable`, `price`, `description nullable`, `image_url nullable`, `status(ACTIVE|INACTIVE)`, `version`
+  - 관리자는 표시 정보와 대표 이미지를 수정하고 상태를 별도 변경한다. `version` 낙관적 락으로 동시에 먼저 읽은 관리자 수정이 앞선 변경을 덮지 못하게 하고 충돌은 409로 반환한다. 공개 목록과 주문 prepare는 `ACTIVE` 상품만 대상으로 한다. 기존 상세 URL은 비활성 상품도 조회하되 `available=false`로 표시한다.
 - `inventory`
   - `product_id(PK/FK)`, `quantity`, `version`, `updated_at`
   - `quantity >= 0`을 DB `CHECK` 제약으로도 강제한다.
@@ -263,7 +263,7 @@ HAVING COUNT(*) > 1;
 - `guests(phone_hmac)` UNIQUE, `guests(name_hmac)` 정확 일치 검색
 - `user_social_accounts(provider, provider_id_hmac)` UNIQUE
 - `phone_verifications(phone_hmac, id)` 최신 인증 조회
-- `phone_verifications(expires_at, id)` 보존 기간 만료 삭제
+- `phone_verifications(expires_at, id)` 보존 기간 만료 행을 100건씩 짧게 삭제
 - `cart_merge_requests(created_at, user_id, idempotency_key)` 보존 기간 만료 삭제
 - `inventory(product_id, version)`
 - `inventory_adjustments(product_id, adjusted_at, id)` 최근 수동 조정 이력 조회

@@ -1,6 +1,6 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, Container } from "react-bootstrap";
 import { CancelButton } from "@/features/booking-manage/CancelButton";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
@@ -11,20 +11,21 @@ import { cancelMyBooking, fetchMyBooking, rescheduleMyBooking } from "@/features
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { queryKeys } from "@/shared/api";
 
 export function MyBookingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const bookingId = Number(id);
   const validBookingId = isPositiveSafeIntegerString(id);
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const queryClient = useQueryClient();
 
   const {
     data: booking,
     isLoading,
     error,
-    refetch,
   } = useQuery({
-    queryKey: ["my", "bookings", bookingId],
+    queryKey: queryKeys.member.bookings.detail(bookingId),
     queryFn: () => fetchMyBooking(bookingId),
     enabled: isAuthenticated && validBookingId,
     refetchInterval: ({ state }) =>
@@ -40,10 +41,6 @@ export function MyBookingDetailPage() {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
 
-  if (error && !booking) {
-    return <Container className="page-container"><ErrorAlert error={error} /></Container>;
-  }
-
   if (!isAuthenticated) {
     return (
       <Container className="page-container" style={{ maxWidth: 640 }}>
@@ -53,6 +50,10 @@ export function MyBookingDetailPage() {
         />
       </Container>
     );
+  }
+
+  if (error && !booking) {
+    return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
 
   if (!booking) return null;
@@ -94,7 +95,9 @@ export function MyBookingDetailPage() {
               currentStartAt={booking.startAt}
               onReschedule={(newSlotId) => rescheduleMyBooking(booking.bookingId, newSlotId)}
               onSuccess={() => {
-                void refetch();
+                void queryClient.invalidateQueries({
+                  queryKey: queryKeys.member.bookings.all,
+                });
               }}
               successMessage="회원 예약이 변경되었습니다."
             />
@@ -107,7 +110,9 @@ export function MyBookingDetailPage() {
           <CancelButton
             onCancel={() => cancelMyBooking(booking.bookingId)}
             onSuccess={() => {
-              void refetch();
+              void queryClient.invalidateQueries({
+                queryKey: queryKeys.member.bookings.all,
+              });
             }}
             cancelPolicy={booking.cancelPolicy}
           />

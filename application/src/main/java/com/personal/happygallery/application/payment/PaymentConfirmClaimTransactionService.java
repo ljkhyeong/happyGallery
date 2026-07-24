@@ -179,6 +179,18 @@ class PaymentConfirmClaimTransactionService {
         return true;
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean tryRecordPgReconciliationRequired(Long attemptId,
+                                                     String processingToken,
+                                                     String reason) {
+        PaymentAttempt attempt = findForUpdate(attemptId);
+        if (!attempt.markConfirmReconciliationRequired(processingToken, reason)) {
+            return false;
+        }
+        attemptStore.save(attempt);
+        return true;
+    }
+
     private PaymentAttempt findForUpdate(Long attemptId) {
         return attemptReader.findByIdForUpdate(attemptId)
                 .orElseThrow(() -> new NotFoundException("결제 시도"));

@@ -89,13 +89,15 @@ class NotificationOutboxUseCaseIT {
     void memberInbox_readsSentOutboxInsteadOfChannelAuditLogs() {
         User user = userStorePort.save(new User("inbox@example.com", "hash", "회원", "01055556666"));
         LocalDateTime now = LocalDateTime.now(clock);
-        NotificationOutbox outbox = outboxRepository.save(NotificationOutbox.from(
-                NotificationRequestedEvent.forUser(
-                        user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 10L),
-                now));
-        String token = outbox.markProcessing(now);
-        outbox.markSent(token, now);
-        outboxRepository.save(outbox);
+        NotificationOutbox outbox = new TransactionTemplate(transactionManager).execute(status -> {
+            NotificationOutbox saved = outboxRepository.save(NotificationOutbox.from(
+                    NotificationRequestedEvent.forUser(
+                            user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 10L),
+                    now));
+            String token = saved.markProcessing(now);
+            saved.markSent(token, now);
+            return saved;
+        });
         notificationLogRepository.save(NotificationLog.failed(
                 null, user.getId(), NotificationChannel.KAKAO,
                 NotificationEventType.ORDER_PAID, "PERMANENT_FAILURE", now));
@@ -127,13 +129,14 @@ class NotificationOutboxUseCaseIT {
     @Test
     void notificationEvent_rollsBackWithPublisherTransaction() {
         User user = userStorePort.save(new User("outbox-rollback@example.com", "hash", "회원", "01087654321"));
+        NotificationRequestedEvent rolledBackEvent = NotificationRequestedEvent.forUser(
+                user.getId(),
+                NotificationEventType.PASS_EXPIRY_SOON,
+                "PASS_PURCHASE",
+                2L);
 
         assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-            eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                    user.getId(),
-                    NotificationEventType.PASS_EXPIRY_SOON,
-                    "PASS_PURCHASE",
-                    2L));
+            eventPublisher.publishEvent(rolledBackEvent);
             throw new RuntimeException("rollback");
         }))
                 .isInstanceOf(RuntimeException.class)
@@ -142,8 +145,12 @@ class NotificationOutboxUseCaseIT {
         await().during(300, TimeUnit.MILLISECONDS)
                 .atMost(500, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> {
-                    assertThat(outboxRepository.findAll()).isEmpty();
-                    assertThat(notificationLogProbe.all()).isEmpty();
+                    assertThat(outboxRepository.findAll())
+                            .noneMatch(outbox -> rolledBackEvent.idempotencyKey()
+                                    .equals(outbox.getIdempotencyKey()));
+                    assertThat(notificationLogProbe.all())
+                            .noneMatch(log -> user.getId().equals(log.getUserId())
+                                    && log.getEventType() == NotificationEventType.PASS_EXPIRY_SOON);
                 });
     }
 
@@ -233,15 +240,15 @@ class NotificationOutboxUseCaseIT {
                 LocalDateTime.now(clock)));
 
         NotificationOutboxReservation first = outboxTransactionService
-                .reserveDispatchable(1, 1)
-                .getFirst();
+                .reserveNextDispatchable(1)
+                .orElseThrow();
         jdbcTemplate.update(
                 "UPDATE notification_outbox SET locked_at = ? WHERE id = ?",
                 LocalDateTime.now(clock).minusMinutes(2),
                 outbox.getId());
         NotificationOutboxReservation second = outboxTransactionService
-                .reserveDispatchable(1, 1)
-                .getFirst();
+                .reserveNextDispatchable(1)
+                .orElseThrow();
 
         boolean staleSuccessAccepted = outboxTransactionService.markSent(
                 first.outboxId(), first.processingToken());

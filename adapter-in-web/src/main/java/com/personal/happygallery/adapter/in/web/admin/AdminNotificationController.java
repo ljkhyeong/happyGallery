@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.FailedNotificationResponse;
 import com.personal.happygallery.application.notification.port.in.NotificationFailureAdminUseCase;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +21,7 @@ public class AdminNotificationController {
     }
 
     @GetMapping("/failed")
+    @Operation(operationId = "listFailedNotifications")
     public List<FailedNotificationResponse> listFailed() {
         return notificationFailureAdminUseCase.listFailed().stream()
                 .map(FailedNotificationResponse::from)
@@ -27,6 +29,7 @@ public class AdminNotificationController {
     }
 
     @PostMapping("/{outboxId}/retry")
+    @Operation(operationId = "retryNotification")
     public FailedNotificationResponse retry(@PathVariable Long outboxId) {
         return FailedNotificationResponse.from(notificationFailureAdminUseCase.retry(outboxId));
     }

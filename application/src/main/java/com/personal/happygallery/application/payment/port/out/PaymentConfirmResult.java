@@ -16,13 +16,23 @@ public record PaymentConfirmResult(boolean success, String paymentKey, String me
         return new PaymentConfirmResult(false, null, null, null, failReason, FailureType.RETRYABLE);
     }
 
+    public static PaymentConfirmResult reconciliationRequired(String failReason) {
+        return new PaymentConfirmResult(
+                false, null, null, null, failReason, FailureType.RECONCILIATION_REQUIRED);
+    }
+
     public boolean retryable() {
         return failureType == FailureType.RETRYABLE;
+    }
+
+    public boolean reconciliationRequired() {
+        return failureType == FailureType.RECONCILIATION_REQUIRED;
     }
 
     public enum FailureType {
         NONE,
         FINAL,
-        RETRYABLE
+        RETRYABLE,
+        RECONCILIATION_REQUIRED
     }
 }

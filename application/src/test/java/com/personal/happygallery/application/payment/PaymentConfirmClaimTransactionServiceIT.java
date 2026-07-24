@@ -81,6 +81,33 @@ class PaymentConfirmClaimTransactionServiceIT {
                 }));
     }
 
+    @DisplayName("현재 실행권만 PG 응답 정합성 이상을 수동 대사 상태로 전이한다")
+    @Test
+    void recordReconciliationRequired_fencesPreviousPgResult() {
+        PreparedPass prepared = preparePass("payment-review@example.com", "01012344322");
+        ConfirmCommand command = prepared.command("payment-key");
+
+        PgConfirmationRequired first = (PgConfirmationRequired)
+                claimTransactionService.resolveConfirmationStep(command);
+        makeProcessingStale(first.attemptId());
+        PgConfirmationRequired second = (PgConfirmationRequired)
+                claimTransactionService.resolveConfirmationStep(command);
+
+        assertSoftly(softly -> {
+            softly.assertThat(claimTransactionService.tryRecordPgReconciliationRequired(
+                    first.attemptId(), first.processingToken(), "이전 응답 불일치")).isFalse();
+            softly.assertThat(claimTransactionService.tryRecordPgReconciliationRequired(
+                    second.attemptId(), second.processingToken(), "PG 응답 식별자 불일치")).isTrue();
+            softly.assertThat(attemptReader.findByOrderIdExternal(prepared.orderId()))
+                    .hasValueSatisfying(attempt -> {
+                        softly.assertThat(attempt.getStatus())
+                                .isEqualTo(PaymentAttemptStatus.RECONCILIATION_REQUIRED);
+                        softly.assertThat(attempt.getFailReason()).isEqualTo("PG 응답 식별자 불일치");
+                        softly.assertThat(attempt.getProcessingToken()).isNull();
+                    });
+        });
+    }
+
     @DisplayName("새 실행권 실패 뒤 도착한 이전 PG 성공은 APPROVED로 화해한다")
     @Test
     void reconcileLatePgApproval_afterNewOwnerFailure_restoresExternalApproval() {

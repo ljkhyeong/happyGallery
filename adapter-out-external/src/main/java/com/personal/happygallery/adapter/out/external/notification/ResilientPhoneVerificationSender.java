@@ -29,7 +29,8 @@ public class ResilientPhoneVerificationSender implements PhoneVerificationSender
                 NotificationChannel.SMS,
                 "PHONE_VERIFICATION",
                 () -> delegate.sendResult(phone, verificationCode),
-                NotificationSendResult.TRANSIENT_FAILURE);
+                NotificationSendResult.TRANSIENT_FAILURE,
+                NotificationSendResult.DELIVERY_UNKNOWN);
         return result.isSuccess();
     }
 }

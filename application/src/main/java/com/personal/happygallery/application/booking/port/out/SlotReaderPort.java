@@ -11,6 +11,10 @@ public interface SlotReaderPort {
 
     List<Slot> findAllById(Iterable<Long> ids);
 
+    Optional<SlotSchedulingSnapshot> findSchedulingSnapshotById(Long id);
+
+    List<SlotSchedulingSnapshot> findSchedulingSnapshotsByIdIn(Iterable<Long> ids);
+
     boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
 
     List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);

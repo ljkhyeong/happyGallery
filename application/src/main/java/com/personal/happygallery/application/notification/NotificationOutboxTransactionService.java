@@ -7,7 +7,6 @@ import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
 import com.personal.happygallery.domain.notification.NotificationRecipientType;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -32,14 +31,13 @@ class NotificationOutboxTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<NotificationOutboxReservation> reserveDispatchable(int limit, int processingTimeoutMinutes) {
+    public Optional<NotificationOutboxReservation> reserveNextDispatchable(int processingTimeoutMinutes) {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime staleBefore = now.minusMinutes(processingTimeoutMinutes);
-        List<NotificationOutbox> outboxes = outboxPort.findDispatchable(now, staleBefore, limit);
-        return outboxes.stream()
+        return outboxPort.findDispatchable(now, staleBefore, 1).stream()
+                .findFirst()
                 .map(outbox -> new NotificationOutboxReservation(
-                        outbox.getId(), outbox.markProcessing(now)))
-                .toList();
+                        outbox.getId(), outbox.markProcessing(now)));
     }
 
     @Transactional(readOnly = true)

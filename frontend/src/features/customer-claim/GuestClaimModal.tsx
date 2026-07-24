@@ -4,7 +4,7 @@ import { Alert, Badge, Button, Form, Modal, Stack } from "react-bootstrap";
 import { claimGuestRecords, getGuestClaimPreview, verifyGuestClaimPhone } from "./api";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
-import { queryClient } from "@/shared/api";
+import { queryClient, queryKeys } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { normalizePhone } from "@/shared/validation/phone";
@@ -66,8 +66,8 @@ export function GuestClaimModal({
     mutationFn: () => claimGuestRecords(selectedOrderIds, selectedBookingIds),
     onSuccess: async (data) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["my", "orders"] }),
-        queryClient.invalidateQueries({ queryKey: ["my", "bookings"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.member.bookings.all }),
         queryClient.invalidateQueries({ queryKey: ["my", "guest-claims", "preview"] }),
         onPhoneVerified(),
       ]);

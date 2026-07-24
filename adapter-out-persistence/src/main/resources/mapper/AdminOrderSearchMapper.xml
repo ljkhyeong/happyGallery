@@ -24,8 +24,7 @@
             </when>
             <when test="keyword != null and keyword != ''">
                 AND (
-                    CAST(o.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
-                    OR u.name_hmac = #{keywordHmac}
+                    u.name_hmac = #{keywordHmac}
                     OR g.name_hmac = #{keywordHmac}
                 )
             </when>

@@ -143,6 +143,44 @@ class DefaultPaymentConfirmServiceTest {
         assertThat(service.confirm(COMMAND)).isEqualTo(completed);
     }
 
+    @DisplayName("PG 응답 식별자 불일치는 즉시 수동 대사 상태로 저장한다")
+    @Test
+    void confirm_pgIdentityMismatch_recordsReconciliationRequired() {
+        PgConfirmationRequired required = paidConfirmationRequired();
+        when(claimTransactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
+        when(paymentPort.confirm("payment-key", "order-id", 10_000L, "order-id"))
+                .thenReturn(PaymentConfirmResult.reconciliationRequired("PG 응답 식별자 불일치"));
+        when(claimTransactionService.tryRecordPgReconciliationRequired(
+                1L, "token", "PG 응답 식별자 불일치")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.confirm(COMMAND))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.PAYMENT_RECONCILIATION_REQUIRED));
+
+        verify(appMetrics).incrementPaymentConfirmReconciliationRequired();
+        verify(claimTransactionService, never()).tryRecordPgFailure(
+                anyLong(), anyString(), anyString(), anyBoolean());
+    }
+
+    @DisplayName("늦게 도착한 PG 식별자 불일치 결과는 최신 실행권이 완료한 결과를 반환한다")
+    @Test
+    void confirm_stalePgIdentityMismatch_returnsLatestCompletedResult() {
+        PgConfirmationRequired required = paidConfirmationRequired();
+        ConfirmResult completed = new ConfirmResult(PaymentContext.ORDER, 10L, null, false);
+        when(claimTransactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
+        when(paymentPort.confirm("payment-key", "order-id", 10_000L, "order-id"))
+                .thenReturn(PaymentConfirmResult.reconciliationRequired("PG 응답 식별자 불일치"));
+        when(claimTransactionService.tryRecordPgReconciliationRequired(
+                1L, "token", "PG 응답 식별자 불일치")).thenReturn(false);
+        when(claimTransactionService.resolveAfterLostProcessingOwnership(COMMAND))
+                .thenReturn(new PaymentConfirmClaimTransactionService.Completed(completed));
+
+        assertThat(service.confirm(COMMAND)).isEqualTo(completed);
+
+        verify(appMetrics, never()).incrementPaymentConfirmReconciliationRequired();
+    }
+
     @DisplayName("늦게 도착한 PG 성공은 최신 로컬 실패와 화해한 뒤 fulfillment를 이어간다")
     @Test
     void confirm_stalePgSuccess_reconcilesAndFulfills() {

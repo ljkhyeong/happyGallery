@@ -3,7 +3,6 @@ package com.personal.happygallery.application.notification;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +19,7 @@ public class NotificationOutboxDispatcher {
     private static final int PROCESSING_TIMEOUT_MINUTES = 1;
     private static final String TRANSIENT_DELIVERY_FAILURE = "TRANSIENT_DELIVERY_FAILURE";
     private static final String PERMANENT_DELIVERY_FAILURE = "PERMANENT_DELIVERY_FAILURE";
+    private static final String DELIVERY_RESULT_UNKNOWN = "DELIVERY_RESULT_UNKNOWN";
     private static final String DELIVERY_FAILED = "DELIVERY_FAILED";
     private static final String AUDIT_LOG_PERSISTENCE_FAILED = "AUDIT_LOG_PERSISTENCE_FAILED";
     private static final String DISPATCH_EXCEPTION = "DISPATCH_EXCEPTION";
@@ -35,23 +35,26 @@ public class NotificationOutboxDispatcher {
 
     @Transactional(propagation = Propagation.NEVER)
     public BatchResult dispatchPending() {
-        List<NotificationOutboxReservation> reservations = transactionService.reserveDispatchable(
-                DISPATCH_LIMIT, PROCESSING_TIMEOUT_MINUTES);
         int successCount = 0;
         Map<String, Integer> failureReasons = new LinkedHashMap<>();
 
-        for (NotificationOutboxReservation reservation : reservations) {
+        for (int dispatchCount = 0; dispatchCount < DISPATCH_LIMIT; dispatchCount++) {
+            var reservation = transactionService.reserveNextDispatchable(PROCESSING_TIMEOUT_MINUTES);
+            if (reservation.isEmpty()) {
+                break;
+            }
+            NotificationOutboxReservation claimed = reservation.get();
             try {
-                switch (dispatchReserved(reservation)) {
+                switch (dispatchReserved(claimed)) {
                     case SENT -> successCount++;
                     case FAILED -> failureReasons.merge(DELIVERY_FAILED, 1, Integer::sum);
                     case STALE -> log.info("[알림 outbox] 오래된 실행 결과 무시 [outboxId={}]",
-                            reservation.outboxId());
+                            claimed.outboxId());
                 }
             } catch (Exception e) {
                 log.warn("[알림 outbox] dispatch 실패 [outboxId={} type={}]",
-                        reservation.outboxId(), e.getClass().getSimpleName());
-                if (recordDispatchException(reservation, e)) {
+                        claimed.outboxId(), e.getClass().getSimpleName());
+                if (recordDispatchException(claimed, e)) {
                     failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
                 }
             }
@@ -76,19 +79,27 @@ public class NotificationOutboxDispatcher {
                         delivery.userId(), delivery.eventType(), delivery.idempotencyKey());
             };
         } catch (NotificationAuditPersistenceException exception) {
-            if (exception.deliveryCompleted()) {
-                return transactionService.markSentWithAuditFailure(
-                        reservation.outboxId(), reservation.processingToken(), AUDIT_LOG_PERSISTENCE_FAILED)
+            return switch (exception.deliveryResult()) {
+                case SUCCESS -> transactionService.markSentWithAuditFailure(
+                                reservation.outboxId(),
+                                reservation.processingToken(),
+                                AUDIT_LOG_PERSISTENCE_FAILED)
                         ? DispatchOutcome.SENT
                         : DispatchOutcome.STALE;
-            }
-            return transactionService.markDeliveryFailed(
-                    reservation.outboxId(),
-                    reservation.processingToken(),
-                    TRANSIENT_DELIVERY_FAILURE + ":" + AUDIT_LOG_PERSISTENCE_FAILED,
-                    MAX_ATTEMPTS)
-                    ? DispatchOutcome.FAILED
-                    : DispatchOutcome.STALE;
+                case DELIVERY_UNKNOWN -> transactionService.markPermanentFailure(
+                                reservation.outboxId(),
+                                reservation.processingToken(),
+                                DELIVERY_RESULT_UNKNOWN + ":" + AUDIT_LOG_PERSISTENCE_FAILED)
+                        ? DispatchOutcome.FAILED
+                        : DispatchOutcome.STALE;
+                case TRANSIENT_FAILURE, PERMANENT_FAILURE -> transactionService.markDeliveryFailed(
+                                reservation.outboxId(),
+                                reservation.processingToken(),
+                                TRANSIENT_DELIVERY_FAILURE + ":" + AUDIT_LOG_PERSISTENCE_FAILED,
+                                MAX_ATTEMPTS)
+                        ? DispatchOutcome.FAILED
+                        : DispatchOutcome.STALE;
+            };
         }
 
         return switch (result) {
@@ -107,6 +118,12 @@ public class NotificationOutboxDispatcher {
                     reservation.outboxId(),
                     reservation.processingToken(),
                     PERMANENT_DELIVERY_FAILURE)
+                    ? DispatchOutcome.FAILED
+                    : DispatchOutcome.STALE;
+            case DELIVERY_UNKNOWN -> transactionService.markPermanentFailure(
+                    reservation.outboxId(),
+                    reservation.processingToken(),
+                    DELIVERY_RESULT_UNKNOWN)
                     ? DispatchOutcome.FAILED
                     : DispatchOutcome.STALE;
         };

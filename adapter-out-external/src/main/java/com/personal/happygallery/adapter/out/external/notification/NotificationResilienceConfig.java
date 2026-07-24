@@ -46,6 +46,14 @@ class NotificationResilienceConfig {
     }
 
     @Bean
+    CircuitBreaker phoneVerificationSmsCircuitBreaker(NotificationResilienceProperties properties,
+                                                       CircuitBreakerRegistry circuitBreakerRegistry) {
+        return circuitBreakerRegistry.circuitBreaker(
+                "phoneVerificationSms",
+                circuitBreakerConfig(properties.circuitBreaker()));
+    }
+
+    @Bean
     TimeLimiter notificationTimeLimiter(NotificationResilienceProperties properties) {
         return TimeLimiter.of(TimeLimiterConfig.custom()
                 .timeoutDuration(Duration.ofMillis(properties.timeoutMillis()))
@@ -54,16 +62,39 @@ class NotificationResilienceConfig {
     }
 
     @Bean(destroyMethod = "shutdown")
-    ExecutorService notificationTimeoutExecutor(NotificationResilienceProperties properties,
-                                                BoundedExecutorFactory executorFactory) {
-        NotificationResilienceProperties.ThreadPool threadPool = properties.threadPool();
-        return executorFactory.create(
-                threadPool.poolSize(),
-                threadPool.queueCapacity(),
-                "notification-timeout-",
-                "notificationTimeoutExecutor",
-                "happygallery.notification.executor.rejected",
-                "Notification timeout executor rejected task count");
+    ExecutorService alimtalkNotificationTimeoutExecutor(NotificationResilienceProperties properties,
+                                                        BoundedExecutorFactory executorFactory) {
+        return createExecutor(
+                properties.alimtalkThreadPool(),
+                executorFactory,
+                "alimtalk-notification-timeout-",
+                "alimtalkNotificationTimeoutExecutor",
+                "happygallery.notification.alimtalk.executor.rejected",
+                "Alimtalk notification timeout executor rejected task count");
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    ExecutorService smsNotificationTimeoutExecutor(NotificationResilienceProperties properties,
+                                                   BoundedExecutorFactory executorFactory) {
+        return createExecutor(
+                properties.smsThreadPool(),
+                executorFactory,
+                "sms-notification-timeout-",
+                "smsNotificationTimeoutExecutor",
+                "happygallery.notification.sms.executor.rejected",
+                "SMS notification timeout executor rejected task count");
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    ExecutorService phoneVerificationTimeoutExecutor(NotificationResilienceProperties properties,
+                                                     BoundedExecutorFactory executorFactory) {
+        return createExecutor(
+                properties.phoneVerificationThreadPool(),
+                executorFactory,
+                "phone-verification-timeout-",
+                "phoneVerificationTimeoutExecutor",
+                "happygallery.notification.phone_verification.executor.rejected",
+                "Phone verification timeout executor rejected task count");
     }
 
     @Bean
@@ -72,12 +103,13 @@ class NotificationResilienceConfig {
                                                @Qualifier("alimtalkRestClient") RestClient alimtalkRestClient,
                                                @Qualifier("alimtalkNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
                                                @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
-                                               @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
+                                               @Qualifier("alimtalkNotificationTimeoutExecutor")
+                                               ExecutorService timeoutExecutor,
                                                NotificationResilienceProperties resilience) {
         validateTimeoutHierarchy(resilience, props);
         NhnAlimtalkSender raw = new NhnAlimtalkSender(props, alimtalkRestClient);
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
-                notificationTimeoutExecutor, resilience.timeoutMillis());
+                timeoutExecutor, resilience.timeoutMillis());
     }
 
     @Bean
@@ -86,20 +118,23 @@ class NotificationResilienceConfig {
                                              @Qualifier("smsRestClient") RestClient smsRestClient,
                                              @Qualifier("smsNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
                                              @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
-                                             @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
+                                             @Qualifier("smsNotificationTimeoutExecutor")
+                                             ExecutorService timeoutExecutor,
                                              NotificationResilienceProperties resilience) {
         validateTimeoutHierarchy(resilience, props);
         RealSmsSender raw = new RealSmsSender(props, smsRestClient);
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
-                notificationTimeoutExecutor, resilience.timeoutMillis());
+                timeoutExecutor, resilience.timeoutMillis());
     }
 
     @Bean
     PhoneVerificationSender phoneVerificationSender(SmsNotificationProperties props,
                                                      @Qualifier("smsRestClient") RestClient smsRestClient,
-                                                     @Qualifier("smsNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
+                                                     @Qualifier("phoneVerificationSmsCircuitBreaker")
+                                                     CircuitBreaker circuitBreaker,
                                                      @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
-                                                     @Qualifier("notificationTimeoutExecutor") ExecutorService notificationTimeoutExecutor,
+                                                     @Qualifier("phoneVerificationTimeoutExecutor")
+                                                     ExecutorService timeoutExecutor,
                                                      NotificationResilienceProperties resilience) {
         validateTimeoutHierarchy(resilience, props);
         RealPhoneVerificationSender raw = new RealPhoneVerificationSender(props, smsRestClient);
@@ -107,7 +142,7 @@ class NotificationResilienceConfig {
                 raw,
                 circuitBreaker,
                 notificationTimeLimiter,
-                notificationTimeoutExecutor,
+                timeoutExecutor,
                 resilience.timeoutMillis());
     }
 
@@ -123,7 +158,23 @@ class NotificationResilienceConfig {
     }
 
     private static boolean isFailureResult(Object result) {
-        return result == NotificationSendResult.TRANSIENT_FAILURE;
+        return result == NotificationSendResult.TRANSIENT_FAILURE
+                || result == NotificationSendResult.DELIVERY_UNKNOWN;
+    }
+
+    private static ExecutorService createExecutor(NotificationResilienceProperties.ThreadPool threadPool,
+                                                  BoundedExecutorFactory executorFactory,
+                                                  String threadNamePrefix,
+                                                  String monitorName,
+                                                  String rejectionMetricName,
+                                                  String rejectionMetricDescription) {
+        return executorFactory.create(
+                threadPool.poolSize(),
+                threadPool.queueCapacity(),
+                threadNamePrefix,
+                monitorName,
+                rejectionMetricName,
+                rejectionMetricDescription);
     }
 
     private static void validateTimeoutHierarchy(NotificationResilienceProperties resilience,

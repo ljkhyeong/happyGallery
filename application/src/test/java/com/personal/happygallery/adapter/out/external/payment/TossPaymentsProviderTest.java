@@ -101,9 +101,9 @@ class TossPaymentsProviderTest {
         });
     }
 
-    @DisplayName("Toss 결제 확정 응답 식별자가 요청과 다르면 재시도 가능한 실패로 처리한다")
+    @DisplayName("Toss 결제 확정 응답 식별자가 요청과 다르면 즉시 대사가 필요한 실패로 처리한다")
     @Test
-    void confirm_responseIdentityMismatch_returnsRetryableFailure() {
+    void confirm_responseIdentityMismatch_returnsReconciliationRequired() {
         RestClient.Builder builder = tossRestClientBuilder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
@@ -124,7 +124,8 @@ class TossPaymentsProviderTest {
         server.verify();
         assertSoftly(softly -> {
             softly.assertThat(result.success()).isFalse();
-            softly.assertThat(result.retryable()).isTrue();
+            softly.assertThat(result.retryable()).isFalse();
+            softly.assertThat(result.reconciliationRequired()).isTrue();
             softly.assertThat(result.failReason()).contains("식별자");
         });
     }

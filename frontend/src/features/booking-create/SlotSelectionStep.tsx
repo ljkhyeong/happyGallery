@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Form, Row, Col, ListGroup, Badge } from "react-bootstrap";
 import { fetchClasses, fetchUpcomingSlots } from "./api";
+import { queryKeys } from "@/shared/api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatDate, formatDateTime } from "@/shared/lib";
@@ -51,7 +52,10 @@ export function SlotSelectionStep({
   }, [classes, initialClassId, onClassChange, onDeselect]);
 
   const { data: upcomingSlots, isLoading: slotsLoading, error: slotsError } = useQuery({
-    queryKey: ["upcoming-slots", selectedClass?.id ?? 0, UPCOMING_DAYS],
+    queryKey: queryKeys.slotAvailability.upcoming.byClass(
+      selectedClass?.id ?? 0,
+      UPCOMING_DAYS,
+    ),
     queryFn: () => fetchUpcomingSlots(selectedClass!.id, UPCOMING_DAYS),
     enabled: selectedClass !== null,
   });

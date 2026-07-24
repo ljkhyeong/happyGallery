@@ -14,9 +14,8 @@ import java.util.concurrent.ExecutorService;
  * 부분 장애가 누적될 때 호출 스레드를 fail-fast로 회수하려면 CircuitBreaker가 필요하다.
  * TimeLimiter는 PG 보호와 동일한 이중 안전장치 의미.
  *
- * <p>장애 상황(차단/타임아웃/예외)에서는 {@code TRANSIENT_FAILURE}를 반환해
- * {@link com.personal.happygallery.application.notification.NotificationService}의
- * 채널 fallback 체인이 그대로 동작하도록 한다.
+ * <p>호출 전 차단과 대기열 거절은 재시도 가능한 실패로, 호출 시작 뒤 타임아웃과
+ * 예상하지 못한 예외는 실제 발송 여부를 알 수 없는 결과로 구분한다.
  */
 public class ResilientNotificationSender implements NotificationSender {
 
@@ -47,6 +46,7 @@ public class ResilientNotificationSender implements NotificationSender {
                 channel(),
                 eventType.name(),
                 () -> delegate.send(idempotencyKey, phone, recipientName, eventType),
-                NotificationSendResult.TRANSIENT_FAILURE);
+                NotificationSendResult.TRANSIENT_FAILURE,
+                NotificationSendResult.DELIVERY_UNKNOWN);
     }
 }

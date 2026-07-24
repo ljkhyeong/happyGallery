@@ -11,8 +11,7 @@
             </when>
             <when test="keyword != null and keyword != ''">
                 AND (
-                    CAST(p.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
-                    OR u.name_hmac = #{nameHmac}
+                    u.name_hmac = #{nameHmac}
                     <if test="phoneHmac != null">
                         OR u.phone_hmac = #{phoneHmac}
                     </if>

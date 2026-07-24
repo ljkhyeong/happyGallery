@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Container, Card, Form, Row, Col, Button } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
@@ -12,6 +12,7 @@ import {
   executePaymentFlow,
   type BookingPayload,
 } from "@/features/payment";
+import { invalidateSlotAvailability, queryKeys } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
@@ -32,6 +33,7 @@ interface PaymentActor {
 export function BookingCreatePage() {
   const toast = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, user } = useCustomerAuth();
   const passPrefillApplied = useRef(false);
@@ -44,7 +46,7 @@ export function BookingCreatePage() {
   const [showGate, setShowGate] = useState(false);
 
   const { data: passes, isLoading: passesLoading, error: passesError } = useQuery({
-    queryKey: ["my", "passes"],
+    queryKey: queryKeys.member.passes,
     queryFn: fetchMyPasses,
     enabled: isAuthenticated,
   });
@@ -145,6 +147,15 @@ export function BookingCreatePage() {
             orderId: prep.orderId,
             amount: 0,
           });
+          await Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.member.bookings.all,
+            }),
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.member.passes,
+            }),
+            invalidateSlotAvailability(queryClient),
+          ]);
           toast.show("예약이 완료되었습니다!");
           if (result.accessToken) {
             navigate("/guest/bookings", {

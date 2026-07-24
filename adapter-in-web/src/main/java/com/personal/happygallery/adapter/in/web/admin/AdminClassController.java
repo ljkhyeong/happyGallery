@@ -9,6 +9,7 @@ import com.personal.happygallery.application.booking.port.in.ClassManagementUseC
 import com.personal.happygallery.application.booking.port.in.ClassManagementUseCase.UpdateClassCommand;
 import com.personal.happygallery.application.booking.port.in.ClassQueryUseCase;
 import com.personal.happygallery.domain.booking.BookingClass;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -60,6 +61,7 @@ public class AdminClassController {
     }
 
     @PatchMapping("/{id}/status")
+    @Operation(operationId = "changeAdminClassStatus")
     public ClassResponse changeStatus(@PathVariable Long id,
                                       @RequestBody @Valid UpdateClassStatusRequest request) {
         return ClassResponse.from(classManagementUseCase.changeStatus(id, request.status()));

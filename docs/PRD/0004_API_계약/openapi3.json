@@ -3514,7 +3514,7 @@
   "paths" : {
     "/api/v1/admin/auth/login" : {
       "post" : {
-        "operationId" : "login_1",
+        "operationId" : "adminLogin",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -3542,7 +3542,7 @@
     },
     "/api/v1/admin/auth/logout" : {
       "post" : {
-        "operationId" : "logout_1",
+        "operationId" : "adminLogout",
         "parameters" : [ {
           "in" : "header",
           "name" : "Authorization",
@@ -3561,7 +3561,7 @@
     },
     "/api/v1/admin/auth/password" : {
       "patch" : {
-        "operationId" : "changePassword_1",
+        "operationId" : "changeAdminPassword",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -3927,7 +3927,7 @@
     },
     "/api/v1/admin/classes/{id}/status" : {
       "patch" : {
-        "operationId" : "changeStatus_1",
+        "operationId" : "changeAdminClassStatus",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -4269,7 +4269,7 @@
     },
     "/api/v1/admin/inquiries" : {
       "get" : {
-        "operationId" : "list_5",
+        "operationId" : "listAdminInquiries",
         "parameters" : [ {
           "in" : "query",
           "name" : "cursor",
@@ -4304,7 +4304,7 @@
     },
     "/api/v1/admin/inquiries/{id}" : {
       "get" : {
-        "operationId" : "detail_2",
+        "operationId" : "getAdminInquiry",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -4331,7 +4331,7 @@
     },
     "/api/v1/admin/inquiries/{id}/reply" : {
       "post" : {
-        "operationId" : "reply_1",
+        "operationId" : "replyToAdminInquiry",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -4402,7 +4402,7 @@
     },
     "/api/v1/admin/notices" : {
       "get" : {
-        "operationId" : "list_1",
+        "operationId" : "listAdminNotices",
         "responses" : {
           "200" : {
             "content" : {
@@ -4421,7 +4421,7 @@
         "tags" : [ "admin-notice-controller" ]
       },
       "post" : {
-        "operationId" : "create_2",
+        "operationId" : "createAdminNotice",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -4467,7 +4467,7 @@
         "tags" : [ "admin-notice-controller" ]
       },
       "put" : {
-        "operationId" : "update_1",
+        "operationId" : "updateAdminNotice",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -4504,7 +4504,7 @@
     },
     "/api/v1/admin/notifications/failed" : {
       "get" : {
-        "operationId" : "listFailed_1",
+        "operationId" : "listFailedNotifications",
         "responses" : {
           "200" : {
             "content" : {
@@ -4525,7 +4525,7 @@
     },
     "/api/v1/admin/notifications/{outboxId}/retry" : {
       "post" : {
-        "operationId" : "retry_1",
+        "operationId" : "retryNotification",
         "parameters" : [ {
           "in" : "path",
           "name" : "outboxId",
@@ -5296,7 +5296,7 @@
     },
     "/api/v1/admin/products/{id}" : {
       "patch" : {
-        "operationId" : "update_2",
+        "operationId" : "updateAdminProduct",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -5435,7 +5435,7 @@
     },
     "/api/v1/admin/qna" : {
       "get" : {
-        "operationId" : "list_4",
+        "operationId" : "listAdminProductQna",
         "parameters" : [ {
           "in" : "query",
           "name" : "productId",
@@ -6019,7 +6019,7 @@
     },
     "/api/v1/bookings/{bookingId}" : {
       "delete" : {
-        "operationId" : "cancelBooking_1",
+        "operationId" : "cancelGuestBooking",
         "parameters" : [ {
           "in" : "path",
           "name" : "bookingId",
@@ -6129,7 +6129,7 @@
     },
     "/api/v1/classes" : {
       "get" : {
-        "operationId" : "listClasses_1",
+        "operationId" : "listPublicClasses",
         "responses" : {
           "200" : {
             "content" : {
@@ -6544,7 +6544,7 @@
         "tags" : [ "me-inquiry-controller" ]
       },
       "post" : {
-        "operationId" : "create_1",
+        "operationId" : "createMyInquiry",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -6572,7 +6572,7 @@
     },
     "/api/v1/me/inquiries/{id}" : {
       "get" : {
-        "operationId" : "detail_1",
+        "operationId" : "getMyInquiry",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -6709,7 +6709,7 @@
     },
     "/api/v1/me/orders/{id}" : {
       "delete" : {
-        "operationId" : "cancel_1",
+        "operationId" : "cancelMyOrder",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -6761,7 +6761,7 @@
     },
     "/api/v1/me/orders/{id}/delay-response" : {
       "post" : {
-        "operationId" : "respondToDelay_1",
+        "operationId" : "respondToMyOrderDelay",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -7024,7 +7024,7 @@
     },
     "/api/v1/media/images/{fileName}" : {
       "get" : {
-        "operationId" : "get_2",
+        "operationId" : "getImage",
         "parameters" : [ {
           "in" : "path",
           "name" : "fileName",
@@ -7072,7 +7072,7 @@
     },
     "/api/v1/notices" : {
       "get" : {
-        "operationId" : "list_3",
+        "operationId" : "listPublicNotices",
         "responses" : {
           "200" : {
             "content" : {
@@ -7463,7 +7463,7 @@
     },
     "/api/v1/products/{productId}/qna" : {
       "get" : {
-        "operationId" : "list_2",
+        "operationId" : "listProductQna",
         "parameters" : [ {
           "in" : "path",
           "name" : "productId",

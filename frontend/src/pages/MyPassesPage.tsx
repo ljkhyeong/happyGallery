@@ -14,6 +14,7 @@ import {
 } from "@/features/my/listUtils";
 import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { queryKeys } from "@/shared/api";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import {
@@ -43,7 +44,7 @@ export function MyPassesPage() {
     resetFilters,
   } = useMyListFilters({ defaultSort: DEFAULT_SORT, legacyStatusParam: "filter" });
   const { data: passes, isLoading, error } = useQuery({
-    queryKey: ["my", "passes"],
+    queryKey: queryKeys.member.passes,
     queryFn: fetchMyPasses,
     enabled: isAuthenticated,
     refetchInterval: ({ state }) => {
@@ -83,7 +84,7 @@ export function MyPassesPage() {
     mutationFn: (passId: number) => refundMyPass(passId),
     onSuccess: async (result) => {
       setRefundTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["my", "passes"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.member.passes });
       if (result.refundStatus) {
         toast.show(
           `환불 요청 접수: ${result.refundCredits}회분 ${formatKRW(result.refundAmount)}, 미래 예약 ${result.canceledBookings}건 취소`,

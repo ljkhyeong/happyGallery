@@ -64,8 +64,8 @@ class JpaPhoneVerificationPersistenceAdapter
     }
 
     @Override
-    public int deleteExpiredBefore(LocalDateTime cutoff) {
-        return repository.deleteExpiredBefore(cutoff);
+    public int deleteExpiredBefore(LocalDateTime cutoff, int limit) {
+        return repository.deleteExpiredBefore(cutoff, limit);
     }
 
     private PhoneVerification restore(PhoneVerification verification, String phone) {

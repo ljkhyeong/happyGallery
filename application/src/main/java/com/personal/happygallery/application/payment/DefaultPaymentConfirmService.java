@@ -78,6 +78,16 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                     PaymentConfirmResult pg = callPayment(required);
                     if (!pg.success()) {
                         String reason = failureReason(pg.failReason(), "결제 확정에 실패했습니다.");
+                        if (pg.reconciliationRequired()) {
+                            if (claimTransactionService.tryRecordPgReconciliationRequired(
+                                    required.attemptId(), required.processingToken(), reason)) {
+                                appMetrics.incrementPaymentConfirmReconciliationRequired();
+                                throw new HappyGalleryException(
+                                        ErrorCode.PAYMENT_RECONCILIATION_REQUIRED, reason);
+                            }
+                            step = claimTransactionService.resolveAfterLostProcessingOwnership(command);
+                            continue;
+                        }
                         if (claimTransactionService.tryRecordPgFailure(
                                 required.attemptId(), required.processingToken(), reason, pg.retryable())) {
                             ErrorCode errorCode = pg.retryable()

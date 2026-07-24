@@ -1,6 +1,13 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { api } from "@/shared/api";
+import {
+  api,
+  advanceCustomerSessionVersion,
+  clearCustomerQueryCache,
+  currentCustomerSessionVersion,
+  isCurrentCustomerSessionVersion,
+  subscribeToCustomerSessionExpired,
+} from "@/shared/api";
 import { normalizePhone } from "@/shared/validation/phone";
 
 interface CustomerUserResponse {
@@ -46,25 +53,39 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const clearCustomerQueries = useCallback(() => {
-    queryClient.removeQueries({
-      predicate: ({ queryKey }) => queryKey[0] === "my" || queryKey[0] === "me",
-    });
+    clearCustomerQueryCache(queryClient);
   }, [queryClient]);
 
+  const expireCustomerSession = useCallback(() => {
+    clearCustomerQueries();
+    setUser(null);
+    setIsLoading(false);
+  }, [clearCustomerQueries]);
+
   const fetchMe = useCallback(async () => {
+    const requestVersion = currentCustomerSessionVersion();
     try {
       const me = await api<CustomerUserResponse>("/me");
+      if (!isCurrentCustomerSessionVersion(requestVersion)) return null;
       clearCustomerQueries();
       setUser(me);
       return me;
     } catch {
+      if (!isCurrentCustomerSessionVersion(requestVersion)) return null;
       clearCustomerQueries();
       setUser(null);
       return null;
     } finally {
-      setIsLoading(false);
+      if (isCurrentCustomerSessionVersion(requestVersion)) {
+        setIsLoading(false);
+      }
     }
   }, [clearCustomerQueries]);
+
+  useEffect(
+    () => subscribeToCustomerSessionExpired(expireCustomerSession),
+    [expireCustomerSession],
+  );
 
   useEffect(() => {
     void fetchMe();
@@ -76,8 +97,10 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         method: "POST",
         body: { email, password },
       });
+      advanceCustomerSessionVersion();
       clearCustomerQueries();
       setUser(me);
+      setIsLoading(false);
       return me;
     },
     [clearCustomerQueries],
@@ -101,8 +124,10 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           verificationCode,
         },
       });
+      advanceCustomerSessionVersion();
       clearCustomerQueries();
       setUser(me);
+      setIsLoading(false);
       return me;
     },
     [clearCustomerQueries],
@@ -110,14 +135,18 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await api("/auth/logout", { method: "POST" });
+    advanceCustomerSessionVersion();
     clearCustomerQueries();
     setUser(null);
+    setIsLoading(false);
   }, [clearCustomerQueries]);
 
   const withdraw = useCallback(async () => {
     await api("/me", { method: "DELETE" });
+    advanceCustomerSessionVersion();
     clearCustomerQueries();
     setUser(null);
+    setIsLoading(false);
   }, [clearCustomerQueries]);
 
   return createElement(

@@ -77,7 +77,7 @@ class PaymentResilienceConfig {
 
     private static boolean isFailureResult(Object result) {
         if (result instanceof PaymentConfirmResult confirmResult) {
-            return confirmResult.retryable();
+            return confirmResult.retryable() || confirmResult.reconciliationRequired();
         }
         if (result instanceof RefundResult refundResult) {
             return refundResult.retryable() || refundResult.reconciliationRequired();

@@ -155,7 +155,7 @@ class BookingRescheduleUseCaseIT {
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
-    @DisplayName("다른 클래스 슬롯으로 예약을 변경하면 금액과 정원을 유지하고 400을 반환한다")
+    @DisplayName("다른 클래스 슬롯이 가득 차도 클래스 불일치를 먼저 검증하고 400을 반환한다")
     @Test
     void reschedule_differentClass_returns400WithoutChangingBooking() throws Exception {
         Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -163,6 +163,9 @@ class BookingRescheduleUseCaseIT {
                 new BookingClass("레진 클래스", "RESIN", 90, 80_000L, 20));
         Slot otherClassSlot = slotStorePort.save(
                 slot(otherClass, FUTURE.plusHours(4), FUTURE.plusMinutes(330)));
+        for (int i = 0; i < 8; i++) {
+            reserveCapacityInTx(otherClassSlot.getId());
+        }
         BookingTestHelper.CreatedBooking booking =
                 helper.createVerifiedCardBooking("01033330002", fromSlot.getId());
 
@@ -180,7 +183,7 @@ class BookingRescheduleUseCaseIT {
             softly.assertThat(savedBooking.getDepositAmount()).isEqualTo(5_000L);
             softly.assertThat(savedBooking.getBalanceAmount()).isEqualTo(45_000L);
             softly.assertThat(bookingStateProbe.getSlot(fromSlot.getId()).getBookedCount()).isEqualTo(1);
-            softly.assertThat(bookingStateProbe.getSlot(otherClassSlot.getId()).getBookedCount()).isZero();
+            softly.assertThat(bookingStateProbe.getSlot(otherClassSlot.getId()).getBookedCount()).isEqualTo(8);
             softly.assertThat(bookingStateProbe.bookingHistoryCountByBookingId(booking.bookingId())).isEqualTo(1L);
         });
     }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Col, Form, Row, Table } from "react-bootstrap";
 import { createBulkSlots, fetchClasses, previewBulkSlots } from "./api";
+import { invalidateSlotAvailability, queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
@@ -41,7 +42,7 @@ export function BulkSlotForm({ adminKey, onAuthError }: Props) {
   const [result, setResult] = useState<BulkSlotResponse | null>(null);
 
   const { data: classes, isLoading: classesLoading } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "classes"],
+    queryKey: queryKeys.admin.classes,
     queryFn: () => fetchClasses(adminKey),
   });
   const activeClasses = classes?.filter((bookingClass) => bookingClass.status === "ACTIVE") ?? [];
@@ -62,7 +63,8 @@ export function BulkSlotForm({ adminKey, onAuthError }: Props) {
     mutationFn: () => createBulkSlots(adminKey, request()),
     onSuccess: (created) => {
       setResult(created);
-      queryClient.invalidateQueries({ queryKey: ["admin", "slots"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.slots.all });
+      void invalidateSlotAvailability(queryClient);
       toast.show(`${created.createdCount}개 슬롯이 생성되었습니다.`);
     },
   });

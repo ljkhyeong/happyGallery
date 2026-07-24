@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.booking;
 
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.domain.booking.Slot;
 import java.time.LocalDateTime;
@@ -15,6 +16,28 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     @Override Optional<Slot> findById(Long id);
     @Override List<Slot> findAllById(Iterable<Long> ids);
     @Override Slot save(Slot slot);
+
+    @Override
+    @Query("""
+            SELECT new com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot(
+                s.id, s.bookingClass.id, s.startAt, s.endAt, s.bookingClass.status,
+                s.adminActive, s.bufferBlockCount
+            )
+            FROM Slot s
+            WHERE s.id = :id
+            """)
+    Optional<SlotSchedulingSnapshot> findSchedulingSnapshotById(@Param("id") Long id);
+
+    @Override
+    @Query("""
+            SELECT new com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot(
+                s.id, s.bookingClass.id, s.startAt, s.endAt, s.bookingClass.status,
+                s.adminActive, s.bufferBlockCount
+            )
+            FROM Slot s
+            WHERE s.id IN :ids
+            """)
+    List<SlotSchedulingSnapshot> findSchedulingSnapshotsByIdIn(@Param("ids") Iterable<Long> ids);
 
     /** 중복 슬롯 검사 — (class_id, start_at) UNIQUE 제약 반영 */
     @Override boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);

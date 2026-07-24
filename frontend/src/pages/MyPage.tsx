@@ -20,6 +20,7 @@ import { MyBookingsSection } from "@/features/my/MyBookingsSection";
 import { MyPassesSection } from "@/features/my/MyPassesSection";
 import { MyInquiriesSection } from "@/features/my/MyInquiriesSection";
 import { getPassFilterKey } from "@/features/my/listUtils";
+import { queryKeys } from "@/shared/api";
 import { parseApiDateTime } from "@/shared/lib";
 import { LoadingSpinner, useToast } from "@/shared/ui";
 
@@ -39,19 +40,19 @@ export function MyPage() {
   const toast = useToast();
 
   const { data: orders, isLoading: ordersLoading, error: ordersError } = useQuery({
-    queryKey: ["my", "orders"],
+    queryKey: queryKeys.member.orders.all,
     queryFn: fetchMyOrders,
     enabled: isAuthenticated,
   });
 
   const { data: bookings, isLoading: bookingsLoading, error: bookingsError } = useQuery({
-    queryKey: ["my", "bookings"],
+    queryKey: queryKeys.member.bookings.all,
     queryFn: fetchMyBookings,
     enabled: isAuthenticated,
   });
 
   const { data: passes, isLoading: passesLoading, error: passesError } = useQuery({
-    queryKey: ["my", "passes"],
+    queryKey: queryKeys.member.passes,
     queryFn: fetchMyPasses,
     enabled: isAuthenticated,
   });

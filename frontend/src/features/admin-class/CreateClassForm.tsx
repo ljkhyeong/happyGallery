@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Col, Form, Row } from "react-bootstrap";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { queryKeys } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { createClass } from "./api";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
@@ -39,8 +40,8 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
       targetAudience: targetAudience.trim() || undefined,
     }),
     onSuccess: (bookingClass) => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes"] });
-      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes });
+      queryClient.invalidateQueries({ queryKey: queryKeys.catalog.classes });
       toast.show(`클래스 #${bookingClass.id} 생성 완료`);
       setName("");
       setCategory("");

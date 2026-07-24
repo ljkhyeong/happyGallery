@@ -19,16 +19,13 @@ class JpaSlotLockAdapter implements SlotLockPort {
 
     @Override
     public List<Slot> lockAllById(List<Long> ids) {
-        // 1차 캐시의 이전 값을 재사용하지 않도록 관련 Slot만 분리한 뒤 잠금 조회로 다시 적재한다.
-        entityManager.flush();
-        for (Long id : ids) {
-            Slot slot = entityManager.find(Slot.class, id);
-            if (slot != null) {
-                entityManager.detach(slot);
-            }
+        if (ids.isEmpty()) {
+            return List.of();
         }
-
-        return lockByIds(ids);
+        entityManager.flush();
+        List<Long> lockedIds = lockIds(ids);
+        detachReferences(lockedIds);
+        return loadByIds(lockedIds);
     }
 
     @Override
@@ -37,29 +34,44 @@ class JpaSlotLockAdapter implements SlotLockPort {
                                LocalDateTime windowStart,
                                LocalDateTime windowEnd) {
         entityManager.flush();
-        List<Slot> scope = entityManager.createQuery(
+        @SuppressWarnings("unchecked")
+        List<Number> lockedRows = entityManager.createNativeQuery(
                         """
-                        SELECT s
-                        FROM Slot s
-                        WHERE s.bookingClass.id = :classId
-                          AND (s.id = :sourceSlotId
-                               OR (s.startAt >= :windowStart AND s.startAt < :windowEnd))
-                        ORDER BY s.id
-                        """, Slot.class)
+                        SELECT id
+                        FROM slots
+                        WHERE class_id = :classId
+                          AND (id = :sourceSlotId
+                               OR (start_at >= :windowStart AND start_at < :windowEnd))
+                        ORDER BY id
+                        FOR UPDATE
+                        """)
                 .setParameter("classId", classId)
                 .setParameter("sourceSlotId", sourceSlotId)
                 .setParameter("windowStart", windowStart)
                 .setParameter("windowEnd", windowEnd)
-                .setLockMode(LockModeType.PESSIMISTIC_WRITE)
                 .getResultList();
-
-        // 범위 잠금은 신규 행까지 찾는 현재 읽기다. 해당 Slot만 분리해 이전 스냅샷 값을 버린 뒤 다시 적재한다.
-        List<Long> ids = scope.stream().map(Slot::getId).toList();
-        scope.forEach(entityManager::detach);
-        return lockByIds(ids);
+        List<Long> ids = lockedRows.stream().map(Number::longValue).toList();
+        detachReferences(ids);
+        return loadByIds(ids);
     }
 
-    private List<Slot> lockByIds(List<Long> ids) {
+    @SuppressWarnings("unchecked")
+    private List<Long> lockIds(List<Long> ids) {
+        List<Number> lockedRows = entityManager.createNativeQuery(
+                        "SELECT id FROM slots WHERE id IN (:ids) ORDER BY id FOR UPDATE")
+                .setParameter("ids", ids)
+                .getResultList();
+        return lockedRows.stream().map(Number::longValue).toList();
+    }
+
+    private void detachReferences(List<Long> ids) {
+        ids.forEach(id -> entityManager.detach(entityManager.getReference(Slot.class, id)));
+    }
+
+    private List<Slot> loadByIds(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
         return entityManager.createQuery(
                         "SELECT s FROM Slot s WHERE s.id IN :ids ORDER BY s.id", Slot.class)
                 .setParameter("ids", ids)

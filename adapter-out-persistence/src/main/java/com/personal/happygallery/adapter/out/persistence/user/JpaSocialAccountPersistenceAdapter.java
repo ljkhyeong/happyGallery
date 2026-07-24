@@ -64,15 +64,6 @@ class JpaSocialAccountPersistenceAdapter implements SocialAccountReaderPort, Soc
     public SocialAccount save(SocialAccount socialAccount) {
         String providerId = requireProviderId(socialAccount.getProviderId());
         protectWithActiveKeys(socialAccount, providerId);
-        SocialAccount saved = repository.save(socialAccount);
-        saved.restoreProviderId(providerId);
-        return saved;
-    }
-
-    @Override
-    public SocialAccount saveLink(SocialAccount socialAccount) {
-        String providerId = requireProviderId(socialAccount.getProviderId());
-        protectWithActiveKeys(socialAccount, providerId);
         try {
             SocialAccount saved = repository.saveAndFlush(socialAccount);
             saved.restoreProviderId(providerId);

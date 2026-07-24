@@ -10,7 +10,11 @@ import {
   fetchSlotsByClass,
 } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
-import { ApiError } from "@/shared/api";
+import {
+  ApiError,
+  invalidateSlotAvailability,
+  queryKeys,
+} from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
@@ -30,13 +34,13 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const [cancelReason, setCancelReason] = useState("");
 
   const { data: classes } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "classes"],
+    queryKey: queryKeys.admin.classes,
     queryFn: () => fetchClasses(adminKey),
   });
 
   const classIdNum = Number(classId);
   const { data: slots, isLoading, error } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "slots", classIdNum],
+    queryKey: queryKeys.admin.slots.byClass(classIdNum),
     queryFn: () => fetchSlotsByClass(adminKey, classIdNum),
     enabled: classIdNum > 0,
   });
@@ -47,7 +51,10 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
     onMutate: ({ slotId }) => setPendingId(slotId),
     onSuccess: (slot) => {
       toast.show(`슬롯 #${slot.id} ${slot.adminActive ? "활성화" : "비활성화"} 완료`);
-      queryClient.invalidateQueries({ queryKey: ["admin", "slots", classIdNum] });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.slots.byClass(classIdNum),
+      });
+      void invalidateSlotAvailability(queryClient);
     },
     onSettled: () => setPendingId(null),
   });
@@ -68,8 +75,9 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
       );
       setCancelTarget(null);
       setCancelReason("");
-      queryClient.invalidateQueries({ queryKey: ["admin", "slots"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.slots.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.bookings });
+      void invalidateSlotAvailability(queryClient);
     },
   });
 

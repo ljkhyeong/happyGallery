@@ -39,7 +39,8 @@ Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며,
 - `APPROVED`: PG 승인 또는 amount=0 내부 승인 완료, 도메인 생성 전
 - `CONFIRMED`: 도메인 생성 완료
 - `FAILED`: 최종 PG 거절 또는 amount=0 도메인 생성 실패
-- `RECONCILIATION_REQUIRED`: Toss 멱등 응답 안전 기간을 지나 자동 재확인할 수 없어 수동 대사가 필요한 상태
+- `RECONCILIATION_REQUIRED`: Toss 응답 식별자가 요청과 다르거나 멱등 응답 안전 기간을 지나
+  자동 재확인할 수 없어 수동 대사가 필요한 상태
 - `COMPENSATION_REQUESTED`: PG 승인 후 도메인 생성 실패로 보상 환불 요청
 - `COMPENSATION_FAILED`: 보상 환불 실패, 운영자 재시도 필요
 - `COMPENSATED`: 보상 환불 완료
@@ -94,7 +95,8 @@ HMAC 서명한 증거만 서버 확정 payload에 저장한다. fulfillment의 `
 ### 4. Toss 멱등키를 요청마다 고정한다
 
 - confirm: prepare에서 생성한 무작위 UUID `orderId`를 `Idempotency-Key`로 사용한다.
-- Toss 승인 응답의 `paymentKey`, `orderId`가 요청값과 다르면 성공으로 수용하지 않고 같은 멱등키 재시도 대상으로 남긴다.
+- Toss 승인 응답의 `paymentKey`, `orderId`가 요청값과 다르면 해당 응답을 결제 시도에 귀속할 수 없으므로
+  현재 processing token 소유자만 즉시 `RECONCILIATION_REQUIRED`로 전이한다. 동일 응답을 자동 재시도하지 않는다.
 - refund: `refunds.idempotency_key`에 환불 생성 시 UUID를 저장하고 최초 실행과 모든 재시도에서 재사용한다.
 - 멱등키만 바꿔 같은 요청을 재시도하지 않는다.
 

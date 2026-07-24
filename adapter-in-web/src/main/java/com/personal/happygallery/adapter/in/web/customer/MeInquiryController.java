@@ -4,6 +4,7 @@ import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.CreateInquiryRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.InquiryResponse;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,7 @@ public class MeInquiryController {
     }
 
     @PostMapping
+    @Operation(operationId = "createMyInquiry")
     @ResponseStatus(HttpStatus.CREATED)
     public InquiryResponse create(@RequestBody @Valid CreateInquiryRequest request,
                                   @AuthenticationPrincipal CustomerPrincipal customer) {
@@ -42,6 +44,7 @@ public class MeInquiryController {
     }
 
     @GetMapping("/{id}")
+    @Operation(operationId = "getMyInquiry")
     public InquiryResponse detail(@PathVariable Long id,
                                   @AuthenticationPrincipal CustomerPrincipal customer) {
         var inquiry = inquiryUseCase.findByIdAndUser(id, customer.userId());

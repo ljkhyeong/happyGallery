@@ -6,6 +6,7 @@ import com.personal.happygallery.application.admin.port.in.AdminCredentialUseCas
 import com.personal.happygallery.application.admin.port.in.AdminCredentialUseCase.ChangePasswordCommand;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,6 +27,7 @@ public class AdminCredentialController {
     }
 
     @PatchMapping("/password")
+    @Operation(operationId = "changeAdminPassword")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void changePassword(
             @AuthenticationPrincipal AdminPrincipal admin,

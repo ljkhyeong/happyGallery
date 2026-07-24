@@ -30,6 +30,7 @@ public class RealSmsSender implements NotificationSender {
                                        String recipientName,
                                        NotificationEventType eventType) {
         return smsClient.send(
+                idempotencyKey,
                 phone,
                 SmsMessageCatalog.render(recipientName, eventType),
                 eventType.name());

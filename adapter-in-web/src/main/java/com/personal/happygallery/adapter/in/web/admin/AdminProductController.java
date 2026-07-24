@@ -49,7 +49,7 @@ public class AdminProductController {
     }
 
     @PatchMapping("/{id}")
-    @Operation(operationId = "update_2")
+    @Operation(operationId = "updateAdminProduct")
     public ProductResponse update(@PathVariable Long id,
                                   @RequestBody @Valid UpdateProductRequest request) {
         return ProductResponse.from(productAdminUseCase.update(
