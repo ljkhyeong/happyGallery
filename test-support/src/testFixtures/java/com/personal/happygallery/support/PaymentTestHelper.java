@@ -8,6 +8,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPayload.Book
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
+import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import jakarta.servlet.http.Cookie;
@@ -145,7 +146,18 @@ public final class PaymentTestHelper {
         PreparedPayment prepared = preparePayment(
                 PaymentContext.BOOKING,
                 new BookingPayload(
-                        null, phone, verificationCode, name, slotId, null, DepositPaymentMethod.CARD));
+                        null,
+                        phone,
+                        verificationCode,
+                        name,
+                        slotId,
+                        null,
+                        DepositPaymentMethod.CARD,
+                        acceptedPolicies()));
         return confirmPayment(prepared, "test-payment-key");
+    }
+
+    private PolicyAcceptance acceptedPolicies() {
+        return new PolicyAcceptance("2026-07-21-v1", true, "2026-07-21-v1", true);
     }
 }

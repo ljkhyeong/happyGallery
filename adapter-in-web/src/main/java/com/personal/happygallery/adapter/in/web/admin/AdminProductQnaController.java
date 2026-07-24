@@ -36,6 +36,7 @@ public class AdminProductQnaController {
     }
 
     @PostMapping("/{id}/reply")
+    @Operation(operationId = "replyProductQna")
     public AdminQnaResponse reply(@PathVariable Long id,
                                   @RequestBody @Valid QnaReplyRequest request,
                                   @AuthenticationPrincipal AdminPrincipal admin) {

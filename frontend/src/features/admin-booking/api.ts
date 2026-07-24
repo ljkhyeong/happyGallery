@@ -1,7 +1,9 @@
 import {
   cancelAdminBooking,
   complete,
+  completeBookingCancellationTask as completeBookingCancellationTaskRequest,
   listBookings,
+  listPendingBookingCancellationTasks,
   markBalancePaid as markBalancePaidRequest,
   markNoShow as markNoShowRequest,
   updateArrears as updateArrearsRequest,
@@ -11,6 +13,12 @@ import type {
   ListBookingsStatus,
 } from "@/generated/api/adminBooking";
 import { adminHeaders } from "@/shared/api";
+
+export type {
+  BookingCancellationTaskCompletionResponse as BookingCancellationTaskCompletion,
+  BookingCancellationTaskResponse as BookingCancellationTask,
+  BookingCancellationTaskResponseType as BookingCancellationTaskType,
+} from "@/generated/api/adminBooking";
 
 export function fetchBookings(
   adminKey: string,
@@ -65,6 +73,23 @@ export function completeBooking(
   bookingId: number,
 ) {
   return complete(bookingId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function fetchBookingCancellationTasks(
+  adminKey: string,
+) {
+  return listPendingBookingCancellationTasks({
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function completeBookingCancellationTask(
+  adminKey: string,
+  taskId: number,
+) {
+  return completeBookingCancellationTaskRequest(taskId, {
     headers: adminHeaders(adminKey),
   });
 }

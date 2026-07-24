@@ -18,10 +18,14 @@ public enum NotificationEventType {
     ORDER_PICKUP_READY,
     /** 배송 시작 */
     ORDER_SHIPPED,
-    /** 제작 지연 안내 */
+    /** 주문 처리 지연 안내 */
     ORDER_DELAY_REQUESTED,
     /** 주문 환불 */
     ORDER_REFUNDED,
+    /** 주문 클레임 승인 또는 거절 */
+    ORDER_CLAIM_RESOLVED,
+    /** 주문 교환 처리 완료 */
+    ORDER_EXCHANGE_COMPLETED,
     /** 8회권 구매 완료 */
     PASS_PURCHASED,
     /** 8회권 환불 완료 */

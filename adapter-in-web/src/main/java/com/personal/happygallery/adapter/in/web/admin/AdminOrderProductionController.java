@@ -7,6 +7,7 @@ import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.ProposeDelayCommand;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.SetExpectedShipDateCommand;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,11 +26,12 @@ public class AdminOrderProductionController {
         this.orderProductionUseCase = orderProductionUseCase;
     }
 
-    /** POST /api/v1/admin/orders/{id}/resume-production — 지연 수락에서 제작 재개 (DELAY_ACCEPTED → IN_PRODUCTION) */
-    @PostMapping("/{id}/resume-production")
-    public OrderProductionResponse resumeProduction(@PathVariable Long id,
+    /** 지연을 수락한 주문의 처리를 상품 유형에 맞는 단계로 재개한다. */
+    @PostMapping("/{id}/resume-after-delay")
+    @Operation(operationId = "resumeOrderAfterDelay")
+    public OrderProductionResponse resumeAfterDelay(@PathVariable Long id,
                                                     @AuthenticationPrincipal AdminPrincipal admin) {
-        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.resumeProduction(
+        OrderProductionUseCase.ProductionResult result = orderProductionUseCase.resumeAfterDelay(
                 id, admin.adminUserId());
         return OrderProductionResponse.from(result);
     }
@@ -54,7 +56,7 @@ public class AdminOrderProductionController {
         return OrderProductionResponse.from(result);
     }
 
-    /** POST /api/v1/admin/orders/{id}/delay — 제작 지연을 제안하고 고객 응답 대기 */
+    /** POST /api/v1/admin/orders/{id}/delay — 주문 처리 지연을 제안하고 고객 응답 대기 */
     @PostMapping("/{id}/delay")
     public OrderProductionResponse proposeDelay(@PathVariable Long id,
                                                 @AuthenticationPrincipal AdminPrincipal admin) {

@@ -202,6 +202,13 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 | 단점 | confirm 상태와 보상 상태가 늘어나 운영 조회가 복잡해진다 |
 | 단점 | 비회원 confirm 재응답을 위해 결제 시도 보존 기간 동안 접근 토큰 암호문을 추가 관리한다 |
 
+## 회원 탈퇴와 prepare 경합
+
+- 회원 결제 prepare는 `users` 행을 잠그고 활성 회원인지 확인한 뒤 `payment_attempt.owner_user_id`를 저장한다.
+- 회원 탈퇴도 같은 회원 행을 잠그고 미종결 결제 시도를 포함한 차단 활동을 다시 확인한다. 따라서 새 prepare와 탈퇴 중 하나만 먼저 커밋한다.
+- prepare가 먼저 커밋되면 미종결 결제 시도가 탈퇴를 차단한다. 탈퇴가 먼저 커밋되면 이후 prepare는 탈퇴 회원으로 거절된다.
+- 이미 prepare된 시도와 탈퇴가 예외적으로 엇갈려 PG 승인이 도착하더라도 fulfillment는 현재 회원 상태를 다시 확인한다. 탈퇴 회원의 주문·예약·8회권을 만들지 않고 기존 `payment_attempt_id` 보상 환불 경계로 종결한다.
+
 ## 구현 반영
 
 - `PaymentConfirmClaimTransactionService`

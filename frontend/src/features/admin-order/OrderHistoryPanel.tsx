@@ -11,7 +11,7 @@ const DECISION_LABELS: Record<string, string> = {
   AUTO_REFUND: "자동 환불",
   SHIP_DATE_UPDATED: "예상 출고일 변경",
   PRODUCTION_COMPLETE: "제작 완료",
-  RESUME_PRODUCTION: "제작 재개",
+  RESUME_PRODUCTION: "지연 후 처리 재개",
   PICKUP_READY: "픽업 준비",
   PICKUP_COMPLETE: "픽업 완료",
   PICKUP_EXPIRED: "픽업 만료 환불",

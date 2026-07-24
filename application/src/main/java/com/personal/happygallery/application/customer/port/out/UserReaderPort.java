@@ -24,4 +24,7 @@ public interface UserReaderPort {
     boolean existsByPhoneAndIdNot(String phone, Long excludedUserId);
 
     List<User> findAllById(Iterable<Long> ids);
+
+    /** 관리자 과거 이력 표시용 조회. 익명화된 탈퇴 회원도 포함한다. */
+    List<User> findAllByIdForAdminHistory(Iterable<Long> ids);
 }

@@ -33,7 +33,15 @@ public class ProductQnaController {
                 .toList();
     }
 
+    @GetMapping("/{id}")
+    @Operation(operationId = "getPublicProductQna")
+    public ProductQnaDetail getPublicDetail(@PathVariable Long productId,
+                                            @PathVariable Long id) {
+        return ProductQnaDetail.from(qnaUseCase.getPublicDetail(productId, id));
+    }
+
     @PostMapping("/{id}/verify")
+    @Operation(operationId = "verifyProductQnaPassword")
     public ProductQnaDetail verify(@PathVariable Long productId,
                                    @PathVariable Long id,
                                    @RequestBody @Valid VerifyQnaPasswordRequest request) {

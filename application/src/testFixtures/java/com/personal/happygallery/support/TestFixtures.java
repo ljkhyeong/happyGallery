@@ -1,6 +1,7 @@
 package com.personal.happygallery.support;
 
 import com.personal.happygallery.application.crypto.SpringSecurityFieldEncryptor;
+import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
@@ -76,6 +77,10 @@ public final class TestFixtures {
 
     public static Inventory inventory(Product product, int quantity) {
         return new Inventory(product, quantity);
+    }
+
+    public static PolicyAcceptance acceptedPolicies() {
+        return new PolicyAcceptance("2026-07-21-v1", true, "2026-07-21-v1", true);
     }
 
     /** 32자 hex access token (테스트용). */

@@ -47,4 +47,17 @@ export default defineConfig({
   adminBookingApi: generatedApi("./src/generated/api/adminBooking.ts", [
     "admin-booking-controller",
   ]),
+  orderClaimApi: generatedApi("./src/generated/api/orderClaim.ts", [
+    "me-order-claim-controller",
+    "guest-order-claim-controller",
+    "admin-order-claim-controller",
+  ]),
+  policyConsentApi: generatedApi("./src/generated/api/policyConsent.ts", [
+    "policy-consent-controller",
+  ]),
+  productQnaApi: generatedApi("./src/generated/api/productQna.ts", [
+    "product-qna-controller",
+    "me-product-qna-controller",
+    "admin-product-qna-controller",
+  ]),
 });

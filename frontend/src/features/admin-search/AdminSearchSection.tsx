@@ -1,9 +1,17 @@
 import { useState, type FormEvent } from "react";
 import { Badge, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
+import { ArrowRight } from "lucide-react";
 import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import type { AdminBookingSearchRow, AdminOrderSearchRow, OffsetPage } from "@/shared/types";
-import { EmptyState, ErrorAlert, getStatusLabel, LoadingSpinner, StatusBadge } from "@/shared/ui";
+import {
+  EmptyState,
+  ErrorAlert,
+  getStatusLabel,
+  LinkButton,
+  LoadingSpinner,
+  StatusBadge,
+} from "@/shared/ui";
 import {
   searchAdminRecords,
   type AdminSearchCriteria,
@@ -90,7 +98,7 @@ function OrderSearchResults({ page }: { page: OffsetPage<AdminOrderSearchRow> })
   return (
     <Table responsive hover size="sm" className="mb-0">
       <thead>
-        <tr><th>주문번호</th><th>구매자</th><th>상태</th><th>금액</th><th>결제일</th><th>생성일</th></tr>
+        <tr><th>주문번호</th><th>구매자</th><th>상태</th><th>금액</th><th>결제일</th><th>생성일</th><th></th></tr>
       </thead>
       <tbody>
         {page.content.map((order) => (
@@ -104,6 +112,15 @@ function OrderSearchResults({ page }: { page: OffsetPage<AdminOrderSearchRow> })
             <td>{formatKRW(order.totalAmount)}</td>
             <td><small>{order.paidAt ? formatDateTime(order.paidAt) : "-"}</small></td>
             <td><small>{formatDateTime(order.createdAt)}</small></td>
+            <td>
+              <LinkButton
+                size="sm"
+                variant="outline-primary"
+                to={`/admin?view=orders&orderId=${order.orderId}&orderStatus=${encodeURIComponent(order.status)}`}
+              >
+                운영 <ArrowRight size={14} aria-hidden="true" />
+              </LinkButton>
+            </td>
           </tr>
         ))}
       </tbody>
@@ -119,7 +136,7 @@ function BookingSearchResults({ page }: { page: OffsetPage<AdminBookingSearchRow
   return (
     <Table responsive hover size="sm" className="mb-0">
       <thead>
-        <tr><th>예약번호</th><th>예약자</th><th>클래스</th><th>수업 시간</th><th>상태</th><th>결제</th></tr>
+        <tr><th>예약번호</th><th>예약자</th><th>클래스</th><th>수업 시간</th><th>상태</th><th>결제</th><th></th></tr>
       </thead>
       <tbody>
         {page.content.map((booking) => (
@@ -152,6 +169,15 @@ function BookingSearchResults({ page }: { page: OffsetPage<AdminBookingSearchRow
                   {booking.arrears && <Badge bg="warning" text="dark">미수</Badge>}
                 </div>
               )}
+            </td>
+            <td>
+              <LinkButton
+                size="sm"
+                variant="outline-primary"
+                to={`/admin?view=bookings&bookingId=${booking.bookingId}&bookingDate=${booking.startAt.slice(0, 10)}&bookingStatus=${encodeURIComponent(booking.status)}`}
+              >
+                운영 <ArrowRight size={14} aria-hidden="true" />
+              </LinkButton>
             </td>
           </tr>
         ))}

@@ -7,19 +7,33 @@ import {
   SOCIAL_PROVIDERS,
   type SocialProvider,
 } from "@/features/customer-auth/socialAuth";
+import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
 interface SocialLoginButtonsProps {
   action: "로그인" | "회원가입";
   returnTo: string;
+  policyAcceptance?: PolicyAcceptance | null;
 }
 
-export function SocialLoginButtons({ action, returnTo }: SocialLoginButtonsProps) {
+export function SocialLoginButtons({
+  action,
+  returnTo,
+  policyAcceptance,
+}: SocialLoginButtonsProps) {
   const [startingProvider, setStartingProvider] = useState<SocialProvider | null>(null);
 
   function startSocialLogin(provider: SocialProvider) {
     setStartingProvider(provider);
     sessionStorage.setItem(SESSION_KEYS.socialLoginReturnTo, resolveSafeReturnTo(returnTo));
-    window.location.assign(`/api/v1/auth/social/authorization/${provider}`);
+    const query = policyAcceptance
+      ? `?${new URLSearchParams({
+          termsVersion: policyAcceptance.termsVersion,
+          termsAccepted: String(policyAcceptance.termsAccepted),
+          privacyVersion: policyAcceptance.privacyVersion,
+          privacyAccepted: String(policyAcceptance.privacyAccepted),
+        })}`
+      : "";
+    window.location.assign(`/api/v1/auth/social/authorization/${provider}${query}`);
   }
 
   return (
@@ -34,7 +48,7 @@ export function SocialLoginButtons({ action, returnTo }: SocialLoginButtonsProps
             type="button"
             variant="outline-dark"
             className={details.buttonClassName}
-            disabled={startingProvider !== null}
+            disabled={startingProvider !== null || (action === "회원가입" && !policyAcceptance)}
             onClick={() => startSocialLogin(provider)}
           >
             <span className="social-login-button-content">

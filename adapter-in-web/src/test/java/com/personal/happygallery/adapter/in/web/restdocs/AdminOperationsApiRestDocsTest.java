@@ -78,8 +78,9 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
         devRefundFailureUseCase = mock(DevRefundFailureUseCase.class);
 
         Refund orderRefund = RestDocsFixtures.orderRefund();
+        Refund failedOrderClaimRefund = RestDocsFixtures.failedOrderClaimRefund();
         when(refundRetryUseCase.listFailed(isNull(), anyInt()))
-                .thenReturn(new CursorPage<>(List.of(), null, false));
+                .thenReturn(new CursorPage<>(List.of(failedOrderClaimRefund), null, false));
         when(refundRetryUseCase.retry(anyLong())).thenReturn(orderRefund);
         when(refundQueryUseCase.getRefund(anyLong())).thenReturn(orderRefund);
         NotificationOutbox retriedNotification = NotificationOutbox.from(
@@ -132,6 +133,8 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/admin/refunds/failed").with(adminUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].orderId").value(200L))
+                .andExpect(jsonPath("$.content[0].orderClaimId").value(201L))
                 .andExpect(jsonPath("$.hasMore").value(false));
     }
 

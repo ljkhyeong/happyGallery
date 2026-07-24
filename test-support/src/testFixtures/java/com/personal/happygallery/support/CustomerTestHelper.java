@@ -2,6 +2,7 @@ package com.personal.happygallery.support;
 
 import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.SignupRequest;
+import com.personal.happygallery.adapter.in.web.policy.dto.PolicyAcceptanceRequest;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import jakarta.servlet.http.Cookie;
@@ -48,7 +49,12 @@ public final class CustomerTestHelper {
                                         "password123",
                                         "회원",
                                         phone,
-                                        verificationCode))))
+                                        verificationCode,
+                                        new PolicyAcceptanceRequest(
+                                                "2026-07-21-v1",
+                                                true,
+                                                "2026-07-21-v1",
+                                                true)))))
                 .andExpect(status().isCreated())
                 .andReturn();
         Cookie cookie = result.getResponse().getCookie("HG_SESSION");

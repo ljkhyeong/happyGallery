@@ -2,6 +2,7 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
+import com.personal.happygallery.application.order.port.out.OrderClaimPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
@@ -37,6 +38,7 @@ class RefundTransactionService {
     private final PaymentAttemptStorePort paymentAttemptStore;
     private final BookingReaderPort bookingReader;
     private final OrderReaderPort orderReader;
+    private final OrderClaimPort orderClaimPort;
     private final PassPurchaseReaderPort passPurchaseReader;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
@@ -46,6 +48,7 @@ class RefundTransactionService {
                              PaymentAttemptStorePort paymentAttemptStore,
                              BookingReaderPort bookingReader,
                              OrderReaderPort orderReader,
+                             OrderClaimPort orderClaimPort,
                              PassPurchaseReaderPort passPurchaseReader,
                              ApplicationEventPublisher eventPublisher,
                              Clock clock) {
@@ -54,6 +57,7 @@ class RefundTransactionService {
         this.paymentAttemptStore = paymentAttemptStore;
         this.bookingReader = bookingReader;
         this.orderReader = orderReader;
+        this.orderClaimPort = orderClaimPort;
         this.passPurchaseReader = passPurchaseReader;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
@@ -102,6 +106,7 @@ class RefundTransactionService {
         }
         Refund savedRefund = refundPort.save(refund);
         markPaymentAttemptCompensated(savedRefund);
+        markOrderClaimCompleted(savedRefund);
         publishRefundSucceededNotification(savedRefund);
         return savedRefund;
     }
@@ -164,6 +169,16 @@ class RefundTransactionService {
                 .orElseThrow(NotFoundException.supplier("결제 시도"));
         attempt.markCompensated();
         paymentAttemptStore.save(attempt);
+    }
+
+    private void markOrderClaimCompleted(Refund refund) {
+        if (refund.getOrderClaimId() == null) {
+            return;
+        }
+        var claim = orderClaimPort.findByIdForUpdate(refund.getOrderClaimId())
+                .orElseThrow(NotFoundException.supplier("주문 클레임"));
+        claim.completeRefund(LocalDateTime.now(clock));
+        orderClaimPort.save(claim);
     }
 
     private void markPaymentAttemptCompensationFailed(Refund refund, String reason) {

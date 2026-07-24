@@ -4,6 +4,9 @@ import { useCustomerAuth, type CustomerUser } from "./useCustomerAuth";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { normalizePhone } from "@/shared/validation/phone";
 import { ErrorAlert } from "@/shared/ui";
+import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
+import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
+import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
 type AuthPath = "login" | "signup" | "guest";
 
@@ -11,6 +14,7 @@ interface GuestInfo {
   phone: string;
   verificationCode: string;
   name: string;
+  policyAcceptance: PolicyAcceptance;
 }
 
 interface Props {
@@ -31,6 +35,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
   const [signupVerificationCode, setSignupVerificationCode] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
+  const policyConsent = usePolicyAcceptance();
 
   // guest step
   const [guestVerified, setGuestVerified] = useState(false);
@@ -76,6 +81,9 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
+    if (!policyConsent.acceptance) {
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -85,6 +93,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
         signupName,
         signupPhone,
         signupVerificationCode,
+        policyConsent.acceptance,
       );
       onMemberConfirm(member);
     } catch (requestError) {
@@ -95,8 +104,13 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
   }
 
   function handleGuestSubmit() {
-    if (normalizedGuestName) {
-      onGuestConfirm({ phone: guestPhone, verificationCode: guestCode, name: normalizedGuestName });
+    if (normalizedGuestName && policyConsent.acceptance) {
+      onGuestConfirm({
+        phone: guestPhone,
+        verificationCode: guestCode,
+        name: normalizedGuestName,
+        policyAcceptance: policyConsent.acceptance,
+      });
     }
   }
 
@@ -177,11 +191,19 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
                 onReset={() => setSignupVerificationCode("")}
               />
             </div>
+            <PolicyConsentFields
+              id="gate-signup-policy-consent"
+              policy={policyConsent.policyQuery.data}
+              checked={policyConsent.accepted}
+              onChange={policyConsent.setAccepted}
+              isLoading={policyConsent.policyQuery.isLoading}
+              error={policyConsent.policyQuery.error}
+            />
             <Button
               type="submit"
               className="w-100"
               size="sm"
-              disabled={!signupVerificationCode || submitting}
+              disabled={!signupVerificationCode || !policyConsent.ready || submitting}
             >
               {submitting ? "가입 중..." : "가입하고 진행"}
             </Button>
@@ -213,9 +235,17 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
                     이름을 입력해 주세요.
                   </Form.Control.Feedback>
                 </Form.Group>
+                <PolicyConsentFields
+                  id="gate-guest-policy-consent"
+                  policy={policyConsent.policyQuery.data}
+                  checked={policyConsent.accepted}
+                  onChange={policyConsent.setAccepted}
+                  isLoading={policyConsent.policyQuery.isLoading}
+                  error={policyConsent.policyQuery.error}
+                />
                 <Button
                   variant="primary" className="w-100" size="sm"
-                  disabled={!normalizedGuestName}
+                  disabled={!normalizedGuestName || !policyConsent.ready}
                   onClick={handleGuestSubmit}
                 >
                   비회원으로 진행

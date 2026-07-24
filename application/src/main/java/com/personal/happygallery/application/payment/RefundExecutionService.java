@@ -41,6 +41,16 @@ public class RefundExecutionService {
         return refund;
     }
 
+    /** 주문 클레임별 환불 요청을 저장하고 커밋 이후 PG 환불 실행을 예약한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Refund requestOrderClaimRefund(
+            Long orderId, Long orderClaimId, long amount, String paymentKey) {
+        Refund refund = refundPort.save(
+                Refund.forOrderClaim(orderId, orderClaimId, amount, paymentKey));
+        publishExecutionRequested(refund.getId(), "orderClaimId=" + orderClaimId);
+        return refund;
+    }
+
     /** 환불 요청 이력을 저장하고 커밋 이후 PG 환불 실행을 예약한다. 반환값은 PG 결과 반영 전 요청 이력이다. */
     @Transactional(propagation = Propagation.MANDATORY)
     public Refund requestBookingRefund(Booking booking, long amount) {

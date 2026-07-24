@@ -184,13 +184,13 @@ public class Order {
         this.status = OrderStatus.IN_PRODUCTION;
     }
 
-    /** 관리자가 제작 일정 지연을 제안하고 고객 응답을 기다린다. */
+    /** 재고 부족 또는 제작 일정 변경으로 이행 지연을 제안하고 고객 응답을 기다린다. */
     public void proposeDelay() {
-        this.status.requireInProduction();
+        this.status.requireDelayProposable();
         this.status = OrderStatus.DELAY_CONSENT_PENDING;
     }
 
-    /** 고객이 제작 일정 지연 제안을 수락하거나 거절한다. */
+    /** 고객이 주문 이행 지연 제안을 수락하거나 거절한다. */
     public void respondToDelay(OrderDelayDecision decision) {
         this.status.requireDelayConsentPending();
         if (decision == null) {
@@ -203,7 +203,7 @@ public class Order {
     }
 
     /**
-     * 고객이 제작 지연을 거절해 주문을 취소한다.
+     * 고객이 주문 이행 지연을 거절해 주문을 취소한다.
      * {@link OrderStatus#DELAY_CONSENT_PENDING} 상태에서만 허용한다.
      */
     public void cancelForDelayRejection() {
@@ -212,12 +212,15 @@ public class Order {
     }
 
     /**
-     * 지연 수락 상태에서 제작을 재개한다.
+     * 지연 수락 상태에서 주문 이행을 재개한다.
+     * 주문제작 상품은 제작 중으로, 기성품은 배송·픽업 이행 대기로 돌아간다.
      * {@link OrderStatus#DELAY_ACCEPTED} 상태가 아니면 400을 던진다.
      */
-    public void resumeProduction() {
+    public void resumeAfterDelay() {
         this.status.requireDelayAccepted();
-        this.status = OrderStatus.IN_PRODUCTION;
+        this.status = madeToOrderConsentAt == null
+                ? OrderStatus.APPROVED_FULFILLMENT_PENDING
+                : OrderStatus.IN_PRODUCTION;
     }
 
     /**
@@ -226,6 +229,10 @@ public class Order {
      */
     public void completeProduction() {
         this.status.requireProductionCompletable();
+        if (madeToOrderConsentAt == null) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "주문제작 상품만 제작 완료 처리할 수 있습니다.");
+        }
         this.status = OrderStatus.APPROVED_FULFILLMENT_PENDING;
     }
 

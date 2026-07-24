@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Card, Badge, Button, Form, InputGroup } from "react-bootstrap";
 import { useMutation } from "@tanstack/react-query";
-import { verifyQnaPassword } from "./api";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { fetchProductQnaDetail, verifyQnaPassword } from "./api";
 import { ErrorAlert } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 import type { ProductQnaListItem, ProductQnaDetail } from "@/shared/types";
@@ -12,21 +13,26 @@ interface Props {
 }
 
 export function QnaItem({ item, productId }: Props) {
-  const [unlocked, setUnlocked] = useState<ProductQnaDetail | null>(null);
+  const [detail, setDetail] = useState<ProductQnaDetail | null>(null);
   const [password, setPassword] = useState("");
 
   const verifyMutation = useMutation({
     mutationFn: () => verifyQnaPassword(productId, item.id, password),
-    onSuccess: (detail) => {
-      setUnlocked(detail);
+    onSuccess: (verifiedDetail) => {
+      setDetail(verifiedDetail);
       setPassword("");
     },
   });
 
-  const isLocked = item.secret && !unlocked;
-  const displayTitle = unlocked ? unlocked.title : item.title;
-  const displayContent = unlocked?.content;
-  const displayReply = unlocked?.replyContent;
+  const detailMutation = useMutation({
+    mutationFn: () => fetchProductQnaDetail(productId, item.id),
+    onSuccess: setDetail,
+  });
+
+  const isLocked = item.secret && !detail;
+  const displayTitle = detail ? detail.title : item.title;
+  const displayContent = detail?.content;
+  const displayReply = detail?.replyContent;
 
   return (
     <Card className="mb-2">
@@ -79,9 +85,21 @@ export function QnaItem({ item, productId }: Props) {
           </div>
         )}
 
-        {!item.secret && !unlocked && (
-          <div className="mt-1 text-muted-soft small">
-            {item.hasReply ? "답변이 등록되어 있습니다." : "답변 대기 중"}
+        {!item.secret && (
+          <div className="mt-2">
+            <Button
+              size="sm"
+              variant="link"
+              className="p-0"
+              disabled={detailMutation.isPending}
+              onClick={() => detail ? setDetail(null) : detailMutation.mutate()}
+            >
+              {detail ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
+              <span className="ms-1">
+                {detail ? "내용 닫기" : detailMutation.isPending ? "불러오는 중..." : "내용 보기"}
+              </span>
+            </Button>
+            <ErrorAlert error={detailMutation.error} />
           </div>
         )}
       </Card.Body>

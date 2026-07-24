@@ -29,6 +29,9 @@ public class Refund {
     @Column(name = "order_id")
     private Long orderId;
 
+    @Column(name = "order_claim_id")
+    private Long orderClaimId;
+
     @Column(name = "pass_purchase_id")
     private Long passPurchaseId;
 
@@ -81,10 +84,12 @@ public class Refund {
 
     protected Refund() {}
 
-    private Refund(Long bookingId, Long orderId, Long passPurchaseId, Long paymentAttemptId,
+    private Refund(Long bookingId, Long orderId, Long orderClaimId,
+                   Long passPurchaseId, Long paymentAttemptId,
                    long amount, String paymentKey) {
         this.bookingId = bookingId;
         this.orderId = orderId;
+        this.orderClaimId = orderClaimId;
         this.passPurchaseId = passPurchaseId;
         this.paymentAttemptId = paymentAttemptId;
         this.amount = amount;
@@ -97,29 +102,33 @@ public class Refund {
     public static Refund forBooking(Booking booking, long amount) {
         Objects.requireNonNull(booking, "booking must not be null");
         Long bookingId = Objects.requireNonNull(booking.getId(), "bookingId must not be null");
-        return new Refund(bookingId, null, null, null, amount, booking.getPaymentKey());
+        return new Refund(bookingId, null, null, null, null, amount, booking.getPaymentKey());
     }
 
     /** 주문 환불 요청 생성 (주문 거절/자동환불 시). bookingId는 null. */
     public static Refund forOrder(Long orderId, long amount, String paymentKey) {
-        return new Refund(
-                null,
+        return new Refund(null, Objects.requireNonNull(orderId, "orderId must not be null"),
+                null, null, null, amount, paymentKey);
+    }
+
+    /** 배송·픽업 완료 후 주문 클레임 환불 요청 생성. */
+    public static Refund forOrderClaim(Long orderId, Long orderClaimId, long amount, String paymentKey) {
+        return new Refund(null,
                 Objects.requireNonNull(orderId, "orderId must not be null"),
-                null,
-                null,
-                amount,
-                paymentKey);
+                Objects.requireNonNull(orderClaimId, "orderClaimId must not be null"),
+                null, null, amount, paymentKey);
     }
 
     /** 8회권 환불 요청 생성. bookingId/orderId는 null. */
     public static Refund forPass(Long passPurchaseId, long amount, String paymentKey) {
-        return new Refund(null, null, Objects.requireNonNull(passPurchaseId, "passPurchaseId must not be null"), null,
-                amount, paymentKey);
+        return new Refund(null, null, null,
+                Objects.requireNonNull(passPurchaseId, "passPurchaseId must not be null"),
+                null, amount, paymentKey);
     }
 
     /** PG 승인 후 도메인 생성 실패를 보상하는 환불 요청. */
     public static Refund forPaymentAttempt(Long paymentAttemptId, long amount, String paymentKey) {
-        return new Refund(null, null, null,
+        return new Refund(null, null, null, null,
                 Objects.requireNonNull(paymentAttemptId, "paymentAttemptId must not be null"),
                 amount, paymentKey);
     }
@@ -228,6 +237,7 @@ public class Refund {
     public Long getId() { return id; }
     public Long getBookingId() { return bookingId; }
     public Long getOrderId() { return orderId; }
+    public Long getOrderClaimId() { return orderClaimId; }
     public Long getPassPurchaseId() { return passPurchaseId; }
     public Long getPaymentAttemptId() { return paymentAttemptId; }
     public long getAmount() { return amount; }

@@ -21,8 +21,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SocialAccountLinkIntentStoreTest {
 
-    private final SocialAccountLinkIntentStore store = new SocialAccountLinkIntentStore(
-            Clock.fixed(Instant.parse("2026-07-21T00:00:00Z"), ZoneOffset.UTC));
+    private final Clock clock = Clock.fixed(Instant.parse("2026-07-21T00:00:00Z"), ZoneOffset.UTC);
+    private final SocialAccountLinkIntentStore store = new SocialAccountLinkIntentStore(clock);
+    private final SocialPolicyConsentStore policyConsentStore = new SocialPolicyConsentStore(clock);
 
     @DisplayName("연결 시작 요청은 Spring이 생성한 OAuth state와 결합한 뒤 같은 회원 callback에서만 소비한다")
     @Test
@@ -31,7 +32,9 @@ class SocialAccountLinkIntentStoreTest {
         String attemptId = store.start(authorizationRequest, 1L, 3L, SocialProvider.GOOGLE);
         authorizationRequest.addParameter(SocialAccountLinkIntentStore.LINK_ATTEMPT_PARAMETER, attemptId);
         var resolver = new SocialOAuth2AuthorizationRequestResolver(
-                new InMemoryClientRegistrationRepository(googleRegistration()), store);
+                new InMemoryClientRegistrationRepository(googleRegistration()),
+                store,
+                policyConsentStore);
 
         var oauthRequest = resolver.resolve(authorizationRequest);
         MockHttpServletRequest callbackRequest = callbackRequest(

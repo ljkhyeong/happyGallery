@@ -25,6 +25,8 @@ public final class KakaoTemplateCatalog {
             case ORDER_SHIPPED -> "HG_ORDER_SHIPPED";
             case ORDER_DELAY_REQUESTED -> "HG_ORDER_DELAY";
             case ORDER_REFUNDED -> "HG_ORDER_REFUNDED";
+            case ORDER_CLAIM_RESOLVED -> "HG_ORDER_CLAIM";
+            case ORDER_EXCHANGE_COMPLETED -> "HG_ORDER_EXCHANGE";
             case PASS_PURCHASED -> "HG_PASS_PURCHASED";
             case PASS_REFUNDED -> "HG_PASS_REFUNDED";
             case INQUIRY_ANSWERED -> "HG_INQUIRY_ANSWERED";

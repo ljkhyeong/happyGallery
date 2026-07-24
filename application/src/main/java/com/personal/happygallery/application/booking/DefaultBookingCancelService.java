@@ -6,19 +6,22 @@ import com.personal.happygallery.application.booking.port.in.AdminBookingCancelU
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionCommand;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionResult;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
+import com.personal.happygallery.application.booking.port.out.BookingCancellationTaskPort;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.pass.PassCreditService;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.domain.booking.BalanceStatus;
-import com.personal.happygallery.domain.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingCancellationTask;
+import com.personal.happygallery.domain.booking.BookingCancellationTaskType;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.BookingConflictException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.time.TimeBoundary;
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +35,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
 
     private final BookingReaderPort bookingReaderPort;
     private final BookingStorePort bookingStorePort;
+    private final BookingCancellationTaskPort bookingCancellationTaskPort;
     private final RefundExecutionService refundExecutionService;
     private final PassCreditService passCreditService;
     private final SlotCapacitySupport slotCapacitySupport;
@@ -40,6 +44,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
 
     public DefaultBookingCancelService(BookingReaderPort bookingReaderPort,
                                        BookingStorePort bookingStorePort,
+                                       BookingCancellationTaskPort bookingCancellationTaskPort,
                                        RefundExecutionService refundExecutionService,
                                        PassCreditService passCreditService,
                                        SlotCapacitySupport slotCapacitySupport,
@@ -47,6 +52,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
                                        Clock clock) {
         this.bookingReaderPort = bookingReaderPort;
         this.bookingStorePort = bookingStorePort;
+        this.bookingCancellationTaskPort = bookingCancellationTaskPort;
         this.refundExecutionService = refundExecutionService;
         this.passCreditService = passCreditService;
         this.slotCapacitySupport = slotCapacitySupport;
@@ -149,6 +155,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
             Long adminId,
             String reason
     ) {
+        String cancellationReason = reason.trim();
         bookingSupport.recordHistory(
                 booking,
                 BookingHistoryAction.CANCELED,
@@ -156,19 +163,46 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
                 null,
                 "ADMIN",
                 adminId,
-                reason.trim());
+                cancellationReason);
 
         CancellationCompensation compensation = applyAdminCancellationCompensation(booking, lockedPass);
         bookingStorePort.save(booking);
-        bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CANCELED);
-
         boolean balanceSettlementRequired = booking.getBalanceAmount() > 0
                 && booking.getBalanceStatus() == BalanceStatus.PAID;
+        boolean passCreditRestored = lockedPass != null && compensation.refundable();
+        boolean manualCompensationRequired = lockedPass != null && !passCreditRestored;
+        createCancellationTasks(
+                booking,
+                balanceSettlementRequired,
+                manualCompensationRequired,
+                cancellationReason);
+        bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CANCELED);
+
         return new AdminCancelResult(
                 booking,
-                compensation.refundable() && lockedPass != null,
+                passCreditRestored,
                 compensation.refund(),
                 balanceSettlementRequired);
+    }
+
+    private void createCancellationTasks(
+            Booking booking,
+            boolean balanceSettlementRequired,
+            boolean manualCompensationRequired,
+            String reason
+    ) {
+        if (balanceSettlementRequired) {
+            bookingCancellationTaskPort.save(BookingCancellationTask.pending(
+                    booking,
+                    BookingCancellationTaskType.BALANCE_SETTLEMENT,
+                    reason));
+        }
+        if (manualCompensationRequired) {
+            bookingCancellationTaskPort.save(BookingCancellationTask.pending(
+                    booking,
+                    BookingCancellationTaskType.MANUAL_COMPENSATION,
+                    reason));
+        }
     }
 
     private CancelResult cancelInternal(Booking booking) {

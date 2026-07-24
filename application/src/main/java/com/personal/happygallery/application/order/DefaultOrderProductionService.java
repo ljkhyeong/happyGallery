@@ -20,11 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 예약 제작 주문 관리 서비스 (§8.3).
+ * 주문 이행 일정과 주문제작 진행 관리 서비스 (§8.3).
  *
  * <ul>
  *   <li>{@link #setExpectedShipDate(SetExpectedShipDateCommand)} — 예상 출고일 설정/갱신</li>
- *   <li>{@link #proposeDelay(ProposeDelayCommand)} — 제작 지연을 제안하고 고객 응답을 대기</li>
+ *   <li>{@link #proposeDelay(ProposeDelayCommand)} — 주문 처리 지연을 제안하고 고객 응답을 대기</li>
  *   <li>{@link #cancelForDelayRejection(Long, Long)} — 고객 응답 대기 중 관리자 거절 처리</li>
  * </ul>
  *
@@ -82,8 +82,8 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
     }
 
     /**
-     * 제작 지연을 제안하고 고객 동의 대기 상태({@link OrderStatus#DELAY_CONSENT_PENDING})로 전환한다.
-     * {@link OrderStatus#IN_PRODUCTION} 상태가 아니면 400을 던진다.
+     * 주문 처리 지연을 제안하고 고객 동의 대기 상태({@link OrderStatus#DELAY_CONSENT_PENDING})로 전환한다.
+     * 기성품 승인 대기 또는 주문제작 진행 상태가 아니면 400을 던진다.
      *
      * @param command 주문 ID와 처리 관리자 ID
      * @return 전이된 주문 상태 + 출고일
@@ -110,7 +110,7 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
     }
 
     /**
-     * 고객이 제작 지연을 거절했으나 직접 응답하지 못한 경우 관리자가 취소한다.
+     * 고객이 주문 처리 지연을 거절했으나 직접 응답하지 못한 경우 관리자가 취소한다.
      * {@link OrderStatus#DELAY_CONSENT_PENDING} 상태에서만 허용한다.
      */
     @Override
@@ -129,14 +129,14 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
     }
 
     /**
-     * 지연 수락 상태에서 제작을 재개한다.
-     * {@link OrderStatus#DELAY_ACCEPTED} → {@link OrderStatus#IN_PRODUCTION}.
+     * 지연 수락 상태에서 주문 처리를 재개한다.
+     * 기성품은 이행 대기로, 주문제작은 제작 중으로 돌아간다.
      */
     @Override
     @OptimisticLockRetryable
-    public ProductionResult resumeProduction(Long orderId, Long adminId) {
+    public ProductionResult resumeAfterDelay(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
-        order.resumeProduction();
+        order.resumeAfterDelay();
 
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
 

@@ -59,7 +59,8 @@ export function MyAccountCard({ user, onChangePassword, onUpdatePhone, onWithdra
           <div>
             <h6 className="mb-1">회원 탈퇴</h6>
             <p className="text-muted-soft small mb-0">
-              진행 중인 주문·예약·환불이나 사용 가능한 8회권이 있으면 탈퇴할 수 없습니다.
+              처리가 끝나지 않은 결제 시도·주문·주문 클레임·예약·예약 취소 후속 작업·환불이나
+              사용 가능한 8회권이 있으면 탈퇴할 수 없습니다.
             </p>
           </div>
           <Button variant="outline-danger" size="sm" onClick={onWithdraw}>

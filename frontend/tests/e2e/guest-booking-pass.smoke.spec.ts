@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  adminCard,
   completeGuestAuthGate,
   createAdminSlot,
   extractFirstNumber,
@@ -7,8 +8,10 @@ import {
   fetchGuestBookingSlot,
   findUniqueSlotStart,
   installTossPaymentStub,
+  loginAdmin,
   makePhoneNumber,
   makeUniqueLabel,
+  openAdminView,
   readRouterState,
   signupCustomer,
   toDateInput,
@@ -80,6 +83,24 @@ test("P8-2 @smoke @payment 슬롯 생성 후 예약 생성, 변경, 취소를 �
   await page.getByRole("button", { name: "예약 취소" }).click();
   await page.getByRole("button", { name: "취소 확인" }).click();
   await expect(page.getByText("취소됨")).toBeVisible();
+
+  await loginAdmin(page);
+  await openAdminView(page, "현황·검색");
+  const searchCard = adminCard(page, "주문·예약 검색");
+  await searchCard.getByRole("button", { name: "예약", exact: true }).click();
+  await searchCard.getByLabel("식별자 또는 고객명").fill(guestName);
+  await searchCard.getByRole("button", { name: "검색", exact: true }).click();
+  const searchRow = searchCard.locator("tbody tr").filter({ hasText: guestName }).first();
+  await expect(searchRow).toBeVisible();
+  await searchRow.getByRole("link", { name: "운영" }).click();
+
+  await expect(page).toHaveURL(
+    new RegExp(`view=bookings.*bookingId=${guestBookingState.bookingId}`),
+  );
+  const bookingCard = adminCard(page, "예약 목록");
+  await expect(
+    bookingCard.locator(`#admin-booking-${guestBookingState.bookingId}`),
+  ).toContainText(guestName);
 });
 
 test("P8-3 @smoke @payment 회원은 8회권 구매 후 8회권으로 예약할 수 있다", async ({ page, request }) => {

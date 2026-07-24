@@ -4,6 +4,8 @@ import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCas
 import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.policy.PolicyConsentService;
+import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.User;
@@ -21,23 +23,27 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
     private final UserStorePort userStore;
     private final PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
     private final PasswordEncoder passwordEncoder;
+    private final PolicyConsentService policyConsentService;
     private final Clock clock;
 
     public DefaultCustomerAuthService(UserReaderPort userReader,
                                       UserStorePort userStore,
                                       PhoneOwnershipVerificationUseCase phoneOwnershipVerification,
                                       PasswordEncoder passwordEncoder,
+                                      PolicyConsentService policyConsentService,
                                       Clock clock) {
         this.userReader = userReader;
         this.userStore = userStore;
         this.phoneOwnershipVerification = phoneOwnershipVerification;
         this.passwordEncoder = passwordEncoder;
+        this.policyConsentService = policyConsentService;
         this.clock = clock;
     }
 
     @Override
     @Transactional
     public User signup(SignupCommand command) {
+        policyConsentService.requireCurrent(command.policyAcceptance());
         if (userReader.existsByEmail(command.email())) {
             throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
@@ -51,7 +57,12 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
                 command.name(),
                 command.phone());
         user.markPhoneVerified();
-        return userStore.save(user);
+        User savedUser = userStore.save(user);
+        policyConsentService.recordForUser(
+                savedUser.getId(),
+                PolicyConsentPurpose.MEMBER_SIGNUP,
+                command.policyAcceptance());
+        return savedUser;
     }
 
     @Override

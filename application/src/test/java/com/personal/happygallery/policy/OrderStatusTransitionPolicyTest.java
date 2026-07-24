@@ -50,15 +50,15 @@ class OrderStatusTransitionPolicyTest {
     }
 
     // -----------------------------------------------------------------------
-    // requireDelayAccepted() — 제작 재개 가드
+    // requireDelayAccepted() — 지연 후 처리 재개 가드
     // -----------------------------------------------------------------------
 
-    @DisplayName("제작 재개 검증은 지연 수락 상태만 허용한다")
+    @DisplayName("지연 후 처리 재개 검증은 지연 수락 상태만 허용한다")
     @Test
     void requireDelayAccepted_validatesResumePolicy() {
         assertSoftly(softly -> {
             softly.assertThatCode(() -> OrderStatus.DELAY_ACCEPTED.requireDelayAccepted())
-                    .as("DELAY_ACCEPTED는 제작 재개 가능")
+                    .as("DELAY_ACCEPTED는 지연 후 처리 재개 가능")
                     .doesNotThrowAnyException();
             softly.assertThatThrownBy(() -> OrderStatus.IN_PRODUCTION.requireDelayAccepted())
                     .as("IN_PRODUCTION은 지연 수락 상태가 아님")

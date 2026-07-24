@@ -77,9 +77,20 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
 
     @Override
     @Transactional(readOnly = true)
+    public QnaWithAuthor getPublicDetail(Long productId, Long qnaId) {
+        ProductQna qna = findByProduct(productId, qnaId);
+        if (qna.isSecret()) {
+            throw new HappyGalleryException(
+                    ErrorCode.FORBIDDEN,
+                    "비밀글은 비밀번호 확인 후 조회할 수 있습니다.");
+        }
+        return withAuthor(qna);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public QnaWithAuthor verifyAndGet(Long productId, Long qnaId, String rawPassword) {
-        ProductQna qna = qnaReader.findByIdAndProductId(qnaId, productId)
-                .orElseThrow(NotFoundException.supplier("Q&A"));
+        ProductQna qna = findByProduct(productId, qnaId);
         if (qna.isSecret()) {
             if (!StringUtils.hasText(rawPassword)
                     || !StringUtils.hasText(qna.getPasswordHash())
@@ -87,9 +98,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비밀번호가 일치하지 않습니다.");
             }
         }
-        String authorName = userReader.findById(qna.getUserId())
-                .map(User::getName).orElse("탈퇴회원");
-        return new QnaWithAuthor(qna, authorName);
+        return withAuthor(qna);
     }
 
     @Override
@@ -104,6 +113,17 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
                 NotificationEventType.PRODUCT_QNA_ANSWERED,
                 "PRODUCT_QNA",
                 qna.getId()));
+        String authorName = userReader.findById(qna.getUserId())
+                .map(User::getName).orElse("탈퇴회원");
+        return new QnaWithAuthor(qna, authorName);
+    }
+
+    private ProductQna findByProduct(Long productId, Long qnaId) {
+        return qnaReader.findByIdAndProductId(qnaId, productId)
+                .orElseThrow(NotFoundException.supplier("Q&A"));
+    }
+
+    private QnaWithAuthor withAuthor(ProductQna qna) {
         String authorName = userReader.findById(qna.getUserId())
                 .map(User::getName).orElse("탈퇴회원");
         return new QnaWithAuthor(qna, authorName);

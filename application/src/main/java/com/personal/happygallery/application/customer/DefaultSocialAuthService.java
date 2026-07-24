@@ -5,12 +5,14 @@ import com.personal.happygallery.application.customer.port.out.SocialAccountRead
 import com.personal.happygallery.application.customer.port.out.SocialAccountStorePort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.policy.PolicyConsentService;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.EmailAddress;
 import com.personal.happygallery.domain.user.SocialAccount;
 import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,6 +28,7 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
     private final SocialAccountStorePort socialAccountStore;
     private final UserReaderPort userReader;
     private final UserStorePort userStore;
+    private final PolicyConsentService policyConsentService;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
@@ -33,12 +36,14 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
                                     SocialAccountStorePort socialAccountStore,
                                     UserReaderPort userReader,
                                     UserStorePort userStore,
+                                    PolicyConsentService policyConsentService,
                                     ApplicationEventPublisher eventPublisher,
                                     Clock clock) {
         this.socialAccountReader = socialAccountReader;
         this.socialAccountStore = socialAccountStore;
         this.userReader = userReader;
         this.userStore = userStore;
+        this.policyConsentService = policyConsentService;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
@@ -69,6 +74,7 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
         if (canonicalEmail != null && userReader.findByEmail(canonicalEmail).isPresent()) {
             throw new HappyGalleryException(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
         }
+        policyConsentService.requireCurrent(command.policyAcceptance());
 
         User user;
         try {
@@ -80,6 +86,10 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
             throw exception;
         }
         socialAccountStore.save(new SocialAccount(user.getId(), command.provider(), command.providerId()));
+        policyConsentService.recordForUser(
+                user.getId(),
+                PolicyConsentPurpose.SOCIAL_SIGNUP,
+                command.policyAcceptance());
         updateLastLogin(user);
 
         return new SocialLoginResult(user, true);

@@ -81,6 +81,13 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
     }
 
     @Override
+    public List<User> findAllByIdForAdminHistory(Iterable<Long> ids) {
+        return userRepository.findAllById(ids).stream()
+                .map(this::restore)
+                .toList();
+    }
+
+    @Override
     public User save(User user) {
         protect(user);
         try {

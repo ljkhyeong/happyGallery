@@ -48,7 +48,8 @@ public class CustomerAuthController {
                         request.password(),
                         request.name(),
                         request.phone(),
-                        request.verificationCode()));
+                        request.verificationCode(),
+                        request.policyAcceptance().toCommand()));
         customerSessionBinder.bind(httpRequest, httpResponse, user);
         return CustomerUserResponse.from(user);
     }

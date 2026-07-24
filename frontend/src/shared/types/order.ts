@@ -37,6 +37,7 @@ export interface OrderCustomerActionResponse {
 }
 
 export interface OrderItemDto {
+  orderItemId: number;
   productId: number;
   productName: string;
   qty: number;

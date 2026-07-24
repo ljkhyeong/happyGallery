@@ -9,8 +9,9 @@
 
 spec.md §3.2: MADE_TO_ORDER 상품 주문이 승인되면 즉시 제작 시작(IN_PRODUCTION).
 제작 시작 이후 일반 취소/거절 환불은 불가하다. 예상 출고일을 관리자가 설정·노출한다.
-관리자가 지연을 제안하면 고객 응답 대기 상태로 전환하고, 고객이 수락하면 `DELAY_ACCEPTED`,
-거절하면 별도 취소 상태로 전환한다.
+READY_STOCK은 승인 전 실제 재고 부족이 확인되면, MADE_TO_ORDER는 제작 중 일정 변경이 필요하면
+관리자가 주문 처리 지연을 제안한다. 고객이 수락하면 `DELAY_ACCEPTED`, 거절하면 별도 취소 상태로 전환한다.
+수락한 주문을 재개할 때 READY_STOCK은 이행 대기, MADE_TO_ORDER는 제작 중으로 각각 돌아가야 한다.
 제작이 완료되면 주문은 픽업/배송 공통 이행 흐름(APPROVED_FULFILLMENT_PENDING)으로 다시 합류해야 한다.
 회원 바로 주문·장바구니와 비회원 주문 모두 결제 전에 픽업 또는 배송을 선택하므로, 제작 완료 뒤 관리자가
 수령 방식을 임의로 바꾸지 않고 결제 시점 선택을 유지해야 한다.
@@ -21,12 +22,21 @@ spec.md §3.2: MADE_TO_ORDER 상품 주문이 승인되면 즉시 제작 시작(
 
 ### 1. 상태 흐름
 
-```
-
 `MADE_TO_ORDER`가 포함된 주문은 결제 전에 별도 동의를 받아야 한다. 공개 요청은 화면이 조회한 문구 버전과 동의 여부를 보내고,
 서버는 현재 버전과 일치할 때만 고지 문구 버전·전문·동의 시각을 결제 준비 payload에 확정한 뒤 confirm에서 `orders`에 저장한다.
 동의 스냅샷이 없는 주문은 `approveAsProduction()`이 제작 시작을 거절한다. 이 기록은 주문제작 청약철회 제한
 고지를 입증하기 위한 것이며 하자·오배송 등 법령상 권리를 일률적으로 배제하지 않는다.
+
+```text
+READY_STOCK 주문 결제
+    ↓
+PAID_APPROVAL_PENDING
+    ├─ 관리자 승인 → APPROVED_FULFILLMENT_PENDING
+    └─ 재고 부족 지연 제안 → DELAY_CONSENT_PENDING
+           ├─ 고객 수락 → DELAY_ACCEPTED
+           │      └─ 처리 재개 (resumeAfterDelay) → APPROVED_FULFILLMENT_PENDING
+           └─ 고객 거절 → DELAY_REJECTED_CANCELED
+
 MADE_TO_ORDER 주문 결제
     ↓
 PAID_APPROVAL_PENDING
@@ -37,8 +47,7 @@ IN_PRODUCTION          ← 환불 불가 시작점
     │      ↓
     │  DELAY_CONSENT_PENDING
     │      ├─ 고객 수락 → DELAY_ACCEPTED
-    │      │      ├─ 제작 재개 (resumeProduction) → IN_PRODUCTION
-    │      │      └─ 제작 완료 (completeProduction) → APPROVED_FULFILLMENT_PENDING
+    │      │      └─ 처리 재개 (resumeAfterDelay) → IN_PRODUCTION
     │      └─ 고객 거절 → DELAY_REJECTED_CANCELED
     └─ 제작 완료 (completeProduction)
            ↓
@@ -53,7 +62,8 @@ IN_PRODUCTION          ← 환불 불가 시작점
     DELIVERED
 ```
 
-READY_STOCK 상품은 기존 흐름 유지: approve → APPROVED_FULFILLMENT_PENDING.
+READY_STOCK의 지연 제안은 승인 전 재고 부족 대응이며, 승인이나 지연 후 재개가 끝나면 같은
+`APPROVED_FULFILLMENT_PENDING` 이행 흐름에 합류한다.
 
 ### 2. 제품 유형 감지 위치
 
@@ -92,7 +102,7 @@ READY_STOCK 상품은 기존 흐름 유지: approve → APPROVED_FULFILLMENT_PEN
 ### 5. 서비스 분리
 
 - `OrderApprovalService`: approve (MADE_TO_ORDER 감지 포함) / reject
-- `OrderProductionService`: setExpectedShipDate / proposeDelay / resumeProduction / completeProduction
+- `OrderProductionService`: setExpectedShipDate / proposeDelay / resumeAfterDelay / completeProduction
 - `OrderCustomerActionService`: 회원·비회원 소유권 검증 후 지연 수락 또는 거절 처리
 - `OrderShippingService`: prepareShipping / markShipped / markDelivered
 
@@ -101,11 +111,11 @@ READY_STOCK 상품은 기존 흐름 유지: approve → APPROVED_FULFILLMENT_PEN
 | Method  | Path                                    | 설명                        |
 |---------|-----------------------------------------|-----------------------------|
 | `PATCH` | `/api/v1/admin/orders/{id}/expected-ship-date` | 예상 출고일 설정/갱신        |
-| `POST`  | `/api/v1/admin/orders/{id}/delay`              | 제작 지연 제안 (`IN_PRODUCTION` → `DELAY_CONSENT_PENDING`) |
+| `POST`  | `/api/v1/admin/orders/{id}/delay`              | 기성품 승인 전 재고 부족 또는 주문제작 제작 중 지연 제안 |
 | `POST`  | `/api/v1/me/orders/{id}/delay-response` | 회원이 지연 제안 수락/거절 |
 | `POST`  | `/api/v1/orders/{id}/delay-response` | 비회원이 접근 토큰으로 지연 제안 수락/거절 |
 | `POST`  | `/api/v1/admin/orders/{id}/cancel-for-delay-rejection` | 관리자 보조 지연 거절 취소 |
-| `POST`  | `/api/v1/admin/orders/{id}/resume-production`  | 지연 수락 → 제작 재개 (DELAY_ACCEPTED → IN_PRODUCTION) |
+| `POST`  | `/api/v1/admin/orders/{id}/resume-after-delay` | 지연 수락 후 처리 재개: 기성품은 이행 대기, 주문제작은 제작 중 |
 | `POST`  | `/api/v1/admin/orders/{id}/complete-production`| 제작 완료 → 이행 대기 상태 복귀 |
 | `POST`  | `/api/v1/admin/orders/{id}/prepare-shipping`   | 배송 준비 시작 (APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING) |
 | `POST`  | `/api/v1/admin/orders/{id}/mark-shipped`       | 택배사·운송장 번호를 저장하고 배송 출발 |
@@ -129,5 +139,5 @@ READY_STOCK 상품은 기존 흐름 유지: approve → APPROVED_FULFILLMENT_PEN
 | 혼합 주문 | MADE_TO_ORDER + READY_STOCK 상품이 같은 주문에 있으면 전체를 제작 주문으로 보아 IN_PRODUCTION으로 전이하고, 픽업 미수령 시에도 전체 주문을 환불하지 않는다. |
 | Fulfillment 상태 관리 | Fulfillment에 별도 `status` 컬럼은 없고 `Order.status`가 단일 소스다. 수령 방식은 결제 시점에 고정하며 제작 완료 뒤에도 변환하지 않는다. |
 | 배송지 노출 | 배송지 스냅샷은 암호문만 저장하고 고객 상세·관리자 목록에는 포함하지 않는다. 관리자 단건 이행 상세만 복호화한다. |
-| 제작·배송·픽업 이력 관리 | 예상 출고일 변경, 지연 제안, 배송과 픽업 전이를 `order_approvals` append-only 이력으로 남기며, 운영 화면은 이를 시간순 조회한다. |
+| 주문 처리 이력 관리 | 예상 출고일 변경, 기성품·주문제작 지연 제안, 재개, 배송과 픽업 전이를 `order_approvals` append-only 이력으로 남기며, 운영 화면은 이를 시간순 조회한다. |
 | 관리자 식별자 | Bearer 세션 경로는 admin id를 이력에 기록하고, API Key 폴백 경로는 null 이력이 존재할 수 있다. |

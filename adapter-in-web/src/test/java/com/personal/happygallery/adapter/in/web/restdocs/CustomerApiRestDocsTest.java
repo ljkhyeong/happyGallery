@@ -198,7 +198,13 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                   "password": "password1234",
                                   "name": "회원",
                                   "phone": "01012345678",
-                                  "verificationCode": "123456"
+                                  "verificationCode": "123456",
+                                  "policyAcceptance": {
+                                    "termsVersion": "2026-07-21-v1",
+                                    "termsAccepted": true,
+                                    "privacyVersion": "2026-07-21-v1",
+                                    "privacyAccepted": true
+                                  }
                                 }
                                 """))
                 .andExpect(status().isCreated());

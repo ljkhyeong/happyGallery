@@ -17,6 +17,7 @@ import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
+import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -31,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
+import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -132,7 +134,13 @@ class PaymentStatusRecoveryUseCaseIT {
                 PaymentContext.ORDER,
                 new OrderPayload(
                         null, phone, verificationCode, "비회원",
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                        List.of(new OrderItemRef(product.getId(), 1)),
+                        false,
+                        FulfillmentType.PICKUP,
+                        null,
+                        null,
+                        false,
+                        acceptedPolicies()),
                 AuthContext.guest()));
     }
 

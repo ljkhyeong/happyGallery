@@ -51,6 +51,14 @@ public enum OrderStatus {
 		}
 	}
 
+	/** 배송 또는 픽업이 완료되어 사후 클레임을 접수할 수 있는지 확인한다. */
+	public void requireClaimable() {
+		if (this != DELIVERED && this != PICKED_UP && this != COMPLETED) {
+			throw new HappyGalleryException(
+					ErrorCode.INVALID_INPUT, "배송 또는 픽업이 완료된 주문만 클레임을 접수할 수 있습니다.");
+		}
+	}
+
 	/**
 	 * 환불/취소 가능한 상태인지 확인한다.
 	 * 제작 중({@link #IN_PRODUCTION}) 또는 지연 수락({@link #DELAY_ACCEPTED}) 상태는
@@ -84,6 +92,14 @@ public enum OrderStatus {
 		}
 	}
 
+	/** 제작 중이거나 아직 승인하지 않은 기성품 주문인지 확인한다. */
+	public void requireDelayProposable() {
+		if (this != IN_PRODUCTION && this != PAID_APPROVAL_PENDING) {
+			throw new HappyGalleryException(
+					ErrorCode.INVALID_INPUT, "승인 대기 또는 제작 중 상태에서만 지연을 제안할 수 있습니다.");
+		}
+	}
+
 	/** {@link #DELAY_ACCEPTED} 상태인지 확인한다. */
 	public void requireDelayAccepted() {
 		if (this != DELAY_ACCEPTED) {
@@ -99,7 +115,7 @@ public enum OrderStatus {
 		}
 	}
 
-	/** 고객이 제작 지연을 거절해 취소할 수 있는 상태인지 확인한다. */
+	/** 고객이 주문 이행 지연을 거절해 취소할 수 있는 상태인지 확인한다. */
 	public void requireDelayRejectionCancelable() {
 		if (this != DELAY_CONSENT_PENDING) {
 			throw new HappyGalleryException(

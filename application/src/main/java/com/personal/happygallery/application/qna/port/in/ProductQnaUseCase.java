@@ -17,6 +17,8 @@ public interface ProductQnaUseCase {
 
     List<QnaWithAuthor> listByProduct(Long productId);
 
+    QnaWithAuthor getPublicDetail(Long productId, Long qnaId);
+
     QnaWithAuthor verifyAndGet(Long productId, Long qnaId, String rawPassword);
 
     QnaWithAuthor replyAndGet(Long qnaId, String replyContent, Long adminId);

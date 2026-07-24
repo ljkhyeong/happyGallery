@@ -34,6 +34,7 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -137,7 +138,8 @@ class CustomerCredentialUseCaseIT {
                 SocialProvider.GOOGLE,
                 "credential-social-provider-id",
                 email,
-                "소셜 회원")).user();
+                "소셜 회원",
+                acceptedPolicies())).user();
         credentialScopes.add(new CredentialScope(
                 socialUser.getId(), socialUser.getCredentialVersion()));
 

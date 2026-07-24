@@ -30,8 +30,10 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   PASS_CREDIT_INSUFFICIENT: "이용권 잔여 횟수가 부족합니다.",
   PASS_NOT_APPLICABLE: "선택한 클래스에는 이 이용권을 사용할 수 없습니다.",
   PHONE_VERIFICATION_REQUIRED: "휴대폰 번호를 인증한 뒤 다시 시도해 주세요.",
+  POLICY_CONSENT_REQUIRED: "현재 이용약관과 개인정보처리방침을 확인하고 동의해 주세요.",
   PHONE_ALREADY_IN_USE: "이미 다른 계정에서 사용 중인 휴대폰 번호입니다.",
-  ACCOUNT_WITHDRAWAL_BLOCKED: "진행 중인 주문, 예약, 환불 또는 사용 가능한 8회권을 먼저 정리해 주세요.",
+  ACCOUNT_WITHDRAWAL_BLOCKED:
+    "처리가 끝나지 않은 결제 시도·주문·주문 클레임·예약·예약 취소 후속 작업·환불 또는 사용 가능한 8회권을 먼저 정리해 주세요.",
   PAYMENT_METHOD_NOT_ALLOWED: "허용되지 않는 결제 수단입니다.",
   PAYMENT_CONFIRM_IN_PROGRESS: "결제 확정을 처리 중입니다. 잠시 후 다시 확인해 주세요.",
   PAYMENT_RECONCILIATION_REQUIRED: "결제 승인 여부를 확인하고 있습니다. 새로 결제하지 말고 고객센터에 문의해 주세요.",

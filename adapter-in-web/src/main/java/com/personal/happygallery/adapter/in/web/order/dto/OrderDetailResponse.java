@@ -20,10 +20,14 @@ public record OrderDetailResponse(
         FulfillmentDto fulfillment,
         RefundProgressResponse refund
 ) {
-    public record ItemDto(Long productId, String productName, int qty, long unitPrice) {
+    public record ItemDto(Long orderItemId, Long productId, String productName, int qty, long unitPrice) {
         public static ItemDto from(OrderItem item) {
             return new ItemDto(
-                    item.getProductId(), item.getProductName(), item.getQty(), item.getUnitPrice());
+                    item.getId(),
+                    item.getProductId(),
+                    item.getProductName(),
+                    item.getQty(),
+                    item.getUnitPrice());
         }
     }
 

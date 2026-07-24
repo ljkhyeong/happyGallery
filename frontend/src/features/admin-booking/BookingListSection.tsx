@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col, Modal } from "react-bootstrap";
 import { CalendarX2 } from "lucide-react";
@@ -18,7 +18,7 @@ import {
   StatusBadge,
   useToast,
 } from "@/shared/ui";
-import { ApiError } from "@/shared/api";
+import { ApiError, queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
@@ -32,6 +32,9 @@ import type { RefundStatus } from "@/shared/types";
 interface Props {
   adminKey: string;
   onAuthError: () => void;
+  initialDate?: string;
+  initialStatus?: "" | ListBookingsStatus;
+  focusBookingId?: number;
 }
 
 const STATUS_OPTIONS = [
@@ -80,11 +83,17 @@ function cancelResultToast(result: AdminBookingCancelResponse) {
   } as const;
 }
 
-export function BookingListSection({ adminKey, onAuthError }: Props) {
+export function BookingListSection({
+  adminKey,
+  onAuthError,
+  initialDate = todayStr(),
+  initialStatus = "",
+  focusBookingId,
+}: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [date, setDate] = useState(todayStr);
-  const [statusFilter, setStatusFilter] = useState<"" | ListBookingsStatus>("");
+  const [date, setDate] = useState(initialDate);
+  const [statusFilter, setStatusFilter] = useState<"" | ListBookingsStatus>(initialStatus);
   const [cancelTarget, setCancelTarget] = useState<AdminBookingResponse | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
@@ -135,7 +144,7 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
       toast.show(notification.message, notification.variant);
       setCancelTarget(null);
       setCancelReason("");
-      queryClient.invalidateQueries({ queryKey: ["admin", "bookings"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.bookings });
     },
   });
 
@@ -148,6 +157,11 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
     ?? balancePaymentMutation.error
     ?? arrearsMutation.error
     ?? completeMutation.error;
+
+  useEffect(() => {
+    if (!bookings?.some((booking) => booking.bookingId === focusBookingId)) return;
+    document.getElementById(`admin-booking-${focusBookingId}`)?.scrollIntoView({ block: "center" });
+  }, [bookings, focusBookingId]);
 
   return (
     <div>
@@ -201,7 +215,11 @@ export function BookingListSection({ adminKey, onAuthError }: Props) {
           </thead>
           <tbody>
             {bookings.map((b) => (
-              <tr key={b.bookingId}>
+              <tr
+                key={b.bookingId}
+                id={`admin-booking-${b.bookingId}`}
+                className={b.bookingId === focusBookingId ? "table-info" : undefined}
+              >
                 <td>{b.bookingNumber}</td>
                 <td>
                   <div>

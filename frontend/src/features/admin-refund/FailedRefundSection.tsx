@@ -141,6 +141,11 @@ function refundStatusLabel(status: FailedRefundResponse["status"]): string {
 }
 
 function refundTarget(refund: FailedRefundResponse): string {
+  if (refund.orderClaimId != null) {
+    return refund.orderId != null
+      ? `주문 ${refund.orderId} · 클레임 ${refund.orderClaimId}`
+      : `클레임 ${refund.orderClaimId}`;
+  }
   if (refund.orderId != null) return `주문 ${refund.orderId}`;
   if (refund.bookingId != null) return `예약 ${refund.bookingId}`;
   if (refund.passPurchaseId != null) return `8회권 ${refund.passPurchaseId}`;

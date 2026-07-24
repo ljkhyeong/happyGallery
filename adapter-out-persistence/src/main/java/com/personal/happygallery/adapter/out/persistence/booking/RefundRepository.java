@@ -19,11 +19,15 @@ public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPor
     @Override Optional<Refund> findById(Long id);
     @Override Refund save(Refund refund);
     @Override Optional<Refund> findByBookingId(Long bookingId);
-    @Override Optional<Refund> findByOrderId(Long orderId);
+    @Override
+    @Query("SELECT r FROM Refund r WHERE r.orderId = :orderId AND r.orderClaimId IS NULL")
+    Optional<Refund> findDirectByOrderId(@Param("orderId") Long orderId);
+    @Override Optional<Refund> findByOrderClaimId(Long orderClaimId);
     @Override Optional<Refund> findByPassPurchaseId(Long passPurchaseId);
     @Override Optional<Refund> findByPaymentAttemptId(Long paymentAttemptId);
     @Override List<Refund> findByPaymentAttemptIdIn(List<Long> paymentAttemptIds);
     @Override List<Refund> findByPassPurchaseIdIn(List<Long> passPurchaseIds);
+    @Override List<Refund> findByOrderClaimIdIn(List<Long> orderClaimIds);
 
     @Query("""
             SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END

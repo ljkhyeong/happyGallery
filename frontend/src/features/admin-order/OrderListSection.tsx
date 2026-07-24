@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Table, Button, Form, Row, Col } from "react-bootstrap";
-import type { AdminOrderResponse } from "@/shared/types";
-import { fetchOrders } from "./api";
+import { X } from "lucide-react";
+import type { AdminOrderResponse, OrderStatus } from "@/shared/types";
+import { fetchOrderFulfillment, fetchOrders } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
@@ -9,12 +10,14 @@ import { useOrderMutations } from "./useOrderMutations";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { OrderActionCell } from "./OrderActionCell";
 import { OrderHistoryPanel } from "./OrderHistoryPanel";
-import { OrderFulfillmentPanel } from "./OrderFulfillmentPanel";
+import { OrderFulfillmentDetails, OrderFulfillmentPanel } from "./OrderFulfillmentPanel";
 
 interface Props {
   adminKey: string;
   onAuthError: () => void;
   initialStatus?: string;
+  focusOrderId?: number;
+  focusOrderStatus?: OrderStatus;
 }
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
@@ -38,10 +41,21 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "PICKUP_FORFEITED", label: "픽업 미수령 종료" },
 ];
 
-export function OrderListSection({ adminKey, onAuthError, initialStatus = "" }: Props) {
+export function OrderListSection({
+  adminKey,
+  onAuthError,
+  initialStatus = "",
+  focusOrderId,
+  focusOrderStatus,
+}: Props) {
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [historyOrderId, setHistoryOrderId] = useState<number | null>(null);
   const [fulfillmentOrderId, setFulfillmentOrderId] = useState<number | null>(null);
+  const [focusedOrder, setFocusedOrder] = useState(
+    focusOrderId != null && focusOrderStatus
+      ? { id: focusOrderId, status: focusOrderStatus }
+      : null,
+  );
   const [allOrders, setAllOrders] = useState<AdminOrderResponse[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
@@ -52,7 +66,20 @@ export function OrderListSection({ adminKey, onAuthError, initialStatus = "" }: 
     setHasMore(false);
   }
 
-  const mutations = useOrderMutations({ adminKey, onAuthError, onInvalidate: resetPagination });
+  const mutations = useOrderMutations({
+    adminKey,
+    onAuthError,
+    onInvalidate: () => {
+      resetPagination();
+      setFocusedOrder(null);
+    },
+  });
+
+  const focusedFulfillment = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "orders", focusedOrder?.id, "fulfillment"],
+    queryFn: () => fetchOrderFulfillment(adminKey, focusedOrder!.id),
+    enabled: focusedOrder != null,
+  });
 
   const { data: page, isLoading, error, isFetching } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "orders", statusFilter, cursor],
@@ -68,6 +95,46 @@ export function OrderListSection({ adminKey, onAuthError, initialStatus = "" }: 
 
   return (
     <div>
+      {focusedOrder && (
+        <section className="mb-4 border-bottom pb-3" aria-labelledby="focused-order-title">
+          <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div className="d-flex align-items-center gap-2">
+              <h6 id="focused-order-title" className="mb-0">검색한 주문 #{focusedOrder.id}</h6>
+              <StatusBadge status={focusedOrder.status} />
+            </div>
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              aria-label="검색한 주문 닫기"
+              title="닫기"
+              onClick={() => setFocusedOrder(null)}
+            >
+              <X size={14} aria-hidden="true" />
+            </Button>
+          </div>
+          {focusedFulfillment.isLoading && <LoadingSpinner />}
+          {focusedFulfillment.error && <ErrorAlert error={focusedFulfillment.error} />}
+          {focusedFulfillment.data && (
+            <>
+              <div className="mb-3">
+                <OrderActionCell
+                  orderId={focusedOrder.id}
+                  status={focusedOrder.status}
+                  fulfillmentType={focusedFulfillment.data.type}
+                  mutations={mutations}
+                />
+              </div>
+              <OrderFulfillmentDetails fulfillment={focusedFulfillment.data} />
+              <OrderHistoryPanel
+                orderId={focusedOrder.id}
+                adminKey={adminKey}
+                onAuthError={onAuthError}
+              />
+            </>
+          )}
+        </section>
+      )}
+
       <Row className="g-2 mb-3 align-items-end">
         <Col xs={12} sm={5}>
           <Form.Group controlId="admin-order-status-filter">

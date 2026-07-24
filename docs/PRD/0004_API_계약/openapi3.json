@@ -433,10 +433,10 @@
           },
           "repliedAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "replyContent" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "secret" : {
             "type" : "boolean"
@@ -449,6 +449,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "authorName", "content", "createdAt", "id", "productId", "repliedAt", "replyContent", "secret", "title", "userId" ],
         "type" : "object"
       },
       "AdminSetupRequest" : {
@@ -557,6 +558,69 @@
         },
         "type" : "object"
       },
+      "BookingCancellationTaskCompletionResponse" : {
+        "properties" : {
+          "changed" : {
+            "type" : "boolean"
+          },
+          "task" : {
+            "$ref" : "#/components/schemas/BookingCancellationTaskResponse"
+          }
+        },
+        "required" : [ "changed", "task" ],
+        "type" : "object"
+      },
+      "BookingCancellationTaskResponse" : {
+        "properties" : {
+          "balanceAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "bookingId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "bookingNumber" : {
+            "type" : "string"
+          },
+          "className" : {
+            "type" : "string"
+          },
+          "completedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "completedByAdminId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "startAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "PENDING", "COMPLETED" ],
+            "type" : "string"
+          },
+          "taskId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "type" : {
+            "enum" : [ "BALANCE_SETTLEMENT", "MANUAL_COMPENSATION" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "balanceAmount", "bookingId", "bookingNumber", "className", "completedAt", "completedByAdminId", "createdAt", "reason", "startAt", "status", "taskId", "type" ],
+        "type" : "object"
+      },
       "BookingDetailResponse" : {
         "properties" : {
           "balanceAmount" : {
@@ -643,6 +707,9 @@
             },
             "phone" : {
               "type" : "string"
+            },
+            "policyAcceptance" : {
+              "$ref" : "#/components/schemas/PolicyAcceptance"
             },
             "slotId" : {
               "format" : "int64",
@@ -926,6 +993,20 @@
         },
         "type" : "object"
       },
+      "ClaimItemRequest" : {
+        "properties" : {
+          "orderItemId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "orderItemId", "quantity" ],
+        "type" : "object"
+      },
       "ClaimOrderSummary" : {
         "properties" : {
           "createdAt" : {
@@ -979,6 +1060,31 @@
         },
         "type" : "object"
       },
+      "ClaimedItemResponse" : {
+        "properties" : {
+          "orderItemId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "productId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "unitPrice" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "orderItemId", "productId", "productName", "quantity", "unitPrice" ],
+        "type" : "object"
+      },
       "ClassResponse" : {
         "properties" : {
           "bufferMin" : {
@@ -1023,6 +1129,27 @@
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "CompleteOrderExchangeRequest" : {
+        "properties" : {
+          "carrier" : {
+            "maxLength" : 100,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "note" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "trackingNumber" : {
+            "maxLength" : 100,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "carrier", "trackingNumber" ],
         "type" : "object"
       },
       "ConfirmPaymentRequest" : {
@@ -1248,6 +1375,18 @@
         },
         "type" : "object"
       },
+      "CurrentPolicyConsentResponse" : {
+        "properties" : {
+          "privacy" : {
+            "$ref" : "#/components/schemas/PolicyDocument"
+          },
+          "terms" : {
+            "$ref" : "#/components/schemas/PolicyDocument"
+          }
+        },
+        "required" : [ "privacy", "terms" ],
+        "type" : "object"
+      },
       "CursorPageAdminInquiryResponse" : {
         "properties" : {
           "content" : {
@@ -1399,7 +1538,7 @@
             "type" : "string"
           },
           "eventType" : {
-            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
+            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
             "type" : "string"
           },
           "lastError" : {
@@ -1444,6 +1583,10 @@
           },
           "failReason" : {
             "type" : "string"
+          },
+          "orderClaimId" : {
+            "format" : "int64",
+            "type" : "integer"
           },
           "orderId" : {
             "format" : "int64",
@@ -1628,6 +1771,10 @@
       },
       "ItemDto" : {
         "properties" : {
+          "orderItemId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "productId" : {
             "format" : "int64",
             "type" : "integer"
@@ -1962,7 +2109,7 @@
             "type" : "string"
           },
           "eventType" : {
-            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
+            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
             "type" : "string"
           },
           "id" : {
@@ -2059,6 +2206,108 @@
             "type" : "integer"
           }
         },
+        "type" : "object"
+      },
+      "OrderClaimRequest" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClaimItemRequest"
+            },
+            "minItems" : 1,
+            "type" : "array"
+          },
+          "reason" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "requestedResolution" : {
+            "enum" : [ "REFUND", "EXCHANGE" ],
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "DAMAGED", "WRONG_ITEM", "CHANGE_OF_MIND", "OTHER" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "items", "reason", "requestedResolution", "type" ],
+        "type" : "object"
+      },
+      "OrderClaimResponse" : {
+        "properties" : {
+          "adminNote" : {
+            "type" : [ "string", "null" ]
+          },
+          "completedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "completedByAdminId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "customerReason" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ClaimedItemResponse"
+            },
+            "type" : "array"
+          },
+          "maximumRefundAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "orderId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "refundAmount" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "refundStatus" : {
+            "enum" : [ "REQUESTED", "PROCESSING", "RETRYABLE", "RECONCILIATION_REQUIRED", "SUCCEEDED", "FAILED" ],
+            "type" : [ "string", "null" ]
+          },
+          "replacementCarrier" : {
+            "type" : [ "string", "null" ]
+          },
+          "replacementTrackingNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "requestedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "requestedResolution" : {
+            "enum" : [ "REFUND", "EXCHANGE" ],
+            "type" : "string"
+          },
+          "resolvedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "resolvedByAdminId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "status" : {
+            "enum" : [ "REQUESTED", "REFUND_REQUESTED", "EXCHANGE_APPROVED", "REJECTED", "COMPLETED" ],
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "DAMAGED", "WRONG_ITEM", "CHANGE_OF_MIND", "OTHER" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "adminNote", "completedAt", "completedByAdminId", "customerReason", "id", "items", "maximumRefundAmount", "orderId", "refundAmount", "refundStatus", "replacementCarrier", "replacementTrackingNumber", "requestedAt", "requestedResolution", "resolvedAt", "resolvedByAdminId", "status", "type" ],
         "type" : "object"
       },
       "OrderCustomerActionResponse" : {
@@ -2213,6 +2462,9 @@
             },
             "phone" : {
               "type" : "string"
+            },
+            "policyAcceptance" : {
+              "$ref" : "#/components/schemas/PolicyAcceptance"
             },
             "shippingAddress" : {
               "$ref" : "#/components/schemas/ShippingAddress"
@@ -2516,6 +2768,55 @@
         },
         "type" : "object"
       },
+      "PolicyAcceptance" : {
+        "properties" : {
+          "privacyAccepted" : {
+            "type" : "boolean"
+          },
+          "privacyVersion" : {
+            "type" : "string"
+          },
+          "termsAccepted" : {
+            "type" : "boolean"
+          },
+          "termsVersion" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PolicyAcceptanceRequest" : {
+        "properties" : {
+          "privacyAccepted" : {
+            "type" : "boolean"
+          },
+          "privacyVersion" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "termsAccepted" : {
+            "type" : "boolean"
+          },
+          "termsVersion" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "privacyVersion", "termsVersion" ],
+        "type" : "object"
+      },
+      "PolicyDocument" : {
+        "properties" : {
+          "documentPath" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "documentPath", "version" ],
+        "type" : "object"
+      },
       "PreparePaymentRequest" : {
         "properties" : {
           "context" : {
@@ -2610,10 +2911,10 @@
           },
           "repliedAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "replyContent" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "secret" : {
             "type" : "boolean"
@@ -2622,6 +2923,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "authorName", "content", "createdAt", "id", "productId", "repliedAt", "replyContent", "secret", "title" ],
         "type" : "object"
       },
       "ProductQnaListItem" : {
@@ -2647,6 +2949,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "authorName", "createdAt", "hasReply", "id", "secret", "title" ],
         "type" : "object"
       },
       "ProductResponse" : {
@@ -2741,6 +3044,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "createdAt", "id", "productId", "secret", "title" ],
         "type" : "object"
       },
       "QnaReplyRequest" : {
@@ -2904,6 +3208,27 @@
         "required" : [ "email", "newPassword", "phone", "verificationCode" ],
         "type" : "object"
       },
+      "ResolveOrderClaimRequest" : {
+        "properties" : {
+          "approved" : {
+            "type" : "boolean"
+          },
+          "note" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "refundAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "restoreInventory" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "approved", "restoreInventory" ],
+        "type" : "object"
+      },
       "RevenueBreakdown" : {
         "properties" : {
           "bookingBalanceRevenue" : {
@@ -3024,13 +3349,16 @@
             "minLength" : 1,
             "type" : "string"
           },
+          "policyAcceptance" : {
+            "$ref" : "#/components/schemas/PolicyAcceptanceRequest"
+          },
           "verificationCode" : {
             "minLength" : 1,
             "pattern" : "^[0-9]{6}$",
             "type" : "string"
           }
         },
-        "required" : [ "email", "name", "password", "phone", "verificationCode" ],
+        "required" : [ "email", "name", "password", "phone", "policyAcceptance", "verificationCode" ],
         "type" : "object"
       },
       "SlotResponse" : {
@@ -3609,6 +3937,54 @@
                     "$ref" : "#/components/schemas/AdminBookingResponse"
                   },
                   "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-booking-controller" ]
+      }
+    },
+    "/api/v1/admin/bookings/cancellation-tasks" : {
+      "get" : {
+        "operationId" : "listPendingBookingCancellationTasks",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/BookingCancellationTaskResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-booking-controller" ]
+      }
+    },
+    "/api/v1/admin/bookings/cancellation-tasks/{taskId}/complete" : {
+      "post" : {
+        "operationId" : "completeBookingCancellationTask",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "taskId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingCancellationTaskCompletionResponse"
                 }
               }
             },
@@ -4550,6 +4926,119 @@
         "tags" : [ "admin-notification-controller" ]
       }
     },
+    "/api/v1/admin/order-claims" : {
+      "get" : {
+        "operationId" : "listAdminOrderClaims",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "REQUESTED", "REFUND_REQUESTED", "EXCHANGE_APPROVED", "REJECTED", "COMPLETED" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 50,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/OrderClaimResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-order-claim-controller" ]
+      }
+    },
+    "/api/v1/admin/order-claims/{claimId}/complete-exchange" : {
+      "post" : {
+        "operationId" : "completeOrderClaimExchange",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "claimId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CompleteOrderExchangeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderClaimResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-order-claim-controller" ]
+      }
+    },
+    "/api/v1/admin/order-claims/{claimId}/resolve" : {
+      "post" : {
+        "operationId" : "resolveOrderClaim",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "claimId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ResolveOrderClaimRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderClaimResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-order-claim-controller" ]
+      }
+    },
     "/api/v1/admin/orders" : {
       "get" : {
         "operationId" : "listOrders",
@@ -5056,9 +5545,9 @@
         "tags" : [ "admin-order-approval-controller" ]
       }
     },
-    "/api/v1/admin/orders/{id}/resume-production" : {
+    "/api/v1/admin/orders/{id}/resume-after-delay" : {
       "post" : {
-        "operationId" : "resumeProduction",
+        "operationId" : "resumeOrderAfterDelay",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -5465,7 +5954,7 @@
     },
     "/api/v1/admin/qna/{id}/reply" : {
       "post" : {
-        "operationId" : "reply",
+        "operationId" : "replyProductQna",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -6796,6 +7285,71 @@
         "tags" : [ "me-order-customer-action-controller" ]
       }
     },
+    "/api/v1/me/orders/{orderId}/claims" : {
+      "get" : {
+        "operationId" : "listMyOrderClaims",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "orderId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/OrderClaimResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-order-claim-controller" ]
+      },
+      "post" : {
+        "operationId" : "requestMyOrderClaim",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "orderId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OrderClaimRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderClaimResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-order-claim-controller" ]
+      }
+    },
     "/api/v1/me/passes" : {
       "get" : {
         "operationId" : "myPasses",
@@ -6922,7 +7476,7 @@
     },
     "/api/v1/me/products/{productId}/qna" : {
       "post" : {
-        "operationId" : "create",
+        "operationId" : "createProductQna",
         "parameters" : [ {
           "in" : "path",
           "name" : "productId",
@@ -7246,6 +7800,85 @@
         "tags" : [ "order-customer-action-controller" ]
       }
     },
+    "/api/v1/orders/{orderId}/claims" : {
+      "get" : {
+        "operationId" : "listGuestOrderClaims",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "orderId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Access-Token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/OrderClaimResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "guest-order-claim-controller" ]
+      },
+      "post" : {
+        "operationId" : "requestGuestOrderClaim",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "orderId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Access-Token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OrderClaimRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderClaimResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "guest-order-claim-controller" ]
+      }
+    },
     "/api/v1/payments/confirm" : {
       "post" : {
         "operationId" : "confirmPayment",
@@ -7359,6 +7992,24 @@
           }
         },
         "tags" : [ "payment-query-controller" ]
+      }
+    },
+    "/api/v1/policies/current" : {
+      "get" : {
+        "operationId" : "getCurrentPolicyConsent",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CurrentPolicyConsentResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "policy-consent-controller" ]
       }
     },
     "/api/v1/products" : {
@@ -7491,9 +8142,44 @@
         "tags" : [ "product-qna-controller" ]
       }
     },
+    "/api/v1/products/{productId}/qna/{id}" : {
+      "get" : {
+        "operationId" : "getPublicProductQna",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductQnaDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-qna-controller" ]
+      }
+    },
     "/api/v1/products/{productId}/qna/{id}/verify" : {
       "post" : {
-        "operationId" : "verify",
+        "operationId" : "verifyProductQnaPassword",
         "parameters" : [ {
           "in" : "path",
           "name" : "productId",

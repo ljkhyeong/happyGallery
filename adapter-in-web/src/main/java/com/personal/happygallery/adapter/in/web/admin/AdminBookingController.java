@@ -1,15 +1,18 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
-import com.personal.happygallery.adapter.in.web.admin.dto.BookingNoShowResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminBookingCancelRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminBookingCancelResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminBookingResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.BookingCancellationTaskCompletionResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.BookingCancellationTaskResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.BookingNoShowResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingSettlementResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.UpdateBookingArrearsRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.AdminCancelCommand;
-import com.personal.happygallery.adapter.in.web.admin.dto.UpdateBookingArrearsRequest;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
+import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingNoShowUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
 import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
@@ -41,17 +44,20 @@ public class AdminBookingController {
     private final BookingNoShowUseCase bookingNoShowUseCase;
     private final BookingSettlementUseCase bookingSettlementUseCase;
     private final AdminBookingCancelUseCase adminBookingCancelUseCase;
+    private final BookingCancellationTaskUseCase bookingCancellationTaskUseCase;
 
     public AdminBookingController(AdminBookingQueryUseCase adminBookingQueryUseCase,
                                   AdminBookingSearchUseCase adminBookingSearchUseCase,
                                   BookingNoShowUseCase bookingNoShowUseCase,
                                   BookingSettlementUseCase bookingSettlementUseCase,
-                                  AdminBookingCancelUseCase adminBookingCancelUseCase) {
+                                  AdminBookingCancelUseCase adminBookingCancelUseCase,
+                                  BookingCancellationTaskUseCase bookingCancellationTaskUseCase) {
         this.adminBookingQueryUseCase = adminBookingQueryUseCase;
         this.adminBookingSearchUseCase = adminBookingSearchUseCase;
         this.bookingNoShowUseCase = bookingNoShowUseCase;
         this.bookingSettlementUseCase = bookingSettlementUseCase;
         this.adminBookingCancelUseCase = adminBookingCancelUseCase;
+        this.bookingCancellationTaskUseCase = bookingCancellationTaskUseCase;
     }
 
     /** GET /api/v1/admin/bookings?date=2026-03-08&status=BOOKED — 날짜별 예약 조회 (상태 필터 선택) */
@@ -128,5 +134,24 @@ public class AdminBookingController {
             @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminBookingCancelResponse.from(adminBookingCancelUseCase.cancel(
                 new AdminCancelCommand(bookingId, admin.adminUserId(), request.reason())));
+    }
+
+    /** 공방 사정 취소 뒤 운영자가 직접 마무리해야 하는 작업을 조회한다. */
+    @GetMapping("/cancellation-tasks")
+    @Operation(operationId = "listPendingBookingCancellationTasks")
+    public List<BookingCancellationTaskResponse> listPendingCancellationTasks() {
+        return bookingCancellationTaskUseCase.listPending().stream()
+                .map(BookingCancellationTaskResponse::from)
+                .toList();
+    }
+
+    /** 예약 취소 후속 작업을 완료한다. 이미 완료된 작업은 동일한 완료 상태를 반환한다. */
+    @PostMapping("/cancellation-tasks/{taskId}/complete")
+    @Operation(operationId = "completeBookingCancellationTask")
+    public BookingCancellationTaskCompletionResponse completeCancellationTask(
+            @PathVariable Long taskId,
+            @AuthenticationPrincipal AdminPrincipal admin) {
+        return BookingCancellationTaskCompletionResponse.from(
+                bookingCancellationTaskUseCase.complete(taskId, admin.adminUserId()));
     }
 }

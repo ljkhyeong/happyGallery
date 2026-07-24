@@ -47,6 +47,44 @@ export interface AdminBookingResponse {
   status: AdminBookingResponseStatus;
 }
 
+export type BookingCancellationTaskResponseStatus = typeof BookingCancellationTaskResponseStatus[keyof typeof BookingCancellationTaskResponseStatus];
+
+
+export const BookingCancellationTaskResponseStatus = {
+  PENDING: 'PENDING',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export type BookingCancellationTaskResponseType = typeof BookingCancellationTaskResponseType[keyof typeof BookingCancellationTaskResponseType];
+
+
+export const BookingCancellationTaskResponseType = {
+  BALANCE_SETTLEMENT: 'BALANCE_SETTLEMENT',
+  MANUAL_COMPENSATION: 'MANUAL_COMPENSATION',
+} as const;
+
+export interface BookingCancellationTaskResponse {
+  balanceAmount: number;
+  bookingId: number;
+  bookingNumber: string;
+  className: string;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  completedByAdminId: number | null;
+  createdAt: string;
+  reason: string;
+  startAt: string;
+  status: BookingCancellationTaskResponseStatus;
+  taskId: number;
+  type: BookingCancellationTaskResponseType;
+}
+
+export interface BookingCancellationTaskCompletionResponse {
+  changed: boolean;
+  task: BookingCancellationTaskResponse;
+}
+
 export interface AdminBookingSearchRow {
   arrears?: boolean;
   balanceAmount?: number;
@@ -212,6 +250,48 @@ export const listBookings = async (params: ListBookingsParams, options?: Request
   {
     ...options,
     method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getListPendingBookingCancellationTasksUrl = () => {
+
+
+
+
+  return `/api/v1/admin/bookings/cancellation-tasks`
+}
+
+export const listPendingBookingCancellationTasks = async ( options?: RequestInit): Promise<BookingCancellationTaskResponse[]> => {
+
+  return generatedApiClient<BookingCancellationTaskResponse[]>(getListPendingBookingCancellationTasksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getCompleteBookingCancellationTaskUrl = (taskId: number,) => {
+
+
+
+
+  return `/api/v1/admin/bookings/cancellation-tasks/${taskId}/complete`
+}
+
+export const completeBookingCancellationTask = async (taskId: number, options?: RequestInit): Promise<BookingCancellationTaskCompletionResponse> => {
+
+  return generatedApiClient<BookingCancellationTaskCompletionResponse>(getCompleteBookingCancellationTaskUrl(taskId),
+  {
+    ...options,
+    method: 'POST'
 
 
   }

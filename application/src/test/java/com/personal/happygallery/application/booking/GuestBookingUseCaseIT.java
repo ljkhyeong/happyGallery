@@ -50,6 +50,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
+import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -415,7 +416,14 @@ class GuestBookingUseCaseIT {
                                           Long requestedSlotId,
                                           DepositPaymentMethod paymentMethod) {
         return new BookingPayload(
-                null, phone, verificationCode, name, requestedSlotId, null, paymentMethod);
+                null,
+                phone,
+                verificationCode,
+                name,
+                requestedSlotId,
+                null,
+                paymentMethod,
+                acceptedPolicies());
     }
 
     private String confirmRequest(PaymentTestHelper.PreparedPayment prepared, String paymentKey) throws Exception {

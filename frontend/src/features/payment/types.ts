@@ -2,6 +2,7 @@ import type {
   PassPaymentPolicyResponse as GeneratedPassPaymentPolicyResponse,
   PaymentStatusResponse as GeneratedPaymentStatusResponse,
 } from "@/generated/api/paymentQuery";
+import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
 export type PaymentContext = "ORDER" | "BOOKING" | "PASS";
 export type DepositPaymentMethod = "CARD" | "EASY_PAY";
@@ -33,6 +34,7 @@ export interface OrderPayload {
   madeToOrderConsentVersion: string | null;
   fulfillmentType: FulfillmentType;
   shippingAddress: ShippingAddress | null;
+  policyAcceptance?: PolicyAcceptance | null;
 }
 
 export interface BookingPayload {
@@ -44,6 +46,7 @@ export interface BookingPayload {
   slotId: number;
   passId?: number | null;
   paymentMethod?: DepositPaymentMethod | null;
+  policyAcceptance?: PolicyAcceptance | null;
 }
 
 export interface PassPayload {

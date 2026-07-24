@@ -52,15 +52,13 @@ public class DefaultAdminBookingQueryService implements AdminBookingQueryUseCase
         return bookings.stream()
                 .map(booking -> {
                     Long userId = booking.getUserId();
-                    boolean member = userId != null;
-                    User user = member ? userMap.get(userId) : null;
-                    String guestName = member
-                            ? ""
-                            : guestPersonalDataProtector.decryptName(booking.getGuest());
-                    String guestPhone = member
-                            ? ""
-                            : guestPersonalDataProtector.decryptPhone(booking.getGuest());
-                    return AdminBookingResponse.from(booking, user, guestName, guestPhone);
+                    if (userId != null) {
+                        return AdminBookingResponse.fromMember(booking, userMap.get(userId));
+                    }
+                    return AdminBookingResponse.fromGuest(
+                            booking,
+                            guestPersonalDataProtector.decryptName(booking.getGuest()),
+                            guestPersonalDataProtector.decryptPhone(booking.getGuest()));
                 })
                 .toList();
     }
@@ -74,7 +72,7 @@ public class DefaultAdminBookingQueryService implements AdminBookingQueryUseCase
         if (userIds.isEmpty()) {
             return Map.of();
         }
-        return userReaderPort.findAllById(userIds).stream()
+        return userReaderPort.findAllByIdForAdminHistory(userIds).stream()
                 .collect(toMap(User::getId, Function.identity()));
     }
 }

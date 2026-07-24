@@ -23,6 +23,7 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -65,7 +66,8 @@ class MemberPhoneRegistrationUseCaseIT {
                 SocialProvider.NAVER,
                 "phone-onboarding-naver-id",
                 "phone-onboarding@example.com",
-                "소셜 회원")).user();
+                "소셜 회원",
+                acceptedPolicies())).user();
         MockHttpSession session = customerSession(socialUser);
         String prepareBody = """
                 {
@@ -139,7 +141,8 @@ class MemberPhoneRegistrationUseCaseIT {
                 SocialProvider.NAVER,
                 "phone-owner-naver-id",
                 "phone-owner@example.com",
-                "번호 소유자")).user();
+                "번호 소유자",
+                acceptedPolicies())).user();
         String ownerCode = guestBookingUseCase.sendVerificationCode(PHONE).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
@@ -153,7 +156,8 @@ class MemberPhoneRegistrationUseCaseIT {
                 SocialProvider.NAVER,
                 "phone-another-naver-id",
                 "phone-another@example.com",
-                "다른 회원")).user();
+                "다른 회원",
+                acceptedPolicies())).user();
         String anotherCode = guestBookingUseCase.sendVerificationCode(PHONE).getCode();
 
         mockMvc.perform(patch("/api/v1/me/phone")

@@ -6,6 +6,7 @@ import com.personal.happygallery.application.booking.port.in.BookingReminderBatc
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.dashboard.port.in.DashboardQueryUseCase;
@@ -54,6 +55,7 @@ class AdminBookingQueryUseCaseIT {
     @Autowired AdminBookingSearchUseCase adminBookingSearchUseCase;
     @Autowired DashboardQueryUseCase dashboardQueryUseCase;
     @Autowired BookingReminderBatchUseCase bookingReminderBatchService;
+    @Autowired CustomerAccountLifecycleUseCase customerAccountLifecycleUseCase;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired GuestStorePort guestStorePort;
@@ -128,6 +130,37 @@ class AdminBookingQueryUseCaseIT {
             softly.assertThat(responses.getFirst().bookerPhone()).isEqualTo("01012121212");
             softly.assertThat(searchResult.content()).hasSize(1);
             softly.assertThat(searchResult.content().getFirst().bookerPhone()).isEqualTo("01012121212");
+        });
+    }
+
+    @DisplayName("종결 예약 회원이 탈퇴해도 관리자 날짜 목록은 익명화된 회원 이력을 조회한다")
+    @Test
+    void listBookings_withdrawnMemberHistory_returnsAnonymizedMember() {
+        LocalDate targetDate = LocalDate.now(clock).minusDays(1);
+        Slot memberSlot = saveSlot(
+                targetDate.atTime(10, 0),
+                "탈퇴 회원 과거 클래스",
+                "WITHDRAWN_MEMBER_HISTORY");
+        User member = userStorePort.save(
+                new User("withdrawn-history@test.com", "hash", "탈퇴 전 회원", "01089898989"));
+        Booking completed = Booking.forMemberDeposit(
+                member.getId(), memberSlot, 10_000L, 20_000L, DepositPaymentMethod.CARD);
+        completed.markBalancePaid(targetDate.atTime(12, 0));
+        completed.complete(LocalDateTime.now(clock));
+        completed = bookingStorePort.save(completed);
+
+        customerAccountLifecycleUseCase.withdraw(member.getId());
+
+        List<AdminBookingResponse> responses =
+                adminBookingQueryService.listBookings(targetDate, BookingStatus.COMPLETED);
+
+        Long completedBookingId = completed.getId();
+        assertSoftly(softly -> {
+            softly.assertThat(responses).hasSize(1);
+            softly.assertThat(responses.getFirst().bookingId()).isEqualTo(completedBookingId);
+            softly.assertThat(responses.getFirst().bookerType()).isEqualTo("MEMBER");
+            softly.assertThat(responses.getFirst().bookerName()).isEqualTo("탈퇴회원");
+            softly.assertThat(responses.getFirst().bookerPhone()).isNull();
         });
     }
 

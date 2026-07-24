@@ -1,33 +1,24 @@
-import { api } from "@/shared/api";
+import {
+  listAdminProductQna,
+  replyProductQna,
+  type AdminQnaResponse,
+} from "@/generated/api/productQna";
+import { adminHeaders } from "@/shared/api";
 
-export interface AdminQnaResponse {
-  id: number;
-  productId: number;
-  userId: number;
-  authorName: string;
-  title: string;
-  content: string;
-  secret: boolean;
-  replyContent: string | null;
-  repliedAt: string | null;
-  createdAt: string;
-}
+export type { AdminQnaResponse } from "@/generated/api/productQna";
 
 export function fetchAdminQna(productId: number, token: string): Promise<AdminQnaResponse[]> {
-  return api<AdminQnaResponse[]>("/admin/qna", {
-    params: { productId },
-    headers: { Authorization: `Bearer ${token}` },
+  return listAdminProductQna({ productId }, {
+    headers: adminHeaders(token),
   });
 }
 
 export function replyQna(
   qnaId: number,
   replyContent: string,
-  token: string
+  token: string,
 ): Promise<AdminQnaResponse> {
-  return api<AdminQnaResponse>(`/admin/qna/${qnaId}/reply`, {
-    method: "POST",
-    body: { replyContent },
-    headers: { Authorization: `Bearer ${token}` },
+  return replyProductQna(qnaId, { replyContent }, {
+    headers: adminHeaders(token),
   });
 }

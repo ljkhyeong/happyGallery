@@ -16,12 +16,15 @@ public class SocialOAuth2AuthorizationRequestResolver implements OAuth2Authoriza
 
     private final DefaultOAuth2AuthorizationRequestResolver delegate;
     private final SocialAccountLinkIntentStore linkIntentStore;
+    private final SocialPolicyConsentStore policyConsentStore;
 
     public SocialOAuth2AuthorizationRequestResolver(ClientRegistrationRepository clientRegistrations,
-                                                    SocialAccountLinkIntentStore linkIntentStore) {
+                                                    SocialAccountLinkIntentStore linkIntentStore,
+                                                    SocialPolicyConsentStore policyConsentStore) {
         this.delegate = new DefaultOAuth2AuthorizationRequestResolver(
                 clientRegistrations, CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_BASE_URI);
         this.linkIntentStore = linkIntentStore;
+        this.policyConsentStore = policyConsentStore;
     }
 
     @Override
@@ -43,10 +46,12 @@ public class SocialOAuth2AuthorizationRequestResolver implements OAuth2Authoriza
         String attemptId = request.getParameter(SocialAccountLinkIntentStore.LINK_ATTEMPT_PARAMETER);
         if (!StringUtils.hasText(attemptId)) {
             linkIntentStore.clear(request);
+            policyConsentStore.bindOauthState(request, authorizationRequest.getState());
             return authorizationRequest;
         }
 
         try {
+            policyConsentStore.clear(request);
             String registrationId = authorizationRequest.getAttribute(OAuth2ParameterNames.REGISTRATION_ID);
             SocialProvider provider = SocialProvider.fromPath(registrationId);
             boolean bound = linkIntentStore.bindOauthState(
@@ -54,6 +59,7 @@ public class SocialOAuth2AuthorizationRequestResolver implements OAuth2Authoriza
             return bound ? authorizationRequest : null;
         } catch (HappyGalleryException exception) {
             linkIntentStore.clear(request);
+            policyConsentStore.clear(request);
             return null;
         }
     }

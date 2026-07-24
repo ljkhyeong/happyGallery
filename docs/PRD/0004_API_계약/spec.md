@@ -14,7 +14,7 @@
 - 상세 요청/응답 스니펫은 `./gradlew --no-daemon :adapter-in-web:restDocsTest`로 생성되는 Spring REST Docs 결과(`adapter-in-web/build/generated-snippets`)를 기준으로 검증한다.
 - 기계 판독 계약은 Controller/웹 DTO에서 생성하는 `openapi3.json`이다. 이 파일과 `frontend/src/generated/api`는 직접 편집하지 않는다.
 - 신규 또는 변경 API는 REST Docs 테스트와 이 문서를 갱신하고 `:adapter-in-web:openapi3`, `cd frontend && npm run api:generate`를 같은 변경에서 실행한다.
-- 전체 `/api/v1/**` OpenAPI를 생성하되, React 생성 client는 공개 상품, 회원 소셜 계정·알림, 고객 결제 상태·복구, 공방 정보와 관리자 예약 API에 사용한다. 다른 API는 필수값·nullable·enum과 인증 헤더를 확인한 뒤 도메인 단위로 순차 전환한다.
+- 전체 `/api/v1/**` OpenAPI를 생성하되, React 생성 client는 공개 상품·Q&A, 회원 소셜 계정·알림, 고객 결제 상태·복구, 공방 정보, 관리자 예약과 예약 취소 후속 작업, 주문 클레임, 정책 동의 API에 사용한다. 다른 API는 필수값·nullable·enum과 인증 헤더를 확인한 뒤 도메인 단위로 순차 전환한다.
 
 ---
 
@@ -963,8 +963,8 @@ X-Access-Token: {accessToken}
   "paidAt": "2026-03-08T20:30:00",
   "approvalDeadlineAt": "2026-03-09T20:30:00",
   "items": [
-    { "productId": 1, "productName": "시그니처 캔들", "qty": 2, "unitPrice": 39000 },
-    { "productId": 3, "productName": "우드 트레이", "qty": 1, "unitPrice": 40000 }
+    { "orderItemId": 21, "productId": 1, "productName": "시그니처 캔들", "qty": 2, "unitPrice": 39000 },
+    { "orderItemId": 22, "productId": 3, "productName": "우드 트레이", "qty": 1, "unitPrice": 40000 }
   ],
   "fulfillment": {
     "type": "SHIPPING",
@@ -1008,6 +1008,42 @@ GET /api/v1/orders/policy
 - 인증 없이 결제 전 고정 배송비를 조회한다. 실제 결제 금액은 prepare 시 서버 설정으로 다시 확정한다.
 - `PICKUP`은 이 값과 무관하게 배송비 0원이다. 현재 무료 배송 임계값은 없고 운영 기본값은 `ORDER_SHIPPING_FEE=0`이다.
 - 주문제작 상품이 포함된 화면은 같은 응답의 동의 문구를 별도 필수 체크로 표시한다. 클라이언트는 prepare에 조회한 `madeToOrderConsentVersion`과 `madeToOrderConsent=true`를 제출한다. 서버 현재 버전과 다르면 새 안내를 다시 조회하도록 `400 INVALID_INPUT`으로 거절한다.
+
+#### 2.6.4 주문 클레임 접수·조회
+
+회원:
+
+```http
+GET|POST /api/v1/me/orders/{orderId}/claims
+Cookie: HG_SESSION={sessionToken}
+```
+
+비회원:
+
+```http
+GET|POST /api/v1/orders/{orderId}/claims
+X-Access-Token: {accessToken}
+```
+
+POST 요청:
+
+```json
+{
+  "type": "DAMAGED",
+  "requestedResolution": "REFUND",
+  "reason": "수령한 상품이 파손되었습니다.",
+  "items": [{ "orderItemId": 21, "quantity": 1 }]
+}
+```
+
+- `type`: `DAMAGED`, `WRONG_ITEM`, `CHANGE_OF_MIND`, `OTHER`
+- `requestedResolution`: `REFUND`, `EXCHANGE`
+- 성공: POST `200 OK` 단건, GET `200 OK` 최신 접수순 목록
+- 정책:
+  - `DELIVERED`, `PICKED_UP`, `COMPLETED` 주문만 접수한다.
+  - 거절되지 않은 기존 접수 수량을 제외해 주문 항목의 결제 수량을 초과할 수 없다.
+  - 응답은 클레임 상태, 관리자 메모, 품목명·단가·수량, 최대 환불액, nullable 환불 금액·상태·교환 배송 정보를 포함한다.
+  - 상태는 `REQUESTED`, `REFUND_REQUESTED`, `EXCHANGE_APPROVED`, `REJECTED`, `COMPLETED`다.
 
 ### 2.7 주문 Admin API
 
@@ -1115,6 +1151,7 @@ Authorization: Bearer {token}
   - `dateFrom`~`dateTo`는 KST 기준 주문 생성일 범위를 의미한다.
   - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
   - `createdAt`은 UTC 오프셋(`Z`)을 포함해 브라우저가 서울 시각으로 정확히 변환할 수 있게 한다.
+  - 관리자 화면의 검색 결과는 `orderId`와 `status`를 사용해 주문 탭의 기존 운영 패널로 이동하고 대상 주문을 강조한다.
 
 #### 2.7.3 주문 운영 엔드포인트
 
@@ -1153,7 +1190,7 @@ Authorization: Bearer {token}
 - `POST /api/v1/admin/orders/{id}/delay`
   - 응답: `{ "orderId": 5, "status": "DELAY_CONSENT_PENDING", "expectedShipDate": "2026-04-15" }`
   - 정책:
-    - `IN_PRODUCTION`에서만 지연 제안 가능
+    - 기성품의 승인 전 재고 부족은 `PAID_APPROVAL_PENDING`, 주문제작의 제작 일정 변경은 `IN_PRODUCTION`에서 지연 제안 가능
     - Bearer 세션의 관리자 ID로 `DELAY` 이력을 추가한다.
     - 고객 동의가 끝난 것으로 간주하지 않는다. 회원·비회원 고객 응답 API가 수락하면 `DELAY_ACCEPTED`, 거절하면 `DELAY_REJECTED_CANCELED`로 전이한다.
     - 지연 동의 요청 알림 이벤트명은 사건 의미를 나타내는 `ORDER_DELAY_REQUESTED`를 유지한다.
@@ -1180,10 +1217,12 @@ Authorization: Bearer {token}
     - 응답의 `REQUESTED`는 로컬 취소와 환불 요청 접수 완료를 뜻하며 PG 환불 완료를 뜻하지 않는다.
     - 이력은 `DELAY_CANCEL`로 기록하고 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
     - `DELAY_ACCEPTED`는 이미 지연을 수락한 상태이므로 400으로 거절한다.
-- `POST /api/v1/admin/orders/{id}/resume-production`
-  - 응답: `{ "orderId": 5, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
+- `POST /api/v1/admin/orders/{id}/resume-after-delay`
+  - 기성품 응답: `{ "orderId": 5, "status": "APPROVED_FULFILLMENT_PENDING", "expectedShipDate": null }`
+  - 주문제작 응답: `{ "orderId": 6, "status": "IN_PRODUCTION", "expectedShipDate": "2026-04-15" }`
   - 정책:
-    - `DELAY_ACCEPTED`에서만 제작 재개 가능
+    - `DELAY_ACCEPTED`에서만 주문 처리 재개 가능
+    - 기성품은 배송·픽업 이행 대기인 `APPROVED_FULFILLMENT_PENDING`, 주문제작은 `IN_PRODUCTION`으로 복귀한다.
     - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다
 - `POST /api/v1/admin/orders/{id}/prepare-pickup`
   - 요청: `{ "pickupDeadlineAt": "2026-04-16T18:00:00" }`
@@ -1314,6 +1353,44 @@ Authorization: Bearer {token}
   - 처리 시간 순으로 정렬된 전체 이력을 반환한다.
   - `decision`: `APPROVE`, `REJECT`, `CUSTOMER_CANCEL`, `SHIP_DATE_UPDATED`, `DELAY`, `DELAY_ACCEPT`, `DELAY_REJECT`, `DELAY_CANCEL`, `AUTO_REFUND`, `PRODUCTION_COMPLETE`, `RESUME_PRODUCTION`, `PICKUP_READY`, `PICKUP_COMPLETE`, `PICKUP_EXPIRED`, `PICKUP_FORFEITED`, `PREPARE_SHIPPING`, `SHIP`, `DELIVER`
 
+#### 2.7.8 주문 클레임 운영
+
+```http
+GET /api/v1/admin/order-claims?status=REQUESTED&size=50
+Authorization: Bearer {token}
+```
+
+```http
+POST /api/v1/admin/order-claims/{claimId}/resolve
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "approved": true,
+  "refundAmount": 43000,
+  "restoreInventory": true,
+  "note": "반품 확인 후 환불"
+}
+```
+
+```http
+POST /api/v1/admin/order-claims/{claimId}/complete-exchange
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "carrier": "CJ대한통운",
+  "trackingNumber": "123456789012",
+  "note": "교환품 발송 완료"
+}
+```
+
+- 목록 `size`는 1~100으로 보정한다.
+- 거절은 `approved=false`와 거절 메모를 보내며 즉시 `REJECTED`로 종결한다.
+- 환불 승인은 1원 이상 최대 환불액 이하의 `refundAmount`를 요구하고 클레임별 비동기 환불을 요청한다. PG 성공 시 `COMPLETED`로 전이한다.
+- `restoreInventory`는 승인·거절 요청 모두 명시하며, 반품품이 다시 판매 가능한 경우에만 `true`로 보낸다.
+- 교환 승인은 반품 복구 여부와 무관하게 같은 품목·수량의 교환품 재고를 차감한다. 재고 부족이면 승인하지 않으며, 승인 뒤 관리자가 필수 택배사·운송장 번호를 남겨 교환 배송을 완료한다.
+
 ### 2.8 공지사항 API
 
 #### 2.8.1 공개 공지 목록 조회
@@ -1419,8 +1496,10 @@ Authorization: Bearer {token}
 - 정책:
   - `bookerType`은 `GUEST` 또는 `MEMBER`로 구분한다.
   - 비회원 이력 가져오기(claim) 이후 `userId`가 설정된 예약은 `MEMBER`로 표시한다.
+  - 탈퇴 회원의 종결 예약도 `MEMBER` 이력으로 유지하며 익명화된 이름과 `bookerPhone=null`을 반환한다.
   - 선택 귀속 요청의 주문 ID와 예약 ID는 각각 최대 100건이며 모든 ID는 양수여야 한다.
-  - User 정보는 batch fetch(`UserReaderPort.findAllById`)로 조합한다.
+  - User 정보는 탈퇴 회원을 포함하는 관리자 이력 전용 batch fetch
+    (`UserReaderPort.findAllByIdForAdminHistory`)로 조합한다.
   - `date` 필수, `status`는 선택(미입력 시 전체).
 
 #### 2.9.2 관리자 예약 검색
@@ -1463,6 +1542,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
+  - 관리자 화면의 검색 결과는 `bookingId`, `status`, `startAt`을 사용해 예약 탭의 기존 날짜별 운영 패널로 이동하고 대상 예약을 강조한다.
   - `page`는 0 미만이면 0으로, `size`는 1~100 범위로 보정하며 표현 가능한 OFFSET을 넘으면 `400 INVALID_INPUT`으로 거절한다.
   - `keyword`가 `BK-{숫자}` 형식의 예약번호이면 해당 예약 ID와 정확 일치로 검색한다. 그 외 문자열은 회원·비회원 이름 HMAC 정확 일치로 검색하며 예약 ID 부분 검색은 제공하지 않는다.
   - 날짜 필터는 슬롯 시작 시간(`slotStart`) 기준 KST 범위를 사용한다.
@@ -1596,6 +1676,22 @@ Content-Type: application/json
   - `depositRefundsRequested`는 PG 환불 요청 생성 건수이지 완료 건수가 아니다. `balanceSettlementsRequired`와 `manualCompensationsRequired`는 각각 현장 잔금과 복구 불가 8회권의 후속 수동 처리 건수다.
   - 여러 8회권을 변경할 때 이용권 ID 오름차순으로 먼저 잠근 뒤 클래스와 슬롯을 잠그고, 취소 대상 예약은 마지막에 `FOR UPDATE`로 다시 조회한다.
 
+#### 2.9.8 예약 취소 후속 작업
+
+```http
+GET /api/v1/admin/bookings/cancellation-tasks
+Authorization: Bearer {token}
+```
+
+```http
+POST /api/v1/admin/bookings/cancellation-tasks/{taskId}/complete
+Authorization: Bearer {token}
+```
+
+- 운영자 취소 때 이미 수납한 현장 잔금은 `BALANCE_SETTLEMENT`, 만료로 복구할 수 없는 8회권은 `MANUAL_COMPENSATION` 작업으로 생성한다.
+- GET은 오래된 순으로 미완료 작업을 최대 100건 반환한다.
+- 완료는 작업 행을 잠근 뒤 처리 관리자와 완료 시각을 저장한다. 이미 완료된 작업을 다시 요청하면 `changed=false`와 기존 결과를 반환한다.
+
 ### 2.10 관리자 대시보드 API
 
 관리자 인증은 `Authorization: Bearer {token}` 기준이며, 모든 응답은 `200 OK`를 반환한다.
@@ -1663,6 +1759,7 @@ Authorization: Bearer {token}
       "refundId": 42,
       "bookingId": 15,
       "orderId": null,
+      "orderClaimId": null,
       "passPurchaseId": null,
       "paymentAttemptId": null,
       "amount": 5000,
@@ -1679,6 +1776,7 @@ Authorization: Bearer {token}
 
 - 성공: `200 OK`
 - `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 상태를 `(createdAt, id)` 최신순 커서 페이지로 반환한다.
+- 클레임 환불은 `orderId`와 `orderClaimId`를 함께 반환해 한 주문의 여러 클레임을 구분한다.
 - `size` 기본값은 20이고 범위는 1~100이다. `hasMore=true`이면 `nextCursor`로 다음 페이지를 조회한다.
 
 #### 2.11.2 환불 상태 조회
@@ -1770,6 +1868,23 @@ Authorization: Bearer {token}
 
 회원 인증은 `HG_SESSION` HttpOnly 쿠키 기반이며, Spring Security의 회원 principal로 검증한다.
 
+#### 2.12.0.0 현재 정책 버전 조회
+
+```http
+GET /api/v1/policies/current
+```
+
+```json
+{
+  "terms": { "version": "2026-07-21-v1", "documentPath": "/terms" },
+  "privacy": { "version": "2026-07-21-v1", "documentPath": "/privacy" }
+}
+```
+
+- 인증 없이 현재 이용약관·개인정보처리방침 버전과 기존 문서 화면 경로를 반환한다.
+- 이메일·소셜 최초 가입과 비회원 주문·예약 prepare는 이 버전과 명시적 동의를 제출한다.
+- 서버는 현재 버전을 다시 검증하고 클라이언트가 보낸 시각이 아니라 서버 수락 시각을 이력으로 저장한다.
+
 #### 2.12.0 회원 인증 정책
 
 - 회원 세션은 `HG_SESSION` HttpOnly 쿠키로 유지한다.
@@ -1793,7 +1908,13 @@ POST /api/v1/auth/signup
   "password": "password123",
   "name": "홍길동",
   "phone": "01012345678",
-  "verificationCode": "483921"
+  "verificationCode": "483921",
+  "policyAcceptance": {
+    "termsVersion": "2026-07-21-v1",
+    "termsAccepted": true,
+    "privacyVersion": "2026-07-21-v1",
+    "privacyAccepted": true
+  }
 }
 ```
 
@@ -1813,6 +1934,7 @@ POST /api/v1/auth/signup
   - `400 INVALID_INPUT` — 요청 형식 불일치
   - `400 PHONE_VERIFICATION_FAILED` — 같은 전화번호의 미소모·유효 인증 코드가 아님
   - `409 EMAIL_ALREADY_EXISTS` — 이미 가입한 이메일
+  - `422 POLICY_CONSENT_REQUIRED` — 현재 정책 버전과 동의가 없거나 일치하지 않음
   - `429 TOO_MANY_REQUESTS` — 회원가입 처리율 제한 초과
 - 정책:
   - 인증 코드 발급은 2.4.1을 사용한다.
@@ -1823,7 +1945,7 @@ POST /api/v1/auth/signup
 #### 2.12.0.2 소셜 로그인 시작
 
 ```http
-GET /api/v1/auth/social/authorization/{provider}
+GET /api/v1/auth/social/authorization/{provider}?termsVersion=...&termsAccepted=true&privacyVersion=...&privacyAccepted=true
 ```
 
 - `{provider}`: `google` 또는 `naver`
@@ -1833,6 +1955,7 @@ GET /api/v1/auth/social/authorization/{provider}
 - 정책:
   - 브라우저는 JSON URL 발급 API를 먼저 호출하지 않고 이 경로로 직접 이동한다.
   - Spring Security OAuth2 Client가 `state`를 포함한 authorization request를 만들고 callback 전까지만 현재 Redis HTTP 세션에 저장한다.
+  - 회원가입 화면에서 시작하면 현재 정책 동의를 같은 세션의 OAuth `state`에 결합한다. 기존 회원 로그인에는 동의를 요구하지 않으며, 처음 보는 계정을 신규 생성할 때만 callback에서 검증·기록한다.
   - callback URI는 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI` 설정에 고정하며 브라우저 요청값으로 받지 않는다.
   - Google은 `openid`, `profile`, `email` 범위의 OIDC 로그인을 사용한다. 로그인만을 위해 refresh token을 요청하거나 저장하지 않는다.
 
@@ -1845,6 +1968,7 @@ GET /api/v1/auth/social/callback/{provider}?code=...&state=...
 - 이 경로는 Google/Naver가 호출하는 backend callback이며 프런트가 직접 호출하지 않는다.
 - 성공: `302 Found` → `/auth/callback?newUser=true|false`
 - 실패: `302 Found` → `/auth/callback?error=SOCIAL_LOGIN_FAILED`
+- 신규 회원 동의 누락·버전 불일치: `302 Found` → `/auth/callback?error=POLICY_CONSENT_REQUIRED`
 - Google 검증 이메일이 기존 기준 이메일과 충돌: `302 Found` → `/auth/callback?error=SOCIAL_ACCOUNT_LINK_REQUIRED`
 - 명시적 계정 연결 성공: `302 Found` → `/auth/callback?linked=GOOGLE|NAVER`
 - 처리율 제한 초과: `429 TOO_MANY_REQUESTS`
@@ -2001,7 +2125,7 @@ Cookie: HG_SESSION={sessionToken}
 - 성공: `204 No Content`, 현재 세션을 포함한 기존 회원 세션 폐기
 - 에러:
   - `401 UNAUTHORIZED` — 회원 세션 없음
-  - `422 ACCOUNT_WITHDRAWAL_BLOCKED` — 미완료 주문, `BOOKED` 예약, 사용 가능한 미만료 8회권 또는 미완료 환불이 있음
+  - `422 ACCOUNT_WITHDRAWAL_BLOCKED` — 미종결 결제 시도·주문·클레임·예약, 미완료 예약 취소 후속 작업·환불 또는 사용 가능한 미만료 8회권이 있음
 - 정책:
   - 회원 행을 잠그고 차단 활동을 다시 확인해 탈퇴와 새 거래 생성을 직렬화한다.
   - 이메일·이름은 재사용 가능한 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한다. `withdrawnAt`과 새 자격 버전을 저장하며 주문·예약·정산 이력은 보존한다.
@@ -2223,7 +2347,23 @@ GET /api/v1/products/{productId}/qna
   - `secret=true`인 글은 제목을 `[비밀글입니다]`로 가려서 반환한다.
   - 공개 목록에는 본문/답변 전문을 포함하지 않는다.
 
-#### 2.13.2 비밀글 비밀번호 검증 후 상세 조회
+#### 2.13.2 상품 Q&A 상세 조회
+
+일반글:
+
+```http
+GET /api/v1/products/{productId}/qna/{id}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `403 FORBIDDEN` — 비밀글을 비밀번호 검증 없이 조회
+  - `404 NOT_FOUND` — Q&A 미존재 또는 URL의 상품에 속하지 않음
+- 정책:
+  - `secret=false`인 일반글의 제목·본문·답변을 비밀번호 없이 반환한다.
+  - `secret=true`인 비밀글은 이 경로에서 상세를 반환하지 않는다.
+
+비밀글:
 
 ```http
 POST /api/v1/products/{productId}/qna/{id}/verify
@@ -2238,8 +2378,8 @@ POST /api/v1/products/{productId}/qna/{id}/verify
   - `400 INVALID_INPUT` — 비밀번호 불일치
   - `404 NOT_FOUND` — Q&A 미존재 또는 URL의 상품에 속하지 않음
 - 정책:
-  - 비밀글이 아니면 그대로 상세를 반환한다.
-  - 비밀번호가 일치하면 제목/본문/답변을 포함한 상세를 반환한다.
+  - 이 검증 경로는 `secret=true`인 비밀글 상세 조회에만 사용한다.
+  - 비밀번호가 일치하면 제목·본문·답변을 포함한 상세를 반환한다.
 
 ### 2.14 관리자 Q&A / 문의 API
 
@@ -2316,6 +2456,7 @@ Content-Type: application/json
   - `400 PHONE_VERIFICATION_FAILED` — 비회원 전화번호와 인증 코드가 일치하지 않거나, 코드가 만료·소모됨
   - `404 NOT_FOUND` — 상품/슬롯 미존재
   - `422 PAYMENT_METHOD_NOT_ALLOWED` — `BookingPayload.paymentMethod=BANK_TRANSFER`
+  - `422 POLICY_CONSENT_REQUIRED` — 비회원 주문·예약의 현재 정책 동의가 없거나 버전이 일치하지 않음
 - 정책:
   - `payload.type`은 `ORDER` / `BOOKING` / `PASS` 중 하나로, 상위 `context`와 일치해야 한다.
   - 금액은 서버가 산출한다. 클라이언트가 `amount`를 보내도 무시되며, `payment_attempt.amount`는 서버 계산값이다.
@@ -2332,6 +2473,7 @@ Content-Type: application/json
   - 직접 주문과 장바구니 주문 모두 `ACTIVE` 상품만 확정한다. 판매 중지 상품은 재고가 남아 있어도 `400 INVALID_INPUT`으로 거절한다.
   - 회원 장바구니는 `cartCheckout=true`를 지정한다. 이때 서버는 클라이언트의 `items`를 사용하지 않고 장바구니에서 구매 가능한 항목을 확정한다.
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
+  - 비회원 `ORDER`, `BOOKING` payload는 `policyAcceptance`에 현재 이용약관·개인정보처리방침 버전과 두 동의 여부를 함께 보낸다. 서버는 결제 시도와 같은 트랜잭션에서 유형·목적·서버 수락 시각을 저장한다. 회원 거래에는 이 필드를 요구하지 않는다.
   - 공개 `payload.type` 계약에는 `ORDER`, `BOOKING`, `PASS`만 존재한다. 서버 암호화 스냅샷의
     `PREPARED_ORDER`, `PREPARED_BOOKING`, `PREPARED_PASS` 식별자는 저장 JSON 호환을 위해 내부에서만 유지하며
     OpenAPI 요청 schema에는 노출하지 않는다.
@@ -2352,6 +2494,12 @@ Content-Type: application/json
   "cartCheckout": false,
   "madeToOrderConsentVersion": "2026-07-21-v1",
   "madeToOrderConsent": true,
+  "policyAcceptance": {
+    "termsVersion": "2026-07-21-v1",
+    "termsAccepted": true,
+    "privacyVersion": "2026-07-21-v1",
+    "privacyAccepted": true
+  },
   "fulfillmentType": "SHIPPING",
   "shippingAddress": {
     "recipientName": "홍길동",
@@ -2382,7 +2530,13 @@ Content-Type: application/json
   "verificationCode": "483921",
   "name": "홍길동",
   "slotId": 42,
-  "paymentMethod": "CARD"      // CARD | EASY_PAY (BANK_TRANSFER 거절)
+  "paymentMethod": "CARD",     // CARD | EASY_PAY (BANK_TRANSFER 거절)
+  "policyAcceptance": {
+    "termsVersion": "2026-07-21-v1",
+    "termsAccepted": true,
+    "privacyVersion": "2026-07-21-v1",
+    "privacyAccepted": true
+  }
 }
 
 // BOOKING (8회권 사용 예약 — 회원 전용, amount=0)
@@ -2719,7 +2873,8 @@ file={JPEG|PNG|WebP binary}
 | 422 | `PAYMENT_METHOD_NOT_ALLOWED` | 계좌이체(`BANK_TRANSFER`)로 예약금 결제 시도 |
 | 422 | `PHONE_VERIFICATION_REQUIRED` | 회원 휴대폰이 없거나 소유 확인이 완료되지 않아 결제를 시작할 수 없음 |
 | 422 | `PASSWORD_UNCHANGED` | 현재와 같은 비밀번호로 변경·재설정 시도 |
-| 422 | `ACCOUNT_WITHDRAWAL_BLOCKED` | 진행 중인 거래·환불 또는 사용 가능한 8회권이 있어 탈퇴할 수 없음 |
+| 422 | `POLICY_CONSENT_REQUIRED` | 현재 이용약관·개인정보처리방침 버전 동의가 없거나 일치하지 않음 |
+| 422 | `ACCOUNT_WITHDRAWAL_BLOCKED` | 미종결 결제 시도·주문·클레임·예약·예약 취소 후속 작업·환불 또는 사용 가능한 8회권이 있어 탈퇴할 수 없음 |
 | 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 최종 거절 |
 | 503 | `PAYMENT_CONFIRM_RETRYABLE` | PG 결제 확정 결과를 같은 결제 정보로 재확인할 수 있는 일시 실패 |

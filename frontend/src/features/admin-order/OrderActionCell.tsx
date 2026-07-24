@@ -25,7 +25,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
   switch (status) {
     case "PAID_APPROVAL_PENDING":
       return (
-        <div className="d-flex gap-1">
+        <div className="d-flex gap-1 flex-wrap">
           <Button size="sm" variant="success" disabled={disabled}
             onClick={() => mutations.approve.mutate(orderId)}>
             {pending ? "..." : "승인"}
@@ -34,28 +34,23 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
             onClick={() => mutations.reject.mutate(orderId)}>
             {pending ? "..." : "거절"}
           </Button>
+          <Button size="sm" variant="outline-warning" disabled={disabled}
+            onClick={() => mutations.delay.mutate(orderId)}>
+            {pending ? "..." : "지연 제안"}
+          </Button>
         </div>
       );
     case "IN_PRODUCTION":
-    case "DELAY_ACCEPTED":
       return (
         <div className="d-flex gap-1 flex-wrap">
           <Button size="sm" variant="info" disabled={disabled}
             onClick={() => mutations.completeProduction.mutate(orderId)}>
             {pending ? "..." : "제작 완료"}
           </Button>
-          {status === "IN_PRODUCTION" && (
-            <Button size="sm" variant="outline-warning" disabled={disabled}
-              onClick={() => mutations.delay.mutate(orderId)}>
-              {pending ? "..." : "지연 제안"}
-            </Button>
-          )}
-          {status === "DELAY_ACCEPTED" && (
-            <Button size="sm" variant="outline-success" disabled={disabled}
-              onClick={() => mutations.resumeProduction.mutate(orderId)}>
-              {pending ? "..." : "재개"}
-            </Button>
-          )}
+          <Button size="sm" variant="outline-warning" disabled={disabled}
+            onClick={() => mutations.delay.mutate(orderId)}>
+            {pending ? "..." : "지연 제안"}
+          </Button>
           {fulfillmentType === "SHIPPING" && (
             <InputGroup size="sm" style={{ width: "auto" }}>
               <Form.Control type="date" value={shipDateValue}
@@ -63,6 +58,29 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
                 style={{ maxWidth: 150 }} />
               <Button variant="outline-primary" disabled={disabled}
                 onClick={() => mutations.shipDate.mutate({ id: orderId, body: { expectedShipDate: shipDateValue || undefined } })}>출고일</Button>
+            </InputGroup>
+          )}
+        </div>
+      );
+    case "DELAY_ACCEPTED":
+      return (
+        <div className="d-flex gap-1 flex-wrap">
+          <Button size="sm" variant="outline-success" disabled={disabled}
+            onClick={() => mutations.resumeAfterDelay.mutate(orderId)}>
+            {pending ? "..." : "처리 재개"}
+          </Button>
+          {fulfillmentType === "SHIPPING" && (
+            <InputGroup size="sm" style={{ width: "auto" }}>
+              <Form.Control type="date" value={shipDateValue}
+                onChange={(e) => setShipDateValue(e.target.value)}
+                style={{ maxWidth: 150 }} />
+              <Button variant="outline-primary" disabled={disabled}
+                onClick={() => mutations.shipDate.mutate({
+                  id: orderId,
+                  body: { expectedShipDate: shipDateValue || undefined },
+                })}>
+                출고일
+              </Button>
             </InputGroup>
           )}
         </div>

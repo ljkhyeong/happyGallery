@@ -107,6 +107,15 @@ class SecurityBoundaryUseCaseIT {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
+    @DisplayName("비회원도 현재 약관과 개인정보처리방침 버전을 조회할 수 있다")
+    @Test
+    void currentPolicies_allowAnonymousRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/policies/current"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.terms.version").isNotEmpty())
+                .andExpect(jsonPath("$.privacy.version").isNotEmpty());
+    }
+
     @DisplayName("잘못된 Bearer 토큰은 유효한 관리자 API key로 폴백하지 않는다")
     @Test
     void invalidBearer_doesNotFallBackToApiKey() throws Exception {

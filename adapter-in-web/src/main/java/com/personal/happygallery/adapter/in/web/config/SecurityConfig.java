@@ -163,6 +163,7 @@ public class SecurityConfig {
                                 "/actuator/metrics", "/actuator/metrics/**",
                                 "/actuator/prometheus",
                                 "/api/v1/auth/**",
+                                "/api/v1/policies/**",
                                 CustomerSecurityRoutes.PAYMENT_API_PATTERN,
                                 CustomerSecurityRoutes.CLIENT_MONITORING_API,
                                 "/api/v1/guest-records/recovery",

@@ -343,6 +343,7 @@ class OrderApprovalUseCaseIT {
                 .andExpect(jsonPath("$.content[0].refundId").value(refund.getId()))
                 .andExpect(jsonPath("$.content[0].bookingId", nullValue()))
                 .andExpect(jsonPath("$.content[0].orderId").value(order.getId()))
+                .andExpect(jsonPath("$.content[0].orderClaimId", nullValue()))
                 .andExpect(jsonPath("$.content[0].amount").value(90000))
                 .andExpect(jsonPath("$.content[0].status").value("FAILED"))
                 .andExpect(jsonPath("$.content[0].attemptCount").value(1))

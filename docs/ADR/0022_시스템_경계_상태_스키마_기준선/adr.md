@@ -56,8 +56,9 @@
 - `DELAY_ACCEPTED`
 - `DELAY_REJECTED_CANCELED`
 - 픽업: `PICKUP_READY` -> `PICKED_UP` / 기성품 `PICKUP_EXPIRED` / 주문제작 `PICKUP_FORFEITED`
-- 제작: `IN_PRODUCTION` -> `DELAY_CONSENT_PENDING` -> 고객 수락 `DELAY_ACCEPTED` / 고객 거절 `DELAY_REJECTED_CANCELED`
-- 제작 재개·완료: `DELAY_ACCEPTED` -> `IN_PRODUCTION` / `APPROVED_FULFILLMENT_PENDING`
+- 기성품 재고 부족 지연: `PAID_APPROVAL_PENDING` -> `DELAY_CONSENT_PENDING` -> 고객 수락 `DELAY_ACCEPTED` -> 처리 재개 `APPROVED_FULFILLMENT_PENDING` / 고객 거절 `DELAY_REJECTED_CANCELED`
+- 주문제작 일정 지연: `IN_PRODUCTION` -> `DELAY_CONSENT_PENDING` -> 고객 수락 `DELAY_ACCEPTED` -> 처리 재개 `IN_PRODUCTION` / 고객 거절 `DELAY_REJECTED_CANCELED`
+- 제작 완료: `IN_PRODUCTION` -> `APPROVED_FULFILLMENT_PENDING`
 - 배송: `APPROVED_FULFILLMENT_PENDING` -> `SHIPPING_PREPARING` -> `SHIPPED` -> `DELIVERED`
 - V74는 기존 `DELAY_REQUESTED` 값을 의미가 분명한 `DELAY_ACCEPTED`로 일괄 이관한다. 알림 이벤트 `ORDER_DELAY_REQUESTED`는 고객에게 동의를 요청한 사건 이름이므로 변경하지 않는다.
 
@@ -94,7 +95,8 @@
   - `credential_version`은 실제 비밀번호·로그인 수단 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다. 로그인 중 BCrypt 작업 강도만 승격할 때는 버전을 유지한다.
   - `version`은 로그인 시각·휴대폰 확인·비밀번호처럼 같은 회원 행을 갱신하는 경로의 stale update를 막는 JPA 낙관적 락 버전이다.
   - `phone_hmac`은 null을 허용하되 값이 있으면 회원 전체에서 유일하다. 전화번호 변경은 새 번호 SMS 소유 확인 뒤 이 제약과 애플리케이션 조회로 중복을 거절한다.
-  - 탈퇴는 미완료 주문, `BOOKED` 예약, 사용 가능한 미만료 8회권, 미완료 환불이 없을 때만 허용한다. 이메일·이름을 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한 뒤 `withdrawn_at`과 자격 버전을 갱신한다. 이후 일반 회원 조회와 로그인에서 제외하고 기존 세션을 폐기한다.
+  - 탈퇴는 미종결 결제 시도·주문·주문 클레임, `BOOKED` 예약, 미완료 예약 취소 후속 작업, 사용 가능한 미만료 8회권, 미완료 환불이 없을 때만 허용한다. 이메일·이름을 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한 뒤 `withdrawn_at`과 자격 버전을 갱신한다. 이후 일반 회원 조회와 로그인에서 제외하고 기존 세션을 폐기한다.
+  - 종결 주문·예약의 `user_id`와 운영 이력은 유지한다. 관리자 과거 이력은 활성 회원 조회와 분리된 명시적 조회를 사용해 탈퇴 회원도 `MEMBER`로 반환하되, 익명화된 이름과 제거된 전화번호만 노출한다.
 - `user_social_accounts`
   - `id`, `user_id`, `provider(GOOGLE|NAVER)`, `provider_id_enc nullable`, `provider_id_hmac`, `created_at`
   - 외부 식별자는 provider 내부에서만 고유하므로 `(provider, provider_id_hmac)`를 유일하게 유지한다. 평문은 저장하지 않고, V63 이전 행의 nullable 암호문은 다음 소셜 로그인에서 채운다.
@@ -231,7 +233,7 @@ HAVING COUNT(*) > 1;
 - `product_qna`
   - `id`, `product_id`, `user_id`
   - `title`, `content`, `secret`, `password_hash VARCHAR(255) nullable`
-  - 비밀글 비밀번호 해시는 회원·관리자와 같은 BCrypt 호환 형식으로 저장한다.
+  - 일반글은 `password_hash=null`로 저장하고 비밀번호 없이 공개 상세를 조회한다. 비밀글 비밀번호 해시는 회원·관리자와 같은 BCrypt 호환 형식으로 저장하며 검증 성공 후에만 상세를 조회한다.
   - `reply_content nullable`, `replied_at nullable`, `replied_by nullable`, `created_at`
 
 - `inquiry`

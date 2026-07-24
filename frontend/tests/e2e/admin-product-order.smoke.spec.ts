@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  acceptCurrentPolicies,
   adminCard,
   armNextRefundFailure,
   clearNextRefundFailure,
@@ -64,6 +65,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   await expect(prefilledItem).toBeVisible();
   await expect(prefilledItem).toContainText("x2");
   await page.getByRole("button", { name: "매장 픽업" }).click();
+  await acceptCurrentPolicies(page);
   await page.getByRole("button", { name: "결제 진행하기" }).click();
 
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
@@ -77,16 +79,22 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   const approvalPendingOrder = await waitForOrder(request, orderId, "PAID_APPROVAL_PENDING");
 
   await loginAdmin(page);
-  await openAdminView(page, "주문");
+  await openAdminView(page, "현황·검색");
+  const searchCard = adminCard(page, "주문·예약 검색");
+  await searchCard.getByLabel("식별자 또는 고객명").fill(approvalPendingOrder.orderNumber);
+  await searchCard.getByRole("button", { name: "검색", exact: true }).click();
+  const searchRow = searchCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
+  await expect(searchRow).toBeVisible();
+  await searchRow.getByRole("link", { name: "운영" }).click();
+
+  await expect(page).toHaveURL(new RegExp(`view=orders.*orderId=${orderId}`));
   const orderCard = adminCard(page, "주문 목록");
-  await orderCard.getByLabel("상태").selectOption("PAID_APPROVAL_PENDING");
-  let row = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
-  await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "승인" }).click();
+  await expect(orderCard.getByRole("heading", { name: `검색한 주문 #${orderId}` })).toBeVisible();
+  await orderCard.getByRole("button", { name: "승인", exact: true }).first().click();
 
   await waitForOrder(request, orderId, "APPROVED_FULFILLMENT_PENDING");
   await orderCard.getByLabel("상태").selectOption("APPROVED_FULFILLMENT_PENDING");
-  row = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
+  let row = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
   await expect(row).toBeVisible();
   await row.locator('input[type="datetime-local"]').fill(toDateTimeLocalInput(plusDays(7, 18, 0, 30).start));
   await row.getByRole("button", { name: "픽업 준비" }).click();
@@ -133,6 +141,7 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
     await page.getByLabel("수량").fill("1");
     await page.getByRole("button", { name: "추가" }).click();
     await page.getByRole("button", { name: "매장 픽업" }).click();
+    await acceptCurrentPolicies(page);
     await page.getByRole("button", { name: "결제 진행하기" }).click();
 
     await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();

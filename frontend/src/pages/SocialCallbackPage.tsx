@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert, Container } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
+import {
+  buildAuthPageHref,
+  resolveSafeReturnTo,
+} from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { getUserMessage } from "@/shared/lib";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
@@ -13,6 +16,8 @@ export function SocialCallbackPage() {
   const { refresh } = useCustomerAuth();
   const [error, setError] = useState("");
   const [linkCallback, setLinkCallback] = useState(false);
+  const [policyConsentRequired, setPolicyConsentRequired] = useState(false);
+  const [signupHref, setSignupHref] = useState("/signup");
   const handled = useRef(false);
 
   useEffect(() => {
@@ -27,6 +32,13 @@ export function SocialCallbackPage() {
     const errorCode = searchParams.get("error");
     if (errorCode) {
       setLinkCallback(pendingSocialAccountLink !== null);
+      if (errorCode === "POLICY_CONSENT_REQUIRED") {
+        const returnTo = resolveSafeReturnTo(
+          sessionStorage.getItem(SESSION_KEYS.socialLoginReturnTo),
+        );
+        setPolicyConsentRequired(true);
+        setSignupHref(buildAuthPageHref("/signup", { redirectTo: returnTo }));
+      }
       sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
       setError(getUserMessage(errorCode) ?? "소셜 로그인에 실패했습니다. 다시 시도해 주세요.");
       return;
@@ -53,12 +65,17 @@ export function SocialCallbackPage() {
   }, [navigate, refresh, searchParams]);
 
   if (error) {
+    const errorHref = linkCallback ? "/my" : policyConsentRequired ? signupHref : "/login";
+    const errorLinkLabel = linkCallback
+      ? "마이페이지로 돌아가기"
+      : policyConsentRequired
+        ? "동의하고 회원가입하기"
+        : "로그인 페이지로 돌아가기";
+
     return (
       <Container className="page-container" style={{ maxWidth: 480 }}>
         <Alert variant="danger" className="mt-5">{error}</Alert>
-        <a href={linkCallback ? "/my" : "/login"}>
-          {linkCallback ? "마이페이지로 돌아가기" : "로그인 페이지로 돌아가기"}
-        </a>
+        <a href={errorHref}>{errorLinkLabel}</a>
       </Container>
     );
   }

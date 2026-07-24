@@ -28,8 +28,12 @@ public final class SmsMessageCatalog {
             case ORDER_SHIPPED -> PREFIX + recipientName
                     + "님, 배송이 시작되었습니다. 주문 상세에서 운송장을 확인해 주세요.";
             case ORDER_DELAY_REQUESTED -> PREFIX + recipientName
-                    + "님, 제작 일정 지연 동의가 필요합니다. 주문 상세에서 응답해 주세요.";
+                    + "님, 주문 처리 일정 지연 동의가 필요합니다. 주문 상세에서 응답해 주세요.";
             case ORDER_REFUNDED -> PREFIX + recipientName + "님, 주문이 환불되었습니다.";
+            case ORDER_CLAIM_RESOLVED -> PREFIX + recipientName
+                    + "님, 주문 클레임 처리 결과가 등록되었습니다. 주문 상세에서 확인해 주세요.";
+            case ORDER_EXCHANGE_COMPLETED -> PREFIX + recipientName
+                    + "님, 주문 교환 처리가 완료되었습니다. 주문 상세에서 확인해 주세요.";
             case PASS_PURCHASED -> PREFIX + recipientName + "님, 8회권 결제가 완료되었습니다.";
             case PASS_REFUNDED -> PREFIX + recipientName + "님, 8회권 환불이 완료되었습니다.";
             case INQUIRY_ANSWERED -> PREFIX + recipientName + "님, 1:1 문의에 답변이 등록되었습니다.";

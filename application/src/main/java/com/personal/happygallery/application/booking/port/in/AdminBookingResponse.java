@@ -23,25 +23,30 @@ public record AdminBookingResponse(
         boolean passBooking
 ) {
 
-    public static AdminBookingResponse from(Booking booking, User user, String guestName, String guestPhone) {
-        boolean isMember = booking.getUserId() != null;
-        String name;
-        String phone;
+    public static AdminBookingResponse fromMember(Booking booking, User user) {
+        return from(booking, "MEMBER", user.getName(), user.getPhone());
+    }
 
-        if (isMember) {
-            name = user.getName();
-            phone = user.getPhone();
-        } else {
-            name = guestName;
-            phone = guestPhone;
-        }
+    public static AdminBookingResponse fromGuest(
+            Booking booking,
+            String guestName,
+            String guestPhone
+    ) {
+        return from(booking, "GUEST", guestName, guestPhone);
+    }
 
+    private static AdminBookingResponse from(
+            Booking booking,
+            String bookerType,
+            String bookerName,
+            String bookerPhone
+    ) {
         return new AdminBookingResponse(
                 booking.getId(),
                 "BK-%08d".formatted(booking.getId()),
-                isMember ? "MEMBER" : "GUEST",
-                name,
-                phone,
+                bookerType,
+                bookerName,
+                bookerPhone,
                 booking.getBookingClass().getName(),
                 booking.getSlot().getStartAt(),
                 booking.getSlot().getEndAt(),

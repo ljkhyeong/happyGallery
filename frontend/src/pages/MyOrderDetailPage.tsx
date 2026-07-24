@@ -12,6 +12,7 @@ import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import type { OrderDetailResponse } from "@/shared/types";
 import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { OrderClaimSection } from "@/features/order-claim/OrderClaimSection";
 
 export function MyOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -91,6 +92,7 @@ export function MyOrderDetailPage() {
         onCancel={() => cancelMutation.mutate()}
         onDelayDecision={(decision) => delayMutation.mutate(decision)}
       />
+      <OrderClaimSection order={order} access={{ kind: "member" }} />
     </Container>
   );
 }

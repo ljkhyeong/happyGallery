@@ -11,7 +11,9 @@ import { CreateSlotForm } from "@/features/admin-slot/CreateSlotForm";
 import { BulkSlotForm } from "@/features/admin-slot/BulkSlotForm";
 import { SlotListSection } from "@/features/admin-slot/SlotListSection";
 import { BookingListSection } from "@/features/admin-booking/BookingListSection";
+import { BookingCancellationTaskSection } from "@/features/admin-booking/BookingCancellationTaskSection";
 import { OrderListSection } from "@/features/admin-order/OrderListSection";
+import { AdminOrderClaimSection } from "@/features/admin-order-claim/AdminOrderClaimSection";
 import { FailedRefundSection } from "@/features/admin-refund/FailedRefundSection";
 import { FailedNotificationSection } from "@/features/admin-notification/FailedNotificationSection";
 import { PaymentReconciliationSection } from "@/features/admin-payment-reconciliation/PaymentReconciliationSection";
@@ -24,6 +26,7 @@ import { AdminDashboardSection } from "@/features/admin-dashboard/AdminDashboard
 import { AdminSearchSection } from "@/features/admin-search/AdminSearchSection";
 import { WorkshopProfileForm } from "@/features/admin-workshop/WorkshopProfileForm";
 import { useToast } from "@/shared/ui";
+import type { BookingStatus, OrderStatus } from "@/shared/types";
 
 const ADMIN_VIEWS = [
   {
@@ -36,7 +39,7 @@ const ADMIN_VIEWS = [
     label: "현황·검색",
     description: "매출과 운영 지표를 보고 주문·예약을 검색합니다.",
   },
-  { value: "orders", label: "주문", description: "주문 승인부터 배송·픽업까지 처리합니다." },
+  { value: "orders", label: "주문", description: "주문 승인부터 배송·픽업과 클레임까지 처리합니다." },
   {
     value: "bookings",
     label: "예약·8회권",
@@ -58,8 +61,44 @@ const ADMIN_VIEWS = [
 
 type AdminView = (typeof ADMIN_VIEWS)[number]["value"];
 
+const ORDER_STATUSES: readonly OrderStatus[] = [
+  "PAID_APPROVAL_PENDING",
+  "APPROVED_FULFILLMENT_PENDING",
+  "REJECTED",
+  "CUSTOMER_CANCELED",
+  "AUTO_REFUND_TIMEOUT",
+  "IN_PRODUCTION",
+  "DELAY_CONSENT_PENDING",
+  "DELAY_ACCEPTED",
+  "DELAY_REJECTED_CANCELED",
+  "SHIPPING_PREPARING",
+  "SHIPPED",
+  "DELIVERED",
+  "PICKUP_READY",
+  "PICKED_UP",
+  "PICKUP_EXPIRED",
+  "PICKUP_FORFEITED",
+  "COMPLETED",
+];
+
+const BOOKING_STATUSES: readonly BookingStatus[] = ["BOOKED", "CANCELED", "NO_SHOW", "COMPLETED"];
+
 function isAdminView(value: string | null): value is AdminView {
   return ADMIN_VIEWS.some((view) => view.value === value);
+}
+
+function parsePositiveId(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function parseOrderStatus(value: string | null): OrderStatus | undefined {
+  return ORDER_STATUSES.find((status) => status === value);
+}
+
+function parseBookingStatus(value: string | null): BookingStatus | undefined {
+  return BOOKING_STATUSES.find((status) => status === value);
 }
 
 function AdminPanel({ title, children }: { title: string; children: ReactNode }) {
@@ -80,6 +119,11 @@ export function AdminPage() {
   const requestedView = searchParams.get("view");
   const activeView: AdminView = isAdminView(requestedView) ? requestedView : "today";
   const activeViewInfo = ADMIN_VIEWS.find((view) => view.value === activeView)!;
+  const focusedOrderId = parsePositiveId(searchParams.get("orderId"));
+  const focusedOrderStatus = parseOrderStatus(searchParams.get("orderStatus"));
+  const focusedBookingId = parsePositiveId(searchParams.get("bookingId"));
+  const focusedBookingStatus = parseBookingStatus(searchParams.get("bookingStatus"));
+  const focusedBookingDate = searchParams.get("bookingDate") ?? undefined;
 
   const handleAuthError = useCallback(() => {
     if (handledExpiredKey.current === adminKey) return;
@@ -110,6 +154,8 @@ export function AdminPage() {
   function selectView(view: AdminView) {
     const next = new URLSearchParams(searchParams);
     next.set("view", view);
+    ["orderId", "orderStatus", "bookingId", "bookingDate", "bookingStatus"]
+      .forEach((name) => next.delete(name));
     setSearchParams(next);
   }
 
@@ -168,8 +214,18 @@ export function AdminPage() {
           <AdminPanel title="환불 확인 필요">
             <FailedRefundSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
+          <AdminPanel title="주문 클레임 접수">
+            <AdminOrderClaimSection
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+              initialStatus="REQUESTED"
+            />
+          </AdminPanel>
           <AdminPanel title="알림 재처리 필요">
             <FailedNotificationSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="예약 취소 후속 작업">
+            <BookingCancellationTaskSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="승인 대기 주문">
             <OrderListSection
@@ -194,15 +250,35 @@ export function AdminPage() {
       )}
 
       {activeView === "orders" && (
-        <AdminPanel title="주문 목록">
-          <OrderListSection adminKey={adminKey} onAuthError={handleAuthError} />
-        </AdminPanel>
+        <>
+          <AdminPanel title="주문 클레임">
+            <AdminOrderClaimSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="주문 목록">
+            <OrderListSection
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+              initialStatus={focusedOrderStatus}
+              focusOrderId={focusedOrderId}
+              focusOrderStatus={focusedOrderStatus}
+            />
+          </AdminPanel>
+        </>
       )}
 
       {activeView === "bookings" && (
         <>
+          <AdminPanel title="예약 취소 후속 작업">
+            <BookingCancellationTaskSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
           <AdminPanel title="예약 목록">
-            <BookingListSection adminKey={adminKey} onAuthError={handleAuthError} />
+            <BookingListSection
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+              initialDate={focusedBookingDate}
+              initialStatus={focusedBookingStatus}
+              focusBookingId={focusedBookingId}
+            />
           </AdminPanel>
           <AdminPanel title="8회권 관리">
             <PassActionPanel adminKey={adminKey} onAuthError={handleAuthError} />

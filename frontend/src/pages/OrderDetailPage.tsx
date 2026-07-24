@@ -11,6 +11,7 @@ import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPa
 import { ErrorAlert } from "@/shared/ui";
 import { customerRefundPollingInterval } from "@/shared/lib";
 import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
+import { OrderClaimSection } from "@/features/order-claim/OrderClaimSection";
 
 interface LocationState {
   orderId?: number;
@@ -193,6 +194,16 @@ export function OrderDetailPage() {
               decision,
             })}
           />
+          {lookup && (
+            <OrderClaimSection
+              order={order}
+              access={{
+                kind: "guest",
+                accessToken: lookup.credentials.token,
+                requestKey: lookup.requestId,
+              }}
+            />
+          )}
         </>
       )}
     </Container>

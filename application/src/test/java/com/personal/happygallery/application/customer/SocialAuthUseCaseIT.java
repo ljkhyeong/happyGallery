@@ -2,12 +2,14 @@ package com.personal.happygallery.application.customer;
 
 import com.personal.happygallery.adapter.out.persistence.user.SocialAccountRepository;
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
+import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRepository;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLoginCommand;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLinkCommand;
 import com.personal.happygallery.application.customer.port.out.SocialAccountStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.user.SocialAccount;
 import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -23,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 
 @UseCaseIT
 class SocialAuthUseCaseIT {
@@ -30,6 +33,7 @@ class SocialAuthUseCaseIT {
     @Autowired SocialAuthUseCase socialAuth;
     @Autowired SocialAccountStorePort socialAccountStore;
     @Autowired SocialAccountRepository socialAccountRepository;
+    @Autowired PolicyConsentRepository policyConsentRepository;
     @Autowired UserRepository userRepository;
     @Autowired TestCleanupSupport cleanupSupport;
 
@@ -45,7 +49,8 @@ class SocialAuthUseCaseIT {
                 SocialProvider.NAVER,
                 "naver-account-id",
                 "social-test@example.com",
-                "테스트 네이버 사용자"));
+                "테스트 네이버 사용자",
+                acceptedPolicies()));
         var secondLogin = socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.NAVER,
                 "naver-account-id",
@@ -61,6 +66,12 @@ class SocialAuthUseCaseIT {
             softly.assertThat(firstLogin.user().getEmailEnc()).isNull();
             softly.assertThat(firstLogin.user().getEmailHmac()).isNull();
             softly.assertThat(socialAccountRepository.count()).isEqualTo(1);
+            softly.assertThat(policyConsentRepository.findByUserIdOrderById(firstLogin.user().getId()))
+                    .hasSize(2)
+                    .allSatisfy(consent -> {
+                        assertThat(consent.getPurpose()).isEqualTo(PolicyConsentPurpose.SOCIAL_SIGNUP);
+                        assertThat(consent.getPolicyVersion()).isEqualTo("2026-07-21-v1");
+                    });
             softly.assertThat(storedSocialAccount.getProviderIdEnc())
                     .isNotBlank()
                     .doesNotContain("naver-account-id");
@@ -74,7 +85,8 @@ class SocialAuthUseCaseIT {
                 SocialProvider.GOOGLE,
                 "google-account-id",
                 "social-test@example.com",
-                "테스트 구글 사용자"));
+                "테스트 구글 사용자",
+                acceptedPolicies()));
 
         assertThatThrownBy(() -> socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.GOOGLE,
@@ -122,12 +134,14 @@ class SocialAuthUseCaseIT {
                 SocialProvider.NAVER,
                 "shared-naver-account",
                 null,
-                "첫 번째 사용자"));
+                "첫 번째 사용자",
+                acceptedPolicies()));
         var loser = socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.GOOGLE,
                 "other-google-account",
                 "other-google@example.com",
-                "두 번째 사용자"));
+                "두 번째 사용자",
+                acceptedPolicies()));
 
         assertThatThrownBy(() -> socialAccountStore.save(new SocialAccount(
                 loser.user().getId(), SocialProvider.NAVER, "shared-naver-account")))
@@ -151,7 +165,8 @@ class SocialAuthUseCaseIT {
                 SocialProvider.NAVER,
                 "naver-account-id",
                 "social-link@example.com",
-                "소셜 연결 사용자"));
+                "소셜 연결 사용자",
+                acceptedPolicies()));
 
         socialAuth.linkSocialAccount(new SocialLinkCommand(
                 naverLogin.user().getId(),
@@ -177,7 +192,7 @@ class SocialAuthUseCaseIT {
         start.await();
         try {
             var result = socialAuth.socialLogin(new SocialLoginCommand(
-                    SocialProvider.GOOGLE, providerId, email, "동시 로그인"));
+                    SocialProvider.GOOGLE, providerId, email, "동시 로그인", acceptedPolicies()));
             return new LoginOutcome(result.newUser(), null);
         } catch (HappyGalleryException exception) {
             return new LoginOutcome(false, exception.getErrorCode());

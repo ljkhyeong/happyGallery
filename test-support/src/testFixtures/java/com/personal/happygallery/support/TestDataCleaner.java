@@ -10,6 +10,8 @@ import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationLogRepository;
 import com.personal.happygallery.adapter.out.persistence.order.FulfillmentRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderApprovalHistoryRepository;
+import com.personal.happygallery.adapter.out.persistence.order.OrderClaimItemRepository;
+import com.personal.happygallery.adapter.out.persistence.order.OrderClaimRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderItemRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
@@ -95,6 +97,8 @@ public final class TestDataCleaner {
     }
 
     public static void clearOrderData(RefundRepository refundRepository,
+                                      OrderClaimItemRepository orderClaimItemRepository,
+                                      OrderClaimRepository orderClaimRepository,
                                       FulfillmentRepository fulfillmentRepository,
                                       OrderApprovalHistoryRepository orderApprovalHistoryRepository,
                                       OrderItemRepository orderItemRepository,
@@ -103,6 +107,8 @@ public final class TestDataCleaner {
                                       InventoryRepository inventoryRepository,
                                       ProductRepository productRepository) {
         refundRepository.deleteAllInBatch();
+        orderClaimItemRepository.deleteAllInBatch();
+        orderClaimRepository.deleteAllInBatch();
         fulfillmentRepository.deleteAllInBatch();
         orderApprovalHistoryRepository.deleteAllInBatch();
         orderItemRepository.deleteAllInBatch();

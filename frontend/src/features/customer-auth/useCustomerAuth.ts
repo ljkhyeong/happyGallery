@@ -9,6 +9,7 @@ import {
   subscribeToCustomerSessionExpired,
 } from "@/shared/api";
 import { normalizePhone } from "@/shared/validation/phone";
+import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
 interface CustomerUserResponse {
   id: number;
@@ -39,6 +40,7 @@ interface CustomerAuthContextValue {
     name: string,
     phone: string,
     verificationCode: string,
+    policyAcceptance: PolicyAcceptance,
   ) => Promise<CustomerUser>;
   logout: () => Promise<void>;
   withdraw: () => Promise<void>;
@@ -113,6 +115,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       name: string,
       phone: string,
       verificationCode: string,
+      policyAcceptance: PolicyAcceptance,
     ): Promise<CustomerUser> => {
       const me = await api<CustomerUserResponse>("/auth/signup", {
         method: "POST",
@@ -122,6 +125,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           name,
           phone: normalizePhone(phone),
           verificationCode,
+          policyAcceptance,
         },
       });
       advanceCustomerSessionVersion();

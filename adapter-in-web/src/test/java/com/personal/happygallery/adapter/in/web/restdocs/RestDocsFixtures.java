@@ -180,6 +180,19 @@ final class RestDocsFixtures {
         return refund;
     }
 
+    static Refund failedOrderClaimRefund() {
+        Refund refund = mock(Refund.class);
+        when(refund.getId()).thenReturn(902L);
+        when(refund.getOrderId()).thenReturn(200L);
+        when(refund.getOrderClaimId()).thenReturn(201L);
+        when(refund.getAmount()).thenReturn(19000L);
+        when(refund.getStatus()).thenReturn(RefundStatus.FAILED);
+        when(refund.getAttemptCount()).thenReturn(1);
+        when(refund.getFailReason()).thenReturn("PG 환불 거절");
+        when(refund.getCreatedAt()).thenReturn(NOW);
+        return refund;
+    }
+
     static PassPurchase passPurchase() {
         PassPurchase pass = mock(PassPurchase.class);
         when(pass.getId()).thenReturn(300L);

@@ -3,11 +3,16 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.CustomerLoginRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.SignupRequest;
+import com.personal.happygallery.adapter.in.web.policy.dto.PolicyAcceptanceRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialLoginAuthenticationHandler;
+import com.personal.happygallery.adapter.in.web.security.customer.SocialPolicyConsentStore;
+import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRepository;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
+import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
+import com.personal.happygallery.domain.policy.PolicyConsentType;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
@@ -59,6 +64,8 @@ class CustomerAuthUseCaseIT {
     @Autowired PhoneVerificationReaderPort phoneVerificationReader;
     @Autowired UserReaderPort userReader;
     @Autowired SocialLoginAuthenticationHandler socialLoginAuthenticationHandler;
+    @Autowired SocialPolicyConsentStore socialPolicyConsentStore;
+    @Autowired PolicyConsentRepository policyConsentRepository;
 
     MockMvc mockMvc;
 
@@ -92,6 +99,26 @@ class CustomerAuthUseCaseIT {
                 .andExpect(jsonPath("$.provider").doesNotExist())
                 .andExpect(cookie().exists("HG_SESSION"))
                 .andExpect(cookie().httpOnly("HG_SESSION", true));
+
+        Long userId = userReader.findByEmail("test@example.com").orElseThrow().getId();
+        assertThat(policyConsentRepository.findByUserIdOrderById(userId))
+                .satisfiesExactly(
+                        consent -> assertSoftly(softly -> {
+                            softly.assertThat(consent.getType())
+                                    .isEqualTo(PolicyConsentType.TERMS_OF_SERVICE);
+                            softly.assertThat(consent.getPurpose())
+                                    .isEqualTo(PolicyConsentPurpose.MEMBER_SIGNUP);
+                            softly.assertThat(consent.getPolicyVersion()).isEqualTo("2026-07-21-v1");
+                            softly.assertThat(consent.getAcceptedAt()).isNotNull();
+                        }),
+                        consent -> assertSoftly(softly -> {
+                            softly.assertThat(consent.getType())
+                                    .isEqualTo(PolicyConsentType.PRIVACY_POLICY);
+                            softly.assertThat(consent.getPurpose())
+                                    .isEqualTo(PolicyConsentPurpose.MEMBER_SIGNUP);
+                            softly.assertThat(consent.getPolicyVersion()).isEqualTo("2026-07-21-v1");
+                            softly.assertThat(consent.getAcceptedAt()).isNotNull();
+                        }));
     }
 
     @DisplayName("중복 이메일로 회원가입하면 409를 반환한다")
@@ -102,7 +129,7 @@ class CustomerAuthUseCaseIT {
         String firstBody = objectMapper.writeValueAsString(request);
         String duplicateBody = objectMapper.writeValueAsString(new SignupRequest(
                 "DUP@EXAMPLE.COM", "password123", "테스트", "010-0000-0000",
-                request.verificationCode()));
+                request.verificationCode(), acceptedPolicies()));
 
         mockMvc.perform(post("/api/v1/auth/signup")
                         .with(csrf())
@@ -132,7 +159,8 @@ class CustomerAuthUseCaseIT {
                                 "password123",
                                 "테스트",
                                 "01012345678",
-                                invalidCode))))
+                                invalidCode,
+                                acceptedPolicies()))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("PHONE_VERIFICATION_FAILED"));
     }
@@ -244,10 +272,8 @@ class CustomerAuthUseCaseIT {
         DefaultOidcUser principal = new DefaultOidcUser(List.of(), idToken, "sub");
         OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
                 principal, principal.getAuthorities(), "google");
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        MockHttpSession session = new MockHttpSession();
-        session.setNew(false);
-        request.setSession(session);
+        MockHttpServletRequest request = socialCallbackRequest();
+        MockHttpSession session = (MockHttpSession) request.getSession(false);
         String anonymousSessionId = session.getId();
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -270,10 +296,8 @@ class CustomerAuthUseCaseIT {
                 List.of(new SimpleGrantedAuthority("ROLE_USER")), attributes, "id");
         OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
                 principal, principal.getAuthorities(), "naver");
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        MockHttpSession session = new MockHttpSession();
-        session.setNew(false);
-        request.setSession(session);
+        MockHttpServletRequest request = socialCallbackRequest();
+        MockHttpSession session = (MockHttpSession) request.getSession(false);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         socialLoginAuthenticationHandler.onAuthenticationSuccess(request, response, authentication);
@@ -318,7 +342,32 @@ class CustomerAuthUseCaseIT {
     }
 
     private SignupRequest verifiedSignupRequest(String email, String name, String phone) throws Exception {
-        return new SignupRequest(email, "password123", name, phone, issueVerificationCode(phone));
+        return new SignupRequest(
+                email,
+                "password123",
+                name,
+                phone,
+                issueVerificationCode(phone),
+                acceptedPolicies());
+    }
+
+    private MockHttpServletRequest socialCallbackRequest() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpSession session = new MockHttpSession();
+        session.setNew(false);
+        request.setSession(session);
+        request.addParameter(SocialPolicyConsentStore.TERMS_VERSION_PARAMETER, "2026-07-21-v1");
+        request.addParameter(SocialPolicyConsentStore.TERMS_ACCEPTED_PARAMETER, "true");
+        request.addParameter(SocialPolicyConsentStore.PRIVACY_VERSION_PARAMETER, "2026-07-21-v1");
+        request.addParameter(SocialPolicyConsentStore.PRIVACY_ACCEPTED_PARAMETER, "true");
+        request.addParameter("state", "social-policy-state");
+        socialPolicyConsentStore.bindOauthState(request, "social-policy-state");
+        return request;
+    }
+
+    private PolicyAcceptanceRequest acceptedPolicies() {
+        return new PolicyAcceptanceRequest(
+                "2026-07-21-v1", true, "2026-07-21-v1", true);
     }
 
     private String issueVerificationCode(String phone) throws Exception {

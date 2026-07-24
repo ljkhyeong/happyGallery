@@ -44,8 +44,8 @@ export function cancelForDelayRejection(adminKey: string, id: number): Promise<O
   return api(`/admin/orders/${id}/cancel-for-delay-rejection`, { method: "POST", headers: h(adminKey) });
 }
 
-export function resumeProduction(adminKey: string, id: number): Promise<OrderProductionResponse> {
-  return api(`/admin/orders/${id}/resume-production`, { method: "POST", headers: h(adminKey) });
+export function resumeAfterDelay(adminKey: string, id: number): Promise<OrderProductionResponse> {
+  return api(`/admin/orders/${id}/resume-after-delay`, { method: "POST", headers: h(adminKey) });
 }
 
 export function preparePickup(adminKey: string, id: number, body: MarkPickupReadyRequest): Promise<PickupResponse> {

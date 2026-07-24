@@ -27,6 +27,8 @@ import {
 } from "@/features/order/useMadeToOrderConsent";
 import type { ProductType } from "@/shared/types/product";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
+import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
 
 type Step = "verify" | "items";
 const MAX_QTY = 99;
@@ -51,6 +53,7 @@ export function OrderCreatePage() {
   const productTypesReady = selectedProductTypes !== null;
   const requiresMadeToOrderConsent = selectedProductTypes?.includes("MADE_TO_ORDER") ?? false;
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
+  const guestPolicyConsent = usePolicyAcceptance();
 
   const prefilledProductId = Number(searchParams.get("productId"));
   const requestedQty = Number(searchParams.get("qty") ?? "1");
@@ -95,6 +98,7 @@ export function OrderCreatePage() {
             cartCheckout: false,
             madeToOrderConsent: consent.agreed,
             madeToOrderConsentVersion: consent.version,
+            policyAcceptance: guestPolicyConsent.acceptance,
             ...fulfillmentPayload(fulfillment),
           };
       await executePaymentFlow({
@@ -267,11 +271,22 @@ export function OrderCreatePage() {
             versionMismatch={consent.versionMismatch}
             refreshRequired={consent.refreshRequired}
           />
+          {!user && (
+            <PolicyConsentFields
+              id="guest-order-policy-consent"
+              policy={guestPolicyConsent.policyQuery.data}
+              checked={guestPolicyConsent.accepted}
+              onChange={guestPolicyConsent.setAccepted}
+              isLoading={guestPolicyConsent.policyQuery.isLoading}
+              error={guestPolicyConsent.policyQuery.error}
+            />
+          )}
 
           <Button
             variant="primary" size="lg" className="w-100"
             disabled={!normalizedName || items.length === 0 || !productTypesReady
-              || !isFulfillmentComplete(fulfillment) || !consent.ready || mutation.isPending}
+              || !isFulfillmentComplete(fulfillment) || !consent.ready
+              || (!user && !guestPolicyConsent.ready) || mutation.isPending}
             onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
             {mutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
           </Button>

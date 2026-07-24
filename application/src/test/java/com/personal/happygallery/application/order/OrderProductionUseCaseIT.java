@@ -312,19 +312,19 @@ class OrderProductionUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // DELAY_ACCEPTED → resumeProduction → IN_PRODUCTION
+    // DELAY_ACCEPTED → resumeAfterDelay → 상품 유형별 처리 상태
     // -----------------------------------------------------------------------
 
-    @DisplayName("지연 수락 상태에서 제작을 재개하면 IN_PRODUCTION으로 전이된다")
+    @DisplayName("주문제작 지연을 수락한 뒤 처리를 재개하면 제작 중으로 돌아간다")
     @Test
-    void resumeProduction_fromDelayRequested_transitionsToInProduction() {
+    void resumeAfterDelay_forMadeToOrder_returnsToProduction() {
         Order order = orderHelper.createMadeToOrderPaidOrder("재개 상품", 180000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.proposeDelay(new ProposeDelayCommand(order.getId(), ADMIN_ID));
         orderCustomerActionUseCase.respondToMemberDelay(
                 order.getId(), order.getUserId(), OrderDelayDecision.ACCEPT);
 
-        orderProductionService.resumeProduction(order.getId(), 1L);
+        orderProductionService.resumeAfterDelay(order.getId(), 1L);
 
         Order updated = orderStateProbe.getOrder(order.getId());
         assertSoftly(softly -> {
@@ -333,6 +333,29 @@ class OrderProductionUseCaseIT {
                     .extracting("decision")
                     .containsExactly(
                             OrderApprovalDecision.APPROVE,
+                            OrderApprovalDecision.DELAY,
+                            OrderApprovalDecision.DELAY_ACCEPT,
+                            OrderApprovalDecision.RESUME_PRODUCTION);
+        });
+    }
+
+    @DisplayName("기성품 품절 지연을 수락한 뒤 처리를 재개하면 승인된 이행 대기로 전이된다")
+    @Test
+    void resumeAfterDelay_forReadyStock_movesToFulfillmentPending() {
+        Order order = orderHelper.createReadyStockPaidOrder("재입고 상품", 80_000L).order();
+        orderProductionService.proposeDelay(new ProposeDelayCommand(order.getId(), ADMIN_ID));
+        orderCustomerActionUseCase.respondToMemberDelay(
+                order.getId(), order.getUserId(), OrderDelayDecision.ACCEPT);
+
+        orderProductionService.resumeAfterDelay(order.getId(), ADMIN_ID);
+
+        Order updated = orderStateProbe.getOrder(order.getId());
+        assertSoftly(softly -> {
+            softly.assertThat(updated.getStatus())
+                    .isEqualTo(OrderStatus.APPROVED_FULFILLMENT_PENDING);
+            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
+                    .extracting("decision")
+                    .containsExactly(
                             OrderApprovalDecision.DELAY,
                             OrderApprovalDecision.DELAY_ACCEPT,
                             OrderApprovalDecision.RESUME_PRODUCTION);

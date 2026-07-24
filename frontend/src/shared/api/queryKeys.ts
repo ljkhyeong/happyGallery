@@ -9,6 +9,7 @@ export const queryKeys = {
       byClass: (classId: number) => ["admin", "slots", classId] as const,
     },
     bookings: ["admin", "bookings"] as const,
+    bookingCancellationTasks: ["admin", "bookings", "cancellation-tasks"] as const,
   },
   catalog: {
     classes: ["classes"] as const,

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -28,6 +29,10 @@ public sealed interface PaymentPayload {
     /** prepare 당시 결제 주체. 비회원이면 null이다. */
     Long userId();
 
+    default PolicyAcceptance policyAcceptance() {
+        return null;
+    }
+
     /**
      * 주문 결제 payload.
      *
@@ -45,7 +50,8 @@ public sealed interface PaymentPayload {
             FulfillmentType fulfillmentType,
             ShippingAddress shippingAddress,
             String madeToOrderConsentVersion,
-            @JsonProperty(required = true) boolean madeToOrderConsent
+            @JsonProperty(required = true) boolean madeToOrderConsent,
+            PolicyAcceptance policyAcceptance
     ) implements PaymentPayload {
 
         public OrderPayload {
@@ -78,7 +84,22 @@ public sealed interface PaymentPayload {
                             FulfillmentType fulfillmentType,
                             ShippingAddress shippingAddress) {
             this(userId, phone, verificationCode, name, items, cartCheckout,
-                    fulfillmentType, shippingAddress, null, false);
+                    fulfillmentType, shippingAddress, null, false, null);
+        }
+
+        public OrderPayload(Long userId,
+                            String phone,
+                            String verificationCode,
+                            String name,
+                            List<OrderItemRef> items,
+                            boolean cartCheckout,
+                            FulfillmentType fulfillmentType,
+                            ShippingAddress shippingAddress,
+                            String madeToOrderConsentVersion,
+                            boolean madeToOrderConsent) {
+            this(userId, phone, verificationCode, name, items, cartCheckout,
+                    fulfillmentType, shippingAddress,
+                    madeToOrderConsentVersion, madeToOrderConsent, null);
         }
     }
 
@@ -94,8 +115,20 @@ public sealed interface PaymentPayload {
             String name,
             Long slotId,
             Long passId,
-            DepositPaymentMethod paymentMethod
-    ) implements PaymentPayload {}
+            DepositPaymentMethod paymentMethod,
+            PolicyAcceptance policyAcceptance
+    ) implements PaymentPayload {
+
+        public BookingPayload(Long userId,
+                              String phone,
+                              String verificationCode,
+                              String name,
+                              Long slotId,
+                              Long passId,
+                              DepositPaymentMethod paymentMethod) {
+            this(userId, phone, verificationCode, name, slotId, passId, paymentMethod, null);
+        }
+    }
 
     /** 8회권 구매 payload. 회원 전용 — userId 필수. */
     record PassPayload(Long userId) implements PaymentPayload {}

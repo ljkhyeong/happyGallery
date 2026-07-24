@@ -28,6 +28,7 @@ import com.personal.happygallery.adapter.out.persistence.cart.CartItemRepository
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
+import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRepository;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -46,6 +47,7 @@ import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
+import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
@@ -74,6 +76,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static com.personal.happygallery.support.TestFixtures.slot;
@@ -98,6 +101,7 @@ class PaymentConfirmUseCaseIT {
     @Autowired PaymentAttemptReaderPort attemptReader;
     @Autowired PaymentStatusQueryUseCase statusQueryUseCase;
     @Autowired RefundRepository refundRepository;
+    @Autowired PolicyConsentRepository policyConsentRepository;
     @Autowired OrderRepository orderReader;
     @Autowired OrderItemPort orderItemPort;
     @Autowired FulfillmentPort fulfillmentPort;
@@ -331,9 +335,7 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.guest();
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
-                        null, phone, verificationCode, "비회원",
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                guestOrderPayload(phone, verificationCode, product.getId()),
                 auth));
         jdbcTemplate.update(
                 "UPDATE phone_verifications SET expires_at = ? WHERE verified = true",
@@ -380,9 +382,7 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.guest();
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
-                        null, "01010101234", "123456", "비회원",
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                guestOrderPayload("01010101234", "123456", product.getId()),
                 auth));
 
         assertThatThrownBy(() -> confirmUseCase.confirm(ConfirmCommand.customerRequest(
@@ -409,7 +409,7 @@ class PaymentConfirmUseCaseIT {
                 PaymentContext.BOOKING,
                 new BookingPayload(
                         null, phone, verificationCode, "비회원 예약자",
-                        slot.getId(), null, DepositPaymentMethod.CARD),
+                        slot.getId(), null, DepositPaymentMethod.CARD, acceptedPolicies()),
                 auth));
         jdbcTemplate.update(
                 "UPDATE phone_verifications SET expires_at = ? WHERE verified = true",
@@ -418,11 +418,16 @@ class PaymentConfirmUseCaseIT {
         PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
                 customerCommand("guest-booking-proof-key", prepared, auth));
 
+        Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow().getId();
         assertThat(bookingReaderPort.findById(result.domainId()))
                 .hasValueSatisfying(booking -> assertSoftly(softly -> {
                     softly.assertThat(booking.getGuest()).isNotNull();
                     softly.assertThat(booking.getDepositAmount()).isEqualTo(6_000L);
                     softly.assertThat(booking.getPaymentKey()).isEqualTo("confirmed-payment-key");
+                    softly.assertThat(policyConsentRepository.findByPaymentAttemptIdOrderById(attemptId))
+                            .hasSize(2)
+                            .allSatisfy(consent -> assertThat(consent.getPurpose())
+                                    .isEqualTo(PolicyConsentPurpose.GUEST_BOOKING_PAYMENT));
                 }));
     }
 
@@ -702,6 +707,50 @@ class PaymentConfirmUseCaseIT {
                 "confirmed-payment-key", prepared.amount(), refund.getIdempotencyKey());
     }
 
+    @DisplayName("PG 승인 직전에 회원이 탈퇴 상태가 되면 도메인을 만들지 않고 보상 환불한다")
+    @Test
+    void confirm_withdrawnMemberAfterPrepare_compensatesApprovedPayment() {
+        User user = userStorePort.save(new User(
+                "payment-withdraw-race@example.com", "hashed", "회원", "01044445555"));
+        Product product = productStorePort.save(readyStockProduct("탈퇴 경합 상품", 54_000L));
+        inventoryStorePort.save(inventory(product, 1));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(new OrderItemRef(product.getId(), 1))),
+                auth));
+        assertThat(jdbcTemplate.update(
+                "UPDATE users SET withdrawn_at = ? WHERE id = ?",
+                LocalDateTime.now(clock),
+                user.getId())).isOne();
+
+        assertThatThrownBy(() -> confirmUseCase.confirm(
+                customerCommand("payment-key-withdraw-race", prepared, auth)))
+                .isInstanceOf(NotFoundException.class);
+
+        await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(25, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> {
+                    var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
+                    assertSoftly(softly -> {
+                        softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.COMPENSATED);
+                        softly.assertThat(orderReader.count()).isZero();
+                        softly.assertThat(refundRepository.findAll())
+                                .singleElement()
+                                .satisfies(refund -> {
+                                    softly.assertThat(refund.getPaymentAttemptId()).isEqualTo(attempt.getId());
+                                    softly.assertThat(refund.getPaymentKey()).isEqualTo("confirmed-payment-key");
+                                });
+                    });
+                });
+
+        var refund = refundRepository.findAll().getFirst();
+        verify(paymentProvider).refund(
+                "confirmed-payment-key", prepared.amount(), refund.getIdempotencyKey());
+    }
+
     @DisplayName("동시에 같은 결제를 확정하면 한 요청만 PG 호출과 주문 생성을 수행한다")
     @Test
     void confirm_concurrently_claimsSingleAttempt() throws Exception {
@@ -809,6 +858,21 @@ class PaymentConfirmUseCaseIT {
             releaseFirstPg.countDown();
             executor.shutdownNow();
         }
+    }
+
+    private OrderPayload guestOrderPayload(String phone, String verificationCode, Long productId) {
+        return new OrderPayload(
+                null,
+                phone,
+                verificationCode,
+                "비회원",
+                List.of(new OrderItemRef(productId, 1)),
+                false,
+                FulfillmentType.PICKUP,
+                null,
+                null,
+                false,
+                acceptedPolicies());
     }
 
     private void saveVerification(String phone, String code) {

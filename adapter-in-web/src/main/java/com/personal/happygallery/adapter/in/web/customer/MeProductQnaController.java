@@ -4,6 +4,7 @@ import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.CreateQnaRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.QnaCreatedResponse;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,6 +26,7 @@ public class MeProductQnaController {
     }
 
     @PostMapping
+    @Operation(operationId = "createProductQna")
     @ResponseStatus(HttpStatus.CREATED)
     public QnaCreatedResponse create(@PathVariable Long productId,
                                      @RequestBody @Valid CreateQnaRequest request,

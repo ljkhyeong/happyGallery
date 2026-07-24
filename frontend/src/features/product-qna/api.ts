@@ -1,17 +1,29 @@
-import { api } from "@/shared/api";
-import type { ProductQnaListItem, ProductQnaDetail, CreateQnaRequest } from "@/shared/types";
+import {
+  createProductQna,
+  getPublicProductQna,
+  listProductQna,
+  verifyProductQnaPassword,
+  type CreateQnaRequest,
+  type ProductQnaDetail,
+  type ProductQnaListItem,
+  type QnaCreatedResponse,
+} from "@/generated/api/productQna";
 
 export function fetchProductQna(productId: number): Promise<ProductQnaListItem[]> {
-  return api<ProductQnaListItem[]>(`/products/${productId}/qna`);
+  return listProductQna(productId);
 }
 
-export function createQna(productId: number, body: CreateQnaRequest): Promise<{ id: number }> {
-  return api(`/me/products/${productId}/qna`, { method: "POST", body });
+export function createQna(
+  productId: number,
+  body: CreateQnaRequest,
+): Promise<QnaCreatedResponse> {
+  return createProductQna(productId, body);
+}
+
+export function fetchProductQnaDetail(productId: number, qnaId: number): Promise<ProductQnaDetail> {
+  return getPublicProductQna(productId, qnaId);
 }
 
 export function verifyQnaPassword(productId: number, qnaId: number, password: string): Promise<ProductQnaDetail> {
-  return api<ProductQnaDetail>(`/products/${productId}/qna/${qnaId}/verify`, {
-    method: "POST",
-    body: { password },
-  });
+  return verifyProductQnaPassword(productId, qnaId, { password });
 }

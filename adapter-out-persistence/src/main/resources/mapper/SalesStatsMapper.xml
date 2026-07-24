@@ -158,6 +158,18 @@
                 JOIN order_items oi ON oi.order_id = r.order_id
             WHERE r.status = 'SUCCEEDED'
               AND r.order_id IS NOT NULL
+              AND r.order_claim_id IS NULL
+              AND r.succeeded_at >= #{rangeFrom} AND r.succeeded_at &lt; #{rangeTo}
+            UNION ALL
+            SELECT oi.product_id AS productId,
+                   -oci.approved_refund_amount AS amount,
+                   -oci.quantity AS quantity,
+                   r.succeeded_at AS occurredAt
+            FROM refunds r
+                JOIN order_claim_items oci ON oci.claim_id = r.order_claim_id
+                JOIN order_items oi ON oi.id = oci.order_item_id
+            WHERE r.status = 'SUCCEEDED'
+              AND r.order_claim_id IS NOT NULL
               AND r.succeeded_at >= #{rangeFrom} AND r.succeeded_at &lt; #{rangeTo}
         ) flow
             JOIN products p ON p.id = flow.productId

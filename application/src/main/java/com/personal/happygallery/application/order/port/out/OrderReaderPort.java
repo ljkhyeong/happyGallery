@@ -4,11 +4,14 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 
 public interface OrderReaderPort {
     Optional<Order> findById(Long id);
+    Optional<Order> findByIdForUpdate(Long id);
+    List<Order> findByIdIn(Collection<Long> ids);
     List<Order> findPaidApprovalPendingBeforeAfterId(
             LocalDateTime deadline, Long afterId, Pageable pageable);
     List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);

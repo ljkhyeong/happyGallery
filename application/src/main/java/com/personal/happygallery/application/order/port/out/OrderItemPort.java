@@ -9,5 +9,6 @@ public interface OrderItemPort {
     OrderItem save(OrderItem item);
     List<OrderItem> findByOrder(Order order);
     List<OrderItem> findByOrderIdIn(Collection<Long> orderIds);
+    List<OrderItem> findByIdIn(Collection<Long> ids);
     boolean existsMadeToOrderItem(Order order);
 }

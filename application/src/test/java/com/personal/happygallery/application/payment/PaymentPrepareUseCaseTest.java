@@ -2,6 +2,7 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.pass.PassPriceProperties;
@@ -16,6 +17,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryU
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
+import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRepository;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.PhoneVerification;
@@ -25,9 +27,12 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
+import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
+import com.personal.happygallery.domain.policy.PolicyConsentType;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -41,6 +46,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
+import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
@@ -48,12 +54,15 @@ import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.assertj.core.groups.Tuple.tuple;
 
 @UseCaseIT
 class PaymentPrepareUseCaseTest {
 
     @Autowired PaymentPrepareUseCase prepareUseCase;
+    @Autowired CustomerAccountLifecycleUseCase accountLifecycleUseCase;
     @Autowired PaymentAttemptReaderPort attemptReader;
+    @Autowired PolicyConsentRepository policyConsentRepository;
     @Autowired PaymentStatusQueryUseCase statusQueryUseCase;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
@@ -108,6 +117,26 @@ class PaymentPrepareUseCaseTest {
         });
     }
 
+    @DisplayName("진행 중인 회원 결제 준비가 있으면 회원 탈퇴를 거절한다")
+    @Test
+    void prepare_pendingMemberPaymentBlocksWithdrawal() {
+        User user = userStorePort.save(new User(
+                "withdraw-payment@example.com", "hashed", "회원", "01011112222"));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.PASS,
+                new PassPayload(user.getId()),
+                auth));
+
+        assertThatThrownBy(() -> accountLifecycleUseCase.withdraw(user.getId()))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED));
+        assertThat(attemptReader.findByOrderIdExternal(prepared.orderId()))
+                .hasValueSatisfying(attempt ->
+                        assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PENDING));
+    }
+
     @DisplayName("비회원 prepare는 인증 코드를 한 번 소비하고 결제 상태 토큰을 발급한다")
     @Test
     void prepare_guestIssuesPaymentStatusToken() {
@@ -117,9 +146,7 @@ class PaymentPrepareUseCaseTest {
 
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
-                        null, "01012341234", "123456", "비회원",
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                guestOrderPayload(product.getId()),
                 AuthContext.guest()));
 
         var status = statusQueryUseCase.getStatus(
@@ -129,15 +156,30 @@ class PaymentPrepareUseCaseTest {
             softly.assertThat(status.status())
                     .isEqualTo(PaymentStatusQueryUseCase.CustomerPaymentStatus.READY);
             softly.assertThat(status.amount()).isEqualTo(29_000L);
+            Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId())
+                    .orElseThrow()
+                    .getId();
+            softly.assertThat(policyConsentRepository.findByPaymentAttemptIdOrderById(attemptId))
+                    .extracting(
+                            consent -> consent.getType(),
+                            consent -> consent.getPurpose(),
+                            consent -> consent.getPolicyVersion())
+                    .containsExactly(
+                            tuple(
+                                    PolicyConsentType.TERMS_OF_SERVICE,
+                                    PolicyConsentPurpose.GUEST_ORDER_PAYMENT,
+                                    "2026-07-21-v1"),
+                            tuple(
+                                    PolicyConsentType.PRIVACY_POLICY,
+                                    PolicyConsentPurpose.GUEST_ORDER_PAYMENT,
+                                    "2026-07-21-v1"));
         });
         assertThatThrownBy(() -> statusQueryUseCase.getStatus(
                 prepared.orderId(), AuthContext.guest(), "wrong-token"))
                 .isInstanceOf(NotFoundException.class);
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
-                        null, "01012341234", "123456", "비회원",
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                guestOrderPayload(product.getId()),
                 AuthContext.guest())))
                 .isInstanceOf(PhoneVerificationFailedException.class);
     }
@@ -214,5 +256,20 @@ class PaymentPrepareUseCaseTest {
                 phone, code, LocalDateTime.now(clock).plusMinutes(5));
         verification.markDelivered();
         phoneVerificationStorePort.save(verification);
+    }
+
+    private OrderPayload guestOrderPayload(Long productId) {
+        return new OrderPayload(
+                null,
+                "01012341234",
+                "123456",
+                "비회원",
+                List.of(new OrderItemRef(productId, 1)),
+                false,
+                FulfillmentType.PICKUP,
+                null,
+                null,
+                false,
+                acceptedPolicies());
     }
 }

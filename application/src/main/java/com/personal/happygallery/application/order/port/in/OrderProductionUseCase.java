@@ -6,11 +6,7 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDate;
 
-/**
- * 예약 제작 주문 관리 유스케이스.
- *
- * <p>예상 출고일 설정, 지연 제안, 제작 재개, 제작 완료를 지원한다.
- */
+/** 주문 이행 일정과 주문제작 진행을 관리하는 유스케이스. */
 public interface OrderProductionUseCase {
 
     record SetExpectedShipDateCommand(Long orderId, LocalDate expectedShipDate, Long adminId) {}
@@ -31,7 +27,7 @@ public interface OrderProductionUseCase {
 
     DelayCancellationResult cancelForDelayRejection(Long orderId, Long adminId);
 
-    ProductionResult resumeProduction(Long orderId, Long adminId);
+    ProductionResult resumeAfterDelay(Long orderId, Long adminId);
 
     ProductionResult completeProduction(Long orderId, Long adminId);
 }

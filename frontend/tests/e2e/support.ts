@@ -278,8 +278,23 @@ export async function signupCustomer(
   );
   expect(verificationResponse.ok(), "Phone verification send API should succeed").toBeTruthy();
   const verificationCode = await fetchVerificationCode(page, credentials.phone);
+  const policyResponse = await page.request.get(`${BACKEND_BASE_URL}/policies/current`);
+  expect(policyResponse.ok(), "Current policy API should succeed").toBeTruthy();
+  const policy = (await policyResponse.json()) as {
+    terms: { version: string };
+    privacy: { version: string };
+  };
   const response = await page.request.post(`${BACKEND_BASE_URL}/auth/signup`, {
-    data: { ...credentials, verificationCode },
+    data: {
+      ...credentials,
+      verificationCode,
+      policyAcceptance: {
+        termsVersion: policy.terms.version,
+        termsAccepted: true,
+        privacyVersion: policy.privacy.version,
+        privacyAccepted: true,
+      },
+    },
     headers: csrfHeaders,
   });
   expect(response.ok(), "Customer signup API should succeed").toBeTruthy();
@@ -334,7 +349,14 @@ export async function completeGuestAuthGate(page: Page, phone: string, name: str
   await page.locator(".nav-link").filter({ hasText: "비회원" }).first().click();
   await completePhoneVerification(page, phone);
   await page.locator("#gate-guest-name").fill(name);
+  await acceptCurrentPolicies(page);
   await page.getByRole("button", { name: "비회원으로 진행" }).click();
+}
+
+export async function acceptCurrentPolicies(page: Page) {
+  await page.getByRole("checkbox", {
+    name: /이용약관.*개인정보처리방침/,
+  }).check();
 }
 
 async function setCustomerSessionFromResponse(page: Page, setCookieHeader?: string) {

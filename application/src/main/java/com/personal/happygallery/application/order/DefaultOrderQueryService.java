@@ -72,6 +72,6 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
                 order,
                 items,
                 fulfillment,
-                refundPort.findByOrderId(order.getId()).orElse(null));
+                refundPort.findDirectByOrderId(order.getId()).orElse(null));
     }
 }

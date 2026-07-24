@@ -15,6 +15,8 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long>, Ord
 
     @Override List<OrderItem> findByOrder(Order order);
 
+    @Override List<OrderItem> findByIdIn(Collection<Long> ids);
+
     @Override
     @Query("SELECT oi FROM OrderItem oi WHERE oi.order.id IN :orderIds ORDER BY oi.id")
     List<OrderItem> findByOrderIdIn(@Param("orderIds") Collection<Long> orderIds);

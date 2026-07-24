@@ -34,6 +34,20 @@ public interface PaymentAttemptRepository
     Optional<PaymentAttempt> findByOrderIdExternalForUpdate(@Param("orderIdExternal") String orderIdExternal);
 
     @Override
+    @Query("""
+            select (count(attempt) > 0)
+            from PaymentAttempt attempt
+            where attempt.ownerUserId = :userId
+              and attempt.status not in (
+                    com.personal.happygallery.domain.payment.PaymentAttemptStatus.CONFIRMED,
+                    com.personal.happygallery.domain.payment.PaymentAttemptStatus.FAILED,
+                    com.personal.happygallery.domain.payment.PaymentAttemptStatus.COMPENSATED,
+                    com.personal.happygallery.domain.payment.PaymentAttemptStatus.CANCELED
+                  )
+            """)
+    boolean existsNonTerminalByOwnerUserId(@Param("userId") Long userId);
+
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select attempt

@@ -5,10 +5,13 @@ import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryR
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionCommand;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionResult;
+import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase;
+import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase.TaskView;
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.pass.port.out.PassLedgerReaderPort;
@@ -17,6 +20,8 @@ import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.BookingCancellationTaskStatus;
+import com.personal.happygallery.domain.booking.BookingCancellationTaskType;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingStatus;
@@ -70,12 +75,14 @@ class AdminSlotSessionCancelUseCaseIT {
     private static final String REASON = "악천후로 수업 취소";
 
     @Autowired AdminBookingCancelUseCase adminBookingCancelUseCase;
+    @Autowired BookingCancellationTaskUseCase bookingCancellationTaskUseCase;
     @Autowired SlotManagementUseCase slotManagementUseCase;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired BookingStorePort bookingStorePort;
     @Autowired GuestStorePort guestStorePort;
     @Autowired UserStorePort userStorePort;
+    @Autowired CustomerAccountLifecycleUseCase accountLifecycleUseCase;
     @Autowired PassPurchaseStorePort passPurchaseStorePort;
     @Autowired PassPurchaseReaderPort passPurchaseReaderPort;
     @Autowired PassLedgerReaderPort passLedgerReaderPort;
@@ -120,6 +127,20 @@ class AdminSlotSessionCancelUseCaseIT {
         List<Refund> refunds = awaitSucceededRefunds(2);
         List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 6);
         List<BookingHistory> histories = bookingHistoryRepository.findAll();
+        List<TaskView> cancellationTasks =
+                bookingCancellationTaskUseCase.listPending();
+        TaskView balanceTask = cancellationTasks.stream()
+                .filter(task -> task.type() == BookingCancellationTaskType.BALANCE_SETTLEMENT)
+                .findFirst()
+                .orElseThrow();
+        var firstCompletion = bookingCancellationTaskUseCase.complete(balanceTask.taskId(), ADMIN_ID);
+        var repeatedCompletion = bookingCancellationTaskUseCase.complete(balanceTask.taskId(), 99L);
+        List<TaskView> remainingTasks =
+                bookingCancellationTaskUseCase.listPending();
+        assertThatThrownBy(() -> accountLifecycleUseCase.withdraw(expiredPass.pass().getUserId()))
+                .isInstanceOfSatisfying(HappyGalleryException.class, error ->
+                        assertThat(error.getErrorCode())
+                                .isEqualTo(ErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED));
 
         assertSoftly(softly -> {
             softly.assertThat(result.canceledBookings()).isEqualTo(4);
@@ -127,6 +148,31 @@ class AdminSlotSessionCancelUseCaseIT {
             softly.assertThat(result.depositRefundsRequested()).isEqualTo(2);
             softly.assertThat(result.balanceSettlementsRequired()).isEqualTo(1);
             softly.assertThat(result.manualCompensationsRequired()).isEqualTo(1);
+            softly.assertThat(cancellationTasks)
+                    .extracting(TaskView::type)
+                    .containsExactlyInAnyOrder(
+                            BookingCancellationTaskType.BALANCE_SETTLEMENT,
+                            BookingCancellationTaskType.MANUAL_COMPENSATION);
+            softly.assertThat(cancellationTasks)
+                    .extracting(TaskView::bookingId)
+                    .containsExactlyInAnyOrder(
+                            paidBalanceDeposit.getId(),
+                            expiredPass.booking().getId());
+            softly.assertThat(cancellationTasks)
+                    .allSatisfy(task -> {
+                        assertThat(task.status()).isEqualTo(BookingCancellationTaskStatus.PENDING);
+                        assertThat(task.reason()).isEqualTo(REASON);
+                        assertThat(task.createdAt()).isNotNull();
+                    });
+            softly.assertThat(firstCompletion.changed()).isTrue();
+            softly.assertThat(repeatedCompletion.changed()).isFalse();
+            softly.assertThat(repeatedCompletion.task().status())
+                    .isEqualTo(BookingCancellationTaskStatus.COMPLETED);
+            softly.assertThat(repeatedCompletion.task().completedByAdminId()).isEqualTo(ADMIN_ID);
+            softly.assertThat(repeatedCompletion.task().completedAt()).isNotNull();
+            softly.assertThat(remainingTasks)
+                    .extracting(TaskView::type)
+                    .containsExactly(BookingCancellationTaskType.MANUAL_COMPENSATION);
             softly.assertThat(List.of(
                             unpaidDeposit.getId(),
                             paidBalanceDeposit.getId(),

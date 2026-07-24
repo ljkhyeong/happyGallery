@@ -57,7 +57,11 @@ public enum ErrorCode {
     PASS_NOT_APPLICABLE(422, "선택한 클래스에는 이 이용권을 사용할 수 없습니다."),
     CLASS_INACTIVE(422, "현재 운영하지 않는 클래스입니다."),
     PHONE_VERIFICATION_REQUIRED(422, "휴대폰 인증을 완료한 뒤 다시 시도해주세요."),
-    ACCOUNT_WITHDRAWAL_BLOCKED(422, "진행 중인 주문, 예약, 환불 또는 사용 가능한 8회권이 있어 탈퇴할 수 없습니다."),
+    POLICY_CONSENT_REQUIRED(422, "현재 이용약관과 개인정보처리방침에 동의해주세요."),
+    ACCOUNT_WITHDRAWAL_BLOCKED(
+            422,
+            "처리가 끝나지 않은 결제 시도·주문·주문 클레임·예약·예약 취소 후속 작업·환불 또는 "
+                    + "사용 가능한 8회권이 있어 탈퇴할 수 없습니다."),
     PASSWORD_UNCHANGED(422, "현재 비밀번호와 다른 새 비밀번호를 입력해주세요."),
     PAYMENT_METHOD_NOT_ALLOWED(422, "예약금은 카드 또는 간편결제만 허용됩니다. 계좌이체는 사용할 수 없습니다."),
 

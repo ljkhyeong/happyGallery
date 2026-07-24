@@ -16,6 +16,9 @@ public interface PaymentAttemptReaderPort {
 
     Optional<PaymentAttempt> findByOrderIdExternalForUpdate(String orderIdExternal);
 
+    /** 회원 탈퇴를 막아야 하는 비종결 결제 시도가 있는지 조회한다. */
+    boolean existsNonTerminalByOwnerUserId(Long userId);
+
     /** 휴대폰 소유 확인으로 복구할 결제 시도를 교착 방지를 위해 ID 순서로 잠근다. */
     List<PaymentAttempt> findGuestRecoveryCandidatesForUpdate(
             List<String> phoneHmacCandidates,

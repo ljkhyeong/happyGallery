@@ -13,6 +13,9 @@ import com.personal.happygallery.application.booking.port.in.AdminBookingCancelU
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionResult;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
+import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase;
+import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase.CompletionResult;
+import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase.TaskView;
 import com.personal.happygallery.application.booking.port.in.BookingNoShowUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
 import com.personal.happygallery.application.order.port.in.AdminOrderFulfillmentResponse;
@@ -31,6 +34,8 @@ import com.personal.happygallery.application.search.port.in.AdminOrderSearchUseC
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingCancellationTaskStatus;
+import com.personal.happygallery.domain.booking.BookingCancellationTaskType;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
@@ -70,6 +75,7 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
     private BookingNoShowUseCase bookingNoShowUseCase;
     private BookingSettlementUseCase bookingSettlementUseCase;
     private AdminBookingCancelUseCase adminBookingCancelUseCase;
+    private BookingCancellationTaskUseCase bookingCancellationTaskUseCase;
     private AdminOrderQueryUseCase adminOrderQueryUseCase;
     private AdminOrderSearchUseCase adminOrderSearchUseCase;
     private OrderApprovalUseCase orderApprovalUseCase;
@@ -85,6 +91,7 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
         bookingNoShowUseCase = mock(BookingNoShowUseCase.class);
         bookingSettlementUseCase = mock(BookingSettlementUseCase.class);
         adminBookingCancelUseCase = mock(AdminBookingCancelUseCase.class);
+        bookingCancellationTaskUseCase = mock(BookingCancellationTaskUseCase.class);
         adminOrderQueryUseCase = mock(AdminOrderQueryUseCase.class);
         adminOrderSearchUseCase = mock(AdminOrderSearchUseCase.class);
         orderApprovalUseCase = mock(OrderApprovalUseCase.class);
@@ -111,6 +118,13 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new AdminCancelResult(booking, false, bookingRefund, false));
         when(adminBookingCancelUseCase.cancelSession(any()))
                 .thenReturn(new CancelSessionResult(4, 2, 2, 1, 0));
+        TaskView pendingTask =
+                bookingCancellationTask(BookingCancellationTaskStatus.PENDING);
+        TaskView completedTask =
+                bookingCancellationTask(BookingCancellationTaskStatus.COMPLETED);
+        when(bookingCancellationTaskUseCase.listPending()).thenReturn(List.of(pendingTask));
+        when(bookingCancellationTaskUseCase.complete(501L, ADMIN_USER_ID))
+                .thenReturn(new CompletionResult(completedTask, true));
         when(adminOrderQueryUseCase.listOrders(any(), any(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(adminOrderResponse()), "cursor-next", true));
         when(adminOrderQueryUseCase.getFulfillment(200L)).thenReturn(adminOrderFulfillmentResponse());
@@ -118,8 +132,8 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(OffsetPage.of(List.of(adminOrderSearchRow()), 0, 20, 1));
         when(orderApprovalUseCase.reject(200L, ADMIN_USER_ID))
                 .thenReturn(new OrderApprovalUseCase.RejectResult(order, orderRefund));
-        when(orderProductionUseCase.resumeProduction(200L, ADMIN_USER_ID))
-                .thenReturn(production(OrderStatus.IN_PRODUCTION));
+        when(orderProductionUseCase.resumeAfterDelay(200L, ADMIN_USER_ID))
+                .thenReturn(production(OrderStatus.APPROVED_FULFILLMENT_PENDING));
         when(orderProductionUseCase.completeProduction(200L, ADMIN_USER_ID))
                 .thenReturn(production(OrderStatus.APPROVED_FULFILLMENT_PENDING));
         when(orderProductionUseCase.setExpectedShipDate(any()))
@@ -149,7 +163,8 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                         adminBookingSearchUseCase,
                         bookingNoShowUseCase,
                         bookingSettlementUseCase,
-                        adminBookingCancelUseCase),
+                        adminBookingCancelUseCase,
+                        bookingCancellationTaskUseCase),
                 new AdminOrderQueryController(adminOrderQueryUseCase, adminOrderSearchUseCase),
                 new AdminOrderApprovalController(orderApprovalUseCase),
                 new AdminOrderProductionController(orderProductionUseCase),
@@ -236,6 +251,31 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("관리자 예약 취소 후속 작업 목록 API를 문서화한다")
+    void admin_list_booking_cancellation_tasks() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/bookings/cancellation-tasks")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].taskId").value(501L))
+                .andExpect(jsonPath("$[0].bookingNumber").value("BK-00000100"))
+                .andExpect(jsonPath("$[0].type").value("BALANCE_SETTLEMENT"))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("관리자 예약 취소 후속 작업 완료 API를 문서화한다")
+    void admin_complete_booking_cancellation_task() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/bookings/cancellation-tasks/{taskId}/complete", 501L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.task.taskId").value(501L))
+                .andExpect(jsonPath("$.task.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.changed").value(true));
+    }
+
+    @Test
     @DisplayName("관리자 수업 회차 취소 API를 문서화한다")
     void admin_cancel_slot_session() throws Exception {
         mockMvc.perform(post("/api/v1/admin/slots/{slotId}/cancel-session", 42L)
@@ -309,9 +349,9 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("관리자 주문 제작 재개 API를 문서화한다")
-    void admin_resume_order_production() throws Exception {
-        mockMvc.perform(post("/api/v1/admin/orders/{id}/resume-production", 200L)
+    @DisplayName("관리자 주문 지연 후 처리 재개 API를 문서화한다")
+    void admin_resume_order_after_delay() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/resume-after-delay", 200L)
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk());
@@ -430,6 +470,25 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                 LocalDateTime.of(2026, 5, 7, 21, 0), "BOOKED",
                 5000L, LocalDateTime.of(2026, 5, 1, 20, 50),
                 45000L, "UNPAID", null, false, false);
+    }
+
+    private static TaskView bookingCancellationTask(
+            BookingCancellationTaskStatus status
+    ) {
+        boolean completed = status == BookingCancellationTaskStatus.COMPLETED;
+        return new TaskView(
+                501L,
+                100L,
+                "BK-00000100",
+                BookingCancellationTaskType.BALANCE_SETTLEMENT,
+                status,
+                "향수 원데이",
+                LocalDateTime.of(2026, 5, 7, 19, 0),
+                45000L,
+                "공방 사정으로 수업이 취소되었습니다.",
+                LocalDateTime.of(2026, 5, 1, 21, 0),
+                completed ? ADMIN_USER_ID : null,
+                completed ? LocalDateTime.of(2026, 5, 1, 21, 10) : null);
     }
 
     private static AdminBookingSearchRow adminBookingSearchRow() {

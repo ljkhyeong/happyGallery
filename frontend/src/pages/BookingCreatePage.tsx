@@ -16,6 +16,7 @@ import { invalidateSlotAvailability, queryKeys } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
+import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
 type PaymentPath = "deposit" | "pass";
 
@@ -23,6 +24,7 @@ interface GuestInfo {
   phone: string;
   verificationCode: string;
   name: string;
+  policyAcceptance: PolicyAcceptance;
 }
 
 interface PaymentActor {
@@ -119,6 +121,7 @@ export function BookingCreatePage() {
               phone: guest.phone,
               verificationCode: guest.verificationCode,
               name: guest.name,
+              policyAcceptance: guest.policyAcceptance,
               slotId: selectedSlot!.id,
               paymentMethod,
             }

@@ -79,6 +79,9 @@ spring:
     default-timeout: ${TX_DEFAULT_TIMEOUT:10s}
 
 app:
+  policy-consent:
+    terms-version: ${TERMS_POLICY_VERSION:2026-07-21-v1}
+    privacy-version: ${PRIVACY_POLICY_VERSION:2026-07-21-v1}
   field-encryption:
     active-key-id: ${FIELD_ENCRYPTION_KEY_ID:v1}
     encrypt-key: ${ENCRYPT_KEY:}

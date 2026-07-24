@@ -7,6 +7,8 @@ import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons"
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { ErrorAlert } from "@/shared/ui";
 import { normalizePhone } from "@/shared/validation/phone";
+import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
+import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
 
 export function SignupPage() {
   const { signup } = useCustomerAuth();
@@ -25,13 +27,24 @@ export function SignupPage() {
   const [verificationCode, setVerificationCode] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
+  const policyConsent = usePolicyAcceptance();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!policyConsent.acceptance) {
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
-      await signup(email, password, name, phone, verificationCode);
+      await signup(
+        email,
+        password,
+        name,
+        phone,
+        verificationCode,
+        policyConsent.acceptance,
+      );
       navigate(redirectTo);
     } catch (requestError) {
       setError(requestError);
@@ -138,10 +151,18 @@ export function SignupPage() {
                     onReset={() => setVerificationCode("")}
                   />
                 </div>
+                <PolicyConsentFields
+                  id="signup-policy-consent"
+                  policy={policyConsent.policyQuery.data}
+                  checked={policyConsent.accepted}
+                  onChange={policyConsent.setAccepted}
+                  isLoading={policyConsent.policyQuery.isLoading}
+                  error={policyConsent.policyQuery.error}
+                />
                 <Button
                   type="submit"
                   className="w-100"
-                  disabled={!verificationCode || submitting}
+                  disabled={!verificationCode || !policyConsent.ready || submitting}
                 >
                   {submitting ? "가입 중..." : "회원가입"}
                 </Button>
@@ -151,7 +172,11 @@ export function SignupPage() {
                 <span className="px-3 text-muted-soft small">또는</span>
                 <hr className="flex-grow-1" />
               </div>
-              <SocialLoginButtons action="회원가입" returnTo={redirectTo} />
+              <SocialLoginButtons
+                action="회원가입"
+                returnTo={redirectTo}
+                policyAcceptance={policyConsent.acceptance}
+              />
               <div className="auth-footer-link mt-4">
                 이미 계정이 있으신가요? <Link to={loginHref}>로그인</Link>
               </div>
