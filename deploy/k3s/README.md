@@ -317,11 +317,11 @@ export CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION="$RESTORE_RECONCILIATION_
 - 알림 제공자 발송 결과와 복원 DB의 outbox·발송 로그 비교
 - 저장소 밖 개인정보 열람·정정·삭제 요청 접수대장과 복원 DB 처리 결과 비교
 - 세 대사 완료 확인 값을 해당 복원 대사 토큰과 일치시킨 뒤에만 app/frontend digest 반영과 app scale-up
-- 토큰 marker는 활성화 직전에 `pending`에서 `activating`, 성공 후 `consumed`로 원자적으로 이동해 재사용 차단
+- 토큰 marker는 활성화 직전에 `pending`에서 실행별 고유 `activating`, 성공 후 `consumed`로 원자적으로 이동해 재사용 차단. `pending -> activating` 이동에 성공해 marker 소유권을 얻은 실행만 실패 정리 수행
 
 복원 진입점은 DB 교체부터 미디어 PVC 교체와 대사 토큰 발급까지 `restores/.restore-operation.lock` 디렉터리를 원자적으로 선점한다. 정상 종료와 오류·일반 종료 신호에서는 자신이 선점한 실행 락을 정리하므로, 같은 노트북에서 서로 다른 복구 묶음을 동시에 실행해도 두 번째 실행은 DB를 DROP하기 전에 실패한다. `SIGKILL`이나 전원 차단 뒤 실행 락이 남으면 자동으로 회수하지 않는다. 복원 프로세스가 실제로 끝났는지와 DB·미디어 교체 지점을 먼저 확인한 뒤 운영자가 락을 정리한다. 이 일시 실행 락은 아래의 지속성 있는 대사 상태 marker와 별개다.
 
-대사 토큰 marker는 release 상태 디렉터리와 같은 상위 경로의 `restores/`에 600 권한으로 둔다. 완료하지 않은 `pending` 또는 `activating` marker가 있으면 새 복원을 시작하지 않는다. 활성화 시작 뒤 명령 실패, 명시적 오류, `SIGHUP`·`SIGINT`·`SIGTERM` 종료가 발생하면 종료 정리가 app을 다시 0개로 내리고 Pod 종료를 확인한 뒤 marker를 `pending`으로 되돌려 같은 복원의 재시도를 허용한다. app 중지나 marker 복구를 확인하지 못했거나 `SIGKILL`·전원 차단처럼 종료 정리를 실행할 수 없으면 토큰을 임의 재사용하지 말고 app, DB, 적용 image와 현재 marker를 먼저 수동 확인한다.
+대사 토큰 marker는 release 상태 디렉터리와 같은 상위 경로의 `restores/`에 600 권한으로 둔다. 완료하지 않은 `pending` 또는 실행별 고유 `activating` marker가 있으면 새 복원을 시작하지 않는다. 경쟁 실행 중 `pending -> activating` 이동에 성공한 프로세스만 자기 실행 ID가 포함된 marker와 실패 정리 책임을 얻으며, 이동에 실패한 프로세스는 기존 실행의 app이나 marker를 건드리지 않고 종료한다. marker 이동 직후 일반 종료 신호가 도착해도 고유 marker 존재로 소유권을 판별한다. 활성화 시작 뒤 명령 실패, 명시적 오류, `SIGHUP`·`SIGINT`·`SIGTERM` 종료가 발생하면 소유 실행의 종료 정리가 app을 다시 0개로 내리고 Pod 종료를 확인한 뒤 marker를 `pending`으로 되돌려 같은 복원의 재시도를 허용한다. app 중지나 marker 복구를 확인하지 못했거나 `SIGKILL`·전원 차단처럼 종료 정리를 실행할 수 없으면 토큰을 임의 재사용하지 말고 app, DB, 적용 image와 현재 marker를 먼저 수동 확인한다.
 
 활성화 후 회원 로그인, 개인정보 복호화, 이름/전화번호 HMAC 조회, 주문·예약·결제 이력, 상품 이미지 응답과 Flyway 상태를 확인한다. 백업 시점의 active/previous AES·HMAC 키링을 잃었거나 다른 키를 쓰면 데이터 복구가 완료된 것이 아니다. guest token 연속성이 필요하면 백업 시점 guest active/previous 키도 함께 복구한다.
 

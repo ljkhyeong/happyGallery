@@ -31,11 +31,14 @@ printf '%s' "$reconciliation_token" \
 state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
 restore_state_root=${HAPPYGALLERY_RESTORE_STATE_DIR:-$(dirname -- "$state_root")/restores}
 pending_marker="$restore_state_root/$reconciliation_token.pending"
-activating_marker="$restore_state_root/$reconciliation_token.activating"
+activation_owner="${BASHPID:-$$}-$RANDOM-$RANDOM"
+activating_marker="$restore_state_root/$reconciliation_token-$activation_owner.activating"
 consumed_marker="$restore_state_root/$reconciliation_token.consumed"
 require_private_file "$pending_marker"
-[ ! -e "$activating_marker" ] \
-    || die "복원 release 활성화가 중단된 상태입니다. app 상태를 확인한 뒤 수동 복구하세요: $activating_marker"
+existing_activating_marker=$(find "$restore_state_root" -maxdepth 1 -type f \
+    -name "$reconciliation_token*.activating" -print -quit)
+[ -z "$existing_activating_marker" ] \
+    || die "복원 release 활성화가 중단된 상태입니다. app 상태를 확인한 뒤 수동 복구하세요: $existing_activating_marker"
 [ ! -e "$consumed_marker" ] \
     || die "이미 소비한 복원 대사 토큰입니다: $reconciliation_token"
 validate_env_file "$pending_marker"
@@ -91,7 +94,8 @@ on_activation_exit() {
     fi
     activation_cleanup_done=true
 
-    if [ "$activation_started" = true ] && [ "$activation_succeeded" != true ]; then
+    if { [ "$activation_started" = true ] || [ -f "$activating_marker" ]; } \
+        && [ "$activation_succeeded" != true ]; then
         [ "$status" -ne 0 ] || status=1
         app_drained=false
         if kube -n "$NAMESPACE" scale deployment/app --replicas=0 >/dev/null \
@@ -134,8 +138,8 @@ trap on_activation_exit EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
-activation_started=true
 mv "$pending_marker" "$activating_marker"
+activation_started=true
 info "app이 중지된 상태에서 호환 app/frontend digest를 먼저 지정합니다."
 kube -n "$NAMESPACE" patch configmap app-config --type merge \
     -p "{\"data\":{\"SENTRY_RELEASE\":\"happygallery@$IMAGE_TAG\"}}" >/dev/null

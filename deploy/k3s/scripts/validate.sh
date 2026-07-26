@@ -493,8 +493,10 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "복원 대사 토큰의 pending/activating/consumed 일회 소비 순서가 없습니다." unless restored_release.match?(one_time_token_flow)
   activation_exit_cleanup = /activation_succeeded=false.*?activation_cleanup_done=false.*?on_activation_exit\(\).*?trap - EXIT HUP INT TERM.*?activation_cleanup_done.*?activation_started.*?activation_succeeded.*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m
   abort "복원 release의 명시적 오류와 일반 종료를 한 번만 처리하는 EXIT fail-closed 정리가 없습니다." unless restored_release.match?(activation_exit_cleanup)
-  signal_cleanup = /trap on_activation_exit EXIT.*?trap 'exit 129' HUP.*?trap 'exit 130' INT.*?trap 'exit 143' TERM.*?activation_started=true.*?mv "\$pending_marker" "\$activating_marker"/m
-  abort "복원 release 활성화 시작 전에 HUP/INT/TERM을 EXIT fail-closed 정리로 연결하지 않습니다." unless restored_release.match?(signal_cleanup)
+  abort "경쟁 활성화 실행을 구분하는 고유 activating marker가 없습니다." unless restored_release.match?(/activation_owner=.*?activating_marker=.*?\$activation_owner\.activating/m)
+  abort "marker 이동 직후 신호에서도 파일 소유권으로 실패 정리를 시작하지 않습니다." unless restored_release.include?('[ "$activation_started" = true ] || [ -f "$activating_marker" ]')
+  signal_cleanup = /trap on_activation_exit EXIT.*?trap 'exit 129' HUP.*?trap 'exit 130' INT.*?trap 'exit 143' TERM.*?mv "\$pending_marker" "\$activating_marker".*?activation_started=true/m
+  abort "복원 release marker 소유권을 얻은 실행만 HUP/INT/TERM의 EXIT fail-closed 정리를 수행해야 합니다." unless restored_release.match?(signal_cleanup)
   marker_recovery = /app_drained=true.*?if \[ "\$app_drained" = true \].*?mv "\$activating_marker" "\$pending_marker".*?mv "\$consumed_marker" "\$pending_marker".*?marker_recovered/m
   abort "활성화 실패 후 app drain 성공 때 대사 토큰을 재시도 가능한 pending 상태로 복구하지 않습니다." unless restored_release.match?(marker_recovery)
   abort "복원 release 성공 marker 이전 종료가 성공으로 처리될 수 있습니다." unless restored_release.match?(/mv "\$activating_marker" "\$consumed_marker".*?activation_succeeded=true/m)

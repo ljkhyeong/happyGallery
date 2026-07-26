@@ -72,7 +72,7 @@
 - 같은 UTC 시각으로 만든 DB 암호문, 미디어 암호문과 `happygallery-<시각>.recovery.env`를 하나의 복구 단위로 취급한다. 두 archive는 평문 파일을 남기지 않고 각각 `gzip -> age`로 외부 mount에 기록하며 SHA-256 sidecar를 검증한다. 백업은 모든 archive와 sidecar를 먼저 완성하고 `recovery.env`를 마지막에 원자적으로 게시한다. 이 commit marker가 없으면 중단된 불완전 묶음으로 보고 rollout과 복원에 사용하지 않는다. rollout은 marker, DB·미디어, 호환 release metadata·manifest·runtime image metadata·image archive의 sidecar 전체를 검증한다. 서로 다른 시각의 DB와 미디어를 임의로 조합해 복원하지 않는다.
 - 외부 백업 위치는 `BACKUP_DIR`로 지정한 USB, NAS 또는 원격 mount다. marker 파일이 없으면 백업을 중단해 외부 매체가 빠진 상태에서 노트북의 빈 mountpoint에 기록하는 일을 막는다.
 - 복원은 app replica와 잔여 Pod가 모두 0인 상태에서만 수행한다. 묶음의 DB·미디어 checksum, age·gzip·tar 무결성, 호환 이미지 digest, Flyway version과 키링 fingerprint를 확인하고 DB와 `app-media` PVC를 같은 묶음으로 교체한 뒤 Redis 세션·처리율 상태를 비운다. 데이터 복원 진입점은 app을 자동 기동하지 않는다.
-- 운영자는 app이 중지된 상태에서 복원 시점 이후의 PG 결제, 알림 제공자 발송 결과, 저장소 밖 개인정보 요청 접수대장을 복원 DB와 대사한다. 복원 진입점은 검증한 `BACKUP_CREATED_AT`과 `recovery.env` SHA-256을 결합한 대사 토큰을 성공한 복원에만 발급한다. 세 항목의 완료 확인을 이 토큰에 결합해 입력한 경우에만 별도 활성화 스크립트가 marker를 `pending -> activating -> consumed`로 일회 소비하고 app을 1 replica로 기동한다. 활성화 실패 후 app 중지를 확인한 경우에만 `pending`으로 되돌려 같은 복원을 재시도한다. 검증 또는 대사 중 하나라도 실패하거나 미완료이면 app을 중지 상태로 유지한다.
+- 운영자는 app이 중지된 상태에서 복원 시점 이후의 PG 결제, 알림 제공자 발송 결과, 저장소 밖 개인정보 요청 접수대장을 복원 DB와 대사한다. 복원 진입점은 검증한 `BACKUP_CREATED_AT`과 `recovery.env` SHA-256을 결합한 대사 토큰을 성공한 복원에만 발급한다. 세 항목의 완료 확인을 이 토큰에 결합해 입력한 경우에만 별도 활성화 스크립트가 marker를 `pending -> 실행별 고유 activating -> consumed`로 일회 소비하고 app을 1 replica로 기동한다. 경쟁 실행에서는 `pending -> activating` 이동에 성공한 실행만 자기 실행 ID가 포함된 marker로 소유권과 실패 정리 책임을 증명한다. marker 이동 직후 신호가 와도 파일 존재로 소유권을 판별하며, 활성화 실패 후 app 중지를 확인한 경우에만 `pending`으로 되돌려 같은 복원을 재시도한다. 검증 또는 대사 중 하나라도 실패하거나 미완료이면 app을 중지 상태로 유지한다.
 
 ### 5. secret은 저장소와 이미지 밖에서 주입한다
 
