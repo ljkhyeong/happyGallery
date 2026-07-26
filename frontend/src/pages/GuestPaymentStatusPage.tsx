@@ -1,6 +1,6 @@
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Alert, Button, Container } from "react-bootstrap";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import {
   fetchPaymentStatus,
   PaymentCompletionNext,

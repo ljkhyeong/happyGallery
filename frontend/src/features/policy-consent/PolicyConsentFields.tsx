@@ -1,5 +1,5 @@
 import { Form } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ErrorAlert } from "@/shared/ui";
 import type { CurrentPolicyConsent } from "./types";
 

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { Button, Container, Form, Nav } from "react-bootstrap";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useAdminKey } from "@/features/admin-product/useAdminKey";
 import { AdminLoginGate } from "@/features/admin-auth/AdminLoginGate";
 import { AdminMfaSettings } from "@/features/admin-auth/AdminMfaSettings";

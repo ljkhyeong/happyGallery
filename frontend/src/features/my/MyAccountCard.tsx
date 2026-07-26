@@ -1,5 +1,5 @@
 import { Button, Card } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { SocialAccountSection } from "@/features/customer-auth/SocialAccountSection";
 import type { CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 

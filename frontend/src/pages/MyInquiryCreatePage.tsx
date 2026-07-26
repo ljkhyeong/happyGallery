@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Container, Card, Form, Button } from "react-bootstrap";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 import { createInquiry } from "@/features/my-inquiry/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";

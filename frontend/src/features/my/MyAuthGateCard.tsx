@@ -1,6 +1,6 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { Card } from "react-bootstrap";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 
 interface Props {

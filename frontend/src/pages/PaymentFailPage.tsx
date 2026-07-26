@@ -1,6 +1,6 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { Container, Alert } from "react-bootstrap";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 export function PaymentFailPage() {
   const [params] = useSearchParams();

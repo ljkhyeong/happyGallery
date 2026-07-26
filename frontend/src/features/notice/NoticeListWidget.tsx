@@ -1,5 +1,5 @@
 import { Badge } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetchNotices } from "./api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";

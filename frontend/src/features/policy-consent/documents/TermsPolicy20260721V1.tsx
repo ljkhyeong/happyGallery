@@ -1,5 +1,5 @@
 import { Container } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import {
   POLICY_VERSION_2026_07_21_V1,
   policyPath,

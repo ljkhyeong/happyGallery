@@ -1,5 +1,5 @@
 import { Container } from "react-bootstrap";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import {
   resolvePolicyDocument,
   TERMS_POLICY_DOCUMENTS,

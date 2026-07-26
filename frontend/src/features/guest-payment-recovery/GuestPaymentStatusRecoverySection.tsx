@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Alert, Card, ListGroup } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert, StatusBadge } from "@/shared/ui";

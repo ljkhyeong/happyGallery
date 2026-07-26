@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Nav, Badge, Card, Button } from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import type { NotificationResponse } from "@/generated/api/notification";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useUnreadCount, useNotificationList, useMarkAsRead, useMarkAllAsRead } from "./useNotifications";

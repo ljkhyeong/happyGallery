@@ -1,5 +1,5 @@
 import { Container, Badge } from "react-bootstrap";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetchNotice } from "@/features/notice/api";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";

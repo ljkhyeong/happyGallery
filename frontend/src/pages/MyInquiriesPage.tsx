@@ -1,6 +1,6 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { Container, Card, Badge } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetchMyInquiries } from "@/features/my-inquiry/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";

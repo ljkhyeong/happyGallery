@@ -1,5 +1,5 @@
 import { Suspense, lazy, type ReactNode } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router";
 import { Container } from "react-bootstrap";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/shared/api";

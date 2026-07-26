@@ -1,5 +1,5 @@
 import { Card, Badge } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { formatKRW, PRODUCT_TYPE_LABEL } from "@/shared/lib";
 import type { ProductDetailResponse } from "@/shared/types";
 

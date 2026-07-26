@@ -2,7 +2,7 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Button, Form, Badge, Alert } from "react-bootstrap";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
 import { OrderItemsForm } from "@/features/order/OrderItemsForm";

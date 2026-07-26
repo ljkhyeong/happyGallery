@@ -1,6 +1,6 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect, useRef, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Alert, Container, Card, Badge, Button, Form, Row, Col } from "react-bootstrap";
 import { ShoppingBag } from "lucide-react";

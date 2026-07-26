@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Table } from "react-bootstrap";
 import { Check } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import {
   completeBookingCancellationTask,
   fetchBookingCancellationTasks,

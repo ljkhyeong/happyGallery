@@ -37,7 +37,7 @@
 ### 요구사항
 
 - Java 21
-- Node.js 22.18+
+- Node.js 22.22+
 - Docker / Docker Compose
 
 ### 실행

@@ -1,5 +1,5 @@
 import type { ButtonProps } from "react-bootstrap";
-import { Link, type LinkProps } from "react-router-dom";
+import { Link, type LinkProps } from "react-router";
 
 type LinkButtonProps = LinkProps & Pick<ButtonProps, "active" | "size" | "variant">;
 

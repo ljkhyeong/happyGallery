@@ -2,7 +2,7 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button, Card, Col, Container, Modal, Row } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { fetchMyPasses, refundMyPass, type MyPassSummary } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";

@@ -1,7 +1,7 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useQuery } from "@tanstack/react-query";
 import { Card, Col, Container, Row } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { fetchMyOrders } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";

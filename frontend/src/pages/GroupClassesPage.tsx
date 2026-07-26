@@ -1,5 +1,5 @@
 import { Button, Container } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import groupResinClass from "@/assets/happygallery/group-resin-class.jpg";
 import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";

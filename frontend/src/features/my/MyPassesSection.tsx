@@ -1,6 +1,6 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { Card, Col, Row } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import type { MyPassSummary } from "./api";
 import { isPassAvailableForBooking } from "./listUtils";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";

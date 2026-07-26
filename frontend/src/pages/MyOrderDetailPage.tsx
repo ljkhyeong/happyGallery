@@ -1,5 +1,5 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Container } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";

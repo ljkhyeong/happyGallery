@@ -1,5 +1,5 @@
 import { Card, Col, Row } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import type { MyBookingSummary } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatKRW, formatDateTime } from "@/shared/lib";
