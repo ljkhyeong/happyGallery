@@ -182,12 +182,17 @@
 - `classes`
   - `id`, `name`, `category`, `duration_min`, `price`, `buffer_min`, `description nullable`, `image_url nullable`, `preparation_info nullable`, `target_audience nullable`, `pass_eligible`, `status(ACTIVE|INACTIVE)`
   - 공개 목록과 슬롯 생성·결제는 `ACTIVE` 클래스만 대상으로 한다. `pass_eligible`은 구매한 `PassPlan`의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
+  - `price`는 10원 이상이고 브라우저가 원 단위 정수를 정확히 표현하는 상한 이하여야 하며 `V99` CHECK로도 강제한다.
 - `slots`
   - `id`, `class_id`, `start_at`, `end_at`, `capacity=8`, `booked_count`, `admin_active`, `buffer_block_count`
   - 실제 활성 상태는 `admin_active=true AND buffer_block_count=0`으로 판정한다.
 - `bookings`
   - `id`, `user_id nullable`, `guest_id nullable`
   - `user_id`, `guest_id` 중 정확히 하나만 존재하도록 `chk_bookings_exactly_one_owner` `CHECK` 제약으로 강제한다.
+  - `owner_phone_hmac` — 활성 예약 회원·비회원 소유자의 현재 전화번호 HMAC.
+    `BOOKED` 상태에서는 반드시 존재하고 취소·완료·노쇼 상태에서는 제거한다.
+  - `active_owner_phone_hmac generated` — `BOOKED`일 때만 `owner_phone_hmac`를 노출하고 `(slot_id, active_owner_phone_hmac)` UNIQUE로 회원·비회원 교차 중복을 막는다.
+  - `active_user_id generated`, `active_guest_id generated`의 슬롯별 UNIQUE도 유지해 전화번호를 바꾼 같은 계정의 중복 예약을 막는다.
   - `access_token VARCHAR(64)` — 게스트 예약 조회용 SHA-256 hex 해시 저장
   - `class_id`, `slot_id`, `status`, `source(WEB|PHONE|NAVER_TALK|KAKAO|VISIT)`, `participant_count`
   - `deposit_amount`, `deposit_paid_at`, `payment_key nullable`
@@ -226,6 +231,18 @@ FROM orders
 WHERE (user_id IS NULL AND guest_id IS NULL)
    OR (user_id IS NOT NULL AND guest_id IS NOT NULL);
 ```
+
+#### 예약 전화번호 소유자 제약 배포
+
+- `V98`은 영구 DDL 전에 임시 테이블 `NOT NULL`·UNIQUE로 기존 `BOOKED` 예약의 현재 전화번호 HMAC과
+  회원·비회원 교차 중복을 검증한다. 검증을 통과한 경우에만 `owner_phone_hmac`을 채우고
+  generated column·CHECK·UNIQUE를 atomic `ALTER TABLE`로 추가한다. 종결 예약의 HMAC은 `NULL`로 유지한다.
+- 같은 슬롯에 동일 전화번호의 회원 예약과 비회원 예약이 함께 있거나, 활성 예약 소유자의 전화번호 HMAC이 없으면 마이그레이션을 실패시킨다.
+- 충돌 예약을 자동 취소하거나 한쪽 소유자로 합치지 않는다. 결제·예약 이력을 확인해 운영자가 정리한 뒤 Flyway를 다시 실행한다.
+- 데이터 사전 검증이 아닌 예기치 않은 DB 중단으로 `owner_phone_hmac` 컬럼만 남았다면
+  `information_schema`로 generated column·CHECK·인덱스의 부분 적용 여부를 확인하고 생성된 항목을 제거한 뒤 Flyway를 repair·재실행한다.
+- 회원 전화번호 변경과 개인정보 키 회전은 회원·비회원 HMAC을 갱신한 같은 트랜잭션에서
+  활성 예약 HMAC도 다시 계산한다.
 
 #### 주문 클레임
 
