@@ -3,11 +3,13 @@ package com.personal.happygallery.application.booking;
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.customer.MemberAccountGuard;
-import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.error.DuplicateBookingException;
+import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.user.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,11 +50,11 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
                                                DepositPaymentMethod paymentMethod,
                                                long depositAmount, long balanceAmount,
                                                int participantCount) {
-        memberAccountGuard.requireActiveForUpdate(userId);
-        Slot slot = reserveSlot(userId, slotId, participantCount);
+        User user = requireBookableMember(userId);
+        Slot slot = reserveSlot(user.getPhoneHmac(), slotId, participantCount);
         creationSupport.requireValidDeposit(paymentMethod);
         Booking booking = Booking.forMemberDeposit(
-                userId, slot, participantCount, depositAmount, balanceAmount, paymentMethod);
+                user, slot, participantCount, depositAmount, balanceAmount, paymentMethod);
         return creationSupport.saveAndComplete(booking, slot);
     }
 
@@ -65,18 +67,27 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
     @Override
     public Booking createMemberPassBooking(
             Long userId, Long slotId, Long passId, int participantCount) {
-        memberAccountGuard.requireActiveForUpdate(userId);
+        User user = requireBookableMember(userId);
         PassPurchase pass = creationSupport.requireOwnedPassForUpdate(passId, userId);
-        Slot slot = reserveSlot(userId, slotId, participantCount);
+        Slot slot = reserveSlot(user.getPhoneHmac(), slotId, participantCount);
         Booking booking = creationSupport.save(
-                Booking.forMemberPass(userId, slot, pass, participantCount));
+                Booking.forMemberPass(user, slot, pass, participantCount));
         creationSupport.deductPassCredit(pass, booking.getId());
         return creationSupport.complete(booking, slot);
     }
 
-    private Slot reserveSlot(Long userId, Long slotId, int participantCount) {
+    private User requireBookableMember(Long userId) {
+        User user = memberAccountGuard.requireActiveForUpdate(userId);
+        if (user.getPhoneHmac() == null) {
+            throw new PhoneVerificationRequiredException();
+        }
+        return user;
+    }
+
+    private Slot reserveSlot(String ownerPhoneHmac, Long slotId, int participantCount) {
         slotCapacitySupport.requireAvailableSlot(slotId);
-        if (bookingReaderPort.existsBookedBySlotIdAndUserId(slotId, userId)) {
+        if (bookingReaderPort.existsBookedBySlotIdAndOwnerPhoneHmac(
+                slotId, ownerPhoneHmac)) {
             throw new DuplicateBookingException();
         }
         return slotCapacitySupport.reserveCapacity(slotId, participantCount);

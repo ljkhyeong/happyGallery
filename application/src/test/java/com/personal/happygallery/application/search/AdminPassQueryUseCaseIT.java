@@ -61,7 +61,7 @@ class AdminPassQueryUseCaseIT {
         User targetUser = saveUser("target-pass@example.com", "검색 회원", "010-1234-5678");
         PassPurchase targetPass = passPurchaseStorePort.save(
                 passPurchase(targetUser.getId(), now.plusDays(90), 320_000L));
-        saveFuturePassBooking(targetUser.getId(), targetPass, now.plusDays(3));
+        saveFuturePassBooking(targetUser, targetPass, now.plusDays(3));
 
         User otherUser = saveUser("other-pass@example.com", "다른 회원", "01099998888");
         passPurchaseStorePort.save(passPurchase(otherUser.getId(), now.plusDays(60), 240_000L));
@@ -132,13 +132,13 @@ class AdminPassQueryUseCaseIT {
         return userStorePort.save(new User(email, "hashed-password", name, phone));
     }
 
-    private void saveFuturePassBooking(Long userId, PassPurchase pass, LocalDateTime startAt) {
+    private void saveFuturePassBooking(User user, PassPurchase pass, LocalDateTime startAt) {
         BookingClass bookingClass = classStorePort.save(
                 bookingClass("우드 정규 클래스", "WOOD", 120, 50_000L, 30));
         Slot savedSlot = slotStorePort.save(slot(bookingClass, startAt, startAt.plusHours(2)));
         pass.useCredit(LocalDateTime.now(clock));
         passPurchaseStorePort.save(pass);
-        bookingStorePort.save(Booking.forMemberPass(userId, savedSlot, pass));
+        bookingStorePort.save(Booking.forMemberPass(user, savedSlot, pass));
     }
 
     private void cleanup() {

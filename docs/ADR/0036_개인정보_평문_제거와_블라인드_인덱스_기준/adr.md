@@ -29,6 +29,10 @@
 - `guests`: `name_enc/name_hmac`, `phone_enc/phone_hmac`
 - `phone_verifications`: `phone_hmac`, `code_hmac`, `code_enc`
 - `payment_attempt`: 내부 결제 payload 전체를 `payload_enc`에 저장하고, confirm 재응답에 필요한 비회원 원문 접근 토큰은 `fulfilled_access_token_enc`에 저장한다. 비회원 공개 입력의 인증 코드는 prepare에서 소비한 뒤 저장하지 않고, 결제 context·orderId·정규화 전화번호에 귀속된 HMAC 증거만 암호화 payload에 넣는다. 비회원 결제 상태 복구를 위해 정규화 휴대폰의 HMAC과 비식별 키 버전을 `owner_phone_hmac/owner_phone_hmac_key_id`에 추가 저장한다.
+- `bookings`: `BOOKED` 예약 소유자의 현재 정규화 휴대폰 HMAC을 `owner_phone_hmac`에 저장한다.
+  `active_owner_phone_hmac`과 `(slot_id, active_owner_phone_hmac)` 유일 인덱스로 회원·비회원 테이블을
+  가로지르는 동일 전화번호 중복 예약을 차단한다. 회원 전화번호 변경은 활성 예약 HMAC도 같은 트랜잭션에서
+  갱신하며 충돌 시 전체 변경을 거절한다. 취소·완료·노쇼 예약은 이 값을 즉시 제거한다.
 - `user_social_accounts`: `provider_id_enc/provider_id_hmac` 저장. V63 이전 행의 `provider_id_enc`는 다음 소셜 로그인 전까지 nullable
 - `fulfillments`: 주문 시점 구조화 배송지 JSON을 `shipping_address_enc`에 저장
 - `admin_user`: TOTP 비밀키를 `totp_secret_enc`에 저장. MFA 복구 코드는 복호화할 필요가 없으므로 `admin_mfa_recovery_code.code_hash`에 무작위 salt가 있는 비밀번호 해시만 저장
@@ -75,7 +79,7 @@ V82는 검증된 기준 이메일이 없는 신규 Naver 회원을 표현하도�
 - 필드 설정은 하나의 `active-key-id`, active `ENCRYPT_KEY`/`HMAC_KEY`, 선택적인 `PREVIOUS_ENCRYPT_KEYS`/`PREVIOUS_HMAC_KEYS`로 구성한다. 이전 키 목록은 `keyId=64자리hex` 형식이며 AES와 HMAC의 active 키 ID는 같아야 한다.
 - HMAC 컬럼은 기존 `CHAR(64)`를 유지해 키 ID를 저장하지 않는다. 일반 쓰기는 active HMAC만 생성하고, 키 전환기의 소셜 로그인만 active와 previous HMAC 후보를 모두 조회한다.
 - 회전은 일반 app Pod를 모두 중지한 유지보수 창에 `KEY_ROTATION_ENABLED=true`인 임시 유지보수 Job으로 한 번 수행한다. Job은 web adapter bean을 구성하기 위해 동일한 servlet 이미지를 `SERVER_PORT=0`, `MANAGEMENT_PORT=0`으로 기동하지만 Service가 없고 기본 deny NetworkPolicy가 적용되어 외부 트래픽을 받지 않는다. 실행기는 source 키 ID가 AES/HMAC previous 키링에 모두 있고 active 키 ID와 다른지 검사하고 회전 runner 완료 후 context를 닫는다.
-- 회원, 비회원, 결제 시도, 배송지, 관리자 TOTP 비밀키와 암호문이 있는 소셜 계정을 ID 순서로 읽어 active AES로 재암호화하고 active HMAC을 다시 계산한다. 기준 이메일이 없는 회원의 null 이메일 필드는 그대로 두고 HMAC을 만들지 않는다. 비회원 결제의 `owner_phone_hmac`은 복호화한 구조화 payment payload의 정규화 휴대폰에서 재생성하며 문자열 검색으로 추출하지 않는다. 전체 DB 갱신과 휴대폰 인증 행 삭제는 600초 제한의 단일 트랜잭션이며 `data_key_rotation_lock` 단일 행의 `FOR UPDATE NOWAIT` 잠금을 커밋·롤백까지 유지해 중복 실행을 막는다.
+- 회원, 비회원, 결제 시도, 배송지, 관리자 TOTP 비밀키와 암호문이 있는 소셜 계정을 ID 순서로 읽어 active AES로 재암호화하고 active HMAC을 다시 계산한다. 기준 이메일이 없는 회원의 null 이메일 필드는 그대로 두고 HMAC을 만들지 않는다. 활성 예약의 `owner_phone_hmac`은 회전된 현재 회원 또는 비회원 HMAC에서 갱신하고, 종결 예약에는 HMAC을 보존하지 않는다. 비회원 결제의 `owner_phone_hmac`은 복호화한 구조화 payment payload의 정규화 휴대폰에서 재생성하며 문자열 검색으로 추출하지 않는다. 전체 DB 갱신과 휴대폰 인증 행 삭제는 600초 제한의 단일 트랜잭션이며 `data_key_rotation_lock` 단일 행의 `FOR UPDATE NOWAIT` 잠금을 커밋·롤백까지 유지해 중복 실행을 막는다.
 - `phone_verifications`에는 전화번호 암호문이 없어 `phone_hmac`과 `code_hmac`을 새 키로 재생성할 수 없다. 회전 시 행을 전량 삭제하고 사용자는 인증번호를 다시 요청한다.
 - V63 이전 소셜 계정은 `provider_id_enc`가 `NULL`이라 일괄 HMAC 재생성이 불가능하다. 로그인 입력 provider ID를 previous HMAC 후보로 찾은 뒤 active AES/HMAC으로 즉시 채운다. `provider_id_enc IS NULL`이 0건이 되기 전에는 previous HMAC 키를 제거하지 않는다.
 - 회전 검증과 새 키 기준 백업을 마친 뒤에만 [`finalize-data-key-rotation.sh`](../../../deploy/k3s/scripts/finalize-data-key-rotation.sh)로 runtime previous 키를 제거한다. payload가 이미 제거된 최근 최종 결제의 휴대폰 HMAC은 원문을 복원할 수 없어 이전 키 ID를 유지하며, 30일 보존 배치가 제거할 때까지 previous HMAC 키를 유지한다. finalize 스크립트는 active 키 ID가 아닌 `owner_phone_hmac`이나 관리자 TOTP 암호문이 한 건이라도 남으면 중단한다. 보존 중인 과거 백업에 필요한 구키는 해당 백업 보존 기간 동안 분리 복구 저장소에 유지한다.

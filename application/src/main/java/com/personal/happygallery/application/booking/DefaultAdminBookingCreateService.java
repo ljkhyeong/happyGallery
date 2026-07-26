@@ -56,7 +56,8 @@ public class DefaultAdminBookingCreateService implements AdminBookingCreateUseCa
 
         Guest guest = guestStore.getOrCreateByPhoneHmac(
                 guestProtector.newGuest(command.name(), command.phone()));
-        if (bookingReader.existsBookedBySlotIdAndGuestId(command.slotId(), guest.getId())) {
+        if (bookingReader.existsBookedBySlotIdAndOwnerPhoneHmac(
+                command.slotId(), guest.getPhoneHmac())) {
             throw new DuplicateBookingException();
         }
 

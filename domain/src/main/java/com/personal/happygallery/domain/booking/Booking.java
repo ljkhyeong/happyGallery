@@ -3,6 +3,7 @@ package com.personal.happygallery.domain.booking;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -32,6 +33,9 @@ public class Booking {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "guest_id")
     private Guest guest;
+
+    @Column(name = "owner_phone_hmac", length = 64)
+    private String ownerPhoneHmac;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "class_id", nullable = false)
@@ -100,11 +104,12 @@ public class Booking {
 
     protected Booking() {}
 
-    private Booking(Guest guest, Long userId, Slot slot, int participantCount,
+    private Booking(Guest guest, Long userId, String ownerPhoneHmac, Slot slot, int participantCount,
                     long depositAmount, long balanceAmount,
                     DepositPaymentMethod paymentMethod, PassPurchase passPurchase, String accessToken,
                     BookingSource source) {
         requireExactlyOneOwner(guest, userId);
+        requireOwnerPhoneHmac(ownerPhoneHmac);
         SlotCapacity.requireValidParticipantCount(participantCount);
         if (passPurchase != null && participantCount != 1) {
             throw new HappyGalleryException(
@@ -113,6 +118,7 @@ public class Booking {
         }
         this.guest = guest;
         this.userId = userId;
+        this.ownerPhoneHmac = ownerPhoneHmac;
         this.bookingClass = slot.getBookingClass();
         this.slot = slot;
         this.status = BookingStatus.BOOKED;
@@ -134,6 +140,12 @@ public class Booking {
         }
     }
 
+    private static void requireOwnerPhoneHmac(String ownerPhoneHmac) {
+        if (ownerPhoneHmac == null || ownerPhoneHmac.isBlank()) {
+            throw new IllegalArgumentException("예약자 휴대폰 식별자는 필수입니다.");
+        }
+    }
+
     /** 게스트 예약금 예약 생성. */
     public static Booking forGuestDeposit(Guest guest, Slot slot, long depositAmount, long balanceAmount,
                                           DepositPaymentMethod paymentMethod, String accessToken) {
@@ -145,36 +157,38 @@ public class Booking {
                                           long depositAmount, long balanceAmount,
                                           DepositPaymentMethod paymentMethod, String accessToken) {
         return new Booking(
-                guest, null, slot, participantCount,
+                guest, null, guest.getPhoneHmac(), slot, participantCount,
                 depositAmount, balanceAmount, paymentMethod, null, accessToken, BookingSource.WEB);
     }
 
     /** 회원 예약금 예약 생성. */
-    public static Booking forMemberDeposit(Long userId, Slot slot, long depositAmount, long balanceAmount,
+    public static Booking forMemberDeposit(User member,
+                                           Slot slot, long depositAmount, long balanceAmount,
                                            DepositPaymentMethod paymentMethod) {
         return forMemberDeposit(
-                userId, slot, 1, depositAmount, balanceAmount, paymentMethod);
+                member, slot, 1, depositAmount, balanceAmount, paymentMethod);
     }
 
-    public static Booking forMemberDeposit(Long userId, Slot slot, int participantCount,
+    public static Booking forMemberDeposit(User member, Slot slot, int participantCount,
                                            long depositAmount, long balanceAmount,
                                            DepositPaymentMethod paymentMethod) {
         return new Booking(
-                null, userId, slot, participantCount,
+                null, member.getId(), member.getPhoneHmac(), slot, participantCount,
                 depositAmount, balanceAmount, paymentMethod, null, null, BookingSource.WEB);
     }
 
     /** 회원 8회권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null. */
-    public static Booking forMemberPass(Long userId, Slot slot, PassPurchase passPurchase) {
-        return forMemberPass(userId, slot, passPurchase, 1);
+    public static Booking forMemberPass(
+            User member, Slot slot, PassPurchase passPurchase) {
+        return forMemberPass(member, slot, passPurchase, 1);
     }
 
     public static Booking forMemberPass(
-            Long userId, Slot slot, PassPurchase passPurchase, int participantCount) {
+            User member, Slot slot, PassPurchase passPurchase, int participantCount) {
         passPurchase.requireApplicableToClass(
                 slot.getBookingClass().getCategory(), slot.getBookingClass().isPassEligible());
         return new Booking(
-                null, userId, slot, participantCount,
+                null, member.getId(), member.getPhoneHmac(), slot, participantCount,
                 0, 0, null, passPurchase, null, BookingSource.WEB);
     }
 
@@ -192,6 +206,7 @@ public class Booking {
         Booking booking = new Booking(
                 guest,
                 null,
+                guest.getPhoneHmac(),
                 slot,
                 participantCount,
                 depositAmount,
@@ -240,12 +255,14 @@ public class Booking {
                     "잔금 결제가 완료된 예약은 고객이 취소할 수 없습니다. 관리자 정산이 필요합니다.");
         }
         this.status = BookingStatus.CANCELED;
+        this.ownerPhoneHmac = null;
     }
 
     /** 공방 사정으로 예약을 취소한다. 고객 취소 제한과 관계없이 관리자 정산 흐름에서만 호출한다. */
     public void cancelByAdmin() {
         status.requireBooked();
         this.status = BookingStatus.CANCELED;
+        this.ownerPhoneHmac = null;
     }
 
     public boolean isCustomerCancellationAllowed() {
@@ -260,6 +277,7 @@ public class Booking {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수업 종료 전에는 노쇼 처리할 수 없습니다.");
         }
         this.status = BookingStatus.NO_SHOW;
+        this.ownerPhoneHmac = null;
     }
 
     /** 현장 잔금 결제를 기록한다. 이미 결제된 예약은 최초 결제 시각을 유지한다. */
@@ -292,6 +310,7 @@ public class Booking {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "미결제 잔금은 미수로 표시한 뒤 완료해 주세요.");
         }
         this.status = BookingStatus.COMPLETED;
+        this.ownerPhoneHmac = null;
     }
 
     private void requireSettlementEditable() {
@@ -340,6 +359,7 @@ public class Booking {
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Guest getGuest() { return guest; }
+    public String getOwnerPhoneHmac() { return ownerPhoneHmac; }
     public BookingClass getBookingClass() { return bookingClass; }
     public Slot getSlot() { return slot; }
     public BookingStatus getStatus() { return status; }

@@ -153,7 +153,8 @@ public class GlobalExceptionHandler {
 
     private static final Set<String> DUPLICATE_BOOKING_CONSTRAINTS = Set.of(
             "uq_bookings_active_user_slot",
-            "uq_bookings_active_guest_slot"
+            "uq_bookings_active_guest_slot",
+            "uq_bookings_active_phone_slot"
     );
 
     private static final String DUPLICATE_USER_PHONE_CONSTRAINT = "uq_users_phone_hmac";

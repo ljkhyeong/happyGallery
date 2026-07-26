@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.customer;
 
+import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
 import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
@@ -16,13 +17,16 @@ public class DefaultMemberPhoneUpdateService implements MemberPhoneUpdateUseCase
 
     private final UserReaderPort userReader;
     private final UserStorePort userStore;
+    private final BookingStorePort bookingStore;
     private final PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
 
     public DefaultMemberPhoneUpdateService(UserReaderPort userReader,
                                            UserStorePort userStore,
+                                           BookingStorePort bookingStore,
                                            PhoneOwnershipVerificationUseCase phoneOwnershipVerification) {
         this.userReader = userReader;
         this.userStore = userStore;
+        this.bookingStore = bookingStore;
         this.phoneOwnershipVerification = phoneOwnershipVerification;
     }
 
@@ -37,6 +41,8 @@ public class DefaultMemberPhoneUpdateService implements MemberPhoneUpdateUseCase
         }
 
         user.registerVerifiedPhone(phone);
-        return userStore.save(user);
+        User savedUser = userStore.save(user);
+        bookingStore.updateBookedOwnerPhoneHmacByUserId(userId, savedUser.getPhoneHmac());
+        return savedUser;
     }
 }

@@ -70,7 +70,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void dataIntegrity_activeBookingUnique_mapsToDuplicateBooking() {
         ResponseEntity<ErrorResponse> response = handler.handleDataIntegrityViolation(
-                constraintViolation("bookings.uq_bookings_active_guest_slot"));
+                constraintViolation("bookings.uq_bookings_active_phone_slot"));
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(409);

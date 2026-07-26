@@ -43,8 +43,14 @@
 ### 활성 예약 중복
 
 - 취소·완료·결석 예약은 이력으로 보존하고, `BOOKED` 상태만 동일 슬롯과 동일 예약자 조합당 한 건으로 제한한다.
-- MySQL generated column `active_user_id`, `active_guest_id`를 두고
-  `(slot_id, active_user_id)`, `(slot_id, active_guest_id)`를 각각 UNIQUE로 만든다.
+- `BOOKED` 예약은 회원과 비회원 소유자의 현재 정규화 전화번호 HMAC을 `owner_phone_hmac`에 저장한다.
+  회원 전화번호를 바꾸면 해당 회원의 활성 예약 HMAC도 같은 트랜잭션에서 갱신한다.
+- MySQL generated column `active_owner_phone_hmac`를 두고
+  `(slot_id, active_owner_phone_hmac)`를 UNIQUE로 만들어 회원·비회원 경로를 바꾼 동일 전화번호의 중복 예약도 막는다.
+- `BOOKED` 예약은 `owner_phone_hmac`가 반드시 존재하고, 종결 예약은 반드시 `NULL`이도록 CHECK로 강제한다.
+- 기존 generated column `active_user_id`, `active_guest_id`와
+  `(slot_id, active_user_id)`, `(slot_id, active_guest_id)` UNIQUE도 유지한다.
+  공통 전화번호 인덱스는 회원·비회원 교차 중복을 막고, 계정별 인덱스는 전화번호를 바꾼 같은 계정의 재예약 우회를 막으므로 역할이 다르다.
 - 취소 후 동일 슬롯 재예약은 허용한다.
 - 예약 UNIQUE 위반만 `409 DUPLICATE_BOOKING`으로 변환하고 다른 DB 제약 위반은 일반 입력 오류로 처리한다.
 
@@ -70,6 +76,10 @@
 
 - 기존 중복 환불, 원장, Guest 또는 활성 예약을 임의 삭제하거나 상태 변경하지 않는다.
 - UNIQUE/CHECK 추가가 기존 불일치를 발견하면 Flyway를 실패시켜 운영자가 원본 결제와 이력을 확인한 뒤 정리하도록 한다.
+- `V98`은 영구 컬럼을 추가하기 전에 임시 테이블의 `NOT NULL`과 UNIQUE로 기존 `BOOKED` 예약을 사전 검증한다.
+  회원과 비회원의 현재 전화번호 HMAC을 만들 수 없거나 같은 슬롯에 교차 중복이 있으면 실제 스키마를 바꾸기 전에 배포를 중단한다.
+- 사전 검증을 통과하면 `owner_phone_hmac`을 채우고 generated column, CHECK, UNIQUE를 하나의 atomic `ALTER TABLE`로 추가한다.
+  예기치 않은 DB 중단으로 첫 컬럼 DDL만 남은 경우에는 `information_schema`로 부분 적용 상태를 확인해 해당 컬럼을 제거한 뒤 Flyway를 repair·재실행한다.
 - UNIQUE가 같은 선두 컬럼의 일반 인덱스를 대체하면 중복 일반 인덱스를 제거한다.
 
 ---
@@ -89,8 +99,9 @@
 ## 구현 반영
 
 - `V44__enforce_identity_and_transaction_consistency.sql`
+- `V98__enforce_booking_phone_identity.sql`
 - `V94__index_notification_outbox_event_aggregate.sql`
 - `VerifiedGuestResolver`와 Guest persistence 원자 get-or-create 경계
-- 활성 예약 기준 Booking repository 조회
+- 전화번호 HMAC 기준 활성 예약 조회와 계정별 활성 예약 DB 제약
 - 예약 UNIQUE 제약 이름 기준 예외 변환
 - 관리자 예약·주문 검색의 암호화된 Guest 전화번호 복호화

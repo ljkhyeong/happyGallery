@@ -18,6 +18,8 @@ public interface KeyRotationDataPort {
 
     void updateGuest(GuestRotatedRow row);
 
+    int refreshBookedOwnerPhoneHmac();
+
     List<PaymentAttemptEncryptedRow> findPaymentAttemptsAfterId(long afterId, int limit);
 
     void updatePaymentAttempt(PaymentAttemptRotatedRow row);

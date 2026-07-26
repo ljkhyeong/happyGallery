@@ -1,12 +1,20 @@
 package com.personal.happygallery.application.booking;
 
-import com.personal.happygallery.domain.error.CapacityExceededException;
-import com.personal.happygallery.domain.error.SlotNotAvailableException;
+import com.personal.happygallery.adapter.out.persistence.booking.BookingRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
+import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
+import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotCapacity;
-import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
-import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
+import com.personal.happygallery.domain.error.CapacityExceededException;
+import com.personal.happygallery.domain.error.SlotNotAvailableException;
+import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
@@ -16,10 +24,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -40,7 +49,11 @@ class ConcurrentBookingUseCaseIT {
     @Autowired SlotCapacitySupport slotCapacitySupport;
     @Autowired DefaultSlotManagementService slotManagementService;
     @Autowired ClassRepository classRepository;
+    @Autowired BookingRepository bookingRepository;
+    @Autowired GuestRepository guestRepository;
     @Autowired SlotRepository slotRepository;
+    @Autowired GuestPersonalDataProtector guestPersonalDataProtector;
+    @Autowired UserStorePort userStorePort;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PlatformTransactionManager transactionManager;
 
@@ -53,7 +66,8 @@ class ConcurrentBookingUseCaseIT {
     }
 
     private void cleanup() {
-        cleanupSupport.clearBookingData();
+        cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearUsers();
     }
 
     // -----------------------------------------------------------------------
@@ -174,6 +188,73 @@ class ConcurrentBookingUseCaseIT {
             });
         } finally {
             executor.shutdownNow();
+        }
+    }
+
+    @DisplayName("같은 전화번호의 회원과 비회원이 동시에 예약해도 한 건만 저장한다")
+    @Test
+    void concurrentMemberAndGuestBooking_samePhone_onlyOneSucceeds() throws Exception {
+        String phone = "01077778888";
+        BookingClass cls = classRepository.save(
+                bookingClass("예약자 식별 동시성 클래스", "OWNER_CONCURRENCY", 120, 50_000L, 0));
+        Slot slot = slotRepository.save(slot(cls, SLOT_START, SLOT_END));
+        User user = userStorePort.save(
+                new User("owner-concurrency@test.local", "password-hash", "회원 예약자", phone));
+        Guest guest = guestRepository.save(
+                guestPersonalDataProtector.newGuest("비회원 예약자", phone));
+        assertThat(user.getPhoneHmac()).isEqualTo(guest.getPhoneHmac());
+
+        CountDownLatch startLatch = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<Boolean> memberResult = executor.submit(
+                    () -> createMemberBooking(slot.getId(), user, startLatch));
+            Future<Boolean> guestResult = executor.submit(
+                    () -> createGuestBooking(slot.getId(), guest, startLatch));
+
+            startLatch.countDown();
+            boolean memberSucceeded = memberResult.get(15, TimeUnit.SECONDS);
+            boolean guestSucceeded = guestResult.get(15, TimeUnit.SECONDS);
+
+            assertSoftly(softly -> {
+                softly.assertThat(memberSucceeded).isNotEqualTo(guestSucceeded);
+                softly.assertThat(bookingRepository.count()).isEqualTo(1L);
+                softly.assertThat(slotRepository.findById(slot.getId()).orElseThrow().getBookedCount())
+                        .isEqualTo(1);
+            });
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private boolean createMemberBooking(Long slotId, User user, CountDownLatch startLatch)
+            throws InterruptedException {
+        startLatch.await();
+        try {
+            new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                Slot reserved = slotCapacitySupport.reserveCapacity(slotId);
+                bookingRepository.saveAndFlush(Booking.forMemberDeposit(
+                        user, reserved, 5_000L, 45_000L, DepositPaymentMethod.CARD));
+            });
+            return true;
+        } catch (DataIntegrityViolationException exception) {
+            return false;
+        }
+    }
+
+    private boolean createGuestBooking(Long slotId, Guest guest, CountDownLatch startLatch)
+            throws InterruptedException {
+        startLatch.await();
+        try {
+            new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                Slot reserved = slotCapacitySupport.reserveCapacity(slotId);
+                bookingRepository.saveAndFlush(Booking.forGuestDeposit(
+                        guest, reserved, 5_000L, 45_000L,
+                        DepositPaymentMethod.CARD, "concurrent-guest-access-token"));
+            });
+            return true;
+        } catch (DataIntegrityViolationException exception) {
+            return false;
         }
     }
 

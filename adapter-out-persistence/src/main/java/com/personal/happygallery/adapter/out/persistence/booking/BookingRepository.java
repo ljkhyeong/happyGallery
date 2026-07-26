@@ -12,6 +12,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,6 +20,19 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
 
     @Override Optional<Booking> findById(Long id);
     @Override Booking save(Booking booking);
+
+    @Override
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Booking b
+            SET b.ownerPhoneHmac = :ownerPhoneHmac,
+                b.version = b.version + 1
+            WHERE b.userId = :userId
+              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
+            """)
+    int updateBookedOwnerPhoneHmacByUserId(
+            @Param("userId") Long userId,
+            @Param("ownerPhoneHmac") String ownerPhoneHmac);
 
     @Override
     @Query("""
@@ -117,57 +131,33 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             """)
     List<Booking> findClaimTargetsByIdIn(@Param("ids") Collection<Long> ids);
 
-    /** 동일 슬롯에 같은 회원의 활성 예약이 있는지 확인한다. */
+    /** 동일 슬롯에 같은 전화번호 소유자의 활성 예약이 있는지 확인한다. */
     @Override
     @Query("""
             SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
             FROM Booking b
             WHERE b.slot.id = :slotId
-              AND b.userId = :userId
+              AND b.ownerPhoneHmac = :ownerPhoneHmac
               AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
             """)
-    boolean existsBookedBySlotIdAndUserId(@Param("slotId") Long slotId,
-                                          @Param("userId") Long userId);
+    boolean existsBookedBySlotIdAndOwnerPhoneHmac(
+            @Param("slotId") Long slotId,
+            @Param("ownerPhoneHmac") String ownerPhoneHmac);
 
-    /** 동일 슬롯에 같은 게스트의 활성 예약이 있는지 확인한다. */
+    /** 예약 변경 시 자기 자신을 제외하고 같은 전화번호 소유자의 활성 예약이 있는지 확인한다. */
     @Override
     @Query("""
             SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
             FROM Booking b
             WHERE b.slot.id = :slotId
-              AND b.guest.id = :guestId
-              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
-            """)
-    boolean existsBookedBySlotIdAndGuestId(@Param("slotId") Long slotId,
-                                           @Param("guestId") Long guestId);
-
-    /** 예약 변경 시 자기 자신을 제외하고 같은 게스트의 활성 예약이 있는지 확인한다. */
-    @Override
-    @Query("""
-            SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
-            FROM Booking b
-            WHERE b.slot.id = :slotId
-              AND b.guest.id = :guestId
+              AND b.ownerPhoneHmac = :ownerPhoneHmac
               AND b.id <> :excludeBookingId
               AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
             """)
-    boolean existsBookedBySlotIdAndGuestIdAndIdNot(@Param("slotId") Long slotId,
-                                                   @Param("guestId") Long guestId,
-                                                   @Param("excludeBookingId") Long excludeBookingId);
-
-    /** 예약 변경 시 자기 자신을 제외하고 같은 회원의 활성 예약이 있는지 확인한다. */
-    @Override
-    @Query("""
-            SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
-            FROM Booking b
-            WHERE b.slot.id = :slotId
-              AND b.userId = :userId
-              AND b.id <> :excludeBookingId
-              AND b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
-            """)
-    boolean existsBookedBySlotIdAndUserIdAndIdNot(@Param("slotId") Long slotId,
-                                                  @Param("userId") Long userId,
-                                                  @Param("excludeBookingId") Long excludeBookingId);
+    boolean existsBookedBySlotIdAndOwnerPhoneHmacAndIdNot(
+            @Param("slotId") Long slotId,
+            @Param("ownerPhoneHmac") String ownerPhoneHmac,
+            @Param("excludeBookingId") Long excludeBookingId);
 
     /** 이력 가져오기 시 회원에게 선택 슬롯의 활성 예약이 이미 있는지 한 번에 확인한다. */
     @Query("""

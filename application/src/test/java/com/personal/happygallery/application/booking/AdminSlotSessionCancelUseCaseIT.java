@@ -262,7 +262,7 @@ class AdminSlotSessionCancelUseCaseIT {
         PassPurchase pass = passPurchase(user.getId(), expiresAt, 320_000L);
         pass.useCredit(expiresAt.minusDays(1));
         pass = passPurchaseStorePort.save(pass);
-        Booking booking = bookingStorePort.save(Booking.forMemberPass(user.getId(), slot, pass));
+        Booking booking = bookingStorePort.save(Booking.forMemberPass(user, slot, pass));
         return new PassBooking(booking, pass);
     }
 

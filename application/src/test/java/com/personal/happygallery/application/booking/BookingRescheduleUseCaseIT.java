@@ -4,8 +4,11 @@ import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleRequest;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.BookingStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -43,6 +46,8 @@ class BookingRescheduleUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired DefaultSlotManagementService slotManagementService;
     @Autowired SlotCapacitySupport slotCapacitySupport;
+    @Autowired DefaultMemberBookingService memberBookingService;
+    @Autowired UserStorePort userStorePort;
     @Autowired Clock clock;
     @Autowired PlatformTransactionManager transactionManager;
     @Autowired ObjectMapper objectMapper;
@@ -60,6 +65,7 @@ class BookingRescheduleUseCaseIT {
     @AfterEach
     void tearDown() {
         cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearUsers();
     }
 
     // -----------------------------------------------------------------------
@@ -236,6 +242,36 @@ class BookingRescheduleUseCaseIT {
                         .content(rescheduleRequest(fullSlot.getId())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CAPACITY_EXCEEDED"));
+    }
+
+    @DisplayName("비회원 예약을 같은 전화번호 회원의 활성 예약 슬롯으로 변경하면 거절한다")
+    @Test
+    void reschedule_samePhoneMemberBookingSlot_returns409() throws Exception {
+        String phone = "01055550002";
+        Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot targetSlot = slotStorePort.save(
+                slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
+        BookingTestHelper.CreatedBooking guestBooking =
+                helper.createVerifiedCardBooking(phone, fromSlot.getId());
+        User member = new User(
+                "reschedule-owner@test.local", "password-hash", "회원 예약자", phone);
+        member.markPhoneVerified();
+        member = userStorePort.save(member);
+        memberBookingService.createMemberDepositBooking(
+                member.getId(), targetSlot.getId(), DepositPaymentMethod.CARD,
+                5_000L, 45_000L);
+
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", guestBooking.bookingId())
+                        .header("X-Access-Token", guestBooking.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rescheduleRequest(targetSlot.getId())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_BOOKING"));
+
+        assertSoftly(softly -> {
+            softly.assertThat(bookingStateProbe.getSlot(fromSlot.getId()).getBookedCount()).isEqualTo(1);
+            softly.assertThat(bookingStateProbe.getSlot(targetSlot.getId()).getBookedCount()).isEqualTo(1);
+        });
     }
 
     // -----------------------------------------------------------------------

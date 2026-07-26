@@ -17,7 +17,9 @@
 
 **이유**:
 - 재예약 시 guest row 중복 생성 방지
-- 활성 `(slot_id, guest_id)` 쌍으로 중복 예약 차단이 가능해짐 (`BookingRepository.existsBookedBySlotIdAndGuestId`)
+- 예약은 회원·비회원 모두 활성 예약 소유자의 현재 `owner_phone_hmac`을 저장하고
+  `(slot_id, owner_phone_hmac)` 유일 제약으로 같은 전화번호의 중복 예약을 차단함.
+  회원 번호 변경 시 활성 예약 키를 같은 트랜잭션에서 갱신하고 예약 종결 시 제거함
 - 한 게스트의 예약 이력 조회가 단순해짐
 - `guests.phone` 평문 컬럼 없이도 동일 전화번호 동등 검색을 유지할 수 있음
 - 선조회와 INSERT 사이의 경쟁에서도 Guest 중복 생성을 DB가 최종 차단함
@@ -81,7 +83,7 @@
 
 ## 결정 6 — GlobalExceptionHandler에 DataIntegrityViolationException 핸들러 추가
 
-**선택**: 활성 회원/게스트 예약 UNIQUE 제약 위반만 409 `DUPLICATE_BOOKING`으로 반환한다.
+**선택**: 활성 회원/게스트 소유자 제약과 `(slot_id, active_owner_phone_hmac)` UNIQUE 제약 위반만 409 `DUPLICATE_BOOKING`으로 반환한다.
 
 **이유**: TOCTOU 경쟁 조건에서 애플리케이션 수준 중복 체크를 통과해도 DB UNIQUE 제약이 최후 방어선 역할을 해야 한다. 취소·완료·결석 예약은 UNIQUE 대상에서 제외해 취소 후 동일 슬롯 재예약을 허용한다.
 

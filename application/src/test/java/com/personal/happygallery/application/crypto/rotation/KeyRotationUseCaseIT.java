@@ -1,7 +1,10 @@
 package com.personal.happygallery.application.crypto.rotation;
 
+import com.personal.happygallery.adapter.out.persistence.booking.BookingRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.PhoneVerificationRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.adapter.out.persistence.order.FulfillmentRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptRepository;
@@ -10,9 +13,13 @@ import com.personal.happygallery.application.admin.port.out.AdminUserPort;
 import com.personal.happygallery.application.crypto.SpringSecurityFieldEncryptor;
 import com.personal.happygallery.application.crypto.VersionedFieldEncryptor;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.domain.admin.AdminUser;
+import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
-import com.personal.happygallery.domain.admin.AdminUser;
+import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -62,6 +69,9 @@ class KeyRotationUseCaseIT {
     @Autowired BlindIndexKeyRing activeIndexKeyRing;
     @Autowired UserStorePort userStorePort;
     @Autowired GuestRepository guestRepository;
+    @Autowired BookingRepository bookingRepository;
+    @Autowired ClassRepository classRepository;
+    @Autowired SlotRepository slotRepository;
     @Autowired PaymentAttemptRepository paymentAttemptRepository;
     @Autowired OrderRepository orderRepository;
     @Autowired FulfillmentRepository fulfillmentRepository;
@@ -84,6 +94,17 @@ class KeyRotationUseCaseIT {
         Guest guest = guestRepository.save(new Guest(
                 oldEncryptor.encrypt("회전 비회원"), oldIndexer.index("회전 비회원"),
                 oldEncryptor.encrypt("01087654321"), oldIndexer.index("01087654321")));
+        BookingClass bookingClass = classRepository.save(
+                new BookingClass("키 회전 클래스", "KEY_ROTATION", 60, 50_000L, 0));
+        Slot slot = slotRepository.save(new Slot(
+                bookingClass,
+                LocalDateTime.of(2030, 1, 2, 10, 0),
+                LocalDateTime.of(2030, 1, 2, 11, 0)));
+        Booking booking = bookingRepository.save(Booking.forMemberDeposit(
+                user, slot, 5_000L, 45_000L, DepositPaymentMethod.CARD));
+        jdbcTemplate.update(
+                "UPDATE bookings SET owner_phone_hmac = ? WHERE id = ?",
+                oldIndexer.index("01012345678"), booking.getId());
         String paymentPhone = "01022223333";
         PaymentAttempt attempt = paymentAttemptRepository.save(PaymentAttempt.startForGuest(
                 UUID.randomUUID().toString(), PaymentContext.BOOKING, 10_000L,
@@ -117,6 +138,7 @@ class KeyRotationUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(result.users()).isEqualTo(2);
             softly.assertThat(result.guests()).isEqualTo(1);
+            softly.assertThat(result.bookings()).isEqualTo(1);
             softly.assertThat(result.paymentAttempts()).isEqualTo(1);
             softly.assertThat(result.fulfillments()).isEqualTo(1);
             softly.assertThat(result.socialAccounts()).isEqualTo(1);
@@ -126,6 +148,8 @@ class KeyRotationUseCaseIT {
             softly.assertThat(result.pendingAdminMfaSecrets()).isZero();
             softly.assertThat(value("users", "email_enc", user.getId())).startsWith("hg:v2:");
             softly.assertThat(value("guests", "phone_enc", guest.getId())).startsWith("hg:v2:");
+            softly.assertThat(value("bookings", "owner_phone_hmac", booking.getId()))
+                    .isEqualTo(activeIndexKeyRing.index("01012345678"));
             softly.assertThat(value("payment_attempt", "payload_enc", attempt.getId())).startsWith("hg:v2:");
             softly.assertThat(value("payment_attempt", "owner_phone_hmac", attempt.getId()))
                     .isEqualTo(activeIndexKeyRing.index(paymentPhone));

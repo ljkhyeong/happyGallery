@@ -108,7 +108,8 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
             int participantCount) {
         slotCapacitySupport.requireAvailableSlot(slotId);
 
-        if (bookingReaderPort.existsBookedBySlotIdAndGuestId(slotId, guest.getId())) {
+        if (bookingReaderPort.existsBookedBySlotIdAndOwnerPhoneHmac(
+                slotId, guest.getPhoneHmac())) {
             throw new DuplicateBookingException();
         }
 

@@ -85,6 +85,22 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
     }
 
     @Override
+    public int refreshBookedOwnerPhoneHmac() {
+        return jdbc.sql("""
+                        UPDATE bookings booking
+                        LEFT JOIN users member ON member.id = booking.user_id
+                        LEFT JOIN guests guest ON guest.id = booking.guest_id
+                        SET booking.owner_phone_hmac =
+                            CASE
+                                WHEN booking.user_id IS NOT NULL THEN member.phone_hmac
+                                ELSE guest.phone_hmac
+                            END
+                        WHERE booking.status = 'BOOKED'
+                        """)
+                .update();
+    }
+
+    @Override
     public List<PaymentAttemptEncryptedRow> findPaymentAttemptsAfterId(long afterId, int limit) {
         return jdbc.sql("""
                         SELECT id, payload_enc, fulfilled_access_token_enc,

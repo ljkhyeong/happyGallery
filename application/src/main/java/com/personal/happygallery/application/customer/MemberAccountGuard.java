@@ -2,6 +2,7 @@ package com.personal.happygallery.application.customer;
 
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.user.User;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,8 +18,8 @@ public class MemberAccountGuard {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void requireActiveForUpdate(Long userId) {
-        userReader.findByIdForUpdate(userId)
+    public User requireActiveForUpdate(Long userId) {
+        return userReader.findByIdForUpdate(userId)
                 .orElseThrow(NotFoundException.supplier("회원"));
     }
 }

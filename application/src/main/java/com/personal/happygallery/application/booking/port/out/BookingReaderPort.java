@@ -22,13 +22,10 @@ public interface BookingReaderPort {
 
     List<Booking> findBookedBySlotIdForUpdate(Long slotId);
 
-    boolean existsBookedBySlotIdAndGuestId(Long slotId, Long guestId);
+    boolean existsBookedBySlotIdAndOwnerPhoneHmac(Long slotId, String ownerPhoneHmac);
 
-    boolean existsBookedBySlotIdAndUserId(Long slotId, Long userId);
-
-    boolean existsBookedBySlotIdAndGuestIdAndIdNot(Long slotId, Long guestId, Long excludeBookingId);
-
-    boolean existsBookedBySlotIdAndUserIdAndIdNot(Long slotId, Long userId, Long excludeBookingId);
+    boolean existsBookedBySlotIdAndOwnerPhoneHmacAndIdNot(
+            Long slotId, String ownerPhoneHmac, Long excludeBookingId);
 
     List<Booking> findFutureBookedPassBookings(Long passId, LocalDateTime now);
 

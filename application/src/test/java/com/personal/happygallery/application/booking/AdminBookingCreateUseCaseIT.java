@@ -2,6 +2,7 @@ package com.personal.happygallery.application.booking;
 
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase;
@@ -12,12 +13,16 @@ import com.personal.happygallery.application.booking.port.in.AdminBookingRespons
 import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingCancellationTaskType;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingSource;
 import com.personal.happygallery.domain.booking.BookingStatus;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.error.DuplicateBookingException;
+import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.BookingStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -36,6 +41,8 @@ class AdminBookingCreateUseCaseIT {
     @Autowired BookingCancellationTaskUseCase bookingCancellationTaskUseCase;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
+    @Autowired UserStorePort userStorePort;
+    @Autowired DefaultMemberBookingService memberBookingService;
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
@@ -43,6 +50,7 @@ class AdminBookingCreateUseCaseIT {
     @AfterEach
     void tearDown() {
         cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearUsers();
     }
 
     @DisplayName("운영자가 받은 다인 예약금 예약은 정원을 점유하고 취소 시 수동 환불 작업을 남긴다")
@@ -92,5 +100,34 @@ class AdminBookingCreateUseCaseIT {
                         softly.assertThat(task.compensationAmount()).isEqualTo(15_000L);
                     });
         });
+    }
+
+    @DisplayName("회원 예약과 같은 전화번호로 운영자 예약을 등록하면 중복으로 거절한다")
+    @Test
+    void createAdminBooking_samePhoneAsMemberBooking_rejected() {
+        BookingClass bookingClass = classStorePort.save(
+                bookingClass("교차 중복 클래스", "PHONE_IDENTITY", 120, 50_000L, 0));
+        LocalDateTime startAt = LocalDateTime.now(clock).plusDays(3);
+        Slot slot = slotStorePort.save(
+                slot(bookingClass, startAt, startAt.plusHours(2)));
+        User member = new User(
+                "booking-owner@test.local", "password-hash", "회원 예약자", "01023456789");
+        member.markPhoneVerified();
+        member = userStorePort.save(member);
+        memberBookingService.createMemberDepositBooking(
+                member.getId(), slot.getId(), DepositPaymentMethod.CARD,
+                5_000L, 45_000L);
+
+        CreateAdminBookingCommand command = new CreateAdminBookingCommand(
+                slot.getId(),
+                "전화 예약자",
+                "010-2345-6789",
+                1,
+                BookingSource.PHONE,
+                false,
+                7L);
+
+        assertThatThrownBy(() -> adminBookingCreateUseCase.create(command))
+                .isInstanceOf(DuplicateBookingException.class);
     }
 }

@@ -46,7 +46,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
      * <ol>
      *   <li>access_token으로 예약 조회 및 검증</li>
      *   <li>공통 검증 + 새 슬롯 확정 + 기존 슬롯 반납</li>
-     *   <li>중복 예약 체크 (게스트 기준)</li>
+     *   <li>전화번호 기준 중복 예약 체크</li>
      *   <li>RESCHEDULED 이력 저장 + 예약 업데이트 + 알림</li>
      * </ol>
      */
@@ -54,9 +54,8 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
     public Booking rescheduleBooking(Long bookingId, String accessToken, Long newSlotId) {
         Booking booking = bookingSupport.findByToken(bookingId, accessToken);
         RescheduleSlots slots = prepareReschedule(booking, newSlotId);
-        if (booking.getGuest() != null &&
-                bookingReaderPort.existsBookedBySlotIdAndGuestIdAndIdNot(
-                        newSlotId, booking.getGuest().getId(), bookingId)) {
+        if (bookingReaderPort.existsBookedBySlotIdAndOwnerPhoneHmacAndIdNot(
+                newSlotId, booking.getOwnerPhoneHmac(), bookingId)) {
             throw new DuplicateBookingException();
         }
         return applyReschedule(booking, slots);
@@ -70,8 +69,8 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
     public Booking rescheduleMemberBooking(Long bookingId, Long userId, Long newSlotId) {
         Booking booking = bookingSupport.findByIdAndUserId(bookingId, userId);
         RescheduleSlots slots = prepareReschedule(booking, newSlotId);
-        if (bookingReaderPort.existsBookedBySlotIdAndUserIdAndIdNot(
-                newSlotId, userId, bookingId)) {
+        if (bookingReaderPort.existsBookedBySlotIdAndOwnerPhoneHmacAndIdNot(
+                newSlotId, booking.getOwnerPhoneHmac(), bookingId)) {
             throw new DuplicateBookingException();
         }
         return applyReschedule(booking, slots);
