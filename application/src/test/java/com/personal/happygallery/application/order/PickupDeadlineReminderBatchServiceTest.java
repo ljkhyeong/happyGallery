@@ -54,8 +54,8 @@ class PickupDeadlineReminderBatchServiceTest {
             softly.assertThat(eventCaptor.getAllValues())
                     .extracting(NotificationRequestedEvent::idempotencyKey)
                     .containsExactly(
-                            "USER:10:PICKUP_DEADLINE_REMINDER:ORDER:101",
-                            "USER:10:PICKUP_DEADLINE_REMINDER:ORDER:102");
+                            "AGGREGATE:PICKUP_DEADLINE_REMINDER:ORDER:101",
+                            "AGGREGATE:PICKUP_DEADLINE_REMINDER:ORDER:102");
         });
     }
 }

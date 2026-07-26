@@ -1,7 +1,8 @@
 package com.personal.happygallery.application.booking;
 
-import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.application.booking.port.out.BookingReminderCandidatePort;
 import com.personal.happygallery.application.notification.NotificationOutboxService;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.time.Clocks;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -20,23 +21,30 @@ class DefaultBookingReminderBatchServiceTest {
     @DisplayName("D-1 배치는 당일 7시 전 재기동 시 놓친 오늘 예약까지 후보로 보충한다")
     @Test
     void sendD1Reminders_beforeSameDayReminder_includesTodayCatchUpWindow() {
-        BookingReaderPort bookingReader = mock(BookingReaderPort.class);
+        BookingReminderCandidatePort candidatePort =
+                mock(BookingReminderCandidatePort.class);
         NotificationOutboxService outboxService = mock(NotificationOutboxService.class);
         Clock clock = Clock.fixed(
                 ZonedDateTime.of(2026, 3, 1, 6, 0, 0, 0, Clocks.SEOUL).toInstant(),
                 Clocks.SEOUL);
-        when(bookingReader.findBookedInRange(
+        when(candidatePort.findUnnotifiedBookedAfterId(
                 LocalDateTime.of(2026, 3, 1, 6, 0),
-                LocalDateTime.of(2026, 3, 3, 0, 0)))
+                LocalDateTime.of(2026, 3, 3, 0, 0),
+                NotificationEventType.REMINDER_D1,
+                0L,
+                100))
                 .thenReturn(List.of());
         DefaultBookingReminderBatchService service =
-                new DefaultBookingReminderBatchService(bookingReader, outboxService, clock);
+                new DefaultBookingReminderBatchService(candidatePort, outboxService, clock);
 
         var result = service.sendD1Reminders();
 
         assertThat(result.successCount()).isZero();
-        verify(bookingReader).findBookedInRange(
+        verify(candidatePort).findUnnotifiedBookedAfterId(
                 LocalDateTime.of(2026, 3, 1, 6, 0),
-                LocalDateTime.of(2026, 3, 3, 0, 0));
+                LocalDateTime.of(2026, 3, 3, 0, 0),
+                NotificationEventType.REMINDER_D1,
+                0L,
+                100);
     }
 }

@@ -47,6 +47,7 @@
 - MFA 등록·확인·해제는 계정 ID가 있는 관리자 Bearer 세션에서만 허용한다. local API key는 MFA 설정을 바꿀 수 없다.
 - 등록 시작은 TOTP 비밀키와 `otpauth` URI를 한 번 응답한다. 서버는 비밀키를 필드 AES-GCM 암호문으로만 저장하며, 등록 코드 확인 전에는 MFA가 활성화되지 않는다.
 - TOTP는 SHA-1, 6자리, 30초 주기와 앞뒤 1주기 허용 범위를 사용한다. 로그인 challenge는 원문 대신 HMAC을 저장하고 5분 뒤 만료되며, 성공 시 한 번만 소비한다.
+- 등록 확인과 로그인에서 수락한 TOTP 시간 구간을 `admin_user.last_accepted_totp_step`에 저장한다. 관리자 행을 잠근 상태에서 현재 또는 더 오래된 구간을 거절해, 서로 다른 challenge나 동시 요청에서도 같은 TOTP를 다시 사용할 수 없게 한다.
 - 등록 확인 시 `xxxx-xxxx-xxxx-xxxx` 형식의 복구 코드 10개를 한 번만 응답한다. 서버는 각 코드를 무작위 salt가 있는 `PasswordEncoder` 해시로만 저장하고, 한 번 사용한 코드는 다시 사용할 수 없다.
 - 6자리 숫자만 TOTP 검증기에 전달하고 복구 코드 형식이 맞는 입력만 복구 코드 해시와 비교한다. 형식이 다른 입력에 불필요한 외부 검증이나 반복 BCrypt 비교를 수행하지 않는다.
 - MFA 활성화·비활성화는 `credential_version`을 증가시키고 기존 관리자 세션을 모두 무효화한다. 비활성화에는 현재 비밀번호와 유효한 TOTP 또는 미사용 복구 코드가 모두 필요하다.
@@ -86,6 +87,7 @@
 - 기본값은 `enable-api-key-auth=false`, `apiKey=""`
 - 프로덕션에서 설정이 빠져도 API key 경로는 비활성 상태
 - `local` 프로필에서만 `enable-api-key-auth=true`와 `ADMIN_API_KEY`를 명시한다.
+- local API key는 관리자 계정 ID가 없는 인증 수단이다. nullable 감사 행위자를 명시적으로 허용한 운영 작업만 수행할 수 있고, 주문 클레임 처리·비밀번호·MFA처럼 사람 관리자 ID가 필요한 작업은 `403`으로 거절한다.
 - 기본 관리자 계정은 Flyway migration에 넣지 않고 `LocalAdminSeedService`로 local 환경에서만 만든다.
 
 ### 7. 최초 관리자 계정은 일회성 setup token으로만 만든다

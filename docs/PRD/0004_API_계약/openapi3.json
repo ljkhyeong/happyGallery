@@ -1599,7 +1599,7 @@
         "required" : [ "email", "id", "localPasswordEnabled", "name", "phone", "phoneVerified" ],
         "type" : "object"
       },
-      "DailyRevenue" : {
+      "DailyRevenueResponse" : {
         "properties" : {
           "date" : {
             "format" : "date",
@@ -1610,9 +1610,10 @@
             "type" : "integer"
           }
         },
+        "required" : [ "date", "revenue" ],
         "type" : "object"
       },
-      "DashboardOverview" : {
+      "DashboardOverviewResponse" : {
         "properties" : {
           "monthOrderCount" : {
             "format" : "int32",
@@ -1639,6 +1640,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "monthOrderCount", "monthRevenue", "pendingApprovalCount", "todayBookingCount", "todayOrderCount", "todayRevenue" ],
         "type" : "object"
       },
       "FailedNotificationResponse" : {
@@ -2861,7 +2863,7 @@
         "required" : [ "amount", "context", "orderId", "status" ],
         "type" : "object"
       },
-      "PeriodSalesSummary" : {
+      "PeriodSalesSummaryResponse" : {
         "properties" : {
           "avgOrderValue" : {
             "format" : "int64",
@@ -2879,6 +2881,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "avgOrderValue", "orderCount", "periodLabel", "totalRevenue" ],
         "type" : "object"
       },
       "PickupResponse" : {
@@ -3232,7 +3235,7 @@
         },
         "type" : "object"
       },
-      "RefundStats" : {
+      "RefundStatsResponse" : {
         "properties" : {
           "refundRate" : {
             "format" : "double",
@@ -3247,6 +3250,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "refundRate", "totalRefundCount", "totalRefundedAmount" ],
         "type" : "object"
       },
       "RefundStatusResponse" : {
@@ -3359,7 +3363,7 @@
         "required" : [ "approved", "restoreInventory" ],
         "type" : "object"
       },
-      "RevenueBreakdown" : {
+      "RevenueBreakdownResponse" : {
         "properties" : {
           "bookingBalanceRevenue" : {
             "format" : "int64",
@@ -3382,6 +3386,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "bookingBalanceRevenue", "bookingDepositRevenue", "orderRevenue", "passPurchaseRevenue", "totalRevenue" ],
         "type" : "object"
       },
       "SendVerificationRequest" : {
@@ -3529,7 +3534,7 @@
         },
         "type" : "object"
       },
-      "SlotUtilization" : {
+      "SlotUtilizationResponse" : {
         "properties" : {
           "className" : {
             "type" : "string"
@@ -3551,6 +3556,7 @@
             "type" : "number"
           }
         },
+        "required" : [ "className", "date", "totalBooked", "totalCapacity", "utilizationRate" ],
         "type" : "object"
       },
       "SocialAccountAuthorizationResponse" : {
@@ -3575,7 +3581,7 @@
         "required" : [ "linkedProviders" ],
         "type" : "object"
       },
-      "StatusCount" : {
+      "StatusCountResponse" : {
         "properties" : {
           "count" : {
             "format" : "int32",
@@ -3585,9 +3591,10 @@
             "type" : "string"
           }
         },
+        "required" : [ "count", "status" ],
         "type" : "object"
       },
-      "TopProduct" : {
+      "TopProductResponse" : {
         "properties" : {
           "productId" : {
             "format" : "int64",
@@ -3608,6 +3615,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "productId", "productName", "productType", "totalQuantity", "totalRevenue" ],
         "type" : "object"
       },
       "UnreadCountResponse" : {
@@ -4605,7 +4613,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/DailyRevenue"
+                    "$ref" : "#/components/schemas/DailyRevenueResponse"
                   },
                   "type" : "array"
                 }
@@ -4626,7 +4634,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/StatusCount"
+                    "$ref" : "#/components/schemas/StatusCountResponse"
                   },
                   "type" : "array"
                 }
@@ -4663,7 +4671,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/DashboardOverview"
+                  "$ref" : "#/components/schemas/DashboardOverviewResponse"
                 }
               }
             },
@@ -4698,7 +4706,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/RefundStats"
+                  "$ref" : "#/components/schemas/RefundStatsResponse"
                 }
               }
             },
@@ -4733,7 +4741,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/RevenueBreakdown"
+                  "$ref" : "#/components/schemas/RevenueBreakdownResponse"
                 }
               }
             },
@@ -4778,7 +4786,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/PeriodSalesSummary"
+                    "$ref" : "#/components/schemas/PeriodSalesSummaryResponse"
                   },
                   "type" : "array"
                 }
@@ -4816,7 +4824,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/SlotUtilization"
+                    "$ref" : "#/components/schemas/SlotUtilizationResponse"
                   },
                   "type" : "array"
                 }
@@ -4872,7 +4880,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/TopProduct"
+                    "$ref" : "#/components/schemas/TopProductResponse"
                   },
                   "type" : "array"
                 }

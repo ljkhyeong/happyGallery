@@ -3,8 +3,10 @@ package com.personal.happygallery.application.admin;
 import com.personal.happygallery.application.admin.port.out.AdminMfaRecoveryCodePort;
 import com.personal.happygallery.application.admin.port.out.AdminTotpPort;
 import com.personal.happygallery.domain.admin.AdminMfaRecoveryCode;
+import com.personal.happygallery.domain.admin.AdminUser;
 import java.time.LocalDateTime;
 import java.util.Locale;
+import java.util.OptionalLong;
 import java.util.regex.Pattern;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -29,19 +31,19 @@ class AdminMfaCodeVerifier {
     }
 
     Verification verifyAndConsume(
-            Long adminUserId,
+            AdminUser admin,
             String secret,
             String rawCode,
             LocalDateTime now) {
         String code = normalize(rawCode);
-        if (verifyTotp(secret, code)) {
+        if (verifyAndUseTotp(admin, secret, code)) {
             return Verification.TOTP;
         }
         if (!RECOVERY_CODE.matcher(code).matches()) {
             return Verification.INVALID;
         }
         for (AdminMfaRecoveryCode stored :
-                recoveryCodePort.findUnusedByAdminUserIdForUpdate(adminUserId)) {
+                recoveryCodePort.findUnusedByAdminUserIdForUpdate(admin.getId())) {
             if (passwordEncoder.matches(code, stored.getCodeHash())) {
                 stored.use(now);
                 recoveryCodePort.save(stored);
@@ -51,9 +53,13 @@ class AdminMfaCodeVerifier {
         return Verification.INVALID;
     }
 
-    boolean verifyTotp(String secret, String rawCode) {
+    boolean verifyAndUseTotp(AdminUser admin, String secret, String rawCode) {
         String code = rawCode.trim();
-        return TOTP_CODE.matcher(code).matches() && totpPort.verify(secret, code);
+        if (!TOTP_CODE.matcher(code).matches()) {
+            return false;
+        }
+        OptionalLong timeStep = totpPort.findMatchingTimeStep(secret, code);
+        return timeStep.isPresent() && admin.acceptTotpStep(timeStep.getAsLong());
     }
 
     private static String normalize(String code) {

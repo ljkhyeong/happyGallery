@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 
@@ -59,8 +60,13 @@ export function AdminOrderClaimSection({
   const queryClient = useQueryClient();
   const toast = useToast();
   const [status, setStatus] = useState<"" | OrderClaimStatus>(initialStatus);
-  const [cursor, setCursor] = useState<string | undefined>();
-  const [cursorHistory, setCursorHistory] = useState<(string | undefined)[]>([]);
+  const {
+    cursor,
+    hasPreviousPage,
+    showNextPage,
+    showPreviousPage,
+    resetCursor,
+  } = useCursorHistory();
   const [pendingId, setPendingId] = useState<number | null>(null);
   const queryKey = ["admin", "order-claims", status, cursor] as const;
   const { data: page, isLoading, error } = useAdminQuery(onAuthError, {
@@ -77,19 +83,7 @@ export function AdminOrderClaimSection({
 
   function changeStatus(nextStatus: "" | OrderClaimStatus) {
     setStatus(nextStatus);
-    setCursor(undefined);
-    setCursorHistory([]);
-  }
-
-  function showNextPage() {
-    if (!page?.nextCursor) return;
-    setCursorHistory((history) => [...history, cursor]);
-    setCursor(page.nextCursor);
-  }
-
-  function showPreviousPage() {
-    setCursor(cursorHistory[cursorHistory.length - 1]);
-    setCursorHistory((history) => history.slice(0, -1));
+    resetCursor();
   }
 
   function invalidate() {
@@ -160,12 +154,12 @@ export function AdminOrderClaimSection({
             completeExchange.mutate({ claimId: claim.id, body })}
         />
       ))}
-      {(cursorHistory.length > 0 || page?.hasMore) && (
+      {(hasPreviousPage || page?.hasMore) && (
         <div className="d-flex justify-content-center gap-2 mt-3">
           <Button
             size="sm"
             variant="outline-secondary"
-            disabled={cursorHistory.length === 0 || isLoading}
+            disabled={!hasPreviousPage || isLoading}
             onClick={showPreviousPage}
           >
             이전
@@ -174,7 +168,7 @@ export function AdminOrderClaimSection({
             size="sm"
             variant="outline-primary"
             disabled={!page?.hasMore || isLoading}
-            onClick={showNextPage}
+            onClick={() => showNextPage(page?.nextCursor)}
           >
             다음
           </Button>

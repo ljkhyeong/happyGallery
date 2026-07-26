@@ -91,8 +91,8 @@ public class DefaultAdminMfaService implements AdminMfaUseCase {
         if (!admin.hasPendingMfaEnrollment()) {
             throw new HappyGalleryException(ErrorCode.CONFLICT, "확인할 MFA 등록 정보가 없습니다.");
         }
-        if (!mfaCodeVerifier.verifyTotp(
-                fieldEncryptor.decrypt(admin.getTotpSecretEnc()), code)) {
+        if (!mfaCodeVerifier.verifyAndUseTotp(
+                admin, fieldEncryptor.decrypt(admin.getTotpSecretEnc()), code)) {
             throw invalidCredentials();
         }
 
@@ -127,7 +127,7 @@ public class DefaultAdminMfaService implements AdminMfaUseCase {
         boolean passwordMatches =
                 passwordEncoder.matches(currentPassword, admin.getPasswordHash());
         AdminMfaCodeVerifier.Verification verification = mfaCodeVerifier.verifyAndConsume(
-                adminUserId,
+                admin,
                 fieldEncryptor.decrypt(admin.getTotpSecretEnc()),
                 code,
                 now);

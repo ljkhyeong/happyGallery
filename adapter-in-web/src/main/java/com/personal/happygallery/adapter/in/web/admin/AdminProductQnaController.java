@@ -49,6 +49,6 @@ public class AdminProductQnaController {
                                   @RequestBody @Valid QnaReplyRequest request,
                                   @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminQnaResponse.from(qnaUseCase.replyAndGet(
-                id, request.replyContent(), admin.adminUserId()));
+                id, request.replyContent(), admin.auditActorId()));
     }
 }

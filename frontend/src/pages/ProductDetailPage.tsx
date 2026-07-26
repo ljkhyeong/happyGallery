@@ -35,8 +35,7 @@ import {
   isMadeToOrderConsentVersionMismatch,
   useMadeToOrderConsent,
 } from "@/features/order/useMadeToOrderConsent";
-
-const MAX_QTY = 99;
+import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -110,7 +109,7 @@ export function ProductDetailPage() {
   if (!product) return null;
 
   const itemAmount = product.price * qty;
-  const canBuy = product.available && qty >= 1 && qty <= MAX_QTY;
+  const canBuy = product.available && qty >= 1 && qty <= MAX_PRODUCT_QUANTITY;
   const canCheckout = canBuy && isFulfillmentComplete(fulfillment);
   const guestFallbackPath = `/orders/new?productId=${productId}&qty=${qty}`;
   const memberRedirectPath = `/products/${productId}`;
@@ -206,19 +205,19 @@ export function ProductDetailPage() {
                       id="product-qty"
                       type="number"
                       min={1}
-                      max={MAX_QTY}
+                      max={MAX_PRODUCT_QUANTITY}
                       value={qty}
                       onChange={(e) => {
                         const v = Number(e.target.value);
-                        if (Number.isInteger(v) && v >= 1 && v <= MAX_QTY) setQty(v);
+                        if (Number.isInteger(v) && v >= 1 && v <= MAX_PRODUCT_QUANTITY) setQty(v);
                       }}
                       className="text-center store-purchase-qty-input"
                     />
                     <Button
                       variant="outline-dark"
                       size="sm"
-                      disabled={qty >= MAX_QTY}
-                      onClick={() => setQty((q) => Math.min(MAX_QTY, q + 1))}
+                      disabled={qty >= MAX_PRODUCT_QUANTITY}
+                      onClick={() => setQty((q) => Math.min(MAX_PRODUCT_QUANTITY, q + 1))}
                       aria-label="수량 증가"
                       className="store-purchase-qty-btn"
                     >

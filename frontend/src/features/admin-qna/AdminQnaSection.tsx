@@ -8,6 +8,7 @@ import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 
 interface Props {
   token: string;
@@ -17,8 +18,12 @@ interface Props {
 export function AdminQnaSection({ token, onAuthError }: Props) {
   const [view, setView] = useState<"UNANSWERED" | "PRODUCT">("UNANSWERED");
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
-  const [cursor, setCursor] = useState<string | undefined>();
-  const [cursorHistory, setCursorHistory] = useState<(string | undefined)[]>([]);
+  const {
+    cursor,
+    hasPreviousPage,
+    showNextPage,
+    showPreviousPage,
+  } = useCursorHistory();
 
   const productsQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products"],
@@ -49,17 +54,6 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
   const productNames = new Map(
     productsQuery.data?.map((product) => [product.id, product.name]) ?? [],
   );
-
-  function showNextPage() {
-    if (!unansweredPage?.nextCursor) return;
-    setCursorHistory((history) => [...history, cursor]);
-    setCursor(unansweredPage.nextCursor);
-  }
-
-  function showPreviousPage() {
-    setCursor(cursorHistory[cursorHistory.length - 1]);
-    setCursorHistory(cursorHistory.slice(0, -1));
-  }
 
   return (
     <div>
@@ -121,12 +115,12 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
           onAuthError={onAuthError}
         />
       ))}
-      {view === "UNANSWERED" && (cursorHistory.length > 0 || unansweredPage?.hasMore) && (
+      {view === "UNANSWERED" && (hasPreviousPage || unansweredPage?.hasMore) && (
         <div className="d-flex justify-content-center gap-2 mt-3">
           <Button
             size="sm"
             variant="outline-secondary"
-            disabled={cursorHistory.length === 0 || isLoading}
+            disabled={!hasPreviousPage || isLoading}
             onClick={showPreviousPage}
           >
             이전
@@ -135,7 +129,7 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
             size="sm"
             variant="outline-primary"
             disabled={!unansweredPage?.hasMore || isLoading}
-            onClick={showNextPage}
+            onClick={() => showNextPage(unansweredPage?.nextCursor)}
           >
             다음
           </Button>

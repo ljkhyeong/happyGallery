@@ -7,6 +7,7 @@ import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import type { OrderItemInput, ProductDetailResponse } from "@/shared/types";
 import type { ProductType } from "@/shared/types/product";
+import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 
 interface Props {
   items: OrderItemInput[];
@@ -14,8 +15,6 @@ interface Props {
   onItemAmountChange: (amount: number) => void;
   onProductTypesChange: (types: ProductType[]) => void;
 }
-
-const MAX_QTY = 99;
 
 function getProductTypes(
   items: OrderItemInput[],
@@ -48,7 +47,9 @@ export function OrderItemsForm({
   ), [products]);
 
   const qtyNum = Number(qty);
-  const qtyValid = Number.isInteger(qtyNum) && qtyNum >= 1 && qtyNum <= MAX_QTY;
+  const qtyValid = Number.isInteger(qtyNum)
+    && qtyNum >= 1
+    && qtyNum <= MAX_PRODUCT_QUANTITY;
 
   const updateItems = (nextItems: OrderItemInput[]) => {
     onChange(nextItems);
@@ -60,7 +61,7 @@ export function OrderItemsForm({
     if (pid > 0 && qtyValid) {
       const existing = items.find((i) => i.productId === pid);
       if (existing) {
-        const newQty = Math.min(existing.qty + qtyNum, MAX_QTY);
+        const newQty = Math.min(existing.qty + qtyNum, MAX_PRODUCT_QUANTITY);
         updateItems(items.map((i) => (i.productId === pid ? { ...i, qty: newQty } : i)));
       } else {
         updateItems([...items, { productId: pid, qty: qtyNum }]);
@@ -116,13 +117,13 @@ export function OrderItemsForm({
             <Form.Control
               type="number"
               min={1}
-              max={MAX_QTY}
+              max={MAX_PRODUCT_QUANTITY}
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               isInvalid={qty !== "" && qty !== "1" && !qtyValid}
             />
             <Form.Control.Feedback type="invalid">
-              1~{MAX_QTY} 사이의 수량을 입력해 주세요.
+              1~{MAX_PRODUCT_QUANTITY} 사이의 수량을 입력해 주세요.
             </Form.Control.Feedback>
           </Form.Group>
         </Col>

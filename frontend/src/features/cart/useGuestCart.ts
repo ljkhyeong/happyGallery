@@ -1,12 +1,13 @@
 import { useCallback, useRef, useState } from "react";
+import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 
 const STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
-export const MAX_CART_ITEM_QUANTITY = 99;
 
 export interface GuestCartItem {
   productId: number;
   qty: number;
+  lineageId: string;
 }
 
 export interface GuestCartMergeRequest {
@@ -17,53 +18,84 @@ export interface GuestCartMergeRequest {
 
 export class CartQuantityError extends Error {
   constructor() {
-    super(`상품별 장바구니 수량은 1개 이상 ${MAX_CART_ITEM_QUANTITY}개 이하여야 합니다.`);
+    super(`상품별 장바구니 수량은 1개 이상 ${MAX_PRODUCT_QUANTITY}개 이하여야 합니다.`);
     this.name = "CartQuantityError";
   }
 }
 
 function requireCartQuantity(qty: number) {
-  if (!Number.isSafeInteger(qty) || qty < 1 || qty > MAX_CART_ITEM_QUANTITY) {
+  if (!Number.isSafeInteger(qty) || qty < 1 || qty > MAX_PRODUCT_QUANTITY) {
     throw new CartQuantityError();
   }
 }
 
-function isGuestCartItem(value: unknown): value is GuestCartItem {
-  if (typeof value !== "object" || value === null) return false;
+function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
   const item = value as Partial<GuestCartItem>;
-  return typeof item.productId === "number"
-    && Number.isSafeInteger(item.productId)
-    && item.productId > 0
-    && typeof item.qty === "number"
-    && Number.isSafeInteger(item.qty)
-    && item.qty > 0
-    && item.qty <= MAX_CART_ITEM_QUANTITY;
+  if (
+    typeof item.productId !== "number"
+    || !Number.isSafeInteger(item.productId)
+    || item.productId <= 0
+    || typeof item.qty !== "number"
+    || !Number.isSafeInteger(item.qty)
+    || item.qty <= 0
+    || item.qty > MAX_PRODUCT_QUANTITY
+    || (item.lineageId !== undefined
+      && (typeof item.lineageId !== "string" || item.lineageId.length === 0))
+  ) {
+    return undefined;
+  }
+  return {
+    productId: item.productId,
+    qty: item.qty,
+    lineageId: item.lineageId ?? `legacy:${item.productId}`,
+  };
 }
 
-function isGuestCartMergeRequest(value: unknown): value is GuestCartMergeRequest {
-  if (typeof value !== "object" || value === null) return false;
+function normalizeGuestCartItems(value: unknown): GuestCartItem[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+
+  const items: GuestCartItem[] = [];
+  for (const valueItem of value) {
+    const item = normalizeGuestCartItem(valueItem);
+    if (!item) return undefined;
+    items.push(item);
+  }
+  return new Set(items.map((item) => item.productId)).size === items.length
+    ? items
+    : undefined;
+}
+
+function normalizeGuestCartMergeRequest(
+  value: unknown,
+): GuestCartMergeRequest | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
   const request = value as Partial<GuestCartMergeRequest>;
+  const items = normalizeGuestCartItems(request.items);
   if (
     typeof request.userId !== "number"
     || !Number.isSafeInteger(request.userId)
     || request.userId <= 0
     || typeof request.idempotencyKey !== "string"
     || request.idempotencyKey.length === 0
-    || !Array.isArray(request.items)
-    || request.items.length === 0
-    || !request.items.every(isGuestCartItem)
+    || !items
+    || items.length === 0
   ) {
-    return false;
+    return undefined;
   }
-  return new Set(request.items.map((item) => item.productId)).size === request.items.length;
+  return {
+    userId: request.userId,
+    idempotencyKey: request.idempotencyKey,
+    items,
+  };
 }
 
 function readGuestCartMergeRequest(): GuestCartMergeRequest | undefined {
   const raw = localStorage.getItem(MERGE_REQUEST_STORAGE_KEY);
   if (!raw) return undefined;
   try {
-    const request = JSON.parse(raw) as unknown;
-    if (isGuestCartMergeRequest(request)) return request;
+    const request = normalizeGuestCartMergeRequest(JSON.parse(raw) as unknown);
+    if (request) return request;
   } catch {
     // 손상된 요청은 아래에서 제거하고 현재 장바구니 스냅샷으로 교체한다.
   }
@@ -88,18 +120,14 @@ export function getOrCreateGuestCartMergeRequest(
   return request;
 }
 
-export function completeGuestCartMergeRequest(idempotencyKey: string) {
-  const raw = localStorage.getItem(MERGE_REQUEST_STORAGE_KEY);
-  if (!raw) return;
+export function completeGuestCartMergeRequest(
+  idempotencyKey: string,
+): GuestCartMergeRequest | undefined {
+  const request = readGuestCartMergeRequest();
+  if (request?.idempotencyKey !== idempotencyKey) return undefined;
 
-  try {
-    const saved = JSON.parse(raw) as GuestCartMergeRequest;
-    if (saved.idempotencyKey === idempotencyKey) {
-      localStorage.removeItem(MERGE_REQUEST_STORAGE_KEY);
-    }
-  } catch {
-    localStorage.removeItem(MERGE_REQUEST_STORAGE_KEY);
-  }
+  localStorage.removeItem(MERGE_REQUEST_STORAGE_KEY);
+  return request;
 }
 
 export function discardGuestCartMergeRequest(): GuestCartMergeRequest | undefined {
@@ -112,8 +140,8 @@ function getGuestCartItems(): GuestCartItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const saved = JSON.parse(raw) as unknown;
-    if (Array.isArray(saved) && saved.every(isGuestCartItem)) return saved;
+    const saved = normalizeGuestCartItems(JSON.parse(raw) as unknown);
+    if (saved) return saved;
     localStorage.removeItem(STORAGE_KEY);
     return [];
   } catch {
@@ -152,7 +180,7 @@ export function useGuestCart() {
         ? prev.map((i) =>
           i.productId === productId ? { ...i, qty: nextQty } : i,
         )
-        : [...prev, { productId, qty }];
+        : [...prev, { productId, qty, lineageId: crypto.randomUUID() }];
     });
   }, [updateItems]);
 
@@ -168,15 +196,17 @@ export function useGuestCart() {
   }, [updateItems]);
 
   const consumeMergedItems = useCallback((mergedItems: GuestCartItem[]) => {
-    const mergedQuantities = new Map<number, number>();
+    const mergedQuantities = new Map<string, number>();
     for (const item of mergedItems) {
+      const lineageKey = `${item.productId}:${item.lineageId}`;
       mergedQuantities.set(
-        item.productId,
-        (mergedQuantities.get(item.productId) ?? 0) + item.qty,
+        lineageKey,
+        (mergedQuantities.get(lineageKey) ?? 0) + item.qty,
       );
     }
     return updateItems((current) => current.flatMap((item) => {
-      const remainingQty = item.qty - (mergedQuantities.get(item.productId) ?? 0);
+      const lineageKey = `${item.productId}:${item.lineageId}`;
+      const remainingQty = item.qty - (mergedQuantities.get(lineageKey) ?? 0);
       return remainingQty > 0 ? [{ ...item, qty: remainingQty }] : [];
     }));
   }, [updateItems]);

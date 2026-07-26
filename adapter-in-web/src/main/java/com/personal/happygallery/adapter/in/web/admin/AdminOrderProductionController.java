@@ -32,7 +32,7 @@ public class AdminOrderProductionController {
     public OrderProductionResponse resumeAfterDelay(@PathVariable Long id,
                                                     @AuthenticationPrincipal AdminPrincipal admin) {
         OrderProductionUseCase.ProductionResult result = orderProductionUseCase.resumeAfterDelay(
-                id, admin.adminUserId());
+                id, admin.auditActorId());
         return OrderProductionResponse.from(result);
     }
 
@@ -41,7 +41,7 @@ public class AdminOrderProductionController {
     public OrderProductionResponse completeProduction(@PathVariable Long id,
                                                       @AuthenticationPrincipal AdminPrincipal admin) {
         OrderProductionUseCase.ProductionResult result = orderProductionUseCase.completeProduction(
-                id, admin.adminUserId());
+                id, admin.auditActorId());
         return OrderProductionResponse.from(result);
     }
 
@@ -52,7 +52,7 @@ public class AdminOrderProductionController {
                                                        @AuthenticationPrincipal AdminPrincipal admin) {
         OrderProductionUseCase.ProductionResult result =
                 orderProductionUseCase.setExpectedShipDate(new SetExpectedShipDateCommand(
-                        id, request.expectedShipDate(), admin.adminUserId()));
+                        id, request.expectedShipDate(), admin.auditActorId()));
         return OrderProductionResponse.from(result);
     }
 
@@ -61,7 +61,7 @@ public class AdminOrderProductionController {
     public OrderProductionResponse proposeDelay(@PathVariable Long id,
                                                 @AuthenticationPrincipal AdminPrincipal admin) {
         OrderProductionUseCase.ProductionResult result = orderProductionUseCase.proposeDelay(
-                new ProposeDelayCommand(id, admin.adminUserId()));
+                new ProposeDelayCommand(id, admin.auditActorId()));
         return OrderProductionResponse.from(result);
     }
 
@@ -71,7 +71,7 @@ public class AdminOrderProductionController {
             @PathVariable Long id,
             @AuthenticationPrincipal AdminPrincipal admin) {
         OrderProductionUseCase.DelayCancellationResult result =
-                orderProductionUseCase.cancelForDelayRejection(id, admin.adminUserId());
+                orderProductionUseCase.cancelForDelayRejection(id, admin.auditActorId());
         return OrderDelayCancellationResponse.from(result);
     }
 }

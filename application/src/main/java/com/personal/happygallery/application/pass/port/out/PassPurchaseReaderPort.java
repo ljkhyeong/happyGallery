@@ -17,6 +17,4 @@ public interface PassPurchaseReaderPort {
     List<PassPurchase> findExpiredWithRemainingCreditsAfterId(
             LocalDateTime now, int credits, Long afterId, Pageable pageable);
 
-    List<PassPurchase> findExpiryReminderCandidates(
-            LocalDateTime now, LocalDateTime latestExpiry, int credits);
 }

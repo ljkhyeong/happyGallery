@@ -21,6 +21,7 @@ import {
   useMadeToOrderConsent,
 } from "@/features/order/useMadeToOrderConsent";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 
 export function CartPage() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -207,7 +208,7 @@ export function CartPage() {
                           <Button
                             variant="outline-secondary"
                             size="sm"
-                            disabled={item.qty >= 99}
+                            disabled={item.qty >= MAX_PRODUCT_QUANTITY}
                             onClick={() => updateQty(item.productId, item.qty + 1)}
                           >
                             +

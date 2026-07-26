@@ -4,8 +4,6 @@ import com.personal.happygallery.adapter.in.web.admin.dto.AdminPasswordChangeReq
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.admin.port.in.AdminCredentialUseCase;
 import com.personal.happygallery.application.admin.port.in.AdminCredentialUseCase.ChangePasswordCommand;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -32,13 +30,9 @@ public class AdminCredentialController {
     public void changePassword(
             @AuthenticationPrincipal AdminPrincipal admin,
             @RequestBody @Valid AdminPasswordChangeRequest request) {
-        if (admin == null
-                || admin.authenticationSource() != AdminPrincipal.AuthenticationSource.BEARER_SESSION
-                || admin.adminUserId() == null) {
-            throw new HappyGalleryException(
-                    ErrorCode.FORBIDDEN, "Bearer 관리자 세션에서만 비밀번호를 변경할 수 있습니다.");
-        }
         adminCredentialUseCase.changePassword(new ChangePasswordCommand(
-                admin.adminUserId(), request.currentPassword(), request.newPassword()));
+                admin.requireBearerAdminUserId(),
+                request.currentPassword(),
+                request.newPassword()));
     }
 }

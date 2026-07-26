@@ -7,8 +7,6 @@ import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaRecoveryCodesR
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaStatusResponse;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.admin.port.in.AdminMfaUseCase;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -38,7 +36,7 @@ public class AdminMfaController {
     public AdminMfaStatusResponse getStatus(
             @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminMfaStatusResponse.from(
-                adminMfaUseCase.getStatus(requireBearerAdminId(admin)));
+                adminMfaUseCase.getStatus(admin.requireBearerAdminUserId()));
     }
 
     @PostMapping("/enrollment")
@@ -48,7 +46,7 @@ public class AdminMfaController {
             HttpServletResponse response) {
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
         return AdminMfaEnrollmentResponse.from(
-                adminMfaUseCase.beginEnrollment(requireBearerAdminId(admin)));
+                adminMfaUseCase.beginEnrollment(admin.requireBearerAdminUserId()));
     }
 
     @PostMapping("/enrollment/confirm")
@@ -60,7 +58,7 @@ public class AdminMfaController {
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
         return AdminMfaRecoveryCodesResponse.from(
                 adminMfaUseCase.confirmEnrollment(
-                        requireBearerAdminId(admin), request.code()));
+                        admin.requireBearerAdminUserId(), request.code()));
     }
 
     @DeleteMapping
@@ -70,16 +68,6 @@ public class AdminMfaController {
             @AuthenticationPrincipal AdminPrincipal admin,
             @RequestBody @Valid AdminMfaDisableRequest request) {
         adminMfaUseCase.disable(
-                requireBearerAdminId(admin), request.currentPassword(), request.code());
-    }
-
-    private static Long requireBearerAdminId(AdminPrincipal admin) {
-        if (admin == null
-                || admin.authenticationSource() != AdminPrincipal.AuthenticationSource.BEARER_SESSION
-                || admin.adminUserId() == null) {
-            throw new HappyGalleryException(
-                    ErrorCode.FORBIDDEN, "Bearer 관리자 세션에서만 MFA를 관리할 수 있습니다.");
-        }
-        return admin.adminUserId();
+                admin.requireBearerAdminUserId(), request.currentPassword(), request.code());
     }
 }

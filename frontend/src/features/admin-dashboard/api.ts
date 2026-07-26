@@ -1,39 +1,47 @@
-import { adminHeaders, api } from "@/shared/api";
-import type {
-  DailyRevenue,
-  DashboardGranularity,
-  DashboardOverview,
-  PeriodSalesSummary,
-  RefundStats,
-  RevenueBreakdown,
-  SlotUtilization,
-  StatusCount,
-  TopProduct,
-} from "@/shared/types";
+import {
+  dailyRevenue as getDailyRevenue,
+  orderStatusDistribution as getOrderStatusDistribution,
+  overview as getOverview,
+  refundStats as getRefundStats,
+  revenueBreakdown as getRevenueBreakdown,
+  salesSummary as getSalesSummary,
+  slotUtilization as getSlotUtilization,
+  topProducts as getTopProducts,
+  type DailyRevenueResponse,
+  type DashboardOverviewResponse,
+  type PeriodSalesSummaryResponse,
+  type RefundStatsResponse,
+  type RevenueBreakdownResponse,
+  type SalesSummaryGranularity,
+  type SlotUtilizationResponse,
+  type StatusCountResponse,
+  type TopProductResponse,
+} from "@/generated/api/adminDashboard";
+import { adminHeaders } from "@/shared/api";
 
 interface DashboardRange {
   from: string;
   to: string;
 }
 
+export type DashboardGranularity = SalesSummaryGranularity;
+export type { DailyRevenueResponse };
+
 export interface DashboardSnapshot {
-  overview: DashboardOverview;
-  revenueBreakdown: RevenueBreakdown;
-  refundStats: RefundStats;
-  dailyRevenue: DailyRevenue[];
-  orderStatus: StatusCount[];
-  topProducts: TopProduct[];
-  slotUtilization: SlotUtilization[];
+  overview: DashboardOverviewResponse;
+  revenueBreakdown: RevenueBreakdownResponse;
+  refundStats: RefundStatsResponse;
+  dailyRevenue: DailyRevenueResponse[];
+  orderStatus: StatusCountResponse[];
+  topProducts: TopProductResponse[];
+  slotUtilization: SlotUtilizationResponse[];
 }
 
 export async function fetchDashboardSnapshot(
   adminKey: string,
   range: DashboardRange,
 ): Promise<DashboardSnapshot> {
-  const options = {
-    headers: adminHeaders(adminKey),
-    params: { from: range.from, to: range.to },
-  };
+  const options = { headers: adminHeaders(adminKey) };
   const [
     overview,
     revenueBreakdown,
@@ -43,15 +51,13 @@ export async function fetchDashboardSnapshot(
     topProducts,
     slotUtilization,
   ] = await Promise.all([
-    api<DashboardOverview>("/admin/dashboard/overview", options),
-    api<RevenueBreakdown>("/admin/dashboard/revenue-breakdown", options),
-    api<RefundStats>("/admin/dashboard/refunds", options),
-    api<DailyRevenue[]>("/admin/dashboard/daily-revenue", options),
-    api<StatusCount[]>("/admin/dashboard/order-status", {
-      headers: adminHeaders(adminKey),
-    }),
-    api<TopProduct[]>("/admin/dashboard/top-products", options),
-    api<SlotUtilization[]>("/admin/dashboard/slot-utilization", options),
+    getOverview(range, options),
+    getRevenueBreakdown(range, options),
+    getRefundStats(range, options),
+    getDailyRevenue(range, options),
+    getOrderStatusDistribution(options),
+    getTopProducts(range, options),
+    getSlotUtilization(range, options),
   ]);
 
   return {
@@ -69,9 +75,9 @@ export function fetchSalesSummary(
   adminKey: string,
   range: DashboardRange,
   granularity: DashboardGranularity,
-): Promise<PeriodSalesSummary[]> {
-  return api<PeriodSalesSummary[]>("/admin/dashboard/sales-summary", {
-    headers: adminHeaders(adminKey),
-    params: { ...range, granularity },
-  });
+): Promise<PeriodSalesSummaryResponse[]> {
+  return getSalesSummary(
+    { ...range, granularity },
+    { headers: adminHeaders(adminKey) },
+  );
 }

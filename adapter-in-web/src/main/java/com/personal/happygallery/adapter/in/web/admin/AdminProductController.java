@@ -81,7 +81,7 @@ public class AdminProductController {
                 request.type(),
                 request.quantity(),
                 request.reason(),
-                admin.adminUserId(),
+                admin.auditActorId(),
                 admin.getName())));
     }
 

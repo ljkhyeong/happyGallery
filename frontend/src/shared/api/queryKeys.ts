@@ -24,6 +24,7 @@ export const queryKeys = {
       detail: (bookingId: number) => ["my", "bookings", bookingId] as const,
     },
     passes: ["my", "passes"] as const,
+    cart: ["me", "cart"] as const,
   },
   slotAvailability: {
     upcoming: {

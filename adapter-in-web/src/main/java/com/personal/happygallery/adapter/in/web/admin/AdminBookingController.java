@@ -90,7 +90,7 @@ public class AdminBookingController {
     public BookingNoShowResponse markNoShow(
             @PathVariable Long bookingId,
             @AuthenticationPrincipal AdminPrincipal admin) {
-        Booking booking = bookingNoShowUseCase.markNoShow(bookingId, admin.adminUserId());
+        Booking booking = bookingNoShowUseCase.markNoShow(bookingId, admin.auditActorId());
         return BookingNoShowResponse.from(booking);
     }
 
@@ -101,7 +101,7 @@ public class AdminBookingController {
             @PathVariable Long bookingId,
             @AuthenticationPrincipal AdminPrincipal admin) {
         return BookingSettlementResponse.from(
-                bookingSettlementUseCase.markBalancePaid(bookingId, admin.adminUserId()));
+                bookingSettlementUseCase.markBalancePaid(bookingId, admin.auditActorId()));
     }
 
     /** 미수 여부를 명시적으로 설정한다. */
@@ -112,7 +112,8 @@ public class AdminBookingController {
             @RequestBody @Valid UpdateBookingArrearsRequest request,
             @AuthenticationPrincipal AdminPrincipal admin) {
         return BookingSettlementResponse.from(
-                bookingSettlementUseCase.updateArrears(bookingId, request.arrears(), admin.adminUserId()));
+                bookingSettlementUseCase.updateArrears(
+                        bookingId, request.arrears(), admin.auditActorId()));
     }
 
     /** 수업이 끝난 BOOKED 예약을 완료한다. */
@@ -122,7 +123,7 @@ public class AdminBookingController {
             @PathVariable Long bookingId,
             @AuthenticationPrincipal AdminPrincipal admin) {
         return BookingSettlementResponse.from(
-                bookingSettlementUseCase.complete(bookingId, admin.adminUserId()));
+                bookingSettlementUseCase.complete(bookingId, admin.auditActorId()));
     }
 
     /** 공방 사정으로 예약을 취소하고 예약금 환불 또는 8회권 복구를 시작한다. */
@@ -133,7 +134,7 @@ public class AdminBookingController {
             @RequestBody @Valid AdminBookingCancelRequest request,
             @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminBookingCancelResponse.from(adminBookingCancelUseCase.cancel(
-                new AdminCancelCommand(bookingId, admin.adminUserId(), request.reason())));
+                new AdminCancelCommand(bookingId, admin.auditActorId(), request.reason())));
     }
 
     /** 공방 사정 취소 뒤 운영자가 직접 마무리해야 하는 작업을 조회한다. */
@@ -152,6 +153,6 @@ public class AdminBookingController {
             @PathVariable Long taskId,
             @AuthenticationPrincipal AdminPrincipal admin) {
         return BookingCancellationTaskCompletionResponse.from(
-                bookingCancellationTaskUseCase.complete(taskId, admin.adminUserId()));
+                bookingCancellationTaskUseCase.complete(taskId, admin.auditActorId()));
     }
 }

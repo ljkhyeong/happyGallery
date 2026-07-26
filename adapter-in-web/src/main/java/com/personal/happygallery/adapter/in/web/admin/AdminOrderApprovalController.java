@@ -23,13 +23,13 @@ public class AdminOrderApprovalController {
     @PostMapping("/{id}/approve")
     public void approve(@PathVariable Long id,
                         @AuthenticationPrincipal AdminPrincipal admin) {
-        orderApprovalUseCase.approve(id, admin.adminUserId());
+        orderApprovalUseCase.approve(id, admin.auditActorId());
     }
 
     /** POST /api/v1/admin/orders/{id}/reject — 주문 거절 (환불 + 재고 복구 포함, 제작 중은 거절 불가) */
     @PostMapping("/{id}/reject")
     public OrderRejectResponse reject(@PathVariable Long id,
                                       @AuthenticationPrincipal AdminPrincipal admin) {
-        return OrderRejectResponse.from(orderApprovalUseCase.reject(id, admin.adminUserId()));
+        return OrderRejectResponse.from(orderApprovalUseCase.reject(id, admin.auditActorId()));
     }
 }

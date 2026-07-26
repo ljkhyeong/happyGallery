@@ -51,8 +51,10 @@ public class DefaultPickupDeadlineReminderBatchService implements PickupDeadline
         NotificationEventType eventType = NotificationEventType.PICKUP_DEADLINE_REMINDER;
 
         NotificationRequestedEvent event = target.userId() != null
-                ? NotificationRequestedEvent.forUser(target.userId(), eventType, "ORDER", orderId)
-                : NotificationRequestedEvent.forGuest(target.guestId(), eventType, "ORDER", orderId);
+                ? NotificationRequestedEvent.forUserOncePerAggregate(
+                        target.userId(), eventType, "ORDER", orderId)
+                : NotificationRequestedEvent.forGuestOncePerAggregate(
+                        target.guestId(), eventType, "ORDER", orderId);
         return notificationOutboxService.enqueue(event);
     }
 }

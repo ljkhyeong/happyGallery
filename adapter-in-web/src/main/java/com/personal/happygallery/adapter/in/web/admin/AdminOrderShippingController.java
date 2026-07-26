@@ -27,7 +27,7 @@ public class AdminOrderShippingController {
     public ShippingResponse prepareShipping(@PathVariable Long id,
                                             @AuthenticationPrincipal AdminPrincipal admin) {
         OrderShippingUseCase.ShippingResult result = orderShippingUseCase.prepareShipping(
-                id, admin.adminUserId());
+                id, admin.auditActorId());
         return ShippingResponse.from(result);
     }
 
@@ -37,7 +37,7 @@ public class AdminOrderShippingController {
                                         @Valid @RequestBody MarkShippedRequest request,
                                         @AuthenticationPrincipal AdminPrincipal admin) {
         OrderShippingUseCase.ShippingResult result = orderShippingUseCase.markShipped(
-                id, request.carrier(), request.trackingNumber(), admin.adminUserId());
+                id, request.carrier(), request.trackingNumber(), admin.auditActorId());
         return ShippingResponse.from(result);
     }
 
@@ -46,7 +46,7 @@ public class AdminOrderShippingController {
     public ShippingResponse markDelivered(@PathVariable Long id,
                                           @AuthenticationPrincipal AdminPrincipal admin) {
         OrderShippingUseCase.ShippingResult result = orderShippingUseCase.markDelivered(
-                id, admin.adminUserId());
+                id, admin.auditActorId());
         return ShippingResponse.from(result);
     }
 }

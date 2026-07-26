@@ -29,9 +29,9 @@ import type { ProductType } from "@/shared/types/product";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
+import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 
 type Step = "verify" | "items";
-const MAX_QTY = 99;
 
 export function OrderCreatePage() {
   const [searchParams] = useSearchParams();
@@ -59,7 +59,7 @@ export function OrderCreatePage() {
   const requestedQty = Number(searchParams.get("qty") ?? "1");
   const hasPrefilledItem = Number.isSafeInteger(prefilledProductId) && prefilledProductId > 0;
   const normalizedPrefilledQty = Number.isInteger(requestedQty) && requestedQty >= 1
-    ? Math.min(requestedQty, MAX_QTY)
+    ? Math.min(requestedQty, MAX_PRODUCT_QUANTITY)
     : 1;
   const shouldShowManualEntryGate = !user && !hasPrefilledItem && !manualEntryConfirmed;
   const orderQuery = searchParams.toString();

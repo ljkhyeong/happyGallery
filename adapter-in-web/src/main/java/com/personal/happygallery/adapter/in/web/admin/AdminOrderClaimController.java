@@ -44,7 +44,8 @@ public class AdminOrderClaimController {
             @AuthenticationPrincipal AdminPrincipal admin,
             @Valid @RequestBody ResolveOrderClaimRequest request) {
         return OrderClaimResponse.from(
-                orderClaimUseCase.resolve(claimId, admin.adminUserId(), request.toCommand()));
+                orderClaimUseCase.resolve(
+                        claimId, admin.requireBearerAdminUserId(), request.toCommand()));
     }
 
     @PostMapping("/{claimId}/complete-exchange")
@@ -55,6 +56,6 @@ public class AdminOrderClaimController {
             @Valid @RequestBody CompleteOrderExchangeRequest request) {
         return OrderClaimResponse.from(
                 orderClaimUseCase.completeExchange(
-                        claimId, admin.adminUserId(), request.toCommand()));
+                        claimId, admin.requireBearerAdminUserId(), request.toCommand()));
     }
 }

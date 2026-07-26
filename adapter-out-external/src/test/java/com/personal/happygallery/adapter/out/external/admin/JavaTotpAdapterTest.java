@@ -19,11 +19,20 @@ class JavaTotpAdapterTest {
         JavaTotpAdapter adapter = new JavaTotpAdapter(clock);
         var enrollment = adapter.generateEnrollment("admin");
         long counter = Math.floorDiv(clock.instant().getEpochSecond(), 30);
-        String code = new DefaultCodeGenerator(HashingAlgorithm.SHA1, 6)
-                .generate(enrollment.secret(), counter);
+        DefaultCodeGenerator codeGenerator =
+                new DefaultCodeGenerator(HashingAlgorithm.SHA1, 6);
+        String code = codeGenerator.generate(enrollment.secret(), counter);
+        String previousCode = codeGenerator.generate(enrollment.secret(), counter - 1);
+        String nextCode = codeGenerator.generate(enrollment.secret(), counter + 1);
 
-        assertThat(adapter.verify(enrollment.secret(), code)).isTrue();
-        assertThat(adapter.verify(enrollment.secret(), "000000")).isFalse();
+        assertThat(adapter.findMatchingTimeStep(enrollment.secret(), code))
+                .hasValue(counter);
+        assertThat(adapter.findMatchingTimeStep(enrollment.secret(), previousCode))
+                .hasValue(counter - 1);
+        assertThat(adapter.findMatchingTimeStep(enrollment.secret(), nextCode))
+                .hasValue(counter + 1);
+        assertThat(adapter.findMatchingTimeStep(enrollment.secret(), "invalid"))
+                .isEmpty();
         assertThat(enrollment.provisioningUri()).startsWith("otpauth://totp/");
         assertThat(adapter.generateRecoveryCodes(10))
                 .hasSize(10)

@@ -33,7 +33,7 @@ public class AdminOrderPickupController {
                                           @RequestBody MarkPickupReadyRequest request,
                                           @AuthenticationPrincipal AdminPrincipal admin) {
         OrderPickupUseCase.PickupResult result = orderPickupUseCase.markPickupReady(
-                id, request.pickupDeadlineAt(), admin.adminUserId());
+                id, request.pickupDeadlineAt(), admin.auditActorId());
         return PickupResponse.from(result);
     }
 
@@ -42,7 +42,7 @@ public class AdminOrderPickupController {
     public PickupResponse confirmPickup(@PathVariable Long id,
                                         @AuthenticationPrincipal AdminPrincipal admin) {
         OrderPickupUseCase.PickupResult result = orderPickupUseCase.confirmPickup(
-                id, admin.adminUserId());
+                id, admin.auditActorId());
         return PickupResponse.from(result);
     }
 

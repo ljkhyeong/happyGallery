@@ -7,6 +7,7 @@ import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 
 interface Props {
   token: string;
@@ -14,24 +15,17 @@ interface Props {
 }
 
 export function AdminInquirySection({ token, onAuthError }: Props) {
-  const [cursor, setCursor] = useState<string | undefined>();
-  const [cursorHistory, setCursorHistory] = useState<(string | undefined)[]>([]);
+  const {
+    cursor,
+    hasPreviousPage,
+    showNextPage,
+    showPreviousPage,
+  } = useCursorHistory();
   const { data: page, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "inquiries", cursor],
     queryFn: () => fetchAdminInquiries(token, cursor),
   });
   const inquiries = page?.content;
-
-  function showNextPage() {
-    if (!page?.nextCursor) return;
-    setCursorHistory((history) => [...history, cursor]);
-    setCursor(page.nextCursor);
-  }
-
-  function showPreviousPage() {
-    setCursor(cursorHistory[cursorHistory.length - 1]);
-    setCursorHistory(cursorHistory.slice(0, -1));
-  }
 
   return (
     <div>
@@ -46,12 +40,12 @@ export function AdminInquirySection({ token, onAuthError }: Props) {
           onAuthError={onAuthError}
         />
       ))}
-      {(cursorHistory.length > 0 || page?.hasMore) && (
+      {(hasPreviousPage || page?.hasMore) && (
         <div className="d-flex justify-content-center gap-2 mt-3">
           <Button
             size="sm"
             variant="outline-secondary"
-            disabled={cursorHistory.length === 0 || isLoading}
+            disabled={!hasPreviousPage || isLoading}
             onClick={showPreviousPage}
           >
             이전
@@ -60,7 +54,7 @@ export function AdminInquirySection({ token, onAuthError }: Props) {
             size="sm"
             variant="outline-primary"
             disabled={!page?.hasMore || isLoading}
-            onClick={showNextPage}
+            onClick={() => showNextPage(page?.nextCursor)}
           >
             다음
           </Button>

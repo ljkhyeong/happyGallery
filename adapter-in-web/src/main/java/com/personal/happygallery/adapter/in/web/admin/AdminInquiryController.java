@@ -52,6 +52,6 @@ public class AdminInquiryController {
                                       @RequestBody @Valid InquiryReplyRequest request,
                                       @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminInquiryResponse.from(inquiryUseCase.replyAndGet(
-                id, request.replyContent(), admin.adminUserId()));
+                id, request.replyContent(), admin.auditActorId()));
     }
 }

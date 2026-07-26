@@ -192,18 +192,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
     List<Booking> findFutureBookedPassBookings(@Param("passId") Long passId,
                                                @Param("now") LocalDateTime now);
 
-    /** D-1 / 당일 리마인드 공용 — LEFT JOIN FETCH guest (member booking 포함, detached 후 LAZY 로딩 방지) */
-    @Override
-    @Query("""
-            SELECT b FROM Booking b
-            LEFT JOIN FETCH b.guest
-            WHERE b.status = com.personal.happygallery.domain.booking.BookingStatus.BOOKED
-              AND b.slot.startAt >= :start
-              AND b.slot.startAt < :end
-            """)
-    List<Booking> findBookedInRange(@Param("start") LocalDateTime start,
-                                    @Param("end") LocalDateTime end);
-
     /** 관리자 — 날짜 범위 내 예약 전체 조회 (guest nullable, class, slot eager fetch) */
     @Override
     @Query("""

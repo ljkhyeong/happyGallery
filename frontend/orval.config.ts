@@ -52,6 +52,9 @@ export default defineConfig({
     "admin-credential-controller",
     "admin-mfa-controller",
   ]),
+  adminDashboardApi: generatedApi("./src/generated/api/adminDashboard.ts", [
+    "admin-dashboard-controller",
+  ]),
   orderClaimApi: generatedApi("./src/generated/api/orderClaim.ts", [
     "me-order-claim-controller",
     "guest-order-claim-controller",

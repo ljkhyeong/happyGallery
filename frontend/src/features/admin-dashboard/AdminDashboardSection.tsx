@@ -2,9 +2,13 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Alert, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
 import { ApiError } from "@/shared/api";
 import { formatKRW } from "@/shared/lib";
-import type { DashboardGranularity, DailyRevenue } from "@/shared/types";
 import { EmptyState, ErrorAlert, getStatusLabel, LoadingSpinner } from "@/shared/ui";
-import { fetchDashboardSnapshot, fetchSalesSummary } from "./api";
+import {
+  fetchDashboardSnapshot,
+  fetchSalesSummary,
+  type DailyRevenueResponse,
+  type DashboardGranularity,
+} from "./api";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
 interface Props {
@@ -45,7 +49,7 @@ function percent(value: number): string {
   }).format(value);
 }
 
-function RevenueTrend({ rows }: { rows: DailyRevenue[] }) {
+function RevenueTrend({ rows }: { rows: DailyRevenueResponse[] }) {
   const maxAbsoluteRevenue = useMemo(
     () => Math.max(1, ...rows.map((row) => Math.abs(row.revenue))),
     [rows],

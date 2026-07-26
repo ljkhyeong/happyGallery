@@ -1,16 +1,27 @@
 package com.personal.happygallery.adapter.in.web.security.admin;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.security.Principal;
 
-public record AdminPrincipal(
-        Long adminUserId,
-        String username,
-        AuthenticationSource authenticationSource
-) implements Principal {
+public final class AdminPrincipal implements Principal {
 
     public enum AuthenticationSource {
         BEARER_SESSION,
         API_KEY
+    }
+
+    private final Long adminUserId;
+    private final String username;
+    private final AuthenticationSource authenticationSource;
+
+    private AdminPrincipal(
+            Long adminUserId,
+            String username,
+            AuthenticationSource authenticationSource) {
+        this.adminUserId = adminUserId;
+        this.username = username;
+        this.authenticationSource = authenticationSource;
     }
 
     public static AdminPrincipal bearerSession(Long adminUserId, String username) {
@@ -19,6 +30,25 @@ public record AdminPrincipal(
 
     public static AdminPrincipal apiKey() {
         return new AdminPrincipal(null, null, AuthenticationSource.API_KEY);
+    }
+
+    public AuthenticationSource authenticationSource() {
+        return authenticationSource;
+    }
+
+    /**
+     * local API key 작업은 계정 주체가 없으므로 감사 이력 ID가 비어 있을 수 있다.
+     */
+    public Long auditActorId() {
+        return adminUserId;
+    }
+
+    public Long requireBearerAdminUserId() {
+        if (authenticationSource != AuthenticationSource.BEARER_SESSION || adminUserId == null) {
+            throw new HappyGalleryException(
+                    ErrorCode.FORBIDDEN, "계정 기반 Bearer 관리자 세션이 필요한 작업입니다.");
+        }
+        return adminUserId;
     }
 
     @Override

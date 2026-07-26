@@ -3,16 +3,15 @@ package com.personal.happygallery.application.booking;
 import com.personal.happygallery.application.batch.BatchExecutor;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.booking.port.in.BookingReminderBatchUseCase;
-import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.application.booking.port.out.BookingReminderCandidatePort;
+import com.personal.happygallery.application.booking.port.out.BookingReminderTarget;
 import com.personal.happygallery.application.notification.NotificationOutboxService;
-import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -28,15 +27,17 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
 
     private static final Logger log = LoggerFactory.getLogger(DefaultBookingReminderBatchService.class);
     private static final LocalTime SAME_DAY_REMINDER_START = LocalTime.of(7, 0);
+    private static final int PAGE_SIZE = 100;
 
-    private final BookingReaderPort bookingReaderPort;
+    private final BookingReminderCandidatePort reminderCandidatePort;
     private final NotificationOutboxService notificationOutboxService;
     private final Clock clock;
 
-    public DefaultBookingReminderBatchService(BookingReaderPort bookingReaderPort,
-                                              NotificationOutboxService notificationOutboxService,
-                                              Clock clock) {
-        this.bookingReaderPort = bookingReaderPort;
+    public DefaultBookingReminderBatchService(
+            BookingReminderCandidatePort reminderCandidatePort,
+            NotificationOutboxService notificationOutboxService,
+            Clock clock) {
+        this.reminderCandidatePort = reminderCandidatePort;
         this.notificationOutboxService = notificationOutboxService;
         this.clock = clock;
     }
@@ -55,10 +56,8 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
                 : tomorrow.atStartOfDay();
         LocalDateTime end = tomorrow.plusDays(1).atStartOfDay();
 
-        List<Booking> bookings = bookingReaderPort.findBookedInRange(start, end);
-        return BatchExecutor.execute(bookings, Booking::getId,
-                booking -> requestReminder(booking, NotificationEventType.REMINDER_D1),
-                "D-1 예약 리마인드");
+        return sendReminders(
+                start, end, NotificationEventType.REMINDER_D1, "D-1 예약 리마인드");
     }
 
     /**
@@ -74,24 +73,33 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
         }
         LocalDateTime end = now.toLocalDate().plusDays(1).atStartOfDay();
 
-        List<Booking> bookings = bookingReaderPort.findBookedInRange(now, end);
-        return BatchExecutor.execute(bookings, Booking::getId,
-                booking -> requestReminder(booking, NotificationEventType.REMINDER_SAME_DAY),
-                "당일 예약 리마인드");
+        return sendReminders(
+                now, end, NotificationEventType.REMINDER_SAME_DAY, "당일 예약 리마인드");
     }
 
-    private boolean requestReminder(Booking booking, NotificationEventType eventType) {
-        NotificationRequestedEvent event;
-        if (booking.getUserId() != null) {
-            event = NotificationRequestedEvent.forUser(
-                    booking.getUserId(), eventType, "BOOKING", booking.getId());
-        } else {
-            event = NotificationRequestedEvent.forGuest(
-                    booking.getGuest().getId(), eventType, "BOOKING", booking.getId());
-        }
+    private BatchResult sendReminders(
+            LocalDateTime start,
+            LocalDateTime end,
+            NotificationEventType eventType,
+            String label) {
+        return BatchExecutor.executeByIdCursor(
+                afterId -> reminderCandidatePort.findUnnotifiedBookedAfterId(
+                        start, end, eventType, afterId, PAGE_SIZE),
+                BookingReminderTarget::bookingId,
+                target -> requestReminder(target, eventType),
+                label);
+    }
+
+    private boolean requestReminder(
+            BookingReminderTarget target, NotificationEventType eventType) {
+        NotificationRequestedEvent event = target.userId() != null
+                ? NotificationRequestedEvent.forUserOncePerAggregate(
+                        target.userId(), eventType, "BOOKING", target.bookingId())
+                : NotificationRequestedEvent.forGuestOncePerAggregate(
+                        target.guestId(), eventType, "BOOKING", target.bookingId());
         boolean enqueued = notificationOutboxService.enqueue(event);
         if (enqueued) {
-            log.info("리마인드 요청 [bookingId={}, type={}]", booking.getId(), eventType);
+            log.info("리마인드 요청 [bookingId={}, type={}]", target.bookingId(), eventType);
         }
         return enqueued;
     }

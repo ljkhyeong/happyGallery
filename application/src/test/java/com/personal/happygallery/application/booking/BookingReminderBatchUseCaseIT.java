@@ -68,16 +68,21 @@ class BookingReminderBatchUseCaseIT {
     // D-1 리마인드: 내일 슬롯 예약 → 알림 발송
     // -----------------------------------------------------------------------
 
-    @DisplayName("D-1 리마인드 배치는 내일 슬롯에 알림을 발송한다")
+    @DisplayName("D-1 리마인드는 비회원 예약이 회원에게 귀속돼도 한 번만 발송한다")
     @Test
     void sendD1Reminders_tomorrowSlot_sendsNotification() {
         LocalDate tomorrow = LocalDate.now(clock).plusDays(1);
         LocalDateTime slotStart = tomorrow.atTime(10, 0);
 
         Booking booking = createBooking(slotStart);
+        Long guestId = booking.getGuest().getId();
 
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
         List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
+        User user = userStorePort.save(
+                new User("claimed-reminder@test.com", "hash", "귀속회원", "01012341234"));
+        booking.claimToUser(user.getId());
+        bookingStorePort.save(booking);
         BatchResult repeated = bookingReminderBatchService.sendD1Reminders();
         awaitLogCount(notificationLogProbe, 1);
         NotificationLog log = logs.getFirst();
@@ -88,7 +93,7 @@ class BookingReminderBatchUseCaseIT {
             softly.assertThat(repeated.successCount()).isZero();
             softly.assertThat(repeated.failureCount()).isZero();
             softly.assertThat(log.getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
-            softly.assertThat(log.getGuestId()).isEqualTo(booking.getGuest().getId());
+            softly.assertThat(log.getGuestId()).isEqualTo(guestId);
         });
     }
 

@@ -14,7 +14,7 @@
 - 상세 요청/응답 스니펫은 `./gradlew --no-daemon :adapter-in-web:restDocsTest`로 생성되는 Spring REST Docs 결과(`adapter-in-web/build/generated-snippets`)를 기준으로 검증한다.
 - 기계 판독 계약은 Controller/웹 DTO에서 생성하는 `openapi3.json`이다. 이 파일과 `frontend/src/generated/api`는 직접 편집하지 않는다.
 - 신규 또는 변경 API는 REST Docs 테스트와 이 문서를 갱신하고 `:adapter-in-web:openapi3`, `cd frontend && npm run api:generate`를 같은 변경에서 실행한다.
-- 전체 `/api/v1/**` OpenAPI를 생성하되, React 생성 client는 공개 상품·Q&A, 회원 소셜 계정·알림, 고객 결제 상태·복구, 공방 정보, 관리자 예약과 예약 취소 후속 작업, 주문 클레임, 정책 동의 API에 사용한다. 다른 API는 필수값·nullable·enum과 인증 헤더를 확인한 뒤 도메인 단위로 순차 전환한다.
+- 전체 `/api/v1/**` OpenAPI를 생성하되, React 생성 client는 공개 상품·Q&A, 회원 소셜 계정·알림, 고객 결제 상태·복구, 공방 정보, 관리자 대시보드·예약과 예약 취소 후속 작업, 주문 클레임, 정책 동의 API에 사용한다. 다른 API는 필수값·nullable·enum과 인증 헤더를 확인한 뒤 도메인 단위로 순차 전환한다.
 
 ---
 
@@ -75,6 +75,7 @@ Content-Type: application/json
 - `code`는 인증 앱의 6자리 TOTP 또는 `xxxx-xxxx-xxxx-xxxx` 형식의 미사용 복구 코드다.
 - 성공: 로그인과 같은 `AUTHENTICATED` 응답과 `Cache-Control: no-store`
 - challenge는 성공 시 한 번만 소비하며 생성 5분 뒤 만료된다.
+- 등록 확인 또는 이전 challenge에서 이미 수락한 30초 TOTP 시간 구간은 새 challenge에서도 다시 사용할 수 없다.
 - 실패: `401 INVALID_CREDENTIALS`
 
 #### 관리자 MFA 관리
@@ -209,8 +210,9 @@ Content-Type: application/json
 - `local` 프로필에서만 `enable-api-key-auth=true`와 `ADMIN_API_KEY`를 명시적으로 설정한다.
 - 기본 관리자 계정은 Flyway migration에 포함하지 않고, `LocalAdminSeedService`(`@Profile("local")`)로 local 환경에서만 seed한다.
 - 인증키 소스: 서버 설정 `app.admin.api-key`, 환경 변수 `ADMIN_API_KEY`
-- 주문 승인/거절/제작 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
-  - API Key 폴백 경로와 배치 이력은 `decided_by_admin_id = null`일 수 있다.
+- API Key는 사람 관리자 계정 ID를 나타내지 않는다. nullable 감사 행위자를 허용한 운영 작업만 수행할 수 있고, 주문 클레임 처리·비밀번호·MFA처럼 관리자 ID가 필수인 작업은 `403 FORBIDDEN`이다.
+- 주문 승인·거절·제작·배송·픽업과 예약 운영 이력의 adminId는 Bearer 세션이면 검증된 관리자 ID, 로컬 API key면 `null`이다.
+  - 배치 자동 처리 이력도 `decided_by_admin_id = null`일 수 있다.
 
 #### 적용 대상
 
@@ -1242,7 +1244,7 @@ Authorization: Bearer {token}
   - 정책:
     - `PAID_APPROVAL_PENDING`만 승인 가능
     - `MADE_TO_ORDER` 상품이 있으면 `IN_PRODUCTION`, 아니면 `APPROVED_FULFILLMENT_PENDING`으로 전이
-    - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다
+    - 이력의 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
 - `POST /api/v1/admin/orders/{id}/reject`
   - 응답: `200 OK`
     ```json
@@ -1268,12 +1270,12 @@ Authorization: Bearer {token}
   - 정책:
     - `IN_PRODUCTION`, `DELAY_CONSENT_PENDING`, `DELAY_ACCEPTED`, `SHIPPING_PREPARING` 상태에서만 설정 가능
     - `SHIPPING` 타입 fulfillment에서만 설정 가능 (`PICKUP` 타입은 400)
-    - 설정·갱신마다 Bearer 세션의 관리자 ID로 `SHIP_DATE_UPDATED` 이력을 추가하며, `reason`은 `예상 출고일: {변경 전} -> {변경 후}` 형식이다. 날짜가 없으면 `미설정`으로 기록한다.
+    - 설정·갱신마다 `SHIP_DATE_UPDATED` 이력을 추가한다. adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이고, `reason`은 `예상 출고일: {변경 전} -> {변경 후}` 형식이다. 날짜가 없으면 `미설정`으로 기록한다.
 - `POST /api/v1/admin/orders/{id}/delay`
   - 응답: `{ "orderId": 5, "status": "DELAY_CONSENT_PENDING", "expectedShipDate": "2026-04-15" }`
   - 정책:
     - 기성품의 승인 전 재고 부족은 `PAID_APPROVAL_PENDING`, 주문제작의 제작 일정 변경은 `IN_PRODUCTION`에서 지연 제안 가능
-    - Bearer 세션의 관리자 ID로 `DELAY` 이력을 추가한다.
+    - `DELAY` 이력을 추가하며 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
     - 고객 동의가 끝난 것으로 간주하지 않는다. 회원·비회원 고객 응답 API가 수락하면 `DELAY_ACCEPTED`, 거절하면 `DELAY_REJECTED_CANCELED`로 전이한다.
     - 지연 동의 요청 알림 이벤트명은 사건 의미를 나타내는 `ORDER_DELAY_REQUESTED`를 유지한다.
 - `POST /api/v1/admin/orders/{id}/cancel-for-delay-rejection`
@@ -1297,7 +1299,7 @@ Authorization: Bearer {token}
     - `DELAY_CONSENT_PENDING`에서만 지연 거절 취소 가능
     - 재고 복구 + 환불 실행 + `DELAY_REJECTED_CANCELED` 전이
     - 응답의 `REQUESTED`는 로컬 취소와 환불 요청 접수 완료를 뜻하며 PG 환불 완료를 뜻하지 않는다.
-    - 이력은 `DELAY_CANCEL`로 기록하고 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
+    - 이력은 `DELAY_CANCEL`로 기록하고 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
     - `DELAY_ACCEPTED`는 이미 지연을 수락한 상태이므로 400으로 거절한다.
 - `POST /api/v1/admin/orders/{id}/resume-after-delay`
   - 기성품 응답: `{ "orderId": 5, "status": "APPROVED_FULFILLMENT_PENDING", "expectedShipDate": null }`
@@ -1305,18 +1307,18 @@ Authorization: Bearer {token}
   - 정책:
     - `DELAY_ACCEPTED`에서만 주문 처리 재개 가능
     - 기성품은 배송·픽업 이행 대기인 `APPROVED_FULFILLMENT_PENDING`, 주문제작은 `IN_PRODUCTION`으로 복귀한다.
-    - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다
+    - 이력의 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
 - `POST /api/v1/admin/orders/{id}/prepare-pickup`
   - 요청: `{ "pickupDeadlineAt": "2026-04-16T18:00:00" }`
   - 응답: `{ "orderId": 5, "status": "PICKUP_READY", "pickupDeadlineAt": "2026-04-16T18:00:00" }`
   - 정책:
     - 결제 시 고객이 `PICKUP`을 선택한 주문만 처리한다.
     - `pickupDeadlineAt`은 서버 `Clock` 기준 현재보다 이후여야 한다.
-    - 이력은 `PICKUP_READY`로 기록하고 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
+    - 이력은 `PICKUP_READY`로 기록하고 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
 - `POST /api/v1/admin/orders/{id}/complete-pickup`
   - 응답: `{ "orderId": 5, "status": "PICKED_UP", "pickupDeadlineAt": "2026-04-16T18:00:00" }`
   - 정책:
-    - 이력은 `PICKUP_COMPLETE`로 기록하고 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
+    - 이력은 `PICKUP_COMPLETE`로 기록하고 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
 
 공통 에러:
 - `401 UNAUTHORIZED` — 관리자 인증 실패
@@ -1371,8 +1373,7 @@ Authorization: Bearer {token}
   - `400 INVALID_INPUT` — `IN_PRODUCTION` 또는 `DELAY_ACCEPTED` 상태가 아닌 주문
 - 정책:
   - `IN_PRODUCTION` 또는 `DELAY_ACCEPTED` → `APPROVED_FULFILLMENT_PENDING`
-  - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
-  - API Key 폴백 경로는 `null`일 수 있다.
+  - 이력의 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
 
 #### 2.7.6 배송 흐름
 
@@ -1409,7 +1410,7 @@ Content-Type: application/json
   - 결제 시 고객이 `SHIPPING`을 선택한 주문만 배송 흐름을 시작할 수 있다. 픽업 주문은 상태 변경 전에 거절한다.
   - `mark-shipped`의 `carrier`와 `trackingNumber`는 공백일 수 없고 각각 최대 50자, 100자다. 두 값은 fulfillment에 한 쌍으로 저장하고 고객·관리자 상세에 노출한다.
   - 각 전이는 `order_approvals` 이력에 `PREPARE_SHIPPING`, `SHIP`, `DELIVER`로 기록한다.
-  - 이력의 adminId는 Bearer 세션에서 검증된 관리자 ID를 사용한다.
+  - 이력의 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
 
 #### 2.7.7 주문 처리 이력 조회
 
@@ -1761,7 +1762,7 @@ Content-Type: application/json
   - 일반 예약은 예약금 전액의 비동기 PG 환불 요청을 생성한다. `depositRefundStatus=REQUESTED`는 접수 완료이며 PG 환불 완료가 아니다.
   - 8회권 예약은 유효한 이용권이면 크레딧을 복구한다. 만료되어 복구할 수 없으면 `passCreditRestored=false`, `manualCompensationRequired=true`로 운영자 수동 보상을 알린다.
   - 현장 잔금이 이미 결제된 일반 예약은 `balanceSettlementRequired=true`이며 서버가 예약금 외 잔금을 자동 환불하지 않는다.
-  - `booking_history`에 `actor=ADMIN`, Bearer 관리자 ID와 입력 사유를 저장하고 취소 알림 outbox를 같은 트랜잭션에서 생성한다.
+  - `booking_history`에 `actor=ADMIN`, 입력 사유와 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`인 행위자를 저장하고 취소 알림 outbox를 같은 트랜잭션에서 생성한다.
 
 #### 2.9.7 관리자 수업 회차 취소
 
@@ -2415,7 +2416,7 @@ Cookie: HG_SESSION={sessionToken}
 - 추가·수정·병합 수량은 상품별 1~99개다. 병합 요청에서 같은 상품이 여러 번 나오면 합산 수량에도 같은 상한을 적용한다.
 - 비회원 장바구니 병합의 멱등키 기록과 회원 장바구니 수량 변경은 같은 DB 트랜잭션으로 처리한다.
 - 장바구니 병합 멱등 응답은 요청 생성 후 7일간 보장한다. 클라이언트는 이 기간을 넘겨 같은 키를 재사용하지 않으며 서버는 보존 배치에서 오래된 기록을 정리한다.
-- 클라이언트는 병합 응답을 확인할 때까지 회원·멱등키·상품 스냅샷을 바꾸지 않는다. 성공 후 스냅샷 수량만 로컬 장바구니에서 차감하고, 도중에 추가된 수량은 새 멱등키로 이어서 병합한다.
+- 클라이언트는 병합 응답을 확인할 때까지 회원·멱등키·상품 스냅샷을 바꾸지 않는다. 로컬 항목은 요청 당시 계보를 함께 보존하고 성공 후 같은 계보의 스냅샷 수량만 차감한다. 도중에 추가된 수량은 새 멱등키로 이어서 병합하며, 로그아웃 뒤 상품을 삭제하고 다시 담아 새 계보가 된 수량은 이전 계정의 늦은 성공 응답이 차감하지 않는다. 계보 식별자는 브라우저 내부 값이며 API 요청에는 보내지 않는다.
 - 상품이 `ACTIVE`가 아니거나 재고가 없으면 `available=false`로 표시되며, checkout 시 구매 가능한 항목만 주문으로 전환한다.
 - 장바구니 prepare는 구매 가능한 항목만 서버에서 선택하고, confirm 성공 시 prepare에서 확정한 수량만 차감한다. 결제 진행 중 추가한 같은 상품 수량과 다른 상품은 유지한다.
 

@@ -61,7 +61,7 @@ public class BatchLoggingAspect {
                 long durationMs = TimeUnit.NANOSECONDS.toMillis(elapsedNanos);
                 appMetrics.recordBatchFailure(jobId, elapsedNanos);
                 log.error("[배치] {} 실패 ({}ms) [type={}]",
-                        jobName, durationMs, t.getClass().getSimpleName());
+                        jobName, durationMs, t.getClass().getSimpleName(), t);
                 throw t;
             }
         }

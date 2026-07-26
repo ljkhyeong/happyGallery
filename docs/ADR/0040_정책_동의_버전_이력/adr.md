@@ -11,6 +11,7 @@
 
 - 현재 이용약관·개인정보처리방침 버전과 문서 경로를 `/api/v1/policies/current`로 제공한다.
 - 문서 경로는 `/terms/{version}`, `/privacy/{version}`이며 해당 버전의 본문은 이후 공방 프로필이나 현재 정책이 바뀌어도 수정하지 않는다. 새 본문은 새 버전과 새 렌더링 분기로 추가한다.
+- 프론트는 정책 종류별 `version -> immutable document component` registry를 단일 원본으로 사용한다. 기존 version entry와 본문은 수정하지 않고 새 버전만 추가하며, registry에 없는 경로는 존재하지 않는 문서로 처리한다.
 - 이메일 회원가입, 처음 보는 Google·Naver 계정의 신규 회원 생성, 비회원 주문·예약 prepare는 두 정책의 현재 버전과 명시적 동의를 요구한다.
 - 서버가 현재 버전을 다시 검증하고 `policy_consents`에 유형, 목적, 버전, 서버 수락 시각을 append-only 행으로 저장한다.
 - 동의 주체는 회원 또는 결제 시도 중 정확히 하나다. 비회원 동의는 결제 시도와 같은 트랜잭션에 저장해 거래 귀속을 유지한다.

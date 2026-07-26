@@ -126,6 +126,24 @@ class SecurityBoundaryUseCaseIT {
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
 
+    @DisplayName("로컬 API key는 계정 관리자 ID가 필요한 작업을 수행할 수 없다")
+    @Test
+    void apiKey_cannotPerformIdentifiedAdminOperation() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/order-claims/1/resolve")
+                        .header("X-Admin-Key", "dev-admin-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "approved": false,
+                                  "refundAmount": null,
+                                  "restoreInventory": false,
+                                  "note": "처리 사유"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
     @DisplayName("유효한 관리자 Bearer 세션으로 보호 API를 호출할 수 있다")
     @Test
     void validBearerSession_authenticatesProtectedAdminRequest() throws Exception {

@@ -49,7 +49,8 @@
   어느 한 대기열이라도 80%가 지속되거나 거절이 발생하면 채널을 구분해 운영 알림을 보낸다.
 - 전화번호 평문은 outbox에 저장하지 않는다. outbox는 `guest_id` 또는 `user_id`만 저장하고, 발송 시점에 기존 조회/복호화 경로를 사용한다.
 - outbox의 `recipient_type`과 수신자 ID는 DB CHECK로 일치시키고, outbox와 발송 로그 모두 회원·비회원 수신자 중 정확히 하나만 갖도록 강제한다.
-- aggregate가 명확한 일회성 알림은 `recipient + eventType + aggregateType + aggregateId` idempotency key로 outbox 중복 저장을 막는다.
+- 문의·Q&A처럼 수신자가 이벤트 정체성에 포함되는 aggregate 알림은 `recipient + eventType + aggregateType + aggregateId` idempotency key를 사용한다.
+- 예약·픽업 리마인드처럼 회원 귀속 전후에도 aggregate당 한 번이어야 하는 알림은 수신자와 무관한 `eventType + aggregateType + aggregateId` key를 사용한다. 수신자는 전달 대상 필드에만 남기므로 비회원 기록이 회원에게 귀속돼도 같은 예약·주문을 다시 접수하지 않는다.
 - 관리자가 1:1 문의에 처음 답변하면 `DefaultInquiryService#replyAndGet`이 `NotificationRequestedEvent.ForUser`를 `INQUIRY_ANSWERED`, aggregate type `INQUIRY`, aggregate id `inquiryId`로 발행한다. 멱등키는 `USER:{userId}:INQUIRY_ANSWERED:INQUIRY:{inquiryId}`다.
 - 관리자가 상품 Q&A에 처음 답변하면 `DefaultProductQnaService#replyAndGet`이 `NotificationRequestedEvent.ForUser`를 `PRODUCT_QNA_ANSWERED`, aggregate type `PRODUCT_QNA`, aggregate id `qnaId`로 발행한다. 멱등키는 `USER:{userId}:PRODUCT_QNA_ANSWERED:PRODUCT_QNA:{qnaId}`다.
 - 문의·Q&A 답변 상태 저장과 이벤트 발행은 각 `replyAndGet`의 트랜잭션 안에서 일어난다. 동기 `NotificationEventListener#handle`과 기본 전파의 `NotificationOutboxService#enqueue`가 같은 트랜잭션에 참여하므로 outbox insert 실패 시 답변도 함께 롤백된다.
@@ -58,6 +59,7 @@
 - 픽업 마감 임박 알림은 수신자 단위 최근 발송 이력으로 후보를 제거하지 않고 `ORDER + orderId` 단위로 멱등 처리한다.
   같은 고객의 여러 픽업 주문은 각각 알리고 동일 주문의 반복 배치만 하나의 outbox로 합친다.
 - 8회권 만료 임박 알림은 사용자 단위가 아니라 `PASS_PURCHASE + passId` 단위로 멱등 처리한다. 같은 회원의 여러 8회권은 각각 알리고, 같은 구매 건의 수동·정기 배치 중복 실행은 하나의 outbox로 합친다.
+- 예약·8회권 정기 리마인드 후보 조회는 해당 이벤트의 outbox 멱등키가 이미 존재하는 대상을 제외하고 ID 키셋으로 100건씩 끝까지 순회한다. 예약 후보 조회와 이벤트 생성은 같은 수신자 독립 key prefix 정의를 공유한다. 이미 접수된 과거 후보를 매 실행 다시 읽지 않으며, outbox UNIQUE 제약은 조회와 insert 사이 동시 실행을 막는 최종 방어선으로 유지한다.
 - 픽업·8회권 알림 배치는 원자적 outbox insert 결과를 성공 건수로 사용한다. 중복 키로 저장되지 않은 요청을 성공으로 집계하지 않는다.
 - 같은 outbox idempotency key를 NHN Alimtalk의 `X-NC-API-IDEMPOTENCY-KEY`로 전달해 공식 10분 중복 요청 차단을 사용한다. 처리 토큰 재발급과 무관하게 외부 멱등키는 유지한다.
 - NHN SMS v3 계약에는 클라이언트 멱등키 필드나 헤더가 없다. 일반 SMS 요청에는 outbox 멱등키에서 만든

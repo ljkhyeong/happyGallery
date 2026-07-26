@@ -1,7 +1,6 @@
 package com.personal.happygallery.application.admin;
 
 import com.personal.happygallery.application.admin.port.out.AdminMfaChallengePort;
-import com.personal.happygallery.application.admin.port.out.AdminTotpPort;
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
 import com.personal.happygallery.domain.admin.AdminAuthOutcome;
 import com.personal.happygallery.domain.admin.AdminMfaChallenge;
@@ -132,7 +131,7 @@ class AdminAuthenticationTransactionService {
         }
 
         AdminMfaCodeVerifier.Verification verification = mfaCodeVerifier.verifyAndConsume(
-                admin.getId(),
+                admin,
                 fieldEncryptor.decrypt(admin.getTotpSecretEnc()),
                 code,
                 now);

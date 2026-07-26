@@ -4,29 +4,35 @@ import com.personal.happygallery.application.batch.BatchExecutor;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.notification.NotificationOutboxService;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
+import com.personal.happygallery.application.pass.port.out.PassExpiryReminderCandidatePort;
+import com.personal.happygallery.application.pass.port.out.PassExpiryReminderTarget;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 @Service
 public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
 
+    private static final int PAGE_SIZE = 100;
+
     private final PassPurchaseReaderPort passPurchaseReader;
+    private final PassExpiryReminderCandidatePort reminderCandidatePort;
     private final PassExpireProcessor passExpireProcessor;
     private final NotificationOutboxService notificationOutboxService;
     private final Clock clock;
 
     public DefaultPassExpiryBatchService(PassPurchaseReaderPort passPurchaseReader,
+                                          PassExpiryReminderCandidatePort reminderCandidatePort,
                                           PassExpireProcessor passExpireProcessor,
                                           NotificationOutboxService notificationOutboxService,
                                           Clock clock) {
         this.passPurchaseReader = passPurchaseReader;
+        this.reminderCandidatePort = reminderCandidatePort;
         this.passExpireProcessor = passExpireProcessor;
         this.notificationOutboxService = notificationOutboxService;
         this.clock = clock;
@@ -42,8 +48,6 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
      *
      * @return 처리된 건수
      */
-    private static final int PAGE_SIZE = 100;
-
     @Override
     public BatchResult expireAll() {
         LocalDateTime now = LocalDateTime.now(clock);
@@ -64,21 +68,21 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
     @Override
     public BatchResult sendExpiryNotifications() {
         LocalDateTime now = LocalDateTime.now(clock);
-        List<PassPurchase> expiring = passPurchaseReader.findExpiryReminderCandidates(
-                now, now.plusDays(7), 0);
 
-        return BatchExecutor.execute(expiring,
-                PassPurchase::getId,
+        return BatchExecutor.executeByIdCursor(
+                afterId -> reminderCandidatePort.findUnnotifiedExpiringAfterId(
+                        now, now.plusDays(7), 0, afterId, PAGE_SIZE),
+                PassExpiryReminderTarget::passId,
                 this::requestExpiryNotification,
                 "8회권 만료 알림");
     }
 
-    private boolean requestExpiryNotification(PassPurchase pass) {
+    private boolean requestExpiryNotification(PassExpiryReminderTarget target) {
         NotificationRequestedEvent event = NotificationRequestedEvent.forUser(
-                pass.getUserId(),
+                target.userId(),
                 NotificationEventType.PASS_EXPIRY_SOON,
                 "PASS_PURCHASE",
-                pass.getId());
+                target.passId());
         return notificationOutboxService.enqueue(event);
     }
 }

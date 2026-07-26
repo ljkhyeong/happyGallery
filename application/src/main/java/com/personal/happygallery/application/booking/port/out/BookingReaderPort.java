@@ -32,8 +32,6 @@ public interface BookingReaderPort {
 
     List<Booking> findFutureBookedPassBookings(Long passId, LocalDateTime now);
 
-    List<Booking> findBookedInRange(LocalDateTime start, LocalDateTime end);
-
     List<Booking> findAllInRange(LocalDateTime start, LocalDateTime end);
 
     List<Booking> findByStatusInRange(LocalDateTime start, LocalDateTime end, BookingStatus status);

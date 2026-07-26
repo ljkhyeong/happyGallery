@@ -41,6 +41,9 @@ public class AdminUser {
     @Column(name = "mfa_enabled", nullable = false)
     private boolean mfaEnabled;
 
+    @Column(name = "last_accepted_totp_step")
+    private Long lastAcceptedTotpStep;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -59,6 +62,7 @@ public class AdminUser {
     public LocalDateTime getLockedUntil() { return lockedUntil; }
     public String getTotpSecretEnc() { return totpSecretEnc; }
     public boolean isMfaEnabled() { return mfaEnabled; }
+    public Long getLastAcceptedTotpStep() { return lastAcceptedTotpStep; }
     public boolean hasPendingMfaEnrollment() { return totpSecretEnc != null && !mfaEnabled; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 
@@ -94,6 +98,15 @@ public class AdminUser {
     public void beginMfaEnrollment(String encryptedSecret) {
         totpSecretEnc = encryptedSecret;
         mfaEnabled = false;
+        lastAcceptedTotpStep = null;
+    }
+
+    public boolean acceptTotpStep(long timeStep) {
+        if (lastAcceptedTotpStep != null && timeStep <= lastAcceptedTotpStep) {
+            return false;
+        }
+        lastAcceptedTotpStep = timeStep;
+        return true;
     }
 
     public long enableMfa() {
@@ -110,6 +123,7 @@ public class AdminUser {
         long invalidatedCredentialVersion = credentialVersion;
         totpSecretEnc = null;
         mfaEnabled = false;
+        lastAcceptedTotpStep = null;
         credentialVersion = Math.incrementExact(credentialVersion);
         return invalidatedCredentialVersion;
     }

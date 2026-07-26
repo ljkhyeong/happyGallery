@@ -10,14 +10,12 @@ import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderItemClaimedQuantity;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.RefundExecutionService;
-import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.InventoryService.InventoryAdjustment;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.application.token.GuestTokenService;
-import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -29,13 +27,8 @@ import com.personal.happygallery.domain.order.OrderClaimStatus;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
-import java.math.BigInteger;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +48,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     private final OrderItemPort orderItemPort;
     private final OrderClaimPort orderClaimPort;
     private final OrderClaimItemPort orderClaimItemPort;
-    private final RefundPort refundPort;
+    private final OrderClaimViewAssembler viewAssembler;
     private final RefundExecutionService refundExecutionService;
     private final InventoryService inventoryService;
     private final GuestTokenService guestTokenService;
@@ -67,7 +60,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                                     OrderItemPort orderItemPort,
                                     OrderClaimPort orderClaimPort,
                                     OrderClaimItemPort orderClaimItemPort,
-                                    RefundPort refundPort,
+                                    OrderClaimViewAssembler viewAssembler,
                                     RefundExecutionService refundExecutionService,
                                     InventoryService inventoryService,
                                     GuestTokenService guestTokenService,
@@ -78,7 +71,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         this.orderItemPort = orderItemPort;
         this.orderClaimPort = orderClaimPort;
         this.orderClaimItemPort = orderClaimItemPort;
-        this.refundPort = refundPort;
+        this.viewAssembler = viewAssembler;
         this.refundExecutionService = refundExecutionService;
         this.inventoryService = inventoryService;
         this.guestTokenService = guestTokenService;
@@ -112,7 +105,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         if (!Objects.equals(order.getUserId(), userId)) {
             throw new NotFoundException("주문");
         }
-        return views(orderClaimPort.findByOrderIdOrderByRequestedAtDesc(orderId));
+        return viewAssembler.assemble(
+                orderClaimPort.findByOrderIdOrderByRequestedAtDesc(orderId));
     }
 
     @Override
@@ -122,7 +116,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         if (!Objects.equals(order.getAccessToken(), guestTokenService.resolveTokenHash(accessToken))) {
             throw new NotFoundException("주문");
         }
-        return views(orderClaimPort.findByOrderIdOrderByRequestedAtDesc(orderId));
+        return viewAssembler.assemble(
+                orderClaimPort.findByOrderIdOrderByRequestedAtDesc(orderId));
     }
 
     @Override
@@ -144,7 +139,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                             status, cursorParam.timestamp(), cursorParam.id(), fetchSize);
         }
         return CursorPage.of(
-                views(claims),
+                viewAssembler.assemble(claims),
                 pageSize,
                 claim -> CursorUtils.encode(claim.requestedAt(), claim.id()));
     }
@@ -153,13 +148,13 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     public OrderClaimView resolve(Long claimId, Long adminId, ResolveCommand command) {
         OrderClaim claim = requireClaimForUpdate(claimId);
         Order order = requireOrderForUpdate(claim.getOrderId());
-        List<ClaimLine> lines = claimLines(claim);
+        List<OrderClaimLine> lines = claimLines(claim);
 
         if (!command.approved()) {
             claim.reject(adminId, command.note(), now());
             OrderClaim saved = orderClaimPort.save(claim);
             notifyCustomer(order, saved, NotificationEventType.ORDER_CLAIM_RESOLVED);
-            return view(saved);
+            return viewAssembler.assemble(saved);
         }
 
         List<InventoryAdjustment> inventoryAdjustments = lines.stream()
@@ -174,21 +169,23 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
             claim.approveExchange(adminId, command.note(), now());
             OrderClaim saved = orderClaimPort.save(claim);
             notifyCustomer(order, saved, NotificationEventType.ORDER_CLAIM_RESOLVED);
-            return view(saved);
+            return viewAssembler.assemble(saved);
         }
 
         if (command.restoreInventory()) {
             inventoryService.restoreAll(inventoryAdjustments);
         }
-        long refundAmount = requireRefundAmount(command.refundAmount(), maximumRefundAmount(order, lines));
-        allocateRefundAmount(lines, refundAmount);
-        orderClaimItemPort.saveAll(lines.stream().map(ClaimLine::claimItem).toList());
+        long maximumRefundAmount = OrderClaimRefundCalculator.maximumRefundAmount(
+                order, lines, orderItemPort.findByOrder(order));
+        long refundAmount = requireRefundAmount(command.refundAmount(), maximumRefundAmount);
+        OrderClaimRefundCalculator.allocateRefundAmount(lines, refundAmount);
+        orderClaimItemPort.saveAll(lines.stream().map(OrderClaimLine::claimItem).toList());
         claim.approveRefund(adminId, command.note(), now());
         OrderClaim saved = orderClaimPort.save(claim);
         refundExecutionService.requestOrderClaimRefund(
                 order.getId(), claim.getId(), refundAmount, order.getPaymentKey());
         notifyCustomer(order, saved, NotificationEventType.ORDER_CLAIM_RESOLVED);
-        return view(saved);
+        return viewAssembler.assemble(saved);
     }
 
     @Override
@@ -200,7 +197,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                 adminId, command.carrier(), command.trackingNumber(), command.note(), now());
         OrderClaim saved = orderClaimPort.save(claim);
         notifyCustomer(order, saved, NotificationEventType.ORDER_EXCHANGE_COMPLETED);
-        return view(saved);
+        return viewAssembler.assemble(saved);
     }
 
     private OrderClaimView request(Order order, RequestCommand command) {
@@ -217,7 +214,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                 .map(line -> new OrderClaimItem(
                         claim.getId(), order.getId(), line.item().getId(), line.quantity()))
                 .toList());
-        return view(claim);
+        return viewAssembler.assemble(claim);
     }
 
     private List<RequestedLine> validateRequestedLines(
@@ -265,134 +262,15 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         return requestedAmount;
     }
 
-    private void allocateRefundAmount(List<ClaimLine> lines, long refundAmount) {
-        long productAmount = lines.stream()
-                .mapToLong(ClaimLine::amount)
-                .reduce(0L, Math::addExact);
-        long allocatableAmount = Math.min(refundAmount, productAmount);
-        BigInteger productTotal = BigInteger.valueOf(productAmount);
-        BigInteger allocationTotal = BigInteger.valueOf(allocatableAmount);
-
-        List<RefundAllocation> allocations = lines.stream()
-                .map(line -> {
-                    BigInteger[] result = allocationTotal
-                            .multiply(BigInteger.valueOf(line.amount()))
-                            .divideAndRemainder(productTotal);
-                    return new RefundAllocation(
-                            line.claimItem(), result[0].longValueExact(), result[1]);
-                })
-                .toList();
-        long unallocatedWon = allocatableAmount
-                - allocations.stream().mapToLong(RefundAllocation::amount).sum();
-        List<RefundAllocation> byLargestRemainder = new ArrayList<>(allocations);
-        byLargestRemainder.sort(Comparator
-                .comparing(RefundAllocation::remainder, Comparator.reverseOrder())
-                .thenComparing(allocation -> allocation.item().getOrderItemId()));
-
-        for (int index = 0; index < byLargestRemainder.size(); index++) {
-            RefundAllocation allocation = byLargestRemainder.get(index);
-            allocation.item().allocateApprovedRefundAmount(
-                    allocation.amount() + (index < unallocatedWon ? 1L : 0L));
-        }
-    }
-
-    private List<OrderClaimView> views(List<OrderClaim> claims) {
-        if (claims.isEmpty()) {
-            return List.of();
-        }
-        List<Long> claimIds = claims.stream().map(OrderClaim::getId).toList();
-        List<OrderClaimItem> claimItems = orderClaimItemPort.findByClaimIdIn(claimIds);
-        List<Long> orderIds = claims.stream().map(OrderClaim::getOrderId).distinct().toList();
-        List<OrderItem> allOrderItems = orderItemPort.findByOrderIdIn(orderIds);
-        Map<Long, OrderItem> orderItemsById = allOrderItems.stream()
-                .collect(Collectors.toMap(OrderItem::getId, Function.identity()));
-        Map<Long, List<OrderItem>> orderItemsByOrderId = allOrderItems.stream()
-                .collect(Collectors.groupingBy(item -> item.getOrder().getId()));
-        Map<Long, List<OrderClaimItem>> claimItemsByClaimId = claimItems.stream()
-                .collect(Collectors.groupingBy(OrderClaimItem::getClaimId));
-        Map<Long, Order> ordersById = orderReader.findByIdIn(orderIds).stream()
-                .collect(Collectors.toMap(Order::getId, Function.identity()));
-        Map<Long, Refund> refundsByClaimId = refundPort.findByOrderClaimIdIn(claimIds).stream()
-                .collect(Collectors.toMap(Refund::getOrderClaimId, Function.identity()));
-
-        return claims.stream()
-                .map(claim -> toView(
-                        claim,
-                        ordersById.get(claim.getOrderId()),
-                        claimItemsByClaimId.getOrDefault(claim.getId(), List.of()),
-                        orderItemsById,
-                        orderItemsByOrderId.getOrDefault(claim.getOrderId(), List.of()),
-                        refundsByClaimId.get(claim.getId())))
-                .toList();
-    }
-
-    private OrderClaimView view(OrderClaim claim) {
-        return views(List.of(claim)).getFirst();
-    }
-
-    private OrderClaimView toView(OrderClaim claim,
-                                  Order order,
-                                  List<OrderClaimItem> claimItems,
-                                  Map<Long, OrderItem> orderItemsById,
-                                  List<OrderItem> allOrderItems,
-                                  Refund refund) {
-        List<ClaimLine> lines = claimItems.stream()
-                .map(item -> new ClaimLine(item, requireOrderItem(orderItemsById, item.getOrderItemId())))
-                .toList();
-        return new OrderClaimView(
-                claim.getId(),
-                claim.getOrderId(),
-                claim.getType(),
-                claim.getRequestedResolution(),
-                claim.getStatus(),
-                claim.getCustomerReason(),
-                claim.getAdminNote(),
-                claim.getResolvedByAdminId(),
-                claim.getCompletedByAdminId(),
-                claim.getReplacementCarrier(),
-                claim.getReplacementTrackingNumber(),
-                maximumRefundAmount(order, lines, allOrderItems),
-                refund == null ? null : refund.getAmount(),
-                refund == null ? null : refund.getStatus(),
-                claim.getRequestedAt(),
-                claim.getResolvedAt(),
-                claim.getCompletedAt(),
-                lines.stream()
-                        .map(line -> new OrderClaimView.Item(
-                                line.orderItem().getId(),
-                                line.orderItem().getProductId(),
-                                line.orderItem().getProductName(),
-                                line.claimItem().getQuantity(),
-                                line.orderItem().getUnitPrice()))
-                        .toList());
-    }
-
-    private List<ClaimLine> claimLines(OrderClaim claim) {
+    private List<OrderClaimLine> claimLines(OrderClaim claim) {
         List<OrderClaimItem> claimItems = orderClaimItemPort.findByClaimIdIn(List.of(claim.getId()));
         Map<Long, OrderItem> orderItemsById = orderItemPort.findByIdIn(
                         claimItems.stream().map(OrderClaimItem::getOrderItemId).toList()).stream()
                 .collect(Collectors.toMap(OrderItem::getId, Function.identity()));
         return claimItems.stream()
-                .map(item -> new ClaimLine(item, requireOrderItem(orderItemsById, item.getOrderItemId())))
+                .map(item -> new OrderClaimLine(
+                        item, requireOrderItem(orderItemsById, item.getOrderItemId())))
                 .toList();
-    }
-
-    private long maximumRefundAmount(Order order, List<ClaimLine> lines) {
-        return maximumRefundAmount(order, lines, orderItemPort.findByOrder(order));
-    }
-
-    private long maximumRefundAmount(
-            Order order, List<ClaimLine> lines, List<OrderItem> allOrderItems) {
-        long itemAmount = lines.stream()
-                .mapToLong(line -> Math.multiplyExact(
-                        line.orderItem().getUnitPrice(), line.claimItem().getQuantity()))
-                .sum();
-        Map<Long, Integer> claimedQuantityByItemId = new HashMap<>();
-        lines.forEach(line -> claimedQuantityByItemId.put(
-                line.orderItem().getId(), line.claimItem().getQuantity()));
-        boolean fullOrderClaim = allOrderItems.stream()
-                .allMatch(item -> claimedQuantityByItemId.getOrDefault(item.getId(), 0) == item.getQty());
-        return Math.addExact(itemAmount, fullOrderClaim ? order.getShippingFee() : 0L);
     }
 
     private Order requireOrder(Long orderId) {
@@ -437,13 +315,4 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     private record RequestedLine(OrderItem item, int quantity) {}
 
-    private record ClaimLine(OrderClaimItem claimItem, OrderItem orderItem) {
-
-        private long amount() {
-            return Math.multiplyExact(orderItem.getUnitPrice(), claimItem.getQuantity());
-        }
-    }
-
-    private record RefundAllocation(
-            OrderClaimItem item, long amount, BigInteger remainder) {}
 }

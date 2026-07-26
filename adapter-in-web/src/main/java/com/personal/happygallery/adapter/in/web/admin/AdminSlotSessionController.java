@@ -32,6 +32,6 @@ public class AdminSlotSessionController {
             @RequestBody @Valid AdminSlotSessionCancelRequest request,
             @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminSlotSessionCancelResponse.from(adminBookingCancelUseCase.cancelSession(
-                new CancelSessionCommand(slotId, admin.adminUserId(), request.reason())));
+                new CancelSessionCommand(slotId, admin.auditActorId(), request.reason())));
     }
 }

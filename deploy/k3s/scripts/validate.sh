@@ -22,19 +22,57 @@ FRONTEND_IMAGE_DIGEST=sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 IMAGE_TAG=0123456789abcdef0123456789abcdef01234567 \
     "$SCRIPT_DIR/render-manifests.sh" "$rendered"
 
-runtime_images="$tmp_dir/runtime-images.env"
-ruby "$SCRIPT_DIR/runtime-images-from-manifest.rb" "$rendered" > "$runtime_images"
-validate_env_file "$runtime_images"
-[ "$(require_env_value MYSQL_IMAGE "$runtime_images")" = "mysql:8.4.10" ] \
-    || die "release manifest의 MySQL 이미지 추출이 올바르지 않습니다."
-[ "$(require_env_value REDIS_IMAGE "$runtime_images")" = "redis:7.4.9-alpine" ] \
-    || die "release manifest의 Redis 이미지 추출이 올바르지 않습니다."
-[ "$(require_env_value PROMETHEUS_IMAGE "$runtime_images")" = "prom/prometheus:v3.12.0-distroless" ] \
-    || die "release manifest의 Prometheus 이미지 추출이 올바르지 않습니다."
-[ "$(require_env_value ALERTMANAGER_IMAGE "$runtime_images")" = "prom/alertmanager:v0.32.1" ] \
-    || die "release manifest의 Alertmanager 이미지 추출이 올바르지 않습니다."
-[ "$(require_env_value GRAFANA_IMAGE "$runtime_images")" = "grafana/grafana:13.1.0" ] \
-    || die "release manifest의 Grafana 이미지 추출이 올바르지 않습니다."
+runtime_references="$tmp_dir/runtime-image-references.tsv"
+runtime_metadata="$tmp_dir/runtime-images.env"
+runtime_inventory="$tmp_dir/runtime-image-inventory.tsv"
+ruby "$SCRIPT_DIR/runtime-images-from-manifest.rb" \
+    --references "$rendered" > "$runtime_references"
+[ -s "$runtime_references" ] || die "release manifest에서 runtime image 참조를 추출하지 못했습니다."
+
+tab=$(printf '\t')
+while IFS="$tab" read -r runtime_key runtime_image unexpected; do
+    [ -n "$runtime_key" ] && [ -n "$runtime_image" ] && [ -z "$unexpected" ] \
+        || die "runtime image 참조 inventory 형식이 올바르지 않습니다."
+    printf '%s' "$runtime_key" | grep -Eq '^[A-Z][A-Z0-9_]*$' \
+        || die "runtime image key 형식이 올바르지 않습니다: $runtime_key"
+    printf '%s_IMAGE=%s\n%s_IMAGE_DIGEST=sha256:%064d\n' \
+        "$runtime_key" "$runtime_image" "$runtime_key" 0
+done < "$runtime_references" > "$runtime_metadata"
+validate_env_file "$runtime_metadata"
+ruby "$SCRIPT_DIR/runtime-images-from-manifest.rb" \
+    --inventory "$rendered" "$runtime_metadata" > "$runtime_inventory"
+
+ruby -e '
+  require "yaml"
+
+  references = File.readlines(ARGV.fetch(1), chomp: true).map { |line| line.split("\t", -1) }
+  inventory = File.readlines(ARGV.fetch(2), chomp: true).map { |line| line.split("\t", -1) }
+  abort "runtime image 참조 key가 중복됐습니다." unless references.map(&:first).uniq.size == references.size
+  abort "runtime image inventory가 참조와 다릅니다." unless
+    inventory.map { |key, image, _digest| [key, image] } == references
+  abort "runtime image inventory digest가 올바르지 않습니다." unless inventory.all? do |_key, _image, digest|
+    digest&.match?(/\Asha256:[a-f0-9]{64}\z/)
+  end
+
+  documents = YAML.load_stream(File.read(ARGV.fetch(0))).compact
+  manifest_runtime_images = documents.each_with_object([]) do |document, images|
+    next unless %w[Deployment StatefulSet].include?(document["kind"])
+    next if %w[app frontend].include?(document.dig("metadata", "name"))
+
+    containers = document.dig("spec", "template", "spec", "containers") || []
+    images.concat(containers.map { |container| container["image"] })
+  end
+  abort "manifest parser가 runtime workload image를 빠뜨렸습니다." unless
+    references.map(&:last).sort == manifest_runtime_images.sort
+' "$rendered" "$runtime_references" "$runtime_inventory"
+
+invalid_runtime_metadata="$tmp_dir/invalid-runtime-images.env"
+cp "$runtime_metadata" "$invalid_runtime_metadata"
+printf 'UNKNOWN_IMAGE=example.invalid/unknown:1\n' >> "$invalid_runtime_metadata"
+if ruby "$SCRIPT_DIR/runtime-images-from-manifest.rb" \
+    --inventory "$rendered" "$invalid_runtime_metadata" >/dev/null 2>&1; then
+    die "runtime image parser가 알 수 없는 metadata key를 허용합니다."
+fi
 
 ruby -e '
   require "yaml"
@@ -297,11 +335,23 @@ grep -q 'activate-restored-release.sh' "$SCRIPT_DIR/restore-mysql.sh" \
     || die "복원 후 호환 digest 활성화 절차가 연결되지 않았습니다."
 grep -q 'k3s_ctr images export' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "off-device 백업에 호환 app/frontend 이미지 archive가 없습니다."
-grep -q 'runtime-images-from-manifest.rb.*release_manifest' "$SCRIPT_DIR/backup-mysql.sh" \
+grep -q -- '--references "$release_manifest"' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "off-device 백업이 release manifest에서 runtime 이미지를 추출하지 않습니다."
-if grep -Eq '^(MYSQL|REDIS|PROMETHEUS|ALERTMANAGER|GRAFANA)_IMAGE=[^$]' "$SCRIPT_DIR/backup-mysql.sh"; then
-    die "off-device 백업에 runtime 이미지가 하드코딩되어 있습니다."
-fi
+grep -q -- '--inventory "$release_tmp/manifests.yaml" "$runtime_metadata"' \
+    "$SCRIPT_DIR/backup-mysql.sh" \
+    || die "off-device 백업이 parser의 runtime image inventory를 사용하지 않습니다."
+grep -q -- '--inventory "$manifest" "$runtime_metadata"' \
+    "$SCRIPT_DIR/prepare-restored-release-images.sh" \
+    || die "복원 준비가 보존 manifest와 metadata를 하나의 runtime image inventory로 검증하지 않습니다."
+while IFS="$tab" read -r runtime_key runtime_image unexpected; do
+    for consumer in \
+        "$SCRIPT_DIR/backup-mysql.sh" \
+        "$SCRIPT_DIR/prepare-restored-release-images.sh"; do
+        if grep -q "${runtime_key}_IMAGE" "$consumer"; then
+            die "runtime workload 목록은 manifest parser만 소유해야 합니다: $consumer"
+        fi
+    done
+done < "$runtime_references"
 grep -q 'FLYWAY_SCHEMA_VERSION=' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "복구 메타데이터에 Flyway version이 없습니다."
 grep -q 'FIELD_ENCRYPTION_KEY_ID=' "$SCRIPT_DIR/backup-mysql.sh" \
@@ -406,7 +456,7 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "복원 release 활성화 실패 시 app drain 보장이 없습니다." unless restored_release.match?(/on_activation_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
 
   image_preflight = File.read(File.join(script_dir, "prepare-restored-release-images.sh"))
-  required_images = /containerd_has_image.*?app_ref.*?containerd_has_image.*?frontend_ref.*?MYSQL REDIS PROMETHEUS ALERTMANAGER GRAFANA.*?k3s_ctr images import.*?all_required_images_match/m
+  required_images = /runtime_inventory=.*?runtime-images-from-manifest\.rb.*?--inventory.*?all_required_images_match\(\).*?containerd_has_image "\$app_ref".*?containerd_has_image "\$frontend_ref".*?while IFS=.*?read -r runtime_key runtime_image expected_digest unexpected.*?k3s_ctr images import.*?all_required_images_match/m
   abort "DB 복원 전 app/frontend/runtime 이미지 import와 digest 재검증이 없습니다." unless image_preflight.match?(required_images)
 
   common = File.read(File.join(script_dir, "common.sh"))
@@ -414,6 +464,8 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "복구 묶음 marker와 DB·미디어·release sidecar 전체 검증이 없습니다." unless common.match?(bundle_validation)
 
   backup = File.read(File.join(script_dir, "backup-mysql.sh"))
+  runtime_archive = /--references "\$release_manifest".*?while IFS=.*?read -r runtime_key runtime_image unexpected.*?containerd_image_digest.*?for runtime_index in.*?--inventory "\$release_tmp\/manifests\.yaml" "\$runtime_metadata".*?archive_images=.*?while IFS=.*?read -r runtime_key runtime_image runtime_digest unexpected.*?k3s_ctr images export "\$images_archive" "\$\{archive_images\[@\]\}"/m
+  abort "백업이 parser inventory를 runtime metadata와 archive export에 일관되게 사용하지 않습니다." unless backup.match?(runtime_archive)
   backup_exclusion = /original_app_replicas=.*?scale deployment\/app --replicas=0.*?wait_for_no_pods.*?mysqldump.*?start_media_helper.*?restore_app/m
   abort "백업의 app 쓰기 중단과 원래 replica 복구 순서가 깨졌습니다." unless backup.match?(backup_exclusion)
   abort "백업 실패 시 원래 app replica 복구가 없습니다." unless backup.match?(/cleanup_partial_backup\(\).*?restore_app/m)
