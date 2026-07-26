@@ -58,7 +58,7 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
     },
   });
 
-  const valid = name.trim().length > 0 && category.trim().length > 0 && Number(price) > 0;
+  const valid = name.trim().length > 0 && category.trim().length > 0 && Number(price) >= 10;
 
   return (
     <Modal show={bookingClass != null} onHide={onClose} centered size="lg">
@@ -81,7 +81,7 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
             <Col xs={12} md={4}>
               <Form.Group controlId="admin-edit-class-price">
                 <Form.Label>가격</Form.Label>
-                <Form.Control type="number" min={1} value={price} onChange={(e) => setPrice(e.target.value)} />
+                <Form.Control type="number" min={10} value={price} onChange={(e) => setPrice(e.target.value)} />
               </Form.Group>
             </Col>
             <Col xs={12} md={6}>

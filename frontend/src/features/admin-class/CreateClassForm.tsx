@@ -60,7 +60,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
     name.trim().length > 0 &&
     category.trim().length > 0 &&
     Number(durationMin) > 0 &&
-    Number(price) > 0 &&
+    Number(price) >= 10 &&
     Number(bufferMin) >= 0;
 
   return (
@@ -110,7 +110,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
             <Form.Label>가격 (원)</Form.Label>
             <Form.Control
               type="number"
-              min={1}
+              min={10}
               value={price}
               onChange={(e) => setPrice(e.target.value)}
             />

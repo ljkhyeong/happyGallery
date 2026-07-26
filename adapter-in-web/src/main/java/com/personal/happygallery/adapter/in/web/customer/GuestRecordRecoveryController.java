@@ -33,6 +33,7 @@ public class GuestRecordRecoveryController {
         this.rateLimitGuard = rateLimitGuard;
     }
 
+    @Operation(operationId = "recoverGuestRecords")
     @PostMapping("/recovery")
     public GuestRecordRecoveryResponse recover(@RequestBody @Valid RecoverGuestRecordsRequest request) {
         rateLimitGuard.checkGuestRecordRecovery(request.phone());

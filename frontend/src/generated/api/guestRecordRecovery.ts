@@ -63,26 +63,59 @@ export interface RecoverGuestRecordsRequest {
   verificationCode: string;
 }
 
-export interface BookingSummary {
-  bookingId?: number;
-  className?: string;
-  endAt?: string;
-  startAt?: string;
-  status?: string;
+export type GuestRecordRecoveryBookingSummaryStatus = typeof GuestRecordRecoveryBookingSummaryStatus[keyof typeof GuestRecordRecoveryBookingSummaryStatus];
+
+
+export const GuestRecordRecoveryBookingSummaryStatus = {
+  BOOKED: 'BOOKED',
+  CANCELED: 'CANCELED',
+  NO_SHOW: 'NO_SHOW',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export interface GuestRecordRecoveryBookingSummary {
+  bookingId: number;
+  className: string;
+  endAt: string;
+  startAt: string;
+  status: GuestRecordRecoveryBookingSummaryStatus;
 }
 
-export interface OrderSummary {
-  createdAt?: string;
-  orderId?: number;
-  status?: string;
-  totalAmount?: number;
+export type GuestRecordRecoveryOrderSummaryStatus = typeof GuestRecordRecoveryOrderSummaryStatus[keyof typeof GuestRecordRecoveryOrderSummaryStatus];
+
+
+export const GuestRecordRecoveryOrderSummaryStatus = {
+  PAID_APPROVAL_PENDING: 'PAID_APPROVAL_PENDING',
+  APPROVED_FULFILLMENT_PENDING: 'APPROVED_FULFILLMENT_PENDING',
+  REJECTED: 'REJECTED',
+  CUSTOMER_CANCELED: 'CUSTOMER_CANCELED',
+  AUTO_REFUND_TIMEOUT: 'AUTO_REFUND_TIMEOUT',
+  IN_PRODUCTION: 'IN_PRODUCTION',
+  DELAY_CONSENT_PENDING: 'DELAY_CONSENT_PENDING',
+  DELAY_ACCEPTED: 'DELAY_ACCEPTED',
+  DELAY_REJECTED_CANCELED: 'DELAY_REJECTED_CANCELED',
+  SHIPPING_PREPARING: 'SHIPPING_PREPARING',
+  SHIPPED: 'SHIPPED',
+  DELIVERED: 'DELIVERED',
+  PICKUP_READY: 'PICKUP_READY',
+  PICKED_UP: 'PICKED_UP',
+  PICKUP_EXPIRED: 'PICKUP_EXPIRED',
+  PICKUP_FORFEITED: 'PICKUP_FORFEITED',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export interface GuestRecordRecoveryOrderSummary {
+  createdAt: string;
+  orderId: number;
+  status: GuestRecordRecoveryOrderSummaryStatus;
+  totalAmount: number;
 }
 
 export interface GuestRecordRecoveryResponse {
-  accessToken?: string;
-  bookings?: BookingSummary[];
-  expiresAt?: string;
-  orders?: OrderSummary[];
+  accessToken: string;
+  bookings: GuestRecordRecoveryBookingSummary[];
+  expiresAt: string;
+  orders: GuestRecordRecoveryOrderSummary[];
 }
 
 export const getRecoverGuestPaymentStatusesUrl = () => {
@@ -106,7 +139,7 @@ export const recoverGuestPaymentStatuses = async (recoverPaymentStatusesRequest:
 
 
 
-export const getRecoverUrl = () => {
+export const getRecoverGuestRecordsUrl = () => {
 
 
 
@@ -114,9 +147,9 @@ export const getRecoverUrl = () => {
   return `/api/v1/guest-records/recovery`
 }
 
-export const recover = async (recoverGuestRecordsRequest: RecoverGuestRecordsRequest, options?: RequestInit): Promise<GuestRecordRecoveryResponse> => {
+export const recoverGuestRecords = async (recoverGuestRecordsRequest: RecoverGuestRecordsRequest, options?: RequestInit): Promise<GuestRecordRecoveryResponse> => {
 
-  return generatedApiClient<GuestRecordRecoveryResponse>(getRecoverUrl(),
+  return generatedApiClient<GuestRecordRecoveryResponse>(getRecoverGuestRecordsUrl(),
   {
     ...options,
     method: 'POST',

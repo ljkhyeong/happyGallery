@@ -265,7 +265,7 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 #### 응답 캐시 정책
 
 - Spring Security 적용으로 기존 공개 조회 API의 `ETag`, `If-None-Match`, `304 Not Modified` 계약은 바뀌지 않는다.
-- API가 명시한 `Cache-Control: no-store` 등 응답별 캐시 정책은 그대로 적용된다.
+- 관리자 전체, `/api/v1/auth/**`, `/api/v1/me`와 `/api/v1/me/**`, `/api/v1/payments/**`, `/api/v1/guest-records/**`, `X-Access-Token`을 제출한 응답은 중앙 보안 정책으로 `Cache-Control: no-store`를 적용한다. 그 밖의 API가 명시한 캐시 정책도 그대로 적용된다.
 
 ### 1.4 민감정보 형식과 오류 노출
 
@@ -273,8 +273,8 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 - 휴대폰 인증과 비회원 결제 payload의 표준 전화번호 형식은 `^01[0-9]{8,9}$`이다.
 - 서버 로그에는 전화번호, 인증 코드, 결제 키, 관리자 세션 토큰과 외부 서비스 오류 원문을 남기지 않는다.
 - 모든 `/api/v1/**` 요청은 IP 기준 기본 처리율 제한을 적용하고, 인증·결제·검증처럼 비용이 큰 경로는 더 엄격한 독립 버킷을 사용한다.
-- 인증 코드 발송·회원가입 코드 시도, 결제 확정과 비회원 이력 인증은 검증된 전화번호·주문번호·회원 ID 기준 제한도 함께 적용한다.
-- Redis 처리율 제한 버킷은 IP, 전화번호, 주문번호 또는 회원 ID 원문 대신 HMAC 식별자를 사용한다.
+- 인증 코드 발송·회원가입 코드 시도, 고객 로그인, 결제 확정과 비회원 이력 인증은 검증된 전화번호·정규화 이메일·주문번호·회원 ID 기준 제한도 함께 적용한다.
+- Redis 처리율 제한 버킷은 IP, 전화번호, 이메일, 주문번호 또는 회원 ID 원문 대신 HMAC 식별자를 사용한다.
 - 제한 초과는 `429 TOO_MANY_REQUESTS`와 `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` 헤더를 반환한다.
 - Redis 장애 시 일반 API와 결제 확정은 제한만 건너뛰며, 인증·관리·결제 준비·비밀번호 확인과 비용이 큰 쓰기 API는 `503 SERVICE_UNAVAILABLE`, `Retry-After: 1`을 반환한다.
 - 로그인·회원가입·관리자 로그인 클라이언트는 실패를 `boolean`으로 축약하지 않고 공통 `ErrorResponse`의 코드를 표시 규칙에 전달한다. 따라서 `401`, `409`, `429`, `503`을 자격 증명 오류 하나로 오인하지 않는다.
@@ -329,7 +329,7 @@ Authorization: Bearer {token}
   - `400 INVALID_INPUT` — 이름/카테고리 공란, durationMin/price/bufferMin 형식 오류, `passEligible` 누락 또는 콘텐츠 길이 초과
 - 정책:
   - `category`는 앞뒤 공백을 제거하고 대문자 토큰으로 정규화해 저장·응답한다.
-  - `price`는 1원 이상 `9,007,199,254,740,991원` 이하의 정수다.
+  - `price`는 10원 이상 `9,007,199,254,740,991원` 이하의 정수다. 10% 일반 예약금이 최소 1원이 되는 하한이다.
   - `description`, `imageUrl`, `preparationInfo`, `targetAudience`는 선택값이다. `imageUrl`은 관리자 미디어 업로드 응답 경로 또는 유효한 URL을 사용한다.
   - 새 클래스는 `ACTIVE`로 생성된다. `passEligible`은 구매한 이용권 계획의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
 
@@ -2128,6 +2128,7 @@ GET /api/v1/policies/current
 - Google은 `email_verified=true`인 이메일만 기준 이메일 후보로 수용한다. 처음 보는 Google provider ID의 검증 이메일이 기존 회원과 겹치면 자동 연결하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다.
 - Naver 프로필 이메일은 검증된 기준 이메일로 간주하지 않아 충돌 조회와 신규 회원 저장에 사용하지 않는다. 신규 Naver 회원은 provider ID와 이름으로 생성하며 기준 이메일은 `null`이다.
 - 소셜 로그인으로 새로 생성된 회원은 `password_hash`가 비어 있을 수 있다.
+- 이메일 로그인은 존재하지 않는 계정과 로컬 비밀번호가 없는 소셜 전용 계정에도 고정 dummy BCrypt 해시를 한 번 비교하고 모두 `401 INVALID_CREDENTIALS`로 응답한다. 정규화 이메일별 시도는 10회/10분으로 제한하며 Redis 장애 시 fail-closed한다.
 - `CustomerUserResponse.email`은 nullable이다. `null`은 검증된 기준 이메일이 없다는 뜻이며, `localPasswordEnabled`는 이메일 로그인 비밀번호가 설정되어 있는지를 나타낸다.
 - 기준 이메일이 있으면 앞뒤 공백을 제거한 소문자, 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일한다. 응답에는 저장된 값을 복호화해 반환한다.
 
@@ -2171,6 +2172,7 @@ POST /api/v1/auth/signup
   - `429 TOO_MANY_REQUESTS` — 회원가입 처리율 제한 초과
 - 정책:
   - 인증 코드 발급은 2.4.1을 사용한다.
+  - 정책 동의를 확인한 뒤 휴대폰 인증 코드부터 검증하고 이메일·전화번호 중복을 조회한다. 따라서 유효한 인증 코드가 없는 요청은 이메일 존재 여부와 관계없이 같은 `PHONE_VERIFICATION_FAILED`를 반환한다.
   - 회원 저장과 인증 코드 1회 소모를 같은 트랜잭션에서 처리하며 성공한 회원은 `phoneVerified=true`다.
   - 같은 전화번호의 회원가입 인증 코드 시도는 5회/10분으로 제한한다.
   - 로그인 성공과 동일하게 세션 ID를 회전한다.
@@ -2290,10 +2292,13 @@ Cookie: HG_SESSION={sessionToken}
   - `400 PHONE_VERIFICATION_FAILED` — 같은 전화번호의 미소모·유효 인증 코드가 아님
   - `401 UNAUTHORIZED` — 회원 세션 없음
   - `409 PHONE_ALREADY_IN_USE` — 다른 회원이 이미 사용하는 전화번호
+  - `409 DUPLICATE_BOOKING` — 변경할 번호의 비회원 예약과 회원의 활성 예약이 같은 슬롯에서 충돌
   - `429 TOO_MANY_REQUESTS` — 같은 전화번호의 인증 코드 확인 시도 초과
 - 정책:
   - 인증 코드 발급은 2.4.1의 `POST /api/v1/bookings/phone-verifications`를 사용한다.
-  - 회원 행 잠금 아래 새 번호의 인증 코드를 한 번 소비하고 `phone_enc`, `phone_hmac`, `phone_verified=true`를 같은 트랜잭션에서 저장한다.
+  - 회원 행 잠금 아래 새 번호의 인증 코드를 한 번 소비하고 `phone_enc`, `phone_hmac`, `phone_verified=true`와
+    해당 회원의 `BOOKED` 예약 `owner_phone_hmac`을 같은 트랜잭션에서 저장한다.
+    활성 예약 중복 제약과 충돌하면 전화번호와 예약 식별자 변경을 모두 롤백한다.
   - 전화번호가 없는 소셜 회원의 최초 등록과 기존 회원의 번호 변경에 같은 API를 사용한다. `users.phone_hmac`은 null 외 값에 UNIQUE 제약을 적용한다.
   - 비회원 이력 가져오기는 `/api/v1/me/guest-claims/**` 계약을 사용하며 번호 변경만으로 자동 이관하지 않는다.
   - `GET /api/v1/me`의 `phone`은 최초 등록 전 `null`일 수 있다.
@@ -2698,7 +2703,7 @@ Content-Type: application/json
   - 금액은 서버가 산출한다. 클라이언트가 `amount`를 보내도 무시되며, `payment_attempt.amount`는 서버 계산값이다.
   - 모든 컨텍스트의 최종 `amount`는 0원 이상 `9,007,199,254,740,991원` 이하의 웹 안전 정수여야 한다. 0원은 유효한 8회권 예약처럼 외부 PG 호출이 없는 내부 승인에만 사용한다.
     - `ORDER`: 동일 `productId`의 수량을 먼저 합쳐 상품별 1~99개 제한을 적용하고, 상품을 한 번에 조회한 뒤 `productId.price * qty`를 overflow 검출 산술로 합산한다. `SHIPPING`이면 `app.order.shipping-fee`의 고정액을 더하고 `PICKUP`이면 0원을 더한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
-    - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약, `participantCount=1`), 없으면 `slot.bookingClass.price * participantCount * 10%`
+    - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약, `participantCount=1`), 없으면 `slot.bookingClass.price * participantCount * 10%`이며 결과는 1원 이상
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
   - 서버는 prepare 시점의 `ORDER` 상품명·항목 단가·상품 유형·고정 사양·관리 방법·예상 제작 기간·배송비, `BOOKING` 예약금·잔금·인원, `PASS` 총 가격과 계획을 공개 요청 모델과 분리된 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
@@ -2794,8 +2799,8 @@ Content-Type: application/json
 ```
 
 - 8회권 사용 예약은 회원이 예약 가능 슬롯을 직접 선택해 한 회차씩 생성하며, 성공할 때마다 크레딧 1회를 차감한다.
-- 일반 예약의 `participantCount`는 1~8이고 슬롯 점유와 예약금·잔금에 함께 반영한다. 8회권 예약은 1만 허용한다.
-- 신규 8회권 구매는 `REGULAR_CRAFT_8` 계획으로 확정한다. 해당 이용권은 클래스의 `passEligible=true`와 비향수 카테고리를 모두 충족해야 예약 prepare가 성공한다.
+- 일반 예약의 `participantCount`는 1~8이고 슬롯 점유와 예약금·잔금에 함께 반영한다. 8회권 예약은 1만 허용한다. prepare는 결제 시도를 만들기 전에 슬롯·클래스 활성 상태, 시작 시각, 현재 정원과 뒤쪽 버퍼 범위의 예약 충돌을 확인하고, confirm 시에는 같은 범위를 잠근 뒤 최신 상태를 다시 확인한다.
+- 신규 8회권 구매는 `REGULAR_CRAFT_8` 계획으로 확정한다. 8회권 예약 prepare는 현재 회원 소유권·만료·잔여 횟수를 확인하고, 클래스의 `passEligible=true`와 비향수 카테고리를 모두 충족할 때만 0원 결제 시도를 만든다. confirm에서는 이용권 행을 잠근 뒤 같은 조건을 다시 확인하고 크레딧을 차감한다.
 - 운영자가 8회 일정을 일괄 배정하는 별도 API는 제공하지 않는다.
 
 #### 2.15.2 결제 확정 (confirm)
@@ -2999,6 +3004,7 @@ Content-Type: application/json
 
 - 기존 인증 코드 발송 API로 SMS 소유 확인을 시작한다. 성공 시 인증 코드를 한 번 소비하고 같은 비회원의 모든 주문·예약에 새 복구 토큰 해시를 저장한다.
 - 복구 토큰 기본 수명은 24시간이다. 응답에 포함된 모든 대상에 같은 `X-Access-Token`을 사용하며 교체 직후 이전 토큰은 무효다.
+- 응답의 `accessToken`, `expiresAt`, `orders`, `bookings`와 각 주문·예약 요약 필드는 항상 존재한다. 대상이 없으면 목록을 생략하지 않고 빈 배열로 반환한다.
 - 프론트는 복구 결과와 토큰을 만료 시각까지만 현재 브라우저 탭의 `sessionStorage`에 보관한다. 주문·예약 ID는 URL 쿼리로 전달하고 토큰은 URL에 넣지 않아, 목록 이동과 새로고침 뒤에도 같은 복구 세션을 이어간다.
 - 같은 전화번호의 비회원이 없어도 존재 여부 오류 대신 새 토큰과 빈 목록을 반환한다.
 - IP와 전화번호별 처리율 제한은 Redis 장애 시 fail-closed로 동작한다.

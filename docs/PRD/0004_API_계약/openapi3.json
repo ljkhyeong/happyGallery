@@ -972,29 +972,6 @@
         "required" : [ "arrears", "balancePaidAt", "balanceStatus", "bookingId", "participantCount", "status" ],
         "type" : "object"
       },
-      "BookingSummary" : {
-        "properties" : {
-          "bookingId" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "className" : {
-            "type" : "string"
-          },
-          "endAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "startAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "status" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
       "BulkSlotItemResponse" : {
         "properties" : {
           "bufferBlocked" : {
@@ -1533,6 +1510,7 @@
           "price" : {
             "format" : "int64",
             "maximum" : 9007199254740991,
+            "minimum" : 10,
             "type" : "integer"
           },
           "targetAudience" : {
@@ -1541,7 +1519,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "category", "name", "passEligible" ],
+        "required" : [ "bufferMin", "category", "durationMin", "name", "passEligible", "price" ],
         "type" : "object"
       },
       "CreateInquiryRequest" : {
@@ -1961,6 +1939,53 @@
         "required" : [ "carrier", "expectedShipDate", "pickupDeadlineAt", "shippingAddress", "trackingNumber", "type" ],
         "type" : "object"
       },
+      "GuestRecordRecoveryBookingSummary" : {
+        "properties" : {
+          "bookingId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "className" : {
+            "type" : "string"
+          },
+          "endAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "startAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "BOOKED", "CANCELED", "NO_SHOW", "COMPLETED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "bookingId", "className", "endAt", "startAt", "status" ],
+        "type" : "object"
+      },
+      "GuestRecordRecoveryOrderSummary" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "orderId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "PAID_APPROVAL_PENDING", "APPROVED_FULFILLMENT_PENDING", "REJECTED", "CUSTOMER_CANCELED", "AUTO_REFUND_TIMEOUT", "IN_PRODUCTION", "DELAY_CONSENT_PENDING", "DELAY_ACCEPTED", "DELAY_REJECTED_CANCELED", "SHIPPING_PREPARING", "SHIPPED", "DELIVERED", "PICKUP_READY", "PICKED_UP", "PICKUP_EXPIRED", "PICKUP_FORFEITED", "COMPLETED" ],
+            "type" : "string"
+          },
+          "totalAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "createdAt", "orderId", "status", "totalAmount" ],
+        "type" : "object"
+      },
       "GuestRecordRecoveryResponse" : {
         "properties" : {
           "accessToken" : {
@@ -1968,7 +1993,7 @@
           },
           "bookings" : {
             "items" : {
-              "$ref" : "#/components/schemas/BookingSummary"
+              "$ref" : "#/components/schemas/GuestRecordRecoveryBookingSummary"
             },
             "type" : "array"
           },
@@ -1978,11 +2003,12 @@
           },
           "orders" : {
             "items" : {
-              "$ref" : "#/components/schemas/OrderSummary"
+              "$ref" : "#/components/schemas/GuestRecordRecoveryOrderSummary"
             },
             "type" : "array"
           }
         },
+        "required" : [ "accessToken", "bookings", "expiresAt", "orders" ],
         "type" : "object"
       },
       "ImageUploadResponse" : {
@@ -2886,26 +2912,6 @@
           },
           "refund" : {
             "$ref" : "#/components/schemas/RefundStatusResponse"
-          }
-        },
-        "type" : "object"
-      },
-      "OrderSummary" : {
-        "properties" : {
-          "createdAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "orderId" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "status" : {
-            "type" : "string"
-          },
-          "totalAmount" : {
-            "format" : "int64",
-            "type" : "integer"
           }
         },
         "type" : "object"
@@ -3963,6 +3969,7 @@
           "price" : {
             "format" : "int64",
             "maximum" : 9007199254740991,
+            "minimum" : 10,
             "type" : "integer"
           },
           "targetAudience" : {
@@ -3971,7 +3978,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "category", "name", "passEligible" ],
+        "required" : [ "category", "name", "passEligible", "price" ],
         "type" : "object"
       },
       "UpdateClassStatusRequest" : {
@@ -7279,7 +7286,7 @@
     },
     "/api/v1/guest-records/recovery" : {
       "post" : {
-        "operationId" : "recover",
+        "operationId" : "recoverGuestRecords",
         "requestBody" : {
           "content" : {
             "application/json" : {
