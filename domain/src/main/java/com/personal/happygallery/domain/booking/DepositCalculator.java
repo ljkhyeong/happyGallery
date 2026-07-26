@@ -21,12 +21,20 @@ public final class DepositCalculator {
 
     /** 예약 인원 전체의 예약금과 잔금을 overflow 검출 산술로 계산한다. */
     public static BookingAmounts calculate(Slot slot, int participantCount) {
+        return calculate(slot.getBookingClass().getPrice(), participantCount);
+    }
+
+    /** 클래스 가격 스냅샷 기준 예약금과 잔금을 overflow 검출 산술로 계산한다. */
+    public static BookingAmounts calculate(long classPrice, int participantCount) {
         SlotCapacity.requireValidParticipantCount(participantCount);
         try {
-            long totalAmount = Math.multiplyExact(
-                    slot.getBookingClass().getPrice(), participantCount);
+            long totalAmount = Math.multiplyExact(classPrice, participantCount);
             PaymentAmountPolicy.requireValid(totalAmount);
             long depositAmount = totalAmount / 10;
+            if (depositAmount < 1L) {
+                throw new HappyGalleryException(
+                        ErrorCode.INVALID_INPUT, "일반 예약금은 1원 이상이어야 합니다.");
+            }
             return new BookingAmounts(
                     depositAmount,
                     Math.subtractExact(totalAmount, depositAmount));

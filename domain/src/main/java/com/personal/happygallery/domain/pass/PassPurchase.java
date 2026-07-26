@@ -95,7 +95,7 @@ public class PassPurchase {
      * @throws PassExpiredException          만료된 이용권
      * @throws PassCreditInsufficientException 잔여 크레딧 없음
      */
-    private void requireUsable(LocalDateTime usedAt) {
+    public void requireUsableAt(LocalDateTime usedAt) {
         if (isExpiredAt(usedAt)) {
             throw new PassExpiredException();
         }
@@ -121,7 +121,7 @@ public class PassPurchase {
      * @throws PassCreditInsufficientException 잔여 크레딧이 0일 때
      */
     public void useCredit(LocalDateTime usedAt) {
-        requireUsable(usedAt);
+        requireUsableAt(usedAt);
         this.remainingCredits--;
     }
 

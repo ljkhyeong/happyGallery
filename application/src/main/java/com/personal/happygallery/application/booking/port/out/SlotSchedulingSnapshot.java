@@ -10,7 +10,12 @@ public record SlotSchedulingSnapshot(
         LocalDateTime endAt,
         BookingClassStatus classStatus,
         boolean adminActive,
-        int bufferBlockCount
+        int bufferBlockCount,
+        int bookedCount,
+        int classBufferMin,
+        long classPrice,
+        String classCategory,
+        boolean classPassEligible
 ) {
 
     public boolean isReservableAt(LocalDateTime now) {

@@ -15,6 +15,13 @@ public interface SlotReaderPort {
 
     List<SlotSchedulingSnapshot> findSchedulingSnapshotsByIdIn(Iterable<Long> ids);
 
+    /** 뒤쪽 버퍼 범위 [windowStart, windowEnd)에 예약된 다른 슬롯이 있는지 확인한다. */
+    boolean existsBookedInBufferWindow(
+            Long classId,
+            Long sourceSlotId,
+            LocalDateTime windowStart,
+            LocalDateTime windowEnd);
+
     boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
 
     List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);

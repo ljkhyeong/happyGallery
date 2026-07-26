@@ -19,6 +19,8 @@ import java.time.LocalDateTime;
 @Table(name = "classes")
 public class BookingClass {
 
+    /** 10% 예약금이 최소 1원이 되는 클래스 가격 하한. */
+    public static final long MIN_PRICE = 10L;
     public static final int MAX_NAME_LENGTH = 100;
     public static final int MAX_DESCRIPTION_LENGTH = 5_000;
     public static final int MAX_IMAGE_URL_LENGTH = 500;
@@ -109,9 +111,10 @@ public class BookingClass {
                               String imageUrl,
                               String preparationInfo,
                               String targetAudience) {
-        if (price < 1L || price > PaymentAmountPolicy.MAX_AMOUNT) {
+        if (price < MIN_PRICE || price > PaymentAmountPolicy.MAX_AMOUNT) {
             throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, "클래스 가격은 1원 이상 허용 범위 이하여야 합니다.");
+                    ErrorCode.INVALID_INPUT,
+                    "클래스 가격은 %d원 이상 허용 범위 이하여야 합니다.".formatted(MIN_PRICE));
         }
         this.name = requireName(name);
         this.category = CategoryName.required(category);

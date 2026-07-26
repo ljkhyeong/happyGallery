@@ -2,9 +2,12 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.batch.BatchResult;
+import com.personal.happygallery.application.booking.port.out.ClassStorePort;
+import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.monitoring.OperationalBacklogMetrics;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
+import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
 import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.PgConfirmationRequired;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
@@ -30,6 +33,8 @@ import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
+import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
@@ -57,7 +62,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.TestFixtures.inventory;
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
+import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -79,9 +87,12 @@ class PaymentConfirmRecoveryUseCaseIT {
     @Autowired PaymentConfirmClaimTransactionService claimTransactionService;
     @Autowired PaymentAttemptReaderPort attemptReader;
     @Autowired RefundRepository refundRepository;
+    @Autowired PassPurchaseRepository passPurchaseRepository;
     @Autowired OrderRepository orderReader;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
+    @Autowired ClassStorePort classStorePort;
+    @Autowired SlotStorePort slotStorePort;
     @Autowired UserStorePort userStorePort;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired ObjectMapper objectMapper;
@@ -294,14 +305,22 @@ class PaymentConfirmRecoveryUseCaseIT {
     void recover_oldZeroAmountProcessing_resumesWithoutReconciliationOrPgCall() {
         User user = userStorePort.save(new User(
                 "recover-zero-amount@example.com", "hashed", "회원", "01010000010"));
+        BookingClass bookingClass = classStorePort.save(
+                bookingClass("0원 복구 클래스", "CRAFT", 120, 50_000L, 30));
+        LocalDateTime startAt = LocalDateTime.now(clock).plusDays(1);
+        Slot slot = slotStorePort.save(
+                slot(bookingClass, startAt, startAt.plusHours(2)));
+        var pass = passPurchaseRepository.save(
+                passPurchase(user.getId(), LocalDateTime.now(clock).plusDays(30), 320_000L));
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,
-                new BookingPayload(user.getId(), null, null, null, 999_991L, 999_992L, null),
+                new BookingPayload(user.getId(), null, null, null, slot.getId(), pass.getId(), null),
                 auth));
         claimTransactionService.resolveConfirmationStep(
                 ConfirmCommand.customerRequest(
                         null, prepared.orderId(), prepared.amount(), auth, prepared.statusToken()));
+        passPurchaseRepository.deleteById(pass.getId());
         Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow().getId();
         jdbcTemplate.update(
                 "UPDATE payment_attempt SET created_at = ?, processing_at = ? WHERE id = ?",

@@ -170,7 +170,7 @@ class PassCreditUsageUseCaseIT {
         });
     }
 
-    @DisplayName("정규 공예 8회권은 8회권 사용 불가로 설정한 공예 클래스에 사용할 수 없다")
+    @DisplayName("prepare 후 클래스가 8회권 사용 불가로 바뀌면 confirm에서 다시 거절한다")
     @Test
     void book_with_regularCraftPass_forIneligibleCraftClass_returns422WithoutMutation() throws Exception {
         BookingClass ineligibleClass = classRepository.save(new BookingClass(
@@ -179,7 +179,7 @@ class PassCreditUsageUseCaseIT {
                 120,
                 50_000L,
                 30,
-                false,
+                true,
                 null,
                 null,
                 null,
@@ -189,6 +189,16 @@ class PassCreditUsageUseCaseIT {
                 PaymentContext.BOOKING,
                 passBookingPayload(pass, ineligibleSlot),
                 sessionCookie);
+        ineligibleClass.updateDetails(
+                ineligibleClass.getName(),
+                ineligibleClass.getCategory(),
+                ineligibleClass.getPrice(),
+                false,
+                ineligibleClass.getDescription(),
+                ineligibleClass.getImageUrl(),
+                ineligibleClass.getPreparationInfo(),
+                ineligibleClass.getTargetAudience());
+        classRepository.save(ineligibleClass);
 
         mockMvc.perform(post("/api/v1/payments/confirm")
                         .with(csrf())
@@ -569,19 +579,16 @@ class PassCreditUsageUseCaseIT {
     // Proof 6: 잔여 크레딧 0 → 예약 시도 422
     // -----------------------------------------------------------------------
 
-    @DisplayName("잔여 크레딧이 없으면 8회권 예약 시 422를 반환한다")
+    @DisplayName("prepare 후 잔여 크레딧이 소진되면 confirm에서 다시 422를 반환한다")
     @Test
     void book_with_pass_no_credits_returns_422() throws Exception {
-        // remaining을 0으로 강제 소멸
-        pass.expire();
-        passPurchaseRepository.save(pass);
-
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
-
         PaymentTestHelper.PreparedPayment prepared = paymentHelper.preparePayment(
                 PaymentContext.BOOKING,
                 passBookingPayload(pass, slot),
                 sessionCookie);
+        pass.expire();
+        passPurchaseRepository.save(pass);
 
         mockMvc.perform(post("/api/v1/payments/confirm")
                         .with(csrf())
@@ -592,10 +599,11 @@ class PassCreditUsageUseCaseIT {
                 .andExpect(jsonPath("$.code").value("PASS_CREDIT_INSUFFICIENT"));
     }
 
-    @DisplayName("만료 시각에 도달한 8회권으로 예약하면 422를 반환한다")
+    @DisplayName("prepare 후 만료 시각에 도달한 8회권은 confirm에서 다시 422를 반환한다")
     @Test
     void book_with_pass_at_expiry_returns_422() throws Exception {
-        PassPurchase expiredPass = passPurchase(pass.getUserId(), LocalDateTime.now(clock), 320_000L);
+        PassPurchase expiredPass = passPurchase(
+                pass.getUserId(), LocalDateTime.now(clock).plusDays(1), 320_000L);
         expiredPass.recordPaymentKey("expired-pass-payment-key");
         expiredPass = passPurchaseRepository.save(expiredPass);
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -604,6 +612,10 @@ class PassCreditUsageUseCaseIT {
                 PaymentContext.BOOKING,
                 passBookingPayload(expiredPass, slot),
                 sessionCookie);
+        jdbcTemplate.update(
+                "UPDATE pass_purchases SET expires_at = ? WHERE id = ?",
+                LocalDateTime.now(clock),
+                expiredPass.getId());
 
         mockMvc.perform(post("/api/v1/payments/confirm")
                         .with(csrf())

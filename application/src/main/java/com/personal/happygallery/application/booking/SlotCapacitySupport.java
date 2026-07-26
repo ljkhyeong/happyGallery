@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 class SlotCapacitySupport {
 
     private final SlotReaderPort slotReaderPort;
+    private final SlotAvailabilityChecker slotAvailabilityChecker;
     private final ClassReaderPort classReaderPort;
     private final BookingClassLockPort bookingClassLockPort;
     private final SlotLockPort slotLockPort;
@@ -33,12 +34,14 @@ class SlotCapacitySupport {
     private final Clock clock;
 
     SlotCapacitySupport(SlotReaderPort slotReaderPort,
+                        SlotAvailabilityChecker slotAvailabilityChecker,
                         ClassReaderPort classReaderPort,
                         BookingClassLockPort bookingClassLockPort,
                         SlotLockPort slotLockPort,
                         SlotStorePort slotStorePort,
                         Clock clock) {
         this.slotReaderPort = slotReaderPort;
+        this.slotAvailabilityChecker = slotAvailabilityChecker;
         this.classReaderPort = classReaderPort;
         this.bookingClassLockPort = bookingClassLockPort;
         this.slotLockPort = slotLockPort;
@@ -48,12 +51,7 @@ class SlotCapacitySupport {
 
     /** 잠금 전에 존재 여부와 활성 상태를 빠르게 확인한다. */
     SlotSchedulingSnapshot requireAvailableSlot(Long slotId) {
-        SlotSchedulingSnapshot slot = slotReaderPort.findSchedulingSnapshotById(slotId)
-                .orElseThrow(NotFoundException.supplier("슬롯"));
-        if (!slot.isReservableAt(LocalDateTime.now(clock))) {
-            throw new SlotNotAvailableException();
-        }
-        return slot;
+        return slotAvailabilityChecker.requireSchedulingAvailable(slotId);
     }
 
     /** 다중 슬롯 작업 전에 관련 클래스 행을 PK 순서로 모두 잠근다. */

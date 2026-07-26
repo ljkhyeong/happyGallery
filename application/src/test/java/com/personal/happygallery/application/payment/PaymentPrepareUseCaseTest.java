@@ -6,6 +6,7 @@ import com.personal.happygallery.application.customer.port.in.CustomerAccountLif
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.pass.PassPriceProperties;
+import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
@@ -22,15 +23,20 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.error.CapacityExceededException;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.error.PassCreditInsufficientException;
+import com.personal.happygallery.domain.error.PassExpiredException;
 import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
+import com.personal.happygallery.domain.error.SlotNotAvailableException;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.policy.PolicyConsentType;
 import com.personal.happygallery.domain.product.Product;
@@ -49,6 +55,7 @@ import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.inventory;
+import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,6 +77,7 @@ class PaymentPrepareUseCaseTest {
     @Autowired SlotStorePort slotStorePort;
     @Autowired UserStorePort userStorePort;
     @Autowired PhoneVerificationStorePort phoneVerificationStorePort;
+    @Autowired PassPurchaseStorePort passPurchaseStorePort;
     @Autowired PassPriceProperties passPriceProperties;
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -295,11 +303,162 @@ class PaymentPrepareUseCaseTest {
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
     }
 
+    @DisplayName("8회권 예약 prepare는 소유권과 현재 사용 가능 여부 및 클래스 적용 정책을 확인한다")
+    @Test
+    void prepare_validatesPassBeforeCreatingPaymentAttempt() {
+        User user = userStorePort.save(new User(
+                "pass-prepare@example.com", "hashed", "예약 회원", "01066667777"));
+        User otherUser = userStorePort.save(new User(
+                "other-pass-owner@example.com", "hashed", "다른 회원", "01088889999"));
+        BookingClass craftClass = classStorePort.save(
+                bookingClass("회차권 공예 클래스", "CRAFT", 120, 50_000L, 30));
+        Slot craftSlot = slotStorePort.save(
+                slot(craftClass, FUTURE, FUTURE.plusHours(2)));
+        BookingClass perfumeClass = classStorePort.save(
+                bookingClass("회차권 제외 향수 클래스", "PERFUME", 120, 50_000L, 30));
+        Slot perfumeSlot = slotStorePort.save(
+                slot(perfumeClass, FUTURE.plusHours(3), FUTURE.plusHours(5)));
+        LocalDateTime now = LocalDateTime.now(clock);
+        PassPurchase validPass = passPurchaseStorePort.save(
+                passPurchase(user.getId(), now.plusDays(30), 320_000L));
+        PassPurchase otherPass = passPurchaseStorePort.save(
+                passPurchase(otherUser.getId(), now.plusDays(30), 320_000L));
+        PassPurchase expiredPass = passPurchaseStorePort.save(
+                passPurchase(user.getId(), now, 320_000L));
+        PassPurchase depletedPass =
+                passPurchase(user.getId(), now.plusDays(30), 320_000L);
+        for (int credit = 0; credit < PassPurchase.TOTAL_CREDITS; credit++) {
+            depletedPass.useCredit(now);
+        }
+        depletedPass = passPurchaseStorePort.save(depletedPass);
+        AuthContext auth = AuthContext.member(user.getId());
+
+        PaymentPrepareUseCase.PrepareResult valid = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                passBookingPayload(user.getId(), craftSlot.getId(), validPass.getId()),
+                auth));
+        assertThat(valid.amount()).isZero();
+
+        assertPassPrepareFailsWith(
+                passBookingPayload(user.getId(), craftSlot.getId(), otherPass.getId()),
+                auth,
+                NotFoundException.class);
+        assertPassPrepareFailsWith(
+                passBookingPayload(user.getId(), craftSlot.getId(), expiredPass.getId()),
+                auth,
+                PassExpiredException.class);
+        assertPassPrepareFailsWith(
+                passBookingPayload(user.getId(), craftSlot.getId(), depletedPass.getId()),
+                auth,
+                PassCreditInsufficientException.class);
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                passBookingPayload(user.getId(), perfumeSlot.getId(), validPass.getId()),
+                auth)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PASS_NOT_APPLICABLE));
+    }
+
+    @DisplayName("예약 prepare는 일반 결제와 8회권 모두 결제 시도 생성 전에 슬롯 상태를 확인한다")
+    @Test
+    void prepare_rejectsUnavailableSlotBeforePaymentAttempt() {
+        User user = userStorePort.save(new User(
+                "unavailable-slot@example.com", "hashed", "예약 회원", "01033334444"));
+        BookingClass cls = classStorePort.save(
+                bookingClass("비활성 슬롯 클래스", "CRAFT", 120, 50_000L, 30));
+        Slot unavailableSlot = slot(cls, FUTURE, FUTURE.plusHours(2));
+        unavailableSlot.deactivate();
+        unavailableSlot = slotStorePort.save(unavailableSlot);
+        Slot fullSlot = slot(cls, FUTURE.plusHours(3), FUTURE.plusHours(5));
+        fullSlot.incrementBookedCount(8);
+        fullSlot = slotStorePort.save(fullSlot);
+        AuthContext auth = AuthContext.member(user.getId());
+
+        Long slotId = unavailableSlot.getId();
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        user.getId(), null, null, null, slotId, null,
+                        DepositPaymentMethod.CARD),
+                auth)))
+                .isInstanceOf(SlotNotAvailableException.class);
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        user.getId(), null, null, null, slotId, 99L, null),
+                auth)))
+                .isInstanceOf(SlotNotAvailableException.class);
+
+        Long fullSlotId = fullSlot.getId();
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        user.getId(), null, null, null, fullSlotId, 99L, null),
+                auth)))
+                .isInstanceOf(CapacityExceededException.class);
+    }
+
+    @DisplayName("예약 prepare의 역방향 버퍼 충돌 검사는 시작 경계를 포함하고 종료 경계를 제외한다")
+    @Test
+    void prepare_checksBookedSlotsInsideExactBufferWindow() {
+        User user = userStorePort.save(new User(
+                "buffer-precheck@example.com", "hashed", "예약 회원", "01022223333"));
+        BookingClass cls = classStorePort.save(
+                bookingClass("버퍼 확인 클래스", "CRAFT", 120, 50_000L, 30));
+        Slot conflictingSource = slotStorePort.save(
+                slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot bookedAtWindowStart = slot(cls, FUTURE.plusHours(2), FUTURE.plusHours(4));
+        bookedAtWindowStart.incrementBookedCount();
+        slotStorePort.save(bookedAtWindowStart);
+
+        LocalDateTime nextDayStart = FUTURE.plusDays(1);
+        Slot boundarySource = slotStorePort.save(
+                slot(cls, nextDayStart, nextDayStart.plusHours(2)));
+        Slot bookedAtWindowEnd = slot(
+                cls,
+                nextDayStart.plusHours(2).plusMinutes(30),
+                nextDayStart.plusHours(4).plusMinutes(30));
+        bookedAtWindowEnd.incrementBookedCount();
+        slotStorePort.save(bookedAtWindowEnd);
+        AuthContext auth = AuthContext.member(user.getId());
+
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        user.getId(), null, null, null, conflictingSource.getId(), null,
+                        DepositPaymentMethod.CARD),
+                auth)))
+                .isInstanceOf(SlotNotAvailableException.class);
+
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        user.getId(), null, null, null, boundarySource.getId(), null,
+                        DepositPaymentMethod.CARD),
+                auth));
+
+        assertThat(prepared.amount()).isEqualTo(5_000L);
+    }
+
     private void saveVerification(String phone, String code) {
         PhoneVerification verification = new PhoneVerification(
                 phone, code, LocalDateTime.now(clock).plusMinutes(5));
         verification.markDelivered();
         phoneVerificationStorePort.save(verification);
+    }
+
+    private BookingPayload passBookingPayload(Long userId, Long slotId, Long passId) {
+        return new BookingPayload(
+                userId, null, null, null, slotId, passId, null);
+    }
+
+    private void assertPassPrepareFailsWith(
+            BookingPayload payload,
+            AuthContext auth,
+            Class<? extends Throwable> exceptionType) {
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING, payload, auth)))
+                .isInstanceOf(exceptionType);
     }
 
     private OrderPayload guestOrderPayload(Long productId) {

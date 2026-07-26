@@ -20,9 +20,13 @@
 8회권 예약 생성 시 `USE` 원장은 저장된 `booking_id`를 `pass_ledger.related_booking_id`에 남긴다.
 예약 취소로 1크레딧을 복구하는 `REFUND` 원장도 같은 예약 ID를 남긴다.
 8회권 전체 환불처럼 단일 예약이 원인이 아닌 원장은 `related_booking_id`를 비운다.
-예약 생성에서는 회원 소유권만 먼저 확인하고, `PassPurchase.useCredit(usedAt)`이 만료·잔여 크레딧 검증과
-차감을 한 번에 수행한다. 이후 `USE` 원장을 같은 트랜잭션에 저장하며, 어느 한쪽이라도 실패하면 모두 롤백한다.
+결제 prepare에서는 비잠금 조회로 회원 소유권·만료·잔여 크레딧과 `PassPlan`의 클래스 적용 가능 여부를
+먼저 확인해 사용할 수 없는 0원 결제 시도를 만들지 않는다. confirm 예약 생성에서는 같은 이용권 행을 잠그고
+소유권과 정책을 다시 확인하며, `PassPurchase.useCredit(usedAt)`이 최신 만료·잔여 크레딧 검증과 차감을
+한 번에 수행한다. 이후 `USE` 원장을 같은 트랜잭션에 저장하며, 어느 한쪽이라도 실패하면 모두 롤백한다.
 크레딧 차감 전에는 구매 시 저장한 `PassPlan`으로 클래스 카테고리와 `passEligible`을 함께 검증한다.
+prepare와 confirm 모두 클래스 적용 가능 여부를 먼저 확인한 뒤 현재 시각의 만료·잔여 횟수를 확인해,
+여러 조건이 동시에 위반된 경우에도 같은 오류 우선순위를 유지한다.
 신규 `REGULAR_CRAFT_8`은 `passEligible=true`인 정규 공예 클래스에만 사용할 수 있고 `PERFUME`에는 사용할 수 없다.
 `UNIQUE(related_booking_id, type)`으로 같은 예약에 `USE` 또는 예약 취소 `REFUND`가 중복 기록되는 것도 차단한다.
 

@@ -21,7 +21,9 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     @Query("""
             SELECT new com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot(
                 s.id, s.bookingClass.id, s.startAt, s.endAt, s.bookingClass.status,
-                s.adminActive, s.bufferBlockCount
+                s.adminActive, s.bufferBlockCount, s.bookedCount,
+                s.bookingClass.bufferMin, s.bookingClass.price,
+                s.bookingClass.category, s.bookingClass.passEligible
             )
             FROM Slot s
             WHERE s.id = :id
@@ -32,12 +34,30 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     @Query("""
             SELECT new com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot(
                 s.id, s.bookingClass.id, s.startAt, s.endAt, s.bookingClass.status,
-                s.adminActive, s.bufferBlockCount
+                s.adminActive, s.bufferBlockCount, s.bookedCount,
+                s.bookingClass.bufferMin, s.bookingClass.price,
+                s.bookingClass.category, s.bookingClass.passEligible
             )
             FROM Slot s
             WHERE s.id IN :ids
             """)
     List<SlotSchedulingSnapshot> findSchedulingSnapshotsByIdIn(@Param("ids") Iterable<Long> ids);
+
+    @Override
+    @Query("""
+            SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END
+            FROM Slot s
+            WHERE s.bookingClass.id = :classId
+              AND s.id <> :sourceSlotId
+              AND s.startAt >= :windowStart
+              AND s.startAt < :windowEnd
+              AND s.bookedCount > 0
+            """)
+    boolean existsBookedInBufferWindow(
+            @Param("classId") Long classId,
+            @Param("sourceSlotId") Long sourceSlotId,
+            @Param("windowStart") LocalDateTime windowStart,
+            @Param("windowEnd") LocalDateTime windowEnd);
 
     /** 중복 슬롯 검사 — (class_id, start_at) UNIQUE 제약 반영 */
     @Override boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
