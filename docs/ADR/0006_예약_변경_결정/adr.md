@@ -48,7 +48,7 @@
 
 ## 결정 4 — 마지막 예약 반납 시 버퍼 슬롯 자동 재활성화
 
-**선택**: 기존 슬롯의 `booked_count`가 1에서 0이 되면 그 슬롯이 만들었던 뒤쪽 버퍼 차단을 자동 해제한다.
+**선택**: 기존 슬롯의 인원 점유 `booked_count`가 양수에서 0이 되면 그 슬롯이 만들었던 뒤쪽 버퍼 차단을 자동 해제한다.
 
 **이유**:
 - 예약이 사라졌는데 운영자가 별도로 슬롯을 복구해야 하는 흐름은 불필요한 운영 부담이다.
@@ -56,7 +56,7 @@
 - 관리자 비활성 상태는 `admin_active`로 분리해 자동 버퍼 해제와 무관하게 유지할 수 있다.
 
 **결과**:
-- 같은 슬롯의 첫 예약(`0 → 1`)만 버퍼 차단 수를 증가시키고 마지막 예약(`1 → 0`)만 감소시킨다.
+- 같은 슬롯의 첫 인원 점유(`0 → 양수`)만 버퍼 차단 수를 증가시키고 마지막 인원 반납(`양수 → 0`)만 감소시킨다.
 - 실제 활성 상태는 `admin_active && buffer_block_count == 0`이다.
 - 예약이 잡힌 뒤 버퍼 범위에 생성한 슬롯은 생성 시 기존 원인 예약 수만큼 차단 수를 초기화한다.
 
@@ -65,7 +65,9 @@
 ## 결정 5 — 동일 클래스 안에서만 슬롯 변경
 
 **선택**: 새 슬롯이 현재 예약과 같은 클래스인지 aggregate가 검증한다. 변경 트랜잭션은 관련 클래스 행을
-잠근 뒤 `SlotCapacitySupport.reserveCapacity(newSlotId)` → `releaseCapacity(oldSlotId)`를 실행한다.
+잠근 뒤 예약의 `participantCount`를 그대로 사용해
+`SlotCapacitySupport.reserveCapacity(newSlotId, participantCount)` →
+`releaseCapacity(oldSlotId, participantCount)`를 실행한다.
 
 **이유**:
 - 예약금과 잔금은 예약 생성 당시 클래스 가격의 스냅샷이므로, 다른 클래스 슬롯으로 바꾸면 재결제 없이 가격 계약이 달라질 수 있다.
@@ -98,5 +100,5 @@ PK 오름차순으로 잠근다.
 
 | 메서드 | 위치 | 설명 |
 |--------|------|------|
-| `Slot.decrementBookedCount()` | `Slot.java` | 반납 시 booked_count-- (비관적 락 후 호출) |
+| `Slot.decrementBookedCount(participantCount)` | `Slot.java` | 반납 시 booked_count에서 예약 인원 차감 (비관적 락 후 호출) |
 | `Booking.reschedule(Slot)` | `Booking.java` | slot_id 변경, status BOOKED 유지 |

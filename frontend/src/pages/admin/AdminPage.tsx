@@ -23,10 +23,12 @@ import { AdminQnaSection } from "@/features/admin-qna/AdminQnaSection";
 import { AdminInquirySection } from "@/features/admin-inquiry/AdminInquirySection";
 import { AdminNoticeSection } from "@/features/admin-notice/AdminNoticeSection";
 import { AdminPasswordChangeForm } from "@/features/admin-auth/AdminPasswordChangeForm";
+import { getAdminMfaStatus } from "@/features/admin-auth/api";
 import { AdminDashboardSection } from "@/features/admin-dashboard/AdminDashboardSection";
 import { AdminSearchSection } from "@/features/admin-search/AdminSearchSection";
 import { WorkshopProfileForm } from "@/features/admin-workshop/WorkshopProfileForm";
-import { useToast } from "@/shared/ui";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import type { BookingStatus, OrderStatus } from "@/shared/types";
 
 const ADMIN_VIEWS = [
@@ -65,6 +67,9 @@ const ADMIN_VIEWS = [
 ] as const;
 
 type AdminView = (typeof ADMIN_VIEWS)[number]["value"];
+const REQUIRE_ADMIN_MFA_ENROLLMENT =
+  import.meta.env.PROD
+  || import.meta.env.VITE_REQUIRE_ADMIN_MFA_ENROLLMENT === "true";
 
 const ORDER_STATUSES: readonly OrderStatus[] = [
   "PAID_APPROVAL_PENDING",
@@ -154,6 +159,12 @@ export function AdminPage() {
     toast.show(message, "success");
   }, [clearAdminKey, toast]);
 
+  const productionMfaStatus = useAdminQuery(handleAuthError, {
+    queryKey: ["admin", "auth", "mfa", "enrollment-gate"],
+    queryFn: () => getAdminMfaStatus(adminKey),
+    enabled: REQUIRE_ADMIN_MFA_ENROLLMENT && isAuthenticated,
+  });
+
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
@@ -178,6 +189,43 @@ export function AdminPage() {
 
   if (!isAuthenticated) {
     return <AdminLoginGate onLogin={login} onVerifyMfa={verifyMfa} />;
+  }
+
+  if (REQUIRE_ADMIN_MFA_ENROLLMENT && productionMfaStatus.isLoading) {
+    return <LoadingSpinner text="관리자 보안 상태 확인 중..." />;
+  }
+
+  if (REQUIRE_ADMIN_MFA_ENROLLMENT && productionMfaStatus.error) {
+    return (
+      <Container className="page-container admin-workspace">
+        <ErrorAlert error={productionMfaStatus.error} />
+      </Container>
+    );
+  }
+
+  if (REQUIRE_ADMIN_MFA_ENROLLMENT && productionMfaStatus.data?.enabled === false) {
+    return (
+      <Container className="page-container admin-workspace">
+        <header className="admin-workspace-header">
+          <h4 className="mb-0">관리자 2단계 인증 등록</h4>
+          <Button
+            size="sm"
+            variant="outline-secondary"
+            onClick={handleLogout}
+            disabled={loggingOut}
+          >
+            {loggingOut ? "로그아웃 중..." : "로그아웃"}
+          </Button>
+        </header>
+        <AdminPanel title="2단계 인증">
+          <AdminMfaSettings
+            adminKey={adminKey}
+            onAuthError={handleAuthError}
+            onCredentialChanged={handleAdminCredentialsChanged}
+          />
+        </AdminPanel>
+      </Container>
+    );
   }
 
   return (

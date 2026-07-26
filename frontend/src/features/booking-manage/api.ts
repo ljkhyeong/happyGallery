@@ -1,3 +1,8 @@
+import {
+  cancelGuestBooking,
+  getGuestBooking,
+  rescheduleGuestBooking,
+} from "@/generated/api/booking";
 import { api } from "@/shared/api";
 import type {
   BookingDetailResponse,
@@ -7,7 +12,7 @@ import type {
 } from "@/shared/types";
 
 export function fetchBooking(bookingId: number, token: string): Promise<BookingDetailResponse> {
-  return api<BookingDetailResponse>(`/bookings/${bookingId}`, {
+  return getGuestBooking(bookingId, {
     headers: { "X-Access-Token": token },
   });
 }
@@ -17,10 +22,8 @@ export function rescheduleBooking(
   newSlotId: number,
   token: string,
 ): Promise<RescheduleResponse> {
-  return api<RescheduleResponse>(`/bookings/${bookingId}/reschedule`, {
-    method: "PATCH",
+  return rescheduleGuestBooking(bookingId, { newSlotId }, {
     headers: { "X-Access-Token": token },
-    body: { newSlotId },
   });
 }
 
@@ -32,8 +35,7 @@ export function fetchRescheduleSlots(
 }
 
 export function cancelBooking(bookingId: number, token: string): Promise<CancelResponse> {
-  return api<CancelResponse>(`/bookings/${bookingId}`, {
-    method: "DELETE",
+  return cancelGuestBooking(bookingId, {
     headers: { "X-Access-Token": token },
   });
 }

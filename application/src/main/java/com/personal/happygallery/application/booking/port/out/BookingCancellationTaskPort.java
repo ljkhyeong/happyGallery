@@ -10,5 +10,7 @@ public interface BookingCancellationTaskPort {
 
     List<BookingCancellationTask> findPending(int limit);
 
+    BookingCancellationTaskBacklogSummary summarizePendingBacklog();
+
     Optional<BookingCancellationTask> findByIdForUpdate(Long taskId);
 }

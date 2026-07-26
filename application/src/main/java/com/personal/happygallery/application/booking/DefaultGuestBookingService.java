@@ -86,7 +86,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
                 command.phone(), command.code(), command.name());
         return createBooking(
                 guest, command.slotId(), command.paymentMethod(),
-                command.depositAmount(), command.balanceAmount());
+                command.depositAmount(), command.balanceAmount(), 1);
     }
 
     @Override
@@ -96,7 +96,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
                 command.paymentOrderId(), command.phone(), command.verificationProof(), command.name());
         return createBooking(
                 guest, command.slotId(), command.paymentMethod(),
-                command.depositAmount(), command.balanceAmount());
+                command.depositAmount(), command.balanceAmount(), command.participantCount());
     }
 
     private GuestBookingResult createBooking(
@@ -104,14 +104,15 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
             Long slotId,
             DepositPaymentMethod paymentMethod,
             long depositAmount,
-            long balanceAmount) {
+            long balanceAmount,
+            int participantCount) {
         slotCapacitySupport.requireAvailableSlot(slotId);
 
         if (bookingReaderPort.existsBookedBySlotIdAndGuestId(slotId, guest.getId())) {
             throw new DuplicateBookingException();
         }
 
-        Slot slot = slotCapacitySupport.reserveCapacity(slotId);
+        Slot slot = slotCapacitySupport.reserveCapacity(slotId, participantCount);
 
         GuestTokenService.IssuedToken issued = guestTokenService.issue();
         String rawToken = issued.rawToken();
@@ -121,6 +122,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         Booking booking = Booking.forGuestDeposit(
                 guest,
                 slot,
+                participantCount,
                 depositAmount,
                 balanceAmount,
                 paymentMethod,

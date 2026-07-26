@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.ShippingAddress;
 import java.util.List;
 
 /**
@@ -13,7 +14,13 @@ import java.util.List;
  */
 public interface OrderQueryUseCase {
 
-    record OrderDetail(Order order, List<OrderItem> items, Fulfillment fulfillment, Refund refund) {
+    record OrderDetail(
+            Order order,
+            List<OrderItem> items,
+            Fulfillment fulfillment,
+            ShippingAddress shippingAddress,
+            Refund refund
+    ) {
         public OrderDetail {
             items = List.copyOf(items);
         }

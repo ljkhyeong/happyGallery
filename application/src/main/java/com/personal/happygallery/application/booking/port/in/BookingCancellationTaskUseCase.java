@@ -21,6 +21,7 @@ public interface BookingCancellationTaskUseCase {
             String className,
             LocalDateTime startAt,
             long balanceAmount,
+            long compensationAmount,
             String reason,
             LocalDateTime createdAt,
             Long completedByAdminId,

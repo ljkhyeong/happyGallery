@@ -8,6 +8,7 @@ import { formatKRW } from "@/shared/lib";
 import type { OrderItemInput, ProductDetailResponse } from "@/shared/types";
 import type { ProductType } from "@/shared/types/product";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
+import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 
 interface Props {
   items: OrderItemInput[];
@@ -139,19 +140,30 @@ export function OrderItemsForm({
             {items.map((item) => {
               const product = productMap.get(item.productId);
               return (
-                <ListGroup.Item key={item.productId}
-                  className="d-flex justify-content-between align-items-center">
-                  <span>
-                    {product?.name ?? `상품 #${item.productId}`}
-                    <Badge bg="secondary" className="ms-2">x{item.qty}</Badge>
-                    {product && (
-                      <small className="text-muted-soft ms-2">
-                        {formatKRW(product.price * item.qty)}
-                      </small>
-                    )}
-                  </span>
-                  <Button size="sm" variant="outline-danger"
-                    onClick={() => removeItem(item.productId)}>삭제</Button>
+                <ListGroup.Item key={item.productId}>
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span>
+                      {product?.name ?? `상품 #${item.productId}`}
+                      <Badge bg="secondary" className="ms-2">x{item.qty}</Badge>
+                      {product && (
+                        <small className="text-muted-soft ms-2">
+                          {formatKRW(product.price * item.qty)}
+                        </small>
+                      )}
+                    </span>
+                    <Button size="sm" variant="outline-danger"
+                      onClick={() => removeItem(item.productId)}>삭제</Button>
+                  </div>
+                  {product && (
+                    <ProductPurchaseTerms
+                      productName={product.name}
+                      type={product.type}
+                      specification={product.specification}
+                      careInstructions={product.careInstructions}
+                      productionLeadDays={product.productionLeadDays}
+                      compact
+                    />
+                  )}
                 </ListGroup.Item>
               );
             })}

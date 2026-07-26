@@ -1,5 +1,8 @@
+import { listMyBookings as requestMyBookings } from "@/generated/api/booking";
 import { api } from "@/shared/api";
 import type { MemberPassRefundResponse, RefundProgress } from "@/shared/types";
+
+export type { MyBookingSummary } from "@/generated/api/booking";
 
 export interface MyOrderSummary {
   orderId: number;
@@ -7,15 +10,6 @@ export interface MyOrderSummary {
   totalAmount: number;
   paidAt: string;
   createdAt: string;
-}
-
-export interface MyBookingSummary {
-  bookingId: number;
-  status: string;
-  className: string;
-  startAt: string;
-  endAt: string;
-  depositAmount: number;
 }
 
 export interface MyPassSummary {
@@ -35,7 +29,7 @@ export function fetchMyOrders() {
 }
 
 export function fetchMyBookings() {
-  return api<MyBookingSummary[]>("/me/bookings");
+  return requestMyBookings();
 }
 
 export function fetchMyPasses() {

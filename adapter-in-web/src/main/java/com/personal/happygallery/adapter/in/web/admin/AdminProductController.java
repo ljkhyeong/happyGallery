@@ -44,7 +44,8 @@ public class AdminProductController {
     public ProductResponse register(@RequestBody @Valid CreateProductRequest request) {
         ProductInventoryResult result = productAdminUseCase.register(
                 request.name(), request.type(), request.category(), request.price(), request.quantity(),
-                request.description(), request.imageUrl());
+                request.description(), request.imageUrl(), request.specification(),
+                request.careInstructions(), request.productionLeadDays());
         return ProductResponse.from(result);
     }
 
@@ -54,7 +55,8 @@ public class AdminProductController {
                                   @RequestBody @Valid UpdateProductRequest request) {
         return ProductResponse.from(productAdminUseCase.update(
                 id, request.name(), request.category(), request.price(),
-                request.description(), request.imageUrl()));
+                request.description(), request.imageUrl(), request.specification(),
+                request.careInstructions(), request.productionLeadDays()));
     }
 
     /** GET /api/v1/admin/products — 판매 중지 상품을 포함한 전체 목록 */

@@ -44,6 +44,7 @@ export interface BookingPayload {
   verificationCode?: string | null;
   name?: string | null;
   slotId: number;
+  participantCount: number;
   passId?: number | null;
   paymentMethod?: DepositPaymentMethod | null;
   policyAcceptance?: PolicyAcceptance | null;

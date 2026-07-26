@@ -9,6 +9,8 @@ import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.application.token.GuestTokenService;
 import java.util.List;
 import java.util.Objects;
@@ -24,17 +26,20 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     private final FulfillmentPort fulfillmentPort;
     private final GuestTokenService guestTokenService;
     private final RefundPort refundPort;
+    private final ShippingAddressProtector shippingAddressProtector;
 
     public DefaultOrderQueryService(OrderReaderPort orderReader,
                                     OrderItemPort orderItemPort,
                                     FulfillmentPort fulfillmentPort,
                                     GuestTokenService guestTokenService,
-                                    RefundPort refundPort) {
+                                    RefundPort refundPort,
+                                    ShippingAddressProtector shippingAddressProtector) {
         this.orderReader = orderReader;
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
         this.guestTokenService = guestTokenService;
         this.refundPort = refundPort;
+        this.shippingAddressProtector = shippingAddressProtector;
     }
 
     /** 회원 — 자기 주문 목록 조회 */
@@ -68,10 +73,16 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     }
 
     private OrderDetail detail(Order order, List<OrderItem> items, Fulfillment fulfillment) {
+        ShippingAddress shippingAddress = fulfillment != null
+                && fulfillment.getType() == FulfillmentType.SHIPPING
+                && fulfillment.getShippingAddressEnc() != null
+                ? shippingAddressProtector.decrypt(fulfillment.getShippingAddressEnc())
+                : null;
         return new OrderDetail(
                 order,
                 items,
                 fulfillment,
+                shippingAddress,
                 refundPort.findDirectByOrderId(order.getId()).orElse(null));
     }
 }

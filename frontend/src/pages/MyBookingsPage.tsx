@@ -142,7 +142,9 @@ export function MyBookingsPage() {
             <Row className="align-items-center g-2">
               <Col xs={12} md={5}>
                 <div className="fw-semibold small">{booking.className}</div>
-                <small className="text-muted-soft">{formatDateTime(booking.startAt)}</small>
+                <small className="text-muted-soft">
+                  {formatDateTime(booking.startAt)} · {booking.participantCount}명
+                </small>
               </Col>
               <Col xs={6} md={3}>
                 <StatusBadge status={booking.status} />

@@ -14,5 +14,10 @@ public interface BookingCancelUseCase {
 
     CancelResult cancelMemberBooking(Long bookingId, Long userId);
 
-    record CancelResult(Booking booking, boolean refundable, Refund refund) {}
+    record CancelResult(
+            Booking booking,
+            boolean refundable,
+            Refund refund,
+            boolean manualCompensationRequired
+    ) {}
 }

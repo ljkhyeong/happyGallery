@@ -51,15 +51,19 @@ public class DefaultAdminAuthService implements AdminAuthUseCase {
         }
 
         AdminSession session = storedSession.get();
-        boolean valid = adminUserRepository.findById(session.adminUserId())
+        return adminUserRepository.findById(session.adminUserId())
                 .filter(user -> user.getUsername().equals(session.username()))
                 .filter(user -> user.getCredentialVersion() == session.credentialVersion())
-                .isPresent();
-        if (!valid) {
-            sessionPort.remove(token);
-            return Optional.empty();
-        }
-        return storedSession;
+                .map(user -> new AdminSession(
+                        session.adminUserId(),
+                        session.username(),
+                        session.credentialVersion(),
+                        user.isMfaEnabled(),
+                        session.createdAt()))
+                .or(() -> {
+                    sessionPort.remove(token);
+                    return Optional.empty();
+                });
     }
 
     @Override
@@ -75,7 +79,10 @@ public class DefaultAdminAuthService implements AdminAuthUseCase {
         }
 
         String token = sessionPort.create(
-                decision.adminUserId(), decision.username(), decision.credentialVersion());
+                decision.adminUserId(),
+                decision.username(),
+                decision.credentialVersion(),
+                decision.mfaEnabled());
         try {
             auditService.record(
                     decision.adminUserId(), decision.username(), AdminAuthOutcome.LOGIN_SUCCEEDED);

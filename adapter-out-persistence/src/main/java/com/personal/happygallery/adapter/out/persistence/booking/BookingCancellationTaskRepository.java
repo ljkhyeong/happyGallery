@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.booking;
 
 import com.personal.happygallery.application.booking.port.out.BookingCancellationTaskPort;
+import com.personal.happygallery.application.booking.port.out.BookingCancellationTaskBacklogSummary;
 import com.personal.happygallery.domain.booking.BookingCancellationTask;
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -34,6 +35,18 @@ public interface BookingCancellationTaskRepository
     default List<BookingCancellationTask> findPending(int limit) {
         return findPendingPage(PageRequest.ofSize(limit));
     }
+
+    @Override
+    @Query("""
+            SELECT new com.personal.happygallery.application.booking.port.out.BookingCancellationTaskBacklogSummary(
+                COUNT(task),
+                MIN(task.createdAt)
+            )
+            FROM BookingCancellationTask task
+            WHERE task.status =
+                com.personal.happygallery.domain.booking.BookingCancellationTaskStatus.PENDING
+            """)
+    BookingCancellationTaskBacklogSummary summarizePendingBacklog();
 
     @Query("""
             SELECT CASE WHEN COUNT(task) > 0 THEN true ELSE false END

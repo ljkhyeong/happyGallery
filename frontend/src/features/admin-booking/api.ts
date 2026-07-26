@@ -2,6 +2,7 @@ import {
   cancelAdminBooking,
   complete,
   completeBookingCancellationTask as completeBookingCancellationTaskRequest,
+  createAdminBooking as createAdminBookingRequest,
   listBookings,
   listPendingBookingCancellationTasks,
   markBalancePaid as markBalancePaidRequest,
@@ -10,6 +11,7 @@ import {
 } from "@/generated/api/adminBooking";
 import type {
   AdminBookingCancelRequest,
+  CreateAdminBookingRequest,
   ListBookingsStatus,
 } from "@/generated/api/adminBooking";
 import { adminHeaders } from "@/shared/api";
@@ -26,6 +28,15 @@ export function fetchBookings(
   status?: ListBookingsStatus,
 ) {
   return listBookings({ date, status }, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function createBookingByAdmin(
+  adminKey: string,
+  body: CreateAdminBookingRequest,
+) {
+  return createAdminBookingRequest(body, {
     headers: adminHeaders(adminKey),
   });
 }

@@ -39,30 +39,46 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
     public Booking createMemberDepositBooking(Long userId, Long slotId,
                                                DepositPaymentMethod paymentMethod,
                                                long depositAmount, long balanceAmount) {
+        return createMemberDepositBooking(
+                userId, slotId, paymentMethod, depositAmount, balanceAmount, 1);
+    }
+
+    @Override
+    public Booking createMemberDepositBooking(Long userId, Long slotId,
+                                               DepositPaymentMethod paymentMethod,
+                                               long depositAmount, long balanceAmount,
+                                               int participantCount) {
         memberAccountGuard.requireActiveForUpdate(userId);
-        Slot slot = reserveSlot(userId, slotId);
+        Slot slot = reserveSlot(userId, slotId, participantCount);
         creationSupport.requireValidDeposit(paymentMethod);
         Booking booking = Booking.forMemberDeposit(
-                userId, slot, depositAmount, balanceAmount, paymentMethod);
+                userId, slot, participantCount, depositAmount, balanceAmount, paymentMethod);
         return creationSupport.saveAndComplete(booking, slot);
     }
 
     /** 회원이 소유한 8회권 크레딧으로 예약을 생성한다. */
     @Override
     public Booking createMemberPassBooking(Long userId, Long slotId, Long passId) {
+        return createMemberPassBooking(userId, slotId, passId, 1);
+    }
+
+    @Override
+    public Booking createMemberPassBooking(
+            Long userId, Long slotId, Long passId, int participantCount) {
         memberAccountGuard.requireActiveForUpdate(userId);
         PassPurchase pass = creationSupport.requireOwnedPassForUpdate(passId, userId);
-        Slot slot = reserveSlot(userId, slotId);
-        Booking booking = creationSupport.save(Booking.forMemberPass(userId, slot, pass));
+        Slot slot = reserveSlot(userId, slotId, participantCount);
+        Booking booking = creationSupport.save(
+                Booking.forMemberPass(userId, slot, pass, participantCount));
         creationSupport.deductPassCredit(pass, booking.getId());
         return creationSupport.complete(booking, slot);
     }
 
-    private Slot reserveSlot(Long userId, Long slotId) {
+    private Slot reserveSlot(Long userId, Long slotId, int participantCount) {
         slotCapacitySupport.requireAvailableSlot(slotId);
         if (bookingReaderPort.existsBookedBySlotIdAndUserId(slotId, userId)) {
             throw new DuplicateBookingException();
         }
-        return slotCapacitySupport.reserveCapacity(slotId);
+        return slotCapacitySupport.reserveCapacity(slotId, participantCount);
     }
 }

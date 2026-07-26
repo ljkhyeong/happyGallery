@@ -22,6 +22,12 @@ public record ProductDetailResponse(
         String description,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         String imageUrl,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+        String specification,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+        String careInstructions,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+        Integer productionLeadDays,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         boolean available
 ) {
@@ -36,6 +42,9 @@ public record ProductDetailResponse(
                 product.getPrice(),
                 product.getDescription(),
                 product.getImageUrl(),
+                product.getSpecification(),
+                product.getCareInstructions(),
+                product.getProductionLeadDays(),
                 product.getStatus() == ProductStatus.ACTIVE && inventory.isAvailable()
         );
     }

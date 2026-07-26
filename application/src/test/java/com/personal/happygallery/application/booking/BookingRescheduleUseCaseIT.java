@@ -78,7 +78,8 @@ class BookingRescheduleUseCaseIT {
         }
 
         // 초기 예약 생성 (slots[0])
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01011110000", slots[0].getId());
+        BookingTestHelper.CreatedBooking booking =
+                helper.createVerifiedCardBooking("01011110000", slots[0].getId(), 3);
 
         // 5번 연속 변경 (slots[1] → slots[2] → ... → slots[5])
         for (int i = 1; i <= 5; i++) {
@@ -89,7 +90,8 @@ class BookingRescheduleUseCaseIT {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.bookingId").value(booking.bookingId()))
                     .andExpect(jsonPath("$.slotId").value(slots[i].getId()))
-                    .andExpect(jsonPath("$.status").value("BOOKED"));
+                    .andExpect(jsonPath("$.status").value("BOOKED"))
+                    .andExpect(jsonPath("$.participantCount").value(3));
         }
 
         // Proof: bookings 1건 유지 + 예약금 그대로 (재결제 없음)
@@ -101,10 +103,12 @@ class BookingRescheduleUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(savedBooking.getSlot().getId()).isEqualTo(slots[5].getId());
             softly.assertThat(savedBooking.getStatus().name()).isEqualTo("BOOKED");
-            softly.assertThat(savedBooking.getDepositAmount()).isEqualTo(5000L);
+            softly.assertThat(savedBooking.getParticipantCount()).isEqualTo(3);
+            softly.assertThat(savedBooking.getDepositAmount()).isEqualTo(15_000L);
+            softly.assertThat(savedBooking.getBalanceAmount()).isEqualTo(135_000L);
             softly.assertThat(bookingStateProbe.bookingCount()).isEqualTo(1L);
             softly.assertThat(historyCount).isEqualTo(6L);
-            softly.assertThat(finalSlotBookedCount).isEqualTo(1);
+            softly.assertThat(finalSlotBookedCount).isEqualTo(3);
         });
 
         // 슬롯 정원 상태 확인: 나머지는 0

@@ -14,22 +14,36 @@ public final class AdminPrincipal implements Principal {
     private final Long adminUserId;
     private final String username;
     private final AuthenticationSource authenticationSource;
+    private final boolean mfaEnrollmentRequired;
 
     private AdminPrincipal(
             Long adminUserId,
             String username,
-            AuthenticationSource authenticationSource) {
+            AuthenticationSource authenticationSource,
+            boolean mfaEnrollmentRequired) {
         this.adminUserId = adminUserId;
         this.username = username;
         this.authenticationSource = authenticationSource;
+        this.mfaEnrollmentRequired = mfaEnrollmentRequired;
     }
 
     public static AdminPrincipal bearerSession(Long adminUserId, String username) {
-        return new AdminPrincipal(adminUserId, username, AuthenticationSource.BEARER_SESSION);
+        return bearerSession(adminUserId, username, false);
+    }
+
+    public static AdminPrincipal bearerSession(
+            Long adminUserId,
+            String username,
+            boolean mfaEnrollmentRequired) {
+        return new AdminPrincipal(
+                adminUserId,
+                username,
+                AuthenticationSource.BEARER_SESSION,
+                mfaEnrollmentRequired);
     }
 
     public static AdminPrincipal apiKey() {
-        return new AdminPrincipal(null, null, AuthenticationSource.API_KEY);
+        return new AdminPrincipal(null, null, AuthenticationSource.API_KEY, false);
     }
 
     public AuthenticationSource authenticationSource() {
@@ -41,6 +55,10 @@ public final class AdminPrincipal implements Principal {
      */
     public Long auditActorId() {
         return adminUserId;
+    }
+
+    public boolean isMfaEnrollmentRequired() {
+        return mfaEnrollmentRequired;
     }
 
     public Long requireBearerAdminUserId() {

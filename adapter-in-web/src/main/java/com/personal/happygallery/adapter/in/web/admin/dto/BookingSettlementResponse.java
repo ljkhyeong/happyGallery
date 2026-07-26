@@ -10,6 +10,8 @@ public record BookingSettlementResponse(
         String status,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = {"UNPAID", "PAID"})
         String balanceStatus,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "8")
+        int participantCount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) LocalDateTime balancePaidAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean arrears
 ) {
@@ -19,6 +21,7 @@ public record BookingSettlementResponse(
                 booking.getId(),
                 booking.getStatus().name(),
                 booking.getBalanceStatus().name(),
+                booking.getParticipantCount(),
                 booking.getBalancePaidAt(),
                 booking.isArrearsFlag());
     }

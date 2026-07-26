@@ -121,6 +121,7 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   expect([slot.id, secondSlot.id]).toContain(booked.slotId);
 
   await expect(page.getByText(bookingClass.name)).toBeVisible();
+  await expect(page.getByText("1명", { exact: true })).toBeVisible();
   const rescheduleCard = page.locator(".card").filter({ hasText: "예약 변경" }).last();
   const dateInput = rescheduleCard.getByLabel("변경할 날짜");
   await dateInput.fill(targetDate);
@@ -193,8 +194,11 @@ test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미�
         body: JSON.stringify({
           bookingId,
           status: "CANCELED",
+          participantCount: 1,
           refundable: false,
           refundAmount: 0,
+          refund: null,
+          manualCompensationRequired: false,
         }),
       });
       return;
@@ -211,6 +215,7 @@ test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미�
         className: "8회권 취소 경고 클래스",
         startAt: "2026-07-12T18:00:00",
         endAt: "2026-07-12T19:00:00",
+        participantCount: 1,
         depositAmount: 0,
         balanceAmount: 0,
         balanceStatus: "UNPAID",
@@ -220,14 +225,17 @@ test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미�
           refundable: false,
           deadlineAt: "2026-07-12T00:00:00",
           passCreditRestorable: false,
+          manualCompensationRequired: false,
           warningCode: "PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE",
         },
+        refund: null,
       }),
     });
   });
 
   await page.goto(`/my/bookings/${bookingId}`);
   await expect(page.getByText("8회권 취소 경고 클래스")).toBeVisible();
+  await expect(page.getByText("1명", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "예약 취소" }).click();
 

@@ -94,6 +94,7 @@ app:
   admin:
     api-key: ${ADMIN_API_KEY:}
     enable-api-key-auth: ${ADMIN_ENABLE_API_KEY_AUTH:false}
+    require-mfa-enrollment: ${ADMIN_REQUIRE_MFA_ENROLLMENT:false}
     setup:
       token: ${ADMIN_SETUP_TOKEN:}
   batch:

@@ -27,6 +27,18 @@ READY_STOCK은 승인 전 실제 재고 부족이 확인되면, MADE_TO_ORDER는
 동의 스냅샷이 없는 주문은 `approveAsProduction()`이 제작 시작을 거절한다. 이 기록은 주문제작 청약철회 제한
 고지를 입증하기 위한 것이며 하자·오배송 등 법령상 권리를 일률적으로 배제하지 않는다.
 
+상품의 고정 사양과 1~180일 예상 제작 기간도 주문제작 구매 계약의 일부다. 관리 방법은 선택값이다.
+prepare는 현재 판매 중인 상품에서 상품명·유형·단가와 세 구매조건을 함께 스냅샷하고, confirm은 상품을 다시
+조회하지 않고 이 값으로 `order_items`를 생성한다. 상품이 나중에 수정되거나 판매 중지되어도 이미 준비된
+정상 결제의 구매조건은 바뀌지 않는다. 구매조건 스냅샷 도입 전 payload에서 상품 유형과 주문제작 동의가
+모두 없으면 당시 기성품으로 해석해 `READY_STOCK`으로 확정한다. 상품 유형은 없지만 주문제작 동의가 남아
+주문제작 여부는 알 수 있고 세부 조건을 재현할 수 없는 prepare는 confirm하지 않고 고객이 현재 상품으로
+결제를 새로 준비하게 한다. 이미 PG 승인이 끝난 경우에는 주문을 만들지 않고 보상 환불 경계로 격리한다.
+
+마이그레이션 전 주문제작 상품은 설명을 임시 사양으로 옮기고 14일을 임시 제작 기간으로 두되 전부
+`INACTIVE`로 전환한다. 운영자가 실제 조건을 확인한 뒤 재판매한다. 이미 확정된 과거 `order_items`의
+`product_type`과 구매조건은 현재 상품 값으로 역보정하지 않는다. 당시 사실을 알 수 없기 때문이다.
+
 ```text
 READY_STOCK 주문 결제
     ↓
@@ -67,15 +79,16 @@ READY_STOCK의 지연 제안은 승인 전 재고 부족 대응이며, 승인이
 
 ### 2. 제품 유형 감지 위치
 
-`OrderApprovalService.approve()` 내부에서 OrderItem → Product 조회로 MADE_TO_ORDER 여부를 판단한다.
-`Order` 엔티티는 product type을 직접 알지 않으며, 서비스 레이어에서 판단 후 `approveAsProduction()` 또는 `approve()`를 선택 호출한다.
+`DefaultOrderApprovalService.approve()`는 `order_items.product_type` 스냅샷으로 MADE_TO_ORDER 포함 여부를 판단한다.
+`Order` 엔티티는 product type을 직접 알지 않으며, 서비스 레이어에서 결제 당시 유형을 판단한 뒤
+`approveAsProduction()` 또는 `approve()`를 선택 호출한다. 현재 상품의 유형 변경은 이미 결제된 주문 승인에 영향을 주지 않는다.
 
 ### 3. Fulfillment와 배송지 스냅샷 생성
 
 결제 confirm에서 주문·주문 항목·재고 차감과 같은 트랜잭션으로 `fulfillments` 레코드를 생성한다.
 
 - `type`은 prepare 전에 고객이 선택한 `SHIPPING` 또는 `PICKUP`으로 고정한다.
-- `SHIPPING`은 받는 사람·표준화 전화번호·우편번호·기본/상세 주소를 JSON으로 직렬화하고 AES-GCM 암호문만 `shipping_address_enc`에 저장한다.
+- `SHIPPING`은 받는 사람·표준화 전화번호·우편번호·기본/상세 주소를 JSON으로 직렬화하고 AES-GCM 암호문만 `shipping_address_enc`에 저장한다. 소유권이 확인된 고객 주문 상세와 관리자 단건 이행 조회에서만 복호화한다.
 - `PICKUP`은 현재 단일 매장 정책이므로 매장명 자유 문자열이나 배송지를 저장하지 않는다.
 - `expected_ship_date`와 `pickup_deadline_at`은 최초 null이며 관리자가 해당 타입의 후속 단계에서 설정한다.
 - Fulfillment에 별도 `status` 컬럼은 없다. 주문 상태는 `Order.status`가 단일 소스다.
@@ -138,6 +151,6 @@ READY_STOCK의 지연 제안은 승인 전 재고 부족 대응이며, 승인이
 |------|------|
 | 혼합 주문 | MADE_TO_ORDER + READY_STOCK 상품이 같은 주문에 있으면 전체를 제작 주문으로 보아 IN_PRODUCTION으로 전이하고, 픽업 미수령 시에도 전체 주문을 환불하지 않는다. |
 | Fulfillment 상태 관리 | Fulfillment에 별도 `status` 컬럼은 없고 `Order.status`가 단일 소스다. 수령 방식은 결제 시점에 고정하며 제작 완료 뒤에도 변환하지 않는다. |
-| 배송지 노출 | 배송지 스냅샷은 암호문만 저장하고 고객 상세·관리자 목록에는 포함하지 않는다. 관리자 단건 이행 상세만 복호화한다. |
+| 배송지 노출 | 배송지 스냅샷은 암호문만 저장하고 목록·검색에는 포함하지 않는다. 소유권이 확인된 고객 상세와 관리자 단건 이행 상세만 복호화하며 두 응답 모두 `Cache-Control: no-store`를 사용한다. |
 | 주문 처리 이력 관리 | 예상 출고일 변경, 기성품·주문제작 지연 제안, 재개, 배송과 픽업 전이를 `order_approvals` append-only 이력으로 남기며, 운영 화면은 이를 시간순 조회한다. |
 | 관리자 식별자 | Bearer 세션 경로는 admin id를 이력에 기록하고, API Key 폴백 경로는 null 이력이 존재할 수 있다. |

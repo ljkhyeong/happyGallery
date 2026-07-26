@@ -17,6 +17,12 @@ public record AdminBookingResponse(
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 allowableValues = {"BOOKED", "CANCELED", "NO_SHOW", "COMPLETED"})
         String status,
+        @Schema(
+                requiredMode = Schema.RequiredMode.REQUIRED,
+                allowableValues = {"WEB", "PHONE", "NAVER_TALK", "KAKAO", "VISIT"})
+        String source,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "8")
+        int participantCount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long depositAmount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) LocalDateTime depositPaidAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long balanceAmount,
@@ -39,6 +45,8 @@ public record AdminBookingResponse(
                 response.startAt(),
                 response.endAt(),
                 response.status(),
+                response.source(),
+                response.participantCount(),
                 response.depositAmount(),
                 response.depositPaidAt(),
                 response.balanceAmount(),

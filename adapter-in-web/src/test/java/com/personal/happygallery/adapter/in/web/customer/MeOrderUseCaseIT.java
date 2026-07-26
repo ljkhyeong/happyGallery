@@ -7,6 +7,7 @@ import com.personal.happygallery.application.product.port.out.InventoryStorePort
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -94,14 +95,30 @@ class MeOrderUseCaseIT {
     @DisplayName("회원 주문 상세를 조회한다")
     @Test
     void getMyOrderDetail() throws Exception {
-        Long orderId = createOrder();
+        Long orderId = paymentHelper.createMemberShippingOrder(
+                sessionCookie,
+                userId,
+                productId,
+                1,
+                new ShippingAddress(
+                        "주문회원",
+                        "010-3333-4444",
+                        "27352",
+                        "충북 충주시 계명대로 161",
+                        "1층"))
+                .domainId();
 
         mockMvc.perform(get("/api/v1/me/orders/{id}", orderId)
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.orderId").value(orderId))
+                .andExpect(jsonPath("$.orderNumber").value("ORD-%08d".formatted(orderId)))
                 .andExpect(jsonPath("$.status").value("PAID_APPROVAL_PENDING"))
-                .andExpect(jsonPath("$.totalAmount").value(29000));
+                .andExpect(jsonPath("$.totalAmount").value(29000))
+                .andExpect(jsonPath("$.fulfillment.shippingAddress.recipientName").value("주문회원"))
+                .andExpect(jsonPath("$.fulfillment.shippingAddress.phone").value("01033334444"))
+                .andExpect(jsonPath("$.fulfillment.shippingAddress.addressLine1")
+                        .value("충북 충주시 계명대로 161"));
     }
 
     @DisplayName("인증 없이 회원 주문 목록을 조회하면 401을 반환한다")

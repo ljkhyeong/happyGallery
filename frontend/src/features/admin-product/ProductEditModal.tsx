@@ -22,6 +22,9 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [specification, setSpecification] = useState("");
+  const [careInstructions, setCareInstructions] = useState("");
+  const [productionLeadDays, setProductionLeadDays] = useState("");
 
   useEffect(() => {
     if (!product) return;
@@ -30,6 +33,9 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
     setPrice(String(product.price));
     setDescription(product.description ?? "");
     setImageUrl(product.imageUrl ?? "");
+    setSpecification(product.specification ?? "");
+    setCareInstructions(product.careInstructions ?? "");
+    setProductionLeadDays(product.productionLeadDays?.toString() ?? "");
   }, [product]);
 
   const mutation = useAdminMutation(onAuthError, {
@@ -39,6 +45,11 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
       price: Number(price),
       description: description.trim() || undefined,
       imageUrl: imageUrl.trim() || undefined,
+      specification: specification.trim() || undefined,
+      careInstructions: careInstructions.trim() || undefined,
+      productionLeadDays: product!.type === "MADE_TO_ORDER"
+        ? Number(productionLeadDays)
+        : undefined,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
@@ -49,7 +60,13 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
     },
   });
 
-  const valid = name.trim().length > 0 && Number(price) > 0;
+  const leadDays = Number(productionLeadDays);
+  const purchaseTermsValid = product?.type !== "MADE_TO_ORDER"
+    || (specification.trim().length > 0
+      && Number.isInteger(leadDays)
+      && leadDays >= 1
+      && leadDays <= 180);
+  const valid = name.trim().length > 0 && Number(price) > 0 && purchaseTermsValid;
 
   return (
     <Modal show={product != null} onHide={onClose} centered>
@@ -79,6 +96,46 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
               <Form.Group controlId="admin-edit-product-category">
                 <Form.Label>카테고리</Form.Label>
                 <Form.Control value={category} maxLength={50} onChange={(e) => setCategory(e.target.value)} />
+              </Form.Group>
+            </Col>
+            <Col xs={12}>
+              <Form.Group controlId="admin-edit-product-specification">
+                <Form.Label>
+                  상품 사양 {product?.type === "MADE_TO_ORDER" && <span className="text-danger">*</span>}
+                </Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={specification}
+                  maxLength={2000}
+                  onChange={(e) => setSpecification(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
+            {product?.type === "MADE_TO_ORDER" && (
+              <Col xs={12}>
+                <Form.Group controlId="admin-edit-product-production-lead-days">
+                  <Form.Label>제작 기간 (일) <span className="text-danger">*</span></Form.Label>
+                  <Form.Control
+                    type="number"
+                    min={1}
+                    max={180}
+                    value={productionLeadDays}
+                    onChange={(e) => setProductionLeadDays(e.target.value)}
+                  />
+                </Form.Group>
+              </Col>
+            )}
+            <Col xs={12}>
+              <Form.Group controlId="admin-edit-product-care-instructions">
+                <Form.Label>관리 방법</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  value={careInstructions}
+                  maxLength={2000}
+                  onChange={(e) => setCareInstructions(e.target.value)}
+                />
               </Form.Group>
             </Col>
             <Col xs={12}>

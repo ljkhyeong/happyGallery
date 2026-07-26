@@ -72,6 +72,14 @@ public class SecurityConfig {
     }
 
     @Bean
+    RequestMatcher adminMfaEnrollmentEndpoints() {
+        return new OrRequestMatcher(
+                adminEndpoint(HttpMethod.GET, "/api/v1/admin/auth/mfa"),
+                adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/mfa/enrollment"),
+                adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/mfa/enrollment/confirm"));
+    }
+
+    @Bean
     RequestMatcher customerAuthenticationEndpoints() {
         return new OrRequestMatcher(
                 endpoint(CustomerSecurityRoutes.MEMBER_API),
@@ -98,6 +106,8 @@ public class SecurityConfig {
                                                  AuthenticationManager adminAuthenticationManager,
                                                  @Qualifier("publicAdminEndpoints")
                                                  RequestMatcher publicAdminEndpoints,
+                                                 @Qualifier("adminMfaEnrollmentEndpoints")
+                                                 RequestMatcher adminMfaEnrollmentEndpoints,
                                                  ObjectMapper objectMapper) throws Exception {
         AuthenticationEntryPoint entryPoint = authenticationEntryPoint(objectMapper, ADMIN_LOGIN_REQUIRED);
         AccessDeniedHandler accessDeniedHandler = accessDeniedHandler(objectMapper);
@@ -108,6 +118,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(publicAdminEndpoints)
                         .permitAll()
+                        .requestMatchers(adminMfaEnrollmentEndpoints)
+                        .authenticated()
                         .anyRequest().hasRole("ADMIN"))
                 .addFilterBefore(
                         new AdminAuthenticationFilter(

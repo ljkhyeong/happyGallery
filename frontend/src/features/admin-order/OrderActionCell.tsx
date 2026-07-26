@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Form, InputGroup } from "react-bootstrap";
+import { Alert, Button, Form, InputGroup, Modal } from "react-bootstrap";
 import type { OrderStatus } from "@/shared/types";
 import { parseApiDateTime } from "@/shared/lib";
 import type { OrderMutations } from "./useOrderMutations";
@@ -9,6 +9,66 @@ interface Props {
   status: OrderStatus;
   fulfillmentType: "SHIPPING" | "PICKUP" | null;
   mutations: OrderMutations;
+}
+
+interface RiskActionButtonProps {
+  buttonLabel: string;
+  confirmLabel: string;
+  title: string;
+  impact: string;
+  disabled: boolean;
+  pending: boolean;
+  onConfirm: () => void;
+}
+
+function RiskActionButton({
+  buttonLabel,
+  confirmLabel,
+  title,
+  impact,
+  disabled,
+  pending,
+  onConfirm,
+}: RiskActionButtonProps) {
+  const [show, setShow] = useState(false);
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline-danger"
+        disabled={disabled}
+        onClick={() => setShow(true)}
+      >
+        {pending ? "..." : buttonLabel}
+      </Button>
+      <Modal show={show} onHide={() => !pending && setShow(false)} centered>
+        <Modal.Header closeButton={!pending}>
+          <Modal.Title className="fs-6">{title}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="warning" className="mb-0 small">
+            {impact}
+          </Alert>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" disabled={pending} onClick={() => setShow(false)}>
+            닫기
+          </Button>
+          <Button
+            variant="danger"
+            disabled={pending}
+            onClick={() => {
+              setShow(false);
+              onConfirm();
+            }}
+          >
+            {confirmLabel}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </>
+  );
 }
 
 export function OrderActionCell({ orderId, status, fulfillmentType, mutations }: Props) {
@@ -30,10 +90,15 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
             onClick={() => mutations.approve.mutate(orderId)}>
             {pending ? "..." : "승인"}
           </Button>
-          <Button size="sm" variant="outline-danger" disabled={disabled}
-            onClick={() => mutations.reject.mutate(orderId)}>
-            {pending ? "..." : "거절"}
-          </Button>
+          <RiskActionButton
+            buttonLabel="거절"
+            confirmLabel="거절 및 환불 요청"
+            title="주문 거절 영향 확인"
+            impact="주문을 거절하면 확보한 상품 재고를 복구하고 전액 환불 요청을 접수합니다. 주문 상태 변경은 즉시 반영되지만 PG 환불 완료는 별도로 확인해야 합니다."
+            disabled={disabled}
+            pending={pending}
+            onConfirm={() => mutations.reject.mutate(orderId)}
+          />
           <Button size="sm" variant="outline-warning" disabled={disabled}
             onClick={() => mutations.delay.mutate(orderId)}>
             {pending ? "..." : "지연 제안"}
@@ -87,10 +152,15 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
       );
     case "DELAY_CONSENT_PENDING":
       return (
-        <Button size="sm" variant="outline-danger" disabled={disabled}
-          onClick={() => mutations.delayCancel.mutate(orderId)}>
-          {pending ? "..." : "거절 처리"}
-        </Button>
+        <RiskActionButton
+          buttonLabel="거절 처리"
+          confirmLabel="거절 취소 및 환불 요청"
+          title="지연 제안 거절 영향 확인"
+          impact="고객이 지연 제안을 거절한 주문을 취소하고 전액 환불 요청을 접수합니다. 확보한 재고는 복구되며 PG 환불 완료는 별도로 확인해야 합니다."
+          disabled={disabled}
+          pending={pending}
+          onConfirm={() => mutations.delayCancel.mutate(orderId)}
+        />
       );
     case "APPROVED_FULFILLMENT_PENDING":
       return (

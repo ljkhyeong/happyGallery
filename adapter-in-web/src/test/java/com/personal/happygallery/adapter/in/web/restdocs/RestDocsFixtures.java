@@ -111,8 +111,9 @@ final class RestDocsFixtures {
         when(booking.getSlot()).thenReturn(slot);
         when(booking.getBookingClass()).thenReturn(bookingClass);
         when(booking.getStatus()).thenReturn(BookingStatus.BOOKED);
-        when(booking.getDepositAmount()).thenReturn(5000L);
-        when(booking.getBalanceAmount()).thenReturn(45000L);
+        when(booking.getParticipantCount()).thenReturn(3);
+        when(booking.getDepositAmount()).thenReturn(15000L);
+        when(booking.getBalanceAmount()).thenReturn(135000L);
         when(booking.getBalanceStatus()).thenReturn(BalanceStatus.UNPAID);
         when(booking.isPassBooking()).thenReturn(false);
         when(booking.getGuest()).thenReturn(guest);
@@ -141,6 +142,7 @@ final class RestDocsFixtures {
         OrderItem item = mock(OrderItem.class);
         when(item.getProductId()).thenReturn(1L);
         when(item.getProductName()).thenReturn("시그니처 캔들");
+        when(item.getProductType()).thenReturn(ProductType.READY_STOCK);
         when(item.getQty()).thenReturn(1);
         when(item.getUnitPrice()).thenReturn(39000L);
         return item;
@@ -157,14 +159,15 @@ final class RestDocsFixtures {
     }
 
     static OrderQueryUseCase.OrderDetail orderDetail() {
-        return new OrderQueryUseCase.OrderDetail(order(), List.of(orderItem()), fulfillment(), null);
+        return new OrderQueryUseCase.OrderDetail(
+                order(), List.of(orderItem()), fulfillment(), null, null);
     }
 
     static Refund bookingRefund() {
         Refund refund = mock(Refund.class);
         when(refund.getId()).thenReturn(900L);
         when(refund.getBookingId()).thenReturn(100L);
-        when(refund.getAmount()).thenReturn(5000L);
+        when(refund.getAmount()).thenReturn(15000L);
         when(refund.getStatus()).thenReturn(RefundStatus.REQUESTED);
         when(refund.getUpdatedAt()).thenReturn(NOW);
         return refund;

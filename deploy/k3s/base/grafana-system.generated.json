@@ -350,6 +350,56 @@
         }
       ],
       "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 23,
+      "title": "Order Approval Backlog",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 104 },
+      "targets": [
+        {
+          "expr": "max(happygallery_order_approval_backlog_count{application=\"happygallery\"})",
+          "legendFormat": "pending approval"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "title": "Order Approval Oldest Age",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 104 },
+      "targets": [
+        {
+          "expr": "max(happygallery_order_approval_backlog_oldest_age_seconds{application=\"happygallery\"})",
+          "legendFormat": "oldest paid order"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 25,
+      "title": "Booking Cancellation Task Backlog",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 112 },
+      "targets": [
+        {
+          "expr": "max(happygallery_booking_cancellation_task_backlog_count{application=\"happygallery\"})",
+          "legendFormat": "pending task"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "title": "Booking Cancellation Task Oldest Age",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 112 },
+      "targets": [
+        {
+          "expr": "max(happygallery_booking_cancellation_task_backlog_oldest_age_seconds{application=\"happygallery\"})",
+          "legendFormat": "oldest task"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
     }
   ],
   "schemaVersion": 39

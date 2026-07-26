@@ -43,6 +43,8 @@ class DefaultAdminBookingSearchService implements AdminBookingSearchUseCase {
                 result.startAt(),
                 result.endAt(),
                 result.status(),
+                result.source(),
+                result.participantCount(),
                 result.depositAmount(),
                 result.depositPaidAt(),
                 result.balanceAmount(),

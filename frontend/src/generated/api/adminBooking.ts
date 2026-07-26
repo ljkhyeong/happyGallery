@@ -15,6 +15,17 @@ export const AdminBookingResponseBookerType = {
   MEMBER: 'MEMBER',
 } as const;
 
+export type AdminBookingResponseSource = typeof AdminBookingResponseSource[keyof typeof AdminBookingResponseSource];
+
+
+export const AdminBookingResponseSource = {
+  WEB: 'WEB',
+  PHONE: 'PHONE',
+  NAVER_TALK: 'NAVER_TALK',
+  KAKAO: 'KAKAO',
+  VISIT: 'VISIT',
+} as const;
+
 export type AdminBookingResponseStatus = typeof AdminBookingResponseStatus[keyof typeof AdminBookingResponseStatus];
 
 
@@ -42,9 +53,46 @@ export interface AdminBookingResponse {
   /** @nullable */
   depositPaidAt: string | null;
   endAt: string;
+  /**
+     * @minimum 1
+     * @maximum 8
+     */
+  participantCount: number;
   passBooking: boolean;
+  source: AdminBookingResponseSource;
   startAt: string;
   status: AdminBookingResponseStatus;
+}
+
+export type CreateAdminBookingRequestSource = typeof CreateAdminBookingRequestSource[keyof typeof CreateAdminBookingRequestSource];
+
+
+export const CreateAdminBookingRequestSource = {
+  PHONE: 'PHONE',
+  NAVER_TALK: 'NAVER_TALK',
+  KAKAO: 'KAKAO',
+  VISIT: 'VISIT',
+} as const;
+
+export interface CreateAdminBookingRequest {
+  depositPaid: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name: string;
+  /**
+     * @minimum 1
+     * @maximum 8
+     */
+  participantCount: number;
+  /**
+     * @minLength 1
+     * @maxLength 20
+     */
+  phone: string;
+  slotId: number;
+  source: CreateAdminBookingRequestSource;
 }
 
 export type BookingCancellationTaskResponseStatus = typeof BookingCancellationTaskResponseStatus[keyof typeof BookingCancellationTaskResponseStatus];
@@ -68,6 +116,7 @@ export interface BookingCancellationTaskResponse {
   bookingId: number;
   bookingNumber: string;
   className: string;
+  compensationAmount: number;
   /** @nullable */
   completedAt: string | null;
   /** @nullable */
@@ -100,7 +149,9 @@ export interface AdminBookingSearchRow {
   depositAmount?: number;
   depositPaidAt?: string;
   endAt?: string;
+  participantCount?: number;
   passBooking?: boolean;
+  source?: string;
   startAt?: string;
   status?: string;
 }
@@ -139,6 +190,11 @@ export interface BookingSettlementResponse {
   balancePaidAt: string | null;
   balanceStatus: BookingSettlementResponseBalanceStatus;
   bookingId: number;
+  /**
+     * @minimum 1
+     * @maximum 8
+     */
+  participantCount: number;
   status: BookingSettlementResponseStatus;
 }
 
@@ -179,6 +235,11 @@ export interface AdminBookingCancelResponse {
   /** @nullable */
   depositRefundStatus: AdminBookingCancelResponseDepositRefundStatus;
   manualCompensationRequired: boolean;
+  /**
+     * @minimum 1
+     * @maximum 8
+     */
+  participantCount: number;
   passCreditRestored: boolean;
   status: AdminBookingCancelResponseStatus;
 }
@@ -192,6 +253,11 @@ export const BookingNoShowResponseStatus = {
 
 export interface BookingNoShowResponse {
   bookingId: number;
+  /**
+     * @minimum 1
+     * @maximum 8
+     */
+  participantCount: number;
   status: BookingNoShowResponseStatus;
 }
 
@@ -252,6 +318,27 @@ export const listBookings = async (params: ListBookingsParams, options?: Request
     method: 'GET'
 
 
+  }
+);}
+
+
+
+export const getCreateAdminBookingUrl = () => {
+
+
+
+
+  return `/api/v1/admin/bookings`
+}
+
+export const createAdminBooking = async (createAdminBookingRequest: CreateAdminBookingRequest, options?: RequestInit): Promise<AdminBookingResponse> => {
+
+  return generatedApiClient<AdminBookingResponse>(getCreateAdminBookingUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createAdminBookingRequest)
   }
 );}
 

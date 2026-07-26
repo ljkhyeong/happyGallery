@@ -26,6 +26,7 @@ spring:
 app:
   admin:
     enable-api-key-auth: false
+    require-mfa-enrollment: true
   payment:
     require-complete-business-profile: true
 

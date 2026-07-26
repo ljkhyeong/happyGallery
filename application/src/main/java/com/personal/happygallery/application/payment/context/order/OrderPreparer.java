@@ -189,7 +189,15 @@ public class OrderPreparer implements PaymentPreparer {
         }
         inventory.requireSufficient(item.qty());
         return new PreparedOrderItem(
-                item.cartItemId(), item.productId(), product.getName(), item.qty(), product.getPrice());
+                item.cartItemId(),
+                item.productId(),
+                product.getName(),
+                item.qty(),
+                product.getPrice(),
+                product.getSpecification(),
+                product.getCareInstructions(),
+                product.getProductionLeadDays(),
+                product.getType());
     }
 
     private record ItemToPrepare(Long cartItemId, Long productId, int qty) {

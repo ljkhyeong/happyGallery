@@ -45,17 +45,20 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 5. 잠긴 뒤쪽 버퍼 슬롯의 예약 점유 확인
    → booked_count > 0인 슬롯이 하나라도 있으면 역방향 버퍼 충돌이므로 SlotNotAvailableException
 
-6. Slot.incrementBookedCount()
-   → SlotCapacity.checkAvailable(bookedCount)   // bookedCount >= 8 → CapacityExceededException
-   → bookedCount++
+6. Slot.incrementBookedCount(participantCount)
+   → SlotCapacity.checkAvailable(bookedCount, participantCount)
+   → bookedCount += participantCount
+   → 현재 점유와 요청 인원의 합이 8을 넘으면 CapacityExceededException
 
 7. slotStorePort.save(slot)                     // booked_count 커밋
 
-8. booked_count가 0 → 1이면 이미 잠근 버퍼 윈도우 슬롯의 buffer_block_count++
+8. booked_count가 0 → 양수이면 이미 잠근 버퍼 윈도우 슬롯의 buffer_block_count++
 ```
 
-예약 취소·변경의 `releaseCapacity()`는 `booked_count`가 1 → 0이 될 때 같은 버퍼 윈도우를 잠그고
-`buffer_block_count--`를 수행한다. 버퍼가 겹치는 슬롯은 차단 수가 0이 된 뒤에만 실제 활성 상태가 된다.
+`booked_count`는 예약 건수가 아니라 예약 인원 점유다. 일반 예약은 한 건에 1~8명을 점유하고,
+8회권 예약은 1명만 점유한다. 예약 취소·변경의 `releaseCapacity()`는 예약의 `participant_count`만큼
+반납하며, `booked_count`가 양수 → 0이 될 때 같은 버퍼 윈도우를 잠그고 `buffer_block_count--`를
+수행한다. 버퍼가 겹치는 슬롯은 차단 수가 0이 된 뒤에만 실제 활성 상태가 된다.
 
 범위 슬롯만 잠그면 버퍼 ID 조회와 관리자 슬롯 INSERT 사이에 phantom이 생길 수 있다. 반대로 원인 슬롯부터
 잠그고 클래스 행을 나중에 잠그면 서로 다른 원인 슬롯 예약이 교차할 때 교착될 수 있다. 따라서 모든

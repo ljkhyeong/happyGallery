@@ -86,8 +86,13 @@ public class Slot {
      * 호출 전 반드시 비관적 락(SELECT FOR UPDATE)으로 row를 잠가야 한다.
      */
     public void incrementBookedCount() {
-        SlotCapacity.checkAvailable(this.bookedCount);
-        this.bookedCount++;
+        incrementBookedCount(1);
+    }
+
+    /** 예약 인원만큼 점유 인원을 추가한다. */
+    public void incrementBookedCount(int participantCount) {
+        SlotCapacity.checkAvailable(this.bookedCount, participantCount);
+        this.bookedCount += participantCount;
     }
 
     /**
@@ -96,10 +101,16 @@ public class Slot {
      * 호출 전 반드시 비관적 락(SELECT FOR UPDATE)으로 row를 잠가야 한다.
      */
     public void decrementBookedCount() {
-        if (this.bookedCount <= 0) {
-            throw new IllegalStateException("booked_count는 0 이하로 감소할 수 없습니다.");
+        decrementBookedCount(1);
+    }
+
+    /** 취소·변경하는 예약의 인원만큼 점유 인원을 반납한다. */
+    public void decrementBookedCount(int participantCount) {
+        SlotCapacity.requireValidParticipantCount(participantCount);
+        if (this.bookedCount < participantCount) {
+            throw new IllegalStateException("booked_count는 반납할 예약 인원보다 작을 수 없습니다.");
         }
-        this.bookedCount--;
+        this.bookedCount -= participantCount;
     }
 
     public Long getId() { return id; }

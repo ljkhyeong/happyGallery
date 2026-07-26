@@ -103,7 +103,13 @@ public final class OrderTestHelper {
     }
 
     private Product createProduct(String name, ProductType type, long price, int quantity) {
-        Product product = productStorePort.save(new Product(name, type, price));
+        Product product = productStorePort.save(type == ProductType.MADE_TO_ORDER
+                ? new Product(
+                        name, type, null, price, null, null,
+                        "재료: 테스트 재료\n크기: 테스트 규격\n사양: 고정 사양",
+                        "직사광선을 피해 보관하세요.",
+                        14)
+                : new Product(name, type, price));
         inventoryStorePort.save(new Inventory(product, quantity));
         return product;
     }
@@ -123,7 +129,15 @@ public final class OrderTestHelper {
         User member = createMemberOwner();
         Order order = orderService.createMemberOrder(
                 member.getId(),
-                List.of(new OrderService.OrderItemRequest(product.getId(), product.getName(), 1, price)),
+                List.of(new OrderService.OrderItemRequest(
+                        product.getId(),
+                        product.getName(),
+                        product.getType(),
+                        1,
+                        price,
+                        product.getSpecification(),
+                        product.getCareInstructions(),
+                        product.getProductionLeadDays())),
                 fulfillmentType,
                 fulfillmentType == FulfillmentType.SHIPPING
                         ? new ShippingAddress("주문 테스트 회원", "01012345678", "06236", "서울시 강남구 테헤란로 1", null)
@@ -148,7 +162,16 @@ public final class OrderTestHelper {
                         type == ProductType.MADE_TO_ORDER
                                 ? MadeToOrderConsent.current(paidAt)
                                 : null));
-        orderItemPort.save(new OrderItem(order, product.getId(), product.getName(), 1, price));
+        orderItemPort.save(new OrderItem(
+                order,
+                product.getId(),
+                product.getName(),
+                product.getType(),
+                1,
+                price,
+                product.getSpecification(),
+                product.getCareInstructions(),
+                product.getProductionLeadDays()));
 
         Inventory inventory = inventoryReaderPort.findByProductId(product.getId()).orElseThrow();
         inventory.deduct(1);

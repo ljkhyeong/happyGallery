@@ -251,6 +251,50 @@ class PaymentPrepareUseCaseTest {
                 .isInstanceOf(InventoryNotEnoughException.class);
     }
 
+    @DisplayName("예약 prepare는 허용 범위를 벗어난 인원과 다인 8회권 예약을 거절한다")
+    @Test
+    void prepare_rejectsParticipantCountOutsideBookingPolicy() {
+        User user = userStorePort.save(new User(
+                "booking-participant-limit@example.com", "hashed", "예약 회원", "01044445555"));
+        BookingClass cls = classStorePort.save(
+                bookingClass("인원 제한 클래스", "CRAFT", 120, 50_000L, 30));
+        Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        BookingClass expensiveClass = classStorePort.save(
+                bookingClass(
+                        "고액 클래스", "CRAFT", 120,
+                        PaymentAmountPolicy.MAX_AMOUNT, 30));
+        Slot expensiveSlot = slotStorePort.save(
+                slot(expensiveClass, FUTURE.plusHours(3), FUTURE.plusHours(5)));
+        AuthContext auth = AuthContext.member(user.getId());
+
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        user.getId(), null, null, null, slot.getId(), null,
+                        DepositPaymentMethod.CARD, 9, null),
+                auth)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        user.getId(), null, null, null, expensiveSlot.getId(), null,
+                        DepositPaymentMethod.CARD, 2, null),
+                auth)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        user.getId(), null, null, null, slot.getId(), 99L,
+                        null, 2, null),
+                auth)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+    }
+
     private void saveVerification(String phone, String code) {
         PhoneVerification verification = new PhoneVerification(
                 phone, code, LocalDateTime.now(clock).plusMinutes(5));

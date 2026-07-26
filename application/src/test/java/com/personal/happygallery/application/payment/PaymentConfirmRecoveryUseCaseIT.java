@@ -6,6 +6,9 @@ import com.personal.happygallery.application.monitoring.OperationalBacklogMetric
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.PgConfirmationRequired;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
@@ -26,10 +29,14 @@ import com.personal.happygallery.application.product.port.out.InventoryStorePort
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
+import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -47,6 +54,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
@@ -76,6 +84,8 @@ class PaymentConfirmRecoveryUseCaseIT {
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired UserStorePort userStorePort;
     @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired ObjectMapper objectMapper;
+    @Autowired FieldEncryptor fieldEncryptor;
     @Autowired Clock clock;
     @Autowired MeterRegistry meterRegistry;
     @Autowired OperationalBacklogMetrics operationalBacklogMetrics;
@@ -447,6 +457,72 @@ class PaymentConfirmRecoveryUseCaseIT {
                             softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.RETRYABLE);
                         })));
         assertThat(statusOf(failedAttemptId)).isEqualTo(PaymentAttemptStatus.COMPENSATION_REQUESTED);
+        verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
+    }
+
+    @DisplayName("APPROVED 구형 주문제작 payload는 주문을 만들지 않고 보상 환불로 격리한다")
+    @Test
+    void recover_approvedLegacyMadeToOrderWithoutPurchaseTerms_compensatesWithoutOrder() {
+        User user = userStorePort.save(new User(
+                "recover-legacy-made@example.com", "hashed", "구형 복구 회원", "01010000012"));
+        Product product = productStorePort.save(new Product(
+                "복구 구형 주문제작",
+                ProductType.MADE_TO_ORDER,
+                null,
+                72_000L,
+                null,
+                null,
+                "재료: 자작나무\n크기: 18 x 10 cm\n사양: 무광 마감",
+                null,
+                10));
+        inventoryStorePort.save(inventory(product, 1));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(new OrderItemRef(product.getId(), 1)), false,
+                        FulfillmentType.PICKUP, null,
+                        MadeToOrderConsent.CURRENT_VERSION, true),
+                auth));
+        Long attemptId = approve(
+                new PreparedPayment(prepared.orderId(), prepared.amount(), auth),
+                "legacy-approved-payment-key");
+        PreparedPaymentPayload legacyPayload = new PreparedOrderPayload(
+                user.getId(),
+                null,
+                null,
+                null,
+                List.of(new PreparedOrderItem(
+                        product.getId(), product.getName(), 1, product.getPrice())),
+                false,
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                MadeToOrderConsent.current(LocalDateTime.now(clock)));
+        jdbcTemplate.update(
+                "UPDATE payment_attempt SET payload_enc = ? WHERE id = ?",
+                fieldEncryptor.encrypt(objectMapper.writeValueAsString(legacyPayload)),
+                attemptId);
+        makeApprovalStale(attemptId);
+
+        BatchResult result = recoveryUseCase.recoverIncompleteConfirms();
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isZero();
+            softly.assertThat(result.failureCount()).isOne();
+            softly.assertThat(orderReader.count()).isZero();
+        });
+        await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(25, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertThat(refundRepository.findAll())
+                        .singleElement()
+                        .satisfies(refund -> assertSoftly(softly -> {
+                            softly.assertThat(refund.getPaymentAttemptId()).isEqualTo(attemptId);
+                            softly.assertThat(refund.getAmount()).isEqualTo(prepared.amount());
+                            softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.RETRYABLE);
+                        })));
+        assertThat(statusOf(attemptId)).isEqualTo(PaymentAttemptStatus.COMPENSATION_REQUESTED);
         verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
     }
 

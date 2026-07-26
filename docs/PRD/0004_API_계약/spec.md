@@ -14,7 +14,8 @@
 - 상세 요청/응답 스니펫은 `./gradlew --no-daemon :adapter-in-web:restDocsTest`로 생성되는 Spring REST Docs 결과(`adapter-in-web/build/generated-snippets`)를 기준으로 검증한다.
 - 기계 판독 계약은 Controller/웹 DTO에서 생성하는 `openapi3.json`이다. 이 파일과 `frontend/src/generated/api`는 직접 편집하지 않는다.
 - 신규 또는 변경 API는 REST Docs 테스트와 이 문서를 갱신하고 `:adapter-in-web:openapi3`, `cd frontend && npm run api:generate`를 같은 변경에서 실행한다.
-- 전체 `/api/v1/**` OpenAPI를 생성하되, React 생성 client는 공개 상품·Q&A, 회원 소셜 계정·알림, 고객 결제 상태·복구, 공방 정보, 관리자 대시보드·예약과 예약 취소 후속 작업, 주문 클레임, 정책 동의 API에 사용한다. 다른 API는 필수값·nullable·enum과 인증 헤더를 확인한 뒤 도메인 단위로 순차 전환한다.
+- 전체 `/api/v1/**` OpenAPI를 생성하되, React 생성 client는 공개 상품·Q&A, 회원 소셜 계정·알림·예약 조회/변경/취소, 비회원 예약 조회/변경/취소, 고객 결제 상태·복구, 공방 정보, 관리자 대시보드·예약과 예약 취소 후속 작업, 주문 클레임, 정책 동의 API에 사용한다. 다른 API는 필수값·nullable·enum과 인증 헤더를 확인한 뒤 도메인 단위로 순차 전환한다.
+- 생성 client 대상 Controller는 Java 메서드명과 독립된 고유 `operationId`를 명시하고, nullable 객체 참조는 OpenAPI 3.1의 `oneOf`로 표현한다.
 
 ---
 
@@ -34,7 +35,10 @@
 #### 운영 환경 인증
 
 - 관리자 로그인 API를 통해 사용자명/비밀번호 기반으로 인증한다.
-- MFA 비활성 계정은 비밀번호 확인 뒤, MFA 활성 계정은 2단계 확인까지 끝난 뒤 UUID 세션 토큰을 발급한다. 이후 요청에 `Authorization: Bearer {token}` 헤더를 사용한다.
+- MFA 비활성 계정은 비밀번호 확인 뒤 UUID 세션 토큰을 발급한다. 단, 운영 환경에서는 이 토큰에
+  MFA 상태 조회·등록 시작·등록 확인 권한만 부여하며 등록을 마친 뒤 새로 로그인해야 일반 관리자 API를
+  사용할 수 있다. MFA 활성 계정은 2단계 확인까지 끝난 뒤 일반 세션 토큰을 발급한다. 이후 요청에
+  `Authorization: Bearer {token}` 헤더를 사용한다.
 - 비밀번호 또는 MFA가 연속 5회 실패하면 15분간 계정을 잠근다. 잘못된 비밀번호, 존재하지 않는 계정, 잠긴 계정과 잘못된 MFA는 모두 같은 `401 INVALID_CREDENTIALS`로 응답해 계정 상태를 노출하지 않는다.
 - 세션 만료: 8시간
 - 세션 저장소는 Redis 기반 `AdminSessionStore`를 사용한다. 여러 인스턴스가 떠 있어도 같은 세션을 본다.
@@ -457,6 +461,9 @@ GET /api/v1/products
     "price": 39000,
     "description": "천연 소이 왁스로 만든 캔들입니다.",
     "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
+    "specification": "소이 왁스 200g · 유리 용기",
+    "careInstructions": "첫 사용은 표면 전체가 녹을 때까지 태워 주세요.",
+    "productionLeadDays": null,
     "available": true
   }
 ]
@@ -485,6 +492,9 @@ GET /api/v1/products/{id}
   "price": 39000,
   "description": "천연 소이 왁스로 만든 캔들입니다.",
   "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
+  "specification": "소이 왁스 200g · 유리 용기",
+  "careInstructions": "첫 사용은 표면 전체가 녹을 때까지 태워 주세요.",
+  "productionLeadDays": null,
   "available": true
 }
 ```
@@ -589,7 +599,10 @@ Content-Type: application/json
   "price": 39000,
   "quantity": 5,
   "description": "천연 소이 왁스로 만든 캔들입니다.",
-  "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg"
+  "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
+  "specification": "소이 왁스 200g · 유리 용기",
+  "careInstructions": "첫 사용은 표면 전체가 녹을 때까지 태워 주세요.",
+  "productionLeadDays": null
 }
 ```
 
@@ -602,6 +615,9 @@ Content-Type: application/json
   "price": 39000,
   "description": "천연 소이 왁스로 만든 캔들입니다.",
   "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
+  "specification": "소이 왁스 200g · 유리 용기",
+  "careInstructions": "첫 사용은 표면 전체가 녹을 때까지 태워 주세요.",
+  "productionLeadDays": null,
   "status": "ACTIVE",
   "available": true,
   "quantity": 5
@@ -616,7 +632,8 @@ Content-Type: application/json
   - `category`는 선택값이며, 입력하면 앞뒤 공백을 제거하고 대문자 토큰으로 정규화해 저장·응답한다.
   - 공백 카테고리는 미입력과 동일하게 처리한다.
   - `price`는 1원 이상 `9,007,199,254,740,991원` 이하의 정수다. 상한은 웹 클라이언트가 원 단위 금액을 정밀도 손실 없이 전달할 수 있는 기술 경계다.
-  - `description`, `imageUrl`은 선택값이며 `imageUrl`은 `/`로 시작하는 서비스 경로 또는 `http(s)` URL이어야 한다.
+  - `description`, `imageUrl`, `specification`, `careInstructions`는 선택값이며 `imageUrl`은 `/`로 시작하는 서비스 경로 또는 `http(s)` URL이어야 한다.
+  - `MADE_TO_ORDER`는 `specification`과 1~180일 `productionLeadDays`가 필수다. `READY_STOCK`은 `productionLeadDays=null`이어야 한다.
 
 #### 2.3.2 전체 상품 목록 조회
 
@@ -724,13 +741,16 @@ Content-Type: application/json
   "category": "CANDLE",
   "price": 42000,
   "description": "리뉴얼한 향과 용기를 적용했습니다.",
-  "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg"
+  "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
+  "specification": "소이 왁스 220g · 내열 유리 용기",
+  "careInstructions": "심지를 5mm로 정리해 주세요.",
+  "productionLeadDays": null
 }
 ```
 
 - 성공: `200 OK`, 현재 재고를 포함한 `ProductResponse` 반환
 - 상품 유형과 재고 수량, 판매 상태는 이 API에서 바꾸지 않는다. 재고와 상태는 각 전용 API를 사용한다.
-- 이미 결제된 주문은 `order_items.product_name`, `unit_price` 스냅샷을 사용하므로 상품명·가격 변경의 영향을 받지 않는다.
+- 이미 결제된 주문은 `order_items`의 상품명·단가·고정 사양·관리 방법·예상 제작 기간 스냅샷을 사용하므로 이후 상품 변경의 영향을 받지 않는다.
 
 ### 2.4 예약 API
 
@@ -780,8 +800,9 @@ X-Access-Token: {accessToken}
   "endAt": "2026-03-01T12:00:00",
   "className": "향수 클래스",
   "status": "BOOKED",
-  "depositAmount": 5000,
-  "balanceAmount": 45000,
+  "participantCount": 3,
+  "depositAmount": 15000,
+  "balanceAmount": 135000,
   "guestName": "홍길동",
   "guestPhone": "010****5678",
   "cancelPolicy": {
@@ -789,6 +810,7 @@ X-Access-Token: {accessToken}
     "refundable": true,
     "deadlineAt": "2026-03-01T00:00:00",
     "passCreditRestorable": false,
+    "manualCompensationRequired": false,
     "warningCode": null
   },
   "refund": null
@@ -823,7 +845,8 @@ X-Access-Token: {accessToken}
   "startAt": "2026-03-01T14:00:00",
   "endAt": "2026-03-01T16:00:00",
   "className": "향수 클래스",
-  "status": "BOOKED"
+  "status": "BOOKED",
+  "participantCount": 3
 }
 ```
 
@@ -839,6 +862,7 @@ X-Access-Token: {accessToken}
 - 정책:
   - 현재 슬롯 시작 1시간 전까지 횟수 제한 없이 변경 가능
   - 현재 예약과 같은 클래스의 활성·미래·예약 가능 슬롯으로만 변경 가능
+  - 기존 예약의 `participantCount`만큼 새 슬롯 정원을 점유하고 이전 슬롯에서 같은 인원을 반납한다.
   - 변경마다 `booking_history`에 `RESCHEDULED` 이력 누적
   - `bookings` 행은 항상 1건 유지한다.
 
@@ -853,12 +877,14 @@ X-Access-Token: {accessToken}
 {
   "bookingId": 1,
   "status": "CANCELED",
+  "participantCount": 3,
   "refundable": true,
-  "refundAmount": 5000,
+  "refundAmount": 15000,
   "refund": {
-    "amount": 5000,
+    "amount": 15000,
     "status": "REQUESTED"
-  }
+  },
+  "manualCompensationRequired": false
 }
 ```
 
@@ -873,6 +899,7 @@ X-Access-Token: {accessToken}
   - `refundable=false`이면 크레딧 소멸 유지
   - `200 OK`는 예약 취소와 환불 요청 이력 저장 완료를 뜻하며 PG 환불 완료를 뜻하지 않는다.
   - 예약금 환불을 요청했을 때만 `refund`가 `{amount,status}`로 채워진다. 8회권 크레딧 복구 또는 환불 불가 취소에서는 `refund=null`, `refundAmount=0`이다.
+  - 운영자 수기 예약에서 받은 오프라인 예약금은 PG 거래가 없으므로 `manualCompensationRequired=true`와 관리자 후속 작업을 남기고 `refund=null`이다.
 
 ### 2.5 8회권 API
 
@@ -1041,21 +1068,49 @@ X-Access-Token: {accessToken}
 ```json
 {
   "orderId": 12,
+  "orderNumber": "ORD-00000012",
   "status": "PAID_APPROVAL_PENDING",
   "totalAmount": 121000,
   "shippingFee": 3000,
   "paidAt": "2026-03-08T20:30:00",
   "approvalDeadlineAt": "2026-03-09T20:30:00",
   "items": [
-    { "orderItemId": 21, "productId": 1, "productName": "시그니처 캔들", "qty": 2, "unitPrice": 39000 },
-    { "orderItemId": 22, "productId": 3, "productName": "우드 트레이", "qty": 1, "unitPrice": 40000 }
+    {
+      "orderItemId": 21,
+      "productId": 1,
+      "productName": "시그니처 캔들",
+      "productType": "READY_STOCK",
+      "qty": 2,
+      "unitPrice": 39000,
+      "specification": "소이 왁스 200g · 유리 용기",
+      "careInstructions": "첫 사용은 표면 전체가 녹을 때까지 태워 주세요.",
+      "productionLeadDays": null
+    },
+    {
+      "orderItemId": 22,
+      "productId": 3,
+      "productName": "우드 트레이",
+      "productType": "MADE_TO_ORDER",
+      "qty": 1,
+      "unitPrice": 40000,
+      "specification": "월넛 300×200mm",
+      "careInstructions": "물에 오래 담가 두지 마세요.",
+      "productionLeadDays": 14
+    }
   ],
   "fulfillment": {
     "type": "SHIPPING",
     "expectedShipDate": null,
     "pickupDeadlineAt": null,
     "carrier": null,
-    "trackingNumber": null
+    "trackingNumber": null,
+    "shippingAddress": {
+      "recipientName": "홍길동",
+      "phone": "01012345678",
+      "postalCode": "27360",
+      "addressLine1": "충북 충주시 계명대로 1",
+      "addressLine2": "101호"
+    }
   },
   "refund": null
 }
@@ -1066,9 +1121,10 @@ X-Access-Token: {accessToken}
   - `404 NOT_FOUND` — orderId 미존재 또는 token 불일치
 - 정책:
   - 비회원 접근 토큰은 HMAC 서명과 만료 시각을 검증한 뒤 서명 토큰 전체의 SHA-256 해시를 DB 저장값과 비교한다. 서명 없는 32자 16진수 토큰은 허용하지 않으며, 신규 토큰에서 추출한 nonce만으로 서명·만료 검사를 우회할 수 없다.
-  - 신규 주문의 `fulfillment`는 결제 confirm 시 함께 생성되며 고객이 선택한 `type`, 예상 출고일, 픽업 마감과 배송 추적 정보를 반환한다. 배송지 원문은 고객 응답에 포함하지 않는다.
+  - 비회원·회원 주문 상세는 수령인 이름·전화·주소를 포함하므로 `Cache-Control: no-store`로 반환한다.
+  - 신규 주문의 `fulfillment`는 결제 confirm 시 함께 생성되며 고객이 선택한 `type`, 예상 출고일, 픽업 마감, 배송 추적 정보와 배송지를 반환한다. 배송지는 소유권이 확인된 상세에서만 복호화하며 `PICKUP`은 `shippingAddress=null`이다.
   - `shippingFee`는 prepare 당시 서버 정책 스냅샷이다. `totalAmount`에는 상품 합계와 배송비가 모두 포함되며 픽업 주문의 배송비는 0원이다.
-  - 각 항목의 `productName`, `unitPrice`는 prepare 당시 스냅샷이다. 배송 출발 뒤에는 `carrier`, `trackingNumber`를 함께 반환한다.
+  - 각 항목의 `productName`, `productType`, `unitPrice`, `specification`, `careInstructions`, `productionLeadDays`는 prepare 당시 스냅샷이다. 스냅샷 도입 전 주문은 `productType`과 구매조건 필드가 `null`일 수 있다. 배송 출발 뒤에는 `carrier`, `trackingNumber`를 함께 반환한다.
   - 환불 이력이 있으면 `refund`에 `amount`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
   - `status=PICKUP_EXPIRED`는 기성품 미수령 환불이며 `refund`에 진행 상태를 반환한다. `status=PICKUP_FORFEITED`는 주문제작 상품의 미수령 종료이며 `refund=null`이다.
   - `DELETE /api/v1/orders/{id}`는 비회원 접근 토큰으로, `DELETE /api/v1/me/orders/{id}`는 회원 세션으로 본인 주문을 확인한다. `PAID_APPROVAL_PENDING`만 `CUSTOMER_CANCELED`로 전이하고 재고 복구·이력·환불 요청을 함께 처리한다.
@@ -1149,8 +1205,8 @@ Authorization: Bearer {token}
       "shippingFee": 3000,
       "fulfillmentType": "SHIPPING",
       "items": [
-        { "productId": 1, "productName": "시그니처 캔들", "qty": 2, "unitPrice": 39000 },
-        { "productId": 3, "productName": "우드 트레이", "qty": 1, "unitPrice": 40000 }
+        { "productId": 1, "productName": "시그니처 캔들", "productType": "READY_STOCK", "qty": 2, "unitPrice": 39000 },
+        { "productId": 3, "productName": "우드 트레이", "productType": "MADE_TO_ORDER", "qty": 1, "unitPrice": 40000 }
       ],
       "paidAt": "2026-03-24T11:32:10",
       "createdAt": "2026-03-24T02:32:10Z"
@@ -1198,6 +1254,8 @@ Authorization: Bearer {token}
 
 - 관리자 인증 후에만 배송지 암호문을 복호화한다. `PICKUP` 주문은 `shippingAddress=null`이다.
 
+- 개인정보가 포함되므로 응답은 `Cache-Control: no-store`로 반환한다.
+
 #### 2.7.2 관리자 주문 검색
 
 ```http
@@ -1231,7 +1289,7 @@ Authorization: Bearer {token}
 - 정책:
   - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
   - `page`는 0 미만이면 0으로, `size`는 1~100 범위로 보정하며 표현 가능한 OFFSET을 넘으면 `400 INVALID_INPUT`으로 거절한다.
-  - `keyword`가 `ORD-{숫자}` 형식의 주문번호이면 해당 주문 ID와 정확 일치로 검색한다. 그 외 문자열은 회원·비회원 이름 HMAC 정확 일치로 검색하며 주문 ID 부분 검색은 제공하지 않는다.
+  - `keyword`가 `ORD-{숫자}` 형식의 주문번호이면 해당 주문 ID와 정확 일치로 검색한다. 국내 휴대폰 형식이면 정규화한 전화 HMAC, 그 외 문자열은 회원·비회원 이름 HMAC 정확 일치로 검색하며 개인정보 부분 검색과 주문 ID 부분 검색은 제공하지 않는다.
   - `dateFrom`~`dateTo`는 KST 기준 주문 생성일 범위를 의미한다.
   - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
   - `createdAt`은 UTC 오프셋(`Z`)을 포함해 브라우저가 서울 시각으로 정확히 변환할 수 있게 한다.
@@ -1601,9 +1659,11 @@ Authorization: Bearer {token}
     "startAt": "2026-03-20T10:00:00",
     "endAt": "2026-03-20T12:00:00",
     "status": "BOOKED",
-    "depositAmount": 5000,
+    "source": "PHONE",
+    "participantCount": 3,
+    "depositAmount": 15000,
     "depositPaidAt": "2026-03-18T14:00:00",
-    "balanceAmount": 45000,
+    "balanceAmount": 135000,
     "balanceStatus": "UNPAID",
     "balancePaidAt": null,
     "arrears": false,
@@ -1615,12 +1675,39 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - `bookerType`은 `GUEST` 또는 `MEMBER`로 구분한다.
+  - `source`는 `WEB`, `PHONE`, `NAVER_TALK`, `KAKAO`, `VISIT`이며 `participantCount`는 예약 인원이다.
   - 비회원 이력 가져오기(claim) 이후 `userId`가 설정된 예약은 `MEMBER`로 표시한다.
   - 탈퇴 회원의 종결 예약도 `MEMBER` 이력으로 유지하며 익명화된 이름과 `bookerPhone=null`을 반환한다.
   - 선택 귀속 요청의 주문 ID와 예약 ID는 각각 최대 100건이며 모든 ID는 양수여야 한다.
   - User 정보는 탈퇴 회원을 포함하는 관리자 이력 전용 batch fetch
     (`UserReaderPort.findAllByIdForAdminHistory`)로 조합한다.
   - `date` 필수, `status`는 선택(미입력 시 전체).
+
+#### 2.9.1.1 관리자 수기 예약 등록
+
+```http
+POST /api/v1/admin/bookings
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "slotId": 42,
+  "name": "홍길동",
+  "phone": "010-1234-5678",
+  "participantCount": 3,
+  "source": "PHONE",
+  "depositPaid": true
+}
+```
+
+- 성공: `201 Created` — 2.9.1과 같은 예약 응답
+- 정책:
+  - `source`는 운영자 접수 경로인 `PHONE`, `NAVER_TALK`, `KAKAO`, `VISIT`만 허용하며 `WEB`은 받지 않는다.
+  - 휴대폰은 표준 숫자 형식으로 저장하고 같은 고객의 같은 슬롯 활성 예약을 중복 생성하지 않는다.
+  - 인원은 1~8명이며 남은 슬롯 정원을 초과할 수 없다.
+  - 금액은 클라이언트가 보내지 않는다. 서버가 `클래스 1인 가격 × 인원`으로 계산한다.
+  - `depositPaid=true`이면 10% 예약금과 입금 시각을 기록하고, 취소 시 같은 금액의 수동 반환 작업을 만든다.
+  - `depositPaid=false`이면 예약금은 0원이고 전체 금액을 현장 잔금으로 남기며 취소 시 예약금 환불 작업을 만들지 않는다.
 
 #### 2.9.2 관리자 예약 검색
 
@@ -1642,6 +1729,8 @@ Authorization: Bearer {token}
       "startAt": "2026-03-24T10:00:00",
       "endAt": "2026-03-24T12:00:00",
       "status": "BOOKED",
+      "source": "WEB",
+      "participantCount": 1,
       "depositAmount": 5000,
       "depositPaidAt": "2026-03-20T09:15:00",
       "balanceAmount": 45000,
@@ -1664,7 +1753,7 @@ Authorization: Bearer {token}
   - `status`, `dateFrom`, `dateTo`, `keyword`는 모두 선택 필터다.
   - 관리자 화면의 검색 결과는 `bookingId`, `status`, `startAt`을 사용해 예약 탭의 기존 날짜별 운영 패널로 이동하고 대상 예약을 강조한다.
   - `page`는 0 미만이면 0으로, `size`는 1~100 범위로 보정하며 표현 가능한 OFFSET을 넘으면 `400 INVALID_INPUT`으로 거절한다.
-  - `keyword`가 `BK-{숫자}` 형식의 예약번호이면 해당 예약 ID와 정확 일치로 검색한다. 그 외 문자열은 회원·비회원 이름 HMAC 정확 일치로 검색하며 예약 ID 부분 검색은 제공하지 않는다.
+  - `keyword`가 `BK-{숫자}` 형식의 예약번호이면 해당 예약 ID와 정확 일치로 검색한다. 국내 휴대폰 형식이면 정규화한 전화 HMAC, 그 외 문자열은 회원·비회원 이름 HMAC 정확 일치로 검색하며 개인정보 부분 검색과 예약 ID 부분 검색은 제공하지 않는다.
   - 날짜 필터는 슬롯 시작 시간(`slotStart`) 기준 KST 범위를 사용한다.
   - 결과는 `createdAt DESC` 기준 OFFSET 페이지로 반환한다.
   - DB 생성 시각인 `createdAt`은 UTC 오프셋(`Z`)을 포함한다. 슬롯·예약금·잔금 시각은 서울 현지시각이다.
@@ -1681,6 +1770,7 @@ Authorization: Bearer {token}
   "bookingId": 1,
   "status": "COMPLETED",
   "balanceStatus": "PAID",
+  "participantCount": 3,
   "balancePaidAt": "2026-03-20T12:10:00",
   "arrears": false
 }
@@ -1743,8 +1833,9 @@ Content-Type: application/json
 {
   "bookingId": 15,
   "status": "CANCELED",
+  "participantCount": 3,
   "passCreditRestored": false,
-  "depositRefundAmount": 5000,
+  "depositRefundAmount": 15000,
   "depositRefundStatus": "REQUESTED",
   "balanceSettlementRequired": true,
   "manualCompensationRequired": false
@@ -1759,7 +1850,8 @@ Content-Type: application/json
   - `409 BOOKING_CONFLICT` — 동시 변경 충돌
 - 정책:
   - 고객 취소 마감과 무관하게 슬롯 정원과 버퍼를 반납하고 예약을 `CANCELED`로 전이한다.
-  - 일반 예약은 예약금 전액의 비동기 PG 환불 요청을 생성한다. `depositRefundStatus=REQUESTED`는 접수 완료이며 PG 환불 완료가 아니다.
+  - PG로 결제한 일반 예약은 예약금 전액의 비동기 PG 환불 요청을 생성한다. `depositRefundStatus=REQUESTED`는 접수 완료이며 PG 환불 완료가 아니다.
+  - 전화·메신저·방문 접수에서 받은 오프라인 예약금은 PG 환불을 호출하지 않고 실제 반환액이 있는 `MANUAL_COMPENSATION` 작업을 생성한다. 입금 전 수기 예약은 예약금이 0원이므로 환불 작업이 없다.
   - 8회권 예약은 유효한 이용권이면 크레딧을 복구한다. 만료되어 복구할 수 없으면 `passCreditRestored=false`, `manualCompensationRequired=true`로 운영자 수동 보상을 알린다.
   - 현장 잔금이 이미 결제된 일반 예약은 `balanceSettlementRequired=true`이며 서버가 예약금 외 잔금을 자동 환불하지 않는다.
   - `booking_history`에 `actor=ADMIN`, 입력 사유와 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`인 행위자를 저장하고 취소 알림 outbox를 같은 트랜잭션에서 생성한다.
@@ -1808,7 +1900,28 @@ POST /api/v1/admin/bookings/cancellation-tasks/{taskId}/complete
 Authorization: Bearer {token}
 ```
 
+GET 응답 항목:
+
+```json
+{
+  "taskId": 501,
+  "bookingId": 15,
+  "bookingNumber": "BK-00000015",
+  "type": "MANUAL_COMPENSATION",
+  "status": "PENDING",
+  "className": "가죽공예 원데이",
+  "startAt": "2026-08-10T14:00:00",
+  "balanceAmount": 0,
+  "compensationAmount": 15000,
+  "reason": "공방 일정 변경",
+  "createdAt": "2026-08-01T10:00:00",
+  "completedByAdminId": null,
+  "completedAt": null
+}
+```
+
 - 운영자 취소 때 이미 수납한 현장 잔금은 `BALANCE_SETTLEMENT`, 만료로 복구할 수 없는 8회권은 `MANUAL_COMPENSATION` 작업으로 생성한다.
+- 오프라인에서 받은 예약금도 `MANUAL_COMPENSATION`으로 생성한다. 작업 응답의 `compensationAmount`는 반환할 예약금이며, 만료 8회권 보상은 금액으로 확정할 수 없어 0원이다. `balanceAmount`는 잔금 정산 작업의 금액이다.
 - GET은 오래된 순으로 미완료 작업을 최대 100건 반환한다.
 - 완료는 작업 행을 잠근 뒤 처리 관리자와 완료 시각을 저장한다. 이미 완료된 작업을 다시 요청하면 `changed=false`와 기존 결과를 반환한다.
 
@@ -2585,13 +2698,14 @@ Content-Type: application/json
   - 금액은 서버가 산출한다. 클라이언트가 `amount`를 보내도 무시되며, `payment_attempt.amount`는 서버 계산값이다.
   - 모든 컨텍스트의 최종 `amount`는 0원 이상 `9,007,199,254,740,991원` 이하의 웹 안전 정수여야 한다. 0원은 유효한 8회권 예약처럼 외부 PG 호출이 없는 내부 승인에만 사용한다.
     - `ORDER`: 동일 `productId`의 수량을 먼저 합쳐 상품별 1~99개 제한을 적용하고, 상품을 한 번에 조회한 뒤 `productId.price * qty`를 overflow 검출 산술로 합산한다. `SHIPPING`이면 `app.order.shipping-fee`의 고정액을 더하고 `PICKUP`이면 0원을 더한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
-    - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약), 없으면 `slot.bookingClass.price * 10%`
+    - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약, `participantCount=1`), 없으면 `slot.bookingClass.price * participantCount * 10%`
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
-  - 서버는 prepare 시점의 `ORDER` 상품명·항목 단가·배송비, `BOOKING` 예약금·잔금, `PASS` 총 가격과 계획을 공개 요청 모델과 분리된 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
+  - 서버는 prepare 시점의 `ORDER` 상품명·항목 단가·상품 유형·고정 사양·관리 방법·예상 제작 기간·배송비, `BOOKING` 예약금·잔금·인원, `PASS` 총 가격과 계획을 공개 요청 모델과 분리된 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
   - `cartCheckout`은 항상 명시한다. 직접 주문은 `false`, 회원 장바구니 주문은 `true`다.
   - `ORDER` payload는 `fulfillmentType=SHIPPING|PICKUP`을 반드시 포함한다. `SHIPPING`은 구조화된 `shippingAddress`가 필수이고 `PICKUP`은 `shippingAddress=null`이어야 한다.
   - 주문제작 상품이 하나라도 포함되면 `madeToOrderConsentVersion`이 현재 정책 버전과 일치하고 `madeToOrderConsent=true`여야 한다. 서버는 현재 동의 문구 버전·전문·서버 동의 시각을 내부 payload에 확정하고 confirm 시 `orders`로 옮긴다. 기성품만 포함되면 이 값과 무관하게 동의 스냅샷을 만들지 않는다.
+  - V97 이전 구형 prepare 중 상품 유형이 없고 주문제작 동의도 없는 항목은 당시 기성품으로 해석해 `READY_STOCK` 주문 항목으로 확정한다. 상품 유형은 없지만 주문제작 동의가 남은 prepare는 구매조건을 재현할 수 없으므로 PG 호출 전에 `400 INVALID_INPUT`으로 거절하고 새 prepare를 요구한다. 이미 PG 승인이 저장된 구형 주문제작 시도가 자동 복구되면 주문을 만들지 않고 기존 보상 환불 경계로 격리한다.
   - 클라이언트는 `GET /api/v1/orders/policy`의 `shippingFee`를 사전 표시용으로 사용하되 요청 금액으로 보내지 않는다. prepare가 현재 설정을 다시 읽어 확정하고 주문에 스냅샷으로 저장한다.
   - 직접 주문과 장바구니 주문 모두 `ACTIVE` 상품만 확정한다. 판매 중지 상품은 재고가 남아 있어도 `400 INVALID_INPUT`으로 거절한다.
   - 회원 장바구니는 `cartCheckout=true`를 지정한다. 이때 서버는 클라이언트의 `items`를 사용하지 않고 장바구니에서 구매 가능한 항목을 확정한다.
@@ -2654,6 +2768,7 @@ Content-Type: application/json
   "name": "홍길동",
   "slotId": 42,
   "paymentMethod": "CARD",     // CARD | EASY_PAY (BANK_TRANSFER 거절)
+  "participantCount": 3,
   "policyAcceptance": {
     "termsVersion": "2026-07-21-v1",
     "termsAccepted": true,
@@ -2667,7 +2782,8 @@ Content-Type: application/json
   "type": "BOOKING",
   "userId": 7,
   "slotId": 42,
-  "passId": 9
+  "passId": 9,
+  "participantCount": 1
 }
 
 // PASS (8회권 구매 — 회원 전용)
@@ -2678,6 +2794,7 @@ Content-Type: application/json
 ```
 
 - 8회권 사용 예약은 회원이 예약 가능 슬롯을 직접 선택해 한 회차씩 생성하며, 성공할 때마다 크레딧 1회를 차감한다.
+- 일반 예약의 `participantCount`는 1~8이고 슬롯 점유와 예약금·잔금에 함께 반영한다. 8회권 예약은 1만 허용한다.
 - 신규 8회권 구매는 `REGULAR_CRAFT_8` 계획으로 확정한다. 해당 이용권은 클래스의 `passEligible=true`와 비향수 카테고리를 모두 충족해야 예약 prepare가 성공한다.
 - 운영자가 8회 일정을 일괄 배정하는 별도 API는 제공하지 않는다.
 

@@ -94,6 +94,34 @@ class SlotBookingCapacityUseCaseIT {
         });
     }
 
+    @DisplayName("다인 예약은 인원만큼 정원을 점유하고 전체 반납 전까지 버퍼를 유지한다")
+    @Test
+    void multiParticipantReservation_occupiesAndReleasesFullCount() {
+        Slot bufferSlot = slotRepository.save(
+                slot(bookingClass, BUFFER_IN, BUFFER_IN.plusHours(2)));
+
+        reserveCapacityInTx(mainSlot.getId(), 3);
+        reserveCapacityInTx(mainSlot.getId(), 2);
+        releaseCapacityInTx(mainSlot.getId(), 3);
+
+        assertSoftly(softly -> {
+            softly.assertThat(slotRepository.findById(mainSlot.getId()).orElseThrow().getBookedCount())
+                    .isEqualTo(2);
+            softly.assertThat(slotRepository.findById(bufferSlot.getId()).orElseThrow().isActive())
+                    .isFalse();
+            softly.assertThatThrownBy(() -> reserveCapacityInTx(mainSlot.getId(), 7))
+                    .isInstanceOf(CapacityExceededException.class);
+        });
+
+        releaseCapacityInTx(mainSlot.getId(), 2);
+        assertSoftly(softly -> {
+            softly.assertThat(slotRepository.findById(mainSlot.getId()).orElseThrow().getBookedCount())
+                    .isZero();
+            softly.assertThat(slotRepository.findById(bufferSlot.getId()).orElseThrow().isActive())
+                    .isTrue();
+        });
+    }
+
     @DisplayName("예약 확정 시 버퍼 구간 슬롯이 차단된다")
     @Test
     void reserveCapacity_blocksBufferSlots() {
@@ -242,12 +270,22 @@ class SlotBookingCapacityUseCaseIT {
     }
 
     private void reserveCapacityInTx(Long slotId) {
+        reserveCapacityInTx(slotId, 1);
+    }
+
+    private void reserveCapacityInTx(Long slotId, int participantCount) {
         new TransactionTemplate(transactionManager)
-                .executeWithoutResult(status -> slotCapacitySupport.reserveCapacity(slotId));
+                .executeWithoutResult(status ->
+                        slotCapacitySupport.reserveCapacity(slotId, participantCount));
     }
 
     private void releaseCapacityInTx(Long slotId) {
+        releaseCapacityInTx(slotId, 1);
+    }
+
+    private void releaseCapacityInTx(Long slotId, int participantCount) {
         new TransactionTemplate(transactionManager)
-                .executeWithoutResult(status -> slotCapacitySupport.releaseCapacity(slotId));
+                .executeWithoutResult(status ->
+                        slotCapacitySupport.releaseCapacity(slotId, participantCount));
     }
 }

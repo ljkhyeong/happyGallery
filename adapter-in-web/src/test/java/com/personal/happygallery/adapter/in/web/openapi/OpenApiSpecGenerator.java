@@ -3,12 +3,14 @@ package com.personal.happygallery.adapter.in.web.openapi;
 import com.personal.happygallery.support.UseCaseIT;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.servers.Server;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +22,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -87,6 +90,7 @@ class OpenApiSpecGenerator {
         return value;
     }
 
+    @SuppressWarnings("unchecked")
     @TestConfiguration(proxyBeanMethods = false)
     static class OpenApiConfiguration {
 
@@ -95,6 +99,41 @@ class OpenApiSpecGenerator {
             return new OpenAPI()
                     .info(new Info().title("happyGallery API").version("v1"))
                     .servers(List.of(new Server().url("/").description("Same-origin API")));
+        }
+
+        @Bean
+        OpenApiCustomizer nullableReferenceCustomizer() {
+            return openApi -> openApi.getComponents().getSchemas().values().forEach(schema -> {
+                if (schema.getProperties() == null) {
+                    return;
+                }
+                schema.getProperties().values().forEach(property -> {
+                    if (property instanceof Schema<?> propertySchema) {
+                        normalizeNullableReference(propertySchema);
+                    }
+                });
+            });
+        }
+
+        private void normalizeNullableReference(Schema<?> schema) {
+            if (schema.get$ref() == null || !isNullable(schema)) {
+                return;
+            }
+
+            String reference = schema.get$ref();
+            schema.set$ref(null);
+            schema.setType(null);
+            schema.setTypes(null);
+            schema.setNullable(null);
+            schema.setOneOf(List.of(
+                    new Schema<>().$ref(reference),
+                    new Schema<>().types(Set.of("null"))));
+        }
+
+        private boolean isNullable(Schema<?> schema) {
+            return Boolean.TRUE.equals(schema.getNullable())
+                    || "null".equals(schema.getType())
+                    || schema.getTypes() != null && schema.getTypes().contains("null");
         }
     }
 }

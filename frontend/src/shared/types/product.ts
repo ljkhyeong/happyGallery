@@ -8,7 +8,11 @@ import type {
 export type ProductType = ProductDetailResponseType;
 export type ProductStatus = "ACTIVE" | "INACTIVE";
 export type ProductSortOrder = ListProductsSort;
-export type ProductDetailResponse = GeneratedProductDetailResponse;
+export type ProductDetailResponse = GeneratedProductDetailResponse & {
+  specification: string | null;
+  careInstructions: string | null;
+  productionLeadDays: number | null;
+};
 
 export interface ProductResponse {
   id: number;
@@ -18,6 +22,9 @@ export interface ProductResponse {
   price: number;
   description: string | null;
   imageUrl: string | null;
+  specification: string | null;
+  careInstructions: string | null;
+  productionLeadDays: number | null;
   status: ProductStatus;
   available: boolean;
   quantity: number;
@@ -31,6 +38,9 @@ export interface CreateProductRequest {
   quantity: number;
   description?: string;
   imageUrl?: string;
+  specification?: string;
+  careInstructions?: string;
+  productionLeadDays?: number;
 }
 
 export interface UpdateProductRequest {
@@ -39,6 +49,9 @@ export interface UpdateProductRequest {
   price: number;
   description?: string;
   imageUrl?: string;
+  specification?: string;
+  careInstructions?: string;
+  productionLeadDays?: number;
 }
 
 export type InventoryAdjustmentType = "INCREASE" | "DECREASE";

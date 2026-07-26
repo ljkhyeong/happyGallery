@@ -14,6 +14,9 @@ public interface CartReadModelPort {
             String productName,
             ProductType productType,
             long price,
+            String specification,
+            String careInstructions,
+            Integer productionLeadDays,
             int qty,
             ProductStatus productStatus,
             Integer inventoryQuantity

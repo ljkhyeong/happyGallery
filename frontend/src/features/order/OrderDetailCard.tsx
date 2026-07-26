@@ -3,6 +3,8 @@ import { StatusBadge } from "@/shared/ui";
 import { formatKRW, formatDateTime, formatDate, FULFILLMENT_TYPE_LABEL } from "@/shared/lib";
 import type { OrderDetailResponse } from "@/shared/types";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
+import { ShipmentTrackingActions } from "./ShipmentTrackingActions";
+import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 
 interface Props {
   order: OrderDetailResponse;
@@ -14,7 +16,7 @@ export function OrderDetailCard({ order }: Props) {
   return (
     <Card>
       <Card.Header className="d-flex justify-content-between align-items-center">
-        <span>주문 #{order.orderId}</span>
+        <span>{order.orderNumber}</span>
         <StatusBadge status={order.status} />
       </Card.Header>
       <Card.Body>
@@ -46,7 +48,21 @@ export function OrderDetailCard({ order }: Props) {
           <tbody>
             {order.items.map((item, i) => (
               <tr key={i}>
-                <td>{item.productName}</td>
+                <td>
+                  <div>{item.productName}</div>
+                  <div className="mt-2">
+                    <ProductPurchaseTerms
+                      productName={item.productName}
+                      type={item.productType}
+                      specification={item.specification}
+                      careInstructions={item.careInstructions}
+                      productionLeadDays={item.productionLeadDays}
+                      compact
+                      showCustomizationInquiry={false}
+                      showLegacySnapshotNotice
+                    />
+                  </div>
+                </td>
                 <td className="text-end">{item.qty}</td>
                 <td className="text-end">{formatKRW(item.unitPrice)}</td>
                 <td className="text-end">{formatKRW(item.unitPrice * item.qty)}</td>
@@ -85,6 +101,22 @@ export function OrderDetailCard({ order }: Props) {
                   <span>{formatDate(order.fulfillment.expectedShipDate)}</span>
                 </Col>
               )}
+              {order.fulfillment.shippingAddress && (
+                <Col xs={12}>
+                  <small className="text-muted-soft d-block">배송지</small>
+                  <span>
+                    {order.fulfillment.shippingAddress.recipientName} ·{" "}
+                    {order.fulfillment.shippingAddress.phone}
+                  </span>
+                  <span className="d-block">
+                    ({order.fulfillment.shippingAddress.postalCode}){" "}
+                    {order.fulfillment.shippingAddress.addressLine1}
+                    {order.fulfillment.shippingAddress.addressLine2
+                      ? ` ${order.fulfillment.shippingAddress.addressLine2}`
+                      : ""}
+                  </span>
+                </Col>
+              )}
               {order.fulfillment.pickupDeadlineAt && (
                 <Col xs={6}>
                   <small className="text-muted-soft d-block">픽업 마감</small>
@@ -101,6 +133,12 @@ export function OrderDetailCard({ order }: Props) {
                 <Col xs={6}>
                   <small className="text-muted-soft d-block">운송장 번호</small>
                   <span>{order.fulfillment.trackingNumber}</span>
+                  {order.fulfillment.carrier && (
+                    <ShipmentTrackingActions
+                      carrier={order.fulfillment.carrier}
+                      trackingNumber={order.fulfillment.trackingNumber}
+                    />
+                  )}
                 </Col>
               )}
             </Row>

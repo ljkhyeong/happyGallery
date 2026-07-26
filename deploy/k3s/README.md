@@ -221,7 +221,7 @@ kubectl -n happygallery port-forward service/prometheus 9090:9090
 kubectl -n happygallery port-forward service/grafana 3000:3000
 ```
 
-검증 스크립트는 모든 workload ready replica, MySQL·미디어·Prometheus·Alertmanager·Grafana PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. 운영 readiness는 DB와 Redis를 포함하므로 둘 중 하나가 내려가면 app은 ready endpoint에서 제외되고 Prometheus `AppDown` 경보가 발생한다. 결제 대사·환불·알림 backlog는 상태별 건수와 처리 예정·선점 시각을 넘긴 경과 시간, 15초 DB 스냅샷 갱신 지연 경보로 별도 확인한다. 결제 `paymentProvider` 서킷의 `OPEN` 또는 최근 2분 차단 호출은 즉시 critical, `alimtalkNotification`·`smsNotification`·`phoneVerificationSms`의 같은 조건은 즉시 warning으로 전달하고 Grafana에서 상태·실패율·호출 결과·차단 호출을 함께 확인한다. Grafana는 외부 Ingress가 없는 cluster 내부 익명 Viewer이며 운영자 `kubectl port-forward`로만 연다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
+검증 스크립트는 모든 workload ready replica, MySQL·미디어·Prometheus·Alertmanager·Grafana PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. 운영 readiness는 DB와 Redis를 포함하므로 둘 중 하나가 내려가면 app은 ready endpoint에서 제외되고 Prometheus `AppDown` 경보가 발생한다. 결제 대사·환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업은 DB backlog의 건수와 처리 예정·선점·생성 시각을 기준으로 15초마다 스냅샷하고, 갱신 지연도 별도 경보로 확인한다. `OrderApprovalPending`과 `BookingCancellationTaskPending`은 처리할 일이 남은 동안 warning을 유지하고 business receiver가 30분마다 다시 알린다. `OrderApprovalDeadlineApproaching`은 가장 오래된 승인 대기 주문이 18시간을 넘어 승인 마감까지 6시간 이하로 남은 상태가 5분 지속되면 critical로 알린다. 예약 확정과 후속 작업 없는 취소는 사건별 경보를 만들지 않고 관리자 예약 일정에서 확인한다. Alertmanager의 business receiver가 앞의 두 warning을, critical receiver가 승인 마감 경보를 실제 운영 채널로 전달하는지 점검한다. 결제 `paymentProvider` 서킷의 `OPEN` 또는 최근 2분 차단 호출은 즉시 critical, `alimtalkNotification`·`smsNotification`·`phoneVerificationSms`의 같은 조건은 즉시 warning으로 전달하고 Grafana에서 상태·실패율·호출 결과·차단 호출을 함께 확인한다. Grafana는 외부 Ingress가 없는 cluster 내부 익명 Viewer이며 운영자 `kubectl port-forward`로만 연다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
 
 호스트/공유기에서는 다음도 별도로 확인한다.
 
@@ -272,7 +272,9 @@ systemctl list-timers happygallery-backup.timer happygallery-backup-watchdog.tim
 
 예시 unit은 저장소가 `/opt/happygallery`에 있다고 가정한다. 실제 checkout 경로와 `kubectl` 경로가 다르면 unit과 `/etc/happygallery/backup.env`를 함께 수정한다.
 
-성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하면 별도 HTTPS webhook unit을 호출한다. 독립 watchdog은 15분마다 heartbeat를 검사해 7시간 넘게 정체되거나 파일이 사라지면 같은 webhook 경로로 알린다. 설치 직후 첫 성공 heartbeat를 만들기 위해 위 순서처럼 백업 service를 한 번 성공시킨 뒤 timer를 활성화한다. watchdog도 같은 노트북에서 실행되므로 전원·호스트 장애는 알 수 없고, 외부 uptime 모니터도 heartbeat 또는 공개 health를 별도로 확인해야 한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
+성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하거나 30분 실행 제한을 넘으면 별도 HTTPS webhook unit을 호출한다. 실행 제한으로 종료할 때는 app 원복 trap이 완료되도록 10분 종료 유예를 둔다. systemd service는 app을 내리기 전에 내부 Alertmanager에 `AppDown`만 최대 45분 silence로 등록하고 종료 시 즉시 해제한다. silence 생성에 실패하면 계획 중단을 시작하지 않으며, 백업이나 silence 해제가 실패하면 기존 `OnFailure` webhook이 알린다. 호스트가 비정상 종료돼 해제하지 못해도 45분 뒤 자동 만료된다.
+
+독립 watchdog은 15분마다 heartbeat를 검사해 7시간 넘게 정체되거나 파일이 사라지면 같은 webhook 경로로 알린다. 설치 직후 첫 성공 heartbeat를 만들기 위해 위 순서처럼 백업 service를 한 번 성공시킨 뒤 timer를 활성화한다. watchdog도 같은 노트북에서 실행되므로 전원·호스트 장애는 알 수 없고, 외부 uptime 모니터도 heartbeat 또는 공개 health를 별도로 확인해야 한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
 
 ## 8. 복원 훈련
 
@@ -282,10 +284,19 @@ systemctl list-timers happygallery-backup.timer happygallery-backup-watchdog.tim
 kubectl -n happygallery scale deployment/app --replicas=0
 
 export CONFIRM_RESTORE=restore-happygallery
-export CONFIRM_RESTORED_RELEASE='<호환 release의 IMAGE_TAG>'
 ./deploy/k3s/scripts/restore-recovery-backup.sh \
   /mnt/off-device/happygallery/happygallery-YYYYMMDDTHHMMSSZ.recovery.env \
   /secure/off-device/age-identity.txt
+
+# app은 계속 0 replica다. 출력된 일회용 대사 토큰을 기록하고 아래 세 대사를 먼저 완료한다.
+export RESTORED_IMAGE_TAG='<호환 release의 IMAGE_TAG>'
+export RESTORE_RECONCILIATION_TOKEN='<복원 완료 시 출력된 timestamp-checksum 토큰>'
+export CONFIRM_RESTORED_RELEASE="$RESTORED_IMAGE_TAG"
+export CONFIRM_RESTORED_PAYMENT_RECONCILIATION="$RESTORE_RECONCILIATION_TOKEN"
+export CONFIRM_RESTORED_NOTIFICATION_RECONCILIATION="$RESTORE_RECONCILIATION_TOKEN"
+export CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION="$RESTORE_RECONCILIATION_TOKEN"
+./deploy/k3s/scripts/activate-restored-release.sh \
+  /mnt/off-device/happygallery/releases/"$RESTORED_IMAGE_TAG"
 ./deploy/k3s/scripts/verify.sh gallery.example.com
 ```
 
@@ -300,9 +311,19 @@ export CONFIRM_RESTORED_RELEASE='<호환 release의 IMAGE_TAG>'
 - runtime active/previous 암호화·HMAC·비회원 토큰 keyring의 ID/fingerprint와 백업 메타데이터 일치
 - 복원된 `flyway_schema_history`와 백업 메타데이터의 schema version 일치
 - DB를 DROP하기 전 외부 이미지 archive checksum 검증, 필요 이미지 containerd import, app/frontend와 MySQL·Redis·Prometheus·Alertmanager·Grafana 전체 digest 재검증
-- app이 0인 상태에서 묶인 release의 app/frontend digest 반영 후 app scale-up
+- 데이터 복원과 검증이 끝나도 app 0 replica 유지
+- `BACKUP_CREATED_AT`과 검증한 `recovery.env` SHA-256을 결합한 대사 토큰을 성공한 복원에만 발급
+- app이 0인 동안 PG 콘솔·API의 결제/환불 결과와 복원 DB의 결제 시도·대사 필요 건 비교
+- 알림 제공자 발송 결과와 복원 DB의 outbox·발송 로그 비교
+- 저장소 밖 개인정보 열람·정정·삭제 요청 접수대장과 복원 DB 처리 결과 비교
+- 세 대사 완료 확인 값을 해당 복원 대사 토큰과 일치시킨 뒤에만 app/frontend digest 반영과 app scale-up
+- 토큰 marker는 활성화 직전에 `pending`에서 `activating`, 성공 후 `consumed`로 원자적으로 이동해 재사용 차단
 
-복원 후 회원 로그인, 개인정보 복호화, 이름/전화번호 HMAC 조회, 주문·예약·결제 이력, 상품 이미지 응답과 Flyway 상태를 확인한다. 백업 시점의 active/previous AES·HMAC 키링을 잃었거나 다른 키를 쓰면 데이터 복구가 완료된 것이 아니다. guest token 연속성이 필요하면 백업 시점 guest active/previous 키도 함께 복구한다.
+복원 진입점은 DB 교체부터 미디어 PVC 교체와 대사 토큰 발급까지 `restores/.restore-operation.lock` 디렉터리를 원자적으로 선점한다. 정상 종료와 오류·일반 종료 신호에서는 자신이 선점한 실행 락을 정리하므로, 같은 노트북에서 서로 다른 복구 묶음을 동시에 실행해도 두 번째 실행은 DB를 DROP하기 전에 실패한다. `SIGKILL`이나 전원 차단 뒤 실행 락이 남으면 자동으로 회수하지 않는다. 복원 프로세스가 실제로 끝났는지와 DB·미디어 교체 지점을 먼저 확인한 뒤 운영자가 락을 정리한다. 이 일시 실행 락은 아래의 지속성 있는 대사 상태 marker와 별개다.
+
+대사 토큰 marker는 release 상태 디렉터리와 같은 상위 경로의 `restores/`에 600 권한으로 둔다. 완료하지 않은 `pending` 또는 `activating` marker가 있으면 새 복원을 시작하지 않는다. 활성화 시작 뒤 명령 실패, 명시적 오류, `SIGHUP`·`SIGINT`·`SIGTERM` 종료가 발생하면 종료 정리가 app을 다시 0개로 내리고 Pod 종료를 확인한 뒤 marker를 `pending`으로 되돌려 같은 복원의 재시도를 허용한다. app 중지나 marker 복구를 확인하지 못했거나 `SIGKILL`·전원 차단처럼 종료 정리를 실행할 수 없으면 토큰을 임의 재사용하지 말고 app, DB, 적용 image와 현재 marker를 먼저 수동 확인한다.
+
+활성화 후 회원 로그인, 개인정보 복호화, 이름/전화번호 HMAC 조회, 주문·예약·결제 이력, 상품 이미지 응답과 Flyway 상태를 확인한다. 백업 시점의 active/previous AES·HMAC 키링을 잃었거나 다른 키를 쓰면 데이터 복구가 완료된 것이 아니다. guest token 연속성이 필요하면 백업 시점 guest active/previous 키도 함께 복구한다.
 
 ## 9. rollback
 
@@ -325,4 +346,4 @@ rollback은 보존된 전체 manifest를 재적용하지 않는다. digest로 �
 ./deploy/k3s/scripts/validate.sh
 ```
 
-이 검증은 Kustomize 렌더링, YAML 파싱, Prometheus 경보·Grafana 대시보드 단일 원본 drift, release manifest의 runtime 이미지 추출, shell 구문, probe/종료 유예와 Retain PVC·내부 Prometheus/OAuth callback, app/frontend digest 고정, 프런트 CSP Report-Only의 JSON-LD hash·외부 출처·Ingress 비중복, Redis·Prometheus·Alertmanager·Grafana 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, heartbeat watchdog의 독립 실행과 정체 감지, 복원 전 Pod 종료와 호환 digest 선반영 순서, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 브라우저 CSP 콘솔, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.
+이 검증은 Kustomize 렌더링, YAML 파싱, Prometheus 경보·Grafana 대시보드 단일 원본 drift, release manifest의 runtime 이미지 추출, shell 구문, probe/종료 유예와 Retain PVC·내부 Prometheus/OAuth callback, app/frontend digest 고정, 프런트 CSP Report-Only의 JSON-LD hash·외부 출처·Ingress 비중복, Redis·Prometheus·Alertmanager·Grafana 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, heartbeat watchdog의 독립 실행과 정체 감지, 복원 전 Pod 종료, 데이터 복원 뒤 자동 기동 금지, PG·알림·개인정보 요청 대사 확인과 호환 digest 선반영 순서, 활성화 중 명령 실패·명시적 오류·HUP/INT/TERM 종료의 app drain과 marker 복구, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 브라우저 CSP 콘솔, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.

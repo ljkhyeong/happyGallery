@@ -1,5 +1,9 @@
 package com.personal.happygallery.domain.booking;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
+
 /**
  * 예약금 산출 — 클래스 가격의 10%.
  *
@@ -12,7 +16,26 @@ public final class DepositCalculator {
 
     /** 슬롯의 클래스 가격 기준 10% 예약금. */
     public static long of(Slot slot) {
-        long classPrice = slot.getBookingClass().getPrice();
-        return classPrice / 10;
+        return calculate(slot, 1).depositAmount();
     }
+
+    /** 예약 인원 전체의 예약금과 잔금을 overflow 검출 산술로 계산한다. */
+    public static BookingAmounts calculate(Slot slot, int participantCount) {
+        SlotCapacity.requireValidParticipantCount(participantCount);
+        try {
+            long totalAmount = Math.multiplyExact(
+                    slot.getBookingClass().getPrice(), participantCount);
+            PaymentAmountPolicy.requireValid(totalAmount);
+            long depositAmount = totalAmount / 10;
+            return new BookingAmounts(
+                    depositAmount,
+                    Math.subtractExact(totalAmount, depositAmount));
+        } catch (ArithmeticException e) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "예약 금액이 허용 범위를 초과했습니다.");
+        }
+    }
+
+    public record BookingAmounts(long depositAmount, long balanceAmount) {}
 }

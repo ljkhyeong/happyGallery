@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Table, Button } from "react-bootstrap";
+import { Alert, Button, Modal, Table } from "react-bootstrap";
 import { fetchFailedRefunds, retryRefund } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
@@ -19,6 +19,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [pendingId, setPendingId] = useState<number | null>(null);
+  const [retryTarget, setRetryTarget] = useState<FailedRefundResponse | null>(null);
   const {
     cursor,
     hasPreviousPage,
@@ -38,6 +39,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
     onMutate: (id) => setPendingId(id),
     onSuccess: (result) => {
       showRetryResult(toast.show, result.status);
+      setRetryTarget(null);
       queryClient.invalidateQueries({ queryKey: ["admin", "refunds", "failed"] });
     },
     onSettled: () => setPendingId(null),
@@ -80,7 +82,10 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
                 <td>
                   <Button size="sm" variant="outline-warning"
                     disabled={pendingId === r.refundId}
-                    onClick={() => retry.mutate(r.refundId)}>
+                    onClick={() => {
+                      retry.reset();
+                      setRetryTarget(r);
+                    }}>
                     {pendingId === r.refundId ? "..." : "재처리"}
                   </Button>
                 </td>
@@ -111,6 +116,55 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
           </Button>
         </div>
       )}
+      <Modal
+        show={retryTarget !== null}
+        onHide={() => {
+          if (pendingId === null) setRetryTarget(null);
+        }}
+        centered
+      >
+        <Modal.Header closeButton={pendingId === null}>
+          <Modal.Title className="fs-6">환불 재처리 영향 확인</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <ErrorAlert error={retry.error} />
+          {retryTarget && (
+            <>
+              <dl className="row small mb-3">
+                <dt className="col-5">대상</dt>
+                <dd className="col-7">{refundTarget(retryTarget)}</dd>
+                <dt className="col-5">환불 금액</dt>
+                <dd className="col-7 fw-semibold">{formatKRW(retryTarget.amount)}</dd>
+                <dt className="col-5">현재 상태</dt>
+                <dd className="col-7">{refundStatusLabel(retryTarget.status)}</dd>
+                <dt className="col-5">기존 시도</dt>
+                <dd className="col-7">{retryTarget.attemptCount}회</dd>
+              </dl>
+              <Alert variant="warning" className="small mb-0">
+                {retryTarget.status === "RECONCILIATION_REQUIRED"
+                  ? "결제사 반영 상태를 먼저 조회합니다. 결과가 불명확하면 중복 취소하지 않고 확인 필요 상태를 유지합니다."
+                  : "새 환불을 만들지 않고 기존 환불 요청의 동일한 멱등키로 결제사 취소를 다시 요청합니다. 결과가 불명확하면 확인 필요 상태로 전환합니다."}
+              </Alert>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            disabled={pendingId !== null}
+            onClick={() => setRetryTarget(null)}
+          >
+            닫기
+          </Button>
+          <Button
+            variant="warning"
+            disabled={!retryTarget || pendingId !== null}
+            onClick={() => retryTarget && retry.mutate(retryTarget.refundId)}
+          >
+            {pendingId !== null ? "재처리 중..." : "확인하고 재처리"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 }

@@ -11,6 +11,7 @@ import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { OrderActionCell } from "./OrderActionCell";
 import { OrderHistoryPanel } from "./OrderHistoryPanel";
 import { OrderFulfillmentDetails, OrderFulfillmentPanel } from "./OrderFulfillmentPanel";
+import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 
 interface Props {
   adminKey: string;
@@ -171,7 +172,23 @@ export function OrderListSection({
               {allOrders.map((o) => (
                 <tr key={o.orderId}>
                   <td>{o.orderNumber}</td>
-                  <td><small>{o.items.map((item) => `${item.productName} x ${item.qty}`).join(", ")}</small></td>
+                  <td>
+                    {o.items.map((item) => (
+                      <div key={item.productId} className="mb-2">
+                        <small>{item.productName} x {item.qty}</small>
+                        <ProductPurchaseTerms
+                          productName={item.productName}
+                          type={item.productType}
+                          specification={item.specification}
+                          careInstructions={item.careInstructions}
+                          productionLeadDays={item.productionLeadDays}
+                          compact
+                          showCustomizationInquiry={false}
+                          showLegacySnapshotNotice
+                        />
+                      </div>
+                    ))}
+                  </td>
                   <td><StatusBadge status={o.status} /></td>
                   <td>{o.fulfillmentType === "SHIPPING" ? "택배" : o.fulfillmentType === "PICKUP" ? "픽업" : "-"}</td>
                   <td>{formatKRW(o.totalAmount)}</td>

@@ -93,7 +93,8 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
                 slotCapacitySupport.lockCapacityScope(booking.getSlot().getId());
         booking.cancelByAdmin();
 
-        Slot slot = slotCapacitySupport.releaseCapacity(lockedSlot);
+        Slot slot = slotCapacitySupport.releaseCapacity(
+                lockedSlot, booking.getParticipantCount());
         return completeAdminCancellation(
                 booking, lockedPass, slot, command.adminId(), command.reason());
     }
@@ -122,21 +123,23 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
                     ? lockedPasses.get(booking.getPassPurchase().getId())
                     : null;
             booking.cancelByAdmin();
-            Slot slot = slotCapacitySupport.releaseCapacity(lockedSlot);
+            Slot slot = slotCapacitySupport.releaseCapacity(
+                    lockedSlot, booking.getParticipantCount());
             AdminCancelResult result = completeAdminCancellation(
                     booking, lockedPass, slot, command.adminId(), command.reason());
 
             if (booking.isPassBooking()) {
                 if (result.passCreditRestored()) {
                     passCreditsRestored++;
-                } else {
-                    manualCompensationsRequired++;
                 }
             } else if (result.refund() != null) {
                 depositRefundsRequested++;
             }
             if (result.balanceSettlementRequired()) {
                 balanceSettlementsRequired++;
+            }
+            if (result.manualCompensationRequired()) {
+                manualCompensationsRequired++;
             }
         }
 
@@ -170,7 +173,8 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
         boolean balanceSettlementRequired = booking.getBalanceAmount() > 0
                 && booking.getBalanceStatus() == BalanceStatus.PAID;
         boolean passCreditRestored = lockedPass != null && compensation.refundable();
-        boolean manualCompensationRequired = lockedPass != null && !passCreditRestored;
+        boolean manualCompensationRequired = compensation.manualCompensationRequired()
+                || (lockedPass != null && !passCreditRestored);
         createCancellationTasks(
                 booking,
                 balanceSettlementRequired,
@@ -182,7 +186,8 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
                 booking,
                 passCreditRestored,
                 compensation.refund(),
-                balanceSettlementRequired);
+                balanceSettlementRequired,
+                manualCompensationRequired);
     }
 
     private void createCancellationTasks(
@@ -212,7 +217,8 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
         booking.cancel();
 
         // 1. 슬롯 반납 — 비관적 락 + booked_count--
-        Slot slot = slotCapacitySupport.releaseCapacity(lockedSlot);
+        Slot slot = slotCapacitySupport.releaseCapacity(
+                lockedSlot, booking.getParticipantCount());
 
         // 2. CANCELED 이력 저장 (append-only)
         bookingSupport.recordHistory(
@@ -223,11 +229,22 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
 
         // 4. 예약 취소 저장
         bookingStorePort.save(booking);
+        if (compensation.manualCompensationRequired()) {
+            createCancellationTasks(
+                    booking,
+                    false,
+                    true,
+                    "오프라인 예약금 고객 취소 환불");
+        }
 
         // 5. 취소 알림. 실제 예약금 환불 성공 알림은 커밋 이후 RefundExecutionService가 발행한다.
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CANCELED);
 
-        return new CancelResult(booking, compensation.refundable(), compensation.refund());
+        return new CancelResult(
+                booking,
+                compensation.refundable(),
+                compensation.refund(),
+                compensation.manualCompensationRequired());
     }
 
     private PassPurchase lockPass(Booking booking) {
@@ -253,16 +270,22 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
                                                                     PassPurchase lockedPass) {
         boolean refundable = TimeBoundary.isRefundable(slot.getStartAt(), clock);
         if (!refundable) {
-            return new CancellationCompensation(false, null);
+            return new CancellationCompensation(false, null, false);
         }
 
         if (lockedPass != null) {
             boolean restored = passCreditService.restoreCredit(lockedPass, booking.getId());
-            return new CancellationCompensation(restored, null);
+            return new CancellationCompensation(restored, null, false);
+        }
+        if (booking.requiresManualDepositCompensation()) {
+            return new CancellationCompensation(true, null, true);
+        }
+        if (booking.getDepositAmount() == 0) {
+            return new CancellationCompensation(true, null, false);
         }
 
         Refund refund = refundExecutionService.requestBookingRefund(booking, booking.getDepositAmount());
-        return new CancellationCompensation(true, refund);
+        return new CancellationCompensation(true, refund, false);
     }
 
     private CancellationCompensation applyAdminCancellationCompensation(
@@ -271,11 +294,21 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
     ) {
         if (lockedPass != null) {
             boolean restored = passCreditService.restoreCredit(lockedPass, booking.getId());
-            return new CancellationCompensation(restored, null);
+            return new CancellationCompensation(restored, null, false);
+        }
+        if (booking.requiresManualDepositCompensation()) {
+            return new CancellationCompensation(true, null, true);
+        }
+        if (booking.getDepositAmount() == 0) {
+            return new CancellationCompensation(true, null, false);
         }
         Refund refund = refundExecutionService.requestBookingRefund(booking, booking.getDepositAmount());
-        return new CancellationCompensation(true, refund);
+        return new CancellationCompensation(true, refund, false);
     }
 
-    private record CancellationCompensation(boolean refundable, Refund refund) {}
+    private record CancellationCompensation(
+            boolean refundable,
+            Refund refund,
+            boolean manualCompensationRequired
+    ) {}
 }

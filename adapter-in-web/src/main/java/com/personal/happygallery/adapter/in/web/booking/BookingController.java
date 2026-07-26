@@ -62,6 +62,7 @@ public class BookingController {
 
     /** 휴대폰 인증 코드 발송. 응답에는 인증 코드를 포함하지 않는다. */
     @PostMapping("/phone-verifications")
+    @Operation(operationId = "sendGuestBookingVerification")
     public SendVerificationResponse sendVerification(
             @RequestBody @Valid SendVerificationRequest request) {
         rateLimitGuard.checkPhoneVerification(request.phone());
@@ -71,6 +72,7 @@ public class BookingController {
 
     /** 비회원 예약 조회 — bookingId + X-Access-Token 헤더 검증 */
     @GetMapping("/{bookingId}")
+    @Operation(operationId = "getGuestBooking")
     public BookingDetailResponse getBooking(
             @PathVariable Long bookingId,
             @RequestHeader("X-Access-Token") String token) {
@@ -86,6 +88,7 @@ public class BookingController {
 
     /** 비회원 예약 변경 — 슬롯 교체, 이력 누적 */
     @PatchMapping("/{bookingId}/reschedule")
+    @Operation(operationId = "rescheduleGuestBooking")
     public RescheduleResponse reschedule(
             @PathVariable Long bookingId,
             @RequestHeader("X-Access-Token") String token,

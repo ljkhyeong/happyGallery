@@ -172,8 +172,10 @@ export function BookingManagePage() {
                 </p>
                 <RescheduleForm
                   classId={booking.classId}
+                  className={booking.className}
                   currentSlotId={booking.slotId}
                   currentStartAt={booking.startAt}
+                  participantCount={booking.participantCount}
                   onReschedule={(newSlotId) => rescheduleBooking(booking.bookingId, newSlotId, currentToken)}
                   onSuccess={refreshBooking}
                 />

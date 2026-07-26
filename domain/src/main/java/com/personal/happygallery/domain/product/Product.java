@@ -25,6 +25,10 @@ public class Product {
     public static final int MAX_NAME_LENGTH = 100;
     public static final int MAX_DESCRIPTION_LENGTH = 5_000;
     public static final int MAX_IMAGE_URL_LENGTH = 500;
+    public static final int MAX_SPECIFICATION_LENGTH = 2_000;
+    public static final int MAX_CARE_INSTRUCTIONS_LENGTH = 2_000;
+    public static final int MIN_PRODUCTION_LEAD_DAYS = 1;
+    public static final int MAX_PRODUCTION_LEAD_DAYS = 180;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,6 +52,15 @@ public class Product {
 
     @Column(name = "image_url", length = MAX_IMAGE_URL_LENGTH)
     private String imageUrl;
+
+    @Column(length = MAX_SPECIFICATION_LENGTH)
+    private String specification;
+
+    @Column(name = "care_instructions", length = MAX_CARE_INSTRUCTIONS_LENGTH)
+    private String careInstructions;
+
+    @Column(name = "production_lead_days")
+    private Integer productionLeadDays;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
@@ -87,13 +100,32 @@ public class Product {
 
     public Product(String name, ProductType type, String category, long price,
                    String description, String imageUrl) {
+        this(name, type, category, price, description, imageUrl, null, null, null);
+    }
+
+    public Product(String name, ProductType type, String category, long price,
+                   String description, String imageUrl, String specification,
+                   String careInstructions, Integer productionLeadDays) {
+        if (type == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "상품 유형은 필수입니다.");
+        }
         this.type = type;
-        updateDetails(name, category, price, description, imageUrl);
+        updateDetails(
+                name, category, price, description, imageUrl,
+                specification, careInstructions, productionLeadDays);
         this.status = ProductStatus.ACTIVE;
     }
 
     public void updateDetails(String name, String category, long price,
                               String description, String imageUrl) {
+        updateDetails(
+                name, category, price, description, imageUrl,
+                specification, careInstructions, productionLeadDays);
+    }
+
+    public void updateDetails(String name, String category, long price,
+                              String description, String imageUrl, String specification,
+                              String careInstructions, Integer productionLeadDays) {
         if (price < 1L || price > MAX_PRICE) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "상품 가격은 1원 이상 허용 범위 이하여야 합니다.");
@@ -103,6 +135,35 @@ public class Product {
         this.price = price;
         this.description = optionalText(description, "상품 설명", MAX_DESCRIPTION_LENGTH);
         this.imageUrl = optionalImageUrl(imageUrl);
+        this.specification = optionalText(
+                specification, "상품 사양", MAX_SPECIFICATION_LENGTH);
+        this.careInstructions = optionalText(
+                careInstructions, "관리 방법", MAX_CARE_INSTRUCTIONS_LENGTH);
+        this.productionLeadDays = productionLeadDays;
+        requireTypeSpecificPurchaseTerms();
+    }
+
+    private void requireTypeSpecificPurchaseTerms() {
+        if (type == ProductType.MADE_TO_ORDER) {
+            if (specification == null) {
+                throw new HappyGalleryException(
+                        ErrorCode.INVALID_INPUT, "주문제작 상품 사양은 필수입니다.");
+            }
+            if (productionLeadDays == null
+                    || productionLeadDays < MIN_PRODUCTION_LEAD_DAYS
+                    || productionLeadDays > MAX_PRODUCTION_LEAD_DAYS) {
+                throw new HappyGalleryException(
+                        ErrorCode.INVALID_INPUT,
+                        "주문제작 상품 제작 기간은 "
+                                + MIN_PRODUCTION_LEAD_DAYS + "일 이상 "
+                                + MAX_PRODUCTION_LEAD_DAYS + "일 이하여야 합니다.");
+            }
+            return;
+        }
+        if (productionLeadDays != null) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "기성품에는 제작 기간을 설정할 수 없습니다.");
+        }
     }
 
     private static String requireText(String value, String fieldName, int maxLength) {
@@ -160,6 +221,9 @@ public class Product {
     public long getPrice() { return price; }
     public String getDescription() { return description; }
     public String getImageUrl() { return imageUrl; }
+    public String getSpecification() { return specification; }
+    public String getCareInstructions() { return careInstructions; }
+    public Integer getProductionLeadDays() { return productionLeadDays; }
     public ProductStatus getStatus() { return status; }
     public long getVersion() { return version; }
     public LocalDateTime getCreatedAt() { return createdAt; }

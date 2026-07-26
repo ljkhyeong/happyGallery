@@ -61,6 +61,14 @@ export function ClassListPage() {
                 </p>
                 <dl className="class-catalog-meta">
                   <div><dt>소요시간</dt><dd>{bookingClass.durationMin}분</dd></div>
+                  <div>
+                    <dt>8회권</dt>
+                    <dd>
+                      {bookingClass.passEligible && bookingClass.category !== "PERFUME"
+                        ? "사용 가능"
+                        : "사용 불가"}
+                    </dd>
+                  </div>
                   {bookingClass.targetAudience && (
                     <div><dt>추천 대상</dt><dd>{bookingClass.targetAudience}</dd></div>
                   )}

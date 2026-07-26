@@ -16,5 +16,10 @@ public record CreateProductRequest(
         @Positive @Max(Product.MAX_PRICE) long price,
         @Min(1) int quantity,
         @Size(max = Product.MAX_DESCRIPTION_LENGTH) String description,
-        @Size(max = Product.MAX_IMAGE_URL_LENGTH) String imageUrl
+        @Size(max = Product.MAX_IMAGE_URL_LENGTH) String imageUrl,
+        @Size(max = Product.MAX_SPECIFICATION_LENGTH) String specification,
+        @Size(max = Product.MAX_CARE_INSTRUCTIONS_LENGTH) String careInstructions,
+        @Min(Product.MIN_PRODUCTION_LEAD_DAYS)
+        @Max(Product.MAX_PRODUCTION_LEAD_DAYS)
+        Integer productionLeadDays
 ) {}

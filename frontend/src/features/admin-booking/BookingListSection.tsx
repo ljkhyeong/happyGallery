@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col, Modal } from "react-bootstrap";
-import { CalendarX2 } from "lucide-react";
+import { CalendarPlus, CalendarX2 } from "lucide-react";
 import {
   cancelBookingByAdmin,
   completeBooking,
@@ -28,6 +28,7 @@ import type {
   ListBookingsStatus,
 } from "@/generated/api/adminBooking";
 import type { RefundStatus } from "@/shared/types";
+import { AdminBookingCreateModal } from "./AdminBookingCreateModal";
 
 interface Props {
   adminKey: string;
@@ -66,7 +67,7 @@ function cancelResultToast(result: AdminBookingCancelResponse) {
     : result.passCreditRestored
       ? "8회권 1회 복구"
       : result.manualCompensationRequired
-        ? "8회권 복구 수동 처리 필요"
+        ? "수동 환불·보상 필요"
         : "자동 환불 없음";
   const balance = result.balanceSettlementRequired ? "잔금 별도 정산 필요" : "잔금 별도 정산 없음";
   const needsAttention = result.manualCompensationRequired
@@ -96,6 +97,7 @@ export function BookingListSection({
   const [statusFilter, setStatusFilter] = useState<"" | ListBookingsStatus>(initialStatus);
   const [cancelTarget, setCancelTarget] = useState<AdminBookingResponse | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
 
   const { data: bookings, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "bookings", date, statusFilter],
@@ -165,7 +167,7 @@ export function BookingListSection({
 
   return (
     <div>
-      <Row className="g-2 mb-3">
+      <Row className="g-2 mb-3 align-items-end">
         <Col xs={12} sm={5}>
           <Form.Group controlId="admin-booking-date-filter">
             <Form.Label>날짜</Form.Label>
@@ -193,6 +195,12 @@ export function BookingListSection({
               ))}
             </Form.Select>
           </Form.Group>
+        </Col>
+        <Col xs={12} sm={3}>
+          <Button className="w-100" onClick={() => setShowCreate(true)}>
+            <CalendarPlus size={16} aria-hidden="true" className="me-1" />
+            수기 예약 등록
+          </Button>
         </Col>
       </Row>
 
@@ -230,7 +238,13 @@ export function BookingListSection({
                   </div>
                   <small className="text-muted-soft">{b.bookerPhone}</small>
                 </td>
-                <td>{b.className}</td>
+                <td>
+                  <div>{b.className}</div>
+                  <small className="text-muted-soft">
+                    {b.participantCount}명
+                    {b.source !== "WEB" ? ` · ${sourceLabel(b.source)}` : ""}
+                  </small>
+                </td>
                 <td>
                   <small>{formatDateTime(b.startAt)}</small>
                   <br />
@@ -399,6 +413,28 @@ export function BookingListSection({
           </Button>
         </Modal.Footer>
       </Modal>
+      <AdminBookingCreateModal
+        adminKey={adminKey}
+        onAuthError={onAuthError}
+        show={showCreate}
+        onHide={() => setShowCreate(false)}
+        onCreated={(booking) => {
+          setShowCreate(false);
+          setDate(booking.startAt.slice(0, 10));
+          setStatusFilter("BOOKED");
+          toast.show(`${booking.bookingNumber} 예약을 등록했습니다.`);
+          queryClient.invalidateQueries({ queryKey: queryKeys.admin.bookings });
+          queryClient.invalidateQueries({ queryKey: ["admin", "slots"] });
+        }}
+      />
     </div>
   );
+}
+
+function sourceLabel(source: AdminBookingResponse["source"]): string {
+  if (source === "PHONE") return "전화";
+  if (source === "NAVER_TALK") return "네이버톡톡";
+  if (source === "KAKAO") return "카카오톡";
+  if (source === "VISIT") return "방문";
+  return "웹";
 }

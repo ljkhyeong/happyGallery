@@ -8,6 +8,7 @@ public record CartResponse(List<CartItemResponse> items, long totalAmount) {
         List<CartItemResponse> items = view.items().stream()
                 .map(i -> new CartItemResponse(
                         i.productId(), i.productName(), i.productType(), i.price(),
+                        i.specification(), i.careInstructions(), i.productionLeadDays(),
                         i.qty(), i.subtotal(), i.available()))
                 .toList();
         return new CartResponse(items, view.totalAmount());

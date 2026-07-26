@@ -29,7 +29,22 @@ public interface GuestBookingUseCase {
             Long slotId,
             DepositPaymentMethod paymentMethod,
             long depositAmount,
-            long balanceAmount) {}
+            long balanceAmount,
+            int participantCount) {
+
+        public CreatePaymentGuestBookingCommand(
+                String paymentOrderId,
+                String phone,
+                String verificationProof,
+                String name,
+                Long slotId,
+                DepositPaymentMethod paymentMethod,
+                long depositAmount,
+                long balanceAmount) {
+            this(paymentOrderId, phone, verificationProof, name, slotId,
+                    paymentMethod, depositAmount, balanceAmount, 1);
+        }
+    }
 
     GuestBookingResult createGuestBooking(CreateGuestBookingCommand command);
 

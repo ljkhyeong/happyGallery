@@ -8,7 +8,13 @@ import java.util.UUID;
 public interface CartUseCase {
 
     record CartItemView(Long productId, String productName, ProductType productType,
-                        long price, int qty, boolean available) {
+                        long price, String specification, String careInstructions,
+                        Integer productionLeadDays, int qty, boolean available) {
+        public CartItemView(Long productId, String productName, ProductType productType,
+                            long price, int qty, boolean available) {
+            this(productId, productName, productType, price, null, null, null, qty, available);
+        }
+
         public long subtotal() { return OrderAmountCalculator.addLine(0L, qty, price); }
     }
 

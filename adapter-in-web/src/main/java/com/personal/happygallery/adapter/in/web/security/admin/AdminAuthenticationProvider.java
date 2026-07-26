@@ -40,8 +40,13 @@ public final class AdminAuthenticationProvider implements AuthenticationProvider
     private Authentication authenticateBearerSession(String token) {
         AdminSession session = adminAuthUseCase.validateToken(token)
                 .orElseThrow(AdminAuthenticationProvider::invalidCredentials);
+        boolean mfaEnrollmentRequired =
+                adminProperties.requireMfaEnrollment() && !session.mfaEnabled();
         return AdminAuthenticationToken.authenticated(
-                AdminPrincipal.bearerSession(session.adminUserId(), session.username())
+                AdminPrincipal.bearerSession(
+                        session.adminUserId(),
+                        session.username(),
+                        mfaEnrollmentRequired)
         );
     }
 

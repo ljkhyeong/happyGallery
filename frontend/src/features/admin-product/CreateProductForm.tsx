@@ -22,6 +22,9 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
   const [quantity, setQuantity] = useState("1");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [specification, setSpecification] = useState("");
+  const [careInstructions, setCareInstructions] = useState("");
+  const [productionLeadDays, setProductionLeadDays] = useState("");
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () =>
@@ -33,6 +36,11 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
         quantity: Number(quantity),
         description: description.trim() || undefined,
         imageUrl: imageUrl.trim() || undefined,
+        specification: specification.trim() || undefined,
+        careInstructions: careInstructions.trim() || undefined,
+        productionLeadDays: type === "MADE_TO_ORDER"
+          ? Number(productionLeadDays)
+          : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
@@ -45,10 +53,22 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
       setQuantity("1");
       setDescription("");
       setImageUrl("");
+      setSpecification("");
+      setCareInstructions("");
+      setProductionLeadDays("");
     },
   });
 
-  const valid = name.trim().length > 0 && Number(price) > 0 && Number(quantity) >= 1;
+  const leadDays = Number(productionLeadDays);
+  const purchaseTermsValid = type === "READY_STOCK"
+    || (specification.trim().length > 0
+      && Number.isInteger(leadDays)
+      && leadDays >= 1
+      && leadDays <= 180);
+  const valid = name.trim().length > 0
+    && Number(price) > 0
+    && Number(quantity) >= 1
+    && purchaseTermsValid;
 
   return (
     <Form
@@ -73,9 +93,16 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
         <Col xs={12} sm={6} md={2}>
           <Form.Group controlId="admin-product-type">
             <Form.Label>유형</Form.Label>
-            <Form.Select value={type} onChange={(e) => setType(e.target.value as ProductType)}>
+            <Form.Select
+              value={type}
+              onChange={(e) => {
+                const nextType = e.target.value as ProductType;
+                setType(nextType);
+                if (nextType === "READY_STOCK") setProductionLeadDays("");
+              }}
+            >
               <option value="READY_STOCK">기존 재고</option>
-              <option value="MADE_TO_ORDER">예약 제작</option>
+              <option value="MADE_TO_ORDER">주문제작</option>
             </Form.Select>
           </Form.Group>
         </Col>
@@ -123,6 +150,49 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
             previewAlt="등록할 상품 대표 이미지 미리보기"
           />
         </Col>
+        <Col xs={12} md={8}>
+          <Form.Group controlId="admin-product-specification">
+            <Form.Label>
+              상품 사양 {type === "MADE_TO_ORDER" && <span className="text-danger">*</span>}
+            </Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={specification}
+              maxLength={2000}
+              onChange={(e) => setSpecification(e.target.value)}
+              placeholder="재료, 크기, 색상 등 온라인 주문에 적용할 고정 사양"
+            />
+          </Form.Group>
+        </Col>
+        <Col xs={12} md={4}>
+          <Form.Group controlId="admin-product-production-lead-days">
+            <Form.Label>
+              제작 기간 (일) {type === "MADE_TO_ORDER" && <span className="text-danger">*</span>}
+            </Form.Label>
+            <Form.Control
+              type="number"
+              min={1}
+              max={180}
+              value={productionLeadDays}
+              disabled={type !== "MADE_TO_ORDER"}
+              onChange={(e) => setProductionLeadDays(e.target.value)}
+            />
+          </Form.Group>
+        </Col>
+        <Col xs={12}>
+          <Form.Group controlId="admin-product-care-instructions">
+            <Form.Label>관리 방법</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={2}
+              value={careInstructions}
+              maxLength={2000}
+              onChange={(e) => setCareInstructions(e.target.value)}
+              placeholder="보관, 세척, 사용 시 주의사항"
+            />
+          </Form.Group>
+        </Col>
         <Col xs={12} md={6}>
           <Form.Group controlId="admin-product-description">
             <Form.Label>상세 설명</Form.Label>
@@ -132,7 +202,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
               value={description}
               maxLength={5000}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="소재, 크기, 관리 방법을 입력하세요."
+              placeholder="상품의 특징과 소개를 입력하세요."
             />
           </Form.Group>
         </Col>

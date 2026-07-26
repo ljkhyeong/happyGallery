@@ -111,11 +111,13 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         "aaaa-bbbb-cccc-0001",
                         "aaaa-bbbb-cccc-0002")));
         when(adminSetupUseCase.isAvailable()).thenReturn(true);
-        when(productAdminUseCase.register(any(), any(), any(), anyLong(), anyInt(), any(), any()))
+        when(productAdminUseCase.register(
+                any(), any(), any(), anyLong(), anyInt(), any(), any(), any(), any(), any()))
                 .thenReturn(new ProductAdminUseCase.ProductInventoryResult(
                         product.product(), product.inventory()));
         when(productQueryUseCase.listAllProducts()).thenReturn(List.of(product));
-        when(productAdminUseCase.update(eq(1L), any(), any(), anyLong(), any(), any()))
+        when(productAdminUseCase.update(
+                eq(1L), any(), any(), anyLong(), any(), any(), any(), any(), any()))
                 .thenReturn(new ProductAdminUseCase.ProductInventoryResult(
                         product.product(), product.inventory()));
         when(productAdminUseCase.changeStatus(1L, ProductStatus.INACTIVE))

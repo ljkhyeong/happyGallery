@@ -28,10 +28,13 @@ public interface ProductAdminUseCase {
 
     /** 카테고리를 포함하여 상품 등록. */
     ProductInventoryResult register(String name, ProductType type, String category, long price,
-                                    int quantity, String description, String imageUrl);
+                                    int quantity, String description, String imageUrl,
+                                    String specification, String careInstructions,
+                                    Integer productionLeadDays);
 
     ProductInventoryResult update(Long productId, String name, String category, long price,
-                                  String description, String imageUrl);
+                                  String description, String imageUrl, String specification,
+                                  String careInstructions, Integer productionLeadDays);
 
     ProductInventoryResult changeStatus(Long productId, ProductStatus status);
 

@@ -11,7 +11,7 @@ public record BulkSlotResponse(
         long creatableCount,
         long createdCount,
         long skippedCount,
-        List<Item> items
+        List<BulkSlotItemResponse> items
 ) {
     public static BulkSlotResponse from(BulkSlotResult result) {
         return new BulkSlotResponse(
@@ -19,18 +19,18 @@ public record BulkSlotResponse(
                 result.creatableCount(),
                 result.createdCount(),
                 result.skippedCount(),
-                result.items().stream().map(Item::from).toList());
+                result.items().stream().map(BulkSlotItemResponse::from).toList());
     }
 
-    public record Item(
+    public record BulkSlotItemResponse(
             Long slotId,
             LocalDateTime startAt,
             LocalDateTime endAt,
             BulkSlotStatus status,
             boolean bufferBlocked
     ) {
-        private static Item from(BulkSlotItem item) {
-            return new Item(
+        private static BulkSlotItemResponse from(BulkSlotItem item) {
+            return new BulkSlotItemResponse(
                     item.slotId(),
                     item.startAt(),
                     item.endAt(),

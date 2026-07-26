@@ -1,3 +1,4 @@
+import { sendGuestBookingVerification as requestVerification } from "@/generated/api/booking";
 import { api } from "@/shared/api";
 import type {
   ClassResponse,
@@ -15,8 +16,5 @@ export function fetchUpcomingSlots(classId: number, days = 14): Promise<PublicSl
 }
 
 export function sendVerification(body: SendVerificationRequest): Promise<SendVerificationResponse> {
-  return api<SendVerificationResponse>("/bookings/phone-verifications", {
-    method: "POST",
-    body,
-  });
+  return requestVerification(body);
 }

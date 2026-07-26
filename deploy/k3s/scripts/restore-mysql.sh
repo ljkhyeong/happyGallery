@@ -48,4 +48,4 @@ info "DB 시점과 불일치하는 세션/처리율 상태를 Redis에서 제거
 kube -n "$NAMESPACE" exec deployment/redis -- sh -ec \
     'REDISCLI_AUTH="$REDIS_PASSWORD" exec redis-cli FLUSHALL' >/dev/null
 
-info "복원 완료. activate-restored-release.sh로 검증한 호환 digest를 지정한 뒤 app을 기동하고 전체 검증하세요."
+info "DB 복원 완료. app은 중지 상태로 유지합니다."

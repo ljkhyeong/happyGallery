@@ -7,10 +7,12 @@ import com.personal.happygallery.adapter.in.web.admin.dto.BookingCancellationTas
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingCancellationTaskResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingNoShowResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingSettlementResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.CreateAdminBookingRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateBookingArrearsRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.AdminCancelCommand;
+import com.personal.happygallery.application.booking.port.in.AdminBookingCreateUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingNoShowUseCase;
@@ -24,6 +26,7 @@ import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,12 +37,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 @RestController
 @RequestMapping("/api/v1/admin/bookings")
 public class AdminBookingController {
 
     private final AdminBookingQueryUseCase adminBookingQueryUseCase;
+    private final AdminBookingCreateUseCase adminBookingCreateUseCase;
     private final AdminBookingSearchUseCase adminBookingSearchUseCase;
     private final BookingNoShowUseCase bookingNoShowUseCase;
     private final BookingSettlementUseCase bookingSettlementUseCase;
@@ -47,17 +52,30 @@ public class AdminBookingController {
     private final BookingCancellationTaskUseCase bookingCancellationTaskUseCase;
 
     public AdminBookingController(AdminBookingQueryUseCase adminBookingQueryUseCase,
+                                  AdminBookingCreateUseCase adminBookingCreateUseCase,
                                   AdminBookingSearchUseCase adminBookingSearchUseCase,
                                   BookingNoShowUseCase bookingNoShowUseCase,
                                   BookingSettlementUseCase bookingSettlementUseCase,
                                   AdminBookingCancelUseCase adminBookingCancelUseCase,
                                   BookingCancellationTaskUseCase bookingCancellationTaskUseCase) {
         this.adminBookingQueryUseCase = adminBookingQueryUseCase;
+        this.adminBookingCreateUseCase = adminBookingCreateUseCase;
         this.adminBookingSearchUseCase = adminBookingSearchUseCase;
         this.bookingNoShowUseCase = bookingNoShowUseCase;
         this.bookingSettlementUseCase = bookingSettlementUseCase;
         this.adminBookingCancelUseCase = adminBookingCancelUseCase;
         this.bookingCancellationTaskUseCase = bookingCancellationTaskUseCase;
+    }
+
+    /** 전화·네이버톡·카카오·방문으로 접수한 예약을 기존 슬롯 정원에 반영한다. */
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(operationId = "createAdminBooking")
+    public AdminBookingResponse createBooking(
+            @RequestBody @Valid CreateAdminBookingRequest request,
+            @AuthenticationPrincipal AdminPrincipal admin) {
+        return AdminBookingResponse.from(
+                adminBookingCreateUseCase.create(request.toCommand(admin.auditActorId())));
     }
 
     /** GET /api/v1/admin/bookings?date=2026-03-08&status=BOOKED — 날짜별 예약 조회 (상태 필터 선택) */

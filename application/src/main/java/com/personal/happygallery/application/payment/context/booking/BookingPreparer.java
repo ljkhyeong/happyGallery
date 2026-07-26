@@ -8,8 +8,10 @@ import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.domain.booking.DepositCalculator;
+import com.personal.happygallery.domain.booking.DepositCalculator.BookingAmounts;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.SlotCapacity;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -45,10 +47,14 @@ public class BookingPreparer implements PaymentPreparer {
         if (bp.slotId() == null) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "예약 슬롯이 지정되지 않았습니다.");
         }
+        SlotCapacity.requireValidParticipantCount(bp.participantCount());
 
         if (bp.passId() != null) {
             if (!auth.isMember() || !auth.userId().equals(bp.userId())) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 사용 예약은 회원 인증이 필요합니다.");
+            }
+            if (bp.participantCount() != 1) {
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 예약은 1명만 예약할 수 있습니다.");
             }
             return new PreparedPayment(0L, preparedForMember(bp, 0L, 0L));
         }
@@ -72,8 +78,10 @@ public class BookingPreparer implements PaymentPreparer {
 
         Slot slot = slotReader.findById(bp.slotId())
                 .orElseThrow(NotFoundException.supplier("슬롯"));
-        long depositAmount = DepositCalculator.of(slot);
-        long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
+        SlotCapacity.checkAvailable(slot.getBookedCount(), bp.participantCount());
+        BookingAmounts amounts = DepositCalculator.calculate(slot, bp.participantCount());
+        long depositAmount = amounts.depositAmount();
+        long balanceAmount = amounts.balanceAmount();
         if (auth.isMember()) {
             return new PreparedPayment(
                     depositAmount, preparedForMember(bp, depositAmount, balanceAmount));
@@ -91,7 +99,8 @@ public class BookingPreparer implements PaymentPreparer {
                 null,
                 bp.paymentMethod(),
                 depositAmount,
-                balanceAmount);
+                balanceAmount,
+                bp.participantCount());
         return new PreparedPayment(depositAmount, prepared);
     }
 
@@ -106,6 +115,7 @@ public class BookingPreparer implements PaymentPreparer {
                 payload.passId(),
                 payload.paymentMethod(),
                 depositAmount,
-                balanceAmount);
+                balanceAmount,
+                payload.participantCount());
     }
 }

@@ -80,6 +80,9 @@ class ProductInventoryUseCaseIT {
                 .andExpect(jsonPath("$.price").value(35000))
                 .andExpect(jsonPath("$.description").value("월넛 원목으로 만든 수납함"))
                 .andExpect(jsonPath("$.imageUrl").value("https://images.example.com/wood-box.jpg"))
+                .andExpect(jsonPath("$.specification").doesNotExist())
+                .andExpect(jsonPath("$.careInstructions").doesNotExist())
+                .andExpect(jsonPath("$.productionLeadDays").doesNotExist())
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.available").value(true))
                 .andExpect(jsonPath("$.quantity").value(1))
@@ -120,6 +123,65 @@ class ProductInventoryUseCaseIT {
                 .andExpect(jsonPath("$.description").value("크기와 마감 정보를 보완한 설명"))
                 .andExpect(jsonPath("$.imageUrl")
                         .value("https://images.example.com/wood-box-large.jpg"));
+    }
+
+    @DisplayName("주문제작 상품은 고정 사양과 제작 기간을 필수로 등록하고 공개 상세에 표시한다")
+    @Test
+    void registerMadeToOrder_requiresAndExposesPurchaseTerms() throws Exception {
+        String response = mockMvc.perform(post("/api/v1/admin/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "주문제작 원목 트레이",
+                                  "type": "MADE_TO_ORDER",
+                                  "category": "wood",
+                                  "price": 89000,
+                                  "quantity": 3,
+                                  "specification": "재료: 월넛\\n크기: 30 x 20 cm\\n사양: 천연 오일 마감",
+                                  "careInstructions": "물기를 바로 닦고 직사광선을 피하세요.",
+                                  "productionLeadDays": 21
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.specification")
+                        .value("재료: 월넛\n크기: 30 x 20 cm\n사양: 천연 오일 마감"))
+                .andExpect(jsonPath("$.careInstructions")
+                        .value("물기를 바로 닦고 직사광선을 피하세요."))
+                .andExpect(jsonPath("$.productionLeadDays").value(21))
+                .andReturn().getResponse().getContentAsString();
+        Long productId = ((Number) JsonPath.read(response, "$.id")).longValue();
+
+        mockMvc.perform(get("/api/v1/products/{id}", productId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.specification")
+                        .value("재료: 월넛\n크기: 30 x 20 cm\n사양: 천연 오일 마감"))
+                .andExpect(jsonPath("$.productionLeadDays").value(21));
+
+        mockMvc.perform(post("/api/v1/admin/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "사양 없는 주문제작",
+                                  "type": "MADE_TO_ORDER",
+                                  "price": 89000,
+                                  "quantity": 1,
+                                  "productionLeadDays": 21
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/v1/admin/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "제작 기간이 있는 기성품",
+                                  "type": "READY_STOCK",
+                                  "price": 89000,
+                                  "quantity": 1,
+                                  "productionLeadDays": 10
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
     }
 
     // -----------------------------------------------------------------------
@@ -169,6 +231,9 @@ class ProductInventoryUseCaseIT {
                 "먼저 반영된 이름",
                 null,
                 50_000L,
+                null,
+                null,
+                null,
                 null,
                 null);
         staleProduct.updateDetails("뒤늦게 저장한 이름", null, 52_000L, null, null);

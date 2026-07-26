@@ -36,6 +36,7 @@ import {
   useMadeToOrderConsent,
 } from "@/features/order/useMadeToOrderConsent";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
+import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -152,6 +153,16 @@ export function ProductDetailPage() {
 
               <div className="store-detail-price mb-4">{formatKRW(product.price)}</div>
 
+              <div className="mb-4">
+                <ProductPurchaseTerms
+                  productName={product.name}
+                  type={product.type}
+                  specification={product.specification}
+                  careInstructions={product.careInstructions}
+                  productionLeadDays={product.productionLeadDays}
+                />
+              </div>
+
               <div className="store-detail-note-grid mb-4">
                 <div className="store-detail-note">
                   <div className="store-detail-note-label">주문</div>
@@ -240,6 +251,17 @@ export function ProductDetailPage() {
                   itemAmount={itemAmount}
                   fulfillmentType={fulfillment.fulfillmentType}
                   className="pt-2"
+                />
+              </div>
+
+              <div className="mb-4">
+                <ProductPurchaseTerms
+                  productName={product.name}
+                  type={product.type}
+                  specification={product.specification}
+                  careInstructions={product.careInstructions}
+                  productionLeadDays={product.productionLeadDays}
+                  compact
                 />
               </div>
 

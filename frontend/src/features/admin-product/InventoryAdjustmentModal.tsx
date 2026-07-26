@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, ButtonGroup, Form, Modal, Table } from "react-bootstrap";
+import { Alert, Badge, Button, ButtonGroup, Form, Modal, Table } from "react-bootstrap";
 import { adjustInventory, fetchInventoryAdjustments } from "./api";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
@@ -22,6 +22,7 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
   const [type, setType] = useState<InventoryAdjustmentType>("INCREASE");
   const [quantity, setQuantity] = useState("1");
   const [reason, setReason] = useState("");
+  const [showImpactConfirm, setShowImpactConfirm] = useState(false);
 
   const historyQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products", product?.id, "inventory-adjustments"],
@@ -37,6 +38,7 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
     }),
     onSuccess: (adjustment) => {
       toast.show(`재고를 ${adjustment.quantityBefore}개에서 ${adjustment.quantityAfter}개로 조정했습니다.`);
+      setShowImpactConfirm(false);
       setQuantity("1");
       setReason("");
       queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
@@ -47,8 +49,14 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
     },
   });
 
-  const valid = Number.isSafeInteger(Number(quantity))
-    && Number(quantity) > 0
+  const quantityNumber = Number(quantity);
+  const currentQuantity = mutation.data?.quantityAfter ?? product?.quantity ?? 0;
+  const projectedQuantity = type === "INCREASE"
+    ? currentQuantity + quantityNumber
+    : currentQuantity - quantityNumber;
+  const valid = Number.isSafeInteger(quantityNumber)
+    && quantityNumber > 0
+    && projectedQuantity >= 0
     && reason.trim().length > 0
     && reason.length <= 500;
 
@@ -57,6 +65,7 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
     setType("INCREASE");
     setQuantity("1");
     setReason("");
+    setShowImpactConfirm(false);
     onClose();
   };
 
@@ -68,14 +77,14 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
       <Modal.Body>
         <div className="d-flex align-items-center justify-content-between mb-3">
           <span className="text-muted">현재 재고</span>
-          <strong>{product?.quantity ?? 0}개</strong>
+          <strong>{currentQuantity}개</strong>
         </div>
 
         <ErrorAlert error={mutation.error} />
         <Form
           onSubmit={(event) => {
             event.preventDefault();
-            if (valid) mutation.mutate();
+            if (valid) setShowImpactConfirm(true);
           }}
           className="mb-4"
         >
@@ -84,14 +93,20 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
             <Button
               type="button"
               variant={type === "INCREASE" ? "primary" : "outline-secondary"}
-              onClick={() => setType("INCREASE")}
+              onClick={() => {
+                setType("INCREASE");
+                setShowImpactConfirm(false);
+              }}
             >
               입고·복구
             </Button>
             <Button
               type="button"
               variant={type === "DECREASE" ? "danger" : "outline-secondary"}
-              onClick={() => setType("DECREASE")}
+              onClick={() => {
+                setType("DECREASE");
+                setShowImpactConfirm(false);
+              }}
             >
               오프라인 판매·폐기
             </Button>
@@ -104,8 +119,15 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
               min={1}
               step={1}
               value={quantity}
-              onChange={(event) => setQuantity(event.target.value)}
+              onChange={(event) => {
+                setQuantity(event.target.value);
+                setShowImpactConfirm(false);
+              }}
             />
+            {Number.isSafeInteger(quantityNumber)
+              && quantityNumber > 0
+              && projectedQuantity < 0
+              && <Form.Text className="text-danger">현재 재고보다 많이 감소시킬 수 없습니다.</Form.Text>}
           </Form.Group>
 
           <Form.Group className="mb-3" controlId="inventory-adjustment-reason">
@@ -113,14 +135,47 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
             <Form.Control
               value={reason}
               maxLength={500}
-              onChange={(event) => setReason(event.target.value)}
+              onChange={(event) => {
+                setReason(event.target.value);
+                setShowImpactConfirm(false);
+              }}
               placeholder="예: 오프라인 매장 판매, 신규 작품 입고"
             />
           </Form.Group>
 
-          <Button type="submit" disabled={!valid || mutation.isPending}>
-            {mutation.isPending ? "반영 중..." : "재고 반영"}
-          </Button>
+          {showImpactConfirm ? (
+            <Alert variant={type === "DECREASE" ? "warning" : "info"} className="mb-0">
+              <div className="fw-semibold mb-1">재고 변화 확인</div>
+              <div className="small mb-3">
+                {currentQuantity}개에서 <strong>{projectedQuantity}개</strong>로 변경됩니다.
+                {type === "DECREASE" && " 감소한 수량은 고객이 새로 주문할 수 없게 됩니다."}
+              </div>
+              <div className="d-flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline-secondary"
+                  disabled={mutation.isPending}
+                  onClick={() => setShowImpactConfirm(false)}
+                >
+                  다시 입력
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={type === "DECREASE" ? "danger" : "primary"}
+                  disabled={mutation.isPending}
+                  onClick={() => mutation.mutate()}
+                >
+                  {mutation.isPending ? "반영 중..." : "확인하고 재고 반영"}
+                </Button>
+              </div>
+            </Alert>
+          ) : (
+            <Button type="submit" disabled={!valid || mutation.isPending}>
+              영향 확인
+            </Button>
+          )}
         </Form>
 
         <h6>최근 조정 이력</h6>

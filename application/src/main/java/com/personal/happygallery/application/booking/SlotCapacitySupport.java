@@ -82,6 +82,12 @@ class SlotCapacitySupport {
     /** 슬롯을 잠근 뒤 활성 상태를 재확인하고 정원을 확보한다. 첫 예약이면 뒤쪽 버퍼를 차단한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Slot reserveCapacity(Long slotId) {
+        return reserveCapacity(slotId, 1);
+    }
+
+    /** 슬롯을 잠근 뒤 예약 인원 전체의 정원을 확보한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    Slot reserveCapacity(Long slotId, int participantCount) {
         LockedSlotScope locked = lockCapacityScope(slotId);
         Slot slot = locked.source();
 
@@ -95,7 +101,7 @@ class SlotCapacitySupport {
         }
 
         boolean firstBooking = !slot.hasBookings();
-        slot.incrementBookedCount();
+        slot.incrementBookedCount(participantCount);
         slotStorePort.save(slot);
 
         if (firstBooking) {
@@ -107,7 +113,12 @@ class SlotCapacitySupport {
     /** 슬롯을 잠근 뒤 정원을 반납한다. 마지막 예약이면 뒤쪽 버퍼 차단을 해제한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Slot releaseCapacity(Long slotId) {
-        return releaseCapacity(lockCapacityScope(slotId));
+        return releaseCapacity(slotId, 1);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    Slot releaseCapacity(Long slotId, int participantCount) {
+        return releaseCapacity(lockCapacityScope(slotId), participantCount);
     }
 
     /** 신규 접수가 중단된 최신 슬롯 상태를 잠금 아래 확인하고 수업 취소 동안 잠금을 유지한다. */
@@ -125,8 +136,14 @@ class SlotCapacitySupport {
     /** 이미 잠근 수업 슬롯에서 예약 한 건의 정원을 반납한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Slot releaseCapacity(LockedSlotScope locked) {
+        return releaseCapacity(locked, 1);
+    }
+
+    /** 이미 잠근 슬롯에서 예약 인원 전체의 정원을 반납한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    Slot releaseCapacity(LockedSlotScope locked, int participantCount) {
         Slot slot = locked.source();
-        slot.decrementBookedCount();
+        slot.decrementBookedCount(participantCount);
         slotStorePort.save(slot);
         if (!slot.hasBookings()) {
             releaseBufferSlots(locked.bufferSlots());

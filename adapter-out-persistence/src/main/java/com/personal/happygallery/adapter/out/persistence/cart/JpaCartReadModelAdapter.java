@@ -25,6 +25,9 @@ public class JpaCartReadModelAdapter implements CartReadModelPort {
                                product.name AS productName,
                                product.type AS productType,
                                product.price AS price,
+                               product.specification AS specification,
+                               product.careInstructions AS careInstructions,
+                               product.productionLeadDays AS productionLeadDays,
                                item.qty AS qty,
                                product.status AS productStatus,
                                inventory.quantity AS inventoryQuantity
@@ -48,6 +51,9 @@ public class JpaCartReadModelAdapter implements CartReadModelPort {
                 row.get("productName", String.class),
                 row.get("productType", ProductType.class),
                 row.get("price", Long.class),
+                row.get("specification", String.class),
+                row.get("careInstructions", String.class),
+                row.get("productionLeadDays", Integer.class),
                 row.get("qty", Integer.class),
                 row.get("productStatus", ProductStatus.class),
                 row.get("inventoryQuantity", Integer.class));

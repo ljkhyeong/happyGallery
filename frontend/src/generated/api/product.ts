@@ -10,6 +10,8 @@ export const ProductDetailResponseType = {
 export interface ProductDetailResponse {
   available: boolean;
   /** @nullable */
+  careInstructions: string | null;
+  /** @nullable */
   category: string | null;
   /** @nullable */
   description: string | null;
@@ -18,6 +20,10 @@ export interface ProductDetailResponse {
   imageUrl: string | null;
   name: string;
   price: number;
+  /** @nullable */
+  productionLeadDays: number | null;
+  /** @nullable */
+  specification: string | null;
   type: ProductDetailResponseType;
 }
 

@@ -22,6 +22,7 @@ import {
 } from "@/features/order/useMadeToOrderConsent";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
+import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 
 export function CartPage() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -190,6 +191,18 @@ export function CartPage() {
                           {item.productName || `상품 #${item.productId}`}
                         </Link>
                         <div className="small text-muted">{formatKRW(item.price)}</div>
+                        {item.productType && (
+                          <div className="mt-2">
+                            <ProductPurchaseTerms
+                              productName={item.productName}
+                              type={item.productType}
+                              specification={item.specification}
+                              careInstructions={item.careInstructions}
+                              productionLeadDays={item.productionLeadDays}
+                              compact
+                            />
+                          </div>
+                        )}
                         {!item.available && (
                           <span className="badge bg-secondary">품절</span>
                         )}

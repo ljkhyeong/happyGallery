@@ -264,7 +264,9 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
                 type="search"
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
-                placeholder={target === "ORDER" ? "주문번호 또는 구매자명" : "예약번호 또는 예약자명"}
+                placeholder={target === "ORDER"
+                  ? "주문번호·구매자명·정확한 휴대폰 번호"
+                  : "예약번호·예약자명·정확한 휴대폰 번호"}
               />
             </Form.Group>
           </Col>

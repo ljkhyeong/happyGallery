@@ -10,6 +10,8 @@ import com.personal.happygallery.application.payment.port.in.PaymentPayload.Orde
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
 import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import jakarta.servlet.http.Cookie;
 import java.util.List;
@@ -112,6 +114,28 @@ public final class PaymentTestHelper {
         return confirmPayment(prepared, "test-payment-key", sessionCookie);
     }
 
+    public ConfirmedPayment createMemberShippingOrder(
+            Cookie sessionCookie,
+            Long userId,
+            Long productId,
+            int qty,
+            ShippingAddress shippingAddress
+    ) throws Exception {
+        PreparedPayment prepared = preparePayment(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        userId,
+                        null,
+                        null,
+                        null,
+                        List.of(new OrderItemRef(productId, qty)),
+                        false,
+                        FulfillmentType.SHIPPING,
+                        shippingAddress),
+                sessionCookie);
+        return confirmPayment(prepared, "test-payment-key", sessionCookie);
+    }
+
     public ConfirmedPayment createMemberDepositBooking(Cookie sessionCookie,
                                                        Long userId,
                                                        Long slotId) throws Exception {
@@ -143,6 +167,14 @@ public final class PaymentTestHelper {
                                                String verificationCode,
                                                String name,
                                                Long slotId) throws Exception {
+        return createGuestBooking(phone, verificationCode, name, slotId, 1);
+    }
+
+    public ConfirmedPayment createGuestBooking(String phone,
+                                               String verificationCode,
+                                               String name,
+                                               Long slotId,
+                                               int participantCount) throws Exception {
         PreparedPayment prepared = preparePayment(
                 PaymentContext.BOOKING,
                 new BookingPayload(
@@ -153,6 +185,7 @@ public final class PaymentTestHelper {
                         slotId,
                         null,
                         DepositPaymentMethod.CARD,
+                        participantCount,
                         acceptedPolicies()));
         return confirmPayment(prepared, "test-payment-key");
     }

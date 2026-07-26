@@ -367,13 +367,13 @@ class GuestBookingUseCaseIT {
         // 9번째 예약 → 정원 초과
         String phone = "01099999999";
         String code = helper.sendVerificationAndGetCode(phone);
-        PaymentTestHelper.PreparedPayment prepared = paymentHelper.preparePayment(
-                PaymentContext.BOOKING,
-                bookingPayload(phone, code, "초과예약자", slotId, DepositPaymentMethod.CARD));
-        mockMvc.perform(post("/api/v1/payments/confirm")
+        mockMvc.perform(post("/api/v1/payments/prepare")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header(PaymentTestHelper.PAYMENT_STATUS_TOKEN_HEADER, prepared.statusToken())
-                        .content(confirmRequest(prepared, "test-payment-key")))
+                        .content(objectMapper.writeValueAsString(new PreparePaymentRequest(
+                                PaymentContext.BOOKING,
+                                bookingPayload(
+                                        phone, code, "초과예약자", slotId,
+                                        DepositPaymentMethod.CARD)))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CAPACITY_EXCEEDED"));
     }

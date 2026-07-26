@@ -6,7 +6,6 @@ import com.personal.happygallery.application.search.port.out.AdminOrderSearchPor
 import com.personal.happygallery.application.search.port.out.AdminOrderSearchResult;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.order.OrderStatus;
-import com.personal.happygallery.domain.user.PersonalName;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -31,25 +30,26 @@ class MyBatisAdminOrderSearchAdapter implements AdminOrderSearchPort {
     public List<AdminOrderSearchResult> search(OrderStatus status, LocalDate dateFrom, LocalDate dateTo,
                                                 String keyword, int offset, int size) {
         AdminSearchKeyword searchKeyword = AdminSearchKeyword.parse(keyword, FORMATTED_ORDER_ID);
+        AdminSearchIndexes indexes =
+                AdminSearchIndexes.from(searchKeyword.keyword(), blindIndexer);
         return mapper.search(
                 status != null ? status.name() : null,
                 dateFrom != null ? SeoulDateTimeRangeConverter.toUtcStart(dateFrom) : null,
                 dateTo != null ? SeoulDateTimeRangeConverter.toUtcExclusiveEnd(dateTo) : null,
-                searchKeyword.keyword(), indexKeyword(searchKeyword.keyword()),
+                searchKeyword.keyword(), indexes.nameHmac(), indexes.phoneHmac(),
                 searchKeyword.exactId(), offset, size);
     }
 
     @Override
     public long count(OrderStatus status, LocalDate dateFrom, LocalDate dateTo, String keyword) {
         AdminSearchKeyword searchKeyword = AdminSearchKeyword.parse(keyword, FORMATTED_ORDER_ID);
+        AdminSearchIndexes indexes =
+                AdminSearchIndexes.from(searchKeyword.keyword(), blindIndexer);
         return mapper.count(
                 status != null ? status.name() : null,
                 dateFrom != null ? SeoulDateTimeRangeConverter.toUtcStart(dateFrom) : null,
                 dateTo != null ? SeoulDateTimeRangeConverter.toUtcExclusiveEnd(dateTo) : null,
-                searchKeyword.keyword(), indexKeyword(searchKeyword.keyword()), searchKeyword.exactId());
-    }
-
-    private String indexKeyword(String keyword) {
-        return keyword == null ? null : blindIndexer.index(PersonalName.required(keyword));
+                searchKeyword.keyword(), indexes.nameHmac(), indexes.phoneHmac(),
+                searchKeyword.exactId());
     }
 }

@@ -4,7 +4,10 @@ import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyOrderSummary;
 import com.personal.happygallery.adapter.in.web.order.dto.OrderDetailResponse;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,7 +36,9 @@ public class MeOrderController {
 
     @GetMapping("/{id}")
     public OrderDetailResponse myOrder(@PathVariable Long id,
-                                       @AuthenticationPrincipal CustomerPrincipal customer) {
+                                       @AuthenticationPrincipal CustomerPrincipal customer,
+                                       HttpServletResponse response) {
+        response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.noStore().getHeaderValue());
         OrderQueryUseCase.OrderDetail detail = orderQueryUseCase.findMyOrder(id, customer.userId());
         return OrderDetailResponse.from(detail);
     }

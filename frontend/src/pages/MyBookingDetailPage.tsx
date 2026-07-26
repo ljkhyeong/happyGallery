@@ -91,8 +91,10 @@ export function MyBookingDetailPage() {
             </p>
             <RescheduleForm
               classId={booking.classId}
+              className={booking.className}
               currentSlotId={booking.slotId}
               currentStartAt={booking.startAt}
+              participantCount={booking.participantCount}
               onReschedule={(newSlotId) => rescheduleMyBooking(booking.bookingId, newSlotId)}
               onSuccess={() => {
                 void queryClient.invalidateQueries({

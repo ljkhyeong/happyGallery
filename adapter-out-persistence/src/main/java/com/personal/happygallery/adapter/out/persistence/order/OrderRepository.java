@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.order;
 
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
+import com.personal.happygallery.application.order.port.out.OrderApprovalBacklogSummary;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -45,6 +46,15 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
             @Param("deadline") LocalDateTime deadline,
             @Param("afterId") Long afterId,
             Pageable pageable);
+
+    @Override
+    @Query("""
+            SELECT new com.personal.happygallery.application.order.port.out.OrderApprovalBacklogSummary(
+                COUNT(o), MIN(o.paidAt))
+            FROM Order o
+            WHERE o.status = com.personal.happygallery.domain.order.OrderStatus.PAID_APPROVAL_PENDING
+            """)
+    OrderApprovalBacklogSummary summarizePendingApprovalBacklog();
 
     /** 회원 — 자기 주문 조회 (최신순) */
     @Override List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);

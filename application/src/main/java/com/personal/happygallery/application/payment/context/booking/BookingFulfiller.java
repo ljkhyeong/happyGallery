@@ -8,6 +8,7 @@ import com.personal.happygallery.application.payment.context.PaymentFulfiller;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedBookingPayload;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.SlotCapacity;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
@@ -44,9 +45,12 @@ public class BookingFulfiller implements PaymentFulfiller {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "예약 금액 정보가 없습니다. 결제를 다시 준비해 주세요.");
         }
+        int participantCount = bp.effectiveParticipantCount();
+        SlotCapacity.requireValidParticipantCount(participantCount);
         if (bp.passId() != null) {
             if (bp.userId() == null || attempt.getAmount() != 0L
-                    || bp.depositAmount() != 0L || bp.balanceAmount() != 0L) {
+                    || bp.depositAmount() != 0L || bp.balanceAmount() != 0L
+                    || participantCount != 1) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 예약 금액 정보가 올바르지 않습니다.");
             }
             return;
@@ -60,13 +64,15 @@ public class BookingFulfiller implements PaymentFulfiller {
     @Transactional(propagation = Propagation.MANDATORY)
     public FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         PreparedBookingPayload bp = (PreparedBookingPayload) payload;
+        int participantCount = bp.effectiveParticipantCount();
 
         if (bp.userId() != null) {
             Booking booking = bp.passId() != null
-                    ? memberBookingUseCase.createMemberPassBooking(bp.userId(), bp.slotId(), bp.passId())
+                    ? memberBookingUseCase.createMemberPassBooking(
+                            bp.userId(), bp.slotId(), bp.passId(), participantCount)
                     : memberBookingUseCase.createMemberDepositBooking(
                             bp.userId(), bp.slotId(), bp.paymentMethod(),
-                            bp.depositAmount(), bp.balanceAmount());
+                            bp.depositAmount(), bp.balanceAmount(), participantCount);
             booking.recordPaymentConfirmation(attempt.getConfirmedPaymentKey(), LocalDateTime.now(clock));
             return new FulfillResult(booking.getId(), null);
         }
@@ -74,7 +80,8 @@ public class BookingFulfiller implements PaymentFulfiller {
         GuestBookingResult result = guestBookingUseCase.createPaymentGuestBooking(
                 new CreatePaymentGuestBookingCommand(
                         attempt.getOrderIdExternal(), bp.phone(), bp.guestVerificationProof(), bp.name(),
-                        bp.slotId(), bp.paymentMethod(), bp.depositAmount(), bp.balanceAmount()));
+                        bp.slotId(), bp.paymentMethod(), bp.depositAmount(), bp.balanceAmount(),
+                        participantCount));
         result.booking().recordPaymentConfirmation(
                 attempt.getConfirmedPaymentKey(), LocalDateTime.now(clock));
         return new FulfillResult(result.booking().getId(), result.rawAccessToken());

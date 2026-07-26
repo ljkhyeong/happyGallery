@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record AdminBookingCancelResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long bookingId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = "CANCELED") String status,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "8")
+        int participantCount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean passCreditRestored,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long depositRefundAmount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) RefundStatus depositRefundStatus,
@@ -17,10 +19,11 @@ public record AdminBookingCancelResponse(
         return new AdminBookingCancelResponse(
                 result.booking().getId(),
                 result.booking().getStatus().name(),
+                result.booking().getParticipantCount(),
                 result.passCreditRestored(),
                 result.refund() != null ? result.refund().getAmount() : 0,
                 result.refund() != null ? result.refund().getStatus() : null,
                 result.balanceSettlementRequired(),
-                result.booking().isPassBooking() && !result.passCreditRestored());
+                result.manualCompensationRequired());
     }
 }

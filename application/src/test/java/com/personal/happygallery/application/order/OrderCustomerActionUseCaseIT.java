@@ -174,13 +174,24 @@ class OrderCustomerActionUseCaseIT {
     }
 
     private GuestOrderFixture createGuestMadeToOrder(String name, long price) {
-        Product product = productStorePort.save(new Product(name, ProductType.MADE_TO_ORDER, price));
+        Product product = productStorePort.save(new Product(
+                name,
+                ProductType.MADE_TO_ORDER,
+                null,
+                price,
+                null,
+                null,
+                "재료: 가죽\n크기: 고정 규격\n사양: 기본 색상",
+                "물에 젖지 않게 보관하세요.",
+                14));
         inventoryStorePort.save(new Inventory(product, 1));
         Guest guest = guestStorePort.save(TestFixtures.guest("비회원 주문자", "01055556666"));
         OrderService.OrderCreationResult result = orderService.createPaidOrder(
                 guest.getId(),
                 List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, price)),
+                        product.getId(), product.getName(), product.getType(), 1, price,
+                        product.getSpecification(), product.getCareInstructions(),
+                        product.getProductionLeadDays())),
                 FulfillmentType.PICKUP,
                 null,
                 0L,

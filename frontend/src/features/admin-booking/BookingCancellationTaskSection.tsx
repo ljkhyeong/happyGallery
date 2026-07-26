@@ -21,7 +21,7 @@ interface Props {
 
 const TYPE_LABELS: Record<BookingCancellationTaskType, string> = {
   BALANCE_SETTLEMENT: "결제된 잔금 정산",
-  MANUAL_COMPENSATION: "8회권 수동 보상",
+  MANUAL_COMPENSATION: "수동 환불·보상",
 };
 
 export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props) {
@@ -90,6 +90,14 @@ export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props)
                 </Badge>
                 {task.type === "BALANCE_SETTLEMENT" && (
                   <small className="d-block mt-1">{formatKRW(task.balanceAmount)}</small>
+                )}
+                {task.type === "MANUAL_COMPENSATION" && task.compensationAmount > 0 && (
+                  <small className="d-block mt-1">
+                    반환할 예약금 {formatKRW(task.compensationAmount)}
+                  </small>
+                )}
+                {task.type === "MANUAL_COMPENSATION" && task.compensationAmount === 0 && (
+                  <small className="d-block mt-1">8회권 대체 보상 확인</small>
                 )}
               </td>
               <td className="small">{task.reason}</td>

@@ -24,8 +24,11 @@
             </when>
             <when test="keyword != null and keyword != ''">
                 AND (
-                    u.name_hmac = #{keywordHmac}
-                    OR g.name_hmac = #{keywordHmac}
+                    (#{nameHmac} IS NOT NULL
+                        AND (u.name_hmac = #{nameHmac} OR g.name_hmac = #{nameHmac}))
+                    OR
+                    (#{phoneHmac} IS NOT NULL
+                        AND (u.phone_hmac = #{phoneHmac} OR g.phone_hmac = #{phoneHmac}))
                 )
             </when>
         </choose>
@@ -48,6 +51,8 @@
             s.start_at                                                        AS startAt,
             s.end_at                                                          AS endAt,
             b.status                                                          AS status,
+            b.source                                                          AS source,
+            b.participant_count                                               AS participantCount,
             b.deposit_amount                                                  AS depositAmount,
             b.deposit_paid_at                                                 AS depositPaidAt,
             b.balance_amount                                                  AS balanceAmount,

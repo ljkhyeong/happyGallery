@@ -5,6 +5,7 @@ import com.personal.happygallery.application.product.port.in.ProductQueryUseCase
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public record ProductResponse(
         Long id,
@@ -14,6 +15,12 @@ public record ProductResponse(
         long price,
         String description,
         String imageUrl,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+        String specification,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+        String careInstructions,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+        Integer productionLeadDays,
         String status,
         boolean available,
         int quantity
@@ -35,6 +42,9 @@ public record ProductResponse(
                 product.getPrice(),
                 product.getDescription(),
                 product.getImageUrl(),
+                product.getSpecification(),
+                product.getCareInstructions(),
+                product.getProductionLeadDays(),
                 product.getStatus().name(),
                 product.getStatus() == ProductStatus.ACTIVE && inventory.isAvailable(),
                 inventory.getQuantity()

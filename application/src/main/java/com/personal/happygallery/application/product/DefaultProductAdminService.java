@@ -56,21 +56,28 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
      */
     @Override
     public ProductInventoryResult register(String name, ProductType type, String category, long price,
-                                           int quantity, String description, String imageUrl) {
+                                           int quantity, String description, String imageUrl,
+                                           String specification, String careInstructions,
+                                           Integer productionLeadDays) {
         imageMediaReferenceGuard.validateAssignment(imageUrl);
         Product product = productStorePort.save(
-                new Product(name, type, category, price, description, imageUrl));
+                new Product(
+                        name, type, category, price, description, imageUrl,
+                        specification, careInstructions, productionLeadDays));
         Inventory inventory = inventoryService.create(product, quantity);
         return new ProductInventoryResult(product, inventory);
     }
 
     @Override
     public ProductInventoryResult update(Long productId, String name, String category, long price,
-                                         String description, String imageUrl) {
+                                         String description, String imageUrl, String specification,
+                                         String careInstructions, Integer productionLeadDays) {
         imageMediaReferenceGuard.validateAssignment(imageUrl);
         Product product = productReaderPort.findById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
-        product.updateDetails(name, category, price, description, imageUrl);
+        product.updateDetails(
+                name, category, price, description, imageUrl,
+                specification, careInstructions, productionLeadDays);
         Inventory inventory = inventoryReaderPort.findByProductId(productId)
                 .orElseThrow(NotFoundException.supplier("재고"));
         return new ProductInventoryResult(productStorePort.save(product), inventory);

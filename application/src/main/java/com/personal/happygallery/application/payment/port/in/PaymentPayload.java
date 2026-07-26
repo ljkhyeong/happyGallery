@@ -9,6 +9,8 @@ import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.List;
 
 /**
@@ -116,6 +118,7 @@ public sealed interface PaymentPayload {
             Long slotId,
             Long passId,
             DepositPaymentMethod paymentMethod,
+            @JsonProperty(required = true) @Min(1) @Max(8) int participantCount,
             PolicyAcceptance policyAcceptance
     ) implements PaymentPayload {
 
@@ -126,7 +129,19 @@ public sealed interface PaymentPayload {
                               Long slotId,
                               Long passId,
                               DepositPaymentMethod paymentMethod) {
-            this(userId, phone, verificationCode, name, slotId, passId, paymentMethod, null);
+            this(userId, phone, verificationCode, name, slotId, passId, paymentMethod, 1, null);
+        }
+
+        public BookingPayload(Long userId,
+                              String phone,
+                              String verificationCode,
+                              String name,
+                              Long slotId,
+                              Long passId,
+                              DepositPaymentMethod paymentMethod,
+                              PolicyAcceptance policyAcceptance) {
+            this(userId, phone, verificationCode, name, slotId, passId,
+                    paymentMethod, 1, policyAcceptance);
         }
     }
 

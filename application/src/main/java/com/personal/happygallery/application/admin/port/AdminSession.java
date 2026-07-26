@@ -7,5 +7,6 @@ public record AdminSession(
         Long adminUserId,
         String username,
         long credentialVersion,
+        boolean mfaEnabled,
         Instant createdAt
 ) {}

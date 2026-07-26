@@ -8,6 +8,7 @@ import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatDate, formatDateTime } from "@/shared/lib";
 import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
+import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 
 interface Props {
   initialClassId?: number | null;
@@ -29,6 +30,7 @@ export function SlotSelectionStep({
   const appliedInitialClassId = useRef<number | null | undefined>(undefined);
   const [classId, setClassId] = useState(() => initialClassId ? String(initialClassId) : "");
   const [date, setDate] = useState("");
+  const [inquiryDate, setInquiryDate] = useState("");
 
   const { data: classes, isLoading: classesLoading, error: classesError } = useQuery({
     queryKey: ["classes"],
@@ -47,6 +49,7 @@ export function SlotSelectionStep({
     const initialClass = classes.find((bookingClass) => bookingClass.id === initialClassId) ?? null;
     setClassId(initialClass ? String(initialClass.id) : "");
     setDate("");
+    setInquiryDate("");
     onClassChange?.(initialClass);
     onDeselect?.();
   }, [classes, initialClassId, onClassChange, onDeselect]);
@@ -94,6 +97,7 @@ export function SlotSelectionStep({
                 const nextId = Number(e.target.value);
                 setClassId(e.target.value);
                 setDate("");
+                setInquiryDate("");
                 onClassChange?.(classes?.find((bookingClass) => bookingClass.id === nextId) ?? null);
                 onDeselect?.();
               }}>
@@ -167,7 +171,24 @@ export function SlotSelectionStep({
       {slotsLoading && <LoadingSpinner text="슬롯 조회 중..." />}
 
       {upcomingSlots && upcomingSlots.length === 0 && (
-        <EmptyState message={`앞으로 ${UPCOMING_DAYS}일 안에 예약 가능한 일정이 없습니다.`} />
+        <div>
+          <EmptyState message={`앞으로 ${UPCOMING_DAYS}일 안에 예약 가능한 일정이 없습니다.`} />
+          <Form.Group controlId="booking-inquiry-date" className="mt-3">
+            <Form.Label>문의할 희망일</Form.Label>
+            <Form.Control
+              type="date"
+              value={inquiryDate}
+              min={new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" })}
+              onChange={(event) => setInquiryDate(event.target.value)}
+            />
+          </Form.Group>
+          {selectedClass && (
+            <WorkshopInquiryLink
+              className={selectedClass.name}
+              desiredDate={inquiryDate}
+            />
+          )}
+        </div>
       )}
 
       {slots && slots.length > 0 && (

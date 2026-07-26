@@ -66,6 +66,7 @@ test("P8-2 @smoke @payment 슬롯 생성 후 예약 생성, 변경, 취소를 �
   expect([firstSlot.id, secondSlot.id]).toContain(booked.slotId);
 
   await expect(page.getByText(bookingClass.name)).toBeVisible();
+  await expect(page.getByText("1명", { exact: true })).toBeVisible();
   const rescheduleCard = page.locator(".card").filter({ hasText: "예약 변경" }).last();
   const dateInput = rescheduleCard.getByLabel("변경할 날짜");
   await dateInput.fill(targetDate);

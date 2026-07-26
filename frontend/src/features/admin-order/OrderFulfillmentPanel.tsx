@@ -4,6 +4,7 @@ import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDate } from "@/shared/lib";
 import type { AdminOrderFulfillmentResponse } from "@/shared/types";
+import { ShipmentTrackingActions } from "@/features/order/ShipmentTrackingActions";
 
 interface Props {
   orderId: number;
@@ -40,7 +41,17 @@ export function OrderFulfillmentDetails({
         <div className="mt-2">예상 출고일: {formatDate(fulfillment.expectedShipDate)}</div>
       )}
       {fulfillment.carrier && <div>택배사: {fulfillment.carrier}</div>}
-      {fulfillment.trackingNumber && <div>운송장 번호: {fulfillment.trackingNumber}</div>}
+      {fulfillment.trackingNumber && (
+        <>
+          <div>운송장 번호: {fulfillment.trackingNumber}</div>
+          {fulfillment.carrier && (
+            <ShipmentTrackingActions
+              carrier={fulfillment.carrier}
+              trackingNumber={fulfillment.trackingNumber}
+            />
+          )}
+        </>
+      )}
     </Alert>
   );
 }

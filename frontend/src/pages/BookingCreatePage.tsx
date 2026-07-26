@@ -44,6 +44,7 @@ export function BookingCreatePage() {
   const [selectedClass, setSelectedClass] = useState<ClassResponse | null>(null);
   const [paymentPath, setPaymentPath] = useState<PaymentPath>("deposit");
   const [paymentMethod, setPaymentMethod] = useState<DepositPaymentMethod>("CARD");
+  const [participantCount, setParticipantCount] = useState(1);
   const [passId, setPassId] = useState("");
   const [showGate, setShowGate] = useState(false);
 
@@ -101,14 +102,27 @@ export function BookingCreatePage() {
     }
   }, [availablePasses, passId, passes, paymentPath]);
 
+  useEffect(() => {
+    if (!selectedSlot) return;
+    const maximumParticipants = Math.min(8, selectedSlot.remainingCapacity);
+    if (participantCount > maximumParticipants) {
+      setParticipantCount(1);
+    }
+  }, [participantCount, selectedSlot]);
+
   const parsedPassId = Number(passId);
   const passValid = isAuthenticated && paymentPath === "pass"
     ? Number.isSafeInteger(parsedPassId) && parsedPassId > 0
     : true;
-  const formReady = selectedSlot !== null && passValid;
+  const participantCountValid = selectedSlot !== null
+    && participantCount >= 1
+    && participantCount <= Math.min(8, selectedSlot.remainingCapacity)
+    && (paymentPath !== "pass" || participantCount === 1);
+  const formReady = selectedSlot !== null && passValid && participantCountValid;
   const classPrice = selectedClass?.price ?? 0;
-  const depositAmount = Math.floor(classPrice / 10);
-  const balanceAmount = classPrice - depositAmount;
+  const totalAmount = classPrice * participantCount;
+  const depositAmount = Math.floor(totalAmount / 10);
+  const balanceAmount = totalAmount - depositAmount;
 
   const startPayment = useMutation({
     mutationFn: async (actor?: PaymentActor) => {
@@ -123,12 +137,14 @@ export function BookingCreatePage() {
               name: guest.name,
               policyAcceptance: guest.policyAcceptance,
               slotId: selectedSlot!.id,
+              participantCount,
               paymentMethod,
             }
           : {
               type: "BOOKING",
               userId: member!.id,
               slotId: selectedSlot!.id,
+              participantCount,
               passId: paymentPath === "pass" ? parsedPassId : undefined,
               paymentMethod: paymentPath === "pass" ? undefined : paymentMethod,
             };
@@ -193,6 +209,27 @@ export function BookingCreatePage() {
           <Card.Body>
             <h6 className="mb-3">결제 방식</h6>
 
+            <Form.Group controlId="booking-participant-count" className="mb-3">
+              <Form.Label>예약 인원</Form.Label>
+              <Form.Select
+                value={participantCount}
+                disabled={paymentPath === "pass"}
+                onChange={(event) => setParticipantCount(Number(event.target.value))}
+              >
+                {Array.from(
+                  { length: Math.min(8, selectedSlot.remainingCapacity) },
+                  (_, index) => index + 1,
+                ).map((count) => (
+                  <option key={count} value={count}>{count}명</option>
+                ))}
+              </Form.Select>
+              <Form.Text className="text-muted">
+                {paymentPath === "pass"
+                  ? "8회권 예약은 본인 1명만 이용할 수 있습니다."
+                  : `현재 최대 ${Math.min(8, selectedSlot.remainingCapacity)}명까지 예약할 수 있습니다.`}
+              </Form.Text>
+            </Form.Group>
+
             <Form.Group className="mb-3">
               <div>
                 <Form.Check
@@ -209,7 +246,10 @@ export function BookingCreatePage() {
                     name="paymentPath"
                     checked={paymentPath === "pass"}
                     disabled={passesLoading || availablePasses.length === 0}
-                    onChange={() => setPaymentPath("pass")}
+                    onChange={() => {
+                      setPaymentPath("pass");
+                      setParticipantCount(1);
+                    }}
                   />
                 )}
               </div>
@@ -237,8 +277,10 @@ export function BookingCreatePage() {
                 {selectedClass && (
                   <Col xs={12}>
                     <dl className="row small mb-0 mt-2">
-                      <dt className="col-6 fw-normal text-muted">클래스 전체 금액</dt>
+                      <dt className="col-6 fw-normal text-muted">1인 클래스 금액</dt>
                       <dd className="col-6 text-end mb-2">{formatKRW(classPrice)}</dd>
+                      <dt className="col-6 fw-normal text-muted">총 {participantCount}명 금액</dt>
+                      <dd className="col-6 text-end mb-2">{formatKRW(totalAmount)}</dd>
                       <dt className="col-6 fw-normal text-muted">지금 결제할 예약금</dt>
                       <dd className="col-6 text-end mb-2 fw-semibold">{formatKRW(depositAmount)}</dd>
                       <dt className="col-6 fw-normal text-muted">체험 당일 현장 잔금</dt>

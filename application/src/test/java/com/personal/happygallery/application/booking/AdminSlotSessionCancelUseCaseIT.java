@@ -165,6 +165,11 @@ class AdminSlotSessionCancelUseCaseIT {
                         assertThat(task.reason()).isEqualTo(REASON);
                         assertThat(task.createdAt()).isNotNull();
                     });
+            softly.assertThat(cancellationTasks)
+                    .filteredOn(task -> task.type() == BookingCancellationTaskType.MANUAL_COMPENSATION)
+                    .singleElement()
+                    .extracting(TaskView::compensationAmount)
+                    .isEqualTo(0L);
             softly.assertThat(firstCompletion.changed()).isTrue();
             softly.assertThat(repeatedCompletion.changed()).isFalse();
             softly.assertThat(repeatedCompletion.task().status())

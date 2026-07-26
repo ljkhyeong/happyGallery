@@ -21,14 +21,19 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long>, Ord
     @Query("SELECT oi FROM OrderItem oi WHERE oi.order.id IN :orderIds ORDER BY oi.id")
     List<OrderItem> findByOrderIdIn(@Param("orderIds") Collection<Long> orderIds);
 
-    /** 주문 내 제작 상품 존재 여부 — N+1 방지용 단일 쿼리 */
+    /** 결제 당시 주문제작 상품 포함 여부. 구주문은 주문제작 동의 스냅샷으로 보완한다. */
     @Override
     @Query("""
             SELECT CASE WHEN COUNT(oi) > 0 THEN true ELSE false END
             FROM OrderItem oi
-            JOIN Product p ON oi.productId = p.id
             WHERE oi.order = :order
-              AND p.type = com.personal.happygallery.domain.product.ProductType.MADE_TO_ORDER
+              AND (
+                  oi.productType = com.personal.happygallery.domain.product.ProductType.MADE_TO_ORDER
+                  OR (
+                      oi.productType IS NULL
+                      AND oi.order.madeToOrderConsentAt IS NOT NULL
+                  )
+              )
             """)
     boolean existsMadeToOrderItem(@Param("order") Order order);
 }

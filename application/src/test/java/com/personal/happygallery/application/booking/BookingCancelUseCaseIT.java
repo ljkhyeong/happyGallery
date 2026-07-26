@@ -98,7 +98,8 @@ class BookingCancelUseCaseIT {
     void cancel_refundable_success() throws Exception {
         Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        BookingTestHelper.CreatedBooking createdBooking = helper.createVerifiedCardBooking("01011110001", slot.getId());
+        BookingTestHelper.CreatedBooking createdBooking =
+                helper.createVerifiedCardBooking("01011110001", slot.getId(), 3);
         Long bookingId = createdBooking.bookingId();
         awaitLogCount(notificationLogProbe, 1);
         cleanupSupport.clearNotificationLogs();
@@ -109,9 +110,10 @@ class BookingCancelUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
                 .andExpect(jsonPath("$.status").value("CANCELED"))
+                .andExpect(jsonPath("$.participantCount").value(3))
                 .andExpect(jsonPath("$.refundable").value(true))
-                .andExpect(jsonPath("$.refundAmount").value(5000))
-                .andExpect(jsonPath("$.refund.amount").value(5000))
+                .andExpect(jsonPath("$.refundAmount").value(15000))
+                .andExpect(jsonPath("$.refund.amount").value(15000))
                 .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
 
         Booking booking = bookingStateProbe.getBooking(bookingId);
@@ -119,7 +121,8 @@ class BookingCancelUseCaseIT {
         mockMvc.perform(get("/api/v1/bookings/{id}", bookingId)
                         .header("X-Access-Token", createdBooking.accessToken()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.refund.amount").value(5000))
+                .andExpect(jsonPath("$.participantCount").value(3))
+                .andExpect(jsonPath("$.refund.amount").value(15000))
                 .andExpect(jsonPath("$.refund.status").value("SUCCEEDED"));
         Slot updatedSlot = bookingStateProbe.getSlot(slot.getId());
         List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 2);
@@ -138,7 +141,7 @@ class BookingCancelUseCaseIT {
                             NotificationEventType.BOOKING_CANCELED,
                             NotificationEventType.DEPOSIT_REFUNDED);
         });
-        verify(paymentProvider).refund(eq("FAKE-TEST-PG"), eq(5000L), any());
+        verify(paymentProvider).refund(eq("FAKE-TEST-PG"), eq(15_000L), any());
     }
 
     @DisplayName("취소한 예약과 같은 전화번호로 같은 슬롯을 다시 예약할 수 있다")

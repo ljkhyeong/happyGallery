@@ -17,6 +17,7 @@
 
 - Springdoc은 테스트 클래스패스에서만 전체 `/api/v1/**` 명세를 생성한다. 운영 애플리케이션에는 Swagger UI나 명세 endpoint를 노출하지 않는다.
 - `:adapter-in-web:openApiTest`가 속성 키를 정렬한 `adapter-in-web/build/api-spec/openapi3.json`을 만들고, `:adapter-in-web:openapi3`가 커밋 대상 `docs/PRD/0004_API_계약/openapi3.json`을 갱신한다. 정렬은 프레임워크의 속성 순서 차이로 생기는 거짓 drift를 막는다.
+- OpenAPI 3.1에서 Swagger가 nullable 객체 참조를 `$ref`와 `type: null`의 교집합으로 만드는 경우, 생성 단계 customizer가 `oneOf: [객체 참조, null]`로 정규화한다. DTO는 nullable 여부만 선언하고 생성 파일은 수동 보정하지 않는다.
 - `verifyOpenApi`는 생성 결과와 커밋된 스냅샷을 비교하며 `check`에 포함된다.
 - REST Docs는 실제 HTTP 예시·상태·에러 계약 검증으로 계속 유지한다. 같은 정보를 두 도구에 모두 손으로 기술하지 않는다.
 
@@ -30,8 +31,8 @@
 
 ### 3. 엔드포인트는 schema 정확성을 확인하며 전환한다
 
-- 생성 client 실사용 범위는 공개 상품 조회, 회원 소셜 계정 관리, 회원 알림함, 고객 결제 상태·8회권 가격 정책 조회, 관리자 인증·MFA·대시보드·예약·주문 클레임·상품 Q&A 조회와 상태 변경이다. 기능 코드는 생성 함수를 얇게 감싸고 React Query 상태와 화면 흐름만 소유한다.
-- 연동 대상은 고유하고 안정적인 `operationId`를 사용하고, 응답의 필수값·nullable·enum을 OpenAPI에 정확히 표현한다. 기존 고유 ID는 호환성을 위해 유지하고, 이름이 충돌하는 엔드포인트만 Controller에 명시적 ID를 둔다. 생성 테스트는 Springdoc 충돌 회피용 숫자 접미사(`*_1`, `*_2`)가 남으면 실패시킨다.
+- 생성 client 실사용 범위는 공개 상품 조회, 회원 소셜 계정 관리, 회원 알림함·예약 조회/변경/취소, 비회원 예약 조회/변경/취소, 고객 결제 상태·8회권 가격 정책 조회, 관리자 인증·MFA·대시보드·예약·주문 클레임·상품 Q&A 조회와 상태 변경이다. 기능 코드는 생성 함수를 얇게 감싸고 React Query 상태와 화면 흐름만 소유한다.
+- 연동 대상은 Controller에 고유하고 안정적인 `operationId`를 명시하고, 응답의 필수값·nullable·enum을 OpenAPI에 정확히 표현한다. Java 메서드 이름 변경이 생성 함수 이름을 암묵적으로 바꾸게 두지 않으며, 생성 테스트는 Springdoc 충돌 회피용 숫자 접미사(`*_1`, `*_2`)가 남으면 실패시킨다.
 - 연동된 서버 request/response DTO는 생성 타입을 원본으로 사용한다. 화면 form state와 view model은 수동 타입으로 유지할 수 있다.
 - 결제 `prepare`의 공개 union은 `ORDER/BOOKING/PASS`만 포함한다. 암호화 저장용 `PREPARED_*`는 별도
   application 타입으로 두어 OpenAPI와 생성 client 후보 schema에 노출하지 않는다.

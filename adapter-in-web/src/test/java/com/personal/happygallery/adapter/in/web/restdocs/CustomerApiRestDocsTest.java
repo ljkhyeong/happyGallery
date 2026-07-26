@@ -65,8 +65,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class CustomerApiRestDocsTest extends RestDocsTestSupport {
 
@@ -132,7 +133,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(bookingRescheduleUseCase.rescheduleMemberBooking(100L, CUSTOMER_USER_ID, 42L))
                 .thenReturn(booking);
         when(bookingCancelUseCase.cancelMemberBooking(100L, CUSTOMER_USER_ID))
-                .thenReturn(new BookingCancelUseCase.CancelResult(booking, true, bookingRefund));
+                .thenReturn(new BookingCancelUseCase.CancelResult(booking, true, bookingRefund, false));
         when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(order));
         when(orderQueryUseCase.findMyOrder(200L, CUSTOMER_USER_ID)).thenReturn(orderDetail);
         PassQueryUseCase.PassView passView = new PassQueryUseCase.PassView(pass, null);
@@ -372,14 +373,16 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("내 예약 목록 API를 문서화한다")
     void list_my_bookings() throws Exception {
         mockMvc.perform(get("/api/v1/me/bookings").with(customerUser()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].participantCount").value(3));
     }
 
     @Test
     @DisplayName("내 예약 상세 API를 문서화한다")
     void get_my_booking() throws Exception {
         mockMvc.perform(get("/api/v1/me/bookings/{id}", 100L).with(customerUser()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(3));
     }
 
     @Test
@@ -389,7 +392,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         .with(customerUser())
                         .contentType(APPLICATION_JSON)
                         .content("{\"newSlotId\":42}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(3));
     }
 
     @Test
@@ -397,7 +401,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void cancel_my_booking() throws Exception {
         mockMvc.perform(delete("/api/v1/me/bookings/{id}", 100L).with(customerUser()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.refund.amount").value(5000))
+                .andExpect(jsonPath("$.participantCount").value(3))
+                .andExpect(jsonPath("$.refund.amount").value(15000))
                 .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
     }
 
@@ -412,7 +417,9 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("내 주문 상세 API를 문서화한다")
     void get_my_order() throws Exception {
         mockMvc.perform(get("/api/v1/me/orders/{id}", 200L).with(customerUser()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.orderNumber").value("ORD-00000200"));
     }
 
     @Test

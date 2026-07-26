@@ -5,44 +5,113 @@ import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.product.ProductType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 public record OrderDetailResponse(
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         Long orderId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        String orderNumber,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         String status,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         long totalAmount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         long shippingFee,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         LocalDateTime paidAt,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         LocalDateTime approvalDeadlineAt,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         List<ItemDto> items,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         FulfillmentDto fulfillment,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         RefundProgressResponse refund
 ) {
-    public record ItemDto(Long orderItemId, Long productId, String productName, int qty, long unitPrice) {
+    public record ItemDto(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            Long orderItemId,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            Long productId,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            String productName,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            ProductType productType,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            int qty,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long unitPrice,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            String specification,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            String careInstructions,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            Integer productionLeadDays
+    ) {
         public static ItemDto from(OrderItem item) {
             return new ItemDto(
                     item.getId(),
                     item.getProductId(),
                     item.getProductName(),
+                    item.getProductType(),
                     item.getQty(),
-                    item.getUnitPrice());
+                    item.getUnitPrice(),
+                    item.getSpecification(),
+                    item.getCareInstructions(),
+                    item.getProductionLeadDays());
         }
     }
 
-    public record FulfillmentDto(String type, LocalDate expectedShipDate,
-                                 LocalDateTime pickupDeadlineAt,
-                                 String carrier,
-                                 String trackingNumber) {
-        public static FulfillmentDto from(Fulfillment f) {
+    public record FulfillmentDto(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            String type,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            LocalDate expectedShipDate,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            LocalDateTime pickupDeadlineAt,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            String carrier,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            String trackingNumber,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            ShippingAddressDto shippingAddress) {
+        public static FulfillmentDto from(Fulfillment f, ShippingAddress shippingAddress) {
             return new FulfillmentDto(
                     f.getType().name(),
                     f.getExpectedShipDate(),
                     f.getPickupDeadlineAt(),
                     f.getCarrier(),
-                    f.getTrackingNumber()
+                    f.getTrackingNumber(),
+                    shippingAddress != null ? ShippingAddressDto.from(shippingAddress) : null
             );
+        }
+    }
+
+    public record ShippingAddressDto(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            String recipientName,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            String phone,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            String postalCode,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            String addressLine1,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            String addressLine2
+    ) {
+        private static ShippingAddressDto from(ShippingAddress address) {
+            return new ShippingAddressDto(
+                    address.recipientName(),
+                    address.phone(),
+                    address.postalCode(),
+                    address.addressLine1(),
+                    address.addressLine2());
         }
     }
 
@@ -50,13 +119,16 @@ public record OrderDetailResponse(
         Order order = detail.order();
         return new OrderDetailResponse(
                 order.getId(),
+                "ORD-%08d".formatted(order.getId()),
                 order.getStatus().name(),
                 order.getTotalAmount(),
                 order.getShippingFee(),
                 order.getPaidAt(),
                 order.getApprovalDeadlineAt(),
                 detail.items().stream().map(ItemDto::from).toList(),
-                detail.fulfillment() != null ? FulfillmentDto.from(detail.fulfillment()) : null,
+                detail.fulfillment() != null
+                        ? FulfillmentDto.from(detail.fulfillment(), detail.shippingAddress())
+                        : null,
                 detail.refund() != null ? RefundProgressResponse.from(detail.refund()) : null
         );
     }

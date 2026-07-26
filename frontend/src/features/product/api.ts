@@ -3,15 +3,15 @@ import {
   listProductCategories,
   listProducts,
   type ListProductsParams,
-  type ProductDetailResponse,
 } from "@/generated/api/product";
+import type { ProductDetailResponse } from "@/shared/types/product";
 
 export function fetchProducts(filters?: ListProductsParams): Promise<ProductDetailResponse[]> {
-  return listProducts(filters);
+  return listProducts(filters) as Promise<ProductDetailResponse[]>;
 }
 
 export function fetchProduct(id: number): Promise<ProductDetailResponse> {
-  return getProduct(id);
+  return getProduct(id) as Promise<ProductDetailResponse>;
 }
 
 export function fetchCategories(): Promise<string[]> {

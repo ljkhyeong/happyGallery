@@ -64,7 +64,8 @@ public class DefaultCartService implements CartUseCase {
         List<CartItemView> views = cartReadModel.findDetailsByUserId(userId).stream()
                 .map(item -> new CartItemView(
                         item.productId(), item.productName(), item.productType(),
-                        item.price(), item.qty(), isAvailable(item)))
+                        item.price(), item.specification(), item.careInstructions(),
+                        item.productionLeadDays(), item.qty(), isAvailable(item)))
                 .toList();
 
         long total = 0L;

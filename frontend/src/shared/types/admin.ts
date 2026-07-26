@@ -1,4 +1,5 @@
 import type { AdminRefundStatus } from "./refund";
+import type { ProductType } from "./product";
 
 export type OrderStatus =
   | "PAID_APPROVAL_PENDING"
@@ -168,8 +169,12 @@ export interface AdminOrderResponse {
   items: Array<{
     productId: number;
     productName: string;
+    productType: ProductType | null;
     qty: number;
     unitPrice: number;
+    specification: string | null;
+    careInstructions: string | null;
+    productionLeadDays: number | null;
   }>;
   paidAt: string | null;
   approvalDeadlineAt: string | null;

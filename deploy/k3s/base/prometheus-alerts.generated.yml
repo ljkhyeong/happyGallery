@@ -194,6 +194,33 @@ groups:
         annotations:
           summary: "외부 알림 결과의 감사 이력 저장이 실패했습니다 ({{ $value | printf \"%.0f\" }}건)"
 
+      - alert: OrderApprovalPending
+        expr: max(happygallery_order_approval_backlog_count{application="happygallery"}) > 0
+        for: 1m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "승인 대기 주문이 DB에 남아 있습니다. 관리자 오늘 할 일에서 확인하세요"
+
+      - alert: BookingCancellationTaskPending
+        expr: max(happygallery_booking_cancellation_task_backlog_count{application="happygallery"}) > 0
+        for: 1m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "운영자가 마무리해야 하는 예약 취소 후속 작업이 DB에 남아 있습니다"
+
+      - alert: OrderApprovalDeadlineApproaching
+        expr: max(happygallery_order_approval_backlog_oldest_age_seconds{application="happygallery"}) > 64800
+        for: 5m
+        labels:
+          severity: critical
+          category: business
+        annotations:
+          summary: "승인 마감까지 6시간 이하로 남은 결제 주문이 있습니다"
+
       - alert: BatchExecutionFailed
         expr: increase(happygallery_batch_runs_total{application="happygallery",status=~"partial|failed"}[10m]) > 0
         for: 1m

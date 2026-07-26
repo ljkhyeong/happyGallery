@@ -1,7 +1,11 @@
 package com.personal.happygallery.application.monitoring;
 
+import com.personal.happygallery.application.booking.port.out.BookingCancellationTaskBacklogSummary;
+import com.personal.happygallery.application.booking.port.out.BookingCancellationTaskPort;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxBacklogSummary;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
+import com.personal.happygallery.application.order.port.out.OrderApprovalBacklogSummary;
+import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptBacklogSummary;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundBacklogSummary;
@@ -32,13 +36,28 @@ class OperationalBacklogMetricsTest {
         RefundPort refundPort = mock(RefundPort.class);
         NotificationOutboxPort outboxPort = mock(NotificationOutboxPort.class);
         PaymentAttemptReaderPort paymentAttemptReader = mock(PaymentAttemptReaderPort.class);
+        OrderReaderPort orderReader = mock(OrderReaderPort.class);
+        BookingCancellationTaskPort bookingCancellationTaskPort =
+                mock(BookingCancellationTaskPort.class);
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         MutableClock clock = new MutableClock(Instant.parse("2026-07-20T00:00:00Z"));
         OperationalBacklogMetrics metrics = new OperationalBacklogMetrics(
-                refundPort, outboxPort, paymentAttemptReader, registry, clock);
+                refundPort,
+                outboxPort,
+                paymentAttemptReader,
+                orderReader,
+                bookingCancellationTaskPort,
+                registry,
+                clock);
         when(paymentAttemptReader.summarizeReconciliationRequiredBacklog())
                 .thenReturn(new PaymentAttemptBacklogSummary(
                         2, LocalDateTime.of(2026, 7, 20, 8, 58)));
+        when(orderReader.summarizePendingApprovalBacklog())
+                .thenReturn(new OrderApprovalBacklogSummary(
+                        3, LocalDateTime.of(2026, 7, 19, 15, 0)));
+        when(bookingCancellationTaskPort.summarizePendingBacklog())
+                .thenReturn(new BookingCancellationTaskBacklogSummary(
+                        2, LocalDateTime.of(2026, 7, 19, 23, 55)));
         when(refundPort.summarizeUnresolvedBacklog()).thenReturn(List.of(
                 new RefundBacklogSummary(
                         RefundStatus.RETRYABLE,
@@ -84,9 +103,25 @@ class OperationalBacklogMetricsTest {
             softly.assertThat(gauge(
                     registry, "happygallery.payment.confirm.reconciliation.backlog.oldest.age"))
                     .isEqualTo(120);
+            softly.assertThat(gauge(
+                    registry, "happygallery.order.approval.backlog.count"))
+                    .isEqualTo(3);
+            softly.assertThat(gauge(
+                    registry, "happygallery.order.approval.backlog.oldest.age"))
+                    .isEqualTo(64_800);
+            softly.assertThat(gauge(
+                    registry, "happygallery.booking.cancellation.task.backlog.count"))
+                    .isEqualTo(2);
+            softly.assertThat(gauge(
+                    registry, "happygallery.booking.cancellation.task.backlog.oldest.age"))
+                    .isEqualTo(300);
         });
 
         when(paymentAttemptReader.summarizeReconciliationRequiredBacklog())
+                .thenThrow(new IllegalStateException("database unavailable"));
+        when(orderReader.summarizePendingApprovalBacklog())
+                .thenThrow(new IllegalStateException("database unavailable"));
+        when(bookingCancellationTaskPort.summarizePendingBacklog())
                 .thenThrow(new IllegalStateException("database unavailable"));
         when(refundPort.summarizeUnresolvedBacklog())
                 .thenThrow(new IllegalStateException("database unavailable"));
@@ -119,6 +154,27 @@ class OperationalBacklogMetricsTest {
             softly.assertThat(registry.counter(
                     "happygallery.operational.backlog.refresh.failures", "source", "payment").count())
                     .isOne();
+            softly.assertThat(gauge(
+                    registry, "happygallery.order.approval.backlog.count"))
+                    .isEqualTo(3);
+            softly.assertThat(gauge(
+                    registry, "happygallery.operational.backlog.refresh.age", "source",
+                    "order_approval")).isEqualTo(90);
+            softly.assertThat(registry.counter(
+                    "happygallery.operational.backlog.refresh.failures", "source",
+                    "order_approval").count()).isOne();
+            softly.assertThat(gauge(
+                    registry, "happygallery.booking.cancellation.task.backlog.count"))
+                    .isEqualTo(2);
+            softly.assertThat(gauge(
+                    registry, "happygallery.booking.cancellation.task.backlog.oldest.age"))
+                    .isEqualTo(390);
+            softly.assertThat(gauge(
+                    registry, "happygallery.operational.backlog.refresh.age", "source",
+                    "booking_cancellation_task")).isEqualTo(90);
+            softly.assertThat(registry.counter(
+                    "happygallery.operational.backlog.refresh.failures", "source",
+                    "booking_cancellation_task").count()).isOne();
         });
     }
 

@@ -122,7 +122,8 @@
 #### 상품과 재고
 
 - `products`
-  - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `category nullable`, `price`, `description nullable`, `image_url nullable`, `status(ACTIVE|INACTIVE)`, `version`
+  - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `category nullable`, `price`, `description nullable`, `image_url nullable`, `specification nullable`, `care_instructions nullable`, `production_lead_days nullable`, `status(ACTIVE|INACTIVE)`, `version`
+  - 주문제작은 `specification`과 1~180일 `production_lead_days`가 필수고, 기성품은 제작 기간을 두지 않는다.
   - 관리자는 표시 정보와 대표 이미지를 수정하고 상태를 별도 변경한다. `version` 낙관적 락으로 동시에 먼저 읽은 관리자 수정이 앞선 변경을 덮지 못하게 하고 충돌은 409로 반환한다. 공개 목록과 주문 prepare는 `ACTIVE` 상품만 대상으로 한다. 기존 상세 URL은 비활성 상품도 조회하되 `available=false`로 표시한다.
 - `inventory`
   - `product_id(PK/FK)`, `quantity`, `version`, `updated_at`
@@ -151,13 +152,13 @@
   - `made_to_order_consent_version`, `made_to_order_consent_disclosure`, `made_to_order_consent_at` nullable — 주문제작 상품 결제 전 별도 고지·동의 스냅샷
   - `total_amount`는 상품 합계와 배송비를 포함한다. 배송비는 prepare 당시 서버 정책을 `shipping_fee`에 스냅샷으로 저장하고 픽업은 0원이다.
 - `order_items`
-  - `id`, `order_id`, `product_id`, `product_name`, `qty`, `unit_price`
-  - `product_name`, `unit_price`는 상품 변경과 무관하게 결제 준비 시점 표시를 보존한다. 기존 `products.name VARCHAR(255)` 전체를 손실 없이 이관할 수 있도록 상품명 스냅샷도 `VARCHAR(255)`를 사용한다.
+  - `id`, `order_id`, `product_id`, `product_name`, `product_type nullable`, `specification nullable`, `care_instructions nullable`, `production_lead_days nullable`, `qty`, `unit_price`
+  - 상품명·유형·단가와 구매조건은 상품 변경과 무관하게 결제 준비 시점 표시를 보존한다. `product_type=null`인 기존 주문 항목은 알 수 없는 당시 조건을 현재 상품 값으로 역보정하지 않는다.
 - `order_approvals`
   - `id`, `order_id`, `decided_by_admin_id`, `decision`, `reason`, `decided_at`
 - `fulfillments`
   - `id`, `order_id(unique)`, `type(SHIPPING|PICKUP)`, `expected_ship_date`, `pickup_deadline_at`, `shipping_address_enc nullable`, `carrier nullable`, `tracking_number nullable`, `version`
-  - 주문 confirm 시 고객이 선택한 타입으로 함께 생성한다. `SHIPPING`의 구조화 배송지는 AES-GCM 암호문으로 저장하고 관리자 단건 이행 조회에서만 복호화한다.
+  - 주문 confirm 시 고객이 선택한 타입으로 함께 생성한다. `SHIPPING`의 구조화 배송지는 AES-GCM 암호문으로 저장하고 소유권이 확인된 고객 주문 상세와 관리자 단건 이행 조회에서만 복호화한다.
   - `carrier`, `tracking_number`는 배송 출발 시 한 쌍으로 저장한다. 픽업에는 둘 다 저장하지 않으며 DB `CHECK`로 강제한다.
 - `refunds`
   - `id`, `order_id nullable`, `order_claim_id nullable`, `direct_order_id generated`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
@@ -188,9 +189,10 @@
   - `id`, `user_id nullable`, `guest_id nullable`
   - `user_id`, `guest_id` 중 정확히 하나만 존재하도록 `chk_bookings_exactly_one_owner` `CHECK` 제약으로 강제한다.
   - `access_token VARCHAR(64)` — 게스트 예약 조회용 SHA-256 hex 해시 저장
-  - `class_id`, `slot_id`, `status`
+  - `class_id`, `slot_id`, `status`, `source(WEB|PHONE|NAVER_TALK|KAKAO|VISIT)`, `participant_count`
   - `deposit_amount`, `deposit_paid_at`, `payment_key nullable`
   - `deposit_amount`, `deposit_paid_at`, `balance_amount`, `balance_status`, `balance_paid_at`, `arrears_flag`, `version`
+  - `participant_count`는 1~8이며 `slots.booked_count`에 인원 단위로 반영한다. 8회권 예약은 1명만 허용한다.
 - `booking_history`
   - `id`, `booking_id`, `action`, `from_slot_id`, `to_slot_id`, `actor`, `reason`, `created_at`
 

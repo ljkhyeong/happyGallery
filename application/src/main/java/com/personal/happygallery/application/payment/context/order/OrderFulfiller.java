@@ -16,7 +16,10 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
+import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductType;
 import java.util.List;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -44,18 +47,49 @@ public class OrderFulfiller implements PaymentFulfiller {
 
     @Override
     public void validateStoredPayload(PaymentAttempt attempt, PreparedPaymentPayload payload) {
+        validateOrderPayload(attempt, payload, true);
+    }
+
+    private void validateOrderPayload(PaymentAttempt attempt,
+                                      PreparedPaymentPayload payload,
+                                      boolean deferApprovedLegacyFailure) {
         if (!(payload instanceof PreparedOrderPayload op)) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "주문 단가 정보가 없습니다. 결제를 다시 준비해 주세요.");
         }
         long preparedAmount = 0L;
+        boolean containsMadeToOrder = false;
+        boolean containsLegacyMadeToOrder = false;
         for (PreparedOrderItem item : op.items()) {
             if (item.productName() == null || item.productName().isBlank()) {
                 throw new HappyGalleryException(
                         ErrorCode.INVALID_INPUT, "주문 상품명 정보가 없습니다. 결제를 다시 준비해 주세요.");
             }
+            if (item.productType() == null) {
+                if (op.madeToOrderConsent() != null) {
+                    containsLegacyMadeToOrder = true;
+                    // APPROVED는 fulfillment 실패로 넘겨 기존 PG 보상 환불 경계를 사용한다.
+                    if (!deferApprovedLegacyFailure
+                            || attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
+                        throw legacyMadeToOrderPayload();
+                    }
+                }
+            } else if (item.productType() == ProductType.MADE_TO_ORDER) {
+                containsMadeToOrder = true;
+                requireMadeToOrderTerms(item);
+            } else if (item.productionLeadDays() != null) {
+                throw new HappyGalleryException(
+                        ErrorCode.INVALID_INPUT,
+                        "기성품 결제에 제작 기간이 저장되어 있습니다. 결제를 다시 준비해 주세요.");
+            }
             preparedAmount = OrderAmountCalculator.addLine(
                     preparedAmount, item.qty(), item.unitPrice());
+        }
+        if (!containsLegacyMadeToOrder
+                && containsMadeToOrder != (op.madeToOrderConsent() != null)) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "주문제작 상품 유형과 동의 정보가 일치하지 않습니다. 결제를 다시 준비해 주세요.");
         }
         preparedAmount = OrderAmountCalculator.addShippingFee(preparedAmount, op.shippingFee());
         if (preparedAmount != attempt.getAmount()) {
@@ -66,10 +100,18 @@ public class OrderFulfiller implements PaymentFulfiller {
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload) {
+        validateOrderPayload(attempt, payload, false);
         PreparedOrderPayload op = (PreparedOrderPayload) payload;
         List<OrderItemRequest> orderItems = op.items().stream()
                 .map(item -> new OrderItemRequest(
-                        item.productId(), item.productName(), item.qty(), item.unitPrice()))
+                        item.productId(),
+                        item.productName(),
+                        normalizeLegacyReadyStockType(item),
+                        item.qty(),
+                        item.unitPrice(),
+                        item.specification(),
+                        item.careInstructions(),
+                        item.productionLeadDays()))
                 .toList();
 
         if (op.userId() != null) {
@@ -95,5 +137,27 @@ public class OrderFulfiller implements PaymentFulfiller {
                 op.shippingFee(), op.madeToOrderConsent());
         result.order().recordPaymentKey(attempt.getConfirmedPaymentKey());
         return new FulfillResult(result.order().getId(), result.rawAccessToken());
+    }
+
+    private static ProductType normalizeLegacyReadyStockType(PreparedOrderItem item) {
+        return item.productType() == null ? ProductType.READY_STOCK : item.productType();
+    }
+
+    private static void requireMadeToOrderTerms(PreparedOrderItem item) {
+        if (item.productionLeadDays() == null
+                || item.productionLeadDays() < Product.MIN_PRODUCTION_LEAD_DAYS
+                || item.productionLeadDays() > Product.MAX_PRODUCTION_LEAD_DAYS
+                || item.specification() == null
+                || item.specification().isBlank()) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "저장된 주문제작 사양 정보가 올바르지 않습니다. 결제를 다시 준비해 주세요.");
+        }
+    }
+
+    private static HappyGalleryException legacyMadeToOrderPayload() {
+        return new HappyGalleryException(
+                ErrorCode.INVALID_INPUT,
+                "주문제작 구매 조건이 저장되지 않은 이전 결제입니다. 결제를 다시 준비해 주세요.");
     }
 }

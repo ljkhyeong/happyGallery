@@ -5,6 +5,7 @@ import com.personal.happygallery.application.booking.port.in.BookingCancellation
 import com.personal.happygallery.application.booking.port.out.BookingCancellationTaskPort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingCancellationTask;
+import com.personal.happygallery.domain.booking.BookingCancellationTaskType;
 import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -58,7 +59,12 @@ public class DefaultBookingCancellationTaskService implements BookingCancellatio
                 task.getStatus(),
                 booking.getBookingClass().getName(),
                 booking.getSlot().getStartAt(),
-                booking.getBalanceAmount(),
+                task.getType() == BookingCancellationTaskType.BALANCE_SETTLEMENT
+                        ? booking.getBalanceAmount()
+                        : 0,
+                task.getType() == BookingCancellationTaskType.MANUAL_COMPENSATION
+                        ? booking.getDepositAmount()
+                        : 0,
                 task.getReason(),
                 task.getCreatedAt(),
                 task.getCompletedByAdminId(),

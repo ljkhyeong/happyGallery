@@ -67,13 +67,15 @@
 
 ---
 
-## 결정 5 — reserveCapacity를 GuestBookingService 트랜잭션 내에서 호출
+## 결정 5 — 결제 confirm 트랜잭션에서 예약 정원과 엔티티를 함께 확정
 
-**선택**: `@Transactional createGuestBooking()` 내에서 `SlotCapacitySupport.reserveCapacity(slotId)` 호출
+**선택**: 유료 비회원 예약 생성은 결제 prepare에서 고객·슬롯·인원·금액을 확정하고, confirm의
+`BookingFulfiller` 트랜잭션에서 `SlotCapacitySupport.reserveCapacity(slotId, participantCount)`와 예약 저장을 함께 수행한다.
 
-**이유**: ADR-0003 준수. `booked_count` 증가와 Booking 생성이 별도 트랜잭션이면 정원 초과 롤백 시 booking row 고아 발생.
+**이유**: ADR-0003 준수. `booked_count` 증가와 Booking 생성이 별도 트랜잭션이면 실패 시 정원 또는 booking row만 남을 수 있다.
 
 **구현**: `SlotCapacitySupport`는 `MANDATORY` 전파 속성으로 호출자 트랜잭션 참여를 강제한다.
+과거 직접 게스트 예약 생성 API는 제거했고, 운영자 수기 예약은 별도 관리자 유스케이스가 같은 정원 경계를 사용한다.
 
 ---
 

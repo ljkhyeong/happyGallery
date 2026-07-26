@@ -32,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -50,6 +51,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -57,6 +59,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @UseCaseIT
+@TestPropertySource(properties = "app.admin.require-mfa-enrollment=true")
 class AdminLoginUseCaseIT {
 
     private static final String USERNAME = "admin";
@@ -112,10 +115,10 @@ class AdminLoginUseCaseIT {
         cleanupSupport.clearAdminUsers();
     }
 
-    @DisplayName("관리자 계정으로 로그인할 수 있다")
+    @DisplayName("운영 MFA 미등록 관리자는 로그인 후 등록 API만 호출할 수 있다")
     @Test
-    void login_defaultAdmin_success() throws Exception {
-        mockMvc.perform(post("/api/v1/admin/auth/login")
+    void login_mfaNotEnrolled_allowsOnlyEnrollmentApi() throws Exception {
+        JsonNode body = responseBody(mockMvc.perform(post("/api/v1/admin/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new LoginRequest(USERNAME, PASSWORD))))
@@ -123,7 +126,29 @@ class AdminLoginUseCaseIT {
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.status").value("AUTHENTICATED"))
                 .andExpect(jsonPath("$.token").isString())
-                .andExpect(jsonPath("$.challengeToken").isEmpty());
+                .andExpect(jsonPath("$.challengeToken").isEmpty())
+                .andReturn());
+        String token = body.get("token").asText();
+
+        mockMvc.perform(get("/api/v1/admin/auth/mfa")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabled").value(false));
+        mockMvc.perform(get("/api/v1/admin/products")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+        mockMvc.perform(delete("/api/v1/admin/auth/mfa")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "admin1234",
+                                  "code": "123456"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
         assertThat(historyRepository.findAllByOrderByIdAsc())
                 .extracting(history -> history.getOutcome())

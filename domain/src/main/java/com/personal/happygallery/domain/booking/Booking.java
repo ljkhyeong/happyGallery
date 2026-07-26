@@ -45,6 +45,10 @@ public class Booking {
     @Column(nullable = false, length = 15)
     private BookingStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private BookingSource source;
+
     @Column(name = "deposit_amount", nullable = false)
     private long depositAmount;
 
@@ -53,6 +57,9 @@ public class Booking {
 
     @Column(name = "balance_amount", nullable = false)
     private long balanceAmount;
+
+    @Column(name = "participant_count", nullable = false)
+    private int participantCount;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "balance_status", nullable = false, length = 10)
@@ -68,7 +75,10 @@ public class Booking {
     @Column(nullable = false)
     private long version;
 
-    /** 예약금 결제 수단 (V4에서 추가). BANK_TRANSFER는 생성 시점에서 차단됨. */
+    /**
+     * 예약금 결제 수단.
+     * 고객 WEB 결제에서는 계좌이체를 차단하고, 관리자 오프라인 입금 기록에는 허용한다.
+     */
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_method", length = 15)
     private DepositPaymentMethod paymentMethod;
@@ -90,14 +100,24 @@ public class Booking {
 
     protected Booking() {}
 
-    private Booking(Guest guest, Long userId, Slot slot, long depositAmount, long balanceAmount,
-                    DepositPaymentMethod paymentMethod, PassPurchase passPurchase, String accessToken) {
+    private Booking(Guest guest, Long userId, Slot slot, int participantCount,
+                    long depositAmount, long balanceAmount,
+                    DepositPaymentMethod paymentMethod, PassPurchase passPurchase, String accessToken,
+                    BookingSource source) {
         requireExactlyOneOwner(guest, userId);
+        SlotCapacity.requireValidParticipantCount(participantCount);
+        if (passPurchase != null && participantCount != 1) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "8회권 예약은 1명만 예약할 수 있습니다.");
+        }
         this.guest = guest;
         this.userId = userId;
         this.bookingClass = slot.getBookingClass();
         this.slot = slot;
         this.status = BookingStatus.BOOKED;
+        this.source = source;
+        this.participantCount = participantCount;
         this.depositAmount = depositAmount;
         this.balanceAmount = balanceAmount;
         this.balanceStatus = balanceAmount == 0 ? BalanceStatus.PAID : BalanceStatus.UNPAID;
@@ -117,20 +137,71 @@ public class Booking {
     /** 게스트 예약금 예약 생성. */
     public static Booking forGuestDeposit(Guest guest, Slot slot, long depositAmount, long balanceAmount,
                                           DepositPaymentMethod paymentMethod, String accessToken) {
-        return new Booking(guest, null, slot, depositAmount, balanceAmount, paymentMethod, null, accessToken);
+        return forGuestDeposit(
+                guest, slot, 1, depositAmount, balanceAmount, paymentMethod, accessToken);
+    }
+
+    public static Booking forGuestDeposit(Guest guest, Slot slot, int participantCount,
+                                          long depositAmount, long balanceAmount,
+                                          DepositPaymentMethod paymentMethod, String accessToken) {
+        return new Booking(
+                guest, null, slot, participantCount,
+                depositAmount, balanceAmount, paymentMethod, null, accessToken, BookingSource.WEB);
     }
 
     /** 회원 예약금 예약 생성. */
     public static Booking forMemberDeposit(Long userId, Slot slot, long depositAmount, long balanceAmount,
                                            DepositPaymentMethod paymentMethod) {
-        return new Booking(null, userId, slot, depositAmount, balanceAmount, paymentMethod, null, null);
+        return forMemberDeposit(
+                userId, slot, 1, depositAmount, balanceAmount, paymentMethod);
+    }
+
+    public static Booking forMemberDeposit(Long userId, Slot slot, int participantCount,
+                                           long depositAmount, long balanceAmount,
+                                           DepositPaymentMethod paymentMethod) {
+        return new Booking(
+                null, userId, slot, participantCount,
+                depositAmount, balanceAmount, paymentMethod, null, null, BookingSource.WEB);
     }
 
     /** 회원 8회권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null. */
     public static Booking forMemberPass(Long userId, Slot slot, PassPurchase passPurchase) {
+        return forMemberPass(userId, slot, passPurchase, 1);
+    }
+
+    public static Booking forMemberPass(
+            Long userId, Slot slot, PassPurchase passPurchase, int participantCount) {
         passPurchase.requireApplicableToClass(
                 slot.getBookingClass().getCategory(), slot.getBookingClass().isPassEligible());
-        return new Booking(null, userId, slot, 0, 0, null, passPurchase, null);
+        return new Booking(
+                null, userId, slot, participantCount,
+                0, 0, null, passPurchase, null, BookingSource.WEB);
+    }
+
+    /** 전화·메신저·방문으로 접수한 비회원 예약을 운영자가 등록한다. */
+    public static Booking forAdminGuest(
+            Guest guest,
+            Slot slot,
+            int participantCount,
+            long depositAmount,
+            long balanceAmount,
+            BookingSource source,
+            LocalDateTime depositPaidAt
+    ) {
+        source.requireOperatorManaged();
+        Booking booking = new Booking(
+                guest,
+                null,
+                slot,
+                participantCount,
+                depositAmount,
+                balanceAmount,
+                depositPaidAt == null ? null : DepositPaymentMethod.BANK_TRANSFER,
+                null,
+                null,
+                source);
+        booking.depositPaidAt = depositPaidAt;
+        return booking;
     }
 
     /**
@@ -258,15 +329,25 @@ public class Booking {
         return passPurchase != null;
     }
 
+    /** PG 결제키 없이 현장에서 받은 예약금은 운영자가 직접 반환해야 한다. */
+    public boolean requiresManualDepositCompensation() {
+        return source != BookingSource.WEB
+                && depositAmount > 0
+                && depositPaidAt != null
+                && paymentKey == null;
+    }
+
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Guest getGuest() { return guest; }
     public BookingClass getBookingClass() { return bookingClass; }
     public Slot getSlot() { return slot; }
     public BookingStatus getStatus() { return status; }
+    public BookingSource getSource() { return source; }
     public long getDepositAmount() { return depositAmount; }
     public LocalDateTime getDepositPaidAt() { return depositPaidAt; }
     public long getBalanceAmount() { return balanceAmount; }
+    public int getParticipantCount() { return participantCount; }
     public BalanceStatus getBalanceStatus() { return balanceStatus; }
     public LocalDateTime getBalancePaidAt() { return balancePaidAt; }
     public boolean isArrearsFlag() { return arrearsFlag; }

@@ -8,6 +8,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.product.ProductType;
 import java.util.List;
 
 /**
@@ -80,11 +81,22 @@ public sealed interface PreparedPaymentPayload {
             Long productId,
             String productName,
             int qty,
-            long unitPrice
+            long unitPrice,
+            String specification,
+            String careInstructions,
+            Integer productionLeadDays,
+            ProductType productType
     ) {
 
+        /** V97 이전 저장 JSON과 테스트 fixture는 구매 조건과 상품 유형이 모두 null이다. */
         public PreparedOrderItem(Long productId, String productName, int qty, long unitPrice) {
-            this(null, productId, productName, qty, unitPrice);
+            this(null, productId, productName, qty, unitPrice, null, null, null, null);
+        }
+
+        /** V97 이전 장바구니 결제 스냅샷 호환 생성자. */
+        public PreparedOrderItem(
+                Long cartItemId, Long productId, String productName, int qty, long unitPrice) {
+            this(cartItemId, productId, productName, qty, unitPrice, null, null, null, null);
         }
     }
 
@@ -97,8 +109,15 @@ public sealed interface PreparedPaymentPayload {
             Long passId,
             DepositPaymentMethod paymentMethod,
             long depositAmount,
-            long balanceAmount
-    ) implements PreparedPaymentPayload {}
+            long balanceAmount,
+            Integer participantCount
+    ) implements PreparedPaymentPayload {
+
+        /** V95 배포 전에 저장된 미확정 결제 시도는 기존 단일 인원 계약으로 복구한다. */
+        public int effectiveParticipantCount() {
+            return participantCount == null ? 1 : participantCount;
+        }
+    }
 
     record PreparedPassPayload(Long userId, long totalPrice) implements PreparedPaymentPayload {}
 

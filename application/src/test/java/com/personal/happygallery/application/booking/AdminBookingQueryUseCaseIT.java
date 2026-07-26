@@ -123,6 +123,8 @@ class AdminBookingQueryUseCaseIT {
         List<AdminBookingResponse> responses = adminBookingQueryService.listBookings(targetDate, BookingStatus.BOOKED);
         OffsetPage<AdminBookingSearchRow> searchResult =
                 adminBookingSearchUseCase.search(null, targetDate, targetDate, "게스트", 0, 20);
+        OffsetPage<AdminBookingSearchRow> phoneSearchResult =
+                adminBookingSearchUseCase.search(null, targetDate, targetDate, "010-1212-1212", 0, 20);
 
         assertSoftly(softly -> {
             softly.assertThat(responses).hasSize(1);
@@ -130,6 +132,8 @@ class AdminBookingQueryUseCaseIT {
             softly.assertThat(responses.getFirst().bookerPhone()).isEqualTo("01012121212");
             softly.assertThat(searchResult.content()).hasSize(1);
             softly.assertThat(searchResult.content().getFirst().bookerPhone()).isEqualTo("01012121212");
+            softly.assertThat(phoneSearchResult.content()).hasSize(1);
+            softly.assertThat(phoneSearchResult.content().getFirst().bookerPhone()).isEqualTo("01012121212");
         });
     }
 

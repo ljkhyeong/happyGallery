@@ -49,9 +49,15 @@ public final class BookingTestHelper {
     }
 
     public CreatedBooking createVerifiedCardBooking(String phone, Long slotId) throws Exception {
+        return createVerifiedCardBooking(phone, slotId, 1);
+    }
+
+    public CreatedBooking createVerifiedCardBooking(
+            String phone, Long slotId, int participantCount) throws Exception {
         String code = sendVerificationAndGetCode(phone);
         PaymentTestHelper.ConfirmedPayment confirmed =
-                paymentTestHelper.createGuestBooking(phone, code, "홍길동", slotId);
+                paymentTestHelper.createGuestBooking(
+                        phone, code, "홍길동", slotId, participantCount);
         return new CreatedBooking(confirmed.domainId(), confirmed.accessToken());
     }
 }

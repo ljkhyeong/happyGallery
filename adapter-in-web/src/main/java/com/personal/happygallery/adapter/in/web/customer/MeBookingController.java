@@ -9,6 +9,7 @@ import com.personal.happygallery.adapter.in.web.customer.dto.MyBookingDetail;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyBookingSummary;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.domain.booking.Booking;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.time.Clock;
 import java.util.List;
@@ -46,11 +47,13 @@ public class MeBookingController {
     }
 
     @GetMapping
+    @Operation(operationId = "listMyBookings")
     public List<MyBookingSummary> myBookings(@AuthenticationPrincipal CustomerPrincipal customer) {
         return MyBookingSummary.fromAll(bookingQueryUseCase.listMyBookings(customer.userId()));
     }
 
     @GetMapping("/{id}")
+    @Operation(operationId = "getMyBooking")
     public MyBookingDetail myBooking(@PathVariable Long id,
                                      @AuthenticationPrincipal CustomerPrincipal customer) {
         BookingQueryUseCase.BookingDetail detail = bookingQueryUseCase.findMyBooking(id, customer.userId());
@@ -58,6 +61,7 @@ public class MeBookingController {
     }
 
     @PatchMapping("/{id}/reschedule")
+    @Operation(operationId = "rescheduleMyBooking")
     public MyBookingSummary rescheduleBooking(@PathVariable Long id,
                                               @RequestBody @Valid MemberRescheduleRequest req,
                                               @AuthenticationPrincipal CustomerPrincipal customer) {
@@ -67,6 +71,7 @@ public class MeBookingController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(operationId = "cancelMyBooking")
     public CancelResponse cancelBooking(@PathVariable Long id,
                                         @AuthenticationPrincipal CustomerPrincipal customer) {
         BookingCancelUseCase.CancelResult result = bookingCancelUseCase.cancelMemberBooking(

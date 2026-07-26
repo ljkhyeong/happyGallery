@@ -163,19 +163,25 @@ class AdminAuthenticationTransactionService {
             Long adminUserId,
             String username,
             long credentialVersion,
+            boolean mfaEnabled,
             String challengeToken
     ) {
         static AuthenticationDecision authenticated(AdminUser admin) {
             return new AuthenticationDecision(
-                    true, admin.getId(), admin.getUsername(), admin.getCredentialVersion(), null);
+                    true,
+                    admin.getId(),
+                    admin.getUsername(),
+                    admin.getCredentialVersion(),
+                    admin.isMfaEnabled(),
+                    null);
         }
 
         static AuthenticationDecision mfaRequired(String challengeToken) {
-            return new AuthenticationDecision(false, null, null, 0, challengeToken);
+            return new AuthenticationDecision(false, null, null, 0, false, challengeToken);
         }
 
         static AuthenticationDecision rejected() {
-            return new AuthenticationDecision(false, null, null, 0, null);
+            return new AuthenticationDecision(false, null, null, 0, false, null);
         }
 
         boolean requiresMfa() {

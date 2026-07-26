@@ -13,6 +13,8 @@ public record AdminBookingSearchRow(
         LocalDateTime startAt,
         LocalDateTime endAt,
         String status,
+        String source,
+        int participantCount,
         long depositAmount,
         LocalDateTime depositPaidAt,
         long balanceAmount,

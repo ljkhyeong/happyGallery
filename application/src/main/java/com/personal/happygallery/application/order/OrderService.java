@@ -16,6 +16,7 @@ import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.product.ProductType;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -179,7 +180,15 @@ public class OrderService {
                 .toList());
         items.forEach(item -> orderItemPort.save(
                 new OrderItem(
-                        order, item.productId(), item.productName(), item.qty(), item.unitPrice())));
+                        order,
+                        item.productId(),
+                        item.productName(),
+                        item.productType(),
+                        item.qty(),
+                        item.unitPrice(),
+                        item.specification(),
+                        item.careInstructions(),
+                        item.productionLeadDays())));
     }
 
     private static long totalAmount(List<OrderItemRequest> items, long shippingFee) {
@@ -210,7 +219,41 @@ public class OrderService {
         fulfillmentPort.save(fulfillment);
     }
 
-    public record OrderItemRequest(Long productId, String productName, int qty, long unitPrice) {}
+    public record OrderItemRequest(
+            Long productId,
+            String productName,
+            ProductType productType,
+            int qty,
+            long unitPrice,
+            String specification,
+            String careInstructions,
+            Integer productionLeadDays
+    ) {
+        public OrderItemRequest(Long productId, String productName, int qty, long unitPrice) {
+            this(productId, productName, ProductType.READY_STOCK,
+                    qty, unitPrice, null, null, null);
+        }
+
+        public OrderItemRequest(
+                Long productId,
+                String productName,
+                int qty,
+                long unitPrice,
+                String specification,
+                String careInstructions,
+                Integer productionLeadDays
+        ) {
+            this(productId, productName,
+                    productionLeadDays == null ? ProductType.READY_STOCK : ProductType.MADE_TO_ORDER,
+                    qty, unitPrice, specification, careInstructions, productionLeadDays);
+        }
+
+        public OrderItemRequest {
+            if (productType == null) {
+                throw new IllegalArgumentException("신규 주문 상품의 상품 유형은 필수입니다.");
+            }
+        }
+    }
 
     public record OrderCreationResult(Order order, String rawAccessToken) {}
 }

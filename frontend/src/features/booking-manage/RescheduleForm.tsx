@@ -5,11 +5,14 @@ import { fetchRescheduleSlots } from "./api";
 import { invalidateSlotAvailability, queryKeys } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 
 interface Props {
   classId: number;
+  className?: string;
   currentSlotId: number;
   currentStartAt: string;
+  participantCount: number;
   onReschedule: (newSlotId: number) => Promise<unknown>;
   onSuccess: () => void;
   successMessage?: string;
@@ -17,8 +20,10 @@ interface Props {
 
 export function RescheduleForm({
   classId,
+  className,
   currentSlotId,
   currentStartAt,
+  participantCount,
   onReschedule,
   onSuccess,
   successMessage = "예약이 변경되었습니다.",
@@ -53,13 +58,16 @@ export function RescheduleForm({
     },
   });
 
-  const availableSlots = slots?.filter((slot) => slot.id !== currentSlotId) ?? [];
+  const availableSlots = slots?.filter(
+    (slot) => slot.id !== currentSlotId && slot.remainingCapacity >= participantCount,
+  ) ?? [];
+  const selectedSlot = availableSlots.find((slot) => slot.id === selectedSlotId);
 
   return (
     <Form
       onSubmit={(event) => {
         event.preventDefault();
-        if (selectedSlotId !== null) mutation.mutate(selectedSlotId);
+        if (selectedSlot) mutation.mutate(selectedSlot.id);
       }}
     >
       <Form.Group controlId={`booking-reschedule-date-${currentSlotId}`} className="mb-3">
@@ -74,7 +82,7 @@ export function RescheduleForm({
           }}
         />
         <Form.Text className="text-muted">
-          현재 예약과 같은 클래스의 예약 가능한 시간만 표시됩니다.
+          현재 예약 {participantCount}명이 모두 이동할 수 있는 시간만 표시됩니다.
         </Form.Text>
       </Form.Group>
 
@@ -82,7 +90,10 @@ export function RescheduleForm({
       <ErrorAlert error={mutation.error} />
       {slotsLoading && <LoadingSpinner text="예약 가능한 시간 조회 중..." />}
       {!slotsLoading && slots && availableSlots.length === 0 && (
-        <EmptyState message="선택한 날짜에 변경 가능한 시간이 없습니다." />
+        <div className="mb-3">
+          <EmptyState message="선택한 날짜에 변경 가능한 시간이 없습니다." />
+          {className && <WorkshopInquiryLink className={className} desiredDate={date} />}
+        </div>
       )}
 
       {availableSlots.length > 0 && (
@@ -109,7 +120,7 @@ export function RescheduleForm({
       <Button
         type="submit"
         variant="warning"
-        disabled={selectedSlotId === null || mutation.isPending}
+        disabled={!selectedSlot || mutation.isPending}
       >
         {mutation.isPending ? "변경 중..." : "선택한 시간으로 변경"}
       </Button>

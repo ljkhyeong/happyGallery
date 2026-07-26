@@ -40,7 +40,8 @@ class AdminSessionStoreUseCaseIT {
     @DisplayName("관리자 세션과 자격 버전 인덱스를 같은 TTL로 함께 저장한다")
     @Test
     void create_storesEncryptedSessionAndIndexTogether() {
-        String token = adminSessionPort.create(ADMIN_USER_ID, "operator", CREDENTIAL_VERSION);
+        String token = adminSessionPort.create(
+                ADMIN_USER_ID, "operator", CREDENTIAL_VERSION, true);
         String tokenHash = blindIndexer.index(token);
         String sessionKey = "admin:session:" + tokenHash;
 
@@ -52,7 +53,7 @@ class AdminSessionStoreUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(validated).contains(new AdminSession(
-                    ADMIN_USER_ID, "operator", CREDENTIAL_VERSION, Instant.now(clock)));
+                    ADMIN_USER_ID, "operator", CREDENTIAL_VERSION, true, Instant.now(clock)));
             softly.assertThat(encryptedSession).doesNotContain("operator", token);
             softly.assertThat(indexedTokens).containsExactly(tokenHash);
             softly.assertThat(sessionTtl).isBetween(Duration.ofHours(7).toMillis(), Duration.ofHours(8).toMillis());
@@ -73,7 +74,7 @@ class AdminSessionStoreUseCaseIT {
         Set<String> sessionKeysBefore = redisTemplate.keys("admin:session:*");
 
         assertThatThrownBy(() -> adminSessionPort.create(
-                ADMIN_USER_ID, "operator", CREDENTIAL_VERSION))
+                ADMIN_USER_ID, "operator", CREDENTIAL_VERSION, true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("관리자 세션 Redis 저장 실패");
 

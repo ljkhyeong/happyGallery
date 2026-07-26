@@ -23,6 +23,9 @@ import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryU
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.adapter.out.persistence.cart.CartItemRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
@@ -36,6 +39,7 @@ import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.cart.CartItem;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -73,6 +77,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
@@ -118,6 +123,8 @@ class PaymentConfirmUseCaseIT {
     @Autowired CartItemRepository cartItemRepository;
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired ObjectMapper objectMapper;
+    @Autowired FieldEncryptor fieldEncryptor;
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean PaymentProvider paymentProvider;
@@ -231,6 +238,7 @@ class PaymentConfirmUseCaseIT {
             softly.assertThat(order.getPaymentKey()).isEqualTo("confirmed-payment-key");
             softly.assertThat(orderItems).hasSize(1);
             softly.assertThat(orderItems.getFirst().getProductName()).isEqualTo("확정 상품");
+            softly.assertThat(orderItems.getFirst().getProductType()).isEqualTo(ProductType.READY_STOCK);
             softly.assertThat(orderItems.getFirst().getUnitPrice()).isEqualTo(31_000L);
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             softly.assertThat(attempt.getPaymentKey()).isEqualTo("payment-key-confirm");
@@ -253,7 +261,16 @@ class PaymentConfirmUseCaseIT {
         User user = userStorePort.save(new User(
                 "made-to-order-consent@example.com", "hashed", "제작 동의 회원", "01033335555"));
         Product product = productStorePort.save(
-                new Product("주문제작 가죽 소품", ProductType.MADE_TO_ORDER, 120_000L));
+                new Product(
+                        "주문제작 가죽 소품",
+                        ProductType.MADE_TO_ORDER,
+                        null,
+                        120_000L,
+                        null,
+                        null,
+                        "재료: 소가죽\n크기: 12 x 8 cm\n사양: 내추럴 브라운",
+                        "물에 젖으면 마른 천으로 닦아 주세요.",
+                        21));
         inventoryStorePort.save(inventory(product, 1));
         AuthContext auth = AuthContext.member(user.getId());
 
@@ -274,6 +291,16 @@ class PaymentConfirmUseCaseIT {
                         FulfillmentType.PICKUP, null,
                         MadeToOrderConsent.CURRENT_VERSION, true),
                 auth));
+        product.updateDetails(
+                product.getName(),
+                product.getCategory(),
+                product.getPrice(),
+                product.getDescription(),
+                product.getImageUrl(),
+                "재료: 소가죽\n크기: 변경된 규격\n사양: 변경된 색상",
+                "변경된 관리 방법",
+                45);
+        productStorePort.save(product);
         PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
                 customerCommand("made-to-order-consent-payment", prepared, auth));
 
@@ -284,7 +311,128 @@ class PaymentConfirmUseCaseIT {
             softly.assertThat(order.getMadeToOrderConsentDisclosure())
                     .isEqualTo(MadeToOrderConsent.CURRENT_DISCLOSURE);
             softly.assertThat(order.getMadeToOrderConsentAt()).isNotNull();
+            softly.assertThat(orderItemPort.findByOrder(order))
+                    .singleElement()
+                    .satisfies(item -> {
+                        softly.assertThat(item.getProductType()).isEqualTo(ProductType.MADE_TO_ORDER);
+                        softly.assertThat(item.getSpecification())
+                                .isEqualTo("재료: 소가죽\n크기: 12 x 8 cm\n사양: 내추럴 브라운");
+                        softly.assertThat(item.getCareInstructions())
+                                .isEqualTo("물에 젖으면 마른 천으로 닦아 주세요.");
+                        softly.assertThat(item.getProductionLeadDays()).isEqualTo(21);
+                    });
         });
+    }
+
+    @DisplayName("V97 이전 기성품 payload는 READY_STOCK 주문 항목으로 확정한다")
+    @Test
+    void confirm_legacyReadyStockPayload_normalizesProductType() {
+        User user = userStorePort.save(new User(
+                "legacy-ready-stock@example.com", "hashed", "구형 기성품 회원", "01077772222"));
+        Product product = productStorePort.save(
+                readyStockProduct("구형 기성품 결제", 54_000L));
+        inventoryStorePort.save(inventory(product, 1));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(new OrderItemRef(product.getId(), 1)), false,
+                        FulfillmentType.PICKUP, null),
+                auth));
+
+        PreparedPaymentPayload legacyPayload = new PreparedOrderPayload(
+                user.getId(),
+                null,
+                null,
+                null,
+                List.of(new PreparedOrderItem(
+                        product.getId(), product.getName(), 1, product.getPrice())),
+                false,
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                null);
+        Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow().getId();
+        jdbcTemplate.update(
+                "UPDATE payment_attempt SET payload_enc = ? WHERE id = ?",
+                fieldEncryptor.encrypt(objectMapper.writeValueAsString(legacyPayload)),
+                attemptId);
+
+        PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
+                customerCommand("legacy-ready-stock-payment", prepared, auth));
+
+        var order = orderReader.findById(result.domainId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(orderItemPort.findByOrder(order))
+                    .singleElement()
+                    .satisfies(item ->
+                            softly.assertThat(item.getProductType())
+                                    .isEqualTo(ProductType.READY_STOCK));
+            softly.assertThat(attemptReader.findById(attemptId))
+                    .hasValueSatisfying(attempt ->
+                            softly.assertThat(attempt.getStatus())
+                                    .isEqualTo(PaymentAttemptStatus.CONFIRMED));
+        });
+    }
+
+    @DisplayName("구형 주문제작 payload는 구매 조건 없이 PG 승인이나 주문 생성으로 진행하지 않는다")
+    @Test
+    void confirm_legacyMadeToOrderPayloadWithoutPurchaseTerms_rejectedBeforePgCall() {
+        User user = userStorePort.save(new User(
+                "legacy-made-to-order@example.com", "hashed", "구형 결제 회원", "01077773333"));
+        Product product = productStorePort.save(new Product(
+                "구형 주문제작 결제",
+                ProductType.MADE_TO_ORDER,
+                null,
+                95_000L,
+                null,
+                null,
+                "재료: 월넛\n크기: 20 x 12 cm\n사양: 오일 마감",
+                null,
+                14));
+        inventoryStorePort.save(inventory(product, 1));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(new OrderItemRef(product.getId(), 1)), false,
+                        FulfillmentType.PICKUP, null,
+                        MadeToOrderConsent.CURRENT_VERSION, true),
+                auth));
+
+        PreparedPaymentPayload legacyPayload = new PreparedOrderPayload(
+                user.getId(),
+                null,
+                null,
+                null,
+                List.of(new PreparedOrderItem(
+                        product.getId(), product.getName(), 1, product.getPrice())),
+                false,
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                MadeToOrderConsent.current(LocalDateTime.now(clock)));
+        Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow().getId();
+        jdbcTemplate.update(
+                "UPDATE payment_attempt SET payload_enc = ? WHERE id = ?",
+                fieldEncryptor.encrypt(objectMapper.writeValueAsString(legacyPayload)),
+                attemptId);
+
+        assertThatThrownBy(() -> confirmUseCase.confirm(
+                customerCommand("legacy-made-to-order-payment", prepared, auth)))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("구매 조건이 저장되지 않은 이전 결제");
+
+        assertSoftly(softly -> {
+            softly.assertThat(orderReader.count()).isZero();
+            softly.assertThat(attemptReader.findById(attemptId))
+                    .hasValueSatisfying(attempt ->
+                            softly.assertThat(attempt.getStatus())
+                                    .isEqualTo(PaymentAttemptStatus.PENDING));
+        });
+        verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
     }
 
     @DisplayName("배송 주문 confirm은 주문 시점 배송지를 암호문으로 고정한다")
@@ -431,7 +579,7 @@ class PaymentConfirmUseCaseIT {
                 }));
     }
 
-    @DisplayName("confirm은 클래스 가격이 바뀌어도 prepare 시점 예약금과 잔금으로 예약을 저장한다")
+    @DisplayName("confirm은 다인 예약의 prepare 시점 인원과 금액 스냅샷을 저장한다")
     @Test
     void confirm_bookingClassPriceChanged_usesPreparedPriceSnapshot() {
         User user = userStorePort.save(
@@ -443,7 +591,8 @@ class PaymentConfirmUseCaseIT {
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,
                 new BookingPayload(
-                        user.getId(), null, null, null, slot.getId(), null, DepositPaymentMethod.CARD),
+                        user.getId(), null, null, null, slot.getId(), null,
+                        DepositPaymentMethod.CARD, 3, null),
                 auth));
         jdbcTemplate.update("UPDATE classes SET price = ? WHERE id = ?", 90_000L, bookingClass.getId());
 
@@ -452,11 +601,16 @@ class PaymentConfirmUseCaseIT {
 
         var booking = bookingReaderPort.findById(result.domainId()).orElseThrow();
         assertSoftly(softly -> {
-            softly.assertThat(prepared.amount()).isEqualTo(5_000L);
-            softly.assertThat(booking.getDepositAmount()).isEqualTo(5_000L);
+            softly.assertThat(prepared.amount()).isEqualTo(15_000L);
+            softly.assertThat(booking.getParticipantCount()).isEqualTo(3);
+            softly.assertThat(booking.getDepositAmount()).isEqualTo(15_000L);
             softly.assertThat(booking.getDepositPaidAt()).isEqualTo(LocalDateTime.now(clock));
-            softly.assertThat(booking.getBalanceAmount()).isEqualTo(45_000L);
+            softly.assertThat(booking.getBalanceAmount()).isEqualTo(135_000L);
             softly.assertThat(booking.getPaymentKey()).isEqualTo("confirmed-payment-key");
+            softly.assertThat(jdbcTemplate.queryForObject(
+                    "SELECT booked_count FROM slots WHERE id = ?",
+                    Integer.class,
+                    slot.getId())).isEqualTo(3);
         });
     }
 

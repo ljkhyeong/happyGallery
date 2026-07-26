@@ -20,6 +20,11 @@ data:
           matchers:
             - severity="critical"
           repeat_interval: 1h
+        - receiver: webhook-business
+          matchers:
+            - category="business"
+            - severity="warning"
+          repeat_interval: 30m
         - receiver: webhook-warning
           matchers:
             - severity="warning"
@@ -31,6 +36,11 @@ data:
             send_resolved: true
             timeout: 10s
       - name: webhook-warning
+        webhook_configs:
+          - url_file: /etc/alertmanager/secrets/webhook-url
+            send_resolved: true
+            timeout: 10s
+      - name: webhook-business
         webhook_configs:
           - url_file: /etc/alertmanager/secrets/webhook-url
             send_resolved: true

@@ -1,19 +1,18 @@
-import { api } from "@/shared/api";
+import {
+  cancelMyBooking as requestBookingCancellation,
+  getMyBooking,
+  rescheduleMyBooking as requestMyBookingReschedule,
+} from "@/generated/api/booking";
 import type { CancelResponse, MyBookingDetailResponse } from "@/shared/types";
 
 export function fetchMyBooking(bookingId: number): Promise<MyBookingDetailResponse> {
-  return api<MyBookingDetailResponse>(`/me/bookings/${bookingId}`);
+  return getMyBooking(bookingId);
 }
 
 export function rescheduleMyBooking(bookingId: number, newSlotId: number) {
-  return api(`/me/bookings/${bookingId}/reschedule`, {
-    method: "PATCH",
-    body: { newSlotId },
-  });
+  return requestMyBookingReschedule(bookingId, { newSlotId });
 }
 
 export function cancelMyBooking(bookingId: number): Promise<CancelResponse> {
-  return api<CancelResponse>(`/me/bookings/${bookingId}`, {
-    method: "DELETE",
-  });
+  return requestBookingCancellation(bookingId);
 }

@@ -18,7 +18,8 @@ public interface AdminBookingCancelUseCase {
             Booking booking,
             boolean passCreditRestored,
             Refund refund,
-            boolean balanceSettlementRequired
+            boolean balanceSettlementRequired,
+            boolean manualCompensationRequired
     ) {}
 
     record CancelSessionResult(

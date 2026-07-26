@@ -306,6 +306,10 @@ grep -q 'alertmanager:9093' "$rendered" \
     || die "Prometheus와 Alertmanager 연결이 없습니다."
 grep -q 'url_file: /etc/alertmanager/secrets/webhook-url' "$rendered" \
     || die "Alertmanager webhook Secret 파일 연결이 없습니다."
+grep -q 'receiver: webhook-business' "$rendered" \
+    && grep -q 'category="business"' "$rendered" \
+    && grep -q 'repeat_interval: 30m' "$rendered" \
+    || die "업무 backlog 경보의 30분 재알림 경로가 없습니다."
 grep -q 'GOOGLE_OAUTH_REDIRECT_URI: https://gallery.example.com/api/v1/auth/social/callback/google' "$rendered" \
     || die "Google OAuth callback이 공개 host와 일치하지 않습니다."
 grep -q 'NAVER_OAUTH_REDIRECT_URI: https://gallery.example.com/api/v1/auth/social/callback/naver' "$rendered" \
@@ -331,8 +335,8 @@ grep -q 'rotate-redis-credentials.sh' "$SCRIPT_DIR/create-secrets.sh" \
     || die "Redis Secret 단독 교체 방지가 없습니다."
 grep -q 'rotate-data-keys.sh/finalize-data-key-rotation.sh' "$SCRIPT_DIR/create-secrets.sh" \
     || die "데이터 키/키링의 일반 Secret 교체 방지가 없습니다."
-grep -q 'activate-restored-release.sh' "$SCRIPT_DIR/restore-mysql.sh" \
-    || die "복원 후 호환 digest 활성화 절차가 연결되지 않았습니다."
+grep -q 'activate-restored-release.sh' "$SCRIPT_DIR/restore-recovery-backup.sh" \
+    || die "데이터 복원 후 guarded 호환 digest 활성화 절차 안내가 없습니다."
 grep -q 'k3s_ctr images export' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "off-device 백업에 호환 app/frontend 이미지 archive가 없습니다."
 grep -q -- '--references "$release_manifest"' "$SCRIPT_DIR/backup-mysql.sh" \
@@ -371,6 +375,21 @@ grep -q 'prepare-restored-release-images.sh.*release_dir' "$SCRIPT_DIR/restore-m
     || die "파괴적 DB 복원 전에 호환 release 이미지 선검증이 없습니다."
 grep -q 'restored_flyway_version' "$SCRIPT_DIR/restore-recovery-backup.sh" \
     || die "복구 진입점이 restored Flyway version을 확인하지 않습니다."
+grep -q 'backup_created_at=.*BACKUP_CREATED_AT' "$SCRIPT_DIR/restore-recovery-backup.sh" \
+    && grep -q 'recovery_metadata_sha256=.*sha256_file.*recovery_metadata' \
+        "$SCRIPT_DIR/restore-recovery-backup.sh" \
+    && grep -q 'reconciliation_token=.*backup_created_at.*recovery_metadata_sha256' \
+        "$SCRIPT_DIR/restore-recovery-backup.sh" \
+    && grep -q 'pending_marker=.*reconciliation_token.*pending' \
+        "$SCRIPT_DIR/restore-recovery-backup.sh" \
+    || die "복구 진입점이 backup timestamp와 recovery metadata checksum으로 대사 토큰을 발급하지 않습니다."
+if grep -q 'activate-restored-release.sh.*release_dir' "$SCRIPT_DIR/restore-recovery-backup.sh"; then
+    die "데이터 복원 진입점이 운영 대사 전에 app을 자동 활성화합니다."
+fi
+if grep -Eq 'CONFIRM_RESTORED_(PAYMENT|NOTIFICATION|PRIVACY_REQUEST)_RECONCILIATION:-}" = "\$IMAGE_TAG"' \
+    "$SCRIPT_DIR/activate-restored-release.sh"; then
+    die "복원 대사 확인이 backup이 아닌 IMAGE_TAG에만 결합되어 있습니다."
+fi
 grep -q 'runtime_key_id.*expected_key_id' "$SCRIPT_DIR/restore-recovery-backup.sh" \
     || die "복구 진입점이 runtime 암호화 키 ID를 확인하지 않습니다."
 grep -q 'runtime_rotation_phase.*expected_rotation_phase' "$SCRIPT_DIR/restore-recovery-backup.sh" \
@@ -382,6 +401,16 @@ grep -q 'OnFailure=happygallery-backup-failure@%n.service' \
     || die "백업 실패 systemd 알림 연결이 없습니다."
 grep -q 'backup.last-success' "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
     || die "백업 성공 heartbeat 파일이 없습니다."
+grep -q 'TimeoutStartSec=30m' "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
+    && grep -q 'TimeoutStopSec=10m' "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
+    || die "백업 실행 제한과 app 원복 종료 유예가 없습니다."
+grep -q 'manage-backup-alert-silence.sh start' \
+    "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
+    && grep -q 'manage-backup-alert-silence.sh stop' \
+        "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
+    && grep -q 'value: "AppDown"' "$SCRIPT_DIR/manage-backup-alert-silence.sh" \
+    && grep -q 'now + 45 \* 60' "$SCRIPT_DIR/manage-backup-alert-silence.sh" \
+    || die "계획 백업 AppDown silence의 생성·해제·만료 안전장치가 없습니다."
 grep -q 'OnFailure=happygallery-backup-failure@%n.service' \
     "$DEPLOY_DIR/systemd/happygallery-backup-watchdog.service.example" \
     || die "백업 heartbeat watchdog 실패 알림 연결이 없습니다."
@@ -451,9 +480,27 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "previous 키 finalize 재개 상태가 없습니다." unless data_finalization.match?(/key-rotation-phase.*?finalizing.*?key-finalization-original-replicas/m)
 
   restored_release = File.read(File.join(script_dir, "activate-restored-release.sh"))
-  activation_flow = /app이 중지된 상태에서.*?set image deployment\/app.*?configured_app_ref=.*?scale deployment\/app --replicas=1/m
+  restore_entry = File.read(File.join(script_dir, "restore-recovery-backup.sh"))
+  token_issue = /BACKUP_CREATED_AT.*?sha256_file "\$recovery_metadata".*?reconciliation_token=.*?pending_marker=.*?RECOVERY_METADATA_SHA256=.*?mv "\$pending_marker_tmp" "\$pending_marker"/m
+  abort "복원 성공 후 timestamp/checksum 대사 토큰 marker 발급 순서가 없습니다." unless restore_entry.match?(token_issue)
+  abort "미완료 복원 대사 marker가 있을 때 새 복원을 막지 않습니다." unless restore_entry.match?(/existing_unfinished_marker=.*?name '\*\.pending'.*?name '\*\.activating'.*?die/m)
+  restore_lock_flow = /restore_lock_dir=.*?cleanup_restore\(\).*?restore_lock_held.*?rmdir "\$restore_lock_dir".*?trap cleanup_restore EXIT.*?mkdir "\$restore_lock_dir".*?restore_lock_held=true.*?existing_unfinished_marker=.*?restore-mysql\.sh.*?find \/media -mindepth 1 -depth -delete.*?mv "\$pending_marker_tmp" "\$pending_marker"/m
+  abort "DB·미디어 교체 전 원자적 복원 실행 락 선점과 종료 시 해제가 없습니다." unless restore_entry.match?(restore_lock_flow)
+  abort "락을 얻지 못한 경쟁 실행이 기존 락을 지울 수 있습니다." unless restore_entry.match?(/restore_lock_held=false.*?if \[ "\$restore_lock_held" = true \].*?rmdir "\$restore_lock_dir"/m)
+  reconciliation_gate = /RESTORE_RECONCILIATION_TOKEN.*?CONFIRM_RESTORED_PAYMENT_RECONCILIATION.*?reconciliation_token.*?CONFIRM_RESTORED_NOTIFICATION_RECONCILIATION.*?reconciliation_token.*?CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION.*?reconciliation_token.*?require_private_file "\$pending_marker".*?RECOVERY_METADATA_SHA256.*?marker_created_at-\$marker_metadata_sha256.*?IMAGE_TAG.*?RELEASE_DIR/m
+  abort "복원 release 활성화가 일치하는 timestamp/checksum marker와 PG·알림·개인정보 요청 대사 확인을 요구하지 않습니다." unless restored_release.match?(reconciliation_gate)
+  one_time_token_flow = /mv "\$pending_marker" "\$activating_marker".*?scale deployment\/app --replicas=1.*?rollout status deployment\/app.*?mv "\$activating_marker" "\$consumed_marker"/m
+  abort "복원 대사 토큰의 pending/activating/consumed 일회 소비 순서가 없습니다." unless restored_release.match?(one_time_token_flow)
+  activation_exit_cleanup = /activation_succeeded=false.*?activation_cleanup_done=false.*?on_activation_exit\(\).*?trap - EXIT HUP INT TERM.*?activation_cleanup_done.*?activation_started.*?activation_succeeded.*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m
+  abort "복원 release의 명시적 오류와 일반 종료를 한 번만 처리하는 EXIT fail-closed 정리가 없습니다." unless restored_release.match?(activation_exit_cleanup)
+  signal_cleanup = /trap on_activation_exit EXIT.*?trap 'exit 129' HUP.*?trap 'exit 130' INT.*?trap 'exit 143' TERM.*?activation_started=true.*?mv "\$pending_marker" "\$activating_marker"/m
+  abort "복원 release 활성화 시작 전에 HUP/INT/TERM을 EXIT fail-closed 정리로 연결하지 않습니다." unless restored_release.match?(signal_cleanup)
+  marker_recovery = /app_drained=true.*?if \[ "\$app_drained" = true \].*?mv "\$activating_marker" "\$pending_marker".*?mv "\$consumed_marker" "\$pending_marker".*?marker_recovered/m
+  abort "활성화 실패 후 app drain 성공 때 대사 토큰을 재시도 가능한 pending 상태로 복구하지 않습니다." unless restored_release.match?(marker_recovery)
+  abort "복원 release 성공 marker 이전 종료가 성공으로 처리될 수 있습니다." unless restored_release.match?(/mv "\$activating_marker" "\$consumed_marker".*?activation_succeeded=true/m)
+  abort "ERR와 EXIT가 복원 release 실패 정리를 중복 실행할 수 있습니다." if restored_release.match?(/trap [^\n]+ ERR/)
+  activation_flow = /app이 중지된 상태에서.*?set image deployment\/app.*?configured_app_ref=.*?대사 확인.*?scale deployment\/app --replicas=1/m
   abort "복원 release가 app scale-up 전에 호환 digest를 확정하지 않습니다." unless restored_release.match?(activation_flow)
-  abort "복원 release 활성화 실패 시 app drain 보장이 없습니다." unless restored_release.match?(/on_activation_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
 
   image_preflight = File.read(File.join(script_dir, "prepare-restored-release-images.sh"))
   required_images = /runtime_inventory=.*?runtime-images-from-manifest\.rb.*?--inventory.*?all_required_images_match\(\).*?containerd_has_image "\$app_ref".*?containerd_has_image "\$frontend_ref".*?while IFS=.*?read -r runtime_key runtime_image expected_digest unexpected.*?k3s_ctr images import.*?all_required_images_match/m

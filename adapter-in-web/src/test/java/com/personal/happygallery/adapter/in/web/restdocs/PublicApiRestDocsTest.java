@@ -142,7 +142,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(bookingRescheduleUseCase.rescheduleBooking(eq(100L), any(), eq(42L)))
                 .thenReturn(booking);
         when(bookingCancelUseCase.cancelBooking(eq(100L), any()))
-                .thenReturn(new BookingCancelUseCase.CancelResult(booking, true, bookingRefund));
+                .thenReturn(new BookingCancelUseCase.CancelResult(booking, true, bookingRefund, false));
         when(orderQueryUseCase.getOrderByToken(eq(200L), any())).thenReturn(orderDetail);
         when(paymentPrepareUseCase.prepare(any()))
                 .thenReturn(new PaymentPrepareUseCase.PrepareResult(
@@ -318,7 +318,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void get_guest_booking() throws Exception {
         mockMvc.perform(get("/api/v1/bookings/{bookingId}", 100L)
                         .header("X-Access-Token", "guest-access-token"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(3));
     }
 
     @Test
@@ -328,7 +329,30 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                         .header("X-Access-Token", "guest-access-token")
                         .contentType(APPLICATION_JSON)
                         .content("{\"newSlotId\":42}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(3));
+    }
+
+    @Test
+    @DisplayName("다인 예약 결제 prepare API를 문서화한다")
+    void prepare_booking_payment() throws Exception {
+        mockMvc.perform(post("/api/v1/payments/prepare")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "context": "BOOKING",
+                                  "payload": {
+                                    "type": "BOOKING",
+                                    "userId": 11,
+                                    "slotId": 42,
+                                    "paymentMethod": "CARD",
+                                    "participantCount": 3
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"));
     }
 
     @Test
@@ -337,7 +361,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(delete("/api/v1/bookings/{bookingId}", 100L)
                         .header("X-Access-Token", "guest-access-token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.refund.amount").value(5000))
+                .andExpect(jsonPath("$.participantCount").value(3))
+                .andExpect(jsonPath("$.refund.amount").value(15000))
                 .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
     }
 
@@ -346,7 +371,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void get_guest_order() throws Exception {
         mockMvc.perform(get("/api/v1/orders/{id}", 200L)
                         .header("X-Access-Token", "guest-access-token"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.orderNumber").value("ORD-00000200"));
     }
 
     @Test

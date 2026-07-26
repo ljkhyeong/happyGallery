@@ -98,8 +98,10 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
 
     private Booking applyReschedule(Booking booking, RescheduleSlots slots) {
         slotCapacitySupport.lockClassesForSlots(List.of(slots.oldSlotId(), slots.newSlotId()));
-        Slot newSlot = slotCapacitySupport.reserveCapacity(slots.newSlotId());
-        Slot oldSlot = slotCapacitySupport.releaseCapacity(slots.oldSlotId());
+        Slot newSlot = slotCapacitySupport.reserveCapacity(
+                slots.newSlotId(), booking.getParticipantCount());
+        Slot oldSlot = slotCapacitySupport.releaseCapacity(
+                slots.oldSlotId(), booking.getParticipantCount());
         booking.reschedule(newSlot);
 
         bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,

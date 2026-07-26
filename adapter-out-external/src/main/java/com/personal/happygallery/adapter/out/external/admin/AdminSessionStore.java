@@ -65,11 +65,15 @@ public class AdminSessionStore implements AdminSessionPort {
     }
 
     @Override
-    public String create(Long adminUserId, String username, long credentialVersion) {
+    public String create(
+            Long adminUserId,
+            String username,
+            long credentialVersion,
+            boolean mfaEnabled) {
         String token = UUID.randomUUID().toString();
         String tokenHash = blindIndexer.index(token);
         AdminSession session = new AdminSession(
-                adminUserId, username, credentialVersion, Instant.now(clock));
+                adminUserId, username, credentialVersion, mfaEnabled, Instant.now(clock));
         String encryptedSession = serializeAndEncrypt(session);
         String sessionKey = sessionKey(tokenHash);
         String indexKey = adminIndexKey(adminUserId, credentialVersion);

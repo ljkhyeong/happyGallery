@@ -59,7 +59,8 @@ class DefaultBookingCancellationService implements BookingCancellationService {
     private void cancelOne(Booking booking, Long passId) {
         booking.cancel();
 
-        Slot slot = slotCapacitySupport.releaseCapacity(booking.getSlot().getId());
+        Slot slot = slotCapacitySupport.releaseCapacity(
+                booking.getSlot().getId(), booking.getParticipantCount());
 
         bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED,
                 slot, null, "SYSTEM", null, "8회권 전체 환불 연동 취소");

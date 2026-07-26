@@ -8,6 +8,8 @@ public final class AdminAuthenticationToken extends AbstractAuthenticationToken 
 
     private static final List<SimpleGrantedAuthority> ADMIN_AUTHORITIES =
             List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+    private static final List<SimpleGrantedAuthority> MFA_ENROLLMENT_AUTHORITIES =
+            List.of(new SimpleGrantedAuthority("MFA_ENROLLMENT"));
 
     private final Object principal;
     private final AdminPrincipal.AuthenticationSource authenticationSource;
@@ -22,7 +24,9 @@ public final class AdminAuthenticationToken extends AbstractAuthenticationToken 
     }
 
     private AdminAuthenticationToken(AdminPrincipal principal) {
-        super(ADMIN_AUTHORITIES);
+        super(principal.isMfaEnrollmentRequired()
+                ? MFA_ENROLLMENT_AUTHORITIES
+                : ADMIN_AUTHORITIES);
         this.principal = principal;
         this.credentials = null;
         this.authenticationSource = principal.authenticationSource();

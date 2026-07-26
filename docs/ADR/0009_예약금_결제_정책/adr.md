@@ -7,7 +7,8 @@
 
 ## 컨텍스트
 
-예약금은 온라인 PG(카드/간편결제)만 허용하고 계좌이체는 차단해야 한다.
+고객이 직접 만드는 `WEB` 예약금은 온라인 PG(카드/간편결제)만 허용하고 계좌이체는 차단해야 한다.
+운영자가 전화·메신저·방문 접수의 오프라인 입금을 기록하는 경로는 PG 결제가 아니므로 별도다.
 슬롯 변경 시 예약금은 유지(재결제 없음)되어야 하고,
 D-1 환불 경계는 §5.4/§6.1에서 이미 강제된다.
 
@@ -23,7 +24,9 @@ D-1 환불 경계는 §5.4/§6.1에서 이미 강제된다.
 
 ## 결정 2 — 계좌이체 차단은 서비스 레이어에서 한다
 
-**선택**: `DefaultGuestBookingService.createGuestBooking()` 진입부에서 `paymentMethod == BANK_TRANSFER`이면 `PaymentMethodNotAllowedException` (HTTP 422) 즉시 throw.
+**선택**: 표준 고객 결제의 `BookingPreparer` 진입부에서 `paymentMethod == BANK_TRANSFER`이면
+`PaymentMethodNotAllowedException` (HTTP 422)을 즉시 던진다. 관리자 수기 예약은 공개 결제 payload를
+사용하지 않고, 입금 완료이면 `BANK_TRANSFER`, 미입금이면 `null`을 서버가 정한다.
 
 **이유**: DTO 레벨(@Valid)에서는 유효한 enum 값인지만 검사한다. 어떤 값이 허용되는지는 비즈니스 규칙이므로 서비스 레이어가 책임진다. 도메인 엔티티(`Booking`)는 어떤 `DepositPaymentMethod`든 저장할 수 있도록 제한을 두지 않는다 — 미래에 특수 케이스(관리자 입력 등)를 허용할 여지를 남긴다.
 
@@ -33,7 +36,8 @@ D-1 환불 경계는 §5.4/§6.1에서 이미 강제된다.
 
 **선택**: `payment_method VARCHAR(15) NULL`
 
-**이유**: §5.x에서 이미 생성된 예약 레코드(개발/테스트 DB)를 깨지 않기 위해 nullable로 추가. 신규 예약은 서비스 레이어에서 항상 값이 주입되므로 실제 null이 들어오는 경우는 없다.
+**이유**: §5.x에서 이미 생성된 예약 레코드와 오프라인 입금 전 예약을 표현해야 한다. 고객 PG 예약은
+항상 `CARD|EASY_PAY`, 운영자 수기 예약은 입금 완료 여부에 따라 `BANK_TRANSFER|null`이다.
 
 ---
 

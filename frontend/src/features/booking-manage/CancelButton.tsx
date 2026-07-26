@@ -29,6 +29,12 @@ function resolvePolicyNotice(cancelPolicy: BookingCancelPolicy) {
       message: "취소하면 사용한 8회권 크레딧 1회가 복구됩니다.",
     } as const;
   }
+  if (cancelPolicy.manualCompensationRequired) {
+    return {
+      variant: "info",
+      message: "취소 후 운영자가 오프라인 예약금 반환을 확인해 안내합니다.",
+    } as const;
+  }
   if (cancelPolicy.refundable) {
     return { variant: "info", message: "취소 마감 전이므로 예약금 환불이 요청됩니다." } as const;
   }
@@ -72,6 +78,9 @@ export function CancelButton({
       } else if (passBooking) {
         message = "예약이 취소되었고 8회권 크레딧 1회가 복구되었습니다.";
         variant = "success";
+      } else if (res.manualCompensationRequired) {
+        message = "예약이 취소되었습니다. 운영자가 오프라인 예약금 반환을 확인한 뒤 안내합니다.";
+        variant = "warning";
       } else if (res.refund?.status === "SUCCEEDED") {
         message = `예약이 취소되었고 ${formatKRW(res.refund.amount)} 환불이 완료되었습니다.`;
         variant = "success";
