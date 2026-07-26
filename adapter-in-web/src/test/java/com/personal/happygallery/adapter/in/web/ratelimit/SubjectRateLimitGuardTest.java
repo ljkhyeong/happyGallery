@@ -26,6 +26,26 @@ class SubjectRateLimitGuardTest {
     private static final String PHONE = "01012345678";
     private static final BlindIndexer BLIND_INDEXER = new BlindIndexer(new byte[32]);
 
+    @DisplayName("고객 로그인 이메일은 원문 대신 HMAC Redis 키로 제한한다")
+    @Test
+    void limitsCustomerLoginWithoutExposingRawEmailInRedisKey() {
+        RateLimitProperties properties = properties();
+        AtomicReference<String> redisKey = new AtomicReference<>();
+        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
+                properties,
+                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
+
+        guard.checkCustomerLogin(" Member@Example.COM ");
+
+        assertThatThrownBy(() -> guard.checkCustomerLogin("member@example.com"))
+                .isInstanceOf(RateLimitExceededException.class);
+
+        assertThat(redisKey.get())
+                .isEqualTo("test:rate:CUSTOMER_LOGIN_EMAIL:"
+                        + BLIND_INDEXER.index("member@example.com"))
+                .doesNotContain("member@example.com");
+    }
+
     @DisplayName("동일 전화번호 요청이 초과되면 429 예외를 발생시키고 Redis 키에 원문을 남기지 않는다")
     @Test
     void rejectsRepeatedPhoneWithoutExposingRawPhoneInRedisKey() {
@@ -103,6 +123,7 @@ class SubjectRateLimitGuardTest {
                         generousLimit
                 ),
                 new SubjectRules(
+                        new Rule(1, Duration.ofMinutes(1)),
                         new Rule(1, Duration.ofMinutes(1)),
                         generousLimit,
                         generousLimit,

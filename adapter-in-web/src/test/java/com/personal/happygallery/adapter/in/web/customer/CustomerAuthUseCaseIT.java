@@ -126,23 +126,78 @@ class CustomerAuthUseCaseIT {
     void signup_duplicateEmail_conflict() throws Exception {
         SignupRequest request = verifiedSignupRequest(
                 "dup@example.com", "테스트", "010-0000-0000");
-        String firstBody = objectMapper.writeValueAsString(request);
-        String duplicateBody = objectMapper.writeValueAsString(new SignupRequest(
-                "DUP@EXAMPLE.COM", "password123", "테스트", "010-0000-0000",
-                request.verificationCode(), acceptedPolicies()));
+        SignupRequest duplicateRequest = verifiedSignupRequest(
+                "DUP@EXAMPLE.COM", "테스트", "010-0000-0001");
 
         mockMvc.perform(post("/api/v1/auth/signup")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(firstBody))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/auth/signup")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(duplicateBody))
+                        .content(objectMapper.writeValueAsString(duplicateRequest)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"));
+
+        SignupRequest retryRequest = new SignupRequest(
+                "retry@example.com",
+                duplicateRequest.password(),
+                duplicateRequest.name(),
+                duplicateRequest.phone(),
+                duplicateRequest.verificationCode(),
+                duplicateRequest.policyAcceptance());
+        mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(retryRequest)))
+                .andExpect(status().isCreated());
+    }
+
+    @DisplayName("인증되지 않은 회원가입은 이메일 존재 여부와 무관하게 같은 오류를 반환한다")
+    @Test
+    void signup_unverifiedRequestDoesNotRevealEmailExistence() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(verifiedSignupRequest(
+                                "existing@example.com", "기존 회원", "010-0000-0010"))))
+                .andExpect(status().isCreated());
+
+        SignupRequest existingEmail = new SignupRequest(
+                "existing@example.com",
+                "password123",
+                "공격자",
+                "01000000011",
+                "000000",
+                acceptedPolicies());
+        SignupRequest unknownEmail = new SignupRequest(
+                "unknown@example.com",
+                "password123",
+                "공격자",
+                "01000000012",
+                "000000",
+                acceptedPolicies());
+
+        mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(existingEmail)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PHONE_VERIFICATION_FAILED"))
+                .andExpect(jsonPath("$.message").value(
+                        "휴대폰 인증에 실패했습니다. 코드를 확인하거나 재발송하세요."));
+
+        mockMvc.perform(post("/api/v1/auth/signup")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(unknownEmail)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PHONE_VERIFICATION_FAILED"))
+                .andExpect(jsonPath("$.message").value(
+                        "휴대폰 인증에 실패했습니다. 코드를 확인하거나 재발송하세요."));
     }
 
     @DisplayName("인증 코드가 유효하지 않으면 회원가입을 거절한다")

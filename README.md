@@ -113,6 +113,7 @@ docker compose up -d --build
 - 개발 서버: `cd frontend && npm run dev`
 - 프로덕션 빌드: `cd frontend && npm run build`
 - ESLint·React Hooks 검사: `cd frontend && npm run lint`
+- 프런트 단위 보안 회귀 검사: `cd frontend && npm run test:unit`
 - npm 고위험 취약점 검사: `cd frontend && npm run audit:dependencies`
 - TypeScript API client 생성: `cd frontend && npm run api:generate`
 - 생성 client 최신 상태 검증: `cd frontend && npm run api:check`

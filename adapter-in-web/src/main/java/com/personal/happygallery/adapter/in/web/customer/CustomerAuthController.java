@@ -58,6 +58,7 @@ public class CustomerAuthController {
     public CustomerUserResponse login(@RequestBody @Valid CustomerLoginRequest request,
                                       HttpServletRequest httpRequest,
                                       HttpServletResponse httpResponse) {
+        rateLimitGuard.checkCustomerLogin(request.email());
         User user = customerAuth.login(
                 new CustomerAuthUseCase.LoginCommand(
                         request.email(),

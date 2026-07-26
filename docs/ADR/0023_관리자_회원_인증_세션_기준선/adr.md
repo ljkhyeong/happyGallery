@@ -64,9 +64,10 @@
 - 회원 인증이 필요하거나 선택적으로 사용되는 요청마다 `customerUserId`에 해당하는 회원을 확인하고 DB의 `credential_version`과 세션의 `customerCredentialVersion`이 같을 때만 회원 principal과 `SecurityContext`를 구성한다.
 - `/api/v1/me/**`는 회원 principal이 필요하고, 결제·클라이언트 모니터링처럼 회원 인증이 선택인 API는 세션이 있을 때만 회원 principal을 사용한다.
 - 로그인·회원가입·소셜 로그인 성공 시 세션 ID를 회전하고 회원 ID·자격 증명 버전·principal 인덱스를 저장한다. OAuth authorization request는 callback에서 소비하며 로그인 이후 유지하지 않는다.
+- 고객 이메일 로그인은 조회 결과가 없거나 로컬 비밀번호가 없는 소셜 전용 계정이어도 고정 dummy BCrypt 해시를 정확히 한 번 확인한다. 세 경우 모두 같은 `401 INVALID_CREDENTIALS`를 반환하고 정규화 이메일 HMAC 기준 10회/10분 fail-closed 제한을 적용한다.
 - 비밀번호 변경·재설정은 `users.credential_version` 증가를 보안상 성공 기준으로 삼는다. 변경 전 버전을 이벤트에 담고 DB 커밋 뒤 해당 `userId:credentialVersion` 인덱스의 Redis 세션만 일괄 삭제한다. 변경 후 새 비밀번호로 발급된 세션은 새 버전 인덱스에 있으므로 동시 삭제하지 않는다. 삭제 실패는 로그와 `happygallery.customer.session.revocation_failed` 메트릭으로 남긴다.
 - Redis 삭제가 실패하거나 삭제와 동시에 진행 중이던 요청이 세션을 다시 저장해도, 다음 요청의 자격 증명 버전 비교에서 이전 세션을 즉시 폐기한다. 비밀번호를 바꾼 현재 요청 세션은 응답 종료 시 다시 저장되지 않도록 `HttpSession.invalidate()`를 별도로 호출한다.
-- `users.version` 낙관적 락을 최종 stale update 방어선으로 사용한다. 비밀번호·휴대폰 확인과 같은 회원 변경은 행 잠금으로 직렬화하고, 로그인과 기존 소셜 로그인도 최근 로그인 시각을 갱신하므로 같은 잠금 조회를 사용한다.
+- `users.version` 낙관적 락을 최종 stale update 방어선으로 사용한다. 비밀번호·휴대폰 확인과 같은 회원 변경은 행 잠금으로 직렬화한다. 고객 이메일 로그인은 비관리 스냅샷으로 BCrypt를 먼저 확인하고 성공 후보만 ID로 행을 잠근 뒤 활성 상태와 최신 해시를 다시 검증해, 실패 요청이 회원 행 잠금을 오래 점유하지 않게 한다. 기존 소셜 로그인은 최근 로그인 시각을 갱신하므로 행 잠금 조회를 사용한다.
 - Indexed session의 만료·principal 인덱스 정리를 위해 self-hosted Redis는 `notify-keyspace-events=Egx`로 실행한다. 저장소가 관리형 Redis로 바뀌면 Spring의 `CONFIG` 권한을 허용하거나 서버에서 같은 값을 사전 설정해야 한다.
 - 관리자 Bearer 세션과 회원 HTTP 세션은 분리 유지한다.
 
@@ -77,11 +78,11 @@
 - 로그인과 로그아웃은 기존 CSRF 토큰을 폐기하므로 클라이언트가 다음 상태 변경 요청 전에 토큰을 다시 발급받는다.
 - 관리자 체인은 브라우저 쿠키가 아니라 명시적인 Bearer/API key 헤더로 인증하므로 CSRF 검사 대상에서 제외한다.
 
-### 5. 기존 ETag와 명시적 캐시 정책을 보존한다
+### 5. 기존 ETag와 민감 응답 캐시 금지를 함께 보존한다
 
 - Spring Security의 기본 cache-control writer는 비활성화한다.
 - 공개 상품·클래스·공지 API의 ETag와 `304 Not Modified` 계약을 유지한다.
-- 소셜 로그인 시작·callback 응답에는 `Cache-Control: no-store`를 명시한다.
+- 관리자 전체, 인증, 회원, 결제, 비회원 복구, 비밀 상품 Q&A 비밀번호 확인과 `X-Access-Token` 요청에는 중앙 matcher로 `Cache-Control: no-store`를 명시한다.
 - 다른 기본 보안 응답 헤더는 Spring Security 기준을 따른다.
 
 ### 6. API key는 로컬과 테스트용 폴백으로만 허용한다

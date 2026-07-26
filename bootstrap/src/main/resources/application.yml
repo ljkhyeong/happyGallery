@@ -206,6 +206,7 @@ app:
       client-monitoring: { capacity: 60, window: 1m }
       order-customer-action: { capacity: 30, window: 1m }
     subject:
+      customer-login: { capacity: 10, window: 10m }
       phone-verification: { capacity: 3, window: 10m }
       phone-verification-attempt: { capacity: 5, window: 10m }
       payment-confirm: { capacity: 20, window: 1m }

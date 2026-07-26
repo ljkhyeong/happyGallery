@@ -51,6 +51,15 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
     }
 
     @Override
+    public Optional<LoginSnapshot> findLoginSnapshotByEmail(String email) {
+        return userRepository.findLoginSnapshotByEmailHmac(indexEmail(email))
+                .map(snapshot -> new LoginSnapshot(
+                        snapshot.getUserId(),
+                        snapshot.getPasswordHash(),
+                        snapshot.getWithdrawnAt() == null));
+    }
+
+    @Override
     public Optional<User> findByEmailForUpdate(String email) {
         return active(userRepository.findByEmailHmacForUpdate(indexEmail(email)));
     }

@@ -49,7 +49,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -64,6 +66,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -88,6 +91,7 @@ class CustomerGuestClaimUseCaseIT {
     @Autowired GuestClaimUseCase guestClaimUseCase;
     @Autowired CustomerAccountLifecycleUseCase accountLifecycleUseCase;
     @Autowired TransactionTemplate transactionTemplate;
+    @Autowired JdbcTemplate jdbcTemplate;
     @Autowired ObjectMapper objectMapper;
     @MockitoBean NotificationService notificationService;
 
@@ -216,6 +220,7 @@ class CustomerGuestClaimUseCaseIT {
                         .content(objectMapper.writeValueAsString(
                                 new RecoverGuestRecordsRequest(phone, verificationCode))))
                 .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -238,7 +243,8 @@ class CustomerGuestClaimUseCaseIT {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/bookings/{id}", booking.getId())
                         .header("X-Access-Token", recovered.accessToken()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
         mockMvc.perform(get("/api/v1/orders/{id}", createdOrder.order().getId())
                         .header("X-Access-Token", createdOrder.rawAccessToken()))
                 .andExpect(status().isNotFound());
@@ -268,8 +274,12 @@ class CustomerGuestClaimUseCaseIT {
                 bookingClass,
                 BookingTestHelper.FUTURE,
                 BookingTestHelper.FUTURE.plusHours(2)));
-        bookingStorePort.save(Booking.forMemberDeposit(
-                user.getId(), slot, 10_000L, 40_000L, DepositPaymentMethod.CARD));
+        // 키 회전 전 불일치가 남은 레거시 예약도 claim 시 회원 ID 제약으로 방어한다.
+        Booking memberBooking = bookingStorePort.save(Booking.forMemberDeposit(
+                user, slot, 10_000L, 40_000L, DepositPaymentMethod.CARD));
+        jdbcTemplate.update(
+                "UPDATE bookings SET owner_phone_hmac = ? WHERE id = ?",
+                "f".repeat(64), memberBooking.getId());
         Booking guestBooking = bookingStorePort.save(Booking.forGuestDeposit(
                 guest, slot, 10_000L, 40_000L,
                 DepositPaymentMethod.CARD, "claim-conflict-token"));

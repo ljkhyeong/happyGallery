@@ -39,6 +39,7 @@ public record RateLimitProperties(
     ) {}
 
     public record SubjectRules(
+            @Valid @NotNull Rule customerLogin,
             @Valid @NotNull Rule phoneVerification,
             @Valid @NotNull Rule phoneVerificationAttempt,
             @Valid @NotNull Rule paymentConfirm,

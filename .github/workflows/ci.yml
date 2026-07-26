@@ -79,6 +79,7 @@ jobs:
         run: |
           npm ci
           npm run audit:dependencies
+          npm run test:unit
           npm run lint
           npm run api:check
           npm run build

@@ -41,6 +41,7 @@ import org.springframework.security.web.header.writers.DelegatingRequestMatcherH
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import tools.jackson.databind.ObjectMapper;
 
@@ -49,6 +50,7 @@ public class SecurityConfig {
 
     private static final String ADMIN_LOGIN_REQUIRED = "관리자 인증이 필요합니다.";
     private static final String CUSTOMER_LOGIN_REQUIRED = "로그인이 필요합니다.";
+    private static final String GUEST_ACCESS_TOKEN_HEADER = "X-Access-Token";
 
     @Bean
     AuthenticationProvider adminAuthenticationProvider(AdminAuthUseCase adminAuthUseCase,
@@ -89,10 +91,17 @@ public class SecurityConfig {
     }
 
     @Bean
-    RequestMatcher socialOAuthEndpoints() {
+    RequestMatcher sensitiveCustomerResponses() {
         return new OrRequestMatcher(
-                endpoint(CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_PATTERN),
-                endpoint(CustomerSecurityRoutes.SOCIAL_CALLBACK_PATTERN));
+                endpoint(CustomerSecurityRoutes.AUTH_API_PATTERN),
+                endpoint(CustomerSecurityRoutes.MEMBER_API),
+                endpoint(CustomerSecurityRoutes.MEMBER_API_PATTERN),
+                endpoint(CustomerSecurityRoutes.PAYMENT_API_PATTERN),
+                endpoint(CustomerSecurityRoutes.GUEST_RECORD_API_PATTERN),
+                PathPatternRequestMatcher.withDefaults().matcher(
+                        HttpMethod.POST,
+                        "/api/v1/products/{productId}/qna/{id}/verify"),
+                new RequestHeaderRequestMatcher(GUEST_ACCESS_TOKEN_HEADER));
     }
 
     @Bean
@@ -138,7 +147,10 @@ public class SecurityConfig {
                 .logout(logout -> logout.disable())
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
-                .headers(headers -> headers.cacheControl(cache -> cache.disable()));
+                .headers(headers -> headers
+                        .cacheControl(cache -> cache.disable())
+                        .addHeaderWriter(
+                                new StaticHeadersWriter(HttpHeaders.CACHE_CONTROL, "no-store")));
 
         return http.build();
     }
@@ -160,8 +172,8 @@ public class SecurityConfig {
                                                     OAuth2UserService<OidcUserRequest, OidcUser> googleOidcUserService,
                                                     @Qualifier("customerAuthenticationEndpoints")
                                                     RequestMatcher customerAuthenticationEndpoints,
-                                                    @Qualifier("socialOAuthEndpoints")
-                                                    RequestMatcher socialOAuthEndpoints,
+                                                    @Qualifier("sensitiveCustomerResponses")
+                                                    RequestMatcher sensitiveCustomerResponses,
                                                     ObjectMapper objectMapper) throws Exception {
         http.authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
@@ -227,7 +239,7 @@ public class SecurityConfig {
                 .headers(headers -> headers
                         .cacheControl(cache -> cache.disable())
                         .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(
-                                socialOAuthEndpoints,
+                                sensitiveCustomerResponses,
                                 new StaticHeadersWriter(HttpHeaders.CACHE_CONTROL, "no-store"))));
 
         return http.build();

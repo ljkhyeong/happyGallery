@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.ratelimit;
 
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties;
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties.Rule;
+import com.personal.happygallery.domain.user.EmailAddress;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,11 @@ public class SubjectRateLimitGuard {
     public SubjectRateLimitGuard(RateLimitProperties properties, RedisRateLimiter rateLimiter) {
         this.properties = properties;
         this.rateLimiter = rateLimiter;
+    }
+
+    public void checkCustomerLogin(String email) {
+        check("CUSTOMER_LOGIN_EMAIL", EmailAddress.required(email),
+                properties.subject().customerLogin(), FAIL_CLOSED);
     }
 
     public void checkPhoneVerification(String phone) {

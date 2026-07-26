@@ -26,6 +26,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -162,7 +163,30 @@ class SecurityBoundaryUseCaseIT {
 
         mockMvc.perform(get("/api/v1/admin/products")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    }
+
+    @DisplayName("회원 개인정보 응답에는 중앙 캐시 금지 정책을 적용한다")
+    @Test
+    void customerProfile_disablesResponseCaching() throws Exception {
+        Cookie customerSession = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader)
+                .signupAndGetSessionCookie("cache-control@example.com", "010-1234-8888");
+
+        mockMvc.perform(get("/api/v1/me").cookie(customerSession))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    }
+
+    @DisplayName("비밀 상품 Q&A 비밀번호 확인 응답에는 중앙 캐시 금지 정책을 적용한다")
+    @Test
+    void privateProductQnaVerification_disablesResponseCaching() throws Exception {
+        mockMvc.perform(post("/api/v1/products/1/qna/1/verify")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\":\"qna-secret\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     }
 
     @DisplayName("회원 세션으로 관리자 API를 호출해도 회원 세션 ID는 바뀌지 않는다")

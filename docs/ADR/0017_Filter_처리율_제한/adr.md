@@ -1,7 +1,7 @@
 # ADR-0017: 애플리케이션 처리율 제한 기준
 
 **날짜**: 2026-03-06  
-**최종 갱신**: 2026-07-19
+**최종 갱신**: 2026-07-26
 **상태**: Accepted
 
 ---
@@ -46,6 +46,7 @@ Filter는 request body를 읽지 않는다. `@Valid` DTO와 `@AuthenticationPrin
 
 | 규칙 | 식별 기준 | 한도 |
 | --- | --- | --- |
+| `CUSTOMER_LOGIN_EMAIL` | 정규화된 회원 로그인 이메일 | 10회/10분 |
 | `PHONE_VERIFICATION_PHONE` | 정규화된 전화번호 | 3회/10분 |
 | `PHONE_VERIFICATION_ATTEMPT_PHONE` | 회원가입에서 인증 코드를 시도하는 정규화된 전화번호 | 5회/10분 |
 | `PAYMENT_CONFIRM_ORDER` | 외부 주문번호 | 20회/1분 |
@@ -56,7 +57,7 @@ Q&A ID만으로 전역 버킷을 만들지 않는다. 제3자가 버킷을 소�
 ### 3. Redis fixed window 카운터를 공유한다
 
 - `RedisRateLimiter`가 IP와 subject 제한의 Lua `INCR + 최초 EXPIRE`를 공통 처리한다.
-- 키는 `{key-prefix}:{RULE_ID}:{HMAC(subject)}` 형식이다. IP, 전화번호, 주문번호와 회원 ID 원문을 Redis 키나 로그에 남기지 않는다.
+- 키는 `{key-prefix}:{RULE_ID}:{HMAC(subject)}` 형식이다. IP, 이메일, 전화번호, 주문번호와 회원 ID 원문을 Redis 키나 로그에 남기지 않는다.
 - 기본 prefix는 `happygallery:rate`이며 배포 환경에서 `RATE_LIMIT_KEY_PREFIX`로 분리할 수 있다.
 - Redis 연결과 명령 대기 상한은 각각 1초다. 장애와 복구 상태 전환에만 규칙 ID와 예외 유형을 기록하고, 개별 초과 요청은 WARN 로그로 남기지 않는다.
 - `DEFAULT_API_IP`와 결제 confirm IP·주문번호 규칙은 Redis 장애 시 fail-open한다. 일반 조회 가용성과 이미 시작한 결제의 멱등 재시도를 우선한다.

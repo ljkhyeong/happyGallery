@@ -4,6 +4,7 @@ import {
   currentCustomerSessionVersion,
   publishCustomerSessionExpired,
 } from "@/shared/api/customerSession";
+import { sanitizeTelemetryPath } from "@/shared/lib/sentryUrl";
 import type { ErrorResponse } from "@/shared/types/error";
 
 const BASE_URL = "/api/v1";
@@ -132,7 +133,10 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     if (response.status >= 500) {
       Sentry.withScope((scope) => {
         if (error.requestId) scope.setTag("requestId", error.requestId);
-        scope.setTag("api.path", path);
+        scope.setTag(
+          "api.path",
+          sanitizeTelemetryPath(path, window.location.origin),
+        );
         scope.setTag("api.status", response.status);
         Sentry.captureException(error);
       });
