@@ -5,11 +5,63 @@
  * 다음 화면으로 react-router history state로 전달해 URL 노출 없이 자동 조회한다.
  */
 export const PAYMENT_RETURN_KEY = "hg_payment_return_hint";
+export const PAYMENT_CONFIRM_REQUEST_KEY = "hg_payment_confirm_request";
 const PAYMENT_STATUS_TOKEN_PREFIX = "hg_payment_status_token:";
 
 export interface PaymentReturnHint {
   customerName?: string;
   customerPhone?: string;
+}
+
+export interface PaymentConfirmRequest {
+  paymentKey: string;
+  orderId: string;
+  amount: number;
+}
+
+function isPaymentConfirmRequest(value: unknown): value is PaymentConfirmRequest {
+  if (typeof value !== "object" || value === null) return false;
+  const request = value as Partial<PaymentConfirmRequest>;
+  return typeof request.paymentKey === "string"
+    && request.paymentKey.trim().length > 0
+    && typeof request.orderId === "string"
+    && request.orderId.trim().length > 0
+    && typeof request.amount === "number"
+    && Number.isSafeInteger(request.amount)
+    && request.amount > 0;
+}
+
+export function storePaymentConfirmRequest(request: PaymentConfirmRequest): void {
+  try {
+    sessionStorage.setItem(PAYMENT_CONFIRM_REQUEST_KEY, JSON.stringify(request));
+  } catch {
+    // sessionStorage 비활성 환경에서는 Toss 콜백 URL의 값으로 현재 시도만 처리한다.
+  }
+}
+
+export function readPaymentConfirmRequest(): PaymentConfirmRequest | null {
+  try {
+    const raw = sessionStorage.getItem(PAYMENT_CONFIRM_REQUEST_KEY);
+    if (!raw) return null;
+    const request = JSON.parse(raw) as unknown;
+    if (isPaymentConfirmRequest(request)) return request;
+    sessionStorage.removeItem(PAYMENT_CONFIRM_REQUEST_KEY);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function removePaymentConfirmRequest(orderId?: string): void {
+  try {
+    if (orderId) {
+      const request = readPaymentConfirmRequest();
+      if (request && request.orderId !== orderId) return;
+    }
+    sessionStorage.removeItem(PAYMENT_CONFIRM_REQUEST_KEY);
+  } catch {
+    // 세션 저장소를 사용할 수 없으면 정리할 값도 없다.
+  }
 }
 
 export function storePaymentReturnHint(hint: PaymentReturnHint): void {

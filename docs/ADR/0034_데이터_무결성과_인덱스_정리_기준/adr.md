@@ -27,6 +27,8 @@
 - `cart_merge_requests(created_at, user_id, idempotency_key)`는 7일 멱등 보장 기간이 지난 기록을 작은 묶음으로 삭제할 때 사용한다. 기본 키는 사용자·멱등키 조회만 지원하므로 시간 선두 인덱스를 별도로 유지한다.
 - 최신순이 실제로 삽입 순번을 뜻하는 작은 목록은 쿼리 계약을 `id DESC`로 바꾼 뒤 별도 시간 인덱스를 제거할 수 있다.
   현재 시간 커서와 기간 조회는 `ORDER BY time DESC, id DESC`를 유지하며 ID를 동률 해소 키로 사용한다.
+- 주문 클레임 작업함은 상태 없는 전체 조회와 상태별 조회를 모두 제공하므로
+  `(requested_at DESC, id DESC)`와 `(status, requested_at DESC, id DESC)`를 각각 유지한다.
 
 ### Guest 식별
 
@@ -44,8 +46,11 @@
 
 ### 금전·원장
 
-- 현재 환불은 주문·예약·8회권·결제 시도 원본당 환불 요청 한 건을 만들고 같은 행과 멱등키로 재시도한다.
-  따라서 네 source FK를 각각 UNIQUE로 둔다. 부분·분할 환불을 도입할 때는 이 결정을 다시 검토한다.
+- 현재 환불은 예약·직접 주문·주문 클레임·8회권·결제 시도 보상 원본당 환불 요청 한 건을 만들고 같은 행과 멱등키로 재시도한다.
+  직접 주문은 generated `direct_order_id`, 주문 클레임은 `order_claim_id`, 나머지는 각 source FK를 UNIQUE로 둔다.
+  하나의 클레임을 다시 분할 환불하는 모델을 도입할 때는 이 결정을 다시 검토한다.
+- 환불 요청 멱등키와 PG가 반환한 취소 거래 식별자는 각각 환불 전체에서 한 건에만 귀속되어야 하므로
+  `idempotency_key`, `refund_transaction_key`를 UNIQUE로 둔다. nullable 거래 식별자는 성공 전까지 여러 `NULL`을 허용한다.
 - 예약 한 건의 8회권 `USE`와 예약 취소 `REFUND`는 타입별 한 번만 허용하므로
   `UNIQUE(related_booking_id, type)`으로 원장 중복을 막는다.
 

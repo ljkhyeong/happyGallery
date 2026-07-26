@@ -14,8 +14,12 @@ traefik_pods=$(kube -n kube-system get pods \
 kube -n "$NAMESPACE" get pods
 kube -n "$NAMESPACE" get pvc data-mysql-0 -o jsonpath='{.status.phase}' | grep -qx Bound \
     || die "MySQL PVC가 Bound 상태가 아닙니다."
+for pvc in app-media prometheus-data alertmanager-data grafana-data; do
+    kube -n "$NAMESPACE" get pvc "$pvc" -o jsonpath='{.status.phase}' | grep -qx Bound \
+        || die "$pvc PVC가 Bound 상태가 아닙니다."
+done
 
-for workload in statefulset/mysql deployment/redis deployment/app deployment/frontend deployment/prometheus deployment/alertmanager; do
+for workload in statefulset/mysql deployment/redis deployment/app deployment/frontend deployment/prometheus deployment/alertmanager deployment/grafana; do
     ready=$(kube -n "$NAMESPACE" get "$workload" -o jsonpath='{.status.readyReplicas}')
     [ "${ready:-0}" -eq 1 ] || die "$workload ready replica가 1이 아닙니다."
 done

@@ -11,7 +11,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -43,6 +42,7 @@ public class TossPaymentsProvider implements PaymentProvider {
     private static final String REFUND_RETRYABLE = "PG 환불 요청을 재시도해야 합니다.";
     private static final String REFUND_RESULT_UNKNOWN = "PG 통신 결과를 확인할 수 없습니다.";
     private static final String REFUND_LOOKUP_UNAVAILABLE = "PG 환불 조회 결과를 확인할 수 없습니다.";
+    private static final String REFUND_REASON_PREFIX = "해피갤러리 환불:";
     private static final String NOT_FOUND_PAYMENT_CODE = "NOT_FOUND_PAYMENT";
     private static final String CANCEL_DONE = "DONE";
 
@@ -124,7 +124,7 @@ public class TossPaymentsProvider implements PaymentProvider {
     @Override
     public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
         try {
-            RefundRequest body = new RefundRequest("요청에 의한 환불", amount);
+            RefundRequest body = new RefundRequest(cancelReason(idempotencyKey), amount);
             RefundResponse response = restClient.post()
                     .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
                     .header(IDEMPOTENCY_KEY, idempotencyKey)
@@ -132,7 +132,7 @@ public class TossPaymentsProvider implements PaymentProvider {
                     .body(body)
                     .retrieve()
                     .body(RefundResponse.class);
-            RefundLookupResult lookup = resolveRefund(response, paymentKey, amount);
+            RefundLookupResult lookup = resolveRefund(response, paymentKey, amount, idempotencyKey);
             if (lookup.status() == RefundLookupResult.Status.REFUNDED) {
                 return RefundResult.success(lookup.refundTransactionKey());
             }
@@ -154,13 +154,13 @@ public class TossPaymentsProvider implements PaymentProvider {
     }
 
     @Override
-    public RefundLookupResult lookupRefund(String paymentKey, long amount) {
+    public RefundLookupResult lookupRefund(String paymentKey, long amount, String idempotencyKey) {
         try {
             RefundResponse response = restClient.get()
                     .uri("/v1/payments/{paymentKey}", paymentKey)
                     .retrieve()
                     .body(RefundResponse.class);
-            return resolveRefund(response, paymentKey, amount);
+            return resolveRefund(response, paymentKey, amount, idempotencyKey);
         } catch (RestClientResponseException e) {
             log.warn("Toss 환불 조회 실패 [status={}]", e.getStatusCode());
             return RefundLookupResult.unavailable(paymentKey, REFUND_LOOKUP_UNAVAILABLE);
@@ -178,39 +178,55 @@ public class TossPaymentsProvider implements PaymentProvider {
 
     private record RefundRequest(String cancelReason, long cancelAmount) {}
 
-    private RefundLookupResult resolveRefund(RefundResponse response, String paymentKey, long amount) {
+    private RefundLookupResult resolveRefund(
+            RefundResponse response, String paymentKey, long amount, String idempotencyKey) {
         if (response == null) {
             return RefundLookupResult.unavailable(paymentKey, "PG 환불 조회 응답이 비어 있습니다.");
         }
         if (!paymentKey.equals(response.paymentKey())) {
             return RefundLookupResult.reviewRequired(paymentKey, "PG 환불 조회 식별자가 일치하지 않습니다.");
         }
-        if (CollectionUtils.isEmpty(response.cancels())) {
-            if ("DONE".equals(response.status())) {
-                return RefundLookupResult.notRefunded(paymentKey, "PG에 완료된 환불 이력이 없습니다.");
+
+        CancelResponse cancel = findCancel(response.cancels(), cancelReason(idempotencyKey));
+        if (cancel == null) {
+            if (isClearlyNotRefundedPaymentStatus(response.status())) {
+                return RefundLookupResult.notRefunded(
+                        paymentKey, "PG에 해당 환불 요청의 취소 이력이 없습니다.");
             }
             return RefundLookupResult.reviewRequired(
                     paymentKey, "PG 결제 상태와 환불 이력의 상태 확인이 필요합니다: " + response.status());
         }
-
-        for (CancelResponse cancel : response.cancels().reversed()) {
-            if (cancel.cancelAmount() == amount
-                    && CANCEL_DONE.equals(cancel.cancelStatus())
-                    && StringUtils.hasText(cancel.transactionKey())) {
-                if (!isCanceledPaymentStatus(response.status())) {
-                    return RefundLookupResult.reviewRequired(
-                            paymentKey, "PG 취소 이력과 결제 상태가 일치하지 않습니다.");
-                }
-                return RefundLookupResult.refunded(paymentKey, cancel.cancelAmount(), cancel.transactionKey());
-            }
+        if (cancel.cancelAmount() != amount) {
+            return RefundLookupResult.reviewRequired(
+                    paymentKey, "PG 취소 금액이 저장된 환불 요청과 일치하지 않습니다.");
         }
+        if (!CANCEL_DONE.equals(cancel.cancelStatus()) || !StringUtils.hasText(cancel.transactionKey())) {
+            return RefundLookupResult.reviewRequired(
+                    paymentKey, "해당 PG 취소가 아직 완료 상태가 아닙니다.");
+        }
+        if (!isCanceledPaymentStatus(response.status())) {
+            return RefundLookupResult.reviewRequired(
+                    paymentKey, "PG 취소 이력과 결제 상태가 일치하지 않습니다.");
+        }
+        return RefundLookupResult.refunded(paymentKey, cancel.cancelAmount(), cancel.transactionKey());
+    }
 
-        boolean hasRequestedAmount = response.cancels().stream()
-                .anyMatch(cancel -> cancel.cancelAmount() == amount);
-        String reason = hasRequestedAmount
-                ? "요청 금액의 PG 취소가 아직 완료 상태가 아닙니다."
-                : "PG 취소 금액이 저장된 환불 요청과 일치하지 않습니다.";
-        return RefundLookupResult.reviewRequired(paymentKey, reason);
+    private CancelResponse findCancel(List<CancelResponse> cancels, String expectedReason) {
+        if (cancels == null) {
+            return null;
+        }
+        return cancels.reversed().stream()
+                .filter(cancel -> expectedReason.equals(cancel.cancelReason()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String cancelReason(String idempotencyKey) {
+        return REFUND_REASON_PREFIX + idempotencyKey;
+    }
+
+    private boolean isClearlyNotRefundedPaymentStatus(String status) {
+        return "DONE".equals(status) || "PARTIAL_CANCELED".equals(status);
     }
 
     private boolean isCanceledPaymentStatus(String status) {
@@ -243,7 +259,11 @@ public class TossPaymentsProvider implements PaymentProvider {
             String status,
             List<CancelResponse> cancels) {}
 
-    private record CancelResponse(String transactionKey, long cancelAmount, String cancelStatus) {}
+    private record CancelResponse(
+            String transactionKey,
+            long cancelAmount,
+            String cancelReason,
+            String cancelStatus) {}
 
     private record TossErrorResponse(String code, String message) {}
 }

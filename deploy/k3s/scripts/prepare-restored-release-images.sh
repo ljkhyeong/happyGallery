@@ -44,7 +44,7 @@ all_required_images_match() {
     containerd_has_image "$app_ref" || return 1
     containerd_has_image "$frontend_ref" || return 1
 
-    for prefix in MYSQL REDIS PROMETHEUS ALERTMANAGER; do
+    for prefix in MYSQL REDIS PROMETHEUS ALERTMANAGER GRAFANA; do
         runtime_image=$(require_env_value "${prefix}_IMAGE" "$runtime_metadata")
         expected_digest=$(require_env_value "${prefix}_IMAGE_DIGEST" "$runtime_metadata")
         printf '%s' "$expected_digest" | grep -Eq '^sha256:[a-f0-9]{64}$' || return 1

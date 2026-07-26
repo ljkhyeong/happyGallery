@@ -23,10 +23,13 @@ import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -53,6 +56,7 @@ class RefundExecutionServiceUseCaseIT {
     @Autowired UserStorePort userStorePort;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired JdbcTemplate jdbcTemplate;
     @Autowired Clock clock;
     @Autowired DashboardQueryUseCase dashboardQueryUseCase;
     @MockitoBean PaymentProvider paymentProvider;
@@ -245,14 +249,16 @@ class RefundExecutionServiceUseCaseIT {
         LocalDateTime now = LocalDateTime.now(clock);
         Order order = saveMemberOrder(now);
         Refund refund = saveReconciliationRequiredRefund(order, now);
-        when(paymentProvider.lookupRefund("payment-key", 55_000L))
+        when(paymentProvider.lookupRefund(
+                "payment-key", 55_000L, refund.getIdempotencyKey()))
                 .thenReturn(RefundLookupResult.refunded(
                         "payment-key", 55_000L, "refund-transaction-key"));
 
         var result = refundRecoveryUseCase.recoverPendingRefunds();
 
         Refund recovered = refundRepository.findById(refund.getId()).orElseThrow();
-        verify(paymentProvider).lookupRefund("payment-key", 55_000L);
+        verify(paymentProvider).lookupRefund(
+                "payment-key", 55_000L, refund.getIdempotencyKey());
         verify(paymentProvider, never()).refund(any(), anyLong(), any());
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isOne();
@@ -268,14 +274,16 @@ class RefundExecutionServiceUseCaseIT {
         LocalDateTime now = LocalDateTime.now(clock);
         Order order = saveMemberOrder(now);
         Refund refund = saveReconciliationRequiredRefund(order, now);
-        when(paymentProvider.lookupRefund("payment-key", 55_000L))
+        when(paymentProvider.lookupRefund(
+                "payment-key", 55_000L, refund.getIdempotencyKey()))
                 .thenReturn(RefundLookupResult.notRefunded(
                         "payment-key", "PG에 완료된 환불 이력이 없습니다."));
 
         var result = refundRecoveryUseCase.recoverPendingRefunds();
 
         Refund recovered = refundRepository.findById(refund.getId()).orElseThrow();
-        verify(paymentProvider).lookupRefund("payment-key", 55_000L);
+        verify(paymentProvider).lookupRefund(
+                "payment-key", 55_000L, refund.getIdempotencyKey());
         verify(paymentProvider, never()).refund(any(), anyLong(), any());
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isZero();
@@ -285,23 +293,84 @@ class RefundExecutionServiceUseCaseIT {
         });
     }
 
-    @DisplayName("운영자 명시적 재시도는 최초 멱등키로 환불 요청을 다시 실행한다")
+    @DisplayName("운영자 상태 확인 필요 환불 재처리는 PG 조회 후 미취소 상태로만 전환한다")
     @Test
-    void retryRefund_reconciliationRequired_reusesIdempotencyKey() {
+    void retryRefund_reconciliationRequired_looksUpBeforeAnotherCancel() {
         LocalDateTime now = LocalDateTime.now(clock);
         Order order = saveMemberOrder(now);
         Refund refund = saveReconciliationRequiredRefund(order, now);
-        when(paymentProvider.refund(any(), anyLong(), any()))
-                .thenReturn(RefundResult.success("refund-transaction-key"));
+        when(paymentProvider.lookupRefund(
+                "payment-key", 55_000L, refund.getIdempotencyKey()))
+                .thenReturn(RefundLookupResult.notRefunded(
+                        "payment-key", "PG에 해당 환불 요청의 취소 이력이 없습니다."));
 
         Refund result = refundExecutionService.retryRefund(refund.getId());
 
-        verify(paymentProvider).refund("payment-key", 55_000L, refund.getIdempotencyKey());
-        verify(paymentProvider, never()).lookupRefund(any(), anyLong());
+        verify(paymentProvider).lookupRefund(
+                "payment-key", 55_000L, refund.getIdempotencyKey());
+        verify(paymentProvider, never()).refund(any(), anyLong(), any());
         assertSoftly(softly -> {
-            softly.assertThat(result.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
-            softly.assertThat(result.getRefundTransactionKey()).isEqualTo("refund-transaction-key");
+            softly.assertThat(result.getStatus()).isEqualTo(RefundStatus.RETRYABLE);
+            softly.assertThat(result.getRefundTransactionKey()).isNull();
+            softly.assertThat(result.getNextAttemptAt()).isAfter(now);
         });
+    }
+
+    @DisplayName("환불 복구는 반복 실패한 앞 후보보다 한 번도 시도하지 않은 신규 요청을 먼저 처리한다")
+    @Test
+    void recoverPendingRefunds_repeatedFailures_doNotStarveUnattemptedRequest() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        User member = userStorePort.save(new User(
+                "refund-fairness@test.local", "password-hash", "환불 순환 회원", "01099997777"));
+        IntStream.range(0, 10)
+                .mapToObj(index -> {
+                    Order order = orderRepository.save(
+                            Order.forMember(member.getId(), 55_000L, now, now.plusHours(24)));
+                    return refundRepository.save(
+                            Refund.forOrder(order.getId(), 55_000L, "payment-key-" + index));
+                })
+                .toList();
+        when(paymentProvider.refund(any(), anyLong(), any()))
+                .thenReturn(RefundResult.reconciliationRequired("PG 호출 결과 불명"));
+        when(paymentProvider.lookupRefund(any(), anyLong(), any()))
+                .thenReturn(RefundLookupResult.unavailable("payment-key", "PG 조회 실패"));
+
+        var firstRun = refundRecoveryUseCase.recoverPendingRefunds();
+        Order newOrder = orderRepository.save(
+                Order.forMember(member.getId(), 55_000L, now, now.plusHours(24)));
+        Refund newRefund = refundRepository.save(
+                Refund.forOrder(newOrder.getId(), 55_000L, "new-payment-key"));
+        jdbcTemplate.update("""
+                UPDATE refunds
+                SET next_attempt_at = ?
+                WHERE status = 'RECONCILIATION_REQUIRED'
+                """, now.minusSeconds(1));
+
+        var secondRun = refundRecoveryUseCase.recoverPendingRefunds();
+
+        Refund recoveredNewRefund = refundRepository.findById(newRefund.getId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(firstRun.failureCount()).isEqualTo(10);
+            softly.assertThat(secondRun.failureCount()).isEqualTo(10);
+            softly.assertThat(recoveredNewRefund.getAttemptCount()).isEqualTo(1);
+            softly.assertThat(recoveredNewRefund.getLastRecoveryAt()).isEqualTo(now);
+        });
+    }
+
+    @DisplayName("서로 다른 환불은 같은 PG 취소 거래 식별자를 성공 결과로 공유할 수 없다")
+    @Test
+    void saveSucceededRefunds_duplicateTransactionKey_rejectedByDatabase() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        Order firstOrder = saveMemberOrder(now);
+        Order secondOrder = orderRepository.save(
+                Order.forMember(firstOrder.getUserId(), 55_000L, now, now.plusHours(24)));
+        Refund firstRefund = succeededRefund(firstOrder.getId(), "payment-key-1", now);
+        Refund secondRefund = succeededRefund(secondOrder.getId(), "payment-key-2", now);
+
+        refundRepository.saveAndFlush(firstRefund);
+
+        assertThatThrownBy(() -> refundRepository.saveAndFlush(secondRefund))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @DisplayName("완료된 환불을 재시도하면 INVALID_INPUT 예외가 발생한다")
@@ -330,5 +399,12 @@ class RefundExecutionServiceUseCaseIT {
         refund.markReconciliationRequired(
                 processingToken, "PG 호출 결과 불명", now.minusSeconds(1));
         return refundRepository.save(refund);
+    }
+
+    private Refund succeededRefund(Long orderId, String paymentKey, LocalDateTime now) {
+        Refund refund = Refund.forOrder(orderId, 55_000L, paymentKey);
+        String processingToken = refund.startProcessing(now, now.minusMinutes(1));
+        refund.markSucceeded(processingToken, "shared-refund-transaction-key", now);
+        return refund;
     }
 }

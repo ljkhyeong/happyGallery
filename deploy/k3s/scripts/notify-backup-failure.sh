@@ -13,7 +13,7 @@ require_command curl
 
 unit=$1
 host=$(hostname)
-payload=$(printf '{"text":"happyGallery 백업 실패: unit=%s host=%s"}' "$unit" "$host")
+payload=$(printf '{"text":"happyGallery 백업 운영 경보: unit=%s host=%s"}' "$unit" "$host")
 curl --fail --silent --show-error \
     --connect-timeout 3 --max-time 10 \
     -H 'Content-Type: application/json' \

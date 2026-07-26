@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.qna.port.in;
 
+import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.qna.ProductQna;
 import java.util.List;
 
@@ -16,6 +17,8 @@ public interface ProductQnaUseCase {
                               boolean secret, String rawPassword);
 
     List<QnaWithAuthor> listByProduct(Long productId);
+
+    CursorPage<QnaWithAuthor> listUnanswered(String cursor, int size);
 
     QnaWithAuthor getPublicDetail(Long productId, Long qnaId);
 

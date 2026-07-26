@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.payment;
 
+import com.personal.happygallery.application.payment.port.out.PaymentAttemptBacklogSummary;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
@@ -143,5 +144,24 @@ public interface PaymentAttemptRepository
     @Override
     default List<PaymentAttempt> findReconciliationRequired(int limit) {
         return findReconciliationRequiredPage(PageRequest.ofSize(limit));
+    }
+
+    @Query("""
+            SELECT COUNT(attempt) AS count,
+                   MIN(attempt.processingAt) AS oldestActionAt
+            FROM PaymentAttempt attempt
+            WHERE attempt.status = com.personal.happygallery.domain.payment.PaymentAttemptStatus.RECONCILIATION_REQUIRED
+            """)
+    PaymentReconciliationBacklogView summarizeReconciliationRequiredBacklogView();
+
+    @Override
+    default PaymentAttemptBacklogSummary summarizeReconciliationRequiredBacklog() {
+        PaymentReconciliationBacklogView summary = summarizeReconciliationRequiredBacklogView();
+        return new PaymentAttemptBacklogSummary(summary.getCount(), summary.getOldestActionAt());
+    }
+
+    interface PaymentReconciliationBacklogView {
+        long getCount();
+        LocalDateTime getOldestActionAt();
     }
 }

@@ -226,7 +226,7 @@ class TossPaymentsProviderTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(content().json("""
                         {
-                          "cancelReason": "요청에 의한 환불",
+                          "cancelReason": "해피갤러리 환불:refund-idempotency-key",
                           "cancelAmount": 5000
                         }
                         """))
@@ -239,6 +239,7 @@ class TossPaymentsProviderTest {
                             {
                               "transactionKey": "refund-transaction-key",
                               "cancelAmount": 5000,
+                              "cancelReason": "해피갤러리 환불:refund-idempotency-key",
                               "cancelStatus": "DONE"
                             }
                           ]
@@ -311,7 +312,7 @@ class TossPaymentsProviderTest {
         });
     }
 
-    @DisplayName("Toss 환불 조회는 완료 상태와 취소 금액이 일치하는 거래를 확정한다")
+    @DisplayName("Toss 환불 조회는 동일 금액 취소가 여러 건이어도 환불 멱등키가 일치하는 거래만 확정한다")
     @Test
     void lookupRefund_matchingDoneCancel_returnsRefunded() {
         RestClient.Builder builder = tossRestClientBuilder();
@@ -330,13 +331,21 @@ class TossPaymentsProviderTest {
                             {
                               "transactionKey": "refund-transaction-key",
                               "cancelAmount": 5000,
+                              "cancelReason": "해피갤러리 환불:refund-idempotency-key",
+                              "cancelStatus": "DONE"
+                            },
+                            {
+                              "transactionKey": "other-refund-transaction-key",
+                              "cancelAmount": 5000,
+                              "cancelReason": "해피갤러리 환불:other-idempotency-key",
                               "cancelStatus": "DONE"
                             }
                           ]
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        RefundLookupResult result = provider.lookupRefund("payment-key", 5_000L);
+        RefundLookupResult result = provider.lookupRefund(
+                "payment-key", 5_000L, "refund-idempotency-key");
 
         server.verify();
         assertSoftly(softly -> {
@@ -347,9 +356,9 @@ class TossPaymentsProviderTest {
         });
     }
 
-    @DisplayName("Toss 환불 조회의 취소 금액이 다르면 완료로 확정하지 않는다")
+    @DisplayName("Toss 환불 조회는 다른 환불의 동일 금액 취소를 현재 환불 완료로 오인하지 않는다")
     @Test
-    void lookupRefund_cancelAmountMismatch_returnsReviewRequired() {
+    void lookupRefund_sameAmountForOtherRefund_returnsNotRefunded() {
         RestClient.Builder builder = tossRestClientBuilder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
@@ -363,20 +372,22 @@ class TossPaymentsProviderTest {
                           "cancels": [
                             {
                               "transactionKey": "other-refund-transaction-key",
-                              "cancelAmount": 3000,
+                              "cancelAmount": 5000,
+                              "cancelReason": "해피갤러리 환불:other-idempotency-key",
                               "cancelStatus": "DONE"
                             }
                           ]
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        RefundLookupResult result = provider.lookupRefund("payment-key", 5_000L);
+        RefundLookupResult result = provider.lookupRefund(
+                "payment-key", 5_000L, "refund-idempotency-key");
 
         server.verify();
         assertSoftly(softly -> {
-            softly.assertThat(result.status()).isEqualTo(RefundLookupResult.Status.REVIEW_REQUIRED);
+            softly.assertThat(result.status()).isEqualTo(RefundLookupResult.Status.NOT_REFUNDED);
             softly.assertThat(result.refundTransactionKey()).isNull();
-            softly.assertThat(result.reason()).contains("금액");
+            softly.assertThat(result.reason()).contains("해당 환불 요청");
         });
     }
 
@@ -396,7 +407,8 @@ class TossPaymentsProviderTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        RefundLookupResult result = provider.lookupRefund("payment-key", 5_000L);
+        RefundLookupResult result = provider.lookupRefund(
+                "payment-key", 5_000L, "refund-idempotency-key");
 
         server.verify();
         assertSoftly(softly -> {

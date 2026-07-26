@@ -59,18 +59,38 @@ export function AdminOrderClaimSection({
   const queryClient = useQueryClient();
   const toast = useToast();
   const [status, setStatus] = useState<"" | OrderClaimStatus>(initialStatus);
+  const [cursor, setCursor] = useState<string | undefined>();
+  const [cursorHistory, setCursorHistory] = useState<(string | undefined)[]>([]);
   const [pendingId, setPendingId] = useState<number | null>(null);
-  const queryKey = ["admin", "order-claims", status] as const;
-  const { data: claims, isLoading, error } = useAdminQuery(onAuthError, {
+  const queryKey = ["admin", "order-claims", status, cursor] as const;
+  const { data: page, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
-    queryFn: () => fetchAdminOrderClaims(adminKey, status || undefined),
+    queryFn: () => fetchAdminOrderClaims(adminKey, status || undefined, cursor),
     refetchInterval: ({ state }) => status === "REQUESTED"
       ? ORDER_CLAIM_SLOW_POLL_INTERVAL_MS
       : orderClaimPollingInterval(
-          state.data,
+          state.data?.content,
           state.dataUpdateCount + state.fetchFailureCount,
         ),
   });
+  const claims = page?.content;
+
+  function changeStatus(nextStatus: "" | OrderClaimStatus) {
+    setStatus(nextStatus);
+    setCursor(undefined);
+    setCursorHistory([]);
+  }
+
+  function showNextPage() {
+    if (!page?.nextCursor) return;
+    setCursorHistory((history) => [...history, cursor]);
+    setCursor(page.nextCursor);
+  }
+
+  function showPreviousPage() {
+    setCursor(cursorHistory[cursorHistory.length - 1]);
+    setCursorHistory((history) => history.slice(0, -1));
+  }
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["admin", "order-claims"] });
@@ -110,7 +130,7 @@ export function AdminOrderClaimSection({
             <Form.Label>처리 상태</Form.Label>
             <Form.Select
               value={status}
-              onChange={(event) => setStatus(
+              onChange={(event) => changeStatus(
                 STATUS_OPTIONS.find((option) => option.value === event.target.value)?.value ?? "",
               )}
             >
@@ -140,6 +160,26 @@ export function AdminOrderClaimSection({
             completeExchange.mutate({ claimId: claim.id, body })}
         />
       ))}
+      {(cursorHistory.length > 0 || page?.hasMore) && (
+        <div className="d-flex justify-content-center gap-2 mt-3">
+          <Button
+            size="sm"
+            variant="outline-secondary"
+            disabled={cursorHistory.length === 0 || isLoading}
+            onClick={showPreviousPage}
+          >
+            이전
+          </Button>
+          <Button
+            size="sm"
+            variant="outline-primary"
+            disabled={!page?.hasMore || isLoading}
+            onClick={showNextPage}
+          >
+            다음
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

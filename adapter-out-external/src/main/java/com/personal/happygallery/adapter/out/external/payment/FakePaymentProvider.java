@@ -22,7 +22,7 @@ public class FakePaymentProvider implements PaymentProvider {
 
     private final LocalRefundFailureScript localRefundFailureScript;
     private final Map<String, PaymentLookupResult> confirmedPayments = new ConcurrentHashMap<>();
-    private final Map<String, RefundLookupResult> refundedPayments = new ConcurrentHashMap<>();
+    private final Map<String, RefundLookupResult> refundedPaymentsByIdempotencyKey = new ConcurrentHashMap<>();
     private final Map<String, String> refundTransactionsByIdempotencyKey = new ConcurrentHashMap<>();
 
     public FakePaymentProvider(ObjectProvider<LocalRefundFailureScript> localRefundFailureScriptProvider) {
@@ -55,16 +55,16 @@ public class FakePaymentProvider implements PaymentProvider {
         }
         String refundTransactionKey = refundTransactionsByIdempotencyKey.computeIfAbsent(
                 idempotencyKey, key -> "FAKE-REFUND-" + UUID.randomUUID());
-        refundedPayments.put(
-                paymentKey,
+        refundedPaymentsByIdempotencyKey.put(
+                idempotencyKey,
                 RefundLookupResult.refunded(paymentKey, amount, refundTransactionKey));
         return RefundResult.success(refundTransactionKey);
     }
 
     @Override
-    public RefundLookupResult lookupRefund(String paymentKey, long amount) {
-        return refundedPayments.getOrDefault(
-                paymentKey,
+    public RefundLookupResult lookupRefund(String paymentKey, long amount, String idempotencyKey) {
+        return refundedPaymentsByIdempotencyKey.getOrDefault(
+                idempotencyKey,
                 RefundLookupResult.notRefunded(paymentKey, "가짜 PG에 완료된 환불이 없습니다."));
     }
 }

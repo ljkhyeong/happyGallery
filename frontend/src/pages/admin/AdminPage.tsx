@@ -2,7 +2,8 @@ import { useCallback, useRef, useState, type ReactNode } from "react";
 import { Button, Container, Form, Nav } from "react-bootstrap";
 import { useSearchParams } from "react-router-dom";
 import { useAdminKey } from "@/features/admin-product/useAdminKey";
-import { AdminKeyGate } from "@/features/admin-product/AdminKeyGate";
+import { AdminLoginGate } from "@/features/admin-auth/AdminLoginGate";
+import { AdminMfaSettings } from "@/features/admin-auth/AdminMfaSettings";
 import { ProductListSection } from "@/features/admin-product/ProductListSection";
 import { CreateProductForm } from "@/features/admin-product/CreateProductForm";
 import { CreateClassForm } from "@/features/admin-class/CreateClassForm";
@@ -56,7 +57,11 @@ const ADMIN_VIEWS = [
     label: "고객 응대",
     description: "공지사항과 상품 Q&A, 1:1 문의를 처리합니다.",
   },
-  { value: "settings", label: "설정", description: "공개 공방 정보와 관리자 비밀번호를 관리합니다." },
+  {
+    value: "settings",
+    label: "설정",
+    description: "공개 공방 정보와 관리자 계정 보안을 관리합니다.",
+  },
 ] as const;
 
 type AdminView = (typeof ADMIN_VIEWS)[number]["value"];
@@ -111,7 +116,14 @@ function AdminPanel({ title, children }: { title: string; children: ReactNode })
 }
 
 export function AdminPage() {
-  const { adminKey, clearAdminKey, login, logout, isAuthenticated } = useAdminKey();
+  const {
+    adminKey,
+    clearAdminKey,
+    login,
+    verifyMfa,
+    logout,
+    isAuthenticated,
+  } = useAdminKey();
   const toast = useToast();
   const handledExpiredKey = useRef<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -137,6 +149,11 @@ export function AdminPage() {
     toast.show("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.", "success");
   }, [clearAdminKey, toast]);
 
+  const handleAdminCredentialsChanged = useCallback((message: string) => {
+    clearAdminKey();
+    toast.show(message, "success");
+  }, [clearAdminKey, toast]);
+
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
@@ -160,7 +177,7 @@ export function AdminPage() {
   }
 
   if (!isAuthenticated) {
-    return <AdminKeyGate onLogin={login} />;
+    return <AdminLoginGate onLogin={login} onVerifyMfa={verifyMfa} />;
   }
 
   return (
@@ -341,6 +358,13 @@ export function AdminPage() {
               adminKey={adminKey}
               onAuthError={handleAuthError}
               onChanged={handlePasswordChanged}
+            />
+          </AdminPanel>
+          <AdminPanel title="2단계 인증">
+            <AdminMfaSettings
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+              onCredentialChanged={handleAdminCredentialsChanged}
             />
           </AdminPanel>
         </>

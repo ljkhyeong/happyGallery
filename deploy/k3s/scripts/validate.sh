@@ -7,6 +7,7 @@ require_command ruby
 require_command grep
 
 "$SCRIPT_DIR/sync-prometheus-alerts.sh" --check
+"$SCRIPT_DIR/sync-grafana-dashboards.sh" --check
 
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/happygallery-k3s-validate.XXXXXX")
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
@@ -32,6 +33,8 @@ validate_env_file "$runtime_images"
     || die "release manifest의 Prometheus 이미지 추출이 올바르지 않습니다."
 [ "$(require_env_value ALERTMANAGER_IMAGE "$runtime_images")" = "prom/alertmanager:v0.32.1" ] \
     || die "release manifest의 Alertmanager 이미지 추출이 올바르지 않습니다."
+[ "$(require_env_value GRAFANA_IMAGE "$runtime_images")" = "grafana/grafana:13.1.0" ] \
+    || die "release manifest의 Grafana 이미지 추출이 올바르지 않습니다."
 
 ruby -e '
   require "yaml"
@@ -42,6 +45,13 @@ ruby -e '
   alert_config = documents.find { |d| d["kind"] == "ConfigMap" && d.dig("metadata", "name") == "prometheus-alerts" }
   canonical_alerts = File.read(ARGV.fetch(1))
   abort "k3s Prometheus 경보가 canonical 원본과 다릅니다." unless alert_config&.dig("data", "alerts.yml") == canonical_alerts
+  dashboard_config = documents.find { |d| d["kind"] == "ConfigMap" && d.dig("metadata", "name") == "grafana-dashboards" }
+  canonical_system_dashboard = File.read(ARGV.fetch(2))
+  canonical_funnel_dashboard = File.read(ARGV.fetch(3))
+  abort "k3s Grafana system 대시보드가 canonical 원본과 다릅니다." unless
+    dashboard_config&.dig("data", "system.json") == canonical_system_dashboard
+  abort "k3s Grafana funnel 대시보드가 canonical 원본과 다릅니다." unless
+    dashboard_config&.dig("data", "funnel.json") == canonical_funnel_dashboard
   ingresses = documents.select { |d| d["kind"] == "Ingress" }
   ingress_headers = documents.select { |d| d["kind"] == "Middleware" }
                              .flat_map { |d| d.dig("spec", "headers", "customResponseHeaders")&.keys || [] }
@@ -69,6 +79,18 @@ ruby -e '
     media_pvc.dig("spec", "storageClassName") == "local-path-retain" &&
     media_pvc.dig("spec", "accessModes") == ["ReadWriteOnce"] &&
     media_pvc.dig("spec", "resources", "requests", "storage") == "5Gi"
+  expected_monitoring_pvcs = {
+    "prometheus-data" => "5Gi",
+    "alertmanager-data" => "1Gi",
+    "grafana-data" => "2Gi"
+  }
+  expected_monitoring_pvcs.each do |name, storage|
+    pvc = documents.find { |d| d["kind"] == "PersistentVolumeClaim" && d.dig("metadata", "name") == name }
+    abort "#{name} PVC가 local-path-retain #{storage} ReadWriteOnce가 아닙니다." unless pvc &&
+      pvc.dig("spec", "storageClassName") == "local-path-retain" &&
+      pvc.dig("spec", "accessModes") == ["ReadWriteOnce"] &&
+      pvc.dig("spec", "resources", "requests", "storage") == storage
+  end
   app_deployment = release_deployments.find { |d| d.dig("metadata", "name") == "app" }
   app_container = app_deployment&.dig("spec", "template", "spec", "containers", 0)
   app_config = documents.find { |d| d["kind"] == "ConfigMap" && d.dig("metadata", "name") == "app-config" }
@@ -86,11 +108,19 @@ ruby -e '
     media_mount&.dig("mountPath") == "/var/lib/happygallery/media" &&
     media_volume&.dig("persistentVolumeClaim", "claimName") == "app-media"
   singleton_deployments = documents.select do |d|
-    d["kind"] == "Deployment" && %w[redis alertmanager].include?(d.dig("metadata", "name"))
+    d["kind"] == "Deployment" && %w[redis prometheus alertmanager grafana].include?(d.dig("metadata", "name"))
   end
-  abort "Redis/Alertmanager 단일 인스턴스는 Recreate 전략이어야 합니다." unless singleton_deployments.size == 2 && singleton_deployments.all? do |d|
+  abort "상태를 가진 단일 인스턴스 Deployment는 Recreate 전략이어야 합니다." unless singleton_deployments.size == 4 && singleton_deployments.all? do |d|
     d.dig("spec", "replicas") == 1 && d.dig("spec", "strategy", "type") == "Recreate"
   end
+  grafana = singleton_deployments.find { |d| d.dig("metadata", "name") == "grafana" }
+  grafana_env = grafana.dig("spec", "template", "spec", "containers", 0, "env").to_h do |entry|
+    [entry.fetch("name"), entry["value"]]
+  end
+  abort "Grafana는 cluster 내부 Viewer 전용이어야 합니다." unless
+    grafana_env["GF_AUTH_ANONYMOUS_ENABLED"] == "true" &&
+    grafana_env["GF_AUTH_ANONYMOUS_ORG_ROLE"] == "Viewer" &&
+    grafana_env["GF_AUTH_DISABLE_LOGIN_FORM"] == "true"
   cluster_scoped = documents.select { |d| %w[Namespace StorageClass ClusterIssuer].include?(d["kind"]) }
   abort "cluster-scoped 리소스에 namespace가 있습니다." if cluster_scoped.any? { |d| d.dig("metadata", "namespace") }
   policies = documents.select { |d| d["kind"] == "NetworkPolicy" }.to_h { |d| [d.dig("metadata", "name"), d] }
@@ -118,8 +148,25 @@ ruby -e '
   abort "Redis ingress는 app/key-rotation Pod만 허용해야 합니다." unless redis_names == %w[app key-rotation]
   redis_ports = redis_rules.flat_map { |rule| rule["ports"] || [] }.map { |port| port["port"] }.uniq
   abort "Redis ingress는 6379만 허용해야 합니다." unless redis_ports == [6379]
+  grafana_prometheus_policy = policies.fetch("allow-grafana-to-prometheus")
+  grafana_prometheus_rules = grafana_prometheus_policy.dig("spec", "ingress") || []
+  grafana_prometheus_names = grafana_prometheus_rules
+    .flat_map { |rule| rule["from"] || [] }
+    .map { |peer| peer.dig("podSelector", "matchLabels", "app.kubernetes.io/name") }
+    .compact
+    .uniq
+  abort "Prometheus ingress는 Grafana만 허용해야 합니다." unless grafana_prometheus_names == ["grafana"]
+  grafana_prometheus_ports = grafana_prometheus_rules
+    .flat_map { |rule| rule["ports"] || [] }
+    .map { |port| port["port"] }
+    .uniq
+  abort "Grafana의 Prometheus 접근은 9090만 허용해야 합니다." unless grafana_prometheus_ports == [9090]
   puts "YAML 문서 #{documents.size}개 파싱 완료"
-' "$rendered" "$REPO_ROOT/monitoring/alerts.yml"
+' \
+    "$rendered" \
+    "$REPO_ROOT/monitoring/alerts.yml" \
+    "$REPO_ROOT/monitoring/dashboards/system.json" \
+    "$REPO_ROOT/monitoring/dashboards/funnel.json"
 
 ruby -ropenssl -rbase64 -e '
   nginx_path = ARGV.pop
@@ -207,6 +254,8 @@ grep -q 'imagePullPolicy: Never' "$rendered" || die "로컬 이미지 import 정
 grep -q 'app-management:8081' "$rendered" || die "Prometheus가 내부 관리 포트를 scrape하지 않습니다."
 grep -q 'alert: PaymentConfirmReconciliationRequired' "$rendered" \
     || die "결제 confirm 수동 대사 critical 알림이 없습니다."
+grep -q 'alert: PaymentReconciliationRequiredBacklog' "$rendered" \
+    || die "결제 대사 DB backlog 지속 알림이 없습니다."
 grep -q 'alert: NotificationLogPersistenceFailed' "$rendered" \
     || die "알림 감사 이력 저장 실패 알림이 없습니다."
 grep -q 'alert: RefundActionRequiredBacklog' "$rendered" \
@@ -250,7 +299,7 @@ grep -q 'k3s_ctr images export' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "off-device 백업에 호환 app/frontend 이미지 archive가 없습니다."
 grep -q 'runtime-images-from-manifest.rb.*release_manifest' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "off-device 백업이 release manifest에서 runtime 이미지를 추출하지 않습니다."
-if grep -Eq '^(MYSQL|REDIS|PROMETHEUS|ALERTMANAGER)_IMAGE=[^$]' "$SCRIPT_DIR/backup-mysql.sh"; then
+if grep -Eq '^(MYSQL|REDIS|PROMETHEUS|ALERTMANAGER|GRAFANA)_IMAGE=[^$]' "$SCRIPT_DIR/backup-mysql.sh"; then
     die "off-device 백업에 runtime 이미지가 하드코딩되어 있습니다."
 fi
 grep -q 'FLYWAY_SCHEMA_VERSION=' "$SCRIPT_DIR/backup-mysql.sh" \
@@ -283,6 +332,20 @@ grep -q 'OnFailure=happygallery-backup-failure@%n.service' \
     || die "백업 실패 systemd 알림 연결이 없습니다."
 grep -q 'backup.last-success' "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
     || die "백업 성공 heartbeat 파일이 없습니다."
+grep -q 'OnFailure=happygallery-backup-failure@%n.service' \
+    "$DEPLOY_DIR/systemd/happygallery-backup-watchdog.service.example" \
+    || die "백업 heartbeat watchdog 실패 알림 연결이 없습니다."
+grep -q 'backup.last-success 25200' \
+    "$DEPLOY_DIR/systemd/happygallery-backup-watchdog.service.example" \
+    || die "백업 heartbeat watchdog의 7시간 기준이 없습니다."
+
+heartbeat_file="$tmp_dir/backup.last-success"
+touch "$heartbeat_file"
+"$SCRIPT_DIR/check-backup-heartbeat.sh" "$heartbeat_file" 60 >/dev/null
+touch -t 200001010000 "$heartbeat_file"
+if "$SCRIPT_DIR/check-backup-heartbeat.sh" "$heartbeat_file" 60 >/dev/null 2>&1; then
+    die "백업 heartbeat watchdog이 오래된 파일을 정상으로 처리했습니다."
+fi
 grep -q 'APP_IMAGE_DIGEST=' "$SCRIPT_DIR/build-import-images.sh" \
     || die "이미지 build/import 결과에 digest가 없습니다."
 if grep -Eq '(MYSQL_ROOT_PASSWORD|DB_PASSWORD|ENCRYPT_KEY|HMAC_KEY|PREVIOUS_ENCRYPT_KEYS|PREVIOUS_HMAC_KEYS|GUEST_TOKEN_HMAC_SECRET|GUEST_TOKEN_PREVIOUS_HMAC_SECRET|TOSS_SECRET_KEY): [^[:space:]]+' "$rendered"; then
@@ -329,6 +392,7 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   data_finalization = File.read(File.join(script_dir, "finalize-data-key-rotation.sh"))
   abort "previous 키 finalize가 소셜 provider ID 백필을 검사하지 않습니다." unless data_finalization.include?("provider_id_enc IS NULL")
   abort "previous 키 finalize가 비회원 결제 휴대폰 HMAC 키 전환을 검사하지 않습니다." unless data_finalization.include?("owner_phone_hmac_key_id")
+  abort "previous 키 finalize가 관리자 TOTP 암호문 키 전환을 검사하지 않습니다." unless data_finalization.include?("pending_admin_totp_secrets") && data_finalization.include?("totp_secret_enc")
   abort "previous guest 키 finalize가 회전 전 비회원 결제 인증 증거를 검사하지 않습니다." unless data_finalization.include?("pending_guest_payment_proofs")
   abort "guest 결제 인증 증거 회전 경계 annotation이 없습니다." unless data_finalization.include?("guest-proof-previous-issued-before-epoch")
   finalization_flow = /guest_previous_valid_until.*?now_epoch.*?scale deployment\/app --replicas=0.*?wait_for_no_pods.*?pending=\$\(pending_social_accounts\).*?PREVIOUS_ENCRYPT_KEYS.*?PREVIOUS_HMAC_KEYS.*?GUEST_TOKEN_PREVIOUS_HMAC_SECRET.*?scale deployment\/app --replicas=1/m
@@ -342,7 +406,7 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "복원 release 활성화 실패 시 app drain 보장이 없습니다." unless restored_release.match?(/on_activation_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
 
   image_preflight = File.read(File.join(script_dir, "prepare-restored-release-images.sh"))
-  required_images = /containerd_has_image.*?app_ref.*?containerd_has_image.*?frontend_ref.*?MYSQL REDIS PROMETHEUS ALERTMANAGER.*?k3s_ctr images import.*?all_required_images_match/m
+  required_images = /containerd_has_image.*?app_ref.*?containerd_has_image.*?frontend_ref.*?MYSQL REDIS PROMETHEUS ALERTMANAGER GRAFANA.*?k3s_ctr images import.*?all_required_images_match/m
   abort "DB 복원 전 app/frontend/runtime 이미지 import와 digest 재검증이 없습니다." unless image_preflight.match?(required_images)
 
   common = File.read(File.join(script_dir, "common.sh"))
@@ -359,6 +423,11 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   backup_timer = File.read(File.join(script_dir, "..", "systemd", "happygallery-backup.timer.example"))
   abort "백업 timer의 네 실행 시각에 Asia/Seoul이 명시되지 않았습니다." unless
     backup_timer.scan(/^OnCalendar=.*Asia\/Seoul$/).size == 4
+  watchdog_timer = File.read(File.join(script_dir, "..", "systemd", "happygallery-backup-watchdog.timer.example"))
+  abort "백업 watchdog은 독립된 15분 timer여야 합니다." unless
+    watchdog_timer.include?("OnUnitActiveSec=15m") &&
+    watchdog_timer.include?("Unit=happygallery-backup-watchdog.service") &&
+    watchdog_timer.include?("Persistent=true")
 RUBY
 
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"

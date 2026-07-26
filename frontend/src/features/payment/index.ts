@@ -8,7 +8,7 @@ export { requestTossPayment } from "./TossCheckout";
 export { executePaymentFlow } from "./flow";
 export { PaymentCompletionNext } from "./PaymentCompletionNext";
 export { PaymentStatusNotice } from "./PaymentStatusNotice";
-export { shouldPollPaymentStatus } from "./status";
+export { isTerminalPaymentStatus, shouldPollPaymentStatus } from "./status";
 export type {
   PaymentContext,
   PaymentPayload,
@@ -24,10 +24,15 @@ export type {
   ShippingAddress,
 } from "./types";
 export {
+  PAYMENT_CONFIRM_REQUEST_KEY,
   PAYMENT_RETURN_KEY,
+  storePaymentConfirmRequest,
+  readPaymentConfirmRequest,
+  removePaymentConfirmRequest,
   storePaymentReturnHint,
   consumePaymentReturnHint,
   storePaymentStatusToken,
   readPaymentStatusToken,
   removePaymentStatusToken,
 } from "./session";
+export type { PaymentConfirmRequest } from "./session";

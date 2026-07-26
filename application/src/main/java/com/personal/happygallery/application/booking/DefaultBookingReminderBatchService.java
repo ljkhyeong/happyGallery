@@ -4,16 +4,17 @@ import com.personal.happygallery.application.batch.BatchExecutor;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.booking.port.in.BookingReminderBatchUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.application.notification.NotificationOutboxService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 /**
@@ -26,16 +27,17 @@ import org.springframework.stereotype.Service;
 public class DefaultBookingReminderBatchService implements BookingReminderBatchUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultBookingReminderBatchService.class);
+    private static final LocalTime SAME_DAY_REMINDER_START = LocalTime.of(7, 0);
 
     private final BookingReaderPort bookingReaderPort;
-    private final ApplicationEventPublisher eventPublisher;
+    private final NotificationOutboxService notificationOutboxService;
     private final Clock clock;
 
     public DefaultBookingReminderBatchService(BookingReaderPort bookingReaderPort,
-                                       ApplicationEventPublisher eventPublisher,
-                                       Clock clock) {
+                                              NotificationOutboxService notificationOutboxService,
+                                              Clock clock) {
         this.bookingReaderPort = bookingReaderPort;
-        this.eventPublisher = eventPublisher;
+        this.notificationOutboxService = notificationOutboxService;
         this.clock = clock;
     }
 
@@ -46,13 +48,16 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
      */
     @Override
     public BatchResult sendD1Reminders() {
-        LocalDate tomorrow = LocalDate.now(clock).plusDays(1);
-        LocalDateTime start = tomorrow.atStartOfDay();
-        LocalDateTime end = start.plusDays(1);
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDate tomorrow = now.toLocalDate().plusDays(1);
+        LocalDateTime start = now.toLocalTime().isBefore(SAME_DAY_REMINDER_START)
+                ? now
+                : tomorrow.atStartOfDay();
+        LocalDateTime end = tomorrow.plusDays(1).atStartOfDay();
 
         List<Booking> bookings = bookingReaderPort.findBookedInRange(start, end);
         return BatchExecutor.execute(bookings, Booking::getId,
-                booking -> { sendReminder(booking, NotificationEventType.REMINDER_D1); return true; },
+                booking -> requestReminder(booking, NotificationEventType.REMINDER_D1),
                 "D-1 예약 리마인드");
     }
 
@@ -63,27 +68,31 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
      */
     @Override
     public BatchResult sendSameDayReminders() {
-        LocalDate today = LocalDate.now(clock);
-        LocalDateTime start = today.atStartOfDay();
-        LocalDateTime end = start.plusDays(1);
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (now.toLocalTime().isBefore(SAME_DAY_REMINDER_START)) {
+            return BatchResult.successOnly(0);
+        }
+        LocalDateTime end = now.toLocalDate().plusDays(1).atStartOfDay();
 
-        List<Booking> bookings = bookingReaderPort.findBookedInRange(start, end);
+        List<Booking> bookings = bookingReaderPort.findBookedInRange(now, end);
         return BatchExecutor.execute(bookings, Booking::getId,
-                booking -> { sendReminder(booking, NotificationEventType.REMINDER_SAME_DAY); return true; },
+                booking -> requestReminder(booking, NotificationEventType.REMINDER_SAME_DAY),
                 "당일 예약 리마인드");
     }
 
-    private void sendReminder(Booking booking, NotificationEventType eventType) {
+    private boolean requestReminder(Booking booking, NotificationEventType eventType) {
+        NotificationRequestedEvent event;
         if (booking.getUserId() != null) {
-            eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                    booking.getUserId(), eventType, "BOOKING", booking.getId()));
-            log.info("리마인드 발송 [bookingId={}, userId={}, type={}]",
-                    booking.getId(), booking.getUserId(), eventType);
+            event = NotificationRequestedEvent.forUser(
+                    booking.getUserId(), eventType, "BOOKING", booking.getId());
         } else {
-            eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
-                    booking.getGuest().getId(), eventType, "BOOKING", booking.getId()));
-            log.info("리마인드 발송 [bookingId={}, guestId={}, type={}]",
-                    booking.getId(), booking.getGuest().getId(), eventType);
+            event = NotificationRequestedEvent.forGuest(
+                    booking.getGuest().getId(), eventType, "BOOKING", booking.getId());
         }
+        boolean enqueued = notificationOutboxService.enqueue(event);
+        if (enqueued) {
+            log.info("리마인드 요청 [bookingId={}, type={}]", booking.getId(), eventType);
+        }
+        return enqueued;
     }
 }

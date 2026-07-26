@@ -65,6 +65,7 @@ class PaymentAttemptExpiryBatchUseCaseIT {
     void tearDown() {
         cleanupSupport.clearPassData();
         cleanupSupport.clearUsers();
+        cleanupSupport.clearAdminUsers();
     }
 
     @DisplayName("30분이 지난 PENDING 결제는 payload를 제거하고 만료시키며 새 결제는 유지한다")
@@ -134,6 +135,12 @@ class PaymentAttemptExpiryBatchUseCaseIT {
                 "retention-cart@example.com", "hashed", "장바구니 회원", "01055556666"));
         UUID expiredMergeKey = insertCartMergeRequest(cartUser.getId(), now.minusDays(8));
         UUID retainedMergeKey = insertCartMergeRequest(cartUser.getId(), now.minusDays(6));
+        insertAdminAuthHistory(now.minus(
+                DefaultPersonalDataRetentionBatchService.ADMIN_AUTH_HISTORY_RETENTION)
+                .minusSeconds(1));
+        insertAdminAuthHistory(now.minus(
+                DefaultPersonalDataRetentionBatchService.ADMIN_AUTH_HISTORY_RETENTION)
+                .plusSeconds(1));
 
         BatchResult result = retentionUseCase.cleanUpExpiredSensitiveData();
 
@@ -141,7 +148,7 @@ class PaymentAttemptExpiryBatchUseCaseIT {
         PaymentAttempt recoverable = attemptReader.findById(oldReconciliationRequired.getId()).orElseThrow();
         PaymentAttempt fresh = attemptReader.findById(freshConfirmed.getId()).orElseThrow();
         assertSoftly(softly -> {
-            softly.assertThat(result.successCount()).isEqualTo(103);
+            softly.assertThat(result.successCount()).isEqualTo(104);
             softly.assertThat(result.failureCount()).isZero();
             softly.assertThat(cleaned.getPayloadEnc()).isNull();
             softly.assertThat(cleaned.getFulfilledAccessTokenEnc()).isNull();
@@ -154,6 +161,7 @@ class PaymentAttemptExpiryBatchUseCaseIT {
             softly.assertThat(countCartMergeRequests(cartUser.getId())).isOne();
             softly.assertThat(cartMergeRequestExists(cartUser.getId(), expiredMergeKey)).isFalse();
             softly.assertThat(cartMergeRequestExists(cartUser.getId(), retainedMergeKey)).isTrue();
+            softly.assertThat(countAdminAuthHistory()).isOne();
         });
     }
 
@@ -180,6 +188,20 @@ class PaymentAttemptExpiryBatchUseCaseIT {
     private long countCartMergeRequests(Long userId) {
         return jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM cart_merge_requests WHERE user_id = ?", Long.class, userId);
+    }
+
+    private void insertAdminAuthHistory(LocalDateTime createdAt) {
+        jdbcTemplate.update("""
+                        INSERT INTO admin_auth_history
+                            (admin_user_id, subject_hmac, hmac_key_id, outcome, created_at)
+                        VALUES (NULL, ?, 'v1', 'LOGIN_FAILED', ?)
+                        """,
+                "a".repeat(64), createdAt);
+    }
+
+    private long countAdminAuthHistory() {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM admin_auth_history", Long.class);
     }
 
     private boolean cartMergeRequestExists(Long userId, UUID idempotencyKey) {

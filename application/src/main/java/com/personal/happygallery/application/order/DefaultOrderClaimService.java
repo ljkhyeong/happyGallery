@@ -13,6 +13,9 @@ import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.InventoryService.InventoryAdjustment;
+import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -46,8 +49,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderClaimUseCase {
-
-    private static final int MAX_ADMIN_PAGE_SIZE = 100;
 
     private final OrderReaderPort orderReader;
     private final MemberAccountGuard memberAccountGuard;
@@ -126,12 +127,26 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderClaimView> list(OrderClaimStatus status, int size) {
-        int limit = Math.clamp(size, 1, MAX_ADMIN_PAGE_SIZE);
-        List<OrderClaim> claims = status == null
-                ? orderClaimPort.findRecent(limit)
-                : orderClaimPort.findRecentByStatus(status, limit);
-        return views(claims);
+    public CursorPage<OrderClaimView> list(OrderClaimStatus status, String cursor, int size) {
+        int pageSize = PageParams.clampSize(size);
+        int fetchSize = pageSize + 1;
+        List<OrderClaim> claims;
+        if (cursor == null) {
+            claims = status == null
+                    ? orderClaimPort.findRecent(fetchSize)
+                    : orderClaimPort.findRecentByStatus(status, fetchSize);
+        } else {
+            var cursorParam = CursorUtils.decode(cursor);
+            claims = status == null
+                    ? orderClaimPort.findRecentAfter(
+                            cursorParam.timestamp(), cursorParam.id(), fetchSize)
+                    : orderClaimPort.findRecentByStatusAfter(
+                            status, cursorParam.timestamp(), cursorParam.id(), fetchSize);
+        }
+        return CursorPage.of(
+                views(claims),
+                pageSize,
+                claim -> CursorUtils.encode(claim.requestedAt(), claim.id()));
     }
 
     @Override

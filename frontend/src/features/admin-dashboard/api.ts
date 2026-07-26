@@ -6,6 +6,9 @@ import type {
   PeriodSalesSummary,
   RefundStats,
   RevenueBreakdown,
+  SlotUtilization,
+  StatusCount,
+  TopProduct,
 } from "@/shared/types";
 
 interface DashboardRange {
@@ -18,6 +21,9 @@ export interface DashboardSnapshot {
   revenueBreakdown: RevenueBreakdown;
   refundStats: RefundStats;
   dailyRevenue: DailyRevenue[];
+  orderStatus: StatusCount[];
+  topProducts: TopProduct[];
+  slotUtilization: SlotUtilization[];
 }
 
 export async function fetchDashboardSnapshot(
@@ -28,14 +34,35 @@ export async function fetchDashboardSnapshot(
     headers: adminHeaders(adminKey),
     params: { from: range.from, to: range.to },
   };
-  const [overview, revenueBreakdown, refundStats, dailyRevenue] = await Promise.all([
+  const [
+    overview,
+    revenueBreakdown,
+    refundStats,
+    dailyRevenue,
+    orderStatus,
+    topProducts,
+    slotUtilization,
+  ] = await Promise.all([
     api<DashboardOverview>("/admin/dashboard/overview", options),
     api<RevenueBreakdown>("/admin/dashboard/revenue-breakdown", options),
     api<RefundStats>("/admin/dashboard/refunds", options),
     api<DailyRevenue[]>("/admin/dashboard/daily-revenue", options),
+    api<StatusCount[]>("/admin/dashboard/order-status", {
+      headers: adminHeaders(adminKey),
+    }),
+    api<TopProduct[]>("/admin/dashboard/top-products", options),
+    api<SlotUtilization[]>("/admin/dashboard/slot-utilization", options),
   ]);
 
-  return { overview, revenueBreakdown, refundStats, dailyRevenue };
+  return {
+    overview,
+    revenueBreakdown,
+    refundStats,
+    dailyRevenue,
+    orderStatus,
+    topProducts,
+    slotUtilization,
+  };
 }
 
 export function fetchSalesSummary(

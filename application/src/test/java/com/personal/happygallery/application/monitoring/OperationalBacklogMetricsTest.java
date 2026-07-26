@@ -2,6 +2,8 @@ package com.personal.happygallery.application.monitoring;
 
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxBacklogSummary;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
+import com.personal.happygallery.application.payment.port.out.PaymentAttemptBacklogSummary;
+import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundBacklogSummary;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
@@ -29,10 +31,14 @@ class OperationalBacklogMetricsTest {
     void refresh_queryFails_preservesLastSnapshotAndExposesStaleness() {
         RefundPort refundPort = mock(RefundPort.class);
         NotificationOutboxPort outboxPort = mock(NotificationOutboxPort.class);
+        PaymentAttemptReaderPort paymentAttemptReader = mock(PaymentAttemptReaderPort.class);
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         MutableClock clock = new MutableClock(Instant.parse("2026-07-20T00:00:00Z"));
         OperationalBacklogMetrics metrics = new OperationalBacklogMetrics(
-                refundPort, outboxPort, registry, clock);
+                refundPort, outboxPort, paymentAttemptReader, registry, clock);
+        when(paymentAttemptReader.summarizeReconciliationRequiredBacklog())
+                .thenReturn(new PaymentAttemptBacklogSummary(
+                        2, LocalDateTime.of(2026, 7, 20, 8, 58)));
         when(refundPort.summarizeUnresolvedBacklog()).thenReturn(List.of(
                 new RefundBacklogSummary(
                         RefundStatus.RETRYABLE,
@@ -72,8 +78,16 @@ class OperationalBacklogMetricsTest {
                     "pending")).isZero();
             softly.assertThat(gauge(registry, "happygallery.notification.outbox.backlog.oldest.age", "status",
                     "processing")).isEqualTo(30);
+            softly.assertThat(gauge(
+                    registry, "happygallery.payment.confirm.reconciliation.backlog.count"))
+                    .isEqualTo(2);
+            softly.assertThat(gauge(
+                    registry, "happygallery.payment.confirm.reconciliation.backlog.oldest.age"))
+                    .isEqualTo(120);
         });
 
+        when(paymentAttemptReader.summarizeReconciliationRequiredBacklog())
+                .thenThrow(new IllegalStateException("database unavailable"));
         when(refundPort.summarizeUnresolvedBacklog())
                 .thenThrow(new IllegalStateException("database unavailable"));
         when(outboxPort.summarizeUnresolvedBacklog()).thenReturn(List.of());
@@ -97,7 +111,19 @@ class OperationalBacklogMetricsTest {
                     "pending")).isZero();
             softly.assertThat(gauge(registry, "happygallery.operational.backlog.refresh.age", "source",
                     "notification")).isZero();
+            softly.assertThat(gauge(
+                    registry, "happygallery.payment.confirm.reconciliation.backlog.count"))
+                    .isEqualTo(2);
+            softly.assertThat(gauge(registry, "happygallery.operational.backlog.refresh.age", "source",
+                    "payment")).isEqualTo(90);
+            softly.assertThat(registry.counter(
+                    "happygallery.operational.backlog.refresh.failures", "source", "payment").count())
+                    .isOne();
         });
+    }
+
+    private static double gauge(SimpleMeterRegistry registry, String name) {
+        return registry.get(name).gauge().value();
     }
 
     private static double gauge(SimpleMeterRegistry registry, String name, String tag, String value) {

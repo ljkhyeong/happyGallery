@@ -1,16 +1,26 @@
 import { Container } from "react-bootstrap";
-import { Link } from "react-router-dom";
-import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
+import { Link, useParams } from "react-router-dom";
+import {
+  PRIVACY_POLICY_VERSION,
+  policyPath,
+} from "@/features/policy-consent/policyVersions";
 
 export function PrivacyPolicyPage() {
-  const { data: workshop } = useWorkshopProfile();
-  const workshopName = workshop?.name ?? "해피갤러리";
-  const privacyContacts = [
-    workshop?.phone ? `전화 ${workshop.phone}` : null,
-    workshop?.email ? `전자우편 ${workshop.email}` : null,
-    workshop?.kakaoTalkId ? `카카오톡 ${workshop.kakaoTalkId}` : null,
-    workshop?.naverTalkUrl ? "네이버톡톡" : null,
-  ].filter(Boolean);
+  const { version = PRIVACY_POLICY_VERSION } = useParams();
+
+  if (version !== PRIVACY_POLICY_VERSION) {
+    return (
+      <Container className="page-container legal-page" style={{ maxWidth: 860 }}>
+        <header className="legal-page-header">
+          <h1>개인정보처리방침</h1>
+          <p>요청한 버전의 문서를 찾을 수 없습니다.</p>
+        </header>
+        <Link to={policyPath("privacy", PRIVACY_POLICY_VERSION)}>
+          현재 개인정보처리방침 보기
+        </Link>
+      </Container>
+    );
+  }
 
   return (
     <Container className="page-container legal-page" style={{ maxWidth: 860 }}>
@@ -69,7 +79,7 @@ export function PrivacyPolicyPage() {
       <section>
         <h2>4. 제3자 제공</h2>
         <p>
-          {workshopName}에서는 개인정보를 판매하지 않으며, 정보주체의 동의 또는 법령상 근거 없이 제3자에게
+          해피갤러리에서는 개인정보를 판매하지 않으며, 정보주체의 동의 또는 법령상 근거 없이 제3자에게
           제공하지 않습니다. 결제, 메시지 발송과 소셜 로그인을 위해 필요한 처리는 아래 위탁·외부
           서비스 범위에서만 이루어집니다.
         </p>
@@ -82,7 +92,7 @@ export function PrivacyPolicyPage() {
           사용합니다. 고객이 선택한 소셜 로그인에는 Google 또는 Naver를 사용하며, 오류 분석은
           운영 설정에서 활성화한 경우 Sentry를 사용합니다. 각 서비스에는 주문번호·결제금액,
           수신 전화번호·메시지 내용, 소셜 계정 식별자 또는 오류 진단 정보처럼 해당 처리에 필요한
-          최소 정보만 전달합니다. 카드번호나 계좌 비밀번호는 {workshopName}에서 직접 저장하지 않습니다.
+          최소 정보만 전달합니다. 카드번호나 계좌 비밀번호는 해피갤러리에서 직접 저장하지 않습니다.
         </p>
       </section>
 
@@ -116,12 +126,8 @@ export function PrivacyPolicyPage() {
 
       <section>
         <h2>9. 개인정보 문의 담당</h2>
-        <p>담당 부서: {workshopName} 개인정보 문의 담당</p>
-        <p>
-          {privacyContacts.length > 0 ? privacyContacts.join(" · ") : (
-            <Link to="/business-info">사업자 정보에서 연락처 확인</Link>
-          )}
-        </p>
+        <p>담당 부서: 해피갤러리 개인정보 문의 담당</p>
+        <p>전화 010-9635-5608 · 카카오톡 ssim1972 · 네이버톡톡</p>
       </section>
 
       <section>

@@ -117,9 +117,10 @@ public class ResilientPaymentProvider implements PaymentProvider {
     }
 
     @Override
-    public RefundLookupResult lookupRefund(String paymentKey, long amount) {
+    public RefundLookupResult lookupRefund(String paymentKey, long amount, String idempotencyKey) {
         try {
-            return circuitBreaker.executeCallable(() -> executeRefundLookupWithTimeout(paymentKey, amount));
+            return circuitBreaker.executeCallable(
+                    () -> executeRefundLookupWithTimeout(paymentKey, amount, idempotencyKey));
         } catch (CallNotPermittedException e) {
             log.warn("PG 환불 조회 호출 차단 (circuit open) [state={}]", circuitBreaker.getState());
             return RefundLookupResult.unavailable(paymentKey, "PG 장애로 환불 조회가 일시 차단되었습니다.");
@@ -154,8 +155,10 @@ public class ResilientPaymentProvider implements PaymentProvider {
                 () -> CompletableFuture.supplyAsync(() -> delegate.lookupByOrderId(orderId), executor));
     }
 
-    private RefundLookupResult executeRefundLookupWithTimeout(String paymentKey, long amount) throws Exception {
+    private RefundLookupResult executeRefundLookupWithTimeout(
+            String paymentKey, long amount, String idempotencyKey) throws Exception {
         return timeLimiter.executeFutureSupplier(
-                () -> CompletableFuture.supplyAsync(() -> delegate.lookupRefund(paymentKey, amount), executor));
+                () -> CompletableFuture.supplyAsync(
+                        () -> delegate.lookupRefund(paymentKey, amount, idempotencyKey), executor));
     }
 }

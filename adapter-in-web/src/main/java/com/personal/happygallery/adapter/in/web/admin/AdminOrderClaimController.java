@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.CompleteOrderExchangeRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.AdminOrderClaimPageResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.ResolveOrderClaimRequest;
 import com.personal.happygallery.adapter.in.web.order.dto.OrderClaimResponse;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
@@ -8,7 +9,6 @@ import com.personal.happygallery.application.order.port.in.AdminOrderClaimUseCas
 import com.personal.happygallery.domain.order.OrderClaimStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,10 +30,11 @@ public class AdminOrderClaimController {
 
     @GetMapping
     @Operation(operationId = "listAdminOrderClaims")
-    public List<OrderClaimResponse> list(
+    public AdminOrderClaimPageResponse list(
             @RequestParam(required = false) OrderClaimStatus status,
+            @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "50") int size) {
-        return OrderClaimResponse.fromAll(orderClaimUseCase.list(status, size));
+        return AdminOrderClaimPageResponse.from(orderClaimUseCase.list(status, cursor, size));
     }
 
     @PostMapping("/{claimId}/resolve")

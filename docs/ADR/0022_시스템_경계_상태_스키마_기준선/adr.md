@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-07-23
+**갱신**: 2026-07-26
 
 ---
 
@@ -81,8 +81,18 @@
 #### 사용자와 비회원
 
 - `admin_user`
-  - `id`, `username(unique)`, `password_hash`, `credential_version`, `created_at`
-  - 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 실제 비밀번호 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 작업 강도만 승격할 때는 버전을 유지한다.
+  - `id`, `username(unique)`, `password_hash`, `credential_version`, `failed_login_attempts`, `locked_until nullable`, `totp_secret_enc nullable`, `mfa_enabled`, `created_at`
+  - 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 실제 비밀번호 또는 MFA 설정 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 작업 강도만 승격할 때는 버전을 유지한다.
+  - 인증 실패 5회는 계정을 15분 잠근다. TOTP 비밀키는 AES-GCM 암호문으로만 저장한다.
+- `admin_mfa_challenge`
+  - `id`, `admin_user_id`, `token_hmac(unique)`, `expires_at`, `consumed_at nullable`, `created_at`
+  - 로그인 2단계 challenge 원문은 저장하지 않고 5분 유효 HMAC만 저장하며 성공 시 한 번 소비한다.
+- `admin_mfa_recovery_code`
+  - `id`, `admin_user_id`, `code_hash`, `used_at nullable`, `created_at`
+  - 복구 코드는 무작위 salt가 있는 비밀번호 해시만 저장하고 한 번만 사용한다.
+- `admin_auth_history`
+  - `id`, `admin_user_id nullable`, `subject_hmac nullable`, `hmac_key_id nullable`, `outcome`, `created_at`
+  - 로그인·MFA 결과만 남기고 입력 사용자명과 challenge 원문은 저장하지 않는다. 180일 보존 뒤 배치 삭제한다.
 - `admin_setup_lock`
   - `id=1`인 단일 행만 유지한다. 최초 관리자 생성 트랜잭션이 이 행을 `FOR UPDATE`로 잠가 동시 setup 요청을 직렬화한다.
 - `data_key_rotation_lock`
@@ -150,10 +160,12 @@
   - 주문 confirm 시 고객이 선택한 타입으로 함께 생성한다. `SHIPPING`의 구조화 배송지는 AES-GCM 암호문으로 저장하고 관리자 단건 이행 조회에서만 복호화한다.
   - `carrier`, `tracking_number`는 배송 출발 시 한 쌍으로 저장한다. 픽업에는 둘 다 저장하지 않으며 DB `CHECK`로 강제한다.
 - `refunds`
-  - `id`, `order_id nullable`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
-  - 네 참조 중 정확히 하나, `amount`, `payment_key`, `refund_transaction_key`, `idempotency_key UNIQUE`, `fail_reason`
-  - `status(REQUESTED|PROCESSING|RETRYABLE|RECONCILIATION_REQUIRED|SUCCEEDED|FAILED)`, `processing_at`, `processing_token`, `attempt_count`, `next_attempt_at`, `created_at`, `updated_at`, `version`
-  - `RECONCILIATION_REQUIRED` 재선점은 취소 재호출보다 PG 취소 내역 조회를 먼저 수행한다. 실제 완료 취소면 성공으로 화해하고 미취소가 확정된 경우만 `RETRYABLE`로 전환한다.
+  - `id`, `order_id nullable`, `order_claim_id nullable`, `direct_order_id generated`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
+  - 예약, 직접 주문, 주문 클레임, 8회권, 결제 시도 보상 중 하나의 source와 `amount`, `payment_key`, `refund_transaction_key UNIQUE`, `idempotency_key UNIQUE`, `fail_reason`
+  - 직접 주문 환불은 `direct_order_id`, 주문 클레임 환불은 `order_claim_id`, 나머지는 각 source FK의 UNIQUE로 원본당 한 건을 보장한다. 같은 주문 결제를 공유하는 여러 클레임 환불은 같은 `payment_key`를 가질 수 있다.
+  - `status(REQUESTED|PROCESSING|RETRYABLE|RECONCILIATION_REQUIRED|SUCCEEDED|FAILED)`, `processing_at`, `processing_token`, `attempt_count`, `next_attempt_at`, `last_recovery_at`, `created_at`, `updated_at`, `version`
+  - `RECONCILIATION_REQUIRED` 재선점은 취소 재호출보다 PG 취소 내역 조회를 먼저 수행한다. 취소 사유에 포함한 멱등키·금액·상태·거래 식별자가 모두 일치하는 실제 완료 취소면 성공으로 화해하고, 해당 멱등키의 취소가 없으며 미취소가 확정된 경우만 `RETRYABLE`로 전환한다.
+  - 자동 복구는 `last_recovery_at`, 생성 시각, ID 순으로 후보를 순환해 반복 실패 환불이 뒤 요청을 계속 막지 않게 한다.
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
   - `processing_at nullable`, `processing_token nullable`, `payment_key nullable`, `confirmed_payment_key nullable`, `fail_reason nullable`
@@ -212,6 +224,12 @@ FROM orders
 WHERE (user_id IS NULL AND guest_id IS NULL)
    OR (user_id IS NOT NULL AND guest_id IS NOT NULL);
 ```
+
+#### 주문 클레임
+
+- `order_claims`
+  - 관리자 전체 작업함은 `(requested_at DESC, id DESC)`, 상태별 작업함은 `(status, requested_at DESC, id DESC)` 커서를 사용한다.
+  - 두 조회 형태를 각각 같은 순서의 인덱스로 지원해 앞 페이지가 바뀌어도 중복·누락 없이 다음 작업을 조회한다.
 
 #### 회원 전화번호 유일 제약 배포
 
@@ -275,6 +293,7 @@ HAVING COUNT(*) > 1;
 - `notification_log(sent_at, id)` 채널 감사 로그 보존 정리
 - `notification_log(user_id, event_type, status, sent_at)` 회원 알림 중복 확인
 - `notification_log(guest_id, event_type, status, sent_at)` 비회원 알림 중복 확인
+- `product_qna(replied_at, created_at DESC, id DESC)` 관리자 미답변 작업함 커서 조회
 - `refunds(status, created_at)`
 - `refunds(status, next_attempt_at, created_at)`
 - `refunds(status, processing_at, created_at)`

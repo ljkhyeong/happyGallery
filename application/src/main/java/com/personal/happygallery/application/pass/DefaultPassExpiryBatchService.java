@@ -64,19 +64,13 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
     @Override
     public BatchResult sendExpiryNotifications() {
         LocalDateTime now = LocalDateTime.now(clock);
-        List<PassPurchase> expiring = findPassesExpiringInSevenDays(now);
+        List<PassPurchase> expiring = passPurchaseReader.findExpiryReminderCandidates(
+                now, now.plusDays(7), 0);
 
         return BatchExecutor.execute(expiring,
                 PassPurchase::getId,
                 this::requestExpiryNotification,
                 "8회권 만료 알림");
-    }
-
-    private List<PassPurchase> findPassesExpiringInSevenDays(LocalDateTime now) {
-        LocalDateTime targetStart = now.plusDays(7).toLocalDate().atStartOfDay();
-        LocalDateTime targetEnd = targetStart.plusDays(1);
-        return passPurchaseReader
-                .findByExpiresAtBetweenAndRemainingCreditsGreaterThan(targetStart, targetEnd, 0);
     }
 
     private boolean requestExpiryNotification(PassPurchase pass) {

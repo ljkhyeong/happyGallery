@@ -37,6 +37,21 @@ data:
             timeout: 10s
 ---
 apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alertmanager-data
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: happygallery
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path-retain
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: alertmanager
@@ -146,5 +161,5 @@ spec:
             secretName: happygallery-alertmanager
             defaultMode: 0440
         - name: data
-          emptyDir:
-            sizeLimit: 128Mi
+          persistentVolumeClaim:
+            claimName: alertmanager-data

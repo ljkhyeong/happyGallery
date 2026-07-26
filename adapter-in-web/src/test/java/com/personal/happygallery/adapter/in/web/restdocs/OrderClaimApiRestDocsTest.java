@@ -6,6 +6,7 @@ import com.personal.happygallery.adapter.in.web.order.GuestOrderClaimController;
 import com.personal.happygallery.application.order.port.in.AdminOrderClaimUseCase;
 import com.personal.happygallery.application.order.port.in.OrderClaimUseCase;
 import com.personal.happygallery.application.order.port.in.OrderClaimView;
+import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.order.OrderClaimResolution;
 import com.personal.happygallery.domain.order.OrderClaimStatus;
 import com.personal.happygallery.domain.order.OrderClaimType;
@@ -42,8 +43,8 @@ class OrderClaimApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(view);
         when(orderClaimUseCase.listGuestClaims(200L, "guest-token"))
                 .thenReturn(List.of(view));
-        when(adminOrderClaimUseCase.list(OrderClaimStatus.REQUESTED, 50))
-                .thenReturn(List.of(view));
+        when(adminOrderClaimUseCase.list(OrderClaimStatus.REQUESTED, "cursor-current", 50))
+                .thenReturn(new CursorPage<>(List.of(view), "cursor-next", true));
         when(adminOrderClaimUseCase.resolve(eq(10L), eq(ADMIN_USER_ID), any())).thenReturn(view);
         when(adminOrderClaimUseCase.completeExchange(eq(10L), eq(ADMIN_USER_ID), any()))
                 .thenReturn(view);
@@ -79,6 +80,7 @@ class OrderClaimApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/admin/order-claims")
                         .with(adminUser())
                         .param("status", "REQUESTED")
+                        .param("cursor", "cursor-current")
                         .param("size", "50"))
                 .andExpect(status().isOk());
     }

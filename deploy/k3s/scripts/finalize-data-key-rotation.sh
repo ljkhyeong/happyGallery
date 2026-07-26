@@ -43,6 +43,15 @@ pending_payment_owner_hmacs() {
         'exec mysql -N -s -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "$1"' sh "$query"
 }
 
+pending_admin_totp_secrets() {
+    target_key_id=$1
+    query="SELECT COUNT(*) FROM admin_user
+           WHERE totp_secret_enc IS NOT NULL
+             AND LEFT(totp_secret_enc, CHAR_LENGTH('hg:$target_key_id:')) <> 'hg:$target_key_id:'"
+    kube -n "$NAMESPACE" exec mysql-0 -- sh -ec \
+        'exec mysql -N -s -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "$1"' sh "$query"
+}
+
 pending_guest_payment_proofs() {
     cutover_epoch=$1
     query="SET time_zone = '+00:00';
@@ -123,6 +132,11 @@ printf '%s' "$pending_payment_hmacs" | grep -Eq '^[0-9]+$' \
     || die "이전 키 비회원 결제 휴대폰 HMAC 건수를 확인할 수 없습니다."
 [ "$pending_payment_hmacs" -eq 0 ] \
     || die "이전 키 비회원 결제 휴대폰 HMAC이 $pending_payment_hmacs 건 남아 previous HMAC 키를 제거할 수 없습니다. 결제 보존 배치 완료 후 다시 실행하세요."
+pending_admin_totp=$(pending_admin_totp_secrets "$target_key_id")
+printf '%s' "$pending_admin_totp" | grep -Eq '^[0-9]+$' \
+    || die "이전 키 관리자 TOTP 암호문 건수를 확인할 수 없습니다."
+[ "$pending_admin_totp" -eq 0 ] \
+    || die "이전 키 관리자 TOTP 암호문이 $pending_admin_totp 건 남아 previous AES 키를 제거할 수 없습니다. 데이터 키 회전을 다시 확인하세요."
 pending_guest_proofs=$(pending_guest_payment_proofs "$guest_proof_cutover")
 printf '%s' "$pending_guest_proofs" | grep -Eq '^[0-9]+$' \
     || die "이전 guest 키로 발급된 결제 인증 증거 건수를 확인할 수 없습니다."
@@ -169,6 +183,9 @@ pending=$(pending_social_accounts)
 pending_payment_hmacs=$(pending_payment_owner_hmacs "$target_key_id")
 [ "$pending_payment_hmacs" -eq 0 ] \
     || die "app 중지 후 이전 키 비회원 결제 휴대폰 HMAC이 발견되어 previous 키 제거를 중단합니다: $pending_payment_hmacs"
+pending_admin_totp=$(pending_admin_totp_secrets "$target_key_id")
+[ "$pending_admin_totp" -eq 0 ] \
+    || die "app 중지 후 이전 키 관리자 TOTP 암호문이 발견되어 previous 키 제거를 중단합니다: $pending_admin_totp"
 pending_guest_proofs=$(pending_guest_payment_proofs "$guest_proof_cutover")
 [ "$pending_guest_proofs" -eq 0 ] \
     || die "app 중지 후 이전 guest 키가 필요한 미완료 비회원 결제가 발견되어 previous 키 제거를 중단합니다: $pending_guest_proofs"

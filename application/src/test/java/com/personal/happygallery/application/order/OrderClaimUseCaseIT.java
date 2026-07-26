@@ -7,6 +7,7 @@ import com.personal.happygallery.application.dashboard.port.out.SalesAnalyticsPo
 import com.personal.happygallery.application.order.port.in.AdminOrderClaimUseCase;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderClaimUseCase;
+import com.personal.happygallery.application.order.port.in.OrderClaimView;
 import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.application.order.port.out.OrderClaimItemPort;
 import com.personal.happygallery.application.order.port.out.OrderClaimPort;
@@ -343,5 +344,48 @@ class OrderClaimUseCaseIT {
                         .hasSize(claimSucceeded ? 1 : 0);
             });
         }
+    }
+
+    @DisplayName("관리자는 같은 상태의 오래된 주문 클레임까지 커서로 이어서 조회한다")
+    @Test
+    void listAdminClaims_usesStableCursorWithinStatus() {
+        var older = createRequestedClaim("커서 이전 클레임");
+        var newer = createRequestedClaim("커서 최신 클레임");
+
+        var firstPage = adminOrderClaimUseCase.list(OrderClaimStatus.REQUESTED, null, 1);
+        var secondPage = adminOrderClaimUseCase.list(
+                OrderClaimStatus.REQUESTED, firstPage.nextCursor(), 1);
+
+        assertSoftly(softly -> {
+            softly.assertThat(firstPage.content())
+                    .extracting(OrderClaimView::id)
+                    .containsExactly(newer.id());
+            softly.assertThat(firstPage.hasMore()).isTrue();
+            softly.assertThat(firstPage.nextCursor()).isNotBlank();
+            softly.assertThat(secondPage.content())
+                    .extracting(OrderClaimView::id)
+                    .containsExactly(older.id());
+            softly.assertThat(secondPage.hasMore()).isFalse();
+            softly.assertThat(secondPage.nextCursor()).isNull();
+        });
+    }
+
+    private OrderClaimView createRequestedClaim(String productName) {
+        Order order = orderHelper
+                .createReadyStockPaidShippingOrder(productName, 40_000L, 3_000L)
+                .order();
+        orderApprovalUseCase.approve(order.getId(), 1L);
+        orderShippingUseCase.prepareShipping(order.getId(), 1L);
+        orderShippingUseCase.markShipped(order.getId(), "테스트택배", "CURSOR-TRACK", 1L);
+        orderShippingUseCase.markDelivered(order.getId(), 1L);
+        Long orderItemId = orderItemPort.findByOrder(order).getFirst().getId();
+        return orderClaimUseCase.requestMemberClaim(
+                order.getId(),
+                order.getUserId(),
+                new OrderClaimUseCase.RequestCommand(
+                        OrderClaimType.DAMAGED,
+                        OrderClaimResolution.REFUND,
+                        "관리자 커서 조회를 확인합니다.",
+                        List.of(new OrderClaimUseCase.Item(orderItemId, 1))));
     }
 }

@@ -9,6 +9,7 @@ dependencies {
 	implementation 'org.springframework:spring-web'
 	implementation 'org.springframework.security:spring-security-oauth2-client'
 	implementation 'org.springframework.security:spring-security-oauth2-core'
+	implementation 'dev.samstevens.totp:totp:1.7.1'
 	implementation 'org.springframework.session:spring-session-core'
 	implementation 'org.apache.httpcomponents.client5:httpclient5'
 	implementation 'io.micrometer:micrometer-core'
@@ -17,4 +18,7 @@ dependencies {
 	implementation 'io.github.resilience4j:resilience4j-timelimiter:2.3.0'
 
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

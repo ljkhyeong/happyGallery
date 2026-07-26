@@ -91,7 +91,7 @@ public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPor
                     AND (next_attempt_at IS NULL OR next_attempt_at <= :now)
                   )
                OR (status = 'PROCESSING' AND processing_at < :staleBefore)
-            ORDER BY created_at, id
+            ORDER BY last_recovery_at, created_at, id
             LIMIT :limit
             """, nativeQuery = true)
     List<Long> findRecoverableIds(@Param("now") LocalDateTime now,

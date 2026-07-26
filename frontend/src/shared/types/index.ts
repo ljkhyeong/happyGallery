@@ -12,5 +12,5 @@ export type { OrderItemInput, OrderDetailResponse, OrderPricePolicyResponse, Ord
 export type { ProductQnaListItem, ProductQnaDetail, CreateQnaRequest } from "./qna";
 export type { InquiryResponse, CreateInquiryRequest } from "./inquiry";
 export type { NoticeListItem, NoticeDetail, CreateNoticeRequest } from "./notice";
-export type { DashboardGranularity, DashboardOverview, PeriodSalesSummary, RevenueBreakdown, RefundStats, DailyRevenue } from "./dashboard";
+export type { DashboardGranularity, DashboardOverview, PeriodSalesSummary, RevenueBreakdown, RefundStats, DailyRevenue, StatusCount, TopProduct, SlotUtilization } from "./dashboard";
 export type { OffsetPage, AdminOrderSearchRow, AdminBookingSearchRow } from "./adminSearch";

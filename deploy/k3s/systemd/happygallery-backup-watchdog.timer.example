@@ -1,0 +1,12 @@
+[Unit]
+Description=Check happyGallery backup heartbeat every fifteen minutes
+
+[Timer]
+OnBootSec=15m
+OnUnitActiveSec=15m
+AccuracySec=1m
+Persistent=true
+Unit=happygallery-backup-watchdog.service
+
+[Install]
+WantedBy=timers.target

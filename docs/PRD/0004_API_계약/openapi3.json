@@ -239,6 +239,109 @@
         },
         "type" : "object"
       },
+      "AdminMfaCodeRequest" : {
+        "properties" : {
+          "code" : {
+            "maxLength" : 32,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "code" ],
+        "type" : "object"
+      },
+      "AdminMfaDisableRequest" : {
+        "properties" : {
+          "code" : {
+            "maxLength" : 32,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "currentPassword" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "currentPassword" ],
+        "type" : "object"
+      },
+      "AdminMfaEnrollmentResponse" : {
+        "properties" : {
+          "provisioningUri" : {
+            "format" : "uri",
+            "type" : "string"
+          },
+          "secret" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "provisioningUri", "secret" ],
+        "type" : "object"
+      },
+      "AdminMfaRecoveryCodesResponse" : {
+        "properties" : {
+          "recoveryCodes" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "recoveryCodes" ],
+        "type" : "object"
+      },
+      "AdminMfaStatusResponse" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "enrollmentPending" : {
+            "type" : "boolean"
+          },
+          "recoveryCodesRemaining" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "enabled", "enrollmentPending", "recoveryCodesRemaining" ],
+        "type" : "object"
+      },
+      "AdminMfaVerificationRequest" : {
+        "properties" : {
+          "challengeToken" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "code" : {
+            "maxLength" : 32,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "challengeToken", "code" ],
+        "type" : "object"
+      },
+      "AdminOrderClaimPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OrderClaimResponse"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
       "AdminOrderFulfillmentResponse" : {
         "properties" : {
           "carrier" : {
@@ -409,6 +512,24 @@
           }
         },
         "required" : [ "currentPassword", "newPassword" ],
+        "type" : "object"
+      },
+      "AdminQnaPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AdminQnaResponse"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
         "type" : "object"
       },
       "AdminQnaResponse" : {
@@ -1796,7 +1917,8 @@
       "LoginRequest" : {
         "properties" : {
           "password" : {
-            "minLength" : 1,
+            "maxLength" : 100,
+            "minLength" : 0,
             "type" : "string"
           },
           "username" : {
@@ -1811,10 +1933,18 @@
       },
       "LoginResponse" : {
         "properties" : {
-          "token" : {
+          "challengeToken" : {
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "enum" : [ "AUTHENTICATED", "MFA_REQUIRED" ],
             "type" : "string"
+          },
+          "token" : {
+            "type" : [ "string", "null" ]
           }
         },
+        "required" : [ "challengeToken", "status", "token" ],
         "type" : "object"
       },
       "MarkPickupReadyRequest" : {
@@ -3887,6 +4017,117 @@
         "tags" : [ "admin-login-controller" ]
       }
     },
+    "/api/v1/admin/auth/mfa" : {
+      "delete" : {
+        "operationId" : "disableAdminMfa",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AdminMfaDisableRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-mfa-controller" ]
+      },
+      "get" : {
+        "operationId" : "getAdminMfaStatus",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminMfaStatusResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-mfa-controller" ]
+      }
+    },
+    "/api/v1/admin/auth/mfa/enrollment" : {
+      "post" : {
+        "operationId" : "beginAdminMfaEnrollment",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminMfaEnrollmentResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-mfa-controller" ]
+      }
+    },
+    "/api/v1/admin/auth/mfa/enrollment/confirm" : {
+      "post" : {
+        "operationId" : "confirmAdminMfaEnrollment",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AdminMfaCodeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminMfaRecoveryCodesResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-mfa-controller" ]
+      }
+    },
+    "/api/v1/admin/auth/mfa/verify" : {
+      "post" : {
+        "operationId" : "verifyAdminMfa",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AdminMfaVerificationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LoginResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-login-controller" ]
+      }
+    },
     "/api/v1/admin/auth/password" : {
       "patch" : {
         "operationId" : "changeAdminPassword",
@@ -4939,6 +5180,13 @@
           }
         }, {
           "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
           "name" : "size",
           "required" : false,
           "schema" : {
@@ -4952,10 +5200,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/OrderClaimResponse"
-                  },
-                  "type" : "array"
+                  "$ref" : "#/components/schemas/AdminOrderClaimPageResponse"
                 }
               }
             },
@@ -5943,6 +6188,41 @@
                     "$ref" : "#/components/schemas/AdminQnaResponse"
                   },
                   "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-product-qna-controller" ]
+      }
+    },
+    "/api/v1/admin/qna/unanswered" : {
+      "get" : {
+        "operationId" : "listUnansweredAdminProductQna",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminQnaPageResponse"
                 }
               }
             },

@@ -3,13 +3,19 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 import com.personal.happygallery.adapter.in.web.admin.AdminClassController;
 import com.personal.happygallery.adapter.in.web.admin.AdminCredentialController;
 import com.personal.happygallery.adapter.in.web.admin.AdminLoginController;
+import com.personal.happygallery.adapter.in.web.admin.AdminMfaController;
 import com.personal.happygallery.adapter.in.web.admin.AdminProductController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSetupController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSlotController;
 import com.personal.happygallery.adapter.in.web.admin.AdminWorkshopProfileController;
 import com.personal.happygallery.adapter.in.web.config.properties.AdminSetupProperties;
 import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase;
+import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase.LoginResult;
 import com.personal.happygallery.application.admin.port.in.AdminCredentialUseCase;
+import com.personal.happygallery.application.admin.port.in.AdminMfaUseCase;
+import com.personal.happygallery.application.admin.port.in.AdminMfaUseCase.MfaEnrollment;
+import com.personal.happygallery.application.admin.port.in.AdminMfaUseCase.MfaStatus;
+import com.personal.happygallery.application.admin.port.in.AdminMfaUseCase.RecoveryCodes;
 import com.personal.happygallery.application.admin.port.in.AdminSetupUseCase;
 import com.personal.happygallery.application.booking.port.in.ClassManagementUseCase;
 import com.personal.happygallery.application.booking.port.in.ClassQueryUseCase;
@@ -42,6 +48,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -56,6 +63,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     private MockMvc mockMvc;
     private AdminAuthUseCase adminAuthUseCase;
     private AdminCredentialUseCase adminCredentialUseCase;
+    private AdminMfaUseCase adminMfaUseCase;
     private AdminSetupUseCase adminSetupUseCase;
     private ProductAdminUseCase productAdminUseCase;
     private ProductQueryUseCase productQueryUseCase;
@@ -69,6 +77,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     void setUp(RestDocumentationContextProvider restDocumentation) {
         adminAuthUseCase = mock(AdminAuthUseCase.class);
         adminCredentialUseCase = mock(AdminCredentialUseCase.class);
+        adminMfaUseCase = mock(AdminMfaUseCase.class);
         adminSetupUseCase = mock(AdminSetupUseCase.class);
         productAdminUseCase = mock(ProductAdminUseCase.class);
         productQueryUseCase = mock(ProductQueryUseCase.class);
@@ -86,7 +95,21 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         Slot slot = RestDocsFixtures.slot();
         WorkshopProfile workshop = workshopProfile();
 
-        when(adminAuthUseCase.login("admin", "admin123456")).thenReturn("admin-session-token");
+        when(adminAuthUseCase.login("admin", "admin123456"))
+                .thenReturn(LoginResult.authenticated("admin-session-token"));
+        when(adminAuthUseCase.verifyMfa("mfa-challenge-token", "123456"))
+                .thenReturn(LoginResult.authenticated("admin-session-token"));
+        when(adminMfaUseCase.getStatus(ADMIN_USER_ID))
+                .thenReturn(new MfaStatus(false, false, 0));
+        when(adminMfaUseCase.beginEnrollment(ADMIN_USER_ID))
+                .thenReturn(new MfaEnrollment(
+                        "JBSWY3DPEHPK3PXP",
+                        "otpauth://totp/%ED%95%B4%ED%94%BC%EA%B0%A4%EB%9F%AC%EB%A6%AC:admin"
+                                + "?secret=JBSWY3DPEHPK3PXP"));
+        when(adminMfaUseCase.confirmEnrollment(ADMIN_USER_ID, "123456"))
+                .thenReturn(new RecoveryCodes(List.of(
+                        "aaaa-bbbb-cccc-0001",
+                        "aaaa-bbbb-cccc-0002")));
         when(adminSetupUseCase.isAvailable()).thenReturn(true);
         when(productAdminUseCase.register(any(), any(), any(), anyLong(), anyInt(), any(), any()))
                 .thenReturn(new ProductAdminUseCase.ProductInventoryResult(
@@ -127,6 +150,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         mockMvc = mockMvc(restDocumentation, SNIPPET_GROUP,
                 new AdminLoginController(adminAuthUseCase),
                 new AdminCredentialController(adminCredentialUseCase),
+                new AdminMfaController(adminMfaUseCase),
                 new AdminSetupController(new AdminSetupProperties("setup-token"), adminSetupUseCase),
                 new AdminProductController(productAdminUseCase, productQueryUseCase),
                 new AdminWorkshopProfileController(workshopProfileUseCase),
@@ -141,6 +165,65 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("{\"username\":\"admin\",\"password\":\"admin123456\"}"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 MFA 로그인 확인 API를 문서화한다")
+    void admin_verify_mfa() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/auth/mfa/verify")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "challengeToken": "mfa-challenge-token",
+                                  "code": "123456"
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 MFA 상태 API를 문서화한다")
+    void admin_mfa_status() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/auth/mfa")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 MFA 등록 시작 API를 문서화한다")
+    void admin_begin_mfa_enrollment() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/auth/mfa/enrollment")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 MFA 등록 확인 API를 문서화한다")
+    void admin_confirm_mfa_enrollment() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/auth/mfa/enrollment/confirm")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"code\":\"123456\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 MFA 해제 API를 문서화한다")
+    void admin_disable_mfa() throws Exception {
+        mockMvc.perform(delete("/api/v1/admin/auth/mfa")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "admin123456",
+                                  "code": "123456"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
     }
 
     @Test

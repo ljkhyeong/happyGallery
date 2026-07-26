@@ -32,6 +32,6 @@ public interface PaymentPort {
      */
     RefundResult refund(String paymentKey, long amount, String idempotencyKey);
 
-    /** 원결제 조회 응답의 취소 이력에서 해당 금액의 완료된 환불을 확인한다. */
-    RefundLookupResult lookupRefund(String paymentKey, long amount);
+    /** 원결제 조회 응답의 취소 이력에서 해당 멱등키로 요청한 완료 환불을 확인한다. */
+    RefundLookupResult lookupRefund(String paymentKey, long amount, String idempotencyKey);
 }

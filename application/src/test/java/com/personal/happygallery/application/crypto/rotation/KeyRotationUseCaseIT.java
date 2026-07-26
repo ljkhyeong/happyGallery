@@ -6,11 +6,13 @@ import com.personal.happygallery.adapter.out.persistence.order.FulfillmentReposi
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptRepository;
 import com.personal.happygallery.adapter.out.persistence.user.SocialAccountRepository;
+import com.personal.happygallery.application.admin.port.out.AdminUserPort;
 import com.personal.happygallery.application.crypto.SpringSecurityFieldEncryptor;
 import com.personal.happygallery.application.crypto.VersionedFieldEncryptor;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -65,6 +67,7 @@ class KeyRotationUseCaseIT {
     @Autowired FulfillmentRepository fulfillmentRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
     @Autowired SocialAccountRepository socialAccountRepository;
+    @Autowired AdminUserPort adminUserPort;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired TestCleanupSupport cleanupSupport;
 
@@ -105,6 +108,9 @@ class KeyRotationUseCaseIT {
                 "naver-rotation-id", true);
         SocialAccount hmacOnlySocial = socialAccount(user.getId(), SocialProvider.GOOGLE,
                 "google-legacy-id", false);
+        AdminUser pendingAdmin = new AdminUser("rotation-admin", "password-hash");
+        pendingAdmin.beginMfaEnrollment(oldEncryptor.encrypt("JBSWY3DPEHPK3PXP"));
+        AdminUser admin = adminUserPort.save(pendingAdmin);
 
         KeyRotationUseCase.RotationResult result = keyRotationUseCase.rotate("v1");
 
@@ -114,8 +120,10 @@ class KeyRotationUseCaseIT {
             softly.assertThat(result.paymentAttempts()).isEqualTo(1);
             softly.assertThat(result.fulfillments()).isEqualTo(1);
             softly.assertThat(result.socialAccounts()).isEqualTo(1);
+            softly.assertThat(result.adminMfaSecrets()).isEqualTo(1);
             softly.assertThat(result.deletedPhoneVerifications()).isEqualTo(1);
             softly.assertThat(result.pendingSocialAccounts()).isEqualTo(1);
+            softly.assertThat(result.pendingAdminMfaSecrets()).isZero();
             softly.assertThat(value("users", "email_enc", user.getId())).startsWith("hg:v2:");
             softly.assertThat(value("guests", "phone_enc", guest.getId())).startsWith("hg:v2:");
             softly.assertThat(value("payment_attempt", "payload_enc", attempt.getId())).startsWith("hg:v2:");
@@ -129,6 +137,8 @@ class KeyRotationUseCaseIT {
                     .startsWith("hg:v2:");
             softly.assertThat(value("user_social_accounts", "provider_id_enc", hmacOnlySocial.getId()))
                     .isNull();
+            softly.assertThat(value("admin_user", "totp_secret_enc", admin.getId()))
+                    .startsWith("hg:v2:");
             softly.assertThat(value("users", "email_hmac", user.getId()))
                     .isEqualTo(activeIndexKeyRing.index("rotation@test.local"));
             softly.assertThat(value("users", "email_enc", naverUser.getId())).isNull();
@@ -201,5 +211,6 @@ class KeyRotationUseCaseIT {
         cleanupSupport.clearOrderData();
         cleanupSupport.clearBookingWithPassAndRefundData();
         cleanupSupport.clearUsers();
+        cleanupSupport.clearAdminUsers();
     }
 }

@@ -51,8 +51,17 @@ public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long
             @Param("afterId") Long afterId,
             Pageable pageable);
 
-    /** 만료 7일 전 알림 대상: now <= expires_at < now+7일 AND remaining_credits > 0 */
+    /** 만료 알림 catch-up 대상: 아직 유효하고 7일 이내 만료되며 잔여 크레딧이 있는 구매 건. */
     @Override
-    List<PassPurchase> findByExpiresAtBetweenAndRemainingCreditsGreaterThan(
-            LocalDateTime start, LocalDateTime end, int credits);
+    @Query("""
+            SELECT p FROM PassPurchase p
+            WHERE p.expiresAt > :now
+              AND p.expiresAt <= :latestExpiry
+              AND p.remainingCredits > :credits
+            ORDER BY p.id
+            """)
+    List<PassPurchase> findExpiryReminderCandidates(
+            @Param("now") LocalDateTime now,
+            @Param("latestExpiry") LocalDateTime latestExpiry,
+            @Param("credits") int credits);
 }

@@ -39,4 +39,7 @@ public interface PaymentAttemptReaderPort {
 
     /** PG 조회를 통한 운영 대사가 필요한 결제 시도를 오래된 순서로 조회한다. */
     List<PaymentAttempt> findReconciliationRequired(int limit);
+
+    /** 운영 대사가 필요한 결제 건수와 가장 오래된 마지막 confirm 실행 시각을 집계한다. */
+    PaymentAttemptBacklogSummary summarizeReconciliationRequiredBacklog();
 }

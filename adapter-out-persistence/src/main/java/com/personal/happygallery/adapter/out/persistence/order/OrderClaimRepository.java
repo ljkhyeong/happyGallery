@@ -4,6 +4,7 @@ import com.personal.happygallery.application.order.port.out.OrderClaimPort;
 import com.personal.happygallery.domain.order.OrderClaim;
 import com.personal.happygallery.domain.order.OrderClaimStatus;
 import jakarta.persistence.LockModeType;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.PageRequest;
@@ -43,11 +44,35 @@ public interface OrderClaimRepository extends JpaRepository<OrderClaim, Long>, O
 
     @Query("""
             SELECT c FROM OrderClaim c
+            WHERE c.requestedAt < :requestedAt
+               OR (c.requestedAt = :requestedAt AND c.id < :id)
+            ORDER BY c.requestedAt DESC, c.id DESC
+            """)
+    List<OrderClaim> findRecentAfterPage(
+            @Param("requestedAt") LocalDateTime requestedAt,
+            @Param("id") Long id,
+            Pageable pageable);
+
+    @Query("""
+            SELECT c FROM OrderClaim c
             WHERE c.status = :status
             ORDER BY c.requestedAt DESC, c.id DESC
             """)
     List<OrderClaim> findRecentByStatusPage(
             @Param("status") OrderClaimStatus status, Pageable pageable);
+
+    @Query("""
+            SELECT c FROM OrderClaim c
+            WHERE c.status = :status
+              AND (c.requestedAt < :requestedAt
+                   OR (c.requestedAt = :requestedAt AND c.id < :id))
+            ORDER BY c.requestedAt DESC, c.id DESC
+            """)
+    List<OrderClaim> findRecentByStatusAfterPage(
+            @Param("status") OrderClaimStatus status,
+            @Param("requestedAt") LocalDateTime requestedAt,
+            @Param("id") Long id,
+            Pageable pageable);
 
     @Override
     default List<OrderClaim> findRecent(int limit) {
@@ -55,7 +80,19 @@ public interface OrderClaimRepository extends JpaRepository<OrderClaim, Long>, O
     }
 
     @Override
+    default List<OrderClaim> findRecentAfter(LocalDateTime requestedAt, Long id, int limit) {
+        return findRecentAfterPage(requestedAt, id, PageRequest.ofSize(limit));
+    }
+
+    @Override
     default List<OrderClaim> findRecentByStatus(OrderClaimStatus status, int limit) {
         return findRecentByStatusPage(status, PageRequest.ofSize(limit));
+    }
+
+    @Override
+    default List<OrderClaim> findRecentByStatusAfter(
+            OrderClaimStatus status, LocalDateTime requestedAt, Long id, int limit) {
+        return findRecentByStatusAfterPage(
+                status, requestedAt, id, PageRequest.ofSize(limit));
     }
 }

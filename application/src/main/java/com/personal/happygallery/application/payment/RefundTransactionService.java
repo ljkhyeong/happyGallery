@@ -65,12 +65,24 @@ class RefundTransactionService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public RefundCall claimRefundCall(Long refundId) {
+        return claimRefundCall(refundId, false);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public RefundCall claimRefundCallForRecovery(Long refundId) {
+        return claimRefundCall(refundId, true);
+    }
+
+    private RefundCall claimRefundCall(Long refundId, boolean recovery) {
         Refund refund = findRefundForUpdate(refundId);
         RefundStatus statusBeforeClaim = refund.getStatus();
         LocalDateTime now = LocalDateTime.now(clock);
         String processingToken = refund.startProcessing(now, now.minus(PROCESSING_TIMEOUT));
         if (processingToken == null) {
             return new RefundCall.Skipped(refund);
+        }
+        if (recovery) {
+            refund.recordRecoveryAttempt(now);
         }
         if (!StringUtils.hasText(refund.getPaymentKey())) {
             refund.markFailed(processingToken, MISSING_PAYMENT_KEY_REASON);
@@ -80,7 +92,11 @@ class RefundTransactionService {
         }
         if (statusBeforeClaim == RefundStatus.RECONCILIATION_REQUIRED) {
             return new RefundCall.LookupRequired(
-                    refund.getId(), refund.getPaymentKey(), refund.getAmount(), processingToken);
+                    refund.getId(),
+                    refund.getPaymentKey(),
+                    refund.getAmount(),
+                    refund.getIdempotencyKey(),
+                    processingToken);
         }
         return new RefundCall.CancelRequired(
                 refund.getId(), refund.getPaymentKey(), refund.getAmount(), refund.getIdempotencyKey(), processingToken);
@@ -257,6 +273,7 @@ class RefundTransactionService {
         record LookupRequired(Long refundId,
                               String paymentKey,
                               long amount,
+                              String idempotencyKey,
                               String processingToken) implements RefundCall {}
 
         record Skipped(Refund refund) implements RefundCall {}

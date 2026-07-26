@@ -107,6 +107,31 @@ class PassExpiryNotificationUseCaseIT {
         });
     }
 
+    @DisplayName("서버가 예정 시각 뒤 재기동돼도 아직 만료 전인 8회권 알림을 보충한다")
+    @Test
+    void sendExpiryNotifications_afterScheduledTime_catchesUpBeforeExpiry() {
+        User user = userStorePort.save(new User(
+                "pass-expiry-catch-up@example.com", "hashed-password", "회원", "01056565656"));
+        PassPurchase pass = passPurchaseStorePort.save(
+                passPurchase(user.getId(), LocalDateTime.now(clock).plusDays(6), 0L));
+
+        BatchResult result = passExpiryBatchService.sendExpiryNotifications();
+        List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isOne();
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(logs).singleElement().satisfies(log -> {
+                softly.assertThat(log.getEventType()).isEqualTo(NotificationEventType.PASS_EXPIRY_SOON);
+                softly.assertThat(log.getUserId()).isEqualTo(user.getId());
+            });
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .singleElement()
+                    .satisfies(outbox -> softly.assertThat(outbox.getAggregateId())
+                            .isEqualTo(pass.getId()));
+        });
+    }
+
     @DisplayName("같은 회원의 8회권은 구매 건별로 만료 알림을 한 번씩 발송한다")
     @Test
     void sendExpiryNotifications_deduplicatesByPassId() {

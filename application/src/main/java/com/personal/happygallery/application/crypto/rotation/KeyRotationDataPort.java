@@ -30,6 +30,12 @@ public interface KeyRotationDataPort {
 
     void updateSocialAccount(SocialAccountRotatedRow row);
 
+    List<AdminTotpSecretRow> findAdminTotpSecretsAfterId(long afterId, int limit);
+
+    void updateAdminTotpSecret(AdminTotpSecretRow row);
+
+    long countAdminTotpSecretsNotWithKeyId(String keyId);
+
     int deletePhoneVerifications();
 
     long countSocialAccountsWithoutProviderIdEnc();
@@ -61,4 +67,6 @@ public interface KeyRotationDataPort {
     record SocialAccountEncryptedRow(long id, String providerIdEnc) implements IdentifiedRow {}
 
     record SocialAccountRotatedRow(long id, String providerIdEnc, String providerIdHmac) {}
+
+    record AdminTotpSecretRow(long id, String totpSecretEnc) implements IdentifiedRow {}
 }

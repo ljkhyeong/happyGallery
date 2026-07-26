@@ -5,6 +5,9 @@ import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.qna.port.out.ProductQnaReaderPort;
 import com.personal.happygallery.application.qna.port.out.ProductQnaStorePort;
+import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -69,10 +72,26 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     @Transactional(readOnly = true)
     public List<QnaWithAuthor> listByProduct(Long productId) {
         List<ProductQna> qnaList = qnaReader.findByProductId(productId);
-        Map<Long, User> userMap = batchFetchUsers(qnaList);
-        return qnaList.stream()
-                .map(q -> new QnaWithAuthor(q, userName(userMap, q.getUserId())))
-                .toList();
+        return withAuthors(qnaList);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CursorPage<QnaWithAuthor> listUnanswered(String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        int fetchSize = pageSize + 1;
+        List<ProductQna> qnaList;
+        if (cursor == null) {
+            qnaList = qnaReader.findUnanswered(fetchSize);
+        } else {
+            var cursorParam = CursorUtils.decode(cursor);
+            qnaList = qnaReader.findUnansweredAfter(
+                    cursorParam.timestamp(), cursorParam.id(), fetchSize);
+        }
+        return CursorPage.of(
+                withAuthors(qnaList),
+                pageSize,
+                item -> CursorUtils.encode(item.qna().getCreatedAt(), item.qna().getId()));
     }
 
     @Override
@@ -133,6 +152,13 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
         List<Long> userIds = qnaList.stream().map(ProductQna::getUserId).distinct().toList();
         return userReader.findAllById(userIds).stream()
                 .collect(toMap(User::getId, Function.identity()));
+    }
+
+    private List<QnaWithAuthor> withAuthors(List<ProductQna> qnaList) {
+        Map<Long, User> userMap = batchFetchUsers(qnaList);
+        return qnaList.stream()
+                .map(qna -> new QnaWithAuthor(qna, userName(userMap, qna.getUserId())))
+                .toList();
     }
 
     private static String userName(Map<Long, User> userMap, Long userId) {

@@ -1,4 +1,12 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
+export interface ClaimedItemResponse {
+  orderItemId: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 /**
  * @nullable
  */
@@ -43,14 +51,6 @@ export const OrderClaimResponseType = {
   OTHER: 'OTHER',
 } as const;
 
-export interface ClaimedItemResponse {
-  orderItemId: number;
-  productId: number;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-}
-
 export interface OrderClaimResponse {
   /** @nullable */
   adminNote: string | null;
@@ -79,6 +79,13 @@ export interface OrderClaimResponse {
   resolvedByAdminId: number | null;
   status: OrderClaimResponseStatus;
   type: OrderClaimResponseType;
+}
+
+export interface AdminOrderClaimPageResponse {
+  content: OrderClaimResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
 }
 
 export interface CompleteOrderExchangeRequest {
@@ -147,6 +154,7 @@ export interface OrderClaimRequest {
 
 export type ListAdminOrderClaimsParams = {
 status?: ListAdminOrderClaimsStatus;
+cursor?: string;
 size?: number;
 };
 
@@ -176,9 +184,9 @@ export const getListAdminOrderClaimsUrl = (params?: ListAdminOrderClaimsParams,)
   return stringifiedParams.length > 0 ? `/api/v1/admin/order-claims?${stringifiedParams}` : `/api/v1/admin/order-claims`
 }
 
-export const listAdminOrderClaims = async (params?: ListAdminOrderClaimsParams, options?: RequestInit): Promise<OrderClaimResponse[]> => {
+export const listAdminOrderClaims = async (params?: ListAdminOrderClaimsParams, options?: RequestInit): Promise<AdminOrderClaimPageResponse> => {
 
-  return generatedApiClient<OrderClaimResponse[]>(getListAdminOrderClaimsUrl(params),
+  return generatedApiClient<AdminOrderClaimPageResponse>(getListAdminOrderClaimsUrl(params),
   {
     ...options,
     method: 'GET'

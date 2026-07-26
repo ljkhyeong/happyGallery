@@ -1,7 +1,8 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Container, Card, Button, Row, Col, Table } from "react-bootstrap";
+import { Alert, Container, Card, Button, Row, Col, Modal, Table } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useCart } from "@/features/cart/useCart";
 import { executePaymentFlow, type OrderPayload } from "@/features/payment";
@@ -22,8 +23,18 @@ import {
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 
 export function CartPage() {
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const { isAuthenticated, user } = useCustomerAuth();
-  const { items, totalAmount, isLoading, updateQty, removeItem } = useCart();
+  const {
+    items,
+    totalAmount,
+    isLoading,
+    guestCartMergeIssue,
+    retryGuestCartMerge,
+    discardGuestCartMerge,
+    updateQty,
+    removeItem,
+  } = useCart();
   const [fulfillment, setFulfillment] = useFulfillmentSelection(user?.name, user?.phone ?? undefined);
   const availableItems = items.filter((item) => item.available);
   const requiresMadeToOrderConsent = availableItems.some(
@@ -59,6 +70,57 @@ export function CartPage() {
     onError: consent.handleSubmissionError,
   });
   const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(checkout.error);
+  const mergeRecovery = guestCartMergeIssue && (
+    <Alert variant="warning" className="mb-4">
+      <Alert.Heading className="fs-6">로그인 전 장바구니 확인 필요</Alert.Heading>
+      <p className="mb-3">{guestCartMergeIssue.message}</p>
+      <div className="d-flex flex-wrap gap-2">
+        {guestCartMergeIssue.canRetry && (
+          <Button size="sm" variant="primary" onClick={retryGuestCartMerge}>
+            다시 합치기
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="outline-danger"
+          onClick={() => setShowDiscardConfirm(true)}
+        >
+          보류 항목 폐기
+        </Button>
+      </div>
+      <small className="d-block mt-2">
+        폐기하면 보류 요청에 포함된 로그인 전 수량만 이 기기에서 제거됩니다.
+      </small>
+    </Alert>
+  );
+  const discardConfirmModal = (
+    <Modal
+      show={showDiscardConfirm}
+      onHide={() => setShowDiscardConfirm(false)}
+      centered
+    >
+      <Modal.Header closeButton>
+        <Modal.Title className="fs-6">보류 장바구니 항목 폐기</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        이 병합 요청에 포함된 로그인 전 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="outline-secondary" onClick={() => setShowDiscardConfirm(false)}>
+          취소
+        </Button>
+        <Button
+          variant="danger"
+          onClick={() => {
+            discardGuestCartMerge();
+            setShowDiscardConfirm(false);
+          }}
+        >
+          폐기
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
 
   if (isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -82,6 +144,8 @@ export function CartPage() {
     return (
       <Container className="page-container">
         <h2 className="mb-4">장바구니</h2>
+        {mergeRecovery}
+        {discardConfirmModal}
         <EmptyState message="장바구니가 비어 있습니다." />
         <div className="text-center mt-3">
           <LinkButton to="/products" variant="outline-primary">상품 보러 가기</LinkButton>
@@ -101,6 +165,8 @@ export function CartPage() {
   return (
     <Container className="page-container">
       <h2 className="mb-4">장바구니</h2>
+      {mergeRecovery}
+      {discardConfirmModal}
 
       <Row className="g-4">
         <Col lg={8}>

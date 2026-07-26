@@ -14,6 +14,13 @@ export interface AdminQnaResponse {
   userId: number;
 }
 
+export interface AdminQnaPageResponse {
+  content: AdminQnaResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
 export interface QnaReplyRequest {
   /** @minLength 1 */
   replyContent: string;
@@ -75,6 +82,11 @@ export type ListAdminProductQnaParams = {
 productId: number;
 };
 
+export type ListUnansweredAdminProductQnaParams = {
+cursor?: string;
+size?: number;
+};
+
 export const getListAdminProductQnaUrl = (params: ListAdminProductQnaParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -93,6 +105,34 @@ export const getListAdminProductQnaUrl = (params: ListAdminProductQnaParams,) =>
 export const listAdminProductQna = async (params: ListAdminProductQnaParams, options?: RequestInit): Promise<AdminQnaResponse[]> => {
 
   return generatedApiClient<AdminQnaResponse[]>(getListAdminProductQnaUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getListUnansweredAdminProductQnaUrl = (params?: ListUnansweredAdminProductQnaParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/qna/unanswered?${stringifiedParams}` : `/api/v1/admin/qna/unanswered`
+}
+
+export const listUnansweredAdminProductQna = async (params?: ListUnansweredAdminProductQnaParams, options?: RequestInit): Promise<AdminQnaPageResponse> => {
+
+  return generatedApiClient<AdminQnaPageResponse>(getListUnansweredAdminProductQnaUrl(params),
   {
     ...options,
     method: 'GET'

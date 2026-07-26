@@ -1,10 +1,10 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
-import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
-import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase.QnaWithAuthor;
+import com.personal.happygallery.adapter.in.web.admin.dto.AdminQnaPageResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminQnaResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.QnaReplyRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
+import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -33,6 +33,14 @@ public class AdminProductQnaController {
         return qnaUseCase.listByProduct(productId).stream()
                 .map(AdminQnaResponse::from)
                 .toList();
+    }
+
+    @GetMapping("/unanswered")
+    @Operation(operationId = "listUnansweredAdminProductQna")
+    public AdminQnaPageResponse listUnanswered(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return AdminQnaPageResponse.from(qnaUseCase.listUnanswered(cursor, size));
     }
 
     @PostMapping("/{id}/reply")

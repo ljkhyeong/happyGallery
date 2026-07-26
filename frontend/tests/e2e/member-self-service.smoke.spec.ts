@@ -14,8 +14,17 @@ import {
   toDateInput,
 } from "./support";
 
-test("P8-6 @payment 회원 가입 후 상품 상세에서 주문하고 내 주문 상세를 확인할 수 있다", async ({ page, request }) => {
+test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 내 주문 상세를 확인할 수 있다", async ({ page, request }) => {
   await installTossPaymentStub(page);
+  let interruptedConfirm = false;
+  await page.route(/\/api\/v1\/payments\/confirm$/, async (route) => {
+    if (!interruptedConfirm) {
+      interruptedConfirm = true;
+      await route.abort("failed");
+      return;
+    }
+    await route.continue();
+  });
 
   const productName = makeUniqueLabel("P8-회원주문");
   const product = await createAdminProduct(request, {
@@ -30,7 +39,12 @@ test("P8-6 @payment 회원 가입 후 상품 상세에서 주문하고 내 주�
   await page.getByRole("button", { name: "매장 픽업" }).click();
   await page.getByRole("button", { name: "바로 구매하기" }).click();
 
+  await expect(page.getByText("결제 결과를 다시 확인해 주세요")).toBeVisible();
+  await page.reload();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() =>
+    sessionStorage.getItem("hg_payment_confirm_request"),
+  )).toBeNull();
   await page.getByRole("link", { name: "내 주문 상세 보기" }).click();
   await expect(page).toHaveURL(/\/my\/orders\/\d+$/);
   const orderId = Number(page.url().match(/\/my\/orders\/(\d+)$/)?.[1]);

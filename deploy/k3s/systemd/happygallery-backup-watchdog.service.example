@@ -1,0 +1,12 @@
+[Unit]
+Description=Check happyGallery backup success heartbeat
+After=network-online.target
+Wants=network-online.target
+OnFailure=happygallery-backup-failure@%n.service
+
+[Service]
+Type=oneshot
+User=root
+StateDirectory=happygallery
+WorkingDirectory=/opt/happygallery
+ExecStart=/opt/happygallery/deploy/k3s/scripts/check-backup-heartbeat.sh /var/lib/happygallery/backup.last-success 25200

@@ -34,3 +34,24 @@ export interface DailyRevenue {
   date: string;
   revenue: number;
 }
+
+export interface StatusCount {
+  status: string;
+  count: number;
+}
+
+export interface TopProduct {
+  productId: number;
+  productName: string;
+  productType: string;
+  totalRevenue: number;
+  totalQuantity: number;
+}
+
+export interface SlotUtilization {
+  date: string;
+  className: string;
+  totalCapacity: number;
+  totalBooked: number;
+  utilizationRate: number;
+}

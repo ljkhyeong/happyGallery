@@ -149,7 +149,9 @@ export function App() {
                     <Route path="/payments/success" element={<LazyRoute><PaymentSuccessPage /></LazyRoute>} />
                     <Route path="/payments/fail" element={<LazyRoute><PaymentFailPage /></LazyRoute>} />
                     <Route path="/terms" element={<LazyRoute><TermsPage /></LazyRoute>} />
+                    <Route path="/terms/:version" element={<LazyRoute><TermsPage /></LazyRoute>} />
                     <Route path="/privacy" element={<LazyRoute><PrivacyPolicyPage /></LazyRoute>} />
+                    <Route path="/privacy/:version" element={<LazyRoute><PrivacyPolicyPage /></LazyRoute>} />
                     <Route path="/business-info" element={<LazyRoute><BusinessInfoPage /></LazyRoute>} />
                     <Route path="*" element={<NotFoundPage />} />
                   </Route>

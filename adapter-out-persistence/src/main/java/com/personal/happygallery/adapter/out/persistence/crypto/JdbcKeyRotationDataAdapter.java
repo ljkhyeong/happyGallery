@@ -178,6 +178,49 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
     }
 
     @Override
+    public List<AdminTotpSecretRow> findAdminTotpSecretsAfterId(long afterId, int limit) {
+        return jdbc.sql("""
+                        SELECT id, totp_secret_enc
+                        FROM admin_user
+                        WHERE id > :afterId
+                          AND totp_secret_enc IS NOT NULL
+                        ORDER BY id
+                        LIMIT :limit
+                        """)
+                .param("afterId", afterId)
+                .param("limit", limit)
+                .query((rs, rowNum) -> new AdminTotpSecretRow(
+                        rs.getLong("id"), rs.getString("totp_secret_enc")))
+                .list();
+    }
+
+    @Override
+    public void updateAdminTotpSecret(AdminTotpSecretRow row) {
+        jdbc.sql("""
+                        UPDATE admin_user
+                        SET totp_secret_enc = :totpSecretEnc
+                        WHERE id = :id
+                        """)
+                .paramSource(row)
+                .update();
+    }
+
+    @Override
+    public long countAdminTotpSecretsNotWithKeyId(String keyId) {
+        String keyPrefix = "hg:" + keyId + ":";
+        Long count = jdbc.sql("""
+                        SELECT COUNT(*)
+                        FROM admin_user
+                        WHERE totp_secret_enc IS NOT NULL
+                          AND LEFT(totp_secret_enc, CHAR_LENGTH(:keyPrefix)) <> :keyPrefix
+                        """)
+                .param("keyPrefix", keyPrefix)
+                .query(Long.class)
+                .single();
+        return count == null ? 0L : count;
+    }
+
+    @Override
     public int deletePhoneVerifications() {
         return jdbc.sql("DELETE FROM phone_verifications").update();
     }

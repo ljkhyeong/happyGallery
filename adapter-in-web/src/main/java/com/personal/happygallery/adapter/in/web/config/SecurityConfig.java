@@ -65,6 +65,7 @@ public class SecurityConfig {
     RequestMatcher publicAdminEndpoints() {
         return new OrRequestMatcher(
                 adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/login"),
+                adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/mfa/verify"),
                 adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/logout"),
                 adminEndpoint(HttpMethod.POST, "/api/v1/admin/setup"),
                 adminEndpoint(HttpMethod.GET, "/api/v1/admin/setup/status"));

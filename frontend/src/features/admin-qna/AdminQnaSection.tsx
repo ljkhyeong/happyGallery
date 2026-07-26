@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Card, Badge, Button, Form, InputGroup } from "react-bootstrap";
+import { Card, Badge, Button, ButtonGroup, Form, InputGroup } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
-import { fetchAdminQna, replyQna } from "./api";
+import { fetchAdminQna, fetchUnansweredAdminQna, replyQna } from "./api";
 import { fetchProducts } from "@/features/admin-product/api";
 import type { AdminQnaResponse } from "./api";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
@@ -15,57 +15,132 @@ interface Props {
 }
 
 export function AdminQnaSection({ token, onAuthError }: Props) {
+  const [view, setView] = useState<"UNANSWERED" | "PRODUCT">("UNANSWERED");
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [cursor, setCursor] = useState<string | undefined>();
+  const [cursorHistory, setCursorHistory] = useState<(string | undefined)[]>([]);
 
   const productsQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products"],
     queryFn: () => fetchProducts(token),
   });
 
-  const { data: qnaList, isLoading, error } = useAdminQuery(onAuthError, {
+  const unansweredQuery = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "qna", "unanswered", cursor],
+    queryFn: () => fetchUnansweredAdminQna(token, cursor),
+    enabled: view === "UNANSWERED",
+  });
+
+  const productQnaQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "qna", selectedProductId],
     queryFn: () => fetchAdminQna(selectedProductId!, token),
-    enabled: selectedProductId !== null,
+    enabled: view === "PRODUCT" && selectedProductId !== null,
   });
+  const unansweredPage = unansweredQuery.data;
+  const qnaList = view === "UNANSWERED"
+    ? unansweredPage?.content
+    : productQnaQuery.data;
+  const isLoading = view === "UNANSWERED"
+    ? unansweredQuery.isLoading
+    : productQnaQuery.isLoading;
+  const error = view === "UNANSWERED"
+    ? unansweredQuery.error
+    : productQnaQuery.error;
+  const productNames = new Map(
+    productsQuery.data?.map((product) => [product.id, product.name]) ?? [],
+  );
+
+  function showNextPage() {
+    if (!unansweredPage?.nextCursor) return;
+    setCursorHistory((history) => [...history, cursor]);
+    setCursor(unansweredPage.nextCursor);
+  }
+
+  function showPreviousPage() {
+    setCursor(cursorHistory[cursorHistory.length - 1]);
+    setCursorHistory(cursorHistory.slice(0, -1));
+  }
 
   return (
     <div>
-      <Form.Group className="admin-qna-product-filter mb-3" controlId="admin-qna-product">
-        <Form.Label>상품</Form.Label>
-        <Form.Select
-          value={selectedProductId ?? ""}
-          disabled={productsQuery.isLoading || !productsQuery.data?.length}
-          onChange={(event) => {
-            const value = event.target.value;
-            setSelectedProductId(value ? Number(value) : null);
-          }}
+      <ButtonGroup size="sm" className="mb-3" aria-label="Q&A 조회 범위">
+        <Button
+          variant={view === "UNANSWERED" ? "dark" : "outline-secondary"}
+          onClick={() => setView("UNANSWERED")}
         >
-          <option value="">상품을 선택하세요</option>
-          {productsQuery.data?.map((product) => (
-            <option key={product.id} value={product.id}>{product.name}</option>
-          ))}
-        </Form.Select>
-      </Form.Group>
+          미답변
+        </Button>
+        <Button
+          variant={view === "PRODUCT" ? "dark" : "outline-secondary"}
+          onClick={() => setView("PRODUCT")}
+        >
+          상품별
+        </Button>
+      </ButtonGroup>
+
+      {view === "PRODUCT" && (
+        <Form.Group className="admin-qna-product-filter mb-3" controlId="admin-qna-product">
+          <Form.Label>상품</Form.Label>
+          <Form.Select
+            value={selectedProductId ?? ""}
+            disabled={productsQuery.isLoading || !productsQuery.data?.length}
+            onChange={(event) => {
+              const value = event.target.value;
+              setSelectedProductId(value ? Number(value) : null);
+            }}
+          >
+            <option value="">상품을 선택하세요</option>
+            {productsQuery.data?.map((product) => (
+              <option key={product.id} value={product.id}>{product.name}</option>
+            ))}
+          </Form.Select>
+        </Form.Group>
+      )}
 
       {productsQuery.isLoading && <LoadingSpinner text="상품을 불러오는 중..." />}
       <ErrorAlert error={productsQuery.error} />
       {productsQuery.data?.length === 0 && <EmptyState message="등록된 상품이 없습니다." />}
-      {selectedProductId === null && productsQuery.data && productsQuery.data.length > 0 && (
+      {view === "PRODUCT"
+        && selectedProductId === null
+        && productsQuery.data
+        && productsQuery.data.length > 0 && (
         <EmptyState message="상품을 선택하면 Q&A를 확인할 수 있습니다." />
       )}
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} />
-      {qnaList && qnaList.length === 0 && <EmptyState message="Q&A가 없습니다." />}
+      {qnaList && qnaList.length === 0 && (
+        <EmptyState message={view === "UNANSWERED" ? "답변을 기다리는 Q&A가 없습니다." : "Q&A가 없습니다."} />
+      )}
 
       {qnaList?.map((qna) => (
         <AdminQnaItem
           key={qna.id}
           qna={qna}
           token={token}
-          productId={selectedProductId!}
+          productName={productNames.get(qna.productId)}
           onAuthError={onAuthError}
         />
       ))}
+      {view === "UNANSWERED" && (cursorHistory.length > 0 || unansweredPage?.hasMore) && (
+        <div className="d-flex justify-content-center gap-2 mt-3">
+          <Button
+            size="sm"
+            variant="outline-secondary"
+            disabled={cursorHistory.length === 0 || isLoading}
+            onClick={showPreviousPage}
+          >
+            이전
+          </Button>
+          <Button
+            size="sm"
+            variant="outline-primary"
+            disabled={!unansweredPage?.hasMore || isLoading}
+            onClick={showNextPage}
+          >
+            다음
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -73,12 +148,12 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
 function AdminQnaItem({
   qna,
   token,
-  productId,
+  productName,
   onAuthError,
 }: {
   qna: AdminQnaResponse;
   token: string;
-  productId: number;
+  productName?: string;
   onAuthError: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -90,7 +165,7 @@ function AdminQnaItem({
     onSuccess: () => {
       toast.show("답변이 등록되었습니다.");
       setReplyText("");
-      queryClient.invalidateQueries({ queryKey: ["admin", "qna", productId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "qna"] });
     },
   });
 
@@ -109,7 +184,7 @@ function AdminQnaItem({
               <span className="fw-semibold small">{qna.title}</span>
             </div>
             <div className="text-muted-soft" style={{ fontSize: "0.8rem" }}>
-              {qna.authorName} (ID: {qna.userId}) | {formatDateTime(qna.createdAt)}
+              {productName ?? `상품 #${qna.productId}`} | {qna.authorName} (ID: {qna.userId}) | {formatDateTime(qna.createdAt)}
             </div>
           </div>
         </div>

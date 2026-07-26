@@ -28,7 +28,15 @@ class RefundDispatcher {
 
     @Transactional(propagation = Propagation.NEVER)
     public Refund dispatch(Long refundId, String target) {
-        RefundCall refundCall = transactionService.claimRefundCall(refundId);
+        return dispatch(transactionService.claimRefundCall(refundId), target);
+    }
+
+    @Transactional(propagation = Propagation.NEVER)
+    public Refund dispatchRecovery(Long refundId, String target) {
+        return dispatch(transactionService.claimRefundCallForRecovery(refundId), target);
+    }
+
+    private Refund dispatch(RefundCall refundCall, String target) {
         return switch (refundCall) {
             case RefundCall.CancelRequired required -> dispatchCancel(required, target);
             case RefundCall.LookupRequired required -> dispatchLookup(required, target);
@@ -102,7 +110,8 @@ class RefundDispatcher {
 
     private RefundLookupResult lookupRefund(RefundCall.LookupRequired refundCall, String target) {
         try {
-            RefundLookupResult result = paymentPort.lookupRefund(refundCall.paymentKey(), refundCall.amount());
+            RefundLookupResult result = paymentPort.lookupRefund(
+                    refundCall.paymentKey(), refundCall.amount(), refundCall.idempotencyKey());
             return result != null
                     ? result
                     : RefundLookupResult.unavailable(

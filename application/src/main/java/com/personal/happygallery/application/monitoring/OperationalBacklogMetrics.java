@@ -2,6 +2,8 @@ package com.personal.happygallery.application.monitoring;
 
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxBacklogSummary;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
+import com.personal.happygallery.application.payment.port.out.PaymentAttemptBacklogSummary;
+import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundBacklogSummary;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
@@ -40,24 +42,38 @@ public class OperationalBacklogMetrics {
 
     private final RefundPort refundPort;
     private final NotificationOutboxPort outboxPort;
+    private final PaymentAttemptReaderPort paymentAttemptReader;
     private final Clock clock;
+    private final BacklogState paymentReconciliationState = new BacklogState();
     private final EnumMap<RefundStatus, BacklogState> refundStates = new EnumMap<>(RefundStatus.class);
     private final EnumMap<NotificationOutboxStatus, BacklogState> outboxStates =
             new EnumMap<>(NotificationOutboxStatus.class);
     private final RefreshState refundRefresh;
     private final RefreshState outboxRefresh;
+    private final RefreshState paymentRefresh;
     private final Counter refundRefreshFailures;
     private final Counter outboxRefreshFailures;
+    private final Counter paymentRefreshFailures;
 
     public OperationalBacklogMetrics(RefundPort refundPort,
                                      NotificationOutboxPort outboxPort,
+                                     PaymentAttemptReaderPort paymentAttemptReader,
                                      MeterRegistry registry,
                                      Clock clock) {
         this.refundPort = refundPort;
         this.outboxPort = outboxPort;
+        this.paymentAttemptReader = paymentAttemptReader;
         this.clock = clock;
         this.refundRefresh = new RefreshState(clock);
         this.outboxRefresh = new RefreshState(clock);
+        this.paymentRefresh = new RefreshState(clock);
+
+        registerBacklogGauges(
+                registry,
+                "happygallery.payment.confirm.reconciliation.backlog",
+                null,
+                paymentReconciliationState,
+                "수동 대사가 필요한 결제");
 
         REFUND_BACKLOG_STATUSES.forEach(status -> {
             BacklogState state = new BacklogState();
@@ -82,16 +98,33 @@ public class OperationalBacklogMetrics {
 
         registerRefreshGauge(registry, "refund", refundRefresh);
         registerRefreshGauge(registry, "notification", outboxRefresh);
+        registerRefreshGauge(registry, "payment", paymentRefresh);
         this.refundRefreshFailures = registerRefreshFailureCounter(registry, "refund");
         this.outboxRefreshFailures = registerRefreshFailureCounter(registry, "notification");
+        this.paymentRefreshFailures = registerRefreshFailureCounter(registry, "payment");
     }
 
     @Scheduled(
             fixedDelayString = "${app.monitoring.backlog.refresh-delay-ms:15000}",
             initialDelayString = "${app.monitoring.backlog.initial-delay-ms:0}")
     public void refresh() {
+        refreshPaymentReconciliationBacklog();
         refreshRefundBacklog();
         refreshOutboxBacklog();
+    }
+
+    private void refreshPaymentReconciliationBacklog() {
+        try {
+            PaymentAttemptBacklogSummary summary =
+                    paymentAttemptReader.summarizeReconciliationRequiredBacklog();
+            paymentReconciliationState.update(
+                    summary.count(), summary.oldestActionAt(), clock.getZone());
+            paymentRefresh.markSucceeded(clock);
+        } catch (Exception e) {
+            paymentRefreshFailures.increment();
+            log.warn("운영 backlog 메트릭 갱신 실패 [source=payment type={}]",
+                    e.getClass().getSimpleName());
+        }
     }
 
     private void refreshRefundBacklog() {
@@ -143,15 +176,20 @@ public class OperationalBacklogMetrics {
                                        String status,
                                        BacklogState state,
                                        String descriptionPrefix) {
-        Gauge.builder(metricPrefix + ".count", state, BacklogState::count)
-                .description(descriptionPrefix + " 상태별 건수")
-                .tag("status", status)
-                .register(registry);
-        Gauge.builder(metricPrefix + ".oldest.age", state, value -> value.oldestAgeSeconds(clock))
-                .description(descriptionPrefix + " 상태별 처리 기준 시각의 최장 경과 시간")
-                .baseUnit("seconds")
-                .tag("status", status)
-                .register(registry);
+        Gauge.Builder<BacklogState> countGauge = Gauge.builder(
+                        metricPrefix + ".count", state, BacklogState::count)
+                .description(descriptionPrefix + " 건수");
+        Gauge.Builder<BacklogState> oldestAgeGauge = Gauge.builder(
+                        metricPrefix + ".oldest.age", state,
+                        value -> value.oldestAgeSeconds(clock))
+                .description(descriptionPrefix + " 처리 기준 시각의 최장 경과 시간")
+                .baseUnit("seconds");
+        if (status != null) {
+            countGauge.tag("status", status);
+            oldestAgeGauge.tag("status", status);
+        }
+        countGauge.register(registry);
+        oldestAgeGauge.register(registry);
     }
 
     private void registerRefreshGauge(MeterRegistry registry, String source, RefreshState state) {

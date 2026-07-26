@@ -20,9 +20,8 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li>매시간 정각: 주문 승인 SLA 초과 자동환불, 픽업 만료 처리, 픽업 마감 2시간 전 알림</li>
- *   <li>매일 00:00: 8회권 크레딧 소멸, 예약 D-1 리마인드</li>
- *   <li>매일 07:00: 예약 당일 리마인드</li>
- *   <li>매일 09:00: 8회권 만료 7일 전 알림</li>
+ *   <li>매일 00:00: 8회권 크레딧 소멸</li>
+ *   <li>매시간: 예약 D-1·당일 및 8회권 만료 7일 전 알림 catch-up</li>
  *   <li>매분 5초: 시작하지 않은 결제 준비 만료</li>
  *   <li>매분 15초: 실행되지 않았거나 결과 확인이 필요한 환불 복구</li>
  *   <li>매분 45초: confirm 도중 중단된 결제 확정 복구</li>
@@ -83,9 +82,9 @@ public class BatchScheduler {
         return passExpiryBatchUseCase.expireAll();
     }
 
-    /** 8회권 만료 7일 전 알림. 매일 09:00 실행. */
+    /** 8회권 만료 7일 전 알림. 중단 뒤 보충할 수 있도록 매시간 15분 실행. */
     @BatchJob(id = "pass_expiry_notification", value = "8회권 만료 7일 전 알림")
-    @Scheduled(cron = "0 0 9 * * *", zone = Clocks.SEOUL_ID)
+    @Scheduled(cron = "0 15 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPassExpiryNotification() {
         return passExpiryBatchUseCase.sendExpiryNotifications();
     }
@@ -97,16 +96,16 @@ public class BatchScheduler {
         return pickupDeadlineReminderBatchUseCase.sendPickupDeadlineReminders();
     }
 
-    /** 예약 D-1 리마인드. 매일 00:00 실행. */
+    /** 예약 D-1 리마인드. 중단 뒤 보충할 수 있도록 매시간 5분 실행. */
     @BatchJob(id = "booking_d1_reminder", value = "D-1 예약 리마인드")
-    @Scheduled(cron = "0 0 0 * * *", zone = Clocks.SEOUL_ID)
+    @Scheduled(cron = "0 5 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runBookingD1Reminder() {
         return bookingReminderBatchUseCase.sendD1Reminders();
     }
 
-    /** 예약 당일 리마인드. 매일 07:00 실행. */
+    /** 예약 당일 리마인드. 07:00 이후 보충할 수 있도록 매시간 10분 실행. */
     @BatchJob(id = "booking_same_day_reminder", value = "당일 예약 리마인드")
-    @Scheduled(cron = "0 0 7 * * *", zone = Clocks.SEOUL_ID)
+    @Scheduled(cron = "0 10 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runBookingSameDayReminder() {
         return bookingReminderBatchUseCase.sendSameDayReminders();
     }

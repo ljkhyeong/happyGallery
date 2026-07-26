@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.batch;
 
+import com.personal.happygallery.application.admin.AdminAuthHistoryRetentionService;
 import com.personal.happygallery.application.cart.CartMergeRequestRetentionService;
 import com.personal.happygallery.application.customer.PhoneVerificationRetentionService;
 import com.personal.happygallery.application.media.ImageMediaRetentionService;
@@ -19,6 +20,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
     public static final Duration PHONE_VERIFICATION_RETENTION_AFTER_EXPIRY = Duration.ofDays(1);
     public static final Duration CART_MERGE_REQUEST_RETENTION = Duration.ofDays(7);
     public static final Duration NOTIFICATION_RETENTION = Duration.ofDays(180);
+    public static final Duration ADMIN_AUTH_HISTORY_RETENTION = Duration.ofDays(180);
     private static final int PAGE_SIZE = 100;
 
     private final PaymentAttemptReaderPort attemptReader;
@@ -27,6 +29,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
     private final CartMergeRequestRetentionService cartMergeRequestRetentionService;
     private final ImageMediaRetentionService imageMediaRetentionService;
     private final NotificationRetentionService notificationRetentionService;
+    private final AdminAuthHistoryRetentionService adminAuthHistoryRetentionService;
     private final GuestTokenProperties guestTokenProperties;
     private final Clock clock;
 
@@ -37,6 +40,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
             CartMergeRequestRetentionService cartMergeRequestRetentionService,
             ImageMediaRetentionService imageMediaRetentionService,
             NotificationRetentionService notificationRetentionService,
+            AdminAuthHistoryRetentionService adminAuthHistoryRetentionService,
             GuestTokenProperties guestTokenProperties,
             Clock clock) {
         this.attemptReader = attemptReader;
@@ -45,6 +49,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
         this.cartMergeRequestRetentionService = cartMergeRequestRetentionService;
         this.imageMediaRetentionService = imageMediaRetentionService;
         this.notificationRetentionService = notificationRetentionService;
+        this.adminAuthHistoryRetentionService = adminAuthHistoryRetentionService;
         this.guestTokenProperties = guestTokenProperties;
         this.clock = clock;
     }
@@ -68,9 +73,13 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
         int deletedImageCount = imageMediaRetentionService.deleteUnreferencedImages();
         LocalDateTime notificationCutoff = now.minus(NOTIFICATION_RETENTION);
         int deletedNotificationCount = deleteNotifications(notificationCutoff);
+        LocalDateTime adminAuthHistoryCutoff = now.minus(ADMIN_AUTH_HISTORY_RETENTION);
+        int deletedAdminAuthHistoryCount =
+                deleteAdminAuthHistory(adminAuthHistoryCutoff);
         int deletedCount = Math.addExact(deletedVerificationCount, deletedCartMergeRequestCount);
         deletedCount = Math.addExact(deletedCount, deletedImageCount);
         deletedCount = Math.addExact(deletedCount, deletedNotificationCount);
+        deletedCount = Math.addExact(deletedCount, deletedAdminAuthHistoryCount);
         return paymentResult.merge(BatchResult.successOnly(deletedCount));
     }
 
@@ -103,6 +112,16 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
         } while (deleted == PAGE_SIZE);
         do {
             deleted = notificationRetentionService.deleteTerminalOutboxesBefore(cutoff, PAGE_SIZE);
+            total = Math.addExact(total, deleted);
+        } while (deleted == PAGE_SIZE);
+        return total;
+    }
+
+    private int deleteAdminAuthHistory(LocalDateTime cutoff) {
+        int total = 0;
+        int deleted;
+        do {
+            deleted = adminAuthHistoryRetentionService.deleteBatchBefore(cutoff, PAGE_SIZE);
             total = Math.addExact(total, deleted);
         } while (deleted == PAGE_SIZE);
         return total;

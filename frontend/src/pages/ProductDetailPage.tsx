@@ -2,7 +2,7 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Container, Card, Badge, Button, Form, Row, Col } from "react-bootstrap";
+import { Alert, Container, Card, Badge, Button, Form, Row, Col } from "react-bootstrap";
 import { ShoppingBag } from "lucide-react";
 import { fetchProduct } from "@/features/product/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
@@ -21,6 +21,7 @@ import {
 } from "@/shared/lib";
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
 import { useCart } from "@/features/cart/useCart";
+import { CartQuantityError } from "@/features/cart/useGuestCart";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import {
   FulfillmentForm,
@@ -84,6 +85,10 @@ export function ProductDetailPage() {
       });
     },
     onError: consent.handleSubmissionError,
+  });
+  const cartMutation = useMutation({
+    mutationFn: () => addToCart(productId, qty),
+    onSuccess: () => toast.show("장바구니에 추가되었습니다."),
   });
   const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(orderMutation.error);
 
@@ -246,6 +251,11 @@ export function ProductDetailPage() {
               )}
 
               <ErrorAlert error={consentVersionMismatch ? null : orderMutation.error} />
+              {cartMutation.error instanceof CartQuantityError ? (
+                <Alert variant="danger">{cartMutation.error.message}</Alert>
+              ) : (
+                <ErrorAlert error={cartMutation.error} />
+              )}
 
               {!authLoading && isAuthenticated ? (
                 <>
@@ -273,13 +283,10 @@ export function ProductDetailPage() {
                     variant="outline-dark"
                     size="lg"
                     className="w-100 mb-2"
-                    disabled={!canBuy}
-                    onClick={() => {
-                      addToCart(productId, qty);
-                      toast.show("장바구니에 추가되었습니다.");
-                    }}
+                    disabled={!canBuy || cartMutation.isPending}
+                    onClick={() => cartMutation.mutate()}
                   >
-                    장바구니 담기
+                    {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
                   </Button>
                   <p className="store-purchase-helper mb-0">
                     결제가 완료되면 바로 내 주문 상세로 이동합니다.
@@ -306,13 +313,10 @@ export function ProductDetailPage() {
                   <Button
                     variant="outline-dark"
                     className="w-100 mb-2"
-                    disabled={!canBuy}
-                    onClick={() => {
-                      addToCart(productId, qty);
-                      toast.show("장바구니에 추가되었습니다.");
-                    }}
+                    disabled={!canBuy || cartMutation.isPending}
+                    onClick={() => cartMutation.mutate()}
                   >
-                    장바구니 담기
+                    {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
                   </Button>
                   <LinkButton
                     to={guestFallbackPath}

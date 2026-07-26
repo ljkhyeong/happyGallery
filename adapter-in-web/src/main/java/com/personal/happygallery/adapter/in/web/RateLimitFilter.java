@@ -46,7 +46,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final LimitRule CUSTOMER_PASSWORD_RESET_RULE = new LimitRule(
             "CUSTOMER_PASSWORD_RESET_IP", pathPattern(POST, "/api/v1/auth/password/reset"), FAIL_CLOSED);
     private static final LimitRule ADMIN_LOGIN_RULE = new LimitRule(
-            "ADMIN_LOGIN_IP", pathPattern(POST, "/api/v1/admin/auth/login"), FAIL_CLOSED);
+            "ADMIN_LOGIN_IP",
+            new OrRequestMatcher(
+                    pathPattern(POST, "/api/v1/admin/auth/login"),
+                    pathPattern(POST, "/api/v1/admin/auth/mfa/verify")),
+            FAIL_CLOSED);
     private static final LimitRule ADMIN_SETUP_RULE = new LimitRule(
             "ADMIN_SETUP_IP", pathPattern(POST, "/api/v1/admin/setup"), FAIL_CLOSED);
     private static final LimitRule SOCIAL_LOGIN_RULE = new LimitRule(

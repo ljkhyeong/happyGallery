@@ -34,11 +34,13 @@
 #### 운영 환경 인증
 
 - 관리자 로그인 API를 통해 사용자명/비밀번호 기반으로 인증한다.
-- 로그인 성공 시 UUID 세션 토큰을 발급하고, 이후 요청에 `Authorization: Bearer {token}` 헤더를 사용한다.
+- MFA 비활성 계정은 비밀번호 확인 뒤, MFA 활성 계정은 2단계 확인까지 끝난 뒤 UUID 세션 토큰을 발급한다. 이후 요청에 `Authorization: Bearer {token}` 헤더를 사용한다.
+- 비밀번호 또는 MFA가 연속 5회 실패하면 15분간 계정을 잠근다. 잘못된 비밀번호, 존재하지 않는 계정, 잠긴 계정과 잘못된 MFA는 모두 같은 `401 INVALID_CREDENTIALS`로 응답해 계정 상태를 노출하지 않는다.
 - 세션 만료: 8시간
 - 세션 저장소는 Redis 기반 `AdminSessionStore`를 사용한다. 여러 인스턴스가 떠 있어도 같은 세션을 본다.
 - Redis에는 관리자 토큰 원문을 키로 쓰지 않고 토큰 HMAC을 사용하며, 세션 JSON도 AES-GCM 암호문으로 저장한다.
-- 세션에는 발급 당시 `credentialVersion`을 저장한다. 비밀번호 변경으로 DB 버전이 증가하면 기존 버전의 모든 세션은 즉시 인증에 실패하고, Redis 세션 키는 커밋 후 일괄 삭제한다.
+- 세션에는 발급 당시 `credentialVersion`을 저장한다. 비밀번호 또는 MFA 설정 변경으로 DB 버전이 증가하면 기존 버전의 모든 세션은 즉시 인증에 실패하고, Redis 세션 키는 커밋 후 일괄 삭제한다.
+- 로그인과 MFA 결과는 사용자명이나 challenge 원문 대신 HMAC을 사용한 감사 이력으로 남기고 180일 뒤 삭제한다.
 
 #### 인증 엔드포인트
 
@@ -50,12 +52,92 @@ Content-Type: application/json
 ```
 
 ```json
-{ "token": "uuid-session-token" }
+{
+  "status": "AUTHENTICATED",
+  "token": "uuid-session-token",
+  "challengeToken": null
+}
 ```
 
-- 성공: `200 OK`
+- 인증 완료: `200 OK`, `status=AUTHENTICATED`
+- MFA 필요: `200 OK`, `status=MFA_REQUIRED`, `token=null`, 5분 유효한 `challengeToken`
+- 두 응답 모두 `Cache-Control: no-store`
 - 실패: `401 UNAUTHORIZED`
-  - `{ "code": "INVALID_CREDENTIALS", "message": "아이디 또는 비밀번호가 올바르지 않습니다." }`
+  - `{ "code": "INVALID_CREDENTIALS", "message": "관리자 인증 정보가 올바르지 않습니다." }`
+
+```http
+POST /api/v1/admin/auth/mfa/verify
+Content-Type: application/json
+
+{ "challengeToken": "...", "code": "123456" }
+```
+
+- `code`는 인증 앱의 6자리 TOTP 또는 `xxxx-xxxx-xxxx-xxxx` 형식의 미사용 복구 코드다.
+- 성공: 로그인과 같은 `AUTHENTICATED` 응답과 `Cache-Control: no-store`
+- challenge는 성공 시 한 번만 소비하며 생성 5분 뒤 만료된다.
+- 실패: `401 INVALID_CREDENTIALS`
+
+#### 관리자 MFA 관리
+
+MFA 관리 API는 계정 ID가 있는 Bearer 관리자 세션에서만 호출할 수 있다. local API key는 `403 FORBIDDEN`이다.
+
+```http
+GET /api/v1/admin/auth/mfa
+Authorization: Bearer {token}
+```
+
+```json
+{
+  "enabled": false,
+  "enrollmentPending": false,
+  "recoveryCodesRemaining": 0
+}
+```
+
+```http
+POST /api/v1/admin/auth/mfa/enrollment
+Authorization: Bearer {token}
+```
+
+```json
+{
+  "secret": "BASE32-SECRET",
+  "provisioningUri": "otpauth://totp/..."
+}
+```
+
+- 등록 시작 응답은 `Cache-Control: no-store`이며, 비밀키는 인증 앱에 등록한 뒤 별도 보관하지 않는다.
+- 서버는 비밀키를 AES-GCM 암호문으로 저장한다. 등록 시작만으로 MFA를 활성화하지 않는다.
+
+```http
+POST /api/v1/admin/auth/mfa/enrollment/confirm
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{ "code": "123456" }
+```
+
+```json
+{
+  "recoveryCodes": [
+    "abcd-1234-efgh-5678"
+  ]
+}
+```
+
+- 유효한 TOTP를 확인하면 복구 코드 10개를 한 번만 응답하고 MFA를 활성화한다. 복구 코드는 오프라인에 보관하며 한 코드는 한 번만 사용할 수 있다.
+- 성공 시 현재 세션을 포함한 기존 관리자 세션이 모두 무효화된다.
+
+```http
+DELETE /api/v1/admin/auth/mfa
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{ "currentPassword": "...", "code": "123456" }
+```
+
+- 현재 비밀번호와 유효한 TOTP 또는 미사용 복구 코드를 모두 확인한 뒤 `204 No Content`로 MFA를 해제하고 기존 세션을 모두 무효화한다.
+- 인증 앱과 모든 복구 코드를 함께 잃었을 때의 자동 복구는 지원하지 않는다. `ADMIN_SETUP_TOKEN`을 재사용하거나 DB에서 MFA를 직접 해제하지 않는다. 별도 검토된 오프라인 복구 기능을 배포하기 전까지 관리자 접근을 복구할 수 없으므로 복구 코드는 MFA 등록 직후 별도 장소에 보관한다.
 
 ```http
 POST /api/v1/admin/auth/logout
@@ -1356,8 +1438,45 @@ Authorization: Bearer {token}
 #### 2.7.8 주문 클레임 운영
 
 ```http
-GET /api/v1/admin/order-claims?status=REQUESTED&size=50
+GET /api/v1/admin/order-claims?status=REQUESTED&cursor={cursor}&size=50
 Authorization: Bearer {token}
+```
+
+```json
+{
+  "content": [
+    {
+      "id": 17,
+      "orderId": 42,
+      "type": "DEFECT",
+      "requestedResolution": "REFUND",
+      "status": "REQUESTED",
+      "customerReason": "수령한 작품에 흠집이 있습니다.",
+      "adminNote": null,
+      "resolvedByAdminId": null,
+      "completedByAdminId": null,
+      "replacementCarrier": null,
+      "replacementTrackingNumber": null,
+      "maximumRefundAmount": 43000,
+      "refundAmount": null,
+      "refundStatus": null,
+      "requestedAt": "2026-07-25T11:20:00",
+      "resolvedAt": null,
+      "completedAt": null,
+      "items": [
+        {
+          "orderItemId": 51,
+          "productId": 8,
+          "productName": "빈티지 가죽 카드지갑",
+          "quantity": 1,
+          "unitPrice": 43000
+        }
+      ]
+    }
+  ],
+  "nextCursor": "base64-cursor",
+  "hasMore": true
+}
 ```
 
 ```http
@@ -1385,7 +1504,7 @@ Content-Type: application/json
 }
 ```
 
-- 목록 `size`는 1~100으로 보정한다.
+- 목록은 `(requestedAt, id)` 내림차순 커서를 사용한다. `size`는 1~100으로 보정하고 `hasMore=true`이면 `nextCursor`로 다음 페이지를 조회한다. 상태 필터를 바꾸면 커서를 초기화한다.
 - 거절은 `approved=false`와 거절 메모를 보내며 즉시 `REJECTED`로 종결한다.
 - 환불 승인은 1원 이상 최대 환불액 이하의 `refundAmount`를 요구하고 클레임별 비동기 환불을 요청한다. PG 성공 시 `COMPLETED`로 전이한다.
 - `restoreInventory`는 승인·거절 요청 모두 명시하며, 반품품이 다시 판매 가능한 경우에만 `true`로 보낸다.
@@ -1824,9 +1943,9 @@ Authorization: Bearer {token}
 - 정책:
   - `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 상태를 재처리할 수 있다.
   - 성공 시 `SUCCEEDED`, 명시적 거절 시 `FAILED`, 실행 전 일시 실패 시 `RETRYABLE`, 결과 불명 시 `RECONCILIATION_REQUIRED`가 된다.
-  - `RECONCILIATION_REQUIRED`는 Toss cancel을 바로 다시 호출하지 않는다. `paymentKey`로 결제와 취소 내역을 조회해 요청 금액과 정확히 같은 최신 `DONE` 취소, `transactionKey`, 결제 상태 `CANCELED|PARTIAL_CANCELED`를 모두 확인하면 `SUCCEEDED`로 화해한다.
-  - 취소 내역이 없고 결제 상태가 `DONE`이면 미취소로 확정해 `RETRYABLE`로 바꾼다. 다음 실행부터 최초 멱등키로 cancel을 호출한다. 금액·상태 모순이나 조회 실패는 `RECONCILIATION_REQUIRED`를 유지해 중복 취소를 피한다.
-  - PG 조회 응답의 `paymentKey`, 취소 금액, `transactionKey`가 저장 요청과 일치하는지 결과 저장 전에 다시 확인한다.
+  - `RECONCILIATION_REQUIRED`는 Toss cancel을 바로 다시 호출하지 않는다. `paymentKey`로 결제와 취소 내역을 조회해 취소 사유에 포함한 최초 멱등키, 요청 금액, `DONE` 상태, `transactionKey`, 결제 상태 `CANCELED|PARTIAL_CANCELED`가 모두 일치하면 `SUCCEEDED`로 화해한다.
+  - 해당 멱등키의 취소 내역이 없고 결제 상태가 미취소로 명확하면 `RETRYABLE`로 바꾼다. 다음 실행부터 최초 멱등키로 cancel을 호출한다. 식별자·금액·상태 모순이나 조회 실패는 `RECONCILIATION_REQUIRED`를 유지해 중복 취소를 피한다.
+  - PG 조회 응답의 `paymentKey`, 취소 사유 멱등키, 취소 금액, `transactionKey`가 저장 요청과 일치하는지 결과 저장 전에 다시 확인한다.
   - PG 호출 전 선점과 호출 후 결과 저장은 부모 주문/예약 트랜잭션 및 PG 네트워크 구간과 분리된 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다.
   - `paymentAttemptId`가 있으면 PG 승인 후 주문·예약·8회권 생성에 실패한 결제의 보상 환불이다.
   - 최초 환불과 자동·수동 재처리는 같은 `refunds.idempotency_key`를 Toss `Idempotency-Key` 헤더로 사용한다.
@@ -1876,12 +1995,12 @@ GET /api/v1/policies/current
 
 ```json
 {
-  "terms": { "version": "2026-07-21-v1", "documentPath": "/terms" },
-  "privacy": { "version": "2026-07-21-v1", "documentPath": "/privacy" }
+  "terms": { "version": "2026-07-21-v1", "documentPath": "/terms/2026-07-21-v1" },
+  "privacy": { "version": "2026-07-21-v1", "documentPath": "/privacy/2026-07-21-v1" }
 }
 ```
 
-- 인증 없이 현재 이용약관·개인정보처리방침 버전과 기존 문서 화면 경로를 반환한다.
+- 인증 없이 현재 이용약관·개인정보처리방침 버전과 버전별 불변 문서 화면 경로를 반환한다.
 - 이메일·소셜 최초 가입과 비회원 주문·예약 prepare는 이 버전과 명시적 동의를 제출한다.
 - 서버는 현재 버전을 다시 검증하고 클라이언트가 보낸 시각이 아니라 서버 수락 시각을 이력으로 저장한다.
 
@@ -2386,10 +2505,12 @@ POST /api/v1/products/{productId}/qna/{id}/verify
 #### 2.14.1 관리자 상품 Q&A 조회/답변
 
 - `GET /api/v1/admin/qna?productId={productId}` — 특정 상품의 Q&A 목록 조회
+- `GET /api/v1/admin/qna/unanswered?cursor={cursor}&size=20` — 전체 미답변 Q&A 최신순 커서 조회
 - `POST /api/v1/admin/qna/{id}/reply` — Q&A 답변 등록
 
 정책:
 - 인증: `Authorization: Bearer {token}`
+- 미답변 목록 응답은 `{content, nextCursor, hasMore}`이고 `(createdAt, id)` 내림차순으로 조회한다. `size` 범위는 1~100이다.
 - 답변 작성 시 `replyContent`, `repliedAt`, `repliedBy`를 기록한다.
 - 이미 답변이 있는 글에 재답변을 시도하면 서버가 거절한다.
 - 답변 저장과 `PRODUCT_QNA_ANSWERED` 회원 알림 outbox insert를 같은 트랜잭션으로 처리한다. 멱등키는 회원·이벤트·`PRODUCT_QNA`·Q&A ID 조합이다.

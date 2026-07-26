@@ -117,6 +117,9 @@ public class TestCleanupSupport {
     }
 
     public void clearAdminUsers() {
+        jdbcTemplate.update("DELETE FROM admin_mfa_challenge");
+        jdbcTemplate.update("DELETE FROM admin_mfa_recovery_code");
+        jdbcTemplate.update("DELETE FROM admin_auth_history");
         adminUserRepository.deleteAllInBatch();
     }
 

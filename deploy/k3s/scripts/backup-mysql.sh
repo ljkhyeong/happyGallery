@@ -54,6 +54,7 @@ MYSQL_IMAGE=
 REDIS_IMAGE=
 PROMETHEUS_IMAGE=
 ALERTMANAGER_IMAGE=
+GRAFANA_IMAGE=
 runtime_images=$(ruby "$SCRIPT_DIR/runtime-images-from-manifest.rb" "$release_manifest")
 while IFS='=' read -r key value; do
     case "$key" in
@@ -61,11 +62,12 @@ while IFS='=' read -r key value; do
         REDIS_IMAGE) REDIS_IMAGE=$value ;;
         PROMETHEUS_IMAGE) PROMETHEUS_IMAGE=$value ;;
         ALERTMANAGER_IMAGE) ALERTMANAGER_IMAGE=$value ;;
+        GRAFANA_IMAGE) GRAFANA_IMAGE=$value ;;
         *) die "알 수 없는 runtime image 항목입니다: $key" ;;
     esac
 done <<< "$runtime_images"
 for runtime_image in \
-    "$MYSQL_IMAGE" "$REDIS_IMAGE" "$PROMETHEUS_IMAGE" "$ALERTMANAGER_IMAGE"; do
+    "$MYSQL_IMAGE" "$REDIS_IMAGE" "$PROMETHEUS_IMAGE" "$ALERTMANAGER_IMAGE" "$GRAFANA_IMAGE"; do
     [ -n "$runtime_image" ] || die "release manifest에서 runtime image를 모두 확인하지 못했습니다."
     containerd_has_image "$runtime_image" \
         || die "외부 복구 archive에 넣을 runtime 이미지를 찾을 수 없습니다: $runtime_image"
@@ -74,9 +76,10 @@ mysql_image_digest=$(containerd_image_digest "$MYSQL_IMAGE")
 redis_image_digest=$(containerd_image_digest "$REDIS_IMAGE")
 prometheus_image_digest=$(containerd_image_digest "$PROMETHEUS_IMAGE")
 alertmanager_image_digest=$(containerd_image_digest "$ALERTMANAGER_IMAGE")
+grafana_image_digest=$(containerd_image_digest "$GRAFANA_IMAGE")
 for runtime_digest in \
     "$mysql_image_digest" "$redis_image_digest" \
-    "$prometheus_image_digest" "$alertmanager_image_digest"; do
+    "$prometheus_image_digest" "$alertmanager_image_digest" "$grafana_image_digest"; do
     printf '%s' "$runtime_digest" | grep -Eq '^sha256:[a-f0-9]{64}$' \
         || die "runtime 이미지 digest가 올바르지 않습니다: $runtime_digest"
 done
@@ -130,6 +133,7 @@ if [ ! -d "$release_backup" ]; then
     redis_archive_image=$(normalize_image_reference "$REDIS_IMAGE")
     prometheus_archive_image=$(normalize_image_reference "$PROMETHEUS_IMAGE")
     alertmanager_archive_image=$(normalize_image_reference "$ALERTMANAGER_IMAGE")
+    grafana_archive_image=$(normalize_image_reference "$GRAFANA_IMAGE")
     cat > "$release_tmp/runtime-images.env" <<EOF
 MYSQL_IMAGE=$MYSQL_IMAGE
 MYSQL_IMAGE_DIGEST=$mysql_image_digest
@@ -139,6 +143,8 @@ PROMETHEUS_IMAGE=$PROMETHEUS_IMAGE
 PROMETHEUS_IMAGE_DIGEST=$prometheus_image_digest
 ALERTMANAGER_IMAGE=$ALERTMANAGER_IMAGE
 ALERTMANAGER_IMAGE_DIGEST=$alertmanager_image_digest
+GRAFANA_IMAGE=$GRAFANA_IMAGE
+GRAFANA_IMAGE_DIGEST=$grafana_image_digest
 EOF
     printf '%s  %s\n' "$(sha256_file "$release_tmp/runtime-images.env")" "runtime-images.env" \
         > "$release_tmp/runtime-images.env.sha256"
@@ -147,7 +153,8 @@ EOF
         "$APP_IMAGE@$APP_IMAGE_DIGEST" \
         "$FRONTEND_IMAGE@$FRONTEND_IMAGE_DIGEST" \
         "$mysql_archive_image" "$redis_archive_image" \
-        "$prometheus_archive_image" "$alertmanager_archive_image"
+        "$prometheus_archive_image" "$alertmanager_archive_image" \
+        "$grafana_archive_image"
     [ -s "$images_archive" ] || die "release 이미지 archive가 비어 있습니다."
     printf '%s  %s\n' "$(sha256_file "$images_archive")" "images.tar" \
         > "$images_archive.sha256"
@@ -177,6 +184,7 @@ else
     verify_archived_runtime_image REDIS "$REDIS_IMAGE" "$redis_image_digest"
     verify_archived_runtime_image PROMETHEUS "$PROMETHEUS_IMAGE" "$prometheus_image_digest"
     verify_archived_runtime_image ALERTMANAGER "$ALERTMANAGER_IMAGE" "$alertmanager_image_digest"
+    verify_archived_runtime_image GRAFANA "$GRAFANA_IMAGE" "$grafana_image_digest"
     verify_checksum "$release_backup/images.tar"
 fi
 

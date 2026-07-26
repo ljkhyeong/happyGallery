@@ -78,11 +78,15 @@ class BookingReminderBatchUseCaseIT {
 
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
         List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 1);
+        BatchResult repeated = bookingReminderBatchService.sendD1Reminders();
+        awaitLogCount(notificationLogProbe, 1);
         NotificationLog log = logs.getFirst();
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(repeated.successCount()).isZero();
+            softly.assertThat(repeated.failureCount()).isZero();
             softly.assertThat(log.getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
             softly.assertThat(log.getGuestId()).isEqualTo(booking.getGuest().getId());
         });

@@ -3,7 +3,7 @@ import { Alert, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstr
 import { ApiError } from "@/shared/api";
 import { formatKRW } from "@/shared/lib";
 import type { DashboardGranularity, DailyRevenue } from "@/shared/types";
-import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { EmptyState, ErrorAlert, getStatusLabel, LoadingSpinner } from "@/shared/ui";
 import { fetchDashboardSnapshot, fetchSalesSummary } from "./api";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
@@ -237,6 +237,71 @@ export function AdminDashboardSection({ adminKey, onAuthError }: Props) {
               <RevenueTrend rows={snapshotQuery.data.dailyRevenue} />
             </section>
           </div>
+
+          <div className="admin-dashboard-columns admin-dashboard-detail-columns">
+            <section className="admin-dashboard-panel" aria-labelledby="admin-top-products-title">
+              <h6 id="admin-top-products-title">상품 주문 순위</h6>
+              {snapshotQuery.data.topProducts.length === 0 ? (
+                <EmptyState message="선택한 기간의 상품 주문이 없습니다." />
+              ) : (
+                <Table responsive size="sm" className="mb-0 admin-compact-table">
+                  <thead>
+                    <tr><th>상품</th><th>수량</th><th>순매출</th></tr>
+                  </thead>
+                  <tbody>
+                    {snapshotQuery.data.topProducts.map((product) => (
+                      <tr key={product.productId}>
+                        <td>{product.productName}</td>
+                        <td>{product.totalQuantity.toLocaleString("ko-KR")}개</td>
+                        <td>{formatKRW(product.totalRevenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+            </section>
+
+            <section className="admin-dashboard-panel" aria-labelledby="admin-order-status-title">
+              <h6 id="admin-order-status-title">현재 주문 상태</h6>
+              {snapshotQuery.data.orderStatus.length === 0 ? (
+                <EmptyState message="주문이 없습니다." />
+              ) : (
+                <Table size="sm" className="mb-0 admin-compact-table">
+                  <tbody>
+                    {snapshotQuery.data.orderStatus.map((status) => (
+                      <tr key={status.status}>
+                        <th scope="row">{getStatusLabel(status.status)}</th>
+                        <td>{status.count.toLocaleString("ko-KR")}건</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+            </section>
+          </div>
+
+          <section className="admin-dashboard-panel" aria-labelledby="admin-slot-utilization-title">
+            <h6 id="admin-slot-utilization-title">클래스 슬롯 이용률</h6>
+            {snapshotQuery.data.slotUtilization.length === 0 ? (
+              <EmptyState message="선택한 기간의 클래스 슬롯이 없습니다." />
+            ) : (
+              <Table responsive size="sm" className="mb-0 admin-compact-table">
+                <thead>
+                  <tr><th>날짜</th><th>클래스</th><th>예약</th><th>이용률</th></tr>
+                </thead>
+                <tbody>
+                  {snapshotQuery.data.slotUtilization.map((slot) => (
+                    <tr key={`${slot.date}-${slot.className}`}>
+                      <td>{slot.date}</td>
+                      <td>{slot.className}</td>
+                      <td>{slot.totalBooked.toLocaleString("ko-KR")} / {slot.totalCapacity.toLocaleString("ko-KR")}</td>
+                      <td>{percent(slot.utilizationRate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </section>
         </div>
       )}
     </section>

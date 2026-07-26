@@ -8,13 +8,14 @@ public record CurrentPolicyConsentResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) PolicyDocument privacy
 ) {
 
-    private static final String TERMS_PATH = "/terms";
-    private static final String PRIVACY_PATH = "/privacy";
-
     public static CurrentPolicyConsentResponse from(CurrentPolicy policy) {
         return new CurrentPolicyConsentResponse(
-                new PolicyDocument(policy.termsVersion(), TERMS_PATH),
-                new PolicyDocument(policy.privacyVersion(), PRIVACY_PATH));
+                new PolicyDocument(
+                        policy.termsVersion(),
+                        "/terms/" + policy.termsVersion()),
+                new PolicyDocument(
+                        policy.privacyVersion(),
+                        "/privacy/" + policy.privacyVersion()));
     }
 
     public record PolicyDocument(

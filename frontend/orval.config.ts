@@ -47,6 +47,11 @@ export default defineConfig({
   adminBookingApi: generatedApi("./src/generated/api/adminBooking.ts", [
     "admin-booking-controller",
   ]),
+  adminAuthApi: generatedApi("./src/generated/api/adminAuth.ts", [
+    "admin-login-controller",
+    "admin-credential-controller",
+    "admin-mfa-controller",
+  ]),
   orderClaimApi: generatedApi("./src/generated/api/orderClaim.ts", [
     "me-order-claim-controller",
     "guest-order-claim-controller",

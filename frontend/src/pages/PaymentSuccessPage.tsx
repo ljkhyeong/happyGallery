@@ -5,11 +5,16 @@ import {
   confirmPayment,
   consumePaymentReturnHint,
   fetchPaymentStatus,
+  isTerminalPaymentStatus,
   PaymentCompletionNext,
   PaymentStatusNotice,
+  readPaymentConfirmRequest,
   readPaymentStatusToken,
+  removePaymentConfirmRequest,
   shouldPollPaymentStatus,
+  storePaymentConfirmRequest,
   type ConfirmPaymentResponse,
+  type PaymentConfirmRequest,
   type PaymentStatusResponse,
 } from "@/features/payment";
 import { isPositiveSafeIntegerString } from "@/shared/lib";
@@ -43,16 +48,27 @@ export function PaymentSuccessPage() {
   const latestStatusRequestRef = useRef(0);
   const completedRef = useRef(false);
 
-  const callbackRef = useRef({
-    paymentKey: params.get("paymentKey")?.trim() ?? "",
-    orderId: params.get("orderId")?.trim() ?? "",
-    amount: params.get("amount"),
+  const [confirmRequest] = useState<PaymentConfirmRequest | null>(() => {
+    const callbackPresent = params.has("paymentKey")
+      || params.has("orderId")
+      || params.has("amount");
+    if (!callbackPresent) return readPaymentConfirmRequest();
+
+    const paymentKey = params.get("paymentKey")?.trim() ?? "";
+    const orderId = params.get("orderId")?.trim() ?? "";
+    const amountValue = params.get("amount");
+    if (!paymentKey || !orderId || !isPositiveSafeIntegerString(amountValue)) {
+      removePaymentConfirmRequest();
+      return null;
+    }
+
+    const request = { paymentKey, orderId, amount: Number(amountValue) };
+    storePaymentConfirmRequest(request);
+    return request;
   });
-  const paymentKey = callbackRef.current.paymentKey;
-  const orderId = callbackRef.current.orderId;
-  const amountStr = callbackRef.current.amount;
-  const amount = Number(amountStr);
-  const validAmount = isPositiveSafeIntegerString(amountStr);
+  const paymentKey = confirmRequest?.paymentKey ?? "";
+  const orderId = confirmRequest?.orderId ?? "";
+  const amount = confirmRequest?.amount ?? 0;
 
   const checkStatus = useCallback(async () => {
     if (!orderId) throw new Error("결제 주문번호가 없습니다.");
@@ -63,6 +79,9 @@ export function PaymentSuccessPage() {
     }
     setStatusError("");
     setPaymentStatus(status);
+    if (isTerminalPaymentStatus(status.status)) {
+      removePaymentConfirmRequest(orderId);
+    }
     if (status.status === "COMPLETED" && status.domainId != null) {
       completedRef.current = true;
       setResult({
@@ -78,7 +97,7 @@ export function PaymentSuccessPage() {
   }, [orderId]);
 
   const runConfirm = useCallback(async () => {
-    if (!paymentKey || !orderId || !validAmount) {
+    if (!confirmRequest) {
       setError(new Error("결제 정보가 올바르지 않습니다."));
       setConfirming(false);
       return;
@@ -96,6 +115,7 @@ export function PaymentSuccessPage() {
       completedRef.current = true;
       setResult(response);
       consumePaymentReturnHint();
+      removePaymentConfirmRequest(orderId);
     } catch (requestError) {
       setError(requestError);
       try {
@@ -106,7 +126,7 @@ export function PaymentSuccessPage() {
     } finally {
       setConfirming(false);
     }
-  }, [paymentKey, orderId, amount, validAmount, checkStatus]);
+  }, [paymentKey, orderId, amount, confirmRequest, checkStatus]);
 
   useEffect(() => {
     if (calledRef.current) return;

@@ -12,7 +12,8 @@ targets = {
   "MYSQL_IMAGE" => ["StatefulSet", "mysql", "mysql"],
   "REDIS_IMAGE" => ["Deployment", "redis", "redis"],
   "PROMETHEUS_IMAGE" => ["Deployment", "prometheus", "prometheus"],
-  "ALERTMANAGER_IMAGE" => ["Deployment", "alertmanager", "alertmanager"]
+  "ALERTMANAGER_IMAGE" => ["Deployment", "alertmanager", "alertmanager"],
+  "GRAFANA_IMAGE" => ["Deployment", "grafana", "grafana"]
 }.freeze
 
 documents = YAML.load_stream(File.read(manifest)).compact

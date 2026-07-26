@@ -1,11 +1,11 @@
 package com.personal.happygallery.application.order.port.in;
 
+import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.order.OrderClaimStatus;
-import java.util.List;
 
 public interface AdminOrderClaimUseCase {
 
-    List<OrderClaimView> list(OrderClaimStatus status, int size);
+    CursorPage<OrderClaimView> list(OrderClaimStatus status, String cursor, int size);
 
     OrderClaimView resolve(Long claimId, Long adminId, ResolveCommand command);
 

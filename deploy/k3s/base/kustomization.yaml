@@ -12,11 +12,16 @@ resources:
   - frontend.yaml
   - prometheus.yaml
   - alertmanager.yaml
+  - grafana.yaml
   - ingress.yaml
   - network-policy.yaml
 configMapGenerator:
   - name: prometheus-alerts
     files:
       - alerts.yml=prometheus-alerts.generated.yml
+  - name: grafana-dashboards
+    files:
+      - system.json=grafana-system.generated.json
+      - funnel.json=grafana-funnel.generated.json
 generatorOptions:
   disableNameSuffixHash: true

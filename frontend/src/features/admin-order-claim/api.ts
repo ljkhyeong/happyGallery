@@ -13,8 +13,9 @@ import { adminHeaders } from "@/shared/api";
 export function fetchAdminOrderClaims(
   adminKey: string,
   status?: ListAdminOrderClaimsStatus,
+  cursor?: string,
 ) {
-  return listAdminOrderClaims({ status, size: 50 }, {
+  return listAdminOrderClaims({ status, cursor, size: 50 }, {
     headers: adminHeaders(adminKey),
   });
 }

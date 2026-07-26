@@ -2,6 +2,7 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.batch.BatchResult;
+import com.personal.happygallery.application.monitoring.OperationalBacklogMetrics;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.PgConfirmationRequired;
@@ -77,6 +78,7 @@ class PaymentConfirmRecoveryUseCaseIT {
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired Clock clock;
     @Autowired MeterRegistry meterRegistry;
+    @Autowired OperationalBacklogMetrics operationalBacklogMetrics;
     @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean PaymentProvider paymentProvider;
 
@@ -163,6 +165,7 @@ class PaymentConfirmRecoveryUseCaseIT {
                 .count();
 
         BatchResult result = recoveryUseCase.recoverIncompleteConfirms();
+        operationalBacklogMetrics.refresh();
 
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isOne();
@@ -176,6 +179,14 @@ class PaymentConfirmRecoveryUseCaseIT {
                                 .isEqualTo(PaymentAttemptStatus.RECONCILIATION_REQUIRED);
                         softly.assertThat(attempt.getFailReason()).contains("결제 상태 대사");
                     });
+            softly.assertThat(meterRegistry.get(
+                            "happygallery.payment.confirm.reconciliation.backlog.count")
+                    .gauge().value()).isOne();
+            softly.assertThat(meterRegistry.get(
+                            "happygallery.payment.confirm.reconciliation.backlog.oldest.age")
+                    .gauge().value()).isEqualTo(120D);
+            softly.assertThat(meterRegistry.get("happygallery.operational.backlog.refresh.age")
+                    .tag("source", "payment").gauge().value()).isZero();
         });
         verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
     }

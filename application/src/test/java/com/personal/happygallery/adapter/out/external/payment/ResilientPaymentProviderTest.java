@@ -219,13 +219,14 @@ class ResilientPaymentProviderTest {
     @DisplayName("환불 조회 불가가 누적되면 서킷이 열려 조회를 빠르게 차단한다")
     @Test
     void lookupRefund_unavailableAccumulates_circuitOpenFastFail() {
-        PaymentProvider delegate = refundLookupOnlyDelegate((paymentKey, amount) ->
+        PaymentProvider delegate = refundLookupOnlyDelegate((paymentKey, amount, idempotencyKey) ->
                 RefundLookupResult.unavailable(paymentKey, "PG 환불 조회 실패"));
         provider = createProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1));
 
-        provider.lookupRefund("payment-key-1", 10_000L);
-        provider.lookupRefund("payment-key-2", 10_000L);
-        RefundLookupResult result = provider.lookupRefund("payment-key-3", 10_000L);
+        provider.lookupRefund("payment-key-1", 10_000L, "idempotency-key-1");
+        provider.lookupRefund("payment-key-2", 10_000L, "idempotency-key-2");
+        RefundLookupResult result = provider.lookupRefund(
+                "payment-key-3", 10_000L, "idempotency-key-3");
 
         assertSoftly(softly -> {
             softly.assertThat(result.status()).isEqualTo(RefundLookupResult.Status.UNAVAILABLE);
@@ -298,7 +299,8 @@ class ResilientPaymentProviderTest {
             }
 
             @Override
-            public RefundLookupResult lookupRefund(String paymentKey, long amount) {
+            public RefundLookupResult lookupRefund(
+                    String paymentKey, long amount, String idempotencyKey) {
                 throw new UnsupportedOperationException();
             }
         };
@@ -323,7 +325,8 @@ class ResilientPaymentProviderTest {
             }
 
             @Override
-            public RefundLookupResult lookupRefund(String paymentKey, long amount) {
+            public RefundLookupResult lookupRefund(
+                    String paymentKey, long amount, String idempotencyKey) {
                 throw new UnsupportedOperationException();
             }
         };
@@ -348,7 +351,8 @@ class ResilientPaymentProviderTest {
             }
 
             @Override
-            public RefundLookupResult lookupRefund(String paymentKey, long amount) {
+            public RefundLookupResult lookupRefund(
+                    String paymentKey, long amount, String idempotencyKey) {
                 throw new UnsupportedOperationException();
             }
         };
@@ -373,8 +377,9 @@ class ResilientPaymentProviderTest {
             }
 
             @Override
-            public RefundLookupResult lookupRefund(String paymentKey, long amount) {
-                return lookupBehavior.lookup(paymentKey, amount);
+            public RefundLookupResult lookupRefund(
+                    String paymentKey, long amount, String idempotencyKey) {
+                return lookupBehavior.lookup(paymentKey, amount, idempotencyKey);
             }
         };
     }
@@ -396,6 +401,6 @@ class ResilientPaymentProviderTest {
 
     @FunctionalInterface
     private interface RefundLookupBehavior {
-        RefundLookupResult lookup(String paymentKey, long amount);
+        RefundLookupResult lookup(String paymentKey, long amount, String idempotencyKey);
     }
 }

@@ -1,10 +1,17 @@
 import { Container } from "react-bootstrap";
-import { Link } from "react-router-dom";
-import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
+import { Link, useParams } from "react-router-dom";
+import {
+  PRIVACY_POLICY_VERSION,
+  TERMS_POLICY_VERSION,
+  policyPath,
+} from "@/features/policy-consent/policyVersions";
 
 export function TermsPage() {
-  const { data: workshop } = useWorkshopProfile();
-  const workshopName = workshop?.name ?? "해피갤러리";
+  const { version = TERMS_POLICY_VERSION } = useParams();
+
+  if (version !== TERMS_POLICY_VERSION) {
+    return <UnknownPolicyDocument title="이용약관" />;
+  }
 
   return (
     <Container className="page-container legal-page" style={{ maxWidth: 860 }}>
@@ -17,7 +24,7 @@ export function TermsPage() {
       <section>
         <h2>1. 목적과 적용 범위</h2>
         <p>
-          이 약관은 {workshopName}에서 제공하는 작품 주문, 클래스 예약, 8회권 구매와 관련 서비스의
+          이 약관은 해피갤러리에서 제공하는 작품 주문, 클래스 예약, 8회권 구매와 관련 서비스의
           이용 조건을 정합니다. 서비스에서 개별적으로 안내한 가격, 일정, 취소 가능 시각과 상품
           설명은 해당 거래의 조건으로 함께 적용됩니다.
         </p>
@@ -96,9 +103,22 @@ export function TermsPage() {
         <h2>8. 문의</h2>
         <p>
           운영 주체와 문의 수단은 <Link to="/business-info">사업자 정보</Link>에서 확인할 수 있습니다.
-          개인정보 처리에 관한 내용은 <Link to="/privacy">개인정보처리방침</Link>을 따릅니다.
+          개인정보 처리에 관한 내용은{" "}
+          <Link to={policyPath("privacy", PRIVACY_POLICY_VERSION)}>개인정보처리방침</Link>을 따릅니다.
         </p>
       </section>
+    </Container>
+  );
+}
+
+function UnknownPolicyDocument({ title }: { title: string }) {
+  return (
+    <Container className="page-container legal-page" style={{ maxWidth: 860 }}>
+      <header className="legal-page-header">
+        <h1>{title}</h1>
+        <p>요청한 버전의 문서를 찾을 수 없습니다.</p>
+      </header>
+      <Link to={policyPath("terms", TERMS_POLICY_VERSION)}>현재 이용약관 보기</Link>
     </Container>
   );
 }

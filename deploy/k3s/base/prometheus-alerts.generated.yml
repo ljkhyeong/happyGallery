@@ -2,12 +2,30 @@ groups:
   - name: happygallery-system
     rules:
       - alert: HighErrorRate
-        expr: rate(http_server_requests_seconds_count{application="happygallery",status=~"5.."}[5m]) > 0.5
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{application="happygallery",status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_server_requests_seconds_count{application="happygallery"}[5m])), 0.001)
+          ) > 0.1
+          and
+          sum(increase(http_server_requests_seconds_count{application="happygallery"}[5m])) >= 20
         for: 2m
         labels:
           severity: critical
         annotations:
-          summary: "5xx 에러율이 높습니다 ({{ $value | printf \"%.2f\" }} req/s)"
+          summary: "최근 5분 HTTP 요청 20건 이상에서 5xx 비율이 10%를 초과했습니다"
+
+      - alert: LowTrafficHttpErrors
+        expr: |
+          sum(increase(http_server_requests_seconds_count{application="happygallery",status=~"5.."}[15m])) >= 3
+          and
+          sum(increase(http_server_requests_seconds_count{application="happygallery"}[5m])) < 20
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "저트래픽 구간에서 최근 15분 5xx가 3건 이상 발생했습니다"
 
       - alert: HighResponseLatency
         expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{application="happygallery"}[5m])) > 2
@@ -73,6 +91,14 @@ groups:
           severity: critical
         annotations:
           summary: "PG 멱등 안전 기간을 지나 수동 대사가 필요한 결제가 발생했습니다 ({{ $value | printf \"%.0f\" }}건)"
+
+      - alert: PaymentReconciliationRequiredBacklog
+        expr: max(happygallery_payment_confirm_reconciliation_backlog_count{application="happygallery"}) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "운영자 대사가 필요한 결제가 DB backlog에 남아 있습니다"
 
       - alert: RefundActionRequiredBacklog
         expr: max(happygallery_refund_backlog_count{application="happygallery",status=~"failed|reconciliation_required"}) > 0
@@ -185,7 +211,7 @@ groups:
           summary: "결제·환불 복구 배치가 5분 넘게 정상 완료되지 않았습니다"
 
       - alert: HourlyBusinessBatchStalled
-        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job=~"order_auto_refund|pickup_expire|pickup_deadline_reminder"}) > 7200) and (time() - min(process_start_time_seconds{application="happygallery"}) > 7200)
+        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job=~"order_auto_refund|pickup_expire|pickup_deadline_reminder|pass_expiry_notification|booking_d1_reminder|booking_same_day_reminder"}) > 7200) and (time() - min(process_start_time_seconds{application="happygallery"}) > 7200)
         for: 5m
         labels:
           severity: critical
@@ -193,7 +219,7 @@ groups:
           summary: "시간 단위 주문·픽업 배치가 2시간 넘게 정상 완료되지 않았습니다"
 
       - alert: DailyBusinessBatchStalled
-        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job=~"pass_expiry|pass_expiry_notification|booking_d1_reminder|booking_same_day_reminder|personal_data_retention"}) > 108000) and (time() - min(process_start_time_seconds{application="happygallery"}) > 108000)
+        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job=~"pass_expiry|personal_data_retention"}) > 108000) and (time() - min(process_start_time_seconds{application="happygallery"}) > 108000)
         for: 10m
         labels:
           severity: warning
@@ -233,12 +259,12 @@ groups:
           summary: "최근 5분 동안 운영 backlog DB 스냅샷 갱신이 실패했습니다"
 
       - alert: OperationalBacklogRefreshStalled
-        expr: max(happygallery_operational_backlog_refresh_age_seconds{application="happygallery"}) > 60
+        expr: max by (source) (happygallery_operational_backlog_refresh_age_seconds{application="happygallery"}) > 60
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "환불·알림 backlog 스냅샷이 1분 넘게 갱신되지 않았습니다"
+          summary: "{{ $labels.source }} backlog 스냅샷이 1분 넘게 갱신되지 않았습니다"
 
       - alert: AppDown
         expr: up{job="happygallery"} == 0

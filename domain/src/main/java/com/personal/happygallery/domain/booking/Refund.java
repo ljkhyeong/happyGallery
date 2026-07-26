@@ -57,10 +57,13 @@ public class Refund {
     @Column(name = "next_attempt_at")
     private LocalDateTime nextAttemptAt;
 
+    @Column(name = "last_recovery_at")
+    private LocalDateTime lastRecoveryAt;
+
     @Column(name = "payment_key", length = 255)
     private String paymentKey;
 
-    @Column(name = "refund_transaction_key", length = 255)
+    @Column(name = "refund_transaction_key", unique = true, length = 255)
     private String refundTransactionKey;
 
     @Column(name = "succeeded_at")
@@ -146,6 +149,11 @@ public class Refund {
         return this.processingToken;
     }
 
+    /** 자동 복구 후보가 반복해서 선두를 독점하지 않도록 마지막 복구 선점 시각을 기록한다. */
+    public void recordRecoveryAttempt(LocalDateTime now) {
+        this.lastRecoveryAt = now;
+    }
+
     private boolean isClaimable(LocalDateTime now, LocalDateTime staleBefore) {
         if (status == RefundStatus.PROCESSING) {
             return processingAt != null && processingAt.isBefore(staleBefore);
@@ -206,14 +214,16 @@ public class Refund {
         return true;
     }
 
-    /** 운영자가 조치 필요 환불을 즉시 재시도할 수 있도록 예약한다. */
+    /** 운영자가 조치 필요 환불을 즉시 처리하도록 예약한다. 결과 불명 상태는 조회 단계를 유지한다. */
     public void requestRetry(LocalDateTime now) {
         if (status != RefundStatus.FAILED
                 && status != RefundStatus.RETRYABLE
                 && status != RefundStatus.RECONCILIATION_REQUIRED) {
             throw new IllegalStateException("재시도할 수 없는 환불 상태입니다. (현재: " + status + ")");
         }
-        this.status = RefundStatus.RETRYABLE;
+        if (status != RefundStatus.RECONCILIATION_REQUIRED) {
+            this.status = RefundStatus.RETRYABLE;
+        }
         this.nextAttemptAt = now;
         clearProcessingToken();
     }
@@ -246,6 +256,7 @@ public class Refund {
     public String getProcessingToken() { return processingToken; }
     public int getAttemptCount() { return attemptCount; }
     public LocalDateTime getNextAttemptAt() { return nextAttemptAt; }
+    public LocalDateTime getLastRecoveryAt() { return lastRecoveryAt; }
     public String getPaymentKey() { return paymentKey; }
     public String getRefundTransactionKey() { return refundTransactionKey; }
     public LocalDateTime getSucceededAt() { return succeededAt; }

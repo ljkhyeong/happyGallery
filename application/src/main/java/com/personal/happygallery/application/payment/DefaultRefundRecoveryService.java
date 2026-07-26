@@ -38,7 +38,7 @@ public class DefaultRefundRecoveryService implements RefundRecoveryUseCase {
                 refundIds,
                 refundId -> refundId,
                 refundId -> {
-                    RefundStatus status = refundDispatcher.dispatch(
+                    RefundStatus status = refundDispatcher.dispatchRecovery(
                             refundId, "recovery refundId=" + refundId).getStatus();
                     if (status == RefundStatus.PROCESSING) {
                         return false;

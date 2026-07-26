@@ -25,7 +25,7 @@ class AdminCredentialsChangedEventListener {
             sessionPort.removeAll(event.adminUserId(), event.invalidatedCredentialVersion());
         } catch (RuntimeException exception) {
             // credentialVersion 검증이 이전 세션을 막고, Redis 삭제는 저장 공간 정리 역할을 한다.
-            log.error("관리자 비밀번호 변경 후 세션 삭제 실패 [adminUserId={} type={}]",
+            log.error("관리자 자격 증명 변경 후 세션 삭제 실패 [adminUserId={} type={}]",
                     event.adminUserId(), exception.getClass().getSimpleName(), exception);
         }
     }
