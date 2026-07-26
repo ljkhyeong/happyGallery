@@ -90,8 +90,8 @@
 
 ### 6. 만료 7일 전 알림: 구매한 8회권별 정확히 1회
 
-**결정**: 만료 임박 알림은 `expires_at`이 `오늘 + 7일`인 건만 대상으로 하고,
-`recipient + PASS_EXPIRY_SOON + PASS_PURCHASE + passId` outbox 멱등키가 이미 있으면 재요청하지 않는다.
+**결정**: 만료 임박 알림은 아직 만료되지 않았고 7일 이내 만료되는 건을 대상으로 하고,
+`PASS_EXPIRY_SOON + PASS_PURCHASE + passId`가 같은 outbox가 이미 있으면 재요청하지 않는다.
 
 **이유**:
 - "7일 전 알림"을 7일 동안 반복 발송하지 않기 위해서
@@ -99,8 +99,8 @@
 - 같은 회원이 여러 8회권을 구매했으면 각 구매 건의 만료를 별도로 안내해야 하기 때문
 
 **구현 메모**:
-- 대상 범위: `[targetStart, targetEnd)` where `targetStart = today+7d 00:00`
-- 중복 방지: 사용자 성공 로그가 아니라 `notification_outbox.idempotency_key`를 기준으로 한다.
+- 대상 범위: `(now, now+7d]`
+- 중복 방지: 사용자 성공 로그나 멱등키 문자열 형식이 아니라 `notification_outbox(event_type, aggregate_type, aggregate_id)`를 기준으로 한다.
 - 배치 전체를 하나의 트랜잭션으로 묶지 않는다. 각 알림 outbox 저장 실패는 해당 8회권 실패로 집계하고 다른 구매 건은 계속 처리한다.
 
 ---

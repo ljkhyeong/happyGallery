@@ -2,6 +2,7 @@
 
 **날짜**: 2026-07-17
 **상태**: Accepted
+**갱신**: 2026-07-26
 
 ---
 
@@ -29,6 +30,9 @@
   현재 시간 커서와 기간 조회는 `ORDER BY time DESC, id DESC`를 유지하며 ID를 동률 해소 키로 사용한다.
 - 주문 클레임 작업함은 상태 없는 전체 조회와 상태별 조회를 모두 제공하므로
   `(requested_at DESC, id DESC)`와 `(status, requested_at DESC, id DESC)`를 각각 유지한다.
+- `notification_outbox(event_type, aggregate_type, aggregate_id)`는 예약·8회권·픽업 리마인드가
+  멱등키 문자열 형식과 무관하게 이미 접수된 aggregate를 제외할 때 사용한다. 반복 가능한 다른 알림 이벤트도
+  같은 의미 컬럼 조합을 가질 수 있으므로 UNIQUE로 만들지 않고, 쓰기 멱등성은 기존 `idempotency_key` UNIQUE가 담당한다.
 
 ### Guest 식별
 
@@ -85,6 +89,7 @@
 ## 구현 반영
 
 - `V44__enforce_identity_and_transaction_consistency.sql`
+- `V94__index_notification_outbox_event_aggregate.sql`
 - `VerifiedGuestResolver`와 Guest persistence 원자 get-or-create 경계
 - 활성 예약 기준 Booking repository 조회
 - 예약 UNIQUE 제약 이름 기준 예외 변환

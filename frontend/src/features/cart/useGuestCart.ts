@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
+import { editGuestCartExclusive } from "./guestCartLock";
 
 const STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
@@ -90,7 +91,7 @@ function normalizeGuestCartMergeRequest(
   };
 }
 
-function readGuestCartMergeRequest(): GuestCartMergeRequest | undefined {
+function readGuestCartMergeRequestWhileLocked(): GuestCartMergeRequest | undefined {
   const raw = localStorage.getItem(MERGE_REQUEST_STORAGE_KEY);
   if (!raw) return undefined;
   try {
@@ -103,13 +104,13 @@ function readGuestCartMergeRequest(): GuestCartMergeRequest | undefined {
   return undefined;
 }
 
-export function getOrCreateGuestCartMergeRequest(
+export function getOrCreateGuestCartMergeRequestWhileLocked(
   userId: number,
-  items: GuestCartItem[],
 ): GuestCartMergeRequest | undefined {
-  const saved = readGuestCartMergeRequest();
+  const saved = readGuestCartMergeRequestWhileLocked();
   if (saved) return saved;
 
+  const items = readGuestCartItemsWhileLocked();
   if (items.length === 0) return undefined;
 
   const snapshot = items
@@ -120,37 +121,42 @@ export function getOrCreateGuestCartMergeRequest(
   return request;
 }
 
-export function completeGuestCartMergeRequest(
+export function completeGuestCartMergeRequestWhileLocked(
   idempotencyKey: string,
-): GuestCartMergeRequest | undefined {
-  const request = readGuestCartMergeRequest();
-  if (request?.idempotencyKey !== idempotencyKey) return undefined;
+): void {
+  const request = readGuestCartMergeRequestWhileLocked();
+  if (request?.idempotencyKey !== idempotencyKey) return;
 
+  localStorage.removeItem(MERGE_REQUEST_STORAGE_KEY);
+}
+
+export function discardGuestCartMergeRequestWhileLocked(): GuestCartMergeRequest | undefined {
+  const request = readGuestCartMergeRequestWhileLocked();
   localStorage.removeItem(MERGE_REQUEST_STORAGE_KEY);
   return request;
 }
 
-export function discardGuestCartMergeRequest(): GuestCartMergeRequest | undefined {
-  const request = readGuestCartMergeRequest();
-  localStorage.removeItem(MERGE_REQUEST_STORAGE_KEY);
-  return request;
-}
-
-function getGuestCartItems(): GuestCartItem[] {
+export function readGuestCartItems(): GuestCartItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const saved = normalizeGuestCartItems(JSON.parse(raw) as unknown);
     if (saved) return saved;
-    localStorage.removeItem(STORAGE_KEY);
-    return [];
   } catch {
-    localStorage.removeItem(STORAGE_KEY);
-    return [];
+    // 손상된 저장값은 잠금을 획득한 변경 경로에서 제거한다.
   }
+  return [];
 }
 
-function persist(items: GuestCartItem[]) {
+function readGuestCartItemsWhileLocked(): GuestCartItem[] {
+  const items = readGuestCartItems();
+  if (items.length === 0 && localStorage.getItem(STORAGE_KEY) !== null) {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+  return items;
+}
+
+function persistGuestCartItemsWhileLocked(items: GuestCartItem[]) {
   if (items.length === 0) {
     localStorage.removeItem(STORAGE_KEY);
     return;
@@ -159,20 +165,42 @@ function persist(items: GuestCartItem[]) {
 }
 
 export function useGuestCart() {
-  const [items, setItems] = useState<GuestCartItem[]>(getGuestCartItems);
-  const itemsRef = useRef(items);
+  const [items, setItems] = useState<GuestCartItem[]>(readGuestCartItems);
 
-  const updateItems = useCallback((update: (current: GuestCartItem[]) => GuestCartItem[]) => {
-    const next = update(itemsRef.current);
-    persist(next);
-    itemsRef.current = next;
-    setItems(next);
-    return next;
+  useEffect(() => {
+    const synchronizeGuestCart = (event: StorageEvent) => {
+      if (
+        event.storageArea !== localStorage
+        || (event.key !== STORAGE_KEY && event.key !== null)
+      ) {
+        return;
+      }
+      setItems(readGuestCartItems());
+    };
+
+    window.addEventListener("storage", synchronizeGuestCart);
+    return () => window.removeEventListener("storage", synchronizeGuestCart);
   }, []);
 
-  const addItem = useCallback((productId: number, qty: number) => {
+  const updateItemsWhileLocked = useCallback(
+    (update: (current: GuestCartItem[]) => GuestCartItem[]) => {
+      const next = update(readGuestCartItemsWhileLocked());
+      persistGuestCartItemsWhileLocked(next);
+      setItems(next);
+      return next;
+    },
+    [],
+  );
+
+  const updateItems = useCallback(
+    (update: (current: GuestCartItem[]) => GuestCartItem[]) =>
+      editGuestCartExclusive(() => updateItemsWhileLocked(update)),
+    [updateItemsWhileLocked],
+  );
+
+  const addItem = useCallback(async (productId: number, qty: number) => {
     requireCartQuantity(qty);
-    updateItems((prev) => {
+    await updateItems((prev) => {
       const existing = prev.find((i) => i.productId === productId);
       const nextQty = (existing?.qty ?? 0) + qty;
       requireCartQuantity(nextQty);
@@ -184,18 +212,18 @@ export function useGuestCart() {
     });
   }, [updateItems]);
 
-  const updateQty = useCallback((productId: number, qty: number) => {
+  const updateQty = useCallback(async (productId: number, qty: number) => {
     requireCartQuantity(qty);
-    updateItems((prev) =>
+    await updateItems((prev) =>
       prev.map((i) => (i.productId === productId ? { ...i, qty } : i)),
     );
   }, [updateItems]);
 
-  const removeItem = useCallback((productId: number) => {
-    updateItems((prev) => prev.filter((i) => i.productId !== productId));
+  const removeItem = useCallback(async (productId: number) => {
+    await updateItems((prev) => prev.filter((i) => i.productId !== productId));
   }, [updateItems]);
 
-  const consumeMergedItems = useCallback((mergedItems: GuestCartItem[]) => {
+  const consumeMergedItemsWhileLocked = useCallback((mergedItems: GuestCartItem[]) => {
     const mergedQuantities = new Map<string, number>();
     for (const item of mergedItems) {
       const lineageKey = `${item.productId}:${item.lineageId}`;
@@ -204,14 +232,21 @@ export function useGuestCart() {
         (mergedQuantities.get(lineageKey) ?? 0) + item.qty,
       );
     }
-    return updateItems((current) => current.flatMap((item) => {
+    return updateItemsWhileLocked((current) => current.flatMap((item) => {
       const lineageKey = `${item.productId}:${item.lineageId}`;
       const remainingQty = item.qty - (mergedQuantities.get(lineageKey) ?? 0);
       return remainingQty > 0 ? [{ ...item, qty: remainingQty }] : [];
     }));
-  }, [updateItems]);
+  }, [updateItemsWhileLocked]);
 
   const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
 
-  return { items, itemCount, addItem, updateQty, removeItem, consumeMergedItems };
+  return {
+    items,
+    itemCount,
+    addItem,
+    updateQty,
+    removeItem,
+    consumeMergedItemsWhileLocked,
+  };
 }

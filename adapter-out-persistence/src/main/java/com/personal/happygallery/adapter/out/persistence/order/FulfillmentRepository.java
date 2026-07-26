@@ -40,6 +40,14 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>,
             JOIN Order o ON f.orderId = o.id
             WHERE o.status = 'PICKUP_READY'
               AND f.pickupDeadlineAt BETWEEN :from AND :to
+              AND NOT EXISTS (
+                  SELECT n.id
+                  FROM NotificationOutbox n
+                  WHERE n.eventType =
+                      com.personal.happygallery.domain.notification.NotificationEventType.PICKUP_DEADLINE_REMINDER
+                    AND n.aggregateType = 'ORDER'
+                    AND n.aggregateId = f.orderId
+              )
             """)
     List<PickupReminderTarget> findPickupReminderTargets(@Param("from") LocalDateTime from,
                                                          @Param("to") LocalDateTime to);

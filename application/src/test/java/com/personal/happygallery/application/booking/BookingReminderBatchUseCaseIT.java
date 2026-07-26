@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.booking;
 
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.booking.port.in.BookingReminderBatchUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
@@ -15,6 +16,8 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
+import com.personal.happygallery.domain.notification.NotificationOutbox;
+import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.support.NotificationLogProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -51,6 +54,7 @@ class BookingReminderBatchUseCaseIT {
     @Autowired UserStorePort userStorePort;
     @Autowired BookingStorePort bookingStorePort;
     @Autowired NotificationLogProbe notificationLogProbe;
+    @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
 
@@ -94,6 +98,40 @@ class BookingReminderBatchUseCaseIT {
             softly.assertThat(repeated.failureCount()).isZero();
             softly.assertThat(log.getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
             softly.assertThat(log.getGuestId()).isEqualTo(guestId);
+        });
+    }
+
+    @DisplayName("구형 수신자 기반 outbox가 있으면 D-1 리마인드를 다시 요청하지 않는다")
+    @Test
+    void sendD1Reminders_legacyRecipientKeyExists_skipsAggregate() {
+        Booking booking = createBooking(
+                LocalDate.now(clock).plusDays(1).atTime(10, 0));
+        Long bookingId = booking.getId();
+        LocalDateTime now = LocalDateTime.now(clock);
+        NotificationOutbox legacyOutbox = NotificationOutbox.from(
+                NotificationRequestedEvent.forGuest(
+                        booking.getGuest().getId(),
+                        NotificationEventType.REMINDER_D1,
+                        "BOOKING",
+                        bookingId),
+                now);
+        String processingToken = legacyOutbox.markProcessing(now);
+        legacyOutbox.markSent(processingToken, now);
+        notificationOutboxRepository.saveAndFlush(legacyOutbox);
+
+        BatchResult result = bookingReminderBatchService.sendD1Reminders();
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isZero();
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .filteredOn(outbox ->
+                            outbox.getEventType() == NotificationEventType.REMINDER_D1
+                                    && bookingId.equals(outbox.getAggregateId()))
+                    .singleElement()
+                    .satisfies(outbox -> softly.assertThat(outbox.getIdempotencyKey())
+                            .startsWith("GUEST:"));
+            softly.assertThat(notificationLogProbe.all()).isEmpty();
         });
     }
 

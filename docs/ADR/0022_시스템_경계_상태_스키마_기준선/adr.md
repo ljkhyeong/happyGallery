@@ -262,8 +262,9 @@ HAVING COUNT(*) > 1;
 #### 알림 outbox
 
 - `notification_outbox`
-  - `id`, 수신자 식별자, `event_type`, `idempotency_key`, `status`, 재시도 시각과 횟수, `processed_at`, `read_at`
+  - `id`, 수신자 식별자, `event_type`, `aggregate_type`, `aggregate_id`, `idempotency_key`, `status`, 재시도 시각과 횟수, `processed_at`, `read_at`
   - `processing_token`, `locked_at`, `version`으로 재선점 전 실행의 오래된 결과 반영을 차단한다.
+  - 리마인드 후보는 `(event_type, aggregate_type, aggregate_id)`로 이미 접수된 도메인 이벤트를 제외한다. 멱등키 문자열 형식이 달라도 같은 이력으로 인식한다.
 
 #### 8회권
 
@@ -290,6 +291,7 @@ HAVING COUNT(*) > 1;
 - `notification_outbox(user_id, status, processed_at DESC, id DESC)` 회원 알림함 조회
 - `notification_outbox(guest_id, status, processed_at DESC, id DESC)` 수신자별 발송 완료 조회
 - `notification_outbox(status, processed_at, id)` 발송 완료 보존 정리
+- `notification_outbox(event_type, aggregate_type, aggregate_id)` 예약·8회권·픽업 리마인드 접수 이력 조회
 - `notification_log(sent_at, id)` 채널 감사 로그 보존 정리
 - `notification_log(user_id, event_type, status, sent_at)` 회원 알림 중복 확인
 - `notification_log(guest_id, event_type, status, sent_at)` 비회원 알림 중복 확인

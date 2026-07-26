@@ -36,10 +36,9 @@ class JdbcPassExpiryReminderCandidateAdapter implements PassExpiryReminderCandid
                           AND NOT EXISTS (
                               SELECT 1
                               FROM notification_outbox n
-                              WHERE n.idempotency_key = CONCAT(
-                                  'USER:', p.user_id,
-                                  ':', :eventType, ':', :aggregateType, ':', p.id
-                              )
+                              WHERE n.event_type = :eventType
+                                AND n.aggregate_type = :aggregateType
+                                AND n.aggregate_id = p.id
                           )
                         ORDER BY p.id
                         LIMIT :limit

@@ -8,8 +8,6 @@ import java.util.List;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import static com.personal.happygallery.domain.notification.NotificationRequestedEvent.oncePerAggregateKeyPrefix;
-
 @Repository
 class JdbcBookingReminderCandidateAdapter implements BookingReminderCandidatePort {
 
@@ -38,7 +36,9 @@ class JdbcBookingReminderCandidateAdapter implements BookingReminderCandidatePor
                           AND NOT EXISTS (
                               SELECT 1
                               FROM notification_outbox n
-                              WHERE n.idempotency_key = CONCAT(:idempotencyPrefix, b.id)
+                              WHERE n.event_type = :eventType
+                                AND n.aggregate_type = :aggregateType
+                                AND n.aggregate_id = b.id
                           )
                         ORDER BY b.id
                         LIMIT :limit
@@ -46,8 +46,8 @@ class JdbcBookingReminderCandidateAdapter implements BookingReminderCandidatePor
                 .param("start", start)
                 .param("end", end)
                 .param("afterId", afterId)
-                .param("idempotencyPrefix",
-                        oncePerAggregateKeyPrefix(eventType, AGGREGATE_TYPE))
+                .param("eventType", eventType.name())
+                .param("aggregateType", AGGREGATE_TYPE)
                 .param("limit", limit)
                 .query((rs, rowNum) -> new BookingReminderTarget(
                         rs.getLong("booking_id"),

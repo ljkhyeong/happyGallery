@@ -46,7 +46,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     addItem: addGuestItem,
     updateQty: updateGuestQty,
     removeItem: removeGuestItem,
-    consumeMergedItems,
+    consumeMergedItemsWhileLocked,
   } = useGuestCart();
   const userId = user?.id ?? null;
   const {
@@ -54,7 +54,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     issue: guestCartMergeIssue,
     retry: retryGuestCartMerge,
     discard: discardGuestCartMerge,
-  } = useGuestCartMerge({ userId, guestItems, consumeMergedItems });
+  } = useGuestCartMerge({
+    userId,
+    guestItems,
+    consumeMergedItemsWhileLocked,
+  });
 
   const memberQuery = useQuery({
     queryKey: [...queryKeys.member.cart, userId],
