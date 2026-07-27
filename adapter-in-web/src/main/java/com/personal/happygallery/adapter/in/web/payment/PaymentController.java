@@ -15,10 +15,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareResult;
 import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -53,8 +50,7 @@ public class PaymentController {
     @PostMapping("/prepare")
     @Operation(operationId = "preparePayment")
     public PreparePaymentResponse prepare(@RequestBody @Valid PreparePaymentRequest req,
-                                          @AuthenticationPrincipal CustomerPrincipal customer,
-                                          HttpServletResponse response) {
+                                          @AuthenticationPrincipal CustomerPrincipal customer) {
         if (customer != null && (!customer.phoneVerified() || customer.phone() == null)) {
             throw new PhoneVerificationRequiredException();
         }
@@ -62,7 +58,6 @@ public class PaymentController {
                 ? AuthContext.member(customer.userId())
                 : AuthContext.guest();
         PrepareResult result = prepareUseCase.prepare(new PrepareCommand(req.context(), req.payload(), auth));
-        setNoStore(response);
         return PreparePaymentResponse.from(result);
     }
 
@@ -71,8 +66,7 @@ public class PaymentController {
     public ConfirmPaymentResponse confirm(@RequestBody @Valid ConfirmPaymentRequest req,
                                           @RequestHeader(value = PAYMENT_STATUS_TOKEN_HEADER, required = false)
                                           String statusToken,
-                                          @AuthenticationPrincipal CustomerPrincipal customer,
-                                          HttpServletResponse response) {
+                                          @AuthenticationPrincipal CustomerPrincipal customer) {
         rateLimitGuard.checkPaymentConfirm(req.orderId());
         AuthContext auth = customer != null
                 ? AuthContext.member(customer.userId())
@@ -80,11 +74,6 @@ public class PaymentController {
         ConfirmResult result = confirmUseCase.confirm(
                 ConfirmCommand.customerRequest(
                         req.paymentKey(), req.orderId(), req.amount(), auth, statusToken));
-        setNoStore(response);
         return ConfirmPaymentResponse.from(result);
-    }
-
-    private void setNoStore(HttpServletResponse response) {
-        response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.noStore().getHeaderValue());
     }
 }

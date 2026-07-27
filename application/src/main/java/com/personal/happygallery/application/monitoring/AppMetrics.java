@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +49,7 @@ public class AppMetrics {
             "personal_data_retention");
 
     private final MeterRegistry registry;
+    private final Clock clock;
     private final Counter guestClaimCompleted;
     private final Counter paymentConfirmReconciliationRequired;
     private final Counter notificationOutboxFailed;
@@ -58,8 +60,9 @@ public class AppMetrics {
     private final AtomicLong mediaStorageLastSuccessSeconds = new AtomicLong();
     private final ConcurrentMap<String, AtomicLong> batchLastSuccessSeconds = new ConcurrentHashMap<>();
 
-    public AppMetrics(MeterRegistry registry) {
+    public AppMetrics(MeterRegistry registry, Clock clock) {
         this.registry = registry;
+        this.clock = clock;
         this.guestClaimCompleted = Counter.builder("happygallery.funnel.guest_claim_completed")
                 .description("비회원→회원 기록 인수 완료")
                 .register(registry);
@@ -134,7 +137,7 @@ public class AppMetrics {
 
     public void recordMediaStorageUsage(long bytes) {
         mediaStorageBytes.set(bytes);
-        mediaStorageLastSuccessSeconds.set(Instant.now().getEpochSecond());
+        mediaStorageLastSuccessSeconds.set(Instant.now(clock).getEpochSecond());
     }
 
     public void incrementMediaStorageRefreshFailure() {
@@ -191,7 +194,7 @@ public class AppMetrics {
     }
 
     private void recordBatchLastSuccess(String job) {
-        batchLastSuccess(job).set(Instant.now().getEpochSecond());
+        batchLastSuccess(job).set(Instant.now(clock).getEpochSecond());
     }
 
     private AtomicLong batchLastSuccess(String job) {

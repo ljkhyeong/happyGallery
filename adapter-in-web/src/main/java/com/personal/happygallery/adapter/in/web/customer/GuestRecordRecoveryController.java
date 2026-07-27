@@ -8,10 +8,7 @@ import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.application.customer.port.in.GuestRecordRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentStatusRecoveryUseCase;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,10 +41,8 @@ public class GuestRecordRecoveryController {
     @Operation(operationId = "recoverGuestPaymentStatuses")
     @PostMapping("/payment-status-recovery")
     public PaymentStatusRecoveryResponse recoverPaymentStatuses(
-            @RequestBody @Valid RecoverPaymentStatusesRequest request,
-            HttpServletResponse response) {
+            @RequestBody @Valid RecoverPaymentStatusesRequest request) {
         rateLimitGuard.checkGuestRecordRecovery(request.phone());
-        response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.noStore().getHeaderValue());
         return PaymentStatusRecoveryResponse.from(
                 paymentStatusRecovery.recover(request.phone(), request.verificationCode()));
     }

@@ -23,6 +23,8 @@ import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.web.header.HeaderWriterFilter;
+import org.springframework.security.web.header.writers.XContentTypeOptionsHeaderWriter;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,13 +61,15 @@ class RateLimitFilterTest {
         perform(filter, "POST", "/api/v1/bookings/phone-verifications");
         MockHttpServletResponse secondResponse;
         try (MDC.MDCCloseable ignored = MDC.putCloseable("requestId", "rate-limit-test")) {
-            secondResponse = perform(filter, "POST", "/api/v1/bookings/phone-verifications");
+            secondResponse = performWithSecurityHeaders(
+                    filter, "POST", "/api/v1/bookings/phone-verifications");
         }
         String secondResponseBody = secondResponse.getContentAsString();
 
         assertSoftly(softly -> {
             softly.assertThat(secondResponse.getStatus()).isEqualTo(429);
             softly.assertThat(secondResponse.getHeader("Retry-After")).isNotBlank();
+            softly.assertThat(secondResponse.getHeader("X-Content-Type-Options")).isEqualTo("nosniff");
             softly.assertThat(secondResponse.getContentType()).startsWith("application/json");
             softly.assertThat(secondResponse.getCharacterEncoding()).isEqualTo("UTF-8");
             softly.assertThat(secondResponseBody).contains(
@@ -110,12 +114,10 @@ class RateLimitFilterTest {
         });
     }
 
-    @DisplayName("trustForwardedHeaders가 false이면 X-Forwarded-For를 무시하고 remoteAddr를 사용한다")
+    @DisplayName("X-Forwarded-For를 무시하고 servlet이 해석한 remoteAddr를 사용한다")
     @Test
-    void usesRemoteAddr_whenTrustForwardedHeadersDisabled() {
-        RateLimitProperties properties = new TestRateLimits()
-                .trustForwardedHeaders(false)
-                .build();
+    void usesRemoteAddr_regardlessOfForwardedFor() {
+        RateLimitProperties properties = new TestRateLimits().build();
         RateLimitFilter filter = filter(properties, mockRedis());
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
@@ -123,21 +125,6 @@ class RateLimitFilterTest {
         request.addHeader("X-Forwarded-For", "1.2.3.4");
 
         assertThat(filter.resolveClientKey(request)).isEqualTo("10.0.0.1");
-    }
-
-    @DisplayName("trustForwardedHeaders가 true이면 X-Forwarded-For 첫 번째 IP를 사용한다")
-    @Test
-    void usesForwardedFor_whenTrustForwardedHeadersEnabled() {
-        RateLimitProperties properties = new TestRateLimits()
-                .trustForwardedHeaders(true)
-                .build();
-        RateLimitFilter filter = filter(properties, mockRedis());
-
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
-        request.setRemoteAddr("10.0.0.1");
-        request.addHeader("X-Forwarded-For", "1.2.3.4, 5.6.7.8");
-
-        assertThat(filter.resolveClientKey(request)).isEqualTo("1.2.3.4");
     }
 
     @DisplayName("로그인 경로는 일반 admin API보다 엄격한 rate limit이 적용된다")
@@ -293,13 +280,14 @@ class RateLimitFilterTest {
         RateLimitProperties properties = new TestRateLimits().build();
         RateLimitFilter filter = filter(properties, unavailableRedis());
 
-        MockHttpServletResponse response = perform(
+        MockHttpServletResponse response = performWithSecurityHeaders(
                 filter, "POST", "/api/v1/bookings/phone-verifications");
         String responseBody = response.getContentAsString();
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatus()).isEqualTo(503);
             softly.assertThat(response.getHeader("Retry-After")).isEqualTo("1");
+            softly.assertThat(response.getHeader("X-Content-Type-Options")).isEqualTo("nosniff");
             softly.assertThat(responseBody).contains("\"code\":\"SERVICE_UNAVAILABLE\"");
         });
     }
@@ -316,6 +304,24 @@ class RateLimitFilterTest {
         request.setRemoteAddr("127.0.0.1");
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter.doFilter(request, response, new MockFilterChain());
+        return response;
+    }
+
+    private static MockHttpServletResponse performWithSecurityHeaders(
+            RateLimitFilter filter,
+            String method,
+            String path
+    ) throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest(method, path);
+        request.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        var headerWriterFilter = new HeaderWriterFilter(
+                List.of(new XContentTypeOptionsHeaderWriter()));
+        headerWriterFilter.doFilter(
+                request,
+                response,
+                (filterRequest, filterResponse) ->
+                        filter.doFilter(filterRequest, filterResponse, new MockFilterChain()));
         return response;
     }
 
@@ -359,7 +365,6 @@ class RateLimitFilterTest {
 
     private static final class TestRateLimits {
 
-        private boolean trustForwardedHeaders;
         private long defaultApi = 100;
         private long phoneVerification = 10;
         private long customerLogin = 10;
@@ -375,11 +380,6 @@ class RateLimitFilterTest {
         private long guestRecordRecovery = 100;
         private long clientMonitoring = 100;
         private long orderCustomerAction = 100;
-
-        private TestRateLimits trustForwardedHeaders(boolean value) {
-            trustForwardedHeaders = value;
-            return this;
-        }
 
         private TestRateLimits defaultApi(long capacity) {
             defaultApi = capacity;
@@ -440,7 +440,6 @@ class RateLimitFilterTest {
         private RateLimitProperties build() {
             return new RateLimitProperties(
                     true,
-                    trustForwardedHeaders,
                     "test:rate",
                     new IpRules(
                             perMinute(defaultApi),

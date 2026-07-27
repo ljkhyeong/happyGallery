@@ -1,5 +1,12 @@
 server:
   shutdown: graceful
+  servlet:
+    session:
+      cookie:
+        name: HG_SESSION
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_SECURE_COOKIE:true}
 
 spring:
   application:
@@ -70,13 +77,20 @@ spring:
       connect-timeout: ${REDIS_CONNECT_TIMEOUT:1s}
       timeout: ${REDIS_COMMAND_TIMEOUT:1s}
   session:
-    store-type: redis
     timeout: 7d
-    redis:
-      namespace: hg:session
-      flush-mode: on_save
+    data:
+      redis:
+        repository-type: indexed
+        namespace: hg:session
+        flush-mode: on-save
   transaction:
     default-timeout: ${TX_DEFAULT_TIMEOUT:10s}
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
 
 app:
   policy-consent:
@@ -187,7 +201,6 @@ app:
     total-price: ${PASS_TOTAL_PRICE:240000}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
-    trust-forwarded-headers: ${RATE_LIMIT_TRUST_FORWARDED:false}
     key-prefix: ${RATE_LIMIT_KEY_PREFIX:happygallery:rate}
     ip:
       default-api: { capacity: 300, window: 1m }

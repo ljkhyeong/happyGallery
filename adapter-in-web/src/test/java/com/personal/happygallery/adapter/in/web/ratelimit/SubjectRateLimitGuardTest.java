@@ -103,7 +103,6 @@ class SubjectRateLimitGuardTest {
         Rule generousLimit = new Rule(100, Duration.ofMinutes(1));
         return new RateLimitProperties(
                 true,
-                false,
                 "test:rate",
                 new IpRules(
                         generousLimit,

@@ -8,12 +8,16 @@ spring:
     password: ${DB_PASSWORD:password}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
+
 app:
   admin:
     api-key: dev-admin-key
     enable-api-key-auth: true
-  session:
-    secure-cookie: false
   field-encryption:
     active-key-id: v1
     encrypt-key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"

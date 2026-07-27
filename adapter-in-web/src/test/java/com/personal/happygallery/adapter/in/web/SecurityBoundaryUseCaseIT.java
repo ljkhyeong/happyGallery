@@ -15,9 +15,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.FilterChainProxy;
+import org.springframework.security.web.header.HeaderWriterFilter;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -29,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -45,6 +49,10 @@ class SecurityBoundaryUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired AdminUserPort adminUserPort;
     @Autowired PasswordEncoder passwordEncoder;
+    @Autowired FilterChainProxy springSecurityFilterChain;
+    @Autowired
+    @Qualifier("rateLimitFilterRegistration")
+    FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration;
 
     MockMvc mockMvc;
 
@@ -115,6 +123,50 @@ class SecurityBoundaryUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.terms.version").isNotEmpty())
                 .andExpect(jsonPath("$.privacy.version").isNotEmpty());
+    }
+
+    @DisplayName("공개 조회 경로는 HEAD 요청도 허용한다")
+    @Test
+    void publicReadEndpoint_allowsHeadRequest() throws Exception {
+        mockMvc.perform(head("/api/v1/classes"))
+                .andExpect(status().isOk());
+        mockMvc.perform(head("/api/v1/admin/setup/status"))
+                .andExpect(status().isOk());
+    }
+
+    @DisplayName("등록되지 않은 조회 경로는 공개 namespace 아래에서도 거부한다")
+    @Test
+    void publicNamespace_deniesUnregisteredReadPath() throws Exception {
+        mockMvc.perform(get("/api/v1/classes/internal"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+        mockMvc.perform(get("/api/v1/auth/social/authorization/google/internal"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @DisplayName("공개 조회 namespace의 상태 변경 메서드는 거부한다")
+    @Test
+    void publicReadNamespace_deniesStateChangingMethod() throws Exception {
+        mockMvc.perform(post("/api/v1/classes").with(csrf()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @DisplayName("처리율 제한 필터는 자동 등록하지 않고 보안 헤더 필터 뒤에 배치한다")
+    @Test
+    void rateLimitFilter_runsInsideBothSecurityChainsAfterHeaderWriter() {
+        assertThat(rateLimitFilterRegistration.isEnabled()).isFalse();
+        assertThat(springSecurityFilterChain.getFilterChains())
+                .hasSize(2)
+                .allSatisfy(chain -> {
+                    var filterTypes = chain.getFilters().stream()
+                            .map(Object::getClass)
+                            .toList();
+                    assertThat(filterTypes).contains(HeaderWriterFilter.class, RateLimitFilter.class);
+                    assertThat(filterTypes.indexOf(RateLimitFilter.class))
+                            .isGreaterThan(filterTypes.indexOf(HeaderWriterFilter.class));
+                });
     }
 
     @DisplayName("잘못된 Bearer 토큰은 유효한 관리자 API key로 폴백하지 않는다")

@@ -14,7 +14,6 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "app.rate-limit")
 public record RateLimitProperties(
         @DefaultValue("true") boolean enabled,
-        @DefaultValue("false") boolean trustForwardedHeaders,
         @NotBlank @DefaultValue("happygallery:rate") String keyPrefix,
         @Valid @NotNull IpRules ip,
         @Valid @NotNull SubjectRules subject

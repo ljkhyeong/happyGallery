@@ -1,7 +1,7 @@
 # ADR-0017: 애플리케이션 처리율 제한 기준
 
 **날짜**: 2026-03-06  
-**최종 갱신**: 2026-07-26
+**최종 갱신**: 2026-07-27
 **상태**: Accepted
 
 ---
@@ -16,7 +16,10 @@
 
 ### 1. IP 제한은 Servlet Filter에서 조기에 적용한다
 
-- 필터 순서는 `RequestIdFilter -> RateLimitFilter -> Spring Security FilterChain`이다.
+- 필터 순서는 `RequestIdFilter -> Spring Security HeaderWriterFilter -> RateLimitFilter -> 나머지 Security FilterChain`이다.
+- `RequestIdFilter`는 모든 응답에 추적 ID를 남기기 위해 Servlet 바깥 필터로 유지한다.
+- `RateLimitFilter`는 Servlet 자동 등록을 끄고 두 `SecurityFilterChain`에 명시적으로 등록한다.
+  이 위치에서는 컨트롤러와 외부 호출 전에 요청을 차단하면서도 `429`·`503` 단락 응답에 공통 보안 헤더가 적용된다.
 - 구체 경로 규칙을 먼저 확인하고, 마지막에 `/api/v1/**`의 `DEFAULT_API_IP` 규칙을 적용한다.
 - `/actuator/**`, 정적 파일과 Kubernetes health probe는 `/api/v1/**` 밖에 두어 사용자 트래픽 버킷과 분리한다.
 - `app.rate-limit.enabled=false`는 로컬 반복 E2E처럼 동일 IP 요청이 집중되는 검증에서만 사용한다.
@@ -64,10 +67,12 @@ Q&A ID만으로 전역 버킷을 만들지 않는다. 제3자가 버킷을 소�
 - 로그인·가입·비밀번호 재설정·관리자·인증 코드·Q&A 비밀번호 확인·비회원 이력 인증·모니터링 수집과 payment prepare는 fail-closed하고 `503 SERVICE_UNAVAILABLE`을 반환한다. 장바구니 결제도 표준 payment prepare 버킷을 사용한다. edge 방어가 없는 상태에서 Redis 장애가 고위험 경로의 무제한 허용으로 바뀌지 않게 한다.
 - 인메모리 fallback은 pod마다 카운터가 갈리므로 두지 않는다.
 
-### 4. 전달 헤더는 신뢰 경계가 생긴 뒤에만 사용한다
+### 4. 전달 헤더는 서버의 단일 신뢰 경계에서만 해석한다
 
-- 기본값은 `app.rate-limit.trust-forwarded-headers=false`이며 `remoteAddr`를 사용한다.
-- ingress가 외부의 `X-Forwarded-For`를 제거하고 실제 값으로 덮어쓰며, Service/방화벽으로 애플리케이션 직접 접근을 차단한 뒤에만 `FORWARD_HEADERS_STRATEGY=native`, `RATE_LIMIT_TRUST_FORWARDED=true`를 함께 설정한다.
+- 처리율 제한은 항상 `request.getRemoteAddr()`를 사용하고 `X-Forwarded-For`를 직접 파싱하지 않는다.
+- 기본값은 `FORWARD_HEADERS_STRATEGY=none`이다.
+- ingress가 외부의 전달 헤더를 제거하고 실제 값으로 덮어쓰며, Service/방화벽으로 애플리케이션 직접 접근을 차단한 뒤에만 `FORWARD_HEADERS_STRATEGY=native`로 Tomcat의 전달 헤더 처리를 활성화한다.
+- 프록시 헤더 신뢰 여부를 애플리케이션 처리율 제한 설정에 중복하지 않아 두 설정이 어긋나는 우회를 막는다.
 - ingress 처리율 제한은 추가 방어선일 뿐 이 ADR의 애플리케이션 제한을 대체하지 않는다.
 
 ### 5. 초과 응답 계약을 통일한다
@@ -77,6 +82,7 @@ Q&A ID만으로 전역 버킷을 만들지 않는다. 제3자가 버킷을 소�
 - `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` 헤더
 - IP 제한은 필터가 직접 응답하고 subject 제한은 `GlobalExceptionHandler`가 같은 계약으로 응답한다.
 - fail-closed 규칙의 Redis 장애는 `503 SERVICE_UNAVAILABLE`과 `Retry-After: 1`을 반환한다.
+- 필터가 직접 끝내는 응답에도 Spring Security의 공통 보안 헤더를 적용한다.
 
 ## 결과
 

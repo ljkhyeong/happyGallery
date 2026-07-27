@@ -25,9 +25,10 @@ class TossPaymentsRestClientConfig {
     }
 
     @Bean
-    RestClient tossPaymentsRestClient(TossPaymentsProperties props,
+    RestClient tossPaymentsRestClient(RestClient.Builder builder,
+                                      TossPaymentsProperties props,
                                       @Qualifier("tossPaymentsHttpClient") CloseableHttpClient httpClient) {
-        return configure(RestClient.builder(), props)
+        return configure(builder, props)
                 .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
                 .build();
     }

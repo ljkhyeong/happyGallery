@@ -65,7 +65,10 @@
 - `nginx/nginx.conf`와 `docker-compose.yml`의 Nginx 서비스는 SPA fallback과 API 프록시를 포함한 로컬 통합 검증·복구 진단용으로 유지한다.
 - 운영 목표는 ADR-0037에 따라 단일 노트북의 단일 노드 k3s와 Kubernetes Ingress로 전환한다. Docker Compose의 `local` 프로필과 개발 기본값을 운영 구성으로 사용하지 않는다.
 - ingress는 `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`를 덮어쓰거나 정규화하고 애플리케이션 직접 접근을 차단한다.
-- `application-prod.yml`은 forwarded header 신뢰를 기본적으로 끈다. 통제된 ingress가 헤더를 덮어쓰고 직접 접근을 차단한 뒤에만 `FORWARD_HEADERS_STRATEGY=native`, `RATE_LIMIT_TRUST_FORWARDED=true`를 함께 설정한다.
+- `application-prod.yml`은 forwarded header 신뢰를 기본적으로 끈다. 통제된 ingress가 헤더를
+  덮어쓰고 직접 접근을 차단한 뒤에만 `FORWARD_HEADERS_STRATEGY=native`로 Tomcat의 전달 헤더
+  처리를 활성화한다. 처리율 제한은 정규화된 `request.getRemoteAddr()`만 사용하고 전달 헤더를
+  별도로 파싱하지 않는다.
 - Grafana 인증 환경변수 외부화와 `.env.example`의 로컬 설정 목록은 유지하되, 운영 secret은 Kubernetes 실행 환경에서 저장소 밖의 값으로 주입한다.
 - AWS 자동 배포는 폐기한다. k3s manifest와 배포·rollback·백업·복원 절차는 `deploy/k3s`에서 관리한다.
 

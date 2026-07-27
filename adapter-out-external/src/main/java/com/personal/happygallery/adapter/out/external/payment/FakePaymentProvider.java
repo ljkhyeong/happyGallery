@@ -4,6 +4,7 @@ import com.personal.happygallery.application.payment.port.out.PaymentConfirmResu
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
@@ -21,12 +22,15 @@ import org.springframework.stereotype.Component;
 public class FakePaymentProvider implements PaymentProvider {
 
     private final LocalRefundFailureScript localRefundFailureScript;
+    private final Clock clock;
     private final Map<String, PaymentLookupResult> confirmedPayments = new ConcurrentHashMap<>();
     private final Map<String, RefundLookupResult> refundedPaymentsByIdempotencyKey = new ConcurrentHashMap<>();
     private final Map<String, String> refundTransactionsByIdempotencyKey = new ConcurrentHashMap<>();
 
-    public FakePaymentProvider(ObjectProvider<LocalRefundFailureScript> localRefundFailureScriptProvider) {
+    public FakePaymentProvider(ObjectProvider<LocalRefundFailureScript> localRefundFailureScriptProvider,
+                               Clock clock) {
         this.localRefundFailureScript = localRefundFailureScriptProvider.getIfAvailable();
+        this.clock = clock;
     }
 
     @Override
@@ -35,7 +39,7 @@ public class FakePaymentProvider implements PaymentProvider {
         return PaymentConfirmResult.success(
                 paymentKey,
                 "FAKE_PG",
-                OffsetDateTime.now().toString());
+                OffsetDateTime.now(clock).toString());
     }
 
     @Override

@@ -1,7 +1,7 @@
 # ADR-0037: 자가 호스팅 배포 토폴로지 기준
 
 **날짜**: 2026-07-18
-**최종 갱신**: 2026-07-24
+**최종 갱신**: 2026-07-27
 **상태**: Accepted
 
 ---
@@ -41,7 +41,9 @@
 ### 3. 전달 헤더는 통제된 ingress만 신뢰한다
 
 - ingress는 외부 요청이 임의로 보낸 `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Proto`를 신뢰하지 않고 자신이 관리하는 값으로 덮어쓰거나 정규화한다.
-- 애플리케이션의 forwarded header 처리와 `app.rate-limit.trust-forwarded-headers=true`는 애플리케이션 직접 접근이 차단되고 통제된 ingress만 앞단에 있을 때 사용한다.
+- 애플리케이션의 forwarded header 처리는 애플리케이션 직접 접근이 차단되고 통제된 ingress만
+  앞단에 있을 때 `FORWARD_HEADERS_STRATEGY=native`로 활성화한다. 처리율 제한은 Tomcat이
+  정규화한 `request.getRemoteAddr()`만 사용하고 별도 전달 헤더 신뢰 설정을 두지 않는다.
 - 공유기, 터널 또는 별도 프록시를 추가하면 신뢰 가능한 프록시 홉을 명시하고 실제 클라이언트 IP, HTTPS 스킴과 처리율 제한 버킷을 다시 검증한다.
 - 처리율 제한 키의 원문 비노출 기준은 ADR-0036을 유지한다.
 

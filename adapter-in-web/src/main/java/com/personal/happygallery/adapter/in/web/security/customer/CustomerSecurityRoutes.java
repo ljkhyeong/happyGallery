@@ -12,13 +12,10 @@ public final class CustomerSecurityRoutes {
     public static final String SOCIAL_AUTHORIZATION_BASE_URI = "/api/v1/auth/social/authorization";
     public static final String SOCIAL_AUTHORIZATION_PROVIDER_PATH =
             SOCIAL_AUTHORIZATION_BASE_URI + "/{provider}";
-    public static final String SOCIAL_AUTHORIZATION_PATTERN =
-            SOCIAL_AUTHORIZATION_BASE_URI + "/**";
     private static final String SOCIAL_CALLBACK_ROOT = "/api/v1/auth/social/callback";
     public static final String SOCIAL_CALLBACK_BASE_URI = SOCIAL_CALLBACK_ROOT + "/*";
     public static final String SOCIAL_CALLBACK_PROVIDER_PATH =
             SOCIAL_CALLBACK_ROOT + "/{provider}";
-    public static final String SOCIAL_CALLBACK_PATTERN = SOCIAL_CALLBACK_ROOT + "/**";
 
     private CustomerSecurityRoutes() {
     }

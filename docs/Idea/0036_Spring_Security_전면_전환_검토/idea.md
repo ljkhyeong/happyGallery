@@ -7,12 +7,13 @@
 
 ## 채택한 범위
 
-- Spring Boot 4.0.7 기준 `spring-boot-starter-security`를 사용한다.
+- Spring Boot 4.1.0 기준 `spring-boot-starter-security`를 사용한다.
 - 관리자 요청과 회원·공개 요청을 두 개의 `SecurityFilterChain`으로 분리한다.
 - 관리자 Redis Bearer 세션, local 전용 API key, 회원 `HG_SESSION`과 `customerUserId` 저장 계약은 유지한다.
 - 관리자·회원 인증은 요청마다 principal과 `SecurityContext`로 표현한다.
 - 컨트롤러는 `@AuthenticationPrincipal`로 typed principal을 직접 받고 필요한 식별자를 유스케이스에 전달한다. 인증이 선택인 API는 nullable `CustomerPrincipal`로 회원과 게스트를 구분하고, `/api/v1/me`는 principal의 회원 스냅샷을 재사용한다.
-- `RequestIdFilter`, `RateLimitFilter`는 Security 체인 앞단에 유지한다.
+- `RequestIdFilter`는 Security 체인 앞단에 유지하고, `RateLimitFilter`는 두 Security 체인의
+  `HeaderWriterFilter` 뒤에 둬 제한 응답에도 공통 보안 헤더를 적용한다.
 - 회원 로그인 성공 시 세션 ID를 회전한다.
 - 인증·인가 실패는 기존 `ErrorResponse` 형태의 JSON과 `401`·`403`으로 반환한다.
 - 회원·공개 체인은 SPA CSRF 보호를 적용하고, 관리자 Bearer/API key 체인은 CSRF 대상에서 제외한다.

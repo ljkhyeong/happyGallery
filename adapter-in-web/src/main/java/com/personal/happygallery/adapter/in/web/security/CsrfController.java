@@ -1,7 +1,5 @@
 package com.personal.happygallery.adapter.in.web.security;
 
-import org.springframework.http.CacheControl;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,12 +13,10 @@ public class CsrfController {
     private static final String CSRF_HEADER_NAME = "X-XSRF-TOKEN";
 
     @GetMapping("/csrf")
-    public ResponseEntity<CsrfTokenResponse> csrf(CsrfToken csrfToken) {
+    public CsrfTokenResponse csrf(CsrfToken csrfToken) {
         // 지연된 토큰을 평가해야 저장소가 응답 쿠키를 기록한다.
         csrfToken.getToken();
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.noStore())
-                .body(new CsrfTokenResponse(CSRF_COOKIE_NAME, CSRF_HEADER_NAME));
+        return new CsrfTokenResponse(CSRF_COOKIE_NAME, CSRF_HEADER_NAME);
     }
 
     public record CsrfTokenResponse(String cookieName, String headerName) {}

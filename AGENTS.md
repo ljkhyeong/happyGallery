@@ -57,7 +57,7 @@
 - 기본 프로필은 `local`, 헬스 체크는 `http://localhost:8080/actuator/health`
 
 ## 코딩 스타일 및 테스트 기준
-- Java 21, Gradle toolchain, `com.personal.happygallery.<layer>.<feature>` 패키지 구조 유지
+- Java 25, Gradle toolchain, `com.personal.happygallery.<layer>.<feature>` 패키지 구조 유지
 - 클래스 `UpperCamelCase`, 메서드/필드 `lowerCamelCase`, DTO는 `Request`/`Response`
 - 컨트롤러는 검증/변환, 흐름은 서비스, 정책은 도메인에 둔다
 - 리팩토링할 때는 수정 대상 주변만 보지 말고 `rg`로 동일/유사 패턴이 코드베이스에 더 있는지 먼저 확인한다.

@@ -36,7 +36,7 @@
 
 ### 요구사항
 
-- Java 21
+- Java 25
 - Node.js 22.22+
 - Docker / Docker Compose
 
@@ -156,7 +156,7 @@ docker compose up -d --build
 
 ## 기술 스택
 
-- 백엔드: Spring Boot 4.0.7, Spring Security, Java 21, Gradle
+- 백엔드: Spring Boot 4.1.0, Spring Security, Java 25, Gradle
 - 프론트엔드: Vite, React 19, TypeScript, Orval
 - 데이터베이스: MySQL 8, Flyway
 - 세션과 캐시: Redis, Spring Session
@@ -230,8 +230,8 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `RATE_LIMIT_KEY_PREFIX` | 백엔드 | 환경별 Redis 처리율 제한 키 prefix |
 | `REDIS_CONNECT_TIMEOUT` | 백엔드 | Redis 연결 대기 상한, 기본 `1s` |
 | `REDIS_COMMAND_TIMEOUT` | 백엔드 | Redis 명령 대기 상한, 기본 `1s` |
+| `SESSION_SECURE_COOKIE` | 백엔드 | 회원 세션 쿠키의 Secure 여부, 기본 `true`이며 local 프로필은 `false` |
 | `FORWARD_HEADERS_STRATEGY` | 백엔드 `prod` | 통제된 ingress 구성 후 `native`로 설정 |
-| `RATE_LIMIT_TRUST_FORWARDED` | 백엔드 | 통제된 ingress 구성 후에만 `true`로 설정 |
 | `FIELD_ENCRYPTION_KEY_ID` | 백엔드 `prod` | 활성 AES/HMAC 키 쌍의 버전 ID, 기본 `v1` |
 | `ENCRYPT_KEY` | 백엔드 `prod` | 활성 개인정보 AES-256 키, 64자리 hex |
 | `HMAC_KEY` | 백엔드 `prod` | 활성 블라인드 인덱스 HMAC 키, 64자리 hex |

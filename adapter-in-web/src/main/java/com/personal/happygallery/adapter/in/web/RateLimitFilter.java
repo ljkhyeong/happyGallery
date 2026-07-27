@@ -12,13 +12,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Optional;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
-import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
@@ -32,10 +29,7 @@ import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class RateLimitFilter extends OncePerRequestFilter {
-
-    private static final String X_FORWARDED_FOR = "X-Forwarded-For";
 
     private static final LimitRule PHONE_VERIFICATION_RULE = new LimitRule(
             "PHONE_VERIFICATION_IP", pathPattern(POST, "/api/v1/bookings/phone-verifications"), FAIL_CLOSED);
@@ -200,17 +194,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     String resolveClientKey(HttpServletRequest request) {
-        if (!properties.trustForwardedHeaders()) {
-            String remoteAddr = request.getRemoteAddr();
-            return remoteAddr == null ? "unknown" : remoteAddr;
-        }
-        String forwarded = request.getHeader(X_FORWARDED_FOR);
-        if (StringUtils.hasText(forwarded)) {
-            String ip = forwarded.split(",", 2)[0].trim();
-            if (StringUtils.hasText(ip)) {
-                return ip;
-            }
-        }
         String remoteAddr = request.getRemoteAddr();
         return remoteAddr == null ? "unknown" : remoteAddr;
     }

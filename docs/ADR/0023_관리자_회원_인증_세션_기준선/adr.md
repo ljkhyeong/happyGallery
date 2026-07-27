@@ -1,7 +1,7 @@
 # ADR-0023: 관리자·회원 인증과 세션 운영 기준
 
 **날짜**: 2026-03-17  
-**최종 갱신**: 2026-07-26
+**최종 갱신**: 2026-07-27
 **상태**: Accepted
 
 ---
@@ -17,11 +17,17 @@
 
 ### 1. Spring Security 체인을 관리자와 회원·공개 요청으로 분리한다
 
-- Spring Boot 4.0.7 기준 `spring-boot-starter-security`를 사용한다.
+- Spring Boot 4.1.0 기준 `spring-boot-starter-security`를 사용하며 Spring Security 버전은 Boot BOM에 맡긴다.
 - 관리자 경로와 회원·공개 경로는 서로 다른 `SecurityFilterChain`이 처리한다.
 - 관리자 체인은 서버 HTTP 세션을 만들지 않고 Redis Bearer 세션 또는 local API key로 인증한다.
 - 회원·공개 체인은 `HG_SESSION`에서 회원 ID를 읽어 요청 범위의 회원 principal과 `SecurityContext`를 구성한다.
-- `RequestIdFilter`와 `RateLimitFilter`는 인증 여부와 무관하게 모든 요청에 적용되도록 Security 체인 앞단에 유지한다.
+- `RequestIdFilter`는 인증 여부와 무관하게 모든 요청과 단락 응답에 추적 ID를 남기도록 Security 체인
+  앞단에 유지한다. 클라이언트가 보낸 값은 UUID 또는 최대 64자의 안전한 ASCII 토큰일 때만 재사용하고,
+  그 밖의 값은 서버 UUID로 교체한다.
+- `RateLimitFilter`는 두 Security 체인의 `HeaderWriterFilter` 뒤에 등록한다. 컨트롤러와 외부 호출 전에
+  차단하는 책임은 유지하면서 필터의 `429`·`503` 응답에도 공통 보안 헤더를 적용한다.
+- 공개 조회 경로는 실제 컨트롤러 매핑별 `GET`·`HEAD`만 허용하고, 비회원 주문·예약처럼 공개 쓰기가 필요한 경로는
+  명시적으로 허용한다. 새 쓰기 메서드가 같은 경로 아래 추가돼도 자동 공개하지 않는다.
 - 컨트롤러는 Spring Security의 `@AuthenticationPrincipal`로 `AdminPrincipal` 또는 `CustomerPrincipal`을 직접 주입받고 필요한 ID를 애플리케이션 유스케이스에 전달한다. 회원 인증이 선택인 결제·클라이언트 모니터링 API는 nullable `CustomerPrincipal`로 게스트를 구분한다. `/api/v1/me`는 필터가 이미 조회한 회원 응답 스냅샷을 principal에서 재사용해 중복 조회를 피한다.
 
 ### 2. 관리자 인증은 Redis 기반 Bearer 세션을 기본으로 한다
@@ -59,6 +65,9 @@
 
 - 로그인/회원가입 성공 시 `HttpSession`에 `customerUserId`, `customerCredentialVersion`, `userId:credentialVersion` 형식의 Spring Session principal 인덱스를 기록한다.
 - 세션 저장소는 회원·자격 증명 버전별 세션 조회를 지원하는 Spring Session `RedisIndexedSessionRepository`를 사용한다.
+- `spring-boot-starter-session-data-redis` 자동 구성을 사용한다. 별도
+  `@EnableRedisIndexedHttpSession` 없이 `spring.session.data.redis.repository-type=indexed`,
+  namespace와 flush mode, `spring.session.timeout`을 설정의 단일 기준으로 둔다.
 - 쿠키 이름은 `HG_SESSION`을 유지한다.
 - 세션 네임스페이스는 `hg:session`, 기본 만료는 7일이다.
 - 회원 인증이 필요하거나 선택적으로 사용되는 요청마다 `customerUserId`에 해당하는 회원을 확인하고 DB의 `credential_version`과 세션의 `customerCredentialVersion`이 같을 때만 회원 principal과 `SecurityContext`를 구성한다.
@@ -83,6 +92,7 @@
 - Spring Security의 기본 cache-control writer는 비활성화한다.
 - 공개 상품·클래스·공지 API의 ETag와 `304 Not Modified` 계약을 유지한다.
 - 관리자 전체, 인증, 회원, 결제, 비회원 복구, 비밀 상품 Q&A 비밀번호 확인과 `X-Access-Token` 요청에는 중앙 matcher로 `Cache-Control: no-store`를 명시한다.
+- 중앙 matcher가 보호하는 응답은 컨트롤러에서 같은 헤더를 반복 설정하지 않는다.
 - 다른 기본 보안 응답 헤더는 Spring Security 기준을 따른다.
 
 ### 6. API key는 로컬과 테스트용 폴백으로만 허용한다

@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.FormHttpMessageConverter;
@@ -28,7 +29,6 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestOperations;
-import org.springframework.web.client.RestTemplate;
 
 @Configuration(proxyBeanMethods = false)
 class SocialOAuth2ClientConfig {
@@ -54,12 +54,13 @@ class SocialOAuth2ClientConfig {
 
     @Bean
     OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> socialOAuth2AccessTokenResponseClient(
+            RestClient.Builder builder,
             @Qualifier("googleOAuthHttpClient") CloseableHttpClient googleHttpClient,
             @Qualifier("naverOAuthHttpClient") CloseableHttpClient naverHttpClient) {
         OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> google =
-                tokenResponseClient(googleHttpClient, false);
+                tokenResponseClient(builder.clone(), googleHttpClient, false);
         OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> naver =
-                tokenResponseClient(naverHttpClient, true);
+                tokenResponseClient(builder.clone(), naverHttpClient, true);
 
         return request -> switch (request.getClientRegistration().getRegistrationId()) {
             case GOOGLE -> google.getTokenResponse(request);
@@ -70,18 +71,20 @@ class SocialOAuth2ClientConfig {
 
     @Bean
     OAuth2UserService<OAuth2UserRequest, OAuth2User> naverOAuth2UserService(
+            RestTemplateBuilder builder,
             @Qualifier("naverOAuthHttpClient") CloseableHttpClient httpClient) {
         DefaultOAuth2UserService userService = new DefaultOAuth2UserService();
-        userService.setRestOperations(userInfoRestOperations(httpClient));
+        userService.setRestOperations(userInfoRestOperations(builder, httpClient));
         userService.setAttributesConverter(request -> attributes -> flattenNaverResponse(attributes));
         return userService;
     }
 
     @Bean
     OAuth2UserService<OidcUserRequest, OidcUser> googleOidcUserService(
+            RestTemplateBuilder builder,
             @Qualifier("googleOAuthHttpClient") CloseableHttpClient httpClient) {
         DefaultOAuth2UserService userInfoService = new DefaultOAuth2UserService();
-        userInfoService.setRestOperations(userInfoRestOperations(httpClient));
+        userInfoService.setRestOperations(userInfoRestOperations(builder, httpClient));
 
         OidcUserService oidcUserService = new OidcUserService();
         oidcUserService.setOauth2UserService(userInfoService);
@@ -89,10 +92,10 @@ class SocialOAuth2ClientConfig {
     }
 
     private OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> tokenResponseClient(
-            CloseableHttpClient httpClient, boolean includeState) {
+            RestClient.Builder builder, CloseableHttpClient httpClient, boolean includeState) {
         RestClientAuthorizationCodeTokenResponseClient client =
                 new RestClientAuthorizationCodeTokenResponseClient();
-        client.setRestClient(tokenRestClient(httpClient));
+        client.setRestClient(tokenRestClient(builder, httpClient));
         if (includeState) {
             client.addParametersConverter(request -> {
                 LinkedMultiValueMap<String, String> parameters = new LinkedMultiValueMap<>();
@@ -104,10 +107,10 @@ class SocialOAuth2ClientConfig {
         return client;
     }
 
-    private RestClient tokenRestClient(CloseableHttpClient httpClient) {
-        return RestClient.builder()
+    private RestClient tokenRestClient(RestClient.Builder builder, CloseableHttpClient httpClient) {
+        return builder
                 .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
-                .configureMessageConverters(builder -> builder
+                .configureMessageConverters(convertersBuilder -> convertersBuilder
                         .configureMessageConvertersList(converters -> {
                             converters.clear();
                             converters.add(new FormHttpMessageConverter());
@@ -117,10 +120,11 @@ class SocialOAuth2ClientConfig {
                 .build();
     }
 
-    private RestOperations userInfoRestOperations(CloseableHttpClient httpClient) {
-        RestTemplate restTemplate = new RestTemplate(pooledHttpClientFactory.requestFactory(httpClient));
-        restTemplate.setErrorHandler(new OAuth2ErrorResponseErrorHandler());
-        return restTemplate;
+    private RestOperations userInfoRestOperations(RestTemplateBuilder builder, CloseableHttpClient httpClient) {
+        return builder
+                .requestFactory(() -> pooledHttpClientFactory.requestFactory(httpClient))
+                .errorHandler(new OAuth2ErrorResponseErrorHandler())
+                .build();
     }
 
     private Map<String, Object> flattenNaverResponse(Map<String, Object> attributes) {

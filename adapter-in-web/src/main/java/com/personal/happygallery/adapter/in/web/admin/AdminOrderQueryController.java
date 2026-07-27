@@ -9,12 +9,9 @@ import com.personal.happygallery.application.search.port.in.AdminOrderSearchUseC
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.order.OrderStatus;
-import jakarta.servlet.http.HttpServletResponse;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,9 +33,7 @@ public class AdminOrderQueryController {
 
     /** GET /api/v1/admin/orders/{id}/fulfillment — 수령 방식과 배송지 스냅샷 조회 */
     @GetMapping("/{id}/fulfillment")
-    public AdminOrderFulfillmentResponse getFulfillment(@PathVariable Long id,
-                                                        HttpServletResponse response) {
-        response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.noStore().getHeaderValue());
+    public AdminOrderFulfillmentResponse getFulfillment(@PathVariable Long id) {
         return adminOrderQueryUseCase.getFulfillment(id);
     }
 

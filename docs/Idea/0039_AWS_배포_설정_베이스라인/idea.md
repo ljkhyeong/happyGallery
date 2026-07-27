@@ -481,7 +481,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 | `REDIS_HOST` | Redis endpoint |
 | `REDIS_PORT` | Redis 포트 |
 | `MANAGEMENT_PORT=8080` | 초기 ALB 헬스 체크 단순화를 위해 actuator를 앱 포트와 동일하게 맞춤 |
-| `RATE_LIMIT_TRUST_FORWARDED=true` | ALB/CloudFront 뒤 실제 IP 기준 처리율 제한 유지 |
+| `FORWARD_HEADERS_STRATEGY=native` | 통제된 프록시가 정규화한 실제 IP를 Servlet `remoteAddr`에 반영 |
 | `SENTRY_ENVIRONMENT=production` | 백엔드 Sentry 환경값 |
 | `SENTRY_RELEASE` | 백엔드 배포 버전/commit 추적 |
 | `PASS_TOTAL_PRICE=240000` | 8회권 결제 금액. 운영 가격 변경 시 명시 주입 |

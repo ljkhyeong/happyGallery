@@ -30,7 +30,7 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 
 ## 1. 외부 전제
 
-- Linux 노트북 한 대에 단일 노드 k3s, Docker, Git, Java 21, Ruby, Trivy, `age`, `curl`을 설치한다.
+- Linux 노트북 한 대에 단일 노드 k3s, Docker, Git, Java 25, Ruby, Trivy, `age`, `curl`을 설치한다.
 - k3s는 `secrets-encryption: true`로 설치하고 `/etc/rancher/k3s/k3s.yaml`을 root 또는 지정 운영자만 읽게 한다.
 - k3s 기본 Traefik과 local-path provisioner를 사용한다. 다른 Ingress/StorageClass를 쓰려면 manifest와 검증 스크립트를 함께 변경한다.
 - cert-manager `v1.20.2` 정적 manifest를 공식 release에서 받아 출처와 checksum/signature를 검증해 노트북에 보관한다.

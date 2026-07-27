@@ -1,6 +1,7 @@
 # ADR-0031: Repository 쿼리 언어 선택 기준
 
 **날짜**: 2026-05-05
+**최종 갱신**: 2026-07-27
 **상태**: Accepted
 
 ---
@@ -48,6 +49,15 @@ JPQL로 표현이 불가능하거나 옵티마이저가 복합 인덱스를 못 
 - `BookingRepository`: 커서 페이지네이션 요건이 아직 없어 JPQL로 충분하다.
 
 요건이 생기지 않은 곳을 "스타일 통일" 명목으로 native로 바꾸지 않는다. 반대로, 새 요건이 생기면 위 2번 기준에 해당할 때만 native로 간다.
+
+### 5. MyBatis 런타임은 Spring Boot 공식 통합 조합을 사용한다
+
+- Spring Boot 4.1에서는 `mybatis-spring-boot-starter:4.1.0`으로 MyBatis-Spring 4.1 호환 조합을 사용한다.
+- MyBatis core와 MyBatis-Spring 버전을 각각 직접 고정하지 않는다.
+- mapper 위치, underscore-to-camel-case와 cache 설정은 Boot의 `mybatis.*` 속성으로 관리하고
+  애플리케이션이 `SqlSessionFactoryBean`을 다시 구성하지 않는다.
+- 이 결정은 MyBatis를 JPA로 대체한다는 뜻이 아니다. 대시보드 집계와 관리자 검색의 명시적 SQL은
+  이 ADR의 쿼리 선택 기준에 따라 계속 MyBatis가 소유한다.
 
 ---
 

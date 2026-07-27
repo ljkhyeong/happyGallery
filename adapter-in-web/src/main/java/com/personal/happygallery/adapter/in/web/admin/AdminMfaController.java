@@ -8,9 +8,7 @@ import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaStatusResponse
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.admin.port.in.AdminMfaUseCase;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -42,9 +40,7 @@ public class AdminMfaController {
     @PostMapping("/enrollment")
     @Operation(operationId = "beginAdminMfaEnrollment")
     public AdminMfaEnrollmentResponse beginEnrollment(
-            @AuthenticationPrincipal AdminPrincipal admin,
-            HttpServletResponse response) {
-        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+            @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminMfaEnrollmentResponse.from(
                 adminMfaUseCase.beginEnrollment(admin.requireBearerAdminUserId()));
     }
@@ -53,9 +49,7 @@ public class AdminMfaController {
     @Operation(operationId = "confirmAdminMfaEnrollment")
     public AdminMfaRecoveryCodesResponse confirmEnrollment(
             @AuthenticationPrincipal AdminPrincipal admin,
-            @RequestBody @Valid AdminMfaCodeRequest request,
-            HttpServletResponse response) {
-        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+            @RequestBody @Valid AdminMfaCodeRequest request) {
         return AdminMfaRecoveryCodesResponse.from(
                 adminMfaUseCase.confirmEnrollment(
                         admin.requireBearerAdminUserId(), request.code()));

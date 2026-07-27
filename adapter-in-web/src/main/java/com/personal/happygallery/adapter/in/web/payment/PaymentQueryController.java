@@ -9,9 +9,6 @@ import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryU
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.time.TimeBoundary;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,12 +36,10 @@ public class PaymentQueryController {
     public PaymentStatusResponse getStatus(
             @PathVariable String orderId,
             @RequestHeader(value = PAYMENT_STATUS_TOKEN_HEADER, required = false) String statusToken,
-            @AuthenticationPrincipal CustomerPrincipal customer,
-            HttpServletResponse response) {
+            @AuthenticationPrincipal CustomerPrincipal customer) {
         AuthContext auth = customer == null
                 ? AuthContext.guest()
                 : AuthContext.member(customer.userId());
-        response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.noStore().getHeaderValue());
         return PaymentStatusResponse.from(statusQueryUseCase.getStatus(orderId, auth, statusToken));
     }
 

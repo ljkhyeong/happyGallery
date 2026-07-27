@@ -64,9 +64,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class PublicApiRestDocsTest extends RestDocsTestSupport {
 
@@ -351,8 +350,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                   }
                                 }
                                 """))
-                .andExpect(status().isOk())
-                .andExpect(header().string("Cache-Control", "no-store"));
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -372,7 +370,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/orders/{id}", 200L)
                         .header("X-Access-Token", "guest-access-token"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.orderNumber").value("ORD-00000200"));
     }
 
@@ -412,7 +409,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.statusToken").value("recovered-payment-status-token"))
                 .andExpect(jsonPath("$.payments[0].orderId").value("pay_20260501_0001"))
                 .andExpect(jsonPath("$.payments[0].status").value("REFUNDING"));
@@ -438,8 +434,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                   }
                                 }
                                 """))
-                .andExpect(status().isOk())
-                .andExpect(header().string("Cache-Control", "no-store"));
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -455,8 +450,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                   "amount": 39000
                                 }
                                 """))
-                .andExpect(status().isOk())
-                .andExpect(header().string("Cache-Control", "no-store"));
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -465,7 +459,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/payments/{orderId}", "pay_20260501_0001")
                 .with(customerUser()))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.status").value("REFUNDING"));
     }
 

@@ -29,9 +29,10 @@ class NotificationRestClientConfig {
     }
 
     @Bean
-    RestClient alimtalkRestClient(AlimtalkNotificationProperties props,
+    RestClient alimtalkRestClient(RestClient.Builder builder,
+                                  AlimtalkNotificationProperties props,
                                   @Qualifier("alimtalkHttpClient") CloseableHttpClient httpClient) {
-        return RestClient.builder()
+        return builder
                 .baseUrl(props.baseUrl())
                 .defaultHeaders(headers -> headers.setContentType(MediaType.APPLICATION_JSON))
                 .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
@@ -44,9 +45,10 @@ class NotificationRestClientConfig {
     }
 
     @Bean
-    RestClient smsRestClient(SmsNotificationProperties props,
+    RestClient smsRestClient(RestClient.Builder builder,
+                             SmsNotificationProperties props,
                              @Qualifier("smsHttpClient") CloseableHttpClient httpClient) {
-        return RestClient.builder()
+        return builder
                 .baseUrl(props.baseUrl())
                 .defaultHeaders(headers -> headers.setContentType(MediaType.APPLICATION_JSON))
                 .defaultHeader("X-Secret-Key", props.apiSecret())

@@ -5,7 +5,6 @@ import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaVerificationRe
 import com.personal.happygallery.adapter.in.web.admin.dto.LoginRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.LoginResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -28,19 +27,13 @@ public class AdminLoginController {
 
     @PostMapping("/login")
     @Operation(operationId = "adminLogin")
-    public LoginResponse login(
-            @RequestBody @Valid LoginRequest request,
-            HttpServletResponse response) {
-        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+    public LoginResponse login(@RequestBody @Valid LoginRequest request) {
         return LoginResponse.from(adminAuthUseCase.login(request.username(), request.password()));
     }
 
     @PostMapping("/mfa/verify")
     @Operation(operationId = "verifyAdminMfa")
-    public LoginResponse verifyMfa(
-            @RequestBody @Valid AdminMfaVerificationRequest request,
-            HttpServletResponse response) {
-        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+    public LoginResponse verifyMfa(@RequestBody @Valid AdminMfaVerificationRequest request) {
         return LoginResponse.from(
                 adminAuthUseCase.verifyMfa(request.challengeToken(), request.code()));
     }

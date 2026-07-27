@@ -65,7 +65,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -418,7 +417,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void get_my_order() throws Exception {
         mockMvc.perform(get("/api/v1/me/orders/{id}", 200L).with(customerUser()))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.orderNumber").value("ORD-00000200"));
     }
 

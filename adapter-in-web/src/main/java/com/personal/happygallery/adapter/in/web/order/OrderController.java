@@ -6,9 +6,6 @@ import com.personal.happygallery.application.order.OrderPriceProperties;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase.OrderDetail;
 import com.personal.happygallery.domain.order.MadeToOrderConsent;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -45,9 +42,7 @@ public class OrderController {
     /** GET /api/v1/orders/{id} — 주문 상세 조회 (X-Access-Token 헤더) */
     @GetMapping("/{id}")
     public OrderDetailResponse getOrder(@PathVariable Long id,
-                                        @RequestHeader("X-Access-Token") String token,
-                                        HttpServletResponse response) {
-        response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.noStore().getHeaderValue());
+                                        @RequestHeader("X-Access-Token") String token) {
         OrderDetail detail = orderQueryUseCase.getOrderByToken(id, token);
         return OrderDetailResponse.from(detail);
     }

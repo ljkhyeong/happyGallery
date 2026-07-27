@@ -98,7 +98,9 @@ class CustomerAuthUseCaseIT {
                 .andExpect(jsonPath("$.phoneVerified").value(true))
                 .andExpect(jsonPath("$.provider").doesNotExist())
                 .andExpect(cookie().exists("HG_SESSION"))
-                .andExpect(cookie().httpOnly("HG_SESSION", true));
+                .andExpect(cookie().httpOnly("HG_SESSION", true))
+                .andExpect(cookie().secure("HG_SESSION", true))
+                .andExpect(cookie().sameSite("HG_SESSION", "lax"));
 
         Long userId = userReader.findByEmail("test@example.com").orElseThrow().getId();
         assertThat(policyConsentRepository.findByUserIdOrderById(userId))

@@ -275,6 +275,8 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 - 모든 `/api/v1/**` 요청은 IP 기준 기본 처리율 제한을 적용하고, 인증·결제·검증처럼 비용이 큰 경로는 더 엄격한 독립 버킷을 사용한다.
 - 인증 코드 발송·회원가입 코드 시도, 고객 로그인, 결제 확정과 비회원 이력 인증은 검증된 전화번호·정규화 이메일·주문번호·회원 ID 기준 제한도 함께 적용한다.
 - Redis 처리율 제한 버킷은 IP, 전화번호, 이메일, 주문번호 또는 회원 ID 원문 대신 HMAC 식별자를 사용한다.
+- IP 식별자는 서버가 통제된 ingress 전달 헤더를 반영해 정규화한 `remoteAddr`만 사용한다.
+  처리율 제한 코드가 `X-Forwarded-For`를 별도로 파싱하지 않는다.
 - 제한 초과는 `429 TOO_MANY_REQUESTS`와 `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` 헤더를 반환한다.
 - Redis 장애 시 일반 API와 결제 확정은 제한만 건너뛰며, 인증·관리·결제 준비·비밀번호 확인과 비용이 큰 쓰기 API는 `503 SERVICE_UNAVAILABLE`, `Retry-After: 1`을 반환한다.
 - 로그인·회원가입·관리자 로그인 클라이언트는 실패를 `boolean`으로 축약하지 않고 공통 `ErrorResponse`의 코드를 표시 규칙에 전달한다. 따라서 `401`, `409`, `429`, `503`을 자격 증명 오류 하나로 오인하지 않는다.
@@ -3082,7 +3084,9 @@ file={JPEG|PNG|WebP binary}
 ```
 
 - `requestId`는 선택 필드다.
-- HTTP 요청은 `RequestIdFilter`에서 생성된 값을 그대로 내려주고, 배치 실행 오류는 `batch-*` 형식 `requestId`를 사용한다.
+- HTTP 요청은 클라이언트 `X-Request-Id`가 UUID 또는 최대 64자의 안전한 ASCII 토큰이면 그대로
+  내려주고, 없거나 형식이 안전하지 않으면 `RequestIdFilter`가 새 UUID를 생성한다.
+  배치 실행 오류는 `batch-*` 형식 `requestId`를 사용한다.
 
 ### 3.2 HTTP 상태코드 × 에러 코드 목록
 

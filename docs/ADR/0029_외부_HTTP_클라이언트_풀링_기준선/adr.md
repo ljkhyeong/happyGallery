@@ -1,6 +1,7 @@
 # ADR-0029: 외부 HTTP 클라이언트 풀 설정
 
 **날짜**: 2026-03-29  
+**최종 갱신**: 2026-07-27
 **상태**: Accepted
 
 ---
@@ -19,6 +20,10 @@ Toss Payments confirm/cancel 호출도 같은 외부 HTTP 경계에 포함된다
 
 - 일반 외부 API는 `RestClient`, OAuth token 교환은 Spring Security의 `RestClientAuthorizationCodeTokenResponseClient`, OAuth UserInfo는 `DefaultOAuth2UserService`를 사용한다.
 - 각 클라이언트의 request factory를 `HttpComponentsClientHttpRequestFactory`로 바꾼다.
+- `RestClient`와 `RestTemplate`은 각각 Spring Boot가 자동 구성한 prototype `RestClient.Builder`와
+  `RestTemplateBuilder`에서 생성한다. 서비스별 request factory, 인증 헤더, 메시지 converter와 오류
+  handler는 builder에 추가하되 Boot의 HTTP message converter, customizer와 `http.client.requests`
+  observation을 우회하지 않는다.
 - 풀은 서비스별로 분리한다.
   - NHN Cloud Alimtalk
   - NHN SMS
@@ -54,6 +59,7 @@ Toss Payments confirm/cancel 호출도 같은 외부 HTTP 경계에 포함된다
 - 연결 재사용과 동시성 제한이 가능해진다.
 - 한 서비스의 지연이 다른 서비스로 번지는 범위를 줄일 수 있다.
 - 운영 튜닝 포인트가 분명해진다.
+- 외부 호출의 공통 Micrometer 관측성과 Boot HTTP client customization이 서비스별 풀에도 유지된다.
 
 ### 단점
 
