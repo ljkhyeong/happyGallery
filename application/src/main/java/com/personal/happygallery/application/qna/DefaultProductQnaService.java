@@ -21,9 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import static java.util.stream.Collectors.toMap;
@@ -36,7 +34,6 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     private final ProductReaderPort productReader;
     private final UserReaderPort userReader;
     private final Clock clock;
-    private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher eventPublisher;
 
     public DefaultProductQnaService(ProductQnaReaderPort qnaReader,
@@ -44,28 +41,28 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
                                     ProductReaderPort productReader,
                                     UserReaderPort userReader,
                                     Clock clock,
-                                    PasswordEncoder passwordEncoder,
                                     ApplicationEventPublisher eventPublisher) {
         this.qnaReader = qnaReader;
         this.qnaStore = qnaStore;
         this.productReader = productReader;
         this.userReader = userReader;
         this.clock = clock;
-        this.passwordEncoder = passwordEncoder;
         this.eventPublisher = eventPublisher;
     }
 
     @Override
     @Transactional
     public ProductQna createQuestion(Long productId, Long userId, String title, String content,
-                                     boolean secret, String rawPassword) {
+                                     boolean secret) {
         productReader.findById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
-        if (secret && !StringUtils.hasText(rawPassword)) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비밀글 비밀번호를 입력해주세요.");
-        }
-        String hash = secret ? passwordEncoder.encode(rawPassword) : null;
-        return qnaStore.save(new ProductQna(productId, userId, title, content, secret, hash));
+        return qnaStore.save(new ProductQna(productId, userId, title, content, secret));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductQna> listOwnedByProduct(Long productId, Long userId) {
+        return qnaReader.findOwnedByProduct(productId, userId);
     }
 
     @Override
@@ -101,22 +98,16 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
         if (qna.isSecret()) {
             throw new HappyGalleryException(
                     ErrorCode.FORBIDDEN,
-                    "비밀글은 비밀번호 확인 후 조회할 수 있습니다.");
+                    "비밀글은 작성자만 조회할 수 있습니다.");
         }
         return withAuthor(qna);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public QnaWithAuthor verifyAndGet(Long productId, Long qnaId, String rawPassword) {
-        ProductQna qna = findByProduct(productId, qnaId);
-        if (qna.isSecret()) {
-            if (!StringUtils.hasText(rawPassword)
-                    || !StringUtils.hasText(qna.getPasswordHash())
-                    || !passwordEncoder.matches(rawPassword, qna.getPasswordHash())) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비밀번호가 일치하지 않습니다.");
-            }
-        }
+    public QnaWithAuthor getOwnedDetail(Long productId, Long qnaId, Long userId) {
+        ProductQna qna = qnaReader.findByIdAndProductIdAndUserId(qnaId, productId, userId)
+                .orElseThrow(NotFoundException.supplier("Q&A"));
         return withAuthor(qna);
     }
 

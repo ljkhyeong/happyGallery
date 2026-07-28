@@ -23,7 +23,7 @@ class SocialAccountLinkIntentStoreTest {
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-07-21T00:00:00Z"), ZoneOffset.UTC);
     private final SocialAccountLinkIntentStore store = new SocialAccountLinkIntentStore(clock);
-    private final SocialPolicyConsentStore policyConsentStore = new SocialPolicyConsentStore(clock);
+    private final SocialSignupIntentStore signupIntentStore = new SocialSignupIntentStore(clock);
 
     @DisplayName("연결 시작 요청은 Spring이 생성한 OAuth state와 결합한 뒤 같은 회원 callback에서만 소비한다")
     @Test
@@ -34,7 +34,7 @@ class SocialAccountLinkIntentStoreTest {
         var resolver = new SocialOAuth2AuthorizationRequestResolver(
                 new InMemoryClientRegistrationRepository(googleRegistration()),
                 store,
-                policyConsentStore);
+                signupIntentStore);
 
         var oauthRequest = resolver.resolve(authorizationRequest);
         MockHttpServletRequest callbackRequest = callbackRequest(

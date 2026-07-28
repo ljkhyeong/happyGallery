@@ -4,6 +4,7 @@ import com.personal.happygallery.application.admin.port.AdminSession;
 import com.personal.happygallery.application.admin.port.out.AdminSessionPort;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.support.UseCaseIT;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,6 +32,7 @@ class AdminSessionStoreUseCaseIT {
     @Autowired StringRedisTemplate redisTemplate;
     @Autowired BlindIndexer blindIndexer;
     @Autowired Clock clock;
+    @Autowired MeterRegistry meterRegistry;
 
     @AfterEach
     void tearDown() {
@@ -79,5 +81,27 @@ class AdminSessionStoreUseCaseIT {
                 .hasMessage("관리자 세션 Redis 저장 실패");
 
         assertThat(redisTemplate.keys("admin:session:*")).isEqualTo(sessionKeysBefore);
+    }
+
+    @DisplayName("손상된 관리자 세션은 인증하지 않고 검증 실패를 계측한다")
+    @Test
+    void validate_corruptedPayload_failsClosedAndCountsFailure() {
+        String token = adminSessionPort.create(
+                ADMIN_USER_ID, "operator", CREDENTIAL_VERSION, true);
+        String sessionKey = "admin:session:" + blindIndexer.index(token);
+        double failuresBefore = meterRegistry.counter(
+                "happygallery.admin.session.validation.failures").count();
+        redisTemplate.opsForValue().set(sessionKey, "corrupted-payload");
+
+        try {
+            assertSoftly(softly -> {
+                softly.assertThat(adminSessionPort.validate(token)).isEmpty();
+                softly.assertThat(meterRegistry.counter(
+                                "happygallery.admin.session.validation.failures").count())
+                        .isEqualTo(failuresBefore + 1);
+            });
+        } finally {
+            adminSessionPort.removeAll(ADMIN_USER_ID, CREDENTIAL_VERSION);
+        }
     }
 }

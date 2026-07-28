@@ -172,7 +172,7 @@ class ResilientNotificationSenderTest {
     void notificationChannels_useIsolatedExecutorsAndMetrics() {
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
-        BoundedExecutorFactory executorFactory = new BoundedExecutorFactory(meterRegistry);
+        BoundedExecutorFactory executorFactory = new BoundedExecutorFactory(meterRegistry, task -> task);
 
         ExecutorService alimtalk = register(config.alimtalkNotificationTimeoutExecutor(
                 properties, executorFactory));
@@ -207,7 +207,7 @@ class ResilientNotificationSenderTest {
                                                       NotificationResilienceProperties properties) {
         ExecutorService timeoutExecutor = register(config.alimtalkNotificationTimeoutExecutor(
                 properties,
-                new BoundedExecutorFactory(meterRegistry)));
+                new BoundedExecutorFactory(meterRegistry, task -> task)));
         return new ResilientNotificationSender(
                 delegate,
                 circuitBreaker,

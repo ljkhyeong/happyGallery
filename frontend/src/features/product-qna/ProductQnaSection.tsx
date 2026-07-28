@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "react-bootstrap";
-import { fetchProductQna } from "./api";
+import { fetchMyProductQna, fetchProductQna } from "./api";
 import { QnaItem } from "./QnaItem";
 import { QnaCreateForm } from "./QnaCreateForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { LoadingSpinner, EmptyState } from "@/shared/ui";
+import { LoadingSpinner, EmptyState, ErrorAlert } from "@/shared/ui";
 
 interface Props {
   productId: number;
@@ -17,6 +17,13 @@ export function ProductQnaSection({ productId }: Props) {
     queryKey: ["product-qna", productId],
     queryFn: () => fetchProductQna(productId),
   });
+  const { data: myQnaList, error: myQnaError } = useQuery({
+    queryKey: ["my-product-qna", productId],
+    queryFn: () => fetchMyProductQna(productId),
+    enabled: isAuthenticated,
+  });
+  const ownedQnaIds = new Set(myQnaList?.map((qna) => qna.id));
+  const ownershipLoaded = !isAuthenticated || myQnaList !== undefined;
 
   return (
     <Card className="mt-4">
@@ -32,8 +39,15 @@ export function ProductQnaSection({ productId }: Props) {
           <EmptyState message="등록된 Q&A가 없습니다." />
         )}
 
+        {isAuthenticated && <ErrorAlert error={myQnaError} />}
+
         {qnaList?.map((item) => (
-          <QnaItem key={item.id} item={item} productId={productId} />
+          <QnaItem
+            key={item.id}
+            item={item}
+            productId={productId}
+            owned={ownershipLoaded ? ownedQnaIds.has(item.id) : undefined}
+          />
         ))}
 
         {!isAuthenticated && (

@@ -7,14 +7,16 @@ import java.util.List;
 /**
  * 상품 Q&A 유스케이스.
  *
- * <p>고객 질문 등록·비밀글 열람과 운영자 답변을 지원한다.
+ * <p>고객 질문 등록·작성자 전용 비밀글 열람과 운영자 답변을 지원한다.
  */
 public interface ProductQnaUseCase {
 
     record QnaWithAuthor(ProductQna qna, String authorName) {}
 
     ProductQna createQuestion(Long productId, Long userId, String title, String content,
-                              boolean secret, String rawPassword);
+                              boolean secret);
+
+    List<ProductQna> listOwnedByProduct(Long productId, Long userId);
 
     List<QnaWithAuthor> listByProduct(Long productId);
 
@@ -22,7 +24,7 @@ public interface ProductQnaUseCase {
 
     QnaWithAuthor getPublicDetail(Long productId, Long qnaId);
 
-    QnaWithAuthor verifyAndGet(Long productId, Long qnaId, String rawPassword);
+    QnaWithAuthor getOwnedDetail(Long productId, Long qnaId, Long userId);
 
     QnaWithAuthor replyAndGet(Long qnaId, String replyContent, Long adminId);
 }

@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Card, Badge, Button, Form, InputGroup } from "react-bootstrap";
+import { Card, Badge, Button } from "react-bootstrap";
 import { useMutation } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { fetchProductQnaDetail, verifyQnaPassword } from "./api";
+import { fetchMyProductQnaDetail, fetchProductQnaDetail } from "./api";
 import { ErrorAlert } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 import type { ProductQnaListItem, ProductQnaDetail } from "@/shared/types";
@@ -10,22 +10,16 @@ import type { ProductQnaListItem, ProductQnaDetail } from "@/shared/types";
 interface Props {
   item: ProductQnaListItem;
   productId: number;
+  owned?: boolean;
 }
 
-export function QnaItem({ item, productId }: Props) {
+export function QnaItem({ item, productId, owned }: Props) {
   const [detail, setDetail] = useState<ProductQnaDetail | null>(null);
-  const [password, setPassword] = useState("");
-
-  const verifyMutation = useMutation({
-    mutationFn: () => verifyQnaPassword(productId, item.id, password),
-    onSuccess: (verifiedDetail) => {
-      setDetail(verifiedDetail);
-      setPassword("");
-    },
-  });
 
   const detailMutation = useMutation({
-    mutationFn: () => fetchProductQnaDetail(productId, item.id),
+    mutationFn: () => item.secret
+      ? fetchMyProductQnaDetail(productId, item.id)
+      : fetchProductQnaDetail(productId, item.id),
     onSuccess: setDetail,
   });
 
@@ -52,24 +46,26 @@ export function QnaItem({ item, productId }: Props) {
 
         {isLocked && (
           <div className="mt-2">
-            <Form onSubmit={(e) => { e.preventDefault(); verifyMutation.mutate(); }}>
-              <InputGroup size="sm">
-                <Form.Control
-                  type="password"
-                  placeholder="비밀번호를 입력하세요"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+            {owned === true && (
+              <>
                 <Button
-                  variant="outline-secondary"
-                  type="submit"
-                  disabled={!password || verifyMutation.isPending}
+                  size="sm"
+                  variant="link"
+                  className="p-0"
+                  disabled={detailMutation.isPending}
+                  onClick={() => detailMutation.mutate()}
                 >
-                  확인
+                  <ChevronDown size={14} aria-hidden="true" />
+                  <span className="ms-1">
+                    {detailMutation.isPending ? "불러오는 중..." : "작성자 전용 내용 보기"}
+                  </span>
                 </Button>
-              </InputGroup>
-            </Form>
-            <ErrorAlert error={verifyMutation.error} />
+                <ErrorAlert error={detailMutation.error} />
+              </>
+            )}
+            {owned === false && (
+              <span className="text-muted-soft small">작성자만 볼 수 있는 비밀글입니다.</span>
+            )}
           </div>
         )}
 
@@ -85,7 +81,7 @@ export function QnaItem({ item, productId }: Props) {
           </div>
         )}
 
-        {!item.secret && (
+        {(!item.secret || detail) && (
           <div className="mt-2">
             <Button
               size="sm"

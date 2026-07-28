@@ -74,6 +74,34 @@ groups:
         annotations:
           summary: "최근 5분 동안 PG 호출 대기열 거절이 발생했습니다 ({{ $value | printf \"%.0f\" }}건)"
 
+      - alert: DurableSignalExecutorRejected
+        expr: |
+          sum by (executor) (
+            increase(happygallery_async_executor_rejected_total{application="happygallery"}[5m])
+          ) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.executor }} 커밋 후 실행 신호가 거절되어 DB 복구 경로로 이관됐습니다 ({{ $value | printf \"%.0f\" }}건)"
+
+      - alert: DurableSignalExecutorQueueHigh
+        expr: |
+          max by (name) (
+            executor_queued_tasks{application="happygallery",name=~"notificationExecutor|refundExecutor"}
+            /
+            clamp_min(
+              executor_queued_tasks{application="happygallery",name=~"notificationExecutor|refundExecutor"}
+              + executor_queue_remaining_tasks{application="happygallery",name=~"notificationExecutor|refundExecutor"},
+              1
+            )
+          ) > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.name }} 커밋 후 실행 신호 대기열 사용률이 80%를 초과했습니다"
+
       - alert: PaymentCircuitBreakerOpen
         expr: |
           max by (name) (resilience4j_circuitbreaker_state{application="happygallery",name="paymentProvider",state="open"}) == 1
@@ -193,6 +221,14 @@ groups:
           severity: warning
         annotations:
           summary: "외부 알림 결과의 감사 이력 저장이 실패했습니다 ({{ $value | printf \"%.0f\" }}건)"
+
+      - alert: AdminSessionValidationFailed
+        expr: increase(happygallery_admin_session_validation_failures_total{application="happygallery"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "저장된 관리자 세션 복호화 또는 역직렬화가 실패했습니다"
 
       - alert: OrderApprovalPending
         expr: max(happygallery_order_approval_backlog_count{application="happygallery"}) > 0

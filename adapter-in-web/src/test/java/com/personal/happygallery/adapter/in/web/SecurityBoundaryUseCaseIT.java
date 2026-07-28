@@ -13,6 +13,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -170,10 +172,15 @@ class SecurityBoundaryUseCaseIT {
     }
 
     @DisplayName("잘못된 Bearer 토큰은 유효한 관리자 API key로 폴백하지 않는다")
-    @Test
-    void invalidBearer_doesNotFallBackToApiKey() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "Bearer invalid-token",
+            "bearer invalid-token",
+            "Bearer"
+    })
+    void invalidBearer_doesNotFallBackToApiKey(String authorization) throws Exception {
         mockMvc.perform(get("/api/v1/admin/products")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token")
+                        .header(HttpHeaders.AUTHORIZATION, authorization)
                         .header("X-Admin-Key", "dev-admin-key"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
@@ -214,7 +221,7 @@ class SecurityBoundaryUseCaseIT {
                 .asText();
 
         mockMvc.perform(get("/api/v1/admin/products")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .header(HttpHeaders.AUTHORIZATION, "bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     }
@@ -227,17 +234,6 @@ class SecurityBoundaryUseCaseIT {
 
         mockMvc.perform(get("/api/v1/me").cookie(customerSession))
                 .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
-    }
-
-    @DisplayName("비밀 상품 Q&A 비밀번호 확인 응답에는 중앙 캐시 금지 정책을 적용한다")
-    @Test
-    void privateProductQnaVerification_disablesResponseCaching() throws Exception {
-        mockMvc.perform(post("/api/v1/products/1/qna/1/verify")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"password\":\"qna-secret\"}"))
-                .andExpect(status().isNotFound())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     }
 

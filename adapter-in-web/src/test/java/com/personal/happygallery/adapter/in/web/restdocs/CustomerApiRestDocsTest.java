@@ -162,8 +162,11 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(inquiryUseCase.create(eq(CUSTOMER_USER_ID), any(), any())).thenReturn(inquiry);
         when(inquiryUseCase.listByUser(CUSTOMER_USER_ID)).thenReturn(List.of(inquiry));
         when(inquiryUseCase.findByIdAndUser(9L, CUSTOMER_USER_ID)).thenReturn(inquiry);
-        when(qnaUseCase.createQuestion(eq(1L), eq(CUSTOMER_USER_ID), any(), any(), eq(false), any()))
+        when(qnaUseCase.createQuestion(eq(1L), eq(CUSTOMER_USER_ID), any(), any(), eq(false)))
                 .thenReturn(qna);
+        when(qnaUseCase.listOwnedByProduct(1L, CUSTOMER_USER_ID)).thenReturn(List.of(qna));
+        when(qnaUseCase.getOwnedDetail(1L, 5L, CUSTOMER_USER_ID))
+                .thenReturn(new ProductQnaUseCase.QnaWithAuthor(qna, "홍길동"));
 
         CustomerSessionBinder customerSessionBinder = new CustomerSessionBinder(mock(CsrfTokenRepository.class));
         mockMvc = mockMvc(restDocumentation,
@@ -550,11 +553,26 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                 {
                                   "title": "배송 문의",
                                   "content": "언제 받을 수 있나요?",
-                                  "secret": false,
-                                  "password": null
+                                  "secret": false
                                 }
                                 """))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("내 상품 QNA 목록 API를 문서화한다")
+    void list_my_product_qna() throws Exception {
+        mockMvc.perform(get("/api/v1/me/products/{productId}/qna", 1L)
+                        .with(customerUser()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("내 상품 QNA 상세 API를 문서화한다")
+    void get_my_product_qna() throws Exception {
+        mockMvc.perform(get("/api/v1/me/products/{productId}/qna/{id}", 1L, 5L)
+                        .with(customerUser()))
+                .andExpect(status().isOk());
     }
 
     private static GuestClaimUseCase.ClaimPreview claimPreview(boolean verified) {

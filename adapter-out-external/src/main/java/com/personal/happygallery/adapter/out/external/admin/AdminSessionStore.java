@@ -4,6 +4,8 @@ import com.personal.happygallery.application.admin.port.AdminSession;
 import com.personal.happygallery.application.admin.port.out.AdminSessionPort;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -11,6 +13,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -20,6 +24,7 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class AdminSessionStore implements AdminSessionPort {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminSessionStore.class);
     private static final Duration SESSION_TTL = Duration.ofHours(8);
     private static final String KEY_PREFIX = "admin:session:";
     private static final String ADMIN_INDEX_PREFIX = "admin:sessions:";
@@ -51,17 +56,22 @@ public class AdminSessionStore implements AdminSessionPort {
     private final Clock clock;
     private final BlindIndexer blindIndexer;
     private final FieldEncryptor fieldEncryptor;
+    private final Counter validationFailures;
 
     public AdminSessionStore(StringRedisTemplate redisTemplate,
                              ObjectMapper objectMapper,
                              Clock clock,
                              BlindIndexer blindIndexer,
-                             FieldEncryptor fieldEncryptor) {
+                             FieldEncryptor fieldEncryptor,
+                             MeterRegistry meterRegistry) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.clock = clock;
         this.blindIndexer = blindIndexer;
         this.fieldEncryptor = fieldEncryptor;
+        this.validationFailures = Counter.builder("happygallery.admin.session.validation.failures")
+                .description("저장된 관리자 세션 payload 복호화 또는 역직렬화 실패 횟수")
+                .register(meterRegistry);
     }
 
     @Override
@@ -111,6 +121,9 @@ public class AdminSessionStore implements AdminSessionPort {
             return Optional.of(objectMapper.readValue(
                     fieldEncryptor.decrypt(encrypted), AdminSession.class));
         } catch (Exception e) {
+            validationFailures.increment();
+            log.error("저장된 관리자 세션 검증 실패: 세션을 인증하지 않습니다. [type={}]",
+                    e.getClass().getSimpleName(), e);
             return Optional.empty();
         }
     }

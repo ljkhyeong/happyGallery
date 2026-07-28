@@ -31,9 +31,6 @@ public class ProductQna {
     @Column(nullable = false)
     private boolean secret;
 
-    @Column(name = "password_hash", length = 255)
-    private String passwordHash;
-
     @Column(name = "reply_content", columnDefinition = "TEXT")
     private String replyContent;
 
@@ -49,16 +46,12 @@ public class ProductQna {
     protected ProductQna() {}
 
     public ProductQna(Long productId, Long userId, String title, String content,
-                      boolean secret, String passwordHash) {
-        if (secret && (passwordHash == null || passwordHash.isBlank())) {
-            throw new IllegalArgumentException("비밀 Q&A에는 비밀번호 해시가 필요합니다.");
-        }
+                      boolean secret) {
         this.productId = productId;
         this.userId = userId;
         this.title = title;
         this.content = content;
         this.secret = secret;
-        this.passwordHash = passwordHash;
     }
 
     public void reply(String replyContent, Long adminId, LocalDateTime repliedAt) {
@@ -80,7 +73,6 @@ public class ProductQna {
     public String getTitle() { return title; }
     public String getContent() { return content; }
     public boolean isSecret() { return secret; }
-    public String getPasswordHash() { return passwordHash; }
     public String getReplyContent() { return replyContent; }
     public LocalDateTime getRepliedAt() { return repliedAt; }
     public Long getRepliedBy() { return repliedBy; }

@@ -26,15 +26,18 @@ export interface QnaReplyRequest {
   replyContent: string;
 }
 
+export interface MyProductQnaListItem {
+  createdAt: string;
+  hasReply: boolean;
+  id: number;
+  secret: boolean;
+  title: string;
+}
+
 export interface CreateQnaRequest {
   /** @minLength 1 */
   content: string;
-  /**
-     * @minLength 4
-     * @maxLength 20
-     */
-  password?: string;
-  secret?: boolean;
+  secret: boolean;
   /**
      * @minLength 0
      * @maxLength 200
@@ -46,15 +49,6 @@ export interface QnaCreatedResponse {
   createdAt: string;
   id: number;
   productId: number;
-  secret: boolean;
-  title: string;
-}
-
-export interface ProductQnaListItem {
-  authorName: string;
-  createdAt: string;
-  hasReply: boolean;
-  id: number;
   secret: boolean;
   title: string;
 }
@@ -73,9 +67,13 @@ export interface ProductQnaDetail {
   title: string;
 }
 
-export interface VerifyQnaPasswordRequest {
-  /** @minLength 1 */
-  password: string;
+export interface ProductQnaListItem {
+  authorName: string;
+  createdAt: string;
+  hasReply: boolean;
+  id: number;
+  secret: boolean;
+  title: string;
 }
 
 export type ListAdminProductQnaParams = {
@@ -165,6 +163,27 @@ export const replyProductQna = async (id: number,
 
 
 
+export const getListMyProductQnaUrl = (productId: number,) => {
+
+
+
+
+  return `/api/v1/me/products/${productId}/qna`
+}
+
+export const listMyProductQna = async (productId: number, options?: RequestInit): Promise<MyProductQnaListItem[]> => {
+
+  return generatedApiClient<MyProductQnaListItem[]>(getListMyProductQnaUrl(productId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getCreateProductQnaUrl = (productId: number,) => {
 
 
@@ -182,6 +201,29 @@ export const createProductQna = async (productId: number,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(createQnaRequest)
+  }
+);}
+
+
+
+export const getGetMyProductQnaUrl = (productId: number,
+    id: number,) => {
+
+
+
+
+  return `/api/v1/me/products/${productId}/qna/${id}`
+}
+
+export const getMyProductQna = async (productId: number,
+    id: number, options?: RequestInit): Promise<ProductQnaDetail> => {
+
+  return generatedApiClient<ProductQnaDetail>(getGetMyProductQnaUrl(productId,id),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 
@@ -226,29 +268,5 @@ export const getPublicProductQna = async (productId: number,
     method: 'GET'
 
 
-  }
-);}
-
-
-
-export const getVerifyProductQnaPasswordUrl = (productId: number,
-    id: number,) => {
-
-
-
-
-  return `/api/v1/products/${productId}/qna/${id}/verify`
-}
-
-export const verifyProductQnaPassword = async (productId: number,
-    id: number,
-    verifyQnaPasswordRequest: VerifyQnaPasswordRequest, options?: RequestInit): Promise<ProductQnaDetail> => {
-
-  return generatedApiClient<ProductQnaDetail>(getVerifyProductQnaPasswordUrl(productId,id),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(verifyQnaPasswordRequest)
   }
 );}

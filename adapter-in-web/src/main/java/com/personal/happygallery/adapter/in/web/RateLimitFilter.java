@@ -23,6 +23,7 @@ import static com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailur
 import static com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode.FAIL_OPEN;
 import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_PROVIDER_PATH;
 import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_CALLBACK_PROVIDER_PATH;
+import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_SIGNUP_INTENT_PROVIDER_PATH;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
@@ -51,13 +52,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "SOCIAL_LOGIN_IP", pathPattern(GET, SOCIAL_CALLBACK_PROVIDER_PATH), FAIL_CLOSED);
     private static final LimitRule SOCIAL_LOGIN_INIT_RULE = new LimitRule(
             "SOCIAL_LOGIN_INIT_IP",
-            pathPattern(GET, SOCIAL_AUTHORIZATION_PROVIDER_PATH), FAIL_CLOSED);
+            new OrRequestMatcher(
+                    pathPattern(GET, SOCIAL_AUTHORIZATION_PROVIDER_PATH),
+                    pathPattern(POST, SOCIAL_SIGNUP_INTENT_PROVIDER_PATH)),
+            FAIL_CLOSED);
     private static final LimitRule PAYMENT_PREPARE_RULE = new LimitRule(
             "PAYMENT_PREPARE_IP", pathPattern(POST, "/api/v1/payments/prepare"), FAIL_CLOSED);
     private static final LimitRule PAYMENT_CONFIRM_RULE = new LimitRule(
             "PAYMENT_CONFIRM_IP", pathPattern(POST, "/api/v1/payments/confirm"), FAIL_OPEN);
-    private static final LimitRule PRODUCT_QNA_VERIFY_RULE = new LimitRule(
-            "PRODUCT_QNA_VERIFY_IP", pathPattern(POST, "/api/v1/products/{productId}/qna/{id}/verify"), FAIL_CLOSED);
     private static final LimitRule GUEST_CLAIM_VERIFY_RULE = new LimitRule(
             "GUEST_CLAIM_VERIFY_IP", pathPattern(POST, "/api/v1/me/guest-claims/verify"), FAIL_CLOSED);
     private static final LimitRule GUEST_RECORD_RECOVERY_RULE = new LimitRule(
@@ -125,7 +127,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         if (decision.rejected()) {
             response.setHeader(HttpHeaders.RETRY_AFTER,
-                    String.valueOf(Math.max(1, decision.window().toSeconds())));
+                    String.valueOf(decision.retryAfterSeconds()));
             FilterErrorResponseWriter.write(response, objectMapper, ErrorCode.TOO_MANY_REQUESTS);
             return;
         }
@@ -163,9 +165,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if (matches(request, PAYMENT_CONFIRM_RULE)) {
             return new ResolvedRule(PAYMENT_CONFIRM_RULE, properties.ip().paymentConfirm());
-        }
-        if (matches(request, PRODUCT_QNA_VERIFY_RULE)) {
-            return new ResolvedRule(PRODUCT_QNA_VERIFY_RULE, properties.ip().productQnaVerify());
         }
         if (matches(request, GUEST_CLAIM_VERIFY_RULE)) {
             return new ResolvedRule(GUEST_CLAIM_VERIFY_RULE, properties.ip().guestClaimVerify());

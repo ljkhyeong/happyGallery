@@ -63,7 +63,7 @@ final class ResilientNotificationCall {
                 return unavailableResult;
             }
             log.warn("[{}] 발송 예외 [operation={} type={}]",
-                    channel, operation, cause.getClass().getSimpleName());
+                    channel, operation, cause.getClass().getSimpleName(), cause);
             return unknownResult;
         }
     }

@@ -7,7 +7,9 @@ import {
   SOCIAL_PROVIDERS,
   type SocialProvider,
 } from "@/features/customer-auth/socialAuth";
+import { startSocialSignup } from "@/generated/api/customerAccount";
 import type { PolicyAcceptance } from "@/features/policy-consent/types";
+import { ErrorAlert } from "@/shared/ui";
 
 interface SocialLoginButtonsProps {
   action: "로그인" | "회원가입";
@@ -21,23 +23,32 @@ export function SocialLoginButtons({
   policyAcceptance,
 }: SocialLoginButtonsProps) {
   const [startingProvider, setStartingProvider] = useState<SocialProvider | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
-  function startSocialLogin(provider: SocialProvider) {
+  async function startSocialLogin(provider: SocialProvider) {
+    const signupAcceptance = action === "회원가입" ? policyAcceptance : null;
+    if (action === "회원가입" && !signupAcceptance) {
+      return;
+    }
+
+    setError(null);
     setStartingProvider(provider);
-    sessionStorage.setItem(SESSION_KEYS.socialLoginReturnTo, resolveSafeReturnTo(returnTo));
-    const query = policyAcceptance
-      ? `?${new URLSearchParams({
-          termsVersion: policyAcceptance.termsVersion,
-          termsAccepted: String(policyAcceptance.termsAccepted),
-          privacyVersion: policyAcceptance.privacyVersion,
-          privacyAccepted: String(policyAcceptance.privacyAccepted),
-        })}`
-      : "";
-    window.location.assign(`/api/v1/auth/social/authorization/${provider}${query}`);
+    try {
+      let authorizationUrl = `/api/v1/auth/social/authorization/${provider}`;
+      if (signupAcceptance) {
+        authorizationUrl = (await startSocialSignup(provider, signupAcceptance)).authorizationUrl;
+      }
+      sessionStorage.setItem(SESSION_KEYS.socialLoginReturnTo, resolveSafeReturnTo(returnTo));
+      window.location.assign(authorizationUrl);
+    } catch (requestError) {
+      setError(requestError);
+      setStartingProvider(null);
+    }
   }
 
   return (
     <div className="d-grid gap-2">
+      <ErrorAlert error={error} />
       {SOCIAL_PROVIDERS.map((provider) => {
         const details = SOCIAL_PROVIDER_DETAILS[provider];
         const isStarting = startingProvider === provider;
@@ -49,7 +60,7 @@ export function SocialLoginButtons({
             variant="outline-dark"
             className={details.buttonClassName}
             disabled={startingProvider !== null || (action === "회원가입" && !policyAcceptance)}
-            onClick={() => startSocialLogin(provider)}
+            onClick={() => void startSocialLogin(provider)}
           >
             <span className="social-login-button-content">
               {details.iconSrc && (

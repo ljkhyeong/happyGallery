@@ -20,7 +20,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -73,7 +72,6 @@ class AnswerNotificationRequestTest {
                 mock(ProductReaderPort.class),
                 userReader,
                 CLOCK,
-                mock(PasswordEncoder.class),
                 publisher);
 
         service.replyAndGet(30L, "답변", 1L);

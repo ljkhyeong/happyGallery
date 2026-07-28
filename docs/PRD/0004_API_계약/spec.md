@@ -234,6 +234,8 @@ Content-Type: application/json
 - 세션 principal 인덱스는 `userId:credentialVersion`으로 구분한다. 비밀번호 변경·재설정 커밋 뒤에는 변경 전 버전 인덱스만 삭제하므로, 동시에 새 버전으로 로그인한 세션은 유지된다.
 - 회원 전용 API는 회원 인증 정보가 없으면 `401 UNAUTHORIZED`, 인증은 됐지만 권한이 없으면 `403 FORBIDDEN`을 기존 에러 JSON 형식으로 반환한다.
 - 관리자 API는 Bearer/API key 헤더로 인증하므로 CSRF 토큰을 요구하지 않는다.
+- `Bearer` 인증 scheme은 대소문자를 구분하지 않는다. Bearer 형식이 감지됐지만 토큰이 비었거나
+  공백을 포함한 경우 유효한 API key가 함께 있어도 API key로 폴백하지 않고 인증 실패로 처리한다.
 - 그 외 회원·공개 API의 `POST`, `PUT`, `PATCH`, `DELETE` 요청은 아래 SPA CSRF 절차를 따른다. 개별 API 예시에서 헤더를 생략해도 같은 규칙이 적용된다.
 
 #### CSRF 토큰 발급
@@ -2181,8 +2183,10 @@ POST /api/v1/auth/signup
 
 #### 2.12.0.2 소셜 로그인 시작
 
+일반 로그인:
+
 ```http
-GET /api/v1/auth/social/authorization/{provider}?termsVersion=...&termsAccepted=true&privacyVersion=...&privacyAccepted=true
+GET /api/v1/auth/social/authorization/{provider}
 ```
 
 - `{provider}`: `google` 또는 `naver`
@@ -2192,9 +2196,44 @@ GET /api/v1/auth/social/authorization/{provider}?termsVersion=...&termsAccepted=
 - 정책:
   - 브라우저는 JSON URL 발급 API를 먼저 호출하지 않고 이 경로로 직접 이동한다.
   - Spring Security OAuth2 Client가 `state`를 포함한 authorization request를 만들고 callback 전까지만 현재 Redis HTTP 세션에 저장한다.
-  - 회원가입 화면에서 시작하면 현재 정책 동의를 같은 세션의 OAuth `state`에 결합한다. 기존 회원 로그인에는 동의를 요구하지 않으며, 처음 보는 계정을 신규 생성할 때만 callback에서 검증·기록한다.
+  - 일반 로그인 GET은 정책 동의를 받지 않는다. 이미 연결된 회원 로그인은 가입 의도 없이 처리하고,
+    처음 보는 계정이면 callback에서 `POLICY_CONSENT_REQUIRED`로 종료한다.
   - callback URI는 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI` 설정에 고정하며 브라우저 요청값으로 받지 않는다.
   - Google은 `openid`, `profile`, `email` 범위의 OIDC 로그인을 사용한다. 로그인만을 위해 refresh token을 요청하거나 저장하지 않는다.
+
+신규 가입 시작:
+
+```http
+POST /api/v1/auth/social/signup-intents/{provider}
+Cookie: HG_SESSION={anonymousSession}
+X-XSRF-TOKEN: {csrfToken}
+
+{
+  "termsVersion": "2026-07-21-v1",
+  "termsAccepted": true,
+  "privacyVersion": "2026-07-21-v1",
+  "privacyAccepted": true
+}
+```
+
+```json
+{
+  "authorizationUrl": "/api/v1/auth/social/authorization/google?signupAttempt={oneTimeAttemptId}"
+}
+```
+
+- `operationId`: `startSocialSignup`
+- 성공: `200 OK`
+- 에러:
+  - `403 FORBIDDEN` — CSRF 토큰 누락 또는 불일치
+  - `422 POLICY_CONSENT_REQUIRED` — 현재 정책 버전·명시적 동의가 아님
+  - `429 TOO_MANY_REQUESTS` — 로그인 시작 IP 버킷 초과
+- 정책:
+  - 서버는 현재 정책을 검증한 뒤 provider·동의·불투명 시도 ID·5분 만료를 현재 HTTP 세션에 저장한다.
+  - 브라우저는 응답 URL로 이동하고 서버는 `signupAttempt`가 같은 세션의 미사용 의도와 일치할 때만
+    새 OAuth authorization request의 `state`를 한 번 결합한다.
+  - callback은 provider·state·만료를 다시 확인한 뒤 동의를 한 번 소비한다. 다른 provider, 다른 세션,
+    재사용·만료 시도와 공개 GET에 임의로 붙인 정책 값은 신규 가입 동의가 될 수 없다.
 
 #### 2.12.0.3 소셜 로그인 callback
 
@@ -2211,6 +2250,8 @@ GET /api/v1/auth/social/callback/{provider}?code=...&state=...
 - 처리율 제한 초과: `429 TOO_MANY_REQUESTS`
 - 정책:
   - Spring Security가 callback의 `state`와 세션의 authorization request를 비교하고 한 번 사용한 authorization request를 제거한 뒤 code를 토큰으로 교환한다.
+  - 신규 가입 callback은 OAuth `state`에 결합된 미사용 가입 의도의 provider·만료를 추가로 검증하고,
+    검증한 정책 동의만 회원 생성 트랜잭션에 전달한다.
   - 연결 callback은 Google ID Token 또는 Naver UserInfo에서 provider와 provider ID를 먼저 확인한 뒤 application의 계정 연결 트랜잭션을 시작한다. 일반 로그인·신규 가입은 Google의 검증 이메일과 이름, Naver의 이름을 요구하며 Naver 프로필 이메일은 버린다.
   - 성공 시 세션 ID를 한 번 회전하고 `customerUserId`, `customerCredentialVersion`, `userId:credentialVersion` 형식의 principal 인덱스를 장기 인증 상태로 저장한다.
   - OAuth `SecurityContext`, access token, refresh token은 세션에 저장하지 않는다. 다음 요청은 기존 `CustomerAuthenticationFilter`가 `customerUserId`로 회원 principal을 다시 구성한다.
@@ -2455,20 +2496,47 @@ Cookie: HG_SESSION={sessionToken}
 {
   "title": "재입고 예정이 있나요?",
   "content": "다음 달에도 구매 가능한지 궁금합니다.",
-  "secret": true,
-  "password": "1234"
+  "secret": true
 }
 ```
 
 - 성공: `201 Created`
 - 에러:
   - `401 UNAUTHORIZED` — 회원 세션 없음
-  - `400 INVALID_INPUT` — 비밀글인데 비밀번호가 비어 있음
   - `404 NOT_FOUND` — 상품 미존재
 - 정책:
   - 작성 주체는 회원(User)만 허용한다.
-  - `secret=true`일 때 비밀번호를 설정해 공개 상세 조회 전 검증한다.
+  - `secret=true`이면 공개 목록에서 제목을 숨기고 공개 상세 조회를 거절한다.
   - 응답에는 작성 결과 요약만 반환한다.
+
+작성자 목록:
+
+```http
+GET /api/v1/me/products/{productId}/qna
+Cookie: HG_SESSION={sessionToken}
+```
+
+- 성공: `200 OK`
+- 응답 항목: `id`, `title`, `secret`, `hasReply`, `createdAt`
+- 정책:
+  - 현재 회원이 해당 상품에 작성한 Q&A만 최신순으로 반환한다.
+  - 본문·답변 전문은 목록에 포함하지 않는다.
+  - 프론트는 공개 목록의 ID와 이 목록을 대조해 작성자에게만 비밀글 열기 동작을 표시한다.
+
+작성자 상세:
+
+```http
+GET /api/v1/me/products/{productId}/qna/{id}
+Cookie: HG_SESSION={sessionToken}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `404 NOT_FOUND` — Q&A가 없거나 URL의 상품·현재 회원 소유와 일치하지 않음
+- 정책:
+  - 일반글과 비밀글 모두 로그인한 작성자 본인만 제목·본문·답변을 조회한다.
+  - 비밀글 접근 권한을 별도 공유 비밀번호로 위임하지 않는다.
 
 #### 2.12.5 회원 1:1 문의 작성/조회
 
@@ -2598,29 +2666,11 @@ GET /api/v1/products/{productId}/qna/{id}
 
 - 성공: `200 OK`
 - 에러:
-  - `403 FORBIDDEN` — 비밀글을 비밀번호 검증 없이 조회
+  - `403 FORBIDDEN` — 비밀글 공개 상세 조회
   - `404 NOT_FOUND` — Q&A 미존재 또는 URL의 상품에 속하지 않음
 - 정책:
   - `secret=false`인 일반글의 제목·본문·답변을 비밀번호 없이 반환한다.
-  - `secret=true`인 비밀글은 이 경로에서 상세를 반환하지 않는다.
-
-비밀글:
-
-```http
-POST /api/v1/products/{productId}/qna/{id}/verify
-
-{
-  "password": "1234"
-}
-```
-
-- 성공: `200 OK`
-- 에러:
-  - `400 INVALID_INPUT` — 비밀번호 불일치
-  - `404 NOT_FOUND` — Q&A 미존재 또는 URL의 상품에 속하지 않음
-- 정책:
-  - 이 검증 경로는 `secret=true`인 비밀글 상세 조회에만 사용한다.
-  - 비밀번호가 일치하면 제목·본문·답변을 포함한 상세를 반환한다.
+  - `secret=true`인 비밀글은 이 경로에서 상세를 반환하지 않는다. 작성자는 회원 상세 API를 사용한다.
 
 ### 2.14 관리자 Q&A / 문의 API
 
@@ -3099,6 +3149,8 @@ file={JPEG|PNG|WebP binary}
 | 401 | `INVALID_CREDENTIALS` | 로그인 자격 증명 또는 현재 비밀번호 불일치 |
 | 403 | `FORBIDDEN` | 인증은 됐지만 요청 권한이 없거나 CSRF 토큰이 없거나 일치하지 않음 |
 | 404 | `NOT_FOUND` | 주문·예약·이용권·상품 미존재 |
+| 405 | `METHOD_NOT_ALLOWED` | 존재하는 경로에 허용되지 않은 HTTP 메서드 요청 |
+| 406 | `NOT_ACCEPTABLE` | 요청한 응답 미디어 타입을 제공할 수 없음 |
 | 409 | `ALREADY_REFUNDED` | 이미 환불된 주문에 승인·거절 시도 |
 | 409 | `INVENTORY_NOT_ENOUGH` | 재고 차감 시 수량 부족 |
 | 409 | `CAPACITY_EXCEEDED` | 슬롯 정원(8명) 초과 예약 시도 |
@@ -3112,6 +3164,7 @@ file={JPEG|PNG|WebP binary}
 | 409 | `PHONE_ALREADY_IN_USE` | 회원가입 또는 휴대폰 변경 번호를 다른 회원이 이미 사용 중 |
 | 410 | `PAYMENT_ATTEMPT_EXPIRED` | 결제 준비 후 30분 안에 confirm을 시작하지 않음 |
 | 410 | `PAYMENT_RESULT_RETENTION_EXPIRED` | 최종 결제 결과의 30일 재조회 보존 기간이 지남 |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | 요청 본문의 미디어 타입을 처리할 수 없음 |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 |
 | 422 | `REFUND_NOT_ALLOWED` | 취소 보상 마감 이후 환불 요청 |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/일반 환불 시도 |
@@ -3129,6 +3182,10 @@ file={JPEG|PNG|WebP binary}
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 최종 거절 |
 | 503 | `PAYMENT_CONFIRM_RETRYABLE` | PG 결제 확정 결과를 같은 결제 정보로 재확인할 수 있는 일시 실패 |
 | 503 | `SERVICE_UNAVAILABLE` | fail-closed 처리율 제한 저장소 장애 또는 인증 SMS 등 필수 외부 작업을 시작·완료할 수 없음 |
+
+Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는 위 `ErrorResponse` 형식으로
+본문을 바꿔도 보존한다. 이름과 업무 의미를 아는 DB 유일 제약만 해당 400/409 코드로 번역하며,
+알 수 없는 무결성 위반은 입력 오류로 추측하지 않고 원인을 기록한 `500 INTERNAL_ERROR`로 처리한다.
 
 ---
 

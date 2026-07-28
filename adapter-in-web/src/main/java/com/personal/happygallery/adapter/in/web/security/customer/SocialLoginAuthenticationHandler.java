@@ -32,19 +32,19 @@ public class SocialLoginAuthenticationHandler
     private final SocialAuthUseCase socialAuth;
     private final SocialOAuth2ProfileResolver profileResolver;
     private final SocialAccountLinkIntentStore linkIntentStore;
-    private final SocialPolicyConsentStore policyConsentStore;
+    private final SocialSignupIntentStore signupIntentStore;
     private final CustomerSessionBinder customerSessionBinder;
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
     public SocialLoginAuthenticationHandler(SocialAuthUseCase socialAuth,
                                             SocialOAuth2ProfileResolver profileResolver,
                                             SocialAccountLinkIntentStore linkIntentStore,
-                                            SocialPolicyConsentStore policyConsentStore,
+                                            SocialSignupIntentStore signupIntentStore,
                                             CustomerSessionBinder customerSessionBinder) {
         this.socialAuth = socialAuth;
         this.profileResolver = profileResolver;
         this.linkIntentStore = linkIntentStore;
-        this.policyConsentStore = policyConsentStore;
+        this.signupIntentStore = signupIntentStore;
         this.customerSessionBinder = customerSessionBinder;
     }
 
@@ -56,7 +56,7 @@ public class SocialLoginAuthenticationHandler
             SocialIdentity identity = profileResolver.resolveIdentity(authentication);
             var linkIntent = linkIntentStore.consume(request, identity.provider());
             if (linkIntent.isPresent()) {
-                policyConsentStore.clear(request);
+                signupIntentStore.clear(request);
                 socialAuth.linkSocialAccount(new SocialLinkCommand(
                         linkIntent.get().userId(),
                         linkIntent.get().credentialVersion(),
@@ -67,7 +67,7 @@ public class SocialLoginAuthenticationHandler
             }
 
             SocialAuthUseCase.SocialLoginCommand profile = profileResolver.resolveLogin(authentication)
-                    .withPolicyAcceptance(policyConsentStore.consume(request));
+                    .withPolicyAcceptance(signupIntentStore.consume(request, identity.provider()).orElse(null));
             SocialAuthUseCase.SocialLoginResult result = socialAuth.socialLogin(profile);
             customerSessionBinder.bind(request, response, result.user());
             redirect(request, response, "newUser", String.valueOf(result.newUser()));
@@ -79,7 +79,7 @@ public class SocialLoginAuthenticationHandler
             redirect(request, response, "error", ErrorCode.SOCIAL_LOGIN_FAILED.name());
         } finally {
             linkIntentStore.clear(request);
-            policyConsentStore.clear(request);
+            signupIntentStore.clear(request);
             SecurityContextHolder.clearContext();
         }
     }
@@ -90,7 +90,7 @@ public class SocialLoginAuthenticationHandler
                                         org.springframework.security.core.AuthenticationException exception)
             throws IOException, ServletException {
         linkIntentStore.clear(request);
-        policyConsentStore.clear(request);
+        signupIntentStore.clear(request);
         if (exception instanceof OAuth2AuthenticationException oauth2Exception) {
             log.warn("Social OAuth authentication failed: {}", oauth2Exception.getError().getErrorCode());
         } else {

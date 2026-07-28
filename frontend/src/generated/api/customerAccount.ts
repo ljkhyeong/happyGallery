@@ -1,4 +1,17 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
+export interface PolicyAcceptanceRequest {
+  privacyAccepted: boolean;
+  /** @minLength 1 */
+  privacyVersion: string;
+  termsAccepted: boolean;
+  /** @minLength 1 */
+  termsVersion: string;
+}
+
+export interface SocialSignupAuthorizationResponse {
+  authorizationUrl: string;
+}
+
 export type SocialAccountsResponseLinkedProvidersItem = typeof SocialAccountsResponseLinkedProvidersItem[keyof typeof SocialAccountsResponseLinkedProvidersItem];
 
 
@@ -14,6 +27,28 @@ export interface SocialAccountsResponse {
 export interface SocialAccountAuthorizationResponse {
   authorizationUrl: string;
 }
+
+export const getStartSocialSignupUrl = (provider: 'google' | 'naver',) => {
+
+
+
+
+  return `/api/v1/auth/social/signup-intents/${provider}`
+}
+
+export const startSocialSignup = async (provider: 'google' | 'naver',
+    policyAcceptanceRequest: PolicyAcceptanceRequest, options?: RequestInit): Promise<SocialSignupAuthorizationResponse> => {
+
+  return generatedApiClient<SocialSignupAuthorizationResponse>(getStartSocialSignupUrl(provider),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(policyAcceptanceRequest)
+  }
+);}
+
+
 
 export const getGetMySocialAccountsUrl = () => {
 

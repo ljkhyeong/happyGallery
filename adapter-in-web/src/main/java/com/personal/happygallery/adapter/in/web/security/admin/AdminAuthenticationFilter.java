@@ -18,18 +18,20 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public final class AdminAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String ADMIN_KEY_HEADER = "X-Admin-Key";
-    private static final String BEARER_PREFIX = "Bearer ";
 
     private final AuthenticationManager authenticationManager;
     private final AuthenticationFailureHandler authenticationFailureHandler;
     private final RequestMatcher publicAdminEndpoints;
+    private final AdminBearerTokenResolver bearerTokenResolver;
 
     public AdminAuthenticationFilter(AuthenticationManager authenticationManager,
                                      AuthenticationFailureHandler authenticationFailureHandler,
-                                     RequestMatcher publicAdminEndpoints) {
+                                     RequestMatcher publicAdminEndpoints,
+                                     AdminBearerTokenResolver bearerTokenResolver) {
         this.authenticationManager = authenticationManager;
         this.authenticationFailureHandler = authenticationFailureHandler;
         this.publicAdminEndpoints = publicAdminEndpoints;
+        this.bearerTokenResolver = bearerTokenResolver;
     }
 
     @Override
@@ -64,8 +66,10 @@ public final class AdminAuthenticationFilter extends OncePerRequestFilter {
 
     private Authentication resolveAuthentication(HttpServletRequest request) {
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (authorization != null && authorization.startsWith(BEARER_PREFIX)) {
-            return AdminAuthenticationToken.bearerSession(authorization.substring(BEARER_PREFIX.length()));
+        AdminBearerTokenResolver.Resolution bearer = bearerTokenResolver.resolve(authorization);
+        if (bearer.bearer()) {
+            return AdminAuthenticationToken.bearerSession(
+                    bearer.hasToken() ? bearer.token() : "");
         }
 
         String apiKey = request.getHeader(ADMIN_KEY_HEADER);

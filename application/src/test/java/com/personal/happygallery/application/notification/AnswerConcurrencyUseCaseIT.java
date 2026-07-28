@@ -76,7 +76,7 @@ class AnswerConcurrencyUseCaseIT {
         Product product = productRepository.save(
                 new Product("도자기 화병", ProductType.READY_STOCK, 30_000L));
         ProductQna qna = productQnaRepository.save(new ProductQna(
-                product.getId(), user.getId(), "크기 문의", "높이가 몇 cm인가요?", false, null));
+                product.getId(), user.getId(), "크기 문의", "높이가 몇 cm인가요?", false));
 
         ConcurrentResult result = executeSimultaneously(
                 () -> productQnaUseCase.replyAndGet(

@@ -17,8 +17,9 @@ import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
 
 public interface ProductQnaRepository extends JpaRepository<ProductQna, Long>, ProductQnaReaderPort, ProductQnaStorePort {
 
-    @Override Optional<ProductQna> findById(Long id);
     @Override Optional<ProductQna> findByIdAndProductId(Long id, Long productId);
+    @Override Optional<ProductQna> findByIdAndProductIdAndUserId(Long id, Long productId, Long userId);
+    List<ProductQna> findByProductIdAndUserIdOrderByCreatedAtDesc(Long productId, Long userId);
     @Override ProductQna save(ProductQna qna);
 
     @Override
@@ -45,6 +46,11 @@ public interface ProductQnaRepository extends JpaRepository<ProductQna, Long>, P
     @Override
     default List<ProductQna> findByProductId(Long productId) {
         return findByProductIdOrderByCreatedAtDesc(productId);
+    }
+
+    @Override
+    default List<ProductQna> findOwnedByProduct(Long productId, Long userId) {
+        return findByProductIdAndUserIdOrderByCreatedAtDesc(productId, userId);
     }
 
     @Override

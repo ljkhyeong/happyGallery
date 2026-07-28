@@ -9,6 +9,7 @@ import com.personal.happygallery.adapter.in.web.admin.AdminSetupController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSlotController;
 import com.personal.happygallery.adapter.in.web.admin.AdminWorkshopProfileController;
 import com.personal.happygallery.adapter.in.web.config.properties.AdminSetupProperties;
+import com.personal.happygallery.adapter.in.web.security.admin.AdminBearerTokenResolver;
 import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase.LoginResult;
 import com.personal.happygallery.application.admin.port.in.AdminCredentialUseCase;
@@ -150,7 +151,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         when(slotManagementUseCase.activateSlot(42L)).thenReturn(slot);
 
         mockMvc = mockMvc(restDocumentation, SNIPPET_GROUP,
-                new AdminLoginController(adminAuthUseCase),
+                new AdminLoginController(adminAuthUseCase, new AdminBearerTokenResolver()),
                 new AdminCredentialController(adminCredentialUseCase),
                 new AdminMfaController(adminMfaUseCase),
                 new AdminSetupController(new AdminSetupProperties("setup-token"), adminSetupUseCase),

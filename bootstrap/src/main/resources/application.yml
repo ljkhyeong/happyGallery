@@ -85,6 +85,21 @@ spring:
         flush-mode: on-save
   transaction:
     default-timeout: ${TX_DEFAULT_TIMEOUT:10s}
+  task:
+    execution:
+      pool:
+        core-size: ${ASYNC_EXECUTOR_CORE_SIZE:2}
+        max-size: ${ASYNC_EXECUTOR_MAX_SIZE:4}
+        queue-capacity: ${ASYNC_EXECUTOR_QUEUE_CAPACITY:100}
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
+    scheduling:
+      pool:
+        size: ${BATCH_SCHEDULER_POOL_SIZE:4}
+      thread-name-prefix: batch-
+      shutdown:
+        await-termination: false
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
@@ -111,9 +126,6 @@ app:
     require-mfa-enrollment: ${ADMIN_REQUIRE_MFA_ENROLLMENT:false}
     setup:
       token: ${ADMIN_SETUP_TOKEN:}
-  batch:
-    scheduler:
-      pool-size: ${BATCH_SCHEDULER_POOL_SIZE:4}
   external:
     notification:
       # transport 단계 합(기본 3.5초)이 끝난 뒤에만 바깥 TimeLimiter가 동작한다.
@@ -213,7 +225,6 @@ app:
       social-login: { capacity: 10, window: 1m }
       payment-prepare: { capacity: 30, window: 1m }
       payment-confirm: { capacity: 60, window: 1m }
-      product-qna-verify: { capacity: 10, window: 1m }
       guest-claim-verify: { capacity: 10, window: 1m }
       guest-record-recovery: { capacity: 10, window: 1m }
       client-monitoring: { capacity: 60, window: 1m }

@@ -118,7 +118,6 @@ class SubjectRateLimitGuardTest {
                         generousLimit,
                         generousLimit,
                         generousLimit,
-                        generousLimit,
                         generousLimit
                 ),
                 new SubjectRules(

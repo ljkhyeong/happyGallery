@@ -1,6 +1,7 @@
 # ADR-0025: 정상 종료와 실행기 정리 정책
 
 **날짜**: 2026-03-19  
+**최종 갱신**: 2026-07-28
 **상태**: Accepted
 
 ---
@@ -43,9 +44,10 @@
 
 `notificationExecutor`와 `refundExecutor`는 다음 정책을 따른다.
 
-- `setWaitForTasksToCompleteOnShutdown(true)`
-- `setAwaitTerminationSeconds(30)`
-- `setTaskDecorator(...)`로 MDC 문맥을 복사한다
+- `spring.task.execution`의 core/max/queue와 종료 정책을 공통 원본으로 사용한다.
+- 각 이름의 실행기는 Boot `ThreadPoolTaskExecutorBuilder`로 만들고 thread prefix만 분리한다.
+- 종료 시 queued/running task 완료를 최대 30초 기다린다.
+- 공용 `TaskDecorator`로 MDC와 Sentry scope를 함께 복사한다.
 
 의미:
 
@@ -62,13 +64,17 @@
 - 알림 작업 로그도 원 요청의 `requestId`와 함께 이어져야 장애 추적이 가능하다.
 - 환불 요청 자체는 DB에 먼저 커밋되므로 drain 실패나 큐 거절이 발생해도 복구 배치가 다시 실행한다.
 
-### 3. 알림 비동기 작업은 `TaskDecorator`로 MDC를 전파한다
+### 3. 모든 비동기 외부 경계는 `TaskDecorator`로 추적 문맥을 전파한다
 
-`notificationExecutor`와 `refundExecutor`는 `TaskDecorator`에서 다음 순서를 따른다.
+`notificationExecutor`, `refundExecutor`와 `BoundedExecutorFactory`가 만든 외부 호출 실행기는
+같은 합성 `TaskDecorator`를 사용한다.
+이 decorator 빈은 `defaultCandidate=false`로 등록해 Boot 스케줄러가 자동 채택하지 않게 한다.
+반복 `@Scheduled` 작업은 요청 문맥을 전달할 대상이 아니며, 주기 실행 future에 한 번 fork된
+Sentry scope가 다음 실행에도 재사용되는 것을 피한다.
 
 1. 제출 시점의 `MDC.getCopyOfContextMap()`으로 문맥을 복사한다.
-2. 작업 실행 직전에 `MDC.setContextMap(ctx)`로 비동기 스레드에 주입한다.
-3. 작업 종료 후 `finally`에서 `MDC.clear()`로 스레드 로컬 문맥을 비운다.
+2. Sentry scope를 fork해 비동기 작업의 오류 추적 문맥을 이어간다.
+3. 작업 실행 직전에 MDC를 주입하고 종료 후 worker thread의 이전 문맥을 복원한다.
 
 이 정책의 목적:
 
@@ -76,12 +82,25 @@
 - thread pool 재사용 환경에서 이전 작업의 MDC 값이 다음 작업에 누수되지 않도록 막는다.
 - 종료 직전 drain되는 작업도 동일한 request trace로 추적 가능하게 유지한다.
 
-주의 사항:
+새 executor를 추가할 때는 실행 방식이 Spring `@Async`인지 raw `ExecutorService`인지와 무관하게
+이 decorator를 주입한다. 스레드 생성 코드마다 MDC 복사 로직을 다시 작성하지 않는다.
 
-- 현재 MDC 전파는 `notificationExecutor`와 `refundExecutor`에 적용한다.
-- 다른 executor를 추가할 때 request 추적이 필요하면 같은 수준의 decorator 정책을 별도로 적용해야 한다.
+### 4. 커밋 후 실행 신호 거절은 원 요청 실패로 전파하지 않는다
 
-### 4. 외부 호출 timeout용 `ExecutorService`는 제한 큐와 빠른 정리를 사용한다
+알림 outbox와 환불 요청은 부모 트랜잭션에서 먼저 DB에 저장된다. `AFTER_COMMIT` 이후
+`notificationExecutor` 또는 `refundExecutor`에 제출하는 작업은 원본 업무가 아니라 빠른 실행을 요청하는 신호다.
+
+- 큐 포화 또는 종료 중 거절은 `happygallery.async.executor.rejected{executor}`에 기록하고 WARN 로그를 남긴다.
+- 거절 handler는 예외를 호출자에게 다시 던지거나 호출자 스레드에서 작업을 실행하지 않는다.
+- 알림 outbox scheduler와 환불 복구 batch가 저장된 상태를 다시 조회해 후속 처리를 이어간다.
+- Actuator가 이름별 queued/remaining task를 노출하고 Prometheus는 80% 지속을
+  `DurableSignalExecutorQueueHigh`, 최근 거절을 `DurableSignalExecutorRejected`로 알린다.
+
+`CallerRunsPolicy`는 커밋을 끝낸 요청 스레드가 외부 후속 처리를 대신 수행하게 해 응답 격리와 타임아웃을
+깨므로 사용하지 않는다. 반대로 PG·알림 transport용 timeout executor는 호출 시작 전 포화를
+상위 결과로 분류해야 하므로 아래의 `AbortPolicy`를 그대로 사용한다.
+
+### 5. 외부 호출 timeout용 `ExecutorService`는 제한 큐와 빠른 정리를 사용한다
 
 `BoundedExecutorFactory`는 PG와 알림 채널 timeout executor에 공통으로 필요한 생성 정책을 소유한다.
 
@@ -111,18 +130,22 @@ timeout executor는 업무 후처리용 `notificationExecutor`와 다르게, 진
 - 종료 시점에 이 thread pool을 오래 붙잡아둘 운영 가치가 상대적으로 낮다.
 - 결제 큐 거절은 DB 복구 대상 상태로 남고, 알림 채널 큐 거절은 `false`로 처리되어 다음 채널 fallback과 outbox 복구 정책을 따른다.
 
-### 5. 종료 대기 시간은 계층별 역할에 따라 다르게 둔다
+### 6. 종료 대기 시간은 계층별 역할에 따라 다르게 둔다
 
 | 대상 | 정책 | 대기 시간 |
 |------|------|------|
 | Spring application lifecycle | graceful shutdown | 30초 |
 | `notificationExecutor` | task completion 대기 | 30초 |
 | `refundExecutor` | task completion 대기, 미실행 건은 DB 복구 | 30초 |
+| Spring `taskScheduler` | 새 실행 거절·주기 작업 즉시 취소 | 대기 없음 |
 | PG timeout executor | 빠른 정리 후 강제 종료 허용 | 2초 |
 | 알림 채널 timeout executor | 제한 큐, Spring 종료 시 신규 작업 거절 | Spring bean 종료 단계 |
 
 모든 executor에 같은 종료 정책을 쓰지 않는다.
 종료 시 무엇을 보호해야 하는지에 따라 대기 시간을 다르게 둔다.
+스케줄러 작업은 DB에서 대상을 다시 조회하는 주기성 복구 작업이므로 종료 시 drain하지 않는다.
+다음 기동 또는 다음 주기가 미처리 상태를 다시 처리하며, Spring Session의 만료 정리 같은 주기 작업이
+Redis 연결 종료 뒤 남아 shutdown을 지연하지 않게 한다.
 
 ---
 
@@ -131,10 +154,11 @@ timeout executor는 업무 후처리용 `notificationExecutor`와 다르게, 진
 - `bootstrap/src/main/resources/application.yml`
   - `server.shutdown: graceful`
   - `spring.lifecycle.timeout-per-shutdown-phase: 30s`
+  - `spring.task.execution`의 pool·30초 drain과 `spring.task.scheduling`의 pool·즉시 종료 정책
 - `bootstrap/src/main/java/com/personal/happygallery/bootstrap/config/AsyncConfig.java`
-  - `notificationExecutor`에 shutdown drain 설정 적용
-  - `refundExecutor`에 shutdown drain·MDC 전파 설정 적용
-  - `TaskDecorator`로 MDC 복사/주입/정리 적용
+  - Boot builder로 알림·환불 실행기 구성
+  - 합성 `TaskDecorator`로 MDC·Sentry scope 전파
+  - 내구성 신호 거절 계측과 비전파 handler 적용
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/ResilientPaymentProvider.java`
   - 주입받은 보호 자원으로 PG 호출 실행과 결과 표준화
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentResilienceConfig.java`
@@ -145,7 +169,7 @@ timeout executor는 업무 후처리용 `notificationExecutor`와 다르게, 진
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/notification/NotificationResilienceConfig.java`
   - 알림 executor 설정과 Spring `shutdown` 수명주기 구성
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/resilience/BoundedExecutorFactory.java`
-  - timeout executor의 제한 큐·daemon thread·즉시 거절·큐/거절 메트릭 생성 정책 공용화
+  - timeout executor의 제한 큐·daemon thread·즉시 거절·큐/거절 메트릭과 추적 문맥 전파 공용화
 
 ---
 
@@ -155,6 +179,7 @@ timeout executor는 업무 후처리용 `notificationExecutor`와 다르게, 진
 
 - 종료 시점 동작이 설정/코드/문서 기준으로 일치한다.
 - 알림 작업은 불필요한 유실을 줄이고, 보호용 executor는 빠르게 정리할 수 있다.
+- 커밋 후 신호 큐 포화가 이미 성공한 요청을 5xx로 바꾸지 않고 복구 경로와 경보로 이어진다.
 - deploy/rollback 시 종료 대기 상한이 명확하다.
 
 ### 단점
@@ -168,7 +193,7 @@ timeout executor는 업무 후처리용 `notificationExecutor`와 다르게, 진
 ## 운영 메모
 
 - 긴 작업을 `notificationExecutor`에 추가할 경우 현재 30초 drain 정책과 맞는지 먼저 검토한다.
-- 비동기 로그에 request 추적이 필요하면 executor 생성 시 MDC 전파 여부를 먼저 검토한다.
+- 비동기 실행기는 공용 TaskDecorator를 사용해 MDC와 Sentry scope를 함께 전달한다.
 - 종료 보장이 중요한 신규 비동기 작업은 별도 executor와 별도 ADR 대상으로 다룬다.
 - Kubernetes나 systemd 종료 유예 시간을 사용할 경우, 애플리케이션의 30초 graceful shutdown보다 짧지 않게 맞춘다.
 

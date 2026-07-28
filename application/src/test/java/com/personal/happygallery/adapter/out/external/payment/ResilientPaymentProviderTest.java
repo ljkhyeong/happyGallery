@@ -239,7 +239,7 @@ class ResilientPaymentProviderTest {
         PaymentResilienceConfig config = new PaymentResilienceConfig();
         timeoutExecutor = config.paymentTimeoutExecutor(
                 properties,
-                new BoundedExecutorFactory(meterRegistry));
+                new BoundedExecutorFactory(meterRegistry, task -> task));
         return config.resilientPaymentProvider(
                 delegate,
                 config.paymentCircuitBreaker(properties, CircuitBreakerRegistry.ofDefaults()),

@@ -159,6 +159,20 @@ class AdminLoginUseCaseIT {
                 .containsExactly(AdminAuthOutcome.LOGIN_SUCCEEDED);
     }
 
+    @DisplayName("관리자 로그아웃은 Bearer scheme 대소문자와 무관하게 세션을 폐기한다")
+    @Test
+    void logout_acceptsCaseInsensitiveBearerScheme() throws Exception {
+        String token = loginAndGetToken();
+
+        mockMvc.perform(post("/api/v1/admin/auth/logout")
+                        .header(HttpHeaders.AUTHORIZATION, "bearer " + token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/admin/auth/mfa")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
     @DisplayName("로그인 실패가 5회 누적되면 계정을 잠그고 존재 여부와 잠금 상태를 같은 응답으로 숨긴다")
     @Test
     void repeatedFailure_locksAccount_withoutRevealingAccountState() throws Exception {

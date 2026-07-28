@@ -30,6 +30,7 @@ export default defineConfig({
   productApi: generatedApi("./src/generated/api/product.ts", ["product-controller"]),
   customerAccountApi: generatedApi("./src/generated/api/customerAccount.ts", [
     "me-social-account-controller",
+    "social-signup-controller",
   ]),
   notificationApi: generatedApi("./src/generated/api/notification.ts", [
     "me-notification-controller",

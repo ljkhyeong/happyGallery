@@ -203,6 +203,9 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `VITE_TOSS_CLIENT_KEY` | 프론트 빌드 | Toss SDK client key |
 | `VITE_API_TARGET` | 프론트 개발 서버 | `/api` 프록시 대상, 기본 `http://localhost:8080` |
 | `PAYMENT_EXECUTOR_POOL_SIZE` | 백엔드 | PG 호출 실행 스레드 수, 기본 `4` |
+| `ASYNC_EXECUTOR_CORE_SIZE` / `ASYNC_EXECUTOR_MAX_SIZE` | 백엔드 | 알림·환불 커밋 후 실행기 기본/최대 스레드 수, 기본 `2`/`4` |
+| `ASYNC_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 알림·환불 커밋 후 실행 신호 대기열 크기, 기본 `100` |
+| `BATCH_SCHEDULER_POOL_SIZE` | 백엔드 | Spring 스케줄러 스레드 수, 기본 `4` |
 | `PAYMENT_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | PG 호출 대기열 크기, 기본 `20` |
 | `ALIMTALK_NOTIFICATION_EXECUTOR_POOL_SIZE` / `ALIMTALK_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | Alimtalk timeout 보호 실행기, 기본 `2` / `5` |
 | `SMS_NOTIFICATION_EXECUTOR_POOL_SIZE` / `SMS_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 일반 SMS timeout 보호 실행기, 기본 `2` / `5` |

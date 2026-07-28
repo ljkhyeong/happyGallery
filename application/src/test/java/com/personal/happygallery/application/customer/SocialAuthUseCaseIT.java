@@ -98,6 +98,25 @@ class SocialAuthUseCaseIT {
                 .isEqualTo(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
     }
 
+    @DisplayName("유효한 정책 동의가 없는 최초 소셜 로그인은 회원을 만들지 않는다")
+    @Test
+    void rejectsFirstSocialLoginWithoutPolicyConsent() {
+        assertThatThrownBy(() -> socialAuth.socialLogin(new SocialLoginCommand(
+                SocialProvider.GOOGLE,
+                "google-without-consent",
+                "without-consent@example.com",
+                "동의 없는 사용자")))
+                .isInstanceOf(HappyGalleryException.class)
+                .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.POLICY_CONSENT_REQUIRED);
+
+        assertSoftly(softly -> {
+            softly.assertThat(userRepository.count()).isZero();
+            softly.assertThat(socialAccountRepository.count()).isZero();
+            softly.assertThat(policyConsentRepository.count()).isZero();
+        });
+    }
+
     @DisplayName("같은 Google 이메일의 동시 최초 로그인은 한 회원만 만들고 다른 요청에 연결 필요를 알린다")
     @Test
     void concurrentFirstLogin_sameGoogleEmail_createsOneUser() throws Exception {

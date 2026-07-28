@@ -5,6 +5,7 @@ import com.personal.happygallery.adapter.in.web.RateLimitFilter;
 import com.personal.happygallery.adapter.in.web.config.properties.AdminProperties;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminAuthenticationProvider;
+import com.personal.happygallery.adapter.in.web.security.admin.AdminBearerTokenResolver;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes;
 import com.personal.happygallery.adapter.in.web.security.customer.DiscardingOAuth2AuthorizedClientRepository;
@@ -132,9 +133,6 @@ public class SecurityConfig {
                 endpoint(CustomerSecurityRoutes.MEMBER_API_PATTERN),
                 endpoint(CustomerSecurityRoutes.PAYMENT_API_PATTERN),
                 endpoint(CustomerSecurityRoutes.GUEST_RECORD_API_PATTERN),
-                PathPatternRequestMatcher.withDefaults().matcher(
-                        HttpMethod.POST,
-                        "/api/v1/products/{productId}/qna/{id}/verify"),
                 new RequestHeaderRequestMatcher(GUEST_ACCESS_TOKEN_HEADER));
     }
 
@@ -158,6 +156,7 @@ public class SecurityConfig {
                                                  RequestMatcher publicAdminEndpoints,
                                                  @Qualifier("adminMfaEnrollmentEndpoints")
                                                  RequestMatcher adminMfaEnrollmentEndpoints,
+                                                 AdminBearerTokenResolver adminBearerTokenResolver,
                                                  RateLimitFilter rateLimitFilter,
                                                  ObjectMapper objectMapper) throws Exception {
         AuthenticationEntryPoint entryPoint = authenticationEntryPoint(objectMapper, ADMIN_LOGIN_REQUIRED);
@@ -177,7 +176,8 @@ public class SecurityConfig {
                         new AdminAuthenticationFilter(
                                 adminAuthenticationManager,
                                 failureHandler,
-                                publicAdminEndpoints),
+                                publicAdminEndpoints,
+                                adminBearerTokenResolver),
                         AnonymousAuthenticationFilter.class)
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(entryPoint)
@@ -235,6 +235,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/logout",
                                 "/api/v1/auth/password/reset",
+                                CustomerSecurityRoutes.SOCIAL_SIGNUP_INTENT_PROVIDER_PATH,
                                 "/api/v1/payments/prepare",
                                 "/api/v1/payments/confirm",
                                 CustomerSecurityRoutes.CLIENT_MONITORING_API,
@@ -242,8 +243,7 @@ public class SecurityConfig {
                                 "/api/v1/guest-records/payment-status-recovery",
                                 "/api/v1/bookings/phone-verifications",
                                 "/api/v1/orders/{orderId}/claims",
-                                "/api/v1/orders/{id}/delay-response",
-                                "/api/v1/products/{productId}/qna/{id}/verify")
+                                "/api/v1/orders/{id}/delay-response")
                         .permitAll()
                         .requestMatchers(HttpMethod.PATCH,
                                 "/api/v1/bookings/{bookingId}/reschedule")

@@ -16,50 +16,65 @@ public class SocialOAuth2AuthorizationRequestResolver implements OAuth2Authoriza
 
     private final DefaultOAuth2AuthorizationRequestResolver delegate;
     private final SocialAccountLinkIntentStore linkIntentStore;
-    private final SocialPolicyConsentStore policyConsentStore;
+    private final SocialSignupIntentStore signupIntentStore;
 
     public SocialOAuth2AuthorizationRequestResolver(ClientRegistrationRepository clientRegistrations,
                                                     SocialAccountLinkIntentStore linkIntentStore,
-                                                    SocialPolicyConsentStore policyConsentStore) {
+                                                    SocialSignupIntentStore signupIntentStore) {
         this.delegate = new DefaultOAuth2AuthorizationRequestResolver(
                 clientRegistrations, CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_BASE_URI);
         this.linkIntentStore = linkIntentStore;
-        this.policyConsentStore = policyConsentStore;
+        this.signupIntentStore = signupIntentStore;
     }
 
     @Override
     public OAuth2AuthorizationRequest resolve(HttpServletRequest request) {
-        return bindLinkState(request, delegate.resolve(request));
+        return bindIntentState(request, delegate.resolve(request));
     }
 
     @Override
     public OAuth2AuthorizationRequest resolve(HttpServletRequest request, String clientRegistrationId) {
-        return bindLinkState(request, delegate.resolve(request, clientRegistrationId));
+        return bindIntentState(request, delegate.resolve(request, clientRegistrationId));
     }
 
-    private OAuth2AuthorizationRequest bindLinkState(HttpServletRequest request,
-                                                     OAuth2AuthorizationRequest authorizationRequest) {
+    private OAuth2AuthorizationRequest bindIntentState(HttpServletRequest request,
+                                                       OAuth2AuthorizationRequest authorizationRequest) {
         if (authorizationRequest == null) {
             return null;
         }
 
-        String attemptId = request.getParameter(SocialAccountLinkIntentStore.LINK_ATTEMPT_PARAMETER);
-        if (!StringUtils.hasText(attemptId)) {
+        String linkAttemptId = request.getParameter(SocialAccountLinkIntentStore.LINK_ATTEMPT_PARAMETER);
+        String signupAttemptId = request.getParameter(SocialSignupIntentStore.SIGNUP_ATTEMPT_PARAMETER);
+        boolean hasLinkAttempt = StringUtils.hasText(linkAttemptId);
+        boolean hasSignupAttempt = StringUtils.hasText(signupAttemptId);
+        if (hasLinkAttempt && hasSignupAttempt) {
             linkIntentStore.clear(request);
-            policyConsentStore.bindOauthState(request, authorizationRequest.getState());
+            signupIntentStore.clear(request);
+            return null;
+        }
+        if (!hasLinkAttempt && !hasSignupAttempt) {
+            linkIntentStore.clear(request);
+            signupIntentStore.clear(request);
             return authorizationRequest;
         }
 
         try {
-            policyConsentStore.clear(request);
             String registrationId = authorizationRequest.getAttribute(OAuth2ParameterNames.REGISTRATION_ID);
             SocialProvider provider = SocialProvider.fromPath(registrationId);
-            boolean bound = linkIntentStore.bindOauthState(
-                    request, attemptId, provider, authorizationRequest.getState());
+            boolean bound;
+            if (hasLinkAttempt) {
+                signupIntentStore.clear(request);
+                bound = linkIntentStore.bindOauthState(
+                        request, linkAttemptId, provider, authorizationRequest.getState());
+            } else {
+                linkIntentStore.clear(request);
+                bound = signupIntentStore.bindOauthState(
+                        request, signupAttemptId, provider, authorizationRequest.getState());
+            }
             return bound ? authorizationRequest : null;
         } catch (HappyGalleryException exception) {
             linkIntentStore.clear(request);
-            policyConsentStore.clear(request);
+            signupIntentStore.clear(request);
             return null;
         }
     }

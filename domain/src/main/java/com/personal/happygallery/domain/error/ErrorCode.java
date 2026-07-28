@@ -26,6 +26,12 @@ public enum ErrorCode {
     // 404 Not Found — 리소스 미존재
     NOT_FOUND(404, "요청한 리소스를 찾을 수 없습니다."),
 
+    // 405 Method Not Allowed — 경로는 존재하지만 HTTP 메서드가 허용되지 않음
+    METHOD_NOT_ALLOWED(405, "허용되지 않은 요청 방식입니다."),
+
+    // 406 Not Acceptable — 요청한 응답 미디어 타입을 제공할 수 없음
+    NOT_ACCEPTABLE(406, "요청한 응답 형식을 제공할 수 없습니다."),
+
     // 409 Conflict — 상태 충돌
     EMAIL_ALREADY_EXISTS(409, "이미 사용 중인 이메일입니다."),
     PHONE_ALREADY_IN_USE(409, "이미 다른 회원이 사용 중인 휴대폰 번호입니다."),
@@ -47,6 +53,9 @@ public enum ErrorCode {
     // 410 Gone — 유효기간이 끝난 리소스
     PAYMENT_ATTEMPT_EXPIRED(410, "결제 준비 시간이 만료되었습니다. 결제를 다시 시작해주세요."),
     PAYMENT_RESULT_RETENTION_EXPIRED(410, "결제 결과 재조회 기간이 만료되었습니다."),
+
+    // 415 Unsupported Media Type — 요청 본문 미디어 타입을 처리할 수 없음
+    UNSUPPORTED_MEDIA_TYPE(415, "지원하지 않는 요청 형식입니다."),
 
     // 422 Unprocessable — 비즈니스 규칙 위반
     REFUND_NOT_ALLOWED(422, "환불 가능 기간이 지났습니다."),

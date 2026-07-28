@@ -8,4 +8,8 @@ public record RateLimitDecision(
         Duration window,
         boolean rejected
 ) {
+
+    public long retryAfterSeconds() {
+        return Math.max(1, Math.ceilDiv(window.toMillis(), 1_000));
+    }
 }

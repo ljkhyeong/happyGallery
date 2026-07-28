@@ -13,7 +13,7 @@ public final class RateLimitExceededException extends HappyGalleryException {
         super(ErrorCode.TOO_MANY_REQUESTS);
         this.limit = decision.limit();
         this.remaining = decision.remaining();
-        this.retryAfterSeconds = Math.max(1, decision.window().toSeconds());
+        this.retryAfterSeconds = decision.retryAfterSeconds();
     }
 
     public long limit() {

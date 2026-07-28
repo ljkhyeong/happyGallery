@@ -70,7 +70,7 @@ final class NhnSmsClient {
             log.warn("[SMS] 네트워크 예외 [purpose={} type={}]", purpose, e.getClass().getSimpleName());
             return NhnNotificationFailureClassifier.classify(e);
         } catch (Exception e) {
-            log.warn("[SMS] 발송 예외 [purpose={} type={}]", purpose, e.getClass().getSimpleName());
+            log.warn("[SMS] 발송 예외 [purpose={} type={}]", purpose, e.getClass().getSimpleName(), e);
             return NotificationSendResult.DELIVERY_UNKNOWN;
         }
     }

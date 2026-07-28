@@ -30,7 +30,6 @@ public record RateLimitProperties(
             @Valid @NotNull Rule socialLogin,
             @Valid @NotNull Rule paymentPrepare,
             @Valid @NotNull Rule paymentConfirm,
-            @Valid @NotNull Rule productQnaVerify,
             @Valid @NotNull Rule guestClaimVerify,
             @Valid @NotNull Rule guestRecordRecovery,
             @Valid @NotNull Rule clientMonitoring,

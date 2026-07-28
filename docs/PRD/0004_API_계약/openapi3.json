@@ -1616,11 +1616,6 @@
             "minLength" : 1,
             "type" : "string"
           },
-          "password" : {
-            "maxLength" : 20,
-            "minLength" : 4,
-            "type" : "string"
-          },
           "secret" : {
             "type" : "boolean"
           },
@@ -1630,7 +1625,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "content", "title" ],
+        "required" : [ "content", "secret", "title" ],
         "type" : "object"
       },
       "CreateSlotRequest" : {
@@ -2422,6 +2417,29 @@
         },
         "type" : "object"
       },
+      "MyProductQnaListItem" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "hasReply" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "secret" : {
+            "type" : "boolean"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "hasReply", "id", "secret", "title" ],
+        "type" : "object"
+      },
       "NoticeDetailResponse" : {
         "properties" : {
           "content" : {
@@ -3171,7 +3189,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "privacyVersion", "termsVersion" ],
+        "required" : [ "privacyAccepted", "privacyVersion", "termsAccepted", "termsVersion" ],
         "type" : "object"
       },
       "PolicyDocument" : {
@@ -3869,6 +3887,15 @@
         "required" : [ "linkedProviders" ],
         "type" : "object"
       },
+      "SocialSignupAuthorizationResponse" : {
+        "properties" : {
+          "authorizationUrl" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "authorizationUrl" ],
+        "type" : "object"
+      },
       "StatusCountResponse" : {
         "properties" : {
           "count" : {
@@ -4194,16 +4221,6 @@
           }
         },
         "required" : [ "verificationCode" ],
-        "type" : "object"
-      },
-      "VerifyQnaPasswordRequest" : {
-        "properties" : {
-          "password" : {
-            "minLength" : 1,
-            "type" : "string"
-          }
-        },
-        "required" : [ "password" ],
         "type" : "object"
       },
       "WorkshopProfileResponse" : {
@@ -7097,6 +7114,43 @@
         "tags" : [ "customer-auth-controller" ]
       }
     },
+    "/api/v1/auth/social/signup-intents/{provider}" : {
+      "post" : {
+        "operationId" : "startSocialSignup",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "provider",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "google", "naver" ],
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PolicyAcceptanceRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SocialSignupAuthorizationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "social-signup-controller" ]
+      }
+    },
     "/api/v1/bookings/phone-verifications" : {
       "post" : {
         "operationId" : "sendGuestBookingVerification",
@@ -8094,6 +8148,34 @@
       }
     },
     "/api/v1/me/products/{productId}/qna" : {
+      "get" : {
+        "operationId" : "listMyProductQna",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/MyProductQnaListItem"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-product-qna-controller" ]
+      },
       "post" : {
         "operationId" : "createProductQna",
         "parameters" : [ {
@@ -8125,6 +8207,41 @@
               }
             },
             "description" : "Created"
+          }
+        },
+        "tags" : [ "me-product-qna-controller" ]
+      }
+    },
+    "/api/v1/me/products/{productId}/qna/{id}" : {
+      "get" : {
+        "operationId" : "getMyProductQna",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductQnaDetail"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "me-product-qna-controller" ]
@@ -8781,51 +8898,6 @@
             "type" : "integer"
           }
         } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ProductQnaDetail"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "product-qna-controller" ]
-      }
-    },
-    "/api/v1/products/{productId}/qna/{id}/verify" : {
-      "post" : {
-        "operationId" : "verifyProductQnaPassword",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "format" : "int64",
-            "type" : "integer"
-          }
-        }, {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "int64",
-            "type" : "integer"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/VerifyQnaPasswordRequest"
-              }
-            }
-          },
-          "required" : true
-        },
         "responses" : {
           "200" : {
             "content" : {

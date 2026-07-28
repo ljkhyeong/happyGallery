@@ -21,7 +21,7 @@ public class RedisRateLimiter {
     private static final RedisScript<Long> INCREMENT_SCRIPT = RedisScript.of("""
             local count = redis.call('INCR', KEYS[1])
             if count == 1 then
-                redis.call('EXPIRE', KEYS[1], ARGV[1])
+                redis.call('PEXPIRE', KEYS[1], ARGV[1])
             end
             return count
             """, Long.class);
@@ -45,7 +45,7 @@ public class RedisRateLimiter {
 
         try {
             Long count = redisTemplate.execute(
-                    INCREMENT_SCRIPT, List.of(key), String.valueOf(rule.window().toSeconds()));
+                    INCREMENT_SCRIPT, List.of(key), String.valueOf(rule.window().toMillis()));
             if (count == null) {
                 return unavailable(ruleId, "NO_RESULT");
             }

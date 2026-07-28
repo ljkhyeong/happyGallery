@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
  * 각 주문에 대해 재고를 복구하고 PG 환불을 호출한 뒤
  * 상태를 {@link OrderStatus#AUTO_REFUND_TIMEOUT}으로 전이한다.
  *
- * <p>{@code @Scheduled} 연결은 §10에서 수행한다. 현재는 서비스만 구현됨.
  */
 @Service
 public class DefaultOrderAutoRefundBatchService implements OrderAutoRefundBatchUseCase {

@@ -188,15 +188,15 @@ class RateLimitFilterTest {
 
         MockHttpServletResponse loginResponse = perform(
                 filter, "GET", "/api/v1/auth/social/callback/google");
-        MockHttpServletResponse firstUrlResponse = perform(
-                filter, "GET", "/api/v1/auth/social/authorization/google");
-        MockHttpServletResponse secondUrlResponse = perform(
+        MockHttpServletResponse signupIntentResponse = perform(
+                filter, "POST", "/api/v1/auth/social/signup-intents/google");
+        MockHttpServletResponse authorizationResponse = perform(
                 filter, "GET", "/api/v1/auth/social/authorization/naver");
 
         assertSoftly(softly -> {
             softly.assertThat(loginResponse.getStatus()).isEqualTo(200);
-            softly.assertThat(firstUrlResponse.getStatus()).isEqualTo(200);
-            softly.assertThat(secondUrlResponse.getStatus()).isEqualTo(429);
+            softly.assertThat(signupIntentResponse.getStatus()).isEqualTo(200);
+            softly.assertThat(authorizationResponse.getStatus()).isEqualTo(429);
         });
     }
 
@@ -292,6 +292,26 @@ class RateLimitFilterTest {
         });
     }
 
+    @DisplayName("소수 초 처리율 제한은 Redis 밀리초 만료를 사용하고 Retry-After를 올림한다")
+    @Test
+    void fractionalSecondWindow_usesMillisecondsAndRoundsRetryAfterUp() throws Exception {
+        StringRedisTemplate redisTemplate = mockRedis();
+        RateLimitFilter filter = filter(new TestRateLimits()
+                .defaultApi(1)
+                .defaultApiWindow(Duration.ofMillis(1_500))
+                .build(), redisTemplate);
+
+        perform(filter, "GET", "/api/v1/products");
+        MockHttpServletResponse response = perform(filter, "GET", "/api/v1/products");
+
+        assertSoftly(softly -> {
+            softly.assertThat(response.getStatus()).isEqualTo(429);
+            softly.assertThat(response.getHeader("Retry-After")).isEqualTo("2");
+        });
+        Mockito.verify(redisTemplate, Mockito.times(2))
+                .execute(any(RedisScript.class), anyList(), Mockito.eq("1500"));
+    }
+
     private RateLimitFilter filter(RateLimitProperties properties, StringRedisTemplate redisTemplate) {
         RedisRateLimiter rateLimiter = new RedisRateLimiter(redisTemplate, BLIND_INDEXER, properties);
         return new RateLimitFilter(objectMapper, properties, rateLimiter);
@@ -330,7 +350,6 @@ class RateLimitFilterTest {
                 "/api/v1/payments/prepare",
                 "/api/v1/payments/confirm",
                 "/api/v1/auth/password/reset",
-                "/api/v1/products/1/qna/5/verify",
                 "/api/v1/me/guest-claims/verify",
                 "/api/v1/guest-records/recovery",
                 "/api/v1/guest-records/payment-status-recovery",
@@ -375,11 +394,11 @@ class RateLimitFilterTest {
         private long socialLogin = 10;
         private long paymentPrepare = 100;
         private long paymentConfirm = 100;
-        private long productQnaVerify = 100;
         private long guestClaimVerify = 100;
         private long guestRecordRecovery = 100;
         private long clientMonitoring = 100;
         private long orderCustomerAction = 100;
+        private Duration defaultApiWindow = Duration.ofMinutes(1);
 
         private TestRateLimits defaultApi(long capacity) {
             defaultApi = capacity;
@@ -388,6 +407,11 @@ class RateLimitFilterTest {
 
         private TestRateLimits phoneVerification(long capacity) {
             phoneVerification = capacity;
+            return this;
+        }
+
+        private TestRateLimits defaultApiWindow(Duration window) {
+            defaultApiWindow = window;
             return this;
         }
 
@@ -425,7 +449,6 @@ class RateLimitFilterTest {
             customerLogin = capacity;
             paymentPrepare = capacity;
             paymentConfirm = capacity;
-            productQnaVerify = capacity;
             guestClaimVerify = capacity;
             guestRecordRecovery = capacity;
             clientMonitoring = capacity;
@@ -442,7 +465,7 @@ class RateLimitFilterTest {
                     true,
                     "test:rate",
                     new IpRules(
-                            perMinute(defaultApi),
+                            new Rule(defaultApi, defaultApiWindow),
                             perMinute(phoneVerification),
                             perMinute(customerLogin),
                             perMinute(customerSignup),
@@ -452,7 +475,6 @@ class RateLimitFilterTest {
                             perMinute(socialLogin),
                             perMinute(paymentPrepare),
                             perMinute(paymentConfirm),
-                            perMinute(productQnaVerify),
                             perMinute(guestClaimVerify),
                             perMinute(guestRecordRecovery),
                             perMinute(clientMonitoring),

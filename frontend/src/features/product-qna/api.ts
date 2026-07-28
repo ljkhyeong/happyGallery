@@ -1,11 +1,13 @@
 import {
   createProductQna,
+  getMyProductQna,
   getPublicProductQna,
+  listMyProductQna,
   listProductQna,
-  verifyProductQnaPassword,
   type CreateQnaRequest,
   type ProductQnaDetail,
   type ProductQnaListItem,
+  type MyProductQnaListItem,
   type QnaCreatedResponse,
 } from "@/generated/api/productQna";
 
@@ -20,10 +22,14 @@ export function createQna(
   return createProductQna(productId, body);
 }
 
+export function fetchMyProductQna(productId: number): Promise<MyProductQnaListItem[]> {
+  return listMyProductQna(productId);
+}
+
 export function fetchProductQnaDetail(productId: number, qnaId: number): Promise<ProductQnaDetail> {
   return getPublicProductQna(productId, qnaId);
 }
 
-export function verifyQnaPassword(productId: number, qnaId: number, password: string): Promise<ProductQnaDetail> {
-  return verifyProductQnaPassword(productId, qnaId, { password });
+export function fetchMyProductQnaDetail(productId: number, qnaId: number): Promise<ProductQnaDetail> {
+  return getMyProductQna(productId, qnaId);
 }

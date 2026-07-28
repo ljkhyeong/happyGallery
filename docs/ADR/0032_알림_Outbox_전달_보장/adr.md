@@ -26,6 +26,9 @@
   `NotificationOutboxDispatcher`를 호출한다. 트랜잭션 밖 요청은 `fallbackExecution=true`로 즉시 비동기 dispatch를 요청한다.
 - `NotificationEventListener#dispatchAfterCommit`은 `@Async("notificationExecutor")`로 비동기 실행하고,
   별도 빈인 `NotificationOutboxDispatcher`를 호출한다.
+- 부모 트랜잭션 커밋 뒤 `notificationExecutor`가 포화 또는 종료 중이라 실행 신호를 거절해도
+  이미 저장된 outbox는 유지한다. 거절은 executor 태그 counter와 경고로 노출하되 원 HTTP 요청에 예외를
+  전파하지 않고, 다음 `NotificationOutboxScheduler` 주기가 같은 pending 행을 회수한다.
 - `NotificationOutboxDispatcher#dispatchPending`은 `Propagation.NEVER`로 외부 알림 호출이 활성 트랜잭션 안에서
   실행되지 않도록 선언적으로 강제한다.
 - outbox 예약과 결과 갱신은 짧은 `REQUIRES_NEW` 트랜잭션으로 처리하고, 발송 요청 조회는 `readOnly` 기본 전파를 사용한다.

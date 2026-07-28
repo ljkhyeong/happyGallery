@@ -38,8 +38,13 @@
 - MFA가 비활성화된 계정은 비밀번호 확인 뒤, 활성화된 계정은 MFA 확인까지 끝난 뒤에만 UUID 세션 토큰을 발급한다.
 - `prod`는 MFA 비활성 계정에 발급한 세션을 등록 전용 인증 상태로 제한한다. 이 세션은 MFA 상태 조회·등록 시작·등록 확인만 호출할 수 있고 일반 관리자 API와 MFA 해제는 `403`이다. local/test는 기존 개발 흐름과 API key 호환을 위해 이 제한을 기본 적용하지 않는다.
 - 이후 요청은 `Authorization: Bearer {token}` 헤더를 사용한다.
+- HTTP 인증 scheme은 대소문자를 구분하지 않으므로 `Bearer` 파서는 대소문자와 무관하게 동작한다.
+  Bearer scheme이 감지된 잘못된 헤더는 local API key로 폴백하지 않는다. 필터와 로그아웃 컨트롤러는
+  같은 resolver를 사용해 인증과 폐기의 토큰 해석이 어긋나지 않게 한다.
 - 세션 저장소는 Redis 기반 `AdminSessionStore`
 - 키 패턴은 `admin:session:{tokenHmac}`이며 원문 Bearer 토큰을 Redis 키에 남기지 않는다.
+- 저장된 세션 payload 복호화·역직렬화 실패는 인증을 fail-closed하고 원문 토큰 없이 메트릭과
+  throwable 로그를 남긴다.
 - 세션 TTL은 8시간
 - 세션 값 저장, 관리자·자격 버전 인덱스 추가, 두 키의 TTL 설정은 Redis Lua 한 번으로 실행한다.
   중간 명령이 실패하면 새 세션과 새 인덱스 항목을 정리해 부분 생성 상태를 남기지 않는다.
@@ -91,7 +96,7 @@
 
 - Spring Security의 기본 cache-control writer는 비활성화한다.
 - 공개 상품·클래스·공지 API의 ETag와 `304 Not Modified` 계약을 유지한다.
-- 관리자 전체, 인증, 회원, 결제, 비회원 복구, 비밀 상품 Q&A 비밀번호 확인과 `X-Access-Token` 요청에는 중앙 matcher로 `Cache-Control: no-store`를 명시한다.
+- 관리자 전체, 인증, 회원, 결제, 비회원 복구와 `X-Access-Token` 요청에는 중앙 matcher로 `Cache-Control: no-store`를 명시한다.
 - 중앙 matcher가 보호하는 응답은 컨트롤러에서 같은 헤더를 반복 설정하지 않는다.
 - 다른 기본 보안 응답 헤더는 Spring Security 기준을 따른다.
 
@@ -136,6 +141,9 @@
 - Google/Naver callback URI는 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI` 설정값과 정확히 일치해야 한다.
 - 브라우저가 `redirectUri`를 보내지 않는다. Spring의 `ClientRegistration`이 고정 callback URI를 authorization·token 요청에 동일하게 사용한다.
 - Spring Security가 만든 authorization request와 `state`를 같은 HTTP 세션에 저장하고 callback에서 일치 여부를 확인한 뒤 한 번에 제거한다.
+- 소셜 신규 가입은 CSRF 보호 POST로 만든 5분짜리 가입 시도 ID만 authorization GET에 전달한다.
+  서버는 이 ID의 provider와 OAuth `state`를 같은 세션에서 한 번 결합하고 callback에서 소비한다.
+  약관·개인정보 동의 자체를 공개 GET query에서 받지 않는다.
 - Naver token 요청에 필요한 `state`는 외부 callback 파라미터를 다시 신뢰하지 않고 세션에서 복원한 authorization request의 값을 사용한다.
 
 ### 11. 인증 외 운영 주제는 전용 ADR에서 본다

@@ -8,15 +8,18 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.sentry.Sentry;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -25,17 +28,27 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import tools.jackson.core.JacksonException;
 
 import static java.util.stream.Collectors.joining;
 
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final Map<String, ErrorCode> CONSTRAINT_ERROR_CODES = Map.of(
+            "uq_bookings_active_user_slot", ErrorCode.DUPLICATE_BOOKING,
+            "uq_bookings_active_guest_slot", ErrorCode.DUPLICATE_BOOKING,
+            "uq_bookings_active_phone_slot", ErrorCode.DUPLICATE_BOOKING,
+            "uq_users_phone_hmac", ErrorCode.PHONE_ALREADY_IN_USE,
+            "uq_user_social_accounts_provider_identity", ErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED,
+            "uq_user_social_accounts_user_provider", ErrorCode.SOCIAL_PROVIDER_ALREADY_LINKED,
+            "uq_slot_class_start", ErrorCode.INVALID_INPUT
+    );
 
     @ExceptionHandler(RateLimitUnavailableException.class)
     public ResponseEntity<ErrorResponse> handleRateLimitUnavailable() {
@@ -65,41 +78,91 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(errorCode, e.getMessage(), requestId()));
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e) {
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException e,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(joining(", "));
-        return ResponseEntity
-                .status(ErrorCode.INVALID_INPUT.httpStatus)
-                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, message, requestId()));
+        return mvcErrorResponse(ErrorCode.INVALID_INPUT, message, headers, status);
     }
 
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
-        return ResponseEntity
-                .status(ErrorCode.INVALID_INPUT.httpStatus)
-                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, "요청 JSON 형식이 올바르지 않습니다.", requestId()));
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException e,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        return mvcErrorResponse(
+                ErrorCode.INVALID_INPUT,
+                "요청 JSON 형식이 올바르지 않습니다.",
+                headers,
+                status);
     }
 
-    @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceeded() {
-        return ResponseEntity
-                .status(ErrorCode.INVALID_INPUT.httpStatus)
-                .body(ErrorResponse.of(
-                        ErrorCode.INVALID_INPUT, "이미지는 5MB 이하여야 합니다.", requestId()));
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException e,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        return mvcErrorResponse(
+                ErrorCode.INVALID_INPUT,
+                "이미지는 5MB 이하여야 합니다.",
+                headers,
+                HttpStatusCode.valueOf(ErrorCode.INVALID_INPUT.httpStatus));
     }
 
-    @ExceptionHandler({
-            MethodArgumentTypeMismatchException.class,
-            ServletRequestBindingException.class,
-            HandlerMethodValidationException.class
-    })
-    public ResponseEntity<ErrorResponse> handleRequestBindingException(Exception e) {
-        return ResponseEntity
-                .status(ErrorCode.INVALID_INPUT.httpStatus)
-                .body(ErrorResponse.of(
-                        ErrorCode.INVALID_INPUT, "요청 파라미터가 올바르지 않습니다.", requestId()));
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(
+            TypeMismatchException e,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        return invalidRequestParameter(headers, status);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleServletRequestBindingException(
+            ServletRequestBindingException e,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        return invalidRequestParameter(headers, status);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(
+            HandlerMethodValidationException e,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        return invalidRequestParameter(headers, status);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(
+            Exception e,
+            Object body,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        ErrorCode errorCode = resolveMvcErrorCode(status);
+        if (status.is5xxServerError()) {
+            log.error("Spring MVC 요청 처리 오류 [status={}]", status.value(), e);
+            Sentry.captureException(e);
+        }
+        return mvcErrorResponse(errorCode, errorCode.message, headers, status);
     }
 
     /**
@@ -115,11 +178,24 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
     }
 
-    /** DB 제약 위반. 활성 예약 UNIQUE 충돌만 중복 예약으로 응답한다. */
+    /** DB 제약 위반. 이름과 의미를 아는 제약만 클라이언트 오류로 번역한다. */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
-        log.warn("DB 제약 위반");
-        ErrorCode errorCode = resolveDataIntegrityErrorCode(e);
+        Optional<String> constraintName = findConstraintName(e)
+                .map(GlobalExceptionHandler::normalizeConstraintName)
+                .filter(StringUtils::hasText);
+        ErrorCode errorCode = constraintName
+                .map(CONSTRAINT_ERROR_CODES::get)
+                .orElse(null);
+        if (errorCode == null) {
+            log.error("알 수 없는 DB 제약 위반 [constraint={}]",
+                    constraintName.orElse("unknown"), e);
+            Sentry.captureException(e);
+            errorCode = ErrorCode.INTERNAL_ERROR;
+        } else {
+            log.warn("DB 제약 위반 [constraint={}, code={}]",
+                    constraintName.orElseThrow(), errorCode);
+        }
         return ResponseEntity
                 .status(errorCode.httpStatus)
                 .body(ErrorResponse.of(errorCode, errorCode.message, requestId()));
@@ -149,37 +225,6 @@ public class GlobalExceptionHandler {
 
     private static String requestId() {
         return MDC.get("requestId");
-    }
-
-    private static final Set<String> DUPLICATE_BOOKING_CONSTRAINTS = Set.of(
-            "uq_bookings_active_user_slot",
-            "uq_bookings_active_guest_slot",
-            "uq_bookings_active_phone_slot"
-    );
-
-    private static final String DUPLICATE_USER_PHONE_CONSTRAINT = "uq_users_phone_hmac";
-    private static final String DUPLICATE_SOCIAL_IDENTITY_CONSTRAINT =
-            "uq_user_social_accounts_provider_identity";
-    private static final String DUPLICATE_SOCIAL_PROVIDER_CONSTRAINT =
-            "uq_user_social_accounts_user_provider";
-
-    private ErrorCode resolveDataIntegrityErrorCode(DataIntegrityViolationException e) {
-        Optional<String> constraint = findConstraintName(e)
-                .map(GlobalExceptionHandler::normalizeConstraintName)
-                .filter(StringUtils::hasText);
-        if (constraint.filter(DUPLICATE_BOOKING_CONSTRAINTS::contains).isPresent()) {
-            return ErrorCode.DUPLICATE_BOOKING;
-        }
-        if (constraint.filter(DUPLICATE_USER_PHONE_CONSTRAINT::equals).isPresent()) {
-            return ErrorCode.PHONE_ALREADY_IN_USE;
-        }
-        if (constraint.filter(DUPLICATE_SOCIAL_IDENTITY_CONSTRAINT::equals).isPresent()) {
-            return ErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED;
-        }
-        if (constraint.filter(DUPLICATE_SOCIAL_PROVIDER_CONSTRAINT::equals).isPresent()) {
-            return ErrorCode.SOCIAL_PROVIDER_ALREADY_LINKED;
-        }
-        return ErrorCode.INVALID_INPUT;
     }
 
     private static String normalizeConstraintName(String constraintName) {
@@ -212,5 +257,44 @@ public class GlobalExceptionHandler {
             current = current.getCause();
         }
         return ErrorCode.CONFLICT;
+    }
+
+    private ResponseEntity<Object> invalidRequestParameter(
+            HttpHeaders headers,
+            HttpStatusCode status
+    ) {
+        return mvcErrorResponse(
+                ErrorCode.INVALID_INPUT,
+                "요청 파라미터가 올바르지 않습니다.",
+                headers,
+                status);
+    }
+
+    private static ErrorCode resolveMvcErrorCode(HttpStatusCode status) {
+        return switch (status.value()) {
+            case 404 -> ErrorCode.NOT_FOUND;
+            case 405 -> ErrorCode.METHOD_NOT_ALLOWED;
+            case 406 -> ErrorCode.NOT_ACCEPTABLE;
+            case 415 -> ErrorCode.UNSUPPORTED_MEDIA_TYPE;
+            case 503 -> ErrorCode.SERVICE_UNAVAILABLE;
+            default -> status.is4xxClientError()
+                    ? ErrorCode.INVALID_INPUT
+                    : ErrorCode.INTERNAL_ERROR;
+        };
+    }
+
+    private static ResponseEntity<Object> mvcErrorResponse(
+            ErrorCode errorCode,
+            String message,
+            HttpHeaders headers,
+            HttpStatusCode status
+    ) {
+        HttpHeaders responseHeaders = new HttpHeaders();
+        responseHeaders.putAll(headers);
+        responseHeaders.setContentType(MediaType.APPLICATION_JSON);
+        return new ResponseEntity<>(
+                ErrorResponse.of(errorCode, message, requestId()),
+                responseHeaders,
+                status);
     }
 }

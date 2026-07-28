@@ -4,6 +4,7 @@ import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaVerificationRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.LoginRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.LoginResponse;
+import com.personal.happygallery.adapter.in.web.security.admin.AdminBearerTokenResolver;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -20,9 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminLoginController {
 
     private final AdminAuthUseCase adminAuthUseCase;
+    private final AdminBearerTokenResolver bearerTokenResolver;
 
-    public AdminLoginController(AdminAuthUseCase adminAuthUseCase) {
+    public AdminLoginController(AdminAuthUseCase adminAuthUseCase,
+                                AdminBearerTokenResolver bearerTokenResolver) {
         this.adminAuthUseCase = adminAuthUseCase;
+        this.bearerTokenResolver = bearerTokenResolver;
     }
 
     @PostMapping("/login")
@@ -42,8 +46,9 @@ public class AdminLoginController {
     @Operation(operationId = "adminLogout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader) {
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            adminAuthUseCase.logout(authHeader.substring(7));
+        AdminBearerTokenResolver.Resolution bearer = bearerTokenResolver.resolve(authHeader);
+        if (bearer.hasToken()) {
+            adminAuthUseCase.logout(bearer.token());
         }
     }
 }

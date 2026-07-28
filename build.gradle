@@ -6,7 +6,7 @@ plugins {
 allprojects {
 	group = 'com.personal'
 	version = '0.0.1-SNAPSHOT'
-	description = 'Demo project for Spring Boot'
+	description = '해피갤러리 공방 예약·상품·결제 서비스'
 
 	repositories {
 		mavenCentral()

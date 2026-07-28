@@ -69,7 +69,7 @@ public class NhnAlimtalkSender implements NotificationSender {
             return NhnNotificationFailureClassifier.classify(exception);
         } catch (Exception exception) {
             log.warn("[ALIMTALK] 발송 예외 [event={} type={}]",
-                    eventType, exception.getClass().getSimpleName());
+                    eventType, exception.getClass().getSimpleName(), exception);
             return NotificationSendResult.DELIVERY_UNKNOWN;
         }
     }

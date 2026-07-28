@@ -2,12 +2,16 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.CreateQnaRequest;
+import com.personal.happygallery.adapter.in.web.customer.dto.MyProductQnaListItem;
 import com.personal.happygallery.adapter.in.web.customer.dto.QnaCreatedResponse;
+import com.personal.happygallery.adapter.in.web.product.dto.ProductQnaDetail;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,6 +37,25 @@ public class MeProductQnaController {
                                      @AuthenticationPrincipal CustomerPrincipal customer) {
         return QnaCreatedResponse.from(qnaUseCase.createQuestion(
                 productId, customer.userId(), request.title(), request.content(),
-                request.secret(), request.password()));
+                request.secret()));
+    }
+
+    @GetMapping
+    @Operation(operationId = "listMyProductQna")
+    public List<MyProductQnaListItem> list(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal CustomerPrincipal customer) {
+        return qnaUseCase.listOwnedByProduct(productId, customer.userId()).stream()
+                .map(MyProductQnaListItem::from)
+                .toList();
+    }
+
+    @GetMapping("/{id}")
+    @Operation(operationId = "getMyProductQna")
+    public ProductQnaDetail detail(@PathVariable Long productId,
+                                   @PathVariable Long id,
+                                   @AuthenticationPrincipal CustomerPrincipal customer) {
+        return ProductQnaDetail.from(
+                qnaUseCase.getOwnedDetail(productId, id, customer.userId()));
     }
 }

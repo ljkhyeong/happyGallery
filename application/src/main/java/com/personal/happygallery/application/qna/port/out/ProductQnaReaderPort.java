@@ -7,11 +7,13 @@ import java.util.Optional;
 
 public interface ProductQnaReaderPort {
 
-    Optional<ProductQna> findById(Long id);
-
     Optional<ProductQna> findByIdForUpdate(Long id);
 
     Optional<ProductQna> findByIdAndProductId(Long id, Long productId);
+
+    Optional<ProductQna> findByIdAndProductIdAndUserId(Long id, Long productId, Long userId);
+
+    List<ProductQna> findOwnedByProduct(Long productId, Long userId);
 
     List<ProductQna> findByProductId(Long productId);
 

@@ -19,7 +19,7 @@
 |------|--------|---------|------|
 | 관리자 인증 | `app.admin` | `AdminProperties` | API key, API key 인증 허용 여부 |
 | Rate limit | `app.rate-limit` | `RateLimitProperties` | 공개/회원/관리자 경로 제한값과 forwarded header 신뢰 여부 |
-| 배치 스케줄러 | `app.batch.scheduler` | `BatchSchedulerProperties` | 스케줄러 thread pool 크기 |
+| 배치 스케줄러 | `spring.task.scheduling` | Spring Boot task scheduling properties | 스케줄러 thread pool·주기 작업 즉시 종료 정책 |
 
 코드 검색 기준으로 현재 메인 소스에는 `@Value` 직접 주입이 남아 있지 않다.
 
@@ -27,7 +27,7 @@
 
 ## 유지 원칙
 
-1. 새 `app.*` 설정은 가능한 한 concern 단위의 `@ConfigurationProperties` 클래스로 묶는다.
+1. Spring Boot가 이미 소유한 infra 설정은 `spring.*` 표준 키와 builder를 우선하고, 새 `app.*` 설정은 가능한 한 concern 단위의 `@ConfigurationProperties` 클래스로 묶는다.
 2. 기본값은 properties 클래스 필드에 둔다.
 3. 숫자 범위나 필수 조건은 `@Validated`와 Bean Validation으로 검증한다.
 4. filter/service에는 개별 primitive보다 properties 객체를 주입한다.
@@ -46,7 +46,7 @@
 
 ## 앞으로의 적용 기준
 
-- 새 운영 설정군이 생기면 먼저 `app.<domain>` prefix와 properties 클래스를 정의한다.
+- 새 운영 설정군이 생기면 Boot 표준 설정 존재 여부를 먼저 확인하고, 없을 때 `app.<domain>` prefix와 properties 클래스를 정의한다.
 - 설정 수가 1~2개뿐이더라도 재사용되거나 검증이 필요하면 `@ConfigurationProperties`를 우선 검토한다.
 - 이미 안정적인 Spring/infra 기본 설정은 무리해서 래핑하지 않고, `app.*` 아래의 애플리케이션 설정부터 일관성을 맞춘다.
 

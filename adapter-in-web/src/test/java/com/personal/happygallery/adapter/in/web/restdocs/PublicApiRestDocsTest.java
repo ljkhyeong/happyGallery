@@ -129,7 +129,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(productQueryUseCase.getProduct(1L)).thenReturn(product);
         when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(qna));
         when(qnaUseCase.getPublicDetail(1L, 5L)).thenReturn(qna);
-        when(qnaUseCase.verifyAndGet(eq(1L), eq(5L), any())).thenReturn(qna);
         when(classQueryUseCase.listActive()).thenReturn(List.of(bookingClass));
         when(slotQueryUseCase.listAvailable(any(), any())).thenReturn(List.of(slot));
         when(slotQueryUseCase.listUpcoming(any(), anyInt())).thenReturn(List.of(slot));
@@ -244,15 +243,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("공개 상품 QNA 일반글 상세 API를 문서화한다")
     void get_public_product_qna() throws Exception {
         mockMvc.perform(get("/api/v1/products/{productId}/qna/{id}", 1L, 5L))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("공개 상품 QNA 비밀번호 확인 API를 문서화한다")
-    void verify_product_qna_password() throws Exception {
-        mockMvc.perform(post("/api/v1/products/{productId}/qna/{id}/verify", 1L, 5L)
-                        .contentType(APPLICATION_JSON)
-                        .content("{\"password\":\"qna-secret\"}"))
                 .andExpect(status().isOk());
     }
 

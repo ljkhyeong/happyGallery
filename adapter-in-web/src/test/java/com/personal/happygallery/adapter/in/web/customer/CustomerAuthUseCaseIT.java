@@ -6,13 +6,14 @@ import com.personal.happygallery.adapter.in.web.customer.dto.SignupRequest;
 import com.personal.happygallery.adapter.in.web.policy.dto.PolicyAcceptanceRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialLoginAuthenticationHandler;
-import com.personal.happygallery.adapter.in.web.security.customer.SocialPolicyConsentStore;
+import com.personal.happygallery.adapter.in.web.security.customer.SocialSignupIntentStore;
 import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRepository;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.policy.PolicyConsentType;
+import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
@@ -44,6 +45,7 @@ import tools.jackson.databind.ObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -64,7 +66,7 @@ class CustomerAuthUseCaseIT {
     @Autowired PhoneVerificationReaderPort phoneVerificationReader;
     @Autowired UserReaderPort userReader;
     @Autowired SocialLoginAuthenticationHandler socialLoginAuthenticationHandler;
-    @Autowired SocialPolicyConsentStore socialPolicyConsentStore;
+    @Autowired SocialSignupIntentStore socialSignupIntentStore;
     @Autowired PolicyConsentRepository policyConsentRepository;
 
     MockMvc mockMvc;
@@ -313,6 +315,25 @@ class CustomerAuthUseCaseIT {
                         "/auth/callback?error=SOCIAL_LOGIN_FAILED"));
     }
 
+    @DisplayName("소셜 회원가입 intent 생성은 CSRF를 요구하고 동의 값을 OAuth URL에 노출하지 않는다")
+    @Test
+    void socialSignupIntent_requiresCsrfAndReturnsOpaqueAuthorizationUrl() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/social/signup-intents/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(acceptedPolicies())))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/v1/auth/social/signup-intents/google")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(acceptedPolicies())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authorizationUrl",
+                        startsWith("/api/v1/auth/social/authorization/google?signupAttempt=")))
+                .andExpect(jsonPath("$.authorizationUrl", not(containsString("termsVersion"))))
+                .andExpect(cookie().exists("HG_SESSION"));
+    }
+
     @DisplayName("검증된 Google 로그인은 회원 세션 하나로 전환된다")
     @Test
     void socialLogin_bindsCustomerSessionAfterVerifiedGoogleLogin() throws Exception {
@@ -329,7 +350,7 @@ class CustomerAuthUseCaseIT {
         DefaultOidcUser principal = new DefaultOidcUser(List.of(), idToken, "sub");
         OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
                 principal, principal.getAuthorities(), "google");
-        MockHttpServletRequest request = socialCallbackRequest();
+        MockHttpServletRequest request = socialCallbackRequest(SocialProvider.GOOGLE);
         MockHttpSession session = (MockHttpSession) request.getSession(false);
         String anonymousSessionId = session.getId();
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -353,7 +374,7 @@ class CustomerAuthUseCaseIT {
                 List.of(new SimpleGrantedAuthority("ROLE_USER")), attributes, "id");
         OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
                 principal, principal.getAuthorities(), "naver");
-        MockHttpServletRequest request = socialCallbackRequest();
+        MockHttpServletRequest request = socialCallbackRequest(SocialProvider.NAVER);
         MockHttpSession session = (MockHttpSession) request.getSession(false);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -368,6 +389,40 @@ class CustomerAuthUseCaseIT {
             softly.assertThat(user.getEmailHmac()).isNull();
             softly.assertThat(user.getName()).isEqualTo("네이버 사용자");
             softly.assertThat(response.getRedirectedUrl()).isEqualTo("/auth/callback?newUser=true");
+        });
+    }
+
+    @DisplayName("OAuth 시작 GET의 약관 query만으로는 신규 소셜 회원을 만들지 않는다")
+    @Test
+    void socialLogin_doesNotTrustLegacyPolicyQueryParameters() throws Exception {
+        Instant now = Instant.now();
+        OidcIdToken idToken = new OidcIdToken(
+                "legacy-query-token",
+                now,
+                now.plusSeconds(300),
+                Map.of(
+                        "sub", "legacy-query-account",
+                        "email", "legacy-query@example.com",
+                        "email_verified", true,
+                        "name", "과거 Query 사용자"));
+        DefaultOidcUser principal = new DefaultOidcUser(List.of(), idToken, "sub");
+        OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
+                principal, principal.getAuthorities(), "google");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setSession(new MockHttpSession());
+        request.addParameter("termsVersion", "2026-07-21-v1");
+        request.addParameter("termsAccepted", "true");
+        request.addParameter("privacyVersion", "2026-07-21-v1");
+        request.addParameter("privacyAccepted", "true");
+        request.addParameter("state", "unbound-state");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        socialLoginAuthenticationHandler.onAuthenticationSuccess(request, response, authentication);
+
+        assertSoftly(softly -> {
+            softly.assertThat(response.getRedirectedUrl())
+                    .isEqualTo("/auth/callback?error=POLICY_CONSENT_REQUIRED");
+            softly.assertThat(userReader.findByEmail("legacy-query@example.com")).isEmpty();
         });
     }
 
@@ -408,17 +463,16 @@ class CustomerAuthUseCaseIT {
                 acceptedPolicies());
     }
 
-    private MockHttpServletRequest socialCallbackRequest() {
+    private MockHttpServletRequest socialCallbackRequest(SocialProvider provider) {
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpSession session = new MockHttpSession();
         session.setNew(false);
         request.setSession(session);
-        request.addParameter(SocialPolicyConsentStore.TERMS_VERSION_PARAMETER, "2026-07-21-v1");
-        request.addParameter(SocialPolicyConsentStore.TERMS_ACCEPTED_PARAMETER, "true");
-        request.addParameter(SocialPolicyConsentStore.PRIVACY_VERSION_PARAMETER, "2026-07-21-v1");
-        request.addParameter(SocialPolicyConsentStore.PRIVACY_ACCEPTED_PARAMETER, "true");
         request.addParameter("state", "social-policy-state");
-        socialPolicyConsentStore.bindOauthState(request, "social-policy-state");
+        String attemptId = socialSignupIntentStore.start(
+                request, provider, acceptedPolicies().toCommand());
+        assertThat(socialSignupIntentStore.bindOauthState(
+                request, attemptId, provider, "social-policy-state")).isTrue();
         return request;
     }
 

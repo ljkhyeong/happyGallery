@@ -269,8 +269,8 @@ HAVING COUNT(*) > 1;
 
 - `product_qna`
   - `id`, `product_id`, `user_id`
-  - `title`, `content`, `secret`, `password_hash VARCHAR(255) nullable`
-  - 일반글은 `password_hash=null`로 저장하고 비밀번호 없이 공개 상세를 조회한다. 비밀글 비밀번호 해시는 회원·관리자와 같은 BCrypt 호환 형식으로 저장하며 검증 성공 후에만 상세를 조회한다.
+  - `title`, `content`, `secret`
+  - 일반글은 공개 상세를 허용한다. 비밀글은 공개 상세를 거절하고 로그인한 작성자 소유권 또는 관리자 권한으로만 조회한다.
   - `reply_content nullable`, `replied_at nullable`, `replied_by nullable`, `created_at`
 
 - `inquiry`

@@ -128,6 +128,8 @@ HMAC 서명한 증거만 서버 확정 payload에 저장한다. fulfillment의 `
 - 결제 시도 `COMPENSATION_REQUESTED`와 환불 `REQUESTED`를 한 트랜잭션으로 저장한다.
 - 커밋 이후 `RefundExecutionEventListener`가 `refundExecutor`에서 `RefundDispatcher`를 호출하고,
   `Propagation.NEVER`가 보장하는 비트랜잭션 구간에서 PG cancel을 실행한다.
+- `refundExecutor` 포화 또는 종료 중 거절은 이미 커밋된 환불 요청을 실패로 되돌릴 수 없으므로
+  메트릭과 경고만 남기고 호출자에게 전파하지 않는다. 환불 복구 배치가 같은 요청과 멱등키로 이어서 처리한다.
 - 성공하면 결제 시도는 `COMPENSATED`가 된다. PG의 명시적 최종 거절만 `COMPENSATION_FAILED`로 전이한다.
 - 큐 거절·서킷 오픈·일시 오류와 타임아웃·통신 단절은 `COMPENSATION_REQUESTED`를 유지하고 환불 복구 배치가 같은 멱등키로 다시 확인한다.
 - 조치가 필요한 보상 환불은 기존 관리자 환불 목록과 재처리 API를 그대로 사용한다.
