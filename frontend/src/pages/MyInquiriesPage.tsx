@@ -7,13 +7,14 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { queryKeys } from "@/shared/api";
 
 export function MyInquiriesPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
   const loginHref = buildAuthPageHref("/login", { redirectTo: "/my/inquiries" });
 
   const { data: inquiries, isLoading, error } = useQuery({
-    queryKey: ["my", "inquiries"],
+    queryKey: queryKeys.member.inquiries,
     queryFn: fetchMyInquiries,
     enabled: isAuthenticated,
   });

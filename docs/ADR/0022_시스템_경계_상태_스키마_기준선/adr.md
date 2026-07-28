@@ -85,9 +85,9 @@
 #### 사용자와 비회원
 
 - `admin_user`
-  - `id`, `username(unique)`, `password_hash`, `credential_version`, `failed_login_attempts`, `locked_until nullable`, `totp_secret_enc nullable`, `mfa_enabled`, `created_at`
+  - `id`, `username(unique)`, `password_hash`, `credential_version`, `totp_secret_enc nullable`, `mfa_enabled`, `created_at`
   - 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 웹 입력은 UTF-8 72바이트 이하로 제한한다. 실제 비밀번호 또는 MFA 설정 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 작업 강도만 승격할 때는 버전을 유지한다.
-  - 인증 실패 5회는 계정을 15분 잠근다. TOTP 비밀키는 AES-GCM 암호문으로만 저장한다.
+  - 인증되지 않은 요청이 운영자 계정을 잠그는 것을 막기 위해 V103에서 `failed_login_attempts`, `locked_until`을 제거한다. 로그인 남용은 IP 처리율 제한·MFA·감사 이력으로 통제하고, TOTP 비밀키는 AES-GCM 암호문으로만 저장한다.
 - `admin_mfa_challenge`
   - `id`, `admin_user_id`, `token_hmac(unique)`, `expires_at`, `consumed_at nullable`, `created_at`
   - 로그인 2단계 challenge 원문은 저장하지 않고 5분 유효 HMAC만 저장하며 성공 시 한 번 소비한다.

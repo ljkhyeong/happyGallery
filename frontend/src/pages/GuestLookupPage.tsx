@@ -3,11 +3,17 @@ import { useEffect } from "react";
 import { Badge, Card, Col, Container, Row } from "react-bootstrap";
 import { Link, useLocation } from "react-router";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { trackClientEvent, trackGuestMemberCta } from "@/features/monitoring/api";
 import { GuestRecordRecoverySection } from "@/features/guest-recovery/GuestRecordRecoverySection";
 import { GuestPaymentStatusRecoverySection } from "@/features/guest-payment-recovery/GuestPaymentStatusRecoverySection";
 
 export function GuestLookupPage() {
+  const { sessionVersion } = useCustomerAuth();
+  return <GuestLookupContent key={sessionVersion} />;
+}
+
+function GuestLookupContent() {
   const location = useLocation();
   const monitoringSource = (location.state as { monitoringSource?: string } | null)?.monitoringSource ?? "direct";
   const claimLoginHref = buildAuthPageHref("/login", {

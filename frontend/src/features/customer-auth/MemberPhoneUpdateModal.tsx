@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button, Modal } from "react-bootstrap";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
-import { ApiError } from "@/shared/api";
+import {
+  ApiError,
+  runForCurrentCustomer,
+} from "@/shared/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { CustomerStepUpPrompt } from "@/features/customer-auth/CustomerStepUpPrompt";
 import { ErrorAlert, useToast } from "@/shared/ui";
@@ -39,16 +42,21 @@ export function MemberPhoneUpdateModal({
 
   const update = useMutation({
     mutationFn: ({ phone, verificationCode }: { phone: string; verificationCode: string }) =>
-      updateMemberPhone(phone, verificationCode),
-    onSuccess: async () => {
-      toast.show(currentPhone ? "휴대폰 번호가 변경되었습니다." : "휴대폰 번호가 등록되었습니다.");
-      if (currentPhone) {
-        window.location.assign(buildAuthPageHref("/login", { redirectTo: "/my" }));
-        return;
-      }
-      await onUpdated();
-      onClose();
-    },
+      runForCurrentCustomer(
+        () => updateMemberPhone(phone, verificationCode),
+        async (_, requireCurrent) => {
+          toast.show(
+            currentPhone ? "휴대폰 번호가 변경되었습니다." : "휴대폰 번호가 등록되었습니다.",
+          );
+          if (currentPhone) {
+            window.location.assign(buildAuthPageHref("/login", { redirectTo: "/my" }));
+            return;
+          }
+          await onUpdated();
+          requireCurrent();
+          onClose();
+        },
+      ),
     onError: (error) => {
       if (error instanceof ApiError && error.code === "REAUTHENTICATION_REQUIRED") {
         setReauthenticated(false);

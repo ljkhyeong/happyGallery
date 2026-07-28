@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
-import { Button, Col, Form, Row } from "react-bootstrap";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Button, Col, Form, Row } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchAdminWorkshopProfile, updateWorkshopProfile } from "@/features/workshop/api";
+import { ApiError } from "@/shared/api";
+import type { WorkshopProfile } from "@/shared/types";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import {
+  isAdminSessionUnauthorized,
+  useAdminMutation,
+} from "@/shared/hooks/useAdminMutation";
 
 interface Props {
   adminKey: string;
@@ -32,39 +37,48 @@ const initialForm = {
   smartStoreUrl: "",
 };
 
+function profileToForm(profile: WorkshopProfile): typeof initialForm {
+  return {
+    name: profile.name,
+    phone: profile.phone ?? "",
+    postalCode: profile.postalCode ?? "",
+    addressLine1: profile.addressLine1 ?? "",
+    addressLine2: profile.addressLine2 ?? "",
+    businessHours: profile.businessHours ?? "",
+    mapUrl: profile.mapUrl ?? "",
+    parkingInfo: profile.parkingInfo ?? "",
+    businessRegistrationNumber: profile.businessRegistrationNumber ?? "",
+    representativeName: profile.representativeName ?? "",
+    email: profile.email ?? "",
+    mailOrderRegistrationNumber: profile.mailOrderRegistrationNumber ?? "",
+    introduction: profile.introduction ?? "",
+    kakaoTalkId: profile.kakaoTalkId ?? "",
+    naverTalkUrl: profile.naverTalkUrl ?? "",
+    naverBlogUrl: profile.naverBlogUrl ?? "",
+    instagramUrl: profile.instagramUrl ?? "",
+    smartStoreUrl: profile.smartStoreUrl ?? "",
+  };
+}
+
 export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [form, setForm] = useState(initialForm);
   const [expectedVersion, setExpectedVersion] = useState<number | null>(null);
+  const [conflict, setConflict] = useState<WorkshopProfile | null>(null);
+  const [conflictLoading, setConflictLoading] = useState(false);
+  const [conflictRefreshError, setConflictRefreshError] = useState<Error | null>(null);
+  const initiallyHydrated = useRef(false);
   const query = useAdminQuery(onAuthError, {
     queryKey: ["admin", "workshop-profile"],
     queryFn: () => fetchAdminWorkshopProfile(adminKey),
   });
 
   useEffect(() => {
-    if (!query.data) return;
+    if (!query.data || initiallyHydrated.current) return;
+    initiallyHydrated.current = true;
     setExpectedVersion(query.data.version);
-    setForm({
-      name: query.data.name,
-      phone: query.data.phone ?? "",
-      postalCode: query.data.postalCode ?? "",
-      addressLine1: query.data.addressLine1 ?? "",
-      addressLine2: query.data.addressLine2 ?? "",
-      businessHours: query.data.businessHours ?? "",
-      mapUrl: query.data.mapUrl ?? "",
-      parkingInfo: query.data.parkingInfo ?? "",
-      businessRegistrationNumber: query.data.businessRegistrationNumber ?? "",
-      representativeName: query.data.representativeName ?? "",
-      email: query.data.email ?? "",
-      mailOrderRegistrationNumber: query.data.mailOrderRegistrationNumber ?? "",
-      introduction: query.data.introduction ?? "",
-      kakaoTalkId: query.data.kakaoTalkId ?? "",
-      naverTalkUrl: query.data.naverTalkUrl ?? "",
-      naverBlogUrl: query.data.naverBlogUrl ?? "",
-      instagramUrl: query.data.instagramUrl ?? "",
-      smartStoreUrl: query.data.smartStoreUrl ?? "",
-    });
+    setForm(profileToForm(query.data));
   }, [query.data]);
 
   const mutation = useAdminMutation(onAuthError, {
@@ -89,10 +103,33 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
       instagramUrl: form.instagramUrl.trim() || null,
       smartStoreUrl: form.smartStoreUrl.trim() || null,
     }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "workshop-profile"] });
+    onMutate: () => setConflictRefreshError(null),
+    onSuccess: (saved) => {
+      setExpectedVersion(saved.version);
+      setForm(profileToForm(saved));
+      setConflict(null);
+      queryClient.setQueryData(["admin", "workshop-profile"], saved);
       queryClient.invalidateQueries({ queryKey: ["workshop-profile"] });
       toast.show("공방 정보가 저장되었습니다.");
+    },
+    onError: async (error) => {
+      if (!(error instanceof ApiError) || error.status !== 409) return;
+
+      setConflictLoading(true);
+      try {
+        const latest = await fetchAdminWorkshopProfile(adminKey);
+        queryClient.setQueryData(["admin", "workshop-profile"], latest);
+        setConflict(latest);
+      } catch (refreshError) {
+        if (isAdminSessionUnauthorized(refreshError)) onAuthError();
+        setConflictRefreshError(
+          refreshError instanceof Error
+            ? refreshError
+            : new Error("최신 공방 정보를 불러오지 못했습니다."),
+        );
+      } finally {
+        setConflictLoading(false);
+      }
     },
   });
 
@@ -107,7 +144,49 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
       event.preventDefault();
       if (form.name.trim() && expectedVersion !== null) mutation.mutate();
     }}>
-      <ErrorAlert error={query.error || mutation.error} />
+      <ErrorAlert
+        error={
+          query.error
+          || conflictRefreshError
+          || (conflict ? null : mutation.error)
+        }
+      />
+      {conflictLoading && <LoadingSpinner text="최신 공방 정보 확인 중..." />}
+      {conflict && (
+        <Alert variant="warning">
+          <p className="mb-2">
+            다른 관리자가 공방 정보를 먼저 수정했습니다. 작성 중인 초안은 그대로 보존했습니다.
+          </p>
+          <div className="d-flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline-dark"
+              onClick={() => {
+                setExpectedVersion(conflict.version);
+                setConflict(null);
+                mutation.reset();
+                toast.show("최신 버전을 반영했습니다. 초안을 확인한 뒤 다시 저장해 주세요.");
+              }}
+            >
+              내 초안 유지
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => {
+                setExpectedVersion(conflict.version);
+                setForm(profileToForm(conflict));
+                setConflict(null);
+                mutation.reset();
+              }}
+            >
+              서버 최신 내용 불러오기
+            </Button>
+          </div>
+        </Alert>
+      )}
       <Row className="g-3">
         <Col md={6}>
           <Form.Group controlId="admin-workshop-name">
@@ -255,7 +334,13 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
           <Button
             className="w-100"
             type="submit"
-            disabled={!form.name.trim() || expectedVersion === null || mutation.isPending}
+            disabled={
+              !form.name.trim()
+              || expectedVersion === null
+              || conflict !== null
+              || conflictLoading
+              || mutation.isPending
+            }
           >
             {mutation.isPending ? "저장 중..." : "공방 정보 저장"}
           </Button>

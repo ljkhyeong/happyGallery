@@ -1,71 +1,135 @@
 import {
   removePaymentStatusToken,
   storePaymentStatusToken,
+  type PaymentSessionHandle,
 } from "@/features/payment";
+import type { CustomerSessionSnapshot } from "@/shared/api";
 import { parseApiDateTime } from "@/shared/lib";
+import {
+  currentCustomerSessionStorageOwner,
+  isCurrentCustomerSessionStorageOwner,
+  isCustomerSessionStorageOwner,
+  sameCustomerSessionStorageOwner,
+  type CustomerSessionStorageHandle,
+} from "@/shared/storage/customerSessionOwner";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 import type { GuestPaymentStatusRecoveryResponse } from "./api";
+
+export type GuestPaymentStatusRecoverySession =
+  CustomerSessionStorageHandle<GuestPaymentStatusRecoveryResponse>;
 
 function isRecoveryResult(value: unknown): value is GuestPaymentStatusRecoveryResponse {
   if (!value || typeof value !== "object") return false;
   const result = value as Partial<GuestPaymentStatusRecoveryResponse>;
-  const expiresAt = typeof result.expiresAt === "string"
-    ? parseApiDateTime(result.expiresAt)
-    : Number.NaN;
   return typeof result.statusToken === "string"
-    && Array.isArray(result.payments)
-    && Number.isFinite(expiresAt)
-    && expiresAt > Date.now();
+    && result.statusToken.length > 0
+    && typeof result.expiresAt === "string"
+    && Array.isArray(result.payments);
+}
+
+function readGuestPaymentStatusRecovery(
+  raw: string,
+): GuestPaymentStatusRecoverySession | null {
+  const parsed = JSON.parse(raw) as Partial<CustomerSessionStorageHandle<unknown>>;
+  if (
+    !isCustomerSessionStorageOwner(parsed.owner)
+    || !isRecoveryResult(parsed.value)
+  ) {
+    return null;
+  }
+  return { owner: parsed.owner, value: parsed.value };
+}
+
+function sameGuestPaymentStatusRecovery(
+  left: GuestPaymentStatusRecoverySession,
+  right: GuestPaymentStatusRecoverySession,
+): boolean {
+  return sameCustomerSessionStorageOwner(left.owner, right.owner)
+    && JSON.stringify(left.value) === JSON.stringify(right.value);
+}
+
+function paymentTokenHandle(
+  recovery: GuestPaymentStatusRecoverySession,
+): PaymentSessionHandle<string> {
+  return {
+    owner: recovery.owner,
+    value: recovery.value.statusToken,
+  };
+}
+
+function clearPaymentStatusTokens(
+  recovery: GuestPaymentStatusRecoverySession,
+): void {
+  const expectedToken = paymentTokenHandle(recovery);
+  recovery.value.payments.forEach((payment) => {
+    removePaymentStatusToken(payment.orderId, expectedToken);
+  });
 }
 
 export function saveGuestPaymentStatusRecovery(
   result: GuestPaymentStatusRecoveryResponse,
-): void {
+  expectedSnapshot?: CustomerSessionSnapshot,
+): GuestPaymentStatusRecoverySession | null {
+  const owner = currentCustomerSessionStorageOwner(expectedSnapshot);
+  if (!owner) return null;
+  const recovery = { owner, value: result };
   result.payments.forEach((payment) => {
-    storePaymentStatusToken(payment.orderId, result.statusToken);
+    storePaymentStatusToken(
+      payment.orderId,
+      result.statusToken,
+      expectedSnapshot,
+    );
   });
   try {
     sessionStorage.setItem(
       SESSION_KEYS.guestPaymentStatusRecovery,
-      JSON.stringify(result),
+      JSON.stringify(recovery),
     );
   } catch {
     // 상세 조회용 토큰 저장에 성공했다면 현재 화면의 복구 결과는 계속 사용할 수 있다.
   }
+  return recovery;
 }
 
-export function loadGuestPaymentStatusRecovery(): GuestPaymentStatusRecoveryResponse | null {
+export function loadGuestPaymentStatusRecovery(
+  expectedSnapshot?: CustomerSessionSnapshot,
+): GuestPaymentStatusRecoverySession | null {
   try {
     const raw = sessionStorage.getItem(SESSION_KEYS.guestPaymentStatusRecovery);
     if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
-    if (!isRecoveryResult(parsed)) {
-      clearGuestPaymentStatusRecovery();
+    const recovery = readGuestPaymentStatusRecovery(raw);
+    if (
+      !recovery
+      || !isCurrentCustomerSessionStorageOwner(
+        recovery.owner,
+        expectedSnapshot,
+      )
+    ) {
       return null;
     }
-    return parsed;
+    const expiresAt = parseApiDateTime(recovery.value.expiresAt);
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      clearGuestPaymentStatusRecovery(recovery);
+      return null;
+    }
+    return recovery;
   } catch {
-    clearGuestPaymentStatusRecovery();
     return null;
   }
 }
 
-export function clearGuestPaymentStatusRecovery(): void {
-  let orderIds: string[] = [];
+export function clearGuestPaymentStatusRecovery(
+  expected?: GuestPaymentStatusRecoverySession,
+): void {
+  const recovery = expected ?? loadGuestPaymentStatusRecovery();
+  if (!recovery) return;
   try {
     const raw = sessionStorage.getItem(SESSION_KEYS.guestPaymentStatusRecovery);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<GuestPaymentStatusRecoveryResponse>;
-      orderIds = parsed.payments
-        ?.map((payment) => payment.orderId)
-        .filter((orderId): orderId is string => typeof orderId === "string") ?? [];
-    }
-  } catch {
-    // 손상된 복구 결과에서도 저장소 키와 확인 가능한 개별 토큰은 아래에서 정리한다.
-  }
-  orderIds.forEach(removePaymentStatusToken);
-  try {
+    if (!raw) return;
+    const stored = readGuestPaymentStatusRecovery(raw);
+    if (!stored || !sameGuestPaymentStatusRecovery(stored, recovery)) return;
     sessionStorage.removeItem(SESSION_KEYS.guestPaymentStatusRecovery);
+    clearPaymentStatusTokens(recovery);
   } catch {
     // 세션 저장소를 사용할 수 없으면 정리할 값도 없다.
   }

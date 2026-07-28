@@ -56,6 +56,7 @@
   - Access 토큰: `X-Access-Token=xxx` → `X-Access-Token=***`
 - 마스킹은 예기치 않은 문자열 유입을 막는 방어선으로 유지하되, 애플리케이션 로그 호출 자체에도 전화번호·이름·인증 코드·결제 키를 전달하지 않는다.
 - 알림·결제 외부 호출 실패는 예외 원문 대신 HTTP 상태, 예외 타입과 내부 식별자만 기록한다. `notification_log.fail_reason` 등 영속 실패 사유에는 `DELIVERY_EXCEPTION` 같은 통제된 문구를 저장한다.
+- 운영 프런트 Nginx access log는 `$request_uri`나 기본 `$request`, `$http_referer`를 사용하지 않고 `$request_method $uri $server_protocol`만 기록한다. 따라서 Toss 성공 callback의 `paymentKey` query와 same-origin Referer query가 최초 요청 로그에 남지 않는다.
 - 전역 예외 처리와 Sentry 전송은 DB·JSON·외부 서비스 예외 원문 대신 예외 종류와 공통 오류 메시지만 남긴다. Sentry event·breadcrumb·API 경로 태그와 Referer의 URL은 경로만 남기고 query와 fragment를 제거한다. 요청 본문·쿠키·query string과 인증·CSRF·비회원 접근 토큰 헤더도 제거해 관리자 검색어, 결제 키와 내부 식별자를 전송하지 않는다.
 - 로컬 Hibernate SQL bind 로깅도 개인정보가 노출되지 않도록 `WARN` 수준으로 유지한다.
 - `logstash-logback-encoder`를 `runtimeOnly` → `implementation`으로 변경 (커스텀 JsonProvider 컴파일에 필요).
@@ -99,6 +100,11 @@
 
 - 인증 SMS를 `PhoneVerificationSender`로 분리하고 인증 코드 저장 커밋 후 트랜잭션 밖에서 발송하도록 정했다.
 - `deploy/k3s`에 단일 노드 manifest, TLS ingress, 비공개 관리 포트, secret·이미지·rollout·rollback, off-device 암호화 백업과 복원 절차를 구현했다.
+
+## Update (2026-07-28)
+
+- 운영 프런트 access log에서 query string과 Referer를 제거했다.
+- Toss와 결제 resilience 경계는 결제 키가 포함될 수 있는 throwable 원문을 로그 호출에 전달하지 않고 예외 타입과 안전한 내부 식별자만 남긴다.
 
 ## 참고
 

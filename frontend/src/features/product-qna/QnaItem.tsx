@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Card, Badge, Button } from "react-bootstrap";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { fetchMyProductQnaDetail, fetchProductQnaDetail } from "./api";
+import { queryKeys } from "@/shared/api";
 import { ErrorAlert } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
-import type { ProductQnaListItem, ProductQnaDetail } from "@/shared/types";
+import type { ProductQnaListItem } from "@/shared/types";
 
 interface Props {
   item: ProductQnaListItem;
@@ -14,19 +15,37 @@ interface Props {
 }
 
 export function QnaItem({ item, productId, owned }: Props) {
-  const [detail, setDetail] = useState<ProductQnaDetail | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
-  const detailMutation = useMutation({
-    mutationFn: () => item.secret
-      ? fetchMyProductQnaDetail(productId, item.id)
-      : fetchProductQnaDetail(productId, item.id),
-    onSuccess: setDetail,
+  const detailQuery = useQuery({
+    queryKey: item.secret
+      ? queryKeys.member.productQna.detail(productId, item.id)
+      : ["product-qna", productId, item.id],
+    queryFn: ({ signal }) => item.secret
+      ? fetchMyProductQnaDetail(productId, item.id, signal)
+      : fetchProductQnaDetail(productId, item.id, signal),
+    enabled: expanded && (!item.secret || owned === true),
   });
 
+  const detail = expanded ? detailQuery.data : undefined;
   const isLocked = item.secret && !detail;
   const displayTitle = detail ? detail.title : item.title;
   const displayContent = detail?.content;
   const displayReply = detail?.replyContent;
+  const openDetail = () => {
+    if (expanded) {
+      void detailQuery.refetch();
+      return;
+    }
+    setExpanded(true);
+  };
+  const toggleDetail = () => {
+    if (detail) {
+      setExpanded(false);
+      return;
+    }
+    openDetail();
+  };
 
   return (
     <Card className="mb-2">
@@ -52,15 +71,15 @@ export function QnaItem({ item, productId, owned }: Props) {
                   size="sm"
                   variant="link"
                   className="p-0"
-                  disabled={detailMutation.isPending}
-                  onClick={() => detailMutation.mutate()}
+                  disabled={detailQuery.isFetching}
+                  onClick={openDetail}
                 >
                   <ChevronDown size={14} aria-hidden="true" />
                   <span className="ms-1">
-                    {detailMutation.isPending ? "불러오는 중..." : "작성자 전용 내용 보기"}
+                    {detailQuery.isFetching ? "불러오는 중..." : "작성자 전용 내용 보기"}
                   </span>
                 </Button>
-                <ErrorAlert error={detailMutation.error} />
+                <ErrorAlert error={detailQuery.error} />
               </>
             )}
             {owned === false && (
@@ -87,15 +106,15 @@ export function QnaItem({ item, productId, owned }: Props) {
               size="sm"
               variant="link"
               className="p-0"
-              disabled={detailMutation.isPending}
-              onClick={() => detail ? setDetail(null) : detailMutation.mutate()}
+              disabled={detailQuery.isFetching}
+              onClick={toggleDetail}
             >
               {detail ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
               <span className="ms-1">
-                {detail ? "내용 닫기" : detailMutation.isPending ? "불러오는 중..." : "내용 보기"}
+                {detail ? "내용 닫기" : detailQuery.isFetching ? "불러오는 중..." : "내용 보기"}
               </span>
             </Button>
-            <ErrorAlert error={detailMutation.error} />
+            <ErrorAlert error={detailQuery.error} />
           </div>
         )}
       </Card.Body>

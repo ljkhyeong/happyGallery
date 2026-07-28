@@ -173,23 +173,22 @@ class AdminLoginUseCaseIT {
                 .andExpect(status().isUnauthorized());
     }
 
-    @DisplayName("로그인 실패가 5회 누적되면 계정을 잠그고 존재 여부와 잠금 상태를 같은 응답으로 숨긴다")
+    @DisplayName("반복 로그인 실패로 계정을 잠그지 않고 존재 여부는 같은 응답으로 숨긴다")
     @Test
-    void repeatedFailure_locksAccount_withoutRevealingAccountState() throws Exception {
-        for (int attempt = 0; attempt < AdminUser.MAX_FAILED_LOGIN_ATTEMPTS; attempt++) {
+    void repeatedFailure_doesNotLockAccount_withoutRevealingAccountState() throws Exception {
+        for (int attempt = 0; attempt < 5; attempt++) {
             assertInvalidCredentials(USERNAME, "wrong-password");
         }
-        assertInvalidCredentials(USERNAME, PASSWORD);
         assertInvalidCredentials("missing-admin", "wrong-password");
+        String token = loginAndGetToken();
 
-        AdminUser stored = adminUserPort.findByUsername(USERNAME).orElseThrow();
-        assertThat(stored.getFailedLoginAttempts()).isEqualTo(AdminUser.MAX_FAILED_LOGIN_ATTEMPTS);
-        assertThat(stored.getLockedUntil()).isNotNull();
+        assertThat(token).isNotBlank();
         assertThat(historyRepository.findAllByOrderByIdAsc())
                 .extracting(history -> history.getOutcome())
                 .contains(
                         AdminAuthOutcome.LOGIN_FAILED,
-                        AdminAuthOutcome.LOGIN_BLOCKED);
+                        AdminAuthOutcome.LOGIN_SUCCEEDED)
+                .doesNotContain(AdminAuthOutcome.LOGIN_BLOCKED);
     }
 
     @DisplayName("MFA 등록 후에는 TOTP 시간 구간과 복구 코드를 한 번만 허용한다")
@@ -197,8 +196,6 @@ class AdminLoginUseCaseIT {
     void mfaEnrollment_requiresSecondStep_andConsumesRecoveryCodeOnce() throws Exception {
         assertInvalidCredentials(USERNAME, "wrong-password");
         String enrollmentToken = loginAndGetToken();
-        assertThat(adminUserPort.findByUsername(USERNAME).orElseThrow().getFailedLoginAttempts())
-                .isZero();
 
         JsonNode enrollment = responseBody(mockMvc.perform(
                         post("/api/v1/admin/auth/mfa/enrollment")
@@ -240,11 +237,7 @@ class AdminLoginUseCaseIT {
                 .findUnusedByAdminUserIdForUpdate(adminUserPort.findByUsername(USERNAME)
                         .orElseThrow()
                         .getId());
-        assertThat(adminUserPort.findByUsername(USERNAME).orElseThrow().getFailedLoginAttempts())
-                .isEqualTo(1);
         String authenticatedToken = verifyMfaAndGetToken(challenge, "654321");
-        assertThat(adminUserPort.findByUsername(USERNAME).orElseThrow().getFailedLoginAttempts())
-                .isZero();
         assertProtectedRequestAccepted(authenticatedToken);
         assertInvalidMfa(challenge, "654321");
 

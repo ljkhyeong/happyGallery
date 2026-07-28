@@ -13,7 +13,7 @@ import com.personal.happygallery.domain.payment.PaymentContext;
  */
 public interface PaymentPreparer {
 
-    /** 어떤 PaymentContext를 처리하는 preparer인지. {@link com.personal.happygallery.application.payment.DefaultPaymentPrepareService}가 dispatch에 사용. */
+    /** 어떤 PaymentContext를 처리하는 preparer인지. 결제 준비 트랜잭션 서비스가 dispatch에 사용한다. */
     PaymentContext context();
 
     /**

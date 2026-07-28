@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.admin;
 
 import com.personal.happygallery.application.admin.port.out.AdminMfaChallengePort;
+import com.personal.happygallery.application.admin.port.out.AdminLoginSnapshot;
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
 import com.personal.happygallery.domain.admin.AdminAuthOutcome;
 import com.personal.happygallery.domain.admin.AdminMfaChallenge;
@@ -11,6 +12,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,9 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 class AdminAuthenticationTransactionService {
 
     private static final Duration MFA_CHALLENGE_TTL = Duration.ofMinutes(5);
-    private static final String DUMMY_PASSWORD_HASH =
-            "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
-
     private final AdminUserPort adminUserPort;
     private final AdminMfaChallengePort challengePort;
     private final AdminMfaCodeVerifier mfaCodeVerifier;
@@ -52,29 +51,16 @@ class AdminAuthenticationTransactionService {
     }
 
     @Transactional
-    public AuthenticationDecision authenticatePassword(String username, String rawPassword) {
-        AdminUser admin = adminUserPort.findByUsernameForUpdate(username).orElse(null);
-        if (admin == null) {
-            passwordEncoder.matches(rawPassword, DUMMY_PASSWORD_HASH);
-            auditService.record(null, username, AdminAuthOutcome.LOGIN_FAILED);
-            return AuthenticationDecision.rejected();
-        }
-
-        LocalDateTime now = LocalDateTime.now(clock);
-        boolean passwordMatches = passwordEncoder.matches(rawPassword, admin.getPasswordHash());
-        if (admin.isAuthenticationLocked(now)) {
-            auditService.record(admin.getId(), username, AdminAuthOutcome.LOGIN_BLOCKED);
-            return AuthenticationDecision.rejected();
-        }
-        if (!passwordMatches) {
-            admin.recordFailedAuthentication(now);
-            adminUserPort.save(admin);
+    public AuthenticationDecision authenticatePassword(
+            AdminLoginSnapshot snapshot,
+            String rawPassword
+    ) {
+        AdminUser admin = adminUserPort.findByIdForUpdate(snapshot.adminUserId()).orElse(null);
+        if (admin == null
+                || !admin.getUsername().equals(snapshot.username())
+                || !passwordStillMatches(snapshot.passwordHash(), rawPassword, admin)) {
             auditService.record(
-                    admin.getId(),
-                    username,
-                    admin.isAuthenticationLocked(now)
-                            ? AdminAuthOutcome.LOGIN_BLOCKED
-                            : AdminAuthOutcome.LOGIN_FAILED);
+                    snapshot.adminUserId(), snapshot.username(), AdminAuthOutcome.LOGIN_FAILED);
             return AuthenticationDecision.rejected();
         }
 
@@ -83,11 +69,10 @@ class AdminAuthenticationTransactionService {
             adminUserPort.save(admin);
         }
         if (!admin.isMfaEnabled()) {
-            admin.authenticationSucceeded();
-            adminUserPort.save(admin);
             return AuthenticationDecision.authenticated(admin);
         }
 
+        LocalDateTime now = LocalDateTime.now(clock);
         challengePort.deleteByAdminUserId(admin.getId());
         String challengeToken = UUID.randomUUID().toString();
         challengePort.save(new AdminMfaChallenge(
@@ -95,8 +80,17 @@ class AdminAuthenticationTransactionService {
                 blindIndexKeyRing.index(challengeToken),
                 now.plus(MFA_CHALLENGE_TTL),
                 now));
-        auditService.record(admin.getId(), username, AdminAuthOutcome.MFA_REQUIRED);
+        auditService.record(admin.getId(), admin.getUsername(), AdminAuthOutcome.MFA_REQUIRED);
         return AuthenticationDecision.mfaRequired(challengeToken);
+    }
+
+    private boolean passwordStillMatches(
+            String passwordHashBeforeLock,
+            String rawPassword,
+            AdminUser lockedAdmin
+    ) {
+        return Objects.equals(passwordHashBeforeLock, lockedAdmin.getPasswordHash())
+                || passwordEncoder.matches(rawPassword, lockedAdmin.getPasswordHash());
     }
 
     @Transactional
@@ -125,10 +119,6 @@ class AdminAuthenticationTransactionService {
                     AdminAuthOutcome.MFA_FAILED);
             return AuthenticationDecision.rejected();
         }
-        if (admin.isAuthenticationLocked(now)) {
-            auditService.record(admin.getId(), admin.getUsername(), AdminAuthOutcome.LOGIN_BLOCKED);
-            return AuthenticationDecision.rejected();
-        }
 
         AdminMfaCodeVerifier.Verification verification = mfaCodeVerifier.verifyAndConsume(
                 admin,
@@ -136,20 +126,12 @@ class AdminAuthenticationTransactionService {
                 code,
                 now);
         if (verification == AdminMfaCodeVerifier.Verification.INVALID) {
-            admin.recordFailedAuthentication(now);
-            adminUserPort.save(admin);
-            auditService.record(
-                    admin.getId(),
-                    admin.getUsername(),
-                    admin.isAuthenticationLocked(now)
-                            ? AdminAuthOutcome.LOGIN_BLOCKED
-                            : AdminAuthOutcome.MFA_FAILED);
+            auditService.record(admin.getId(), admin.getUsername(), AdminAuthOutcome.MFA_FAILED);
             return AuthenticationDecision.rejected();
         }
 
         challenge.consume(now);
         challengePort.save(challenge);
-        admin.authenticationSucceeded();
         adminUserPort.save(admin);
         if (verification == AdminMfaCodeVerifier.Verification.RECOVERY_CODE) {
             auditService.record(

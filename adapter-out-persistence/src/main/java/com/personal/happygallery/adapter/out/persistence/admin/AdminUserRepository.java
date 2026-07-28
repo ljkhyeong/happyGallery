@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.admin;
 
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
+import com.personal.happygallery.application.admin.port.out.AdminLoginSnapshot;
 import com.personal.happygallery.domain.admin.AdminUser;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
@@ -16,9 +17,14 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, Long>, Adm
     @Override Optional<AdminUser> findByUsername(String username);
 
     @Override
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT a FROM AdminUser a WHERE a.username = :username")
-    Optional<AdminUser> findByUsernameForUpdate(@Param("username") String username);
+    @Query("""
+            SELECT new com.personal.happygallery.application.admin.port.out.AdminLoginSnapshot(
+                a.id, a.username, a.passwordHash
+            )
+            FROM AdminUser a
+            WHERE a.username = :username
+            """)
+    Optional<AdminLoginSnapshot> findLoginSnapshotByUsername(@Param("username") String username);
 
     @Override Optional<AdminUser> findById(Long id);
 

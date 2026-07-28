@@ -65,7 +65,8 @@ public class ResilientPaymentProvider implements PaymentProvider {
                 log.warn("PG 확정 호출 대기열 포화");
                 return PaymentConfirmResult.retryableFailure("PG 호출 대기열이 가득 차 결제 확정을 재시도해야 합니다.");
             }
-            log.error("PG 확정 호출 예외 [type={}]", cause.getClass().getSimpleName(), cause);
+            log.error("PG 확정 호출 예외 [orderId={} type={}]",
+                    orderId, cause.getClass().getSimpleName());
             return PaymentConfirmResult.retryableFailure("PG 호출 중 오류가 발생했습니다.");
         }
     }
@@ -91,7 +92,7 @@ public class ResilientPaymentProvider implements PaymentProvider {
                 log.warn("PG 환불 호출 대기열 포화");
                 return RefundResult.retryableFailure("PG 호출 대기열이 가득 차 환불을 재시도해야 합니다.");
             }
-            log.error("PG 환불 호출 예외 [type={}]", cause.getClass().getSimpleName(), cause);
+            log.error("PG 환불 호출 예외 [type={}]", cause.getClass().getSimpleName());
             return RefundResult.reconciliationRequired("PG 호출 결과를 확인할 수 없습니다.");
         }
     }
@@ -110,7 +111,8 @@ public class ResilientPaymentProvider implements PaymentProvider {
             } else if (cause instanceof RejectedExecutionException) {
                 log.warn("PG 조회 호출 대기열 포화");
             } else {
-                log.error("PG 조회 호출 예외 [type={}]", cause.getClass().getSimpleName(), cause);
+                log.error("PG 조회 호출 예외 [orderId={} type={}]",
+                        orderId, cause.getClass().getSimpleName());
             }
             return PaymentLookupResult.unavailable(orderId, "PG 결제 조회 결과를 확인할 수 없습니다.");
         }
@@ -131,7 +133,8 @@ public class ResilientPaymentProvider implements PaymentProvider {
             } else if (cause instanceof RejectedExecutionException) {
                 log.warn("PG 환불 조회 호출 대기열 포화");
             } else {
-                log.error("PG 환불 조회 호출 예외 [type={}]", cause.getClass().getSimpleName(), cause);
+                log.error("PG 환불 조회 호출 예외 [type={}]",
+                        cause.getClass().getSimpleName());
             }
             return RefundLookupResult.unavailable(paymentKey, "PG 환불 조회 결과를 확인할 수 없습니다.");
         }

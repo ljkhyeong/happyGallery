@@ -1,8 +1,9 @@
 import * as Sentry from "@sentry/react";
 import { ApiError } from "@/shared/api/error";
 import {
-  currentCustomerSessionVersion,
+  captureCustomerSession,
   publishCustomerSessionExpired,
+  requireCurrentCustomerSession,
 } from "@/shared/api/customerSession";
 import { sanitizeTelemetryPath } from "@/shared/lib/sentryUrl";
 import type { ErrorResponse } from "@/shared/types/error";
@@ -86,10 +87,17 @@ function serializeBody(body: unknown, rawBody: BodyInit | null | undefined): Bod
 }
 
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const customerSessionVersion = requiresCustomerSession(path)
-    ? currentCustomerSessionVersion()
+  const customerSessionSnapshot = requiresCustomerSession(path)
+    ? captureCustomerSession()
     : undefined;
-  const { body, params, rawBody, headers: customHeaders, ...rest } = options;
+  const {
+    body,
+    params,
+    rawBody,
+    headers: customHeaders,
+    signal: externalSignal,
+    ...rest
+  } = options;
   const headers = new Headers(customHeaders);
   const multipartBody = body instanceof FormData;
 
@@ -98,21 +106,29 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   }
 
   const controller = new AbortController();
+  const signal = externalSignal
+    ? AbortSignal.any([controller.signal, externalSignal])
+    : controller.signal;
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   let response: Response;
   try {
     if (requiresCsrf(path, rest.method)) {
-      headers.set(CSRF_HEADER_NAME, await getCsrfToken(controller.signal));
+      headers.set(CSRF_HEADER_NAME, await getCsrfToken(signal));
     }
 
     response = await fetch(buildUrl(path, params), {
       ...rest,
       headers,
       body: serializeBody(body, rawBody),
-      signal: controller.signal,
+      signal,
       credentials: "include",
     });
+  } catch (error) {
+    if (customerSessionSnapshot) {
+      requireCurrentCustomerSession(customerSessionSnapshot);
+    }
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -144,16 +160,34 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     if (
       response.status === 401
       && error.code === "UNAUTHORIZED"
-      && customerSessionVersion !== undefined
+      && customerSessionSnapshot !== undefined
     ) {
-      publishCustomerSessionExpired(customerSessionVersion);
+      publishCustomerSessionExpired(customerSessionSnapshot);
+    }
+    if (customerSessionSnapshot) {
+      requireCurrentCustomerSession(customerSessionSnapshot);
     }
     throw error;
   }
 
+  if (customerSessionSnapshot) {
+    requireCurrentCustomerSession(customerSessionSnapshot);
+  }
   if (response.status === 204 || response.headers.get("content-length") === "0") {
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  let responseBody: T;
+  try {
+    responseBody = (await response.json()) as T;
+  } catch (error) {
+    if (customerSessionSnapshot) {
+      requireCurrentCustomerSession(customerSessionSnapshot);
+    }
+    throw error;
+  }
+  if (customerSessionSnapshot) {
+    requireCurrentCustomerSession(customerSessionSnapshot);
+  }
+  return responseBody;
 }

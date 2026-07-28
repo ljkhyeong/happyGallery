@@ -15,16 +15,26 @@ export const queryKeys = {
     classes: ["classes"] as const,
   },
   member: {
+    all: ["me"] as const,
     orders: {
-      all: ["my", "orders"] as const,
-      detail: (orderId: number) => ["my", "orders", orderId] as const,
+      all: ["me", "orders"] as const,
+      detail: (orderId: number) => ["me", "orders", orderId] as const,
+      claims: (orderId: number) => ["me", "orders", orderId, "claims"] as const,
     },
     bookings: {
-      all: ["my", "bookings"] as const,
-      detail: (bookingId: number) => ["my", "bookings", bookingId] as const,
+      all: ["me", "bookings"] as const,
+      detail: (bookingId: number) => ["me", "bookings", bookingId] as const,
     },
-    passes: ["my", "passes"] as const,
+    passes: ["me", "passes"] as const,
     cart: ["me", "cart"] as const,
+    inquiries: ["me", "inquiries"] as const,
+    guestClaimPreview: ["me", "guest-claims", "preview"] as const,
+    productQna: {
+      all: ["me", "product-qna"] as const,
+      byProduct: (productId: number) => ["me", "product-qna", productId] as const,
+      detail: (productId: number, qnaId: number) =>
+        ["me", "product-qna", productId, qnaId] as const,
+    },
   },
   slotAvailability: {
     upcoming: {
@@ -41,5 +51,5 @@ export const queryKeys = {
 } as const;
 
 export function isCustomerQueryKey(queryKey: QueryKey): boolean {
-  return queryKey[0] === "my" || queryKey[0] === "me";
+  return queryKey[0] === queryKeys.member.all[0];
 }

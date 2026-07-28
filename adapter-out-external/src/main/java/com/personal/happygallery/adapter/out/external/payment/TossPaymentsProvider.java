@@ -83,7 +83,7 @@ public class TossPaymentsProvider implements PaymentProvider {
             }
             return PaymentConfirmResult.failure(CONFIRM_REJECTED);
         } catch (Exception e) {
-            log.warn("Toss confirm 예외 [orderId={} type={}]", orderId, e.getClass().getSimpleName(), e);
+            log.warn("Toss confirm 예외 [orderId={} type={}]", orderId, e.getClass().getSimpleName());
             return PaymentConfirmResult.retryableFailure(CONFIRM_ERROR);
         }
     }
@@ -116,7 +116,7 @@ public class TossPaymentsProvider implements PaymentProvider {
             log.warn("Toss 결제 조회 실패 [orderId={} status={}]", orderId, e.getStatusCode());
             return PaymentLookupResult.unavailable(orderId, "PG 결제 조회에 실패했습니다.");
         } catch (Exception e) {
-            log.warn("Toss 결제 조회 예외 [orderId={} type={}]", orderId, e.getClass().getSimpleName(), e);
+            log.warn("Toss 결제 조회 예외 [orderId={} type={}]", orderId, e.getClass().getSimpleName());
             return PaymentLookupResult.unavailable(orderId, "PG 결제 조회 결과를 확인할 수 없습니다.");
         }
     }
@@ -148,7 +148,7 @@ public class TossPaymentsProvider implements PaymentProvider {
             log.warn("Toss refund 통신 결과 불명 [type={}]", e.getClass().getSimpleName());
             return RefundResult.reconciliationRequired(REFUND_RESULT_UNKNOWN);
         } catch (Exception e) {
-            log.warn("Toss refund 예외 [type={}]", e.getClass().getSimpleName(), e);
+            log.warn("Toss refund 예외 [type={}]", e.getClass().getSimpleName());
             return RefundResult.reconciliationRequired(REFUND_RESULT_UNKNOWN);
         }
     }
@@ -165,7 +165,7 @@ public class TossPaymentsProvider implements PaymentProvider {
             log.warn("Toss 환불 조회 실패 [status={}]", e.getStatusCode());
             return RefundLookupResult.unavailable(paymentKey, REFUND_LOOKUP_UNAVAILABLE);
         } catch (Exception e) {
-            log.warn("Toss 환불 조회 예외 [type={}]", e.getClass().getSimpleName(), e);
+            log.warn("Toss 환불 조회 예외 [type={}]", e.getClass().getSimpleName());
             return RefundLookupResult.unavailable(paymentKey, REFUND_LOOKUP_UNAVAILABLE);
         }
     }
@@ -249,7 +249,8 @@ public class TossPaymentsProvider implements PaymentProvider {
             TossErrorResponse response = exception.getResponseBodyAs(TossErrorResponse.class);
             return response != null && NOT_FOUND_PAYMENT_CODE.equals(response.code());
         } catch (RuntimeException parsingFailure) {
-            log.warn("Toss 결제 조회 404 응답 본문을 해석하지 못했습니다.", parsingFailure);
+            log.warn("Toss 결제 조회 404 응답 본문을 해석하지 못했습니다. [type={}]",
+                    parsingFailure.getClass().getSimpleName());
             return false;
         }
     }

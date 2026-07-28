@@ -9,12 +9,18 @@ import { BookingDetail } from "@/features/booking-manage/BookingDetail";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
 import { CancelButton } from "@/features/booking-manage/CancelButton";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { ErrorAlert } from "@/shared/ui";
 import { customerRefundPollingInterval } from "@/shared/lib";
 import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
+import {
+  isCurrentCustomerSessionState,
+  runForCurrentCustomer,
+  type CustomerSessionOwnedState,
+} from "@/shared/api";
 
-interface LocationState {
+interface LocationState extends CustomerSessionOwnedState {
   bookingId?: number;
   token?: string;
 }
@@ -28,14 +34,23 @@ interface BookingLookup {
 }
 
 export function BookingManagePage() {
+  const { sessionVersion } = useCustomerAuth();
+  return <BookingManageContent key={sessionVersion} />;
+}
+
+function BookingManageContent() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const navState = location.state as LocationState | null;
+  const navState = isCurrentCustomerSessionState(location.state)
+    ? location.state as LocationState
+    : null;
   const [initialCredentials] = useState(() => {
     const queryBookingId = Number(searchParams.get("bookingId"));
     const bookingId = navState?.bookingId
       ?? (Number.isSafeInteger(queryBookingId) && queryBookingId > 0 ? queryBookingId : undefined);
-    const token = navState?.token ?? loadGuestRecordRecovery()?.accessToken ?? "";
+    const token = navState?.token
+      ?? loadGuestRecordRecovery()?.value.accessToken
+      ?? "";
     return { bookingId, token: token.trim() };
   });
   const [lookup, setLookup] = useState<BookingLookup | null>(() =>
@@ -66,7 +81,12 @@ export function BookingManagePage() {
   } = useQuery({
     queryKey: ["guest", "booking", lookup?.credentials.bookingId, lookup?.requestId],
     queryFn: lookup
-      ? () => fetchBooking(lookup.credentials.bookingId, lookup.credentials.token)
+      ? () => runForCurrentCustomer(
+          () => fetchBooking(
+            lookup.credentials.bookingId,
+            lookup.credentials.token,
+          ),
+        )
       : skipToken,
     gcTime: 0,
     refetchInterval: ({ state }) =>
@@ -90,8 +110,8 @@ export function BookingManagePage() {
     });
   }
 
-  function refreshBooking() {
-    void refetchBooking();
+  async function refreshBooking() {
+    await refetchBooking();
   }
 
   const isBooked = booking?.status === "BOOKED";

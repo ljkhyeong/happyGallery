@@ -10,5 +10,6 @@ public record UpdateNoticeRequest(
         @NotNull @PositiveOrZero Long expectedVersion,
         @NotBlank String title,
         @NotBlank String content,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         boolean pinned
 ) {}

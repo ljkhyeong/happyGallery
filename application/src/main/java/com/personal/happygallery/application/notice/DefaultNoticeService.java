@@ -47,6 +47,13 @@ public class DefaultNoticeService implements NoticeQueryUseCase, NoticeAdminUseC
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Notice getForEdit(Long id) {
+        return noticeReader.findById(id)
+                .orElseThrow(NotFoundException.supplier("공지사항"));
+    }
+
+    @Override
     @Transactional
     public Notice create(String title, String content, boolean pinned) {
         return noticeStore.save(new Notice(title, content, pinned));

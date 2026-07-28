@@ -35,10 +35,16 @@ import {
   isMadeToOrderConsentVersionMismatch,
   useMadeToOrderConsent,
 } from "@/features/order/useMadeToOrderConsent";
+import { runForCurrentCustomer } from "@/shared/api";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 
 export function ProductDetailPage() {
+  const { sessionVersion } = useCustomerAuth();
+  return <ProductDetailContent key={sessionVersion} />;
+}
+
+function ProductDetailContent() {
   const { id } = useParams<{ id: string }>();
   const productId = Number(id);
   const validProductId = isPositiveSafeIntegerString(id);
@@ -49,7 +55,10 @@ export function ProductDetailPage() {
   const [qty, setQty] = useState(1);
   const [showMobilePurchaseCta, setShowMobilePurchaseCta] = useState(false);
   const purchasePanelRef = useRef<HTMLDivElement>(null);
-  const [fulfillment, setFulfillment] = useFulfillmentSelection(user?.name, user?.phone ?? undefined);
+  const [fulfillment, setFulfillment] = useFulfillmentSelection(
+    user?.name,
+    user?.phone ?? undefined,
+  );
   const { addItem: addToCart } = useCart();
 
   const { data: product, isLoading, error } = useQuery({
@@ -87,8 +96,10 @@ export function ProductDetailPage() {
     onError: consent.handleSubmissionError,
   });
   const cartMutation = useMutation({
-    mutationFn: () => addToCart(productId, qty),
-    onSuccess: () => toast.show("장바구니에 추가되었습니다."),
+    mutationFn: () => runForCurrentCustomer(
+      () => addToCart(productId, qty),
+      () => toast.show("장바구니에 추가되었습니다."),
+    ),
   });
   const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(orderMutation.error);
 

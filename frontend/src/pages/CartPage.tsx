@@ -25,6 +25,14 @@ import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 
 export function CartPage() {
+  const { isLoading, sessionVersion } = useCustomerAuth();
+  if (isLoading) {
+    return <Container className="page-container"><LoadingSpinner /></Container>;
+  }
+  return <CartContent key={sessionVersion} />;
+}
+
+function CartContent() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const { isAuthenticated, user } = useCustomerAuth();
   const {
@@ -37,7 +45,10 @@ export function CartPage() {
     updateQty,
     removeItem,
   } = useCart();
-  const [fulfillment, setFulfillment] = useFulfillmentSelection(user?.name, user?.phone ?? undefined);
+  const [fulfillment, setFulfillment] = useFulfillmentSelection(
+    user?.name,
+    user?.phone ?? undefined,
+  );
   const availableItems = items.filter((item) => item.available);
   const requiresMadeToOrderConsent = availableItems.some(
     (item) => item.productType === "MADE_TO_ORDER",

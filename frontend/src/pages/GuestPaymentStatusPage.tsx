@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Alert, Button, Container } from "react-bootstrap";
 import { Link, useParams } from "react-router";
+import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   fetchPaymentStatus,
   PaymentCompletionNext,
@@ -8,6 +10,11 @@ import {
   readPaymentStatusToken,
   shouldPollPaymentStatus,
 } from "@/features/payment";
+import {
+  captureCustomerSession,
+  isCurrentCustomerSession,
+  runForCustomerSession,
+} from "@/shared/api";
 import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
@@ -15,9 +22,15 @@ const POLL_INTERVAL_MS = 3_000;
 
 export function GuestPaymentStatusPage() {
   const { orderId: routeOrderId } = useParams<{ orderId: string }>();
+  const { sessionVersion } = useCustomerAuth();
+  const [customerSession] = useState(captureCustomerSession);
   const orderId = routeOrderId?.trim() ?? "";
   const validOrderId = orderId.length > 0 && orderId.length <= 100;
-  const statusToken = validOrderId ? readPaymentStatusToken(orderId) : null;
+  const sessionChanged = sessionVersion !== customerSession.version
+    || !isCurrentCustomerSession(customerSession);
+  const statusToken = validOrderId && !sessionChanged
+    ? readPaymentStatusToken(orderId, customerSession)
+    : null;
   const {
     data: status,
     error,
@@ -25,9 +38,20 @@ export function GuestPaymentStatusPage() {
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: ["guest", "payment-status", orderId, statusToken],
-    queryFn: statusToken
-      ? () => fetchPaymentStatus(orderId, statusToken)
+    queryKey: [
+      "guest",
+      "payment-status",
+      customerSession.version,
+      customerSession.boundaryEpoch,
+      customerSession.boundaryCustomerId,
+      orderId,
+      statusToken,
+    ],
+    queryFn: statusToken && !sessionChanged
+      ? () => runForCustomerSession(
+          customerSession,
+          () => fetchPaymentStatus(orderId, statusToken),
+        )
       : skipToken,
     gcTime: 0,
     refetchInterval: ({ state }) =>
@@ -35,6 +59,20 @@ export function GuestPaymentStatusPage() {
   });
 
   if (!validOrderId) return <NotFoundPage />;
+
+  if (sessionChanged) {
+    return (
+      <Container className="page-container" style={{ maxWidth: 640 }}>
+        <Alert variant="warning">
+          <Alert.Heading className="fs-5">회원 계정이 변경되었습니다</Alert.Heading>
+          <p className="mb-0">
+            이전 계정에서 조회하던 결제 상태는 이 화면에 표시하지 않습니다.
+          </p>
+        </Alert>
+        <LinkButton to="/guest" variant="primary">비회원 조회로 이동</LinkButton>
+      </Container>
+    );
+  }
 
   if (!statusToken) {
     return (

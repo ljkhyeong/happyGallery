@@ -12,7 +12,11 @@ import {
   executePaymentFlow,
   type BookingPayload,
 } from "@/features/payment";
-import { invalidateSlotAvailability, queryKeys } from "@/shared/api";
+import {
+  captureCustomerSession,
+  invalidateSlotAvailability,
+  queryKeys,
+} from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
@@ -33,6 +37,11 @@ interface PaymentActor {
 }
 
 export function BookingCreatePage() {
+  const { sessionVersion } = useCustomerAuth();
+  return <BookingCreateContent key={sessionVersion} />;
+}
+
+function BookingCreateContent() {
   const toast = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -160,12 +169,13 @@ export function BookingCreatePage() {
           customerName: guest?.name ?? member?.name,
           customerPhone: guest?.phone ?? member?.phone ?? undefined,
         },
-        onZeroAmount: async (prep) => {
+        onZeroAmount: async (prep, requireCurrentCustomer) => {
           const result = await confirmPayment({
             paymentKey: null,
             orderId: prep.orderId,
             amount: 0,
           });
+          requireCurrentCustomer();
           await Promise.all([
             queryClient.invalidateQueries({
               queryKey: queryKeys.member.bookings.all,
@@ -175,10 +185,17 @@ export function BookingCreatePage() {
             }),
             invalidateSlotAvailability(queryClient),
           ]);
+          requireCurrentCustomer();
           toast.show("예약이 완료되었습니다!");
           if (result.accessToken) {
+            const customerSession = captureCustomerSession();
+            requireCurrentCustomer();
             navigate("/guest/bookings", {
-              state: { bookingId: result.domainId, token: result.accessToken },
+              state: {
+                bookingId: result.domainId,
+                token: result.accessToken,
+                customerSession,
+              },
             });
           } else {
             navigate(`/my/bookings/${result.domainId}`);

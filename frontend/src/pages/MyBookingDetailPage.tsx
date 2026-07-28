@@ -95,12 +95,12 @@ export function MyBookingDetailPage() {
               currentSlotId={booking.slotId}
               currentStartAt={booking.startAt}
               participantCount={booking.participantCount}
-              onReschedule={(newSlotId) => rescheduleMyBooking(booking.bookingId, newSlotId)}
-              onSuccess={() => {
-                void queryClient.invalidateQueries({
+              onReschedule={(newSlotId) =>
+                rescheduleMyBooking(booking.bookingId, newSlotId)}
+              onSuccess={() =>
+                queryClient.invalidateQueries({
                   queryKey: queryKeys.member.bookings.all,
-                });
-              }}
+                })}
               successMessage="회원 예약이 변경되었습니다."
             />
           </Card.Body>
@@ -111,11 +111,10 @@ export function MyBookingDetailPage() {
         <div className="mt-3">
           <CancelButton
             onCancel={() => cancelMyBooking(booking.bookingId)}
-            onSuccess={() => {
-              void queryClient.invalidateQueries({
+            onSuccess={() =>
+              queryClient.invalidateQueries({
                 queryKey: queryKeys.member.bookings.all,
-              });
-            }}
+              })}
             cancelPolicy={booking.cancelPolicy}
           />
         </div>

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { runForCurrentCustomer } from "@/shared/api";
 import { fetchNotifications, fetchUnreadCount, markAsRead, markAllAsRead } from "./api";
 
 const NOTIFICATION_KEY = ["me", "notifications"] as const;
@@ -25,21 +26,25 @@ export function useNotificationList(page: number, enabled: boolean) {
 export function useMarkAsRead() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => markAsRead(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...NOTIFICATION_KEY] });
-      queryClient.invalidateQueries({ queryKey: [...UNREAD_KEY] });
-    },
+    mutationFn: (id: number) => runForCurrentCustomer(
+      () => markAsRead(id),
+      () => Promise.all([
+        queryClient.invalidateQueries({ queryKey: [...NOTIFICATION_KEY] }),
+        queryClient.invalidateQueries({ queryKey: [...UNREAD_KEY] }),
+      ]),
+    ),
   });
 }
 
 export function useMarkAllAsRead() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: markAllAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...NOTIFICATION_KEY] });
-      queryClient.invalidateQueries({ queryKey: [...UNREAD_KEY] });
-    },
+    mutationFn: () => runForCurrentCustomer(
+      markAllAsRead,
+      () => Promise.all([
+        queryClient.invalidateQueries({ queryKey: [...NOTIFICATION_KEY] }),
+        queryClient.invalidateQueries({ queryKey: [...UNREAD_KEY] }),
+      ]),
+    ),
   });
 }

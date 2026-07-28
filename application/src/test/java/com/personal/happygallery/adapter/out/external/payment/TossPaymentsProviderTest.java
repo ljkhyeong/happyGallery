@@ -1,18 +1,24 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.ResourceAccessException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
@@ -415,6 +421,42 @@ class TossPaymentsProviderTest {
             softly.assertThat(result.status()).isEqualTo(RefundLookupResult.Status.NOT_REFUNDED);
             softly.assertThat(result.paymentKey()).isEqualTo("payment-key");
         });
+    }
+
+    @DisplayName("Toss 환불 조회 통신 예외 로그에는 결제키와 예외 원문을 남기지 않는다")
+    @Test
+    void lookupRefund_transportFailure_doesNotLogPaymentKeyOrThrowable() {
+        String paymentKey = "secret-payment-key";
+        RestClient restClient = RestClient.builder()
+                .baseUrl(PROPERTIES.baseUrl())
+                .requestInterceptor((request, body, execution) -> {
+                    throw new ResourceAccessException(
+                            "I/O error on GET request for "
+                                    + PROPERTIES.baseUrl() + "/v1/payments/" + paymentKey);
+                })
+                .build();
+        Logger logger = (Logger) LoggerFactory.getLogger(TossPaymentsProvider.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            RefundLookupResult result = new TossPaymentsProvider(restClient)
+                    .lookupRefund(paymentKey, 5_000L, "refund-idempotency-key");
+
+            assertSoftly(softly -> {
+                softly.assertThat(result.status()).isEqualTo(RefundLookupResult.Status.UNAVAILABLE);
+                softly.assertThat(appender.list).isNotEmpty();
+                softly.assertThat(appender.list)
+                        .extracting(ILoggingEvent::getFormattedMessage)
+                        .allSatisfy(message -> assertThat(message).doesNotContain(paymentKey));
+                softly.assertThat(appender.list)
+                        .allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+            });
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 
     private static RestClient.Builder tossRestClientBuilder() {

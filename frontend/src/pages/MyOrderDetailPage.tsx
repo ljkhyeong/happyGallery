@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Container } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
-import { api, queryKeys } from "@/shared/api";
+import { api, queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { cancelMyOrder, respondToMyOrderDelay } from "@/features/order/api";
@@ -32,15 +32,17 @@ export function MyOrderDetailPage() {
       ),
   });
   const cancelMutation = useMutation({
-    mutationFn: () => cancelMyOrder(orderId),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
+    mutationFn: () => runForCurrentCustomer(
+      () => cancelMyOrder(orderId),
+      () => queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
+    ),
   });
   const delayMutation = useMutation({
     mutationFn: (decision: "ACCEPT" | "REJECT") =>
-      respondToMyOrderDelay(orderId, decision),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
+      runForCurrentCustomer(
+        () => respondToMyOrderDelay(orderId, decision),
+        () => queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
+      ),
   });
 
   if (!validOrderId) return <NotFoundPage />;

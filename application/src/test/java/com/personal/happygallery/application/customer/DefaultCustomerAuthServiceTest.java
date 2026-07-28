@@ -160,13 +160,15 @@ class DefaultCustomerAuthServiceTest {
     }
 
     private DefaultCustomerAuthService createService(Clock clock) {
+        CustomerAuthenticationTransactionService authenticationService =
+                new CustomerAuthenticationTransactionService(userReader, passwordEncoder, clock);
         return new DefaultCustomerAuthService(
                 userReader,
                 userStore,
                 phoneOwnershipVerification,
                 passwordEncoder,
                 policyConsentService,
-                clock);
+                authenticationService);
     }
 
     private static void assertInvalidCredentials(DefaultCustomerAuthService service, String email) {

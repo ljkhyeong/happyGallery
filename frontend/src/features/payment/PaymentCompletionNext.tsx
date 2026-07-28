@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { captureCustomerSession } from "@/shared/api";
 import { LinkButton } from "@/shared/ui";
 import type { ConfirmPaymentResponse } from "./types";
 
@@ -20,6 +21,8 @@ function GuestCompletionActions({ children }: { children: ReactNode }) {
 }
 
 export function PaymentCompletionNext({ result }: { result: ConfirmPaymentResponse }) {
+  const [customerSession] = useState(captureCustomerSession);
+
   if (result.domainId == null) {
     const nextAction = (
       <LinkButton to={result.accessRecoveryRequired ? "/guest" : "/"} variant="primary">
@@ -43,7 +46,11 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
         <GuestCompletionActions>
           <LinkButton
             to="/guest/orders"
-            state={{ orderId: result.domainId, token: result.accessToken }}
+            state={{
+              orderId: result.domainId,
+              token: result.accessToken,
+              customerSession,
+            }}
             variant="primary"
           >
             비회원 주문 확인하기
@@ -71,7 +78,11 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
       <GuestCompletionActions>
         <LinkButton
           to="/guest/bookings"
-          state={{ bookingId: result.domainId, token: result.accessToken }}
+          state={{
+            bookingId: result.domainId,
+            token: result.accessToken,
+            customerSession,
+          }}
           variant="primary"
         >
           비회원 예약 확인하기

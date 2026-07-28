@@ -22,14 +22,25 @@ export function createQna(
   return createProductQna(productId, body);
 }
 
-export function fetchMyProductQna(productId: number): Promise<MyProductQnaListItem[]> {
-  return listMyProductQna(productId);
+export function fetchMyProductQna(
+  productId: number,
+  signal?: AbortSignal,
+): Promise<MyProductQnaListItem[]> {
+  return listMyProductQna(productId, { signal });
 }
 
-export function fetchProductQnaDetail(productId: number, qnaId: number): Promise<ProductQnaDetail> {
-  return getPublicProductQna(productId, qnaId);
+export function fetchProductQnaDetail(
+  productId: number,
+  qnaId: number,
+  signal?: AbortSignal,
+): Promise<ProductQnaDetail> {
+  return getPublicProductQna(productId, qnaId, { signal });
 }
 
-export function fetchMyProductQnaDetail(productId: number, qnaId: number): Promise<ProductQnaDetail> {
-  return getMyProductQna(productId, qnaId);
+export function fetchMyProductQnaDetail(
+  productId: number,
+  qnaId: number,
+  signal?: AbortSignal,
+): Promise<ProductQnaDetail> {
+  return getMyProductQna(productId, qnaId, { signal });
 }

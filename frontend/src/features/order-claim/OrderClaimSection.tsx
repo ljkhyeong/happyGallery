@@ -16,6 +16,7 @@ import type {
   OrderClaimType,
 } from "./types";
 import type { OrderDetailResponse } from "@/shared/types";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 
@@ -58,15 +59,17 @@ export function OrderClaimSection({ order, access }: Props) {
   const [reason, setReason] = useState("");
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const queryKey = access.kind === "member"
-    ? ["my", "orders", order.orderId, "claims"] as const
+    ? queryKeys.member.orders.claims(order.orderId)
     : ["guest", "order", order.orderId, "claims", access.requestKey] as const;
   const claimable = CLAIMABLE_STATUSES.has(order.status);
 
   const { data: claims = [], isLoading, error } = useQuery({
     queryKey,
-    queryFn: () => access.kind === "member"
-      ? fetchMemberOrderClaims(order.orderId)
-      : fetchGuestOrderClaims(order.orderId, access.accessToken),
+    queryFn: () => runForCurrentCustomer(
+      () => access.kind === "member"
+        ? fetchMemberOrderClaims(order.orderId)
+        : fetchGuestOrderClaims(order.orderId, access.accessToken),
+    ),
     enabled: claimable,
     refetchInterval: ({ state }) => orderClaimPollingInterval(
       state.data,
@@ -99,18 +102,27 @@ export function OrderClaimSection({ order, access }: Props) {
     && reason.trim().length > 0
     && selectedItems.length > 0;
 
+  const applyClaimSuccess = async (requireCurrent: () => void) => {
+    requireCurrent();
+    await queryClient.invalidateQueries({ queryKey });
+    requireCurrent();
+    toast.show("반품·교환 요청을 접수했습니다.");
+    setType("");
+    setResolution("");
+    setReason("");
+    setQuantities({});
+  };
+
   const requestClaim = useMutation({
-    mutationFn: (body: OrderClaimRequest) => access.kind === "member"
-      ? requestMemberOrderClaim(order.orderId, body)
-      : requestGuestOrderClaim(order.orderId, access.accessToken, body),
-    onSuccess: () => {
-      toast.show("반품·교환 요청을 접수했습니다.");
-      setType("");
-      setResolution("");
-      setReason("");
-      setQuantities({});
-      queryClient.invalidateQueries({ queryKey });
-    },
+    mutationFn: (body: OrderClaimRequest) => runForCurrentCustomer(
+      () => access.kind === "member"
+        ? requestMemberOrderClaim(order.orderId, body)
+        : requestGuestOrderClaim(order.orderId, access.accessToken, body),
+      async (result, requireCurrent) => {
+        await applyClaimSuccess(requireCurrent);
+        return result;
+      },
+    ),
   });
 
   if (!claimable) return null;

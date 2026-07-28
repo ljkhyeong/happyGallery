@@ -4,6 +4,7 @@ import { Button, Form, Modal } from "react-bootstrap";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { changePassword } from "./credentialApi";
 import { isPasswordWithinByteLimit } from "@/shared/validation/password";
+import { runForCurrentCustomer } from "@/shared/api";
 
 interface Props {
   show: boolean;
@@ -18,12 +19,15 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
   const [confirmation, setConfirmation] = useState("");
 
   const mutation = useMutation({
-    mutationFn: () => changePassword(currentPassword, newPassword),
-    onSuccess: async () => {
-      toast.show("비밀번호가 변경되었습니다. 다시 로그인해 주세요.");
-      clearAndClose();
-      await onChanged();
-    },
+    mutationFn: () =>
+      runForCurrentCustomer(
+        () => changePassword(currentPassword, newPassword),
+        async () => {
+          toast.show("비밀번호가 변경되었습니다. 다시 로그인해 주세요.");
+          clearAndClose();
+          await onChanged();
+        },
+      ),
   });
 
   const passwordMatches = newPassword === confirmation;

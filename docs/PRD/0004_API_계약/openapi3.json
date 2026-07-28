@@ -1551,7 +1551,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "content", "title" ],
+        "required" : [ "content", "pinned", "title" ],
         "type" : "object"
       },
       "CreateProductRequest" : {
@@ -4093,7 +4093,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "content", "expectedVersion", "title" ],
+        "required" : [ "content", "expectedVersion", "pinned", "title" ],
         "type" : "object"
       },
       "UpdateProductRequest" : {
@@ -5498,6 +5498,31 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-notice-controller" ]
+      },
+      "get" : {
+        "operationId" : "getAdminNotice",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NoticeDetailResponse"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "admin-notice-controller" ]

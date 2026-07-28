@@ -1,12 +1,29 @@
-import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   api,
-  advanceCustomerSessionVersion,
+  ApiError,
+  captureCustomerSession,
   clearCustomerQueryCache,
   currentCustomerSessionVersion,
-  isCurrentCustomerSessionVersion,
+  isCurrentCustomerSession,
+  markCustomerSessionActive,
+  markCustomerSessionInactive,
+  publishCustomerSessionBoundary,
+  requireCurrentCustomerSession,
+  runForCurrentCustomer,
   subscribeToCustomerSessionExpired,
+  synchronizeCustomerSessionBoundary,
+  type CustomerSessionSnapshot,
 } from "@/shared/api";
 import { normalizePhone } from "@/shared/validation/phone";
 import type { PolicyAcceptance } from "@/features/policy-consent/types";
@@ -31,6 +48,7 @@ export interface CustomerUser {
 
 interface CustomerAuthContextValue {
   user: CustomerUser | null;
+  sessionVersion: number;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<CustomerUser>;
@@ -47,11 +65,19 @@ interface CustomerAuthContextValue {
   refresh: () => Promise<CustomerUser | null>;
 }
 
+interface FetchMeRequest {
+  snapshot: CustomerSessionSnapshot;
+  promise: Promise<CustomerUser | null>;
+}
+
 const CustomerAuthContext = createContext<CustomerAuthContextValue | null>(null);
 
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<CustomerUser | null>(null);
+  const userIdRef = useRef<number | null>(null);
+  const fetchMeRequestRef = useRef<FetchMeRequest | null>(null);
+  const [sessionVersion, setSessionVersion] = useState(currentCustomerSessionVersion);
   const [isLoading, setIsLoading] = useState(true);
 
   const clearCustomerQueries = useCallback(() => {
@@ -60,29 +86,76 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
   const expireCustomerSession = useCallback(() => {
     clearCustomerQueries();
+    userIdRef.current = null;
+    setSessionVersion(currentCustomerSessionVersion());
     setUser(null);
     setIsLoading(false);
   }, [clearCustomerQueries]);
 
-  const fetchMe = useCallback(async () => {
-    const requestVersion = currentCustomerSessionVersion();
-    try {
-      const me = await api<CustomerUserResponse>("/me");
-      if (!isCurrentCustomerSessionVersion(requestVersion)) return null;
-      clearCustomerQueries();
-      setUser(me);
-      return me;
-    } catch {
-      if (!isCurrentCustomerSessionVersion(requestVersion)) return null;
-      clearCustomerQueries();
-      setUser(null);
-      return null;
-    } finally {
-      if (isCurrentCustomerSessionVersion(requestVersion)) {
-        setIsLoading(false);
-      }
+  const publishSessionBoundary = useCallback((customerId: number | null) => {
+    publishCustomerSessionBoundary(customerId);
+    setSessionVersion(currentCustomerSessionVersion());
+  }, []);
+
+  const fetchMe = useCallback(() => {
+    const requestSnapshot = captureCustomerSession();
+    const inFlightRequest = fetchMeRequestRef.current;
+    if (
+      inFlightRequest
+      && inFlightRequest.snapshot.version === requestSnapshot.version
+      && inFlightRequest.snapshot.boundaryEpoch === requestSnapshot.boundaryEpoch
+      && inFlightRequest.snapshot.boundaryCustomerId
+        === requestSnapshot.boundaryCustomerId
+      && isCurrentCustomerSession(requestSnapshot)
+    ) {
+      return inFlightRequest.promise;
     }
-  }, [clearCustomerQueries]);
+
+    const request = (async (): Promise<CustomerUser | null> => {
+      let activeSnapshot = requestSnapshot;
+      try {
+        const me = await api<CustomerUserResponse>("/me");
+        requireCurrentCustomerSession(requestSnapshot);
+        if (requestSnapshot.boundaryCustomerId !== me.id) {
+          publishSessionBoundary(me.id);
+          activeSnapshot = captureCustomerSession();
+          clearCustomerQueries();
+        }
+        if (markCustomerSessionActive(me.id)) {
+          setSessionVersion(currentCustomerSessionVersion());
+          activeSnapshot = captureCustomerSession();
+        }
+        userIdRef.current = me.id;
+        setUser(me);
+        return me;
+      } catch (error) {
+        requireCurrentCustomerSession(requestSnapshot);
+        if (
+          error instanceof ApiError
+          && error.status === 401
+          && error.code === "UNAUTHORIZED"
+        ) {
+          markCustomerSessionInactive();
+          userIdRef.current = null;
+          setUser(null);
+          return null;
+        }
+        throw error;
+      } finally {
+        if (isCurrentCustomerSession(activeSnapshot)) {
+          setIsLoading(false);
+        }
+      }
+    })();
+    fetchMeRequestRef.current = { snapshot: requestSnapshot, promise: request };
+    const clearRequest = () => {
+      if (fetchMeRequestRef.current?.promise === request) {
+        fetchMeRequestRef.current = null;
+      }
+    };
+    void request.then(clearRequest, clearRequest);
+    return request;
+  }, [clearCustomerQueries, publishSessionBoundary]);
 
   useEffect(
     () => subscribeToCustomerSessionExpired(expireCustomerSession),
@@ -90,22 +163,53 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    void fetchMe();
-  }, [fetchMe]);
+    const reconcileSharedBoundary = (forceRefresh: boolean) => {
+      const boundaryChanged = synchronizeCustomerSessionBoundary();
+      if (boundaryChanged) {
+        clearCustomerQueries();
+        userIdRef.current = null;
+        setSessionVersion(currentCustomerSessionVersion());
+        setUser(null);
+        setIsLoading(true);
+      }
+      if (boundaryChanged || forceRefresh) {
+        void fetchMe().catch(() => undefined);
+      }
+    };
+    const handleStorage = () => reconcileSharedBoundary(false);
+    const handlePageShow = () => reconcileSharedBoundary(true);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        reconcileSharedBoundary(true);
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    reconcileSharedBoundary(true);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [clearCustomerQueries, fetchMe]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<CustomerUser> => {
-      const me = await api<CustomerUserResponse>("/auth/login", {
-        method: "POST",
-        body: { email, password },
-      });
-      advanceCustomerSessionVersion();
+      const me = await runForCurrentCustomer(() =>
+        api<CustomerUserResponse>("/auth/login", {
+          method: "POST",
+          body: { email, password },
+        }));
+      publishSessionBoundary(me.id);
       clearCustomerQueries();
+      userIdRef.current = me.id;
       setUser(me);
       setIsLoading(false);
       return me;
     },
-    [clearCustomerQueries],
+    [clearCustomerQueries, publishSessionBoundary],
   );
 
   const signup = useCallback(
@@ -117,47 +221,54 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       verificationCode: string,
       policyAcceptance: PolicyAcceptance,
     ): Promise<CustomerUser> => {
-      const me = await api<CustomerUserResponse>("/auth/signup", {
-        method: "POST",
-        body: {
-          email,
-          password,
-          name,
-          phone: normalizePhone(phone),
-          verificationCode,
-          policyAcceptance,
-        },
-      });
-      advanceCustomerSessionVersion();
+      const me = await runForCurrentCustomer(() =>
+        api<CustomerUserResponse>("/auth/signup", {
+          method: "POST",
+          body: {
+            email,
+            password,
+            name,
+            phone: normalizePhone(phone),
+            verificationCode,
+            policyAcceptance,
+          },
+        }));
+      publishSessionBoundary(me.id);
       clearCustomerQueries();
+      userIdRef.current = me.id;
       setUser(me);
       setIsLoading(false);
       return me;
     },
-    [clearCustomerQueries],
+    [clearCustomerQueries, publishSessionBoundary],
   );
 
   const logout = useCallback(async () => {
-    await api("/auth/logout", { method: "POST" });
-    advanceCustomerSessionVersion();
+    await runForCurrentCustomer(() =>
+      api("/auth/logout", { method: "POST" }));
+    publishSessionBoundary(null);
     clearCustomerQueries();
+    userIdRef.current = null;
     setUser(null);
     setIsLoading(false);
-  }, [clearCustomerQueries]);
+  }, [clearCustomerQueries, publishSessionBoundary]);
 
   const withdraw = useCallback(async () => {
-    await api("/me", { method: "DELETE" });
-    advanceCustomerSessionVersion();
+    await runForCurrentCustomer(() =>
+      api("/me", { method: "DELETE" }));
+    publishSessionBoundary(null);
     clearCustomerQueries();
+    userIdRef.current = null;
     setUser(null);
     setIsLoading(false);
-  }, [clearCustomerQueries]);
+  }, [clearCustomerQueries, publishSessionBoundary]);
 
   return createElement(
     CustomerAuthContext,
     {
       value: {
         user,
+        sessionVersion,
         isAuthenticated: user !== null,
         isLoading,
         login,

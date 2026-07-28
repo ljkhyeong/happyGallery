@@ -14,7 +14,10 @@ import {
 } from "@/features/my/listUtils";
 import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { queryKeys } from "@/shared/api";
+import {
+  queryKeys,
+  runForCurrentCustomer,
+} from "@/shared/api";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import {
@@ -32,6 +35,11 @@ const PASS_SORT_OPTIONS = [
 ];
 
 export function MyPassesPage() {
+  const { sessionVersion } = useCustomerAuth();
+  return <MyPassesContent key={sessionVersion} />;
+}
+
+function MyPassesContent() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
@@ -81,19 +89,23 @@ export function MyPassesPage() {
   }).length;
   const remainingCredits = (passes ?? []).reduce((sum, pass) => sum + pass.remainingCredits, 0);
   const refundMutation = useMutation({
-    mutationFn: (passId: number) => refundMyPass(passId),
-    onSuccess: async (result) => {
-      setRefundTarget(null);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.member.passes });
-      if (result.refundStatus) {
-        toast.show(
-          `환불 요청 접수: ${result.refundCredits}회분 ${formatKRW(result.refundAmount)}, 미래 예약 ${result.canceledBookings}건 취소`,
-          "info",
-        );
-      } else {
-        toast.show("환불 금액 없이 8회권 정산이 완료되었습니다.");
-      }
-    },
+    mutationFn: (passId: number) =>
+      runForCurrentCustomer(
+        () => refundMyPass(passId),
+        async (result, requireCurrent) => {
+          setRefundTarget(null);
+          await queryClient.invalidateQueries({ queryKey: queryKeys.member.passes });
+          requireCurrent();
+          if (result.refundStatus) {
+            toast.show(
+              `환불 요청 접수: ${result.refundCredits}회분 ${formatKRW(result.refundAmount)}, 미래 예약 ${result.canceledBookings}건 취소`,
+              "info",
+            );
+          } else {
+            toast.show("환불 금액 없이 8회권 정산이 완료되었습니다.");
+          }
+        },
+      ),
   });
 
   if (authLoading || isLoading) {

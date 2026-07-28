@@ -39,7 +39,7 @@
   MFA 상태 조회·등록 시작·등록 확인 권한만 부여하며 등록을 마친 뒤 새로 로그인해야 일반 관리자 API를
   사용할 수 있다. MFA 활성 계정은 2단계 확인까지 끝난 뒤 일반 세션 토큰을 발급한다. 이후 요청에
   `Authorization: Bearer {token}` 헤더를 사용한다.
-- 비밀번호 또는 MFA가 연속 5회 실패하면 15분간 계정을 잠근다. 잘못된 비밀번호, 존재하지 않는 계정, 잠긴 계정과 잘못된 MFA는 모두 같은 `401 INVALID_CREDENTIALS`로 응답해 계정 상태를 노출하지 않는다.
+- 잘못된 비밀번호, 존재하지 않는 계정과 잘못된 MFA는 모두 같은 `401 INVALID_CREDENTIALS`로 응답해 계정 상태를 노출하지 않는다. 공격자가 사용자명만으로 운영자 계정을 잠그지 못하도록 계정 단위 하드 잠금은 두지 않고, IP 처리율 제한·MFA·감사 이력으로 로그인 남용을 통제한다.
 - 세션 만료: 8시간
 - 세션 저장소는 Redis 기반 `AdminSessionStore`를 사용한다. 여러 인스턴스가 떠 있어도 같은 세션을 본다.
 - Redis에는 관리자 토큰 원문을 키로 쓰지 않고 토큰 HMAC을 사용하며, 세션 JSON도 AES-GCM 암호문으로 저장한다.
@@ -150,7 +150,10 @@ Authorization: Bearer {token}
 ```
 
 - 성공: `204 No Content`
-- 관리자 클라이언트는 `204`를 받은 뒤에만 `sessionStorage`의 토큰을 제거한다. 요청 실패나 응답 유실 때는 현재 토큰을 유지하고 로그아웃 완료를 확인하지 못했음을 표시한다. 별도 API 요청에서 `401`을 받은 경우에는 이미 무효인 토큰이므로 서버 로그아웃 호출 없이 로컬 토큰을 제거한다.
+- 관리자 클라이언트는 로그아웃 요청을 시작할 때 `sessionStorage`의 토큰과 관리자 캐시를 먼저 제거한다.
+  요청 실패나 응답 유실 때도 로컬 로그인 상태를 복구하지 않으며, 서버 세션 폐기를 확인하지 못했다는
+  경고를 표시한다. 별도 API 요청에서 `401 UNAUTHORIZED`를 받은 경우에도 이미 무효인 토큰이므로
+  서버 로그아웃 호출 없이 로컬 토큰을 제거한다.
 
 ```http
 PATCH /api/v1/admin/auth/password
@@ -169,6 +172,8 @@ Content-Type: application/json
   - `401 INVALID_CREDENTIALS` — 현재 비밀번호 불일치
   - `403 FORBIDDEN` — 계정 ID가 없는 local API key 인증으로 변경 시도
   - `422 PASSWORD_UNCHANGED` — 현재 비밀번호와 새 비밀번호가 같음
+- 관리자 클라이언트는 `401 INVALID_CREDENTIALS`를 폼 입력 오류로 표시하고 현재 관리자 세션과 입력값을
+  유지한다. 실제 세션 만료·폐기를 뜻하는 `401 UNAUTHORIZED`만 로컬 관리자 토큰을 제거한다.
 
 #### 최초 관리자 계정 생성
 
@@ -1637,6 +1642,9 @@ GET /api/v1/notices/{id}
 
 - `GET /api/v1/admin/notices`
   - 응답: 공개 목록 조회와 동일한 배열
+- `GET /api/v1/admin/notices/{id}`
+  - 응답: 공지 상세 응답
+  - 편집 폼을 열거나 동시 수정 충돌을 복구할 때 본문과 최신 `version`을 조회하며, 공개 상세 조회와 달리 조회수를 증가시키지 않는다.
 - `POST /api/v1/admin/notices`
   - 요청: `{ "title": "점검 공지", "content": "3/28 점검 예정", "pinned": true }`
   - 응답: `201 Created` + 공지 상세 응답
@@ -1652,6 +1660,8 @@ GET /api/v1/notices/{id}
 - `404 NOT_FOUND` — noticeId 미존재
 - `409 CONFLICT` — 조회 응답의 `version`과 수정·삭제 요청의 `expectedVersion`이 다르거나,
   비교 직후 다른 관리자 변경이 먼저 반영된 동시 처리 충돌
+- 관리자 화면은 `409 CONFLICT`가 발생하면 상세를 다시 조회한다. 사용자의 편집 초안은 유지한 채
+  최신 `version`으로 다시 시도하거나 서버의 최신 내용으로 교체할 수 있어야 한다.
 
 ### 2.9 관리자 예약 목록 API
 

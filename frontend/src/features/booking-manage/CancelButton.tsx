@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Modal } from "react-bootstrap";
-import { invalidateSlotAvailability } from "@/shared/api";
+import { invalidateSlotAvailability, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import type { BookingCancelPolicy, CancelResponse } from "@/shared/types";
@@ -46,7 +46,7 @@ function resolvePolicyNotice(cancelPolicy: BookingCancelPolicy) {
 
 interface Props {
   onCancel: () => Promise<CancelResponse>;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
   cancelPolicy: BookingCancelPolicy;
   buttonLabel?: string;
 }
@@ -62,43 +62,56 @@ export function CancelButton({
   const [showConfirm, setShowConfirm] = useState(false);
   const policyNotice = resolvePolicyNotice(cancelPolicy);
 
+  const applySuccess = async (
+    res: CancelResponse,
+    requireCurrent: () => void,
+  ) => {
+    requireCurrent();
+    await invalidateSlotAvailability(queryClient);
+    requireCurrent();
+    await onSuccess();
+    requireCurrent();
+    setShowConfirm(false);
+    const passCreditNotRestored =
+      cancelPolicy.warningCode === PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE;
+    const passBooking = passCreditNotRestored || cancelPolicy.passCreditRestorable;
+    let message: string;
+    let variant: "success" | "warning" | "info";
+
+    if (passBooking && !res.refundable) {
+      message = "예약이 취소되었습니다. 취소 마감이 지나 8회권 크레딧은 복구되지 않았습니다.";
+      variant = "warning";
+    } else if (passBooking) {
+      message = "예약이 취소되었고 8회권 크레딧 1회가 복구되었습니다.";
+      variant = "success";
+    } else if (res.manualCompensationRequired) {
+      message = "예약이 취소되었습니다. 운영자가 오프라인 예약금 반환을 확인한 뒤 안내합니다.";
+      variant = "warning";
+    } else if (res.refund?.status === "SUCCEEDED") {
+      message = `예약이 취소되었고 ${formatKRW(res.refund.amount)} 환불이 완료되었습니다.`;
+      variant = "success";
+    } else if (res.refund) {
+      message = `예약이 취소되었고 ${formatKRW(res.refund.amount)} 환불 요청이 접수되었습니다.`;
+      variant = "info";
+    } else if (res.refundable) {
+      message = "예약이 취소되었습니다.";
+      variant = "success";
+    } else {
+      message = "예약이 취소되었습니다. 예약금은 환불되지 않았습니다.";
+      variant = "warning";
+    }
+
+    toast.show(message, variant);
+  };
+
   const mutation = useMutation({
-    mutationFn: onCancel,
-    onSuccess: (res) => {
-      setShowConfirm(false);
-      const passCreditNotRestored =
-        cancelPolicy.warningCode === PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE;
-      const passBooking = passCreditNotRestored || cancelPolicy.passCreditRestorable;
-      let message: string;
-      let variant: "success" | "warning" | "info";
-
-      if (passBooking && !res.refundable) {
-        message = "예약이 취소되었습니다. 취소 마감이 지나 8회권 크레딧은 복구되지 않았습니다.";
-        variant = "warning";
-      } else if (passBooking) {
-        message = "예약이 취소되었고 8회권 크레딧 1회가 복구되었습니다.";
-        variant = "success";
-      } else if (res.manualCompensationRequired) {
-        message = "예약이 취소되었습니다. 운영자가 오프라인 예약금 반환을 확인한 뒤 안내합니다.";
-        variant = "warning";
-      } else if (res.refund?.status === "SUCCEEDED") {
-        message = `예약이 취소되었고 ${formatKRW(res.refund.amount)} 환불이 완료되었습니다.`;
-        variant = "success";
-      } else if (res.refund) {
-        message = `예약이 취소되었고 ${formatKRW(res.refund.amount)} 환불 요청이 접수되었습니다.`;
-        variant = "info";
-      } else if (res.refundable) {
-        message = "예약이 취소되었습니다.";
-        variant = "success";
-      } else {
-        message = "예약이 취소되었습니다. 예약금은 환불되지 않았습니다.";
-        variant = "warning";
-      }
-
-      toast.show(message, variant);
-      void invalidateSlotAvailability(queryClient);
-      onSuccess();
-    },
+    mutationFn: () => runForCurrentCustomer(
+      onCancel,
+      async (res, requireCurrent) => {
+        await applySuccess(res, requireCurrent);
+        return res;
+      },
+    ),
   });
 
   return (

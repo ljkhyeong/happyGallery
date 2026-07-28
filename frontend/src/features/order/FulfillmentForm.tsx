@@ -18,11 +18,27 @@ const emptyAddress: ShippingAddress = {
   addressLine2: null,
 };
 
-export function useFulfillmentSelection(defaultName?: string, defaultPhone?: string) {
-  const [selection, setSelection] = useState<FulfillmentSelection>({
+function initialFulfillmentSelection(
+  defaultName?: string,
+  defaultPhone?: string,
+): FulfillmentSelection {
+  return {
     fulfillmentType: null,
-    shippingAddress: emptyAddress,
-  });
+    shippingAddress: {
+      ...emptyAddress,
+      recipientName: defaultName ?? "",
+      phone: defaultPhone ?? "",
+    },
+  };
+}
+
+export function useFulfillmentSelection(
+  defaultName?: string,
+  defaultPhone?: string,
+) {
+  const [selection, setSelection] = useState<FulfillmentSelection>(
+    () => initialFulfillmentSelection(defaultName, defaultPhone),
+  );
 
   useEffect(() => {
     setSelection((current) => ({

@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Form, ListGroup } from "react-bootstrap";
 import { fetchRescheduleSlots } from "./api";
-import { invalidateSlotAvailability, queryKeys } from "@/shared/api";
+import {
+  invalidateSlotAvailability,
+  queryKeys,
+  runForCurrentCustomer,
+} from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
@@ -14,7 +18,7 @@ interface Props {
   currentStartAt: string;
   participantCount: number;
   onReschedule: (newSlotId: number) => Promise<unknown>;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
   successMessage?: string;
 }
 
@@ -48,14 +52,21 @@ export function RescheduleForm({
     enabled: date.length > 0,
   });
 
+  const applySuccess = async (requireCurrent: () => void) => {
+    requireCurrent();
+    await invalidateSlotAvailability(queryClient);
+    requireCurrent();
+    await onSuccess();
+    requireCurrent();
+    toast.show(successMessage);
+    setSelectedSlotId(null);
+  };
+
   const mutation = useMutation({
-    mutationFn: (newSlotId: number) => onReschedule(newSlotId),
-    onSuccess: () => {
-      toast.show(successMessage);
-      setSelectedSlotId(null);
-      void invalidateSlotAvailability(queryClient);
-      onSuccess();
-    },
+    mutationFn: (newSlotId: number) => runForCurrentCustomer(
+      () => onReschedule(newSlotId),
+      (_, requireCurrent) => applySuccess(requireCurrent),
+    ),
   });
 
   const availableSlots = slots?.filter(

@@ -20,11 +20,16 @@ import { MyBookingsSection } from "@/features/my/MyBookingsSection";
 import { MyPassesSection } from "@/features/my/MyPassesSection";
 import { MyInquiriesSection } from "@/features/my/MyInquiriesSection";
 import { getPassFilterKey } from "@/features/my/listUtils";
-import { queryKeys } from "@/shared/api";
+import { CustomerSessionChangedError, queryKeys } from "@/shared/api";
 import { parseApiDateTime } from "@/shared/lib";
 import { LoadingSpinner, useToast } from "@/shared/ui";
 
 export function MyPage() {
+  const { sessionVersion } = useCustomerAuth();
+  return <MyPageContent key={sessionVersion} />;
+}
+
+function MyPageContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -59,7 +64,7 @@ export function MyPage() {
   });
 
   const { data: inquiries } = useQuery({
-    queryKey: ["my", "inquiries"],
+    queryKey: queryKeys.member.inquiries,
     queryFn: fetchMyInquiries,
     enabled: isAuthenticated,
   });
@@ -198,7 +203,8 @@ export function MyPage() {
     try {
       await logout();
       navigate("/");
-    } catch {
+    } catch (error) {
+      if (error instanceof CustomerSessionChangedError) return;
       toast.show(
         "로그아웃 완료를 확인하지 못해 현재 로그인 상태를 유지합니다. 잠시 후 다시 시도해 주세요.",
         "danger",
@@ -306,8 +312,10 @@ export function MyPage() {
         show={showPasswordChange}
         onClose={() => setShowPasswordChange(false)}
         onChanged={async () => {
-          await refresh();
-          navigate("/login", { replace: true });
+          const refreshedUser = await refresh();
+          if (!refreshedUser) {
+            navigate("/login", { replace: true });
+          }
         }}
       />
     </Container>

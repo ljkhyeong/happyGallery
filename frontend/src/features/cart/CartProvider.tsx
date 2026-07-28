@@ -4,7 +4,7 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import type { CartItemResponse } from "@/shared/types/cart";
 import {
   addToCart,
@@ -68,19 +68,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addMutation = useMutation({
     mutationFn: ({ productId, qty }: { productId: number; qty: number }) =>
-      addToCart(productId, qty),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
+      runForCurrentCustomer(
+        () => addToCart(productId, qty),
+        () => queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
+      ),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ productId, qty }: { productId: number; qty: number }) =>
-      updateCartItemQty(productId, qty),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
+      runForCurrentCustomer(
+        () => updateCartItemQty(productId, qty),
+        () => queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
+      ),
   });
 
   const removeMutation = useMutation({
-    mutationFn: (productId: number) => removeCartItem(productId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
+    mutationFn: (productId: number) =>
+      runForCurrentCustomer(
+        () => removeCartItem(productId),
+        () => queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
+      ),
   });
 
   let value: CartContextValue;

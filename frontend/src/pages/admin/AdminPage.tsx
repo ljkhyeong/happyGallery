@@ -171,8 +171,8 @@ export function AdminPage() {
       await logout();
     } catch {
       toast.show(
-        "로그아웃 완료를 확인하지 못해 관리자 세션과 현재 로그인 상태를 유지합니다.",
-        "danger",
+        "이 브라우저에서는 로그아웃했습니다. 서버 세션 폐기를 확인하지 못했으므로 다른 기기의 접속 상태를 확인해 주세요.",
+        "warning",
       );
     } finally {
       setLoggingOut(false);

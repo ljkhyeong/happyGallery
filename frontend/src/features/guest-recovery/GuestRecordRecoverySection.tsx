@@ -3,6 +3,11 @@ import { useState } from "react";
 import { Alert, Card, Col, ListGroup, Row } from "react-bootstrap";
 import { Link } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
+import {
+  captureCustomerSession,
+  runForCurrentCustomer,
+  type CustomerSessionSnapshot,
+} from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert, StatusBadge } from "@/shared/ui";
 import { recoverGuestRecords } from "./api";
@@ -10,20 +15,41 @@ import {
   clearGuestRecordRecovery,
   loadGuestRecordRecovery,
   saveGuestRecordRecovery,
+  type GuestRecordRecoverySession,
 } from "./session";
 
+interface RecoveryView {
+  customerSession: CustomerSessionSnapshot;
+  storage: GuestRecordRecoverySession;
+}
+
+function loadRecoveryView(): RecoveryView | null {
+  const storage = loadGuestRecordRecovery();
+  return storage
+    ? { customerSession: captureCustomerSession(), storage }
+    : null;
+}
+
 export function GuestRecordRecoverySection() {
-  const [storedResult, setStoredResult] = useState(loadGuestRecordRecovery);
+  const [recoveryView, setRecoveryView] = useState(loadRecoveryView);
   const recovery = useMutation({
     mutationFn: ({ phone, code }: { phone: string; code: string }) =>
-      recoverGuestRecords(phone, code),
-    onSuccess: (result) => {
-      saveGuestRecordRecovery(result);
-      setStoredResult(result);
-    },
+      runForCurrentCustomer(
+        () => recoverGuestRecords(phone, code),
+        (result, requireCurrent) => {
+          requireCurrent();
+          const customerSession = captureCustomerSession();
+          const storage = saveGuestRecordRecovery(result, customerSession);
+          requireCurrent();
+          if (storage) {
+            setRecoveryView({ customerSession, storage });
+          }
+          return result;
+        },
+      ),
   });
 
-  const result = recovery.data ?? storedResult;
+  const result = recoveryView?.storage.value ?? null;
   const hasRecords = result && (result.orders.length > 0 || result.bookings.length > 0);
 
   return (
@@ -37,8 +63,8 @@ export function GuestRecordRecoverySection() {
           confirming={recovery.isPending}
           onReset={() => {
             recovery.reset();
-            clearGuestRecordRecovery();
-            setStoredResult(null);
+            clearGuestRecordRecovery(recoveryView?.storage);
+            setRecoveryView(null);
           }}
           onVerified={(phone, code) => recovery.mutate({ phone, code })}
         />
@@ -51,7 +77,7 @@ export function GuestRecordRecoverySection() {
           </Alert>
         )}
 
-        {hasRecords && (
+        {hasRecords && recoveryView && (
           <div className="mt-4">
             <Alert variant="success">
               조회 정보를 복구했습니다. 새 조회 코드는 {formatDateTime(result.expiresAt)}까지 사용할 수 있습니다.
@@ -67,7 +93,11 @@ export function GuestRecordRecoverySection() {
                         key={order.orderId}
                         as={Link}
                         to={`/guest/orders?orderId=${order.orderId}`}
-                        state={{ orderId: order.orderId, token: result.accessToken }}
+                        state={{
+                          orderId: order.orderId,
+                          token: result.accessToken,
+                          customerSession: recoveryView.customerSession,
+                        }}
                         action
                         className="d-flex justify-content-between align-items-start gap-3"
                       >
@@ -93,7 +123,11 @@ export function GuestRecordRecoverySection() {
                         key={booking.bookingId}
                         as={Link}
                         to={`/guest/bookings?bookingId=${booking.bookingId}`}
-                        state={{ bookingId: booking.bookingId, token: result.accessToken }}
+                        state={{
+                          bookingId: booking.bookingId,
+                          token: result.accessToken,
+                          customerSession: recoveryView.customerSession,
+                        }}
                         action
                         className="d-flex justify-content-between align-items-start gap-3"
                       >

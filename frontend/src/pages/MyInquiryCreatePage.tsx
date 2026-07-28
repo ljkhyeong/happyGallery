@@ -6,8 +6,14 @@ import { createInquiry } from "@/features/my-inquiry/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { runForCurrentCustomer } from "@/shared/api";
 
 export function MyInquiryCreatePage() {
+  const { sessionVersion } = useCustomerAuth();
+  return <MyInquiryCreateContent key={sessionVersion} />;
+}
+
+function MyInquiryCreateContent() {
   const navigate = useNavigate();
   const toast = useToast();
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
@@ -17,11 +23,13 @@ export function MyInquiryCreatePage() {
   const [content, setContent] = useState("");
 
   const mutation = useMutation({
-    mutationFn: () => createInquiry({ title, content }),
-    onSuccess: () => {
-      toast.show("문의가 등록되었습니다.");
-      navigate("/my/inquiries");
-    },
+    mutationFn: () => runForCurrentCustomer(
+      () => createInquiry({ title, content }),
+      () => {
+        toast.show("문의가 등록되었습니다.");
+        navigate("/my/inquiries");
+      },
+    ),
   });
 
   if (authLoading) {

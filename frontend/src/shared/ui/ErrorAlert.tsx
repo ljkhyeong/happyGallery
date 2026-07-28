@@ -1,5 +1,5 @@
 import { Alert } from "react-bootstrap";
-import { ApiError } from "@/shared/api";
+import { ApiError, CustomerSessionChangedError } from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
 
 interface Props {
@@ -7,7 +7,7 @@ interface Props {
 }
 
 export function ErrorAlert({ error }: Props) {
-  if (!error) return null;
+  if (!error || error instanceof CustomerSessionChangedError) return null;
 
   let message: string;
 

@@ -4,6 +4,7 @@ import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationAttemptGuard;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.pass.PassPriceProperties;
@@ -17,8 +18,10 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
+import com.personal.happygallery.application.policy.PolicyConsentService;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
+import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptRepository;
 import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRepository;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
@@ -48,10 +51,15 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.AopTestUtils;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
@@ -64,6 +72,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.assertj.core.groups.Tuple.tuple;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 
 @UseCaseIT
 class PaymentPrepareUseCaseTest {
@@ -71,6 +84,7 @@ class PaymentPrepareUseCaseTest {
     @Autowired PaymentPrepareUseCase prepareUseCase;
     @Autowired CustomerAccountLifecycleUseCase accountLifecycleUseCase;
     @Autowired PaymentAttemptReaderPort attemptReader;
+    @Autowired PaymentAttemptRepository paymentAttemptRepository;
     @Autowired PolicyConsentRepository policyConsentRepository;
     @Autowired PaymentStatusQueryUseCase statusQueryUseCase;
     @Autowired ProductStorePort productStorePort;
@@ -83,6 +97,8 @@ class PaymentPrepareUseCaseTest {
     @Autowired PassPriceProperties passPriceProperties;
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
+    @MockitoBean PhoneVerificationAttemptGuard phoneVerificationAttemptGuard;
+    @MockitoSpyBean PolicyConsentService policyConsentService;
 
     @AfterEach
     void tearDown() {
@@ -148,12 +164,18 @@ class PaymentPrepareUseCaseTest {
                         assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PENDING));
     }
 
-    @DisplayName("비회원 prepare는 인증 코드를 한 번 소비하고 결제 상태 토큰을 발급한다")
+    @DisplayName("비회원 prepare는 트랜잭션 밖에서 시도 제한을 확인하고 인증 코드를 한 번 소비한다")
     @Test
     void prepare_guestIssuesPaymentStatusToken() {
         Product product = productStorePort.save(readyStockProduct("비회원 결제 상품", 29_000L));
         inventoryStorePort.save(inventory(product, 1));
         saveVerification("01012341234", "123456");
+        AtomicBoolean transactionActiveDuringAttemptGuard = new AtomicBoolean(true);
+        doAnswer(invocation -> {
+            transactionActiveDuringAttemptGuard.set(
+                    TransactionSynchronizationManager.isActualTransactionActive());
+            return null;
+        }).when(phoneVerificationAttemptGuard).check("01012341234");
 
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
@@ -167,6 +189,7 @@ class PaymentPrepareUseCaseTest {
             softly.assertThat(status.status())
                     .isEqualTo(PaymentStatusQueryUseCase.CustomerPaymentStatus.READY);
             softly.assertThat(status.amount()).isEqualTo(29_000L);
+            softly.assertThat(transactionActiveDuringAttemptGuard).isFalse();
             Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId())
                     .orElseThrow()
                     .getId();
@@ -193,6 +216,43 @@ class PaymentPrepareUseCaseTest {
                 guestOrderPayload(product.getId()),
                 AuthContext.guest())))
                 .isInstanceOf(PhoneVerificationFailedException.class);
+    }
+
+    @DisplayName("비회원 prepare 저장이 실패하면 인증 코드 소비도 롤백되어 재시도할 수 있다")
+    @Test
+    void prepare_guestPersistenceFailure_rollsBackVerificationConsumption() {
+        Product product = productStorePort.save(readyStockProduct("비회원 롤백 상품", 29_000L));
+        inventoryStorePort.save(inventory(product, 1));
+        saveVerification("01012341234", "123456");
+        PrepareCommand command = new PrepareCommand(
+                PaymentContext.ORDER,
+                guestOrderPayload(product.getId()),
+                AuthContext.guest());
+        PolicyConsentService policyConsentTarget =
+                AopTestUtils.getTargetObject(policyConsentService);
+        doThrow(new IllegalStateException("동의 이력 저장 실패"))
+                .doCallRealMethod()
+                .when(policyConsentTarget)
+                .recordForPaymentAttempt(
+                        anyLong(),
+                        eq(PolicyConsentPurpose.GUEST_ORDER_PAYMENT),
+                        any());
+
+        assertThatThrownBy(() -> prepareUseCase.prepare(command))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("동의 이력 저장 실패");
+        assertSoftly(softly -> {
+            softly.assertThat(paymentAttemptRepository.count()).isZero();
+            softly.assertThat(policyConsentRepository.count()).isZero();
+        });
+
+        PaymentPrepareUseCase.PrepareResult retried = prepareUseCase.prepare(command);
+
+        assertSoftly(softly -> {
+            softly.assertThat(retried.statusToken()).isNotBlank();
+            softly.assertThat(paymentAttemptRepository.count()).isEqualTo(1);
+            softly.assertThat(policyConsentRepository.count()).isEqualTo(2);
+        });
     }
 
     @DisplayName("직접 주문 prepare는 판매 중지 상품을 결제 대상으로 확정하지 않는다")

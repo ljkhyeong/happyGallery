@@ -3,6 +3,10 @@ import { useState } from "react";
 import { Alert, Card, ListGroup } from "react-bootstrap";
 import { Link } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
+import {
+  captureCustomerSession,
+  runForCurrentCustomer,
+} from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert, StatusBadge } from "@/shared/ui";
 import { recoverGuestPaymentStatuses } from "./api";
@@ -10,6 +14,7 @@ import {
   clearGuestPaymentStatusRecovery,
   loadGuestPaymentStatusRecovery,
   saveGuestPaymentStatusRecovery,
+  type GuestPaymentStatusRecoverySession,
 } from "./session";
 
 const CONTEXT_LABELS = {
@@ -19,17 +24,31 @@ const CONTEXT_LABELS = {
 } as const;
 
 export function GuestPaymentStatusRecoverySection() {
-  const [storedResult, setStoredResult] = useState(loadGuestPaymentStatusRecovery);
+  const [storedRecovery, setStoredRecovery] =
+    useState<GuestPaymentStatusRecoverySession | null>(
+      loadGuestPaymentStatusRecovery,
+    );
   const recovery = useMutation({
     mutationFn: ({ phone, code }: { phone: string; code: string }) =>
-      recoverGuestPaymentStatuses(phone, code),
-    onSuccess: (result) => {
-      saveGuestPaymentStatusRecovery(result);
-      setStoredResult(result);
-    },
+      runForCurrentCustomer(
+        () => recoverGuestPaymentStatuses(phone, code),
+        (result, requireCurrent) => {
+          requireCurrent();
+          const customerSession = captureCustomerSession();
+          const storage = saveGuestPaymentStatusRecovery(
+            result,
+            customerSession,
+          );
+          requireCurrent();
+          if (storage) {
+            setStoredRecovery(storage);
+          }
+          return result;
+        },
+      ),
   });
 
-  const result = recovery.data ?? storedResult;
+  const result = storedRecovery?.value ?? null;
 
   return (
     <Card className="mb-4">
@@ -42,8 +61,8 @@ export function GuestPaymentStatusRecoverySection() {
           confirming={recovery.isPending}
           onReset={() => {
             recovery.reset();
-            clearGuestPaymentStatusRecovery();
-            setStoredResult(null);
+            clearGuestPaymentStatusRecovery(storedRecovery ?? undefined);
+            setStoredRecovery(null);
           }}
           onVerified={(phone, code) => recovery.mutate({ phone, code })}
         />

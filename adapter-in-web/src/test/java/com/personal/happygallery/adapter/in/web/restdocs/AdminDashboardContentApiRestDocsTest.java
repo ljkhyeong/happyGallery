@@ -72,6 +72,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
         stubDashboard();
         when(noticeQueryUseCase.listAll()).thenReturn(List.of(notice));
         when(noticeQueryUseCase.getDetail(1L)).thenReturn(notice);
+        when(noticeAdminUseCase.getForEdit(1L)).thenReturn(notice);
         when(noticeAdminUseCase.create(any(), any(), anyBoolean())).thenReturn(notice);
         when(noticeAdminUseCase.update(eq(1L), anyLong(), any(), any(), anyBoolean())).thenReturn(notice);
         when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(qna));
@@ -175,6 +176,15 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
     void admin_list_notices() throws Exception {
         mockMvc.perform(get("/api/v1/admin/notices").with(adminUser()))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 공지 상세 API를 문서화한다")
+    void admin_get_notice() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/notices/{id}", 1L).with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").value(RestDocsFixtures.notice().getContent()))
+                .andExpect(jsonPath("$.version").value(RestDocsFixtures.notice().getVersion()));
     }
 
     @Test

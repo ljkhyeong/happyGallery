@@ -1,10 +1,22 @@
 export { adminHeaders } from "./adminHeaders";
 export { api } from "./client";
 export {
-  advanceCustomerSessionVersion,
+  captureCustomerSession,
+  CustomerSessionChangedError,
   currentCustomerSessionVersion,
-  isCurrentCustomerSessionVersion,
+  currentCustomerSessionUserId,
+  isCurrentCustomerSession,
+  isCurrentCustomerSessionState,
+  markCustomerSessionActive,
+  markCustomerSessionInactive,
+  publishCustomerSessionBoundary,
+  requireCurrentCustomerSession,
+  runForCustomerSession,
+  runForCurrentCustomer,
   subscribeToCustomerSessionExpired,
+  synchronizeCustomerSessionBoundary,
+  type CustomerSessionSnapshot,
+  type CustomerSessionOwnedState,
 } from "./customerSession";
 export { ApiError } from "./error";
 export {

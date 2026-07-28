@@ -8,18 +8,33 @@ import {
   isTerminalPaymentStatus,
   PaymentCompletionNext,
   PaymentStatusNotice,
-  readPaymentConfirmRequest,
+  readPaymentConfirmSession,
+  readPaymentReturnHint,
   readPaymentStatusToken,
   removePaymentConfirmRequest,
   shouldPollPaymentStatus,
   storePaymentConfirmRequest,
   type ConfirmPaymentResponse,
   type PaymentConfirmRequest,
+  type PaymentSessionHandle,
   type PaymentStatusResponse,
 } from "@/features/payment";
+import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { isPositiveSafeIntegerString } from "@/shared/lib";
 import { ErrorAlert } from "@/shared/ui";
-import { ApiError } from "@/shared/api";
+import {
+  ApiError,
+  captureCustomerSession,
+  CustomerSessionChangedError,
+  isCurrentCustomerSession,
+  requireCurrentCustomerSession,
+  runForCustomerSession,
+} from "@/shared/api";
+
+interface PaymentConfirmSession {
+  request: PaymentConfirmRequest;
+  handle: PaymentSessionHandle<PaymentConfirmRequest> | null;
+}
 
 function canRetryConfirm(error: unknown): boolean {
   if (error instanceof ApiError) {
@@ -39,50 +54,86 @@ function requiresPaymentReconciliation(error: unknown): boolean {
 export function PaymentSuccessPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const { sessionVersion } = useCustomerAuth();
+  const [customerSession] = useState(captureCustomerSession);
   const [error, setError] = useState<unknown>(null);
   const [result, setResult] = useState<ConfirmPaymentResponse | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatusResponse | null>(null);
   const [statusError, setStatusError] = useState("");
   const [confirming, setConfirming] = useState(true);
+  const [sessionChanged, setSessionChanged] = useState(false);
   const calledRef = useRef(false);
   const latestStatusRequestRef = useRef(0);
   const completedRef = useRef(false);
 
-  const [confirmRequest] = useState<PaymentConfirmRequest | null>(() => {
+  const [returnHintSession] = useState(() =>
+    readPaymentReturnHint(customerSession));
+  const [confirmSession] = useState<PaymentConfirmSession | null>(() => {
     const callbackPresent = params.has("paymentKey")
       || params.has("orderId")
       || params.has("amount");
-    if (!callbackPresent) return readPaymentConfirmRequest();
+    if (!callbackPresent) {
+      const stored = readPaymentConfirmSession(customerSession);
+      return stored ? { request: stored.value, handle: stored } : null;
+    }
 
     const paymentKey = params.get("paymentKey")?.trim() ?? "";
     const orderId = params.get("orderId")?.trim() ?? "";
     const amountValue = params.get("amount");
     if (!paymentKey || !orderId || !isPositiveSafeIntegerString(amountValue)) {
-      removePaymentConfirmRequest();
+      const stored = readPaymentConfirmSession(customerSession);
+      if (stored) removePaymentConfirmRequest(stored);
       return null;
     }
 
     const request = { paymentKey, orderId, amount: Number(amountValue) };
-    storePaymentConfirmRequest(request);
-    return request;
+    return {
+      request,
+      handle: storePaymentConfirmRequest(request, customerSession),
+    };
   });
+  const confirmRequest = confirmSession?.request ?? null;
   const paymentKey = confirmRequest?.paymentKey ?? "";
   const orderId = confirmRequest?.orderId ?? "";
   const amount = confirmRequest?.amount ?? 0;
 
+  const abandonChangedSession = useCallback(() => {
+    latestStatusRequestRef.current += 1;
+    completedRef.current = true;
+    setResult(null);
+    setPaymentStatus(null);
+    setError(null);
+    setStatusError("");
+    setConfirming(false);
+    setSessionChanged(true);
+  }, []);
+
+  const requireCurrentCustomer = useCallback(() => {
+    requireCurrentCustomerSession(customerSession);
+  }, [customerSession]);
+
   const checkStatus = useCallback(async () => {
+    requireCurrentCustomer();
     if (!orderId) throw new Error("결제 주문번호가 없습니다.");
     const requestId = ++latestStatusRequestRef.current;
-    const status = await fetchPaymentStatus(orderId, readPaymentStatusToken(orderId));
+    const status = await runForCustomerSession(
+      customerSession,
+      () => fetchPaymentStatus(
+        orderId,
+        readPaymentStatusToken(orderId, customerSession),
+      ),
+    );
     if (requestId !== latestStatusRequestRef.current || completedRef.current) {
       return status;
     }
+    requireCurrentCustomer();
     setStatusError("");
     setPaymentStatus(status);
-    if (isTerminalPaymentStatus(status.status)) {
-      removePaymentConfirmRequest(orderId);
+    if (isTerminalPaymentStatus(status.status) && confirmSession?.handle) {
+      removePaymentConfirmRequest(confirmSession.handle);
     }
     if (status.status === "COMPLETED" && status.domainId != null) {
+      requireCurrentCustomer();
       completedRef.current = true;
       setResult({
         context: status.context,
@@ -91,12 +142,27 @@ export function PaymentSuccessPage() {
         accessRecoveryRequired: status.accessRecoveryRequired,
       });
       setError(null);
-      consumePaymentReturnHint();
+      if (returnHintSession) consumePaymentReturnHint(returnHintSession);
     }
     return status;
-  }, [orderId]);
+  }, [
+    confirmSession,
+    customerSession,
+    orderId,
+    requireCurrentCustomer,
+    returnHintSession,
+  ]);
 
   const runConfirm = useCallback(async () => {
+    try {
+      requireCurrentCustomer();
+    } catch (requestError) {
+      if (requestError instanceof CustomerSessionChangedError) {
+        abandonChangedSession();
+        return;
+      }
+      throw requestError;
+    }
     if (!confirmRequest) {
       setError(new Error("결제 정보가 올바르지 않습니다."));
       setConfirming(false);
@@ -108,25 +174,64 @@ export function PaymentSuccessPage() {
     setPaymentStatus(null);
     setConfirming(true);
     try {
-      const response = await confirmPayment(
-        { paymentKey, orderId, amount },
-        readPaymentStatusToken(orderId),
+      const response = await runForCustomerSession(
+        customerSession,
+        () => confirmPayment(
+          { paymentKey, orderId, amount },
+          readPaymentStatusToken(orderId, customerSession),
+        ),
       );
+      requireCurrentCustomer();
       completedRef.current = true;
       setResult(response);
-      consumePaymentReturnHint();
-      removePaymentConfirmRequest(orderId);
+      if (returnHintSession) consumePaymentReturnHint(returnHintSession);
+      if (confirmSession?.handle) {
+        removePaymentConfirmRequest(confirmSession.handle);
+      }
     } catch (requestError) {
+      if (requestError instanceof CustomerSessionChangedError) {
+        abandonChangedSession();
+        return;
+      }
+      requireCurrentCustomer();
       setError(requestError);
       try {
         await checkStatus();
-      } catch {
+      } catch (statusRequestError) {
+        if (statusRequestError instanceof CustomerSessionChangedError) {
+          abandonChangedSession();
+          return;
+        }
         // 과거 결제나 유실된 비회원 토큰은 기존 confirm 오류 안내를 유지한다.
       }
     } finally {
-      setConfirming(false);
+      if (isCurrentCustomerSession(customerSession)) {
+        setConfirming(false);
+      } else {
+        abandonChangedSession();
+      }
     }
-  }, [paymentKey, orderId, amount, confirmRequest, checkStatus]);
+  }, [
+    abandonChangedSession,
+    amount,
+    checkStatus,
+    confirmRequest,
+    confirmSession,
+    customerSession,
+    orderId,
+    paymentKey,
+    requireCurrentCustomer,
+    returnHintSession,
+  ]);
+
+  useEffect(() => {
+    if (
+      sessionVersion !== customerSession.version
+      || !isCurrentCustomerSession(customerSession)
+    ) {
+      abandonChangedSession();
+    }
+  }, [abandonChangedSession, customerSession, sessionVersion]);
 
   useEffect(() => {
     if (calledRef.current) return;
@@ -152,9 +257,14 @@ export function PaymentSuccessPage() {
           timer = window.setTimeout(() => void poll(), 3_000);
         }
       } catch {
-        if (active) {
+        if (
+          active
+          && isCurrentCustomerSession(customerSession)
+        ) {
           setStatusError("상태를 새로 확인하지 못했습니다. 잠시 후 자동으로 다시 확인합니다.");
           timer = window.setTimeout(() => void poll(), 3_000);
+        } else if (active) {
+          abandonChangedSession();
         }
       }
     };
@@ -164,7 +274,26 @@ export function PaymentSuccessPage() {
       active = false;
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [checkStatus, paymentStatus?.status]);
+  }, [
+    abandonChangedSession,
+    checkStatus,
+    customerSession,
+    paymentStatus?.status,
+  ]);
+
+  if (sessionChanged) {
+    return (
+      <Container className="page-container" style={{ maxWidth: 540 }}>
+        <Alert variant="warning">
+          <Alert.Heading className="fs-5">회원 계정이 변경되었습니다</Alert.Heading>
+          <p className="mb-0">
+            이전 계정에서 시작한 결제 결과는 이 화면에 표시하지 않습니다.
+          </p>
+        </Alert>
+        <Button variant="primary" onClick={() => navigate("/")}>홈으로</Button>
+      </Container>
+    );
+  }
 
   if (confirming) {
     return (
@@ -188,7 +317,11 @@ export function PaymentSuccessPage() {
           )}
           {(paymentStatus.status === "REVIEW_REQUIRED"
             || paymentStatus.status === "SUPPORT_REQUIRED") && (
-            <Button variant="primary" onClick={() => void checkStatus().catch(() => {
+            <Button variant="primary" onClick={() => void checkStatus().catch((requestError) => {
+              if (requestError instanceof CustomerSessionChangedError) {
+                abandonChangedSession();
+                return;
+              }
               setStatusError("상태를 새로 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
             })}>
               상태 새로고침

@@ -27,12 +27,19 @@ export {
   PAYMENT_CONFIRM_REQUEST_KEY,
   PAYMENT_RETURN_KEY,
   storePaymentConfirmRequest,
+  readPaymentConfirmSession,
   readPaymentConfirmRequest,
   removePaymentConfirmRequest,
   storePaymentReturnHint,
+  readPaymentReturnHint,
   consumePaymentReturnHint,
+  removePaymentReturnHint,
   storePaymentStatusToken,
   readPaymentStatusToken,
   removePaymentStatusToken,
 } from "./session";
-export type { PaymentConfirmRequest } from "./session";
+export type {
+  PaymentConfirmRequest,
+  PaymentSessionHandle,
+  PaymentSessionOwner,
+} from "./session";

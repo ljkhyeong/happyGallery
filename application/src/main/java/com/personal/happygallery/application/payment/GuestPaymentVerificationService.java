@@ -1,6 +1,6 @@
 package com.personal.happygallery.application.payment;
 
-import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
+import com.personal.happygallery.application.customer.PhoneVerificationConsumptionService;
 import com.personal.happygallery.application.token.GuestTokenProperties;
 import com.personal.happygallery.application.token.TokenSigningException;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -25,13 +25,13 @@ public class GuestPaymentVerificationService {
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final Base64.Encoder URL_ENCODER = Base64.getUrlEncoder().withoutPadding();
 
-    private final PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
+    private final PhoneVerificationConsumptionService phoneVerificationConsumption;
     private final GuestTokenProperties tokenProperties;
 
     public GuestPaymentVerificationService(
-            PhoneOwnershipVerificationUseCase phoneOwnershipVerification,
+            PhoneVerificationConsumptionService phoneVerificationConsumption,
             GuestTokenProperties tokenProperties) {
-        this.phoneOwnershipVerification = phoneOwnershipVerification;
+        this.phoneVerificationConsumption = phoneVerificationConsumption;
         this.tokenProperties = tokenProperties;
     }
 
@@ -41,7 +41,7 @@ public class GuestPaymentVerificationService {
             String phone,
             String verificationCode) {
         String normalizedPhone = KoreanPhoneNumber.required(phone);
-        phoneOwnershipVerification.verify(
+        phoneVerificationConsumption.consume(
                 normalizedPhone, verificationCode, verificationPurpose(context));
 
         String nonce = UUID.randomUUID().toString();

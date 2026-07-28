@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Form } from "react-bootstrap";
-import { ApiError } from "@/shared/api";
+import {
+  ApiError,
+  CustomerSessionChangedError,
+  runForCurrentCustomer,
+} from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { isPasswordWithinByteLimit } from "@/shared/validation/password";
@@ -35,11 +39,14 @@ export function CustomerStepUpPrompt({
     queryFn: fetchLinkedSocialProviders,
   });
   const passwordReauthentication = useMutation({
-    mutationFn: () => reauthenticateCustomerPassword(password),
-    onSuccess: () => {
-      setPassword("");
-      onVerified();
-    },
+    mutationFn: () =>
+      runForCurrentCustomer(
+        () => reauthenticateCustomerPassword(password),
+        () => {
+          setPassword("");
+          onVerified();
+        },
+      ),
   });
   const busy = passwordReauthentication.isPending || socialPending;
 
@@ -58,6 +65,7 @@ export function CustomerStepUpPrompt({
         action: returnAction,
       });
     } catch (error) {
+      if (error instanceof CustomerSessionChangedError) return;
       const message = error instanceof ApiError
         ? getUserMessage(error.code) ?? error.message
         : "소셜 계정 본인 확인을 시작하지 못했습니다.";

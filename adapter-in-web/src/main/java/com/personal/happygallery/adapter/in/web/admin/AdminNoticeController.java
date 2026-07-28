@@ -43,6 +43,12 @@ public class AdminNoticeController {
                 .toList();
     }
 
+    @GetMapping("/{id}")
+    @Operation(operationId = "getAdminNotice")
+    public NoticeDetailResponse get(@PathVariable Long id) {
+        return NoticeDetailResponse.from(noticeAdminUseCase.getForEdit(id));
+    }
+
     @PostMapping
     @Operation(operationId = "createAdminNotice")
     @ResponseStatus(HttpStatus.CREATED)

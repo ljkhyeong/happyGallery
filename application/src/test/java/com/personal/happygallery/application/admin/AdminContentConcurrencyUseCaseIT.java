@@ -21,6 +21,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,6 +36,7 @@ class AdminContentConcurrencyUseCaseIT {
     @Autowired NoticeQueryUseCase noticeQueryUseCase;
     @Autowired NoticeRepository noticeRepository;
     @Autowired WorkshopProfileUseCase workshopProfileUseCase;
+    @Autowired PlatformTransactionManager transactionManager;
 
     private WorkshopProfile originalWorkshopProfile;
 
@@ -102,6 +106,43 @@ class AdminContentConcurrencyUseCaseIT {
         });
     }
 
+    @DisplayName("같은 공지 버전을 읽은 두 트랜잭션 중 하나만 저장된다")
+    @Test
+    void concurrentNoticeUpdates_withSameVersion_allowsOneWriter() throws Exception {
+        Notice notice = noticeAdminUseCase.create("동시 수정 공지", "최초 본문", false);
+        CountDownLatch loaded = new CountDownLatch(2);
+        CountDownLatch update = new CountDownLatch(1);
+
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<Throwable> first = executor.submit(
+                    () -> updateNoticeAfterBothRead(notice.getId(), "첫 번째 제목", loaded, update));
+            Future<Throwable> second = executor.submit(
+                    () -> updateNoticeAfterBothRead(notice.getId(), "두 번째 제목", loaded, update));
+
+            assertThat(loaded.await(5, TimeUnit.SECONDS)).isTrue();
+            update.countDown();
+            List<Throwable> results = new ArrayList<>(2);
+            results.add(first.get(10, TimeUnit.SECONDS));
+            results.add(second.get(10, TimeUnit.SECONDS));
+            Throwable failure = results.stream()
+                    .filter(result -> result != null)
+                    .findFirst()
+                    .orElseThrow();
+            Notice persisted = noticeRepository.findById(notice.getId()).orElseThrow();
+
+            assertSoftly(softly -> {
+                softly.assertThat(results.stream().filter(result -> result == null).count())
+                        .isEqualTo(1);
+                softly.assertThat(failure)
+                        .isInstanceOf(OptimisticLockingFailureException.class);
+                softly.assertThat(persisted.getTitle())
+                        .isIn("첫 번째 제목", "두 번째 제목");
+                softly.assertThat(persisted.getVersion())
+                        .isEqualTo(notice.getVersion() + 1);
+            });
+        }
+    }
+
     @DisplayName("먼저 읽은 공방 정보는 다른 관리자의 수정 결과를 덮어쓰지 못한다")
     @Test
     void updateWorkshopProfile_withStaleVersion_throwsConflict() {
@@ -139,5 +180,36 @@ class AdminContentConcurrencyUseCaseIT {
                 profile.getIntroduction(), profile.getKakaoTalkId(),
                 profile.getNaverTalkUrl(), profile.getNaverBlogUrl(),
                 profile.getInstagramUrl(), profile.getSmartStoreUrl());
+    }
+
+    private Throwable updateNoticeAfterBothRead(
+            Long noticeId,
+            String title,
+            CountDownLatch loaded,
+            CountDownLatch update
+    ) {
+        try {
+            new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                Notice notice = noticeRepository.findById(noticeId).orElseThrow();
+                loaded.countDown();
+                await(update);
+                notice.update(title, "동시 수정 본문", false);
+                noticeRepository.flush();
+            });
+            return null;
+        } catch (Throwable throwable) {
+            return throwable;
+        }
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            if (!latch.await(5, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("동시 수정 시작 신호를 기다리지 못했습니다.");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("동시 수정 대기가 중단되었습니다.", exception);
+        }
     }
 }

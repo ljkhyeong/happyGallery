@@ -29,9 +29,10 @@ export function useAdminKey() {
   }, [queryClient]);
 
   const logout = useCallback(async () => {
-    if (!adminKey) return;
-    await logoutAdmin(adminKey);
+    const token = adminKey;
     clearAdminKey();
+    if (!token) return;
+    await logoutAdmin(token);
   }, [adminKey, clearAdminKey]);
 
   const acceptAuthentication = useCallback(

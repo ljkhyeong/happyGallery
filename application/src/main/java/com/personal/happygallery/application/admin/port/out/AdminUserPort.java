@@ -10,7 +10,7 @@ public interface AdminUserPort {
 
     Optional<AdminUser> findByUsername(String username);
 
-    Optional<AdminUser> findByUsernameForUpdate(String username);
+    Optional<AdminLoginSnapshot> findLoginSnapshotByUsername(String username);
 
     Optional<AdminUser> findById(Long id);
 

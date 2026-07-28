@@ -6,6 +6,7 @@ import { CartBadge } from "@/features/cart/CartBadge";
 import { NotificationBell } from "@/features/notification/NotificationBell";
 import { useToast } from "./ToastContainer";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
+import { CustomerSessionChangedError } from "@/shared/api";
 
 const NAV_ITEMS = [
   { path: "/classes", label: "클래스" },
@@ -35,7 +36,8 @@ export function Layout() {
     setLoggingOut(true);
     try {
       await logout();
-    } catch {
+    } catch (error) {
+      if (error instanceof CustomerSessionChangedError) return;
       toast.show(
         "로그아웃 완료를 확인하지 못해 현재 로그인 상태를 유지합니다. 잠시 후 다시 시도해 주세요.",
         "danger",

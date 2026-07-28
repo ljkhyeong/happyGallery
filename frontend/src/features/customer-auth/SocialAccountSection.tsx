@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge, Button, Form, Modal, Spinner } from "react-bootstrap";
-import { ApiError } from "@/shared/api";
+import {
+  ApiError,
+  CustomerSessionChangedError,
+  currentCustomerSessionUserId,
+  runForCurrentCustomer,
+} from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 import { useToast } from "@/shared/ui";
@@ -42,10 +47,17 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     queryFn: fetchLinkedSocialProviders,
   });
   const unlinkMutation = useMutation({
-    mutationFn: unlinkSocialAccount,
+    mutationFn: (provider: SocialProvider) =>
+      runForCurrentCustomer(
+        () => unlinkSocialAccount(provider),
+        () => {
+          window.location.assign(buildAuthPageHref("/login", { redirectTo: "/my" }));
+        },
+      ),
   });
 
   const showActionError = (error: unknown, fallback: string) => {
+    if (error instanceof CustomerSessionChangedError) return;
     const message = error instanceof ApiError
       ? getUserMessage(error.code) ?? error.message
       : fallback;
@@ -53,15 +65,24 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
   };
 
   const beginLink = async (provider: SocialProvider) => {
-    const { authorizationUrl } = await startSocialAccountLink(provider);
-    clearCustomerStepUpContinuation();
-    sessionStorage.setItem(SESSION_KEYS.socialAccountLink, provider);
-    window.location.assign(authorizationUrl);
+    await runForCurrentCustomer(
+      () => startSocialAccountLink(provider),
+      ({ authorizationUrl }) => {
+        const customerId = currentCustomerSessionUserId();
+        if (customerId === null) throw new CustomerSessionChangedError();
+        clearCustomerStepUpContinuation();
+        sessionStorage.setItem(
+          SESSION_KEYS.customerContinuationOwner,
+          String(customerId),
+        );
+        sessionStorage.setItem(SESSION_KEYS.socialAccountLink, provider);
+        window.location.assign(authorizationUrl);
+      },
+    );
   };
 
   const beginUnlink = async (provider: SocialProvider) => {
     await unlinkMutation.mutateAsync(provider);
-    window.location.assign(buildAuthPageHref("/login", { redirectTo: "/my" }));
   };
 
   const redirectForSensitiveAction = async (action: SensitiveAction) => {
@@ -130,15 +151,19 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     if (!pendingAction || !isPasswordWithinByteLimit(password)) return;
     setStartingProvider(pendingAction.provider);
     try {
-      await reauthenticateCustomerPassword(password);
-      const action = pendingAction;
-      setPendingAction(null);
-      setPassword("");
-      if (action.kind === "link") {
-        await beginLink(action.provider);
-      } else {
-        await beginUnlink(action.provider);
-      }
+      await runForCurrentCustomer(
+        () => reauthenticateCustomerPassword(password),
+        async () => {
+          const action = pendingAction;
+          setPendingAction(null);
+          setPassword("");
+          if (action.kind === "link") {
+            await beginLink(action.provider);
+          } else {
+            await beginUnlink(action.provider);
+          }
+        },
+      );
     } catch (error) {
       showActionError(error, "본인 확인을 완료하지 못했습니다.");
     } finally {

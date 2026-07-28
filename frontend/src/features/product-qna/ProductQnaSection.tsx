@@ -4,6 +4,7 @@ import { fetchMyProductQna, fetchProductQna } from "./api";
 import { QnaItem } from "./QnaItem";
 import { QnaCreateForm } from "./QnaCreateForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { queryKeys } from "@/shared/api";
 import { LoadingSpinner, EmptyState, ErrorAlert } from "@/shared/ui";
 
 interface Props {
@@ -11,6 +12,11 @@ interface Props {
 }
 
 export function ProductQnaSection({ productId }: Props) {
+  const { sessionVersion } = useCustomerAuth();
+  return <ProductQnaContent key={sessionVersion} productId={productId} />;
+}
+
+function ProductQnaContent({ productId }: Props) {
   const { isAuthenticated } = useCustomerAuth();
 
   const { data: qnaList, isLoading } = useQuery({
@@ -18,8 +24,8 @@ export function ProductQnaSection({ productId }: Props) {
     queryFn: () => fetchProductQna(productId),
   });
   const { data: myQnaList, error: myQnaError } = useQuery({
-    queryKey: ["my-product-qna", productId],
-    queryFn: () => fetchMyProductQna(productId),
+    queryKey: queryKeys.member.productQna.byProduct(productId),
+    queryFn: ({ signal }) => fetchMyProductQna(productId, signal),
     enabled: isAuthenticated,
   });
   const ownedQnaIds = new Set(myQnaList?.map((qna) => qna.id));

@@ -68,8 +68,10 @@ confirm 선점 조회에는 비관적 쓰기 잠금을 사용한다. `PROCESSING
 `PaymentFulfiller.validateStoredPayload()`는 컨텍스트별 저장 payload 불변식을 검증하고, 주문·예약·8회권은 저장된
 가격 스냅샷과 `PaymentAttempt.amount`까지 비교한다. fulfillment는
 현재 인증 정보를 다시 받지 않고 검증된 저장 payload의 `userId`를 사용한다. 비회원 주문·예약은
-prepare 트랜잭션에서 휴대폰 인증 코드를 잠금 후 소비하고, `context + orderId + 정규화 전화번호 + nonce`에
-HMAC 서명한 증거만 서버 확정 payload에 저장한다. fulfillment의 `VerifiedGuestResolver`는 현재
+비회원 prepare의 전화번호별 Redis 시도 제한은 DB 트랜잭션을 열기 전에 확인한다. 그 뒤 prepare
+트랜잭션에서 휴대폰 인증 코드를 잠금 후 소비하고 `PaymentAttempt`와 함께 커밋하며,
+`context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 증거만 서버 확정 payload에 저장한다.
+fulfillment의 `VerifiedGuestResolver`는 현재
 `PaymentAttempt`와 전화번호에 대한 증거 서명을 확인하며 원 인증 코드를 다시 조회하거나 소비하지 않는다.
 `CONFIRMED`에는 생성된 도메인 ID와 비회원 접근 토큰 암호문을 함께 저장한다. 같은 사용자·금액·paymentKey의
 재호출은 PG와 fulfillment를 반복하지 않고 저장된 결과를 복호화해 같은 응답을 반환한다.

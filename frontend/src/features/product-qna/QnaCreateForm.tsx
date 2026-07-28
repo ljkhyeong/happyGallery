@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Form, Button, Card } from "react-bootstrap";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createQna } from "./api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 
 interface Props {
@@ -17,21 +18,24 @@ export function QnaCreateForm({ productId }: Props) {
   const [open, setOpen] = useState(false);
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createQna(productId, {
-        title,
-        content,
-        secret,
-      }),
-    onSuccess: () => {
-      toast.show("Q&A가 등록되었습니다.");
-      setTitle("");
-      setContent("");
-      setSecret(false);
-      setOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["product-qna", productId] });
-      queryClient.invalidateQueries({ queryKey: ["my-product-qna", productId] });
-    },
+    mutationFn: () => runForCurrentCustomer(
+      () => createQna(productId, {
+          title,
+          content,
+          secret,
+        }),
+      () => {
+        toast.show("Q&A가 등록되었습니다.");
+        setTitle("");
+        setContent("");
+        setSecret(false);
+        setOpen(false);
+        void queryClient.invalidateQueries({ queryKey: ["product-qna", productId] });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.member.productQna.byProduct(productId),
+        });
+      },
+    ),
   });
 
   if (!open) {

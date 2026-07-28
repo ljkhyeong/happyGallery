@@ -1,4 +1,5 @@
 export const SESSION_KEYS = {
+  customerContinuationOwner: "customer_continuation_owner",
   guestRecordRecovery: "guest_record_recovery",
   guestPaymentStatusRecovery: "guest_payment_status_recovery",
   socialAccountLink: "social_account_link",

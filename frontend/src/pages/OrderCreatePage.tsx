@@ -34,8 +34,16 @@ import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 type Step = "verify" | "items";
 
 export function OrderCreatePage() {
+  const { isLoading, sessionVersion } = useCustomerAuth();
+  if (isLoading) {
+    return <Container className="page-container"><LoadingSpinner /></Container>;
+  }
+  return <OrderCreateForm key={sessionVersion} />;
+}
+
+function OrderCreateForm() {
   const [searchParams] = useSearchParams();
-  const { user, isLoading: authLoading } = useCustomerAuth();
+  const { user } = useCustomerAuth();
   const [step, setStep] = useState<Step>(user ? "items" : "verify");
   const [manualEntryConfirmed, setManualEntryConfirmed] = useState(false);
   const [phone, setPhone] = useState("");
@@ -116,10 +124,6 @@ export function OrderCreatePage() {
     onError: consent.handleSubmissionError,
   });
   const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(mutation.error);
-
-  if (authLoading) {
-    return <Container className="page-container"><LoadingSpinner /></Container>;
-  }
 
   return (
     <Container className="page-container" style={{ maxWidth: 640 }}>

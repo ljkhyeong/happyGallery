@@ -6,15 +6,11 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "admin_user")
 public class AdminUser {
-
-    public static final int MAX_FAILED_LOGIN_ATTEMPTS = 5;
-    public static final Duration LOGIN_LOCK_DURATION = Duration.ofMinutes(15);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,12 +24,6 @@ public class AdminUser {
 
     @Column(name = "credential_version", nullable = false)
     private long credentialVersion;
-
-    @Column(name = "failed_login_attempts", nullable = false)
-    private int failedLoginAttempts;
-
-    @Column(name = "locked_until")
-    private LocalDateTime lockedUntil;
 
     @Column(name = "totp_secret_enc", length = 1024)
     private String totpSecretEnc;
@@ -58,8 +48,6 @@ public class AdminUser {
     public String getUsername() { return username; }
     public String getPasswordHash() { return passwordHash; }
     public long getCredentialVersion() { return credentialVersion; }
-    public int getFailedLoginAttempts() { return failedLoginAttempts; }
-    public LocalDateTime getLockedUntil() { return lockedUntil; }
     public String getTotpSecretEnc() { return totpSecretEnc; }
     public boolean isMfaEnabled() { return mfaEnabled; }
     public Long getLastAcceptedTotpStep() { return lastAcceptedTotpStep; }
@@ -73,26 +61,6 @@ public class AdminUser {
 
     public void upgradePasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
-    }
-
-    public boolean isAuthenticationLocked(LocalDateTime now) {
-        return lockedUntil != null && now.isBefore(lockedUntil);
-    }
-
-    public void recordFailedAuthentication(LocalDateTime now) {
-        if (lockedUntil != null && !now.isBefore(lockedUntil)) {
-            failedLoginAttempts = 0;
-            lockedUntil = null;
-        }
-        failedLoginAttempts = Math.incrementExact(failedLoginAttempts);
-        if (failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
-            lockedUntil = now.plus(LOGIN_LOCK_DURATION);
-        }
-    }
-
-    public void authenticationSucceeded() {
-        failedLoginAttempts = 0;
-        lockedUntil = null;
     }
 
     public void beginMfaEnrollment(String encryptedSecret) {

@@ -11,12 +11,10 @@ import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.User;
-import java.time.Clock;
-import java.time.LocalDateTime;
-import java.util.Objects;
 import java.util.Optional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -30,20 +28,20 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
     private final PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
     private final PasswordEncoder passwordEncoder;
     private final PolicyConsentService policyConsentService;
-    private final Clock clock;
+    private final CustomerAuthenticationTransactionService authenticationService;
 
     public DefaultCustomerAuthService(UserReaderPort userReader,
                                       UserStorePort userStore,
                                       PhoneOwnershipVerificationUseCase phoneOwnershipVerification,
                                       PasswordEncoder passwordEncoder,
                                       PolicyConsentService policyConsentService,
-                                      Clock clock) {
+                                      CustomerAuthenticationTransactionService authenticationService) {
         this.userReader = userReader;
         this.userStore = userStore;
         this.phoneOwnershipVerification = phoneOwnershipVerification;
         this.passwordEncoder = passwordEncoder;
         this.policyConsentService = policyConsentService;
-        this.clock = clock;
+        this.authenticationService = authenticationService;
     }
 
     @Override
@@ -73,7 +71,7 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.NEVER)
     public User login(LoginCommand command) {
         LoginSnapshot snapshot = userReader.findLoginSnapshotByEmail(command.email()).orElse(null);
         String passwordHash = passwordHashForComparison(snapshot);
@@ -81,18 +79,7 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
         if (!isLoginCandidate(snapshot) || !passwordMatches) {
             throw invalidCredentials();
         }
-
-        User user = userReader.findByIdForUpdate(snapshot.userId())
-                .orElseThrow(DefaultCustomerAuthService::invalidCredentials);
-        if (!passwordStillMatches(command.rawPassword(), passwordHash, user)) {
-            throw invalidCredentials();
-        }
-
-        if (passwordEncoder.upgradeEncoding(user.getPasswordHash())) {
-            user.upgradePasswordHash(passwordEncoder.encode(command.rawPassword()));
-        }
-        user.updateLastLoginAt(LocalDateTime.now(clock));
-        return user;
+        return authenticationService.authenticate(snapshot, command.rawPassword());
     }
 
     @Override
@@ -107,18 +94,6 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
 
     private static boolean isLoginCandidate(LoginSnapshot snapshot) {
         return snapshot != null && snapshot.active() && snapshot.hasLocalPassword();
-    }
-
-    private boolean passwordStillMatches(String rawPassword,
-                                         String passwordHashBeforeLock,
-                                         User lockedUser) {
-        if (!lockedUser.isActive() || !lockedUser.hasLocalPassword()) {
-            return false;
-        }
-        if (Objects.equals(passwordHashBeforeLock, lockedUser.getPasswordHash())) {
-            return true;
-        }
-        return passwordEncoder.matches(rawPassword, lockedUser.getPasswordHash());
     }
 
     private static HappyGalleryException invalidCredentials() {

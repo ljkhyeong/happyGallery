@@ -14,7 +14,11 @@ import {
   unlinkSocialAccount,
 } from "@/features/customer-auth/socialAccountApi";
 import type { SocialProvider } from "@/features/customer-auth/socialAuth";
-import { ApiError } from "@/shared/api";
+import {
+  ApiError,
+  CustomerSessionChangedError,
+  runForCurrentCustomer,
+} from "@/shared/api";
 
 export function SocialCallbackPage() {
   const [searchParams] = useSearchParams();
@@ -37,6 +41,12 @@ export function SocialCallbackPage() {
     const pendingSocialReauthentication =
       sessionStorage.getItem(SESSION_KEYS.socialReauthentication);
     sessionStorage.removeItem(SESSION_KEYS.socialReauthentication);
+    const continuationOwner = Number(
+      sessionStorage.getItem(SESSION_KEYS.customerContinuationOwner),
+    );
+    sessionStorage.removeItem(SESSION_KEYS.customerContinuationOwner);
+    const hasCustomerContinuation =
+      pendingSocialAccountLink !== null || pendingSocialReauthentication !== null;
     const clearPendingStepUpActions = () => {
       sessionStorage.removeItem(SESSION_KEYS.socialAccountLinkTarget);
       sessionStorage.removeItem(SESSION_KEYS.socialAccountUnlinkTarget);
@@ -64,6 +74,21 @@ export function SocialCallbackPage() {
     void (async () => {
       try {
         const user = await refresh();
+        if (
+          hasCustomerContinuation
+          && (
+            !Number.isSafeInteger(continuationOwner)
+            || continuationOwner <= 0
+            || user?.id !== continuationOwner
+          )
+        ) {
+          clearPendingStepUpActions();
+          navigate(
+            user ? "/my" : buildAuthPageHref("/login", { redirectTo: "/my" }),
+            { replace: true },
+          );
+          return;
+        }
 
         if (searchParams.get("reauthenticated")) {
           const linkTarget = sessionStorage.getItem(
@@ -75,14 +100,27 @@ export function SocialCallbackPage() {
           const returnAction = sessionStorage.getItem(SESSION_KEYS.stepUpReturnAction);
           clearPendingStepUpActions();
           if (linkTarget) {
-            const { authorizationUrl } = await startSocialAccountLink(linkTarget);
-            sessionStorage.setItem(SESSION_KEYS.socialAccountLink, linkTarget);
-            window.location.assign(authorizationUrl);
+            await runForCurrentCustomer(
+              () => startSocialAccountLink(linkTarget),
+              ({ authorizationUrl }) => {
+                if (!user) throw new CustomerSessionChangedError();
+                sessionStorage.setItem(
+                  SESSION_KEYS.customerContinuationOwner,
+                  String(user.id),
+                );
+                sessionStorage.setItem(SESSION_KEYS.socialAccountLink, linkTarget);
+                window.location.assign(authorizationUrl);
+              },
+            );
             return;
           }
           if (unlinkTarget) {
-            await unlinkSocialAccount(unlinkTarget);
-            window.location.assign(buildAuthPageHref("/login", { redirectTo: "/my" }));
+            await runForCurrentCustomer(
+              () => unlinkSocialAccount(unlinkTarget),
+              () => {
+                window.location.assign(buildAuthPageHref("/login", { redirectTo: "/my" }));
+              },
+            );
             return;
           }
           navigate("/my", {
@@ -116,6 +154,10 @@ export function SocialCallbackPage() {
           navigate(returnTo, { replace: true });
         }
       } catch (error) {
+        if (error instanceof CustomerSessionChangedError) {
+          navigate("/my", { replace: true });
+          return;
+        }
         clearPendingStepUpActions();
         sessionStorage.removeItem(SESSION_KEYS.socialAccountLink);
         sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);

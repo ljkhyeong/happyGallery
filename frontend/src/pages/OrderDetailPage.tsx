@@ -5,6 +5,7 @@ import { Container, Card, Form, Button, Row, Col, Badge } from "react-bootstrap"
 import { useLocation, useSearchParams } from "react-router";
 import { cancelGuestOrder, fetchOrder, respondToGuestOrderDelay } from "@/features/order/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
@@ -12,8 +13,13 @@ import { ErrorAlert } from "@/shared/ui";
 import { customerRefundPollingInterval } from "@/shared/lib";
 import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
 import { OrderClaimSection } from "@/features/order-claim/OrderClaimSection";
+import {
+  isCurrentCustomerSessionState,
+  runForCurrentCustomer,
+  type CustomerSessionOwnedState,
+} from "@/shared/api";
 
-interface LocationState {
+interface LocationState extends CustomerSessionOwnedState {
   orderId?: number;
   token?: string;
 }
@@ -27,14 +33,23 @@ interface OrderLookup {
 }
 
 export function OrderDetailPage() {
+  const { sessionVersion } = useCustomerAuth();
+  return <OrderDetailContent key={sessionVersion} />;
+}
+
+function OrderDetailContent() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const navState = location.state as LocationState | null;
+  const navState = isCurrentCustomerSessionState(location.state)
+    ? location.state as LocationState
+    : null;
   const [initialCredentials] = useState(() => {
     const queryOrderId = Number(searchParams.get("orderId"));
     const orderId = navState?.orderId
       ?? (Number.isSafeInteger(queryOrderId) && queryOrderId > 0 ? queryOrderId : undefined);
-    const token = navState?.token ?? loadGuestRecordRecovery()?.accessToken ?? "";
+    const token = navState?.token
+      ?? loadGuestRecordRecovery()?.value.accessToken
+      ?? "";
     return { orderId, token: token.trim() };
   });
   const [orderId, setOrderId] = useState(
@@ -56,7 +71,9 @@ export function OrderDetailPage() {
   const { data: order, error, isFetching, refetch: refetchOrder } = useQuery({
     queryKey: ["guest", "order", lookup?.credentials.id, lookup?.requestId],
     queryFn: lookup
-      ? () => fetchOrder(lookup.credentials.id, lookup.credentials.token)
+      ? () => runForCurrentCustomer(
+          () => fetchOrder(lookup.credentials.id, lookup.credentials.token),
+        )
       : skipToken,
     gcTime: 0,
     refetchInterval: ({ state }) =>
@@ -67,16 +84,30 @@ export function OrderDetailPage() {
   });
   const cancelMutation = useMutation({
     mutationFn: ({ id, token: accessToken }: { id: number; token: string }) =>
-      cancelGuestOrder(id, accessToken),
-    onSuccess: () => refetchOrder(),
+      runForCurrentCustomer(
+        () => cancelGuestOrder(id, accessToken),
+        async (result, requireCurrent) => {
+          requireCurrent();
+          await refetchOrder();
+          requireCurrent();
+          return result;
+        },
+      ),
   });
   const delayMutation = useMutation({
     mutationFn: ({ id, token: accessToken, decision }: {
       id: number;
       token: string;
       decision: "ACCEPT" | "REJECT";
-    }) => respondToGuestOrderDelay(id, accessToken, decision),
-    onSuccess: () => refetchOrder(),
+    }) => runForCurrentCustomer(
+      () => respondToGuestOrderDelay(id, accessToken, decision),
+      async (result, requireCurrent) => {
+        requireCurrent();
+        await refetchOrder();
+        requireCurrent();
+        return result;
+      },
+    ),
   });
 
   function handleLookup() {

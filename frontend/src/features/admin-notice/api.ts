@@ -1,36 +1,56 @@
-import { api } from "@/shared/api";
-import type {
-  NoticeListItem,
-  NoticeDetail,
+import {
+  createAdminNotice,
+  deleteAdminNotice,
+  getAdminNotice,
+  listAdminNotices,
+  updateAdminNotice,
   CreateNoticeRequest,
+  NoticeDetailResponse,
+  NoticeListResponse,
   UpdateNoticeRequest,
-} from "@/shared/types";
+} from "@/generated/api/adminNotice";
+import { adminHeaders } from "@/shared/api";
 
-export function fetchAdminNotices(token: string): Promise<NoticeListItem[]> {
-  return api<NoticeListItem[]>("/admin/notices", {
-    headers: { Authorization: `Bearer ${token}` },
+export type {
+  CreateNoticeRequest,
+  NoticeDetailResponse,
+  NoticeListResponse,
+  UpdateNoticeRequest,
+} from "@/generated/api/adminNotice";
+
+export function fetchAdminNotices(token: string): Promise<NoticeListResponse[]> {
+  return listAdminNotices({
+    headers: adminHeaders(token),
   });
 }
 
-export function createNotice(req: CreateNoticeRequest, token: string): Promise<NoticeDetail> {
-  return api<NoticeDetail>("/admin/notices", {
-    method: "POST",
-    body: req,
-    headers: { Authorization: `Bearer ${token}` },
+export function fetchAdminNotice(id: number, token: string): Promise<NoticeDetailResponse> {
+  return getAdminNotice(id, {
+    headers: adminHeaders(token),
   });
 }
 
-export function updateNotice(id: number, req: UpdateNoticeRequest, token: string): Promise<NoticeDetail> {
-  return api<NoticeDetail>(`/admin/notices/${id}`, {
-    method: "PUT",
-    body: req,
-    headers: { Authorization: `Bearer ${token}` },
+export function createNotice(
+  req: CreateNoticeRequest,
+  token: string,
+): Promise<NoticeDetailResponse> {
+  return createAdminNotice(req, {
+    headers: adminHeaders(token),
+  });
+}
+
+export function updateNotice(
+  id: number,
+  req: UpdateNoticeRequest,
+  token: string,
+): Promise<NoticeDetailResponse> {
+  return updateAdminNotice(id, req, {
+    headers: adminHeaders(token),
   });
 }
 
 export function deleteNotice(id: number, expectedVersion: number, token: string): Promise<void> {
-  return api<void>(`/admin/notices/${id}?expectedVersion=${expectedVersion}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
+  return deleteAdminNotice(id, { expectedVersion }, {
+    headers: adminHeaders(token),
   });
 }
