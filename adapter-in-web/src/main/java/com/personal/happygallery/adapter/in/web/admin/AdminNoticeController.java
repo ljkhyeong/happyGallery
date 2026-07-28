@@ -8,6 +8,7 @@ import com.personal.happygallery.adapter.in.web.notice.dto.NoticeDetailResponse;
 import com.personal.happygallery.adapter.in.web.notice.dto.NoticeListResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -54,12 +56,20 @@ public class AdminNoticeController {
     public NoticeDetailResponse update(@PathVariable Long id,
                                        @RequestBody @Valid UpdateNoticeRequest request) {
         return NoticeDetailResponse.from(
-                noticeAdminUseCase.update(id, request.title(), request.content(), request.pinned()));
+                noticeAdminUseCase.update(
+                        id,
+                        request.expectedVersion(),
+                        request.title(),
+                        request.content(),
+                        request.pinned()));
     }
 
     @DeleteMapping("/{id}")
+    @Operation(operationId = "deleteAdminNotice")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        noticeAdminUseCase.delete(id);
+    public void delete(
+            @PathVariable Long id,
+            @RequestParam @PositiveOrZero long expectedVersion) {
+        noticeAdminUseCase.delete(id, expectedVersion);
     }
 }

@@ -14,6 +14,7 @@ import com.personal.happygallery.application.payment.port.out.PaymentAttemptStor
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
@@ -69,7 +70,8 @@ class PaymentStatusRecoveryUseCaseIT {
         PaymentPrepareUseCase.PrepareResult third = prepare(product, PHONE);
         markCompensationRequested(first);
         markCompensationSucceeded(second);
-        String verificationCode = saveVerification(PHONE, "123456");
+        String verificationCode = saveVerification(
+                PHONE, "123456", PhoneVerificationPurpose.GUEST_PAYMENT_STATUS_RECOVERY);
 
         PaymentStatusRecoveryUseCase.RecoveryResult recovered =
                 recoveryUseCase.recover(PHONE, verificationCode);
@@ -119,7 +121,8 @@ class PaymentStatusRecoveryUseCaseIT {
         inventoryStorePort.save(inventory(product, 1));
         prepare(product, PHONE);
         String otherPhone = "01087654321";
-        String verificationCode = saveVerification(otherPhone, "654321");
+        String verificationCode = saveVerification(
+                otherPhone, "654321", PhoneVerificationPurpose.GUEST_PAYMENT_STATUS_RECOVERY);
 
         assertThatThrownBy(() -> recoveryUseCase.recover(otherPhone, verificationCode))
                 .isInstanceOf(NotFoundException.class)
@@ -129,7 +132,8 @@ class PaymentStatusRecoveryUseCaseIT {
     }
 
     private PaymentPrepareUseCase.PrepareResult prepare(Product product, String phone) {
-        String verificationCode = saveVerification(phone, "111111");
+        String verificationCode = saveVerification(
+                phone, "111111", PhoneVerificationPurpose.GUEST_ORDER);
         return prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
                 new OrderPayload(
@@ -163,9 +167,13 @@ class PaymentStatusRecoveryUseCaseIT {
         refundRepository.save(refund);
     }
 
-    private String saveVerification(String phone, String code) {
+    private String saveVerification(
+            String phone,
+            String code,
+            PhoneVerificationPurpose purpose) {
         PhoneVerification verification = new PhoneVerification(
-                phone, code, LocalDateTime.now(clock).plusMinutes(5));
+                phone, code, purpose,
+                LocalDateTime.now(clock).plusMinutes(5));
         verification.markDelivered();
         verificationStorePort.save(verification);
         return code;

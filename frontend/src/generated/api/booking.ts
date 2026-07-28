@@ -1,10 +1,26 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
+export type SendVerificationRequestPurpose = typeof SendVerificationRequestPurpose[keyof typeof SendVerificationRequestPurpose];
+
+
+export const SendVerificationRequestPurpose = {
+  SIGNUP: 'SIGNUP',
+  PASSWORD_RESET: 'PASSWORD_RESET',
+  MEMBER_PHONE_REGISTRATION: 'MEMBER_PHONE_REGISTRATION',
+  MEMBER_PHONE_CHANGE: 'MEMBER_PHONE_CHANGE',
+  GUEST_BOOKING: 'GUEST_BOOKING',
+  GUEST_ORDER: 'GUEST_ORDER',
+  GUEST_CLAIM: 'GUEST_CLAIM',
+  GUEST_RECORD_RECOVERY: 'GUEST_RECORD_RECOVERY',
+  GUEST_PAYMENT_STATUS_RECOVERY: 'GUEST_PAYMENT_STATUS_RECOVERY',
+} as const;
+
 export interface SendVerificationRequest {
   /**
      * @minLength 1
      * @pattern ^01[0-9]{8,9}$
      */
   phone: string;
+  purpose: SendVerificationRequestPurpose;
 }
 
 export interface SendVerificationResponse {

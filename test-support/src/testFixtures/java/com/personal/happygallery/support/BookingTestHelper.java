@@ -2,6 +2,7 @@ package com.personal.happygallery.support;
 
 import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequest;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import java.time.LocalDateTime;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -38,12 +39,19 @@ public final class BookingTestHelper {
     }
 
     public String sendVerificationAndGetCode(String phone) throws Exception {
+        return sendVerificationAndGetCode(phone, PhoneVerificationPurpose.GUEST_BOOKING);
+    }
+
+    public String sendVerificationAndGetCode(
+            String phone,
+            PhoneVerificationPurpose purpose) throws Exception {
         mockMvc.perform(post("/api/v1/bookings/phone-verifications")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new SendVerificationRequest(phone))))
+                        .content(objectMapper.writeValueAsString(new SendVerificationRequest(
+                                phone, purpose))))
                 .andExpect(status().isOk());
-        return phoneVerificationReaderPort.findLatestUnverifiedCode(phone)
+        return phoneVerificationReaderPort.findLatestUnverifiedCode(phone, purpose)
                 .orElseThrow(() -> new AssertionError("No verification code found for " + phone))
                 .getCode();
     }

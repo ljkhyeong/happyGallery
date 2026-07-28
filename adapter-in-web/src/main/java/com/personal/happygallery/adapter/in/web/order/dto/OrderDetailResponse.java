@@ -3,8 +3,10 @@ package com.personal.happygallery.adapter.in.web.order.dto;
 import com.personal.happygallery.adapter.in.web.payment.dto.RefundProgressResponse;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.product.ProductType;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,14 +20,14 @@ public record OrderDetailResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         String orderNumber,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-        String status,
+        OrderStatus status,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         long totalAmount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         long shippingFee,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         LocalDateTime paidAt,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         LocalDateTime approvalDeadlineAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         List<ItemDto> items,
@@ -70,7 +72,7 @@ public record OrderDetailResponse(
 
     public record FulfillmentDto(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-            String type,
+            FulfillmentType type,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
             LocalDate expectedShipDate,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
@@ -83,7 +85,7 @@ public record OrderDetailResponse(
             ShippingAddressDto shippingAddress) {
         public static FulfillmentDto from(Fulfillment f, ShippingAddress shippingAddress) {
             return new FulfillmentDto(
-                    f.getType().name(),
+                    f.getType(),
                     f.getExpectedShipDate(),
                     f.getPickupDeadlineAt(),
                     f.getCarrier(),
@@ -120,7 +122,7 @@ public record OrderDetailResponse(
         return new OrderDetailResponse(
                 order.getId(),
                 "ORD-%08d".formatted(order.getId()),
-                order.getStatus().name(),
+                order.getStatus(),
                 order.getTotalAmount(),
                 order.getShippingFee(),
                 order.getPaidAt(),

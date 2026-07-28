@@ -350,6 +350,7 @@ class RateLimitFilterTest {
                 "/api/v1/payments/prepare",
                 "/api/v1/payments/confirm",
                 "/api/v1/auth/password/reset",
+                "/api/v1/me/reauthentication/password",
                 "/api/v1/me/guest-claims/verify",
                 "/api/v1/guest-records/recovery",
                 "/api/v1/guest-records/payment-status-recovery",

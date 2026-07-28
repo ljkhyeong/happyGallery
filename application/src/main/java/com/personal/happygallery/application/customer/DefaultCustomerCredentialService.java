@@ -8,6 +8,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.User;
 import org.springframework.context.ApplicationEventPublisher;
@@ -52,6 +53,17 @@ public class DefaultCustomerCredentialService implements CustomerCredentialUseCa
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public void verifyPassword(Long userId, String rawPassword) {
+        User user = userReader.findById(userId)
+                .filter(User::hasLocalPassword)
+                .orElseThrow(() -> new HappyGalleryException(ErrorCode.INVALID_CREDENTIALS));
+        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            throw new HappyGalleryException(ErrorCode.INVALID_CREDENTIALS);
+        }
+    }
+
+    @Override
     @Transactional
     public Long resetPassword(ResetPasswordCommand command) {
         String phone = KoreanPhoneNumber.required(command.phone());
@@ -60,7 +72,10 @@ public class DefaultCustomerCredentialService implements CustomerCredentialUseCa
                 .filter(candidate -> phone.equals(candidate.getPhone()))
                 .orElseThrow(() -> new HappyGalleryException(ErrorCode.PASSWORD_RESET_FAILED));
         try {
-            phoneOwnershipVerification.verify(phone, command.verificationCode());
+            phoneOwnershipVerification.verify(
+                    phone,
+                    command.verificationCode(),
+                    PhoneVerificationPurpose.PASSWORD_RESET);
         } catch (PhoneVerificationFailedException exception) {
             throw new HappyGalleryException(ErrorCode.PASSWORD_RESET_FAILED);
         }

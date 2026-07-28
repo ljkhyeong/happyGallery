@@ -66,7 +66,8 @@ public class BookingController {
     public SendVerificationResponse sendVerification(
             @RequestBody @Valid SendVerificationRequest request) {
         rateLimitGuard.checkPhoneVerification(request.phone());
-        PhoneVerification pv = guestBookingUseCase.sendVerificationCode(request.phone());
+        PhoneVerification pv = guestBookingUseCase.sendVerificationCode(
+                request.phone(), request.purpose());
         return SendVerificationResponse.from(pv);
     }
 

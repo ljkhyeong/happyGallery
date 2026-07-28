@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.out.persistence.booking;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
@@ -30,37 +31,58 @@ class JpaPhoneVerificationPersistenceAdapter
     public PhoneVerification save(PhoneVerification verification) {
         String phone = KoreanPhoneNumber.required(verification.getPhone());
         String code = verification.getCode();
-        verification.protect(indexPhone(phone), indexCode(phone, code), fieldEncryptor.encrypt(code));
+        verification.protect(
+                indexPhone(phone),
+                indexCode(phone, verification.getPurpose(), code),
+                fieldEncryptor.encrypt(code));
         return restore(repository.save(verification), phone);
     }
 
     @Override
-    public Optional<PhoneVerification> findValidVerification(String phone, String code, LocalDateTime now) {
+    public Optional<PhoneVerification> findValidVerification(
+            String phone,
+            String code,
+            PhoneVerificationPurpose purpose,
+            LocalDateTime now) {
         String normalizedPhone = KoreanPhoneNumber.required(phone);
-        return repository.findByPhoneHmacAndCodeHmacAndDeliveredTrueAndVerifiedFalseAndExpiresAtAfter(
-                        indexPhone(normalizedPhone), indexCode(normalizedPhone, code), now)
+        return repository
+                .findByPhoneHmacAndPurposeAndCodeHmacAndDeliveredTrueAndVerifiedFalseAndExpiresAtAfter(
+                        indexPhone(normalizedPhone),
+                        purpose,
+                        indexCode(normalizedPhone, purpose, code),
+                        now)
                 .map(verification -> restore(verification, normalizedPhone));
     }
 
     @Override
-    public Optional<PhoneVerification> findLatestUnverifiedCode(String phone) {
+    public Optional<PhoneVerification> findLatestUnverifiedCode(
+            String phone,
+            PhoneVerificationPurpose purpose) {
         String normalizedPhone = KoreanPhoneNumber.required(phone);
-        return repository.findTopByPhoneHmacAndDeliveredTrueAndVerifiedFalseOrderByIdDesc(
-                        indexPhone(normalizedPhone))
+        return repository
+                .findTopByPhoneHmacAndPurposeAndDeliveredTrueAndVerifiedFalseOrderByIdDesc(
+                        indexPhone(normalizedPhone), purpose)
                 .map(verification -> restore(verification, normalizedPhone));
     }
 
     @Override
-    public Optional<PhoneVerification> findByIdForUpdate(Long verificationId, String phone) {
+    public Optional<PhoneVerification> findByIdForUpdate(
+            Long verificationId,
+            String phone,
+            PhoneVerificationPurpose purpose) {
         String normalizedPhone = KoreanPhoneNumber.required(phone);
-        return repository.findByIdAndPhoneHmac(verificationId, indexPhone(normalizedPhone))
+        return repository.findByIdAndPhoneHmacAndPurpose(
+                        verificationId, indexPhone(normalizedPhone), purpose)
                 .map(verification -> restore(verification, normalizedPhone));
     }
 
     @Override
-    public void invalidateEarlierUnconsumedForPhone(String phone, Long verificationId) {
+    public void invalidateEarlierUnconsumedForPhone(
+            String phone,
+            PhoneVerificationPurpose purpose,
+            Long verificationId) {
         repository.invalidateEarlierUnconsumedForPhone(
-                indexPhone(KoreanPhoneNumber.required(phone)), verificationId);
+                indexPhone(KoreanPhoneNumber.required(phone)), purpose, verificationId);
     }
 
     @Override
@@ -77,7 +99,10 @@ class JpaPhoneVerificationPersistenceAdapter
         return blindIndexer.index(phone);
     }
 
-    private String indexCode(String phone, String code) {
-        return blindIndexer.index(phone + ":" + code);
+    private String indexCode(
+            String phone,
+            PhoneVerificationPurpose purpose,
+            String code) {
+        return blindIndexer.index(phone + ":" + purpose.name() + ":" + code);
     }
 }

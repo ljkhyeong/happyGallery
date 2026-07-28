@@ -25,6 +25,7 @@ public class SocialAccountLinkIntentStore {
     private static final String EXPIRES_AT_ATTRIBUTE = "socialAccountLinkExpiresAt";
     private static final String ATTEMPT_ID_ATTRIBUTE = "socialAccountLinkAttemptId";
     private static final String OAUTH_STATE_ATTRIBUTE = "socialAccountLinkOauthState";
+    private static final String PURPOSE_ATTRIBUTE = "socialAccountLinkPurpose";
     private static final Duration LINK_INTENT_TTL = Duration.ofMinutes(5);
 
     private final Clock clock;
@@ -37,6 +38,21 @@ public class SocialAccountLinkIntentStore {
                         Long userId,
                         long credentialVersion,
                         SocialProvider provider) {
+        return start(request, userId, credentialVersion, provider, IntentPurpose.LINK);
+    }
+
+    public String startReauthentication(HttpServletRequest request,
+                                        Long userId,
+                                        long credentialVersion,
+                                        SocialProvider provider) {
+        return start(request, userId, credentialVersion, provider, IntentPurpose.REAUTHENTICATE);
+    }
+
+    private String start(HttpServletRequest request,
+                         Long userId,
+                         long credentialVersion,
+                         SocialProvider provider,
+                         IntentPurpose purpose) {
         HttpSession session = request.getSession();
         clear(session);
         String attemptId = UUID.randomUUID().toString();
@@ -45,6 +61,7 @@ public class SocialAccountLinkIntentStore {
         session.setAttribute(PROVIDER_ATTRIBUTE, provider.name());
         session.setAttribute(EXPIRES_AT_ATTRIBUTE, Instant.now(clock).plus(LINK_INTENT_TTL).toEpochMilli());
         session.setAttribute(ATTEMPT_ID_ATTRIBUTE, attemptId);
+        session.setAttribute(PURPOSE_ATTRIBUTE, purpose.name());
         return attemptId;
     }
 
@@ -67,6 +84,7 @@ public class SocialAccountLinkIntentStore {
         Object expiration = session.getAttribute(EXPIRES_AT_ATTRIBUTE);
         Object linkedAttemptId = session.getAttribute(ATTEMPT_ID_ATTRIBUTE);
         Object boundState = session.getAttribute(OAUTH_STATE_ATTRIBUTE);
+        Object purpose = session.getAttribute(PURPOSE_ATTRIBUTE);
         Object currentUserId = session.getAttribute(CustomerAuthenticationFilter.CUSTOMER_USER_ID_SESSION_ATTRIBUTE);
         Object currentCredentialVersion = session.getAttribute(
                 CustomerAuthenticationFilter.CUSTOMER_CREDENTIAL_VERSION_SESSION_ATTRIBUTE);
@@ -77,6 +95,7 @@ public class SocialAccountLinkIntentStore {
                 && expiration instanceof Long expirationMillis
                 && linkedAttemptId instanceof String storedAttemptId
                 && boundState == null
+                && purpose instanceof String
                 && storedAttemptId.equals(attemptId)
                 && provider.name().equals(providerName)
                 && userId.equals(currentUserId)
@@ -103,6 +122,7 @@ public class SocialAccountLinkIntentStore {
         Object expiresAt = session.getAttribute(EXPIRES_AT_ATTRIBUTE);
         Object attemptId = session.getAttribute(ATTEMPT_ID_ATTRIBUTE);
         Object oauthState = session.getAttribute(OAUTH_STATE_ATTRIBUTE);
+        Object purpose = session.getAttribute(PURPOSE_ATTRIBUTE);
         String callbackState = request.getParameter(OAuth2ParameterNames.STATE);
         Object currentUserId = session.getAttribute(CustomerAuthenticationFilter.CUSTOMER_USER_ID_SESSION_ATTRIBUTE);
         Object currentCredentialVersion = session.getAttribute(
@@ -112,7 +132,8 @@ public class SocialAccountLinkIntentStore {
                 || provider != null
                 || expiresAt != null
                 || attemptId != null
-                || oauthState != null;
+                || oauthState != null
+                || purpose != null;
         clear(session);
         if (!hasIntent) {
             return Optional.empty();
@@ -123,6 +144,7 @@ public class SocialAccountLinkIntentStore {
                 || !(expiresAt instanceof Long expirationMillis)
                 || !(attemptId instanceof String)
                 || !(oauthState instanceof String linkedOauthState)
+                || !(purpose instanceof String linkedPurpose)
                 || !StringUtils.hasText(callbackState)
                 || !linkedOauthState.equals(callbackState)
                 || !callbackProvider.name().equals(linkedProvider)
@@ -131,7 +153,14 @@ public class SocialAccountLinkIntentStore {
                 || !Instant.now(clock).isBefore(Instant.ofEpochMilli(expirationMillis))) {
             throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
         }
-        return Optional.of(new LinkIntent(linkedUserId, linkedCredentialVersion));
+        try {
+            return Optional.of(new LinkIntent(
+                    linkedUserId,
+                    linkedCredentialVersion,
+                    IntentPurpose.valueOf(linkedPurpose)));
+        } catch (IllegalArgumentException exception) {
+            throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
+        }
     }
 
     public void clear(HttpServletRequest request) {
@@ -148,7 +177,16 @@ public class SocialAccountLinkIntentStore {
         session.removeAttribute(EXPIRES_AT_ATTRIBUTE);
         session.removeAttribute(ATTEMPT_ID_ATTRIBUTE);
         session.removeAttribute(OAUTH_STATE_ATTRIBUTE);
+        session.removeAttribute(PURPOSE_ATTRIBUTE);
     }
 
-    public record LinkIntent(Long userId, long credentialVersion) {}
+    public enum IntentPurpose {
+        LINK,
+        REAUTHENTICATE
+    }
+
+    public record LinkIntent(
+            Long userId,
+            long credentialVersion,
+            IntentPurpose purpose) {}
 }

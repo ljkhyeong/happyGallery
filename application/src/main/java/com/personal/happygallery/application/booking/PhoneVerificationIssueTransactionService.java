@@ -2,6 +2,7 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,15 +23,19 @@ public class PhoneVerificationIssueTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public PhoneVerification completeDelivery(Long verificationId, String phone) {
+    public PhoneVerification completeDelivery(
+            Long verificationId,
+            String phone,
+            PhoneVerificationPurpose purpose) {
         PhoneVerification verification = phoneVerificationStore
-                .findByIdForUpdate(verificationId, phone)
+                .findByIdForUpdate(verificationId, phone, purpose)
                 .orElseThrow(() -> new IllegalStateException("발급한 휴대폰 인증 코드를 찾을 수 없습니다."));
         if (verification.isVerified()) {
             return verification;
         }
 
-        phoneVerificationStore.invalidateEarlierUnconsumedForPhone(phone, verificationId);
+        phoneVerificationStore.invalidateEarlierUnconsumedForPhone(
+                phone, verification.getPurpose(), verificationId);
         verification.markDelivered();
         return phoneVerificationStore.save(verification);
     }

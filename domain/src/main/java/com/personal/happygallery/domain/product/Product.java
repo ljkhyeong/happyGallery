@@ -110,7 +110,7 @@ public class Product {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "상품 유형은 필수입니다.");
         }
         this.type = type;
-        updateDetails(
+        applyDetails(
                 name, category, price, description, imageUrl,
                 specification, careInstructions, productionLeadDays);
         this.status = ProductStatus.ACTIVE;
@@ -118,12 +118,20 @@ public class Product {
 
     public void updateDetails(String name, String category, long price,
                               String description, String imageUrl) {
-        updateDetails(
+        applyDetails(
                 name, category, price, description, imageUrl,
                 specification, careInstructions, productionLeadDays);
     }
 
     public void updateDetails(String name, String category, long price,
+                              String description, String imageUrl, String specification,
+                              String careInstructions, Integer productionLeadDays) {
+        applyDetails(
+                name, category, price, description, imageUrl,
+                specification, careInstructions, productionLeadDays);
+    }
+
+    private void applyDetails(String name, String category, long price,
                               String description, String imageUrl, String specification,
                               String careInstructions, Integer productionLeadDays) {
         if (price < 1L || price > MAX_PRICE) {

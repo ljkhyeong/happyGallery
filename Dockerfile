@@ -8,11 +8,12 @@ COPY adapter-out-persistence ./adapter-out-persistence
 COPY adapter-out-external ./adapter-out-external
 COPY domain ./domain
 COPY bootstrap ./bootstrap
+COPY test-support ./test-support
 RUN chmod +x gradlew && ./gradlew :bootstrap:bootJar --no-daemon -x test
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 RUN apk upgrade --no-cache
-COPY --from=build /app/bootstrap/build/libs/*.jar app.jar
+COPY --from=build /app/bootstrap/build/libs/happygallery-app.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

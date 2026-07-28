@@ -107,6 +107,10 @@ docker compose up -d --build
 - 앱 실행: `./gradlew :bootstrap:bootRun`
 
 `./gradlew build`의 `check` 단계에는 REST Docs 계약 테스트와 Controller/DTO 대비 OpenAPI 스냅샷 drift 검증이 포함된다. 빠른 로컬 확인이 필요할 때만 위 개별 태스크를 사용한다.
+배포용 `:bootstrap:bootJar` 산출물은 `bootstrap/build/libs/happygallery-app.jar`로 고정하며
+Docker, CI artifact와 k3s 이미지 반입이 모두 이 경로만 사용한다. Gradle 모듈 간 테스트 classpath에
+필요한 `*-plain.jar`는 별도로 생성되지만 배포 도구는 wildcard로 JAR을 선택하지 않는다. Gradle
+Wrapper 배포 ZIP은 저장소의 SHA-256으로 검증하고 CI는 wrapper JAR 무결성도 검사한다.
 
 ### 프론트엔드
 

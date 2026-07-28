@@ -24,6 +24,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [editVersion, setEditVersion] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [pinned, setPinned] = useState(false);
@@ -32,6 +33,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
   const resetForm = () => {
     setShowForm(false);
     setEditId(null);
+    setEditVersion(null);
     setTitle("");
     setContent("");
     setPinned(false);
@@ -50,7 +52,11 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
   });
 
   const updateMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => updateNotice(editId!, { title, content, pinned }, adminKey),
+    mutationFn: () => updateNotice(
+      editId!,
+      { expectedVersion: editVersion!, title, content, pinned },
+      adminKey,
+    ),
     onMutate: () => setActionError(null),
     onSuccess: () => {
       toast.show("공지사항이 수정되었습니다.");
@@ -61,7 +67,8 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
   });
 
   const deleteMutation = useAdminMutation(onAuthError, {
-    mutationFn: (id: number) => deleteNotice(id, adminKey),
+    mutationFn: ({ id, version }: Pick<NoticeListItem, "id" | "version">) =>
+      deleteNotice(id, version, adminKey),
     onMutate: () => setActionError(null),
     onSuccess: () => {
       toast.show("공지사항이 삭제되었습니다.");
@@ -72,6 +79,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
 
   const startEdit = (n: NoticeListItem) => {
     setEditId(n.id);
+    setEditVersion(n.version);
     setTitle(n.title);
     setPinned(n.pinned);
     setContent("");
@@ -163,7 +171,11 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
                 <Button
                   size="sm"
                   variant="outline-danger"
-                  onClick={() => { if (confirm("삭제하시겠습니까?")) deleteMutation.mutate(n.id); }}
+                  onClick={() => {
+                    if (confirm("삭제하시겠습니까?")) {
+                      deleteMutation.mutate({ id: n.id, version: n.version });
+                    }
+                  }}
                   disabled={deleteMutation.isPending}
                 >
                   삭제

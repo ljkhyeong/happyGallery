@@ -5,6 +5,7 @@ import com.personal.happygallery.adapter.in.web.customer.dto.CustomerLoginReques
 import com.personal.happygallery.adapter.in.web.customer.dto.ResetPasswordRequest;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
+import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase.UpdatePhoneCommand;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLoginCommand;
 import com.personal.happygallery.application.customer.port.out.CustomerSessionRevocationPort;
@@ -12,6 +13,7 @@ import com.personal.happygallery.application.customer.port.out.PhoneVerification
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -143,9 +145,16 @@ class CustomerCredentialUseCaseIT {
         credentialScopes.add(new CredentialScope(
                 socialUser.getId(), socialUser.getCredentialVersion()));
 
-        String registrationCode = guestBookingUseCase.sendVerificationCode(phone).getCode();
-        phoneUpdate.update(socialUser.getId(), phone, registrationCode);
-        String resetCode = guestBookingUseCase.sendVerificationCode(phone).getCode();
+        String registrationCode = guestBookingUseCase.sendVerificationCode(
+                phone, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
+        phoneUpdate.update(new UpdatePhoneCommand(
+                socialUser.getId(),
+                socialUser.getCredentialVersion(),
+                phone,
+                registrationCode,
+                true));
+        String resetCode = guestBookingUseCase.sendVerificationCode(
+                phone, PhoneVerificationPurpose.PASSWORD_RESET).getCode();
 
         mockMvc.perform(post("/api/v1/auth/password/reset")
                         .with(csrf())
@@ -162,7 +171,8 @@ class CustomerCredentialUseCaseIT {
         assertThat(sessionRepository.findByPrincipalName(
                 principalName(socialUser.getId(), localCredentialVersion))).hasSize(2);
 
-        String nextResetCode = guestBookingUseCase.sendVerificationCode(phone).getCode();
+        String nextResetCode = guestBookingUseCase.sendVerificationCode(
+                phone, PhoneVerificationPurpose.PASSWORD_RESET).getCode();
         mockMvc.perform(post("/api/v1/auth/password/reset")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -193,22 +203,26 @@ class CustomerCredentialUseCaseIT {
         long oldCredentialVersion = user.getCredentialVersion();
         credentialScopes.add(new CredentialScope(user.getId(), oldCredentialVersion));
         socialAuth.linkSocialAccount(new SocialAuthUseCase.SocialLinkCommand(
-                user.getId(), oldCredentialVersion, SocialProvider.GOOGLE, "unlink-google-id"));
+                user.getId(), oldCredentialVersion, SocialProvider.GOOGLE, "unlink-google-id", true));
+        User linkedUser = userReader.findById(user.getId()).orElseThrow();
+        long linkedCredentialVersion = linkedUser.getCredentialVersion();
+        credentialScopes.add(new CredentialScope(user.getId(), linkedCredentialVersion));
+        Cookie linkedSession = login(email, CURRENT_PASSWORD);
         Cookie secondSession = login(email, CURRENT_PASSWORD);
 
         mockMvc.perform(delete("/api/v1/me/social-accounts/google")
                         .with(csrf())
-                        .cookie(firstSession))
+                        .cookie(linkedSession))
                 .andExpect(status().isNoContent());
 
         assertThat(sessionRepository.findByPrincipalName(
-                principalName(user.getId(), oldCredentialVersion))).isEmpty();
+                principalName(user.getId(), linkedCredentialVersion))).isEmpty();
         mockMvc.perform(get("/api/v1/me").cookie(firstSession))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/me").cookie(secondSession))
                 .andExpect(status().isUnauthorized());
         assertThat(userReader.findById(user.getId()).orElseThrow().getCredentialVersion())
-                .isEqualTo(oldCredentialVersion + 1);
+                .isEqualTo(linkedCredentialVersion + 1);
         assertThat(socialAuth.listLinkedProviders(user.getId())).isEmpty();
     }
 

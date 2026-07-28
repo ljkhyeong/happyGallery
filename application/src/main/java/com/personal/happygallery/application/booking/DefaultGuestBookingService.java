@@ -9,6 +9,7 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -63,18 +64,18 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
     /** 휴대폰 인증 코드를 생성·저장하고 전용 SMS 경계로 발송한다. */
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public PhoneVerification sendVerificationCode(String phone) {
+    public PhoneVerification sendVerificationCode(String phone, PhoneVerificationPurpose purpose) {
         String code = "%06d".formatted(random.nextInt(1_000_000));
         LocalDateTime expiresAt = LocalDateTime.now(clock)
                 .plusMinutes(VERIFICATION_EXPIRE_MINUTES);
-        PhoneVerification pv = new PhoneVerification(phone, code, expiresAt);
+        PhoneVerification pv = new PhoneVerification(phone, code, purpose, expiresAt);
         pv = phoneVerificationIssueTransaction.save(pv);
         if (!phoneVerificationSender.send(pv.getPhone(), code)) {
             throw new HappyGalleryException(
                     ErrorCode.SERVICE_UNAVAILABLE,
                     "인증 코드를 발송하지 못했습니다. 잠시 후 다시 시도해주세요.");
         }
-        pv = phoneVerificationIssueTransaction.completeDelivery(pv.getId(), pv.getPhone());
+        pv = phoneVerificationIssueTransaction.completeDelivery(pv.getId(), pv.getPhone(), purpose);
         log.info("[phone-verification] created [verificationId={}]", pv.getId());
         return pv;
     }

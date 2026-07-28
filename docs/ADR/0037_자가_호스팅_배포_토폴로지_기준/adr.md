@@ -1,7 +1,7 @@
 # ADR-0037: 자가 호스팅 배포 토폴로지 기준
 
 **날짜**: 2026-07-18
-**최종 갱신**: 2026-07-27
+**최종 갱신**: 2026-07-28
 **상태**: Accepted
 
 ---
@@ -55,6 +55,7 @@
 - 백업 주기, 보존 기간, 무결성 확인과 복원 훈련 절차를 운영 manifest와 함께 확정한다.
 - 운영 초기 복구 백업은 6시간마다 실행한다. 같은 시각 식별자의 MySQL 논리 백업과 미디어 볼륨 archive를 하나의 복구 묶음으로 관리해 약 6시간 RPO를 수용한다. 거래량 증가나 더 짧은 RPO가 필요해지면 DB는 binlog 외부 연속 보관과 PITR로 전환하고 미디어는 증분 복제를 함께 검토한다.
 - 배포와 Flyway migration 전에는 복구 가능한 백업을 확인한다. 컨테이너 이미지 롤백이 데이터베이스 스키마를 되돌리지는 않는다.
+- V102는 휴대폰 인증 HMAC에 `purpose`를 결합하고 기존 미완료 인증을 폐기한다. 적용 전 app 쓰기를 중단하고 복구 묶음을 확인하며, 적용 뒤에는 이전 binary를 현재 DB에 연결하지 않는다. 실패 시에는 forward fix를 우선하고, 이전 release로 돌아가야 하면 V102 적용 전 DB와 그 시점의 image를 함께 복원한다.
 
 #### 4.1 상품 이미지 저장과 공개 계약
 
@@ -102,7 +103,7 @@
 - 백엔드와 프론트엔드 이미지는 검증한 commit SHA 또는 digest로 식별한다. 운영 manifest에서 `latest`만 참조하지 않는다.
 - 이미지는 로컬 registry를 사용하거나 k3s containerd로 명시적으로 가져오며, 선택한 방식을 배포 절차에 고정한다.
 - 배포 전 build와 최소 검증을 통과시키고, 배포 후 rollout 상태와 health endpoint를 확인한다.
-- `codexReview`와 `main` 대상 PR은 Dependency Review, npm audit, ESLint·React Hooks와 app/frontend 컨테이너 Trivy HIGH/CRITICAL 검사를 실행한다. 실제 운영 반입 스크립트도 운영 설정으로 다시 빌드한 app/frontend 이미지의 HIGH/CRITICAL과 EOL OS를 import 전에 차단한다. Dependabot은 Gradle, npm, GitHub Actions와 Dockerfile의 첫 번째 `FROM` 이미지를 매주 확인하고 일반 버전 갱신 PR은 `codexReview`로 보낸다. 다단계 Dockerfile의 두 번째 이후 `FROM`은 Trivy와 명시적 버전 점검으로 관리한다. Dependabot 보안 갱신은 GitHub 정책상 기본 브랜치 `main`을 대상으로 하는 예외를 수용한다.
+- `codexReview`와 `main` 대상 PR은 Dependency Review, npm audit, ESLint·React Hooks와 app/frontend 컨테이너 Trivy HIGH/CRITICAL 검사를 실행한다. 실제 운영 반입 스크립트도 운영 설정으로 다시 빌드한 app/frontend 이미지의 HIGH/CRITICAL과 EOL OS를 import 전에 차단한다. Gradle Wrapper 배포 ZIP은 저장소에 고정한 SHA-256으로 검증하고 CI는 wrapper JAR도 검증한다. 실행 가능한 `bootJar` 경로는 `bootstrap/build/libs/happygallery-app.jar`로 고정해 CI artifact, Docker와 운영 반입 스크립트가 wildcard로 다른 JAR을 선택하지 않게 한다. Gradle 모듈 간 테스트 classpath에 필요한 `*-plain.jar`는 유지하지만 배포 입력으로 사용하지 않는다. Dependabot은 Gradle, npm, GitHub Actions와 Dockerfile의 첫 번째 `FROM` 이미지를 매주 확인하고 일반 버전 갱신 PR은 `codexReview`로 보낸다. 다단계 Dockerfile의 두 번째 이후 `FROM`은 Trivy와 명시적 버전 점검으로 관리한다. Dependabot 보안 갱신은 GitHub 정책상 기본 브랜치 `main`을 대상으로 하는 예외를 수용한다.
 - 직전 이미지와 manifest를 보존해 애플리케이션을 롤백한다. Flyway가 적용된 경우에는 데이터 호환성과 복원 필요 여부를 별도로 판단한다.
 - 현재 release의 app/frontend와 MySQL·Redis·Prometheus·Alertmanager·Grafana image archive, digest metadata와 manifest를 commit SHA별 한 번 off-device 백업에 보존한다. runtime image parser가 보존된 release manifest의 workload·container 목록과 metadata key 정의를 소유하는 유일한 registry이며, 백업·복원·검증 스크립트는 parser가 출력한 inventory를 순회한다. 이미지 참조는 별도 버전 상수로 복제하지 않고 manifest에서 정확히 추출하며, containerd의 실제 digest를 함께 기록하고 검증한다. 각 암호화 DB 백업은 Flyway version·active 암호화 키 ID·active/previous keyring fingerprint·키 회전 단계와 호환 release 경로를 기록한다. 복원 진입점은 키링을 대조하고, archive를 containerd에 가져온 뒤 모든 필수 이미지 digest를 확인한 다음에만 기존 DB를 교체한다. fingerprint만 기록하고 키 원문은 기존 분리 복구 저장소에 둔다.
 - Prometheus, Alertmanager, Grafana는 각각 Retain PVC와 `Recreate` 단일 인스턴스를 사용한다. Grafana는 외부 Ingress 없이 cluster 내부 Viewer로만 두고 운영자가 port-forward로 접근한다.

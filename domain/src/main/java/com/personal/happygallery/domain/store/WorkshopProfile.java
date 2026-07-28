@@ -6,6 +6,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.Locale;
@@ -89,6 +90,10 @@ public class WorkshopProfile {
 
     @Column(name = "updated_at", nullable = false, insertable = false)
     private LocalDateTime updatedAt;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     protected WorkshopProfile() {}
 
@@ -203,6 +208,7 @@ public class WorkshopProfile {
     public String getInstagramUrl() { return instagramUrl; }
     public String getSmartStoreUrl() { return smartStoreUrl; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public long getVersion() { return version; }
 
     public boolean hasCompleteOnlineSalesDisclosure() {
         return phone != null

@@ -3,6 +3,7 @@ package com.personal.happygallery.application.customer;
 import com.personal.happygallery.application.customer.port.in.DevPhoneVerificationQueryUseCase;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import java.util.Optional;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -18,8 +19,10 @@ public class DefaultDevPhoneVerificationQueryService implements DevPhoneVerifica
     }
 
     @Override
-    public Optional<String> findLatestUnverifiedCode(String phone) {
-        return phoneVerificationReader.findLatestUnverifiedCode(phone)
+    public Optional<String> findLatestUnverifiedCode(
+            String phone,
+            PhoneVerificationPurpose purpose) {
+        return phoneVerificationReader.findLatestUnverifiedCode(phone, purpose)
                 .map(PhoneVerification::getCode);
     }
 }

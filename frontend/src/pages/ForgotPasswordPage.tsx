@@ -6,6 +6,7 @@ import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificati
 import { resetPassword } from "@/features/customer-auth/credentialApi";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { ErrorAlert, useToast } from "@/shared/ui";
+import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -32,7 +33,7 @@ export function ForgotPasswordPage() {
   const passwordMatches = newPassword === confirmation;
   const detailsValid = EMAIL_PATTERN.test(email.trim())
     && newPassword.length >= 8
-    && newPassword.length <= 100
+    && isPasswordWithinByteLimit(newPassword)
     && passwordMatches;
 
   return (
@@ -64,10 +65,12 @@ export function ForgotPasswordPage() {
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
               minLength={8}
-              maxLength={100}
+              maxLength={72}
               required
             />
-            <Form.Text className="text-muted">8자 이상 입력하세요.</Form.Text>
+            <Form.Text className="text-muted">
+              8자 이상, UTF-8 기준 72바이트 이하로 입력하세요.
+            </Form.Text>
           </Form.Group>
           <Form.Group className="mb-4" controlId="reset-password-confirmation">
             <Form.Label>새 비밀번호 확인</Form.Label>
@@ -76,7 +79,7 @@ export function ForgotPasswordPage() {
               autoComplete="new-password"
               value={confirmation}
               onChange={(event) => setConfirmation(event.target.value)}
-              maxLength={100}
+              maxLength={72}
               isInvalid={confirmation.length > 0 && !passwordMatches}
               required
             />
@@ -86,6 +89,7 @@ export function ForgotPasswordPage() {
           </Form.Group>
 
           <PhoneVerificationStep
+            purpose="PASSWORD_RESET"
             title="휴대폰 인증"
             initialPhone={prefill?.phone ?? ""}
             confirmLabel="인증하고 재설정"

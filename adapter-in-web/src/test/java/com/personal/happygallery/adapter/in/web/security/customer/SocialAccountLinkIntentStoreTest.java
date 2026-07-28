@@ -18,6 +18,8 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static com.personal.happygallery.adapter.in.web.security.customer.SocialAccountLinkIntentStore.IntentPurpose.LINK;
+import static com.personal.happygallery.adapter.in.web.security.customer.SocialAccountLinkIntentStore.IntentPurpose.REAUTHENTICATE;
 
 class SocialAccountLinkIntentStoreTest {
 
@@ -41,7 +43,23 @@ class SocialAccountLinkIntentStoreTest {
                 (MockHttpSession) authorizationRequest.getSession(false), oauthRequest.getState());
 
         assertThat(store.consume(callbackRequest, SocialProvider.GOOGLE))
-                .contains(new SocialAccountLinkIntentStore.LinkIntent(1L, 3L));
+                .contains(new SocialAccountLinkIntentStore.LinkIntent(1L, 3L, LINK));
+    }
+
+    @DisplayName("소셜 재인증 의도는 계정 연결 의도와 구분해 callback까지 보존한다")
+    @Test
+    void preservesReauthenticationPurpose() {
+        MockHttpServletRequest authorizationRequest = authenticatedRequest();
+        String attemptId = store.startReauthentication(
+                authorizationRequest, 1L, 3L, SocialProvider.GOOGLE);
+        assertThat(store.bindOauthState(
+                authorizationRequest, attemptId, SocialProvider.GOOGLE, "bound-state")).isTrue();
+        MockHttpServletRequest callbackRequest = callbackRequest(
+                (MockHttpSession) authorizationRequest.getSession(false), "bound-state");
+
+        assertThat(store.consume(callbackRequest, SocialProvider.GOOGLE))
+                .contains(new SocialAccountLinkIntentStore.LinkIntent(
+                        1L, 3L, REAUTHENTICATE));
     }
 
     @DisplayName("OAuth callback 전에 세션 회원이 바뀌면 연결 의도를 거절하고 폐기한다")

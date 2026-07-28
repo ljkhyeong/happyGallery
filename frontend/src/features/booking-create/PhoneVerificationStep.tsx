@@ -1,11 +1,15 @@
 import { useEffect, useId, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
-import { sendVerification } from "./api";
+import {
+  sendVerification,
+  type PhoneVerificationPurpose,
+} from "./api";
 import { ErrorAlert } from "@/shared/ui";
 import { isValidPhone, normalizePhone } from "@/shared/validation/phone";
 
 interface Props {
+  purpose: PhoneVerificationPurpose;
   onVerified: (phone: string, code: string) => void;
   onReset?: () => void;
   title?: string;
@@ -18,6 +22,7 @@ interface Props {
 }
 
 export function PhoneVerificationStep({
+  purpose,
   onVerified,
   onReset,
   title = "1. 휴대폰 인증",
@@ -39,7 +44,7 @@ export function PhoneVerificationStep({
   }, [initialPhone]);
 
   const sendMutation = useMutation({
-    mutationFn: () => sendVerification({ phone }),
+    mutationFn: () => sendVerification({ phone, purpose }),
     onMutate: () => {
       setCode("");
       setSent(false);

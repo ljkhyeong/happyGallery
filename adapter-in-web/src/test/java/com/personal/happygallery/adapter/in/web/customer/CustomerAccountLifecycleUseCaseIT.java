@@ -1,8 +1,11 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerStepUpAuthenticationStore;
 import com.personal.happygallery.adapter.out.persistence.user.SocialAccountRepository;
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.SocialAccountStorePort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
@@ -10,6 +13,8 @@ import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort
 import com.personal.happygallery.domain.user.SocialAccount;
 import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
@@ -21,12 +26,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -47,6 +54,8 @@ class CustomerAccountLifecycleUseCaseIT {
     @Autowired PassPurchaseStorePort passPurchaseStore;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired CustomerAccountLifecycleUseCase accountLifecycle;
+    @Autowired CustomerStepUpAuthenticationStore stepUpAuthenticationStore;
 
     private MockMvc mockMvc;
 
@@ -117,6 +126,33 @@ class CustomerAccountLifecycleUseCaseIT {
         assertThat(userReader.findById(user.getId())).isPresent();
     }
 
+    @Test
+    @DisplayName("최근 본인 확인이 없는 세션은 회원 탈퇴를 실행할 수 없다")
+    void rejectWithdrawalWithoutRecentAuthentication() throws Exception {
+        User user = activeUser("withdraw-step-up@example.com", "01055556666");
+
+        mockMvc.perform(delete("/api/v1/me")
+                        .with(csrf())
+                        .session(customerSessionWithoutStepUp(user)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("REAUTHENTICATION_REQUIRED"));
+
+        assertThat(userReader.findById(user.getId())).isPresent();
+    }
+
+    @Test
+    @DisplayName("요청 후 자격 버전이 바뀌면 잠근 회원 기준으로 탈퇴를 거절한다")
+    void rejectWithdrawalWithStaleCredentialVersion() {
+        User user = activeUser("withdraw-stale@example.com", "01066667777");
+
+        assertThatThrownBy(() -> accountLifecycle.withdraw(new WithdrawCommand(
+                user.getId(), user.getCredentialVersion() + 1, true)))
+                .isInstanceOf(HappyGalleryException.class)
+                .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+        assertThat(userReader.findById(user.getId())).isPresent();
+    }
+
     private User activeUser(String email, String phone) {
         User user = new User(email, passwordEncoder.encode("password123"), "회원", phone);
         user.markPhoneVerified();
@@ -124,6 +160,15 @@ class CustomerAccountLifecycleUseCaseIT {
     }
 
     private MockHttpSession customerSession(User user) {
+        MockHttpSession session = customerSessionWithoutStepUp(user);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setSession(session);
+        stepUpAuthenticationStore.markVerified(
+                request, user.getId(), user.getCredentialVersion());
+        return session;
+    }
+
+    private MockHttpSession customerSessionWithoutStepUp(User user) {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(
                 CustomerAuthenticationFilter.CUSTOMER_USER_ID_SESSION_ATTRIBUTE,

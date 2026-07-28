@@ -4,6 +4,7 @@ import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVeri
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.payment.GuestPaymentVerificationService;
 import com.personal.happygallery.domain.booking.Guest;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -35,7 +36,8 @@ public class VerifiedGuestResolver {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public Guest resolveWithVerificationCode(String phone, String verificationCode, String name) {
-        phoneOwnershipVerification.verify(phone, verificationCode);
+        phoneOwnershipVerification.verify(
+                phone, verificationCode, PhoneVerificationPurpose.GUEST_BOOKING);
         return getOrCreateVerifiedGuest(phone, name);
     }
 

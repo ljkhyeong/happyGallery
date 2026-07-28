@@ -13,8 +13,8 @@ export interface OrderDetailResponse {
   status: OrderStatus;
   totalAmount: number;
   shippingFee: number;
-  paidAt: string;
-  approvalDeadlineAt: string;
+  paidAt: string | null;
+  approvalDeadlineAt: string | null;
   items: OrderItemDto[];
   fulfillment: FulfillmentDto | null;
   refund: RefundProgress | null;

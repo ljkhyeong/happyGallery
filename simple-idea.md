@@ -19,11 +19,11 @@
 | ~~예약금 예약 취소 시 `refundable`만 보고 `DEPOSIT_REFUNDED` 알림을 보내 PG 환불 실패와 성공을 구분하지 않는다.~~ | ~~`RefundStatus.SUCCEEDED`를 확인한 경우에만 환불 완료 알림을 보내고, 실패는 무알림 또는 별도 이벤트로 분리한다.~~ |
 | UseCase가 JPA 엔티티(`Booking`, `Slot` 등)를 컨트롤러에 직접 반환한다. 현재는 즉시 DTO로 바꾸기 때문에 안전하지만, 비동기 처리 도입 시 `LazyInitializationException` 위험이 있다. | 비동기 응답 조립이 필요해지면 UseCase 반환 타입을 record로 바꾼다. `CancelResult`, `ProductionResult` 같은 기존 패턴을 따른다. |
 | Response DTO·UseCase record의 팩토리 메서드가 ID 값을 낱개 인자로 받는 곳이 섞여 있다. 필드 추가 시 컴파일 에러로 잡히지 않고 파라미터 순서 실수 여지가 있다. | 팩토리 메서드는 엔티티 인스턴스를 직접 받도록 통일한다. Response DTO(웹 어댑터)와 UseCase record(app 레이어) 모두 도메인을 알 수 있는 의존 방향이므로 문제없다. |
-| 다중 소셜 계정 확장 배포 호환성을 위해 `users.provider`, `users.provider_id`, 기존 복합 인덱스와 legacy 소셜 계정 승격 조회를 임시 유지한다. | 모든 운영 인스턴스가 `user_social_accounts` 기반 버전으로 전환된 다음 릴리스에서 기존 컬럼·인덱스·legacy 조회 포트를 함께 제거한다. |
+| ~~다중 소셜 계정 확장 배포 호환성을 위해 `users.provider`, `users.provider_id`, 기존 복합 인덱스와 legacy 소셜 계정 승격 조회를 임시 유지한다.~~ | ~~모든 운영 인스턴스가 `user_social_accounts` 기반 버전으로 전환된 다음 릴리스에서 기존 컬럼·인덱스·legacy 조회 포트를 함께 제거한다.~~ |
 | ~~롤링 배포 중 구 프런트 Google 콜백 호환을 위해 `state`가 없는 Google 코드 교환을 임시 허용한다.~~ | ~~호환 분기를 제거하고 Google과 Naver 모두 서버 `state`와 redirect URI 검증을 필수화한다.~~ |
-| 소셜 provider ID가 처음이고 이메일이 기존 회원과 겹치면 계정 공유를 막기 위해 자동 연결하지 않는다. | 로그인된 회원이 OAuth state를 다시 검증한 뒤 Google/Naver 계정을 명시적으로 연결할 수 있는 마이페이지 API와 화면을 추가한다. |
+| ~~소셜 provider ID가 처음이고 이메일이 기존 회원과 겹치면 계정 공유를 막기 위해 자동 연결하지 않는다.~~ | ~~로그인된 회원이 OAuth state를 다시 검증한 뒤 Google/Naver 계정을 명시적으로 연결할 수 있는 마이페이지 API와 화면을 추가한다.~~ |
 | ~~Naver는 이메일 검증 상태를 제공하지 않지만 이메일 충돌이 없는 신규 회원은 현재 프로필 이메일로 생성한다.~~ | ~~신규 Naver 회원은 기준 이메일 없이 provider-scoped 계정으로 생성하고, 자체 검증 전에는 프로필 이메일을 로그인·복구 식별자로 사용하지 않는다.~~ |
-| 프론트가 offset 없는 `LocalDateTime` 응답을 브라우저 현지 시간으로 해석해 사용자 시간대에 따라 표시 시각이 달라질 수 있다. | API 시각 응답에 `OffsetDateTime(+09:00)` 또는 UTC `Instant`를 사용하고 프론트 표시 시간대 정책을 명시한다. |
+| ~~프론트가 offset 없는 `LocalDateTime` 응답을 브라우저 현지 시간으로 해석해 사용자 시간대에 따라 표시 시각이 달라질 수 있다.~~ | ~~웹 클라이언트가 offset 없는 응답을 `Asia/Seoul`로 해석하고 offset이 있는 응답은 절대 시각으로 보존하도록 표시 정책을 통일한다.~~ |
 | ~~고객 주문은 결제 후 조회만 제공하고 일반 취소 상태와 API가 없다.~~ | ~~`PAID_APPROVAL_PENDING`에서만 고객 취소를 허용하고, 관리자 `REJECTED`와 다른 상태·회원/비회원 소유권·재고 복구·이력·커밋 후 환불을 함께 구현한다.~~ |
 | ~~관리자 8회권 환불은 환불할 `passId`를 직접 입력해야 하고 관리자용 8회권 검색·목록 API가 없다.~~ | ~~회원명·전화번호·8회권 번호로 조회한 목록에서 잔여 횟수와 환불 예상액을 확인한 뒤 환불하도록 관리자 조회 API와 목록 기반 액션을 추가한다.~~ |
 | 운영 공개 도메인이 정해지지 않아 절대 URL이 필요한 canonical, sitemap, `og:url`을 확정할 수 없다. | DNS와 운영 origin을 확정할 때 공개 경로 sitemap을 생성하고 canonical·Open Graph URL을 같은 origin으로 설정한다. |

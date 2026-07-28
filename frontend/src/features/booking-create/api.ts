@@ -3,9 +3,24 @@ import { api } from "@/shared/api";
 import type {
   ClassResponse,
   PublicSlotResponse,
-  SendVerificationRequest,
   SendVerificationResponse,
 } from "@/shared/types";
+
+export type PhoneVerificationPurpose =
+  | "SIGNUP"
+  | "PASSWORD_RESET"
+  | "MEMBER_PHONE_REGISTRATION"
+  | "MEMBER_PHONE_CHANGE"
+  | "GUEST_BOOKING"
+  | "GUEST_ORDER"
+  | "GUEST_CLAIM"
+  | "GUEST_RECORD_RECOVERY"
+  | "GUEST_PAYMENT_STATUS_RECOVERY";
+
+interface SendVerificationRequest {
+  phone: string;
+  purpose: PhoneVerificationPurpose;
+}
 
 export function fetchClasses(): Promise<ClassResponse[]> {
   return api<ClassResponse[]>("/classes");

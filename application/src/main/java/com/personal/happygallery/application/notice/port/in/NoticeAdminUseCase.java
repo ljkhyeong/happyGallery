@@ -6,7 +6,7 @@ public interface NoticeAdminUseCase {
 
     Notice create(String title, String content, boolean pinned);
 
-    Notice update(Long id, String title, String content, boolean pinned);
+    Notice update(Long id, long expectedVersion, String title, String content, boolean pinned);
 
-    void delete(Long id);
+    void delete(Long id, long expectedVersion);
 }

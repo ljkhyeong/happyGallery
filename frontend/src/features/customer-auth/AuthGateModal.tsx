@@ -3,6 +3,7 @@ import { Modal, Button, Form, Nav } from "react-bootstrap";
 import { useCustomerAuth, type CustomerUser } from "./useCustomerAuth";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { normalizePhone } from "@/shared/validation/phone";
+import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 import { ErrorAlert } from "@/shared/ui";
 import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
@@ -67,6 +68,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    if (!isPasswordWithinByteLimit(password)) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -81,7 +83,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
-    if (!policyConsent.acceptance) {
+    if (!policyConsent.acceptance || !isPasswordWithinByteLimit(password)) {
       return;
     }
     setError(null);
@@ -148,9 +150,15 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
               <Form.Control
                 type="password" size="sm" value={password}
                 onChange={(e) => setPassword(e.target.value)} required minLength={8}
+                maxLength={72}
               />
             </Form.Group>
-            <Button type="submit" className="w-100" size="sm" disabled={submitting}>
+            <Button
+              type="submit"
+              className="w-100"
+              size="sm"
+              disabled={submitting || !isPasswordWithinByteLimit(password)}
+            >
               {submitting ? "로그인 중..." : "로그인하고 진행"}
             </Button>
           </Form>
@@ -170,6 +178,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
               <Form.Control
                 type="password" size="sm" value={password}
                 onChange={(e) => setPassword(e.target.value)} required minLength={8}
+                maxLength={72}
               />
             </Form.Group>
             <Form.Group className="mb-2" controlId="gate-signup-name">
@@ -181,6 +190,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
             </Form.Group>
             <div className="mb-3">
               <PhoneVerificationStep
+                purpose="SIGNUP"
                 title="휴대폰 소유 확인"
                 initialPhone={signupPhone}
                 confirmLabel="인증코드 적용"
@@ -203,7 +213,12 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
               type="submit"
               className="w-100"
               size="sm"
-              disabled={!signupVerificationCode || !policyConsent.ready || submitting}
+              disabled={
+                !signupVerificationCode
+                || !policyConsent.ready
+                || !isPasswordWithinByteLimit(password)
+                || submitting
+              }
             >
               {submitting ? "가입 중..." : "가입하고 진행"}
             </Button>
@@ -214,6 +229,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
           <div>
             {!guestVerified ? (
               <PhoneVerificationStep
+                purpose="GUEST_BOOKING"
                 onVerified={(p, c) => {
                   setGuestPhone(p);
                   setGuestCode(c);

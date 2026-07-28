@@ -4,10 +4,14 @@ import com.personal.happygallery.domain.store.WorkshopProfile;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 public record UpdateWorkshopProfileRequest(
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull @PositiveOrZero Long expectedVersion,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minLength = 1)
         @NotBlank @Size(min = 1, max = WorkshopProfile.MAX_NAME_LENGTH) String name,
         @Schema(nullable = true) @Size(max = WorkshopProfile.MAX_PHONE_LENGTH) String phone,

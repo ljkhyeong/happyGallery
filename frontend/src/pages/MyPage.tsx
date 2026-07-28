@@ -30,6 +30,7 @@ export function MyPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showPhoneRegistration, setShowPhoneRegistration] = useState(false);
+  const [phoneStepUpCompleted, setPhoneStepUpCompleted] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [showWithdrawal, setShowWithdrawal] = useState(false);
   const [phoneOnboardingHandled, setPhoneOnboardingHandled] = useState(false);
@@ -76,10 +77,16 @@ export function MyPage() {
 
   const navigationState = location.state as {
     phoneOnboarding?: boolean;
+    phoneChangeRequested?: boolean;
+    accountWithdrawalRequested?: boolean;
     socialAccountLinked?: string;
   } | null;
   const phoneOnboardingRequested = Boolean(navigationState?.phoneOnboarding);
   const linkedSocialProvider = navigationState?.socialAccountLinked;
+  const phoneChangeRequested = Boolean(navigationState?.phoneChangeRequested);
+  const accountWithdrawalRequested = Boolean(
+    navigationState?.accountWithdrawalRequested,
+  );
 
   useEffect(() => {
     if (!isAuthenticated || !linkedSocialProvider) {
@@ -92,11 +99,53 @@ export function MyPage() {
   }, [isAuthenticated, linkedSocialProvider, location.pathname, location.search, navigate, toast]);
 
   useEffect(() => {
-    if (!isAuthenticated || user?.phone !== null || phoneOnboardingHandled) {
+    if (
+      !isAuthenticated
+      || user?.phone !== null
+      || phoneOnboardingHandled
+      || accountWithdrawalRequested
+    ) {
       return;
     }
     setShowPhoneRegistration(true);
-  }, [isAuthenticated, phoneOnboardingHandled, phoneOnboardingRequested, user?.phone]);
+  }, [
+    accountWithdrawalRequested,
+    isAuthenticated,
+    phoneOnboardingHandled,
+    phoneOnboardingRequested,
+    user?.phone,
+  ]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !phoneChangeRequested) {
+      return;
+    }
+    setPhoneStepUpCompleted(true);
+    setShowPhoneRegistration(true);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [
+    isAuthenticated,
+    phoneChangeRequested,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !accountWithdrawalRequested) {
+      return;
+    }
+    setPhoneOnboardingHandled(true);
+    setShowPhoneRegistration(false);
+    setShowWithdrawal(true);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [
+    accountWithdrawalRequested,
+    isAuthenticated,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated || searchParams.get("claim") !== "1") {
@@ -138,6 +187,7 @@ export function MyPage() {
   const closePhoneRegistration = () => {
     setPhoneOnboardingHandled(true);
     setShowPhoneRegistration(false);
+    setPhoneStepUpCompleted(false);
     if (phoneOnboardingRequested) {
       navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
     }
@@ -188,6 +238,7 @@ export function MyPage() {
         onChangePassword={() => setShowPasswordChange(true)}
         onUpdatePhone={() => {
           setPhoneOnboardingHandled(false);
+          setPhoneStepUpCompleted(false);
           setShowPhoneRegistration(true);
         }}
         onWithdraw={() => setShowWithdrawal(true)}
@@ -232,6 +283,8 @@ export function MyPage() {
       <MemberPhoneUpdateModal
         show={showPhoneRegistration}
         currentPhone={user!.phone}
+        localPasswordEnabled={user!.localPasswordEnabled}
+        initiallyReauthenticated={phoneStepUpCompleted}
         onClose={closePhoneRegistration}
         onUpdated={async () => {
           await refresh();
@@ -240,6 +293,7 @@ export function MyPage() {
 
       <AccountWithdrawalModal
         show={showWithdrawal}
+        localPasswordEnabled={user!.localPasswordEnabled}
         onClose={() => setShowWithdrawal(false)}
         onWithdraw={async () => {
           await withdraw();

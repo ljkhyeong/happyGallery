@@ -199,6 +199,7 @@ export function OrderCreatePage() {
           <Card.Body>
             <div className="legacy-order-step-label">1. 휴대폰 인증</div>
             <PhoneVerificationStep
+              purpose="GUEST_ORDER"
               onVerified={(p, c) => {
                 setPhone(p);
                 setCode(c);

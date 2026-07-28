@@ -30,9 +30,8 @@ archive="$archive_dir/happygallery-images-$image_tag.tar"
 info "백엔드 테스트와 bootJar를 빌드합니다: $image_tag"
 ./gradlew --no-daemon clean build
 
-app_jar_count=$(find bootstrap/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' | wc -l | tr -d ' ')
-[ "$app_jar_count" -eq 1 ] || die "실행 가능한 backend jar가 정확히 하나여야 합니다. 현재: $app_jar_count"
-app_jar=$(find bootstrap/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar')
+app_jar=bootstrap/build/libs/happygallery-app.jar
+[ -f "$app_jar" ] || die "실행 가능한 backend jar를 찾을 수 없습니다: $app_jar"
 
 info "백엔드 이미지를 빌드합니다: $app_image"
 docker build --pull \

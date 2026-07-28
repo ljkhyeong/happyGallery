@@ -36,6 +36,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [form, setForm] = useState(initialForm);
+  const [expectedVersion, setExpectedVersion] = useState<number | null>(null);
   const query = useAdminQuery(onAuthError, {
     queryKey: ["admin", "workshop-profile"],
     queryFn: () => fetchAdminWorkshopProfile(adminKey),
@@ -43,6 +44,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
 
   useEffect(() => {
     if (!query.data) return;
+    setExpectedVersion(query.data.version);
     setForm({
       name: query.data.name,
       phone: query.data.phone ?? "",
@@ -67,6 +69,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => updateWorkshopProfile(adminKey, {
+      expectedVersion: expectedVersion!,
       name: form.name,
       phone: form.phone.trim() || null,
       postalCode: form.postalCode.trim() || null,
@@ -102,7 +105,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
   return (
     <Form onSubmit={(event) => {
       event.preventDefault();
-      if (form.name.trim()) mutation.mutate();
+      if (form.name.trim() && expectedVersion !== null) mutation.mutate();
     }}>
       <ErrorAlert error={query.error || mutation.error} />
       <Row className="g-3">
@@ -249,7 +252,11 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col md={3} className="d-flex align-items-end">
-          <Button className="w-100" type="submit" disabled={!form.name.trim() || mutation.isPending}>
+          <Button
+            className="w-100"
+            type="submit"
+            disabled={!form.name.trim() || expectedVersion === null || mutation.isPending}
+          >
             {mutation.isPending ? "저장 중..." : "공방 정보 저장"}
           </Button>
         </Col>

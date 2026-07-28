@@ -9,6 +9,7 @@ import { ErrorAlert } from "@/shared/ui";
 import { normalizePhone } from "@/shared/validation/phone";
 import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
+import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 
 export function SignupPage() {
   const { signup } = useCustomerAuth();
@@ -31,7 +32,7 @@ export function SignupPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!policyConsent.acceptance) {
+    if (!policyConsent.acceptance || !isPasswordWithinByteLimit(password)) {
       return;
     }
     setError(null);
@@ -127,8 +128,11 @@ export function SignupPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={8}
+                    maxLength={72}
                   />
-                  <Form.Text className="text-muted">8자 이상 입력하세요.</Form.Text>
+                  <Form.Text className="text-muted">
+                    8자 이상, UTF-8 기준 72바이트 이하로 입력하세요.
+                  </Form.Text>
                 </Form.Group>
                 <Form.Group className="mb-3" controlId="name">
                   <Form.Label>이름</Form.Label>
@@ -141,6 +145,7 @@ export function SignupPage() {
                 </Form.Group>
                 <div className="mb-4">
                   <PhoneVerificationStep
+                    purpose="SIGNUP"
                     title="휴대폰 소유 확인"
                     initialPhone={phone}
                     confirmLabel="인증코드 적용"
@@ -162,7 +167,12 @@ export function SignupPage() {
                 <Button
                   type="submit"
                   className="w-100"
-                  disabled={!verificationCode || !policyConsent.ready || submitting}
+                  disabled={
+                    !verificationCode
+                    || !policyConsent.ready
+                    || !isPasswordWithinByteLimit(password)
+                    || submitting
+                  }
                 >
                   {submitting ? "가입 중..." : "회원가입"}
                 </Button>

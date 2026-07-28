@@ -281,7 +281,7 @@
             "type" : "string"
           },
           "currentPassword" : {
-            "maxLength" : 100,
+            "maxLength" : 72,
             "minLength" : 0,
             "type" : "string"
           }
@@ -562,12 +562,12 @@
       "AdminPasswordChangeRequest" : {
         "properties" : {
           "currentPassword" : {
-            "maxLength" : 100,
+            "maxLength" : 72,
             "minLength" : 0,
             "type" : "string"
           },
           "newPassword" : {
-            "maxLength" : 100,
+            "maxLength" : 72,
             "minLength" : 10,
             "type" : "string"
           }
@@ -637,7 +637,7 @@
       "AdminSetupRequest" : {
         "properties" : {
           "password" : {
-            "maxLength" : 100,
+            "maxLength" : 72,
             "minLength" : 10,
             "type" : "string"
           },
@@ -1181,12 +1181,12 @@
       "ChangePasswordRequest" : {
         "properties" : {
           "currentPassword" : {
-            "maxLength" : 100,
+            "maxLength" : 72,
             "minLength" : 8,
             "type" : "string"
           },
           "newPassword" : {
-            "maxLength" : 100,
+            "maxLength" : 72,
             "minLength" : 8,
             "type" : "string"
           }
@@ -1928,6 +1928,7 @@
             "type" : [ "string", "null" ]
           },
           "type" : {
+            "enum" : [ "SHIPPING", "PICKUP" ],
             "type" : "string"
           }
         },
@@ -2137,7 +2138,7 @@
       "LoginRequest" : {
         "properties" : {
           "password" : {
-            "maxLength" : 100,
+            "maxLength" : 72,
             "minLength" : 0,
             "type" : "string"
           },
@@ -2208,9 +2209,10 @@
           },
           "refundStatus" : {
             "enum" : [ "REQUESTED", "PROCESSING", "RETRYABLE", "RECONCILIATION_REQUIRED", "SUCCEEDED", "FAILED" ],
-            "type" : "string"
+            "type" : [ "string", "null" ]
           }
         },
+        "required" : [ "canceledBookings", "refundAmount", "refundCredits", "refundStatus" ],
         "type" : "object"
       },
       "MemberRescheduleRequest" : {
@@ -2367,9 +2369,10 @@
           },
           "paidAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "status" : {
+            "enum" : [ "PAID_APPROVAL_PENDING", "APPROVED_FULFILLMENT_PENDING", "REJECTED", "CUSTOMER_CANCELED", "AUTO_REFUND_TIMEOUT", "IN_PRODUCTION", "DELAY_CONSENT_PENDING", "DELAY_ACCEPTED", "DELAY_REJECTED_CANCELED", "SHIPPING_PREPARING", "SHIPPED", "DELIVERED", "PICKUP_READY", "PICKED_UP", "PICKUP_EXPIRED", "PICKUP_FORFEITED", "COMPLETED" ],
             "type" : "string"
           },
           "totalAmount" : {
@@ -2377,6 +2380,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "createdAt", "orderId", "paidAt", "status", "totalAmount" ],
         "type" : "object"
       },
       "MyPassSummary" : {
@@ -2390,6 +2394,7 @@
             "type" : "integer"
           },
           "planCode" : {
+            "enum" : [ "LEGACY_ALL_CLASSES", "REGULAR_CRAFT_8" ],
             "type" : "string"
           },
           "planName" : {
@@ -2400,7 +2405,11 @@
             "type" : "string"
           },
           "refund" : {
-            "$ref" : "#/components/schemas/RefundProgressResponse"
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/RefundProgressResponse"
+            }, {
+              "type" : "null"
+            } ]
           },
           "remainingCredits" : {
             "format" : "int32",
@@ -2415,6 +2424,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "expiresAt", "passId", "planCode", "planName", "purchasedAt", "refund", "remainingCredits", "totalCredits", "totalPrice" ],
         "type" : "object"
       },
       "MyProductQnaListItem" : {
@@ -2459,11 +2469,16 @@
           "title" : {
             "type" : "string"
           },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "viewCount" : {
             "format" : "int32",
             "type" : "integer"
           }
         },
+        "required" : [ "content", "createdAt", "id", "pinned", "title", "version", "viewCount" ],
         "type" : "object"
       },
       "NoticeListResponse" : {
@@ -2482,11 +2497,16 @@
           "title" : {
             "type" : "string"
           },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "viewCount" : {
             "format" : "int32",
             "type" : "integer"
           }
         },
+        "required" : [ "createdAt", "id", "pinned", "title", "version", "viewCount" ],
         "type" : "object"
       },
       "NotificationResponse" : {
@@ -2711,13 +2731,18 @@
             "type" : "integer"
           },
           "refund" : {
-            "$ref" : "#/components/schemas/RefundProgressResponse"
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/RefundProgressResponse"
+            }, {
+              "type" : "null"
+            } ]
           },
           "status" : {
             "enum" : [ "PAID_APPROVAL_PENDING", "APPROVED_FULFILLMENT_PENDING", "REJECTED", "CUSTOMER_CANCELED", "AUTO_REFUND_TIMEOUT", "IN_PRODUCTION", "DELAY_CONSENT_PENDING", "DELAY_ACCEPTED", "DELAY_REJECTED_CANCELED", "SHIPPING_PREPARING", "SHIPPED", "DELIVERED", "PICKUP_READY", "PICKED_UP", "PICKUP_EXPIRED", "PICKUP_FORFEITED", "COMPLETED" ],
             "type" : "string"
           }
         },
+        "required" : [ "orderId", "refund", "status" ],
         "type" : "object"
       },
       "OrderDelayCancellationResponse" : {
@@ -2754,7 +2779,7 @@
         "properties" : {
           "approvalDeadlineAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "fulfillment" : {
             "oneOf" : [ {
@@ -2778,7 +2803,7 @@
           },
           "paidAt" : {
             "format" : "date-time",
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "refund" : {
             "oneOf" : [ {
@@ -2792,6 +2817,7 @@
             "type" : "integer"
           },
           "status" : {
+            "enum" : [ "PAID_APPROVAL_PENDING", "APPROVED_FULFILLMENT_PENDING", "REJECTED", "CUSTOMER_CANCELED", "AUTO_REFUND_TIMEOUT", "IN_PRODUCTION", "DELAY_CONSENT_PENDING", "DELAY_ACCEPTED", "DELAY_REJECTED_CANCELED", "SHIPPING_PREPARING", "SHIPPED", "DELIVERED", "PICKUP_READY", "PICKED_UP", "PICKUP_EXPIRED", "PICKUP_FORFEITED", "COMPLETED" ],
             "type" : "string"
           },
           "totalAmount" : {
@@ -2981,13 +3007,25 @@
           },
           "refundId" : {
             "format" : "int64",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "refundStatus" : {
             "enum" : [ "REQUESTED", "PROCESSING", "RETRYABLE", "RECONCILIATION_REQUIRED", "SUCCEEDED", "FAILED" ],
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "canceledBookings", "refundAmount", "refundCredits", "refundId", "refundStatus" ],
+        "type" : "object"
+      },
+      "PasswordReauthenticationRequest" : {
+        "properties" : {
+          "currentPassword" : {
+            "maxLength" : 72,
+            "minLength" : 0,
             "type" : "string"
           }
         },
+        "required" : [ "currentPassword" ],
         "type" : "object"
       },
       "PaymentPayload" : {
@@ -3609,7 +3647,7 @@
             "type" : "string"
           },
           "newPassword" : {
-            "maxLength" : 100,
+            "maxLength" : 72,
             "minLength" : 8,
             "type" : "string"
           },
@@ -3679,9 +3717,13 @@
             "minLength" : 1,
             "pattern" : "^01[0-9]{8,9}$",
             "type" : "string"
+          },
+          "purpose" : {
+            "enum" : [ "SIGNUP", "PASSWORD_RESET", "MEMBER_PHONE_REGISTRATION", "MEMBER_PHONE_CHANGE", "GUEST_BOOKING", "GUEST_ORDER", "GUEST_CLAIM", "GUEST_RECORD_RECOVERY", "GUEST_PAYMENT_STATUS_RECOVERY" ],
+            "type" : "string"
           }
         },
-        "required" : [ "phone" ],
+        "required" : [ "phone", "purpose" ],
         "type" : "object"
       },
       "SendVerificationResponse" : {
@@ -3782,7 +3824,7 @@
             "type" : "string"
           },
           "password" : {
-            "maxLength" : 100,
+            "maxLength" : 72,
             "minLength" : 8,
             "type" : "string"
           },
@@ -4039,6 +4081,10 @@
             "minLength" : 1,
             "type" : "string"
           },
+          "expectedVersion" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "pinned" : {
             "type" : "boolean"
           },
@@ -4047,7 +4093,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "content", "title" ],
+        "required" : [ "content", "expectedVersion", "title" ],
         "type" : "object"
       },
       "UpdateProductRequest" : {
@@ -4134,6 +4180,10 @@
             "minLength" : 0,
             "type" : [ "string", "null" ]
           },
+          "expectedVersion" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "instagramUrl" : {
             "format" : "uri",
             "maxLength" : 500,
@@ -4210,7 +4260,7 @@
             "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "name" ],
+        "required" : [ "expectedVersion", "name" ],
         "type" : "object"
       },
       "VerifyGuestClaimPhoneRequest" : {
@@ -4287,9 +4337,13 @@
           "updatedAt" : {
             "format" : "date-time",
             "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "addressLine1", "addressLine2", "businessHours", "businessRegistrationNumber", "email", "instagramUrl", "introduction", "kakaoTalkId", "mailOrderRegistrationNumber", "mapUrl", "name", "naverBlogUrl", "naverTalkUrl", "parkingInfo", "phone", "postalCode", "representativeName", "smartStoreUrl", "updatedAt" ],
+        "required" : [ "addressLine1", "addressLine2", "businessHours", "businessRegistrationNumber", "email", "instagramUrl", "introduction", "kakaoTalkId", "mailOrderRegistrationNumber", "mapUrl", "name", "naverBlogUrl", "naverTalkUrl", "parkingInfo", "phone", "postalCode", "representativeName", "smartStoreUrl", "updatedAt", "version" ],
         "type" : "object"
       }
     }
@@ -5422,13 +5476,22 @@
     },
     "/api/v1/admin/notices/{id}" : {
       "delete" : {
-        "operationId" : "delete",
+        "operationId" : "deleteAdminNotice",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
           "required" : true,
           "schema" : {
             "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "expectedVersion",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           }
         } ],
@@ -7368,7 +7431,7 @@
     },
     "/api/v1/me" : {
       "delete" : {
-        "operationId" : "withdraw",
+        "operationId" : "withdrawMyAccount",
         "responses" : {
           "204" : {
             "description" : "No Content"
@@ -7850,7 +7913,7 @@
     },
     "/api/v1/me/orders" : {
       "get" : {
-        "operationId" : "myOrders",
+        "operationId" : "listMyOrders",
         "responses" : {
           "200" : {
             "content" : {
@@ -7896,7 +7959,7 @@
         "tags" : [ "me-order-customer-action-controller" ]
       },
       "get" : {
-        "operationId" : "myOrder",
+        "operationId" : "getMyOrder",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -8025,7 +8088,7 @@
     },
     "/api/v1/me/passes" : {
       "get" : {
-        "operationId" : "myPasses",
+        "operationId" : "listMyPasses",
         "responses" : {
           "200" : {
             "content" : {
@@ -8046,7 +8109,7 @@
     },
     "/api/v1/me/passes/{id}" : {
       "get" : {
-        "operationId" : "myPass",
+        "operationId" : "getMyPass",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -8247,6 +8310,27 @@
         "tags" : [ "me-product-qna-controller" ]
       }
     },
+    "/api/v1/me/reauthentication/password" : {
+      "post" : {
+        "operationId" : "reauthenticateMyPassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PasswordReauthenticationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "customer-credential-controller" ]
+      }
+    },
     "/api/v1/me/social-accounts" : {
       "get" : {
         "operationId" : "getMySocialAccounts",
@@ -8288,6 +8372,33 @@
     "/api/v1/me/social-accounts/{provider}/authorization" : {
       "post" : {
         "operationId" : "startMySocialAccountLink",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "provider",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "google", "naver" ],
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SocialAccountAuthorizationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-social-account-controller" ]
+      }
+    },
+    "/api/v1/me/social-accounts/{provider}/reauthentication" : {
+      "post" : {
+        "operationId" : "startMySocialReauthentication",
         "parameters" : [ {
           "in" : "path",
           "name" : "provider",
@@ -8428,7 +8539,7 @@
     },
     "/api/v1/orders/{id}" : {
       "delete" : {
-        "operationId" : "cancel",
+        "operationId" : "cancelGuestOrder",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -8494,7 +8605,7 @@
     },
     "/api/v1/orders/{id}/delay-response" : {
       "post" : {
-        "operationId" : "respondToDelay",
+        "operationId" : "respondToGuestOrderDelay",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",

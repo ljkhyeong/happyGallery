@@ -3,6 +3,7 @@ import type {
   AdminBookingResponse,
   ListBookingsStatus,
 } from "../../src/generated/api/adminBooking";
+import type { SendVerificationRequestPurpose } from "../../src/generated/api/booking";
 
 const ADMIN_KEY = process.env.PLAYWRIGHT_ADMIN_KEY ?? "dev-admin-key";
 const ADMIN_USERNAME = process.env.PLAYWRIGHT_ADMIN_USERNAME ?? "admin";
@@ -245,9 +246,13 @@ export async function openAdminView(page: Page, name: string) {
   await page.getByRole("button", { name, exact: true }).click();
 }
 
-async function fetchVerificationCode(page: Page, phone: string): Promise<string> {
+async function fetchVerificationCode(
+  page: Page,
+  phone: string,
+  purpose: SendVerificationRequestPurpose,
+): Promise<string> {
   const res = await page.request.get(
-    `${BACKEND_BASE_URL}/admin/dev/phone-verifications/latest?phone=${phone}`,
+    `${BACKEND_BASE_URL}/admin/dev/phone-verifications/latest?phone=${phone}&purpose=${purpose}`,
     { headers: { "X-Admin-Key": ADMIN_KEY } },
   );
   expect(res.ok(), "Dev phone-verification lookup should succeed").toBeTruthy();
@@ -272,12 +277,12 @@ export async function signupCustomer(
   const verificationResponse = await page.request.post(
     `${BACKEND_BASE_URL}/bookings/phone-verifications`,
     {
-      data: { phone: credentials.phone },
+      data: { phone: credentials.phone, purpose: "SIGNUP" },
       headers: csrfHeaders,
     },
   );
   expect(verificationResponse.ok(), "Phone verification send API should succeed").toBeTruthy();
-  const verificationCode = await fetchVerificationCode(page, credentials.phone);
+  const verificationCode = await fetchVerificationCode(page, credentials.phone, "SIGNUP");
   const policyResponse = await page.request.get(`${BACKEND_BASE_URL}/policies/current`);
   expect(policyResponse.ok(), "Current policy API should succeed").toBeTruthy();
   const policy = (await policyResponse.json()) as {
@@ -323,11 +328,15 @@ export async function logoutCustomer(page: Page) {
   }
 }
 
-export async function completePhoneVerification(page: Page, phone: string) {
+export async function completePhoneVerification(
+  page: Page,
+  phone: string,
+  purpose: SendVerificationRequestPurpose = "GUEST_ORDER",
+) {
   await page.getByLabel("휴대폰 번호").fill(phone);
   await page.getByRole("button", { name: "인증코드 발송" }).click();
   await expect(page.getByLabel("인증코드")).toBeVisible();
-  const code = await fetchVerificationCode(page, phone);
+  const code = await fetchVerificationCode(page, phone, purpose);
   await page.getByLabel("인증코드").fill(code);
   await page.getByRole("button", { name: "확인" }).click();
 }
@@ -336,18 +345,19 @@ export async function completeLockedPhoneVerification(
   root: Page | Locator,
   page: Page,
   phone: string,
+  purpose: SendVerificationRequestPurpose,
   confirmLabel = "확인",
 ) {
   await root.getByRole("button", { name: "인증코드 발송" }).click();
   await expect(root.getByLabel("인증코드")).toBeVisible();
-  const code = await fetchVerificationCode(page, phone);
+  const code = await fetchVerificationCode(page, phone, purpose);
   await root.getByLabel("인증코드").fill(code);
   await root.getByRole("button", { name: confirmLabel }).click();
 }
 
 export async function completeGuestAuthGate(page: Page, phone: string, name: string) {
   await page.locator(".nav-link").filter({ hasText: "비회원" }).first().click();
-  await completePhoneVerification(page, phone);
+  await completePhoneVerification(page, phone, "GUEST_BOOKING");
   await page.locator("#gate-guest-name").fill(name);
   await acceptCurrentPolicies(page);
   await page.getByRole("button", { name: "비회원으로 진행" }).click();

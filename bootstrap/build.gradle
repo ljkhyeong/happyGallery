@@ -6,6 +6,10 @@ springBoot {
 	mainClass = 'com.personal.happygallery.HappygalleryApplication'
 }
 
+tasks.named('bootJar') {
+	archiveFileName = 'happygallery-app.jar'
+}
+
 dependencies {
 	implementation project(":domain")
 	implementation project(":application")

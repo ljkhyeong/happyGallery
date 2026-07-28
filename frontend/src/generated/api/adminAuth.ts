@@ -2,7 +2,7 @@ import { generatedApiClient } from '../../shared/api/generatedClient';
 export interface LoginRequest {
   /**
      * @minLength 0
-     * @maxLength 100
+     * @maxLength 72
      */
   password: string;
   /**
@@ -37,7 +37,7 @@ export interface AdminMfaDisableRequest {
   code: string;
   /**
      * @minLength 0
-     * @maxLength 100
+     * @maxLength 72
      */
   currentPassword: string;
 }
@@ -82,12 +82,12 @@ export interface AdminMfaVerificationRequest {
 export interface AdminPasswordChangeRequest {
   /**
      * @minLength 0
-     * @maxLength 100
+     * @maxLength 72
      */
   currentPassword: string;
   /**
      * @minLength 10
-     * @maxLength 100
+     * @maxLength 72
      */
   newPassword: string;
 }

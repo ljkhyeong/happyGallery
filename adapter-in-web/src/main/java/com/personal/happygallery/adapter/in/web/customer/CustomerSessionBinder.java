@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialAccountLinkIntentStore;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialSignupIntentStore;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerStepUpAuthenticationStore;
 import com.personal.happygallery.domain.user.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,9 +23,12 @@ import static org.springframework.session.FindByIndexNameSessionRepository.PRINC
 public class CustomerSessionBinder {
 
     private final CsrfTokenRepository csrfTokenRepository;
+    private final CustomerStepUpAuthenticationStore stepUpAuthenticationStore;
 
-    public CustomerSessionBinder(CsrfTokenRepository csrfTokenRepository) {
+    public CustomerSessionBinder(CsrfTokenRepository csrfTokenRepository,
+                                 CustomerStepUpAuthenticationStore stepUpAuthenticationStore) {
         this.csrfTokenRepository = csrfTokenRepository;
+        this.stepUpAuthenticationStore = stepUpAuthenticationStore;
     }
 
     public void bind(HttpServletRequest request, HttpServletResponse response, User user) {
@@ -39,6 +43,8 @@ public class CustomerSessionBinder {
                 user.getCredentialVersion());
         session.setAttribute(PRINCIPAL_NAME_INDEX_NAME,
                 user.getId() + ":" + user.getCredentialVersion());
+        stepUpAuthenticationStore.markVerified(
+                request, user.getId(), user.getCredentialVersion());
         csrfTokenRepository.saveToken(null, request, response);
     }
 

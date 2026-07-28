@@ -19,6 +19,7 @@ public enum ErrorCode {
 
     // 403 Forbidden — 인증되었지만 권한 부족
     FORBIDDEN(403, "요청한 작업을 수행할 권한이 없습니다."),
+    REAUTHENTICATION_REQUIRED(403, "보호된 계정 정보를 변경하려면 본인 확인이 필요합니다."),
 
     // 429 Too Many Requests — 처리율 제한 초과
     TOO_MANY_REQUESTS(429, "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),

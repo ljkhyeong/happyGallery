@@ -2,12 +2,15 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.customer.dto.CustomerUserResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.UpdateMemberPhoneRequest;
-import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerStepUpAuthenticationStore;
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
+import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase.UpdatePhoneCommand;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.User;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,22 +22,36 @@ import org.springframework.web.bind.annotation.RestController;
 public class MePhoneController {
 
     private final MemberPhoneUpdateUseCase phoneUpdate;
-    private final SubjectRateLimitGuard rateLimitGuard;
+    private final CustomerStepUpAuthenticationStore stepUpAuthenticationStore;
+    private final CustomerSessionBinder customerSessionBinder;
 
     public MePhoneController(MemberPhoneUpdateUseCase phoneUpdate,
-                             SubjectRateLimitGuard rateLimitGuard) {
+                             CustomerStepUpAuthenticationStore stepUpAuthenticationStore,
+                             CustomerSessionBinder customerSessionBinder) {
         this.phoneUpdate = phoneUpdate;
-        this.rateLimitGuard = rateLimitGuard;
+        this.stepUpAuthenticationStore = stepUpAuthenticationStore;
+        this.customerSessionBinder = customerSessionBinder;
     }
 
     @PatchMapping
     public CustomerUserResponse updatePhone(
             @RequestBody @Valid UpdateMemberPhoneRequest request,
-            @AuthenticationPrincipal CustomerPrincipal customer) {
+            @AuthenticationPrincipal CustomerPrincipal customer,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
         String phone = KoreanPhoneNumber.required(request.phone());
-        rateLimitGuard.checkPhoneVerificationAttempt(phone);
-        User user = phoneUpdate.update(
-                customer.userId(), phone, request.verificationCode());
+        boolean recentlyReauthenticated = stepUpAuthenticationStore.isRecentlyVerified(
+                httpRequest, customer.userId(), customer.credentialVersion());
+        User user = phoneUpdate.update(new UpdatePhoneCommand(
+                customer.userId(),
+                customer.credentialVersion(),
+                phone,
+                request.verificationCode(),
+                recentlyReauthenticated));
+        if (user.getCredentialVersion() != customer.credentialVersion()) {
+            customerSessionBinder.unbindIfBoundTo(
+                    httpRequest, httpResponse, customer.userId());
+        }
         return CustomerUserResponse.from(user);
     }
 }

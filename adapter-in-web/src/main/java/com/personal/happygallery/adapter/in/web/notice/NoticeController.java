@@ -5,6 +5,8 @@ import com.personal.happygallery.adapter.in.web.notice.dto.NoticeDetailResponse;
 import com.personal.happygallery.adapter.in.web.notice.dto.NoticeListResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,7 +31,9 @@ public class NoticeController {
     }
 
     @GetMapping("/{id}")
-    public NoticeDetailResponse detail(@PathVariable Long id) {
-        return NoticeDetailResponse.from(noticeQueryUseCase.getDetail(id));
+    public ResponseEntity<NoticeDetailResponse> detail(@PathVariable Long id) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(NoticeDetailResponse.from(noticeQueryUseCase.getDetail(id)));
     }
 }

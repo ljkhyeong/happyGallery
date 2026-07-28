@@ -51,6 +51,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -65,6 +66,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class PublicApiRestDocsTest extends RestDocsTestSupport {
@@ -132,7 +134,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(classQueryUseCase.listActive()).thenReturn(List.of(bookingClass));
         when(slotQueryUseCase.listAvailable(any(), any())).thenReturn(List.of(slot));
         when(slotQueryUseCase.listUpcoming(any(), anyInt())).thenReturn(List.of(slot));
-        when(guestBookingUseCase.sendVerificationCode(any())).thenReturn(phoneVerification);
+        when(guestBookingUseCase.sendVerificationCode(any(), any())).thenReturn(phoneVerification);
         when(bookingQueryUseCase.getBookingByToken(eq(100L), any()))
                 .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null));
         when(guestPersonalDataProtector.decryptPhone(any(Guest.class))).thenReturn("01012345678");
@@ -298,7 +300,12 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void send_booking_phone_verification() throws Exception {
         mockMvc.perform(post("/api/v1/bookings/phone-verifications")
                         .contentType(APPLICATION_JSON)
-                        .content("{\"phone\":\"01012345678\"}"))
+                        .content("""
+                                {
+                                  "phone": "01012345678",
+                                  "purpose": "GUEST_BOOKING"
+                                }
+                                """))
                 .andExpect(status().isOk());
     }
 
@@ -473,7 +480,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("공지 상세 API를 문서화한다")
     void get_notice() throws Exception {
         mockMvc.perform(get("/api/v1/notices/{id}", 1L))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     }
 
     @Test

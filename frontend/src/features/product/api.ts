@@ -7,11 +7,11 @@ import {
 import type { ProductDetailResponse } from "@/shared/types/product";
 
 export function fetchProducts(filters?: ListProductsParams): Promise<ProductDetailResponse[]> {
-  return listProducts(filters) as Promise<ProductDetailResponse[]>;
+  return listProducts(filters);
 }
 
 export function fetchProduct(id: number): Promise<ProductDetailResponse> {
-  return getProduct(id) as Promise<ProductDetailResponse>;
+  return getProduct(id);
 }
 
 export function fetchCategories(): Promise<string[]> {

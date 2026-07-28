@@ -7,6 +7,7 @@ import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.dashboard.port.in.DashboardQueryUseCase;
@@ -153,7 +154,8 @@ class AdminBookingQueryUseCaseIT {
         completed.complete(LocalDateTime.now(clock));
         completed = bookingStorePort.save(completed);
 
-        customerAccountLifecycleUseCase.withdraw(member.getId());
+        customerAccountLifecycleUseCase.withdraw(new WithdrawCommand(
+                member.getId(), member.getCredentialVersion(), true));
 
         List<AdminBookingResponse> responses =
                 adminBookingQueryService.listBookings(targetDate, BookingStatus.COMPLETED);

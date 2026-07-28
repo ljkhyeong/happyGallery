@@ -6,6 +6,7 @@ import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.application.pass.port.in.MemberPassRefundUseCase;
 import com.personal.happygallery.application.pass.port.in.PassQueryUseCase;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,17 +37,20 @@ public class MePassController {
     }
 
     @GetMapping
+    @Operation(operationId = "listMyPasses")
     public List<MyPassSummary> myPasses(@AuthenticationPrincipal CustomerPrincipal customer) {
         return MyPassSummary.fromAll(passQueryUseCase.listMyPasses(customer.userId()));
     }
 
     @GetMapping("/{id}")
+    @Operation(operationId = "getMyPass")
     public MyPassSummary myPass(@PathVariable Long id,
                                 @AuthenticationPrincipal CustomerPrincipal customer) {
         return MyPassSummary.from(passQueryUseCase.findMyPass(id, customer.userId()));
     }
 
     @PostMapping("/{id}/refund")
+    @Operation(operationId = "refundMyPass")
     public MemberPassRefundResponse refundMyPass(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomerPrincipal customer) {

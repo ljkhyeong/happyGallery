@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.store.WorkshopProfile;
 public interface WorkshopProfileUseCase {
 
     record UpdateCommand(
+            long expectedVersion,
             String name,
             String phone,
             String postalCode,

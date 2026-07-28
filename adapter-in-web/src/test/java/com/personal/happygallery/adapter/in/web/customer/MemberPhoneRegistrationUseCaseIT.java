@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.customer.dto.UpdateMemberPhoneRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerStepUpAuthenticationStore;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
@@ -14,6 +15,7 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -27,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -38,6 +41,7 @@ import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -60,6 +64,7 @@ class MemberPhoneRegistrationUseCaseIT {
     @Autowired UserReaderPort userReader;
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired CustomerStepUpAuthenticationStore stepUpAuthenticationStore;
 
     MockMvc mockMvc;
 
@@ -104,7 +109,8 @@ class MemberPhoneRegistrationUseCaseIT {
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("PHONE_VERIFICATION_REQUIRED"));
 
-        String code = guestBookingUseCase.sendVerificationCode(PHONE).getCode();
+        String code = guestBookingUseCase.sendVerificationCode(
+                PHONE, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
                         .session(session)
@@ -132,7 +138,9 @@ class MemberPhoneRegistrationUseCaseIT {
                 registered.getId(), slot.getId(), DepositPaymentMethod.CARD, 5_000L, 45_000L);
         long originalBookingVersion = booking.getVersion();
 
-        String changeCode = guestBookingUseCase.sendVerificationCode(CHANGED_PHONE).getCode();
+        markStepUp(session, registered);
+        String changeCode = guestBookingUseCase.sendVerificationCode(
+                CHANGED_PHONE, PhoneVerificationPurpose.MEMBER_PHONE_CHANGE).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
                         .session(session)
@@ -157,13 +165,42 @@ class MemberPhoneRegistrationUseCaseIT {
                     });
         });
 
-        mockMvc.perform(post("/api/v1/payments/prepare")
+        mockMvc.perform(get("/api/v1/me")
+                        .session(session))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @DisplayName("최근 본인 확인이 없는 세션은 기존 휴대폰 번호를 변경할 수 없다")
+    @Test
+    void rejectsPhoneChangeWithoutRecentAuthentication() throws Exception {
+        User member = socialAuth.socialLogin(new SocialLoginCommand(
+                SocialProvider.NAVER,
+                "phone-step-up-naver-id",
+                "phone-step-up@example.com",
+                "본인 확인 회원",
+                acceptedPolicies())).user();
+        String registrationCode = guestBookingUseCase.sendVerificationCode(
+                PHONE, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
+        mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
-                        .session(session)
+                        .session(customerSession(member))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(prepareBody))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.context").value("PASS"));
+                        .content(objectMapper.writeValueAsString(
+                                new UpdateMemberPhoneRequest(PHONE, registrationCode))))
+                .andExpect(status().isOk());
+
+        User registered = userReader.findById(member.getId()).orElseThrow();
+        String changeCode = guestBookingUseCase.sendVerificationCode(
+                CHANGED_PHONE, PhoneVerificationPurpose.MEMBER_PHONE_CHANGE).getCode();
+
+        mockMvc.perform(patch("/api/v1/me/phone")
+                        .with(csrf())
+                        .session(customerSessionWithoutStepUp(registered))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new UpdateMemberPhoneRequest(CHANGED_PHONE, changeCode))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("REAUTHENTICATION_REQUIRED"));
     }
 
     @DisplayName("다른 회원이 사용하는 휴대폰 번호로 변경할 수 없다")
@@ -175,7 +212,8 @@ class MemberPhoneRegistrationUseCaseIT {
                 "phone-owner@example.com",
                 "번호 소유자",
                 acceptedPolicies())).user();
-        String ownerCode = guestBookingUseCase.sendVerificationCode(PHONE).getCode();
+        String ownerCode = guestBookingUseCase.sendVerificationCode(
+                PHONE, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
                         .session(customerSession(owner))
@@ -190,7 +228,8 @@ class MemberPhoneRegistrationUseCaseIT {
                 "phone-another@example.com",
                 "다른 회원",
                 acceptedPolicies())).user();
-        String anotherCode = guestBookingUseCase.sendVerificationCode(PHONE).getCode();
+        String anotherCode = guestBookingUseCase.sendVerificationCode(
+                PHONE, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
 
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
@@ -212,7 +251,8 @@ class MemberPhoneRegistrationUseCaseIT {
                 "예약 회원",
                 acceptedPolicies())).user();
         MockHttpSession session = customerSession(member);
-        String registrationCode = guestBookingUseCase.sendVerificationCode(PHONE).getCode();
+        String registrationCode = guestBookingUseCase.sendVerificationCode(
+                PHONE, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
                         .session(session)
@@ -228,13 +268,16 @@ class MemberPhoneRegistrationUseCaseIT {
                 slot(bookingClass, startAt, startAt.plusHours(2)));
         Booking memberBooking = memberBookingUseCase.createMemberDepositBooking(
                 member.getId(), slot.getId(), DepositPaymentMethod.CARD, 5_000L, 45_000L);
-        String guestCode = guestBookingUseCase.sendVerificationCode(CHANGED_PHONE).getCode();
+        String guestCode = guestBookingUseCase.sendVerificationCode(
+                CHANGED_PHONE, PhoneVerificationPurpose.GUEST_BOOKING).getCode();
         guestBookingUseCase.createGuestBooking(
                 new GuestBookingUseCase.CreateGuestBookingCommand(
                         CHANGED_PHONE, guestCode, "비회원 예약자", slot.getId(),
                         DepositPaymentMethod.CARD, 5_000L, 45_000L));
 
-        String changeCode = guestBookingUseCase.sendVerificationCode(CHANGED_PHONE).getCode();
+        markStepUp(session, userReader.findById(member.getId()).orElseThrow());
+        String changeCode = guestBookingUseCase.sendVerificationCode(
+                CHANGED_PHONE, PhoneVerificationPurpose.MEMBER_PHONE_CHANGE).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
                         .session(session)
@@ -255,6 +298,12 @@ class MemberPhoneRegistrationUseCaseIT {
     }
 
     private MockHttpSession customerSession(User user) {
+        MockHttpSession session = customerSessionWithoutStepUp(user);
+        markStepUp(session, user);
+        return session;
+    }
+
+    private MockHttpSession customerSessionWithoutStepUp(User user) {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(
                 CustomerAuthenticationFilter.CUSTOMER_USER_ID_SESSION_ATTRIBUTE,
@@ -263,5 +312,12 @@ class MemberPhoneRegistrationUseCaseIT {
                 CustomerAuthenticationFilter.CUSTOMER_CREDENTIAL_VERSION_SESSION_ATTRIBUTE,
                 user.getCredentialVersion());
         return session;
+    }
+
+    private void markStepUp(MockHttpSession session, User user) {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setSession(session);
+        stepUpAuthenticationStore.markVerified(
+                request, user.getId(), user.getCredentialVersion());
     }
 }

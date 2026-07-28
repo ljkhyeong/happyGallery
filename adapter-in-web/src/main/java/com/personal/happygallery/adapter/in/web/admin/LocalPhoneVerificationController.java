@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.application.customer.port.in.DevPhoneVerificationQueryUseCase;
 import com.personal.happygallery.adapter.in.web.admin.dto.LatestVerificationCodeResponse;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,8 +26,10 @@ public class LocalPhoneVerificationController {
     }
 
     @GetMapping("/latest")
-    public ResponseEntity<LatestVerificationCodeResponse> latestCode(@RequestParam String phone) {
-        return ResponseEntity.of(phoneVerificationQuery.findLatestUnverifiedCode(phone)
+    public ResponseEntity<LatestVerificationCodeResponse> latestCode(
+            @RequestParam String phone,
+            @RequestParam PhoneVerificationPurpose purpose) {
+        return ResponseEntity.of(phoneVerificationQuery.findLatestUnverifiedCode(phone, purpose)
                 .map(LatestVerificationCodeResponse::new));
     }
 }

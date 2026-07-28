@@ -3,6 +3,7 @@ package com.personal.happygallery.application.booking.port.in;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 
 /**
  * 게스트(비회원) 예약 유스케이스.
@@ -11,7 +12,7 @@ import com.personal.happygallery.domain.booking.PhoneVerification;
  */
 public interface GuestBookingUseCase {
 
-    PhoneVerification sendVerificationCode(String phone);
+    PhoneVerification sendVerificationCode(String phone, PhoneVerificationPurpose purpose);
 
     record GuestBookingResult(Booking booking, String rawAccessToken) {}
 

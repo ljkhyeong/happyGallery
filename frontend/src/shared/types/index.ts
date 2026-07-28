@@ -11,5 +11,5 @@ export type { PublicSlotResponse } from "./slot";
 export type { OrderItemInput, OrderDetailResponse, OrderPricePolicyResponse, OrderItemDto, FulfillmentType, FulfillmentDto, OrderDelayDecision, OrderDelayResponseRequest, OrderCustomerActionResponse } from "./order";
 export type { ProductQnaListItem, ProductQnaDetail, CreateQnaRequest } from "./qna";
 export type { InquiryResponse, CreateInquiryRequest } from "./inquiry";
-export type { NoticeListItem, NoticeDetail, CreateNoticeRequest } from "./notice";
+export type { NoticeListItem, NoticeDetail, CreateNoticeRequest, UpdateNoticeRequest } from "./notice";
 export type { OffsetPage, AdminOrderSearchRow, AdminBookingSearchRow } from "./adminSearch";

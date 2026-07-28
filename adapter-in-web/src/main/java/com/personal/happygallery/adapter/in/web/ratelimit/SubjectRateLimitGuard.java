@@ -25,6 +25,11 @@ public class SubjectRateLimitGuard {
                 properties.subject().customerLogin(), FAIL_CLOSED);
     }
 
+    public void checkCustomerReauthentication(long userId) {
+        check("CUSTOMER_REAUTHENTICATION_USER", String.valueOf(userId),
+                properties.subject().customerLogin(), FAIL_CLOSED);
+    }
+
     public void checkPhoneVerification(String phone) {
         check("PHONE_VERIFICATION_PHONE", phone,
                 properties.subject().phoneVerification(), FAIL_CLOSED);

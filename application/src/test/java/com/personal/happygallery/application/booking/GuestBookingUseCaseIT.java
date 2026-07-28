@@ -19,6 +19,7 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.support.BookingStateProbe;
@@ -117,7 +118,8 @@ class GuestBookingUseCaseIT {
     void sendVerification_success() throws Exception {
         mockMvc.perform(post("/api/v1/bookings/phone-verifications")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new SendVerificationRequest(PHONE))))
+                        .content(objectMapper.writeValueAsString(new SendVerificationRequest(
+                                PHONE, PhoneVerificationPurpose.GUEST_BOOKING))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.verificationId").isNumber())
                 .andExpect(jsonPath("$.phone").value(PHONE))
@@ -147,14 +149,16 @@ class GuestBookingUseCaseIT {
 
         mockMvc.perform(post("/api/v1/bookings/phone-verifications")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new SendVerificationRequest(PHONE))))
+                        .content(objectMapper.writeValueAsString(new SendVerificationRequest(
+                                PHONE, PhoneVerificationPurpose.GUEST_BOOKING))))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"));
 
         assertSoftly(softly -> {
             softly.assertThat(transactionActiveDuringSend).isFalse();
             softly.assertThat(phoneVerificationRepository.count()).isEqualTo(1L);
-            softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(PHONE)).isEmpty();
+            softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(
+                    PHONE, PhoneVerificationPurpose.GUEST_BOOKING)).isEmpty();
         });
     }
 
@@ -171,6 +175,26 @@ class GuestBookingUseCaseIT {
                     .hasSize(1);
             softly.assertThat(verifications.stream().filter(it -> it.isVerified()))
                     .hasSize(1);
+        });
+    }
+
+    @DisplayName("같은 전화번호라도 인증 목적별 최신 코드를 독립적으로 조회한다")
+    @Test
+    void sendVerification_differentPurposes_keepIndependentCodes() throws Exception {
+        String bookingCode = helper.sendVerificationAndGetCode(
+                PHONE, PhoneVerificationPurpose.GUEST_BOOKING);
+        String orderCode = helper.sendVerificationAndGetCode(
+                PHONE, PhoneVerificationPurpose.GUEST_ORDER);
+
+        assertSoftly(softly -> {
+            softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(
+                            PHONE, PhoneVerificationPurpose.GUEST_BOOKING))
+                    .map(PhoneVerification::getCode)
+                    .contains(bookingCode);
+            softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(
+                            PHONE, PhoneVerificationPurpose.GUEST_ORDER))
+                    .map(PhoneVerification::getCode)
+                    .contains(orderCode);
         });
     }
 
@@ -192,11 +216,13 @@ class GuestBookingUseCaseIT {
 
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
             Future<PhoneVerification> first = executor.submit(
-                    () -> guestBookingUseCase.sendVerificationCode(PHONE));
+                    () -> guestBookingUseCase.sendVerificationCode(
+                            PHONE, PhoneVerificationPurpose.GUEST_BOOKING));
             assertThat(firstSendStarted.await(10, TimeUnit.SECONDS)).isTrue();
 
             Future<PhoneVerification> second = executor.submit(
-                    () -> guestBookingUseCase.sendVerificationCode(PHONE));
+                    () -> guestBookingUseCase.sendVerificationCode(
+                            PHONE, PhoneVerificationPurpose.GUEST_BOOKING));
             PhoneVerification latestIssued = second.get(10, TimeUnit.SECONDS);
             releaseFirstSend.countDown();
             PhoneVerification earlierIssued = first.get(10, TimeUnit.SECONDS);
@@ -211,7 +237,8 @@ class GuestBookingUseCaseIT {
                 softly.assertThat(stored.getFirst().isDelivered()).isFalse();
                 softly.assertThat(stored.getLast().isVerified()).isFalse();
                 softly.assertThat(stored.getLast().isDelivered()).isTrue();
-                softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(PHONE))
+                softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(
+                                PHONE, PhoneVerificationPurpose.GUEST_BOOKING))
                         .map(PhoneVerification::getId)
                         .contains(latestIssued.getId());
             });
@@ -257,7 +284,8 @@ class GuestBookingUseCaseIT {
         // DB 저장 확인
         assertSoftly(softly -> {
             softly.assertThat(bookingReaderPort.findById(created.bookingId())).isPresent();
-            softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(PHONE)).isEmpty();
+            softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(
+                    PHONE, PhoneVerificationPurpose.GUEST_BOOKING)).isEmpty();
         });
     }
 

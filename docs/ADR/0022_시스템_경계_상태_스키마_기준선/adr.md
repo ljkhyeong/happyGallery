@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-07-26
+**갱신**: 2026-07-28
 
 ---
 
@@ -41,6 +41,10 @@
 - 슬롯 정원: `SELECT ... FOR UPDATE` + `booked_count`
 - 단일 작품 재고: row lock 또는 version 기반 낙관적 락
 - 주문 승인, 자동 환불, 픽업 만료, 8회권 만료/환불: version 기반 낙관적 락 + 제한된 재시도
+- 공지 관리자 수정·삭제와 공방 프로필 수정: 조회 응답 `version`과 변경 요청 `expectedVersion`의
+  명시적 비교 + version 기반 낙관적 락
+- 공지 조회수: `view_count = view_count + 1` 원자 갱신. 조회수는 관리자 편집 충돌을
+  만들지 않도록 version 갱신과 일반 엔티티 UPDATE에서 제외한다.
 
 ### 3. 상태 모델은 주문, 예약, 이행을 나눠 관리한다
 
@@ -82,7 +86,7 @@
 
 - `admin_user`
   - `id`, `username(unique)`, `password_hash`, `credential_version`, `failed_login_attempts`, `locked_until nullable`, `totp_secret_enc nullable`, `mfa_enabled`, `created_at`
-  - 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 실제 비밀번호 또는 MFA 설정 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 작업 강도만 승격할 때는 버전을 유지한다.
+  - 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 웹 입력은 UTF-8 72바이트 이하로 제한한다. 실제 비밀번호 또는 MFA 설정 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 작업 강도만 승격할 때는 버전을 유지한다.
   - 인증 실패 5회는 계정을 15분 잠근다. TOTP 비밀키는 AES-GCM 암호문으로만 저장한다.
 - `admin_mfa_challenge`
   - `id`, `admin_user_id`, `token_hmac(unique)`, `expires_at`, `consumed_at nullable`, `created_at`
@@ -101,7 +105,7 @@
 - `users`
   - `id`, `email_enc`, `email_hmac`, `password_hash nullable`, `credential_version`, `version`, `name_enc`, `name_hmac`, `phone_enc nullable`, `phone_hmac nullable`, `phone_verified`, `last_login_at`, `withdrawn_at nullable`, `created_at`
   - 이메일·이름·전화번호 평문 컬럼은 두지 않는다. 복호화가 필요한 값은 `*_enc`, 정확 일치 조회는 `*_hmac`를 사용한다.
-  - 로컬 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다.
+  - 로컬 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 웹 입력은 UTF-8 72바이트 이하로 제한한다.
   - `credential_version`은 실제 비밀번호·로그인 수단 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다. 로그인 중 BCrypt 작업 강도만 승격할 때는 버전을 유지한다.
   - `version`은 로그인 시각·휴대폰 확인·비밀번호처럼 같은 회원 행을 갱신하는 경로의 stale update를 막는 JPA 낙관적 락 버전이다.
   - `phone_hmac`은 null을 허용하되 값이 있으면 회원 전체에서 유일하다. 전화번호 변경은 새 번호 SMS 소유 확인 뒤 이 제약과 애플리케이션 조회로 중복을 거절한다.
@@ -115,9 +119,10 @@
   - `id`, `name_enc`, `name_hmac`, `phone_enc`, `phone_hmac`, `phone_verified`, `created_at`
   - 비회원 이름·전화번호 평문 컬럼은 두지 않는다. 표시는 암호문 복호화, 동등 검색은 HMAC으로 처리한다.
 - `phone_verifications`
-  - `id`, `phone_hmac`, `code_hmac`, `code_enc`, `delivered`, `verified`, `expires_at`, `created_at`
-  - 전화번호와 인증 코드 평문은 저장하지 않는다. 인증은 전화번호와 코드의 HMAC으로 조회하고, 로컬 전용 코드 조회는 `code_enc`를 복호화한다.
-  - NHN이 발송 요청을 정상 접수해 `delivered=true`인 미소모·유효 코드만 인증할 수 있다. 발급 ID가 더 큰 코드의 접수 완료만 같은 번호의 이전 미소모 코드를 무효화하고, 늦게 끝난 이전 요청의 접수 완료는 폐기 상태를 되돌리지 않는다. 소비 조회는 비관적 잠금으로 한 번만 성공한다.
+  - `id`, `phone_hmac`, `purpose`, `code_hmac`, `code_enc`, `delivered`, `verified`, `expires_at`, `created_at`
+  - 전화번호와 인증 코드 평문은 저장하지 않는다. 인증은 전화번호·사용 목적·코드의 HMAC으로 조회하고, 로컬 전용 코드 조회는 `code_enc`를 복호화한다.
+  - `purpose`는 회원가입, 비밀번호 재설정, 회원 전화번호 등록/변경, 비회원 예약/주문, 이력 가져오기와 이력/결제 복구를 구분한다. 한 목적으로 발급한 코드는 다른 목적에서 소비할 수 없다.
+  - NHN이 발송 요청을 정상 접수해 `delivered=true`인 미소모·유효 코드만 인증할 수 있다. 발급 ID가 더 큰 코드의 접수 완료만 같은 번호·같은 목적의 이전 미소모 코드를 무효화하고, 늦게 끝난 이전 요청의 접수 완료는 폐기 상태를 되돌리지 않는다. 소비 조회는 `(phone_hmac, purpose, id)` 인덱스와 비관적 잠금으로 한 번만 성공한다.
 
 #### 상품과 재고
 
@@ -204,11 +209,18 @@
 카테고리는 고정 enum이 아니라 확장 가능한 문자열로 저장하며, 저장·조회 필터 기준은 앞뒤 공백을 제거한 대문자 토큰이다.
 다만 구매 시 확정한 `PassPlan`은 이 정규화 토큰과 `pass_eligible`을 함께 사용해 이용권 적용 가능 여부를 판단한다.
 
-#### 공방 프로필
+#### 운영 콘텐츠와 공방 프로필
+
+- `notices`
+  - `id`, `title`, `content`, `pinned`, `view_count`, `version`, `created_at`
+  - 상세 조회는 원자 UPDATE로 조회수를 증가시킨 뒤 최신 행을 읽는다.
+  - `view_count`는 일반 엔티티 저장 대상에서 제외해 관리자가 제목·본문·고정 여부를 저장해도
+    동시에 증가한 조회수를 덮지 않는다. 관리자 수정·삭제는 조회한 `version`을 `expectedVersion`으로
+    제출해 오래된 화면의 변경을 먼저 거부하고, `@Version`으로 비교 직후의 경쟁도 막는다.
 
 - `workshop_profiles`
-  - `id=1`, `name`, `phone nullable`, `postal_code nullable`, `address_line1 nullable`, `address_line2 nullable`, `business_hours nullable`, `map_url nullable`, `parking_info nullable`, `business_registration_number nullable`, `representative_name nullable`, `email nullable`, `mail_order_registration_number nullable`, `introduction nullable`, `kakao_talk_id nullable`, `naver_talk_url nullable`, `naver_blog_url nullable`, `instagram_url nullable`, `smart_store_url nullable`, `updated_at`
-  - 단일 행 `CHECK(id=1)`로 방문 안내와 공개 사업자 정보를 함께 관리한다. 공개 API는 같은 프로필을 반환하고 관리자 API만 수정한다.
+  - `id=1`, `name`, `phone nullable`, `postal_code nullable`, `address_line1 nullable`, `address_line2 nullable`, `business_hours nullable`, `map_url nullable`, `parking_info nullable`, `business_registration_number nullable`, `representative_name nullable`, `email nullable`, `mail_order_registration_number nullable`, `introduction nullable`, `kakao_talk_id nullable`, `naver_talk_url nullable`, `naver_blog_url nullable`, `instagram_url nullable`, `smart_store_url nullable`, `updated_at`, `version`
+  - 단일 행 `CHECK(id=1)`로 방문 안내와 공개 사업자 정보를 함께 관리한다. 공개 API는 같은 프로필을 반환하고 관리자 API만 수정한다. 관리자는 조회 응답의 `version`을 수정 요청의 `expectedVersion`으로 제출하고, 서비스 비교와 `@Version`이 오래된 화면 및 비교 직후의 동시 수정을 차단한다.
   - `V81`은 아직 운영 배포 전인 스키마에서 불리언 `naver_talk_enabled`를 URL 필드로 같은 릴리스에 대체하므로 기존 필드를 바로 제거한다. 이미 관리자가 입력한 프로필 값은 유지하고 비어 있는 기준 사업자 정보만 채운다. 최초 운영 배포 이후의 컬럼 대체는 구버전·신버전 애플리케이션의 공존을 고려해 추가-전환-제거 순서로 별도 마이그레이션한다.
 
 #### 주문·예약 소유자 제약 배포

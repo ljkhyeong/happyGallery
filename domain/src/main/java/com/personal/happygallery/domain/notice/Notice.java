@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 
 @Entity
@@ -25,8 +26,12 @@ public class Notice {
     @Column(nullable = false)
     private boolean pinned;
 
-    @Column(name = "view_count", nullable = false)
+    @Column(name = "view_count", nullable = false, updatable = false)
     private int viewCount;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -40,10 +45,6 @@ public class Notice {
         this.viewCount = 0;
     }
 
-    public void incrementViewCount() {
-        this.viewCount++;
-    }
-
     public void update(String title, String content, boolean pinned) {
         this.title = title;
         this.content = content;
@@ -55,5 +56,6 @@ public class Notice {
     public String getContent() { return content; }
     public boolean isPinned() { return pinned; }
     public int getViewCount() { return viewCount; }
+    public long getVersion() { return version; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

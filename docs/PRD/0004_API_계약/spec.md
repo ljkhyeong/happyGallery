@@ -163,7 +163,7 @@ Content-Type: application/json
 }
 ```
 
-- 새 비밀번호는 10~100자다.
+- 새 비밀번호는 10~72자이면서 UTF-8 72바이트 이하다. 현재 비밀번호를 포함한 모든 BCrypt 입력도 UTF-8 72바이트를 넘길 수 없다.
 - 성공: `204 No Content`. 현재 세션을 포함해 해당 관리자에게 발급된 기존 세션을 모두 폐기하므로 새 비밀번호로 다시 로그인해야 한다.
 - 실패:
   - `401 INVALID_CREDENTIALS` — 현재 비밀번호 불일치
@@ -266,7 +266,8 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 
 #### 응답 캐시 정책
 
-- Spring Security 적용으로 기존 공개 조회 API의 `ETag`, `If-None-Match`, `304 Not Modified` 계약은 바뀌지 않는다.
+- 응답 생성에 부수효과가 없는 공개 조회 API만 `ETag`, `If-None-Match`, `304 Not Modified`를 지원한다.
+- 상세 조회마다 조회수를 기록하는 `GET /api/v1/notices/{id}`는 ETag 대상에서 제외하고 `Cache-Control: no-store`를 반환한다.
 - 관리자 전체, `/api/v1/auth/**`, `/api/v1/me`와 `/api/v1/me/**`, `/api/v1/payments/**`, `/api/v1/guest-records/**`, `X-Access-Token`을 제출한 응답은 중앙 보안 정책으로 `Cache-Control: no-store`를 적용한다. 그 밖의 API가 명시한 캐시 정책도 그대로 적용된다.
 
 ### 1.4 민감정보 형식과 오류 노출
@@ -763,7 +764,10 @@ Content-Type: application/json
 ```http
 POST /api/v1/bookings/phone-verifications
 
-{ "phone": "01012345678" }
+{
+  "phone": "01012345678",
+  "purpose": "GUEST_BOOKING"
+}
 ```
 
 ```json
@@ -778,10 +782,12 @@ POST /api/v1/bookings/phone-verifications
   - `400 INVALID_INPUT` — 전화번호 형식 불일치 (`^01[0-9]{8,9}$`)
   - `503 SERVICE_UNAVAILABLE` — 인증 코드를 저장했지만 SMS 발송이 실패하거나 발송 실행기가 요청을 수용하지 못함
 - 정책:
+  - `purpose`는 `SIGNUP`, `PASSWORD_RESET`, `MEMBER_PHONE_REGISTRATION`, `MEMBER_PHONE_CHANGE`, `GUEST_BOOKING`, `GUEST_ORDER`, `GUEST_CLAIM`, `GUEST_RECORD_RECOVERY`, `GUEST_PAYMENT_STATUS_RECOVERY` 중 하나다.
   - 인증 코드는 응답과 서버 로그에 포함하지 않는다.
-  - 인증 코드는 독립 트랜잭션으로 먼저 저장하고 외부 SMS는 트랜잭션 밖에서 호출한다. NHN이 발송 요청을 정상 접수했다고 기록된 코드만 인증에 사용할 수 있다.
-  - 발송 요청 실패 응답 뒤 재요청하면 새 코드를 발급한다. 발급 ID가 더 큰 코드의 접수 완료만 같은 전화번호의 이전 미소모 코드를 무효화하며, 이전 요청의 접수 완료가 늦게 돌아와도 최신 코드 상태를 덮지 않는다.
-  - 개발/테스트 환경에서는 `GET /api/v1/admin/dev/phone-verifications/latest?phone=` 로 코드를 조회할 수 있다.
+  - 인증 코드는 독립 트랜잭션으로 먼저 저장하고 외부 SMS는 트랜잭션 밖에서 호출한다. NHN이 발송 요청을 정상 접수했다고 기록된 코드만 발급 당시 `purpose`에서 사용할 수 있다.
+  - 발송 요청 실패 응답 뒤 재요청하면 새 코드를 발급한다. 발급 ID가 더 큰 코드의 접수 완료만 같은 전화번호·같은 목적의 이전 미소모 코드를 무효화하며, 이전 요청의 접수 완료가 늦게 돌아와도 최신 코드 상태를 덮지 않는다.
+  - 모든 인증 코드 소비 경로는 정규화 전화번호별 확인 시도 제한을 공통 적용하며 Redis 장애 시 fail-closed한다.
+  - 개발/테스트 환경에서는 `GET /api/v1/admin/dev/phone-verifications/latest?phone=&purpose=`로 같은 전화번호·목적의 최신 코드를 조회할 수 있다.
 
 #### ~~2.4.2 게스트 예약 생성~~ (2026-04-22 제거)
 
@@ -1588,6 +1594,7 @@ GET /api/v1/notices
     "title": "4월 클래스 일정 공지",
     "pinned": true,
     "viewCount": 18,
+    "version": 0,
     "createdAt": "2026-03-24T09:00:00"
   }
 ]
@@ -1613,6 +1620,7 @@ GET /api/v1/notices/{id}
   "content": "4월 예약 오픈 일정입니다.",
   "pinned": true,
   "viewCount": 19,
+  "version": 0,
   "createdAt": "2026-03-24T09:00:00"
 }
 ```
@@ -1621,9 +1629,9 @@ GET /api/v1/notices/{id}
 - 에러:
   - `404 NOT_FOUND` — noticeId 미존재
 - 정책:
-  - 상세 조회 시 `viewCount`를 1 증가시킨 뒤 최신 값을 반환한다.
-  - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
-  - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
+  - 상세 조회 시 DB 원자 갱신으로 `viewCount`를 1 증가시킨 뒤 최신 값을 반환한다.
+    동시 조회의 증가분은 서로 유실되지 않고, 관리자 제목·본문 수정도 이미 반영된 조회수를 덮지 않는다.
+  - 매 상세 조회를 서버에 전달하기 위해 `Cache-Control: no-store`를 반환하며 `ETag`와 `304 Not Modified`는 사용하지 않는다.
 
 #### 2.8.3 관리자 공지 CRUD
 
@@ -1633,14 +1641,17 @@ GET /api/v1/notices/{id}
   - 요청: `{ "title": "점검 공지", "content": "3/28 점검 예정", "pinned": true }`
   - 응답: `201 Created` + 공지 상세 응답
 - `PUT /api/v1/admin/notices/{id}`
-  - 요청: `{ "title": "수정 공지", "content": "본문 수정", "pinned": false }`
+  - 요청: `{ "expectedVersion": 0, "title": "수정 공지", "content": "본문 수정", "pinned": false }`
   - 응답: `200 OK` + 공지 상세 응답
-- `DELETE /api/v1/admin/notices/{id}`
+- `DELETE /api/v1/admin/notices/{id}?expectedVersion={version}`
+  - 관리자 목록에서 받은 현재 `version`을 필수 query parameter로 전달
   - 응답: `204 No Content`
 
 공통 에러:
 - `401 UNAUTHORIZED` — 관리자 인증 실패
 - `404 NOT_FOUND` — noticeId 미존재
+- `409 CONFLICT` — 조회 응답의 `version`과 수정·삭제 요청의 `expectedVersion`이 다르거나,
+  비교 직후 다른 관리자 변경이 먼저 반영된 동시 처리 충돌
 
 ### 2.9 관리자 예약 목록 API
 
@@ -2126,6 +2137,7 @@ GET /api/v1/policies/current
 
 - 회원 세션은 `HG_SESSION` HttpOnly 쿠키로 유지한다.
 - 로그인·회원가입·소셜 로그인 성공 시 기존 세션 ID를 회전하고 새 ID로 회원 세션을 유지한다.
+- 로그인·회원가입·소셜 로그인 성공과 명시적 재인증 성공은 현재 회원 ID·자격 버전에 결합된 최근 본인 확인을 해당 세션에 10분간 기록한다. 다른 세션이나 다른 자격 버전에는 재사용할 수 없다.
 - 상태를 변경하는 요청은 1.3의 SPA CSRF 계약에 따라 `X-XSRF-TOKEN` 헤더를 함께 보낸다.
 - 회원 로그인은 이메일/비밀번호(local)와 Google, Naver OAuth2를 함께 지원한다.
 - 소셜 계정은 `user_social_accounts`에 `(provider, provider_id_hmac)`로 저장한다. 한 회원은 Google과 Naver 계정을 각각 하나씩 연결할 수 있다.
@@ -2133,6 +2145,7 @@ GET /api/v1/policies/current
 - Naver 프로필 이메일은 검증된 기준 이메일로 간주하지 않아 충돌 조회와 신규 회원 저장에 사용하지 않는다. 신규 Naver 회원은 provider ID와 이름으로 생성하며 기준 이메일은 `null`이다.
 - 소셜 로그인으로 새로 생성된 회원은 `password_hash`가 비어 있을 수 있다.
 - 이메일 로그인은 존재하지 않는 계정과 로컬 비밀번호가 없는 소셜 전용 계정에도 고정 dummy BCrypt 해시를 한 번 비교하고 모두 `401 INVALID_CREDENTIALS`로 응답한다. 정규화 이메일별 시도는 10회/10분으로 제한하며 Redis 장애 시 fail-closed한다.
+- 회원·관리자 비밀번호 필드는 UTF-8 72바이트 이하로 제한한다. 문자 수가 72 이하여도 UTF-8 바이트 수가 이를 넘으면 `400 INVALID_INPUT`이다.
 - `CustomerUserResponse.email`은 nullable이다. `null`은 검증된 기준 이메일이 없다는 뜻이며, `localPasswordEnabled`는 이메일 로그인 비밀번호가 설정되어 있는지를 나타낸다.
 - 기준 이메일이 있으면 앞뒤 공백을 제거한 소문자, 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일한다. 응답에는 저장된 값을 복호화해 반환한다.
 
@@ -2175,7 +2188,8 @@ POST /api/v1/auth/signup
   - `422 POLICY_CONSENT_REQUIRED` — 현재 정책 버전과 동의가 없거나 일치하지 않음
   - `429 TOO_MANY_REQUESTS` — 회원가입 처리율 제한 초과
 - 정책:
-  - 인증 코드 발급은 2.4.1을 사용한다.
+  - 인증 코드는 2.4.1에서 `purpose=SIGNUP`으로 발급한다.
+  - 비밀번호는 8~72자이면서 UTF-8 72바이트 이하다.
   - 정책 동의를 확인한 뒤 휴대폰 인증 코드부터 검증하고 이메일·전화번호 중복을 조회한다. 따라서 유효한 인증 코드가 없는 요청은 이메일 존재 여부와 관계없이 같은 `PHONE_VERIFICATION_FAILED`를 반환한다.
   - 회원 저장과 인증 코드 1회 소모를 같은 트랜잭션에서 처리하며 성공한 회원은 `phoneVerified=true`다.
   - 같은 전화번호의 회원가입 인증 코드 시도는 5회/10분으로 제한한다.
@@ -2247,12 +2261,13 @@ GET /api/v1/auth/social/callback/{provider}?code=...&state=...
 - 신규 회원 동의 누락·버전 불일치: `302 Found` → `/auth/callback?error=POLICY_CONSENT_REQUIRED`
 - Google 검증 이메일이 기존 기준 이메일과 충돌: `302 Found` → `/auth/callback?error=SOCIAL_ACCOUNT_LINK_REQUIRED`
 - 명시적 계정 연결 성공: `302 Found` → `/auth/callback?linked=GOOGLE|NAVER`
+- 소셜 재인증 성공: `302 Found` → `/auth/callback?reauthenticated=GOOGLE|NAVER`
 - 처리율 제한 초과: `429 TOO_MANY_REQUESTS`
 - 정책:
   - Spring Security가 callback의 `state`와 세션의 authorization request를 비교하고 한 번 사용한 authorization request를 제거한 뒤 code를 토큰으로 교환한다.
   - 신규 가입 callback은 OAuth `state`에 결합된 미사용 가입 의도의 provider·만료를 추가로 검증하고,
     검증한 정책 동의만 회원 생성 트랜잭션에 전달한다.
-  - 연결 callback은 Google ID Token 또는 Naver UserInfo에서 provider와 provider ID를 먼저 확인한 뒤 application의 계정 연결 트랜잭션을 시작한다. 일반 로그인·신규 가입은 Google의 검증 이메일과 이름, Naver의 이름을 요구하며 Naver 프로필 이메일은 버린다.
+  - 연결 callback은 Google ID Token 또는 Naver UserInfo에서 provider와 provider ID를 먼저 확인한 뒤 application의 계정 연결 트랜잭션을 시작한다. 재인증 callback은 같은 provider ID가 현재 회원에게 이미 연결되어 있는지도 확인한다. 일반 로그인·신규 가입은 Google의 검증 이메일과 이름, Naver의 이름을 요구하며 Naver 프로필 이메일은 버린다.
   - 성공 시 세션 ID를 한 번 회전하고 `customerUserId`, `customerCredentialVersion`, `userId:credentialVersion` 형식의 principal 인덱스를 장기 인증 상태로 저장한다.
   - OAuth `SecurityContext`, access token, refresh token은 세션에 저장하지 않는다. 다음 요청은 기존 `CustomerAuthenticationFilter`가 `customerUserId`로 회원 principal을 다시 구성한다.
   - 성공 후 기존 CSRF 토큰이 폐기되므로 클라이언트는 새 CSRF 토큰을 발급받는다.
@@ -2285,6 +2300,18 @@ X-XSRF-TOKEN: {csrfToken}
 ```
 
 ```http
+POST /api/v1/me/social-accounts/{provider}/reauthentication
+Cookie: HG_SESSION={sessionToken}
+X-XSRF-TOKEN: {csrfToken}
+```
+
+```json
+{
+  "authorizationUrl": "/api/v1/auth/social/authorization/google?linkAttempt={oneTimeAttemptId}"
+}
+```
+
+```http
 DELETE /api/v1/me/social-accounts/{provider}
 Cookie: HG_SESSION={sessionToken}
 X-XSRF-TOKEN: {csrfToken}
@@ -2292,18 +2319,22 @@ X-XSRF-TOKEN: {csrfToken}
 
 - `{provider}`: `google` 또는 `naver`
 - 조회 성공: `200 OK`
+- 소셜 재인증 시작 성공: `200 OK`, 현재 회원에게 이미 연결된 provider만 허용
 - 연결 시작 성공: `200 OK`, 브라우저가 응답의 일회성 `linkAttempt`가 포함된 same-origin `authorizationUrl`로 이동
 - 연결 해제 성공: `204 No Content`, 현재 세션을 포함한 기존 회원 세션 폐기
 - 에러:
   - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `403 FORBIDDEN` — 재인증하려는 provider가 현재 회원에게 연결되어 있지 않음
+  - `403 REAUTHENTICATION_REQUIRED` — 최근 본인 확인이 없거나 만료됨
   - `409 LAST_LOGIN_METHOD_REQUIRED` — 해제하면 로컬 비밀번호와 소셜 계정이 모두 사라짐
 - 정책:
-  - 연결 시작은 SPA CSRF 검증을 통과한 로그인 세션에서만 5분짜리 연결 의도와 일회성 `linkAttempt`를 만든다. 연결 의도에는 회원 ID, 자격 버전, provider를 저장한다.
+  - 비밀번호 재인증은 `POST /api/v1/me/reauthentication/password`, 소셜 재인증은 위 provider별 재인증 시작을 사용한다. 두 방식 모두 성공 시 현재 세션·회원 ID·자격 버전에 결합된 증명을 10분간 유지한다.
+  - 연결 시작과 해제는 최근 본인 확인과 SPA CSRF 검증을 모두 통과해야 한다. 연결 시작은 5분짜리 연결 의도와 일회성 `linkAttempt`를 만들며 연결 의도에는 회원 ID, 자격 버전, provider를 저장한다.
   - `linkAttempt`가 일치하는 authorization request가 처음 생성될 때 Spring Security가 만든 OAuth `state`를 연결 의도에 결합한다. 일반 소셜 로그인 시작이나 다른 연결 시도는 이 의도를 이어받지 않는다.
   - 이어지는 OAuth callback은 결합된 `state`, 연결 의도의 provider·만료·자격 버전과 현재 HTTP 세션의 회원 ID·자격 버전을 모두 확인한다.
   - provider ID만 외부 계정 식별과 연결에 사용한다. provider 이메일·이름은 연결 대상 회원을 찾거나 기존 계정 소유권을 증명하는 데 사용하지 않는다.
   - 같은 외부 계정의 재연결은 멱등 처리하지만, 다른 회원의 외부 계정이나 같은 provider의 다른 계정을 자동 이전·교체하지 않는다.
-  - 해제 뒤에도 로컬 비밀번호 또는 다른 소셜 계정이 하나 이상 남아야 한다. 성공하면 `credential_version`을 증가시키고 모든 기존 회원 세션을 폐기해 남은 로그인 수단으로 다시 로그인하게 한다.
+  - 해제 뒤에도 로컬 비밀번호 또는 다른 소셜 계정이 하나 이상 남아야 한다. 새 외부 계정 연결 또는 실제 연결 해제로 로그인 수단 집합이 바뀌면 `credential_version`을 증가시키고 모든 기존 회원 세션을 폐기해 변경 뒤 남은 로그인 수단으로 다시 로그인하게 한다. 이미 같은 외부 계정이 연결된 멱등 요청은 버전과 세션을 바꾸지 않는다.
   - 연결 callback에서 외부 계정이 다른 회원에게 이미 연결되어 있으면 `/auth/callback?error=SOCIAL_ACCOUNT_ALREADY_LINKED`, 현재 회원에게 같은 provider의 다른 계정이 있으면 `/auth/callback?error=SOCIAL_PROVIDER_ALREADY_LINKED`로 이동한다. 연결 의도가 만료됐거나 현재 자격 버전과 다르면 `SOCIAL_LOGIN_FAILED`로 종료한다.
 
 #### 2.12.0.5 회원 휴대폰 등록·변경
@@ -2334,17 +2365,41 @@ Cookie: HG_SESSION={sessionToken}
   - `400 INVALID_INPUT` — 요청 형식 또는 전화번호 형식 불일치
   - `400 PHONE_VERIFICATION_FAILED` — 같은 전화번호의 미소모·유효 인증 코드가 아님
   - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `403 REAUTHENTICATION_REQUIRED` — 최근 본인 확인이 없거나 현재 자격 버전과 다름
   - `409 PHONE_ALREADY_IN_USE` — 다른 회원이 이미 사용하는 전화번호
   - `409 DUPLICATE_BOOKING` — 변경할 번호의 비회원 예약과 회원의 활성 예약이 같은 슬롯에서 충돌
   - `429 TOO_MANY_REQUESTS` — 같은 전화번호의 인증 코드 확인 시도 초과
 - 정책:
-  - 인증 코드 발급은 2.4.1의 `POST /api/v1/bookings/phone-verifications`를 사용한다.
+  - 비밀번호 또는 현재 연결된 소셜 계정으로 최근 본인 확인을 먼저 완료한다.
+  - 최초 등록은 2.4.1에서 `purpose=MEMBER_PHONE_REGISTRATION`, 기존 번호 변경은 `purpose=MEMBER_PHONE_CHANGE`로 인증 코드를 발급한다.
   - 회원 행 잠금 아래 새 번호의 인증 코드를 한 번 소비하고 `phone_enc`, `phone_hmac`, `phone_verified=true`와
     해당 회원의 `BOOKED` 예약 `owner_phone_hmac`을 같은 트랜잭션에서 저장한다.
     활성 예약 중복 제약과 충돌하면 전화번호와 예약 식별자 변경을 모두 롤백한다.
   - 전화번호가 없는 소셜 회원의 최초 등록과 기존 회원의 번호 변경에 같은 API를 사용한다. `users.phone_hmac`은 null 외 값에 UNIQUE 제약을 적용한다.
   - 비회원 이력 가져오기는 `/api/v1/me/guest-claims/**` 계약을 사용하며 번호 변경만으로 자동 이관하지 않는다.
   - `GET /api/v1/me`의 `phone`은 최초 등록 전 `null`일 수 있다.
+
+#### 2.12.0.5.1 비밀번호 최근 본인 확인
+
+```http
+POST /api/v1/me/reauthentication/password
+Cookie: HG_SESSION={sessionToken}
+X-XSRF-TOKEN: {csrfToken}
+
+{
+  "currentPassword": "password123"
+}
+```
+
+- 성공: `204 No Content`, 현재 세션·회원 ID·자격 버전에 결합된 최근 본인 확인을 10분간 기록
+- 에러:
+  - `400 INVALID_INPUT` — 빈 값 또는 UTF-8 72바이트 초과
+  - `401 INVALID_CREDENTIALS` — 현재 비밀번호 불일치 또는 로컬 비밀번호가 없음
+  - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `429 TOO_MANY_REQUESTS` — IP 또는 회원 ID별 시도 초과
+- 정책:
+  - 비밀번호 불일치는 회원 세션 만료가 아니므로 프런트가 자동 로그아웃하지 않는다.
+  - IP와 회원 ID 제한은 Redis 장애 시 fail-closed한다.
 
 #### 2.12.0.6 로그인 비밀번호 변경
 
@@ -2366,7 +2421,7 @@ Cookie: HG_SESSION={sessionToken}
   - `409 LOCAL_PASSWORD_NOT_SET` — 소셜 로그인만 사용하는 회원
   - `422 PASSWORD_UNCHANGED` — 현재 비밀번호와 새 비밀번호가 같음
 - 정책:
-  - 현재 비밀번호는 `PasswordEncoder.matches(...)`로 확인하고 새 비밀번호는 BCrypt로 다시 해시한다. 롤백 호환 기간에는 식별자 없는 형식과 `{bcrypt}` 형식을 모두 읽고 식별자 없는 형식으로 쓴다.
+  - 현재 비밀번호는 `PasswordEncoder.matches(...)`로 확인하고 새 비밀번호는 BCrypt로 다시 해시한다. 두 값 모두 UTF-8 72바이트 이하여야 한다. 롤백 호환 기간에는 식별자 없는 형식과 `{bcrypt}` 형식을 모두 읽고 식별자 없는 형식으로 쓴다.
   - 성공하면 `credential_version`을 증가시키고 현재 요청을 포함한 모든 회원 세션을 무효화한다.
   - 검증된 기준 이메일이 있는 소셜 전용 회원은 이 API 대신 2.12.0.7의 SMS 재설정으로 최초 로컬 비밀번호를 설정한다. 기준 이메일이 없는 Naver 전용 회원은 사용할 수 없다.
 
@@ -2391,7 +2446,8 @@ POST /api/v1/auth/password/reset
   - `429 TOO_MANY_REQUESTS` — IP 또는 전화번호별 확인 시도 초과
   - `503 SERVICE_UNAVAILABLE` — fail-closed 처리율 제한 저장소 장애
 - 정책:
-  - 검증된 기준 이메일이 저장된 회원만 사용할 수 있다. 이메일과 회원에게 저장된 `phoneVerified=true` 전화번호가 일치하고, 같은 번호의 미소모·유효 SMS 코드를 한 번 소비해야 한다.
+  - 검증된 기준 이메일이 저장된 회원만 사용할 수 있다. 이메일과 회원에게 저장된 `phoneVerified=true` 전화번호가 일치하고, `purpose=PASSWORD_RESET`으로 발급한 같은 번호의 미소모·유효 SMS 코드를 한 번 소비해야 한다.
+  - 새 비밀번호는 8~72자이면서 UTF-8 72바이트 이하다.
   - 계정·전화번호·인증코드 중 어느 값이 틀렸는지는 `PASSWORD_RESET_FAILED` 하나로 응답해 계정 존재 여부를 구분하지 못하게 한다.
   - `password_hash=null`이면서 기준 이메일이 있는 Google 소셜 전용 회원도 성공할 수 있으며, 성공 후 이메일 로그인이 활성화된다. 신규 Naver 전용 회원은 자체 이메일 검증·등록 기능이 도입되기 전까지 이 경로를 사용할 수 없다.
   - 성공하면 `credential_version`을 증가시키고 해당 회원의 모든 세션을 무효화한다.
@@ -2406,9 +2462,12 @@ Cookie: HG_SESSION={sessionToken}
 - 성공: `204 No Content`, 현재 세션을 포함한 기존 회원 세션 폐기
 - 에러:
   - `401 UNAUTHORIZED` — 회원 세션 없음
+  - `403 REAUTHENTICATION_REQUIRED` — 최근 본인 확인이 없거나 현재 자격 버전과 다름
   - `422 ACCOUNT_WITHDRAWAL_BLOCKED` — 미종결 결제 시도·주문·클레임·예약, 미완료 예약 취소 후속 작업·환불 또는 사용 가능한 미만료 8회권이 있음
 - 정책:
+  - 비밀번호 또는 현재 연결된 소셜 계정으로 최근 본인 확인을 먼저 완료한다. 화면의 `탈퇴` 확인 문자열은 의사 확인이며 이 소유권 증명을 대신하지 않는다.
   - 회원 행을 잠그고 차단 활동을 다시 확인해 탈퇴와 새 거래 생성을 직렬화한다.
+  - 잠근 회원 행의 현재 `credential_version`이 세션 재인증 증명의 예상 버전과 다르면 탈퇴하지 않는다.
   - 이메일·이름은 재사용 가능한 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한다. `withdrawnAt`과 새 자격 버전을 저장하며 주문·예약·정산 이력은 보존한다.
   - 탈퇴 회원은 로그인과 일반 회원 조회에서 제외한다. 커밋 뒤 이전 자격 버전의 Redis 세션을 폐기한다.
 
@@ -3089,11 +3148,15 @@ Content-Type: application/json
   "naverBlogUrl": "https://blog.naver.com/ssim1972",
   "instagramUrl": "https://www.instagram.com/happygallery_by/",
   "smartStoreUrl": "https://smartstore.naver.com/happygallery",
-  "updatedAt": "2026-07-21T10:00:00"
+  "updatedAt": "2026-07-21T10:00:00",
+  "version": 0
 }
 ```
 
 - `name`은 필수이고 나머지 안내 필드는 선택값이다. `businessRegistrationNumber`는 값이 있으면 `000-00-00000` 형식이고, `email`은 표준 이메일 형식과 254자 상한을 적용해 소문자로 저장한다. `mapUrl`, `naverTalkUrl`, `naverBlogUrl`, `instagramUrl`, `smartStoreUrl`은 값이 있으면 500자 이하의 HTTP(S) 주소여야 한다. 공개·관리자 응답은 같은 구조를 사용한다.
+- 관리자 전체 갱신 요청은 조회 응답의 `version`을 필수 `expectedVersion`으로 함께 보낸다.
+  서비스가 현재 버전과 먼저 비교하고, 비교 직후의 경쟁은 JPA 낙관적 잠금이 최종 차단한다.
+  두 충돌 모두 `409 CONFLICT`를 반환한다.
 - 기존 네이버톡톡 사용 여부 불리언 필드는 제거하고 `naverTalkUrl`로 대체한다. 네이버톡톡 문의 제공 여부는 `naverTalkUrl` 값의 존재로 판단하며, 클라이언트는 응답 URL을 그대로 링크에 사용한다.
 - 기준 프로필은 제공된 대표자명, 전자우편주소와 통신판매업 신고번호를 저장한다. `prod`에서는 이 값들과 연락처·주소·사업자등록번호가 모두 입력되기 전 결제 prepare를 `503 SERVICE_UNAVAILABLE`로 차단한다.
 
@@ -3148,6 +3211,7 @@ file={JPEG|PNG|WebP binary}
 | 401 | `UNAUTHORIZED` | 보호된 API에 유효한 관리자 또는 회원 인증 없이 접근 |
 | 401 | `INVALID_CREDENTIALS` | 로그인 자격 증명 또는 현재 비밀번호 불일치 |
 | 403 | `FORBIDDEN` | 인증은 됐지만 요청 권한이 없거나 CSRF 토큰이 없거나 일치하지 않음 |
+| 403 | `REAUTHENTICATION_REQUIRED` | 민감한 계정 변경 전에 필요한 최근 본인 확인이 없거나 만료됨 |
 | 404 | `NOT_FOUND` | 주문·예약·이용권·상품 미존재 |
 | 405 | `METHOD_NOT_ALLOWED` | 존재하는 경로에 허용되지 않은 HTTP 메서드 요청 |
 | 406 | `NOT_ACCEPTABLE` | 요청한 응답 미디어 타입을 제공할 수 없음 |

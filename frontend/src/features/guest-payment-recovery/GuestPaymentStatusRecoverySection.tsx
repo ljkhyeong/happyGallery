@@ -35,6 +35,7 @@ export function GuestPaymentStatusRecoverySection() {
     <Card className="mb-4">
       <Card.Body className="p-4">
         <PhoneVerificationStep
+          purpose="GUEST_PAYMENT_STATUS_RECOVERY"
           title="처리 중인 결제 결과 복구"
           description="결제 완료 화면을 닫았거나 결제 상태 조회 정보가 없다면 결제 때 사용한 휴대폰 번호를 인증하세요. 해당 번호의 결제 목록과 상태 조회 권한을 복구합니다."
           confirmLabel="결제 결과 복구"

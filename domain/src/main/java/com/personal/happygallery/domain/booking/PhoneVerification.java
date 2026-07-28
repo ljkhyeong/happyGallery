@@ -8,6 +8,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import java.time.LocalDateTime;
@@ -33,6 +35,10 @@ public class PhoneVerification {
     @Column(name = "phone_hmac", nullable = false, length = 64)
     private String phoneHmac;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 40)
+    private PhoneVerificationPurpose purpose;
+
     @Column(name = "code_hmac", nullable = false, length = 64)
     private String codeHmac;
 
@@ -53,9 +59,13 @@ public class PhoneVerification {
 
     protected PhoneVerification() {}
 
-    public PhoneVerification(String phone, String code, LocalDateTime expiresAt) {
+    public PhoneVerification(String phone,
+                             String code,
+                             PhoneVerificationPurpose purpose,
+                             LocalDateTime expiresAt) {
         this.phone = KoreanPhoneNumber.required(phone);
         this.code = requireCode(code);
+        this.purpose = java.util.Objects.requireNonNull(purpose, "purpose");
         this.expiresAt = expiresAt;
         this.delivered = false;
         this.verified = false;
@@ -86,6 +96,7 @@ public class PhoneVerification {
     public String getPhone() { return phone; }
     public String getCode() { return code; }
     public String getPhoneHmac() { return phoneHmac; }
+    public PhoneVerificationPurpose getPurpose() { return purpose; }
     public String getCodeHmac() { return codeHmac; }
     public String getCodeEnc() { return codeEnc; }
     public boolean isDelivered() { return delivered; }

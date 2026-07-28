@@ -312,6 +312,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
+                                  "expectedVersion": 0,
                                   "name": "해피갤러리",
                                   "phone": "010-9635-5608",
                                   "postalCode": null,

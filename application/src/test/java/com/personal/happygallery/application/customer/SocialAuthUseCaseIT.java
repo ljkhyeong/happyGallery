@@ -6,6 +6,8 @@ import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRep
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLoginCommand;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLinkCommand;
+import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialUnlinkCommand;
+import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialReauthenticationCommand;
 import com.personal.happygallery.application.customer.port.out.SocialAccountStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -23,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
@@ -191,16 +194,58 @@ class SocialAuthUseCaseIT {
                 naverLogin.user().getId(),
                 naverLogin.user().getCredentialVersion(),
                 SocialProvider.GOOGLE,
-                "google-account-id"));
-        socialAuth.unlinkSocialAccount(naverLogin.user().getId(), SocialProvider.NAVER);
+                "google-account-id",
+                true));
+        long linkedCredentialVersion = userRepository.findById(naverLogin.user().getId())
+                .orElseThrow()
+                .getCredentialVersion();
+        socialAuth.unlinkSocialAccount(new SocialUnlinkCommand(
+                naverLogin.user().getId(),
+                linkedCredentialVersion,
+                SocialProvider.NAVER,
+                true));
 
         assertThat(socialAuth.listLinkedProviders(naverLogin.user().getId()))
                 .containsExactly(SocialProvider.GOOGLE);
-        assertThatThrownBy(() -> socialAuth.unlinkSocialAccount(
-                naverLogin.user().getId(), SocialProvider.GOOGLE))
+        long unlinkedCredentialVersion = userRepository.findById(naverLogin.user().getId())
+                .orElseThrow()
+                .getCredentialVersion();
+        assertThatThrownBy(() -> socialAuth.unlinkSocialAccount(new SocialUnlinkCommand(
+                naverLogin.user().getId(),
+                unlinkedCredentialVersion,
+                SocialProvider.GOOGLE,
+                true)))
                 .isInstanceOf(HappyGalleryException.class)
                 .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.LAST_LOGIN_METHOD_REQUIRED);
+    }
+
+    @DisplayName("소셜 재인증은 현재 회원에게 연결된 동일 제공자 식별자만 허용한다")
+    @Test
+    void verifiesExactLinkedSocialIdentity() {
+        var login = socialAuth.socialLogin(new SocialLoginCommand(
+                SocialProvider.GOOGLE,
+                "reauthentication-google-id",
+                "social-reauthentication@example.com",
+                "소셜 재인증 사용자",
+                acceptedPolicies()));
+        SocialReauthenticationCommand matching = new SocialReauthenticationCommand(
+                login.user().getId(),
+                login.user().getCredentialVersion(),
+                SocialProvider.GOOGLE,
+                "reauthentication-google-id");
+
+        assertThatCode(() -> socialAuth.verifyLinkedSocialAccount(matching))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> socialAuth.verifyLinkedSocialAccount(
+                new SocialReauthenticationCommand(
+                        login.user().getId(),
+                        login.user().getCredentialVersion(),
+                        SocialProvider.GOOGLE,
+                        "different-google-id")))
+                .isInstanceOf(HappyGalleryException.class)
+                .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.SOCIAL_LOGIN_FAILED);
     }
 
     private LoginOutcome loginAfter(CountDownLatch ready,

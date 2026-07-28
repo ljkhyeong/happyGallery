@@ -110,3 +110,24 @@ export const startMySocialAccountLink = async (provider: 'google' | 'naver', opt
 
   }
 );}
+
+
+
+export const getStartMySocialReauthenticationUrl = (provider: 'google' | 'naver',) => {
+
+
+
+
+  return `/api/v1/me/social-accounts/${provider}/reauthentication`
+}
+
+export const startMySocialReauthentication = async (provider: 'google' | 'naver', options?: RequestInit): Promise<SocialAccountAuthorizationResponse> => {
+
+  return generatedApiClient<SocialAccountAuthorizationResponse>(getStartMySocialReauthenticationUrl(provider),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}

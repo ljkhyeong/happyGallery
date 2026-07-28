@@ -7,6 +7,7 @@ import com.personal.happygallery.application.customer.port.out.GuestRecordRecove
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.application.token.GuestTokenService.IssuedToken;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.order.Order;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -37,7 +38,8 @@ public class DefaultGuestRecordRecoveryService implements GuestRecordRecoveryUse
 
     @Override
     public RecoveryResult recover(String phone, String verificationCode) {
-        phoneOwnershipVerification.verify(phone, verificationCode);
+        phoneOwnershipVerification.verify(
+                phone, verificationCode, PhoneVerificationPurpose.GUEST_RECORD_RECOVERY);
 
         IssuedToken token = guestTokenService.issueRecoveryToken();
         return guestReader.findByPhoneHmac(guestPersonalDataProtector.indexPhone(phone))

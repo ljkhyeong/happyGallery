@@ -141,7 +141,11 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
         Sentry.captureException(error);
       });
     }
-    if (response.status === 401 && customerSessionVersion !== undefined) {
+    if (
+      response.status === 401
+      && error.code === "UNAUTHORIZED"
+      && customerSessionVersion !== undefined
+    ) {
       publishCustomerSessionExpired(customerSessionVersion);
     }
     throw error;

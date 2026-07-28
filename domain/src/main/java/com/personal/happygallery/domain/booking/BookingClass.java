@@ -97,13 +97,26 @@ public class BookingClass {
         }
         this.durationMin = durationMin;
         this.bufferMin = bufferMin;
-        updateDetails(
+        applyDetails(
                 name, category, price, passEligible,
                 description, imageUrl, preparationInfo, targetAudience);
         this.status = BookingClassStatus.ACTIVE;
     }
 
     public void updateDetails(String name,
+                              String category,
+                              long price,
+                              boolean passEligible,
+                              String description,
+                              String imageUrl,
+                              String preparationInfo,
+                              String targetAudience) {
+        applyDetails(
+                name, category, price, passEligible,
+                description, imageUrl, preparationInfo, targetAudience);
+    }
+
+    private void applyDetails(String name,
                               String category,
                               long price,
                               boolean passEligible,

@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Button, Form, Modal } from "react-bootstrap";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { changePassword } from "./credentialApi";
+import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 
 interface Props {
   show: boolean;
@@ -28,7 +29,8 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
   const passwordMatches = newPassword === confirmation;
   const canSubmit = currentPassword.length >= 8
     && newPassword.length >= 8
-    && newPassword.length <= 100
+    && isPasswordWithinByteLimit(currentPassword)
+    && isPasswordWithinByteLimit(newPassword)
     && passwordMatches
     && currentPassword !== newPassword;
 
@@ -66,7 +68,7 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
               minLength={8}
-              maxLength={100}
+              maxLength={72}
               required
               autoFocus
             />
@@ -79,7 +81,7 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
               minLength={8}
-              maxLength={100}
+              maxLength={72}
               isInvalid={newPassword.length >= 8 && currentPassword === newPassword}
               required
             />
@@ -87,7 +89,9 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
               현재 비밀번호와 다른 값을 입력하세요.
             </Form.Control.Feedback>
             {(currentPassword !== newPassword || newPassword.length < 8) && (
-              <Form.Text className="text-muted">8자 이상 입력하세요.</Form.Text>
+              <Form.Text className="text-muted">
+                8자 이상, UTF-8 기준 72바이트 이하로 입력하세요.
+              </Form.Text>
             )}
           </Form.Group>
           <Form.Group controlId="new-password-confirmation">
@@ -97,7 +101,7 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
               autoComplete="new-password"
               value={confirmation}
               onChange={(event) => setConfirmation(event.target.value)}
-              maxLength={100}
+              maxLength={72}
               isInvalid={confirmation.length > 0 && !passwordMatches}
               required
             />

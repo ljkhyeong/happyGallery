@@ -31,6 +31,7 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   PASS_EXPIRED: "이용권이 만료되었습니다.",
   PASS_CREDIT_INSUFFICIENT: "이용권 잔여 횟수가 부족합니다.",
   PASS_NOT_APPLICABLE: "선택한 클래스에는 이 이용권을 사용할 수 없습니다.",
+  CLASS_INACTIVE: "현재 운영하지 않는 클래스입니다.",
   PHONE_VERIFICATION_REQUIRED: "휴대폰 번호를 인증한 뒤 다시 시도해 주세요.",
   POLICY_CONSENT_REQUIRED: "현재 이용약관과 개인정보처리방침을 확인하고 동의해 주세요.",
   PHONE_ALREADY_IN_USE: "이미 다른 계정에서 사용 중인 휴대폰 번호입니다.",
@@ -46,6 +47,7 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   PAYMENT_FAILED: "결제가 승인되지 않았습니다. 결제 수단을 확인해 주세요.",
   SERVICE_UNAVAILABLE: "서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
   FORBIDDEN: "요청한 작업을 수행할 권한이 없습니다.",
+  REAUTHENTICATION_REQUIRED: "계정 정보를 변경하려면 본인 확인을 다시 진행해 주세요.",
   INTERNAL_ERROR: "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
 };
 

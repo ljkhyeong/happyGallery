@@ -2,12 +2,15 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.customer.dto.ChangePasswordRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.ResetPasswordRequest;
-import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
+import com.personal.happygallery.adapter.in.web.customer.dto.PasswordReauthenticationRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerStepUpAuthenticationStore;
+import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.application.customer.port.in.CustomerCredentialUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerCredentialUseCase.ChangePasswordCommand;
 import com.personal.happygallery.application.customer.port.in.CustomerCredentialUseCase.ResetPasswordCommand;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -26,14 +29,30 @@ public class CustomerCredentialController {
 
     private final CustomerCredentialUseCase credentials;
     private final CustomerSessionBinder customerSessionBinder;
+    private final CustomerStepUpAuthenticationStore stepUpAuthenticationStore;
     private final SubjectRateLimitGuard rateLimitGuard;
 
     public CustomerCredentialController(CustomerCredentialUseCase credentials,
                                         CustomerSessionBinder customerSessionBinder,
+                                        CustomerStepUpAuthenticationStore stepUpAuthenticationStore,
                                         SubjectRateLimitGuard rateLimitGuard) {
         this.credentials = credentials;
         this.customerSessionBinder = customerSessionBinder;
+        this.stepUpAuthenticationStore = stepUpAuthenticationStore;
         this.rateLimitGuard = rateLimitGuard;
+    }
+
+    @PostMapping("/me/reauthentication/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "reauthenticateMyPassword")
+    public void reauthenticatePassword(
+            @RequestBody @Valid PasswordReauthenticationRequest request,
+            @AuthenticationPrincipal CustomerPrincipal customer,
+            HttpServletRequest httpRequest) {
+        rateLimitGuard.checkCustomerReauthentication(customer.userId());
+        credentials.verifyPassword(customer.userId(), request.currentPassword());
+        stepUpAuthenticationStore.markVerified(
+                httpRequest, customer.userId(), customer.credentialVersion());
     }
 
     @PatchMapping("/me/password")
@@ -53,7 +72,6 @@ public class CustomerCredentialController {
                               HttpServletRequest httpRequest,
                               HttpServletResponse httpResponse) {
         String phone = KoreanPhoneNumber.required(request.phone());
-        rateLimitGuard.checkPhoneVerificationAttempt(phone);
         Long userId = credentials.resetPassword(new ResetPasswordCommand(
                 request.email(), phone, request.verificationCode(), request.newPassword()));
         customerSessionBinder.unbindIfBoundTo(

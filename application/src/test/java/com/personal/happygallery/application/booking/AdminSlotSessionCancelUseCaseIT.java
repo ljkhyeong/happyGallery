@@ -12,6 +12,8 @@ import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
+import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.pass.port.out.PassLedgerReaderPort;
@@ -83,6 +85,7 @@ class AdminSlotSessionCancelUseCaseIT {
     @Autowired GuestStorePort guestStorePort;
     @Autowired UserStorePort userStorePort;
     @Autowired CustomerAccountLifecycleUseCase accountLifecycleUseCase;
+    @Autowired UserReaderPort userReaderPort;
     @Autowired PassPurchaseStorePort passPurchaseStorePort;
     @Autowired PassPurchaseReaderPort passPurchaseReaderPort;
     @Autowired PassLedgerReaderPort passLedgerReaderPort;
@@ -138,7 +141,13 @@ class AdminSlotSessionCancelUseCaseIT {
         var repeatedCompletion = bookingCancellationTaskUseCase.complete(balanceTask.taskId(), 99L);
         List<TaskView> remainingTasks =
                 bookingCancellationTaskUseCase.listPending();
-        assertThatThrownBy(() -> accountLifecycleUseCase.withdraw(expiredPass.pass().getUserId()))
+        User expiredPassOwner = userReaderPort
+                .findById(expiredPass.pass().getUserId())
+                .orElseThrow();
+        assertThatThrownBy(() -> accountLifecycleUseCase.withdraw(new WithdrawCommand(
+                expiredPassOwner.getId(),
+                expiredPassOwner.getCredentialVersion(),
+                true)))
                 .isInstanceOfSatisfying(HappyGalleryException.class, error ->
                         assertThat(error.getErrorCode())
                                 .isEqualTo(ErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED));

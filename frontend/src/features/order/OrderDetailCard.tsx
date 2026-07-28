@@ -27,11 +27,11 @@ export function OrderDetailCard({ order }: Props) {
           </Col>
           <Col xs={6}>
             <small className="text-muted-soft d-block">결제일</small>
-            <span>{formatDateTime(order.paidAt)}</span>
+            <span>{order.paidAt ? formatDateTime(order.paidAt) : "-"}</span>
           </Col>
           <Col xs={6}>
             <small className="text-muted-soft d-block">승인 마감</small>
-            <span>{formatDateTime(order.approvalDeadlineAt)}</span>
+            <span>{order.approvalDeadlineAt ? formatDateTime(order.approvalDeadlineAt) : "-"}</span>
           </Col>
         </Row>
 

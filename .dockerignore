@@ -3,7 +3,7 @@
 **/build
 !bootstrap/build/
 !bootstrap/build/libs/
-!bootstrap/build/libs/*.jar
+!bootstrap/build/libs/happygallery-app.jar
 frontend/node_modules
 frontend/dist
 .env

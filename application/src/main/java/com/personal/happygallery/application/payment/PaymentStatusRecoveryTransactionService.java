@@ -9,6 +9,7 @@ import com.personal.happygallery.application.token.GuestTokenProperties;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.application.token.GuestTokenService.IssuedToken;
 import com.personal.happygallery.domain.booking.Refund;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
@@ -65,7 +66,10 @@ class PaymentStatusRecoveryTransactionService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void verifyPhoneOwnership(String phone, String verificationCode) {
-        phoneOwnershipVerification.verify(phone, verificationCode);
+        phoneOwnershipVerification.verify(
+                phone,
+                verificationCode,
+                PhoneVerificationPurpose.GUEST_PAYMENT_STATUS_RECOVERY);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

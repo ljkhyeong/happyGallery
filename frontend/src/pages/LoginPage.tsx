@@ -5,6 +5,7 @@ import { buildAuthPageHref, resolveSafeReturnTo } from "@/features/customer-auth
 import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { ErrorAlert } from "@/shared/ui";
+import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 
 export function LoginPage() {
   const { login } = useCustomerAuth();
@@ -28,6 +29,7 @@ export function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isPasswordWithinByteLimit(password)) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -114,9 +116,14 @@ export function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={8}
+                    maxLength={72}
                   />
                 </Form.Group>
-                <Button type="submit" className="w-100" disabled={submitting}>
+                <Button
+                  type="submit"
+                  className="w-100"
+                  disabled={submitting || !isPasswordWithinByteLimit(password)}
+                >
                   {submitting ? "로그인 중..." : "로그인"}
                 </Button>
               </Form>

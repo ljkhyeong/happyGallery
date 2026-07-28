@@ -18,7 +18,8 @@ class GuestPaymentVerificationServiceTest {
     @Test
     void proof_isBoundToPaymentContextOrderIdAndPhone() {
         AtomicInteger consumed = new AtomicInteger();
-        PhoneOwnershipVerificationUseCase ownershipVerification = (phone, code) -> consumed.incrementAndGet();
+        PhoneOwnershipVerificationUseCase ownershipVerification =
+                (phone, code, purpose) -> consumed.incrementAndGet();
         GuestPaymentVerificationService service = new GuestPaymentVerificationService(
                 ownershipVerification,
                 new GuestTokenProperties("active-secret-must-be-at-least-32-characters", "", 720, 24));

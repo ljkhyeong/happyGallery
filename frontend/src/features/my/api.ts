@@ -1,14 +1,14 @@
 import { listMyBookings as requestMyBookings } from "@/generated/api/booking";
 import { api } from "@/shared/api";
-import type { MemberPassRefundResponse, RefundProgress } from "@/shared/types";
+import type { MemberPassRefundResponse, OrderStatus, RefundProgress } from "@/shared/types";
 
 export type { MyBookingSummary } from "@/generated/api/booking";
 
 export interface MyOrderSummary {
   orderId: number;
-  status: string;
+  status: OrderStatus;
   totalAmount: number;
-  paidAt: string;
+  paidAt: string | null;
   createdAt: string;
 }
 

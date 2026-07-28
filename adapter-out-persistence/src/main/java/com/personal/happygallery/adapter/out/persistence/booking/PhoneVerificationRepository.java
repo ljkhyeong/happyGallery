@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.booking;
 
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -17,24 +18,36 @@ public interface PhoneVerificationRepository extends JpaRepository<PhoneVerifica
      * 조건: phone + code 일치 & verified=false & expiresAt > now
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<PhoneVerification> findByPhoneHmacAndCodeHmacAndDeliveredTrueAndVerifiedFalseAndExpiresAtAfter(
-            String phoneHmac, String codeHmac, LocalDateTime now);
+    Optional<PhoneVerification>
+    findByPhoneHmacAndPurposeAndCodeHmacAndDeliveredTrueAndVerifiedFalseAndExpiresAtAfter(
+            String phoneHmac,
+            PhoneVerificationPurpose purpose,
+            String codeHmac,
+            LocalDateTime now);
 
-    /** 전화번호 기준 가장 최근 발송 성공·미소모 인증 코드 조회 (local dev/E2E 전용). */
-    Optional<PhoneVerification> findTopByPhoneHmacAndDeliveredTrueAndVerifiedFalseOrderByIdDesc(String phoneHmac);
+    /** 전화번호와 목적 기준 가장 최근 발송 성공·미소모 인증 코드 조회 (local dev/E2E 전용). */
+    Optional<PhoneVerification>
+    findTopByPhoneHmacAndPurposeAndDeliveredTrueAndVerifiedFalseOrderByIdDesc(
+            String phoneHmac,
+            PhoneVerificationPurpose purpose);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<PhoneVerification> findByIdAndPhoneHmac(Long id, String phoneHmac);
+    Optional<PhoneVerification> findByIdAndPhoneHmacAndPurpose(
+            Long id,
+            String phoneHmac,
+            PhoneVerificationPurpose purpose);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update PhoneVerification verification
                set verification.verified = true
              where verification.phoneHmac = :phoneHmac
+               and verification.purpose = :purpose
                and verification.id < :verificationId
                and verification.verified = false
             """)
     void invalidateEarlierUnconsumedForPhone(@Param("phoneHmac") String phoneHmac,
+                                             @Param("purpose") PhoneVerificationPurpose purpose,
                                              @Param("verificationId") Long verificationId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)

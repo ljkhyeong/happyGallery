@@ -9,6 +9,12 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { getUserMessage } from "@/shared/lib";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 import { LoadingSpinner } from "@/shared/ui";
+import {
+  startSocialAccountLink,
+  unlinkSocialAccount,
+} from "@/features/customer-auth/socialAccountApi";
+import type { SocialProvider } from "@/features/customer-auth/socialAuth";
+import { ApiError } from "@/shared/api";
 
 export function SocialCallbackPage() {
   const [searchParams] = useSearchParams();
@@ -28,10 +34,20 @@ export function SocialCallbackPage() {
 
     const pendingSocialAccountLink = sessionStorage.getItem(SESSION_KEYS.socialAccountLink);
     sessionStorage.removeItem(SESSION_KEYS.socialAccountLink);
+    const pendingSocialReauthentication =
+      sessionStorage.getItem(SESSION_KEYS.socialReauthentication);
+    sessionStorage.removeItem(SESSION_KEYS.socialReauthentication);
+    const clearPendingStepUpActions = () => {
+      sessionStorage.removeItem(SESSION_KEYS.socialAccountLinkTarget);
+      sessionStorage.removeItem(SESSION_KEYS.socialAccountUnlinkTarget);
+      sessionStorage.removeItem(SESSION_KEYS.stepUpReturnAction);
+    };
 
     const errorCode = searchParams.get("error");
     if (errorCode) {
-      setLinkCallback(pendingSocialAccountLink !== null);
+      setLinkCallback(
+        pendingSocialAccountLink !== null || pendingSocialReauthentication !== null,
+      );
       if (errorCode === "POLICY_CONSENT_REQUIRED") {
         const returnTo = resolveSafeReturnTo(
           sessionStorage.getItem(SESSION_KEYS.socialLoginReturnTo),
@@ -40,26 +56,78 @@ export function SocialCallbackPage() {
         setSignupHref(buildAuthPageHref("/signup", { redirectTo: returnTo }));
       }
       sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
+      clearPendingStepUpActions();
       setError(getUserMessage(errorCode) ?? "소셜 로그인에 실패했습니다. 다시 시도해 주세요.");
       return;
     }
 
     void (async () => {
-      const user = await refresh();
+      try {
+        const user = await refresh();
 
-      const linkedProvider = searchParams.get("linked");
-      if (linkedProvider) {
-        navigate("/my", { replace: true, state: { socialAccountLinked: linkedProvider } });
-        return;
-      }
+        if (searchParams.get("reauthenticated")) {
+          const linkTarget = sessionStorage.getItem(
+            SESSION_KEYS.socialAccountLinkTarget,
+          ) as SocialProvider | null;
+          const unlinkTarget = sessionStorage.getItem(
+            SESSION_KEYS.socialAccountUnlinkTarget,
+          ) as SocialProvider | null;
+          const returnAction = sessionStorage.getItem(SESSION_KEYS.stepUpReturnAction);
+          clearPendingStepUpActions();
+          if (linkTarget) {
+            const { authorizationUrl } = await startSocialAccountLink(linkTarget);
+            sessionStorage.setItem(SESSION_KEYS.socialAccountLink, linkTarget);
+            window.location.assign(authorizationUrl);
+            return;
+          }
+          if (unlinkTarget) {
+            await unlinkSocialAccount(unlinkTarget);
+            window.location.assign(buildAuthPageHref("/login", { redirectTo: "/my" }));
+            return;
+          }
+          navigate("/my", {
+            replace: true,
+            state: {
+              phoneChangeRequested: returnAction === "phone-change",
+              accountWithdrawalRequested:
+                returnAction === "account-withdrawal",
+            },
+          });
+          return;
+        }
 
-      const returnTo = resolveSafeReturnTo(sessionStorage.getItem(SESSION_KEYS.socialLoginReturnTo));
-      sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
+        const linkedProvider = searchParams.get("linked");
+        if (linkedProvider) {
+          navigate(
+            user ? "/my" : buildAuthPageHref("/login", { redirectTo: "/my" }),
+            { replace: true, state: user ? { socialAccountLinked: linkedProvider } : null },
+          );
+          return;
+        }
 
-      if (searchParams.get("newUser") === "true" || user?.phone === null) {
-        navigate("/my", { replace: true, state: { phoneOnboarding: true } });
-      } else {
-        navigate(returnTo, { replace: true });
+        const returnTo = resolveSafeReturnTo(
+          sessionStorage.getItem(SESSION_KEYS.socialLoginReturnTo),
+        );
+        sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
+
+        if (searchParams.get("newUser") === "true" || user?.phone === null) {
+          navigate("/my", { replace: true, state: { phoneOnboarding: true } });
+        } else {
+          navigate(returnTo, { replace: true });
+        }
+      } catch (error) {
+        clearPendingStepUpActions();
+        sessionStorage.removeItem(SESSION_KEYS.socialAccountLink);
+        sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
+        setLinkCallback(
+          pendingSocialAccountLink !== null
+          || pendingSocialReauthentication !== null,
+        );
+        setError(
+          error instanceof ApiError
+            ? getUserMessage(error.code) ?? error.message
+            : "소셜 계정 처리를 완료하지 못했습니다. 다시 시도해 주세요.",
+        );
       }
     })();
   }, [navigate, refresh, searchParams]);

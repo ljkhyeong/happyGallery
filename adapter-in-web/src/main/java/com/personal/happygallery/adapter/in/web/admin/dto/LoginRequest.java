@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
+import com.personal.happygallery.adapter.in.web.validation.Utf8ByteLength;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -12,4 +13,4 @@ public record LoginRequest(
         @Pattern(regexp = "^[A-Za-z0-9._-]+$", message = "username 형식이 올바르지 않습니다.")
         String username,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank @Size(max = 100) String password) {}
+        @NotBlank @Size(max = 72) @Utf8ByteLength(max = 72) String password) {}

@@ -3,6 +3,7 @@ import { Button, Form } from "react-bootstrap";
 import { ErrorAlert } from "@/shared/ui";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { changeAdminPassword } from "./api";
+import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 
 interface Props {
   adminKey: string;
@@ -17,7 +18,8 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
   const confirmationMismatch = confirmation.length > 0 && confirmation !== newPassword;
   const canSubmit = currentPassword.length > 0
     && newPassword.length >= 10
-    && newPassword.length <= 100
+    && isPasswordWithinByteLimit(currentPassword)
+    && isPasswordWithinByteLimit(newPassword)
     && confirmation === newPassword;
 
   const mutation = useAdminMutation(onAuthError, {
@@ -39,7 +41,7 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
             <Form.Control
               type="password"
               autoComplete="current-password"
-              maxLength={100}
+              maxLength={72}
               value={currentPassword}
               disabled={mutation.isPending}
               onChange={(event) => setCurrentPassword(event.target.value)}
@@ -53,7 +55,7 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
               type="password"
               autoComplete="new-password"
               minLength={10}
-              maxLength={100}
+              maxLength={72}
               value={newPassword}
               isInvalid={newPassword.length > 0 && newPassword.length < 10}
               disabled={mutation.isPending}
@@ -70,7 +72,7 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
             <Form.Control
               type="password"
               autoComplete="new-password"
-              maxLength={100}
+              maxLength={72}
               value={confirmation}
               isInvalid={confirmationMismatch}
               disabled={mutation.isPending}

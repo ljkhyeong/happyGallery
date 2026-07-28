@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.customer;
 
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.CustomerAccountActivityPort;
 import com.personal.happygallery.application.customer.port.out.SocialAccountStorePort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
@@ -43,19 +44,28 @@ public class DefaultCustomerAccountLifecycleService implements CustomerAccountLi
 
     @Override
     @Transactional
-    public void withdraw(Long userId) {
-        User user = userReader.findByIdForUpdate(userId)
+    public void withdraw(WithdrawCommand command) {
+        User user = userReader.findByIdForUpdate(command.userId())
                 .orElseThrow(NotFoundException.supplier("회원"));
+        if (user.getCredentialVersion() != command.credentialVersion()) {
+            throw new HappyGalleryException(ErrorCode.UNAUTHORIZED);
+        }
+        if (!command.recentlyReauthenticated()) {
+            throw new HappyGalleryException(ErrorCode.REAUTHENTICATION_REQUIRED);
+        }
         LocalDateTime now = LocalDateTime.now(clock);
-        if (accountActivity.hasBlockingActivity(userId, now)) {
+        if (accountActivity.hasBlockingActivity(command.userId(), now)) {
             throw new HappyGalleryException(ErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED);
         }
 
         long invalidatedCredentialVersion = user.getCredentialVersion();
-        user.withdraw("withdrawn+" + userId + WITHDRAWN_EMAIL_DOMAIN, "탈퇴회원", now);
+        user.withdraw(
+                "withdrawn+" + command.userId() + WITHDRAWN_EMAIL_DOMAIN,
+                "탈퇴회원",
+                now);
         userStore.save(user);
-        socialAccountStore.deleteByUserId(userId);
+        socialAccountStore.deleteByUserId(command.userId());
         eventPublisher.publishEvent(new CustomerCredentialsChangedEvent(
-                userId, invalidatedCredentialVersion));
+                command.userId(), invalidatedCredentialVersion));
     }
 }

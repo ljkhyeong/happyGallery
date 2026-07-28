@@ -39,6 +39,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          validate-wrappers: true
 
       - name: Build & Test
         run: ./gradlew build
@@ -47,9 +49,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: application-jar
-          path: |
-            bootstrap/build/libs/*.jar
-            !bootstrap/build/libs/*-plain.jar
+          path: bootstrap/build/libs/happygallery-app.jar
           retention-days: 1
 
       - name: Upload test reports
@@ -162,8 +162,8 @@ jobs:
           SMS_API_SECRET: e2e-sms-api-secret
           SMS_SENDER_NUMBER: "01000000000"
         run: |
-          APP_JAR=$(find bootstrap/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)
-          test -n "$APP_JAR"
+          APP_JAR=bootstrap/build/libs/happygallery-app.jar
+          test -f "$APP_JAR"
           nohup java -jar "$APP_JAR" >/tmp/happygallery-e2e-app.log 2>&1 &
           for attempt in $(seq 1 90); do
             if curl --fail --silent http://127.0.0.1:8080/actuator/health >/dev/null; then
@@ -209,8 +209,8 @@ jobs:
 
       - name: Build release images
         run: |
-          APP_JAR=$(find bootstrap/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)
-          test -n "$APP_JAR"
+          APP_JAR=bootstrap/build/libs/happygallery-app.jar
+          test -f "$APP_JAR"
           docker build --build-arg "APP_JAR=$APP_JAR" -f deploy/k3s/images/Dockerfile.app -t happygallery-app:ci .
           docker build --build-arg "VITE_TOSS_CLIENT_KEY=test_ck_ci" -f deploy/k3s/images/Dockerfile.frontend -t happygallery-frontend:ci .
 

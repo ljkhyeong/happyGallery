@@ -1,7 +1,7 @@
 # ADR-0017: 애플리케이션 처리율 제한 기준
 
 **날짜**: 2026-03-06  
-**최종 갱신**: 2026-07-27
+**최종 갱신**: 2026-07-28
 **상태**: Accepted
 
 ---
@@ -45,12 +45,17 @@
 ### 2. 본문과 인증 주체가 필요한 제한은 검증 이후 적용한다
 
 Filter는 request body를 읽지 않는다. `@Valid` DTO와 `@AuthenticationPrincipal` 처리가 끝난 컨트롤러 진입점에서 `SubjectRateLimitGuard`를 호출한다.
+다만 인증 코드 소비 시도는 회원가입, 예약·주문, 계정 복구와 결제 상태 복구가 같은
+application 검증 경계를 사용하므로 컨트롤러마다 반복하지 않는다.
+`PhoneVerificationAttemptGuard` 출력 포트로 검사하고 composition root인 `bootstrap`이
+`SubjectRateLimitGuard`의 해당 동작을 포트 빈으로 결선한다. application은 웹 어댑터를 알지
+않고 웹 어댑터도 application `port.out`을 직접 import하지 않는다.
 
 | 규칙 | 식별 기준 | 한도 |
 | --- | --- | --- |
 | `CUSTOMER_LOGIN_EMAIL` | 정규화된 회원 로그인 이메일 | 10회/10분 |
 | `PHONE_VERIFICATION_PHONE` | 정규화된 전화번호 | 3회/10분 |
-| `PHONE_VERIFICATION_ATTEMPT_PHONE` | 회원가입에서 인증 코드를 시도하는 정규화된 전화번호 | 5회/10분 |
+| `PHONE_VERIFICATION_ATTEMPT_PHONE` | 모든 업무에서 인증 코드를 소비하려는 정규화된 전화번호 | 5회/10분 |
 | `PAYMENT_CONFIRM_ORDER` | 외부 주문번호 | 20회/1분 |
 | `GUEST_CLAIM_USER` | 회원 ID | 5회/1분 |
 
@@ -104,6 +109,8 @@ Filter는 request body를 읽지 않는다. `@Valid` DTO와 `@AuthenticationPrin
 - `adapter-in-web/.../ratelimit/RedisRateLimiter`
 - `adapter-in-web/.../ratelimit/SubjectRateLimitGuard`
 - `adapter-in-web/.../config/properties/RateLimitProperties`
+- `application/.../customer/port/out/PhoneVerificationAttemptGuard`
+- `bootstrap/.../config/RateLimitPortConfig`
 - `bootstrap/src/main/resources/application.yml`
 
 ## 참고

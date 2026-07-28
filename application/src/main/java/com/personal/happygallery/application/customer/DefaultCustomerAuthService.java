@@ -7,6 +7,7 @@ import com.personal.happygallery.application.customer.port.out.UserReaderPort.Lo
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.policy.PolicyConsentService;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.User;
@@ -49,7 +50,8 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
     @Transactional
     public User signup(SignupCommand command) {
         policyConsentService.requireCurrent(command.policyAcceptance());
-        phoneOwnershipVerification.verify(command.phone(), command.verificationCode());
+        phoneOwnershipVerification.verify(
+                command.phone(), command.verificationCode(), PhoneVerificationPurpose.SIGNUP);
         if (userReader.existsByEmail(command.email())) {
             throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }

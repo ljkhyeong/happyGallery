@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.order;
 import com.personal.happygallery.adapter.in.web.order.dto.OrderCustomerActionResponse;
 import com.personal.happygallery.adapter.in.web.order.dto.OrderDelayResponseRequest;
 import com.personal.happygallery.application.order.port.in.OrderCustomerActionUseCase;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +24,7 @@ public class OrderCustomerActionController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(operationId = "cancelGuestOrder")
     public OrderCustomerActionResponse cancel(
             @PathVariable Long id,
             @RequestHeader("X-Access-Token") String accessToken) {
@@ -31,6 +33,7 @@ public class OrderCustomerActionController {
     }
 
     @PostMapping("/{id}/delay-response")
+    @Operation(operationId = "respondToGuestOrderDelay")
     public OrderCustomerActionResponse respondToDelay(
             @PathVariable Long id,
             @RequestHeader("X-Access-Token") String accessToken,

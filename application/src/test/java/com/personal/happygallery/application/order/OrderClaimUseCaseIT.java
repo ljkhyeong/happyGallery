@@ -1,6 +1,8 @@
 package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
+import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.dashboard.dto.TopProductSort;
 import com.personal.happygallery.application.dashboard.port.out.SalesAnalyticsPort;
@@ -25,6 +27,7 @@ import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -70,6 +73,7 @@ class OrderClaimUseCaseIT {
     @Autowired SalesAnalyticsPort salesAnalyticsPort;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired CustomerAccountLifecycleUseCase accountLifecycleUseCase;
+    @Autowired UserReaderPort userReaderPort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
 
@@ -326,7 +330,9 @@ class OrderClaimUseCaseIT {
             Future<Boolean> withdrawal = executor.submit(() -> {
                 start.await();
                 try {
-                    accountLifecycleUseCase.withdraw(order.getUserId());
+                    User user = userReaderPort.findById(order.getUserId()).orElseThrow();
+                    accountLifecycleUseCase.withdraw(new WithdrawCommand(
+                            user.getId(), user.getCredentialVersion(), true));
                     return true;
                 } catch (HappyGalleryException ignored) {
                     return false;

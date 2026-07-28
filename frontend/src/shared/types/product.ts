@@ -8,11 +8,7 @@ import type {
 export type ProductType = ProductDetailResponseType;
 export type ProductStatus = "ACTIVE" | "INACTIVE";
 export type ProductSortOrder = ListProductsSort;
-export type ProductDetailResponse = GeneratedProductDetailResponse & {
-  specification: string | null;
-  careInstructions: string | null;
-  productionLeadDays: number | null;
-};
+export type ProductDetailResponse = GeneratedProductDetailResponse;
 
 export interface ProductResponse {
   id: number;

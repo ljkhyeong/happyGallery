@@ -32,6 +32,7 @@ public class AdminWorkshopProfileController {
     @Operation(operationId = "updateAdminWorkshopProfile")
     public WorkshopProfileResponse update(@RequestBody @Valid UpdateWorkshopProfileRequest request) {
         return WorkshopProfileResponse.from(useCase.update(new UpdateCommand(
+                request.expectedVersion(),
                 request.name(), request.phone(), request.postalCode(),
                 request.addressLine1(), request.addressLine2(), request.businessHours(),
                 request.mapUrl(), request.parkingInfo(), request.businessRegistrationNumber(),

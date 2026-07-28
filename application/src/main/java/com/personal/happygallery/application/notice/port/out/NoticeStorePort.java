@@ -6,5 +6,7 @@ public interface NoticeStorePort {
 
     Notice save(Notice notice);
 
+    int incrementViewCountById(Long id);
+
     void deleteById(Long id);
 }

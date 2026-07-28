@@ -168,7 +168,7 @@ CONFIRM_REDIS_CREDENTIAL_ROTATION=rotate-happygallery-redis \
 
 ## 3. 이미지 빌드와 k3s import
 
-애플리케이션과 프런트 이미지는 현재 Git commit의 40자리 SHA로 태깅한다. 스크립트는 dirty worktree를 거부하고 Gradle clean build에서 non-plain 실행 jar를 정확히 하나 선택한다. 운영 설정으로 빌드한 실제 app/frontend 이미지에서 Trivy HIGH/CRITICAL과 EOL OS를 차단하고, 이미지 아키텍처와 k3s 노드 아키텍처 일치를 확인한 뒤 `docker save` 결과를 k3s containerd로 import한다. import 후 containerd content digest를 읽고 `tag@sha256:digest` 별칭을 함께 보존한다.
+애플리케이션과 프런트 이미지는 현재 Git commit의 40자리 SHA로 태깅한다. 스크립트는 dirty worktree를 거부하고 Gradle clean build가 만든 실행 JAR `bootstrap/build/libs/happygallery-app.jar`만 사용한다. 모듈 간 테스트 classpath용 `*-plain.jar`는 배포 입력이 아니다. 운영 설정으로 빌드한 실제 app/frontend 이미지에서 Trivy HIGH/CRITICAL과 EOL OS를 차단하고, 이미지 아키텍처와 k3s 노드 아키텍처 일치를 확인한 뒤 `docker save` 결과를 k3s containerd로 import한다. import 후 containerd content digest를 읽고 `tag@sha256:digest` 별칭을 함께 보존한다.
 
 ```bash
 export VITE_TOSS_CLIENT_KEY='운영 client key'
@@ -210,6 +210,11 @@ cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시
 
 실패 시 자동 rollback하지 않는다. 새 이미지의 Flyway가 이미 실행됐을 수 있으므로 DB 호환성과 백업을 먼저 확인한다.
 app Deployment는 `Recreate` 전략을 사용한다. 단일 노드에서 구 binary와 Flyway 적용 후의 새 schema가 겹쳐 실행되는 위험을 피하는 대신 app rollout 동안 짧은 API 중단을 수용한다. 비영속 단일 Redis와 클러스터링을 끈 단일 Alertmanager도 `Recreate`로 교체해 rollout 중 서로 다른 상태를 가진 두 Pod가 동시에 서비스되지 않게 한다.
+
+V102는 휴대폰 인증 HMAC 입력에 인증 목적을 추가하고 기존 미완료 인증을 모두 폐기한다. 따라서
+V102 적용 전에는 app 쓰기를 중단한 상태에서 복구 묶음을 확인해야 한다. 적용 뒤 이전 binary를
+현재 DB에 연결하는 image-only rollback은 금지한다. 이전 release로 돌아가야 하면 app을 0으로
+유지한 채 V102 적용 전 DB와 호환 image를 같은 복구 묶음에서 복원하고 대사·활성화 절차를 따른다.
 
 ## 6. 검증과 내부 관리 접근
 
@@ -337,6 +342,9 @@ export ACKNOWLEDGE_DATABASE_NOT_ROLLED_BACK=true
 ```
 
 rollback은 보존된 전체 manifest를 재적용하지 않는다. digest로 고정한 app/frontend Deployment 이미지와 app의 `SENTRY_RELEASE`만 되돌리며 MySQL StatefulSet, PVC, Redis, StorageClass, ClusterIssuer, NetworkPolicy 등 stateful/cluster 리소스는 변경하지 않는다. 이전 digest 별칭이 containerd에 남아 있어야 하며, 이전 애플리케이션이 현재 DB schema와 양방향 호환되지 않으면 rollback 대신 DB 복원 또는 수정 배포를 선택한다. DB를 복원해 app이 0인 상태에서는 ready replica를 전제로 하는 rollback 대신 `activate-restored-release.sh`를 사용한다.
+
+특히 V102 이후의 DB는 V102 이전 binary와 호환되지 않는다. 이전 image가 필요하면 V102 적용 전
+DB 복구 묶음을 함께 복원해야 하며, 현재 DB를 유지한 채 image만 내리는 rollback은 수행하지 않는다.
 
 ## 10. 정적 검증
 

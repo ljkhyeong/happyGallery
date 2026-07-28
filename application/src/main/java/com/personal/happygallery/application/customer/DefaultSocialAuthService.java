@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.customer;
 
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
+import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialUnlinkCommand;
 import com.personal.happygallery.application.customer.port.out.SocialAccountReaderPort;
 import com.personal.happygallery.application.customer.port.out.SocialAccountStorePort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
@@ -110,6 +111,9 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
         if (user.getCredentialVersion() != command.credentialVersion()) {
             throw new HappyGalleryException(ErrorCode.UNAUTHORIZED);
         }
+        if (!command.recentlyReauthenticated()) {
+            throw new HappyGalleryException(ErrorCode.REAUTHENTICATION_REQUIRED);
+        }
 
         Optional<SocialAccount> linkedIdentity = socialAccountReader.findByProviderAndProviderId(
                 command.provider(), command.providerId());
@@ -125,15 +129,44 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
 
         socialAccountStore.save(new SocialAccount(
                 command.userId(), command.provider(), command.providerId()));
+        long invalidatedCredentialVersion = user.getCredentialVersion();
+        user.markAuthenticationMethodsChanged();
+        userStore.save(user);
+        eventPublisher.publishEvent(new CustomerCredentialsChangedEvent(
+                user.getId(), invalidatedCredentialVersion));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void verifyLinkedSocialAccount(SocialReauthenticationCommand command) {
+        User user = userReader.findById(command.userId())
+                .orElseThrow(() -> new HappyGalleryException(ErrorCode.UNAUTHORIZED));
+        if (user.getCredentialVersion() != command.credentialVersion()) {
+            throw new HappyGalleryException(ErrorCode.UNAUTHORIZED);
+        }
+        boolean linked = socialAccountReader
+                .findByProviderAndProviderId(command.provider(), command.providerId())
+                .map(SocialAccount::getUserId)
+                .filter(command.userId()::equals)
+                .isPresent();
+        if (!linked) {
+            throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
+        }
     }
 
     @Override
     @Transactional
-    public boolean unlinkSocialAccount(Long userId, SocialProvider provider) {
-        User user = findUserForUpdate(userId);
-        List<SocialAccount> linkedAccounts = socialAccountReader.findByUserId(userId);
+    public boolean unlinkSocialAccount(SocialUnlinkCommand command) {
+        User user = findUserForUpdate(command.userId());
+        if (user.getCredentialVersion() != command.credentialVersion()) {
+            throw new HappyGalleryException(ErrorCode.UNAUTHORIZED);
+        }
+        if (!command.recentlyReauthenticated()) {
+            throw new HappyGalleryException(ErrorCode.REAUTHENTICATION_REQUIRED);
+        }
+        List<SocialAccount> linkedAccounts = socialAccountReader.findByUserId(command.userId());
         boolean linked = linkedAccounts.stream()
-                .anyMatch(account -> account.getProvider() == provider);
+                .anyMatch(account -> account.getProvider() == command.provider());
         if (!linked) {
             return false;
         }
@@ -141,11 +174,11 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
             throw new HappyGalleryException(ErrorCode.LAST_LOGIN_METHOD_REQUIRED);
         }
         long invalidatedCredentialVersion = user.getCredentialVersion();
-        socialAccountStore.deleteByUserIdAndProvider(userId, provider);
+        socialAccountStore.deleteByUserIdAndProvider(command.userId(), command.provider());
         user.markAuthenticationMethodsChanged();
         userStore.save(user);
         eventPublisher.publishEvent(new CustomerCredentialsChangedEvent(
-                userId, invalidatedCredentialVersion));
+                command.userId(), invalidatedCredentialVersion));
         return true;
     }
 

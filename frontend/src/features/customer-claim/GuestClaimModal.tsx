@@ -123,6 +123,7 @@ export function GuestClaimModal({
 
         {needsPhoneVerification ? (
           <PhoneVerificationStep
+            purpose="GUEST_CLAIM"
             title="휴대폰 재인증"
             description="회원 조회는 로그인으로 가능하지만, 기존 비회원 이력을 가져오려면 같은 번호인지 한 번 더 확인합니다."
             initialPhone={normalizePhone(phone)}

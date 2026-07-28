@@ -28,7 +28,18 @@ public interface SocialAuthUseCase {
     record SocialLinkCommand(Long userId,
                              long credentialVersion,
                              SocialProvider provider,
-                             String providerId) {}
+                             String providerId,
+                             boolean recentlyReauthenticated) {}
+
+    record SocialReauthenticationCommand(Long userId,
+                                         long credentialVersion,
+                                         SocialProvider provider,
+                                         String providerId) {}
+
+    record SocialUnlinkCommand(Long userId,
+                               long credentialVersion,
+                               SocialProvider provider,
+                               boolean recentlyReauthenticated) {}
 
     SocialLoginResult socialLogin(SocialLoginCommand command);
 
@@ -36,5 +47,7 @@ public interface SocialAuthUseCase {
 
     void linkSocialAccount(SocialLinkCommand command);
 
-    boolean unlinkSocialAccount(Long userId, SocialProvider provider);
+    void verifyLinkedSocialAccount(SocialReauthenticationCommand command);
+
+    boolean unlinkSocialAccount(SocialUnlinkCommand command);
 }

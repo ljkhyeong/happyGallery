@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.in.web.customer.CustomerSessionBinder;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialOAuth2ProfileResolver.SocialIdentity;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLinkCommand;
+import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialReauthenticationCommand;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import jakarta.servlet.ServletException;
@@ -34,18 +35,21 @@ public class SocialLoginAuthenticationHandler
     private final SocialAccountLinkIntentStore linkIntentStore;
     private final SocialSignupIntentStore signupIntentStore;
     private final CustomerSessionBinder customerSessionBinder;
+    private final CustomerStepUpAuthenticationStore stepUpAuthenticationStore;
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
     public SocialLoginAuthenticationHandler(SocialAuthUseCase socialAuth,
                                             SocialOAuth2ProfileResolver profileResolver,
                                             SocialAccountLinkIntentStore linkIntentStore,
                                             SocialSignupIntentStore signupIntentStore,
-                                            CustomerSessionBinder customerSessionBinder) {
+                                            CustomerSessionBinder customerSessionBinder,
+                                            CustomerStepUpAuthenticationStore stepUpAuthenticationStore) {
         this.socialAuth = socialAuth;
         this.profileResolver = profileResolver;
         this.linkIntentStore = linkIntentStore;
         this.signupIntentStore = signupIntentStore;
         this.customerSessionBinder = customerSessionBinder;
+        this.stepUpAuthenticationStore = stepUpAuthenticationStore;
     }
 
     @Override
@@ -57,11 +61,29 @@ public class SocialLoginAuthenticationHandler
             var linkIntent = linkIntentStore.consume(request, identity.provider());
             if (linkIntent.isPresent()) {
                 signupIntentStore.clear(request);
+                if (linkIntent.get().purpose()
+                        == SocialAccountLinkIntentStore.IntentPurpose.REAUTHENTICATE) {
+                    socialAuth.verifyLinkedSocialAccount(new SocialReauthenticationCommand(
+                            linkIntent.get().userId(),
+                            linkIntent.get().credentialVersion(),
+                            identity.provider(),
+                            identity.providerId()));
+                    stepUpAuthenticationStore.markVerified(
+                            request,
+                            linkIntent.get().userId(),
+                            linkIntent.get().credentialVersion());
+                    redirect(request, response, "reauthenticated", identity.provider().name());
+                    return;
+                }
                 socialAuth.linkSocialAccount(new SocialLinkCommand(
                         linkIntent.get().userId(),
                         linkIntent.get().credentialVersion(),
                         identity.provider(),
-                        identity.providerId()));
+                        identity.providerId(),
+                        stepUpAuthenticationStore.isRecentlyVerified(
+                                request,
+                                linkIntent.get().userId(),
+                                linkIntent.get().credentialVersion())));
                 redirect(request, response, "linked", identity.provider().name());
                 return;
             }
@@ -106,6 +128,7 @@ public class SocialLoginAuthenticationHandler
                  SOCIAL_ACCOUNT_ALREADY_LINKED,
                  SOCIAL_PROVIDER_ALREADY_LINKED,
                  LAST_LOGIN_METHOD_REQUIRED,
+                 REAUTHENTICATION_REQUIRED,
                  POLICY_CONSENT_REQUIRED -> errorCode;
             default -> ErrorCode.SOCIAL_LOGIN_FAILED;
         };

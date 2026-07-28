@@ -23,7 +23,8 @@ public record WorkshopProfileResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true, format = "uri") String naverBlogUrl,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true, format = "uri") String instagramUrl,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true, format = "uri") String smartStoreUrl,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime updatedAt
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime updatedAt,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long version
 ) {
     public static WorkshopProfileResponse from(WorkshopProfile profile) {
         return new WorkshopProfileResponse(
@@ -45,6 +46,7 @@ public record WorkshopProfileResponse(
                 profile.getNaverBlogUrl(),
                 profile.getInstagramUrl(),
                 profile.getSmartStoreUrl(),
-                profile.getUpdatedAt());
+                profile.getUpdatedAt(),
+                profile.getVersion());
     }
 }

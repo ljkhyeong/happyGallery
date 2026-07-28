@@ -6,6 +6,7 @@ import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
@@ -22,6 +23,7 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
@@ -212,7 +214,8 @@ class CustomerGuestClaimUseCaseIT {
 
         BookingTestHelper bookingHelper = new BookingTestHelper(
                 mockMvc, phoneVerificationReaderPort, objectMapper);
-        String verificationCode = bookingHelper.sendVerificationAndGetCode(phone);
+        String verificationCode = bookingHelper.sendVerificationAndGetCode(
+                phone, PhoneVerificationPurpose.GUEST_RECORD_RECOVERY);
 
         String body = mockMvc.perform(post("/api/v1/guest-records/recovery")
                         .with(csrf())
@@ -323,7 +326,8 @@ class CustomerGuestClaimUseCaseIT {
         CountDownLatch claimStarted = new CountDownLatch(1);
         try (var executor = Executors.newFixedThreadPool(2)) {
             var withdrawal = executor.submit(() -> transactionTemplate.executeWithoutResult(status -> {
-                accountLifecycleUseCase.withdraw(user.getId());
+                accountLifecycleUseCase.withdraw(new WithdrawCommand(
+                        user.getId(), user.getCredentialVersion(), true));
                 withdrawalApplied.countDown();
                 await(allowWithdrawalCommit);
             }));

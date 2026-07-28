@@ -19,6 +19,7 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
@@ -120,7 +121,8 @@ class KeyRotationUseCaseIT {
         Fulfillment fulfillment = fulfillmentRepository.save(Fulfillment.shipping(
                 order.getId(), oldEncryptor.encrypt("{\"address\":\"서울\"}")));
         PhoneVerification verification = new PhoneVerification(
-                "01012345678", "123456", paidAt.plusMinutes(5));
+                "01012345678", "123456",
+                PhoneVerificationPurpose.GUEST_BOOKING, paidAt.plusMinutes(5));
         verification.protect(
                 oldIndexer.index("01012345678"), oldIndexer.index("123456"),
                 oldEncryptor.encrypt("123456"));
@@ -185,7 +187,8 @@ class KeyRotationUseCaseIT {
         String originalFirstCiphertext = value("users", "email_enc", first.getId());
         jdbcTemplate.update("UPDATE users SET email_enc = ? WHERE id = ?", "corrupt-ciphertext", second.getId());
         PhoneVerification verification = new PhoneVerification(
-                "01011112222", "654321", LocalDateTime.of(2030, 1, 1, 10, 5));
+                "01011112222", "654321", PhoneVerificationPurpose.GUEST_BOOKING,
+                LocalDateTime.of(2030, 1, 1, 10, 5));
         verification.protect(
                 oldIndexer.index("01011112222"), oldIndexer.index("654321"),
                 oldEncryptor.encrypt("654321"));

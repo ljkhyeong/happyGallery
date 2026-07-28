@@ -41,7 +41,6 @@ public class CustomerAuthController {
     public CustomerUserResponse signup(@RequestBody @Valid SignupRequest request,
                                        HttpServletRequest httpRequest,
                                        HttpServletResponse httpResponse) {
-        rateLimitGuard.checkPhoneVerificationAttempt(KoreanPhoneNumber.required(request.phone()));
         User user = customerAuth.signup(
                 new CustomerAuthUseCase.SignupCommand(
                         request.email(),

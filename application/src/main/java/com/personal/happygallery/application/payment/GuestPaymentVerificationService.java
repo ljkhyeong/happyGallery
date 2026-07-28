@@ -5,6 +5,7 @@ import com.personal.happygallery.application.token.GuestTokenProperties;
 import com.personal.happygallery.application.token.TokenSigningException;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import java.nio.charset.StandardCharsets;
@@ -40,7 +41,8 @@ public class GuestPaymentVerificationService {
             String phone,
             String verificationCode) {
         String normalizedPhone = KoreanPhoneNumber.required(phone);
-        phoneOwnershipVerification.verify(normalizedPhone, verificationCode);
+        phoneOwnershipVerification.verify(
+                normalizedPhone, verificationCode, verificationPurpose(context));
 
         String nonce = UUID.randomUUID().toString();
         String signature = sign(canonical(context, paymentOrderId, normalizedPhone, nonce),
@@ -107,5 +109,13 @@ public class GuestPaymentVerificationService {
 
     private HappyGalleryException invalidProof() {
         return new HappyGalleryException(ErrorCode.INVALID_INPUT, "결제 휴대폰 인증 정보가 올바르지 않습니다.");
+    }
+
+    private PhoneVerificationPurpose verificationPurpose(PaymentContext context) {
+        return switch (context) {
+            case ORDER -> PhoneVerificationPurpose.GUEST_ORDER;
+            case BOOKING -> PhoneVerificationPurpose.GUEST_BOOKING;
+            case PASS -> throw invalidProof();
+        };
     }
 }

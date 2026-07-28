@@ -20,6 +20,7 @@ import com.personal.happygallery.application.search.dto.AdminPassView;
 import com.personal.happygallery.application.search.port.in.AdminPassQueryUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.OffsetPage;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
@@ -115,7 +116,8 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
         when(adminPassQueryUseCase.search(any(), eq(0), eq(20)))
                 .thenReturn(OffsetPage.of(List.of(adminPass), 0, 20, 1));
         when(adminPassQueryUseCase.get(300L)).thenReturn(adminPass);
-        when(phoneVerificationQueryUseCase.findLatestUnverifiedCode("01012345678"))
+        when(phoneVerificationQueryUseCase.findLatestUnverifiedCode(
+                "01012345678", PhoneVerificationPurpose.GUEST_BOOKING))
                 .thenReturn(Optional.of("123456"));
 
         mockMvc = mockMvc(restDocumentation, SNIPPET_GROUP,
@@ -227,7 +229,8 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
     void local_latest_phone_verification_code() throws Exception {
         mockMvc.perform(get("/api/v1/admin/dev/phone-verifications/latest")
                         .with(adminUser())
-                        .param("phone", "01012345678"))
+                        .param("phone", "01012345678")
+                        .param("purpose", "GUEST_BOOKING"))
                 .andExpect(status().isOk());
     }
 

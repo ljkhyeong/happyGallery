@@ -4,6 +4,7 @@ import {
   startMySocialAccountLink as startMySocialAccountLinkRequest,
   unlinkMySocialAccount as unlinkMySocialAccountRequest,
 } from "@/generated/api/customerAccount";
+import { api } from "@/shared/api";
 
 export async function fetchLinkedSocialProviders(): Promise<SocialProvider[]> {
   const response = await getMySocialAccounts();
@@ -16,4 +17,19 @@ export function startSocialAccountLink(provider: SocialProvider) {
 
 export function unlinkSocialAccount(provider: SocialProvider) {
   return unlinkMySocialAccountRequest(provider);
+}
+
+export function reauthenticateCustomerPassword(currentPassword: string): Promise<void> {
+  return api("/me/reauthentication/password", {
+    method: "POST",
+    body: { currentPassword },
+  });
+}
+
+export function startSocialReauthentication(
+  provider: SocialProvider,
+): Promise<{ authorizationUrl: string }> {
+  return api(`/me/social-accounts/${provider}/reauthentication`, {
+    method: "POST",
+  });
 }

@@ -11,6 +11,7 @@ import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRep
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.policy.PolicyConsentType;
 import com.personal.happygallery.domain.user.SocialProvider;
@@ -486,9 +487,11 @@ class CustomerAuthUseCaseIT {
         mockMvc.perform(post("/api/v1/bookings/phone-verifications")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new SendVerificationRequest(normalizedPhone))))
+                        .content(objectMapper.writeValueAsString(new SendVerificationRequest(
+                                normalizedPhone, PhoneVerificationPurpose.SIGNUP))))
                 .andExpect(status().isOk());
-        return phoneVerificationReader.findLatestUnverifiedCode(normalizedPhone)
+        return phoneVerificationReader.findLatestUnverifiedCode(
+                        normalizedPhone, PhoneVerificationPurpose.SIGNUP)
                 .orElseThrow(() -> new AssertionError("No verification code found"))
                 .getCode();
     }

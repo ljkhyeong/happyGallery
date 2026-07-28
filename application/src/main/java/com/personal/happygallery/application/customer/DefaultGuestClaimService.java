@@ -9,6 +9,7 @@ import com.personal.happygallery.application.monitoring.port.in.ClientMonitoring
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Guest;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
@@ -68,7 +69,8 @@ public class DefaultGuestClaimService implements GuestClaimUseCase {
     public ClaimPreview verifyPhoneAndPreview(Long userId, String verificationCode) {
         User user = userReader.findByIdForUpdate(userId)
                 .orElseThrow(NotFoundException.supplier("회원"));
-        phoneOwnershipVerification.verify(user.getPhone(), verificationCode);
+        phoneOwnershipVerification.verify(
+                user.getPhone(), verificationCode, PhoneVerificationPurpose.GUEST_CLAIM);
         user.markPhoneVerified();
         log.info("guest claim phone verified [userId={}]", userId);
         return buildPreview(user);

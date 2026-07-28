@@ -31,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -72,7 +73,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
         when(noticeQueryUseCase.listAll()).thenReturn(List.of(notice));
         when(noticeQueryUseCase.getDetail(1L)).thenReturn(notice);
         when(noticeAdminUseCase.create(any(), any(), anyBoolean())).thenReturn(notice);
-        when(noticeAdminUseCase.update(eq(1L), any(), any(), anyBoolean())).thenReturn(notice);
+        when(noticeAdminUseCase.update(eq(1L), anyLong(), any(), any(), anyBoolean())).thenReturn(notice);
         when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(qna));
         when(qnaUseCase.listUnanswered(isNull(), anyInt()))
                 .thenReturn(new CursorPage<>(List.of(qna), null, false));
@@ -200,6 +201,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
+                                  "expectedVersion": 0,
                                   "title": "운영 안내",
                                   "content": "수정된 안내입니다.",
                                   "pinned": false
@@ -211,7 +213,9 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
     @Test
     @DisplayName("관리자 공지 삭제 API를 문서화한다")
     void admin_delete_notice() throws Exception {
-        mockMvc.perform(delete("/api/v1/admin/notices/{id}", 1L).with(adminUser()))
+        mockMvc.perform(delete("/api/v1/admin/notices/{id}", 1L)
+                        .with(adminUser())
+                        .param("expectedVersion", "0"))
                 .andExpect(status().isNoContent());
     }
 

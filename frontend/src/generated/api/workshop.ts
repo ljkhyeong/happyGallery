@@ -36,6 +36,7 @@ export interface WorkshopProfileResponse {
   /** @nullable */
   smartStoreUrl: string | null;
   updatedAt: string;
+  version: number;
 }
 
 export interface UpdateWorkshopProfileRequest {
@@ -68,6 +69,7 @@ export interface UpdateWorkshopProfileRequest {
      * @nullable
      */
   email?: string | null;
+  expectedVersion: number;
   /**
      * @minLength 0
      * @maxLength 500

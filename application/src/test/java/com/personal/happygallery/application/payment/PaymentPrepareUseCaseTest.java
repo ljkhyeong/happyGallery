@@ -3,6 +3,7 @@ package com.personal.happygallery.application.payment;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
+import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.pass.PassPriceProperties;
@@ -22,6 +23,7 @@ import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRep
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.CapacityExceededException;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -136,7 +138,8 @@ class PaymentPrepareUseCaseTest {
                 new PassPayload(user.getId()),
                 auth));
 
-        assertThatThrownBy(() -> accountLifecycleUseCase.withdraw(user.getId()))
+        assertThatThrownBy(() -> accountLifecycleUseCase.withdraw(new WithdrawCommand(
+                user.getId(), user.getCredentialVersion(), true)))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED));
@@ -442,7 +445,8 @@ class PaymentPrepareUseCaseTest {
 
     private void saveVerification(String phone, String code) {
         PhoneVerification verification = new PhoneVerification(
-                phone, code, LocalDateTime.now(clock).plusMinutes(5));
+                phone, code, PhoneVerificationPurpose.GUEST_ORDER,
+                LocalDateTime.now(clock).plusMinutes(5));
         verification.markDelivered();
         phoneVerificationStorePort.save(verification);
     }

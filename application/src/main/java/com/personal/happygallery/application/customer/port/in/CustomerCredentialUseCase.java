@@ -6,6 +6,8 @@ public interface CustomerCredentialUseCase {
 
     Long resetPassword(ResetPasswordCommand command);
 
+    void verifyPassword(Long userId, String rawPassword);
+
     record ChangePasswordCommand(Long userId, String currentPassword, String newPassword) {
     }
 

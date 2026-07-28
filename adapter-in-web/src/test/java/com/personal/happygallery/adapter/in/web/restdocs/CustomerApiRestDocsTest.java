@@ -15,7 +15,9 @@ import com.personal.happygallery.adapter.in.web.customer.MePhoneController;
 import com.personal.happygallery.adapter.in.web.customer.MeProductQnaController;
 import com.personal.happygallery.adapter.in.web.customer.MeSocialAccountController;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialAccountLinkIntentStore;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerStepUpAuthenticationStore;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
@@ -52,6 +54,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.startsWith;
@@ -89,6 +93,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private InquiryUseCase inquiryUseCase;
     private ProductQnaUseCase qnaUseCase;
     private SubjectRateLimitGuard rateLimitGuard;
+    private CustomerStepUpAuthenticationStore stepUpStore;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -153,8 +158,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(guestClaimUseCase.verifyPhoneAndPreview(CUSTOMER_USER_ID, "123456")).thenReturn(claimPreview(true));
         when(guestClaimUseCase.claim(eq(CUSTOMER_USER_ID), any(), any()))
                 .thenReturn(new GuestClaimUseCase.ClaimResult(1, 1));
-        when(phoneUpdateUseCase.update(CUSTOMER_USER_ID, "01012345678", "123456"))
-                .thenReturn(user);
+        when(phoneUpdateUseCase.update(any())).thenReturn(user);
         when(customerCredentialUseCase.resetPassword(any()))
                 .thenReturn(CUSTOMER_USER_ID);
         when(socialAuthUseCase.listLinkedProviders(CUSTOMER_USER_ID))
@@ -168,11 +172,16 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(qnaUseCase.getOwnedDetail(1L, 5L, CUSTOMER_USER_ID))
                 .thenReturn(new ProductQnaUseCase.QnaWithAuthor(qna, "홍길동"));
 
-        CustomerSessionBinder customerSessionBinder = new CustomerSessionBinder(mock(CsrfTokenRepository.class));
+        stepUpStore = new CustomerStepUpAuthenticationStore(RestDocsFixtures.clock());
+        CustomerSessionBinder customerSessionBinder = new CustomerSessionBinder(
+                mock(CsrfTokenRepository.class), stepUpStore);
         mockMvc = mockMvc(restDocumentation,
                 new CustomerAuthController(customerAuthUseCase, customerSessionBinder, rateLimitGuard),
                 new CustomerCredentialController(
-                        customerCredentialUseCase, customerSessionBinder, rateLimitGuard),
+                        customerCredentialUseCase,
+                        customerSessionBinder,
+                        stepUpStore,
+                        rateLimitGuard),
                 new MeCartController(cartUseCase),
                 new MeBookingController(bookingQueryUseCase, bookingRescheduleUseCase,
                         bookingCancelUseCase, RestDocsFixtures.clock()),
@@ -180,12 +189,16 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 new MePassController(passQueryUseCase, memberPassRefundUseCase, rateLimitGuard),
                 new MeNotificationController(notificationQueryUseCase),
                 new MeGuestClaimController(guestClaimUseCase, rateLimitGuard),
-                new MePhoneController(phoneUpdateUseCase, rateLimitGuard),
-                new MeAccountController(accountLifecycleUseCase, customerSessionBinder),
+                new MePhoneController(phoneUpdateUseCase, stepUpStore, customerSessionBinder),
+                new MeAccountController(
+                        accountLifecycleUseCase,
+                        customerSessionBinder,
+                        stepUpStore),
                 new MeSocialAccountController(
                         socialAuthUseCase,
                         new SocialAccountLinkIntentStore(RestDocsFixtures.clock()),
-                        customerSessionBinder),
+                        customerSessionBinder,
+                        stepUpStore),
                 new MeInquiryController(inquiryUseCase),
                 new MeProductQnaController(qnaUseCase));
     }
@@ -259,7 +272,9 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @Test
     @DisplayName("회원 탈퇴 API를 문서화한다")
     void withdraw_account() throws Exception {
-        mockMvc.perform(delete("/api/v1/me").with(customerUser()))
+        mockMvc.perform(delete("/api/v1/me")
+                        .session(recentlyAuthenticatedSession())
+                        .with(customerUser()))
                 .andExpect(status().isNoContent());
     }
 
@@ -275,6 +290,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("소셜 계정 연결 시작 API를 문서화한다")
     void start_social_account_link() throws Exception {
         mockMvc.perform(post("/api/v1/me/social-accounts/{provider}/authorization", "naver")
+                        .session(recentlyAuthenticatedSession())
                         .with(customerUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authorizationUrl")
@@ -286,8 +302,36 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("소셜 계정 연결 해제 API를 문서화한다")
     void unlink_social_account() throws Exception {
         mockMvc.perform(delete("/api/v1/me/social-accounts/{provider}", "google")
+                        .session(recentlyAuthenticatedSession())
                         .with(customerUser()))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("현재 비밀번호 본인 확인 API를 문서화한다")
+    void reauthenticate_with_password() throws Exception {
+        mockMvc.perform(post("/api/v1/me/reauthentication/password")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "password1234"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("연결된 소셜 계정 본인 확인 시작 API를 문서화한다")
+    void start_social_reauthentication() throws Exception {
+        mockMvc.perform(post(
+                        "/api/v1/me/social-accounts/{provider}/reauthentication",
+                        "google")
+                        .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authorizationUrl")
+                        .value(startsWith(
+                                "/api/v1/auth/social/authorization/google?linkAttempt=")));
     }
 
     @Test
@@ -573,6 +617,20 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/me/products/{productId}/qna/{id}", 1L, 5L)
                         .with(customerUser()))
                 .andExpect(status().isOk());
+    }
+
+    private MockHttpSession recentlyAuthenticatedSession() {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(
+                CustomerAuthenticationFilter.CUSTOMER_USER_ID_SESSION_ATTRIBUTE,
+                CUSTOMER_USER_ID);
+        session.setAttribute(
+                CustomerAuthenticationFilter.CUSTOMER_CREDENTIAL_VERSION_SESSION_ATTRIBUTE,
+                0L);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setSession(session);
+        stepUpStore.markVerified(request, CUSTOMER_USER_ID, 0L);
+        return session;
     }
 
     private static GuestClaimUseCase.ClaimPreview claimPreview(boolean verified) {

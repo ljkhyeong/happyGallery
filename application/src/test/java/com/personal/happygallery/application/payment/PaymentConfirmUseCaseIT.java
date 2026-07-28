@@ -37,6 +37,7 @@ import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
@@ -477,7 +478,7 @@ class PaymentConfirmUseCaseIT {
     void confirm_completedGuestOrder_returnsStoredResultIdempotently() {
         String phone = "01090908080";
         String verificationCode = "654321";
-        saveVerification(phone, verificationCode);
+        saveVerification(phone, verificationCode, PhoneVerificationPurpose.GUEST_ORDER);
         Product product = productStorePort.save(readyStockProduct("비회원 멱등 주문 상품", 47_000L));
         inventoryStorePort.save(inventory(product, 2));
         AuthContext auth = AuthContext.guest();
@@ -526,7 +527,8 @@ class PaymentConfirmUseCaseIT {
     void confirm_guestWithoutStatusToken_returnsNotFoundBeforePgCall() {
         Product product = productStorePort.save(readyStockProduct("비회원 소유권 검증 상품", 31_000L));
         inventoryStorePort.save(inventory(product, 1));
-        saveVerification("01010101234", "123456");
+        saveVerification(
+                "01010101234", "123456", PhoneVerificationPurpose.GUEST_ORDER);
         AuthContext auth = AuthContext.guest();
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
@@ -548,7 +550,7 @@ class PaymentConfirmUseCaseIT {
     void confirm_guestBooking_usesPrepareVerificationProof() {
         String phone = "01045456767";
         String verificationCode = "456789";
-        saveVerification(phone, verificationCode);
+        saveVerification(phone, verificationCode, PhoneVerificationPurpose.GUEST_BOOKING);
         BookingClass bookingClass = classStorePort.save(
                 bookingClass("비회원 증거 클래스", "CRAFT", 120, 60_000L, 30));
         Slot slot = slotStorePort.save(slot(bookingClass, FUTURE, FUTURE.plusHours(2)));
@@ -1029,9 +1031,12 @@ class PaymentConfirmUseCaseIT {
                 acceptedPolicies());
     }
 
-    private void saveVerification(String phone, String code) {
+    private void saveVerification(
+            String phone,
+            String code,
+            PhoneVerificationPurpose purpose) {
         PhoneVerification verification = new PhoneVerification(
-                phone, code, LocalDateTime.now(clock).plusMinutes(5));
+                phone, code, purpose, LocalDateTime.now(clock).plusMinutes(5));
         verification.markDelivered();
         phoneVerificationStorePort.save(verification);
     }

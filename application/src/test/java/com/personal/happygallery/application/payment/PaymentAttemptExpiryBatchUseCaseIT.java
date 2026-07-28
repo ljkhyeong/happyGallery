@@ -19,6 +19,7 @@ import com.personal.happygallery.application.payment.port.out.PaymentAttemptRead
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.application.token.GuestTokenProperties;
 import com.personal.happygallery.domain.booking.PhoneVerification;
+import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
@@ -155,8 +156,10 @@ class PaymentAttemptExpiryBatchUseCaseIT {
             softly.assertThat(recoverable.getPayloadEnc()).isEqualTo("recovery-payload");
             softly.assertThat(fresh.getPayloadEnc()).isEqualTo("fresh-payload");
             softly.assertThat(fresh.getFulfilledAccessTokenEnc()).isEqualTo("fresh-token");
-            softly.assertThat(phoneVerificationReader.findLatestUnverifiedCode("01011112222")).isEmpty();
-            softly.assertThat(phoneVerificationReader.findLatestUnverifiedCode("01033334444")).isPresent();
+            softly.assertThat(phoneVerificationReader.findLatestUnverifiedCode(
+                    "01011112222", PhoneVerificationPurpose.GUEST_ORDER)).isEmpty();
+            softly.assertThat(phoneVerificationReader.findLatestUnverifiedCode(
+                    "01033334444", PhoneVerificationPurpose.GUEST_ORDER)).isPresent();
             softly.assertThat(countExpiredPhoneVerifications(verificationCutoff(now))).isZero();
             softly.assertThat(countCartMergeRequests(cartUser.getId())).isOne();
             softly.assertThat(cartMergeRequestExists(cartUser.getId(), expiredMergeKey)).isFalse();
@@ -219,7 +222,8 @@ class PaymentAttemptExpiryBatchUseCaseIT {
     }
 
     private void saveDeliveredVerification(String phone, String code, LocalDateTime expiresAt) {
-        PhoneVerification verification = new PhoneVerification(phone, code, expiresAt);
+        PhoneVerification verification = new PhoneVerification(
+                phone, code, PhoneVerificationPurpose.GUEST_ORDER, expiresAt);
         verification.markDelivered();
         phoneVerificationStore.save(verification);
     }

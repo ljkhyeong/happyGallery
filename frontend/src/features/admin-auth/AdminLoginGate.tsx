@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Card, Form, Spinner } from "react-bootstrap";
 import { ErrorAlert } from "@/shared/ui";
+import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 import type { AdminAuthResponse } from "./api";
 
 interface Props {
@@ -20,7 +21,10 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
 
   async function submitCredentials(event: React.FormEvent) {
     event.preventDefault();
-    if (!normalizedUsername || !password || loading) return;
+    if (!normalizedUsername
+      || !password
+      || !isPasswordWithinByteLimit(password)
+      || loading) return;
 
     setError(null);
     setLoading(true);
@@ -126,13 +130,19 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="비밀번호"
                   autoComplete="current-password"
+                  maxLength={72}
                   disabled={loading}
                 />
               </Form.Group>
               <Button
                 type="submit"
                 variant="primary"
-                disabled={!normalizedUsername || !password || loading}
+                disabled={
+                  !normalizedUsername
+                  || !password
+                  || !isPasswordWithinByteLimit(password)
+                  || loading
+                }
               >
                 {loading ? <Spinner size="sm" /> : "로그인"}
               </Button>
