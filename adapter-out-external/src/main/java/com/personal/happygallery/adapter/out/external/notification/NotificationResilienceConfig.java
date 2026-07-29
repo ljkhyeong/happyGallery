@@ -10,12 +10,13 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import java.time.Duration;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
 
@@ -61,9 +62,11 @@ class NotificationResilienceConfig {
                 .build());
     }
 
-    @Bean(destroyMethod = "shutdown")
-    ExecutorService alimtalkNotificationTimeoutExecutor(NotificationResilienceProperties properties,
-                                                        BoundedExecutorFactory executorFactory) {
+    @Bean
+    ThreadPoolTaskExecutor alimtalkNotificationTimeoutExecutor(
+            NotificationResilienceProperties properties,
+            BoundedExecutorFactory executorFactory
+    ) {
         return createExecutor(
                 properties.alimtalkThreadPool(),
                 executorFactory,
@@ -73,9 +76,11 @@ class NotificationResilienceConfig {
                 "Alimtalk notification timeout executor rejected task count");
     }
 
-    @Bean(destroyMethod = "shutdown")
-    ExecutorService smsNotificationTimeoutExecutor(NotificationResilienceProperties properties,
-                                                   BoundedExecutorFactory executorFactory) {
+    @Bean
+    ThreadPoolTaskExecutor smsNotificationTimeoutExecutor(
+            NotificationResilienceProperties properties,
+            BoundedExecutorFactory executorFactory
+    ) {
         return createExecutor(
                 properties.smsThreadPool(),
                 executorFactory,
@@ -85,9 +90,11 @@ class NotificationResilienceConfig {
                 "SMS notification timeout executor rejected task count");
     }
 
-    @Bean(destroyMethod = "shutdown")
-    ExecutorService phoneVerificationTimeoutExecutor(NotificationResilienceProperties properties,
-                                                     BoundedExecutorFactory executorFactory) {
+    @Bean
+    ThreadPoolTaskExecutor phoneVerificationTimeoutExecutor(
+            NotificationResilienceProperties properties,
+            BoundedExecutorFactory executorFactory
+    ) {
         return createExecutor(
                 properties.phoneVerificationThreadPool(),
                 executorFactory,
@@ -104,7 +111,7 @@ class NotificationResilienceConfig {
                                                @Qualifier("alimtalkNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
                                                @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
                                                @Qualifier("alimtalkNotificationTimeoutExecutor")
-                                               ExecutorService timeoutExecutor,
+                                               Executor timeoutExecutor,
                                                NotificationResilienceProperties resilience) {
         validateTimeoutHierarchy(resilience, props);
         NhnAlimtalkSender raw = new NhnAlimtalkSender(props, alimtalkRestClient);
@@ -119,7 +126,7 @@ class NotificationResilienceConfig {
                                              @Qualifier("smsNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
                                              @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
                                              @Qualifier("smsNotificationTimeoutExecutor")
-                                             ExecutorService timeoutExecutor,
+                                             Executor timeoutExecutor,
                                              NotificationResilienceProperties resilience) {
         validateTimeoutHierarchy(resilience, props);
         RealSmsSender raw = new RealSmsSender(props, smsRestClient);
@@ -134,7 +141,7 @@ class NotificationResilienceConfig {
                                                      CircuitBreaker circuitBreaker,
                                                      @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
                                                      @Qualifier("phoneVerificationTimeoutExecutor")
-                                                     ExecutorService timeoutExecutor,
+                                                     Executor timeoutExecutor,
                                                      NotificationResilienceProperties resilience) {
         validateTimeoutHierarchy(resilience, props);
         RealPhoneVerificationSender raw = new RealPhoneVerificationSender(props, smsRestClient);
@@ -162,12 +169,14 @@ class NotificationResilienceConfig {
                 || result == NotificationSendResult.DELIVERY_UNKNOWN;
     }
 
-    private static ExecutorService createExecutor(NotificationResilienceProperties.ThreadPool threadPool,
-                                                  BoundedExecutorFactory executorFactory,
-                                                  String threadNamePrefix,
-                                                  String monitorName,
-                                                  String rejectionMetricName,
-                                                  String rejectionMetricDescription) {
+    private static ThreadPoolTaskExecutor createExecutor(
+            NotificationResilienceProperties.ThreadPool threadPool,
+            BoundedExecutorFactory executorFactory,
+            String threadNamePrefix,
+            String monitorName,
+            String rejectionMetricName,
+            String rejectionMetricDescription
+    ) {
         return executorFactory.create(
                 threadPool.poolSize(),
                 threadPool.queueCapacity(),

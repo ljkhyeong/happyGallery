@@ -8,11 +8,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.List;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -77,12 +77,8 @@ public final class CustomerAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void authenticate(CustomerPrincipal principal) {
-        UsernamePasswordAuthenticationToken authentication =
-                UsernamePasswordAuthenticationToken.authenticated(
-                        principal,
-                        null,
-                        CUSTOMER_AUTHORITIES
-                );
+        var authentication =
+                new PreAuthenticatedAuthenticationToken(principal, null, CUSTOMER_AUTHORITIES);
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);

@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.client.registration.InMemoryClientReg
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -24,8 +25,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SocialSignupIntentStoreTest {
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-07-21T00:00:00Z"), ZoneOffset.UTC);
-    private final SocialSignupIntentStore store = new SocialSignupIntentStore(clock);
-    private final SocialAccountLinkIntentStore linkIntentStore = new SocialAccountLinkIntentStore(clock);
+    private final SessionStateCodec stateCodec =
+            new SessionStateCodec(JsonMapper.builder().build());
+    private final SocialSignupIntentStore store = new SocialSignupIntentStore(clock, stateCodec);
+    private final SocialAccountLinkIntentStore linkIntentStore =
+            new SocialAccountLinkIntentStore(clock, stateCodec);
 
     @DisplayName("가입 동의 intent는 제공자와 OAuth state에 결합해 callback에서 한 번만 소비한다")
     @Test
@@ -70,7 +74,9 @@ class SocialSignupIntentStoreTest {
         MockHttpServletRequest callbackRequest = callbackRequest(
                 (MockHttpSession) request.getSession(false), "bound-state");
         SocialSignupIntentStore expiredStore =
-                new SocialSignupIntentStore(Clock.offset(clock, Duration.ofMinutes(5)));
+                new SocialSignupIntentStore(
+                        Clock.offset(clock, Duration.ofMinutes(5)),
+                        stateCodec);
 
         assertThatThrownBy(() -> expiredStore.consume(callbackRequest, SocialProvider.GOOGLE))
                 .isInstanceOf(HappyGalleryException.class)

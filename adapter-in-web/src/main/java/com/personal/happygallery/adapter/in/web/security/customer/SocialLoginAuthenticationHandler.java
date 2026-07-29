@@ -58,32 +58,33 @@ public class SocialLoginAuthenticationHandler
                                         Authentication authentication) throws IOException {
         try {
             SocialIdentity identity = profileResolver.resolveIdentity(authentication);
-            var linkIntent = linkIntentStore.consume(request, identity.provider());
-            if (linkIntent.isPresent()) {
+            SocialAccountLinkIntentStore.LinkIntent linkIntent =
+                    linkIntentStore.consume(request, identity.provider()).orElse(null);
+            if (linkIntent != null) {
                 signupIntentStore.clear(request);
-                if (linkIntent.get().purpose()
+                if (linkIntent.purpose()
                         == SocialAccountLinkIntentStore.IntentPurpose.REAUTHENTICATE) {
                     socialAuth.verifyLinkedSocialAccount(new SocialReauthenticationCommand(
-                            linkIntent.get().userId(),
-                            linkIntent.get().credentialVersion(),
+                            linkIntent.userId(),
+                            linkIntent.credentialVersion(),
                             identity.provider(),
                             identity.providerId()));
                     stepUpAuthenticationStore.markVerified(
                             request,
-                            linkIntent.get().userId(),
-                            linkIntent.get().credentialVersion());
+                            linkIntent.userId(),
+                            linkIntent.credentialVersion());
                     redirect(request, response, "reauthenticated", identity.provider().name());
                     return;
                 }
                 socialAuth.linkSocialAccount(new SocialLinkCommand(
-                        linkIntent.get().userId(),
-                        linkIntent.get().credentialVersion(),
+                        linkIntent.userId(),
+                        linkIntent.credentialVersion(),
                         identity.provider(),
                         identity.providerId(),
                         stepUpAuthenticationStore.isRecentlyVerified(
                                 request,
-                                linkIntent.get().userId(),
-                                linkIntent.get().credentialVersion())));
+                                linkIntent.userId(),
+                                linkIntent.credentialVersion())));
                 redirect(request, response, "linked", identity.provider().name());
                 return;
             }

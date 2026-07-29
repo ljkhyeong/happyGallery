@@ -168,7 +168,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
                 adminId,
                 cancellationReason);
 
-        CancellationCompensation compensation = applyAdminCancellationCompensation(booking, lockedPass);
+        CancellationCompensation compensation = applyRefundableCompensation(booking, lockedPass);
         bookingStorePort.save(booking);
         boolean balanceSettlementRequired = booking.getBalanceAmount() > 0
                 && booking.getBalanceStatus() == BalanceStatus.PAID;
@@ -225,7 +225,8 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
                 booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null, null);
 
         // 3. 환불/크레딧 복구 등 취소 보상 처리
-        CancellationCompensation compensation = applyCancellationCompensation(booking, slot, lockedPass);
+        CancellationCompensation compensation =
+                applyCustomerCancellationCompensation(booking, slot, lockedPass);
 
         // 4. 예약 취소 저장
         bookingStorePort.save(booking);
@@ -265,30 +266,19 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
         return lockedPasses;
     }
 
-    private CancellationCompensation applyCancellationCompensation(Booking booking,
-                                                                    Slot slot,
-                                                                    PassPurchase lockedPass) {
+    private CancellationCompensation applyCustomerCancellationCompensation(
+            Booking booking,
+            Slot slot,
+            PassPurchase lockedPass
+    ) {
         boolean refundable = TimeBoundary.isRefundable(slot.getStartAt(), clock);
         if (!refundable) {
             return new CancellationCompensation(false, null, false);
         }
-
-        if (lockedPass != null) {
-            boolean restored = passCreditService.restoreCredit(lockedPass, booking.getId());
-            return new CancellationCompensation(restored, null, false);
-        }
-        if (booking.requiresManualDepositCompensation()) {
-            return new CancellationCompensation(true, null, true);
-        }
-        if (booking.getDepositAmount() == 0) {
-            return new CancellationCompensation(true, null, false);
-        }
-
-        Refund refund = refundExecutionService.requestBookingRefund(booking, booking.getDepositAmount());
-        return new CancellationCompensation(true, refund, false);
+        return applyRefundableCompensation(booking, lockedPass);
     }
 
-    private CancellationCompensation applyAdminCancellationCompensation(
+    private CancellationCompensation applyRefundableCompensation(
             Booking booking,
             PassPurchase lockedPass
     ) {
@@ -302,6 +292,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
         if (booking.getDepositAmount() == 0) {
             return new CancellationCompensation(true, null, false);
         }
+
         Refund refund = refundExecutionService.requestBookingRefund(booking, booking.getDepositAmount());
         return new CancellationCompensation(true, refund, false);
     }

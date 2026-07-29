@@ -1,7 +1,7 @@
 # ADR-0025: 정상 종료와 실행기 정리 정책
 
 **날짜**: 2026-03-19  
-**최종 갱신**: 2026-07-28
+**최종 갱신**: 2026-07-29
 **상태**: Accepted
 
 ---
@@ -11,7 +11,7 @@
 현재 애플리케이션은 다음과 같은 비동기/백그라운드 실행 경로를 가진다.
 
 - Spring `ThreadPoolTaskExecutor` 기반 알림·환불 비동기 실행
-- 결제·알림 외부 호출의 Resilience4j `TimeLimiter`를 위한 별도 `ExecutorService`
+- 결제·알림 외부 호출의 Resilience4j `TimeLimiter`를 위한 별도 제한 `ThreadPoolTaskExecutor`
 - 웹 요청 종료와 별개로 drain이 필요한 Spring bean lifecycle
 
 운영 중 애플리케이션이 갑자기 종료되면 다음 문제가 생길 수 있다.
@@ -82,7 +82,7 @@ Sentry scope가 다음 실행에도 재사용되는 것을 피한다.
 - thread pool 재사용 환경에서 이전 작업의 MDC 값이 다음 작업에 누수되지 않도록 막는다.
 - 종료 직전 drain되는 작업도 동일한 request trace로 추적 가능하게 유지한다.
 
-새 executor를 추가할 때는 실행 방식이 Spring `@Async`인지 raw `ExecutorService`인지와 무관하게
+새 executor를 추가할 때는 실행 방식이 Spring `@Async`인지 `CompletableFuture`인지와 무관하게
 이 decorator를 주입한다. 스레드 생성 코드마다 MDC 복사 로직을 다시 작성하지 않는다.
 
 ### 4. 커밋 후 실행 신호 거절은 원 요청 실패로 전파하지 않는다
@@ -100,10 +100,11 @@ Sentry scope가 다음 실행에도 재사용되는 것을 피한다.
 깨므로 사용하지 않는다. 반대로 PG·알림 transport용 timeout executor는 호출 시작 전 포화를
 상위 결과로 분류해야 하므로 아래의 `AbortPolicy`를 그대로 사용한다.
 
-### 5. 외부 호출 timeout용 `ExecutorService`는 제한 큐와 빠른 정리를 사용한다
+### 5. 외부 호출 timeout용 `ThreadPoolTaskExecutor`는 제한 큐와 빠른 정리를 사용한다
 
 `BoundedExecutorFactory`는 PG와 알림 채널 timeout executor에 공통으로 필요한 생성 정책을 소유한다.
 
+- Boot `ThreadPoolTaskExecutorBuilder` 기반 Spring bean lifecycle
 - core/max pool 크기가 같은 고정 thread pool
 - 고정 크기 `ArrayBlockingQueue`
 - daemon platform thread
@@ -114,7 +115,7 @@ Sentry scope가 다음 실행에도 재사용되는 것을 피한다.
 각 executor의 Spring 빈 수명주기를 결정한다. 알림톡·일반 SMS·휴대폰 인증 SMS는 서로 다른 executor로
 격리한다. 큐 포화는 호출 시작 전 실패이므로 즉시 재시도 가능한 결제 실패 또는 알림 채널 실패로 반환한다.
 
-결제의 `PaymentTimeoutExecutor.close()`는 빈 종료 시 다음 순서로 실행기를 정리한다.
+공통 제한 `ThreadPoolTaskExecutor`는 Spring이 빈 종료를 호출하면 다음 순서로 정리한다.
 
 1. `executor.shutdown()`
 2. 최대 2초 `awaitTermination`
@@ -138,8 +139,8 @@ timeout executor는 업무 후처리용 `notificationExecutor`와 다르게, 진
 | `notificationExecutor` | task completion 대기 | 30초 |
 | `refundExecutor` | task completion 대기, 미실행 건은 DB 복구 | 30초 |
 | Spring `taskScheduler` | 새 실행 거절·주기 작업 즉시 취소 | 대기 없음 |
-| PG timeout executor | 빠른 정리 후 강제 종료 허용 | 2초 |
-| 알림 채널 timeout executor | 제한 큐, Spring 종료 시 신규 작업 거절 | Spring bean 종료 단계 |
+| PG timeout executor | 제한 큐, 빠른 정리 후 강제 종료 허용 | 2초 |
+| 알림 채널 timeout executor | 채널별 제한 큐, 빠른 정리 후 강제 종료 허용 | 2초 |
 
 모든 executor에 같은 종료 정책을 쓰지 않는다.
 종료 시 무엇을 보호해야 하는지에 따라 대기 시간을 다르게 둔다.
@@ -164,12 +165,11 @@ Redis 연결 종료 뒤 남아 shutdown을 지연하지 않게 한다.
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentResilienceConfig.java`
   - 결제 executor 설정과 빈 수명주기 구성
   - CircuitBreaker, TimeLimiter, executor와 제공자 빈 조립
-- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentTimeoutExecutor.java`
-  - Spring 빈 종료 시 2초 대기 후 강제 종료하는 수명주기 구현
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/notification/NotificationResilienceConfig.java`
-  - 알림 executor 설정과 Spring `shutdown` 수명주기 구성
+  - 채널별 알림 executor 설정과 빈 조립
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/resilience/BoundedExecutorFactory.java`
-  - timeout executor의 제한 큐·daemon thread·즉시 거절·큐/거절 메트릭과 추적 문맥 전파 공용화
+  - Boot builder 기반 timeout executor의 Spring 수명주기 구성
+  - 제한 큐·daemon thread·즉시 거절·2초 종료·큐/거절 메트릭과 추적 문맥 전파 공용화
 
 ---
 
@@ -206,6 +206,5 @@ Redis 연결 종료 뒤 남아 shutdown을 지연하지 않게 한다.
 - `bootstrap/src/main/resources/application.yml`
 - `bootstrap/src/main/java/com/personal/happygallery/bootstrap/config/AsyncConfig.java`
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentResilienceConfig.java`
-- `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/PaymentTimeoutExecutor.java`
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/payment/ResilientPaymentProvider.java`
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/resilience/BoundedExecutorFactory.java`

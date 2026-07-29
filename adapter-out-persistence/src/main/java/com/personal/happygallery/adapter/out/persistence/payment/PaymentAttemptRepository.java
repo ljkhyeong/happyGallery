@@ -146,22 +146,14 @@ public interface PaymentAttemptRepository
         return findReconciliationRequiredPage(PageRequest.ofSize(limit));
     }
 
+    @Override
     @Query("""
-            SELECT COUNT(attempt) AS count,
-                   MIN(attempt.processingAt) AS oldestActionAt
+            SELECT new com.personal.happygallery.application.payment.port.out.PaymentAttemptBacklogSummary(
+                       COUNT(attempt),
+                       MIN(attempt.processingAt)
+                   )
             FROM PaymentAttempt attempt
             WHERE attempt.status = com.personal.happygallery.domain.payment.PaymentAttemptStatus.RECONCILIATION_REQUIRED
             """)
-    PaymentReconciliationBacklogView summarizeReconciliationRequiredBacklogView();
-
-    @Override
-    default PaymentAttemptBacklogSummary summarizeReconciliationRequiredBacklog() {
-        PaymentReconciliationBacklogView summary = summarizeReconciliationRequiredBacklogView();
-        return new PaymentAttemptBacklogSummary(summary.getCount(), summary.getOldestActionAt());
-    }
-
-    interface PaymentReconciliationBacklogView {
-        long getCount();
-        LocalDateTime getOldestActionAt();
-    }
+    PaymentAttemptBacklogSummary summarizeReconciliationRequiredBacklog();
 }

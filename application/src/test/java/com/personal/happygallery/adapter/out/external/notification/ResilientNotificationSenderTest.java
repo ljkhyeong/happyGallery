@@ -11,12 +11,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.task.ThreadPoolTaskExecutorBuilder;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -27,11 +28,11 @@ class ResilientNotificationSenderTest {
     private static final String IDEMPOTENCY_KEY = "notification-key";
 
     private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
-    private final List<ExecutorService> timeoutExecutors = new ArrayList<>();
+    private final List<ThreadPoolTaskExecutor> timeoutExecutors = new ArrayList<>();
 
     @AfterEach
     void tearDown() {
-        timeoutExecutors.forEach(ExecutorService::shutdownNow);
+        timeoutExecutors.forEach(ThreadPoolTaskExecutor::shutdown);
         meterRegistry.close();
     }
 
@@ -172,13 +173,14 @@ class ResilientNotificationSenderTest {
     void notificationChannels_useIsolatedExecutorsAndMetrics() {
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
-        BoundedExecutorFactory executorFactory = new BoundedExecutorFactory(meterRegistry, task -> task);
+        BoundedExecutorFactory executorFactory = new BoundedExecutorFactory(
+                new ThreadPoolTaskExecutorBuilder(), meterRegistry, task -> task);
 
-        ExecutorService alimtalk = register(config.alimtalkNotificationTimeoutExecutor(
+        ThreadPoolTaskExecutor alimtalk = register(config.alimtalkNotificationTimeoutExecutor(
                 properties, executorFactory));
-        ExecutorService sms = register(config.smsNotificationTimeoutExecutor(
+        ThreadPoolTaskExecutor sms = register(config.smsNotificationTimeoutExecutor(
                 properties, executorFactory));
-        ExecutorService verification = register(config.phoneVerificationTimeoutExecutor(
+        ThreadPoolTaskExecutor verification = register(config.phoneVerificationTimeoutExecutor(
                 properties, executorFactory));
 
         assertSoftly(softly -> {
@@ -205,9 +207,10 @@ class ResilientNotificationSenderTest {
                                                       CircuitBreaker circuitBreaker,
                                                       NotificationResilienceConfig config,
                                                       NotificationResilienceProperties properties) {
-        ExecutorService timeoutExecutor = register(config.alimtalkNotificationTimeoutExecutor(
+        ThreadPoolTaskExecutor timeoutExecutor = register(config.alimtalkNotificationTimeoutExecutor(
                 properties,
-                new BoundedExecutorFactory(meterRegistry, task -> task)));
+                new BoundedExecutorFactory(
+                        new ThreadPoolTaskExecutorBuilder(), meterRegistry, task -> task)));
         return new ResilientNotificationSender(
                 delegate,
                 circuitBreaker,
@@ -239,7 +242,8 @@ class ResilientNotificationSenderTest {
                 circuitBreaker);
     }
 
-    private ExecutorService register(ExecutorService executor) {
+    private ThreadPoolTaskExecutor register(ThreadPoolTaskExecutor executor) {
+        executor.initialize();
         timeoutExecutors.add(executor);
         return executor;
     }

@@ -1,6 +1,7 @@
 # ADR-0020: 결제 환불 외부 호출 보호를 위한 CircuitBreaker 도입
 
 **날짜**: 2026-03-06  
+**최종 갱신**: 2026-07-29
 **상태**: Accepted
 
 ---
@@ -58,7 +59,7 @@
 ### 6. 보호 자원 구성과 호출 실행 책임을 분리한다
 
 - `PaymentResilienceConfig`가 `CircuitBreaker`, `TimeLimiter`, 제한 큐 executor의 생성과 메트릭 등록, Spring 빈 조립을 담당한다.
-- `PaymentTimeoutExecutor`가 executor의 종료 수명주기를 담당한다.
+- `BoundedExecutorFactory`가 Boot `ThreadPoolTaskExecutorBuilder`로 제한 큐 executor를 만들고 Spring 종료 수명주기, 2초 대기 후 강제 종료, 거절·큐 메트릭을 공통 적용한다.
 - `ResilientPaymentProvider`는 주입받은 보호 자원으로 PG 호출을 실행하고 결과를 표준화하는 역할만 담당한다.
 
 ### 7. Registry 기반 표준 메트릭으로 결제와 알림 서킷을 함께 관측한다
@@ -86,7 +87,7 @@
 ## 구현 반영
 
 - `adapter-out-external/.../payment/PaymentResilienceConfig`에서 결제 보호 자원과 `@Primary` 제공자 빈 구성
-- `adapter-out-external/.../payment/PaymentTimeoutExecutor`에서 제한 큐 executor의 종료 수명주기 관리
+- `adapter-out-external/.../resilience/BoundedExecutorFactory`에서 제한 큐와 Spring executor 종료 수명주기 관리
 - `adapter-out-external/.../payment/ResilientPaymentProvider`에서 보호된 PG 호출과 결과 표준화 수행
 - `adapter-out-external/.../payment/FakePaymentProvider` 빈 이름 분리 (`paymentProviderDelegate`)
 - `PaymentProvider.confirm` 경로도 `CircuitBreaker + TimeLimiter` 보호 적용

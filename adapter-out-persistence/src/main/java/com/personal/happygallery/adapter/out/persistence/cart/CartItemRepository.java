@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.cart;
 
+import com.personal.happygallery.application.cart.port.out.CartItemDetail;
 import com.personal.happygallery.application.cart.port.out.CartItemReaderPort;
 import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
 import com.personal.happygallery.domain.cart.CartItem;
@@ -46,4 +47,26 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long>,
     @Override
     @Lock(PESSIMISTIC_WRITE)
     List<CartItem> findAllByUserIdAndIdInOrderByIdAsc(Long userId, Collection<Long> cartItemIds);
+
+    @Query("""
+            select new com.personal.happygallery.application.cart.port.out.CartItemDetail(
+                       item.id,
+                       product.id,
+                       product.name,
+                       product.type,
+                       product.price,
+                       product.specification,
+                       product.careInstructions,
+                       product.productionLeadDays,
+                       item.qty,
+                       product.status,
+                       inventory.quantity
+                   )
+              from CartItem item
+              join Product product on product.id = item.productId
+              left join Inventory inventory on inventory.productId = item.productId
+             where item.userId = :userId
+             order by item.createdAt, item.id
+            """)
+    List<CartItemDetail> findDetailsByUserId(@Param("userId") Long userId);
 }

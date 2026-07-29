@@ -39,13 +39,7 @@ public enum OrderStatus {
 	 * 그 외 승인 대기 외 상태는 {@code 400 INVALID_INPUT}을 던진다.
 	 */
 	public void requireApprovalPending() {
-		if (this == REJECTED
-				|| this == CUSTOMER_CANCELED
-				|| this == AUTO_REFUND_TIMEOUT
-				|| this == PICKUP_EXPIRED
-				|| this == DELAY_REJECTED_CANCELED) {
-			throw new AlreadyRefundedException();
-		}
+		requireNotAlreadyRefunded();
 		if (this != PAID_APPROVAL_PENDING) {
 			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "승인 대기 상태의 주문만 처리할 수 있습니다.");
 		}
@@ -72,13 +66,7 @@ public enum OrderStatus {
 
 	/** 고객이 결제 승인 전 주문을 직접 취소할 수 있는지 확인한다. */
 	public void requireCustomerCancellationAllowed() {
-		if (this == REJECTED
-				|| this == CUSTOMER_CANCELED
-				|| this == AUTO_REFUND_TIMEOUT
-				|| this == PICKUP_EXPIRED
-				|| this == DELAY_REJECTED_CANCELED) {
-			throw new AlreadyRefundedException();
-		}
+		requireNotAlreadyRefunded();
 		if (this != PAID_APPROVAL_PENDING) {
 			throw new HappyGalleryException(
 					ErrorCode.INVALID_INPUT, "승인 대기 상태의 주문만 고객이 취소할 수 있습니다.");
@@ -173,6 +161,20 @@ public enum OrderStatus {
 	public void requireShipped() {
 		if (this != SHIPPED) {
 			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "배송 중 상태에서만 가능합니다.");
+		}
+	}
+
+	private void requireNotAlreadyRefunded() {
+		boolean alreadyRefunded = switch (this) {
+			case REJECTED, CUSTOMER_CANCELED, AUTO_REFUND_TIMEOUT,
+					DELAY_REJECTED_CANCELED, PICKUP_EXPIRED -> true;
+			case PAID_APPROVAL_PENDING, APPROVED_FULFILLMENT_PENDING,
+					IN_PRODUCTION, DELAY_CONSENT_PENDING, DELAY_ACCEPTED,
+					SHIPPING_PREPARING, SHIPPED, DELIVERED,
+					PICKUP_READY, PICKED_UP, PICKUP_FORFEITED, COMPLETED -> false;
+		};
+		if (alreadyRefunded) {
+			throw new AlreadyRefundedException();
 		}
 	}
 }

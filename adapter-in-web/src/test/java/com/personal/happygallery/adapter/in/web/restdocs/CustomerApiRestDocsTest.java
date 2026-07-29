@@ -16,6 +16,7 @@ import com.personal.happygallery.adapter.in.web.customer.MeProductQnaController;
 import com.personal.happygallery.adapter.in.web.customer.MeSocialAccountController;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
+import com.personal.happygallery.adapter.in.web.security.customer.SessionStateCodec;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialAccountLinkIntentStore;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerStepUpAuthenticationStore;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
@@ -57,6 +58,7 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
@@ -172,7 +174,11 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(qnaUseCase.getOwnedDetail(1L, 5L, CUSTOMER_USER_ID))
                 .thenReturn(new ProductQnaUseCase.QnaWithAuthor(qna, "홍길동"));
 
-        stepUpStore = new CustomerStepUpAuthenticationStore(RestDocsFixtures.clock());
+        SessionStateCodec sessionStateCodec =
+                new SessionStateCodec(JsonMapper.builder().build());
+        stepUpStore = new CustomerStepUpAuthenticationStore(
+                RestDocsFixtures.clock(),
+                sessionStateCodec);
         CustomerSessionBinder customerSessionBinder = new CustomerSessionBinder(
                 mock(CsrfTokenRepository.class), stepUpStore);
         mockMvc = mockMvc(restDocumentation,
@@ -196,7 +202,9 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         stepUpStore),
                 new MeSocialAccountController(
                         socialAuthUseCase,
-                        new SocialAccountLinkIntentStore(RestDocsFixtures.clock()),
+                        new SocialAccountLinkIntentStore(
+                                RestDocsFixtures.clock(),
+                                sessionStateCodec),
                         customerSessionBinder,
                         stepUpStore),
                 new MeInquiryController(inquiryUseCase),

@@ -34,7 +34,7 @@ class JpaGuestClaimTargetAdapter implements GuestClaimTargetPort {
 
     @Override
     public List<Booking> findBookingsByGuestId(Long guestId, int limit) {
-        return bookingRepository.findClaimPreviewByGuestId(guestId, PageRequest.ofSize(limit));
+        return bookingRepository.findByGuestIdWithDetails(guestId, PageRequest.ofSize(limit));
     }
 
     @Override

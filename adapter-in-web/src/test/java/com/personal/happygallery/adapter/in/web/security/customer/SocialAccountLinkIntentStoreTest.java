@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.client.registration.InMemoryClientReg
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -24,8 +25,12 @@ import static com.personal.happygallery.adapter.in.web.security.customer.SocialA
 class SocialAccountLinkIntentStoreTest {
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-07-21T00:00:00Z"), ZoneOffset.UTC);
-    private final SocialAccountLinkIntentStore store = new SocialAccountLinkIntentStore(clock);
-    private final SocialSignupIntentStore signupIntentStore = new SocialSignupIntentStore(clock);
+    private final SessionStateCodec stateCodec =
+            new SessionStateCodec(JsonMapper.builder().build());
+    private final SocialAccountLinkIntentStore store =
+            new SocialAccountLinkIntentStore(clock, stateCodec);
+    private final SocialSignupIntentStore signupIntentStore =
+            new SocialSignupIntentStore(clock, stateCodec);
 
     @DisplayName("연결 시작 요청은 Spring이 생성한 OAuth state와 결합한 뒤 같은 회원 callback에서만 소비한다")
     @Test

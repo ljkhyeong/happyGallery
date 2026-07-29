@@ -31,7 +31,7 @@ public class DefaultSlotQueryService implements SlotQueryUseCase {
     public List<Slot> listAvailable(Long classId, LocalDate date) {
         LocalDateTime dayStart = date.atStartOfDay();
         LocalDateTime dayEnd = dayStart.plusDays(1);
-        return slotReaderPort.findAvailableByClassAndDate(
+        return slotReaderPort.findAvailableByClassAndRange(
                 classId, dayStart, dayEnd, LocalDateTime.now(clock));
     }
 

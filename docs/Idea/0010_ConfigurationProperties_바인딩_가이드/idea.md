@@ -19,6 +19,9 @@
 |------|--------|---------|------|
 | 관리자 인증 | `app.admin` | `AdminProperties` | API key, API key 인증 허용 여부 |
 | Rate limit | `app.rate-limit` | `RateLimitProperties` | 공개/회원/관리자 경로 제한값과 forwarded header 신뢰 여부 |
+| 미디어 저장소 | `app.media` | `MediaStorageProperties` | 이미지 저장 경로 |
+| 주문·이용권 가격 | `app.order`, `app.pass` | `OrderPriceProperties`, `PassPriceProperties` | 배송비와 8회권 가격 |
+| 정책 동의 | `app.policy-consent` | `PolicyConsentProperties` | 약관·개인정보 정책 버전 |
 | 배치 스케줄러 | `spring.task.scheduling` | Spring Boot task scheduling properties | 스케줄러 thread pool·주기 작업 즉시 종료 정책 |
 
 코드 검색 기준으로 현재 메인 소스에는 `@Value` 직접 주입이 남아 있지 않다.
@@ -30,6 +33,8 @@
 1. Spring Boot가 이미 소유한 infra 설정은 `spring.*` 표준 키와 builder를 우선하고, 새 `app.*` 설정은 가능한 한 concern 단위의 `@ConfigurationProperties` 클래스로 묶는다.
 2. 기본값은 properties 클래스 필드에 둔다.
 3. 숫자 범위나 필수 조건은 `@Validated`와 Bean Validation으로 검증한다.
+   단일 필드의 null·공백·범위 검증을 compact constructor에서 다시 구현하지 않고,
+   constructor에는 trim 같은 정규화와 필드 간 관계 검증만 남긴다.
 4. filter/service에는 개별 primitive보다 properties 객체를 주입한다.
 5. 비밀값은 저장소에 하드코딩하지 않고 환경 변수로 주입한다.
 6. 외부 계약에 가까운 설정 키를 바꾸면 README/ADR/운영 문서도 같이 맞춘다.

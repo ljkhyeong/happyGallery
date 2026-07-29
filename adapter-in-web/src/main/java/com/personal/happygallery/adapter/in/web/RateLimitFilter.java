@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.in.web;
 
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties;
+import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties.IpRules;
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties.Rule;
 import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitDecision;
 import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode;
@@ -11,7 +12,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -32,60 +35,102 @@ import static org.springframework.security.web.servlet.util.matcher.PathPatternR
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final LimitRule PHONE_VERIFICATION_RULE = new LimitRule(
-            "PHONE_VERIFICATION_IP", pathPattern(POST, "/api/v1/bookings/phone-verifications"), FAIL_CLOSED);
-    private static final LimitRule CUSTOMER_LOGIN_RULE = new LimitRule(
-            "CUSTOMER_LOGIN_IP", pathPattern(POST, "/api/v1/auth/login"), FAIL_CLOSED);
-    private static final LimitRule CUSTOMER_SIGNUP_RULE = new LimitRule(
-            "CUSTOMER_SIGNUP_IP", pathPattern(POST, "/api/v1/auth/signup"), FAIL_CLOSED);
-    private static final LimitRule CUSTOMER_PASSWORD_RESET_RULE = new LimitRule(
-            "CUSTOMER_PASSWORD_RESET_IP", pathPattern(POST, "/api/v1/auth/password/reset"), FAIL_CLOSED);
-    private static final LimitRule CUSTOMER_REAUTHENTICATION_RULE = new LimitRule(
-            "CUSTOMER_REAUTHENTICATION_IP",
-            pathPattern(POST, "/api/v1/me/reauthentication/password"),
-            FAIL_CLOSED);
-    private static final LimitRule ADMIN_LOGIN_RULE = new LimitRule(
-            "ADMIN_LOGIN_IP",
-            new OrRequestMatcher(
-                    pathPattern(POST, "/api/v1/admin/auth/login"),
-                    pathPattern(POST, "/api/v1/admin/auth/mfa/verify")),
-            FAIL_CLOSED);
-    private static final LimitRule ADMIN_SETUP_RULE = new LimitRule(
-            "ADMIN_SETUP_IP", pathPattern(POST, "/api/v1/admin/setup"), FAIL_CLOSED);
-    private static final LimitRule SOCIAL_LOGIN_RULE = new LimitRule(
-            "SOCIAL_LOGIN_IP", pathPattern(GET, SOCIAL_CALLBACK_PROVIDER_PATH), FAIL_CLOSED);
-    private static final LimitRule SOCIAL_LOGIN_INIT_RULE = new LimitRule(
-            "SOCIAL_LOGIN_INIT_IP",
-            new OrRequestMatcher(
-                    pathPattern(GET, SOCIAL_AUTHORIZATION_PROVIDER_PATH),
-                    pathPattern(POST, SOCIAL_SIGNUP_INTENT_PROVIDER_PATH)),
-            FAIL_CLOSED);
-    private static final LimitRule PAYMENT_PREPARE_RULE = new LimitRule(
-            "PAYMENT_PREPARE_IP", pathPattern(POST, "/api/v1/payments/prepare"), FAIL_CLOSED);
-    private static final LimitRule PAYMENT_CONFIRM_RULE = new LimitRule(
-            "PAYMENT_CONFIRM_IP", pathPattern(POST, "/api/v1/payments/confirm"), FAIL_OPEN);
-    private static final LimitRule GUEST_CLAIM_VERIFY_RULE = new LimitRule(
-            "GUEST_CLAIM_VERIFY_IP", pathPattern(POST, "/api/v1/me/guest-claims/verify"), FAIL_CLOSED);
-    private static final LimitRule GUEST_RECORD_RECOVERY_RULE = new LimitRule(
-            "GUEST_RECORD_RECOVERY_IP",
-            new OrRequestMatcher(
-                    pathPattern(POST, "/api/v1/guest-records/recovery"),
-                    pathPattern(POST, "/api/v1/guest-records/payment-status-recovery")),
-            FAIL_CLOSED);
-    private static final LimitRule CLIENT_MONITORING_RULE = new LimitRule(
-            "CLIENT_MONITORING_IP", pathPattern(POST, "/api/v1/monitoring/client-events"), FAIL_CLOSED);
-    private static final LimitRule ORDER_CUSTOMER_ACTION_RULE = new LimitRule(
-            "ORDER_CUSTOMER_ACTION_IP",
-            new OrRequestMatcher(
-                    pathPattern(DELETE, "/api/v1/orders/{id}"),
-                    pathPattern(POST, "/api/v1/orders/{id}/delay-response"),
-                    pathPattern(DELETE, "/api/v1/me/orders/{id}"),
-                    pathPattern(POST, "/api/v1/me/orders/{id}/delay-response")),
-            FAIL_CLOSED);
-    private static final LimitRule ADMIN_API_RULE = new LimitRule(
-            "ADMIN_API_IP", pathPattern("/api/v1/admin/**"), FAIL_CLOSED);
-    private static final LimitRule DEFAULT_API_RULE = new LimitRule(
-            "DEFAULT_API_IP", pathPattern("/api/v1/**"), FAIL_OPEN);
+    private static final List<RouteRule> ROUTE_RULES = List.of(
+            new RouteRule(
+                    "CUSTOMER_LOGIN_IP",
+                    pathPattern(POST, "/api/v1/auth/login"),
+                    FAIL_CLOSED,
+                    IpRules::customerLogin),
+            new RouteRule(
+                    "CUSTOMER_SIGNUP_IP",
+                    pathPattern(POST, "/api/v1/auth/signup"),
+                    FAIL_CLOSED,
+                    IpRules::customerSignup),
+            new RouteRule(
+                    "CUSTOMER_PASSWORD_RESET_IP",
+                    pathPattern(POST, "/api/v1/auth/password/reset"),
+                    FAIL_CLOSED,
+                    IpRules::customerLogin),
+            new RouteRule(
+                    "CUSTOMER_REAUTHENTICATION_IP",
+                    pathPattern(POST, "/api/v1/me/reauthentication/password"),
+                    FAIL_CLOSED,
+                    IpRules::customerLogin),
+            new RouteRule(
+                    "SOCIAL_LOGIN_IP",
+                    pathPattern(GET, SOCIAL_CALLBACK_PROVIDER_PATH),
+                    FAIL_CLOSED,
+                    IpRules::socialLogin),
+            new RouteRule(
+                    "SOCIAL_LOGIN_INIT_IP",
+                    new OrRequestMatcher(
+                            pathPattern(GET, SOCIAL_AUTHORIZATION_PROVIDER_PATH),
+                            pathPattern(POST, SOCIAL_SIGNUP_INTENT_PROVIDER_PATH)),
+                    FAIL_CLOSED,
+                    IpRules::socialLogin),
+            new RouteRule(
+                    "ADMIN_LOGIN_IP",
+                    new OrRequestMatcher(
+                            pathPattern(POST, "/api/v1/admin/auth/login"),
+                            pathPattern(POST, "/api/v1/admin/auth/mfa/verify")),
+                    FAIL_CLOSED,
+                    IpRules::adminLogin),
+            new RouteRule(
+                    "ADMIN_SETUP_IP",
+                    pathPattern(POST, "/api/v1/admin/setup"),
+                    FAIL_CLOSED,
+                    IpRules::adminSetup),
+            new RouteRule(
+                    "PHONE_VERIFICATION_IP",
+                    pathPattern(POST, "/api/v1/bookings/phone-verifications"),
+                    FAIL_CLOSED,
+                    IpRules::phoneVerification),
+            new RouteRule(
+                    "PAYMENT_PREPARE_IP",
+                    pathPattern(POST, "/api/v1/payments/prepare"),
+                    FAIL_CLOSED,
+                    IpRules::paymentPrepare),
+            new RouteRule(
+                    "PAYMENT_CONFIRM_IP",
+                    pathPattern(POST, "/api/v1/payments/confirm"),
+                    FAIL_OPEN,
+                    IpRules::paymentConfirm),
+            new RouteRule(
+                    "GUEST_CLAIM_VERIFY_IP",
+                    pathPattern(POST, "/api/v1/me/guest-claims/verify"),
+                    FAIL_CLOSED,
+                    IpRules::guestClaimVerify),
+            new RouteRule(
+                    "GUEST_RECORD_RECOVERY_IP",
+                    new OrRequestMatcher(
+                            pathPattern(POST, "/api/v1/guest-records/recovery"),
+                            pathPattern(POST, "/api/v1/guest-records/payment-status-recovery")),
+                    FAIL_CLOSED,
+                    IpRules::guestRecordRecovery),
+            new RouteRule(
+                    "CLIENT_MONITORING_IP",
+                    pathPattern(POST, "/api/v1/monitoring/client-events"),
+                    FAIL_CLOSED,
+                    IpRules::clientMonitoring),
+            new RouteRule(
+                    "ORDER_CUSTOMER_ACTION_IP",
+                    new OrRequestMatcher(
+                            pathPattern(DELETE, "/api/v1/orders/{id}"),
+                            pathPattern(POST, "/api/v1/orders/{id}/delay-response"),
+                            pathPattern(DELETE, "/api/v1/me/orders/{id}"),
+                            pathPattern(POST, "/api/v1/me/orders/{id}/delay-response")),
+                    FAIL_CLOSED,
+                    IpRules::orderCustomerAction),
+            new RouteRule(
+                    "ADMIN_API_IP",
+                    pathPattern("/api/v1/admin/**"),
+                    FAIL_CLOSED,
+                    IpRules::adminApi),
+            new RouteRule(
+                    "DEFAULT_API_IP",
+                    pathPattern("/api/v1/**"),
+                    FAIL_OPEN,
+                    IpRules::defaultApi));
 
     private final ObjectMapper objectMapper;
     private final RateLimitProperties properties;
@@ -115,9 +160,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         Optional<RateLimitDecision> result = rateLimiter.tryConsume(
-                resolved.rule().id(), resolveClientKey(request), resolved.limit());
+                resolved.id(), resolveClientKey(request), resolved.limit());
         if (result.isEmpty()) {
-            if (resolved.rule().failureMode() == FAIL_CLOSED) {
+            if (resolved.failureMode() == FAIL_CLOSED) {
                 writeServiceUnavailable(response);
                 return;
             }
@@ -140,63 +185,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private ResolvedRule resolveRule(HttpServletRequest request) {
-        if (matches(request, CUSTOMER_LOGIN_RULE)) {
-            return new ResolvedRule(CUSTOMER_LOGIN_RULE, properties.ip().customerLogin());
-        }
-        if (matches(request, CUSTOMER_SIGNUP_RULE)) {
-            return new ResolvedRule(CUSTOMER_SIGNUP_RULE, properties.ip().customerSignup());
-        }
-        if (matches(request, CUSTOMER_PASSWORD_RESET_RULE)) {
-            return new ResolvedRule(CUSTOMER_PASSWORD_RESET_RULE, properties.ip().customerLogin());
-        }
-        if (matches(request, CUSTOMER_REAUTHENTICATION_RULE)) {
-            return new ResolvedRule(CUSTOMER_REAUTHENTICATION_RULE, properties.ip().customerLogin());
-        }
-        if (matches(request, SOCIAL_LOGIN_RULE)) {
-            return new ResolvedRule(SOCIAL_LOGIN_RULE, properties.ip().socialLogin());
-        }
-        if (matches(request, SOCIAL_LOGIN_INIT_RULE)) {
-            return new ResolvedRule(SOCIAL_LOGIN_INIT_RULE, properties.ip().socialLogin());
-        }
-        if (matches(request, ADMIN_LOGIN_RULE)) {
-            return new ResolvedRule(ADMIN_LOGIN_RULE, properties.ip().adminLogin());
-        }
-        if (matches(request, ADMIN_SETUP_RULE)) {
-            return new ResolvedRule(ADMIN_SETUP_RULE, properties.ip().adminSetup());
-        }
-        if (matches(request, PHONE_VERIFICATION_RULE)) {
-            return new ResolvedRule(PHONE_VERIFICATION_RULE, properties.ip().phoneVerification());
-        }
-        if (matches(request, PAYMENT_PREPARE_RULE)) {
-            return new ResolvedRule(PAYMENT_PREPARE_RULE, properties.ip().paymentPrepare());
-        }
-        if (matches(request, PAYMENT_CONFIRM_RULE)) {
-            return new ResolvedRule(PAYMENT_CONFIRM_RULE, properties.ip().paymentConfirm());
-        }
-        if (matches(request, GUEST_CLAIM_VERIFY_RULE)) {
-            return new ResolvedRule(GUEST_CLAIM_VERIFY_RULE, properties.ip().guestClaimVerify());
-        }
-        if (matches(request, GUEST_RECORD_RECOVERY_RULE)) {
-            return new ResolvedRule(GUEST_RECORD_RECOVERY_RULE, properties.ip().guestRecordRecovery());
-        }
-        if (matches(request, CLIENT_MONITORING_RULE)) {
-            return new ResolvedRule(CLIENT_MONITORING_RULE, properties.ip().clientMonitoring());
-        }
-        if (matches(request, ORDER_CUSTOMER_ACTION_RULE)) {
-            return new ResolvedRule(
-                    ORDER_CUSTOMER_ACTION_RULE, properties.ip().orderCustomerAction());
-        }
-        if (matches(request, ADMIN_API_RULE)) {
-            return new ResolvedRule(ADMIN_API_RULE, properties.ip().adminApi());
-        }
-        if (matches(request, DEFAULT_API_RULE)) {
-            return new ResolvedRule(DEFAULT_API_RULE, properties.ip().defaultApi());
+        for (RouteRule rule : ROUTE_RULES) {
+            if (rule.matcher().matches(request)) {
+                return rule.resolve(properties.ip());
+            }
         }
         return null;
-    }
-
-    private boolean matches(HttpServletRequest request, LimitRule rule) {
-        return rule.matcher().matches(request);
     }
 
     String resolveClientKey(HttpServletRequest request) {
@@ -209,9 +203,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
         FilterErrorResponseWriter.write(response, objectMapper, ErrorCode.SERVICE_UNAVAILABLE);
     }
 
-    private record LimitRule(String id, RequestMatcher matcher, RateLimitFailureMode failureMode) {
+    private record RouteRule(
+            String id,
+            RequestMatcher matcher,
+            RateLimitFailureMode failureMode,
+            Function<IpRules, Rule> limit
+    ) {
+        private ResolvedRule resolve(IpRules rules) {
+            return new ResolvedRule(id, failureMode, limit.apply(rules));
+        }
     }
 
-    private record ResolvedRule(LimitRule rule, Rule limit) {
-    }
+    private record ResolvedRule(String id, RateLimitFailureMode failureMode, Rule limit) {}
 }

@@ -20,7 +20,8 @@
 - `RequestIdFilter`는 모든 응답에 추적 ID를 남기기 위해 Servlet 바깥 필터로 유지한다.
 - `RateLimitFilter`는 Servlet 자동 등록을 끄고 두 `SecurityFilterChain`에 명시적으로 등록한다.
   이 위치에서는 컨트롤러와 외부 호출 전에 요청을 차단하면서도 `429`·`503` 단락 응답에 공통 보안 헤더가 적용된다.
-- 구체 경로 규칙을 먼저 확인하고, 마지막에 `/api/v1/**`의 `DEFAULT_API_IP` 규칙을 적용한다.
+- matcher, 실패 모드와 설정 선택자를 하나의 순서 있는 규칙 목록으로 관리한다.
+  구체 경로 규칙을 먼저 확인하고, 마지막에 `/api/v1/**`의 `DEFAULT_API_IP` 규칙을 적용한다.
 - `/actuator/**`, 정적 파일과 Kubernetes health probe는 `/api/v1/**` 밖에 두어 사용자 트래픽 버킷과 분리한다.
 - `app.rate-limit.enabled=false`는 로컬 반복 E2E처럼 동일 IP 요청이 집중되는 검증에서만 사용한다.
 

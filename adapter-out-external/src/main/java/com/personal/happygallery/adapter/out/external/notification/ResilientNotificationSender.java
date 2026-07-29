@@ -5,7 +5,7 @@ import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.timelimiter.TimeLimiter;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 /**
  * 알림 발송 어댑터에 서킷 브레이커 + 타임아웃을 씌우는 데코레이터.
@@ -25,7 +25,7 @@ public class ResilientNotificationSender implements NotificationSender {
     public ResilientNotificationSender(NotificationSender delegate,
                                        CircuitBreaker circuitBreaker,
                                        TimeLimiter timeLimiter,
-                                       ExecutorService executor,
+                                       Executor executor,
                                        long timeoutMillis) {
         this.delegate = delegate;
         this.resilientCall = new ResilientNotificationCall(

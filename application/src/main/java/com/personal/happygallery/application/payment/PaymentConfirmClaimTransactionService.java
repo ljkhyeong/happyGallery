@@ -65,22 +65,6 @@ class PaymentConfirmClaimTransactionService {
         validateAttempt(attempt, command);
         String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
 
-        if (attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
-            attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
-            return new Completed(attemptResolver.confirmedResult(attempt));
-        }
-        if (attempt.getStatus() == PaymentAttemptStatus.APPROVED) {
-            attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
-            return readyForFulfillment(attempt);
-        }
-        if (attempt.getStatus() == PaymentAttemptStatus.RECONCILIATION_REQUIRED) {
-            attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
-            throw paymentFailure(attempt);
-        }
-        if (attempt.getStatus() == PaymentAttemptStatus.FAILED) {
-            attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
-            throw paymentFailure(attempt);
-        }
         if (attempt.requiresConfirmReconciliation(
                 LocalDateTime.ofInstant(
                         nowInstant.minus(CONFIRM_AUTOMATIC_RETRY_MAX_AGE), ZoneOffset.UTC))) {
@@ -89,24 +73,44 @@ class PaymentConfirmClaimTransactionService {
             attemptStore.save(attempt);
             return new ConfirmationRejected(attempt.getId(), paymentFailure(attempt));
         }
-        String processingToken;
-        if (attempt.getStatus() == PaymentAttemptStatus.PROCESSING) {
-            if (!isStale(attempt, now)) {
+
+        return switch (attempt.getStatus()) {
+            case CONFIRMED -> {
                 attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
-                throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
+                yield new Completed(attemptResolver.confirmedResult(attempt));
             }
-            processingToken = attempt.restartProcessing(command.amount(), paymentKey, now);
-        } else {
-            processingToken = attempt.startProcessing(command.amount(), paymentKey, now);
-        }
-        attemptStore.save(attempt);
-        if (attempt.getAmount() == 0L) {
-            return new ZeroAmountApprovalRequired(
-                    attempt.getId(), attempt.getOrderIdExternal(), processingToken);
-        }
-        return new PgConfirmationRequired(
-                attempt.getId(), attempt.getOrderIdExternal(), attempt.getAmount(),
-                attempt.getPaymentKey(), processingToken);
+            case APPROVED -> {
+                attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
+                yield readyForFulfillment(attempt);
+            }
+            case RECONCILIATION_REQUIRED, FAILED -> {
+                attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
+                throw paymentFailure(attempt);
+            }
+            case PENDING, PROCESSING, RETRYABLE -> {
+                String processingToken;
+                if (attempt.getStatus() == PaymentAttemptStatus.PROCESSING) {
+                    if (!isStale(attempt, now)) {
+                        attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
+                        throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
+                    }
+                    processingToken = attempt.restartProcessing(command.amount(), paymentKey, now);
+                } else {
+                    processingToken = attempt.startProcessing(command.amount(), paymentKey, now);
+                }
+                attemptStore.save(attempt);
+                if (attempt.getAmount() == 0L) {
+                    yield new ZeroAmountApprovalRequired(
+                            attempt.getId(), attempt.getOrderIdExternal(), processingToken);
+                }
+                yield new PgConfirmationRequired(
+                        attempt.getId(), attempt.getOrderIdExternal(), attempt.getAmount(),
+                        attempt.getPaymentKey(), processingToken);
+            }
+            case COMPENSATION_REQUESTED, COMPENSATION_FAILED, COMPENSATED ->
+                    throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미 처리된 결제입니다.");
+            case CANCELED -> throw new HappyGalleryException(ErrorCode.PAYMENT_ATTEMPT_EXPIRED);
+        };
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.task.ThreadPoolTaskExecutorBuilder;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -21,13 +23,13 @@ import static org.awaitility.Awaitility.await;
 class ResilientPaymentProviderTest {
 
     private ResilientPaymentProvider provider;
-    private PaymentTimeoutExecutor timeoutExecutor;
+    private ThreadPoolTaskExecutor timeoutExecutor;
     private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @AfterEach
     void tearDown() {
         if (timeoutExecutor != null) {
-            timeoutExecutor.close();
+            timeoutExecutor.shutdown();
         }
         meterRegistry.close();
     }
@@ -239,7 +241,9 @@ class ResilientPaymentProviderTest {
         PaymentResilienceConfig config = new PaymentResilienceConfig();
         timeoutExecutor = config.paymentTimeoutExecutor(
                 properties,
-                new BoundedExecutorFactory(meterRegistry, task -> task));
+                new BoundedExecutorFactory(
+                        new ThreadPoolTaskExecutorBuilder(), meterRegistry, task -> task));
+        timeoutExecutor.initialize();
         return config.resilientPaymentProvider(
                 delegate,
                 config.paymentCircuitBreaker(properties, CircuitBreakerRegistry.ofDefaults()),

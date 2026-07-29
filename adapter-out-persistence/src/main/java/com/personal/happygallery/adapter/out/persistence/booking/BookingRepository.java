@@ -77,8 +77,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
     Optional<Booking> findByIdAndUserIdWithDetails(@Param("id") Long id,
                                                    @Param("userId") Long userId);
 
-    /** guest claim preview용 비회원 예약 조회 (슬롯 시작 시간 내림차순) */
-    @Override
+    /** 비회원 예약 상세 조회 (슬롯 시작 시간 내림차순). */
     @Query("""
             SELECT b FROM Booking b
             JOIN FETCH b.guest
@@ -87,7 +86,12 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             WHERE b.guest.id = :guestId
             ORDER BY b.slot.startAt DESC
             """)
-    List<Booking> findByGuestIdWithDetails(@Param("guestId") Long guestId);
+    List<Booking> findByGuestIdWithDetails(@Param("guestId") Long guestId, Pageable pageable);
+
+    @Override
+    default List<Booking> findByGuestIdWithDetails(Long guestId) {
+        return findByGuestIdWithDetails(guestId, Pageable.unpaged());
+    }
 
     /** 운영자 수업 취소가 클래스·슬롯보다 먼저 잠글 8회권 ID를 PK 순으로 조회한다. */
     @Override
@@ -110,17 +114,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             ORDER BY b.id
             """)
     List<Booking> findBookedBySlotIdForUpdate(@Param("slotId") Long slotId);
-
-    /** guest claim preview용 상한 조회. */
-    @Query("""
-            SELECT b FROM Booking b
-            JOIN FETCH b.guest
-            JOIN FETCH b.bookingClass
-            JOIN FETCH b.slot
-            WHERE b.guest.id = :guestId
-            ORDER BY b.slot.startAt DESC
-            """)
-    List<Booking> findClaimPreviewByGuestId(@Param("guestId") Long guestId, Pageable pageable);
 
     /** guest claim 실행에 필요한 소유자와 슬롯을 한 번에 조회한다. */
     @Query("""

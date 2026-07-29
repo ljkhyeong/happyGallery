@@ -65,22 +65,6 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     /** 관리자 슬롯 전체 조회 — 활성/비활성 포함, 시작 시각 내림차순 */
     @Override List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
 
-    /** 공개 슬롯 조회 — classId + 날짜 기준, 활성 & 잔여 정원 있는 슬롯만 */
-    @Override
-    @Query("SELECT s FROM Slot s " +
-           "WHERE s.bookingClass.id = :classId " +
-           "AND s.bookingClass.status = com.personal.happygallery.domain.booking.BookingClassStatus.ACTIVE " +
-           "AND s.startAt >= :dayStart AND s.startAt < :dayEnd " +
-           "AND s.startAt > :now " +
-           "AND s.adminActive = true " +
-           "AND s.bufferBlockCount = 0 " +
-           "AND s.bookedCount < s.capacity " +
-           "ORDER BY s.startAt")
-    List<Slot> findAvailableByClassAndDate(@Param("classId") Long classId,
-                                           @Param("dayStart") LocalDateTime dayStart,
-                                           @Param("dayEnd") LocalDateTime dayEnd,
-                                           @Param("now") LocalDateTime now);
-
     /** 공개 슬롯 탐색 — 향후 기간 내 예약 가능한 슬롯을 시작 시각 순으로 조회한다. */
     @Override
     @Query("SELECT s FROM Slot s " +

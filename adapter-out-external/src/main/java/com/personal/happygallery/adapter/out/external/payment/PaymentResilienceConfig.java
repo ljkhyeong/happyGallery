@@ -11,11 +11,12 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import java.time.Duration;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 /** 결제 외부 호출을 보호하는 자원과 데코레이터 빈을 구성한다. */
 @Configuration(proxyBeanMethods = false)
@@ -44,18 +45,17 @@ class PaymentResilienceConfig {
                 .build());
     }
 
-    @Bean(destroyMethod = "close")
-    PaymentTimeoutExecutor paymentTimeoutExecutor(ExternalPaymentProperties properties,
-                                                   BoundedExecutorFactory executorFactory) {
+    @Bean
+    ThreadPoolTaskExecutor paymentTimeoutExecutor(ExternalPaymentProperties properties,
+                                                  BoundedExecutorFactory executorFactory) {
         ExternalPaymentProperties.ThreadPool threadPool = properties.threadPool();
-        ExecutorService executor = executorFactory.create(
+        return executorFactory.create(
                 threadPool.poolSize(),
                 threadPool.queueCapacity(),
                 "payment-timeout-",
                 "paymentTimeoutExecutor",
                 "happygallery.payment.executor.rejected",
                 "PG timeout executor rejected task count");
-        return new PaymentTimeoutExecutor(executor);
     }
 
     @Bean
@@ -64,7 +64,7 @@ class PaymentResilienceConfig {
             @Qualifier("paymentProviderDelegate") PaymentProvider delegate,
             @Qualifier("paymentCircuitBreaker") CircuitBreaker circuitBreaker,
             @Qualifier("paymentTimeLimiter") TimeLimiter timeLimiter,
-            @Qualifier("paymentTimeoutExecutor") PaymentTimeoutExecutor executor,
+            @Qualifier("paymentTimeoutExecutor") Executor executor,
             ExternalPaymentProperties properties
     ) {
         return new ResilientPaymentProvider(

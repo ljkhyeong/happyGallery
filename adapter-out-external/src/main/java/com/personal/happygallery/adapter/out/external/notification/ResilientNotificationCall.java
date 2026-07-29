@@ -5,7 +5,7 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
@@ -20,12 +20,12 @@ final class ResilientNotificationCall {
 
     private final CircuitBreaker circuitBreaker;
     private final TimeLimiter timeLimiter;
-    private final ExecutorService executor;
+    private final Executor executor;
     private final long timeoutMillis;
 
     ResilientNotificationCall(CircuitBreaker circuitBreaker,
                               TimeLimiter timeLimiter,
-                              ExecutorService executor,
+                              Executor executor,
                               long timeoutMillis) {
         this.circuitBreaker = circuitBreaker;
         this.timeLimiter = timeLimiter;

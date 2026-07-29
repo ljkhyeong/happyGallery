@@ -26,9 +26,6 @@ public interface SlotReaderPort {
 
     List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
 
-    List<Slot> findAvailableByClassAndDate(Long classId, LocalDateTime dayStart,
-                                           LocalDateTime dayEnd, LocalDateTime now);
-
     List<Slot> findAvailableByClassAndRange(Long classId, LocalDateTime rangeStart,
                                             LocalDateTime rangeEnd, LocalDateTime now);
 

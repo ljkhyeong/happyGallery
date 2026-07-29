@@ -3,36 +3,43 @@ package com.personal.happygallery.adapter.out.external.resilience;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
+import java.time.Duration;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.task.ThreadPoolTaskExecutorBuilder;
 import org.springframework.core.task.TaskDecorator;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 @Component
 public final class BoundedExecutorFactory {
 
+    private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(2);
+
+    private final ThreadPoolTaskExecutorBuilder builder;
     private final MeterRegistry meterRegistry;
     private final TaskDecorator taskDecorator;
 
     public BoundedExecutorFactory(
+            ThreadPoolTaskExecutorBuilder builder,
             MeterRegistry meterRegistry,
             @Qualifier("asyncContextTaskDecorator") TaskDecorator taskDecorator) {
+        this.builder = builder;
         this.meterRegistry = meterRegistry;
         this.taskDecorator = taskDecorator;
     }
 
-    public ExecutorService create(int poolSize,
-                                  int queueCapacity,
-                                  String threadNamePrefix,
-                                  String monitorName,
-                                  String rejectedMetricName,
-                                  String rejectedMetricDescription) {
+    public ThreadPoolTaskExecutor create(int poolSize,
+                                         int queueCapacity,
+                                         String threadNamePrefix,
+                                         String monitorName,
+                                         String rejectedMetricName,
+                                         String rejectedMetricDescription) {
         Counter rejectedCounter = Counter.builder(rejectedMetricName)
                 .description(rejectedMetricDescription)
                 .register(meterRegistry);
@@ -41,41 +48,59 @@ public final class BoundedExecutorFactory {
             rejectedCounter.increment();
             abortPolicy.rejectedExecution(task, executor);
         };
-        ThreadPoolExecutor executor = new ContextDecoratingThreadPoolExecutor(
-                poolSize,
-                poolSize,
-                0L,
-                TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(queueCapacity),
-                Thread.ofPlatform()
-                        .name(threadNamePrefix, 1)
-                        .daemon(true)
-                        .factory(),
-                countingAbortPolicy,
-                taskDecorator);
-        return ExecutorServiceMetrics.monitor(meterRegistry, executor, monitorName);
+
+        BoundedThreadPoolTaskExecutor executor = builder
+                .corePoolSize(poolSize)
+                .maxPoolSize(poolSize)
+                .queueCapacity(queueCapacity)
+                .threadNamePrefix(threadNamePrefix)
+                .taskDecorator(taskDecorator)
+                .awaitTermination(true)
+                .awaitTerminationPeriod(SHUTDOWN_TIMEOUT)
+                .additionalCustomizers(taskExecutor -> {
+                    taskExecutor.setDaemon(true);
+                    taskExecutor.setRejectedExecutionHandler(countingAbortPolicy);
+                })
+                .build(BoundedThreadPoolTaskExecutor.class);
+        executor.configureMetrics(meterRegistry, monitorName);
+        return executor;
     }
 
-    private static final class ContextDecoratingThreadPoolExecutor extends ThreadPoolExecutor {
+    public static final class BoundedThreadPoolTaskExecutor extends ThreadPoolTaskExecutor {
 
-        private final TaskDecorator taskDecorator;
+        private MeterRegistry meterRegistry;
+        private String monitorName;
 
-        private ContextDecoratingThreadPoolExecutor(
-                int corePoolSize,
-                int maximumPoolSize,
-                long keepAliveTime,
-                TimeUnit unit,
-                BlockingQueue<Runnable> workQueue,
-                ThreadFactory threadFactory,
-                RejectedExecutionHandler handler,
-                TaskDecorator taskDecorator) {
-            super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory, handler);
-            this.taskDecorator = taskDecorator;
+        public BoundedThreadPoolTaskExecutor() {
         }
 
         @Override
-        public void execute(Runnable command) {
-            super.execute(taskDecorator.decorate(command));
+        protected BlockingQueue<Runnable> createQueue(int queueCapacity) {
+            return new ArrayBlockingQueue<>(queueCapacity);
+        }
+
+        @Override
+        protected ExecutorService initializeExecutor(
+                ThreadFactory threadFactory,
+                RejectedExecutionHandler rejectedExecutionHandler
+        ) {
+            ExecutorService executor = super.initializeExecutor(threadFactory, rejectedExecutionHandler);
+            ExecutorServiceMetrics.monitor(meterRegistry, executor, monitorName);
+            return executor;
+        }
+
+        @Override
+        public void shutdown() {
+            super.shutdown();
+            ThreadPoolExecutor executor = getThreadPoolExecutor();
+            if (!executor.isTerminated()) {
+                executor.shutdownNow();
+            }
+        }
+
+        private void configureMetrics(MeterRegistry meterRegistry, String monitorName) {
+            this.meterRegistry = meterRegistry;
+            this.monitorName = monitorName;
         }
     }
 }

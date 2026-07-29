@@ -75,6 +75,10 @@
 - `spring-boot-starter-session-data-redis` 자동 구성을 사용한다. 별도
   `@EnableRedisIndexedHttpSession` 없이 `spring.session.data.redis.repository-type=indexed`,
   namespace와 flush mode, `spring.session.timeout`을 설정의 단일 기준으로 둔다.
+- 쿠키 이름·HttpOnly·SameSite·Secure는 `server.servlet.session.cookie.*`를 단일 기준으로 두고
+  Boot의 `ServerProperties`에 바인딩한다. 임베디드 서버가 없는 MockMvc 컨텍스트에서도 같은
+  Spring Session 쿠키 계약을 사용하도록 `DefaultCookieSerializerCustomizer`가 이 타입 설정을 그대로 전달한다.
+  별도 `@Value` 키나 중복 기본값은 두지 않는다.
 - 쿠키 이름은 `HG_SESSION`을 유지한다.
 - 세션 네임스페이스는 `hg:session`, 기본 만료는 7일이다.
 - 회원 인증이 필요하거나 선택적으로 사용되는 요청마다 `customerUserId`에 해당하는 회원을 확인하고 DB의 `credential_version`과 세션의 `customerCredentialVersion`이 같을 때만 회원 principal과 `SecurityContext`를 구성한다.
@@ -83,6 +87,11 @@
 - 고객 이메일 로그인은 조회 결과가 없거나 로컬 비밀번호가 없는 소셜 전용 계정이어도 고정 dummy BCrypt 해시를 정확히 한 번 확인한다. 세 경우 모두 같은 `401 INVALID_CREDENTIALS`를 반환하고 정규화 이메일 HMAC 기준 10회/10분 fail-closed 제한을 적용한다.
 - BCrypt는 72바이트 이후 입력을 구분하지 못하므로 회원·관리자 로그인, 가입, 변경, 재설정, MFA 해제와 최근 본인 확인 요청을 모두 UTF-8 72바이트 이하로 제한한다. 글자 수 제한만으로 다바이트 비밀번호를 통과시키지 않으며 프런트와 Bean Validation이 같은 기준을 사용한다.
 - 로그인·회원가입·소셜 로그인 성공과 명시적 재인증 성공은 현재 HTTP 세션에 회원 ID, 자격 버전, 10분 만료를 가진 최근 본인 확인 증명을 기록한다. 비밀번호 재인증은 회원 ID별 처리율 제한을 fail-closed로 적용하고, 소셜 재인증은 요청한 provider의 현재 연결된 provider ID와 정확히 일치해야 한다.
+- 소셜 가입·계정 연결 intent와 최근 본인 확인 증명은 내부에서 각각 하나의 값 객체로 구성하고,
+  세션에는 JSON 문자열 한 건으로 저장한다. 한 논리 상태를 여러 attribute로 나누어 부분 갱신하거나
+  일부만 제거하지 않으며, OAuth callback에서 intent 전체를 한 번 소비한다.
+  Redis에는 애플리케이션 전용 클래스가 아닌 문자열만 남겨 이전 이미지로 롤백해도 세션 전체의
+  JDK 역직렬화가 실패하지 않게 한다.
 - 소셜 계정 연결·해제, 휴대폰 최초 등록·변경과 회원 탈퇴는 최근 본인 확인을 요구한다. 화면의 탈퇴 확인 문자열은 의사 확인일 뿐 재인증을 대신하지 않는다. 컨트롤러가 증명을 단순 인증 여부로 대체하지 않고 세션 증명에 결합된 예상 자격 버전을 애플리케이션 명령으로 전달하며, 서비스는 잠근 회원 행의 현재 버전과 다시 비교한다. 따라서 재인증 직후 다른 요청이 비밀번호나 로그인 수단을 바꾸면 이전 증명은 사용할 수 없다.
 - 비밀번호 변경·재설정은 `users.credential_version` 증가를 보안상 성공 기준으로 삼는다. 변경 전 버전을 이벤트에 담고 DB 커밋 뒤 해당 `userId:credentialVersion` 인덱스의 Redis 세션만 일괄 삭제한다. 변경 후 새 비밀번호로 발급된 세션은 새 버전 인덱스에 있으므로 동시 삭제하지 않는다. 삭제 실패는 로그와 `happygallery.customer.session.revocation_failed` 메트릭으로 남긴다.
 - Redis 삭제가 실패하거나 삭제와 동시에 진행 중이던 요청이 세션을 다시 저장해도, 다음 요청의 자격 증명 버전 비교에서 이전 세션을 즉시 폐기한다. 비밀번호를 바꾼 현재 요청 세션은 응답 종료 시 다시 저장되지 않도록 `HttpSession.invalidate()`를 별도로 호출한다.

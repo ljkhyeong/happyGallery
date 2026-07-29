@@ -13,22 +13,24 @@ import org.springframework.stereotype.Component;
 @Component
 public class CustomerStepUpAuthenticationStore {
 
-    private static final String USER_ID_ATTRIBUTE = "customerStepUpUserId";
-    private static final String CREDENTIAL_VERSION_ATTRIBUTE = "customerStepUpCredentialVersion";
-    private static final String EXPIRES_AT_ATTRIBUTE = "customerStepUpExpiresAt";
+    private static final String STEP_UP_AUTHENTICATION_ATTRIBUTE = "customerStepUpAuthentication";
     private static final Duration TTL = Duration.ofMinutes(10);
 
     private final Clock clock;
+    private final SessionStateCodec stateCodec;
 
-    public CustomerStepUpAuthenticationStore(Clock clock) {
+    public CustomerStepUpAuthenticationStore(Clock clock, SessionStateCodec stateCodec) {
         this.clock = clock;
+        this.stateCodec = stateCodec;
     }
 
     public void markVerified(HttpServletRequest request, Long userId, long credentialVersion) {
-        HttpSession session = request.getSession();
-        session.setAttribute(USER_ID_ATTRIBUTE, userId);
-        session.setAttribute(CREDENTIAL_VERSION_ATTRIBUTE, credentialVersion);
-        session.setAttribute(EXPIRES_AT_ATTRIBUTE, Instant.now(clock).plus(TTL).toEpochMilli());
+        request.getSession().setAttribute(
+                STEP_UP_AUTHENTICATION_ATTRIBUTE,
+                stateCodec.encode(new StepUpAuthentication(
+                        userId,
+                        credentialVersion,
+                        Instant.now(clock).plus(TTL))));
     }
 
     public boolean isRecentlyVerified(
@@ -39,11 +41,14 @@ public class CustomerStepUpAuthenticationStore {
         if (session == null) {
             return false;
         }
-        boolean valid = userId.equals(session.getAttribute(USER_ID_ATTRIBUTE))
-                && Long.valueOf(credentialVersion).equals(
-                        session.getAttribute(CREDENTIAL_VERSION_ATTRIBUTE))
-                && session.getAttribute(EXPIRES_AT_ATTRIBUTE) instanceof Long expiresAt
-                && Instant.now(clock).isBefore(Instant.ofEpochMilli(expiresAt));
+        StepUpAuthentication authentication = stateCodec.decode(
+                session.getAttribute(STEP_UP_AUTHENTICATION_ATTRIBUTE),
+                StepUpAuthentication.class);
+        boolean valid = authentication != null
+                && userId.equals(authentication.userId())
+                && credentialVersion == authentication.credentialVersion()
+                && authentication.expiresAt() != null
+                && Instant.now(clock).isBefore(authentication.expiresAt());
         if (!valid) {
             clear(session);
         }
@@ -60,8 +65,12 @@ public class CustomerStepUpAuthenticationStore {
     }
 
     public static void clear(HttpSession session) {
-        session.removeAttribute(USER_ID_ATTRIBUTE);
-        session.removeAttribute(CREDENTIAL_VERSION_ATTRIBUTE);
-        session.removeAttribute(EXPIRES_AT_ATTRIBUTE);
+        session.removeAttribute(STEP_UP_AUTHENTICATION_ATTRIBUTE);
     }
+
+    private record StepUpAuthentication(
+            Long userId,
+            long credentialVersion,
+            Instant expiresAt
+    ) {}
 }
