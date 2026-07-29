@@ -37,6 +37,7 @@ public class MeInquiryController {
     }
 
     @GetMapping
+    @Operation(operationId = "listMyInquiries")
     public List<InquiryResponse> list(@AuthenticationPrincipal CustomerPrincipal customer) {
         return inquiryUseCase.listByUser(customer.userId()).stream()
                 .map(InquiryResponse::from)

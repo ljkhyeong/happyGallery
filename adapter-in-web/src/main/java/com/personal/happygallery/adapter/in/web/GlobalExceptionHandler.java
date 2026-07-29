@@ -45,6 +45,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             "uq_bookings_active_guest_slot", ErrorCode.DUPLICATE_BOOKING,
             "uq_bookings_active_phone_slot", ErrorCode.DUPLICATE_BOOKING,
             "uq_users_phone_hmac", ErrorCode.PHONE_ALREADY_IN_USE,
+            "uq_users_email_hmac", ErrorCode.EMAIL_ALREADY_EXISTS,
             "uq_user_social_accounts_provider_identity", ErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED,
             "uq_user_social_accounts_user_provider", ErrorCode.SOCIAL_PROVIDER_ALREADY_LINKED,
             "uq_slot_class_start", ErrorCode.INVALID_INPUT

@@ -57,6 +57,7 @@ public class CustomerCredentialController {
 
     @PatchMapping("/me/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "changeMyPassword")
     public void changePassword(@RequestBody @Valid ChangePasswordRequest request,
                                @AuthenticationPrincipal CustomerPrincipal customer,
                                HttpServletRequest httpRequest,
@@ -68,6 +69,7 @@ public class CustomerCredentialController {
 
     @PostMapping("/auth/password/reset")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "resetCustomerPassword")
     public void resetPassword(@RequestBody @Valid ResetPasswordRequest request,
                               HttpServletRequest httpRequest,
                               HttpServletResponse httpResponse) {

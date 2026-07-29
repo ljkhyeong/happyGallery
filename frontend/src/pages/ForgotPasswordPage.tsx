@@ -66,9 +66,10 @@ export function ForgotPasswordPage() {
               onChange={(event) => setNewPassword(event.target.value)}
               minLength={8}
               maxLength={72}
+              aria-describedby="reset-password-help"
               required
             />
-            <Form.Text className="text-muted">
+            <Form.Text id="reset-password-help" className="text-muted">
               8자 이상, UTF-8 기준 72바이트 이하로 입력하세요.
             </Form.Text>
           </Form.Group>
@@ -81,9 +82,15 @@ export function ForgotPasswordPage() {
               onChange={(event) => setConfirmation(event.target.value)}
               maxLength={72}
               isInvalid={confirmation.length > 0 && !passwordMatches}
+              aria-invalid={confirmation.length > 0 && !passwordMatches}
+              aria-describedby={
+                confirmation.length > 0 && !passwordMatches
+                  ? "reset-password-confirmation-error"
+                  : undefined
+              }
               required
             />
-            <Form.Control.Feedback type="invalid">
+            <Form.Control.Feedback id="reset-password-confirmation-error" type="invalid">
               새 비밀번호가 일치하지 않습니다.
             </Form.Control.Feedback>
           </Form.Group>

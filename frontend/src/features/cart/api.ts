@@ -1,38 +1,31 @@
-import { api } from "@/shared/api";
-import type { CartResponse } from "@/shared/types/cart";
+import {
+  addMyCartItem,
+  getMyCart,
+  mergeMyCartItems,
+  removeMyCartItem,
+  updateMyCartItemQuantity,
+  type CartResponse,
+  type MergeCartItemRequest,
+} from "@/generated/api/customerStore";
 
-interface CartMergeItem {
-  productId: number;
-  qty: number;
-}
+type CartMergeItem = MergeCartItemRequest;
 
-export function fetchCart() {
-  return api<CartResponse>("/me/cart");
+export function fetchCart(): Promise<CartResponse> {
+  return getMyCart();
 }
 
 export function addToCart(productId: number, qty: number) {
-  return api<void>("/me/cart/items", {
-    method: "POST",
-    body: { productId, qty },
-  });
+  return addMyCartItem({ productId, qty });
 }
 
 export function mergeGuestCart(idempotencyKey: string, items: CartMergeItem[]) {
-  return api<void>("/me/cart/merge", {
-    method: "POST",
-    body: { idempotencyKey, items },
-  });
+  return mergeMyCartItems({ idempotencyKey, items });
 }
 
 export function updateCartItemQty(productId: number, qty: number) {
-  return api<void>(`/me/cart/items/${productId}`, {
-    method: "PUT",
-    body: { qty },
-  });
+  return updateMyCartItemQuantity(productId, { qty });
 }
 
 export function removeCartItem(productId: number) {
-  return api<void>(`/me/cart/items/${productId}`, {
-    method: "DELETE",
-  });
+  return removeMyCartItem(productId);
 }

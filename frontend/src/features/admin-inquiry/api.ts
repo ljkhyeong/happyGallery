@@ -1,35 +1,31 @@
-import { api } from "@/shared/api";
-import type { CursorPage } from "@/shared/types";
+import {
+  listAdminInquiries,
+  replyToAdminInquiry,
+  type AdminInquiryPageResponse,
+  type AdminInquiryResponse,
+} from "@/generated/api/adminOperations";
+import { adminHeaders } from "@/shared/api";
 
-export interface AdminInquiryResponse {
-  id: number;
-  userId: number;
-  userName: string;
-  title: string;
-  content: string;
-  replyContent: string | null;
-  repliedAt: string | null;
-  createdAt: string;
-}
+export type { AdminInquiryResponse } from "@/generated/api/adminOperations";
 
 export function fetchAdminInquiries(
   token: string,
   cursor?: string,
-): Promise<CursorPage<AdminInquiryResponse>> {
-  return api<CursorPage<AdminInquiryResponse>>("/admin/inquiries", {
-    headers: { Authorization: `Bearer ${token}` },
-    params: { cursor, size: "20" },
-  });
+): Promise<AdminInquiryPageResponse> {
+  return listAdminInquiries(
+    { cursor, size: 20 },
+    { headers: adminHeaders(token) },
+  );
 }
 
 export function replyInquiry(
   inquiryId: number,
   replyContent: string,
-  token: string
+  token: string,
 ): Promise<AdminInquiryResponse> {
-  return api<AdminInquiryResponse>(`/admin/inquiries/${inquiryId}/reply`, {
-    method: "POST",
-    body: { replyContent },
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  return replyToAdminInquiry(
+    inquiryId,
+    { replyContent },
+    { headers: adminHeaders(token) },
+  );
 }

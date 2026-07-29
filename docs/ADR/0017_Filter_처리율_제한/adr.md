@@ -1,7 +1,7 @@
 # ADR-0017: 애플리케이션 처리율 제한 기준
 
 **날짜**: 2026-03-06  
-**최종 갱신**: 2026-07-28
+**최종 갱신**: 2026-07-29
 **상태**: Accepted
 
 ---
@@ -31,6 +31,7 @@
 | --- | --- | --- |
 | `DEFAULT_API_IP` | 나머지 `/api/v1/**` | 300회/1분 |
 | `PHONE_VERIFICATION_IP` | 인증 코드 발송 | 5회/1분 |
+| `EMAIL_VERIFICATION_IP` | 회원 이메일 인증 코드 발송·등록 | 5회/1분 |
 | `CUSTOMER_LOGIN_IP` | 회원 로그인 | 10회/1분 |
 | `CUSTOMER_SIGNUP_IP` | 회원가입 | 5회/1분 |
 | `SOCIAL_LOGIN_IP`, `SOCIAL_LOGIN_INIT_IP` | 소셜 callback, 로그인 시작 | 각각 10회/1분 |
@@ -45,11 +46,12 @@
 
 ### 2. 본문과 인증 주체가 필요한 제한은 검증 이후 적용한다
 
-Filter는 request body를 읽지 않는다. `@Valid` DTO와 `@AuthenticationPrincipal` 처리가 끝난 컨트롤러 진입점에서 `SubjectRateLimitGuard`를 호출한다.
-다만 인증 코드 소비 시도는 회원가입, 예약·주문, 계정 복구와 결제 상태 복구가 같은
+Filter는 request body를 읽지 않는다. 본문이나 인증 주체가 필요한 제한은 `@Valid` DTO와
+`@AuthenticationPrincipal` 처리 뒤의 웹 진입점 또는 공통 application 오케스트레이션 경계에서 적용한다.
+인증 코드 소비 시도는 회원가입, 예약·주문, 계정 복구와 결제 상태 복구가 같은
 application 검증 경계를 사용하므로 컨트롤러마다 반복하지 않는다.
-`PhoneVerificationAttemptGuard` 출력 포트로 검사하고 composition root인 `bootstrap`이
-`SubjectRateLimitGuard`의 해당 동작을 포트 빈으로 결선한다. application은 웹 어댑터를 알지
+`PhoneVerificationAttemptGuard`와 `EmailVerificationRateLimitGuard` 출력 포트로 검사하고
+composition root인 `bootstrap`이 `SubjectRateLimitGuard`의 해당 동작을 포트 빈으로 결선한다. application은 웹 어댑터를 알지
 않고 웹 어댑터도 application `port.out`을 직접 import하지 않는다.
 회원 전화번호 변경, 비밀번호 재설정, 비회원 이력 귀속과 비회원 결제 prepare는
 비트랜잭션 오케스트레이터에서 이 Redis 제한을 먼저 확인한다. 인증 코드 잠금 소비와 보호 대상 변경 또는
@@ -61,6 +63,8 @@ DB connection을 점유하지 않게 한다.
 | `CUSTOMER_LOGIN_EMAIL` | 정규화된 회원 로그인 이메일 | 10회/10분 |
 | `PHONE_VERIFICATION_PHONE` | 정규화된 전화번호 | 3회/10분 |
 | `PHONE_VERIFICATION_ATTEMPT_PHONE` | 모든 업무에서 인증 코드를 소비하려는 정규화된 전화번호 | 5회/10분 |
+| `EMAIL_VERIFICATION_USER`, `EMAIL_VERIFICATION_EMAIL` | 발송을 요청한 회원 ID와 정규화 이메일 | 각각 3회/10분 |
+| `EMAIL_VERIFICATION_ATTEMPT_USER`, `EMAIL_VERIFICATION_ATTEMPT_EMAIL` | 등록을 시도한 회원 ID와 정규화 이메일 | 각각 5회/10분 |
 | `PAYMENT_CONFIRM_ORDER` | 외부 주문번호 | 20회/1분 |
 | `GUEST_CLAIM_USER` | 회원 ID | 5회/1분 |
 
@@ -71,7 +75,7 @@ DB connection을 점유하지 않게 한다.
 - 기본 prefix는 `happygallery:rate`이며 배포 환경에서 `RATE_LIMIT_KEY_PREFIX`로 분리할 수 있다.
 - Redis 연결과 명령 대기 상한은 각각 1초다. 장애와 복구 상태 전환에만 규칙 ID와 예외 유형을 기록하고, 개별 초과 요청은 WARN 로그로 남기지 않는다.
 - `DEFAULT_API_IP`와 결제 confirm IP·주문번호 규칙은 Redis 장애 시 fail-open한다. 일반 조회 가용성과 이미 시작한 결제의 멱등 재시도를 우선한다.
-- 로그인·가입·비밀번호 재설정·관리자·인증 코드·비회원 이력 인증·모니터링 수집과 payment prepare는 fail-closed하고 `503 SERVICE_UNAVAILABLE`을 반환한다. 장바구니 결제도 표준 payment prepare 버킷을 사용한다. edge 방어가 없는 상태에서 Redis 장애가 고위험 경로의 무제한 허용으로 바뀌지 않게 한다.
+- 로그인·가입·비밀번호 재설정·관리자·휴대폰/이메일 인증 코드·비회원 이력 인증·모니터링 수집과 payment prepare는 fail-closed하고 `503 SERVICE_UNAVAILABLE`을 반환한다. 장바구니 결제도 표준 payment prepare 버킷을 사용한다. edge 방어가 없는 상태에서 Redis 장애가 고위험 경로의 무제한 허용으로 바뀌지 않게 한다.
 - 관리자 로그인은 `ADMIN_LOGIN_IP`와 MFA·감사 이력을 사용한다. 인증되지 않은 공격자가 공유 사용자명 버킷이나 계정 실패 횟수를 소진해 정상 운영자를 막을 수 있으므로 사용자명 전역 hard lock이나 공유 subject 버킷은 두지 않는다.
 - 인메모리 fallback은 pod마다 카운터가 갈리므로 두지 않는다.
 
@@ -107,7 +111,7 @@ DB connection을 점유하지 않게 한다.
 - fixed window 경계에서는 순간 호출이 몰릴 수 있다. 실제 운영 지표를 보고 sliding window가 필요한 규칙만 별도로 검토한다.
 - fail-open 경로는 Redis 장애 중 제한이 적용되지 않는다. ingress 제한을 보조선으로 구성하고 Redis 장애를 모니터링한다.
 - 낮은 한도는 정상 사용을 막을 수 있다. `app.rate-limit.ip.*`, `subject.*` 설정을 ConfigMap으로 조정한다.
-- 전화번호 수신자 버킷은 특정 번호의 발송 비용을 보호하지만 제3자가 한도를 소진하면 정상 사용자도 최대 10분 지연될 수 있다. 실제 남용이 관측되면 CAPTCHA 또는 발송 전 challenge를 추가하고 한도만 무작정 높이지 않는다.
+- 전화번호·이메일 수신자 버킷은 특정 대상의 발송 비용을 보호하지만 제3자가 한도를 소진하면 정상 사용자도 최대 10분 지연될 수 있다. 회원 이메일 경로는 회원 ID 버킷도 함께 사용하고, 실제 남용이 관측되면 CAPTCHA 또는 발송 전 challenge를 추가한다.
 
 ## 구현
 
@@ -116,6 +120,7 @@ DB connection을 점유하지 않게 한다.
 - `adapter-in-web/.../ratelimit/SubjectRateLimitGuard`
 - `adapter-in-web/.../config/properties/RateLimitProperties`
 - `application/.../customer/port/out/PhoneVerificationAttemptGuard`
+- `application/.../customer/port/out/EmailVerificationRateLimitGuard`
 - `bootstrap/.../config/RateLimitPortConfig`
 - `bootstrap/src/main/resources/application.yml`
 

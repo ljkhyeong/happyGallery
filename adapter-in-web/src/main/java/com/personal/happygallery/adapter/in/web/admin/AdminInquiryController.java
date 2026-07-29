@@ -1,11 +1,11 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
+import com.personal.happygallery.adapter.in.web.admin.dto.AdminInquiryPageResponse;
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase.InquiryWithUser;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminInquiryResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.InquiryReplyRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
-import com.personal.happygallery.application.shared.page.CursorPage;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,14 +29,10 @@ public class AdminInquiryController {
 
     @GetMapping
     @Operation(operationId = "listAdminInquiries")
-    public CursorPage<AdminInquiryResponse> list(
+    public AdminInquiryPageResponse list(
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int size) {
-        CursorPage<InquiryWithUser> page = inquiryUseCase.listAll(cursor, size);
-        return new CursorPage<>(
-                page.content().stream().map(AdminInquiryResponse::from).toList(),
-                page.nextCursor(),
-                page.hasMore());
+        return AdminInquiryPageResponse.from(inquiryUseCase.listAll(cursor, size));
     }
 
     @GetMapping("/{id}")

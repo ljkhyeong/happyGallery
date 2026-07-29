@@ -227,8 +227,12 @@ function OrderCreateForm() {
                   onBlur={() => setNameTouched(true)}
                   placeholder="이름을 입력하세요"
                   isInvalid={nameTouched && !normalizedName}
+                  aria-invalid={nameTouched && !normalizedName}
+                  aria-describedby={
+                    nameTouched && !normalizedName ? "order-create-name-error" : undefined
+                  }
                 />
-                <Form.Control.Feedback type="invalid">
+                <Form.Control.Feedback id="order-create-name-error" type="invalid">
                   이름을 입력해 주세요.
                 </Form.Control.Feedback>
               </Form.Group>

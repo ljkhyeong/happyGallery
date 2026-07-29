@@ -121,9 +121,9 @@
 
 ---
 
-## 미해결 과제
+## 후속 반영
 
-- `/admin/**` 인증 미적용 → §11
+- `/admin/**`는 Spring Security 관리자 체인과 Redis-backed Bearer 세션으로 보호한다.
 - ~~`POST /passes/guest` — 현재 `guestId` 직접 수신. 실제 서비스에서는 인증(JWT/세션) 또는 전화 인증 후 guestId 발급 흐름 필요~~ → 아래 Update 참조
 
 ---

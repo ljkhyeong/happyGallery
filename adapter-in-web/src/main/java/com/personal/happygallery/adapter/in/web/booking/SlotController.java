@@ -25,6 +25,7 @@ public class SlotController {
 
     /** GET /api/v1/slots?classId={}&date={} — 예약 가능 슬롯 목록 */
     @GetMapping
+    @Operation(operationId = "listAvailableSlots")
     public List<PublicSlotResponse> listAvailableSlots(
             @RequestParam Long classId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {

@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.out.persistence.booking.BookingReposito
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
+import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.booking.Booking;
@@ -47,7 +48,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class ConcurrentBookingUseCaseIT {
 
     @Autowired SlotCapacitySupport slotCapacitySupport;
-    @Autowired DefaultSlotManagementService slotManagementService;
+    @Autowired SlotManagementUseCase slotManagementUseCase;
     @Autowired ClassRepository classRepository;
     @Autowired BookingRepository bookingRepository;
     @Autowired GuestRepository guestRepository;
@@ -171,7 +172,7 @@ class ConcurrentBookingUseCaseIT {
             });
             Future<Slot> creationResult = executor.submit(() -> {
                 startLatch.await();
-                return slotManagementService.createSlot(
+                return slotManagementUseCase.createSlot(
                         cls.getId(), SLOT_END.plusMinutes(15));
             });
 

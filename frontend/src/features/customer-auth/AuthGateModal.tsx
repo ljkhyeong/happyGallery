@@ -246,8 +246,14 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
                     onBlur={() => setGuestNameTouched(true)}
                     placeholder="이름"
                     isInvalid={guestNameTouched && !normalizedGuestName}
+                    aria-invalid={guestNameTouched && !normalizedGuestName}
+                    aria-describedby={
+                      guestNameTouched && !normalizedGuestName
+                        ? "gate-guest-name-error"
+                        : undefined
+                    }
                   />
-                  <Form.Control.Feedback type="invalid">
+                  <Form.Control.Feedback id="gate-guest-name-error" type="invalid">
                     이름을 입력해 주세요.
                   </Form.Control.Feedback>
                 </Form.Group>

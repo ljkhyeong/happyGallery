@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.monitoring;
 import com.personal.happygallery.application.monitoring.port.in.ClientMonitoringUseCase;
 import com.personal.happygallery.adapter.in.web.monitoring.dto.CaptureClientEventRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,6 +25,7 @@ public class ClientMonitoringController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "captureClientEvent")
     public void capture(@RequestBody @Valid CaptureClientEventRequest request,
                         @AuthenticationPrincipal CustomerPrincipal customer) {
         clientMonitoringUseCase.captureFrontendEvent(

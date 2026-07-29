@@ -54,6 +54,9 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
   const projectedQuantity = type === "INCREASE"
     ? currentQuantity + quantityNumber
     : currentQuantity - quantityNumber;
+  const quantityExceedsStock = Number.isSafeInteger(quantityNumber)
+    && quantityNumber > 0
+    && projectedQuantity < 0;
   const valid = Number.isSafeInteger(quantityNumber)
     && quantityNumber > 0
     && projectedQuantity >= 0
@@ -119,15 +122,22 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
               min={1}
               step={1}
               value={quantity}
+              isInvalid={quantityExceedsStock}
+              aria-invalid={quantityExceedsStock}
+              aria-describedby={
+                quantityExceedsStock ? "inventory-adjustment-quantity-error" : undefined
+              }
               onChange={(event) => {
                 setQuantity(event.target.value);
                 setShowImpactConfirm(false);
               }}
             />
-            {Number.isSafeInteger(quantityNumber)
-              && quantityNumber > 0
-              && projectedQuantity < 0
-              && <Form.Text className="text-danger">현재 재고보다 많이 감소시킬 수 없습니다.</Form.Text>}
+            <Form.Control.Feedback
+              id="inventory-adjustment-quantity-error"
+              type="invalid"
+            >
+              현재 재고보다 많이 감소시킬 수 없습니다.
+            </Form.Control.Feedback>
           </Form.Group>
 
           <Form.Group className="mb-3" controlId="inventory-adjustment-reason">

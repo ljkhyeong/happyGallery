@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.user;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -135,6 +137,13 @@ public class User {
     public void registerVerifiedPhone(String phone) {
         this.phone = KoreanPhoneNumber.required(phone);
         this.phoneVerified = true;
+    }
+
+    public void registerVerifiedEmail(String email) {
+        if (this.email != null) {
+            throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+        this.email = EmailAddress.required(email);
     }
 
     public boolean isActive() {

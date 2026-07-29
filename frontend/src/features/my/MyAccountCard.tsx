@@ -7,10 +7,17 @@ interface Props {
   user: CustomerUser;
   onChangePassword: () => void;
   onUpdatePhone: () => void;
+  onRegisterEmail: () => void;
   onWithdraw: () => void;
 }
 
-export function MyAccountCard({ user, onChangePassword, onUpdatePhone, onWithdraw }: Props) {
+export function MyAccountCard({
+  user,
+  onChangePassword,
+  onUpdatePhone,
+  onRegisterEmail,
+  onWithdraw,
+}: Props) {
   return (
     <Card className="mb-4 my-action-card border-0">
       <Card.Body>
@@ -51,6 +58,20 @@ export function MyAccountCard({ user, onChangePassword, onUpdatePhone, onWithdra
           <Button variant="outline-primary" size="sm" onClick={onUpdatePhone}>
             {user.phone ? "변경" : "등록"}
           </Button>
+        </div>
+
+        <div className="d-flex justify-content-between align-items-start gap-3 border-top mt-3 pt-3">
+          <div>
+            <h6 className="mb-1">이메일</h6>
+            <p className="text-muted-soft small mb-0">
+              {user.email ?? "등록된 로그인 이메일이 없습니다."}
+            </p>
+          </div>
+          {!user.email && (
+            <Button variant="outline-primary" size="sm" onClick={onRegisterEmail}>
+              등록
+            </Button>
+          )}
         </div>
 
         <SocialAccountSection localPasswordEnabled={user.localPasswordEnabled} />

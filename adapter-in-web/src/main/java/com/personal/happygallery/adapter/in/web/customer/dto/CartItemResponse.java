@@ -1,16 +1,17 @@
 package com.personal.happygallery.adapter.in.web.customer.dto;
 
 import com.personal.happygallery.domain.product.ProductType;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public record CartItemResponse(
-        Long productId,
-        String productName,
-        ProductType productType,
-        long price,
-        String specification,
-        String careInstructions,
-        Integer productionLeadDays,
-        int qty,
-        long subtotal,
-        boolean available
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long productId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String productName,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ProductType productType,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long price,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String specification,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String careInstructions,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) Integer productionLeadDays,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int qty,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long subtotal,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean available
 ) {}

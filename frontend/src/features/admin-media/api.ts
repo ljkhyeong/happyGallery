@@ -1,11 +1,12 @@
-import { adminHeaders, api } from "@/shared/api";
+import {
+  uploadImage,
+  type ImageUploadResponse,
+} from "@/generated/api/adminCatalog";
+import { adminHeaders } from "@/shared/api";
 
-export function uploadAdminImage(adminKey: string, file: File): Promise<{ url: string }> {
-  const body = new FormData();
-  body.append("file", file);
-  return api<{ url: string }>("/admin/media/images", {
-    method: "POST",
-    headers: adminHeaders(adminKey),
-    body,
-  });
+export function uploadAdminImage(
+  adminKey: string,
+  file: File,
+): Promise<ImageUploadResponse> {
+  return uploadImage({ file }, { headers: adminHeaders(adminKey) });
 }

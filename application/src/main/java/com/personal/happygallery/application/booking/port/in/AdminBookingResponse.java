@@ -7,9 +7,7 @@ import java.time.LocalDateTime;
 public record AdminBookingResponse(
         Long bookingId,
         String bookingNumber,
-        String bookerType,
-        String bookerName,
-        String bookerPhone,
+        CustomerSummary customerSummary,
         String className,
         LocalDateTime startAt,
         LocalDateTime endAt,
@@ -26,7 +24,7 @@ public record AdminBookingResponse(
 ) {
 
     public static AdminBookingResponse fromMember(Booking booking, User user) {
-        return from(booking, "MEMBER", user.getName(), user.getPhone());
+        return from(booking, new CustomerSummary("MEMBER", user.getName(), user.getPhone()));
     }
 
     public static AdminBookingResponse fromGuest(
@@ -34,21 +32,17 @@ public record AdminBookingResponse(
             String guestName,
             String guestPhone
     ) {
-        return from(booking, "GUEST", guestName, guestPhone);
+        return from(booking, new CustomerSummary("GUEST", guestName, guestPhone));
     }
 
     private static AdminBookingResponse from(
             Booking booking,
-            String bookerType,
-            String bookerName,
-            String bookerPhone
+            CustomerSummary customerSummary
     ) {
         return new AdminBookingResponse(
                 booking.getId(),
                 "BK-%08d".formatted(booking.getId()),
-                bookerType,
-                bookerName,
-                bookerPhone,
+                customerSummary,
                 booking.getBookingClass().getName(),
                 booking.getSlot().getStartAt(),
                 booking.getSlot().getEndAt(),
@@ -64,4 +58,10 @@ public record AdminBookingResponse(
                 booking.isPassBooking()
         );
     }
+
+    public record CustomerSummary(
+            String type,
+            String name,
+            String phone
+    ) {}
 }

@@ -122,8 +122,12 @@ export function OrderItemsForm({
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               isInvalid={qty !== "" && qty !== "1" && !qtyValid}
+              aria-invalid={qty !== "" && qty !== "1" && !qtyValid}
+              aria-describedby={
+                qty !== "" && qty !== "1" && !qtyValid ? "order-item-qty-error" : undefined
+              }
             />
-            <Form.Control.Feedback type="invalid">
+            <Form.Control.Feedback id="order-item-qty-error" type="invalid">
               1~{MAX_PRODUCT_QUANTITY} 사이의 수량을 입력해 주세요.
             </Form.Control.Feedback>
           </Form.Group>

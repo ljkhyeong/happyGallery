@@ -2,6 +2,7 @@ package com.personal.happygallery.application.batch;
 
 import com.personal.happygallery.application.admin.AdminAuthHistoryRetentionService;
 import com.personal.happygallery.application.cart.CartMergeRequestRetentionService;
+import com.personal.happygallery.application.customer.EmailVerificationRetentionService;
 import com.personal.happygallery.application.customer.PhoneVerificationRetentionService;
 import com.personal.happygallery.application.media.ImageMediaRetentionService;
 import com.personal.happygallery.application.notification.NotificationRetentionService;
@@ -33,6 +34,8 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                 mock(PaymentAttemptSensitiveDataCleanupProcessor.class);
         PhoneVerificationRetentionService verificationRetention =
                 mock(PhoneVerificationRetentionService.class);
+        EmailVerificationRetentionService emailVerificationRetention =
+                mock(EmailVerificationRetentionService.class);
         CartMergeRequestRetentionService cartRetention =
                 mock(CartMergeRequestRetentionService.class);
         ImageMediaRetentionService imageRetention = mock(ImageMediaRetentionService.class);
@@ -52,6 +55,7 @@ class DefaultPersonalDataRetentionBatchServiceTest {
         when(attemptProcessor.clear(eq(2L), any())).thenReturn(true);
         when(verificationRetention.deleteBatchBefore(any(), eq(100)))
                 .thenThrow(new IllegalArgumentException("verification detail"));
+        when(emailVerificationRetention.deleteBatchBefore(any(), eq(100))).thenReturn(1);
         when(cartRetention.deleteBatchBefore(any(), eq(100))).thenReturn(1);
         when(imageRetention.deleteUnreferencedImages()).thenReturn(2);
         when(notificationRetention.deleteChannelLogsBefore(any(), eq(100)))
@@ -64,6 +68,7 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                         attemptReader,
                         attemptProcessor,
                         verificationRetention,
+                        emailVerificationRetention,
                         cartRetention,
                         imageRetention,
                         notificationRetention,
@@ -73,7 +78,7 @@ class DefaultPersonalDataRetentionBatchServiceTest {
 
         BatchResult result = service.cleanUpExpiredSensitiveData();
 
-        assertThat(result.successCount()).isEqualTo(11);
+        assertThat(result.successCount()).isEqualTo(12);
         assertThat(result.failureReasons()).containsExactlyInAnyOrderEntriesOf(
                 Map.of(
                         "payment_attempt", 2,

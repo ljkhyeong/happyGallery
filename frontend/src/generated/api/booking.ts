@@ -134,6 +134,33 @@ export interface RescheduleResponse {
   status: RescheduleResponseStatus;
 }
 
+export type ClassResponseStatus = typeof ClassResponseStatus[keyof typeof ClassResponseStatus];
+
+
+export const ClassResponseStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+} as const;
+
+export interface ClassResponse {
+  bufferMin: number;
+  category: string;
+  /** @nullable */
+  description: string | null;
+  durationMin: number;
+  id: number;
+  /** @nullable */
+  imageUrl: string | null;
+  name: string;
+  passEligible: boolean;
+  /** @nullable */
+  preparationInfo: string | null;
+  price: number;
+  status: ClassResponseStatus;
+  /** @nullable */
+  targetAudience: string | null;
+}
+
 export type MyBookingSummaryStatus = typeof MyBookingSummaryStatus[keyof typeof MyBookingSummaryStatus];
 
 
@@ -200,6 +227,30 @@ export interface MyBookingDetail {
 export interface MemberRescheduleRequest {
   newSlotId: number;
 }
+
+export interface PublicSlotResponse {
+  bookedCount: number;
+  capacity: number;
+  classId: number;
+  endAt: string;
+  id: number;
+  remainingCapacity: number;
+  startAt: string;
+}
+
+export type ListAvailableSlotsParams = {
+classId: number;
+date: string;
+};
+
+export type ListUpcomingSlotsParams = {
+classId: number;
+/**
+ * @minimum 1
+ * @maximum 30
+ */
+days?: number;
+};
 
 export const getSendGuestBookingVerificationUrl = () => {
 
@@ -286,6 +337,27 @@ export const rescheduleGuestBooking = async (bookingId: number,
 
 
 
+export const getListPublicClassesUrl = () => {
+
+
+
+
+  return `/api/v1/classes`
+}
+
+export const listPublicClasses = async ( options?: RequestInit): Promise<ClassResponse[]> => {
+
+  return generatedApiClient<ClassResponse[]>(getListPublicClassesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getListMyBookingsUrl = () => {
 
 
@@ -366,5 +438,61 @@ export const rescheduleMyBooking = async (id: number,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(memberRescheduleRequest)
+  }
+);}
+
+
+
+export const getListAvailableSlotsUrl = (params: ListAvailableSlotsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/slots?${stringifiedParams}` : `/api/v1/slots`
+}
+
+export const listAvailableSlots = async (params: ListAvailableSlotsParams, options?: RequestInit): Promise<PublicSlotResponse[]> => {
+
+  return generatedApiClient<PublicSlotResponse[]>(getListAvailableSlotsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getListUpcomingSlotsUrl = (params: ListUpcomingSlotsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/slots/upcoming?${stringifiedParams}` : `/api/v1/slots/upcoming`
+}
+
+export const listUpcomingSlots = async (params: ListUpcomingSlotsParams, options?: RequestInit): Promise<PublicSlotResponse[]> => {
+
+  return generatedApiClient<PublicSlotResponse[]>(getListUpcomingSlotsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}

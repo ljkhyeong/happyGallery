@@ -194,6 +194,8 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content(JsonMapper.builder().build().writeValueAsString(request)))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.customerSummary.type").value("GUEST"))
+                .andExpect(jsonPath("$.customerSummary.name").value("홍길동"))
                 .andExpect(jsonPath("$.source").value("PHONE"))
                 .andExpect(jsonPath("$.participantCount").value(3));
     }
@@ -207,6 +209,7 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                         .param("date", "2026-05-07")
                         .param("status", "BOOKED"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].customerSummary.phone").value("01012345678"))
                 .andExpect(jsonPath("$[0].participantCount").value(3));
     }
 
@@ -495,7 +498,10 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
     }
 
     private static AdminBookingResponse adminBookingResponse() {
-        return new AdminBookingResponse(100L, "BK-00000100", "GUEST", "홍길동", "01012345678",
+        return new AdminBookingResponse(
+                100L,
+                "BK-00000100",
+                new AdminBookingResponse.CustomerSummary("GUEST", "홍길동", "01012345678"),
                 "향수 원데이", LocalDateTime.of(2026, 5, 7, 19, 0),
                 LocalDateTime.of(2026, 5, 7, 21, 0), "BOOKED",
                 "PHONE",

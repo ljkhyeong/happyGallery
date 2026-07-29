@@ -76,7 +76,7 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
           <ErrorAlert error={error} />
 
           {challengeToken ? (
-            <Form onSubmit={submitMfa}>
+            <Form onSubmit={submitMfa} aria-busy={loading}>
               <Form.Group controlId="admin-mfa-code" className="mb-3">
                 <Form.Label>인증 코드 또는 복구 코드</Form.Label>
                 <Form.Control
@@ -96,7 +96,12 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
                   variant="primary"
                   disabled={!normalizedCode || loading}
                 >
-                  {loading ? <Spinner size="sm" /> : "확인"}
+                  {loading ? (
+                    <>
+                      <Spinner size="sm" aria-hidden="true" />
+                      <span className="visually-hidden">인증 확인 중...</span>
+                    </>
+                  ) : "확인"}
                 </Button>
                 <Button
                   type="button"
@@ -109,7 +114,7 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
               </div>
             </Form>
           ) : (
-            <Form onSubmit={submitCredentials}>
+            <Form onSubmit={submitCredentials} aria-busy={loading}>
               <Form.Group controlId="admin-username" className="mb-3">
                 <Form.Label>아이디</Form.Label>
                 <Form.Control
@@ -144,7 +149,12 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
                   || loading
                 }
               >
-                {loading ? <Spinner size="sm" /> : "로그인"}
+                {loading ? (
+                  <>
+                    <Spinner size="sm" aria-hidden="true" />
+                    <span className="visually-hidden">로그인 중...</span>
+                  </>
+                ) : "로그인"}
               </Button>
             </Form>
           )}

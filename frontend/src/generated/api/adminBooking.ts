@@ -7,14 +7,6 @@ export const AdminBookingResponseBalanceStatus = {
   PAID: 'PAID',
 } as const;
 
-export type AdminBookingResponseBookerType = typeof AdminBookingResponseBookerType[keyof typeof AdminBookingResponseBookerType];
-
-
-export const AdminBookingResponseBookerType = {
-  GUEST: 'GUEST',
-  MEMBER: 'MEMBER',
-} as const;
-
 export type AdminBookingResponseSource = typeof AdminBookingResponseSource[keyof typeof AdminBookingResponseSource];
 
 
@@ -36,19 +28,31 @@ export const AdminBookingResponseStatus = {
   COMPLETED: 'COMPLETED',
 } as const;
 
+export type CustomerSummaryType = typeof CustomerSummaryType[keyof typeof CustomerSummaryType];
+
+
+export const CustomerSummaryType = {
+  GUEST: 'GUEST',
+  MEMBER: 'MEMBER',
+} as const;
+
+export interface CustomerSummary {
+  name: string;
+  /** @nullable */
+  phone: string | null;
+  type: CustomerSummaryType;
+}
+
 export interface AdminBookingResponse {
   arrears: boolean;
   balanceAmount: number;
   /** @nullable */
   balancePaidAt: string | null;
   balanceStatus: AdminBookingResponseBalanceStatus;
-  bookerName: string;
-  /** @nullable */
-  bookerPhone: string | null;
-  bookerType: AdminBookingResponseBookerType;
   bookingId: number;
   bookingNumber: string;
   className: string;
+  customerSummary: CustomerSummary;
   depositAmount: number;
   /** @nullable */
   depositPaidAt: string | null;
@@ -134,34 +138,74 @@ export interface BookingCancellationTaskCompletionResponse {
   task: BookingCancellationTaskResponse;
 }
 
-export interface AdminBookingSearchRow {
-  arrears?: boolean;
-  balanceAmount?: number;
-  balancePaidAt?: string;
-  balanceStatus?: string;
-  bookerName?: string;
-  bookerPhone?: string;
-  bookerType?: string;
-  bookingId?: number;
-  bookingNumber?: string;
-  className?: string;
-  createdAt?: string;
-  depositAmount?: number;
-  depositPaidAt?: string;
-  endAt?: string;
-  participantCount?: number;
-  passBooking?: boolean;
-  source?: string;
-  startAt?: string;
-  status?: string;
+export type AdminBookingSearchItemResponseBalanceStatus = typeof AdminBookingSearchItemResponseBalanceStatus[keyof typeof AdminBookingSearchItemResponseBalanceStatus];
+
+
+export const AdminBookingSearchItemResponseBalanceStatus = {
+  UNPAID: 'UNPAID',
+  PAID: 'PAID',
+} as const;
+
+export type AdminBookingSearchItemResponseBookerType = typeof AdminBookingSearchItemResponseBookerType[keyof typeof AdminBookingSearchItemResponseBookerType];
+
+
+export const AdminBookingSearchItemResponseBookerType = {
+  GUEST: 'GUEST',
+  MEMBER: 'MEMBER',
+} as const;
+
+export type AdminBookingSearchItemResponseSource = typeof AdminBookingSearchItemResponseSource[keyof typeof AdminBookingSearchItemResponseSource];
+
+
+export const AdminBookingSearchItemResponseSource = {
+  WEB: 'WEB',
+  PHONE: 'PHONE',
+  NAVER_TALK: 'NAVER_TALK',
+  KAKAO: 'KAKAO',
+  VISIT: 'VISIT',
+} as const;
+
+export type AdminBookingSearchItemResponseStatus = typeof AdminBookingSearchItemResponseStatus[keyof typeof AdminBookingSearchItemResponseStatus];
+
+
+export const AdminBookingSearchItemResponseStatus = {
+  BOOKED: 'BOOKED',
+  CANCELED: 'CANCELED',
+  NO_SHOW: 'NO_SHOW',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export interface AdminBookingSearchItemResponse {
+  arrears: boolean;
+  balanceAmount: number;
+  /** @nullable */
+  balancePaidAt: string | null;
+  balanceStatus: AdminBookingSearchItemResponseBalanceStatus;
+  bookerName: string;
+  /** @nullable */
+  bookerPhone: string | null;
+  bookerType: AdminBookingSearchItemResponseBookerType;
+  bookingId: number;
+  bookingNumber: string;
+  className: string;
+  createdAt: string;
+  depositAmount: number;
+  /** @nullable */
+  depositPaidAt: string | null;
+  endAt: string;
+  participantCount: number;
+  passBooking: boolean;
+  source: AdminBookingSearchItemResponseSource;
+  startAt: string;
+  status: AdminBookingSearchItemResponseStatus;
 }
 
-export interface OffsetPageAdminBookingSearchRow {
-  content?: AdminBookingSearchRow[];
-  page?: number;
-  size?: number;
-  totalCount?: number;
-  totalPages?: number;
+export interface AdminBookingSearchPageResponse {
+  content: AdminBookingSearchItemResponse[];
+  page: number;
+  size: number;
+  totalCount: number;
+  totalPages: number;
 }
 
 export interface UpdateBookingArrearsRequest {
@@ -401,9 +445,9 @@ export const getSearchBookingsUrl = (params?: SearchBookingsParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/bookings/search?${stringifiedParams}` : `/api/v1/admin/bookings/search`
 }
 
-export const searchBookings = async (params?: SearchBookingsParams, options?: RequestInit): Promise<OffsetPageAdminBookingSearchRow> => {
+export const searchBookings = async (params?: SearchBookingsParams, options?: RequestInit): Promise<AdminBookingSearchPageResponse> => {
 
-  return generatedApiClient<OffsetPageAdminBookingSearchRow>(getSearchBookingsUrl(params),
+  return generatedApiClient<AdminBookingSearchPageResponse>(getSearchBookingsUrl(params),
   {
     ...options,
     method: 'GET'

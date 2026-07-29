@@ -127,6 +127,8 @@ export function SocialCallbackPage() {
             replace: true,
             state: {
               phoneChangeRequested: returnAction === "phone-change",
+              emailRegistrationRequested:
+                returnAction === "email-registration",
               accountWithdrawalRequested:
                 returnAction === "account-withdrawal",
             },

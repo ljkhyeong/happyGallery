@@ -33,11 +33,13 @@ public class KeyRotationRunner implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         var result = keyRotationUseCase.rotate(properties.sourceKeyId());
         log.info("키 회전 완료 [users={}, guests={}, bookings={}, attempts={}, fulfillments={}, social={}, "
-                        + "adminMfa={}, deletedVerifications={}, pendingSocial={}, pendingAdminMfa={}]",
+                        + "adminMfa={}, deletedPhoneVerifications={}, deletedEmailVerifications={}, "
+                        + "pendingSocial={}, pendingAdminMfa={}]",
                 result.users(), result.guests(), result.bookings(),
                 result.paymentAttempts(), result.fulfillments(),
                 result.socialAccounts(), result.adminMfaSecrets(),
-                result.deletedPhoneVerifications(), result.pendingSocialAccounts(),
+                result.deletedPhoneVerifications(), result.deletedEmailVerifications(),
+                result.pendingSocialAccounts(),
                 result.pendingAdminMfaSecrets());
         SpringApplication.exit(context);
     }

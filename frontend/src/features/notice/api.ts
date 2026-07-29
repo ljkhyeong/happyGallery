@@ -1,10 +1,14 @@
-import { api } from "@/shared/api";
-import type { NoticeListItem, NoticeDetail } from "@/shared/types";
+import {
+  getPublicNotice,
+  listPublicNotices,
+  type NoticeDetailResponse,
+  type NoticeListResponse,
+} from "@/generated/api/notice";
 
-export function fetchNotices(): Promise<NoticeListItem[]> {
-  return api<NoticeListItem[]>("/notices");
+export function fetchNotices(): Promise<NoticeListResponse[]> {
+  return listPublicNotices();
 }
 
-export function fetchNotice(id: number): Promise<NoticeDetail> {
-  return api<NoticeDetail>(`/notices/${id}`);
+export function fetchNotice(id: number): Promise<NoticeDetailResponse> {
+  return getPublicNotice(id);
 }

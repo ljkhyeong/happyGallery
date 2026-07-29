@@ -86,7 +86,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
                       retry.reset();
                       setRetryTarget(r);
                     }}>
-                    {pendingId === r.refundId ? "..." : "재처리"}
+                    {pendingId === r.refundId ? "처리 중..." : "재처리"}
                   </Button>
                 </td>
               </tr>

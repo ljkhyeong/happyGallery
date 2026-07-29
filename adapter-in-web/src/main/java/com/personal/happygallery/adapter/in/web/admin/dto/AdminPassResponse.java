@@ -4,22 +4,22 @@ import static com.personal.happygallery.adapter.in.web.MaskingUtil.maskPhoneMidd
 
 import com.personal.happygallery.application.search.dto.AdminPassStatus;
 import com.personal.happygallery.application.search.dto.AdminPassView;
-import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.payment.RefundStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
 public record AdminPassResponse(
-        Long passId,
-        String passNumber,
-        String customerName,
-        String customerPhone,
-        AdminPassStatus status,
-        int remainingCredits,
-        int totalCredits,
-        LocalDateTime expiresAt,
-        int futureBookingCount,
-        long expectedRefundAmount,
-        RefundStatus refundStatus
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long passId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String passNumber,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String customerName,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String customerPhone,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) AdminPassStatus status,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int remainingCredits,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int totalCredits,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime expiresAt,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int futureBookingCount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long expectedRefundAmount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) RefundStatus refundStatus
 ) {
 
     public static AdminPassResponse from(AdminPassView pass) {
@@ -37,11 +37,4 @@ public record AdminPassResponse(
                 pass.refundStatus());
     }
 
-    public static OffsetPage<AdminPassResponse> fromPage(OffsetPage<AdminPassView> passes) {
-        return OffsetPage.of(
-                passes.content().stream().map(AdminPassResponse::from).toList(),
-                passes.page(),
-                passes.size(),
-                passes.totalCount());
-    }
 }

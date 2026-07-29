@@ -5,25 +5,26 @@ import com.personal.happygallery.application.product.port.in.ProductQueryUseCase
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
+import com.personal.happygallery.domain.product.ProductType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public record ProductResponse(
-        Long id,
-        String name,
-        String type,
-        String category,
-        long price,
-        String description,
-        String imageUrl,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long id,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ProductType type,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String category,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long price,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String description,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String imageUrl,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         String specification,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         String careInstructions,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         Integer productionLeadDays,
-        String status,
-        boolean available,
-        int quantity
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ProductStatus status,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean available,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int quantity
 ) {
     public static ProductResponse from(ProductQueryUseCase.ProductWithInventory r) {
         return from(r.product(), r.inventory());
@@ -37,7 +38,7 @@ public record ProductResponse(
         return new ProductResponse(
                 product.getId(),
                 product.getName(),
-                product.getType().name(),
+                product.getType(),
                 product.getCategory(),
                 product.getPrice(),
                 product.getDescription(),
@@ -45,7 +46,7 @@ public record ProductResponse(
                 product.getSpecification(),
                 product.getCareInstructions(),
                 product.getProductionLeadDays(),
-                product.getStatus().name(),
+                product.getStatus(),
                 product.getStatus() == ProductStatus.ACTIVE && inventory.isAvailable(),
                 inventory.getQuantity()
         );

@@ -1,25 +1,30 @@
-import { adminHeaders as h, api } from "@/shared/api";
-import type {
-  AdjustInventoryRequest,
-  CreateProductRequest,
-  InventoryAdjustmentResponse,
-  ProductResponse,
-  ProductStatus,
-  UpdateProductRequest,
-} from "@/shared/types";
+import {
+  adjustInventory as adjustAdminInventory,
+  changeStatus,
+  listAll,
+  listInventoryAdjustments,
+  register,
+  updateAdminProduct,
+  type AdjustInventoryRequest,
+  type CreateProductRequest,
+  type InventoryAdjustmentResponse,
+  type ProductResponse,
+  type UpdateProductRequest,
+  type UpdateProductStatusRequestStatus,
+} from "@/generated/api/adminCatalog";
+import { adminHeaders } from "@/shared/api";
+
+export type ProductStatus = UpdateProductStatusRequestStatus;
 
 export function fetchProducts(adminKey: string): Promise<ProductResponse[]> {
-  return api<ProductResponse[]>("/admin/products", {
-    headers: h(adminKey),
-  });
+  return listAll({ headers: adminHeaders(adminKey) });
 }
 
-export function createProduct(adminKey: string, body: CreateProductRequest): Promise<ProductResponse> {
-  return api<ProductResponse>("/admin/products", {
-    method: "POST",
-    headers: h(adminKey),
-    body,
-  });
+export function createProduct(
+  adminKey: string,
+  body: CreateProductRequest,
+): Promise<ProductResponse> {
+  return register(body, { headers: adminHeaders(adminKey) });
 }
 
 export function updateProduct(
@@ -27,11 +32,7 @@ export function updateProduct(
   productId: number,
   body: UpdateProductRequest,
 ): Promise<ProductResponse> {
-  return api<ProductResponse>(`/admin/products/${productId}`, {
-    method: "PATCH",
-    headers: h(adminKey),
-    body,
-  });
+  return updateAdminProduct(productId, body, { headers: adminHeaders(adminKey) });
 }
 
 export function updateProductStatus(
@@ -39,11 +40,11 @@ export function updateProductStatus(
   productId: number,
   status: ProductStatus,
 ): Promise<ProductResponse> {
-  return api<ProductResponse>(`/admin/products/${productId}/status`, {
-    method: "PATCH",
-    headers: h(adminKey),
-    body: { status },
-  });
+  return changeStatus(
+    productId,
+    { status },
+    { headers: adminHeaders(adminKey) },
+  );
 }
 
 export function adjustInventory(
@@ -51,18 +52,12 @@ export function adjustInventory(
   productId: number,
   body: AdjustInventoryRequest,
 ): Promise<InventoryAdjustmentResponse> {
-  return api<InventoryAdjustmentResponse>(`/admin/products/${productId}/inventory-adjustments`, {
-    method: "POST",
-    headers: h(adminKey),
-    body,
-  });
+  return adjustAdminInventory(productId, body, { headers: adminHeaders(adminKey) });
 }
 
 export function fetchInventoryAdjustments(
   adminKey: string,
   productId: number,
 ): Promise<InventoryAdjustmentResponse[]> {
-  return api<InventoryAdjustmentResponse[]>(`/admin/products/${productId}/inventory-adjustments`, {
-    headers: h(adminKey),
-  });
+  return listInventoryAdjustments(productId, { headers: adminHeaders(adminKey) });
 }

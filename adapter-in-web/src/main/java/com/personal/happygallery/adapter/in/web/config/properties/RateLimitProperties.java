@@ -22,6 +22,7 @@ public record RateLimitProperties(
     public record IpRules(
             @Valid @NotNull Rule defaultApi,
             @Valid @NotNull Rule phoneVerification,
+            @Valid @NotNull Rule emailVerification,
             @Valid @NotNull Rule customerLogin,
             @Valid @NotNull Rule customerSignup,
             @Valid @NotNull Rule adminLogin,
@@ -40,6 +41,8 @@ public record RateLimitProperties(
             @Valid @NotNull Rule customerLogin,
             @Valid @NotNull Rule phoneVerification,
             @Valid @NotNull Rule phoneVerificationAttempt,
+            @Valid @NotNull Rule emailVerification,
+            @Valid @NotNull Rule emailVerificationAttempt,
             @Valid @NotNull Rule paymentConfirm,
             @Valid @NotNull Rule guestClaimVerify,
             @Valid @NotNull Rule guestRecordRecovery,

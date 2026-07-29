@@ -20,6 +20,7 @@ export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initi
 
   return (
     <Form
+      aria-busy={isLoading}
       onSubmit={(e) => {
         e.preventDefault();
         setTouched({ bookingId: true, token: true });
@@ -38,8 +39,12 @@ export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initi
               onBlur={() => setTouched((t) => ({ ...t, bookingId: true }))}
               placeholder="예약 번호"
               isInvalid={touched.bookingId && !validBookingId}
+              aria-invalid={touched.bookingId && !validBookingId}
+              aria-describedby={
+                touched.bookingId && !validBookingId ? "booking-lookup-id-error" : undefined
+              }
             />
-            <Form.Control.Feedback type="invalid">
+            <Form.Control.Feedback id="booking-lookup-id-error" type="invalid">
               유효한 예약 번호를 입력해 주세요.
             </Form.Control.Feedback>
           </Form.Group>
@@ -53,8 +58,12 @@ export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initi
               onBlur={() => setTouched((t) => ({ ...t, token: true }))}
               placeholder="예약 시 발급된 조회 코드"
               isInvalid={touched.token && !normalizedToken}
+              aria-invalid={touched.token && !normalizedToken}
+              aria-describedby={
+                touched.token && !normalizedToken ? "booking-lookup-token-error" : undefined
+              }
             />
-            <Form.Control.Feedback type="invalid">
+            <Form.Control.Feedback id="booking-lookup-token-error" type="invalid">
               조회 코드를 입력해 주세요.
             </Form.Control.Feedback>
           </Form.Group>

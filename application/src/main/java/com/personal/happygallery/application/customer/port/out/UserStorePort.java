@@ -8,4 +8,6 @@ import com.personal.happygallery.domain.user.User;
 public interface UserStorePort {
 
     User save(User user);
+
+    User saveAndFlush(User user);
 }

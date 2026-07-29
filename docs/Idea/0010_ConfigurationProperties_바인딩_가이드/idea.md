@@ -13,7 +13,7 @@
 
 ---
 
-## 현재 적용 상태
+## 대표 적용 사례
 
 | 영역 | prefix | 클래스 | 용도 |
 |------|--------|---------|------|
@@ -24,6 +24,8 @@
 | 정책 동의 | `app.policy-consent` | `PolicyConsentProperties` | 약관·개인정보 정책 버전 |
 | 배치 스케줄러 | `spring.task.scheduling` | Spring Boot task scheduling properties | 스케줄러 thread pool·주기 작업 즉시 종료 정책 |
 
+이 표는 전체 클래스 목록이 아니라 반복해서 참고할 대표 사례다. 필드 암호화·키 회전·비회원 토큰,
+결제·OAuth·알림 같은 운영 설정도 같은 원칙의 `@ConfigurationProperties`로 관리한다.
 코드 검색 기준으로 현재 메인 소스에는 `@Value` 직접 주입이 남아 있지 않다.
 
 ---

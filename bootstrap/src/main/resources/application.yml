@@ -139,6 +139,9 @@ app:
       phone-verification-thread-pool:
         pool-size: ${PHONE_VERIFICATION_EXECUTOR_POOL_SIZE:2}
         queue-capacity: ${PHONE_VERIFICATION_EXECUTOR_QUEUE_CAPACITY:10}
+      email-verification-thread-pool:
+        pool-size: ${EMAIL_VERIFICATION_EXECUTOR_POOL_SIZE:2}
+        queue-capacity: ${EMAIL_VERIFICATION_EXECUTOR_QUEUE_CAPACITY:10}
       circuit-breaker:
         failure-rate-threshold: ${NOTIFICATION_CB_FAILURE_RATE_THRESHOLD:50}
         sliding-window-size: ${NOTIFICATION_CB_SLIDING_WINDOW_SIZE:20}
@@ -165,6 +168,19 @@ app:
       acquire-timeout-millis: ${SMS_ACQUIRE_TIMEOUT_MILLIS:500}
       max-connections: ${SMS_MAX_CONNECTIONS:20}
       keep-alive-millis: ${SMS_KEEP_ALIVE_MILLIS:30000}
+    email-verification:
+      host: ${EMAIL_VERIFICATION_SMTP_HOST:}
+      port: ${EMAIL_VERIFICATION_SMTP_PORT:587}
+      username: ${EMAIL_VERIFICATION_SMTP_USERNAME:}
+      password: ${EMAIL_VERIFICATION_SMTP_PASSWORD:}
+      from: ${EMAIL_VERIFICATION_FROM:}
+      subject: ${EMAIL_VERIFICATION_SUBJECT:[해피갤러리] 이메일 인증번호}
+      timeout-millis: ${EMAIL_VERIFICATION_TIMEOUT_MILLIS:7000}
+      connection-timeout-millis: ${EMAIL_VERIFICATION_CONNECTION_TIMEOUT_MILLIS:1000}
+      read-timeout-millis: ${EMAIL_VERIFICATION_READ_TIMEOUT_MILLIS:2000}
+      write-timeout-millis: ${EMAIL_VERIFICATION_WRITE_TIMEOUT_MILLIS:2000}
+      start-tls-enabled: ${EMAIL_VERIFICATION_STARTTLS_ENABLED:true}
+      ssl-enabled: ${EMAIL_VERIFICATION_SSL_ENABLED:false}
     google-oauth:
       timeout-millis: ${GOOGLE_OAUTH_TIMEOUT_MILLIS:5000}
       connect-timeout-millis: ${GOOGLE_OAUTH_CONNECT_TIMEOUT_MILLIS:2000}
@@ -217,6 +233,7 @@ app:
     ip:
       default-api: { capacity: 300, window: 1m }
       phone-verification: { capacity: 5, window: 1m }
+      email-verification: { capacity: 5, window: 1m }
       customer-login: { capacity: 10, window: 1m }
       customer-signup: { capacity: 5, window: 1m }
       admin-login: { capacity: 5, window: 1m }
@@ -233,6 +250,8 @@ app:
       customer-login: { capacity: 10, window: 10m }
       phone-verification: { capacity: 3, window: 10m }
       phone-verification-attempt: { capacity: 5, window: 10m }
+      email-verification: { capacity: 3, window: 10m }
+      email-verification-attempt: { capacity: 5, window: 10m }
       payment-confirm: { capacity: 20, window: 1m }
       guest-claim-verify: { capacity: 5, window: 1m }
       guest-record-recovery: { capacity: 5, window: 10m }

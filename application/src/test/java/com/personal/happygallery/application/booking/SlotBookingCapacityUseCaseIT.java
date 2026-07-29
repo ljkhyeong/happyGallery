@@ -7,6 +7,8 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotCapacity;
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
+import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
+import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
@@ -35,8 +37,8 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class SlotBookingCapacityUseCaseIT {
 
     @Autowired SlotCapacitySupport slotCapacitySupport;
-    @Autowired DefaultSlotQueryService slotQueryService;
-    @Autowired DefaultSlotManagementService slotManagementService;
+    @Autowired SlotQueryUseCase slotQueryUseCase;
+    @Autowired SlotManagementUseCase slotManagementUseCase;
     @Autowired ClassRepository classRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -160,7 +162,7 @@ class SlotBookingCapacityUseCaseIT {
         Slot futureSlot = slotRepository.save(
                 slot(bookingClass, now.plusMinutes(1), now.plusHours(2).plusMinutes(1)));
 
-        List<Long> availableSlotIds = slotQueryService.listAvailable(
+        List<Long> availableSlotIds = slotQueryUseCase.listAvailable(
                         bookingClass.getId(), now.toLocalDate()).stream()
                 .map(Slot::getId)
                 .toList();
@@ -181,7 +183,7 @@ class SlotBookingCapacityUseCaseIT {
                 slot(bookingClass, now.toLocalDate().plusDays(14).atStartOfDay(),
                         now.toLocalDate().plusDays(14).atTime(2, 0)));
 
-        List<Long> availableSlotIds = slotQueryService.listUpcoming(bookingClass.getId(), 14).stream()
+        List<Long> availableSlotIds = slotQueryUseCase.listUpcoming(bookingClass.getId(), 14).stream()
                 .map(Slot::getId)
                 .toList();
 
@@ -237,7 +239,7 @@ class SlotBookingCapacityUseCaseIT {
 
         releaseCapacityInTx(mainSlot.getId());
 
-        var availableSlotIds = slotQueryService.listAvailable(bookingClass.getId(), MAIN_START.toLocalDate())
+        var availableSlotIds = slotQueryUseCase.listAvailable(bookingClass.getId(), MAIN_START.toLocalDate())
                 .stream()
                 .map(Slot::getId)
                 .toList();
@@ -257,7 +259,7 @@ class SlotBookingCapacityUseCaseIT {
                 slot(bookingClass, MAIN_START.plusMinutes(15), MAIN_END.plusMinutes(15)));
 
         reserveCapacityInTx(mainSlot.getId());
-        Slot targetSlot = slotManagementService.createSlot(
+        Slot targetSlot = slotManagementUseCase.createSlot(
                 bookingClass.getId(), BUFFER_IN2);
         assertThat(targetSlot.isActive()).isFalse();
 

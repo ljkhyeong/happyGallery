@@ -201,23 +201,23 @@
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 48 },
       "targets": [
         {
-          "expr": "executor_active_threads{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor\"}",
+          "expr": "executor_active_threads{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor\"}",
           "legendFormat": "{{name}} active"
         },
         {
-          "expr": "executor_pool_size_threads{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor\"}",
+          "expr": "executor_pool_size_threads{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor\"}",
           "legendFormat": "{{name}} pool size"
         },
         {
-          "expr": "executor_queued_tasks{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor\"}",
+          "expr": "executor_queued_tasks{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor\"}",
           "legendFormat": "{{name}} queued"
         },
         {
-          "expr": "executor_queue_remaining_tasks{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor\"}",
+          "expr": "executor_queue_remaining_tasks{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor\"}",
           "legendFormat": "{{name}} queue remaining"
         },
         {
-          "expr": "increase({application=\"happygallery\",__name__=~\"happygallery_notification_(alimtalk|sms|phone_verification)_executor_rejected_total\"}[5m])",
+          "expr": "increase({application=\"happygallery\",__name__=~\"happygallery_notification_(alimtalk|sms|phone_verification|email_verification)_executor_rejected_total\"}[5m])",
           "legendFormat": "{{__name__}} (5m)"
         }
       ]
@@ -292,7 +292,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 80 },
       "targets": [
         {
-          "expr": "resilience4j_circuitbreaker_state{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms\"} == 1",
+          "expr": "resilience4j_circuitbreaker_state{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification\"} == 1",
           "legendFormat": "{{name}} {{state}}"
         }
       ]
@@ -304,7 +304,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 80 },
       "targets": [
         {
-          "expr": "resilience4j_circuitbreaker_failure_rate{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms\"}",
+          "expr": "resilience4j_circuitbreaker_failure_rate{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification\"}",
           "legendFormat": "{{name}}"
         }
       ],
@@ -317,11 +317,11 @@
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 88 },
       "targets": [
         {
-          "expr": "sum by (name, kind) (increase(resilience4j_circuitbreaker_calls_seconds_count{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms\"}[5m]))",
+          "expr": "sum by (name, kind) (increase(resilience4j_circuitbreaker_calls_seconds_count{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification\"}[5m]))",
           "legendFormat": "{{name}} {{kind}}"
         },
         {
-          "expr": "sum by (name) (increase(resilience4j_circuitbreaker_not_permitted_calls_total{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms\"}[5m]))",
+          "expr": "sum by (name) (increase(resilience4j_circuitbreaker_not_permitted_calls_total{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification\"}[5m]))",
           "legendFormat": "{{name}} not_permitted"
         }
       ]

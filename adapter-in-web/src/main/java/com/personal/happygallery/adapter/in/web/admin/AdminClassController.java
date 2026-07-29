@@ -1,9 +1,9 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
+import com.personal.happygallery.adapter.in.web.admin.dto.AdminClassResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.CreateClassRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateClassRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateClassStatusRequest;
-import com.personal.happygallery.adapter.in.web.booking.dto.ClassResponse;
 import com.personal.happygallery.application.booking.port.in.ClassManagementUseCase;
 import com.personal.happygallery.application.booking.port.in.ClassManagementUseCase.CreateClassCommand;
 import com.personal.happygallery.application.booking.port.in.ClassManagementUseCase.UpdateClassCommand;
@@ -38,23 +38,23 @@ public class AdminClassController {
     /** POST /api/v1/admin/classes — 클래스 생성 */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ClassResponse createClass(@RequestBody @Valid CreateClassRequest request) {
+    public AdminClassResponse createClass(@RequestBody @Valid CreateClassRequest request) {
         BookingClass bookingClass = classManagementUseCase.createClass(new CreateClassCommand(
                 request.name(), request.category(), request.durationMin(), request.price(), request.bufferMin(),
                 request.passEligible(), request.description(), request.imageUrl(),
                 request.preparationInfo(), request.targetAudience()));
-        return ClassResponse.from(bookingClass);
+        return AdminClassResponse.from(bookingClass);
     }
 
     @GetMapping
-    public List<ClassResponse> listClasses() {
-        return classQueryUseCase.listAll().stream().map(ClassResponse::from).toList();
+    public List<AdminClassResponse> listClasses() {
+        return classQueryUseCase.listAll().stream().map(AdminClassResponse::from).toList();
     }
 
     @PatchMapping("/{id}")
-    public ClassResponse updateClass(@PathVariable Long id,
-                                     @RequestBody @Valid UpdateClassRequest request) {
-        return ClassResponse.from(classManagementUseCase.updateClass(new UpdateClassCommand(
+    public AdminClassResponse updateClass(@PathVariable Long id,
+                                          @RequestBody @Valid UpdateClassRequest request) {
+        return AdminClassResponse.from(classManagementUseCase.updateClass(new UpdateClassCommand(
                 id, request.name(), request.category(), request.price(), request.passEligible(),
                 request.description(), request.imageUrl(),
                 request.preparationInfo(), request.targetAudience())));
@@ -62,8 +62,8 @@ public class AdminClassController {
 
     @PatchMapping("/{id}/status")
     @Operation(operationId = "changeAdminClassStatus")
-    public ClassResponse changeStatus(@PathVariable Long id,
-                                      @RequestBody @Valid UpdateClassStatusRequest request) {
-        return ClassResponse.from(classManagementUseCase.changeStatus(id, request.status()));
+    public AdminClassResponse changeStatus(@PathVariable Long id,
+                                           @RequestBody @Valid UpdateClassStatusRequest request) {
+        return AdminClassResponse.from(classManagementUseCase.changeStatus(id, request.status()));
     }
 }

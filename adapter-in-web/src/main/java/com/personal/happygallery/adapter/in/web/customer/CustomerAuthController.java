@@ -8,6 +8,7 @@ import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrinci
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.User;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -38,6 +39,7 @@ public class CustomerAuthController {
 
     @PostMapping("/auth/signup")
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(operationId = "signupCustomer")
     public CustomerUserResponse signup(@RequestBody @Valid SignupRequest request,
                                        HttpServletRequest httpRequest,
                                        HttpServletResponse httpResponse) {
@@ -54,6 +56,7 @@ public class CustomerAuthController {
     }
 
     @PostMapping("/auth/login")
+    @Operation(operationId = "loginCustomer")
     public CustomerUserResponse login(@RequestBody @Valid CustomerLoginRequest request,
                                       HttpServletRequest httpRequest,
                                       HttpServletResponse httpResponse) {
@@ -68,11 +71,13 @@ public class CustomerAuthController {
 
     @PostMapping("/auth/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "logoutCustomer")
     public void logout(HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         customerSessionBinder.unbind(httpRequest, httpResponse);
     }
 
     @GetMapping("/me")
+    @Operation(operationId = "getCurrentCustomer")
     public CustomerUserResponse me(@AuthenticationPrincipal CustomerPrincipal customer) {
         return new CustomerUserResponse(
                 customer.userId(),

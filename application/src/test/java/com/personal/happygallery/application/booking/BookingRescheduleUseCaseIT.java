@@ -1,6 +1,8 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleRequest;
+import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
+import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
@@ -44,9 +46,9 @@ class BookingRescheduleUseCaseIT {
     @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
-    @Autowired DefaultSlotManagementService slotManagementService;
+    @Autowired SlotManagementUseCase slotManagementUseCase;
     @Autowired SlotCapacitySupport slotCapacitySupport;
-    @Autowired DefaultMemberBookingService memberBookingService;
+    @Autowired MemberBookingUseCase memberBookingUseCase;
     @Autowired UserStorePort userStorePort;
     @Autowired Clock clock;
     @Autowired PlatformTransactionManager transactionManager;
@@ -207,7 +209,7 @@ class BookingRescheduleUseCaseIT {
     void reschedule_slotNotAvailable_returns409() throws Exception {
         Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
         Slot inactiveSlot = slotStorePort.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
-        slotManagementService.deactivateSlot(inactiveSlot.getId());
+        slotManagementUseCase.deactivateSlot(inactiveSlot.getId());
 
         BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01044440001", fromSlot.getId());
 
@@ -257,7 +259,7 @@ class BookingRescheduleUseCaseIT {
                 "reschedule-owner@test.local", "password-hash", "회원 예약자", phone);
         member.markPhoneVerified();
         member = userStorePort.save(member);
-        memberBookingService.createMemberDepositBooking(
+        memberBookingUseCase.createMemberDepositBooking(
                 member.getId(), targetSlot.getId(), DepositPaymentMethod.CARD,
                 5_000L, 45_000L);
 

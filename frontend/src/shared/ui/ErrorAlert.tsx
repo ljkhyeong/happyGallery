@@ -25,7 +25,7 @@ export function ErrorAlert({ error }: Props) {
   }
 
   return (
-    <Alert variant="danger" className="mb-3">
+    <Alert variant="danger" className="mb-3" role="alert">
       {message}
     </Alert>
   );

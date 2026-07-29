@@ -1,6 +1,7 @@
 # ADR-0038: OpenAPI와 TypeScript API client 자동 생성
 
 **날짜**: 2026-07-21
+**최종 갱신**: 2026-07-29
 **상태**: Accepted
 
 ---
@@ -29,15 +30,15 @@
 - 생성 파일은 수동 편집하지 않고 프론트 독립 Docker build를 위해 Git에 커밋한다.
 - 여러 Orval 대상이 같은 `src/generated/api`를 사용하므로 생성 명령이 디렉터리를 시작 시 한 번만 비운다. 각 대상의 `clean`은 끄고 서로의 결과를 삭제하지 않게 한다. 공통 input·mutator 설정은 `generatedApi(target, tags)`가 한 곳에서 소유한다.
 
-### 3. 엔드포인트는 schema 정확성을 확인하며 전환한다
+### 3. React feature API는 생성 client를 사용한다
 
-- 생성 client 실사용 범위는 공개 상품 조회, 회원 소셜 계정 관리, 회원 알림함·예약 조회/변경/취소, 비회원 예약 조회/변경/취소와 주문·예약 기록 복구, 고객 결제 상태·8회권 가격 정책 조회, 관리자 인증·MFA·대시보드·예약·주문 클레임·상품 Q&A 조회와 상태 변경이다. 기능 코드는 생성 함수를 얇게 감싸고 React Query 상태와 화면 흐름만 소유한다.
+- React feature 계층에서 실제 호출하는 공개·회원·비회원·결제·관리자 JSON/multipart API는 모두 생성 함수를 사용한다. 기능 코드는 생성 함수를 얇게 감싸고 React Query 상태와 화면 흐름만 소유한다.
 - 연동 대상은 Controller에 고유하고 안정적인 `operationId`를 명시하고, 응답의 필수값·nullable·enum을 OpenAPI에 정확히 표현한다. Java 메서드 이름 변경이 생성 함수 이름을 암묵적으로 바꾸게 두지 않으며, 생성 테스트는 Springdoc 충돌 회피용 숫자 접미사(`*_1`, `*_2`)가 남으면 실패시킨다.
 - 연동된 서버 request/response DTO는 생성 타입을 원본으로 사용한다. 화면 form state와 view model은 수동 타입으로 유지할 수 있다.
 - 결제 `prepare`의 공개 union은 `ORDER/BOOKING/PASS`만 포함한다. 암호화 저장용 `PREPARED_*`는 별도
   application 타입으로 두어 OpenAPI와 생성 client 후보 schema에 노출하지 않는다.
-- 결제 `prepare` 호출 자체와 multipart, 나머지 관리자 API는 생성 결과와 호출 옵션을 확인한 뒤 순차 전환한다. 단순 조회와 명시적으로 모델링된 비회원 인증 헤더는 schema가 정확하면 먼저 전환한다.
-- 관리자 API는 도메인 단위로 전환한다. 관리자 예약·인증·MFA·대시보드·주문 클레임·상품 Q&A는 웹 응답 DTO에서 필수값·nullable·enum을 명시하고, 수동 요청 함수와 서버 DTO 선언을 제거했다. 대시보드의 화면 조합용 snapshot만 생성 DTO를 묶는 프론트 view model로 유지한다.
+- 브라우저가 same-origin OAuth authorization URL로 직접 이동하거나 provider가 backend callback으로 돌아오는 흐름은 JSON API 호출이 아니므로 생성 함수로 감싸지 않는다.
+- 대시보드 snapshot, 결제 payload union과 form state처럼 여러 생성 DTO를 화면 목적에 맞게 조합하는 view model은 feature가 유지할 수 있다. 서버 계약과 같은 수동 DTO를 다시 선언하지 않는다.
 
 ### 4. CI에서 생성물 drift를 차단한다
 
@@ -52,11 +53,12 @@
 - Controller/DTO와 프론트 서버 타입의 불일치를 빌드에서 발견한다.
 - 생성 요청 코드도 기존 보안·오류·관측 경계를 그대로 사용한다.
 - REST Docs 테스트에 대량의 schema descriptor를 중복 작성하지 않는다.
+- feature별 수동 transport 함수와 서버 DTO 복제를 제거해 API 경로·필드 변경의 수정 지점을 OpenAPI 계약으로 모은다.
 
 ### 단점
 
 - OpenAPI 생성은 전체 Spring context와 Testcontainers를 사용하므로 단순 unit test보다 느리다.
-- 아직 전환하지 않은 API의 생성 schema는 프론트 사용 전에 필수값·nullable·enum을 추가 확인해야 한다.
+- 새 API를 React에서 사용하기 전에는 `operationId`, 필수값·nullable·enum과 인증 헤더를 먼저 정확히 명세해야 한다.
 - 생성 파일과 명세 스냅샷이 저장소 크기를 늘린다.
 
 ## 참고

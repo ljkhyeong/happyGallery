@@ -51,6 +51,37 @@ export default defineConfig({
   bookingApi: generatedApi("./src/generated/api/booking.ts", [
     "booking-controller",
     "me-booking-controller",
+    "class-controller",
+    "slot-controller",
+  ]),
+  customerAuthApi: generatedApi("./src/generated/api/customerAuth.ts", [
+    "csrf-controller",
+    "customer-auth-controller",
+    "customer-credential-controller",
+    "me-account-controller",
+    "me-email-controller",
+    "me-phone-controller",
+  ]),
+  customerStoreApi: generatedApi("./src/generated/api/customerStore.ts", [
+    "me-cart-controller",
+    "me-guest-claim-controller",
+    "me-inquiry-controller",
+    "me-order-controller",
+    "me-order-customer-action-controller",
+    "me-pass-controller",
+  ]),
+  orderApi: generatedApi("./src/generated/api/order.ts", [
+    "order-controller",
+    "order-customer-action-controller",
+  ]),
+  paymentApi: generatedApi("./src/generated/api/payment.ts", [
+    "payment-controller",
+  ]),
+  noticeApi: generatedApi("./src/generated/api/notice.ts", [
+    "notice-controller",
+  ]),
+  monitoringApi: generatedApi("./src/generated/api/monitoring.ts", [
+    "client-monitoring-controller",
   ]),
   adminAuthApi: generatedApi("./src/generated/api/adminAuth.ts", [
     "admin-login-controller",
@@ -62,6 +93,27 @@ export default defineConfig({
   ]),
   adminNoticeApi: generatedApi("./src/generated/api/adminNotice.ts", [
     "admin-notice-controller",
+  ]),
+  adminCatalogApi: generatedApi("./src/generated/api/adminCatalog.ts", [
+    "admin-class-controller",
+    "admin-media-controller",
+    "admin-product-controller",
+    "admin-slot-controller",
+    "admin-slot-session-controller",
+  ]),
+  adminOrderApi: generatedApi("./src/generated/api/adminOrder.ts", [
+    "admin-order-approval-controller",
+    "admin-order-pickup-controller",
+    "admin-order-production-controller",
+    "admin-order-query-controller",
+    "admin-order-shipping-controller",
+  ]),
+  adminOperationsApi: generatedApi("./src/generated/api/adminOperations.ts", [
+    "admin-inquiry-controller",
+    "admin-notification-controller",
+    "admin-pass-controller",
+    "admin-payment-reconciliation-controller",
+    "admin-refund-controller",
   ]),
   orderClaimApi: generatedApi("./src/generated/api/orderClaim.ts", [
     "me-order-claim-controller",

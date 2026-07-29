@@ -1,10 +1,14 @@
-import { api } from "@/shared/api";
-import type { InquiryResponse, CreateInquiryRequest } from "@/shared/types";
+import {
+  createMyInquiry,
+  listMyInquiries,
+  type CreateInquiryRequest,
+  type InquiryResponse,
+} from "@/generated/api/customerStore";
 
 export function fetchMyInquiries(): Promise<InquiryResponse[]> {
-  return api<InquiryResponse[]>("/me/inquiries");
+  return listMyInquiries();
 }
 
 export function createInquiry(body: CreateInquiryRequest): Promise<InquiryResponse> {
-  return api<InquiryResponse>("/me/inquiries", { method: "POST", body });
+  return createMyInquiry(body);
 }

@@ -25,6 +25,7 @@ import com.personal.happygallery.adapter.out.persistence.product.InventoryReposi
 import com.personal.happygallery.adapter.out.persistence.product.InventoryAdjustmentRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
 import com.personal.happygallery.adapter.out.persistence.user.SocialAccountRepository;
+import com.personal.happygallery.adapter.out.persistence.user.EmailVerificationRepository;
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -57,6 +58,7 @@ public class TestCleanupSupport {
     private final InventoryAdjustmentRepository inventoryAdjustmentRepository;
     private final ProductRepository productRepository;
     private final SocialAccountRepository socialAccountRepository;
+    private final EmailVerificationRepository emailVerificationRepository;
     private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
 
@@ -85,6 +87,7 @@ public class TestCleanupSupport {
                               InventoryAdjustmentRepository inventoryAdjustmentRepository,
                               ProductRepository productRepository,
                               SocialAccountRepository socialAccountRepository,
+                              EmailVerificationRepository emailVerificationRepository,
                               UserRepository userRepository,
                               JdbcTemplate jdbcTemplate) {
         this.adminUserRepository = adminUserRepository;
@@ -112,6 +115,7 @@ public class TestCleanupSupport {
         this.inventoryAdjustmentRepository = inventoryAdjustmentRepository;
         this.productRepository = productRepository;
         this.socialAccountRepository = socialAccountRepository;
+        this.emailVerificationRepository = emailVerificationRepository;
         this.userRepository = userRepository;
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -203,6 +207,7 @@ public class TestCleanupSupport {
     public void clearUsers() {
         policyConsentRepository.deleteAllInBatch();
         jdbcTemplate.update("DELETE FROM cart_merge_requests");
+        emailVerificationRepository.deleteAllInBatch();
         socialAccountRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
         phoneVerificationRepository.deleteAllInBatch();

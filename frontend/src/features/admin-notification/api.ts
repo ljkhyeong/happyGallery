@@ -1,16 +1,19 @@
-import { adminHeaders as h, api } from "@/shared/api";
-import type { FailedNotificationResponse } from "@/shared/types";
+import {
+  listFailedNotifications,
+  retryNotification as retryFailedNotification,
+  type FailedNotificationResponse,
+} from "@/generated/api/adminOperations";
+import { adminHeaders } from "@/shared/api";
 
-export function fetchFailedNotifications(adminKey: string): Promise<FailedNotificationResponse[]> {
-  return api("/admin/notifications/failed", { headers: h(adminKey) });
+export function fetchFailedNotifications(
+  adminKey: string,
+): Promise<FailedNotificationResponse[]> {
+  return listFailedNotifications({ headers: adminHeaders(adminKey) });
 }
 
 export function retryNotification(
   adminKey: string,
   outboxId: number,
 ): Promise<FailedNotificationResponse> {
-  return api(`/admin/notifications/${outboxId}/retry`, {
-    method: "POST",
-    headers: h(adminKey),
-  });
+  return retryFailedNotification(outboxId, { headers: adminHeaders(adminKey) });
 }

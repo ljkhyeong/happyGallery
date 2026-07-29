@@ -1,45 +1,44 @@
-import { adminHeaders as h, api } from "@/shared/api";
-import type {
-  ClassResponse,
-  ClassStatus,
-  CreateClassRequest,
-  UpdateClassRequest,
-} from "@/shared/types";
+import {
+  changeAdminClassStatus,
+  createClass as createAdminClass,
+  listClasses,
+  updateClass as updateAdminClass,
+  type AdminClassResponse,
+  type CreateClassRequest,
+  type UpdateClassRequest,
+  type UpdateClassStatusRequestStatus,
+} from "@/generated/api/adminCatalog";
+import { adminHeaders } from "@/shared/api";
 
-export function fetchAdminClasses(adminKey: string): Promise<ClassResponse[]> {
-  return api<ClassResponse[]>("/admin/classes", {
-    headers: h(adminKey),
-  });
+export type ClassStatus = UpdateClassStatusRequestStatus;
+
+export function fetchAdminClasses(adminKey: string): Promise<AdminClassResponse[]> {
+  return listClasses({ headers: adminHeaders(adminKey) });
 }
 
-export function createClass(adminKey: string, body: CreateClassRequest): Promise<ClassResponse> {
-  return api<ClassResponse>("/admin/classes", {
-    method: "POST",
-    headers: h(adminKey),
-    body,
-  });
+export function createClass(
+  adminKey: string,
+  body: CreateClassRequest,
+): Promise<AdminClassResponse> {
+  return createAdminClass(body, { headers: adminHeaders(adminKey) });
 }
 
 export function updateClass(
   adminKey: string,
   classId: number,
   body: UpdateClassRequest,
-): Promise<ClassResponse> {
-  return api<ClassResponse>(`/admin/classes/${classId}`, {
-    method: "PATCH",
-    headers: h(adminKey),
-    body,
-  });
+): Promise<AdminClassResponse> {
+  return updateAdminClass(classId, body, { headers: adminHeaders(adminKey) });
 }
 
 export function updateClassStatus(
   adminKey: string,
   classId: number,
   status: ClassStatus,
-): Promise<ClassResponse> {
-  return api<ClassResponse>(`/admin/classes/${classId}/status`, {
-    method: "PATCH",
-    headers: h(adminKey),
-    body: { status },
-  });
+): Promise<AdminClassResponse> {
+  return changeAdminClassStatus(
+    classId,
+    { status },
+    { headers: adminHeaders(adminKey) },
+  );
 }

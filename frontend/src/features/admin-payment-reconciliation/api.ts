@@ -1,21 +1,20 @@
-import { adminHeaders as h, api } from "@/shared/api";
-import type {
-  PaymentReconciliationRequiredResponse,
-  PaymentReconciliationResultResponse,
-} from "@/shared/types";
+import {
+  listRequired,
+  reconcile,
+  type PaymentReconciliationRequiredResponse,
+  type PaymentReconciliationResultResponse,
+} from "@/generated/api/adminOperations";
+import { adminHeaders } from "@/shared/api";
 
 export function fetchPaymentReconciliations(
   adminKey: string,
 ): Promise<PaymentReconciliationRequiredResponse[]> {
-  return api("/admin/payment-attempts/reconciliation-required", { headers: h(adminKey) });
+  return listRequired({ headers: adminHeaders(adminKey) });
 }
 
 export function reconcilePayment(
   adminKey: string,
   attemptId: number,
 ): Promise<PaymentReconciliationResultResponse> {
-  return api(`/admin/payment-attempts/${attemptId}/reconcile`, {
-    method: "POST",
-    headers: h(adminKey),
-  });
+  return reconcile(attemptId, { headers: adminHeaders(adminKey) });
 }

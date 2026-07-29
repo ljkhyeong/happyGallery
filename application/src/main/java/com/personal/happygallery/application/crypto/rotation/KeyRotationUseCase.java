@@ -6,6 +6,7 @@ public interface KeyRotationUseCase {
 
     record RotationResult(int users, int guests, int bookings, int paymentAttempts,
                           int fulfillments, int socialAccounts, int adminMfaSecrets,
-                          int deletedPhoneVerifications, long pendingSocialAccounts,
+                          int deletedPhoneVerifications, int deletedEmailVerifications,
+                          long pendingSocialAccounts,
                           long pendingAdminMfaSecrets) {}
 }

@@ -231,12 +231,12 @@ export function BookingListSection({
                 <td>{b.bookingNumber}</td>
                 <td>
                   <div>
-                    {b.bookerName}
-                    {b.bookerType === "MEMBER" && (
+                    {b.customerSummary.name}
+                    {b.customerSummary.type === "MEMBER" && (
                       <Badge bg="success" className="ms-1" style={{ fontSize: "0.65em" }}>회원</Badge>
                     )}
                   </div>
-                  <small className="text-muted-soft">{b.bookerPhone}</small>
+                  <small className="text-muted-soft">{b.customerSummary.phone}</small>
                 </td>
                 <td>
                   <div>{b.className}</div>
@@ -371,7 +371,7 @@ export function BookingListSection({
           <ErrorAlert error={cancelMutation.error} />
           {cancelTarget && (
             <p className="small text-muted-soft mb-3">
-              {cancelTarget.bookingNumber} · {cancelTarget.bookerName} · {formatDateTime(cancelTarget.startAt)}
+              {cancelTarget.bookingNumber} · {cancelTarget.customerSummary.name} · {formatDateTime(cancelTarget.startAt)}
             </p>
           )}
           <p className="mb-3">

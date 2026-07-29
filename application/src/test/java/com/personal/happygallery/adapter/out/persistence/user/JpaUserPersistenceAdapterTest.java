@@ -33,6 +33,23 @@ class JpaUserPersistenceAdapterTest {
                 .isEqualTo(ErrorCode.EMAIL_ALREADY_EXISTS);
     }
 
+    @DisplayName("즉시 flush한 회원 이메일 유일 제약 충돌도 이메일 중복 오류로 번역한다")
+    @Test
+    void saveAndFlush_duplicateEmail_mapsToEmailAlreadyExists() {
+        UserRepository repository = mock(UserRepository.class);
+        FieldEncryptor fieldEncryptor = mock(FieldEncryptor.class);
+        User user = new User("member@example.com", "hash", "회원", "01012345678");
+        when(repository.saveAndFlush(user))
+                .thenThrow(constraintViolation("users.uq_users_email_hmac"));
+        JpaUserPersistenceAdapter adapter = new JpaUserPersistenceAdapter(
+                repository, fieldEncryptor, new BlindIndexer(new byte[32]));
+
+        assertThatThrownBy(() -> adapter.saveAndFlush(user))
+                .isInstanceOf(HappyGalleryException.class)
+                .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.EMAIL_ALREADY_EXISTS);
+    }
+
     private static DataIntegrityViolationException constraintViolation(String constraintName) {
         return new DataIntegrityViolationException(
                 "DB constraint violation",

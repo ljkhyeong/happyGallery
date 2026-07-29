@@ -250,8 +250,20 @@ function AdminOrderClaimItem({
                 value={refundAmount}
                 disabled={disabled}
                 isInvalid={refundAmount.length > 0 && !validRefundAmount}
+                aria-invalid={refundAmount.length > 0 && !validRefundAmount}
+                aria-describedby={
+                  refundAmount.length > 0 && !validRefundAmount
+                    ? `admin-claim-${claim.id}-refund-error`
+                    : undefined
+                }
                 onChange={(event) => setRefundAmount(event.target.value)}
               />
+              <Form.Control.Feedback
+                id={`admin-claim-${claim.id}-refund-error`}
+                type="invalid"
+              >
+                1원 이상 {formatKRW(claim.maximumRefundAmount)} 이하로 입력해 주세요.
+              </Form.Control.Feedback>
             </Form.Group>
           )}
           <Form.Check

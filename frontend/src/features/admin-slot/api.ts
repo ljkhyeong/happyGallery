@@ -1,18 +1,30 @@
-import { adminHeaders as h, api } from "@/shared/api";
-import type {
-  AdminSlotSessionCancelRequest,
-  AdminSlotSessionCancelResponse,
-  BulkSlotRequest,
-  BulkSlotResponse,
-  ClassResponse,
-  CreateSlotRequest,
-  SlotResponse,
-} from "@/shared/types";
+import {
+  activateSlot as activateAdminSlot,
+  cancelAdminSlotSession,
+  createBulkSlots as createAdminBulkSlots,
+  createSlot as createAdminSlot,
+  deactivateSlot as deactivateAdminSlot,
+  listClasses,
+  listSlots,
+  previewBulkSlots as previewAdminBulkSlots,
+  BulkSlotRequestWeekdaysItem,
+  type AdminClassResponse,
+  type AdminSlotSessionCancelRequest,
+  type AdminSlotSessionCancelResponse,
+  type BulkSlotRequest,
+  type BulkSlotRequestWeekdaysItem as BulkSlotWeekday,
+  type BulkSlotResponse,
+  type CreateSlotRequest,
+  type SlotResponse,
+} from "@/generated/api/adminCatalog";
+import { adminHeaders } from "@/shared/api";
 
-export function fetchClasses(adminKey: string): Promise<ClassResponse[]> {
-  return api<ClassResponse[]>("/admin/classes", {
-    headers: h(adminKey),
-  });
+type BulkSlotFormRequest = Omit<BulkSlotRequest, "weekdays"> & {
+  weekdays: string[];
+};
+
+export function fetchClasses(adminKey: string): Promise<AdminClassResponse[]> {
+  return listClasses({ headers: adminHeaders(adminKey) });
 }
 
 export function cancelSlotSession(
@@ -20,60 +32,55 @@ export function cancelSlotSession(
   slotId: number,
   body: AdminSlotSessionCancelRequest,
 ): Promise<AdminSlotSessionCancelResponse> {
-  return api<AdminSlotSessionCancelResponse>(`/admin/slots/${slotId}/cancel-session`, {
-    method: "POST",
-    headers: h(adminKey),
-    body,
-  });
+  return cancelAdminSlotSession(slotId, body, { headers: adminHeaders(adminKey) });
 }
 
 export function fetchSlotsByClass(adminKey: string, classId: number): Promise<SlotResponse[]> {
-  return api<SlotResponse[]>("/admin/slots", {
-    headers: h(adminKey),
-    params: { classId },
-  });
+  return listSlots({ classId }, { headers: adminHeaders(adminKey) });
 }
 
-export function createSlot(adminKey: string, body: CreateSlotRequest): Promise<SlotResponse> {
-  return api<SlotResponse>("/admin/slots", {
-    method: "POST",
-    headers: h(adminKey),
-    body,
-  });
+export function createSlot(
+  adminKey: string,
+  body: CreateSlotRequest,
+): Promise<SlotResponse> {
+  return createAdminSlot(body, { headers: adminHeaders(adminKey) });
 }
 
 export function previewBulkSlots(
   adminKey: string,
-  body: BulkSlotRequest,
+  body: BulkSlotFormRequest,
 ): Promise<BulkSlotResponse> {
-  return api<BulkSlotResponse>("/admin/slots/bulk/preview", {
-    method: "POST",
-    headers: h(adminKey),
-    body,
-  });
+  return previewAdminBulkSlots(
+    { ...body, weekdays: bulkSlotWeekdays(body.weekdays) },
+    { headers: adminHeaders(adminKey) },
+  );
 }
 
 export function createBulkSlots(
   adminKey: string,
-  body: BulkSlotRequest,
+  body: BulkSlotFormRequest,
 ): Promise<BulkSlotResponse> {
-  return api<BulkSlotResponse>("/admin/slots/bulk", {
-    method: "POST",
-    headers: h(adminKey),
-    body,
-  });
+  return createAdminBulkSlots(
+    { ...body, weekdays: bulkSlotWeekdays(body.weekdays) },
+    { headers: adminHeaders(adminKey) },
+  );
 }
 
 export function deactivateSlot(adminKey: string, slotId: number): Promise<SlotResponse> {
-  return api<SlotResponse>(`/admin/slots/${slotId}/deactivate`, {
-    method: "PATCH",
-    headers: h(adminKey),
-  });
+  return deactivateAdminSlot(slotId, { headers: adminHeaders(adminKey) });
 }
 
 export function activateSlot(adminKey: string, slotId: number): Promise<SlotResponse> {
-  return api<SlotResponse>(`/admin/slots/${slotId}/activate`, {
-    method: "PATCH",
-    headers: h(adminKey),
+  return activateAdminSlot(slotId, { headers: adminHeaders(adminKey) });
+}
+
+function bulkSlotWeekdays(values: string[]): BulkSlotWeekday[] {
+  return values.map((value) => {
+    const matched = Object.values(BulkSlotRequestWeekdaysItem)
+      .find((candidate) => candidate === value);
+    if (matched === undefined) {
+      throw new Error("지원하지 않는 운영 요일입니다.");
+    }
+    return matched;
   });
 }

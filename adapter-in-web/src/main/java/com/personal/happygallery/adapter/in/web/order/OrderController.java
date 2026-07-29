@@ -6,6 +6,7 @@ import com.personal.happygallery.application.order.OrderPriceProperties;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase.OrderDetail;
 import com.personal.happygallery.domain.order.MadeToOrderConsent;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -32,6 +33,7 @@ public class OrderController {
     }
 
     @GetMapping("/policy")
+    @Operation(operationId = "getOrderPricePolicy")
     public OrderPricePolicyResponse getPricePolicy() {
         return new OrderPricePolicyResponse(
                 orderPriceProperties.shippingFee(),
@@ -41,6 +43,7 @@ public class OrderController {
 
     /** GET /api/v1/orders/{id} — 주문 상세 조회 (X-Access-Token 헤더) */
     @GetMapping("/{id}")
+    @Operation(operationId = "getGuestOrder")
     public OrderDetailResponse getOrder(@PathVariable Long id,
                                         @RequestHeader("X-Access-Token") String token) {
         OrderDetail detail = orderQueryUseCase.getOrderByToken(id, token);

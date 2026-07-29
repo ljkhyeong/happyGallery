@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Container, Spinner, Button } from "react-bootstrap";
+import { Alert, Container, Button } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   confirmPayment,
@@ -21,7 +21,7 @@ import {
 } from "@/features/payment";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { isPositiveSafeIntegerString } from "@/shared/lib";
-import { ErrorAlert } from "@/shared/ui";
+import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import {
   ApiError,
   captureCustomerSession,
@@ -298,8 +298,7 @@ export function PaymentSuccessPage() {
   if (confirming) {
     return (
       <Container className="page-container text-center" style={{ maxWidth: 540 }}>
-        <Spinner animation="border" role="status" className="mb-3" />
-        <p className="text-muted-soft">결제를 확정하고 있습니다...</p>
+        <LoadingSpinner text="결제를 확정하고 있습니다..." />
       </Container>
     );
   }

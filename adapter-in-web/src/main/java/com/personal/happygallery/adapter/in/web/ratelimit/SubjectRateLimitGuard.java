@@ -40,6 +40,22 @@ public class SubjectRateLimitGuard {
                 properties.subject().phoneVerificationAttempt(), FAIL_CLOSED);
     }
 
+    public void checkEmailVerificationIssue(long userId, String email) {
+        String normalizedEmail = EmailAddress.required(email);
+        check("EMAIL_VERIFICATION_USER", String.valueOf(userId),
+                properties.subject().emailVerification(), FAIL_CLOSED);
+        check("EMAIL_VERIFICATION_EMAIL", normalizedEmail,
+                properties.subject().emailVerification(), FAIL_CLOSED);
+    }
+
+    public void checkEmailVerificationAttempt(long userId, String email) {
+        String normalizedEmail = EmailAddress.required(email);
+        check("EMAIL_VERIFICATION_ATTEMPT_USER", String.valueOf(userId),
+                properties.subject().emailVerificationAttempt(), FAIL_CLOSED);
+        check("EMAIL_VERIFICATION_ATTEMPT_EMAIL", normalizedEmail,
+                properties.subject().emailVerificationAttempt(), FAIL_CLOSED);
+    }
+
     public void checkPaymentConfirm(String orderId) {
         check("PAYMENT_CONFIRM_ORDER", orderId,
                 properties.subject().paymentConfirm(), FAIL_OPEN);

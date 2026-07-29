@@ -15,6 +15,7 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const newPasswordTooShort = newPassword.length > 0 && newPassword.length < 10;
   const confirmationMismatch = confirmation.length > 0 && confirmation !== newPassword;
   const canSubmit = currentPassword.length > 0
     && newPassword.length >= 10
@@ -57,11 +58,13 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
               minLength={10}
               maxLength={72}
               value={newPassword}
-              isInvalid={newPassword.length > 0 && newPassword.length < 10}
+              isInvalid={newPasswordTooShort}
+              aria-invalid={newPasswordTooShort}
+              aria-describedby={newPasswordTooShort ? "admin-new-password-error" : undefined}
               disabled={mutation.isPending}
               onChange={(event) => setNewPassword(event.target.value)}
             />
-            <Form.Control.Feedback type="invalid">
+            <Form.Control.Feedback id="admin-new-password-error" type="invalid">
               새 비밀번호는 10자 이상이어야 합니다.
             </Form.Control.Feedback>
           </Form.Group>
@@ -75,10 +78,17 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
               maxLength={72}
               value={confirmation}
               isInvalid={confirmationMismatch}
+              aria-invalid={confirmationMismatch}
+              aria-describedby={
+                confirmationMismatch ? "admin-new-password-confirmation-error" : undefined
+              }
               disabled={mutation.isPending}
               onChange={(event) => setConfirmation(event.target.value)}
             />
-            <Form.Control.Feedback type="invalid">
+            <Form.Control.Feedback
+              id="admin-new-password-confirmation-error"
+              type="invalid"
+            >
               새 비밀번호가 일치하지 않습니다.
             </Form.Control.Feedback>
           </Form.Group>

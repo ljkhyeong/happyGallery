@@ -10,6 +10,7 @@ public enum ErrorCode {
     // 400 Bad Request — 입력 검증 실패
     INVALID_INPUT(400, "잘못된 입력값입니다."),
     PHONE_VERIFICATION_FAILED(400, "휴대폰 인증에 실패했습니다. 코드를 확인하거나 재발송하세요."),
+    EMAIL_VERIFICATION_FAILED(400, "이메일 인증에 실패했습니다. 코드를 확인하거나 재발송하세요."),
     PASSWORD_RESET_FAILED(400, "비밀번호 재설정 정보가 올바르지 않습니다."),
 
     // 401 Unauthorized — 인증 실패

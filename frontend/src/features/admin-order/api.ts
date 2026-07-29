@@ -1,77 +1,142 @@
-import { adminHeaders as h, api } from "@/shared/api";
-import type { CursorPage, AdminOrderResponse, AdminOrderFulfillmentResponse, OrderProductionResponse, OrderRejectResponse, OrderDelayCancellationResponse, PickupResponse, BatchResponse, SetExpectedShipDateRequest, MarkPickupReadyRequest, ShippingResponse, MarkShippedRequest, OrderHistoryResponse } from "@/shared/types";
+import {
+  approve,
+  cancelForDelayRejection as cancelDelayedOrder,
+  completeProduction as completeOrderProduction,
+  confirmPickup,
+  expirePickups as expireAdminPickups,
+  getFulfillment,
+  getOrderHistory,
+  ListOrdersStatus,
+  listOrders,
+  markDelivered as markAdminOrderDelivered,
+  markPickupReady,
+  markShipped as markAdminOrderShipped,
+  prepareShipping as prepareAdminOrderShipping,
+  proposeDelay as proposeOrderDelay,
+  reject,
+  resumeOrderAfterDelay,
+  setExpectedShipDate as updateExpectedShipDate,
+  type AdminOrderFulfillmentResponse,
+  type AdminOrderHistoryResponse,
+  type AdminOrderPageResponse,
+  type BatchResponse,
+  type MarkPickupReadyRequest,
+  type MarkShippedRequest,
+  type OrderDelayCancellationResponse,
+  type OrderProductionResponse,
+  type OrderRejectResponse,
+  type PickupResponse,
+  type SetExpectedShipDateRequest,
+  type ShippingResponse,
+} from "@/generated/api/adminOrder";
+import { adminHeaders } from "@/shared/api";
 
 export function fetchOrders(
   adminKey: string,
   status?: string,
   cursor?: string,
   size = 20,
-): Promise<CursorPage<AdminOrderResponse>> {
-  return api<CursorPage<AdminOrderResponse>>("/admin/orders", {
-    headers: h(adminKey),
-    params: { status, cursor, size: String(size) },
-  });
+): Promise<AdminOrderPageResponse> {
+  return listOrders(
+    { status: orderStatus(status), cursor, size },
+    { headers: adminHeaders(adminKey) },
+  );
+}
+
+function orderStatus(value: string | undefined): ListOrdersStatus | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const matched = Object.values(ListOrdersStatus).find((candidate) => candidate === value);
+  if (matched === undefined) {
+    throw new Error("지원하지 않는 주문 상태입니다.");
+  }
+  return matched;
 }
 
 export function fetchOrderFulfillment(
   adminKey: string,
   id: number,
 ): Promise<AdminOrderFulfillmentResponse> {
-  return api<AdminOrderFulfillmentResponse>(`/admin/orders/${id}/fulfillment`, { headers: h(adminKey) });
+  return getFulfillment(id, { headers: adminHeaders(adminKey) });
 }
 
 export function approveOrder(adminKey: string, id: number): Promise<void> {
-  return api(`/admin/orders/${id}/approve`, { method: "POST", headers: h(adminKey) });
+  return approve(id, { headers: adminHeaders(adminKey) });
 }
 
 export function rejectOrder(adminKey: string, id: number): Promise<OrderRejectResponse> {
-  return api(`/admin/orders/${id}/reject`, { method: "POST", headers: h(adminKey) });
+  return reject(id, { headers: adminHeaders(adminKey) });
 }
 
-export function completeProduction(adminKey: string, id: number): Promise<OrderProductionResponse> {
-  return api(`/admin/orders/${id}/complete-production`, { method: "POST", headers: h(adminKey) });
+export function completeProduction(
+  adminKey: string,
+  id: number,
+): Promise<OrderProductionResponse> {
+  return completeOrderProduction(id, { headers: adminHeaders(adminKey) });
 }
 
-export function setExpectedShipDate(adminKey: string, id: number, body: SetExpectedShipDateRequest): Promise<OrderProductionResponse> {
-  return api(`/admin/orders/${id}/expected-ship-date`, { method: "PATCH", headers: h(adminKey), body });
+export function setExpectedShipDate(
+  adminKey: string,
+  id: number,
+  body: SetExpectedShipDateRequest,
+): Promise<OrderProductionResponse> {
+  return updateExpectedShipDate(id, body, { headers: adminHeaders(adminKey) });
 }
 
 export function proposeDelay(adminKey: string, id: number): Promise<OrderProductionResponse> {
-  return api(`/admin/orders/${id}/delay`, { method: "POST", headers: h(adminKey) });
+  return proposeOrderDelay(id, { headers: adminHeaders(adminKey) });
 }
 
-export function cancelForDelayRejection(adminKey: string, id: number): Promise<OrderDelayCancellationResponse> {
-  return api(`/admin/orders/${id}/cancel-for-delay-rejection`, { method: "POST", headers: h(adminKey) });
+export function cancelForDelayRejection(
+  adminKey: string,
+  id: number,
+): Promise<OrderDelayCancellationResponse> {
+  return cancelDelayedOrder(id, { headers: adminHeaders(adminKey) });
 }
 
-export function resumeAfterDelay(adminKey: string, id: number): Promise<OrderProductionResponse> {
-  return api(`/admin/orders/${id}/resume-after-delay`, { method: "POST", headers: h(adminKey) });
+export function resumeAfterDelay(
+  adminKey: string,
+  id: number,
+): Promise<OrderProductionResponse> {
+  return resumeOrderAfterDelay(id, { headers: adminHeaders(adminKey) });
 }
 
-export function preparePickup(adminKey: string, id: number, body: MarkPickupReadyRequest): Promise<PickupResponse> {
-  return api(`/admin/orders/${id}/prepare-pickup`, { method: "POST", headers: h(adminKey), body });
+export function preparePickup(
+  adminKey: string,
+  id: number,
+  body: MarkPickupReadyRequest,
+): Promise<PickupResponse> {
+  return markPickupReady(id, body, { headers: adminHeaders(adminKey) });
 }
 
 export function completePickup(adminKey: string, id: number): Promise<PickupResponse> {
-  return api(`/admin/orders/${id}/complete-pickup`, { method: "POST", headers: h(adminKey) });
+  return confirmPickup(id, { headers: adminHeaders(adminKey) });
 }
 
 export function prepareShipping(adminKey: string, id: number): Promise<ShippingResponse> {
-  return api(`/admin/orders/${id}/prepare-shipping`, { method: "POST", headers: h(adminKey) });
+  return prepareAdminOrderShipping(id, { headers: adminHeaders(adminKey) });
 }
 
-export function markShipped(adminKey: string, id: number, body: MarkShippedRequest): Promise<ShippingResponse> {
-  return api(`/admin/orders/${id}/mark-shipped`, { method: "POST", headers: h(adminKey), body });
+export function markShipped(
+  adminKey: string,
+  id: number,
+  body: MarkShippedRequest,
+): Promise<ShippingResponse> {
+  return markAdminOrderShipped(id, body, { headers: adminHeaders(adminKey) });
 }
 
 export function markDelivered(adminKey: string, id: number): Promise<ShippingResponse> {
-  return api(`/admin/orders/${id}/mark-delivered`, { method: "POST", headers: h(adminKey) });
+  return markAdminOrderDelivered(id, { headers: adminHeaders(adminKey) });
 }
 
-export function fetchOrderHistory(adminKey: string, id: number): Promise<OrderHistoryResponse[]> {
-  return api<OrderHistoryResponse[]>(`/admin/orders/${id}/history`, { headers: h(adminKey) });
+export function fetchOrderHistory(
+  adminKey: string,
+  id: number,
+): Promise<AdminOrderHistoryResponse[]> {
+  return getOrderHistory(id, { headers: adminHeaders(adminKey) });
 }
 
 export function expirePickups(adminKey: string): Promise<BatchResponse> {
-  return api("/admin/orders/expire-pickups", { method: "POST", headers: h(adminKey) });
+  return expireAdminPickups({ headers: adminHeaders(adminKey) });
 }

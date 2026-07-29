@@ -96,9 +96,9 @@ class AdminBookingQueryUseCaseIT {
             softly.assertThat(responses)
                     .extracting(
                             AdminBookingResponse::className,
-                            AdminBookingResponse::bookerType,
-                            AdminBookingResponse::bookerName,
-                            AdminBookingResponse::bookerPhone)
+                            response -> response.customerSummary().type(),
+                            response -> response.customerSummary().name(),
+                            response -> response.customerSummary().phone())
                     .containsExactly(
                             tuple("게스트 클래스", "GUEST", "게스트", "01011112222"),
                             tuple("회원 클래스", "MEMBER", "회원", "01033334444"),
@@ -129,8 +129,8 @@ class AdminBookingQueryUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(responses).hasSize(1);
-            softly.assertThat(responses.getFirst().bookerType()).isEqualTo("GUEST");
-            softly.assertThat(responses.getFirst().bookerPhone()).isEqualTo("01012121212");
+            softly.assertThat(responses.getFirst().customerSummary().type()).isEqualTo("GUEST");
+            softly.assertThat(responses.getFirst().customerSummary().phone()).isEqualTo("01012121212");
             softly.assertThat(searchResult.content()).hasSize(1);
             softly.assertThat(searchResult.content().getFirst().bookerPhone()).isEqualTo("01012121212");
             softly.assertThat(phoneSearchResult.content()).hasSize(1);
@@ -164,9 +164,9 @@ class AdminBookingQueryUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(responses).hasSize(1);
             softly.assertThat(responses.getFirst().bookingId()).isEqualTo(completedBookingId);
-            softly.assertThat(responses.getFirst().bookerType()).isEqualTo("MEMBER");
-            softly.assertThat(responses.getFirst().bookerName()).isEqualTo("탈퇴회원");
-            softly.assertThat(responses.getFirst().bookerPhone()).isNull();
+            softly.assertThat(responses.getFirst().customerSummary().type()).isEqualTo("MEMBER");
+            softly.assertThat(responses.getFirst().customerSummary().name()).isEqualTo("탈퇴회원");
+            softly.assertThat(responses.getFirst().customerSummary().phone()).isNull();
         });
     }
 

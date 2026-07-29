@@ -4,10 +4,12 @@ import com.personal.happygallery.adapter.in.web.admin.AdminNotificationControlle
 import com.personal.happygallery.adapter.in.web.admin.AdminPassController;
 import com.personal.happygallery.adapter.in.web.admin.AdminPaymentReconciliationController;
 import com.personal.happygallery.adapter.in.web.admin.AdminRefundController;
+import com.personal.happygallery.adapter.in.web.admin.LocalEmailVerificationController;
 import com.personal.happygallery.adapter.in.web.admin.LocalPhoneVerificationController;
 import com.personal.happygallery.adapter.in.web.admin.LocalRefundFailureController;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.customer.port.in.DevPhoneVerificationQueryUseCase;
+import com.personal.happygallery.application.customer.port.in.DevEmailVerificationQueryUseCase;
 import com.personal.happygallery.application.notification.port.in.NotificationFailureAdminUseCase;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase;
@@ -24,7 +26,8 @@ import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
-import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
+import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
+import com.personal.happygallery.domain.notification.NotificationRecipientType;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import java.time.LocalDateTime;
@@ -64,6 +67,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
     private PassRefundUseCase passRefundUseCase;
     private AdminPassQueryUseCase adminPassQueryUseCase;
     private DevPhoneVerificationQueryUseCase phoneVerificationQueryUseCase;
+    private DevEmailVerificationQueryUseCase emailVerificationQueryUseCase;
     private DevRefundFailureUseCase devRefundFailureUseCase;
 
     @BeforeEach
@@ -76,6 +80,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
         passRefundUseCase = mock(PassRefundUseCase.class);
         adminPassQueryUseCase = mock(AdminPassQueryUseCase.class);
         phoneVerificationQueryUseCase = mock(DevPhoneVerificationQueryUseCase.class);
+        emailVerificationQueryUseCase = mock(DevEmailVerificationQueryUseCase.class);
         devRefundFailureUseCase = mock(DevRefundFailureUseCase.class);
 
         Refund orderRefund = RestDocsFixtures.orderRefund();
@@ -84,10 +89,16 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new CursorPage<>(List.of(failedOrderClaimRefund), null, false));
         when(refundRetryUseCase.retry(anyLong())).thenReturn(orderRefund);
         when(refundQueryUseCase.getRefund(anyLong())).thenReturn(orderRefund);
-        NotificationOutbox retriedNotification = NotificationOutbox.from(
-                NotificationRequestedEvent.forUser(
-                        10L, NotificationEventType.PASS_PURCHASED, "PASS", 300L),
-                LocalDateTime.of(2026, 5, 1, 21, 0));
+        NotificationOutbox retriedNotification = mock(NotificationOutbox.class);
+        when(retriedNotification.getId()).thenReturn(1L);
+        when(retriedNotification.getRecipientType()).thenReturn(NotificationRecipientType.USER);
+        when(retriedNotification.getUserId()).thenReturn(10L);
+        when(retriedNotification.getEventType()).thenReturn(NotificationEventType.PASS_PURCHASED);
+        when(retriedNotification.getAggregateType()).thenReturn("PASS");
+        when(retriedNotification.getAggregateId()).thenReturn(300L);
+        when(retriedNotification.getStatus()).thenReturn(NotificationOutboxStatus.PENDING);
+        when(retriedNotification.getCreatedAt())
+                .thenReturn(LocalDateTime.of(2026, 5, 1, 21, 0));
         when(notificationFailureAdminUseCase.listFailed()).thenReturn(List.of());
         when(notificationFailureAdminUseCase.retry(1L)).thenReturn(retriedNotification);
         when(paymentReconciliationAdminUseCase.listRequired()).thenReturn(List.of());
@@ -119,6 +130,9 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
         when(phoneVerificationQueryUseCase.findLatestUnverifiedCode(
                 "01012345678", PhoneVerificationPurpose.GUEST_BOOKING))
                 .thenReturn(Optional.of("123456"));
+        when(emailVerificationQueryUseCase.findLatestUnverifiedCode(
+                10L, "member@example.com"))
+                .thenReturn(Optional.of("654321"));
 
         mockMvc = mockMvc(restDocumentation, SNIPPET_GROUP,
                 new AdminRefundController(refundRetryUseCase, refundQueryUseCase),
@@ -126,6 +140,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                 new AdminPaymentReconciliationController(paymentReconciliationAdminUseCase),
                 new AdminPassController(passExpiryBatchUseCase, passRefundUseCase, adminPassQueryUseCase),
                 new LocalPhoneVerificationController(phoneVerificationQueryUseCase),
+                new LocalEmailVerificationController(emailVerificationQueryUseCase),
                 new LocalRefundFailureController(devRefundFailureUseCase));
     }
 
@@ -231,6 +246,16 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .param("phone", "01012345678")
                         .param("purpose", "GUEST_BOOKING"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("로컬 최신 이메일 인증 코드 조회 API를 문서화한다")
+    void local_latest_email_verification_code() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/dev/email-verifications/latest")
+                        .with(adminUser())
+                        .param("userId", "10")
+                        .param("email", "member@example.com"))
                 .andExpect(status().isOk());
     }
 

@@ -187,7 +187,12 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
         <div>
           <h6 className="mb-1">소셜 로그인</h6>
         </div>
-        {isLoading && <Spinner animation="border" size="sm" />}
+        {isLoading && (
+          <span role="status" aria-live="polite">
+            <Spinner animation="border" size="sm" aria-hidden="true" />
+            <span className="visually-hidden">연결된 소셜 계정을 확인하는 중...</span>
+          </span>
+        )}
       </div>
 
       <div className="d-grid gap-2">

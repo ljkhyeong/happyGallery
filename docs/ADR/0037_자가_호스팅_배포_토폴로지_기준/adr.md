@@ -88,8 +88,8 @@
 
 1. 회전 입력에서 새 active 키와 target 키 ID, off-device 백업 목적지와 source 키 복구 가능성을 검증한다. 이 시점에는 runtime Secret을 바꾸지 않는다.
 2. [`rotate-data-keys.sh`](../../../deploy/k3s/scripts/rotate-data-keys.sh)가 app을 0 replica로 축소하고 Pod 종료를 확인한 뒤 fresh off-device 암호화 백업을 생성하고 checksum을 검증한다.
-3. 스크립트는 현재 app digest와 같은 servlet 이미지를 `SERVER_PORT=0`, `MANAGEMENT_PORT=0`으로 기동하는 임시 유지보수 Job에만 새 active·구 previous 키를 주입한다. Job은 Service가 없고 기본 deny NetworkPolicy가 적용되어 외부 ingress를 받지 않는다. 회전 runner는 `data_key_rotation_lock` 단일 행을 트랜잭션 잠금으로 선점하고 600초 제한의 단일 트랜잭션에서 AES 재암호화, HMAC 재생성과 `phone_verifications` 전량 삭제를 수행한 뒤 context를 닫는다.
-4. Job이 성공한 뒤에만 runtime Secret을 새 active·구 previous 키로 전환하고 백업명·키 ID·비회원 토큰 제거 가능 시각을 annotation으로 기록한다. 이어 Redis를 비워 관리자·회원 세션과 처리율 제한 상태를 초기화하고 app을 새 keyring으로 기동한다. 진행 중이던 휴대폰 인증과 전체 로그인 세션이 무효화되는 점을 유지보수 공지에 포함한다.
+3. 스크립트는 현재 app digest와 같은 servlet 이미지를 `SERVER_PORT=0`, `MANAGEMENT_PORT=0`으로 기동하는 임시 유지보수 Job에만 새 active·구 previous 키를 주입한다. Job은 Service가 없고 기본 deny NetworkPolicy가 적용되어 외부 ingress를 받지 않는다. 회전 runner는 `data_key_rotation_lock` 단일 행을 트랜잭션 잠금으로 선점하고 600초 제한의 단일 트랜잭션에서 AES 재암호화, HMAC 재생성과 `phone_verifications`·`email_verifications` 전량 삭제를 수행한 뒤 context를 닫는다.
+4. Job이 성공한 뒤에만 runtime Secret을 새 active·구 previous 키로 전환하고 백업명·키 ID·비회원 토큰 제거 가능 시각을 annotation으로 기록한다. 이어 Redis를 비워 관리자·회원 세션과 처리율 제한 상태를 초기화하고 app을 새 keyring으로 기동한다. 진행 중이던 휴대폰·이메일 인증과 전체 로그인 세션이 무효화되는 점을 유지보수 공지에 포함한다.
 5. `provider_id_enc IS NULL`인 기존 소셜 계정은 previous HMAC 후보로 로그인할 때 active AES/HMAC으로 lazy backfill한다. 이 건수가 0이 되기 전에는 previous HMAC 키를 유지한다.
 6. 비회원 토큰 previous 키는 runtime 전환 시각부터 일반·복구·결제 상태 조회 토큰 TTL 중 최댓값에 1시간의 운영 여유를 더한 시각까지 유지한다. 기본 결제 상태 조회 TTL 720시간에서는 최소 721시간이다. 이 키는 결제 prepare의 비회원 인증 증거도 서명하므로, 회전 경계 전에 준비되어 아직 fulfillment 가능한 결제 시도가 남아 있으면 기간이 지나도 제거하지 않는다.
 7. 운영자는 새 키 기준 백업과 복원 가능성을 확인한 뒤 [`finalize-data-key-rotation.sh`](../../../deploy/k3s/scripts/finalize-data-key-rotation.sh)를 실행한다. finalizer는 비회원 토큰 유예, `provider_id_enc IS NULL` 0건, 회전 경계 전 fulfillment 가능 비회원 결제 0건을 확인하고 app을 다시 0 replica로 축소한 뒤 같은 조건을 재검사해 runtime previous 키를 제거한다. 보존 중인 과거 백업에 필요한 키는 분리 복구 저장소에서 해당 백업과 같은 기간 유지한다.
@@ -108,7 +108,9 @@
 - 현재 release의 app/frontend와 MySQL·Redis·Prometheus·Alertmanager·Grafana image archive, digest metadata와 manifest를 commit SHA별 한 번 off-device 백업에 보존한다. runtime image parser가 보존된 release manifest의 workload·container 목록과 metadata key 정의를 소유하는 유일한 registry이며, 백업·복원·검증 스크립트는 parser가 출력한 inventory를 순회한다. 이미지 참조는 별도 버전 상수로 복제하지 않고 manifest에서 정확히 추출하며, containerd의 실제 digest를 함께 기록하고 검증한다. 각 암호화 DB 백업은 Flyway version·active 암호화 키 ID·active/previous keyring fingerprint·키 회전 단계와 호환 release 경로를 기록한다. 복원 진입점은 키링을 대조하고, archive를 containerd에 가져온 뒤 모든 필수 이미지 digest를 확인한 다음에만 기존 DB를 교체한다. fingerprint만 기록하고 키 원문은 기존 분리 복구 저장소에 둔다.
 - Prometheus, Alertmanager, Grafana는 각각 Retain PVC와 `Recreate` 단일 인스턴스를 사용한다. Grafana는 외부 Ingress 없이 cluster 내부 Viewer로만 두고 운영자가 port-forward로 접근한다.
 - 백업 성공 heartbeat는 6시간 주기 백업과 독립된 15분 systemd watchdog이 7시간 정체 기준으로 확인한다. 같은 노트북의 전원·호스트 장애는 이 watchdog만으로 감지할 수 없으므로 외부 uptime 감시를 별도로 둔다.
-- 기존 AWS 자동 배포 workflow는 제거하며, k3s 배포 자동화는 manifest와 rollback 절차가 마련된 뒤 별도로 결정한다.
+- 기존 AWS 자동 배포 workflow는 제거한다. k3s에는 운영자가 실행하는 commit SHA 이미지
+  build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback 스크립트가
+  구현돼 있다. 원격 CI/CD가 운영 노트북에 자동 배포하는 workflow는 두지 않는다.
 
 ### 7. probe와 종료 유예를 배포 계약에 포함한다
 

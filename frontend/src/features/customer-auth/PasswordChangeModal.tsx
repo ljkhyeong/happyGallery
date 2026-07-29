@@ -31,6 +31,8 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
   });
 
   const passwordMatches = newPassword === confirmation;
+  const sameAsCurrentPassword = newPassword.length >= 8 && currentPassword === newPassword;
+  const confirmationMismatch = confirmation.length > 0 && !passwordMatches;
   const canSubmit = currentPassword.length >= 8
     && newPassword.length >= 8
     && isPasswordWithinByteLimit(currentPassword)
@@ -57,11 +59,17 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
   }
 
   return (
-    <Modal show={show} onHide={close} centered>
-      <Modal.Header closeButton>
+    <Modal
+      show={show}
+      onHide={close}
+      backdrop={mutation.isPending ? "static" : true}
+      keyboard={!mutation.isPending}
+      centered
+    >
+      <Modal.Header closeButton={!mutation.isPending}>
         <Modal.Title className="fs-6">비밀번호 변경</Modal.Title>
       </Modal.Header>
-      <Form onSubmit={submit}>
+      <Form onSubmit={submit} aria-busy={mutation.isPending}>
         <Modal.Body>
           <ErrorAlert error={mutation.error} />
           <Form.Group className="mb-3" controlId="current-password">
@@ -86,14 +94,18 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
               onChange={(event) => setNewPassword(event.target.value)}
               minLength={8}
               maxLength={72}
-              isInvalid={newPassword.length >= 8 && currentPassword === newPassword}
+              isInvalid={sameAsCurrentPassword}
+              aria-invalid={sameAsCurrentPassword}
+              aria-describedby={
+                sameAsCurrentPassword ? "new-password-error" : "new-password-help"
+              }
               required
             />
-            <Form.Control.Feedback type="invalid">
+            <Form.Control.Feedback id="new-password-error" type="invalid">
               현재 비밀번호와 다른 값을 입력하세요.
             </Form.Control.Feedback>
-            {(currentPassword !== newPassword || newPassword.length < 8) && (
-              <Form.Text className="text-muted">
+            {!sameAsCurrentPassword && (
+              <Form.Text id="new-password-help" className="text-muted">
                 8자 이상, UTF-8 기준 72바이트 이하로 입력하세요.
               </Form.Text>
             )}
@@ -106,10 +118,14 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
               value={confirmation}
               onChange={(event) => setConfirmation(event.target.value)}
               maxLength={72}
-              isInvalid={confirmation.length > 0 && !passwordMatches}
+              isInvalid={confirmationMismatch}
+              aria-invalid={confirmationMismatch}
+              aria-describedby={
+                confirmationMismatch ? "new-password-confirmation-error" : undefined
+              }
               required
             />
-            <Form.Control.Feedback type="invalid">
+            <Form.Control.Feedback id="new-password-confirmation-error" type="invalid">
               새 비밀번호가 일치하지 않습니다.
             </Form.Control.Feedback>
           </Form.Group>

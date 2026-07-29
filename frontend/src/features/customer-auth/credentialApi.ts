@@ -1,11 +1,11 @@
-import { api } from "@/shared/api";
+import {
+  changeMyPassword,
+  resetCustomerPassword,
+} from "@/generated/api/customerAuth";
 import { normalizePhone } from "@/shared/validation/phone";
 
 export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  return api("/me/password", {
-    method: "PATCH",
-    body: { currentPassword, newPassword },
-  });
+  return changeMyPassword({ currentPassword, newPassword });
 }
 
 export function resetPassword(
@@ -14,13 +14,10 @@ export function resetPassword(
   verificationCode: string,
   newPassword: string,
 ): Promise<void> {
-  return api("/auth/password/reset", {
-    method: "POST",
-    body: {
-      email,
-      phone: normalizePhone(phone),
-      verificationCode,
-      newPassword,
-    },
+  return resetCustomerPassword({
+    email,
+    phone: normalizePhone(phone),
+    verificationCode,
+    newPassword,
   });
 }

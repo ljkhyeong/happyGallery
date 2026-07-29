@@ -31,6 +31,7 @@ public class NoticeController {
     }
 
     @GetMapping("/{id}")
+    @Operation(operationId = "getPublicNotice")
     public ResponseEntity<NoticeDetailResponse> detail(@PathVariable Long id) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())

@@ -1,8 +1,10 @@
 # bootJar 패키징과 bootstrap 모듈 분리 검토
 
+**상태**: 채택 완료 (이하 내용은 분리 전 구조의 역사 기록)
+
 ## 배경
 
-현재 실행 진입점은 `app` 모듈의 `com.personal.happygallery.HappygalleryApplication`이다.
+당시 실행 진입점은 `app` 모듈의 `com.personal.happygallery.HappygalleryApplication`이었다.
 `app`은 `common`, `domain`에는 runtime 의존을 가지지만 `infra`에는 test 의존만 가진다.
 
 이 상태에서 `:app:bootJar`를 만들면 실행형 jar는 생성되지만,
@@ -11,7 +13,7 @@ jar 내부에는 `app` 클래스와 `common`, `domain` jar만 들어가고 `infr
 즉, 현재 bootJar는 애플리케이션 서비스와 도메인 모델은 담지만
 Repository, 외부 연동, Port 구현체 같은 실제 런타임 어댑터는 담지 못할 수 있다.
 
-## 현재 확인된 사실
+## 당시 확인된 사실
 
 - `settings.gradle` 기준 서브모듈은 `app`, `common`, `domain`, `infra` 4개다.
 - `app/build.gradle`은 `implementation project(":common")`, `implementation project(":domain")`를 가진다.
@@ -76,7 +78,7 @@ Repository, 외부 연동, Port 구현체 같은 실제 런타임 어댑터는 �
 - 조립 책임이 계속 `app`에 남는다.
 - 장기적으로 모듈 경계와 실행 조립이 다시 섞일 가능성이 있다.
 
-## 현재 판단
+## 당시 판단
 
 현재 상태라면 bootstrap 모듈 분리가 더 안전한 방향이다.
 
@@ -86,7 +88,7 @@ Repository, 외부 연동, Port 구현체 같은 실제 런타임 어댑터는 �
 - 최종 bootJar에 어떤 모듈이 반드시 포함돼야 하는지 구조적으로 설명 가능하다.
 - 멀티 모듈에서 흔한 라이브러리 모듈 + 실행 모듈 구성을 따르기 쉽다.
 
-다만 아직 구현된 결정은 아니므로 ADR이 아니라 `Idea`에 두는 것이 맞다.
+이 판단은 이후 구현과 ADR로 채택됐다.
 
 ## ADR 승격 조건
 
@@ -96,3 +98,12 @@ Repository, 외부 연동, Port 구현체 같은 실제 런타임 어댑터는 �
 2. `bootJar` 생성 책임을 특정 모듈 하나로 확정했을 때
 3. 로컬 실행, 테스트, 배포 문서를 새 구조에 맞게 함께 정리했을 때
 4. `app`/`infra`의 런타임 의존 관계를 팀 규칙으로 설명할 수 있게 됐을 때
+
+## 현재 상태
+
+실행 진입점과 `bootJar` 책임은 `bootstrap` 모듈에 있다. 운영 모듈은
+`adapter-in-web`, `adapter-out-persistence`, `adapter-out-external`, `application`,
+`domain`, `bootstrap`으로 분리했고 ArchUnit으로 의존 방향을 검증한다.
+현재 구조와 배포 산출물은
+[ADR-0037](../../ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)과
+저장소 루트 `README.md`를 기준으로 본다.

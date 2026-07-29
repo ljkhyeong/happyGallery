@@ -1,9 +1,16 @@
-import { adminHeaders, api } from "@/shared/api";
-import type {
-  AdminBookingSearchRow,
-  AdminOrderSearchRow,
-  OffsetPage,
-} from "@/shared/types";
+import {
+  searchBookings,
+  SearchBookingsStatus,
+  type AdminBookingSearchPageResponse,
+  type SearchBookingsStatus as BookingSearchStatus,
+} from "@/generated/api/adminBooking";
+import {
+  searchOrders,
+  SearchOrdersStatus,
+  type AdminOrderSearchPageResponse,
+  type SearchOrdersStatus as OrderSearchStatus,
+} from "@/generated/api/adminOrder";
+import { adminHeaders } from "@/shared/api";
 
 export type AdminSearchTarget = "ORDER" | "BOOKING";
 
@@ -17,15 +24,15 @@ export interface AdminSearchCriteria {
 }
 
 export type AdminSearchResult =
-  | { target: "ORDER"; page: OffsetPage<AdminOrderSearchRow> }
-  | { target: "BOOKING"; page: OffsetPage<AdminBookingSearchRow> };
+  | { target: "ORDER"; page: AdminOrderSearchPageResponse }
+  | { target: "BOOKING"; page: AdminBookingSearchPageResponse };
 
 export async function searchAdminRecords(
   adminKey: string,
   criteria: AdminSearchCriteria,
 ): Promise<AdminSearchResult> {
-  const params = {
-    status: criteria.status,
+  const options = { headers: adminHeaders(adminKey) };
+  const common = {
     dateFrom: criteria.dateFrom,
     dateTo: criteria.dateTo,
     keyword: criteria.keyword,
@@ -34,16 +41,39 @@ export async function searchAdminRecords(
   };
 
   if (criteria.target === "ORDER") {
-    const page = await api<OffsetPage<AdminOrderSearchRow>>("/admin/orders/search", {
-      headers: adminHeaders(adminKey),
-      params,
-    });
+    const page = await searchOrders(
+      { ...common, status: orderStatus(criteria.status) },
+      options,
+    );
     return { target: "ORDER", page };
   }
 
-  const page = await api<OffsetPage<AdminBookingSearchRow>>("/admin/bookings/search", {
-    headers: adminHeaders(adminKey),
-    params,
-  });
+  const page = await searchBookings(
+    { ...common, status: bookingStatus(criteria.status) },
+    options,
+  );
   return { target: "BOOKING", page };
+}
+
+function orderStatus(value: string | undefined): OrderSearchStatus | undefined {
+  return enumValue(SearchOrdersStatus, value, "주문");
+}
+
+function bookingStatus(value: string | undefined): BookingSearchStatus | undefined {
+  return enumValue(SearchBookingsStatus, value, "예약");
+}
+
+function enumValue<T extends string>(
+  values: Record<string, T>,
+  value: string | undefined,
+  label: string,
+): T | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const matched = Object.values(values).find((candidate) => candidate === value);
+  if (matched === undefined) {
+    throw new Error(`지원하지 않는 ${label} 상태입니다.`);
+  }
+  return matched;
 }

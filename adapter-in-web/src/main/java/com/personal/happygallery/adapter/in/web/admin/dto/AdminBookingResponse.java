@@ -6,10 +6,7 @@ import java.time.LocalDateTime;
 public record AdminBookingResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long bookingId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String bookingNumber,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = {"GUEST", "MEMBER"})
-        String bookerType,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String bookerName,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String bookerPhone,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) CustomerSummary customerSummary,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String className,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime startAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime endAt,
@@ -38,9 +35,7 @@ public record AdminBookingResponse(
         return new AdminBookingResponse(
                 response.bookingId(),
                 response.bookingNumber(),
-                response.bookerType(),
-                response.bookerName(),
-                response.bookerPhone(),
+                CustomerSummary.from(response.customerSummary()),
                 response.className(),
                 response.startAt(),
                 response.endAt(),
@@ -54,5 +49,18 @@ public record AdminBookingResponse(
                 response.balancePaidAt(),
                 response.arrears(),
                 response.passBooking());
+    }
+
+    public record CustomerSummary(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = {"GUEST", "MEMBER"})
+            String type,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String phone
+    ) {
+
+        private static CustomerSummary from(
+                com.personal.happygallery.application.booking.port.in.AdminBookingResponse.CustomerSummary summary) {
+            return new CustomerSummary(summary.type(), summary.name(), summary.phone());
+        }
     }
 }

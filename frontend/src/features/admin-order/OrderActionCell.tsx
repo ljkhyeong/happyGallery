@@ -40,7 +40,7 @@ function RiskActionButton({
         disabled={disabled}
         onClick={() => setShow(true)}
       >
-        {pending ? "..." : buttonLabel}
+        {pending ? "처리 중..." : buttonLabel}
       </Button>
       <Modal show={show} onHide={() => !pending && setShow(false)} centered>
         <Modal.Header closeButton={!pending}>
@@ -88,7 +88,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
         <div className="d-flex gap-1 flex-wrap">
           <Button size="sm" variant="success" disabled={disabled}
             onClick={() => mutations.approve.mutate(orderId)}>
-            {pending ? "..." : "승인"}
+            {pending ? "처리 중..." : "승인"}
           </Button>
           <RiskActionButton
             buttonLabel="거절"
@@ -101,7 +101,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
           />
           <Button size="sm" variant="outline-warning" disabled={disabled}
             onClick={() => mutations.delay.mutate(orderId)}>
-            {pending ? "..." : "지연 제안"}
+            {pending ? "처리 중..." : "지연 제안"}
           </Button>
         </div>
       );
@@ -110,11 +110,11 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
         <div className="d-flex gap-1 flex-wrap">
           <Button size="sm" variant="info" disabled={disabled}
             onClick={() => mutations.completeProduction.mutate(orderId)}>
-            {pending ? "..." : "제작 완료"}
+            {pending ? "처리 중..." : "제작 완료"}
           </Button>
           <Button size="sm" variant="outline-warning" disabled={disabled}
             onClick={() => mutations.delay.mutate(orderId)}>
-            {pending ? "..." : "지연 제안"}
+            {pending ? "처리 중..." : "지연 제안"}
           </Button>
           {fulfillmentType === "SHIPPING" && (
             <InputGroup size="sm" style={{ width: "auto" }}>
@@ -132,7 +132,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
         <div className="d-flex gap-1 flex-wrap">
           <Button size="sm" variant="outline-success" disabled={disabled}
             onClick={() => mutations.resumeAfterDelay.mutate(orderId)}>
-            {pending ? "..." : "처리 재개"}
+            {pending ? "처리 중..." : "처리 재개"}
           </Button>
           {fulfillmentType === "SHIPPING" && (
             <InputGroup size="sm" style={{ width: "auto" }}>
@@ -173,14 +173,14 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
                 style={{ maxWidth: 200 }} />
               <Button variant="outline-primary" disabled={disabled || !pickupDeadlineIsFuture}
                 onClick={() => mutations.pickup.mutate({ id: orderId, body: { pickupDeadlineAt: pickupDeadline } })}>
-                {pending ? "..." : "픽업 준비"}
+                {pending ? "처리 중..." : "픽업 준비"}
               </Button>
             </InputGroup>
           )}
           {fulfillmentType === "SHIPPING" && (
             <Button size="sm" variant="outline-info" disabled={disabled}
               onClick={() => mutations.prepareShipping.mutate(orderId)}>
-              {pending ? "..." : "배송 준비"}
+              {pending ? "처리 중..." : "배송 준비"}
             </Button>
           )}
         </div>
@@ -209,7 +209,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
               id: orderId,
               body: { carrier: carrier.trim(), trackingNumber: trackingNumber.trim() },
             })}>
-            {pending ? "..." : "배송 출발"}
+            {pending ? "처리 중..." : "배송 출발"}
           </Button>
         </div>
       );
@@ -217,14 +217,14 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
       return (
         <Button size="sm" variant="success" disabled={disabled}
           onClick={() => mutations.delivered.mutate(orderId)}>
-          {pending ? "..." : "배송 완료"}
+          {pending ? "처리 중..." : "배송 완료"}
         </Button>
       );
     case "PICKUP_READY":
       return (
         <Button size="sm" variant="outline-success" disabled={disabled}
           onClick={() => mutations.pickupDone.mutate(orderId)}>
-          {pending ? "..." : "픽업 완료"}
+          {pending ? "처리 중..." : "픽업 완료"}
         </Button>
       );
     default:

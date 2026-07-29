@@ -1,19 +1,30 @@
-import { api } from "@/shared/api";
-import type { OrderCustomerActionResponse, OrderDelayDecision, OrderDetailResponse, OrderPricePolicyResponse } from "@/shared/types";
+import {
+  cancelGuestOrder as requestGuestOrderCancellation,
+  getGuestOrder,
+  getOrderPricePolicy,
+  respondToGuestOrderDelay as requestGuestOrderDelayResponse,
+  type OrderCustomerActionResponse,
+  type OrderDelayResponseRequestDecision,
+  type OrderDetailResponse,
+  type OrderPricePolicyResponse,
+} from "@/generated/api/order";
+import {
+  cancelMyOrder as requestMyOrderCancellation,
+  respondToMyOrderDelay as requestMyOrderDelayResponse,
+} from "@/generated/api/customerStore";
 
 export function fetchOrderPricePolicy(): Promise<OrderPricePolicyResponse> {
-  return api<OrderPricePolicyResponse>("/orders/policy");
+  return getOrderPricePolicy();
 }
 
 export function fetchOrder(id: number, token: string): Promise<OrderDetailResponse> {
-  return api<OrderDetailResponse>(`/orders/${id}`, {
+  return getGuestOrder(id, {
     headers: { "X-Access-Token": token },
   });
 }
 
 export function cancelGuestOrder(id: number, token: string): Promise<OrderCustomerActionResponse> {
-  return api<OrderCustomerActionResponse>(`/orders/${id}`, {
-    method: "DELETE",
+  return requestGuestOrderCancellation(id, {
     headers: { "X-Access-Token": token },
   });
 }
@@ -21,25 +32,20 @@ export function cancelGuestOrder(id: number, token: string): Promise<OrderCustom
 export function respondToGuestOrderDelay(
   id: number,
   token: string,
-  decision: OrderDelayDecision,
+  decision: OrderDelayResponseRequestDecision,
 ): Promise<OrderCustomerActionResponse> {
-  return api<OrderCustomerActionResponse>(`/orders/${id}/delay-response`, {
-    method: "POST",
+  return requestGuestOrderDelayResponse(id, { decision }, {
     headers: { "X-Access-Token": token },
-    body: { decision },
   });
 }
 
 export function cancelMyOrder(id: number): Promise<OrderCustomerActionResponse> {
-  return api<OrderCustomerActionResponse>(`/me/orders/${id}`, { method: "DELETE" });
+  return requestMyOrderCancellation(id);
 }
 
 export function respondToMyOrderDelay(
   id: number,
-  decision: OrderDelayDecision,
+  decision: OrderDelayResponseRequestDecision,
 ): Promise<OrderCustomerActionResponse> {
-  return api<OrderCustomerActionResponse>(`/me/orders/${id}/delay-response`, {
-    method: "POST",
-    body: { decision },
-  });
+  return requestMyOrderDelayResponse(id, { decision });
 }

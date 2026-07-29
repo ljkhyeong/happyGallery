@@ -242,6 +242,11 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
     }
 
     @Override
+    public int deleteEmailVerifications() {
+        return jdbc.sql("DELETE FROM email_verifications").update();
+    }
+
+    @Override
     public long countSocialAccountsWithoutProviderIdEnc() {
         Long count = jdbc.sql("SELECT COUNT(*) FROM user_social_accounts WHERE provider_id_enc IS NULL")
                 .query(Long.class)

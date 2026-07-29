@@ -4,12 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Container } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
-import { api, queryKeys, runForCurrentCustomer } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
+import { getMyOrder } from "@/generated/api/customerStore";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { cancelMyOrder, respondToMyOrderDelay } from "@/features/order/api";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
-import type { OrderDetailResponse } from "@/shared/types";
 import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { OrderClaimSection } from "@/features/order-claim/OrderClaimSection";
@@ -23,7 +23,7 @@ export function MyOrderDetailPage() {
 
   const { data: order, isLoading, error } = useQuery({
     queryKey: queryKeys.member.orders.detail(orderId),
-    queryFn: () => api<OrderDetailResponse>(`/me/orders/${orderId}`),
+    queryFn: () => getMyOrder(orderId),
     enabled: isAuthenticated && validOrderId,
     refetchInterval: ({ state }) =>
       customerRefundPollingInterval(

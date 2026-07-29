@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { GuestClaimModal } from "@/features/customer-claim/GuestClaimModal";
 import { AccountWithdrawalModal } from "@/features/customer-auth/AccountWithdrawalModal";
+import { MemberEmailRegistrationModal } from "@/features/customer-auth/MemberEmailRegistrationModal";
 import { MemberPhoneUpdateModal } from "@/features/customer-auth/MemberPhoneUpdateModal";
 import { PasswordChangeModal } from "@/features/customer-auth/PasswordChangeModal";
 import { SOCIAL_PROVIDER_DETAILS, type SocialProvider } from "@/features/customer-auth/socialAuth";
@@ -36,6 +37,8 @@ function MyPageContent() {
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showPhoneRegistration, setShowPhoneRegistration] = useState(false);
   const [phoneStepUpCompleted, setPhoneStepUpCompleted] = useState(false);
+  const [showEmailRegistration, setShowEmailRegistration] = useState(false);
+  const [emailStepUpCompleted, setEmailStepUpCompleted] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [showWithdrawal, setShowWithdrawal] = useState(false);
   const [phoneOnboardingHandled, setPhoneOnboardingHandled] = useState(false);
@@ -83,12 +86,16 @@ function MyPageContent() {
   const navigationState = location.state as {
     phoneOnboarding?: boolean;
     phoneChangeRequested?: boolean;
+    emailRegistrationRequested?: boolean;
     accountWithdrawalRequested?: boolean;
     socialAccountLinked?: string;
   } | null;
   const phoneOnboardingRequested = Boolean(navigationState?.phoneOnboarding);
   const linkedSocialProvider = navigationState?.socialAccountLinked;
   const phoneChangeRequested = Boolean(navigationState?.phoneChangeRequested);
+  const emailRegistrationRequested = Boolean(
+    navigationState?.emailRegistrationRequested,
+  );
   const accountWithdrawalRequested = Boolean(
     navigationState?.accountWithdrawalRequested,
   );
@@ -109,16 +116,36 @@ function MyPageContent() {
       || user?.phone !== null
       || phoneOnboardingHandled
       || accountWithdrawalRequested
+      || emailRegistrationRequested
+      || showEmailRegistration
     ) {
       return;
     }
     setShowPhoneRegistration(true);
   }, [
     accountWithdrawalRequested,
+    emailRegistrationRequested,
     isAuthenticated,
     phoneOnboardingHandled,
     phoneOnboardingRequested,
+    showEmailRegistration,
     user?.phone,
+  ]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !emailRegistrationRequested || user?.email) {
+      return;
+    }
+    setEmailStepUpCompleted(true);
+    setShowEmailRegistration(true);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [
+    emailRegistrationRequested,
+    isAuthenticated,
+    location.pathname,
+    location.search,
+    navigate,
+    user?.email,
   ]);
 
   useEffect(() => {
@@ -247,6 +274,10 @@ function MyPageContent() {
           setPhoneStepUpCompleted(false);
           setShowPhoneRegistration(true);
         }}
+        onRegisterEmail={() => {
+          setEmailStepUpCompleted(false);
+          setShowEmailRegistration(true);
+        }}
         onWithdraw={() => setShowWithdrawal(true)}
       />
 
@@ -294,6 +325,16 @@ function MyPageContent() {
         onClose={closePhoneRegistration}
         onUpdated={async () => {
           await refresh();
+        }}
+      />
+
+      <MemberEmailRegistrationModal
+        show={showEmailRegistration}
+        localPasswordEnabled={user!.localPasswordEnabled}
+        initiallyReauthenticated={emailStepUpCompleted}
+        onClose={() => {
+          setShowEmailRegistration(false);
+          setEmailStepUpCompleted(false);
         }}
       />
 

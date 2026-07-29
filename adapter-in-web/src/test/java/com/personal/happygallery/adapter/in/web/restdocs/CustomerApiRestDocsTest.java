@@ -6,6 +6,7 @@ import com.personal.happygallery.adapter.in.web.customer.CustomerCredentialContr
 import com.personal.happygallery.adapter.in.web.customer.MeBookingController;
 import com.personal.happygallery.adapter.in.web.customer.MeAccountController;
 import com.personal.happygallery.adapter.in.web.customer.MeCartController;
+import com.personal.happygallery.adapter.in.web.customer.MeEmailController;
 import com.personal.happygallery.adapter.in.web.customer.MeGuestClaimController;
 import com.personal.happygallery.adapter.in.web.customer.MeInquiryController;
 import com.personal.happygallery.adapter.in.web.customer.MeNotificationController;
@@ -28,6 +29,7 @@ import com.personal.happygallery.application.customer.port.in.CustomerCredential
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
+import com.personal.happygallery.application.customer.port.in.MemberEmailRegistrationUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.application.notification.port.in.NotificationQueryUseCase;
@@ -91,6 +93,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private NotificationQueryUseCase notificationQueryUseCase;
     private GuestClaimUseCase guestClaimUseCase;
     private MemberPhoneUpdateUseCase phoneUpdateUseCase;
+    private MemberEmailRegistrationUseCase emailRegistrationUseCase;
     private CustomerAccountLifecycleUseCase accountLifecycleUseCase;
     private InquiryUseCase inquiryUseCase;
     private ProductQnaUseCase qnaUseCase;
@@ -112,6 +115,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         notificationQueryUseCase = mock(NotificationQueryUseCase.class);
         guestClaimUseCase = mock(GuestClaimUseCase.class);
         phoneUpdateUseCase = mock(MemberPhoneUpdateUseCase.class);
+        emailRegistrationUseCase = mock(MemberEmailRegistrationUseCase.class);
         accountLifecycleUseCase = mock(CustomerAccountLifecycleUseCase.class);
         inquiryUseCase = mock(InquiryUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
@@ -196,6 +200,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 new MeNotificationController(notificationQueryUseCase),
                 new MeGuestClaimController(guestClaimUseCase, rateLimitGuard),
                 new MePhoneController(phoneUpdateUseCase, stepUpStore, customerSessionBinder),
+                new MeEmailController(
+                        emailRegistrationUseCase,
+                        stepUpStore,
+                        customerSessionBinder),
                 new MeAccountController(
                         accountLifecycleUseCase,
                         customerSessionBinder,
@@ -275,6 +283,37 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                 }
                                 """))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("회원 이메일 인증 코드 발송 API를 문서화한다")
+    void send_email_verification() throws Exception {
+        mockMvc.perform(post("/api/v1/me/email-verifications")
+                        .session(recentlyAuthenticatedSession())
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "naver-member@example.com"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("인증한 회원 이메일 등록 API를 문서화한다")
+    void register_verified_email() throws Exception {
+        mockMvc.perform(patch("/api/v1/me/email")
+                        .session(recentlyAuthenticatedSession())
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "naver-member@example.com",
+                                  "verificationCode": "123456"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
     }
 
     @Test

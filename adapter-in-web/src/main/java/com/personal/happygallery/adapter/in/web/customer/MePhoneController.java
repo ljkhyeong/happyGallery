@@ -8,6 +8,7 @@ import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateU
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase.UpdatePhoneCommand;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.User;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,6 +35,7 @@ public class MePhoneController {
     }
 
     @PatchMapping
+    @Operation(operationId = "updateMyPhone")
     public CustomerUserResponse updatePhone(
             @RequestBody @Valid UpdateMemberPhoneRequest request,
             @AuthenticationPrincipal CustomerPrincipal customer,

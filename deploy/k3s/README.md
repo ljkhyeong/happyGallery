@@ -88,6 +88,7 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 - Toss, Google, Naver, NHN Cloud Alimtalk·SMS: 각 제공자 운영 자격증명
 - Alimtalk: NHN Cloud에 카카오 발신 프로필을 연결하고 `KakaoTemplateCatalog`의 모든 `HG_*` 템플릿을 승인받은 뒤 `ALIMTALK_SENDER_KEY`를 설정
 - 알림 timeout: 예제의 `NOTIFICATION_TIMEOUT_MILLIS=5000`은 NHN transport 단계 합(`acquire 500 + connect 1000 + response 2000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
+- 이메일 인증 SMTP: STARTTLS와 직접 SSL 중 정확히 하나를 사용하고 서버 인증서 호스트명을 검증한다. `EMAIL_VERIFICATION_TIMEOUT_MILLIS`는 연결·읽기·쓰기 timeout 합보다 크게 유지한다.
 - active/previous AES·HMAC·guest token 키: DB 백업과 물리적으로 분리된 복구 저장소에도 보관
 
 ```bash
@@ -121,7 +122,7 @@ CONFIRM_DATA_KEY_ROTATION=rotate-happygallery-data-keys \
 
 1. 단일 app replica, digest 고정 app 이미지, MySQL PVC·Secret과 외부 백업 mount marker를 확인한다.
 2. app을 0 replica로 줄이고 실제 Pod가 모두 사라진 뒤 fresh `age` 암호화 백업과 checksum을 만든다.
-3. 현재 app과 같은 digest의 임시 Job을 Service 없이 임의 servlet/management port로 실행한다. Job만 새 AES/HMAC을 active로, 구 AES/HMAC을 previous로 읽고 `KEY_ROTATION_ENABLED=true`로 개인정보와 관리자 TOTP 비밀키를 재암호화·재색인한다. 휴대폰 인증 행은 전량 제거되어 사용자가 다시 인증해야 한다.
+3. 현재 app과 같은 digest의 임시 Job을 Service 없이 임의 servlet/management port로 실행한다. Job만 새 AES/HMAC을 active로, 구 AES/HMAC을 previous로 읽고 `KEY_ROTATION_ENABLED=true`로 개인정보와 관리자 TOTP 비밀키를 재암호화·재색인한다. 휴대폰·이메일 인증 행은 전량 제거되어 사용자가 다시 인증해야 한다.
 4. Job 성공 후에만 runtime Secret을 새 active/구 previous로 전환하고, Redis 세션·rate-limit 상태를 `FLUSHALL`해 전체 로그아웃시킨 뒤 app을 재기동한다.
 5. 오류가 나면 임시 Job/Secret을 정리하고 app을 0 replica로 유지한다. 시작 단계와 원래 replica 수를 Secret annotation에 기록하므로 같은 env로 다시 실행하면 fresh 백업부터 또는 runtime Secret 전환 이후 단계부터 재개한다. 다른 target key ID로는 덮어쓸 수 없다.
 
@@ -226,7 +227,7 @@ kubectl -n happygallery port-forward service/prometheus 9090:9090
 kubectl -n happygallery port-forward service/grafana 3000:3000
 ```
 
-검증 스크립트는 모든 workload ready replica, MySQL·미디어·Prometheus·Alertmanager·Grafana PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. 운영 readiness는 DB와 Redis를 포함하므로 둘 중 하나가 내려가면 app은 ready endpoint에서 제외되고 Prometheus `AppDown` 경보가 발생한다. 결제 대사·환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업은 DB backlog의 건수와 처리 예정·선점·생성 시각을 기준으로 15초마다 스냅샷하고, 갱신 지연도 별도 경보로 확인한다. `OrderApprovalPending`과 `BookingCancellationTaskPending`은 처리할 일이 남은 동안 warning을 유지하고 business receiver가 30분마다 다시 알린다. `OrderApprovalDeadlineApproaching`은 가장 오래된 승인 대기 주문이 18시간을 넘어 승인 마감까지 6시간 이하로 남은 상태가 5분 지속되면 critical로 알린다. 예약 확정과 후속 작업 없는 취소는 사건별 경보를 만들지 않고 관리자 예약 일정에서 확인한다. Alertmanager의 business receiver가 앞의 두 warning을, critical receiver가 승인 마감 경보를 실제 운영 채널로 전달하는지 점검한다. 결제 `paymentProvider` 서킷의 `OPEN` 또는 최근 2분 차단 호출은 즉시 critical, `alimtalkNotification`·`smsNotification`·`phoneVerificationSms`의 같은 조건은 즉시 warning으로 전달하고 Grafana에서 상태·실패율·호출 결과·차단 호출을 함께 확인한다. Grafana는 외부 Ingress가 없는 cluster 내부 익명 Viewer이며 운영자 `kubectl port-forward`로만 연다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
+검증 스크립트는 모든 workload ready replica, MySQL·미디어·Prometheus·Alertmanager·Grafana PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. 운영 readiness는 DB와 Redis를 포함하므로 둘 중 하나가 내려가면 app은 ready endpoint에서 제외되고 Prometheus `AppDown` 경보가 발생한다. 결제 대사·환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업은 DB backlog의 건수와 처리 예정·선점·생성 시각을 기준으로 15초마다 스냅샷하고, 갱신 지연도 별도 경보로 확인한다. `OrderApprovalPending`과 `BookingCancellationTaskPending`은 처리할 일이 남은 동안 warning을 유지하고 business receiver가 30분마다 다시 알린다. `OrderApprovalDeadlineApproaching`은 가장 오래된 승인 대기 주문이 18시간을 넘어 승인 마감까지 6시간 이하로 남은 상태가 5분 지속되면 critical로 알린다. 예약 확정과 후속 작업 없는 취소는 사건별 경보를 만들지 않고 관리자 예약 일정에서 확인한다. Alertmanager의 business receiver가 앞의 두 warning을, critical receiver가 승인 마감 경보를 실제 운영 채널로 전달하는지 점검한다. 결제 `paymentProvider` 서킷의 `OPEN` 또는 최근 2분 차단 호출은 즉시 critical, `alimtalkNotification`·`smsNotification`·`phoneVerificationSms`·`emailVerification`의 같은 조건은 즉시 warning으로 전달하고 Grafana에서 상태·실패율·호출 결과·차단 호출을 함께 확인한다. Grafana는 외부 Ingress가 없는 cluster 내부 익명 Viewer이며 운영자 `kubectl port-forward`로만 연다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
 
 호스트/공유기에서는 다음도 별도로 확인한다.
 

@@ -71,7 +71,7 @@ export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
                 disabled={pendingId === attempt.attemptId}
                 onClick={() => reconcile.mutate(attempt.attemptId)}
               >
-                {pendingId === attempt.attemptId ? "..." : "PG 조회"}
+                {pendingId === attempt.attemptId ? "조회 중..." : "PG 조회"}
               </Button>
             </td>
           </tr>

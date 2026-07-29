@@ -14,6 +14,7 @@ public record NotificationResilienceProperties(
         @Valid ThreadPool alimtalkThreadPool,
         @Valid ThreadPool smsThreadPool,
         @Valid ThreadPool phoneVerificationThreadPool,
+        @Valid ThreadPool emailVerificationThreadPool,
         @Valid CircuitBreaker circuitBreaker
 ) {
     public record ThreadPool(

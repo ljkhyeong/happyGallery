@@ -8,7 +8,7 @@
 | 사용자 | 주요 기능 |
 | --- | --- |
 | 비회원 | 휴대폰 인증 기반 주문/예약 생성, 토큰 기반 조회·취소·지연 응답·주문 클레임, SMS 기반 조회 정보 복구, 회원가입 후 기존 이력 가져오기 |
-| 회원 | 상품 주문·취소·지연 응답·주문 클레임, 클래스 예약, 8회권 구매·사용·환불, 장바구니, 알림함, 소셜 계정·휴대폰 관리, 회원 탈퇴 |
+| 회원 | 상품 주문·취소·지연 응답·주문 클레임, 클래스 예약, 8회권 구매·사용·환불, 장바구니, 알림함, 소셜 계정·휴대폰·기준 이메일 관리, 회원 탈퇴 |
 | 관리자 | 오늘 할 일 중심 운영 화면, 상품·클래스 콘텐츠/이미지, 공방 프로필·슬롯 일괄 관리, 전화·메신저·방문 예약 등록, 예약 검색·운영자 취소·후속 정산, 8회권 검색·환불, 주문 승인/거절/배송/픽업·클레임, 환불 재처리, 전체 미답변 Q&A/문의 답변, 상품·주문·슬롯 분석 |
 
 - 주문/예약/8회권은 `POST /api/v1/payments/prepare` -> `POST /api/v1/payments/confirm` 표준 결제 경로를 사용한다. confirm은 선점·PG 승인·도메인 저장 트랜잭션을 분리하고 Toss 멱등키와 실패 보상 환불을 사용하며, 고객은 소유권이 확인된 `GET /api/v1/payments/{orderId}`로 처리 결과를 확인한다. 비회원이 브라우저 저장소를 잃으면 SMS 인증 기반 `POST /api/v1/guest-records/payment-status-recovery`로 결제 ID 목록과 공통 상태 조회 토큰을 함께 복구한다.
@@ -28,7 +28,7 @@
 - 상품·클래스 설명과 대표 이미지, 공방 주소·영업·주차·소개·사업자·문의 정보를 관리자 화면에서 관리한다. 공개 footer와 사업자 정보는 현재 공방 프로필을 사용하고, 이용약관·개인정보처리방침은 과거 동의 본문이 바뀌지 않도록 버전별 문서로 보존한다. 반복 슬롯은 기간·요일·시각 조합을 미리 본 뒤 일괄 생성한다.
 - 기준 공방 프로필은 `해피갤러리`, `충북 충주시 계명대로 161 1층`, 네이버 플레이스 `https://m.place.naver.com/place/21668321`, `010-9635-5608`, 대표 `홍지현`, 사업자등록번호 `303-11-87052`, 통신판매업 신고번호 `2011-충북 충주-127`, 전자우편 `ssi1972@naver.com`, 카카오톡 `ssim1972`를 사용한다. 네이버톡톡·네이버 블로그·인스타그램·스마트스토어 링크도 공방 프로필에서 함께 관리한다.
 - 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
-- Google·Naver 계정은 마이페이지에서 일회성 연결 시도와 OAuth `state`를 검증해 명시적으로 연결·해제하며, 이메일 일치만으로 기존 회원과 자동 병합하지 않는다. Google의 검증 이메일만 기준 이메일로 저장하고, 신규 Naver 회원의 이메일은 자체 검증 전까지 `null`이다.
+- Google·Naver 계정은 마이페이지에서 일회성 연결 시도와 OAuth `state`를 검증해 명시적으로 연결·해제하며, 이메일 일치만으로 기존 회원과 자동 병합하지 않는다. Google의 검증 이메일만 가입 시 기준 이메일로 저장한다. 신규 Naver 회원의 이메일은 `null`로 시작하고, 최근 본인 확인 뒤 메일함으로 받은 6자리 코드를 검증해 본인이 소유한 이메일을 한 번 등록할 수 있다.
 - 브라우저의 비관리자 상태 변경 요청은 `XSRF-TOKEN` 쿠키와 `X-XSRF-TOKEN` 헤더로 CSRF를 방어한다.
 - 상세 요구사항은 [기준 스펙](docs/PRD/0001_기준_스펙/spec.md), HTTP 계약은 [API 계약](docs/PRD/0004_API_계약/spec.md)을 기준으로 본다.
 
@@ -72,7 +72,7 @@ npm run dev
 
 - `local` 프로필에서는 DB가 비어 있으면 기본 클래스 3종과 관리자 계정 `admin / admin1234`를 자동 생성한다.
 - 로컬과 개발 환경에서는 `X-Admin-Key: dev-admin-key`를 사용할 수 있다.
-- `prod`가 아닌 환경에서는 실제 알림·인증 SMS·결제 대신 테스트용 발송기와 `FakePaymentProvider`를 사용한다.
+- `prod`가 아닌 환경에서는 실제 알림·인증 SMS·이메일 인증 SMTP·결제 대신 테스트용 발송기와 `FakePaymentProvider`를 사용한다.
 - k3s 운영 배포의 Prometheus 경보는 내부 Alertmanager를 거쳐 저장소 밖 Secret으로 주입한 외부 HTTPS webhook에 전달한다. 노트북 자체 장애 감시는 별도 외부 uptime 서비스가 필요하다.
 - 운영 환경은 DB·Redis를 readiness에 포함하고, 환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업의 DB backlog, 결제·알림 CircuitBreaker 상태와 호출 결과, 모든 정기 배치의 마지막 정상 완료 시각과 이미지 저장소 용량을 Prometheus·Grafana에서 감시한다. 업무 알림은 휘발성 사건 수가 아니라 아직 처리되지 않은 DB 상태를 기준으로 유지한다.
 - `prod`가 아닌 환경의 Google/Naver 로그인은 외부 인증 화면 없이 테스트용 콜백으로 즉시 돌아온다.
@@ -132,7 +132,7 @@ Wrapper 배포 ZIP은 저장소의 SHA-256으로 검증하고 CI는 wrapper JAR 
 - REST Docs 스니펫은 `:adapter-in-web:restDocsTest`가 `adapter-in-web/build/generated-snippets`에 생성한다.
 - Springdoc은 Controller와 웹 DTO에서 키 순서를 정규화한 `docs/PRD/0004_API_계약/openapi3.json`을 만들고, Orval은 이를 `frontend/src/generated/api`의 TypeScript client와 DTO로 변환한다.
 - REST Docs는 실제 HTTP 요청·응답 예시를 검증하고, OpenAPI 스냅샷은 기계 판독 계약과 프론트 생성 코드의 원본을 담당한다.
-- 현재 React 실사용 전환 범위는 공개 상품·Q&A, 회원 소셜 계정·알림·예약 조회/변경/취소, 비회원 예약 조회/변경/취소, 고객 결제 상태·복구, 공방 정보, 정책 동의, 관리자 인증·MFA·대시보드·예약·주문 클레임·상품 Q&A다. 새 엔드포인트는 필수값·nullable·enum 정확성을 확인한 뒤 같은 방식으로 전환한다.
+- React feature 계층의 HTTP API 호출은 모두 생성 client를 사용한다. feature wrapper는 생성 함수와 서버 DTO를 재사용하고 React Query key·cache·화면용 view model만 소유한다. OAuth 로그인 시작처럼 브라우저가 URL로 직접 이동하는 흐름은 HTTP API wrapper가 아니므로 생성 client 대상에서 제외한다.
 - Playwright 실행 전 백엔드는 `http://localhost:8080`에서 실행 중이어야 한다.
 - 기본 E2E는 `@smoke` 대표 경로만 실행한다. 전체 P8 회귀는 `e2e:full` 또는 도메인별 스크립트로 실행한다.
 - `codexReview`와 `main` 대상 PR은 Gradle/npm/GitHub Actions 변경의 Dependency Review, npm audit, ESLint·React Hooks 검사와 app/frontend 컨테이너의 Trivy HIGH/CRITICAL 검사를 통과해야 한다. Dependabot은 Gradle, npm, GitHub Actions와 Dockerfile의 첫 번째 `FROM` 이미지를 매주 확인하고 일반 버전 갱신 PR은 `codexReview`로 보낸다. 다단계 Dockerfile의 두 번째 이후 `FROM`은 자동 갱신 대상이 아니므로 Trivy와 명시적 버전 점검으로 관리한다. GitHub 정책상 보안 갱신 PR은 기본 브랜치인 `main`을 대상으로 한다.
@@ -214,8 +214,14 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `ALIMTALK_NOTIFICATION_EXECUTOR_POOL_SIZE` / `ALIMTALK_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | Alimtalk timeout 보호 실행기, 기본 `2` / `5` |
 | `SMS_NOTIFICATION_EXECUTOR_POOL_SIZE` / `SMS_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 일반 SMS timeout 보호 실행기, 기본 `2` / `5` |
 | `PHONE_VERIFICATION_EXECUTOR_POOL_SIZE` / `PHONE_VERIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 휴대폰 인증 SMS timeout 보호 실행기, 기본 `2` / `10` |
+| `EMAIL_VERIFICATION_EXECUTOR_POOL_SIZE` / `EMAIL_VERIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 이메일 인증 SMTP timeout 보호 실행기, 기본 `2` / `10` |
 | `NOTIFICATION_TIMEOUT_MILLIS` | 백엔드 | 알림 외부 호출 전체 TimeLimiter, 기본 `5000` |
 | `ALIMTALK_TIMEOUT_MILLIS` / `SMS_TIMEOUT_MILLIS` | 백엔드 `prod` | NHN 응답 대기 상한, 기본 `2000` (연결 풀 `500` + 연결 `1000`보다 바깥 TimeLimiter가 크게 유지돼야 함) |
+| `EMAIL_VERIFICATION_SMTP_HOST` / `EMAIL_VERIFICATION_SMTP_PORT` | 백엔드 `prod` | 회원 이메일 소유 확인용 SMTP 서버와 포트, 기본 포트 `587` |
+| `EMAIL_VERIFICATION_SMTP_USERNAME` / `EMAIL_VERIFICATION_SMTP_PASSWORD` / `EMAIL_VERIFICATION_FROM` | 백엔드 `prod` | 이메일 인증 SMTP 자격 증명과 발신 주소 |
+| `EMAIL_VERIFICATION_TIMEOUT_MILLIS` | 백엔드 `prod` | SMTP 큐 대기를 포함한 전용 TimeLimiter, 기본 `7000`; 아래 transport timeout 합보다 커야 함 |
+| `EMAIL_VERIFICATION_CONNECTION_TIMEOUT_MILLIS` / `EMAIL_VERIFICATION_READ_TIMEOUT_MILLIS` / `EMAIL_VERIFICATION_WRITE_TIMEOUT_MILLIS` | 백엔드 `prod` | SMTP 연결·읽기·쓰기 대기 상한, 기본 `1000` / `2000` / `2000` |
+| `EMAIL_VERIFICATION_STARTTLS_ENABLED` / `EMAIL_VERIFICATION_SSL_ENABLED` | 백엔드 `prod` | SMTP TLS 모드, 기본 `true` / `false`; 정확히 하나를 켜며 인증서 호스트명을 검증 |
 | `PASS_TOTAL_PRICE` | 백엔드 | 8회권 결제 금액 |
 | `ORDER_SHIPPING_FEE` | 백엔드 | 배송 주문에 더하는 고정 배송비, 기본 `0`원 |
 | `MEDIA_STORAGE_PATH` | 백엔드 | 관리자 업로드 이미지 저장 경로, 로컬 기본 `./data/media` |
@@ -254,7 +260,7 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 Naver 로그인 운영 등록 조건:
 
 - Naver Developers 애플리케이션에 서비스 origin과 정확한 백엔드 콜백 URI `${서비스 origin}/api/v1/auth/social/callback/naver`를 등록한다.
-- 회원 프로필의 이름 제공 항목을 사용하도록 설정한다. 서비스는 provider ID와 이름을 요구하고, Naver 프로필 이메일은 검증된 기준 이메일로 저장하지 않는다.
+- 회원 프로필의 이름 제공 항목을 사용하도록 설정한다. 서비스는 provider ID와 이름을 요구하고, Naver 프로필 이메일은 검증된 기준 이메일로 저장하지 않는다. 기준 이메일이 없는 회원은 마이페이지에서 별도 SMTP 소유 확인을 마친 뒤 직접 등록한다.
 - 로그인 버튼은 [Naver 로그인 버튼 사용 가이드](https://developers.naver.com/docs/login/bi/bi.md)의 공식 심벌과 지정 색상을 사용한다.
 
 ## 문서 진입점

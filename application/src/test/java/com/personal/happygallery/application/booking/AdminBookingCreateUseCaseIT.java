@@ -11,6 +11,7 @@ import com.personal.happygallery.application.booking.port.in.AdminBookingCreateU
 import com.personal.happygallery.application.booking.port.in.AdminBookingCreateUseCase.CreateAdminBookingCommand;
 import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
 import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase;
+import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
@@ -42,7 +43,7 @@ class AdminBookingCreateUseCaseIT {
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired UserStorePort userStorePort;
-    @Autowired DefaultMemberBookingService memberBookingService;
+    @Autowired MemberBookingUseCase memberBookingUseCase;
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
@@ -114,7 +115,7 @@ class AdminBookingCreateUseCaseIT {
                 "booking-owner@test.local", "password-hash", "회원 예약자", "01023456789");
         member.markPhoneVerified();
         member = userStorePort.save(member);
-        memberBookingService.createMemberDepositBooking(
+        memberBookingUseCase.createMemberDepositBooking(
                 member.getId(), slot.getId(), DepositPaymentMethod.CARD,
                 5_000L, 45_000L);
 

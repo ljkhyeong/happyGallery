@@ -2,7 +2,7 @@
 
 현재 반영 상태:
 - U1~U6 구현 완료
-- 회원 `/api/v1/me/**`, `/my`, `/my/orders`, `/my/bookings`, `/my/passes`, 휴대폰 변경·탈퇴, 비회원 이력 가져오기(claim)와 토큰 복구, `/guest/**` 표준 경로까지 반영되어 있다.
+- 회원 `/api/v1/me/**`, `/my`, `/my/orders`, `/my/bookings`, `/my/passes`, 휴대폰 변경·기준 이메일 최초 등록·탈퇴, 비회원 이력 가져오기(claim)와 토큰 복구, `/guest/**` 표준 경로까지 반영되어 있다.
 - 현재 서비스의 기준 문서는 `docs/PRD/0001_기준_스펙/spec.md`
 - 이 문서는 회원 중심 스토어로 정리하던 과정에서 남긴 요구사항과 배경 메모다.
 
@@ -36,7 +36,7 @@
 
 ### 2.1 회원
 
-- 이메일+비밀번호 기반 계정을 가진 사용자
+- 이메일+비밀번호 또는 Google/Naver 소셜 계정으로 로그인하는 사용자
 - 로그인 세션으로 `내 주문`, `내 예약`, `내 8회권`에 접근 가능
 - 예약/구매 제출 시 휴대폰 인증을 매번 다시 요구하지 않음
 
@@ -61,8 +61,10 @@
 - 고객 회원가입 API와 로그인 API를 제공한다.
 - 기본 방식은 `HttpOnly` 쿠키 기반 세션이다.
 - 고객 세션은 관리자 세션과 분리한다.
-- 세션 만료 정책은 별도 문서화하되, 브라우저 새로고침으로 쉽게 끊기지 않는 수준을 기본으로 한다.
+- 고객 세션 TTL은 7일이며 Spring Session Redis의 단일 설정을 사용한다. 인증·폐기 기준은
+  [ADR-0023](../../ADR/0023_관리자_회원_인증_세션_기준선/adr.md)을 따른다.
 - 이메일 회원가입과 처음 보는 소셜 계정의 신규 회원 생성은 현재 이용약관·개인정보처리방침 버전에 동의해야 하며, 서버 수락 시각과 목적을 회원 동의 이력으로 남긴다. 기존 회원 로그인에는 재동의를 요구하지 않는다.
+- Google의 검증 이메일만 가입 시 기준 이메일로 저장한다. Naver 프로필 이메일은 신뢰하거나 기존 회원 자동 병합에 사용하지 않는다. 기준 이메일이 없는 로그인 회원은 최근 본인 확인 뒤 전용 SMTP로 받은 6자리 코드를 검증해 본인이 소유한 이메일을 한 번 등록할 수 있다.
 
 ### 3.2 비회원 인증
 
@@ -217,7 +219,7 @@
 ### 7.1 users
 
 - 기존 `users` 테이블을 실제 고객 회원 모델로 사용한다.
-- 이메일·이름·전화번호는 평문 컬럼 없이 AES-GCM 암호문과 정확 일치 검색용 HMAC으로 저장한다.
+- 검증된 기준 이메일은 nullable이며, 이메일·이름·전화번호는 평문 컬럼 없이 AES-GCM 암호문과 정확 일치 검색용 HMAC으로 저장한다.
 - 이메일은 앞뒤 공백을 제거하고 소문자로, 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일한다.
 - `phone_verified`, `last_login_at`을 회원 인증 상태로 유지한다.
 - `withdrawn_at`으로 탈퇴 회원을 일반 조회·로그인에서 제외하고, `phone_hmac`은 회원 전체에서 유일하게 유지한다.
@@ -270,7 +272,9 @@
 - `POST /api/v1/auth/signup` — 이메일/비밀번호/이름/전화번호/SMS 인증 코드와 현재 정책 동의, 소유권 확인 성공 시 `phoneVerified=true`, 201 + HttpOnly 쿠키
 - `POST /api/v1/auth/login` — 이메일/비밀번호, 200 + HttpOnly 쿠키
 - `POST /api/v1/auth/logout` — 204 + 쿠키 삭제
-- `GET /api/v1/me` — 로그인 필수, 200 `{id, email, name, phone, phoneVerified}`
+- `GET /api/v1/me` — 로그인 필수, 200 `{id, email, name, phone, phoneVerified, localPasswordEnabled}` (`email`, `phone` nullable)
+- `POST /api/v1/me/email-verifications` — 최근 본인 확인 필수, 기준 이메일 소유 확인 코드 발송, 204
+- `PATCH /api/v1/me/email` — 최근 본인 확인과 6자리 코드로 기준 이메일 최초 등록, 204 + 기존 회원 세션 폐기
 - 세션: Spring Session + Redis, 7일 동안 유지
 - 쿠키: `HG_SESSION`, HttpOnly, SameSite=Lax, Path=/
 
@@ -348,7 +352,7 @@
 - 장바구니: 현재 구현됨. 결제는 `POST /api/v1/payments/prepare`의 `ORDER`, `cartCheckout=true`로 시작하고 표준 confirm 경로에서 주문 생성과 결제 수량 차감을 함께 완료한다.
 - 리뷰/별점: 미구현.
 - Q&A: Product Q&A와 1:1 문의는 현재 구현됨. 공개 Product Q&A의 일반글 상세는 비밀번호 없이 조회하고 비밀글 상세만 비밀번호를 검증한다.
-- 소셜 로그인: Google과 Naver 로그인을 지원하며, Spring Security OAuth2 Client가 만든 authorization request와 `state`를 백엔드 callback까지 Redis HTTP 세션에 임시 보관하고 1회 검증·소비한다.
+- 소셜 로그인: Google과 Naver 로그인을 지원하며, Spring Security OAuth2 Client가 만든 authorization request와 `state`를 백엔드 callback까지 Redis HTTP 세션에 임시 보관하고 1회 검증·소비한다. Naver 전용 회원은 별도 이메일 소유 확인 후 기준 이메일을 등록할 수 있다.
 - 네이버페이/스마트스토어 API 연동
 - 쿠폰/적립금/찜
 

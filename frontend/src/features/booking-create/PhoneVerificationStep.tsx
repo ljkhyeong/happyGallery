@@ -58,9 +58,10 @@ export function PhoneVerificationStep({
   const phoneValid = isValidPhone(phone);
   const showPhoneError = touched && phone.length > 0 && !phoneValid;
   const normalizedCode = code.trim();
+  const phoneErrorId = `${fieldId}-phone-error`;
 
   return (
-    <div>
+    <div aria-busy={sendMutation.isPending || confirming}>
       <h6 className="mb-3">{title}</h6>
       {description && <p className="text-muted-soft small mb-3">{description}</p>}
       <ErrorAlert error={sendMutation.error} />
@@ -77,8 +78,10 @@ export function PhoneVerificationStep({
               maxLength={11}
               disabled={sent || lockPhone || sendMutation.isPending}
               isInvalid={showPhoneError}
+              aria-invalid={showPhoneError}
+              aria-describedby={showPhoneError ? phoneErrorId : undefined}
             />
-            <Form.Control.Feedback type="invalid">
+            <Form.Control.Feedback id={phoneErrorId} type="invalid">
               010으로 시작하는 10~11자리 번호를 입력하세요.
             </Form.Control.Feedback>
           </Form.Group>

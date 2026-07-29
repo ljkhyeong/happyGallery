@@ -1,9 +1,9 @@
-import { api } from "@/shared/api";
+import { updateMyPhone } from "@/generated/api/customerAuth";
 import type { CustomerUser } from "./useCustomerAuth";
 
-export function updateMemberPhone(phone: string, verificationCode: string) {
-  return api<CustomerUser>("/me/phone", {
-    method: "PATCH",
-    body: { phone, verificationCode },
-  });
+export function updateMemberPhone(
+  phone: string,
+  verificationCode: string,
+): Promise<CustomerUser> {
+  return updateMyPhone({ phone, verificationCode });
 }

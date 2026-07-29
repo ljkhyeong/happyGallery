@@ -1,12 +1,9 @@
-import { api } from "@/shared/api";
+import {
+  captureClientEvent,
+  type CaptureClientEventRequestEvent,
+} from "@/generated/api/monitoring";
 
-const CLIENT_MONITORING_ENDPOINT = "/monitoring/client-events";
-
-export type ClientMonitoringEvent =
-  | "GUEST_LOOKUP_HUB_VIEWED"
-  | "GUEST_ORDER_DIRECT_ENTRY_CONTINUED"
-  | "GUEST_MEMBER_CTA_CLICKED"
-  | "GUEST_CLAIM_MODAL_OPENED";
+export type ClientMonitoringEvent = CaptureClientEventRequestEvent;
 
 interface TrackClientEventInput {
   event: ClientMonitoringEvent;
@@ -25,11 +22,7 @@ export function trackClientEvent(input: TrackClientEventInput) {
     target: input.target,
   };
 
-  void api<void>(CLIENT_MONITORING_ENDPOINT, {
-    method: "POST",
-    body,
-    keepalive: true,
-  }).catch(() => {
+  void captureClientEvent(body, { keepalive: true }).catch(() => {
     // monitoring is best-effort
   });
 }

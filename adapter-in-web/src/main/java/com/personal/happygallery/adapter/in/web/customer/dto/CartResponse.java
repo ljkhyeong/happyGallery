@@ -1,9 +1,13 @@
 package com.personal.happygallery.adapter.in.web.customer.dto;
 
 import com.personal.happygallery.application.cart.port.in.CartUseCase.CartView;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
-public record CartResponse(List<CartItemResponse> items, long totalAmount) {
+public record CartResponse(
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<CartItemResponse> items,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long totalAmount
+) {
     public static CartResponse from(CartView view) {
         List<CartItemResponse> items = view.items().stream()
                 .map(i -> new CartItemResponse(

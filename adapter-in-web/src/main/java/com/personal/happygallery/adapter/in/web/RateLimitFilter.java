@@ -29,6 +29,7 @@ import static com.personal.happygallery.adapter.in.web.security.customer.Custome
 import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_SIGNUP_INTENT_PROVIDER_PATH;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpMethod.PATCH;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
 
@@ -85,6 +86,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     pathPattern(POST, "/api/v1/bookings/phone-verifications"),
                     FAIL_CLOSED,
                     IpRules::phoneVerification),
+            new RouteRule(
+                    "EMAIL_VERIFICATION_IP",
+                    new OrRequestMatcher(
+                            pathPattern(POST, "/api/v1/me/email-verifications"),
+                            pathPattern(PATCH, "/api/v1/me/email")),
+                    FAIL_CLOSED,
+                    IpRules::emailVerification),
             new RouteRule(
                     "PAYMENT_PREPARE_IP",
                     pathPattern(POST, "/api/v1/payments/prepare"),

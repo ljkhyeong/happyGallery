@@ -8,6 +8,7 @@ import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.adapter.out.persistence.order.FulfillmentRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptRepository;
+import com.personal.happygallery.adapter.out.persistence.user.EmailVerificationRepository;
 import com.personal.happygallery.adapter.out.persistence.user.SocialAccountRepository;
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
 import com.personal.happygallery.application.crypto.SpringSecurityFieldEncryptor;
@@ -29,6 +30,7 @@ import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.user.SocialAccount;
 import com.personal.happygallery.domain.user.SocialProvider;
+import com.personal.happygallery.domain.user.EmailVerification;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -77,6 +79,7 @@ class KeyRotationUseCaseIT {
     @Autowired OrderRepository orderRepository;
     @Autowired FulfillmentRepository fulfillmentRepository;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
+    @Autowired EmailVerificationRepository emailVerificationRepository;
     @Autowired SocialAccountRepository socialAccountRepository;
     @Autowired AdminUserPort adminUserPort;
     @Autowired JdbcTemplate jdbcTemplate;
@@ -127,6 +130,18 @@ class KeyRotationUseCaseIT {
                 oldIndexer.index("01012345678"), oldIndexer.index("123456"),
                 oldEncryptor.encrypt("123456"));
         phoneVerificationRepository.save(verification);
+        EmailVerification emailVerification = new EmailVerification(
+                naverUser.getId(),
+                naverUser.getCredentialVersion(),
+                "pending-email@example.com",
+                "654321",
+                paidAt.plusMinutes(5));
+        emailVerification.protect(
+                oldIndexer.index("pending-email@example.com"),
+                oldIndexer.index(
+                        naverUser.getId() + ":pending-email@example.com:654321"),
+                oldEncryptor.encrypt("654321"));
+        emailVerificationRepository.save(emailVerification);
         SocialAccount encryptedSocial = socialAccount(user.getId(), SocialProvider.NAVER,
                 "naver-rotation-id", true);
         SocialAccount hmacOnlySocial = socialAccount(user.getId(), SocialProvider.GOOGLE,
@@ -146,6 +161,7 @@ class KeyRotationUseCaseIT {
             softly.assertThat(result.socialAccounts()).isEqualTo(1);
             softly.assertThat(result.adminMfaSecrets()).isEqualTo(1);
             softly.assertThat(result.deletedPhoneVerifications()).isEqualTo(1);
+            softly.assertThat(result.deletedEmailVerifications()).isEqualTo(1);
             softly.assertThat(result.pendingSocialAccounts()).isEqualTo(1);
             softly.assertThat(result.pendingAdminMfaSecrets()).isZero();
             softly.assertThat(value("users", "email_enc", user.getId())).startsWith("hg:v2:");
@@ -174,6 +190,7 @@ class KeyRotationUseCaseIT {
             softly.assertThat(value("user_social_accounts", "provider_id_hmac", hmacOnlySocial.getId()))
                     .isEqualTo(oldIndexer.index("google-legacy-id"));
             softly.assertThat(phoneVerificationRepository.count()).isZero();
+            softly.assertThat(emailVerificationRepository.count()).isZero();
         });
         assertThat(activeEncryptor.decrypt(value("users", "email_enc", user.getId())))
                 .isEqualTo("rotation@test.local");

@@ -147,11 +147,11 @@ groups:
       - alert: NotificationTimeoutExecutorQueueHigh
         expr: |
           max by (name) (
-            executor_queued_tasks{application="happygallery",name=~"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor"}
+            executor_queued_tasks{application="happygallery",name=~"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor"}
             /
             clamp_min(
-              executor_queued_tasks{application="happygallery",name=~"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor"}
-              + executor_queue_remaining_tasks{application="happygallery",name=~"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor"},
+              executor_queued_tasks{application="happygallery",name=~"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor"}
+              + executor_queue_remaining_tasks{application="happygallery",name=~"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor"},
               1
             )
           ) > 0.8
@@ -164,7 +164,7 @@ groups:
       - alert: NotificationTimeoutExecutorRejected
         expr: |
           sum by (__name__) (
-            increase({application="happygallery",__name__=~"happygallery_notification_(alimtalk|sms|phone_verification)_executor_rejected_total"}[5m])
+            increase({application="happygallery",__name__=~"happygallery_notification_(alimtalk|sms|phone_verification|email_verification)_executor_rejected_total"}[5m])
           ) > 0
         for: 1m
         labels:
@@ -174,9 +174,9 @@ groups:
 
       - alert: NotificationCircuitBreakerOpen
         expr: |
-          max by (name) (resilience4j_circuitbreaker_state{application="happygallery",name=~"alimtalkNotification|smsNotification|phoneVerificationSms",state="open"}) == 1
+          max by (name) (resilience4j_circuitbreaker_state{application="happygallery",name=~"alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification",state="open"}) == 1
           or
-          sum by (name) (increase(resilience4j_circuitbreaker_not_permitted_calls_total{application="happygallery",name=~"alimtalkNotification|smsNotification|phoneVerificationSms"}[2m])) > 0
+          sum by (name) (increase(resilience4j_circuitbreaker_not_permitted_calls_total{application="happygallery",name=~"alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification"}[2m])) > 0
         labels:
           severity: warning
         annotations:

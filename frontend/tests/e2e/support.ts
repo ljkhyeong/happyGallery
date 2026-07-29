@@ -610,11 +610,11 @@ export async function waitForBookingByPhone(
 ): Promise<AdminBooking> {
   await expect.poll(async () => {
     const bookings = await fetchAdminBookings(request, date);
-    return bookings.some((booking) => booking.bookerPhone === phone);
+    return bookings.some((booking) => booking.customerSummary.phone === phone);
   }).toBeTruthy();
 
   const bookings = await fetchAdminBookings(request, date);
-  const booking = bookings.find((item) => item.bookerPhone === phone);
+  const booking = bookings.find((item) => item.customerSummary.phone === phone);
   if (!booking) {
     throw new Error(`Could not find booking for phone: ${phone}`);
   }

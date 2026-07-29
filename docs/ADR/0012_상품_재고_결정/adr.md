@@ -47,10 +47,11 @@ List<Inventory> findByProductIdInWithLock(List<Long> productIds);
 모든 재고 row를 한 번에 잠근다. 상품별 잠금 조회 N회를 한 번의 `IN` 조회로 줄이면서 주문 간 잠금 순서를
 고정해 교착 가능성도 낮춘다. 주문 거절·자동환불의 재고 복구도 같은 일괄 잠금 경로를 사용한다.
 
-### 3. 정책 검증 — 기존 `InventoryPolicy` 재사용
+### 3. 정책 검증 — `Inventory` 불변식으로 응집
 
-`InventoryPolicy.checkSufficient(available, requested)` 이미 구현됨.
-`Inventory.deduct()` 내부에서 호출 → 도메인 레이어에서 불변식 유지.
+`Inventory.requireSufficient(qty)`가 양수 요청과 현재 재고를 검증하고,
+`Inventory.deduct()`가 이 가드를 호출한 뒤 수량을 차감한다. 별도 정책 클래스 없이 재고를 소유한
+도메인 객체가 불변식을 유지한다.
 
 ### 4. 재고 복구 메서드 (`restore()`) 선제 추가
 

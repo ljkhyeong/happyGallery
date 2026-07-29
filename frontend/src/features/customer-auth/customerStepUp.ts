@@ -9,6 +9,7 @@ import {
 
 export type CustomerStepUpReturnAction =
   | "phone-change"
+  | "email-registration"
   | "account-withdrawal";
 
 export type CustomerStepUpContinuation =

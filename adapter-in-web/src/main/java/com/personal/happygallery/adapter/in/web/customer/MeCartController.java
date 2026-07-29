@@ -8,6 +8,7 @@ import com.personal.happygallery.adapter.in.web.customer.dto.CartResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MergeCartRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.UpdateCartItemRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -32,6 +33,7 @@ public class MeCartController {
     }
 
     @GetMapping
+    @Operation(operationId = "getMyCart")
     public CartResponse getCart(@AuthenticationPrincipal CustomerPrincipal customer) {
         CartView cart = cartUseCase.getCart(customer.userId());
         return CartResponse.from(cart);
@@ -39,6 +41,7 @@ public class MeCartController {
 
     @PostMapping("/items")
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(operationId = "addMyCartItem")
     public void addItem(@RequestBody @Valid AddCartItemRequest req,
                         @AuthenticationPrincipal CustomerPrincipal customer) {
         cartUseCase.addItem(customer.userId(), req.productId(), req.qty());
@@ -46,6 +49,7 @@ public class MeCartController {
 
     @PostMapping("/merge")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "mergeMyCartItems")
     public void mergeItems(@RequestBody @Valid MergeCartRequest request,
                            @AuthenticationPrincipal CustomerPrincipal customer) {
         cartUseCase.mergeItems(
@@ -57,6 +61,7 @@ public class MeCartController {
     }
 
     @PutMapping("/items/{productId}")
+    @Operation(operationId = "updateMyCartItemQuantity")
     public void updateItemQty(@PathVariable Long productId,
                               @RequestBody @Valid UpdateCartItemRequest req,
                               @AuthenticationPrincipal CustomerPrincipal customer) {
@@ -65,6 +70,7 @@ public class MeCartController {
 
     @DeleteMapping("/items/{productId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "removeMyCartItem")
     public void removeItem(@PathVariable Long productId,
                            @AuthenticationPrincipal CustomerPrincipal customer) {
         cartUseCase.removeItem(customer.userId(), productId);

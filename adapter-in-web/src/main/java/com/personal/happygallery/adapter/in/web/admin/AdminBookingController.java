@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.admin;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminBookingCancelRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminBookingCancelResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminBookingResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.AdminBookingSearchPageResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingCancellationTaskCompletionResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingCancellationTaskResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingNoShowResponse;
@@ -17,9 +18,7 @@ import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUs
 import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingNoShowUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
-import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
 import com.personal.happygallery.application.search.port.in.AdminBookingSearchUseCase;
-import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import jakarta.validation.Valid;
@@ -92,14 +91,15 @@ public class AdminBookingController {
     /** GET /api/v1/admin/bookings/search — 상태·날짜·키워드 기반 예약 검색 (OFFSET + 지연 조인) */
     @GetMapping("/search")
     @Operation(operationId = "searchBookings")
-    public OffsetPage<AdminBookingSearchRow> searchBookings(
+    public AdminBookingSearchPageResponse searchBookings(
             @RequestParam(required = false) BookingStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return adminBookingSearchUseCase.search(status, dateFrom, dateTo, keyword, page, size);
+        return AdminBookingSearchPageResponse.from(
+                adminBookingSearchUseCase.search(status, dateFrom, dateTo, keyword, page, size));
     }
 
     /** 결석 처리 — 8회권 크레딧 소멸 유지, 상태 NO_SHOW 전이 */

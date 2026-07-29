@@ -10,7 +10,14 @@ import {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  api,
+  getCurrentCustomer,
+  loginCustomer,
+  logoutCustomer,
+  signupCustomer,
+  withdrawMyAccount,
+  type CustomerUserResponse,
+} from "@/generated/api/customerAuth";
+import {
   ApiError,
   captureCustomerSession,
   clearCustomerQueryCache,
@@ -28,23 +35,7 @@ import {
 import { normalizePhone } from "@/shared/validation/phone";
 import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
-interface CustomerUserResponse {
-  id: number;
-  email: string | null;
-  name: string;
-  phone: string | null;
-  phoneVerified: boolean;
-  localPasswordEnabled: boolean;
-}
-
-export interface CustomerUser {
-  id: number;
-  email: string | null;
-  name: string;
-  phone: string | null;
-  phoneVerified: boolean;
-  localPasswordEnabled: boolean;
-}
+export type CustomerUser = CustomerUserResponse;
 
 interface CustomerAuthContextValue {
   user: CustomerUser | null;
@@ -114,7 +105,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     const request = (async (): Promise<CustomerUser | null> => {
       let activeSnapshot = requestSnapshot;
       try {
-        const me = await api<CustomerUserResponse>("/me");
+        const me = await getCurrentCustomer();
         requireCurrentCustomerSession(requestSnapshot);
         if (requestSnapshot.boundaryCustomerId !== me.id) {
           publishSessionBoundary(me.id);
@@ -198,10 +189,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (email: string, password: string): Promise<CustomerUser> => {
       const me = await runForCurrentCustomer(() =>
-        api<CustomerUserResponse>("/auth/login", {
-          method: "POST",
-          body: { email, password },
-        }));
+        loginCustomer({ email, password }));
       publishSessionBoundary(me.id);
       clearCustomerQueries();
       userIdRef.current = me.id;
@@ -222,16 +210,13 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       policyAcceptance: PolicyAcceptance,
     ): Promise<CustomerUser> => {
       const me = await runForCurrentCustomer(() =>
-        api<CustomerUserResponse>("/auth/signup", {
-          method: "POST",
-          body: {
-            email,
-            password,
-            name,
-            phone: normalizePhone(phone),
-            verificationCode,
-            policyAcceptance,
-          },
+        signupCustomer({
+          email,
+          password,
+          name,
+          phone: normalizePhone(phone),
+          verificationCode,
+          policyAcceptance,
         }));
       publishSessionBoundary(me.id);
       clearCustomerQueries();
@@ -244,8 +229,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    await runForCurrentCustomer(() =>
-      api("/auth/logout", { method: "POST" }));
+    await runForCurrentCustomer(() => logoutCustomer());
     publishSessionBoundary(null);
     clearCustomerQueries();
     userIdRef.current = null;
@@ -254,8 +238,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   }, [clearCustomerQueries, publishSessionBoundary]);
 
   const withdraw = useCallback(async () => {
-    await runForCurrentCustomer(() =>
-      api("/me", { method: "DELETE" }));
+    await runForCurrentCustomer(() => withdrawMyAccount());
     publishSessionBoundary(null);
     clearCustomerQueries();
     userIdRef.current = null;

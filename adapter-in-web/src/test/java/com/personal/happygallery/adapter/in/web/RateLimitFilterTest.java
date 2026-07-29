@@ -468,6 +468,7 @@ class RateLimitFilterTest {
                     new IpRules(
                             new Rule(defaultApi, defaultApiWindow),
                             perMinute(phoneVerification),
+                            perMinute(100),
                             perMinute(customerLogin),
                             perMinute(customerSignup),
                             perMinute(adminLogin),
@@ -482,6 +483,8 @@ class RateLimitFilterTest {
                             perMinute(orderCustomerAction)
                     ),
                     new SubjectRules(
+                            perMinute(100),
+                            perMinute(100),
                             perMinute(100),
                             perMinute(100),
                             perMinute(100),

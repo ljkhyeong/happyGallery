@@ -3,17 +3,21 @@ package com.personal.happygallery.adapter.in.web.admin.dto;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 public record PaymentReconciliationRequiredResponse(
-        Long attemptId,
-        PaymentContext context,
-        long amount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long attemptId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) PaymentContext context,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long amount,
+        @Schema(
+                requiredMode = Schema.RequiredMode.REQUIRED,
+                allowableValues = "RECONCILIATION_REQUIRED")
         PaymentAttemptStatus status,
-        String reason,
-        OffsetDateTime createdAt
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String reason,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OffsetDateTime createdAt
 ) {
 
     public static PaymentReconciliationRequiredResponse from(PaymentAttempt attempt) {
@@ -24,6 +28,6 @@ public record PaymentReconciliationRequiredResponse(
                 attempt.getAmount(),
                 attempt.getStatus(),
                 attempt.getFailReason(),
-                createdAt == null ? null : createdAt.atOffset(ZoneOffset.UTC));
+                createdAt.atOffset(ZoneOffset.UTC));
     }
 }

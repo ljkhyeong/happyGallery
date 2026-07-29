@@ -7,6 +7,7 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -17,9 +18,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.task.ThreadPoolTaskExecutorBuilder;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.awaitility.Awaitility.await;
 
@@ -168,7 +171,7 @@ class ResilientNotificationSenderTest {
         }
     }
 
-    @DisplayName("알림톡·일반 SMS·인증 SMS는 서로 다른 제한 실행기와 지표를 사용한다")
+    @DisplayName("알림톡·SMS·휴대폰 및 이메일 인증은 서로 다른 제한 실행기와 지표를 사용한다")
     @Test
     void notificationChannels_useIsolatedExecutorsAndMetrics() {
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
@@ -182,9 +185,12 @@ class ResilientNotificationSenderTest {
                 properties, executorFactory));
         ThreadPoolTaskExecutor verification = register(config.phoneVerificationTimeoutExecutor(
                 properties, executorFactory));
+        ThreadPoolTaskExecutor emailVerification = register(
+                config.emailVerificationTimeoutExecutor(properties, executorFactory));
 
         assertSoftly(softly -> {
-            softly.assertThat(List.of(alimtalk, sms, verification)).doesNotHaveDuplicates();
+            softly.assertThat(List.of(alimtalk, sms, verification, emailVerification))
+                    .doesNotHaveDuplicates();
             softly.assertThat(meterRegistry.find("executor.queued")
                     .tag("name", "alimtalkNotificationTimeoutExecutor")
                     .gauge()).isNotNull();
@@ -194,13 +200,44 @@ class ResilientNotificationSenderTest {
             softly.assertThat(meterRegistry.find("executor.queued")
                     .tag("name", "phoneVerificationTimeoutExecutor")
                     .gauge()).isNotNull();
+            softly.assertThat(meterRegistry.find("executor.queued")
+                    .tag("name", "emailVerificationTimeoutExecutor")
+                    .gauge()).isNotNull();
             softly.assertThat(meterRegistry.find(
                     "happygallery.notification.alimtalk.executor.rejected").counter()).isNotNull();
             softly.assertThat(meterRegistry.find(
                     "happygallery.notification.sms.executor.rejected").counter()).isNotNull();
             softly.assertThat(meterRegistry.find(
                     "happygallery.notification.phone_verification.executor.rejected").counter()).isNotNull();
+            softly.assertThat(meterRegistry.find(
+                    "happygallery.notification.email_verification.executor.rejected").counter()).isNotNull();
         });
+    }
+
+    @DisplayName("이메일 인증 SMTP는 TLS와 transport보다 큰 외부 타임아웃을 강제한다")
+    @Test
+    void emailVerificationSmtp_requiresTlsAndTimeoutHierarchy() {
+        NotificationResilienceConfig config = new NotificationResilienceConfig();
+        EmailVerificationProperties properties = emailProperties(true, false, 7_000);
+
+        JavaMailSenderImpl mailSender =
+                (JavaMailSenderImpl) config.emailVerificationMailSender(properties);
+
+        assertSoftly(softly -> {
+            softly.assertThat(mailSender.getJavaMailProperties())
+                    .containsEntry("mail.smtp.starttls.required", "true")
+                    .containsEntry("mail.smtp.ssl.checkserveridentity", "true");
+            softly.assertThat(config.emailVerificationTimeLimiter(properties)
+                            .getTimeLimiterConfig()
+                            .getTimeoutDuration())
+                    .isEqualTo(Duration.ofMillis(7_000));
+        });
+        assertThatThrownBy(() ->
+                config.emailVerificationTimeLimiter(emailProperties(false, false, 7_000)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() ->
+                config.emailVerificationTimeLimiter(emailProperties(true, false, 5_000)))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private ResilientNotificationSender createSender(NotificationSender delegate,
@@ -239,7 +276,28 @@ class ResilientNotificationSenderTest {
                 threadPool,
                 threadPool,
                 threadPool,
+                threadPool,
                 circuitBreaker);
+    }
+
+    private static EmailVerificationProperties emailProperties(
+            boolean startTlsEnabled,
+            boolean sslEnabled,
+            long timeoutMillis
+    ) {
+        return new EmailVerificationProperties(
+                "smtp.example.com",
+                587,
+                "smtp-user",
+                "smtp-password",
+                "no-reply@example.com",
+                "이메일 인증번호",
+                timeoutMillis,
+                1_000,
+                2_000,
+                2_000,
+                startTlsEnabled,
+                sslEnabled);
     }
 
     private ThreadPoolTaskExecutor register(ThreadPoolTaskExecutor executor) {

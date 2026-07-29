@@ -2,6 +2,7 @@ package com.personal.happygallery.application.batch;
 
 import com.personal.happygallery.application.admin.AdminAuthHistoryRetentionService;
 import com.personal.happygallery.application.cart.CartMergeRequestRetentionService;
+import com.personal.happygallery.application.customer.EmailVerificationRetentionService;
 import com.personal.happygallery.application.customer.PhoneVerificationRetentionService;
 import com.personal.happygallery.application.media.ImageMediaRetentionService;
 import com.personal.happygallery.application.notification.NotificationRetentionService;
@@ -25,12 +26,14 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
     private static final Logger log =
             LoggerFactory.getLogger(DefaultPersonalDataRetentionBatchService.class);
     public static final Duration PHONE_VERIFICATION_RETENTION_AFTER_EXPIRY = Duration.ofDays(1);
+    public static final Duration EMAIL_VERIFICATION_RETENTION_AFTER_EXPIRY = Duration.ofDays(1);
     public static final Duration CART_MERGE_REQUEST_RETENTION = Duration.ofDays(7);
     public static final Duration NOTIFICATION_RETENTION = Duration.ofDays(180);
     public static final Duration ADMIN_AUTH_HISTORY_RETENTION = Duration.ofDays(180);
     private static final int PAGE_SIZE = 100;
     private static final String PAYMENT_ATTEMPT = "payment_attempt";
     private static final String PHONE_VERIFICATION = "phone_verification";
+    private static final String EMAIL_VERIFICATION = "email_verification";
     private static final String CART_MERGE_REQUEST = "cart_merge_request";
     private static final String IMAGE_MEDIA = "image_media";
     private static final String NOTIFICATION_LOG = "notification_log";
@@ -40,6 +43,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
     private final PaymentAttemptReaderPort attemptReader;
     private final PaymentAttemptSensitiveDataCleanupProcessor attemptCleanupProcessor;
     private final PhoneVerificationRetentionService verificationRetentionService;
+    private final EmailVerificationRetentionService emailVerificationRetentionService;
     private final CartMergeRequestRetentionService cartMergeRequestRetentionService;
     private final ImageMediaRetentionService imageMediaRetentionService;
     private final NotificationRetentionService notificationRetentionService;
@@ -51,6 +55,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
             PaymentAttemptReaderPort attemptReader,
             PaymentAttemptSensitiveDataCleanupProcessor attemptCleanupProcessor,
             PhoneVerificationRetentionService verificationRetentionService,
+            EmailVerificationRetentionService emailVerificationRetentionService,
             CartMergeRequestRetentionService cartMergeRequestRetentionService,
             ImageMediaRetentionService imageMediaRetentionService,
             NotificationRetentionService notificationRetentionService,
@@ -60,6 +65,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
         this.attemptReader = attemptReader;
         this.attemptCleanupProcessor = attemptCleanupProcessor;
         this.verificationRetentionService = verificationRetentionService;
+        this.emailVerificationRetentionService = emailVerificationRetentionService;
         this.cartMergeRequestRetentionService = cartMergeRequestRetentionService;
         this.imageMediaRetentionService = imageMediaRetentionService;
         this.notificationRetentionService = notificationRetentionService;
@@ -74,6 +80,8 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
         LocalDateTime paymentCutoff = LocalDateTime.ofInstant(
                 clock.instant().minus(guestTokenProperties.accessExpiry()), ZoneOffset.UTC);
         LocalDateTime verificationCutoff = now.minus(PHONE_VERIFICATION_RETENTION_AFTER_EXPIRY);
+        LocalDateTime emailVerificationCutoff =
+                now.minus(EMAIL_VERIFICATION_RETENTION_AFTER_EXPIRY);
         LocalDateTime cartMergeCutoff = now.minus(CART_MERGE_REQUEST_RETENTION);
         LocalDateTime notificationCutoff = now.minus(NOTIFICATION_RETENTION);
         LocalDateTime adminAuthHistoryCutoff = now.minus(ADMIN_AUTH_HISTORY_RETENTION);
@@ -83,6 +91,10 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
                 PHONE_VERIFICATION,
                 () -> verificationRetentionService.deleteBatchBefore(
                         verificationCutoff, PAGE_SIZE)));
+        result = result.merge(deleteInBatches(
+                EMAIL_VERIFICATION,
+                () -> emailVerificationRetentionService.deleteBatchBefore(
+                        emailVerificationCutoff, PAGE_SIZE)));
         result = result.merge(deleteInBatches(
                 CART_MERGE_REQUEST,
                 () -> cartMergeRequestRetentionService.deleteBatchBefore(

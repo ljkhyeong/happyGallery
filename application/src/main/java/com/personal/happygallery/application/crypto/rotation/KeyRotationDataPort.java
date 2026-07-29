@@ -40,6 +40,8 @@ public interface KeyRotationDataPort {
 
     int deletePhoneVerifications();
 
+    int deleteEmailVerifications();
+
     long countSocialAccountsWithoutProviderIdEnc();
 
     record UserEncryptedRow(long id, String emailEnc, String nameEnc, String phoneEnc)

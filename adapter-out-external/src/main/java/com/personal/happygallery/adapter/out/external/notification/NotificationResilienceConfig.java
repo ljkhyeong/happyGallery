@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.http.HttpPoolProperties;
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
+import com.personal.happygallery.application.customer.port.out.EmailVerificationSender;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -16,6 +17,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
@@ -55,7 +58,24 @@ class NotificationResilienceConfig {
     }
 
     @Bean
+    CircuitBreaker emailVerificationCircuitBreaker(NotificationResilienceProperties properties,
+                                                    CircuitBreakerRegistry circuitBreakerRegistry) {
+        return circuitBreakerRegistry.circuitBreaker(
+                "emailVerification",
+                circuitBreakerConfig(properties.circuitBreaker()));
+    }
+
+    @Bean
     TimeLimiter notificationTimeLimiter(NotificationResilienceProperties properties) {
+        return TimeLimiter.of(TimeLimiterConfig.custom()
+                .timeoutDuration(Duration.ofMillis(properties.timeoutMillis()))
+                .cancelRunningFuture(true)
+                .build());
+    }
+
+    @Bean
+    TimeLimiter emailVerificationTimeLimiter(EmailVerificationProperties properties) {
+        validateEmailVerificationTransport(properties);
         return TimeLimiter.of(TimeLimiterConfig.custom()
                 .timeoutDuration(Duration.ofMillis(properties.timeoutMillis()))
                 .cancelRunningFuture(true)
@@ -105,6 +125,20 @@ class NotificationResilienceConfig {
     }
 
     @Bean
+    ThreadPoolTaskExecutor emailVerificationTimeoutExecutor(
+            NotificationResilienceProperties properties,
+            BoundedExecutorFactory executorFactory
+    ) {
+        return createExecutor(
+                properties.emailVerificationThreadPool(),
+                executorFactory,
+                "email-verification-timeout-",
+                "emailVerificationTimeoutExecutor",
+                "happygallery.notification.email_verification.executor.rejected",
+                "Email verification timeout executor rejected task count");
+    }
+
+    @Bean
     @Order(1)
     NotificationSender kakaoNotificationSender(AlimtalkNotificationProperties props,
                                                @Qualifier("alimtalkRestClient") RestClient alimtalkRestClient,
@@ -151,6 +185,74 @@ class NotificationResilienceConfig {
                 notificationTimeLimiter,
                 timeoutExecutor,
                 resilience.timeoutMillis());
+    }
+
+    @Bean
+    EmailVerificationSender emailVerificationSender(
+            EmailVerificationProperties props,
+            @Qualifier("emailVerificationMailSender") JavaMailSender mailSender,
+            @Qualifier("emailVerificationCircuitBreaker") CircuitBreaker circuitBreaker,
+            @Qualifier("emailVerificationTimeLimiter") TimeLimiter timeLimiter,
+            @Qualifier("emailVerificationTimeoutExecutor") Executor timeoutExecutor
+    ) {
+        RealEmailVerificationSender raw = new RealEmailVerificationSender(mailSender, props);
+        return new ResilientEmailVerificationSender(
+                raw,
+                circuitBreaker,
+                timeLimiter,
+                timeoutExecutor,
+                props.timeoutMillis());
+    }
+
+    @Bean
+    JavaMailSender emailVerificationMailSender(EmailVerificationProperties props) {
+        validateEmailVerificationTransport(props);
+        Assert.hasText(props.host(), "이메일 인증 SMTP host는 필수입니다.");
+        Assert.hasText(props.username(), "이메일 인증 SMTP username은 필수입니다.");
+        Assert.hasText(props.password(), "이메일 인증 SMTP password는 필수입니다.");
+        Assert.hasText(props.from(), "이메일 인증 발신 주소는 필수입니다.");
+        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
+        mailSender.setHost(props.host());
+        mailSender.setPort(props.port());
+        mailSender.setUsername(props.username());
+        mailSender.setPassword(props.password());
+        mailSender.getJavaMailProperties().setProperty(
+                "mail.smtp.connectiontimeout",
+                String.valueOf(props.connectionTimeoutMillis()));
+        mailSender.getJavaMailProperties().setProperty(
+                "mail.smtp.timeout",
+                String.valueOf(props.readTimeoutMillis()));
+        mailSender.getJavaMailProperties().setProperty(
+                "mail.smtp.writetimeout",
+                String.valueOf(props.writeTimeoutMillis()));
+        mailSender.getJavaMailProperties().setProperty(
+                "mail.smtp.starttls.enable",
+                String.valueOf(props.startTlsEnabled()));
+        mailSender.getJavaMailProperties().setProperty(
+                "mail.smtp.starttls.required",
+                String.valueOf(props.startTlsEnabled()));
+        mailSender.getJavaMailProperties().setProperty(
+                "mail.smtp.ssl.enable",
+                String.valueOf(props.sslEnabled()));
+        mailSender.getJavaMailProperties().setProperty(
+                "mail.smtp.ssl.checkserveridentity",
+                "true");
+        mailSender.getJavaMailProperties().setProperty("mail.smtp.auth", "true");
+        return mailSender;
+    }
+
+    private static void validateEmailVerificationTransport(
+            EmailVerificationProperties properties
+    ) {
+        Assert.isTrue(
+                properties.startTlsEnabled() ^ properties.sslEnabled(),
+                "이메일 인증 SMTP는 STARTTLS 또는 SSL 중 하나만 활성화해야 합니다.");
+        long transportTimeoutMillis = (long) properties.connectionTimeoutMillis()
+                + properties.readTimeoutMillis()
+                + properties.writeTimeoutMillis();
+        Assert.isTrue(
+                properties.timeoutMillis() > transportTimeoutMillis,
+                "이메일 인증 외부 timeout은 SMTP transport timeout 합보다 커야 합니다.");
     }
 
     private static CircuitBreakerConfig circuitBreakerConfig(NotificationResilienceProperties.CircuitBreaker cb) {

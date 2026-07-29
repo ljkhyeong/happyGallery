@@ -73,7 +73,7 @@ export function FailedNotificationSection({ adminKey, onAuthError }: Props) {
                 disabled={pendingId === notification.outboxId}
                 onClick={() => retry.mutate(notification.outboxId)}
               >
-                {pendingId === notification.outboxId ? "..." : "재처리"}
+                {pendingId === notification.outboxId ? "처리 중..." : "재처리"}
               </Button>
             </td>
           </tr>

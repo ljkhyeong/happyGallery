@@ -109,6 +109,19 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
         }
     }
 
+    @Override
+    public User saveAndFlush(User user) {
+        protect(user);
+        try {
+            return restore(userRepository.saveAndFlush(user));
+        } catch (DataIntegrityViolationException exception) {
+            if (hasConstraint(exception, DUPLICATE_EMAIL_CONSTRAINT)) {
+                throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
+            }
+            throw exception;
+        }
+    }
+
     private void protect(User user) {
         String email = EmailAddress.optional(user.getEmail());
         String name = PersonalName.required(user.getName());

@@ -14,7 +14,7 @@
 - 상세 요청/응답 스니펫은 `./gradlew --no-daemon :adapter-in-web:restDocsTest`로 생성되는 Spring REST Docs 결과(`adapter-in-web/build/generated-snippets`)를 기준으로 검증한다.
 - 기계 판독 계약은 Controller/웹 DTO에서 생성하는 `openapi3.json`이다. 이 파일과 `frontend/src/generated/api`는 직접 편집하지 않는다.
 - 신규 또는 변경 API는 REST Docs 테스트와 이 문서를 갱신하고 `:adapter-in-web:openapi3`, `cd frontend && npm run api:generate`를 같은 변경에서 실행한다.
-- 전체 `/api/v1/**` OpenAPI를 생성하되, React 생성 client는 공개 상품·Q&A, 회원 소셜 계정·알림·예약 조회/변경/취소, 비회원 예약 조회/변경/취소, 고객 결제 상태·복구, 공방 정보, 관리자 대시보드·예약과 예약 취소 후속 작업, 주문 클레임, 정책 동의 API에 사용한다. 다른 API는 필수값·nullable·enum과 인증 헤더를 확인한 뒤 도메인 단위로 순차 전환한다.
+- 전체 `/api/v1/**` OpenAPI를 생성하고 React feature 계층에서 실제 호출하는 JSON·multipart API는 모두 생성 client를 사용한다. OAuth authorization URL로 브라우저가 직접 이동하거나 provider가 backend callback으로 돌아오는 흐름은 HTTP API wrapper가 아니므로 예외다.
 - 생성 client 대상 Controller는 Java 메서드명과 독립된 고유 `operationId`를 명시하고, nullable 객체 참조는 OpenAPI 3.1의 `oneOf`로 표현한다.
 
 ---
@@ -281,7 +281,7 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 - 휴대폰 인증과 비회원 결제 payload의 표준 전화번호 형식은 `^01[0-9]{8,9}$`이다.
 - 서버 로그에는 전화번호, 인증 코드, 결제 키, 관리자 세션 토큰과 외부 서비스 오류 원문을 남기지 않는다.
 - 모든 `/api/v1/**` 요청은 IP 기준 기본 처리율 제한을 적용하고, 인증·결제·검증처럼 비용이 큰 경로는 더 엄격한 독립 버킷을 사용한다.
-- 인증 코드 발송·회원가입 코드 시도, 고객 로그인, 결제 확정과 비회원 이력 인증은 검증된 전화번호·정규화 이메일·주문번호·회원 ID 기준 제한도 함께 적용한다.
+- 휴대폰·이메일 인증 코드 발송과 확인 시도, 고객 로그인, 결제 확정과 비회원 이력 인증은 검증 대상 전화번호·정규화 이메일·주문번호·회원 ID 기준 제한도 함께 적용한다.
 - Redis 처리율 제한 버킷은 IP, 전화번호, 이메일, 주문번호 또는 회원 ID 원문 대신 HMAC 식별자를 사용한다.
 - IP 식별자는 서버가 통제된 ingress 전달 헤더를 반영해 정규화한 `remoteAddr`만 사용한다.
   처리율 제한 코드가 `X-Forwarded-For`를 별도로 파싱하지 않는다.
@@ -1677,9 +1677,11 @@ Authorization: Bearer {token}
   {
     "bookingId": 1,
     "bookingNumber": "BK-00000001",
-    "bookerType": "GUEST",
-    "bookerName": "홍길동",
-    "bookerPhone": "010****5678",
+    "customerSummary": {
+      "type": "GUEST",
+      "name": "홍길동",
+      "phone": "010****5678"
+    },
     "className": "향수 클래스",
     "startAt": "2026-03-20T10:00:00",
     "endAt": "2026-03-20T12:00:00",
@@ -1699,10 +1701,10 @@ Authorization: Bearer {token}
 
 - 성공: `200 OK`
 - 정책:
-  - `bookerType`은 `GUEST` 또는 `MEMBER`로 구분한다.
+  - `customerSummary.type`은 `GUEST` 또는 `MEMBER`로 구분한다.
   - `source`는 `WEB`, `PHONE`, `NAVER_TALK`, `KAKAO`, `VISIT`이며 `participantCount`는 예약 인원이다.
   - 비회원 이력 가져오기(claim) 이후 `userId`가 설정된 예약은 `MEMBER`로 표시한다.
-  - 탈퇴 회원의 종결 예약도 `MEMBER` 이력으로 유지하며 익명화된 이름과 `bookerPhone=null`을 반환한다.
+  - 탈퇴 회원의 종결 예약도 `MEMBER` 이력으로 유지하며 익명화된 이름과 `customerSummary.phone=null`을 반환한다.
   - 선택 귀속 요청의 주문 ID와 예약 ID는 각각 최대 100건이며 모든 ID는 양수여야 한다.
   - User 정보는 탈퇴 회원을 포함하는 관리자 이력 전용 batch fetch
     (`UserReaderPort.findAllByIdForAdminHistory`)로 조합한다.
@@ -2152,7 +2154,7 @@ GET /api/v1/policies/current
 - 회원 로그인은 이메일/비밀번호(local)와 Google, Naver OAuth2를 함께 지원한다.
 - 소셜 계정은 `user_social_accounts`에 `(provider, provider_id_hmac)`로 저장한다. 한 회원은 Google과 Naver 계정을 각각 하나씩 연결할 수 있다.
 - Google은 `email_verified=true`인 이메일만 기준 이메일 후보로 수용한다. 처음 보는 Google provider ID의 검증 이메일이 기존 회원과 겹치면 자동 연결하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다.
-- Naver 프로필 이메일은 검증된 기준 이메일로 간주하지 않아 충돌 조회와 신규 회원 저장에 사용하지 않는다. 신규 Naver 회원은 provider ID와 이름으로 생성하며 기준 이메일은 `null`이다.
+- Naver 프로필 이메일은 검증된 기준 이메일로 간주하지 않아 충돌 조회와 신규 회원 저장에 사용하지 않는다. 신규 Naver 회원은 provider ID와 이름으로 생성하며 기준 이메일은 `null`이다. 이메일이 없는 로그인 회원은 2.12.0.5.2의 별도 메일함 소유 확인을 마친 뒤 기준 이메일을 한 번 등록할 수 있다.
 - 소셜 로그인으로 새로 생성된 회원은 `password_hash`가 비어 있을 수 있다.
 - 이메일 로그인은 존재하지 않는 계정과 로컬 비밀번호가 없는 소셜 전용 계정에도 고정 dummy BCrypt 해시를 한 번 비교하고 모두 `401 INVALID_CREDENTIALS`로 응답한다. 정규화 이메일별 시도는 10회/10분으로 제한하며 Redis 장애 시 fail-closed한다.
 - 회원·관리자 비밀번호 필드는 UTF-8 72바이트 이하로 제한한다. 문자 수가 72 이하여도 UTF-8 바이트 수가 이를 넘으면 `400 INVALID_INPUT`이다.
@@ -2411,6 +2413,54 @@ X-XSRF-TOKEN: {csrfToken}
   - 비밀번호 불일치는 회원 세션 만료가 아니므로 프런트가 자동 로그아웃하지 않는다.
   - IP와 회원 ID 제한은 Redis 장애 시 fail-closed한다.
 
+#### 2.12.0.5.2 기준 이메일 소유 확인과 최초 등록
+
+인증 코드 발송:
+
+```http
+POST /api/v1/me/email-verifications
+Cookie: HG_SESSION={sessionToken}
+X-XSRF-TOKEN: {csrfToken}
+Content-Type: application/json
+
+{
+  "email": "naver-member@example.com"
+}
+```
+
+인증한 이메일 등록:
+
+```http
+PATCH /api/v1/me/email
+Cookie: HG_SESSION={sessionToken}
+X-XSRF-TOKEN: {csrfToken}
+Content-Type: application/json
+
+{
+  "email": "naver-member@example.com",
+  "verificationCode": "483921"
+}
+```
+
+- 두 요청의 성공: `204 No Content`
+- 에러:
+  - `400 INVALID_INPUT` — 이메일 형식·254자 상한 또는 6자리 숫자 코드 형식 불일치
+  - `400 EMAIL_VERIFICATION_FAILED` — 발송 성공이 확인된 미소모·유효 코드가 아님
+  - `401 UNAUTHORIZED` — 회원 세션이 없거나 세션의 자격 버전이 현재 회원과 다름
+  - `403 REAUTHENTICATION_REQUIRED` — 최근 본인 확인이 없거나 만료됨
+  - `409 EMAIL_ALREADY_EXISTS` — 현재 회원에게 기준 이메일이 이미 있거나 다른 회원이 사용하는 이메일
+  - `429 TOO_MANY_REQUESTS` — IP, 회원 ID 또는 정규화 이메일별 발송·확인 시도 초과
+  - `503 SERVICE_UNAVAILABLE` — fail-closed 처리율 제한 저장소 장애, SMTP 호출 차단·대기열 포화·timeout 또는 발송 실패
+- 정책:
+  - 주 대상은 기준 이메일이 없는 Naver 전용 회원이지만, 계약은 로그인한 회원 중 `email=null`인 계정에 적용한다. Naver가 제공한 프로필 이메일을 자동 채우거나 같은 이메일의 기존 회원과 병합하지 않는다.
+  - 두 요청 모두 현재 회원 ID·`credential_version`에 결합된 최근 10분의 비밀번호 또는 연결된 소셜 계정 재인증과 SPA CSRF를 요구한다.
+  - 이메일은 앞뒤 공백을 제거하고 소문자로 통일한다. 6자리 코드는 5분 유효하며 회원 ID·자격 버전·정규화 이메일에 결합한다.
+  - 두 경로는 하나의 IP 버킷으로 합산해 5회/1분으로 제한한다. 발송은 회원 ID와 정규화 이메일별 각각 3회/10분, 등록 시도는 각각 5회/10분으로 제한하며 Redis 장애 시 fail-closed한다.
+  - 서버는 인증 행을 먼저 커밋하고 DB 트랜잭션 밖에서 전용 SMTP를 호출한다. 발송 성공이 기록된 같은 회원의 가장 최근 코드만 사용할 수 있고, 실패한 새 발송은 이전 정상 코드를 무효화하지 않는다. 일반 알림 outbox와 이메일 fallback은 사용하지 않으며 자동 재발송 대신 사용자가 다시 요청한다.
+  - DB에는 이메일·코드 HMAC과 보호된 행 복원 및 local/dev 조회에 필요한 코드 AES-GCM 암호문만 저장한다. 검증에 성공한 코드는 한 번 소비한다.
+  - 등록은 회원 행을 잠근 뒤 이메일 유일 제약을 `saveAndFlush`로 최종 확인한다. 성공하면 `credential_version`을 증가시키고 현재 요청 세션을 포함한 기존 회원 세션을 폐기해 새 이메일로 다시 로그인하게 한다.
+  - 이메일 등록만으로 로컬 비밀번호를 자동 생성하지 않는다. 검증된 휴대폰도 등록한 회원은 2.12.0.7의 SMS 비밀번호 재설정으로 최초 로컬 비밀번호를 설정할 수 있다.
+
 #### 2.12.0.6 로그인 비밀번호 변경
 
 ```http
@@ -2433,7 +2483,7 @@ Cookie: HG_SESSION={sessionToken}
 - 정책:
   - 현재 비밀번호는 `PasswordEncoder.matches(...)`로 확인하고 새 비밀번호는 BCrypt로 다시 해시한다. 두 값 모두 UTF-8 72바이트 이하여야 한다. 롤백 호환 기간에는 식별자 없는 형식과 `{bcrypt}` 형식을 모두 읽고 식별자 없는 형식으로 쓴다.
   - 성공하면 `credential_version`을 증가시키고 현재 요청을 포함한 모든 회원 세션을 무효화한다.
-  - 검증된 기준 이메일이 있는 소셜 전용 회원은 이 API 대신 2.12.0.7의 SMS 재설정으로 최초 로컬 비밀번호를 설정한다. 기준 이메일이 없는 Naver 전용 회원은 사용할 수 없다.
+  - 검증된 기준 이메일이 있는 소셜 전용 회원은 이 API 대신 2.12.0.7의 SMS 재설정으로 최초 로컬 비밀번호를 설정한다. 기준 이메일이 없는 회원은 먼저 2.12.0.5.2에서 이메일을 등록한다.
 
 #### 2.12.0.7 검증된 휴대폰으로 비밀번호 재설정
 
@@ -2459,7 +2509,7 @@ POST /api/v1/auth/password/reset
   - 검증된 기준 이메일이 저장된 회원만 사용할 수 있다. 이메일과 회원에게 저장된 `phoneVerified=true` 전화번호가 일치하고, `purpose=PASSWORD_RESET`으로 발급한 같은 번호의 미소모·유효 SMS 코드를 한 번 소비해야 한다.
   - 새 비밀번호는 8~72자이면서 UTF-8 72바이트 이하다.
   - 계정·전화번호·인증코드 중 어느 값이 틀렸는지는 `PASSWORD_RESET_FAILED` 하나로 응답해 계정 존재 여부를 구분하지 못하게 한다.
-  - `password_hash=null`이면서 기준 이메일이 있는 Google 소셜 전용 회원도 성공할 수 있으며, 성공 후 이메일 로그인이 활성화된다. 신규 Naver 전용 회원은 자체 이메일 검증·등록 기능이 도입되기 전까지 이 경로를 사용할 수 없다.
+  - `password_hash=null`인 Google 소셜 전용 회원과 2.12.0.5.2에서 기준 이메일을 직접 등록한 Naver 소셜 전용 회원도 성공할 수 있으며, 성공 후 이메일 로그인이 활성화된다.
   - 성공하면 `credential_version`을 증가시키고 해당 회원의 모든 세션을 무효화한다.
 
 #### 2.12.0.8 회원 탈퇴
@@ -3085,9 +3135,9 @@ Content-Type: application/json
   - 클라이언트가 보내는 `path`, `source`, `target` 원문은 로그에 남기지 않는다. 로그와 메트릭에는 서버가 정의한 `event`, 인증 여부와 내부 ID만 사용한다.
   - 모니터링 실패는 사용자 핵심 플로우를 막지 않는 best-effort 성격으로 다룬다.
 
-### 2.17 local 전용 Dev API
+### 2.17 local/dev 전용 Dev API
 
-`local` 프로필에서만 등록되는 관리자 dev API다. 운영 프로필에서는 빈이 등록되지 않는다.
+인증 코드 조회는 `local`, `dev`, 환불 실패 재현은 `local` 프로필에서만 등록되는 관리자 dev API다. 운영 프로필에서는 빈이 등록되지 않는다.
 
 #### 2.17.1 환불 실패 재현 훅
 
@@ -3100,6 +3150,24 @@ Content-Type: application/json
 정책:
 - 관리자 Bearer 인증을 통과해야 한다.
 - 다음 PG 환불 1건만 실패시키고, 실패 사유는 재시도 검증에 사용한다.
+
+#### 2.17.2 최근 이메일 인증 코드 조회
+
+```http
+GET /api/v1/admin/dev/email-verifications/latest?userId=7&email=naver-member@example.com
+Authorization: Bearer {token}
+```
+
+```json
+{ "code": "483921" }
+```
+
+- 성공: `200 OK`
+- 발송 성공이 기록된 미소모 코드가 없음: `404 Not Found`
+- 정책:
+  - `local`, `dev` 프로필에서만 등록되며 운영에는 노출하지 않는다. 관리자 Bearer 또는 해당 환경에서 명시적으로 활성화한 local API key 인증을 요구한다.
+  - 회원 ID와 정규화 이메일이 모두 일치하는 가장 최근 코드를 반환한다.
+  - 가짜 발송기는 이메일·코드 원문을 로그에 남기지 않는다.
 
 ### 2.18 비회원 조회 정보 복구
 
@@ -3217,6 +3285,7 @@ file={JPEG|PNG|WebP binary}
 |------|----------|----------|
 | 400 | `INVALID_INPUT` | 요청 바디/파라미터 검증 실패 또는 요청 JSON 형식 오류 |
 | 400 | `PHONE_VERIFICATION_FAILED` | 인증 코드 불일치 또는 만료 |
+| 400 | `EMAIL_VERIFICATION_FAILED` | 이메일 인증 코드가 불일치·만료·미발송 상태이거나 이미 사용됨 |
 | 400 | `PASSWORD_RESET_FAILED` | 비밀번호 재설정의 계정·전화번호·인증코드 확인 실패 |
 | 401 | `UNAUTHORIZED` | 보호된 API에 유효한 관리자 또는 회원 인증 없이 접근 |
 | 401 | `INVALID_CREDENTIALS` | 로그인 자격 증명 또는 현재 비밀번호 불일치 |
@@ -3236,6 +3305,7 @@ file={JPEG|PNG|WebP binary}
 | 409 | `CONFLICT` | 주문 승인/픽업/배치 등 비예약 운영 액션의 충돌 |
 | 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
 | 409 | `PHONE_ALREADY_IN_USE` | 회원가입 또는 휴대폰 변경 번호를 다른 회원이 이미 사용 중 |
+| 409 | `EMAIL_ALREADY_EXISTS` | 회원가입·기준 이메일 등록 주소 중복 또는 최초 관리자 username 중복 |
 | 410 | `PAYMENT_ATTEMPT_EXPIRED` | 결제 준비 후 30분 안에 confirm을 시작하지 않음 |
 | 410 | `PAYMENT_RESULT_RETENTION_EXPIRED` | 최종 결제 결과의 30일 재조회 보존 기간이 지남 |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | 요청 본문의 미디어 타입을 처리할 수 없음 |
@@ -3255,7 +3325,7 @@ file={JPEG|PNG|WebP binary}
 | 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 최종 거절 |
 | 503 | `PAYMENT_CONFIRM_RETRYABLE` | PG 결제 확정 결과를 같은 결제 정보로 재확인할 수 있는 일시 실패 |
-| 503 | `SERVICE_UNAVAILABLE` | fail-closed 처리율 제한 저장소 장애 또는 인증 SMS 등 필수 외부 작업을 시작·완료할 수 없음 |
+| 503 | `SERVICE_UNAVAILABLE` | fail-closed 처리율 제한 저장소 장애 또는 인증 SMS·이메일 SMTP 등 필수 외부 작업을 시작·완료할 수 없음 |
 
 Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는 위 `ErrorResponse` 형식으로
 본문을 바꿔도 보존한다. 이름과 업무 의미를 아는 DB 유일 제약만 해당 400/409 코드로 번역하며,

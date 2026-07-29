@@ -50,7 +50,8 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
         int fulfillments = rotateFulfillments();
         int socialAccounts = rotateSocialAccounts();
         int adminMfaSecrets = rotateAdminMfaSecrets();
-        int deletedVerifications = dataPort.deletePhoneVerifications();
+        int deletedPhoneVerifications = dataPort.deletePhoneVerifications();
+        int deletedEmailVerifications = dataPort.deleteEmailVerifications();
         long pendingSocialAccounts = dataPort.countSocialAccountsWithoutProviderIdEnc();
         long pendingAdminMfaSecrets =
                 dataPort.countAdminTotpSecretsNotWithKeyId(fieldEncryptor.activeKeyId());
@@ -59,7 +60,8 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
                     "구 키로 암호화된 관리자 MFA 비밀키가 남아 있습니다: " + pendingAdminMfaSecrets);
         }
         return new RotationResult(users, guests, bookings, paymentAttempts, fulfillments,
-                socialAccounts, adminMfaSecrets, deletedVerifications,
+                socialAccounts, adminMfaSecrets,
+                deletedPhoneVerifications, deletedEmailVerifications,
                 pendingSocialAccounts, pendingAdminMfaSecrets);
     }
 
