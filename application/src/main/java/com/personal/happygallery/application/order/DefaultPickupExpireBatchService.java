@@ -7,7 +7,6 @@ import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.domain.order.Fulfillment;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
@@ -51,7 +50,7 @@ public class DefaultPickupExpireBatchService implements PickupExpireBatchUseCase
 
         return BatchExecutor.executeByIdCursor(
                 afterId -> fulfillmentPort.findExpiredPickupsAfterId(
-                        now, afterId, PageRequest.ofSize(PAGE_SIZE)),
+                        now, afterId, PAGE_SIZE),
                 Fulfillment::getId,
                 f -> pickupExpireProcessor.process(f.getOrderId(), now),
                 "픽업 만료");

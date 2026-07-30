@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -21,15 +22,20 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>,
     @Override List<Fulfillment> findByOrderIdIn(Collection<Long> orderIds);
 
     /** 픽업 만료 배치 페이지네이션 조회 */
-    @Override
     @Query("SELECT f FROM Fulfillment f JOIN Order o ON f.orderId = o.id "
             + "WHERE o.status = 'PICKUP_READY' "
             + "AND f.pickupDeadlineAt < :now "
             + "AND f.id > :afterId "
             + "ORDER BY f.id ASC")
-    List<Fulfillment> findExpiredPickupsAfterId(@Param("now") LocalDateTime now,
-                                                @Param("afterId") Long afterId,
-                                                Pageable pageable);
+    List<Fulfillment> findExpiredPickupsAfterIdPage(@Param("now") LocalDateTime now,
+                                                    @Param("afterId") Long afterId,
+                                                    Pageable pageable);
+
+    @Override
+    default List<Fulfillment> findExpiredPickupsAfterId(
+            LocalDateTime now, Long afterId, int limit) {
+        return findExpiredPickupsAfterIdPage(now, afterId, PageRequest.ofSize(limit));
+    }
 
     /** 픽업 마감 임박 알림 대상과 주문 수신자를 한 번에 조회한다. */
     @Override

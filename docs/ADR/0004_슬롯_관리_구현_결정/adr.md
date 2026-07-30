@@ -18,31 +18,35 @@
 
 ---
 
-## Decision 1: `application` 모듈은 필요한 Spring 데이터 타입만 직접 선언
+## Decision 1: `application` 조회 port는 영속성 pagination 타입을 노출하지 않는다
 
 ### 배경
 `application` 모듈에서 `@Transactional`을 사용하려면 `spring-tx`가 필요하다.
-또한 일부 outbound port는 `Pageable`을 공개 시그니처로 사용한다.
-`adapter-out-persistence` 모듈의 JPA 스타터는 영속성 구현 세부이므로 `application`이 그 전이에 기대지 않는다.
+과거 일부 outbound port는 `Pageable`을 공개 시그니처로 사용해 application service가
+`PageRequest`를 만들었지만, 조회 의도가 이미 메서드 이름과 커서·제한 수로 고정된 경계에
+Spring Data pagination 타입을 노출할 이유는 없다.
 
 ### 결정
-`application/build.gradle`에는 필요한 컴파일 타입만 직접 추가한다.
+`application` 조회 port는 `limit`과 필요한 커서·필터만 받는다.
+Spring Data repository 또는 persistence adapter가 이 값을 `PageRequest`로 변환한다.
 
-- `spring-tx`, `spring-orm`: 트랜잭션과 낙관 락 예외 처리 구현에 필요한 `implementation`
-- `spring-data-commons`: port 공개 시그니처의 `Pageable` 때문에 `api`
-- JPA 스타터: `adapter-out-persistence` 구현 의존성으로 유지
+- `spring-tx`, `spring-orm`: 트랜잭션과 낙관 락 예외 처리 구현에 필요한 `implementation`으로 유지
+- `spring-data-commons`: application 공개 API에서 제거
+- JPA 스타터와 `PageRequest` 생성: `adapter-out-persistence` 구현 책임으로 유지
 
 ### 대안
-- `adapter-out-persistence/build.gradle`에서 JPA 스타터를 `api` 스코프로 변경 → 전이 가능하나, JPA 구현 세부를 `application`에 노출한다.
-- `spring-boot-starter-data-jpa`를 `application`에 직접 선언 → 필요한 범위보다 큰 JPA 구현 의존성을 애플리케이션 경계에 둔다.
+- port에서 `Pageable` 유지 → adapter 코드는 짧지만 application 경계가 Spring Data에 결합된다.
+- 별도 범용 pagination value object 추가 → 현재 조회는 정렬과 방향이 메서드 의도로 고정돼 있어 불필요한 추상화다.
 
 ### 트레이드오프 / 위험
-- `application` port가 `Pageable`에 묶여 있어 Spring Data Commons는 공개 API로 남는다.
+- 새로운 조회가 임의 정렬이나 양방향 페이지 이동을 실제로 요구하면 application 의미에 맞는
+  요청 모델을 별도로 설계한다. persistence의 `Pageable` 자체를 다시 노출하지 않는다.
 - JPA 관련 설정(`spring.jpa.*`)은 `bootstrap` 모듈의 `application.yml`에서 관리한다.
 
 ### 업데이트
 
 - 2026-06-22: `java-library`를 적용하고, 공개 API에 드러나는 의존성은 `api`, 구현 전용 의존성은 `implementation`으로 정리했다.
+- 2026-07-30: 고정 의도 조회 port를 `limit`·커서 기반으로 바꾸고 Spring Data pagination 타입을 persistence adapter 내부로 이동했다.
 
 ---
 

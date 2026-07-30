@@ -2,10 +2,9 @@ package com.personal.happygallery.application.payment.port.in;
 
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.application.policy.PolicyAcceptance;
+import com.personal.happygallery.domain.order.FulfillmentPolicy;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.util.List;
 
 /**
@@ -46,7 +45,7 @@ public sealed interface PaymentPayload {
     ) implements PaymentPayload {
 
         public OrderPayload {
-            requireFulfillment(fulfillmentType, shippingAddress);
+            FulfillmentPolicy.requireValid(fulfillmentType, shippingAddress);
         }
 
         public OrderPayload(Long userId,
@@ -136,17 +135,4 @@ public sealed interface PaymentPayload {
 
     /** 8회권 구매 payload. 회원 전용 — userId 필수. */
     record PassPayload(Long userId) implements PaymentPayload {}
-
-    private static void requireFulfillment(
-            FulfillmentType fulfillmentType, ShippingAddress shippingAddress) {
-        if (fulfillmentType == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수령 방법을 선택해 주세요.");
-        }
-        if (fulfillmentType == FulfillmentType.SHIPPING && shippingAddress == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "배송지는 필수입니다.");
-        }
-        if (fulfillmentType == FulfillmentType.PICKUP && shippingAddress != null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "픽업 주문에는 배송지를 입력할 수 없습니다.");
-        }
-    }
 }

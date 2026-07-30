@@ -8,7 +8,6 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
@@ -52,7 +51,7 @@ public class DefaultOrderAutoRefundBatchService implements OrderAutoRefundBatchU
 
         return BatchExecutor.executeByIdCursor(
                 afterId -> orderReader.findPaidApprovalPendingBeforeAfterId(
-                        now, afterId, PageRequest.ofSize(PAGE_SIZE)),
+                        now, afterId, PAGE_SIZE),
                 Order::getId,
                 order -> orderAutoRefundProcessor.process(order.getId(), now),
                 "주문 자동환불");

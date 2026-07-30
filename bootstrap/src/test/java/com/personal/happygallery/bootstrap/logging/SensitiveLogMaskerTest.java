@@ -10,7 +10,7 @@ import java.io.StringWriter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-class MaskingPatternLayoutTest {
+class SensitiveLogMaskerTest {
 
     private static final String SIGNED_ACCESS_TOKEN =
             "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY6MTc3NzU5MzYwMA."
@@ -18,12 +18,12 @@ class MaskingPatternLayoutTest {
 
     @DisplayName("실제 Base64URL 서명 접근 토큰은 헤더 구분자와 JSON 따옴표를 보존해 마스킹한다")
     @Test
-    void maskSensitive_signedAccessToken_preservesLogStructure() {
+    void mask_signedAccessToken_preservesLogStructure() {
         String message = """
                 headers={"X-Access-Token":"%s"} X-Access-Token: %s trace.id=value.with.dot
                 """.formatted(SIGNED_ACCESS_TOKEN, SIGNED_ACCESS_TOKEN);
 
-        String masked = MaskingPatternLayout.maskSensitive(message);
+        String masked = SensitiveLogMasker.mask(message);
 
         assertThat(masked)
                 .doesNotContain(SIGNED_ACCESS_TOKEN)

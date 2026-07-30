@@ -16,6 +16,6 @@ public class MaskingStackTraceJsonProvider extends StackTraceJsonProvider {
         }
         String stackTrace = getThrowableConverter().convert(event);
         JsonWritingUtils.writeStringField(
-                generator, getFieldName(), MaskingPatternLayout.maskSensitive(stackTrace));
+                generator, getFieldName(), SensitiveLogMasker.mask(stackTrace));
     }
 }

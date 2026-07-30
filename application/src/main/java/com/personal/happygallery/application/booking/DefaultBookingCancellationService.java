@@ -51,7 +51,9 @@ class DefaultBookingCancellationService implements BookingCancellationService {
                 .map(booking -> booking.getSlot().getId())
                 .toList());
 
-        futureBookings.forEach(booking -> cancelOne(booking, passId));
+        for (Booking booking : futureBookings) {
+            cancelOne(booking, passId);
+        }
 
         return futureBookings.size();
     }

@@ -33,7 +33,6 @@ tasks.withType(Test).configureEach {
 dependencies {
 	api project(":domain")
 	api 'com.fasterxml.jackson.core:jackson-annotations'
-	api 'org.springframework.data:spring-data-commons'
 
 	implementation 'org.springframework.boot:spring-boot-starter'
 	implementation 'org.springframework.boot:spring-boot-starter-json'

@@ -6,6 +6,8 @@ import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.Product;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -111,12 +113,15 @@ public class InventoryService {
         if (inventories.size() != quantitiesByProductId.size()) {
             throw new NotFoundException("재고");
         }
-        inventories.forEach(inventory ->
-                update.accept(inventory, quantitiesByProductId.get(inventory.getProductId())));
+        for (Inventory inventory : inventories) {
+            update.accept(inventory, quantitiesByProductId.get(inventory.getProductId()));
+        }
 
-        return inventories.stream()
-                .map(inventoryStorePort::save)
-                .toList();
+        List<Inventory> savedInventories = new ArrayList<>(inventories.size());
+        for (Inventory inventory : inventories) {
+            savedInventories.add(inventoryStorePort.save(inventory));
+        }
+        return Collections.unmodifiableList(savedInventories);
     }
 
     public record InventoryAdjustment(Long productId, int qty) {}

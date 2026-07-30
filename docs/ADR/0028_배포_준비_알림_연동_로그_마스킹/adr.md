@@ -50,7 +50,7 @@
 - `MaskingPatternLayout` (extends `PatternLayout`): text 프로필(`!prod`)에서 `LayoutWrappingEncoder`로 사용.
 - `MaskingMessageJsonProvider` (extends `AbstractFieldJsonProvider`): prod JSON 프로필에서 `LoggingEventCompositeJsonEncoder`의 message provider로 사용.
 - `MaskingStackTraceJsonProvider` (extends `StackTraceJsonProvider`): prod JSON의 `stack_trace`도 동일한 마스킹 함수를 통과시키며 기존 필드명과 줄바꿈 구조를 유지한다.
-- 양쪽 모두 `MaskingPatternLayout.maskSensitive()` 정적 메서드를 공유해 마스킹 로직을 단일화.
+- 세 Logback adapter는 package-private `SensitiveLogMasker`를 공유한다. 정규식과 치환 순서는 이 클래스가 소유하고 layout/provider는 출력 형식 연결만 담당한다.
 - 마스킹 대상:
   - 전화번호: `01x-xxxx-xxxx` → `01x-****-****`
   - Bearer 토큰: `Bearer xxx` → `Bearer ***`

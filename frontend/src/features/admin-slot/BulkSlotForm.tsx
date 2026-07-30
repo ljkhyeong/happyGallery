@@ -37,7 +37,7 @@ export function BulkSlotForm({ adminKey, onAuthError }: Props) {
   const [classId, setClassId] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [weekdays, setWeekdays] = useState<string[]>([]);
+  const [weekdays, setWeekdays] = useState<BulkSlotRequest["weekdays"]>([]);
   const [startTimes, setStartTimes] = useState(["10:00"]);
   const [result, setResult] = useState<BulkSlotResponse | null>(null);
 

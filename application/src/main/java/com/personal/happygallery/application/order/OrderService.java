@@ -13,6 +13,7 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.order.FulfillmentPolicy;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.order.ShippingAddress;
@@ -178,17 +179,18 @@ public class OrderService {
         inventoryService.deductAll(items.stream()
                 .map(item -> new InventoryAdjustment(item.productId(), item.qty()))
                 .toList());
-        items.forEach(item -> orderItemPort.save(
-                new OrderItem(
-                        order,
-                        item.productId(),
-                        item.productName(),
-                        item.productType(),
-                        item.qty(),
-                        item.unitPrice(),
-                        item.specification(),
-                        item.careInstructions(),
-                        item.productionLeadDays())));
+        for (OrderItemRequest item : items) {
+            orderItemPort.save(new OrderItem(
+                    order,
+                    item.productId(),
+                    item.productName(),
+                    item.productType(),
+                    item.qty(),
+                    item.unitPrice(),
+                    item.specification(),
+                    item.careInstructions(),
+                    item.productionLeadDays()));
+        }
     }
 
     private static long totalAmount(List<OrderItemRequest> items, long shippingFee) {
@@ -208,9 +210,7 @@ public class OrderService {
     private void saveFulfillment(Order order,
                                  FulfillmentType fulfillmentType,
                                  ShippingAddress shippingAddress) {
-        if (fulfillmentType == null) {
-            throw new IllegalArgumentException("fulfillmentType must not be null");
-        }
+        FulfillmentPolicy.requireValid(fulfillmentType, shippingAddress);
         Fulfillment fulfillment = switch (fulfillmentType) {
             case PICKUP -> Fulfillment.pickup(order.getId());
             case SHIPPING -> Fulfillment.shipping(

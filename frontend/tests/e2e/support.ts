@@ -3,7 +3,30 @@ import type {
   AdminBookingResponse,
   ListBookingsStatus,
 } from "../../src/generated/api/adminBooking";
-import type { SendVerificationRequestPurpose } from "../../src/generated/api/booking";
+import type {
+  BookingDetailResponse,
+  ClassResponse,
+  MyBookingDetail,
+  SendVerificationRequestPurpose,
+} from "../../src/generated/api/booking";
+import type {
+  CreateProductRequest,
+  CreateSlotRequest,
+  ProductResponse,
+  SlotResponse,
+} from "../../src/generated/api/adminCatalog";
+import type { LoginRequest, LoginResponse } from "../../src/generated/api/adminAuth";
+import type {
+  AdminOrderListItemResponse,
+  AdminOrderPageResponse,
+  ListOrdersStatus,
+} from "../../src/generated/api/adminOrder";
+import type {
+  FailedRefundPageResponse,
+  FailedRefundResponse,
+} from "../../src/generated/api/adminOperations";
+import type { SignupRequest } from "../../src/generated/api/customerAuth";
+import type { CurrentPolicyConsentResponse } from "../../src/generated/api/policyConsent";
 
 const ADMIN_KEY = process.env.PLAYWRIGHT_ADMIN_KEY ?? "dev-admin-key";
 const ADMIN_USERNAME = process.env.PLAYWRIGHT_ADMIN_USERNAME ?? "admin";
@@ -17,80 +40,24 @@ const FRONTEND_ORIGIN = "http://127.0.0.1:3000";
 
 let cachedAdminToken: string | null = null;
 
-export interface BookingClass {
-  id: number;
-  name: string;
-  category: string;
-  durationMin: number;
-  passEligible: boolean;
-}
+export type CustomerFixtureCredentials = Pick<
+  SignupRequest,
+  "email" | "password" | "name" | "phone"
+>;
 
-export interface AdminProduct {
-  id: number;
-  name: string;
-  type: string;
-  price: number;
-  quantity: number;
-  available: boolean;
-}
+type CustomerFixtureOverrides = Partial<CustomerFixtureCredentials>;
 
-export interface AdminSlot {
-  id: number;
-  classId: number;
-  startAt: string;
-  endAt: string;
-  capacity: number;
-  bookedCount: number;
-  isActive: boolean;
-}
+type AdminProductFixtureInput = Pick<
+  CreateProductRequest,
+  "name" | "price" | "quantity"
+> & Partial<Pick<CreateProductRequest, "type">>;
 
-export type AdminBooking = AdminBookingResponse;
+type AdminSlotFixtureInput = Pick<CreateSlotRequest, "classId"> & {
+  startAt: Date;
+};
 
-interface BookingSlotRef {
-  slotId: number;
-}
-
-export interface AdminOrder {
-  orderId: number;
-  orderNumber: string;
-  status: string;
-  totalAmount: number;
-  paidAt: string | null;
-  approvalDeadlineAt: string | null;
-  createdAt: string;
-}
-
-export interface AdminFailedRefund {
-  refundId: number;
-  bookingId: number | null;
-  orderId: number | null;
-  passPurchaseId: number | null;
-  paymentAttemptId: number | null;
-  amount: number;
-  status: "FAILED" | "RETRYABLE" | "RECONCILIATION_REQUIRED";
-  attemptCount: number;
-  failReason: string;
-  createdAt: string;
-}
-
-interface CursorPage<T> {
-  content: T[];
-  nextCursor: string | null;
-  hasMore: boolean;
-}
-
-export interface CustomerCredentials {
-  email: string;
-  password: string;
-  name: string;
-  phone: string;
-}
-
-interface SignupOverrides {
-  email?: string;
-  password?: string;
-  name?: string;
-  phone?: string;
+interface DevVerificationCodeFixtureResponse {
+  code: string;
 }
 
 interface ApiOptions {
@@ -98,17 +65,17 @@ interface ApiOptions {
   query?: Record<string, number | string | undefined>;
 }
 
-interface TossPaymentRequest {
+interface TossPaymentStubRequest {
   amount: { value: number };
   orderId: string;
   successUrl: string;
 }
 
-interface BrowserGlobalWithToss {
+interface BrowserGlobalWithTossStub {
   location: { assign(url: string): void };
   TossPayments?: (clientKey: string) => {
     payment(opts: { customerKey: string }): {
-      requestPayment(opts: TossPaymentRequest): Promise<void>;
+      requestPayment(opts: TossPaymentStubRequest): Promise<void>;
     };
   };
 }
@@ -196,10 +163,10 @@ export function extractAccessToken(text: string): string {
 
 export async function installTossPaymentStub(page: Page) {
   const install = () => {
-    const browserGlobal = globalThis as unknown as BrowserGlobalWithToss;
+    const browserGlobal = globalThis as unknown as BrowserGlobalWithTossStub;
     browserGlobal.TossPayments = () => ({
       payment: () => ({
-        requestPayment: async (opts: TossPaymentRequest) => {
+        requestPayment: async (opts: TossPaymentStubRequest) => {
           const separator = opts.successUrl.includes("?") ? "&" : "?";
           const url = `${opts.successUrl}${separator}paymentKey=e2e-${encodeURIComponent(opts.orderId)}&orderId=${encodeURIComponent(opts.orderId)}&amount=${opts.amount.value}`;
           browserGlobal.location.assign(url);
@@ -223,11 +190,18 @@ export async function readRouterState<T>(page: Page): Promise<T | null> {
 
 export async function loginAdmin(page: Page) {
   if (!cachedAdminToken) {
+    const request: LoginRequest = {
+      username: ADMIN_USERNAME,
+      password: ADMIN_PASSWORD,
+    };
     const response = await page.request.post(`${BACKEND_BASE_URL}/admin/auth/login`, {
-      data: { username: ADMIN_USERNAME, password: ADMIN_PASSWORD },
+      data: request,
     });
     expect(response.ok(), "Admin login API should succeed").toBeTruthy();
-    const body = (await response.json()) as { token: string };
+    const body = (await response.json()) as LoginResponse;
+    if (!body.token) {
+      throw new Error("Admin login response did not include a token");
+    }
     cachedAdminToken = body.token;
   }
 
@@ -256,17 +230,17 @@ async function fetchVerificationCode(
     { headers: { "X-Admin-Key": ADMIN_KEY } },
   );
   expect(res.ok(), "Dev phone-verification lookup should succeed").toBeTruthy();
-  const body = (await res.json()) as { code: string };
+  const body = (await res.json()) as DevVerificationCodeFixtureResponse;
   return body.code;
 }
 
 export async function signupCustomer(
   page: Page,
   prefix: string,
-  overrides: SignupOverrides = {},
-): Promise<CustomerCredentials> {
+  overrides: CustomerFixtureOverrides = {},
+): Promise<CustomerFixtureCredentials> {
   const label = makeUniqueLabel(prefix);
-  const credentials: CustomerCredentials = {
+  const credentials: CustomerFixtureCredentials = {
     email: overrides.email ?? makeEmail(label),
     password: overrides.password ?? "password123",
     name: overrides.name ?? label,
@@ -285,21 +259,19 @@ export async function signupCustomer(
   const verificationCode = await fetchVerificationCode(page, credentials.phone, "SIGNUP");
   const policyResponse = await page.request.get(`${BACKEND_BASE_URL}/policies/current`);
   expect(policyResponse.ok(), "Current policy API should succeed").toBeTruthy();
-  const policy = (await policyResponse.json()) as {
-    terms: { version: string };
-    privacy: { version: string };
+  const policy = (await policyResponse.json()) as CurrentPolicyConsentResponse;
+  const signupRequest: SignupRequest = {
+    ...credentials,
+    verificationCode,
+    policyAcceptance: {
+      termsVersion: policy.terms.version,
+      termsAccepted: true,
+      privacyVersion: policy.privacy.version,
+      privacyAccepted: true,
+    },
   };
   const response = await page.request.post(`${BACKEND_BASE_URL}/auth/signup`, {
-    data: {
-      ...credentials,
-      verificationCode,
-      policyAcceptance: {
-        termsVersion: policy.terms.version,
-        termsAccepted: true,
-        privacyVersion: policy.privacy.version,
-        privacyAccepted: true,
-      },
-    },
+    data: signupRequest,
     headers: csrfHeaders,
   });
   expect(response.ok(), "Customer signup API should succeed").toBeTruthy();
@@ -309,7 +281,7 @@ export async function signupCustomer(
   return credentials;
 }
 
-export async function loginCustomer(page: Page, credentials: CustomerCredentials) {
+export async function loginCustomer(page: Page, credentials: CustomerFixtureCredentials) {
   const csrfHeaders = await issueCustomerCsrfHeaders(page);
   const response = await page.request.post(`${BACKEND_BASE_URL}/auth/login`, {
     data: { email: credentials.email, password: credentials.password },
@@ -453,40 +425,40 @@ export async function apiDelete(
   expect(response.ok(), `DELETE ${url} should succeed`).toBeTruthy();
 }
 
-export async function fetchClasses(request: APIRequestContext): Promise<BookingClass[]> {
-  return apiGet<BookingClass[]>(request, "/classes");
+export async function fetchClasses(request: APIRequestContext): Promise<ClassResponse[]> {
+  return apiGet<ClassResponse[]>(request, "/classes");
 }
 
 export async function fetchGuestBookingSlot(
   request: APIRequestContext,
   bookingId: number,
   token: string,
-): Promise<BookingSlotRef> {
+): Promise<Pick<BookingDetailResponse, "slotId">> {
   const response = await request.get(`${BACKEND_BASE_URL}/bookings/${bookingId}`, {
     headers: { "X-Access-Token": token },
   });
   expect(response.ok(), "Guest booking lookup API should succeed").toBeTruthy();
-  return (await response.json()) as BookingSlotRef;
+  return (await response.json()) as Pick<BookingDetailResponse, "slotId">;
 }
 
 export async function fetchMyBookingSlot(
   page: Page,
   bookingId: number,
-): Promise<BookingSlotRef> {
+): Promise<Pick<MyBookingDetail, "slotId">> {
   const response = await page.request.get(`${BACKEND_BASE_URL}/me/bookings/${bookingId}`);
   expect(response.ok(), "Member booking lookup API should succeed").toBeTruthy();
-  return (await response.json()) as BookingSlotRef;
+  return (await response.json()) as Pick<MyBookingDetail, "slotId">;
 }
 
-export async function fetchAdminProducts(request: APIRequestContext): Promise<AdminProduct[]> {
-  return apiGet<AdminProduct[]>(request, "/admin/products", { admin: true });
+export async function fetchAdminProducts(request: APIRequestContext): Promise<ProductResponse[]> {
+  return apiGet<ProductResponse[]>(request, "/admin/products", { admin: true });
 }
 
 export async function createAdminProduct(
   request: APIRequestContext,
-  body: { name: string; type?: string; price: number; quantity: number },
-): Promise<AdminProduct> {
-  const product = await apiPost<AdminProduct>(
+  body: AdminProductFixtureInput,
+): Promise<ProductResponse> {
+  const product = await apiPost<ProductResponse>(
     request,
     "/admin/products",
     {
@@ -503,15 +475,15 @@ export async function createAdminProduct(
   return product;
 }
 
-export async function fetchAdminSlots(request: APIRequestContext, classId: number): Promise<AdminSlot[]> {
-  return apiGet<AdminSlot[]>(request, "/admin/slots", { admin: true, query: { classId } });
+export async function fetchAdminSlots(request: APIRequestContext, classId: number): Promise<SlotResponse[]> {
+  return apiGet<SlotResponse[]>(request, "/admin/slots", { admin: true, query: { classId } });
 }
 
 export async function createAdminSlot(
   request: APIRequestContext,
-  body: { classId: number; startAt: Date },
-): Promise<AdminSlot> {
-  const slot = await apiPost<AdminSlot>(
+  body: AdminSlotFixtureInput,
+): Promise<SlotResponse> {
+  const slot = await apiPost<SlotResponse>(
     request,
     "/admin/slots",
     {
@@ -530,8 +502,8 @@ export async function fetchAdminBookings(
   request: APIRequestContext,
   date: string,
   status?: ListBookingsStatus,
-): Promise<AdminBooking[]> {
-  return apiGet<AdminBooking[]>(request, "/admin/bookings", {
+): Promise<AdminBookingResponse[]> {
+  return apiGet<AdminBookingResponse[]>(request, "/admin/bookings", {
     admin: true,
     query: { date, status },
   });
@@ -539,17 +511,17 @@ export async function fetchAdminBookings(
 
 export async function fetchAdminOrders(
   request: APIRequestContext,
-  status?: string,
-): Promise<AdminOrder[]> {
-  const page = await apiGet<CursorPage<AdminOrder>>(request, "/admin/orders", {
+  status?: ListOrdersStatus,
+): Promise<AdminOrderListItemResponse[]> {
+  const page = await apiGet<AdminOrderPageResponse>(request, "/admin/orders", {
     admin: true,
     query: { status },
   });
   return page.content;
 }
 
-export async function fetchFailedRefunds(request: APIRequestContext): Promise<AdminFailedRefund[]> {
-  const page = await apiGet<CursorPage<AdminFailedRefund>>(
+export async function fetchFailedRefunds(request: APIRequestContext): Promise<FailedRefundResponse[]> {
+  const page = await apiGet<FailedRefundPageResponse>(
     request,
     "/admin/refunds/failed",
     { admin: true },
@@ -571,7 +543,7 @@ export async function clearNextRefundFailure(request: APIRequestContext): Promis
 export async function waitForProduct(
   request: APIRequestContext,
   name: string,
-): Promise<AdminProduct> {
+): Promise<ProductResponse> {
   await expect.poll(async () => {
     const products = await fetchAdminProducts(request);
     return products.some((product) => product.name === name);
@@ -589,7 +561,7 @@ export async function waitForSlot(
   request: APIRequestContext,
   classId: number,
   startAtPrefix: string,
-): Promise<AdminSlot> {
+): Promise<SlotResponse> {
   await expect.poll(async () => {
     const slots = await fetchAdminSlots(request, classId);
     return slots.some((slot) => slot.startAt.startsWith(startAtPrefix));
@@ -607,7 +579,7 @@ export async function waitForBookingByPhone(
   request: APIRequestContext,
   date: string,
   phone: string,
-): Promise<AdminBooking> {
+): Promise<AdminBookingResponse> {
   await expect.poll(async () => {
     const bookings = await fetchAdminBookings(request, date);
     return bookings.some((booking) => booking.customerSummary.phone === phone);
@@ -624,8 +596,8 @@ export async function waitForBookingByPhone(
 export async function waitForOrder(
   request: APIRequestContext,
   orderId: number,
-  status?: string,
-): Promise<AdminOrder> {
+  status?: ListOrdersStatus,
+): Promise<AdminOrderListItemResponse> {
   await expect.poll(async () => {
     const orders = await fetchAdminOrders(request, status);
     return orders.some((order) => order.orderId === orderId);
@@ -642,7 +614,7 @@ export async function waitForOrder(
 export async function waitForFailedRefundByOrderId(
   request: APIRequestContext,
   orderId: number,
-): Promise<AdminFailedRefund> {
+): Promise<FailedRefundResponse> {
   await expect.poll(async () => {
     const refunds = await fetchFailedRefunds(request);
     return refunds.some((refund) => refund.orderId === orderId);

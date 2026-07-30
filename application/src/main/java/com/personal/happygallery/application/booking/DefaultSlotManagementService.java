@@ -159,11 +159,13 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
                          LocalDateTime startAt,
                          List<Slot> existingSlots) {
         Slot slot = new Slot(bookingClass, startAt);
-        existingSlots.stream()
-                .filter(Slot::hasBookings)
-                .filter(existing -> SlotBufferPolicy.contains(
-                        existing.getEndAt(), bookingClass.getBufferMin(), startAt))
-                .forEach(existing -> slot.incrementBufferBlockCount());
+        for (Slot existing : existingSlots) {
+            if (existing.hasBookings()
+                    && SlotBufferPolicy.contains(
+                            existing.getEndAt(), bookingClass.getBufferMin(), startAt)) {
+                slot.incrementBufferBlockCount();
+            }
+        }
         return slot;
     }
 

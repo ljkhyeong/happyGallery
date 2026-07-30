@@ -7,6 +7,7 @@ import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -37,7 +38,6 @@ public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long
                                  @Param("now") LocalDateTime now);
 
     /** 만료 배치 페이지네이션 대상 */
-    @Override
     @Query("""
             SELECT p FROM PassPurchase p
             WHERE p.expiresAt <= :now
@@ -45,10 +45,16 @@ public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long
               AND p.id > :afterId
             ORDER BY p.id ASC
             """)
-    List<PassPurchase> findExpiredWithRemainingCreditsAfterId(
+    List<PassPurchase> findExpiredWithRemainingCreditsAfterIdPage(
             @Param("now") LocalDateTime now,
             @Param("credits") int credits,
             @Param("afterId") Long afterId,
             Pageable pageable);
 
+    @Override
+    default List<PassPurchase> findExpiredWithRemainingCreditsAfterId(
+            LocalDateTime now, int credits, Long afterId, int limit) {
+        return findExpiredWithRemainingCreditsAfterIdPage(
+                now, credits, afterId, PageRequest.ofSize(limit));
+    }
 }

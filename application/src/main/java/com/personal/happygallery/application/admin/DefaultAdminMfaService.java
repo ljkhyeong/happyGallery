@@ -99,12 +99,12 @@ public class DefaultAdminMfaService implements AdminMfaUseCase {
         LocalDateTime now = LocalDateTime.now(clock);
         List<String> recoveryCodes = totpPort.generateRecoveryCodes(RECOVERY_CODE_COUNT);
         recoveryCodePort.deleteByAdminUserId(adminUserId);
-        recoveryCodes.stream()
-                .map(rawCode -> new AdminMfaRecoveryCode(
-                        adminUserId,
-                        passwordEncoder.encode(rawCode),
-                        now))
-                .forEach(recoveryCodePort::save);
+        for (String rawCode : recoveryCodes) {
+            recoveryCodePort.save(new AdminMfaRecoveryCode(
+                    adminUserId,
+                    passwordEncoder.encode(rawCode),
+                    now));
+        }
 
         long invalidatedCredentialVersion = admin.enableMfa();
         adminUserPort.save(admin);

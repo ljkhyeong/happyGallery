@@ -12,7 +12,6 @@ import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -54,7 +53,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
 
         return BatchExecutor.executeByIdCursor(
                 afterId -> passPurchaseReader.findExpiredWithRemainingCreditsAfterId(
-                        now, 0, afterId, PageRequest.ofSize(PAGE_SIZE)),
+                        now, 0, afterId, PAGE_SIZE),
                 PassPurchase::getId,
                 pass -> passExpireProcessor.process(pass.getId()),
                 "8회권 만료");

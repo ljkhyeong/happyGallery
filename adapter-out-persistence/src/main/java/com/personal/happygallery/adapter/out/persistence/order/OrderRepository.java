@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Collection;
 import java.util.Optional;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -34,7 +35,6 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
      * 자동환불 배치용 조회.
      * {@code status = PAID_APPROVAL_PENDING} AND {@code approvalDeadlineAt < deadline}.
      */
-    @Override
     @Query("""
             SELECT o FROM Order o
             WHERE o.status = com.personal.happygallery.domain.order.OrderStatus.PAID_APPROVAL_PENDING
@@ -42,10 +42,17 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
               AND o.id > :afterId
             ORDER BY o.id ASC
             """)
-    List<Order> findPaidApprovalPendingBeforeAfterId(
+    List<Order> findPaidApprovalPendingBeforeAfterIdPage(
             @Param("deadline") LocalDateTime deadline,
             @Param("afterId") Long afterId,
             Pageable pageable);
+
+    @Override
+    default List<Order> findPaidApprovalPendingBeforeAfterId(
+            LocalDateTime deadline, Long afterId, int limit) {
+        return findPaidApprovalPendingBeforeAfterIdPage(
+                deadline, afterId, PageRequest.ofSize(limit));
+    }
 
     @Override
     @Query("""

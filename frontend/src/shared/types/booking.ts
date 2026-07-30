@@ -8,9 +8,10 @@ import type {
   SendVerificationRequest as GeneratedSendVerificationRequest,
   SendVerificationResponse as GeneratedSendVerificationResponse,
 } from "@/generated/api/booking";
+import type { BookingPayload } from "@/generated/api/payment";
 
 export type BookingStatus = BookingDetailResponseStatus;
-export type DepositPaymentMethod = "CARD" | "EASY_PAY";
+export type DepositPaymentMethod = NonNullable<BookingPayload["paymentMethod"]>;
 export type BookingCancelPolicy = BookingCancelPolicyResponse;
 export type SendVerificationRequest = GeneratedSendVerificationRequest;
 export type SendVerificationResponse = GeneratedSendVerificationResponse;
