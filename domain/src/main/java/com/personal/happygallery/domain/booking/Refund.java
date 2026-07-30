@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.booking;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -90,6 +92,9 @@ public class Refund {
     private Refund(Long bookingId, Long orderId, Long orderClaimId,
                    Long passPurchaseId, Long paymentAttemptId,
                    long amount, String paymentKey) {
+        if (amount <= 0) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "환불 금액은 1원 이상이어야 합니다.");
+        }
         this.bookingId = bookingId;
         this.orderId = orderId;
         this.orderClaimId = orderClaimId;

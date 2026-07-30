@@ -1,7 +1,7 @@
 # ADR-0029: 외부 HTTP 클라이언트 풀 설정
 
 **날짜**: 2026-03-29  
-**최종 갱신**: 2026-07-27
+**최종 갱신**: 2026-07-30
 **상태**: Accepted
 
 ---
@@ -37,7 +37,8 @@ Toss Payments confirm/cancel 호출도 같은 외부 HTTP 경계에 포함된다
 
 - Alimtalk/SMS: acquire 0.5초, connect 1초, read/response 2초
 - 알림 바깥 TimeLimiter: 5초
-- OAuth/Toss: acquire 1초, connect 2초, read/response 5초
+- OAuth: acquire 1초, connect 2초, read/response 5초
+- Toss: acquire 0.5초, connect 1초, read/response 3초, 바깥 TimeLimiter 5초
 - keep-alive: 30초
 - 알림(Alimtalk, SMS) max connections: 20
 - Google/Naver OAuth provider별 max connections: 10
@@ -46,6 +47,7 @@ Toss Payments confirm/cancel 호출도 같은 외부 HTTP 경계에 포함된다
 ### 3. 외부 HTTP 설정도 전체 타임아웃 계층 안에서 정렬한다
 
 - Alimtalk/SMS는 `acquire + connect + response < TimeLimiter` 순서를 지킨다. 기본값은 `0.5s + 1s + 2s < 5s`다.
+- Toss도 같은 순서로 `0.5s + 1s + 3s < 5s`를 지킨다.
 - 운영 환경변수로 이 순서가 역전되면 애플리케이션 기동을 거부한다.
 - 이 값은 프론트와 ingress 타임아웃보다 안쪽에 둔다.
 - 전체 타임아웃 원칙은 `ADR-0030`을 따른다.

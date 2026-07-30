@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.util.Assert;
 
 /** 결제 외부 호출을 보호하는 자원과 데코레이터 빈을 구성한다. */
 @Configuration(proxyBeanMethods = false)
@@ -38,7 +39,9 @@ class PaymentResilienceConfig {
     }
 
     @Bean
-    TimeLimiter paymentTimeLimiter(ExternalPaymentProperties properties) {
+    TimeLimiter paymentTimeLimiter(ExternalPaymentProperties properties,
+                                   TossPaymentsProperties tossProperties) {
+        validateTimeoutHierarchy(properties, tossProperties);
         return TimeLimiter.of(TimeLimiterConfig.custom()
                 .timeoutDuration(Duration.ofMillis(properties.timeoutMillis()))
                 .cancelRunningFuture(true)
@@ -89,5 +92,14 @@ class PaymentResilienceConfig {
             return lookupResult.status() == RefundLookupResult.Status.UNAVAILABLE;
         }
         return false;
+    }
+
+    private static void validateTimeoutHierarchy(ExternalPaymentProperties resilience,
+                                                 TossPaymentsProperties transport) {
+        long transportBudgetMillis = Math.addExact(
+                Math.addExact(transport.acquireTimeoutMillis(), transport.connectTimeoutMillis()),
+                transport.timeoutMillis());
+        Assert.isTrue(resilience.timeoutMillis() > transportBudgetMillis,
+                "결제 TimeLimiter는 Toss acquire + connect + response timeout 합보다 커야 합니다.");
     }
 }

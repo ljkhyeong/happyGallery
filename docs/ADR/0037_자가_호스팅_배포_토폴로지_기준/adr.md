@@ -1,7 +1,7 @@
 # ADR-0037: 자가 호스팅 배포 토폴로지 기준
 
 **날짜**: 2026-07-18
-**최종 갱신**: 2026-07-28
+**최종 갱신**: 2026-07-30
 **상태**: Accepted
 
 ---
@@ -81,6 +81,8 @@
 
 - DB 자격증명, `ENCRYPT_KEY`, `HMAC_KEY`, Toss, OAuth, 알림, Sentry와 관리자 초기 설정 값은 Git, 이미지와 일반 manifest에 평문으로 넣지 않는다.
 - Kubernetes Secret은 저장 형식 자체가 암호화가 아니므로 노트북 파일 권한, k3s 접근 권한과 백업 접근 권한을 함께 제한한다.
+- Secret 생성 스크립트는 MySQL, Redis, 애플리케이션 파일별 허용 키만 받는다. Pod의 운영 모드, `prod` 프로필, 처리율 제한, Secure cookie, management port와 전달 헤더 전략은 Secret보다 우선하는 명시적 `env`로 고정한다.
+- 애플리케이션은 config data가 반영된 직후의 환경 후처리 단계에서 운영 모드 또는 `prod` 프로필의 `prod` 단일 활성 프로필, 관리자 API key 비활성화, MFA 등록 강제, 처리율 제한 활성화와 Secure cookie를 검증한다. 하나라도 어긋나면 Spring context, DataSource와 Flyway를 만들기 전에 거부해 운영 데이터에 local 설정을 연결하지 않는다.
 - active `ENCRYPT_KEY`/`HMAC_KEY`, `PREVIOUS_ENCRYPT_KEYS`/`PREVIOUS_HMAC_KEYS`와 비회원 토큰 active/previous 서명 키는 데이터와 토큰의 전환 기간에 필요하다. MySQL 백업과 물리적으로 분리된 복구 저장소에 키 ID, 백업 시점과 함께 보관한다.
 - 개발용 `.env`와 Compose 기본값을 운영 secret으로 재사용하지 않는다.
 
@@ -134,7 +136,7 @@
 - 5Gi `app-media` Retain PVC를 `/var/lib/happygallery/media`에 mount하고 maintenance Pod를 통해서만 백업·복원하는 구성
 - Traefik 전달 헤더 기준, ingress·Prometheus만 허용하는 Actuator NetworkPolicy
 - frontend Nginx의 CSP Report-Only와 JSON-LD hash·외부 출처·Ingress 비중복 정적 검증
-- 저장소 밖 env와 HTTPS webhook URL 파일에서 runtime Secret을 생성·교체하는 절차
+- 저장소 밖 env와 HTTPS webhook URL 파일에서 허용 키만 runtime Secret으로 생성·교체하고 운영 profile·보안 불변식 shadowing을 차단하는 절차
 - commit SHA 이미지 build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback
 - 6시간 간격 app 쓰기 중단 후 `age` 암호화 off-device MySQL·상품 이미지 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 DB·미디어 복원·Redis 초기화와 운영 대사 확인 뒤 별도 활성화하는 절차
 - 백업 성공 heartbeat와 systemd 실패 HTTPS webhook

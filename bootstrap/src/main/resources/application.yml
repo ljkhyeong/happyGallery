@@ -108,6 +108,7 @@ mybatis:
     cache-enabled: false
 
 app:
+  runtime-mode: ${HAPPYGALLERY_RUNTIME_MODE:development}
   policy-consent:
     terms-version: ${TERMS_POLICY_VERSION:2026-07-21-v1}
     privacy-version: ${PRIVACY_POLICY_VERSION:2026-07-21-v1}
@@ -195,7 +196,7 @@ app:
       keep-alive-millis: ${NAVER_OAUTH_KEEP_ALIVE_MILLIS:30000}
     payment:
       # SI 운영 기본값: 외부 호출은 짧은 타임아웃 + 서킷 브레이커로 보호
-      timeout-millis: ${PAYMENT_TIMEOUT_MILLIS:3000}
+      timeout-millis: ${PAYMENT_TIMEOUT_MILLIS:5000}
       thread-pool:
         pool-size: ${PAYMENT_EXECUTOR_POOL_SIZE:4}
         queue-capacity: ${PAYMENT_EXECUTOR_QUEUE_CAPACITY:20}
@@ -209,9 +210,9 @@ app:
         # prod 프로필에서만 실제 키 주입. FakePaymentProvider는 !prod 프로필에서만 등록된다.
         secret-key: ${TOSS_SECRET_KEY:}
         base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
-        timeout-millis: ${TOSS_TIMEOUT_MILLIS:5000}
-        connect-timeout-millis: ${TOSS_CONNECT_TIMEOUT_MILLIS:2000}
-        acquire-timeout-millis: ${TOSS_ACQUIRE_TIMEOUT_MILLIS:1000}
+        timeout-millis: ${TOSS_TIMEOUT_MILLIS:3000}
+        connect-timeout-millis: ${TOSS_CONNECT_TIMEOUT_MILLIS:1000}
+        acquire-timeout-millis: ${TOSS_ACQUIRE_TIMEOUT_MILLIS:500}
         max-connections: ${TOSS_MAX_CONNECTIONS:10}
         keep-alive-millis: ${TOSS_KEEP_ALIVE_MILLIS:30000}
   guest-token:

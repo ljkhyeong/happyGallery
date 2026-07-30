@@ -1,11 +1,5 @@
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import { ApiError } from "@/shared/api";
-
-export function isAdminSessionUnauthorized(error: unknown): error is ApiError {
-  return error instanceof ApiError
-    && error.status === 401
-    && error.code === "UNAUTHORIZED";
-}
+import { isAdminSessionUnauthorized } from "./adminSessionUnauthorized";
 
 /**
  * 관리자 세션 자체가 무효한 경우에만 `onAuthError`를 호출한다.

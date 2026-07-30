@@ -7,6 +7,7 @@ import com.personal.happygallery.application.payment.port.out.RefundLookupResult
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -17,6 +18,7 @@ import org.springframework.boot.task.ThreadPoolTaskExecutorBuilder;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.awaitility.Awaitility.await;
 
@@ -236,6 +238,23 @@ class ResilientPaymentProviderTest {
         });
     }
 
+    @DisplayName("결제 TimeLimiter는 Toss transport 제한 합보다 길어야 한다")
+    @Test
+    void paymentTimeLimiter_requiresLongerTimeoutThanTossTransportBudget() {
+        PaymentResilienceConfig config = new PaymentResilienceConfig();
+        ExternalPaymentProperties valid = properties(5_000, 50f, 20, 10, 30, 3);
+        TossPaymentsProperties transport = tossProperties(3_000, 1_000, 500);
+
+        assertThat(config.paymentTimeLimiter(valid, transport)
+                .getTimeLimiterConfig()
+                .getTimeoutDuration()).isEqualTo(Duration.ofMillis(5_000));
+        assertThatThrownBy(() -> config.paymentTimeLimiter(
+                properties(4_500, 50f, 20, 10, 30, 3),
+                transport))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("acquire + connect + response");
+    }
+
     private ResilientPaymentProvider createProvider(PaymentProvider delegate,
                                                     ExternalPaymentProperties properties) {
         PaymentResilienceConfig config = new PaymentResilienceConfig();
@@ -247,7 +266,7 @@ class ResilientPaymentProviderTest {
         return config.resilientPaymentProvider(
                 delegate,
                 config.paymentCircuitBreaker(properties, CircuitBreakerRegistry.ofDefaults()),
-                config.paymentTimeLimiter(properties),
+                config.paymentTimeLimiter(properties, tossPropertiesFor(properties.timeoutMillis())),
                 timeoutExecutor,
                 properties);
     }
@@ -282,6 +301,24 @@ class ResilientPaymentProviderTest {
                 waitDurationOpenSeconds, permittedCallsInHalfOpenState);
         var threadPool = new ExternalPaymentProperties.ThreadPool(poolSize, queueCapacity);
         return new ExternalPaymentProperties(timeoutMillis, threadPool, circuitBreaker);
+    }
+
+    private static TossPaymentsProperties tossPropertiesFor(long outerTimeoutMillis) {
+        long phaseTimeoutMillis = Math.max(1, outerTimeoutMillis / 4);
+        return tossProperties(phaseTimeoutMillis, phaseTimeoutMillis, phaseTimeoutMillis);
+    }
+
+    private static TossPaymentsProperties tossProperties(long responseTimeoutMillis,
+                                                          long connectTimeoutMillis,
+                                                          long acquireTimeoutMillis) {
+        return new TossPaymentsProperties(
+                "",
+                "https://api.tosspayments.com",
+                responseTimeoutMillis,
+                connectTimeoutMillis,
+                acquireTimeoutMillis,
+                10,
+                30_000);
     }
 
     private static PaymentProvider refundOnlyDelegate(RefundBehavior refundBehavior) {

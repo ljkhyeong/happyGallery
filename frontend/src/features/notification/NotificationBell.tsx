@@ -1,45 +1,71 @@
-import { useState, useRef, useEffect } from "react";
-import { Nav, Badge, Card, Button } from "react-bootstrap";
+import { useEffect, useRef, useState } from "react";
+import { Badge, Button, Card, Nav } from "react-bootstrap";
+import { Bell } from "lucide-react";
 import { useNavigate } from "react-router";
 import type { NotificationResponse } from "@/generated/api/notification";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { LoadingSpinner } from "@/shared/ui/LoadingSpinner";
 import { useUnreadCount, useNotificationList, useMarkAsRead, useMarkAllAsRead } from "./useNotifications";
 import { NOTIFICATION_EVENT_LABEL } from "@/shared/lib";
 import { formatRelativeTime } from "./formatRelativeTime";
+
+const POPOVER_ID = "customer-notification-popover";
 
 export function NotificationBell() {
   const { isAuthenticated } = useCustomerAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
-  const { data: unreadCount = 0 } = useUnreadCount(isAuthenticated);
-  const { data: notifications = [] } = useNotificationList(0, isAuthenticated && open);
+  const unreadQuery = useUnreadCount(isAuthenticated);
+  const notificationQuery = useNotificationList(0, isAuthenticated && open);
+  const unreadCount = unreadQuery.data ?? 0;
+  const notifications = notificationQuery.data ?? [];
   const markRead = useMarkAsRead();
   const markAllRead = useMarkAllAsRead();
 
-  // 외부 클릭 시 닫기
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
-    if (open) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+
+    if (!open) return;
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    const focusFrame = window.requestAnimationFrame(() => popoverRef.current?.focus());
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+      window.cancelAnimationFrame(focusFrame);
+    };
   }, [open]);
 
   if (!isAuthenticated) return null;
 
   return (
-    <div ref={ref} className="position-relative d-inline-block">
+    <div ref={containerRef} className="position-relative d-inline-block">
       <Nav.Link
         as="button"
+        ref={triggerRef}
         className="app-nav-link position-relative btn btn-link p-0 border-0"
         onClick={() => setOpen((v) => !v)}
         aria-label="알림"
+        aria-expanded={open}
+        aria-controls={POPOVER_ID}
+        aria-haspopup="dialog"
       >
-        <span>&#128276;</span>
+        <Bell size={20} aria-hidden="true" />
         {unreadCount > 0 && (
           <Badge
             bg="danger"
@@ -54,8 +80,12 @@ export function NotificationBell() {
 
       {open && (
         <Card
-          className="position-absolute end-0 shadow-sm"
-          style={{ width: 320, maxHeight: 400, overflowY: "auto", zIndex: 1050, top: "100%" }}
+          ref={popoverRef}
+          id={POPOVER_ID}
+          role="dialog"
+          aria-label="알림 목록"
+          tabIndex={-1}
+          className="notification-popover position-absolute end-0 shadow-sm"
         >
           <Card.Header className="d-flex justify-content-between align-items-center py-2 px-3">
             <span className="fw-semibold small">알림</span>
@@ -70,8 +100,28 @@ export function NotificationBell() {
               </Button>
             )}
           </Card.Header>
-          <Card.Body className="p-0">
-            {notifications.length === 0 ? (
+          <Card.Body className="notification-popover-body p-0">
+            {notificationQuery.error && (
+              <div className="d-flex align-items-center justify-content-between gap-2 border-bottom px-3 py-2">
+                <span className="small text-danger">
+                  {notificationQuery.data
+                    ? "새 알림을 불러오지 못했습니다."
+                    : "알림을 불러오지 못했습니다."}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline-danger"
+                  size="sm"
+                  disabled={notificationQuery.isFetching}
+                  onClick={() => void notificationQuery.refetch()}
+                >
+                  다시 시도
+                </Button>
+              </div>
+            )}
+            {notificationQuery.isPending ? (
+              <LoadingSpinner text="알림을 불러오는 중..." />
+            ) : notifications.length === 0 && !notificationQuery.error ? (
               <div className="text-center text-muted py-4 small">알림이 없습니다.</div>
             ) : (
               notifications.map((notification) => {

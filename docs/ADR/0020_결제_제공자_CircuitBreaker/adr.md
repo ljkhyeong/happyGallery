@@ -1,7 +1,7 @@
 # ADR-0020: 결제 환불 외부 호출 보호를 위한 CircuitBreaker 도입
 
 **날짜**: 2026-03-06  
-**최종 갱신**: 2026-07-29
+**최종 갱신**: 2026-07-30
 **상태**: Accepted
 
 ---
@@ -25,7 +25,7 @@
 
 ### 2. `CircuitBreaker + TimeLimiter`를 조합한다
 
-- 기본 타임아웃: 3초
+- 기본 타임아웃: 5초
 - 실패율 임계치: 50%
 - 슬라이딩 윈도우: 20
 - 최소 호출 수: 10
@@ -61,6 +61,7 @@
 - `PaymentResilienceConfig`가 `CircuitBreaker`, `TimeLimiter`, 제한 큐 executor의 생성과 메트릭 등록, Spring 빈 조립을 담당한다.
 - `BoundedExecutorFactory`가 Boot `ThreadPoolTaskExecutorBuilder`로 제한 큐 executor를 만들고 Spring 종료 수명주기, 2초 대기 후 강제 종료, 거절·큐 메트릭을 공통 적용한다.
 - `ResilientPaymentProvider`는 주입받은 보호 자원으로 PG 호출을 실행하고 결과를 표준화하는 역할만 담당한다.
+- TimeLimiter는 Toss의 `pool acquire + connect + response` 제한 합보다 반드시 길어야 하며, 역전된 설정은 애플리케이션 기동 시 거부한다. 기본값은 `0.5초 + 1초 + 3초 < 5초`다.
 
 ### 7. Registry 기반 표준 메트릭으로 결제와 알림 서킷을 함께 관측한다
 
@@ -94,5 +95,6 @@
 - PG timeout executor에 `ArrayBlockingQueue + AbortPolicy` 적용
 - 실행기 대기열·거절 메트릭과 Prometheus 알림 추가
 - 결제·알림 CircuitBreaker를 공용 Registry에 등록하고 Resilience4j Micrometer 상태·호출 결과 메트릭, Grafana 패널, `OPEN` 경보 추가
+- Toss transport 제한 합과 결제 TimeLimiter의 시작 검증 추가
 - `adapter-out-external/build.gradle`에 Resilience4j 의존성 추가
 - `bootstrap/src/main/resources/application.yml`에 `app.external.payment.*` 설정 추가

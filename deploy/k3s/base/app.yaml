@@ -73,6 +73,21 @@ spec:
             - secretRef:
                 name: happygallery-app
           env:
+            # env는 envFrom보다 우선한다. Secret 파일이 운영 불변식을 덮지 못하게 고정한다.
+            - name: HAPPYGALLERY_RUNTIME_MODE
+              value: production
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+            - name: RATE_LIMIT_ENABLED
+              value: "true"
+            - name: SESSION_SECURE_COOKIE
+              value: "true"
+            - name: MANAGEMENT_PORT
+              value: "8081"
+            - name: FORWARD_HEADERS_STRATEGY
+              value: native
+            - name: ACTUATOR_HEALTH_SHOW_DETAILS
+              value: never
             - name: SPRING_DATA_REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:

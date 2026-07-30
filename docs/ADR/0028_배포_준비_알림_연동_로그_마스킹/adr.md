@@ -49,12 +49,13 @@
 
 - `MaskingPatternLayout` (extends `PatternLayout`): text 프로필(`!prod`)에서 `LayoutWrappingEncoder`로 사용.
 - `MaskingMessageJsonProvider` (extends `AbstractFieldJsonProvider`): prod JSON 프로필에서 `LoggingEventCompositeJsonEncoder`의 message provider로 사용.
+- `MaskingStackTraceJsonProvider` (extends `StackTraceJsonProvider`): prod JSON의 `stack_trace`도 동일한 마스킹 함수를 통과시키며 기존 필드명과 줄바꿈 구조를 유지한다.
 - 양쪽 모두 `MaskingPatternLayout.maskSensitive()` 정적 메서드를 공유해 마스킹 로직을 단일화.
 - 마스킹 대상:
   - 전화번호: `01x-xxxx-xxxx` → `01x-****-****`
   - Bearer 토큰: `Bearer xxx` → `Bearer ***`
   - 세션 토큰: `HG_SESSION=xxx` → `HG_SESSION=***`
-  - Access 토큰: `X-Access-Token=xxx` → `X-Access-Token=***`
+  - Access 토큰: legacy SHA-256 hex와 현재 `base64url(payload).base64url(signature)` 형식을 `X-Access-Token=xxx` → `X-Access-Token=***`로 치환한다. `:`, `=`, JSON 따옴표 표기를 모두 보존한다.
 - 마스킹은 예기치 않은 문자열 유입을 막는 방어선으로 유지하되, 애플리케이션 로그 호출 자체에도 전화번호·이름·인증 코드·결제 키를 전달하지 않는다.
 - 알림·결제 외부 호출 실패는 예외 원문 대신 HTTP 상태, 예외 타입과 내부 식별자만 기록한다. `notification_log.fail_reason` 등 영속 실패 사유에는 `DELIVERY_EXCEPTION` 같은 통제된 문구를 저장한다.
 - 운영 프런트 Nginx access log는 `$request_uri`나 기본 `$request`, `$http_referer`를 사용하지 않고 `$request_method $uri $server_protocol`만 기록한다. 따라서 Toss 성공 callback의 `paymentKey` query와 same-origin Referer query가 최초 요청 로그에 남지 않는다.

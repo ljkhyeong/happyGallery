@@ -167,7 +167,9 @@
   - `carrier`, `tracking_number`는 배송 출발 시 한 쌍으로 저장한다. 픽업에는 둘 다 저장하지 않으며 DB `CHECK`로 강제한다.
 - `refunds`
   - `id`, `order_id nullable`, `order_claim_id nullable`, `direct_order_id generated`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
-  - 예약, 직접 주문, 주문 클레임, 8회권, 결제 시도 보상 중 하나의 source와 `amount`, `payment_key`, `refund_transaction_key UNIQUE`, `idempotency_key UNIQUE`, `fail_reason`
+  - 예약, 직접 주문, 주문 클레임, 8회권, 결제 시도 보상 중 하나의 source와 `amount > 0`, `payment_key`, `refund_transaction_key UNIQUE`, `idempotency_key UNIQUE`, `fail_reason`
+  - 환불 금액은 도메인 생성과 `chk_refunds_amount_positive`에서 이중 강제한다. 0원 내부 승인과 수동 보상 작업은 환불 행을 만들지 않는다.
+  - `V106`은 기존 0원 이하 환불 행을 자동 보정하지 않고 atomic `ALTER TABLE`을 실패시킨다. 배포 전 `refunds.amount <= 0` 데이터를 확인하고 근거에 따라 정리해야 한다.
   - 직접 주문 환불은 `direct_order_id`, 주문 클레임 환불은 `order_claim_id`, 나머지는 각 source FK의 UNIQUE로 원본당 한 건을 보장한다. 같은 주문 결제를 공유하는 여러 클레임 환불은 같은 `payment_key`를 가질 수 있다.
   - `status(REQUESTED|PROCESSING|RETRYABLE|RECONCILIATION_REQUIRED|SUCCEEDED|FAILED)`, `processing_at`, `processing_token`, `attempt_count`, `next_attempt_at`, `last_recovery_at`, `created_at`, `updated_at`, `version`
   - `RECONCILIATION_REQUIRED` 재선점은 취소 재호출보다 PG 취소 내역 조회를 먼저 수행한다. 취소 사유에 포함한 멱등키·금액·상태·거래 식별자가 모두 일치하는 실제 완료 취소면 성공으로 화해하고, 해당 멱등키의 취소가 없으며 미취소가 확정된 경우만 `RETRYABLE`로 전환한다.
@@ -300,8 +302,10 @@ HAVING COUNT(*) > 1;
 #### 8회권
 
 - `pass_purchases`
-  - `id`, `user_id`, `purchased_at`, `expires_at`, `plan_code`, `total_credits=8`, `remaining_credits`, `total_price`, `payment_key nullable`, `version`
+  - `id`, `user_id NOT NULL`, `purchased_at`, `expires_at`, `plan_code`, `total_credits=8`, `remaining_credits`, `total_price`, `payment_key nullable`, `version`
   - `plan_code`는 구매 시점 이용권 계약 스냅샷이다. 신규 구매는 `REGULAR_CRAFT_8`, 정책 도입 전 데이터는 `LEGACY_ALL_CLASSES`를 사용한다.
+  - `V105`는 기존 `fk_pass_user`를 내리고 `user_id NOT NULL` 변경과 `fk_pass_user_v105` 재생성을 하나의 atomic `ALTER TABLE`로 적용한다. MySQL은 같은 ALTER 안에서 제거한 FK 이름을 즉시 재사용할 수 없어 새 이름을 쓴다. 기존 소유자 없는 행은 자동 귀속하지 않고 migration을 실패시키며, 실패한 DDL의 부분 적용이나 FK 유실을 남기지 않는다.
+  - 서로 다른 테이블의 DDL은 하나의 Flyway migration 트랜잭션으로 묶이지 않으므로 환불 금액 제약은 별도 `V106`으로 분리한다. 각 migration은 단일 atomic DDL만 실행해 오염 데이터로 실패해도 다른 불변식이 부분 적용된 failed migration을 남기지 않는다.
 - `pass_ledger`
   - `id`, `pass_purchase_id`, `type(EARN|USE|REFUND|EXPIRE)`, `amount`, `related_booking_id nullable`, `created_at`
 

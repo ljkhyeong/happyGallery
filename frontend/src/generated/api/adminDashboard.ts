@@ -4,9 +4,32 @@ export interface DailyRevenueResponse {
   revenue: number;
 }
 
+export type StatusCountResponseStatus = typeof StatusCountResponseStatus[keyof typeof StatusCountResponseStatus];
+
+
+export const StatusCountResponseStatus = {
+  PAID_APPROVAL_PENDING: 'PAID_APPROVAL_PENDING',
+  APPROVED_FULFILLMENT_PENDING: 'APPROVED_FULFILLMENT_PENDING',
+  REJECTED: 'REJECTED',
+  CUSTOMER_CANCELED: 'CUSTOMER_CANCELED',
+  AUTO_REFUND_TIMEOUT: 'AUTO_REFUND_TIMEOUT',
+  IN_PRODUCTION: 'IN_PRODUCTION',
+  DELAY_CONSENT_PENDING: 'DELAY_CONSENT_PENDING',
+  DELAY_ACCEPTED: 'DELAY_ACCEPTED',
+  DELAY_REJECTED_CANCELED: 'DELAY_REJECTED_CANCELED',
+  SHIPPING_PREPARING: 'SHIPPING_PREPARING',
+  SHIPPED: 'SHIPPED',
+  DELIVERED: 'DELIVERED',
+  PICKUP_READY: 'PICKUP_READY',
+  PICKED_UP: 'PICKED_UP',
+  PICKUP_EXPIRED: 'PICKUP_EXPIRED',
+  PICKUP_FORFEITED: 'PICKUP_FORFEITED',
+  COMPLETED: 'COMPLETED',
+} as const;
+
 export interface StatusCountResponse {
   count: number;
-  status: string;
+  status: StatusCountResponseStatus;
 }
 
 export interface DashboardOverviewResponse {
@@ -47,10 +70,18 @@ export interface SlotUtilizationResponse {
   utilizationRate: number;
 }
 
+export type TopProductResponseProductType = typeof TopProductResponseProductType[keyof typeof TopProductResponseProductType];
+
+
+export const TopProductResponseProductType = {
+  READY_STOCK: 'READY_STOCK',
+  MADE_TO_ORDER: 'MADE_TO_ORDER',
+} as const;
+
 export interface TopProductResponse {
   productId: number;
   productName: string;
-  productType: string;
+  productType: TopProductResponseProductType;
   totalQuantity: number;
   totalRevenue: number;
 }

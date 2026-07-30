@@ -1,31 +1,20 @@
 package com.personal.happygallery.application.payment.port.in;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import java.util.List;
 
 /**
- * 공개 prepare 요청에서 받는 context별 결제 payload.
+ * web prepare DTO에서 변환된 context별 application command payload.
  *
  * <p>prepare가 만든 서버 확정 스냅샷은
  * {@link com.personal.happygallery.application.payment.context.PreparedPaymentPayload}로 분리해
- * 공개 요청 타입과 암호화 저장 타입이 섞이지 않게 한다.
+ * command 타입과 암호화 저장 타입이 섞이지 않게 한다.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-        @JsonSubTypes.Type(value = PaymentPayload.OrderPayload.class, name = "ORDER"),
-        @JsonSubTypes.Type(value = PaymentPayload.BookingPayload.class, name = "BOOKING"),
-        @JsonSubTypes.Type(value = PaymentPayload.PassPayload.class, name = "PASS")
-})
 public sealed interface PaymentPayload {
 
     /** prepare 당시 결제 주체. 비회원이면 null이다. */
@@ -48,11 +37,11 @@ public sealed interface PaymentPayload {
             String verificationCode,
             String name,
             List<OrderItemRef> items,
-            @JsonProperty(required = true) boolean cartCheckout,
+            boolean cartCheckout,
             FulfillmentType fulfillmentType,
             ShippingAddress shippingAddress,
             String madeToOrderConsentVersion,
-            @JsonProperty(required = true) boolean madeToOrderConsent,
+            boolean madeToOrderConsent,
             PolicyAcceptance policyAcceptance
     ) implements PaymentPayload {
 
@@ -118,7 +107,7 @@ public sealed interface PaymentPayload {
             Long slotId,
             Long passId,
             DepositPaymentMethod paymentMethod,
-            @JsonProperty(required = true) @Min(1) @Max(8) int participantCount,
+            int participantCount,
             PolicyAcceptance policyAcceptance
     ) implements PaymentPayload {
 

@@ -2,7 +2,6 @@ package com.personal.happygallery.support;
 
 import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
-import com.personal.happygallery.adapter.in.web.payment.dto.PreparePaymentRequest;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
@@ -48,7 +47,8 @@ public final class PaymentTestHelper {
         MockHttpServletRequestBuilder request = post("/api/v1/payments/prepare")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new PreparePaymentRequest(context, payload)));
+                .content(objectMapper.writeValueAsString(
+                        PaymentRequestFixtures.prepareRequest(context, payload)));
         if (cookies.length > 0) {
             request.cookie(cookies);
         }

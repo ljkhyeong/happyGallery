@@ -26,7 +26,7 @@ public class PassPurchase {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id")
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
     @Column(name = "purchased_at", nullable = false, updatable = false)
@@ -77,6 +77,9 @@ public class PassPurchase {
                                          LocalDateTime expiresAt,
                                          long totalPrice,
                                          PassPlan plan) {
+        if (userId == null) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 회원 정보가 누락되었습니다.");
+        }
         return new PassPurchase(userId, purchasedAt, expiresAt, totalPrice, plan);
     }
 

@@ -57,7 +57,8 @@ public class PaymentController {
         AuthContext auth = customer != null
                 ? AuthContext.member(customer.userId())
                 : AuthContext.guest();
-        PrepareResult result = prepareUseCase.prepare(new PrepareCommand(req.context(), req.payload(), auth));
+        PrepareResult result = prepareUseCase.prepare(
+                new PrepareCommand(req.context(), req.payload().toCommand(), auth));
         return PreparePaymentResponse.from(result);
     }
 

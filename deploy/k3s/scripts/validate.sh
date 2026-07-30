@@ -131,6 +131,20 @@ ruby -e '
   end
   app_deployment = release_deployments.find { |d| d.dig("metadata", "name") == "app" }
   app_container = app_deployment&.dig("spec", "template", "spec", "containers", 0)
+  app_explicit_env = app_container&.fetch("env", [])&.to_h do |entry|
+    [entry.fetch("name"), entry["value"]]
+  end
+  expected_runtime_env = {
+    "HAPPYGALLERY_RUNTIME_MODE" => "production",
+    "SPRING_PROFILES_ACTIVE" => "prod",
+    "RATE_LIMIT_ENABLED" => "true",
+    "SESSION_SECURE_COOKIE" => "true",
+    "MANAGEMENT_PORT" => "8081",
+    "FORWARD_HEADERS_STRATEGY" => "native",
+    "ACTUATOR_HEALTH_SHOW_DETAILS" => "never"
+  }
+  abort "app의 운영 profile과 보안 불변식이 명시적 env로 고정되지 않았습니다." unless
+    app_explicit_env&.slice(*expected_runtime_env.keys) == expected_runtime_env
   app_config = documents.find { |d| d["kind"] == "ConfigMap" && d.dig("metadata", "name") == "app-config" }
   token_ttls = app_config&.fetch("data", {})&.slice(
     "GUEST_TOKEN_EXPIRY_HOURS",
@@ -532,5 +546,6 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
 RUBY
 
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
+bash "$SCRIPT_DIR/tests/create-secrets-allowlist-test.sh"
 
 info "k3s manifest와 운영 스크립트 검증 완료"

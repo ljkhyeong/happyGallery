@@ -88,6 +88,7 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 - Toss, Google, Naver, NHN Cloud Alimtalk·SMS: 각 제공자 운영 자격증명
 - Alimtalk: NHN Cloud에 카카오 발신 프로필을 연결하고 `KakaoTemplateCatalog`의 모든 `HG_*` 템플릿을 승인받은 뒤 `ALIMTALK_SENDER_KEY`를 설정
 - 알림 timeout: 예제의 `NOTIFICATION_TIMEOUT_MILLIS=5000`은 NHN transport 단계 합(`acquire 500 + connect 1000 + response 2000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
+- 결제 timeout: 애플리케이션 기본 `PAYMENT_TIMEOUT_MILLIS=5000`은 Toss transport 단계 합(`acquire 500 + connect 1000 + response 3000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
 - 이메일 인증 SMTP: STARTTLS와 직접 SSL 중 정확히 하나를 사용하고 서버 인증서 호스트명을 검증한다. `EMAIL_VERIFICATION_TIMEOUT_MILLIS`는 연결·읽기·쓰기 timeout 합보다 크게 유지한다.
 - active/previous AES·HMAC·guest token 키: DB 백업과 물리적으로 분리된 복구 저장소에도 보관
 
@@ -101,7 +102,7 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 
 `alert-webhook-url`에는 Alertmanager JSON을 받을 외부 HTTPS endpoint 한 줄만 둔다. URL은 `happygallery-alertmanager` Secret의 파일로 mount되며 manifest, release metadata와 로그에는 기록하지 않는다. critical은 1시간, warning은 4시간 반복 간격으로 같은 receiver에 전달하고 해결 알림도 보낸다. 최초 rollout 전에 수신 서비스에서 테스트 alert가 실제 도착하는지 확인한다.
 
-Kubernetes Secret은 base64 인코딩일 뿐 자체 암호화가 아니다. k3s datastore 암호화, kubeconfig/host 접근 제한, off-device 복구 키 보관을 함께 적용한다. `create-secrets.sh`는 기존 MySQL PVC가 있으면 DB 비밀번호를 Secret에서만 바꾸는 동작을 거부한다. MySQL 공식 이미지의 초기화 환경 변수는 기존 데이터 디렉터리의 계정 비밀번호를 바꾸지 않기 때문이다.
+Kubernetes Secret은 base64 인코딩일 뿐 자체 암호화가 아니다. k3s datastore 암호화, kubeconfig/host 접근 제한, off-device 복구 키 보관을 함께 적용한다. `create-secrets.sh`는 세 env 파일에서 예제와 일치하는 허용 키만 받으며, `SPRING_PROFILES_ACTIVE` 같은 운영 불변식 우회 키를 거부한다. 운영 모드·`prod` 단일 프로필·처리율 제한·Secure cookie·management port·전달 헤더·Actuator 상세 노출은 Secret보다 우선하는 Deployment `env`로 고정된다. 애플리케이션은 환경 후처리 단계에서 관리자 API key 비활성화와 MFA 등록 강제를 포함한 핵심 보안값을 검증해 Spring context, DataSource와 Flyway가 만들어지기 전에 잘못된 운영 설정을 거부한다. 또한 기존 MySQL PVC가 있으면 DB 비밀번호를 Secret에서만 바꾸는 동작을 거부한다. MySQL 공식 이미지의 초기화 환경 변수는 기존 데이터 디렉터리의 계정 비밀번호를 바꾸지 않기 때문이다.
 
 기존 `happygallery-app` Secret의 active/previous AES·HMAC·guest token 키와 key ID는 일반 교체를 거부한다. 기존 MySQL PVC에서 이 Secret이 유실됐다면 새 키를 만들지 말고 분리 보관한 기존 키링을 먼저 복구한다. Toss/OAuth/알림 같은 일반 app Secret을 바꾸면 `kubectl -n happygallery rollout restart deployment/app`으로 새 Pod에 반영한다.
 
@@ -355,4 +356,4 @@ DB 복구 묶음을 함께 복원해야 하며, 현재 DB를 유지한 채 image
 ./deploy/k3s/scripts/validate.sh
 ```
 
-이 검증은 Kustomize 렌더링, YAML 파싱, Prometheus 경보·Grafana 대시보드 단일 원본 drift, release manifest의 runtime 이미지 추출, shell 구문, probe/종료 유예와 Retain PVC·내부 Prometheus/OAuth callback, app/frontend digest 고정, 프런트 CSP Report-Only의 JSON-LD hash·외부 출처·Ingress 비중복, Redis·Prometheus·Alertmanager·Grafana 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, heartbeat watchdog의 독립 실행과 정체 감지, 복원 전 Pod 종료, 데이터 복원 뒤 자동 기동 금지, PG·알림·개인정보 요청 대사 확인과 호환 digest 선반영 순서, 활성화 중 명령 실패·명시적 오류·HUP/INT/TERM 종료의 app drain과 marker 복구, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 브라우저 CSP 콘솔, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.
+이 검증은 Kustomize 렌더링, YAML 파싱, Prometheus 경보·Grafana 대시보드 단일 원본 drift, release manifest의 runtime 이미지 추출, shell 구문, probe/종료 유예와 Retain PVC·내부 Prometheus/OAuth callback, app/frontend digest 고정, 운영 불변식의 명시적 환경 변수 고정과 Secret 우회 키 거부, 프런트 CSP Report-Only의 JSON-LD hash·외부 출처·Ingress 비중복, Redis·Prometheus·Alertmanager·Grafana 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, heartbeat watchdog의 독립 실행과 정체 감지, 복원 전 Pod 종료, 데이터 복원 뒤 자동 기동 금지, PG·알림·개인정보 요청 대사 확인과 호환 digest 선반영 순서, 활성화 중 명령 실패·명시적 오류·HUP/INT/TERM 종료의 app drain과 marker 복구, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 브라우저 CSP 콘솔, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.

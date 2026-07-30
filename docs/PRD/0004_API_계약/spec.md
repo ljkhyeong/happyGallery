@@ -16,6 +16,7 @@
 - 신규 또는 변경 API는 REST Docs 테스트와 이 문서를 갱신하고 `:adapter-in-web:openapi3`, `cd frontend && npm run api:generate`를 같은 변경에서 실행한다.
 - 전체 `/api/v1/**` OpenAPI를 생성하고 React feature 계층에서 실제 호출하는 JSON·multipart API는 모두 생성 client를 사용한다. OAuth authorization URL로 브라우저가 직접 이동하거나 provider가 backend callback으로 돌아오는 흐름은 HTTP API wrapper가 아니므로 예외다.
 - 생성 client 대상 Controller는 Java 메서드명과 독립된 고유 `operationId`를 명시하고, nullable 객체 참조는 OpenAPI 3.1의 `oneOf`로 표현한다.
+- Java primitive 요청 필드는 런타임 기본값과 별개로 OpenAPI의 `required`를 명시한다. 다형 요청은 web DTO 경계에서 사용 지점의 `oneOf`와 공통 schema의 discriminator를 선언해 생성 TypeScript가 subtype과 필수값을 보존하되, 부모 `oneOf`와 자식 `allOf`가 순환하지 않게 한다.
 
 ---
 
@@ -2704,14 +2705,17 @@ Cookie: HG_SESSION={sessionToken}
 
 - `POST /api/v1/me/cart/items`
   - 요청: `{ "productId": 1, "qty": 2 }`
+  - `productId`, `qty`는 필수다.
   - 응답: `201 Created`
 - `POST /api/v1/me/cart/merge`
   - 요청: `{ "idempotencyKey": "UUID", "items": [{ "productId": 1, "qty": 2 }] }`
+  - 각 항목의 `productId`, `qty`는 필수다.
   - 응답: `204 No Content`
   - 로그인 직전의 비회원 장바구니를 한 번에 합친다. 같은 회원과 멱등키의 재요청은 수량을 다시 더하지 않는다.
   - 같은 회원과 멱등키로 다른 상품·수량을 보내면 `409 CONFLICT`로 거절한다.
 - `PUT /api/v1/me/cart/items/{productId}`
   - 요청: `{ "qty": 3 }`
+  - `qty`는 필수다.
   - 응답: `200 OK` 본문 없음
 - `DELETE /api/v1/me/cart/items/{productId}`
   - 응답: `204 No Content`
@@ -2760,6 +2764,8 @@ Cookie: HG_SESSION={sessionToken}
 - 본인 알림만 조회/읽음 처리할 수 있고, 타인 알림 ID는 찾을 수 없는 것처럼 거절한다.
 - 목록은 발송 완료된 논리 알림을 `deliveredAt DESC` 기준으로 페이지네이션하며, 카카오톡 실패 후 SMS 성공처럼 채널 로그가 여러 건이어도 한 건만 반환한다.
 - `readAt != null`이면 `read=true`로 본다.
+- 알림 목록의 최초 로딩과 실패를 빈 목록으로 표시하지 않는다. 실패 시 재시도를 제공하고, 재조회 실패 때는 이미 받은 목록을 유지한다.
+- 알림 팝오버는 모바일 화면 폭을 넘지 않으며 trigger의 펼침 상태·연결 대상을 노출하고 Escape로 닫은 뒤 trigger로 포커스를 돌린다.
 - 발송 완료 알림과 최종 실패로 종결된 outbox는 각각 `processed_at`부터 180일 뒤 채널 감사 로그와 함께 보존 배치에서 삭제한다. 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 이 정책으로 삭제하지 않는다.
 
 ### 2.13 공개 Product Q&A API
@@ -2890,6 +2896,11 @@ Content-Type: application/json
   - 공개 `payload.type` 계약에는 `ORDER`, `BOOKING`, `PASS`만 존재한다. 서버 암호화 스냅샷의
     `PREPARED_ORDER`, `PREPARED_BOOKING`, `PREPARED_PASS` 식별자는 저장 JSON 호환을 위해 내부에서만 유지하며
     OpenAPI 요청 schema에는 노출하지 않는다.
+  - OpenAPI의 `PreparePaymentRequest.payload`는 `OrderPayload`, `BookingPayload`, `PassPayload`를 구분하는 `oneOf`다. 공통 `PaymentPayload`는 `type` discriminator mapping만 가지며 subtype `allOf`와 순환하지 않는다.
+  - `OrderPayload`의 필수 필드는 `type`, `items`, `cartCheckout`, `fulfillmentType`, `madeToOrderConsent`다. 각 `items` 항목의 `productId`, `qty`도 필수다.
+  - `BookingPayload`의 필수 필드는 `type`, `slotId`, `participantCount`다. `paymentMethod`는 일반 결제에서 사용하고 `passId`는 8회권 사용 예약에서 사용한다.
+  - `PassPayload`의 필수 필드는 `type`, `userId`다.
+  - `userId`, 비회원 인증 정보, `shippingAddress`, 주문제작 동의 버전, 정책 동의는 인증 주체와 결제 종류에 따라 조건부로 사용하므로 schema에서는 nullable 또는 optional로 유지하고 위 정책으로 검증한다.
   - prepare 응답의 `orderId`는 Toss 결제창에 그대로 전달한다.
   - 회원 응답의 `statusToken`은 `null`이다. 비회원 응답에는 30일 만료 HMAC 서명 토큰을 반환하며 프론트는 URL이 아닌 session storage에 보관한다. DB에는 서명 토큰 전체의 SHA-256 해시만 저장한다.
 
@@ -3014,6 +3025,7 @@ Content-Type: application/json
   - `410 PAYMENT_ATTEMPT_EXPIRED` — prepare 후 30분 동안 confirm을 시작하지 않아 만료됨
 - 정책:
   - `paymentKey`는 amount > 0 결제만 필수다. 8회권 사용 예약처럼 `payment_attempt.amount=0`인 경우 `paymentKey`는 비워서 보내고 PG 호출은 생략된다.
+  - `orderId`, `amount`는 모든 confirm 요청에서 필수다. 0원 결제도 `amount=0`을 명시한다.
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
   - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 새 processing token과 함께 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다. stale 재선점 뒤 이전 token의 실패 결과는 상태에 반영하지 않지만, 늦게 도착한 PG 성공은 같은 요청임을 재검증한 뒤 `APPROVED`로 화해한다.
   - Toss `Idempotency-Key`는 prepare에서 생성한 `orderId`를 사용하며 같은 결제 재시도에서 변경하지 않는다.
@@ -3022,6 +3034,7 @@ Content-Type: application/json
   - 비회원 주문·예약 fulfillment는 내부 proof의 HMAC을 현재 또는 이전 게스트 토큰 키로 검증하고, proof의 context·orderId·정규화 전화번호가 현재 `PaymentAttempt` 및 저장 payload와 모두 일치할 때만 Guest와 도메인을 생성한다. 원 인증 코드가 prepare 뒤 만료되어도 이미 소비된 결제 귀속 증거는 해당 결제 시도에서 유효하다.
   - 이미 `CONFIRMED`인 결제를 같은 인증 주체·금액·paymentKey로 재호출하면 PG와 도메인 생성을 반복하지 않고 최초 `context`, `domainId`, `accessToken`을 그대로 반환한다.
   - 성공 화면은 URL의 동일한 `paymentKey`, `orderId`, `amount`를 유지하고 `PAYMENT_CONFIRM_IN_PROGRESS`, `PAYMENT_CONFIRM_RETRYABLE`, 네트워크 오류 또는 필수 인프라 일시 장애에만 명시적 재확인을 제공한다. `PAYMENT_FAILED`와 `PAYMENT_RECONCILIATION_REQUIRED`처럼 최종 또는 운영자 확인이 필요한 상태에는 재확인을 제공하지 않는다.
+  - 결제 실패 화면은 provider query의 원문 `message`를 표시하지 않는다. 허용 목록에 있는 `code`만 고정된 한국어 안내로 변환하고, 화면 진입 직후 query를 브라우저 주소에서 제거한다.
   - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다. `FAILED`로 종결된 결제의 동일 confirm 재호출은 PG를 다시 호출하지 않고 저장된 실패 사유의 `502 PAYMENT_FAILED`를 반환한다.
   - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다. amount=0 내부 승인 실패는 외부 결제가 없으므로 보상 환불을 만들지 않는다.
   - PG 승인 상태 또는 보상 환불 요청 저장까지 실패해 `PROCESSING`·`RETRYABLE`·`APPROVED`가 1분 이상 남으면, 서버 배치가 매분 최대 10건을 자동 재개한다. `PROCESSING/RETRYABLE`은 저장된 요청과 같은 `orderId` 멱등키로 PG confirm을 재확인하고, `APPROVED`는 PG 호출 없이 fulfillment를 재개한다. 마지막 복구 시각을 저장해 건별 1분 backoff와 후보 순환을 적용한다. 생성 후 14일이 지난 유료 미확정 PG 호출은 자동·사용자 재승인 모두 막고 `RECONCILIATION_REQUIRED`로 격리하며, PG를 호출하지 않는 0원 결제는 기간과 무관하게 내부 처리를 재개한다. 내부 복구는 저장 payload의 결제 주체를 사용하는 전용 명령으로만 인증 검증을 우회한다. 공개 confirm은 회원 세션 소유자 또는 비회원 `X-Payment-Status-Token`이 prepare 소유권과 일치해야 한다.

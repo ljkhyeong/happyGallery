@@ -1,6 +1,6 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
 export interface ConfirmPaymentRequest {
-  amount?: number;
+  amount: number;
   /** @minLength 1 */
   orderId: string;
   paymentKey?: string;
@@ -37,37 +37,16 @@ export interface PaymentPayload {
   type: string;
 }
 
-export type BookingPayloadPaymentMethod = typeof BookingPayloadPaymentMethod[keyof typeof BookingPayloadPaymentMethod];
+/**
+ * @minLength 1
+ * @pattern ORDER
+ */
+export type OrderPayloadType = typeof OrderPayloadType[keyof typeof OrderPayloadType];
 
 
-export const BookingPayloadPaymentMethod = {
-  CARD: 'CARD',
-  EASY_PAY: 'EASY_PAY',
-  BANK_TRANSFER: 'BANK_TRANSFER',
+export const OrderPayloadType = {
+  ORDER: 'ORDER',
 } as const;
-
-export interface PolicyAcceptance {
-  privacyAccepted?: boolean;
-  privacyVersion?: string;
-  termsAccepted?: boolean;
-  termsVersion?: string;
-}
-
-export type BookingPayload = PaymentPayload & {
-  name?: string;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
-  participantCount: number;
-  passId?: number;
-  paymentMethod?: BookingPayloadPaymentMethod;
-  phone?: string;
-  policyAcceptance?: PolicyAcceptance;
-  slotId?: number;
-  userId?: number;
-  verificationCode?: string;
-};
 
 export type OrderPayloadFulfillmentType = typeof OrderPayloadFulfillmentType[keyof typeof OrderPayloadFulfillmentType];
 
@@ -78,39 +57,135 @@ export const OrderPayloadFulfillmentType = {
 } as const;
 
 export interface OrderItemRef {
-  productId?: number;
-  qty?: number;
+  productId: number;
+  /**
+     * @minimum 1
+     * @maximum 99
+     */
+  qty: number;
+}
+
+export interface PolicyAcceptanceRequest {
+  privacyAccepted: boolean;
+  /** @minLength 1 */
+  privacyVersion: string;
+  termsAccepted: boolean;
+  /** @minLength 1 */
+  termsVersion: string;
 }
 
 export interface ShippingAddress {
-  addressLine1?: string;
-  addressLine2?: string;
-  phone?: string;
-  postalCode?: string;
-  recipientName?: string;
+  /** @minLength 1 */
+  addressLine1: string;
+  /** @nullable */
+  addressLine2?: string | null;
+  /** @minLength 1 */
+  phone: string;
+  /**
+     * @minLength 1
+     * @pattern ^[0-9]{5}$
+     */
+  postalCode: string;
+  /** @minLength 1 */
+  recipientName: string;
 }
 
-export type OrderPayload = PaymentPayload & {
+export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
+  /**
+     * @minLength 1
+     * @pattern ORDER
+     */
+  type: OrderPayloadType;
   cartCheckout: boolean;
-  fulfillmentType?: OrderPayloadFulfillmentType;
-  items?: OrderItemRef[];
+  fulfillmentType: OrderPayloadFulfillmentType;
+  items: OrderItemRef[];
   madeToOrderConsent: boolean;
-  madeToOrderConsentVersion?: string;
-  name?: string;
-  phone?: string;
-  policyAcceptance?: PolicyAcceptance;
-  shippingAddress?: ShippingAddress;
-  userId?: number;
-  verificationCode?: string;
-};
+  /** @nullable */
+  madeToOrderConsentVersion?: string | null;
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  policyAcceptance?: PolicyAcceptanceRequest | null;
+  shippingAddress?: ShippingAddress | null;
+  /** @nullable */
+  userId?: number | null;
+  /** @nullable */
+  verificationCode?: string | null;
+});
 
-export type PassPayload = PaymentPayload & {
-  userId?: number;
+/**
+ * @minLength 1
+ * @pattern BOOKING
+ */
+export type BookingPayloadType = typeof BookingPayloadType[keyof typeof BookingPayloadType];
+
+
+export const BookingPayloadType = {
+  BOOKING: 'BOOKING',
+} as const;
+
+/**
+ * @nullable
+ */
+export type BookingPayloadPaymentMethod = typeof BookingPayloadPaymentMethod[keyof typeof BookingPayloadPaymentMethod] | null;
+
+
+export const BookingPayloadPaymentMethod = {
+  CARD: 'CARD',
+  EASY_PAY: 'EASY_PAY',
+} as const;
+
+export type BookingPayload = Omit<PaymentPayload, 'type'> & ({
+  /**
+     * @minLength 1
+     * @pattern BOOKING
+     */
+  type: BookingPayloadType;
+  /** @nullable */
+  name?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 8
+     */
+  participantCount: number;
+  /** @nullable */
+  passId?: number | null;
+  /** @nullable */
+  paymentMethod?: BookingPayloadPaymentMethod;
+  /** @nullable */
+  phone?: string | null;
+  policyAcceptance?: PolicyAcceptanceRequest | null;
+  slotId: number;
+  /** @nullable */
+  userId?: number | null;
+  /** @nullable */
+  verificationCode?: string | null;
+});
+
+/**
+ * @minLength 1
+ * @pattern PASS
+ */
+export type PassPayloadType = typeof PassPayloadType[keyof typeof PassPayloadType];
+
+
+export const PassPayloadType = {
+  PASS: 'PASS',
+} as const;
+
+export type PassPayload = Omit<PaymentPayload, 'type'> & {
+  /**
+     * @minLength 1
+     * @pattern PASS
+     */
+  type: PassPayloadType;
+  userId: number;
 };
 
 export interface PreparePaymentRequest {
   context: PreparePaymentRequestContext;
-  payload: BookingPayload | OrderPayload | PassPayload;
+  payload: OrderPayload | BookingPayload | PassPayload;
 }
 
 export type PreparePaymentResponseContext = typeof PreparePaymentResponseContext[keyof typeof PreparePaymentResponseContext];

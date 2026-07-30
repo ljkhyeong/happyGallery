@@ -11,10 +11,8 @@ import {
   type NoticeListResponse,
 } from "./api";
 import { ApiError } from "@/shared/api";
-import {
-  isAdminSessionUnauthorized,
-  useAdminMutation,
-} from "@/shared/hooks/useAdminMutation";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";

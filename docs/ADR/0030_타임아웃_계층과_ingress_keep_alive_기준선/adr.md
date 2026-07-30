@@ -1,6 +1,7 @@
 # ADR-0030: 타임아웃 계층과 ingress keep-alive 운영 기준
 
 **날짜**: 2026-03-29  
+**최종 갱신**: 2026-07-30
 **상태**: Accepted
 
 ---
@@ -43,7 +44,8 @@
 
 ### 4. 외부 HTTP 호출도 같은 계층 원칙 안에 둔다
 
-- 외부 HTTP는 `pool acquire 1s < connect 2s < read 5s`
+- OAuth 외부 HTTP는 `pool acquire 1s < connect 2s < read 5s`
+- Toss는 `acquire 0.5s + connect 1s + response 3s < payment TimeLimiter 5s`를 유지하고 역전된 설정은 기동을 거부한다.
 - 서비스별 연결 풀과 세부 설정은 `ADR-0029`에서 관리한다.
 
 ---

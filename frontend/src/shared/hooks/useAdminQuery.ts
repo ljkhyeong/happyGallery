@@ -5,7 +5,7 @@ import {
   type UseQueryOptions,
   type UseQueryResult,
 } from "@tanstack/react-query";
-import { ApiError } from "@/shared/api";
+import { isAdminSessionUnauthorized } from "./adminSessionUnauthorized";
 
 export function useAdminQuery<
   TQueryFnData = unknown,
@@ -19,7 +19,7 @@ export function useAdminQuery<
   const query = useQuery(options);
 
   useEffect(() => {
-    if (query.error instanceof ApiError && query.error.status === 401) {
+    if (isAdminSessionUnauthorized(query.error)) {
       onAuthError();
     }
   }, [onAuthError, query.error]);

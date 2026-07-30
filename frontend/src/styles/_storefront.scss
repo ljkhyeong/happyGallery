@@ -873,6 +873,18 @@
   letter-spacing: 0.02em;
 }
 
+.notification-popover {
+  top: calc(100% + 0.5rem);
+  z-index: 1050;
+  width: min(20rem, calc(100vw - 1rem));
+  max-width: calc(100vw - 1rem);
+}
+
+.notification-popover-body {
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
 .my-list-summary {
   display: flex;
   flex-wrap: wrap;

@@ -32,9 +32,9 @@ class TossPaymentsProviderTest {
     private static final TossPaymentsProperties PROPERTIES = new TossPaymentsProperties(
             "test_secret",
             "https://api.tosspayments.com",
-            5_000,
-            2_000,
+            3_000,
             1_000,
+            500,
             10,
             30_000);
 

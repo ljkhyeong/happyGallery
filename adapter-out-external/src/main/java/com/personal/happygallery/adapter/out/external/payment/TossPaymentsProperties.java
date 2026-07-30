@@ -18,9 +18,9 @@ import org.springframework.validation.annotation.Validated;
 public record TossPaymentsProperties(
         @DefaultValue("") String secretKey,
         @NotBlank @DefaultValue("https://api.tosspayments.com") String baseUrl,
-        @Min(1) @DefaultValue("5000") long timeoutMillis,
-        @Min(1) @DefaultValue("2000") long connectTimeoutMillis,
-        @Min(1) @DefaultValue("1000") long acquireTimeoutMillis,
+        @Min(1) @DefaultValue("3000") long timeoutMillis,
+        @Min(1) @DefaultValue("1000") long connectTimeoutMillis,
+        @Min(1) @DefaultValue("500") long acquireTimeoutMillis,
         @Min(1) @DefaultValue("10") int maxConnections,
         @Min(1) @DefaultValue("30000") long keepAliveMillis
 ) implements HttpPoolProperties {

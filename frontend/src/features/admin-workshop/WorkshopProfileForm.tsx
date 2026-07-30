@@ -5,11 +5,9 @@ import { fetchAdminWorkshopProfile, updateWorkshopProfile } from "@/features/wor
 import { ApiError } from "@/shared/api";
 import type { WorkshopProfile } from "@/shared/types";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import {
-  isAdminSessionUnauthorized,
-  useAdminMutation,
-} from "@/shared/hooks/useAdminMutation";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 
 interface Props {
   adminKey: string;

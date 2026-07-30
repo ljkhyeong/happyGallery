@@ -1,7 +1,7 @@
 # ADR-0038: OpenAPI와 TypeScript API client 자동 생성
 
 **날짜**: 2026-07-21
-**최종 갱신**: 2026-07-29
+**최종 갱신**: 2026-07-30
 **상태**: Accepted
 
 ---
@@ -35,8 +35,8 @@
 - React feature 계층에서 실제 호출하는 공개·회원·비회원·결제·관리자 JSON/multipart API는 모두 생성 함수를 사용한다. 기능 코드는 생성 함수를 얇게 감싸고 React Query 상태와 화면 흐름만 소유한다.
 - 연동 대상은 Controller에 고유하고 안정적인 `operationId`를 명시하고, 응답의 필수값·nullable·enum을 OpenAPI에 정확히 표현한다. Java 메서드 이름 변경이 생성 함수 이름을 암묵적으로 바꾸게 두지 않으며, 생성 테스트는 Springdoc 충돌 회피용 숫자 접미사(`*_1`, `*_2`)가 남으면 실패시킨다.
 - 연동된 서버 request/response DTO는 생성 타입을 원본으로 사용한다. 화면 form state와 view model은 수동 타입으로 유지할 수 있다.
-- 결제 `prepare`의 공개 union은 `ORDER/BOOKING/PASS`만 포함한다. 암호화 저장용 `PREPARED_*`는 별도
-  application 타입으로 두어 OpenAPI와 생성 client 후보 schema에 노출하지 않는다.
+- 결제 `prepare`의 공개 union은 adapter-in-web 요청 DTO가 소유하며 `ORDER/BOOKING/PASS`만 포함한다. 공통 `PaymentPayload` schema는 Jackson과 OpenAPI discriminator mapping만 갖고, `PreparePaymentRequest.payload`가 subtype `oneOf`를 갖는다. subtype의 공통 schema `allOf` 상속과 부모 `oneOf`가 서로 참조하는 순환을 만들지 않는다. 웹 DTO는 Controller 경계에서 어노테이션 없는 application command로 변환한다. 암호화 저장용 `PREPARED_*`는 별도 application 타입으로 두어 OpenAPI와 생성 client 후보 schema에 노출하지 않는다.
+- Java primitive 요청 필드도 서버가 반드시 요구하면 `required`를 명시한다. 생성 테스트는 결제 payload의 `oneOf`, 공통 discriminator, 순환 방지, subtype 참조·필수값·enum·nullable 객체 참조와 장바구니 수량 필수 계약을 확인한다.
 - 브라우저가 same-origin OAuth authorization URL로 직접 이동하거나 provider가 backend callback으로 돌아오는 흐름은 JSON API 호출이 아니므로 생성 함수로 감싸지 않는다.
 - 대시보드 snapshot, 결제 payload union과 form state처럼 여러 생성 DTO를 화면 목적에 맞게 조합하는 view model은 feature가 유지할 수 있다. 서버 계약과 같은 수동 DTO를 다시 선언하지 않는다.
 

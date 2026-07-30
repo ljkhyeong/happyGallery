@@ -2,7 +2,6 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
-import com.personal.happygallery.adapter.in.web.payment.dto.PreparePaymentRequest;
 import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.PhoneVerificationRepository;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
@@ -54,6 +53,7 @@ import tools.jackson.databind.ObjectMapper;
 import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
+import static com.personal.happygallery.support.PaymentRequestFixtures.prepareRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.hamcrest.Matchers.startsWith;
@@ -336,7 +336,7 @@ class GuestBookingUseCaseIT {
 
         mockMvc.perform(post("/api/v1/payments/prepare")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new PreparePaymentRequest(
+                        .content(objectMapper.writeValueAsString(prepareRequest(
                                 PaymentContext.BOOKING,
                                 bookingPayload(PHONE, code, "홍길동", slotId,
                                         DepositPaymentMethod.BANK_TRANSFER)))))
@@ -373,7 +373,7 @@ class GuestBookingUseCaseIT {
 
         mockMvc.perform(post("/api/v1/payments/prepare")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new PreparePaymentRequest(
+                        .content(objectMapper.writeValueAsString(prepareRequest(
                                 PaymentContext.BOOKING,
                                 bookingPayload(
                                         PHONE, "000000", "홍길동", slotId,
@@ -397,7 +397,7 @@ class GuestBookingUseCaseIT {
         String code = helper.sendVerificationAndGetCode(phone);
         mockMvc.perform(post("/api/v1/payments/prepare")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new PreparePaymentRequest(
+                        .content(objectMapper.writeValueAsString(prepareRequest(
                                 PaymentContext.BOOKING,
                                 bookingPayload(
                                         phone, code, "초과예약자", slotId,

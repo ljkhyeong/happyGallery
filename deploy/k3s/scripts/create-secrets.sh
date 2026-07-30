@@ -14,6 +14,65 @@ for file in "$mysql_file" "$redis_file" "$app_file"; do
     validate_env_file "$file"
     require_private_file "$file"
 done
+
+validate_allowed_env_keys() {
+    local file=$1
+    local label=$2
+    shift 2
+    local line trimmed key allowed_key matched
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        trimmed=${line#"${line%%[![:space:]]*}"}
+        case "$trimmed" in
+            ''|\#*) continue ;;
+        esac
+
+        key=${line%%=*}
+        matched=false
+        for allowed_key in "$@"; do
+            if [ "$key" = "$allowed_key" ]; then
+                matched=true
+                break
+            fi
+        done
+        [ "$matched" = true ] \
+            || die "$label 환경 파일에 허용되지 않은 키가 있습니다: $key"
+    done < "$file"
+}
+
+validate_allowed_env_keys "$mysql_file" MySQL \
+    MYSQL_ROOT_PASSWORD MYSQL_DATABASE MYSQL_USER MYSQL_PASSWORD
+validate_allowed_env_keys "$redis_file" Redis \
+    REDIS_PASSWORD
+validate_allowed_env_keys "$app_file" 애플리케이션 \
+    DB_USERNAME DB_PASSWORD \
+    FIELD_ENCRYPTION_KEY_ID ENCRYPT_KEY HMAC_KEY \
+    PREVIOUS_ENCRYPT_KEYS PREVIOUS_HMAC_KEYS \
+    GUEST_TOKEN_HMAC_SECRET GUEST_TOKEN_PREVIOUS_HMAC_SECRET \
+    TOSS_SECRET_KEY \
+    PAYMENT_TIMEOUT_MILLIS \
+    TOSS_TIMEOUT_MILLIS TOSS_CONNECT_TIMEOUT_MILLIS TOSS_ACQUIRE_TIMEOUT_MILLIS \
+    GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET \
+    NAVER_OAUTH_CLIENT_ID NAVER_OAUTH_CLIENT_SECRET \
+    ALIMTALK_APP_KEY ALIMTALK_SECRET_KEY ALIMTALK_SENDER_KEY \
+    SMS_API_KEY SMS_API_SECRET SMS_SENDER_NUMBER \
+    EMAIL_VERIFICATION_SMTP_HOST EMAIL_VERIFICATION_SMTP_PORT \
+    EMAIL_VERIFICATION_SMTP_USERNAME EMAIL_VERIFICATION_SMTP_PASSWORD \
+    EMAIL_VERIFICATION_FROM \
+    ORDER_SHIPPING_FEE \
+    NOTIFICATION_TIMEOUT_MILLIS \
+    ALIMTALK_TIMEOUT_MILLIS ALIMTALK_CONNECT_TIMEOUT_MILLIS \
+    ALIMTALK_ACQUIRE_TIMEOUT_MILLIS \
+    SMS_TIMEOUT_MILLIS SMS_CONNECT_TIMEOUT_MILLIS SMS_ACQUIRE_TIMEOUT_MILLIS \
+    EMAIL_VERIFICATION_TIMEOUT_MILLIS \
+    EMAIL_VERIFICATION_CONNECTION_TIMEOUT_MILLIS \
+    EMAIL_VERIFICATION_READ_TIMEOUT_MILLIS \
+    EMAIL_VERIFICATION_WRITE_TIMEOUT_MILLIS \
+    EMAIL_VERIFICATION_STARTTLS_ENABLED EMAIL_VERIFICATION_SSL_ENABLED \
+    EMAIL_VERIFICATION_EXECUTOR_POOL_SIZE \
+    EMAIL_VERIFICATION_EXECUTOR_QUEUE_CAPACITY \
+    SENTRY_DSN
+
 require_private_file "$alert_webhook_file"
 alert_webhook_lines=$(awk 'NF { count++ } END { print count + 0 }' "$alert_webhook_file")
 [ "$alert_webhook_lines" -eq 1 ] || die "Alertmanager webhook URL 파일에는 URL 한 줄만 있어야 합니다."

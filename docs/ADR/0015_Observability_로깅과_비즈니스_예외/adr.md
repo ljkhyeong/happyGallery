@@ -71,6 +71,9 @@
 - `domain/error/HappyGalleryException` 생성자 변경
 - `AppMetrics`의 `happygallery.payment.confirm.reconciliation_required` 카운터와
   `PaymentConfirmReconciliationRequired` Prometheus critical 알림으로 결제 수동 대사 필요 상태를 즉시 노출한다.
+- 회원 자격 증명 변경 뒤 Redis 세션 폐기 실패는
+  `happygallery.customer.session.revocation_failed` 카운터,
+  `CustomerSessionRevocationFailed` Prometheus critical 알림과 Grafana system dashboard로 즉시 노출한다.
   `monitoring/alerts.yml`을 Compose와 k3s의 단일 경보 원본으로 사용한다.
   k3s는 `sync-prometheus-alerts.sh`가 만든 `prometheus-alerts.generated.yml`을 자급적인 ConfigMap으로 렌더링하고,
   `validate.sh`가 원본과 생성 파일 및 최종 ConfigMap의 drift를 차단한다.

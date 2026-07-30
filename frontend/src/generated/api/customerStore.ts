@@ -34,7 +34,7 @@ export interface AddCartItemRequest {
      * @minimum 1
      * @maximum 99
      */
-  qty?: number;
+  qty: number;
 }
 
 export interface UpdateCartItemRequest {
@@ -42,7 +42,7 @@ export interface UpdateCartItemRequest {
      * @minimum 1
      * @maximum 99
      */
-  qty?: number;
+  qty: number;
 }
 
 export interface MergeCartItemRequest {
@@ -51,7 +51,7 @@ export interface MergeCartItemRequest {
      * @minimum 1
      * @maximum 99
      */
-  qty?: number;
+  qty: number;
 }
 
 export interface MergeCartRequest {
@@ -78,18 +78,51 @@ export interface GuestClaimResultResponse {
   claimedOrderCount: number;
 }
 
+export type BookingSummaryStatus = typeof BookingSummaryStatus[keyof typeof BookingSummaryStatus];
+
+
+export const BookingSummaryStatus = {
+  BOOKED: 'BOOKED',
+  CANCELED: 'CANCELED',
+  NO_SHOW: 'NO_SHOW',
+  COMPLETED: 'COMPLETED',
+} as const;
+
 export interface BookingSummary {
   bookingId: number;
   className: string;
   endAt: string;
   startAt: string;
-  status: string;
+  status: BookingSummaryStatus;
 }
+
+export type OrderSummaryStatus = typeof OrderSummaryStatus[keyof typeof OrderSummaryStatus];
+
+
+export const OrderSummaryStatus = {
+  PAID_APPROVAL_PENDING: 'PAID_APPROVAL_PENDING',
+  APPROVED_FULFILLMENT_PENDING: 'APPROVED_FULFILLMENT_PENDING',
+  REJECTED: 'REJECTED',
+  CUSTOMER_CANCELED: 'CUSTOMER_CANCELED',
+  AUTO_REFUND_TIMEOUT: 'AUTO_REFUND_TIMEOUT',
+  IN_PRODUCTION: 'IN_PRODUCTION',
+  DELAY_CONSENT_PENDING: 'DELAY_CONSENT_PENDING',
+  DELAY_ACCEPTED: 'DELAY_ACCEPTED',
+  DELAY_REJECTED_CANCELED: 'DELAY_REJECTED_CANCELED',
+  SHIPPING_PREPARING: 'SHIPPING_PREPARING',
+  SHIPPED: 'SHIPPED',
+  DELIVERED: 'DELIVERED',
+  PICKUP_READY: 'PICKUP_READY',
+  PICKED_UP: 'PICKED_UP',
+  PICKUP_EXPIRED: 'PICKUP_EXPIRED',
+  PICKUP_FORFEITED: 'PICKUP_FORFEITED',
+  COMPLETED: 'COMPLETED',
+} as const;
 
 export interface OrderSummary {
   createdAt: string;
   orderId: number;
-  status: string;
+  status: OrderSummaryStatus;
   totalAmount: number;
 }
 

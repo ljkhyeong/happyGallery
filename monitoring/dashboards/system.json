@@ -400,6 +400,18 @@
         }
       ],
       "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 27,
+      "title": "Customer Session Revocation Failures",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 120 },
+      "targets": [
+        {
+          "expr": "increase(happygallery_customer_session_revocation_failed_total{application=\"happygallery\"}[5m])",
+          "legendFormat": "failed revocations"
+        }
+      ]
     }
   ],
   "schemaVersion": 39

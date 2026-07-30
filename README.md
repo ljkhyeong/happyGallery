@@ -192,6 +192,7 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 - 애플리케이션, MySQL, Redis와 관리·모니터링 포트는 외부에 직접 공개하지 않는다.
 - Docker Compose는 로컬 개발, 통합 검증과 복구 진단용이다. 현재 `local` 프로필과 개발 기본값을 사용하므로 운영 배포 기준이 아니다.
 - [`deploy/k3s`](deploy/k3s/README.md)에 namespace, ingress/TLS, MySQL·미디어 PVC, 비공개 Actuator/Prometheus, secret 주입, 불변 이미지 import, rollout·rollback, DB·미디어 암호화 백업·복원 절차를 둔다.
+- k3s Secret 생성은 파일별 허용 키만 받는다. 운영 모드·`prod` 단일 프로필·관리자 MFA 등록 강제·처리율 제한·Secure cookie 같은 불변식은 Secret보다 우선하는 manifest 환경 변수와 Spring context·Flyway 생성 전 환경 검증으로 고정한다.
 - 운영 관리자 로그인은 MFA 미등록 세션을 등록 전용으로 제한한다. DB·미디어 복원 뒤에도 app은 자동 기동하지 않는다. 복구 묶음마다 백업 생성시각과 복구 환경 해시로 일회성 대사 토큰을 만들고, 운영자가 PG·알림·개인정보 요청 대사를 완료한 뒤 같은 토큰으로 세 확인값을 제출해야 호환 이미지를 한 번만 활성화한다.
 - 운영 프런트 Nginx는 Toss SDK, 외부 폰트, Sentry와 JSON-LD hash를 반영한 CSP를 `Report-Only`로 제공한다. 아직 중앙 위반 수집기는 없으므로 배포 전 실제 브라우저 콘솔에서 핵심 화면을 확인한 뒤 강제 정책 전환을 별도로 결정한다.
 - 현재 공개 운영 주소와 자동 배포 workflow는 없다. 실제 노트북에서 DNS·공유기·방화벽·TLS·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
@@ -204,6 +205,8 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | 이름 | 위치 | 설명 |
 | --- | --- | --- |
 | `TOSS_SECRET_KEY` | 백엔드 `prod` | Toss Payments secret key |
+| `PAYMENT_TIMEOUT_MILLIS` | 백엔드 | PG 호출 바깥 TimeLimiter, 기본 `5000` |
+| `TOSS_ACQUIRE_TIMEOUT_MILLIS` / `TOSS_CONNECT_TIMEOUT_MILLIS` / `TOSS_TIMEOUT_MILLIS` | 백엔드 `prod` | Toss 연결 풀 획득·연결·응답 상한, 기본 `500` / `1000` / `3000`; 합이 바깥 TimeLimiter보다 작아야 함 |
 | `VITE_TOSS_CLIENT_KEY` | 프론트 빌드 | Toss SDK client key |
 | `VITE_API_TARGET` | 프론트 개발 서버 | `/api` 프록시 대상, 기본 `http://localhost:8080` |
 | `PAYMENT_EXECUTOR_POOL_SIZE` | 백엔드 | PG 호출 실행 스레드 수, 기본 `4` |

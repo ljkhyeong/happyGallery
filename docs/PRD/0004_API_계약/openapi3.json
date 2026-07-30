@@ -14,7 +14,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "productId" ],
+        "required" : [ "productId", "qty" ],
         "type" : "object"
       },
       "AdjustInventoryRequest" : {
@@ -1126,7 +1126,7 @@
         }, {
           "properties" : {
             "name" : {
-              "type" : "string"
+              "type" : [ "string", "null" ]
             },
             "participantCount" : {
               "format" : "int32",
@@ -1136,33 +1136,43 @@
             },
             "passId" : {
               "format" : "int64",
-              "type" : "integer"
+              "type" : [ "integer", "null" ]
             },
             "paymentMethod" : {
-              "enum" : [ "CARD", "EASY_PAY", "BANK_TRANSFER" ],
-              "type" : "string"
+              "enum" : [ "CARD", "EASY_PAY" ],
+              "type" : [ "string", "null" ]
             },
             "phone" : {
-              "type" : "string"
+              "type" : [ "string", "null" ]
             },
             "policyAcceptance" : {
-              "$ref" : "#/components/schemas/PolicyAcceptance"
+              "oneOf" : [ {
+                "$ref" : "#/components/schemas/PolicyAcceptanceRequest"
+              }, {
+                "type" : "null"
+              } ]
             },
             "slotId" : {
               "format" : "int64",
               "type" : "integer"
             },
+            "type" : {
+              "enum" : [ "BOOKING" ],
+              "minLength" : 1,
+              "pattern" : "BOOKING",
+              "type" : "string"
+            },
             "userId" : {
               "format" : "int64",
-              "type" : "integer"
+              "type" : [ "integer", "null" ]
             },
             "verificationCode" : {
-              "type" : "string"
+              "type" : [ "string", "null" ]
             }
           },
           "type" : "object"
         } ],
-        "required" : [ "participantCount" ]
+        "required" : [ "participantCount", "slotId", "type" ]
       },
       "BookingSettlementResponse" : {
         "properties" : {
@@ -1213,6 +1223,7 @@
             "type" : "string"
           },
           "status" : {
+            "enum" : [ "BOOKED", "CANCELED", "NO_SHOW", "COMPLETED" ],
             "type" : "string"
           }
         },
@@ -1589,7 +1600,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "orderId" ],
+        "required" : [ "amount", "orderId" ],
         "type" : "object"
       },
       "ConfirmPaymentResponse" : {
@@ -2439,7 +2450,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "productId" ],
+        "required" : [ "productId", "qty" ],
         "type" : "object"
       },
       "MergeCartRequest" : {
@@ -2957,9 +2968,12 @@
           },
           "qty" : {
             "format" : "int32",
+            "maximum" : 99,
+            "minimum" : 1,
             "type" : "integer"
           }
         },
+        "required" : [ "productId", "qty" ],
         "type" : "object"
       },
       "OrderPayload" : {
@@ -2984,31 +2998,45 @@
               "type" : "boolean"
             },
             "madeToOrderConsentVersion" : {
-              "type" : "string"
+              "type" : [ "string", "null" ]
             },
             "name" : {
-              "type" : "string"
+              "type" : [ "string", "null" ]
             },
             "phone" : {
-              "type" : "string"
+              "type" : [ "string", "null" ]
             },
             "policyAcceptance" : {
-              "$ref" : "#/components/schemas/PolicyAcceptance"
+              "oneOf" : [ {
+                "$ref" : "#/components/schemas/PolicyAcceptanceRequest"
+              }, {
+                "type" : "null"
+              } ]
             },
             "shippingAddress" : {
-              "$ref" : "#/components/schemas/ShippingAddress"
+              "oneOf" : [ {
+                "$ref" : "#/components/schemas/ShippingAddress"
+              }, {
+                "type" : "null"
+              } ]
+            },
+            "type" : {
+              "enum" : [ "ORDER" ],
+              "minLength" : 1,
+              "pattern" : "ORDER",
+              "type" : "string"
             },
             "userId" : {
               "format" : "int64",
-              "type" : "integer"
+              "type" : [ "integer", "null" ]
             },
             "verificationCode" : {
-              "type" : "string"
+              "type" : [ "string", "null" ]
             }
           },
           "type" : "object"
         } ],
-        "required" : [ "cartCheckout", "madeToOrderConsent" ]
+        "required" : [ "cartCheckout", "fulfillmentType", "items", "madeToOrderConsent", "type" ]
       },
       "OrderPricePolicyResponse" : {
         "properties" : {
@@ -3072,6 +3100,7 @@
             "type" : "integer"
           },
           "status" : {
+            "enum" : [ "PAID_APPROVAL_PENDING", "APPROVED_FULFILLMENT_PENDING", "REJECTED", "CUSTOMER_CANCELED", "AUTO_REFUND_TIMEOUT", "IN_PRODUCTION", "DELAY_CONSENT_PENDING", "DELAY_ACCEPTED", "DELAY_REJECTED_CANCELED", "SHIPPING_PREPARING", "SHIPPED", "DELIVERED", "PICKUP_READY", "PICKED_UP", "PICKUP_EXPIRED", "PICKUP_FORFEITED", "COMPLETED" ],
             "type" : "string"
           },
           "totalAmount" : {
@@ -3087,13 +3116,20 @@
           "$ref" : "#/components/schemas/PaymentPayload"
         }, {
           "properties" : {
+            "type" : {
+              "enum" : [ "PASS" ],
+              "minLength" : 1,
+              "pattern" : "PASS",
+              "type" : "string"
+            },
             "userId" : {
               "format" : "int64",
               "type" : "integer"
             }
           },
           "type" : "object"
-        } ]
+        } ],
+        "required" : [ "type", "userId" ]
       },
       "PassPaymentPolicyResponse" : {
         "properties" : {
@@ -3152,6 +3188,11 @@
       },
       "PaymentPayload" : {
         "discriminator" : {
+          "mapping" : {
+            "BOOKING" : "#/components/schemas/BookingPayload",
+            "ORDER" : "#/components/schemas/OrderPayload",
+            "PASS" : "#/components/schemas/PassPayload"
+          },
           "propertyName" : "type"
         },
         "properties" : {
@@ -3318,23 +3359,6 @@
         "required" : [ "orderId", "pickupDeadlineAt", "status" ],
         "type" : "object"
       },
-      "PolicyAcceptance" : {
-        "properties" : {
-          "privacyAccepted" : {
-            "type" : "boolean"
-          },
-          "privacyVersion" : {
-            "type" : "string"
-          },
-          "termsAccepted" : {
-            "type" : "boolean"
-          },
-          "termsVersion" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
       "PolicyAcceptanceRequest" : {
         "properties" : {
           "privacyAccepted" : {
@@ -3375,9 +3399,9 @@
           },
           "payload" : {
             "oneOf" : [ {
-              "$ref" : "#/components/schemas/BookingPayload"
-            }, {
               "$ref" : "#/components/schemas/OrderPayload"
+            }, {
+              "$ref" : "#/components/schemas/BookingPayload"
             }, {
               "$ref" : "#/components/schemas/PassPayload"
             } ]
@@ -3909,21 +3933,27 @@
       "ShippingAddress" : {
         "properties" : {
           "addressLine1" : {
+            "minLength" : 1,
             "type" : "string"
           },
           "addressLine2" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "phone" : {
+            "minLength" : 1,
             "type" : "string"
           },
           "postalCode" : {
+            "minLength" : 1,
+            "pattern" : "^[0-9]{5}$",
             "type" : "string"
           },
           "recipientName" : {
+            "minLength" : 1,
             "type" : "string"
           }
         },
+        "required" : [ "addressLine1", "phone", "postalCode", "recipientName" ],
         "type" : "object"
       },
       "ShippingAddressDto" : {
@@ -4105,6 +4135,7 @@
             "type" : "integer"
           },
           "status" : {
+            "enum" : [ "PAID_APPROVAL_PENDING", "APPROVED_FULFILLMENT_PENDING", "REJECTED", "CUSTOMER_CANCELED", "AUTO_REFUND_TIMEOUT", "IN_PRODUCTION", "DELAY_CONSENT_PENDING", "DELAY_ACCEPTED", "DELAY_REJECTED_CANCELED", "SHIPPING_PREPARING", "SHIPPED", "DELIVERED", "PICKUP_READY", "PICKED_UP", "PICKUP_EXPIRED", "PICKUP_FORFEITED", "COMPLETED" ],
             "type" : "string"
           }
         },
@@ -4121,6 +4152,7 @@
             "type" : "string"
           },
           "productType" : {
+            "enum" : [ "READY_STOCK", "MADE_TO_ORDER" ],
             "type" : "string"
           },
           "totalQuantity" : {
@@ -4163,6 +4195,7 @@
             "type" : "integer"
           }
         },
+        "required" : [ "qty" ],
         "type" : "object"
       },
       "UpdateClassRequest" : {

@@ -9,7 +9,7 @@ import org.springframework.util.StringUtils;
  * 민감 데이터를 마스킹하는 Logback PatternLayout.
  *
  * <p>logback-spring.xml에서 {@code <layout class="...MaskingPatternLayout">}로 등록한다.
- * 전화번호, Bearer 토큰, 세션 토큰을 정규식으로 치환한다.
+ * 전화번호, Bearer 토큰, 세션 토큰, 비회원 접근 토큰을 정규식으로 치환한다.
  */
 public class MaskingPatternLayout extends PatternLayout {
 
@@ -23,7 +23,10 @@ public class MaskingPatternLayout extends PatternLayout {
             Pattern.compile("(HG_SESSION=)[^\\s;]+");
 
     private static final Pattern ACCESS_TOKEN_PATTERN =
-            Pattern.compile("(X-Access-Token[=:]\\s?)[A-Fa-f0-9]{32,64}");
+            Pattern.compile(
+                    "((?i:X-Access-Token)[\"']?\\s*[=:]\\s*[\"']?)"
+                            + "(?:[A-Za-z0-9_-]{16,}\\.[A-Za-z0-9_-]{32,}|[A-Fa-f0-9]{32,64})"
+                            + "(?![A-Za-z0-9._-])");
 
     @Override
     public String doLayout(ILoggingEvent event) {
