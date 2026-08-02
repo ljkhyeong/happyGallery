@@ -147,6 +147,26 @@ public class NotificationOutbox {
     }
 
     public String markProcessing(LocalDateTime now) {
+        if (status != NotificationOutboxStatus.PENDING) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT,
+                    "대기 중인 알림만 처음 선점할 수 있습니다.");
+        }
+        return beginProcessing(now);
+    }
+
+    public String reclaimProcessing(LocalDateTime now, LocalDateTime staleBefore) {
+        if (status != NotificationOutboxStatus.PROCESSING
+                || lockedAt == null
+                || !lockedAt.isBefore(staleBefore)) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT,
+                    "처리 시간이 만료된 알림만 다시 선점할 수 있습니다.");
+        }
+        return beginProcessing(now);
+    }
+
+    private String beginProcessing(LocalDateTime now) {
         this.status = NotificationOutboxStatus.PROCESSING;
         this.lockedAt = now;
         this.processingToken = UUID.randomUUID().toString();

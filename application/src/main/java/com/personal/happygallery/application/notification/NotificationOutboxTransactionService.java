@@ -37,7 +37,7 @@ class NotificationOutboxTransactionService {
         return outboxPort.findDispatchable(now, staleBefore, 1).stream()
                 .findFirst()
                 .map(outbox -> new NotificationOutboxReservation(
-                        outbox.getId(), outbox.markProcessing(now)));
+                        outbox.getId(), reserve(outbox, now, staleBefore)));
     }
 
     @Transactional(readOnly = true)
@@ -87,6 +87,15 @@ class NotificationOutboxTransactionService {
     private NotificationOutbox findOutbox(Long outboxId) {
         return outboxPort.findById(outboxId)
                 .orElseThrow(() -> new IllegalStateException("알림 outbox 미존재: " + outboxId));
+    }
+
+    private String reserve(NotificationOutbox outbox,
+                           LocalDateTime now,
+                           LocalDateTime staleBefore) {
+        if (outbox.getStatus() == NotificationOutboxStatus.PROCESSING) {
+            return outbox.reclaimProcessing(now, staleBefore);
+        }
+        return outbox.markProcessing(now);
     }
 
     private NotificationOutbox findOutboxForUpdate(Long outboxId) {

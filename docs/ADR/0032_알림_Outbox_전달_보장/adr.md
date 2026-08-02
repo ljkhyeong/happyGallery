@@ -1,7 +1,7 @@
 # ADR-0032: 알림 Outbox 전달 보장
 
 **날짜**: 2026-07-04
-**최종 갱신**: 2026-07-26
+**최종 갱신**: 2026-08-02
 **상태**: Accepted
 
 ---
@@ -35,6 +35,7 @@
   한 실행은 최대 50건을 처리하되 한 건씩 선점하고 결과를 확정한 뒤 다음 건을 선점한다. 아직 외부 호출 순서를 기다리는 행까지
   미리 `PROCESSING`으로 바꾸지 않아 같은 실행 안의 대기 시간 때문에 lease가 만료되는 일을 막는다.
 - outbox를 선점할 때마다 새 `processing_token`을 발급하고 요청 조회와 결과 반영에 함께 전달한다. `@Version`과 토큰이 오래된 실행의 성공·실패 결과가 최신 재선점 상태를 덮지 않게 한다.
+- 최초 선점은 `PENDING`, 재선점은 `locked_at < staleBefore`인 lease 만료 `PROCESSING`에만 적용한다. 도메인은 두 전이를 별도 메서드로 구분해 아직 활성인 실행권과 종료 상태인 `SENT`·`FAILED`를 다시 `PROCESSING`으로 되돌리는 호출을 `409 CONFLICT`로 거절한다. 최종 실패 재처리는 관리자 경로가 먼저 같은 행을 `PENDING`으로 연 뒤 새 실행권을 발급한다.
 - `PROCESSING`이 1분 넘게 유지된 outbox는 오래된 실행으로 보고 재선점한다. 정상 알림 transport 상한 5초보다 충분히 길고 NHN 멱등키의 10분 중복 차단 창보다 짧아, 중단된 실행의 복구를 중복 차단 창 안에서 시작한다.
 - `NotificationOutboxScheduler`는 주기적으로 pending/오래된 processing outbox를 다시 dispatch해 즉시 dispatch 실패와 재시작 상황을 복구한다.
 - 실제 채널 fallback 순서와 발송 결과 이력은 기존 `NotificationService`와 `notification_log`가 유지한다. 운영 1순위는 NHN Cloud Alimtalk v2.2, 2순위는 NHN Cloud SMS다.
