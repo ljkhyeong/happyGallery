@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.out.persistence.product;
 
 import com.personal.happygallery.application.product.ProductFilter;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
-import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import java.util.List;
@@ -14,11 +13,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.util.StringUtils;
 
 public interface ProductRepository extends JpaRepository<Product, Long>,
-        ProductReaderPort, ProductStorePort {
+        ProductReaderPort {
 
     @Override Optional<Product> findById(Long id);
-
-    @Override Product save(Product product);
 
     /** ACTIVE 상품 목록 — 최신 등록순 */
     @Override

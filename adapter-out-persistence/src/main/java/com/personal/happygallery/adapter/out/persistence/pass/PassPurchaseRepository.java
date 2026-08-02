@@ -1,7 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.pass;
 
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
-import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
@@ -14,10 +13,9 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long>, PassPurchaseReaderPort, PassPurchaseStorePort {
+public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long>, PassPurchaseReaderPort {
 
     @Override Optional<PassPurchase> findById(Long id);
-    @Override PassPurchase save(PassPurchase passPurchase);
 
     @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)

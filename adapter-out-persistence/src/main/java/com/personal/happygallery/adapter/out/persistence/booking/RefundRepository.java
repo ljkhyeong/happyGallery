@@ -1,7 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.booking;
 
 import com.personal.happygallery.application.payment.port.out.RefundBacklogSummary;
-import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.domain.booking.Refund;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
@@ -14,20 +13,19 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPort {
+public interface RefundRepository extends JpaRepository<Refund, Long> {
 
-    @Override Optional<Refund> findById(Long id);
-    @Override Refund save(Refund refund);
-    @Override Optional<Refund> findByBookingId(Long bookingId);
     @Override
+    Optional<Refund> findById(Long id);
+    Optional<Refund> findByBookingId(Long bookingId);
     @Query("SELECT r FROM Refund r WHERE r.orderId = :orderId AND r.orderClaimId IS NULL")
     Optional<Refund> findDirectByOrderId(@Param("orderId") Long orderId);
-    @Override Optional<Refund> findByOrderClaimId(Long orderClaimId);
-    @Override Optional<Refund> findByPassPurchaseId(Long passPurchaseId);
-    @Override Optional<Refund> findByPaymentAttemptId(Long paymentAttemptId);
-    @Override List<Refund> findByPaymentAttemptIdIn(List<Long> paymentAttemptIds);
-    @Override List<Refund> findByPassPurchaseIdIn(List<Long> passPurchaseIds);
-    @Override List<Refund> findByOrderClaimIdIn(List<Long> orderClaimIds);
+    Optional<Refund> findByOrderClaimId(Long orderClaimId);
+    Optional<Refund> findByPassPurchaseId(Long passPurchaseId);
+    Optional<Refund> findByPaymentAttemptId(Long paymentAttemptId);
+    List<Refund> findByPaymentAttemptIdIn(List<Long> paymentAttemptIds);
+    List<Refund> findByPassPurchaseIdIn(List<Long> passPurchaseIds);
+    List<Refund> findByOrderClaimIdIn(List<Long> orderClaimIds);
 
     @Query("""
             SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END
@@ -67,22 +65,18 @@ public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPor
                                              @Param("id") Long id,
                                              Pageable pageable);
 
-    @Override
     default List<Refund> findActionRequired(int limit) {
         return findActionRequiredPage(PageRequest.ofSize(limit));
     }
 
-    @Override
     default List<Refund> findActionRequiredAfter(LocalDateTime createdAt, Long id, int limit) {
         return findActionRequiredAfterPage(createdAt, id, PageRequest.ofSize(limit));
     }
 
-    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM Refund r WHERE r.id = :id")
     Optional<Refund> findByIdForUpdate(@Param("id") Long id);
 
-    @Override
     @Query(value = """
             SELECT id
             FROM refunds
@@ -98,7 +92,6 @@ public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPor
                                   @Param("staleBefore") LocalDateTime staleBefore,
                                   @Param("limit") int limit);
 
-    @Override
     @Query("""
             SELECT new com.personal.happygallery.application.payment.port.out.RefundBacklogSummary(
                 r.status,

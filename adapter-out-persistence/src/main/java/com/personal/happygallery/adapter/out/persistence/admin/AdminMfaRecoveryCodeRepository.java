@@ -1,6 +1,5 @@
 package com.personal.happygallery.adapter.out.persistence.admin;
 
-import com.personal.happygallery.application.admin.port.out.AdminMfaRecoveryCodePort;
 import com.personal.happygallery.domain.admin.AdminMfaRecoveryCode;
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -9,13 +8,8 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface AdminMfaRecoveryCodeRepository
-        extends JpaRepository<AdminMfaRecoveryCode, Long>, AdminMfaRecoveryCodePort {
+public interface AdminMfaRecoveryCodeRepository extends JpaRepository<AdminMfaRecoveryCode, Long> {
 
-    @Override
-    AdminMfaRecoveryCode save(AdminMfaRecoveryCode recoveryCode);
-
-    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT code
@@ -27,7 +21,6 @@ public interface AdminMfaRecoveryCodeRepository
     List<AdminMfaRecoveryCode> findUnusedByAdminUserIdForUpdate(
             @Param("adminUserId") Long adminUserId);
 
-    @Override
     @Query("""
             SELECT COUNT(code)
               FROM AdminMfaRecoveryCode code
@@ -36,6 +29,5 @@ public interface AdminMfaRecoveryCodeRepository
             """)
     long countUnusedByAdminUserId(@Param("adminUserId") Long adminUserId);
 
-    @Override
     void deleteByAdminUserId(Long adminUserId);
 }

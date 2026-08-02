@@ -1,6 +1,5 @@
 package com.personal.happygallery.adapter.out.persistence.order;
 
-import com.personal.happygallery.application.order.port.out.OrderClaimPort;
 import com.personal.happygallery.domain.order.OrderClaim;
 import com.personal.happygallery.domain.order.OrderClaimStatus;
 import jakarta.persistence.LockModeType;
@@ -14,16 +13,13 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface OrderClaimRepository extends JpaRepository<OrderClaim, Long>, OrderClaimPort {
+public interface OrderClaimRepository extends JpaRepository<OrderClaim, Long> {
 
-    @Override OrderClaim save(OrderClaim claim);
-
-    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM OrderClaim c WHERE c.id = :id")
     Optional<OrderClaim> findByIdForUpdate(@Param("id") Long id);
 
-    @Override List<OrderClaim> findByOrderIdOrderByRequestedAtDesc(Long orderId);
+    List<OrderClaim> findByOrderIdOrderByRequestedAtDesc(Long orderId);
 
     @Query("""
             SELECT CASE WHEN COUNT(claim) > 0 THEN true ELSE false END
@@ -74,22 +70,18 @@ public interface OrderClaimRepository extends JpaRepository<OrderClaim, Long>, O
             @Param("id") Long id,
             Pageable pageable);
 
-    @Override
     default List<OrderClaim> findRecent(int limit) {
         return findRecentPage(PageRequest.ofSize(limit));
     }
 
-    @Override
     default List<OrderClaim> findRecentAfter(LocalDateTime requestedAt, Long id, int limit) {
         return findRecentAfterPage(requestedAt, id, PageRequest.ofSize(limit));
     }
 
-    @Override
     default List<OrderClaim> findRecentByStatus(OrderClaimStatus status, int limit) {
         return findRecentByStatusPage(status, PageRequest.ofSize(limit));
     }
 
-    @Override
     default List<OrderClaim> findRecentByStatusAfter(
             OrderClaimStatus status, LocalDateTime requestedAt, Long id, int limit) {
         return findRecentByStatusAfterPage(

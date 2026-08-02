@@ -2,7 +2,7 @@
 
 **날짜**: 2026-03-15  
 **상태**: Accepted
-**갱신**: 2026-07-24
+**갱신**: 2026-08-02
 
 ---
 
@@ -86,6 +86,18 @@ Gradle은 `java-library` 기준으로 구성한다. 공개 포트와 DTO 시그�
 - `adapter-in-web`은 `adapter-out-*`를 직접 참조하지 않는다.
 - `adapter-out-persistence`와 `adapter-out-external`은 서로 직접 의존하지 않는다.
 
+### 7. Spring Data 저장소와 저장 포트 구현을 분리한다
+
+- `JpaRepository` 인터페이스는 Spring Data 쿼리와 엔티티 저장 기술만 소유한다.
+- `save(Entity)`를 선언하는 application 출력 포트는 `Jpa*PersistenceAdapter`가 명시적으로 구현하고
+  해당 Spring Data 저장소에 위임한다.
+- application 포트의 `save(Entity)`와 Spring Data의 `save<S extends Entity>(S)`를 한 인터페이스에서
+  함께 상속하지 않는다. 타입 소거 뒤 동일 시그니처가 되어 unchecked bridge가 생성되기 때문이다.
+- 저장 메서드가 없는 조회 전용 포트는 쿼리 선언과 시그니처가 일치하면 Spring Data 저장소가 직접
+  구현할 수 있다. 경고 원인이 없는 조회 경계까지 형식적으로 adapter를 추가하지 않는다.
+- 서로 다른 포트에 타입 소거 후 같은 시그니처가 있지만 의미나 반환형이 다르면 하나의 adapter로
+  합치지 않는다. 각 포트의 저장소 의미를 보존하도록 adapter를 나눈다.
+
 ---
 
 ## 결과
@@ -115,4 +127,5 @@ Gradle은 `java-library` 기준으로 구성한다. 공개 포트와 DTO 시그�
 - `build.gradle`의 `java-library` 공통 적용과 모듈별 `api`/`implementation` 의존성 분리
 - `application/**/port/in`, `application/**/port/out`
 - `adapter-in-web/**`, `adapter-out-persistence/**`, `adapter-out-external/**`
+- `adapter-out-persistence/**/Jpa*PersistenceAdapter.java`
 - `application/src/test/java/com/personal/happygallery/policy/LayerDependencyPolicyTest.java`

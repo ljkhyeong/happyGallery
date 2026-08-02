@@ -1,7 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.notice;
 
 import com.personal.happygallery.application.notice.port.out.NoticeReaderPort;
-import com.personal.happygallery.application.notice.port.out.NoticeStorePort;
 import com.personal.happygallery.domain.notice.Notice;
 import java.util.List;
 import java.util.Optional;
@@ -12,13 +11,10 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface NoticeRepository extends JpaRepository<Notice, Long>, NoticeReaderPort, NoticeStorePort {
+public interface NoticeRepository extends JpaRepository<Notice, Long>, NoticeReaderPort {
 
     @Override Optional<Notice> findById(Long id);
-    @Override Notice save(Notice notice);
-    @Override void deleteById(Long id);
 
-    @Override
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Notice n SET n.viewCount = n.viewCount + 1 WHERE n.id = :id")
     int incrementViewCountById(@Param("id") Long id);

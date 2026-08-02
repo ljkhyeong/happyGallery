@@ -1,7 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.inquiry;
 
 import com.personal.happygallery.application.inquiry.port.out.InquiryReaderPort;
-import com.personal.happygallery.application.inquiry.port.out.InquiryStorePort;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,10 +14,9 @@ import org.springframework.data.repository.query.Param;
 
 import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
 
-public interface InquiryRepository extends JpaRepository<Inquiry, Long>, InquiryReaderPort, InquiryStorePort {
+public interface InquiryRepository extends JpaRepository<Inquiry, Long>, InquiryReaderPort {
 
     @Override Optional<Inquiry> findById(Long id);
-    @Override Inquiry save(Inquiry inquiry);
 
     @Override
     @Lock(PESSIMISTIC_WRITE)

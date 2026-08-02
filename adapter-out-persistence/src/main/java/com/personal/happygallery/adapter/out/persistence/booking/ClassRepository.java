@@ -1,7 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.booking;
 
 import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
-import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -11,7 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface ClassRepository extends JpaRepository<BookingClass, Long>, ClassReaderPort, ClassStorePort {
+public interface ClassRepository extends JpaRepository<BookingClass, Long>, ClassReaderPort {
 
     @Override Optional<BookingClass> findById(Long id);
 
@@ -35,10 +34,4 @@ public interface ClassRepository extends JpaRepository<BookingClass, Long>, Clas
            "ORDER BY c.createdAt DESC, c.id DESC")
     List<BookingClass> findAllActive();
 
-    @Override BookingClass save(BookingClass bookingClass);
-
-    @Override
-    default List<BookingClass> saveAll(List<BookingClass> classes) {
-        return saveAll((Iterable<BookingClass>) classes);
-    }
 }

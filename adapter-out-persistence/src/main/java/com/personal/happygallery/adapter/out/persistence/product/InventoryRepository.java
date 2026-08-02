@@ -1,7 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.product;
 
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
-import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.domain.product.Inventory;
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -11,9 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface InventoryRepository extends JpaRepository<Inventory, Long>, InventoryReaderPort, InventoryStorePort {
-
-    @Override Inventory save(Inventory inventory);
+public interface InventoryRepository extends JpaRepository<Inventory, Long>, InventoryReaderPort {
 
     /** productId로 재고 조회 (읽기용) */
     @Override Optional<Inventory> findByProductId(Long productId);
@@ -26,7 +23,6 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long>, Inv
      *
      * <p>여러 상품은 productId 오름차순으로 한 번에 잠가 교착 위험과 반복 조회를 줄인다.
      */
-    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT i FROM Inventory i WHERE i.productId IN :productIds ORDER BY i.productId")
     List<Inventory> findByProductIdInWithLock(@Param("productIds") List<Long> productIds);

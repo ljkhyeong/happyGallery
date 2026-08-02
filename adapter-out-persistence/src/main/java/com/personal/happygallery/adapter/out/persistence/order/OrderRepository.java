@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.out.persistence.order;
 
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderApprovalBacklogSummary;
-import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDateTime;
@@ -17,7 +16,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface OrderRepository extends JpaRepository<Order, Long>, OrderReaderPort, OrderStorePort {
+public interface OrderRepository extends JpaRepository<Order, Long>, OrderReaderPort {
 
     @Override Optional<Order> findById(Long id);
 
@@ -27,9 +26,6 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     Optional<Order> findByIdForUpdate(@Param("id") Long id);
 
     @Override List<Order> findByIdIn(Collection<Long> ids);
-
-    @Override Order save(Order order);
-    @Override Order saveAndFlush(Order order);
 
     /**
      * 자동환불 배치용 조회.

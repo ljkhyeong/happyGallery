@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.out.persistence.cart;
 
 import com.personal.happygallery.application.cart.port.out.CartItemDetail;
 import com.personal.happygallery.application.cart.port.out.CartItemReaderPort;
-import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
 import com.personal.happygallery.domain.cart.CartItem;
 import java.util.Collection;
 import java.util.List;
@@ -15,7 +14,7 @@ import org.springframework.data.repository.query.Param;
 import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
 
 public interface CartItemRepository extends JpaRepository<CartItem, Long>,
-        CartItemReaderPort, CartItemStorePort {
+        CartItemReaderPort {
 
     @Override
     Optional<CartItem> findByUserIdAndProductId(Long userId, Long productId);

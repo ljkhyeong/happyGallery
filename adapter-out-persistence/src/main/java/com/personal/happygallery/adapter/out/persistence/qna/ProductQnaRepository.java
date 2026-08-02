@@ -1,7 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.qna;
 
 import com.personal.happygallery.application.qna.port.out.ProductQnaReaderPort;
-import com.personal.happygallery.application.qna.port.out.ProductQnaStorePort;
 import com.personal.happygallery.domain.qna.ProductQna;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,12 +14,11 @@ import org.springframework.data.repository.query.Param;
 
 import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
 
-public interface ProductQnaRepository extends JpaRepository<ProductQna, Long>, ProductQnaReaderPort, ProductQnaStorePort {
+public interface ProductQnaRepository extends JpaRepository<ProductQna, Long>, ProductQnaReaderPort {
 
     @Override Optional<ProductQna> findByIdAndProductId(Long id, Long productId);
     @Override Optional<ProductQna> findByIdAndProductIdAndUserId(Long id, Long productId, Long userId);
     List<ProductQna> findByProductIdAndUserIdOrderByCreatedAtDesc(Long productId, Long userId);
-    @Override ProductQna save(ProductQna qna);
 
     @Override
     @Lock(PESSIMISTIC_WRITE)

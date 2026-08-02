@@ -1,7 +1,7 @@
 # ADR-0031: Repository 쿼리 언어 선택 기준
 
 **날짜**: 2026-05-05
-**최종 갱신**: 2026-07-27
+**최종 갱신**: 2026-08-02
 **상태**: Accepted
 
 ---
@@ -58,6 +58,16 @@ JPQL로 표현이 불가능하거나 옵티마이저가 복합 인덱스를 못 
   애플리케이션이 `SqlSessionFactoryBean`을 다시 구성하지 않는다.
 - 이 결정은 MyBatis를 JPA로 대체한다는 뜻이 아니다. 대시보드 집계와 관리자 검색의 명시적 SQL은
   이 ADR의 쿼리 선택 기준에 따라 계속 MyBatis가 소유한다.
+
+### 6. Spring Data 쿼리와 application 저장 포트 구현의 책임을 나눈다
+
+- JPQL, native query, derived query와 `JpaRepository`의 제네릭 저장 계약은 Spring Data repository가 소유한다.
+- `save(Entity)`를 포함하는 application 출력 포트는 `Jpa*PersistenceAdapter`가 구현하고 repository에
+  위임한다. 이 구조에서도 쿼리 언어 선택과 `@Lock`, `@Modifying`은 repository에 남는다.
+- 저장 메서드가 없는 조회 전용 포트는 repository가 직접 구현할 수 있다. 불필요한 위임 계층보다
+  실제 제네릭 bridge 충돌과 기술 경계를 기준으로 adapter 필요 여부를 결정한다.
+- 이 분리는 쿼리를 adapter로 옮기는 리팩토링이 아니다. adapter는 application 계약을 구현하고,
+  repository는 Spring Data가 해석할 쿼리 선언을 계속 소유한다.
 
 ---
 
