@@ -50,6 +50,8 @@ spring:
       # DB wait_timeout(초)보다 짧게 유지한다.
       # 기본값: DB 600초(10분) 기준 540초(9분).
       max-lifetime: ${DB_HIKARI_MAX_LIFETIME_MS:540000}
+      # 유휴 커넥션은 max-lifetime보다 먼저 정리해 Hikari 설정 역전 경고를 피한다.
+      idle-timeout: ${DB_HIKARI_IDLE_TIMEOUT_MS:300000}
       # REQUIRES_NEW가 포함된 작업은 스레드당 커넥션 2개를 점유할 수 있다.
       # Hikari 권장식: T_n * (C_m - 1) + 1
       # 현재 기본값(T_n=4, C_m=2) 기준 최소 5이므로 여유를 두어 12로 설정한다.
@@ -76,6 +78,8 @@ spring:
       port: ${REDIS_PORT:6379}
       connect-timeout: ${REDIS_CONNECT_TIMEOUT:1s}
       timeout: ${REDIS_COMMAND_TIMEOUT:1s}
+      repositories:
+        enabled: false
   session:
     timeout: 7d
     data:

@@ -213,6 +213,7 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 | `ASYNC_EXECUTOR_CORE_SIZE` / `ASYNC_EXECUTOR_MAX_SIZE` | 백엔드 | 알림·환불 커밋 후 실행기 기본/최대 스레드 수, 기본 `2`/`4` |
 | `ASYNC_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 알림·환불 커밋 후 실행 신호 대기열 크기, 기본 `100` |
 | `BATCH_SCHEDULER_POOL_SIZE` | 백엔드 | Spring 스케줄러 스레드 수, 기본 `4` |
+| `DB_HIKARI_IDLE_TIMEOUT_MS` / `DB_HIKARI_MAX_LIFETIME_MS` | 백엔드 | 유휴 커넥션 정리·최대 수명, 기본 `300000` / `540000`; 유휴 정리가 최대 수명보다 먼저 실행돼야 함 |
 | `PAYMENT_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | PG 호출 대기열 크기, 기본 `20` |
 | `ALIMTALK_NOTIFICATION_EXECUTOR_POOL_SIZE` / `ALIMTALK_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | Alimtalk timeout 보호 실행기, 기본 `2` / `5` |
 | `SMS_NOTIFICATION_EXECUTOR_POOL_SIZE` / `SMS_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 일반 SMS timeout 보호 실행기, 기본 `2` / `5` |

@@ -1,7 +1,7 @@
 # ADR-0030: 타임아웃 계층과 ingress keep-alive 운영 기준
 
 **날짜**: 2026-03-29  
-**최종 갱신**: 2026-07-30
+**최종 갱신**: 2026-08-02
 **상태**: Accepted
 
 ---
@@ -32,6 +32,9 @@
 - JPA query timeout: 5초
 - MySQL lock wait: 3초
 - DB/Hikari acquire: 2초
+
+Hikari 커넥션 수명은 기본 `idle timeout 5분 < max lifetime 9분 < DB wait_timeout 10분` 순서로 둔다.
+유휴 커넥션 정리 시간이 최대 수명보다 길어져 Hikari가 설정을 비활성화하는 역전은 허용하지 않는다.
 
 즉, 프론트가 가장 늦게 포기하고 DB와 풀 획득이 가장 먼저 포기한다.
 
