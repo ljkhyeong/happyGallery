@@ -16,6 +16,11 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
+import {
+  CONTENT_BODY_MAX_LENGTH,
+  CONTENT_TITLE_MAX_LENGTH,
+  contentLengthLabel,
+} from "@/shared/validation/contentText";
 
 interface Props {
   adminKey: string;
@@ -214,27 +219,39 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
               </Alert>
             )}
             <Form onSubmit={handleSubmit}>
-              <Form.Group className="mb-2">
+              <Form.Group className="mb-2" controlId="admin-notice-title">
+                <Form.Label>제목</Form.Label>
                 <Form.Control
                   size="sm"
                   placeholder="제목"
+                  maxLength={CONTENT_TITLE_MAX_LENGTH}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   disabled={editLoading}
                   required
+                  aria-describedby="admin-notice-title-count"
                 />
+                <Form.Text id="admin-notice-title-count" className="text-muted d-block text-end">
+                  {contentLengthLabel(title, CONTENT_TITLE_MAX_LENGTH)}
+                </Form.Text>
               </Form.Group>
-              <Form.Group className="mb-2">
+              <Form.Group className="mb-2" controlId="admin-notice-content">
+                <Form.Label>내용</Form.Label>
                 <Form.Control
                   as="textarea"
                   rows={4}
                   size="sm"
                   placeholder="내용"
+                  maxLength={CONTENT_BODY_MAX_LENGTH}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   disabled={editLoading}
                   required
+                  aria-describedby="admin-notice-content-count"
                 />
+                <Form.Text id="admin-notice-content-count" className="text-muted d-block text-end">
+                  {contentLengthLabel(content, CONTENT_BODY_MAX_LENGTH)}
+                </Form.Text>
               </Form.Group>
               <Form.Check
                 type="checkbox"

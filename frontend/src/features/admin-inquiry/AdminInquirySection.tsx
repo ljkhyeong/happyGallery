@@ -8,6 +8,10 @@ import { formatDateTime } from "@/shared/lib";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
+import {
+  CONTENT_BODY_MAX_LENGTH,
+  contentLengthLabel,
+} from "@/shared/validation/contentText";
 
 interface Props {
   token: string;
@@ -76,6 +80,8 @@ function AdminInquiryItem({
   const queryClient = useQueryClient();
   const toast = useToast();
   const [replyText, setReplyText] = useState("");
+  const replyControlId = `admin-inquiry-reply-${inquiry.id}`;
+  const replyCountId = `${replyControlId}-count`;
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => replyInquiry(inquiry.id, replyText, token),
@@ -120,20 +126,30 @@ function AdminInquiryItem({
               mutation.mutate();
             }}
           >
-            <InputGroup size="sm">
-              <Form.Control
-                placeholder="답변을 입력하세요"
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-              />
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={!replyText.trim() || mutation.isPending}
-              >
-                답변
-              </Button>
-            </InputGroup>
+            <Form.Group controlId={replyControlId}>
+              <Form.Label className="visually-hidden">문의 답변</Form.Label>
+              <InputGroup size="sm">
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  placeholder="답변을 입력하세요"
+                  maxLength={CONTENT_BODY_MAX_LENGTH}
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  aria-describedby={replyCountId}
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={!replyText.trim() || mutation.isPending}
+                >
+                  답변
+                </Button>
+              </InputGroup>
+              <Form.Text id={replyCountId} className="text-muted d-block text-end">
+                {contentLengthLabel(replyText, CONTENT_BODY_MAX_LENGTH)}
+              </Form.Text>
+            </Form.Group>
             <ErrorAlert error={mutation.error} />
           </Form>
         )}

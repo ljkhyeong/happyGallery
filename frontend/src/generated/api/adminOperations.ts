@@ -20,7 +20,10 @@ export interface AdminInquiryPageResponse {
 }
 
 export interface InquiryReplyRequest {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @maxLength 16000
+     */
   replyContent: string;
 }
 

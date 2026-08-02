@@ -22,7 +22,10 @@ export interface AdminQnaPageResponse {
 }
 
 export interface QnaReplyRequest {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @maxLength 16000
+     */
   replyContent: string;
 }
 
@@ -35,11 +38,14 @@ export interface MyProductQnaListItem {
 }
 
 export interface CreateQnaRequest {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @maxLength 16000
+     */
   content: string;
   secret: boolean;
   /**
-     * @minLength 0
+     * @minLength 1
      * @maxLength 200
      */
   title: string;

@@ -1712,12 +1712,13 @@
       "CreateInquiryRequest" : {
         "properties" : {
           "content" : {
+            "maxLength" : 16000,
             "minLength" : 1,
             "type" : "string"
           },
           "title" : {
             "maxLength" : 200,
-            "minLength" : 0,
+            "minLength" : 1,
             "type" : "string"
           }
         },
@@ -1727,6 +1728,7 @@
       "CreateNoticeRequest" : {
         "properties" : {
           "content" : {
+            "maxLength" : 16000,
             "minLength" : 1,
             "type" : "string"
           },
@@ -1734,6 +1736,7 @@
             "type" : "boolean"
           },
           "title" : {
+            "maxLength" : 200,
             "minLength" : 1,
             "type" : "string"
           }
@@ -1800,6 +1803,7 @@
       "CreateQnaRequest" : {
         "properties" : {
           "content" : {
+            "maxLength" : 16000,
             "minLength" : 1,
             "type" : "string"
           },
@@ -1808,7 +1812,7 @@
           },
           "title" : {
             "maxLength" : 200,
-            "minLength" : 0,
+            "minLength" : 1,
             "type" : "string"
           }
         },
@@ -2227,6 +2231,7 @@
       "InquiryReplyRequest" : {
         "properties" : {
           "replyContent" : {
+            "maxLength" : 16000,
             "minLength" : 1,
             "type" : "string"
           }
@@ -3648,6 +3653,7 @@
       "QnaReplyRequest" : {
         "properties" : {
           "replyContent" : {
+            "maxLength" : 16000,
             "minLength" : 1,
             "type" : "string"
           }
@@ -4271,6 +4277,7 @@
       "UpdateNoticeRequest" : {
         "properties" : {
           "content" : {
+            "maxLength" : 16000,
             "minLength" : 1,
             "type" : "string"
           },
@@ -4282,6 +4289,7 @@
             "type" : "boolean"
           },
           "title" : {
+            "maxLength" : 200,
             "minLength" : 1,
             "type" : "string"
           }

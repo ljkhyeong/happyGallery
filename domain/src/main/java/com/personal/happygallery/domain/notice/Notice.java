@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.notice;
 
+import com.personal.happygallery.domain.content.ContentTextPolicy;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -17,7 +18,7 @@ public class Notice {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = ContentTextPolicy.MAX_TITLE_LENGTH)
     private String title;
 
     @Column(nullable = false, columnDefinition = "TEXT")
@@ -39,15 +40,15 @@ public class Notice {
     protected Notice() {}
 
     public Notice(String title, String content, boolean pinned) {
-        this.title = title;
-        this.content = content;
+        this.title = ContentTextPolicy.requireTitle(title, "공지 제목");
+        this.content = ContentTextPolicy.requireBody(content, "공지 내용");
         this.pinned = pinned;
         this.viewCount = 0;
     }
 
     public void update(String title, String content, boolean pinned) {
-        this.title = title;
-        this.content = content;
+        this.title = ContentTextPolicy.requireTitle(title, "공지 제목");
+        this.content = ContentTextPolicy.requireBody(content, "공지 내용");
         this.pinned = pinned;
     }
 

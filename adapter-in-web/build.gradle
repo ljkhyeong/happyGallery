@@ -10,7 +10,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	implementation 'org.springframework.session:spring-session-core'
 	implementation 'io.sentry:sentry-spring-boot-4-starter:8.25.0'
-	implementation 'io.swagger.core.v3:swagger-annotations-jakarta:2.2.47'
+	// 공개 웹 DTO의 class signature에 포함되므로 소비 모듈의 compile classpath에도 노출한다.
+	api 'io.swagger.core.v3:swagger-annotations-jakarta:2.2.47'
 	compileOnly 'org.hibernate.orm:hibernate-core'
 	compileOnly 'org.springframework:spring-orm'
 

@@ -7,6 +7,8 @@ import com.personal.happygallery.adapter.out.persistence.qna.ProductQnaRepositor
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
@@ -146,7 +148,8 @@ class AnswerConcurrencyUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(successCount).isEqualTo(1L);
             softly.assertThat(failure)
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                            softly.assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT))
                     .hasMessage(duplicateMessage);
             softly.assertThat(persistedReply).isIn(FIRST_REPLY, SECOND_REPLY);
             softly.assertThat(persistedAdminId).isEqualTo(expectedAdminId);

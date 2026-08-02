@@ -150,10 +150,13 @@ export interface InquiryResponse {
 }
 
 export interface CreateInquiryRequest {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @maxLength 16000
+     */
   content: string;
   /**
-     * @minLength 0
+     * @minLength 1
      * @maxLength 200
      */
   title: string;

@@ -9,10 +9,16 @@ export interface NoticeListResponse {
 }
 
 export interface CreateNoticeRequest {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @maxLength 16000
+     */
   content: string;
   pinned: boolean;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
   title: string;
 }
 
@@ -27,11 +33,17 @@ export interface NoticeDetailResponse {
 }
 
 export interface UpdateNoticeRequest {
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @maxLength 16000
+     */
   content: string;
   expectedVersion: number;
   pinned: boolean;
-  /** @minLength 1 */
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
   title: string;
 }
 

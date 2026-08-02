@@ -1648,9 +1648,11 @@ GET /api/v1/notices/{id}
   - 편집 폼을 열거나 동시 수정 충돌을 복구할 때 본문과 최신 `version`을 조회하며, 공개 상세 조회와 달리 조회수를 증가시키지 않는다.
 - `POST /api/v1/admin/notices`
   - 요청: `{ "title": "점검 공지", "content": "3/28 점검 예정", "pinned": true }`
+  - `title`은 공백이 아닌 200자 이하, `content`는 공백이 아닌 16,000자 이하
   - 응답: `201 Created` + 공지 상세 응답
 - `PUT /api/v1/admin/notices/{id}`
   - 요청: `{ "expectedVersion": 0, "title": "수정 공지", "content": "본문 수정", "pinned": false }`
+  - `title`과 `content` 길이 제한은 생성 요청과 동일
   - 응답: `200 OK` + 공지 상세 응답
 - `DELETE /api/v1/admin/notices/{id}?expectedVersion={version}`
   - 관리자 목록에서 받은 현재 `version`을 필수 query parameter로 전달
@@ -2626,6 +2628,7 @@ Cookie: HG_SESSION={sessionToken}
   - `404 NOT_FOUND` — 상품 미존재
 - 정책:
   - 작성 주체는 회원(User)만 허용한다.
+  - `title`은 공백이 아닌 200자 이하, `content`는 공백이 아닌 16,000자 이하로 제한한다.
   - `secret=true`이면 공개 목록에서 제목을 숨기고 공개 상세 조회를 거절한다.
   - 응답에는 작성 결과 요약만 반환한다.
 
@@ -2680,6 +2683,7 @@ Cookie: HG_SESSION={sessionToken}
   - `404 NOT_FOUND` — 다른 회원 문의 또는 미존재
 - 정책:
   - 문의 작성/조회는 본인 리소스로만 제한한다.
+  - 생성 요청의 `title`은 공백이 아닌 200자 이하, `content`는 공백이 아닌 16,000자 이하로 제한한다.
   - 응답에는 `hasReply`, `replyContent`, `repliedAt`를 포함한다.
 
 #### 2.12.6 회원 장바구니
@@ -2809,7 +2813,8 @@ GET /api/v1/products/{productId}/qna/{id}
 - 인증: `Authorization: Bearer {token}`
 - 미답변 목록 응답은 `{content, nextCursor, hasMore}`이고 `(createdAt, id)` 내림차순으로 조회한다. `size` 범위는 1~100이다.
 - 답변 작성 시 `replyContent`, `repliedAt`, `repliedBy`를 기록한다.
-- 이미 답변이 있는 글에 재답변을 시도하면 서버가 거절한다.
+- `replyContent`는 공백이 아닌 16,000자 이하로 제한한다.
+- 이미 답변이 있는 글에 재답변을 시도하면 `409 CONFLICT`로 거절하고 기존 답변과 알림 outbox를 변경하지 않는다.
 - 답변 저장과 `PRODUCT_QNA_ANSWERED` 회원 알림 outbox insert를 같은 트랜잭션으로 처리한다. 멱등키는 회원·이벤트·`PRODUCT_QNA`·Q&A ID 조합이다.
 
 #### 2.14.2 관리자 1:1 문의 조회/답변
@@ -2822,7 +2827,8 @@ GET /api/v1/products/{productId}/qna/{id}
 - 인증: `Authorization: Bearer {token}`
 - 회원 이름을 함께 반환한다.
 - 목록 응답은 `{content, nextCursor, hasMore}`이고 `size` 범위는 1~100이다.
-- 이미 답변이 있는 문의에 재답변을 시도하면 서버가 거절한다.
+- `replyContent`는 공백이 아닌 16,000자 이하로 제한한다.
+- 이미 답변이 있는 문의에 재답변을 시도하면 `409 CONFLICT`로 거절하고 기존 답변과 알림 outbox를 변경하지 않는다.
 - 답변 저장과 `INQUIRY_ANSWERED` 회원 알림 outbox insert를 같은 트랜잭션으로 처리한다. 외부 Alimtalk/SMS 발송은 커밋 뒤 실행하며 같은 문의의 중복 발송 요청은 멱등키로 합친다.
 
 ### 2.15 결제 API (`/api/v1/payments`)
@@ -3315,7 +3321,7 @@ file={JPEG|PNG|WebP binary}
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌에 의한 동시 변경 요청 |
 | 409 | `PAYMENT_CONFIRM_IN_PROGRESS` | 동일 결제의 confirm 요청이 이미 처리 중 |
 | 409 | `PAYMENT_RECONCILIATION_REQUIRED` | PG 승인 여부가 불명확해 운영자 확인이 필요하며 새 결제를 시작하면 안 됨 |
-| 409 | `CONFLICT` | 주문 승인/픽업/배치 등 비예약 운영 액션의 충돌 |
+| 409 | `CONFLICT` | 주문 승인/픽업/배치, 문의·Q&A 중복 답변 등 현재 상태와 충돌하는 요청 |
 | 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
 | 409 | `PHONE_ALREADY_IN_USE` | 회원가입 또는 휴대폰 변경 번호를 다른 회원이 이미 사용 중 |
 | 409 | `EMAIL_ALREADY_EXISTS` | 회원가입·기준 이메일 등록 주소 중복 또는 최초 관리자 username 중복 |

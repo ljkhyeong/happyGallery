@@ -4,6 +4,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createQna } from "./api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
+import {
+  CONTENT_BODY_MAX_LENGTH,
+  CONTENT_TITLE_MAX_LENGTH,
+  contentLengthLabel,
+} from "@/shared/validation/contentText";
 
 interface Props {
   productId: number;
@@ -16,6 +21,10 @@ export function QnaCreateForm({ productId }: Props) {
   const [content, setContent] = useState("");
   const [secret, setSecret] = useState(false);
   const [open, setOpen] = useState(false);
+  const titleControlId = `product-qna-title-${productId}`;
+  const titleCountId = `${titleControlId}-count`;
+  const contentControlId = `product-qna-content-${productId}`;
+  const contentCountId = `${contentControlId}-count`;
 
   const mutation = useMutation({
     mutationFn: () => runForCurrentCustomer(
@@ -55,22 +64,33 @@ export function QnaCreateForm({ productId }: Props) {
       <Card.Body>
         <h6 className="mb-3">질문 작성</h6>
         <Form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }}>
-          <Form.Group className="mb-2">
+          <Form.Group className="mb-2" controlId={titleControlId}>
+            <Form.Label>제목</Form.Label>
             <Form.Control
               placeholder="제목"
-              maxLength={200}
+              maxLength={CONTENT_TITLE_MAX_LENGTH}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              aria-describedby={titleCountId}
             />
+            <Form.Text id={titleCountId} className="text-muted d-block text-end">
+              {contentLengthLabel(title, CONTENT_TITLE_MAX_LENGTH)}
+            </Form.Text>
           </Form.Group>
-          <Form.Group className="mb-2">
+          <Form.Group className="mb-2" controlId={contentControlId}>
+            <Form.Label>내용</Form.Label>
             <Form.Control
               as="textarea"
               rows={3}
               placeholder="질문 내용을 입력하세요"
+              maxLength={CONTENT_BODY_MAX_LENGTH}
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              aria-describedby={contentCountId}
             />
+            <Form.Text id={contentCountId} className="text-muted d-block text-end">
+              {contentLengthLabel(content, CONTENT_BODY_MAX_LENGTH)}
+            </Form.Text>
           </Form.Group>
           <Form.Check
             type="checkbox"
