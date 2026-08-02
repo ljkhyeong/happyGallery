@@ -109,6 +109,41 @@ class PaymentAttemptExpiryBatchUseCaseIT {
         verifyNoInteractions(paymentProvider);
     }
 
+    @DisplayName("만료 결제 배치는 200건을 넘어도 한 번의 실행에서 모두 취소한다")
+    @Test
+    void expirePendingAttempts_expiresEveryCandidateBeyondTwoPages() {
+        User user = userStore.save(new User(
+                "payment-expiry-pages@example.com", "hashed", "만료 배치 회원", "01022223333"));
+        int candidateCount = 201;
+        for (int index = 0; index < candidateCount; index++) {
+            attemptStore.save(PaymentAttempt.startForMember(
+                    UUID.randomUUID().toString(),
+                    PaymentContext.PASS,
+                    1_000L,
+                    "payload-" + index,
+                    user.getId()));
+        }
+        LocalDateTime expirationBoundary = LocalDateTime.ofInstant(
+                clock.instant().minus(DefaultPaymentAttemptExpiryBatchService.PREPARE_TTL),
+                ZoneOffset.UTC);
+        jdbcTemplate.update(
+                "UPDATE payment_attempt SET created_at = ? WHERE owner_user_id = ?",
+                expirationBoundary.minusSeconds(1),
+                user.getId());
+
+        BatchResult result = expiryUseCase.expirePendingAttempts();
+
+        Long canceledCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM payment_attempt WHERE owner_user_id = ? AND status = 'CANCELED'",
+                Long.class,
+                user.getId());
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isEqualTo(candidateCount);
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(canceledCount).isEqualTo(candidateCount);
+        });
+    }
+
     @DisplayName("보존 기간이 지난 최종 결제 암호문과 만료된 휴대폰 인증만 정리한다")
     @Test
     void cleanUpExpiredSensitiveData_preservesRecoverableRecords() {

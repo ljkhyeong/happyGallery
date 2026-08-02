@@ -108,11 +108,14 @@ public interface PaymentAttemptRepository
             FROM payment_attempt
             WHERE status = 'PENDING'
               AND created_at <= :createdBefore
-            ORDER BY created_at, id
+              AND id > :afterId
+            ORDER BY id
             LIMIT :limit
             """, nativeQuery = true)
-    List<Long> findExpiredPendingIds(@Param("createdBefore") LocalDateTime createdBefore,
-                                     @Param("limit") int limit);
+    List<Long> findExpiredPendingIdsAfterId(
+            @Param("createdBefore") LocalDateTime createdBefore,
+            @Param("afterId") Long afterId,
+            @Param("limit") int limit);
 
     @Override
     @Query(value = """

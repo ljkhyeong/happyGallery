@@ -8,7 +8,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,9 +33,9 @@ public class DefaultPaymentAttemptExpiryBatchService implements PaymentAttemptEx
         // payment_attempt.created_at은 UTC DB 시각으로 생성되므로 같은 시간대의 cutoff와 비교한다.
         LocalDateTime cutoff = LocalDateTime.ofInstant(
                 clock.instant().minus(PREPARE_TTL), ZoneOffset.UTC);
-        List<Long> attemptIds = attemptReader.findExpiredPendingIds(cutoff, BATCH_SIZE);
-        return BatchExecutor.execute(
-                attemptIds,
+        return BatchExecutor.executeByIdCursor(
+                afterId -> attemptReader.findExpiredPendingIdsAfterId(
+                        cutoff, afterId, BATCH_SIZE),
                 attemptId -> attemptId,
                 attemptId -> expiryProcessor.expire(attemptId, cutoff),
                 "결제 준비 만료");

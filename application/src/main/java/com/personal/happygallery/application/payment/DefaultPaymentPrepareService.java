@@ -4,6 +4,8 @@ import com.personal.happygallery.application.customer.port.out.PhoneVerification
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import org.springframework.stereotype.Service;
@@ -30,12 +32,23 @@ public class DefaultPaymentPrepareService implements PaymentPrepareUseCase {
     @Override
     @Transactional(propagation = Propagation.NEVER)
     public PrepareResult prepare(PrepareCommand command) {
+        requireValidGuestOrderActor(command);
         paymentAvailabilityGuard.requireAvailable();
         String guestPhone = guestPhone(command);
         if (guestPhone != null) {
             phoneVerificationAttemptGuard.check(KoreanPhoneNumber.required(guestPhone));
         }
         return transactionService.prepare(command);
+    }
+
+    private void requireValidGuestOrderActor(PrepareCommand command) {
+        if (!command.auth().isMember()
+                && command.context() == PaymentContext.ORDER
+                && command.payload() instanceof OrderPayload order
+                && order.userId() != null) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "비회원 주문은 회원 정보를 지정할 수 없습니다.");
+        }
     }
 
     private String guestPhone(PrepareCommand command) {

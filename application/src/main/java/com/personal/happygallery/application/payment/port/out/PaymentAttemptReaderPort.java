@@ -30,8 +30,9 @@ public interface PaymentAttemptReaderPort {
                                                 LocalDateTime createdAtStaleBeforeUtc,
                                                 int limit);
 
-    /** 아직 confirm을 시작하지 않은 채 유효시간이 지난 결제 준비 ID를 오래된 순서로 조회한다. */
-    List<Long> findExpiredPendingIds(LocalDateTime createdBefore, int limit);
+    /** 아직 confirm을 시작하지 않은 채 유효시간이 지난 결제 준비 ID를 ID 키셋 순서로 조회한다. */
+    List<Long> findExpiredPendingIdsAfterId(
+            LocalDateTime createdBefore, Long afterId, int limit);
 
     /** 보존 기간이 지난 최종 상태 중 개인정보 암호문이 남은 결제 시도 ID를 조회한다. */
     List<Long> findSensitiveDataCleanupCandidateIds(

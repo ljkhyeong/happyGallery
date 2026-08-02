@@ -314,6 +314,7 @@ HAVING COUNT(*) > 1;
 - `orders(status, created_at, id)` 커서 조회
 - `payment_attempt(order_id_external)` UNIQUE
 - `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
+- `payment_attempt(status, id, created_at)` 결제 준비 만료 배치의 ID 키셋 순회
 - `payment_attempt(status, confirm_recovery_attempted_at, created_at)` confirm 자동 복구 backoff·후보 조회
 - `users(email_hmac)` UNIQUE, `users(phone_hmac)` UNIQUE, `users(name_hmac)` 정확 일치 검색
 - `guests(phone_hmac)` UNIQUE, `guests(name_hmac)` 정확 일치 검색

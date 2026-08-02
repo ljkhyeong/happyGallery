@@ -5,6 +5,7 @@ import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationAttemptGuard;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.pass.PassPriceProperties;
@@ -77,6 +78,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @UseCaseIT
 class PaymentPrepareUseCaseTest {
@@ -92,6 +94,7 @@ class PaymentPrepareUseCaseTest {
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired UserStorePort userStorePort;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
     @Autowired PhoneVerificationStorePort phoneVerificationStorePort;
     @Autowired PassPurchaseStorePort passPurchaseStorePort;
     @Autowired PassPriceProperties passPriceProperties;
@@ -216,6 +219,39 @@ class PaymentPrepareUseCaseTest {
                 guestOrderPayload(product.getId()),
                 AuthContext.guest())))
                 .isInstanceOf(PhoneVerificationFailedException.class);
+    }
+
+    @DisplayName("비회원 주문에 회원 ID를 보내면 인증·동의·결제 시도 부작용 없이 거절한다")
+    @Test
+    void prepare_guestOrderWithUserId_rejectedBeforeSideEffects() {
+        Product product = productStorePort.save(readyStockProduct("비회원 주체 검증 상품", 29_000L));
+        inventoryStorePort.save(inventory(product, 1));
+        saveVerification("01012341234", "123456");
+        OrderPayload payload = new OrderPayload(
+                999L,
+                "01012341234",
+                "123456",
+                "비회원",
+                List.of(new OrderItemRef(product.getId(), 1)),
+                false,
+                FulfillmentType.PICKUP,
+                null,
+                null,
+                false,
+                acceptedPolicies());
+
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER, payload, AuthContext.guest())))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+
+        assertSoftly(softly -> {
+            softly.assertThat(paymentAttemptRepository.count()).isZero();
+            softly.assertThat(policyConsentRepository.count()).isZero();
+            softly.assertThat(phoneVerificationReaderPort.findLatestUnverifiedCode(
+                    "01012341234", PhoneVerificationPurpose.GUEST_ORDER)).isPresent();
+        });
+        verifyNoInteractions(phoneVerificationAttemptGuard);
     }
 
     @DisplayName("비회원 prepare 저장이 실패하면 인증 코드 소비도 롤백되어 재시도할 수 있다")
