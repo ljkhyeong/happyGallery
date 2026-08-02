@@ -54,13 +54,14 @@ export function AccountWithdrawalModal({
   return (
     <Modal
       show={show}
+      aria-labelledby="account-withdrawal-title"
       onHide={close}
       backdrop={withdrawal.isPending || stepUpBusy ? "static" : true}
       keyboard={!withdrawal.isPending && !stepUpBusy}
       centered
     >
       <Modal.Header closeButton={!withdrawal.isPending && !stepUpBusy}>
-        <Modal.Title className="fs-6">회원 탈퇴</Modal.Title>
+        <Modal.Title id="account-withdrawal-title" className="fs-6">회원 탈퇴</Modal.Title>
       </Modal.Header>
       {!reauthenticated ? (
         <>

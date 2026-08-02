@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Alert, Button, Form, InputGroup, Modal } from "react-bootstrap";
 import type { OrderStatus } from "@/shared/types";
 import { parseApiDateTime } from "@/shared/lib";
@@ -30,6 +30,7 @@ function RiskActionButton({
   pending,
   onConfirm,
 }: RiskActionButtonProps) {
+  const titleId = `admin-order-action-title-${useId()}`;
   const [show, setShow] = useState(false);
 
   return (
@@ -42,9 +43,14 @@ function RiskActionButton({
       >
         {pending ? "처리 중..." : buttonLabel}
       </Button>
-      <Modal show={show} onHide={() => !pending && setShow(false)} centered>
+      <Modal
+        show={show}
+        aria-labelledby={titleId}
+        onHide={() => !pending && setShow(false)}
+        centered
+      >
         <Modal.Header closeButton={!pending}>
-          <Modal.Title className="fs-6">{title}</Modal.Title>
+          <Modal.Title id={titleId} className="fs-6">{title}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Alert variant="warning" className="mb-0 small">

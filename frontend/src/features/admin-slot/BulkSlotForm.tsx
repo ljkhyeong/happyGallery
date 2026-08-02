@@ -41,7 +41,13 @@ export function BulkSlotForm({ adminKey, onAuthError }: Props) {
   const [startTimes, setStartTimes] = useState(["10:00"]);
   const [result, setResult] = useState<BulkSlotResponse | null>(null);
 
-  const { data: classes, isLoading: classesLoading } = useAdminQuery(onAuthError, {
+  const {
+    data: classes,
+    isLoading: classesLoading,
+    isFetching: classesFetching,
+    error: classesError,
+    refetch: refetchClasses,
+  } = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.classes,
     queryFn: () => fetchClasses(adminKey),
   });
@@ -79,19 +85,39 @@ export function BulkSlotForm({ adminKey, onAuthError }: Props) {
     && startTimes.every(Boolean);
 
   if (classesLoading) return <LoadingSpinner text="클래스 목록 로딩 중..." />;
+  if (classes === undefined) {
+    return (
+      <ErrorAlert
+        error={classesError}
+        onRetry={() => { void refetchClasses(); }}
+        retrying={classesFetching}
+      />
+    );
+  }
 
   return (
     <div>
+      <ErrorAlert
+        error={classesError}
+        onRetry={() => { void refetchClasses(); }}
+        retrying={classesFetching}
+      />
       <ErrorAlert error={preview.error ?? create.error} />
       <Row className="g-3">
         <Col xs={12} md={4}>
           <Form.Group controlId="bulk-slot-class">
             <Form.Label>클래스</Form.Label>
-            <Form.Select value={classId} onChange={(event) => {
-              setClassId(event.target.value);
-              clearPreview();
-            }}>
-              <option value="">선택하세요</option>
+            <Form.Select
+              value={classId}
+              disabled={Boolean(classesError)}
+              onChange={(event) => {
+                setClassId(event.target.value);
+                clearPreview();
+              }}
+            >
+              <option value="">
+                {classesError ? "클래스를 다시 조회해 주세요" : "선택하세요"}
+              </option>
               {activeClasses.map((bookingClass) => (
                 <option key={bookingClass.id} value={bookingClass.id}>
                   {bookingClass.name} ({bookingClass.durationMin}분)

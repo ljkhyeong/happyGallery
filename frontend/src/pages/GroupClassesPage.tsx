@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import groupResinClass from "@/assets/happygallery/group-resin-class.jpg";
 import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
-import { useToast } from "@/shared/ui";
+import { ErrorAlert, useToast } from "@/shared/ui";
 
 const PROCESS = [
   ["01", "수업 문의", "참여 인원과 장소, 희망 일정과 관심 공예를 알려주세요."],
@@ -13,7 +13,13 @@ const PROCESS = [
 
 export function GroupClassesPage() {
   const toast = useToast();
-  const { data: workshop, isLoading } = useWorkshopProfile();
+  const {
+    data: workshop,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useWorkshopProfile();
   const inquiryHref = workshop?.naverTalkUrl;
   const kakaoTalkId = workshop?.kakaoTalkId;
   const phone = workshop?.phone;
@@ -100,7 +106,12 @@ export function GroupClassesPage() {
               </Button>
             )}
             {isLoading && <span>수업 문의 채널을 확인하고 있습니다.</span>}
-            {!isLoading && !inquiryHref && !phone && !kakaoTalkId && (
+            <ErrorAlert
+              error={error}
+              onRetry={() => { void refetch(); }}
+              retrying={isFetching}
+            />
+            {!isLoading && !error && !inquiryHref && !phone && !kakaoTalkId && (
               <span>수업 문의 채널을 준비하고 있습니다.</span>
             )}
             <Link to="/classes" className="store-section-link">개인 클래스 보기 →</Link>

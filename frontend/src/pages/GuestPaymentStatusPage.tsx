@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Alert, Button, Container } from "react-bootstrap";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   fetchPaymentStatus,
@@ -13,15 +13,34 @@ import {
 import {
   captureCustomerSession,
   isCurrentCustomerSession,
+  isCurrentCustomerSessionState,
   runForCustomerSession,
+  type CustomerSessionOwnedState,
 } from "@/shared/api";
 import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 const POLL_INTERVAL_MS = 3_000;
 
+interface LocationState extends CustomerSessionOwnedState {
+  orderId?: string;
+  statusToken?: string;
+}
+
+function readNavigationStatusToken(state: unknown, orderId: string): string | null {
+  if (!isCurrentCustomerSessionState(state)) return null;
+  const navigationState = state as LocationState;
+  const statusToken = navigationState.statusToken?.trim() ?? "";
+  return navigationState.orderId === orderId
+    && statusToken.length > 0
+    && statusToken.length <= 500
+    ? statusToken
+    : null;
+}
+
 export function GuestPaymentStatusPage() {
   const { orderId: routeOrderId } = useParams<{ orderId: string }>();
+  const location = useLocation();
   const { sessionVersion } = useCustomerAuth();
   const [customerSession] = useState(captureCustomerSession);
   const orderId = routeOrderId?.trim() ?? "";
@@ -29,7 +48,8 @@ export function GuestPaymentStatusPage() {
   const sessionChanged = sessionVersion !== customerSession.version
     || !isCurrentCustomerSession(customerSession);
   const statusToken = validOrderId && !sessionChanged
-    ? readPaymentStatusToken(orderId, customerSession)
+    ? readNavigationStatusToken(location.state, orderId)
+      ?? readPaymentStatusToken(orderId, customerSession)
     : null;
   const {
     data: status,

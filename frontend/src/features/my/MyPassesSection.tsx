@@ -10,10 +10,17 @@ interface Props {
   passes: MyPassSummary[] | undefined;
   isLoading: boolean;
   error: Error | null;
-  totalCount: number;
+  isFetching: boolean;
+  onRetry: () => void;
 }
 
-export function MyPassesSection({ passes, isLoading, error, totalCount }: Props) {
+export function MyPassesSection({
+  passes,
+  isLoading,
+  error,
+  isFetching,
+  onRetry,
+}: Props) {
   return (
     <section id="my-passes">
       <div className="d-flex justify-content-between align-items-center mb-2">
@@ -22,12 +29,12 @@ export function MyPassesSection({ passes, isLoading, error, totalCount }: Props)
           <p className="text-muted-soft small mb-0">남은 횟수와 만료일을 기준으로 현재 사용 가능한 8회권을 확인합니다.</p>
         </div>
         <div className="d-flex align-items-center gap-3">
-          <span className="text-muted-soft small">총 {totalCount}건</span>
+          {passes && <span className="text-muted-soft small">총 {passes.length}건</span>}
           <Link to="/my/passes" className="my-inline-link small">전체 보기</Link>
         </div>
       </div>
       {isLoading && <LoadingSpinner />}
-      <ErrorAlert error={error} />
+      <ErrorAlert error={error} onRetry={onRetry} retrying={isFetching} />
       {passes && passes.length === 0 && <EmptyState message="8회권이 없습니다." />}
       {passes && passes.length > 0 && passes.map((p) => (
         <Card key={p.passId} className="mb-2 my-list-card border-0">

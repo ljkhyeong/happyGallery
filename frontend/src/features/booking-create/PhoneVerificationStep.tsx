@@ -73,6 +73,13 @@ export function PhoneVerificationStep({
             <Form.Control
               value={phone}
               onChange={(e) => setPhone(normalizePhone(e.target.value))}
+              onPaste={(event) => {
+                const pastedPhone = normalizePhone(event.clipboardData.getData("text"));
+                if (pastedPhone.length <= 11) {
+                  event.preventDefault();
+                  setPhone(pastedPhone);
+                }
+              }}
               onBlur={() => setTouched(true)}
               placeholder="01012345678"
               maxLength={11}
@@ -82,7 +89,7 @@ export function PhoneVerificationStep({
               aria-describedby={showPhoneError ? phoneErrorId : undefined}
             />
             <Form.Control.Feedback id={phoneErrorId} type="invalid">
-              010으로 시작하는 10~11자리 번호를 입력하세요.
+              01로 시작하는 10~11자리 번호를 입력하세요.
             </Form.Control.Feedback>
           </Form.Group>
         </Col>

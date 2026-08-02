@@ -33,13 +33,13 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const [cancelTarget, setCancelTarget] = useState<SlotResponse | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
-  const { data: classes } = useAdminQuery(onAuthError, {
+  const classesQuery = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.classes,
     queryFn: () => fetchClasses(adminKey),
   });
 
   const classIdNum = Number(classId);
-  const { data: slots, isLoading, error } = useAdminQuery(onAuthError, {
+  const slotsQuery = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.slots.byClass(classIdNum),
     queryFn: () => fetchSlotsByClass(adminKey, classIdNum),
     enabled: classIdNum > 0,
@@ -83,28 +83,50 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
 
   return (
     <div>
-      <Row className="g-2 mb-3">
-        <Col xs={12} sm={6}>
-          <Form.Group>
-            <Form.Label>클래스 선택</Form.Label>
-            <Form.Select value={classId} onChange={(e) => setClassId(e.target.value)}>
-              <option value="">클래스를 선택하세요</option>
-              {classes?.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.durationMin}분{c.status === "INACTIVE" ? ", 운영 중지" : ""})
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        </Col>
-      </Row>
+      {classesQuery.isLoading && <LoadingSpinner text="클래스 목록 로딩 중..." />}
+      {classesQuery.error && !(classesQuery.error instanceof ApiError && classesQuery.error.status === 401) && (
+        <ErrorAlert
+          error={classesQuery.error}
+          onRetry={() => { void classesQuery.refetch(); }}
+          retrying={classesQuery.isFetching}
+        />
+      )}
+      {classesQuery.data !== undefined && (
+        <>
+          <Row className="g-2 mb-3">
+            <Col xs={12} sm={6}>
+              <Form.Group>
+                <Form.Label>클래스 선택</Form.Label>
+                <Form.Select value={classId} onChange={(e) => setClassId(e.target.value)}>
+                  <option value="">클래스를 선택하세요</option>
+                  {classesQuery.data.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.durationMin}분{c.status === "INACTIVE" ? ", 운영 중지" : ""})
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+          </Row>
 
-      {!classIdNum && <EmptyState message="클래스를 선택하면 슬롯 목록이 표시됩니다." />}
-      {isLoading && <LoadingSpinner />}
-      {error && !(error instanceof ApiError && error.status === 401) && <ErrorAlert error={error} />}
-      {slots && slots.length === 0 && <EmptyState message="해당 클래스에 슬롯이 없습니다." />}
+          {!classesQuery.error && !classIdNum && (
+            <EmptyState message="클래스를 선택하면 슬롯 목록이 표시됩니다." />
+          )}
+        </>
+      )}
+      {slotsQuery.isLoading && <LoadingSpinner />}
+      {slotsQuery.error && !(slotsQuery.error instanceof ApiError && slotsQuery.error.status === 401) && (
+        <ErrorAlert
+          error={slotsQuery.error}
+          onRetry={() => { void slotsQuery.refetch(); }}
+          retrying={slotsQuery.isFetching}
+        />
+      )}
+      {!slotsQuery.error && slotsQuery.data && slotsQuery.data.length === 0 && (
+        <EmptyState message="해당 클래스에 슬롯이 없습니다." />
+      )}
 
-      {slots && slots.length > 0 && (
+      {slotsQuery.data && slotsQuery.data.length > 0 && (
         <Table responsive hover size="sm">
           <thead>
             <tr>
@@ -117,7 +139,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
             </tr>
           </thead>
           <tbody>
-            {slots.map((s) => {
+            {slotsQuery.data.map((s) => {
               const pct = s.capacity > 0 ? Math.round((s.bookedCount / s.capacity) * 100) : 0;
               const variant = pct >= 80 ? "danger" : pct >= 50 ? "warning" : "success";
               const status = !s.adminActive

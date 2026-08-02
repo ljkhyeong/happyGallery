@@ -37,7 +37,7 @@ export function ProductListPage() {
     staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
-  const { data: categories = [] } = useQuery({
+  const categoriesQuery = useQuery({
     queryKey: ["product-categories"],
     queryFn: fetchCategories,
     staleTime: REFERENCE_DATA_STALE_TIME,
@@ -72,7 +72,7 @@ export function ProductListPage() {
           onTypeChange={setType}
           category={category}
           onCategoryChange={setCategory}
-          categories={categories}
+          categories={categoriesQuery.data ?? []}
           sort={sort}
           onSortChange={setSort}
           resultText={products ? `${products.length}개의 상품` : "상품을 불러오는 중"}
@@ -80,6 +80,11 @@ export function ProductListPage() {
         />
       </div>
 
+      <ErrorAlert
+        error={categoriesQuery.error}
+        onRetry={() => { void categoriesQuery.refetch(); }}
+        retrying={categoriesQuery.isFetching}
+      />
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} />
       {products && products.length === 0 && <EmptyState message="조건에 맞는 상품이 없습니다." />}

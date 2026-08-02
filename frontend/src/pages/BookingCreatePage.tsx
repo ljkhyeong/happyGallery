@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Container, Card, Form, Row, Col, Button } from "react-bootstrap";
+import { Alert, Container, Card, Form, Row, Col, Button } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
 import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
@@ -47,7 +47,6 @@ function BookingCreateContent() {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, user } = useCustomerAuth();
-  const passPrefillApplied = useRef(false);
 
   const [selectedSlot, setSelectedSlot] = useState<PublicSlotResponse | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassResponse | null>(null);
@@ -55,9 +54,16 @@ function BookingCreateContent() {
   const [paymentMethod, setPaymentMethod] = useState<DepositPaymentMethod>("CARD");
   const [participantCount, setParticipantCount] = useState(1);
   const [passId, setPassId] = useState("");
+  const [passFallbackAccepted, setPassFallbackAccepted] = useState(false);
   const [showGate, setShowGate] = useState(false);
 
-  const { data: passes, isLoading: passesLoading, error: passesError } = useQuery({
+  const {
+    data: passes,
+    isLoading: passesLoading,
+    isFetching: passesFetching,
+    error: passesError,
+    refetch: refetchPasses,
+  } = useQuery({
     queryKey: queryKeys.member.passes,
     queryFn: fetchMyPasses,
     enabled: isAuthenticated,
@@ -72,12 +78,31 @@ function BookingCreateContent() {
   const initialClassId = Number.isSafeInteger(requestedClassId) && requestedClassId > 0
     ? requestedClassId
     : null;
+  const requestedPassCompatible = hasRequestedPass
+    && availablePasses.some((pass) => pass.passId === requestedPassId);
+  const requestedPassNeedsFallback = hasRequestedPass
+    && isAuthenticated
+    && passes !== undefined
+    && selectedClass !== null
+    && !requestedPassCompatible;
+  const requestedPassPrefillPending = hasRequestedPass
+    && isAuthenticated
+    && requestedPassCompatible
+    && paymentPath !== "pass";
+  const requestedPassIntentBlocked = hasRequestedPass
+    && isAuthenticated
+    && !passFallbackAccepted
+    && (
+      passes === undefined
+      || requestedPassNeedsFallback
+      || requestedPassPrefillPending
+    );
 
   useEffect(() => {
     if (isAuthenticated) {
       return;
     }
-    passPrefillApplied.current = false;
+    setPassFallbackAccepted(false);
     if (paymentPath === "pass") {
       setPaymentPath("deposit");
       setPassId("");
@@ -85,24 +110,23 @@ function BookingCreateContent() {
   }, [isAuthenticated, paymentPath]);
 
   useEffect(() => {
-    if (!isAuthenticated || passes === undefined || passPrefillApplied.current || !hasRequestedPass) {
+    if (!isAuthenticated || passes === undefined || !requestedPassCompatible) {
       return;
     }
-    const requestedPass = passes.find((pass) => pass.passId === requestedPassId);
-    if (!requestedPass || !isPassAvailableForBooking(requestedPass)) {
-      passPrefillApplied.current = true;
-      return;
-    }
-    if (requestedPass.planCode !== "LEGACY_ALL_CLASSES" && selectedClass === null) {
-      return;
-    }
+    setPaymentPath("pass");
+    setPassId(String(requestedPassId));
+    setPassFallbackAccepted(false);
+  }, [
+    isAuthenticated,
+    passes,
+    requestedPassCompatible,
+    requestedPassId,
+    selectedClass?.id,
+  ]);
 
-    passPrefillApplied.current = true;
-    if (availablePasses.some((pass) => pass.passId === requestedPassId)) {
-      setPaymentPath("pass");
-      setPassId(String(requestedPassId));
-    }
-  }, [availablePasses, hasRequestedPass, isAuthenticated, passes, requestedPassId, selectedClass]);
+  useEffect(() => {
+    setPassFallbackAccepted(false);
+  }, [requestedPassId, selectedClass?.id]);
 
   useEffect(() => {
     if (paymentPath === "pass" && passId && passes !== undefined
@@ -127,7 +151,10 @@ function BookingCreateContent() {
     && participantCount >= 1
     && participantCount <= Math.min(8, selectedSlot.remainingCapacity)
     && (paymentPath !== "pass" || participantCount === 1);
-  const formReady = selectedSlot !== null && passValid && participantCountValid;
+  const formReady = selectedSlot !== null
+    && passValid
+    && participantCountValid
+    && !requestedPassIntentBlocked;
   const classPrice = selectedClass?.price ?? 0;
   const totalAmount = classPrice * participantCount;
   const depositAmount = Math.floor(totalAmount / 10);
@@ -254,7 +281,10 @@ function BookingCreateContent() {
                   id="booking-path-deposit" label="예약금 결제"
                   name="paymentPath"
                   checked={paymentPath === "deposit"}
-                  onChange={() => setPaymentPath("deposit")}
+                  onChange={() => {
+                    setPaymentPath("deposit");
+                    if (hasRequestedPass) setPassFallbackAccepted(true);
+                  }}
                 />
                 {isAuthenticated && (
                   <Form.Check
@@ -272,7 +302,34 @@ function BookingCreateContent() {
               </div>
             </Form.Group>
 
-            {isAuthenticated && <ErrorAlert error={passesError} />}
+            {isAuthenticated && (
+              <ErrorAlert
+                error={passesError}
+                onRetry={() => { void refetchPasses(); }}
+                retrying={passesFetching}
+              />
+            )}
+
+            {requestedPassNeedsFallback && !passFallbackAccepted && (
+              <Alert variant="warning">
+                <p className="mb-2">
+                  링크에서 선택한 8회권을 이 클래스에 사용할 수 없습니다.
+                  이용권 상태를 다시 확인하거나 예약금 결제로 계속할 수 있습니다.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline-dark"
+                  size="sm"
+                  onClick={() => {
+                    setPaymentPath("deposit");
+                    setPassId("");
+                    setPassFallbackAccepted(true);
+                  }}
+                >
+                  예약금 결제로 계속
+                </Button>
+              </Alert>
+            )}
 
             {paymentPath === "deposit" ? (
               <Row className="g-2 mb-3">

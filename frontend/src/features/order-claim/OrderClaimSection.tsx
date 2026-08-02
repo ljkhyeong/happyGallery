@@ -63,7 +63,7 @@ export function OrderClaimSection({ order, access }: Props) {
     : ["guest", "order", order.orderId, "claims", access.requestKey] as const;
   const claimable = CLAIMABLE_STATUSES.has(order.status);
 
-  const { data: claims = [], isLoading, error } = useQuery({
+  const { data: claims, isLoading, isFetching, error, refetch } = useQuery({
     queryKey,
     queryFn: () => runForCurrentCustomer(
       () => access.kind === "member"
@@ -80,7 +80,7 @@ export function OrderClaimSection({ order, access }: Props) {
   const claimedQuantities = useMemo(() => {
     const totals = new Map<number, number>();
     claims
-      .filter((claim) => claim.status !== "REJECTED")
+      ?.filter((claim) => claim.status !== "REJECTED")
       .flatMap((claim) => claim.items)
       .forEach((item) => totals.set(
         item.orderItemId,
@@ -150,9 +150,13 @@ export function OrderClaimSection({ order, access }: Props) {
       <h5 id="order-claim-title">반품·교환</h5>
 
       {isLoading && <LoadingSpinner />}
-      <ErrorAlert error={error ?? requestClaim.error} />
+      <ErrorAlert
+        error={error ?? requestClaim.error}
+        onRetry={error ? () => { void refetch(); } : undefined}
+        retrying={isFetching}
+      />
 
-      {!isLoading && availableItems.some((item) => item.availableQuantity > 0) && (
+      {!isLoading && claims && availableItems.some((item) => item.availableQuantity > 0) && (
         <Form className="mb-4" onSubmit={(event) => { event.preventDefault(); submit(); }}>
           <Row className="g-2 mb-3">
             <Col xs={12} sm={6}>
@@ -250,7 +254,7 @@ export function OrderClaimSection({ order, access }: Props) {
         </Form>
       )}
 
-      {claims.length > 0 && (
+      {claims && claims.length > 0 && (
         <div>
           <h6>접수 내역</h6>
           {claims.map((claim) => <OrderClaimHistoryItem key={claim.id} claim={claim} />)}

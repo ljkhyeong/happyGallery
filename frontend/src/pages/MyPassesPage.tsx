@@ -15,6 +15,7 @@ import {
 import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
+  invalidateSlotAvailability,
   queryKeys,
   runForCurrentCustomer,
 } from "@/shared/api";
@@ -93,9 +94,13 @@ function MyPassesContent() {
       runForCurrentCustomer(
         () => refundMyPass(passId),
         async (result, requireCurrent) => {
-          setRefundTarget(null);
-          await queryClient.invalidateQueries({ queryKey: queryKeys.member.passes });
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: queryKeys.member.passes }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.member.bookings.all }),
+            invalidateSlotAvailability(queryClient),
+          ]);
           requireCurrent();
+          setRefundTarget(null);
           if (result.refundStatus) {
             toast.show(
               `환불 요청 접수: ${result.refundCredits}회분 ${formatKRW(result.refundAmount)}, 미래 예약 ${result.canceledBookings}건 취소`,
@@ -230,13 +235,14 @@ function MyPassesContent() {
 
       <Modal
         show={refundTarget !== null}
+        aria-labelledby="my-pass-refund-title"
         onHide={() => {
           if (!refundMutation.isPending) setRefundTarget(null);
         }}
         centered
       >
         <Modal.Header closeButton={!refundMutation.isPending}>
-          <Modal.Title>8회권 환불 요청</Modal.Title>
+          <Modal.Title id="my-pass-refund-title">8회권 환불 요청</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <ErrorAlert error={refundMutation.error} />

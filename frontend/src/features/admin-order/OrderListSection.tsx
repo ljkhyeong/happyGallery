@@ -82,7 +82,7 @@ export function OrderListSection({
     enabled: focusedOrder != null,
   });
 
-  const { data: page, isLoading, error, isFetching } = useAdminQuery(onAuthError, {
+  const { data: page, isLoading, error, isFetching, refetch } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "orders", statusFilter, cursor],
     queryFn: () => fetchOrders(adminKey, statusFilter || undefined, cursor),
   });
@@ -157,8 +157,16 @@ export function OrderListSection({
       </Row>
 
       {isLoading && <LoadingSpinner />}
-      {error && !(error instanceof ApiError && error.status === 401) && <ErrorAlert error={error} />}
-      {!isLoading && allOrders.length === 0 && <EmptyState message="해당 조건의 주문이 없습니다." />}
+      {error && !(error instanceof ApiError && error.status === 401) && (
+        <ErrorAlert
+          error={error}
+          onRetry={() => { void refetch(); }}
+          retrying={isFetching}
+        />
+      )}
+      {!isLoading && !error && page && allOrders.length === 0 && (
+        <EmptyState message="해당 조건의 주문이 없습니다." />
+      )}
 
       {allOrders.length > 0 && (
         <>

@@ -6,6 +6,7 @@ import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificati
 import {
   captureCustomerSession,
   runForCurrentCustomer,
+  type CustomerSessionSnapshot,
 } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert, StatusBadge } from "@/shared/ui";
@@ -23,11 +24,20 @@ const CONTEXT_LABELS = {
   PASS: "8회권",
 } as const;
 
+interface RecoveryView {
+  customerSession: CustomerSessionSnapshot;
+  storage: GuestPaymentStatusRecoverySession;
+}
+
+function loadRecoveryView(): RecoveryView | null {
+  const storage = loadGuestPaymentStatusRecovery();
+  return storage
+    ? { customerSession: captureCustomerSession(), storage }
+    : null;
+}
+
 export function GuestPaymentStatusRecoverySection() {
-  const [storedRecovery, setStoredRecovery] =
-    useState<GuestPaymentStatusRecoverySession | null>(
-      loadGuestPaymentStatusRecovery,
-    );
+  const [recoveryView, setRecoveryView] = useState<RecoveryView | null>(loadRecoveryView);
   const recovery = useMutation({
     mutationFn: ({ phone, code }: { phone: string; code: string }) =>
       runForCurrentCustomer(
@@ -41,14 +51,14 @@ export function GuestPaymentStatusRecoverySection() {
           );
           requireCurrent();
           if (storage) {
-            setStoredRecovery(storage);
+            setRecoveryView({ customerSession, storage });
           }
           return result;
         },
       ),
   });
 
-  const result = storedRecovery?.value ?? null;
+  const result = recoveryView?.storage.value ?? null;
 
   return (
     <Card className="mb-4">
@@ -61,8 +71,8 @@ export function GuestPaymentStatusRecoverySection() {
           confirming={recovery.isPending}
           onReset={() => {
             recovery.reset();
-            clearGuestPaymentStatusRecovery(storedRecovery ?? undefined);
-            setStoredRecovery(null);
+            clearGuestPaymentStatusRecovery(recoveryView?.storage);
+            setRecoveryView(null);
           }}
           onVerified={(phone, code) => recovery.mutate({ phone, code })}
         />
@@ -75,7 +85,7 @@ export function GuestPaymentStatusRecoverySection() {
           </Alert>
         )}
 
-        {result && result.payments.length > 0 && (
+        {result && result.payments.length > 0 && recoveryView && (
           <div className="mt-4">
             <Alert variant="success">
               결제 상태 조회 정보를 복구했습니다. {formatDateTime(result.expiresAt)}까지 확인할 수 있습니다.
@@ -86,6 +96,11 @@ export function GuestPaymentStatusRecoverySection() {
                   key={payment.orderId}
                   as={Link}
                   to={`/guest/payments/${encodeURIComponent(payment.orderId)}`}
+                  state={{
+                    orderId: payment.orderId,
+                    statusToken: result.statusToken,
+                    customerSession: recoveryView.customerSession,
+                  }}
                   action
                   className="d-flex justify-content-between align-items-start gap-3"
                 >

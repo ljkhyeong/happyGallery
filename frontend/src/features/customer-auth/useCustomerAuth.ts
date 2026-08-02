@@ -36,12 +36,20 @@ import { normalizePhone } from "@/shared/validation/phone";
 import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
 export type CustomerUser = CustomerUserResponse;
+export type CustomerAuthStatus =
+  | "unknown"
+  | "authenticated"
+  | "unauthenticated"
+  | "error";
 
 interface CustomerAuthContextValue {
   user: CustomerUser | null;
   sessionVersion: number;
+  status: CustomerAuthStatus;
+  error: unknown;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isRefreshing: boolean;
   login: (email: string, password: string) => Promise<CustomerUser>;
   signup: (
     email: string,
@@ -67,9 +75,18 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<CustomerUser | null>(null);
   const userIdRef = useRef<number | null>(null);
+  const authStatusRef = useRef<CustomerAuthStatus>("unknown");
   const fetchMeRequestRef = useRef<FetchMeRequest | null>(null);
   const [sessionVersion, setSessionVersion] = useState(currentCustomerSessionVersion);
+  const [status, setStatus] = useState<CustomerAuthStatus>("unknown");
+  const [error, setError] = useState<unknown>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const updateStatus = useCallback((nextStatus: CustomerAuthStatus) => {
+    authStatusRef.current = nextStatus;
+    setStatus(nextStatus);
+  }, []);
 
   const clearCustomerQueries = useCallback(() => {
     clearCustomerQueryCache(queryClient);
@@ -80,8 +97,11 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     userIdRef.current = null;
     setSessionVersion(currentCustomerSessionVersion());
     setUser(null);
+    setError(null);
+    updateStatus("unauthenticated");
     setIsLoading(false);
-  }, [clearCustomerQueries]);
+    setIsRefreshing(false);
+  }, [clearCustomerQueries, updateStatus]);
 
   const publishSessionBoundary = useCallback((customerId: number | null) => {
     publishCustomerSessionBoundary(customerId);
@@ -102,6 +122,13 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       return inFlightRequest.promise;
     }
 
+    if (authStatusRef.current === "error") {
+      setError(null);
+      updateStatus("unknown");
+      setIsLoading(true);
+    }
+    setIsRefreshing(true);
+
     const request = (async (): Promise<CustomerUser | null> => {
       let activeSnapshot = requestSnapshot;
       try {
@@ -118,6 +145,8 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         }
         userIdRef.current = me.id;
         setUser(me);
+        setError(null);
+        updateStatus("authenticated");
         return me;
       } catch (error) {
         requireCurrentCustomerSession(requestSnapshot);
@@ -129,12 +158,19 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           markCustomerSessionInactive();
           userIdRef.current = null;
           setUser(null);
+          setError(null);
+          updateStatus("unauthenticated");
           return null;
+        }
+        if (authStatusRef.current === "unknown") {
+          setError(error);
+          updateStatus("error");
         }
         throw error;
       } finally {
         if (isCurrentCustomerSession(activeSnapshot)) {
           setIsLoading(false);
+          setIsRefreshing(false);
         }
       }
     })();
@@ -146,7 +182,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     };
     void request.then(clearRequest, clearRequest);
     return request;
-  }, [clearCustomerQueries, publishSessionBoundary]);
+  }, [clearCustomerQueries, publishSessionBoundary, updateStatus]);
 
   useEffect(
     () => subscribeToCustomerSessionExpired(expireCustomerSession),
@@ -161,6 +197,8 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         userIdRef.current = null;
         setSessionVersion(currentCustomerSessionVersion());
         setUser(null);
+        setError(null);
+        updateStatus("unknown");
         setIsLoading(true);
       }
       if (boundaryChanged || forceRefresh) {
@@ -184,7 +222,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("pageshow", handlePageShow);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [clearCustomerQueries, fetchMe]);
+  }, [clearCustomerQueries, fetchMe, updateStatus]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<CustomerUser> => {
@@ -194,10 +232,13 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       clearCustomerQueries();
       userIdRef.current = me.id;
       setUser(me);
+      setError(null);
+      updateStatus("authenticated");
       setIsLoading(false);
+      setIsRefreshing(false);
       return me;
     },
-    [clearCustomerQueries, publishSessionBoundary],
+    [clearCustomerQueries, publishSessionBoundary, updateStatus],
   );
 
   const signup = useCallback(
@@ -222,10 +263,13 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       clearCustomerQueries();
       userIdRef.current = me.id;
       setUser(me);
+      setError(null);
+      updateStatus("authenticated");
       setIsLoading(false);
+      setIsRefreshing(false);
       return me;
     },
-    [clearCustomerQueries, publishSessionBoundary],
+    [clearCustomerQueries, publishSessionBoundary, updateStatus],
   );
 
   const logout = useCallback(async () => {
@@ -234,8 +278,11 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     clearCustomerQueries();
     userIdRef.current = null;
     setUser(null);
+    setError(null);
+    updateStatus("unauthenticated");
     setIsLoading(false);
-  }, [clearCustomerQueries, publishSessionBoundary]);
+    setIsRefreshing(false);
+  }, [clearCustomerQueries, publishSessionBoundary, updateStatus]);
 
   const withdraw = useCallback(async () => {
     await runForCurrentCustomer(() => withdrawMyAccount());
@@ -243,8 +290,11 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     clearCustomerQueries();
     userIdRef.current = null;
     setUser(null);
+    setError(null);
+    updateStatus("unauthenticated");
     setIsLoading(false);
-  }, [clearCustomerQueries, publishSessionBoundary]);
+    setIsRefreshing(false);
+  }, [clearCustomerQueries, publishSessionBoundary, updateStatus]);
 
   return createElement(
     CustomerAuthContext,
@@ -252,8 +302,11 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       value: {
         user,
         sessionVersion,
+        status,
+        error,
         isAuthenticated: user !== null,
-        isLoading,
+        isLoading: isLoading || status === "error",
+        isRefreshing,
         login,
         signup,
         logout,

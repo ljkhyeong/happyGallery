@@ -219,6 +219,7 @@ function OrderDetailContent() {
           <OrderCustomerActionPanel
             status={order.status}
             pending={cancelMutation.isPending || delayMutation.isPending}
+            error={cancelMutation.error ?? delayMutation.error}
             onCancel={() => lookup && cancelMutation.mutate(lookup.credentials)}
             onDelayDecision={(decision) => lookup && delayMutation.mutate({
               ...lookup.credentials,

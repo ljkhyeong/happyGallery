@@ -49,9 +49,14 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
   // If already authenticated, confirm directly
   if (isAuthenticated && show) {
     return (
-      <Modal show={show} onHide={onClose} centered>
+      <Modal
+        show={show}
+        aria-labelledby="auth-member-confirm-title"
+        onHide={onClose}
+        centered
+      >
         <Modal.Header closeButton>
-          <Modal.Title>확인</Modal.Title>
+          <Modal.Title id="auth-member-confirm-title">확인</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <p className="mb-0">
@@ -117,9 +122,15 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
   }
 
   return (
-    <Modal show={show} onHide={onClose} centered size="sm">
+    <Modal
+      show={show}
+      aria-labelledby="auth-gate-title"
+      onHide={onClose}
+      centered
+      size="sm"
+    >
       <Modal.Header closeButton>
-        <Modal.Title className="fs-6">진행 방식 선택</Modal.Title>
+        <Modal.Title id="auth-gate-title" className="fs-6">진행 방식 선택</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Nav variant="tabs" className="mb-3">

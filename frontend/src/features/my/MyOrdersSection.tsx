@@ -8,10 +8,17 @@ interface Props {
   orders: MyOrderSummary[] | undefined;
   isLoading: boolean;
   error: Error | null;
-  totalCount: number;
+  isFetching: boolean;
+  onRetry: () => void;
 }
 
-export function MyOrdersSection({ orders, isLoading, error, totalCount }: Props) {
+export function MyOrdersSection({
+  orders,
+  isLoading,
+  error,
+  isFetching,
+  onRetry,
+}: Props) {
   return (
     <section id="my-orders" className="mb-4">
       <div className="d-flex justify-content-between align-items-center mb-2">
@@ -20,12 +27,12 @@ export function MyOrdersSection({ orders, isLoading, error, totalCount }: Props)
           <p className="text-muted-soft small mb-0">최근 5건의 주문 진행 상태를 빠르게 확인합니다.</p>
         </div>
         <div className="d-flex align-items-center gap-3">
-          <span className="text-muted-soft small">총 {totalCount}건</span>
+          {orders && <span className="text-muted-soft small">총 {orders.length}건</span>}
           <Link to="/my/orders" className="my-inline-link small">전체 보기</Link>
         </div>
       </div>
       {isLoading && <LoadingSpinner />}
-      <ErrorAlert error={error} />
+      <ErrorAlert error={error} onRetry={onRetry} retrying={isFetching} />
       {orders && orders.length === 0 && <EmptyState message="주문 내역이 없습니다." />}
       {orders && orders.length > 0 && orders.slice(0, 5).map((o) => (
         <Card key={o.orderId} as={Link} to={`/my/orders/${o.orderId}`} className="mb-2 text-decoration-none my-list-card border-0">

@@ -1,6 +1,7 @@
 import { Button } from "react-bootstrap";
 import { MessageCircleMore } from "lucide-react";
 import { formatDate } from "@/shared/lib";
+import { ErrorAlert } from "@/shared/ui";
 import { useWorkshopProfile } from "./useWorkshopProfile";
 
 interface Props {
@@ -9,7 +10,16 @@ interface Props {
 }
 
 export function WorkshopInquiryLink({ className, desiredDate }: Props) {
-  const { data: workshop } = useWorkshopProfile();
+  const { data: workshop, error, isFetching, refetch } = useWorkshopProfile();
+  if (!workshop && error) {
+    return (
+      <ErrorAlert
+        error={error}
+        onRetry={() => { void refetch(); }}
+        retrying={isFetching}
+      />
+    );
+  }
   if (!workshop?.naverTalkUrl) return null;
 
   const message = [
@@ -24,6 +34,11 @@ export function WorkshopInquiryLink({ className, desiredDate }: Props) {
 
   return (
     <div className="mt-3">
+      <ErrorAlert
+        error={error}
+        onRetry={() => { void refetch(); }}
+        retrying={isFetching}
+      />
       <p className="small text-muted-soft mb-2">
         아래 버튼을 누르면 문의 문구를 복사하고 네이버톡톡을 엽니다.
       </p>

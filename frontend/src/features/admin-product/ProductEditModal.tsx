@@ -69,13 +69,18 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
   const valid = name.trim().length > 0 && Number(price) > 0 && purchaseTermsValid;
 
   return (
-    <Modal show={product != null} onHide={onClose} centered>
+    <Modal
+      show={product != null}
+      aria-labelledby="admin-product-edit-title"
+      onHide={onClose}
+      centered
+    >
       <Form onSubmit={(event) => {
         event.preventDefault();
         if (valid) mutation.mutate();
       }}>
         <Modal.Header closeButton>
-          <Modal.Title>상품 정보 수정</Modal.Title>
+          <Modal.Title id="admin-product-edit-title">상품 정보 수정</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <ErrorAlert error={mutation.error} />

@@ -123,9 +123,14 @@ export function GuestClaimModal({
   }, [monitoringSource, needsPhoneVerification, show]);
 
   return (
-    <Modal show={show} onHide={onClose} centered>
+    <Modal
+      show={show}
+      aria-labelledby="guest-claim-title"
+      onHide={onClose}
+      centered
+    >
       <Modal.Header closeButton>
-        <Modal.Title className="fs-6">비회원 이력 가져오기</Modal.Title>
+        <Modal.Title id="guest-claim-title" className="fs-6">비회원 이력 가져오기</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <p className="text-muted-soft small mb-3">

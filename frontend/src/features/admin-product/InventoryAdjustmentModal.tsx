@@ -73,9 +73,17 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
   };
 
   return (
-    <Modal show={product !== null} onHide={close} centered size="lg">
+    <Modal
+      show={product !== null}
+      aria-labelledby="admin-inventory-adjustment-title"
+      onHide={close}
+      centered
+      size="lg"
+    >
       <Modal.Header closeButton>
-        <Modal.Title className="fs-6">{product?.name} 재고 조정</Modal.Title>
+        <Modal.Title id="admin-inventory-adjustment-title" className="fs-6">
+          {product?.name} 재고 조정
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <div className="d-flex align-items-center justify-content-between mb-3">

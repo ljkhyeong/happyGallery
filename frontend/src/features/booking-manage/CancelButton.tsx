@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Modal } from "react-bootstrap";
-import { invalidateSlotAvailability, runForCurrentCustomer } from "@/shared/api";
+import {
+  invalidateSlotAvailability,
+  queryKeys,
+  runForCurrentCustomer,
+} from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import type { BookingCancelPolicy, CancelResponse } from "@/shared/types";
@@ -57,6 +61,7 @@ export function CancelButton({
   cancelPolicy,
   buttonLabel = "예약 취소",
 }: Props) {
+  const titleId = `booking-cancel-title-${useId()}`;
   const toast = useToast();
   const queryClient = useQueryClient();
   const [showConfirm, setShowConfirm] = useState(false);
@@ -66,15 +71,19 @@ export function CancelButton({
     res: CancelResponse,
     requireCurrent: () => void,
   ) => {
-    requireCurrent();
-    await invalidateSlotAvailability(queryClient);
-    requireCurrent();
-    await onSuccess();
-    requireCurrent();
-    setShowConfirm(false);
     const passCreditNotRestored =
       cancelPolicy.warningCode === PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE;
     const passBooking = passCreditNotRestored || cancelPolicy.passCreditRestorable;
+    requireCurrent();
+    await Promise.all([
+      invalidateSlotAvailability(queryClient),
+      onSuccess(),
+      passBooking
+        ? queryClient.invalidateQueries({ queryKey: queryKeys.member.passes })
+        : Promise.resolve(),
+    ]);
+    requireCurrent();
+    setShowConfirm(false);
     let message: string;
     let variant: "success" | "warning" | "info";
 
@@ -125,9 +134,14 @@ export function CancelButton({
         {buttonLabel}
       </Button>
 
-      <Modal show={showConfirm} onHide={() => setShowConfirm(false)} centered>
+      <Modal
+        show={showConfirm}
+        aria-labelledby={titleId}
+        onHide={() => setShowConfirm(false)}
+        centered
+      >
         <Modal.Header closeButton>
-          <Modal.Title>예약 취소</Modal.Title>
+          <Modal.Title id={titleId}>예약 취소</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <ErrorAlert error={mutation.error} />

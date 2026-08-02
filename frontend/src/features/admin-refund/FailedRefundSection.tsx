@@ -27,7 +27,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
     showPreviousPage,
   } = useCursorHistory();
 
-  const { data: page, isLoading, error } = useAdminQuery(onAuthError, {
+  const { data: page, isLoading, isFetching, error, refetch } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "refunds", "failed", cursor],
     queryFn: () => fetchFailedRefunds(adminKey, cursor),
     refetchInterval: 5_000,
@@ -47,14 +47,28 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
 
   if (isLoading) return <LoadingSpinner />;
   if (error instanceof ApiError && error.status === 401) return null;
-  if (error && !hasPreviousPage) return <ErrorAlert error={error} />;
-  if (!refunds?.length && !hasPreviousPage) {
+  if (error && page === undefined && !hasPreviousPage) {
+    return (
+      <ErrorAlert
+        error={error}
+        onRetry={() => { void refetch(); }}
+        retrying={isFetching}
+      />
+    );
+  }
+  if (!error && !refunds?.length && !hasPreviousPage) {
     return <EmptyState message="확인이 필요한 환불이 없습니다." />;
   }
 
   return (
     <>
-      {error && <ErrorAlert error={error} />}
+      {error && (
+        <ErrorAlert
+          error={error}
+          onRetry={() => { void refetch(); }}
+          retrying={isFetching}
+        />
+      )}
       {refunds && refunds.length > 0 ? (
         <Table responsive hover size="sm">
           <thead>
@@ -93,9 +107,9 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
             ))}
           </tbody>
         </Table>
-      ) : (
+      ) : !error && refunds !== undefined ? (
         <EmptyState message="이 페이지에 확인이 필요한 환불이 없습니다." />
-      )}
+      ) : null}
       {(hasPreviousPage || page?.hasMore) && (
         <div className="d-flex justify-content-center gap-2 mb-3">
           <Button
@@ -118,13 +132,16 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
       )}
       <Modal
         show={retryTarget !== null}
+        aria-labelledby="admin-failed-refund-retry-title"
         onHide={() => {
           if (pendingId === null) setRetryTarget(null);
         }}
         centered
       >
         <Modal.Header closeButton={pendingId === null}>
-          <Modal.Title className="fs-6">환불 재처리 영향 확인</Modal.Title>
+          <Modal.Title id="admin-failed-refund-retry-title" className="fs-6">
+            환불 재처리 영향 확인
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <ErrorAlert error={retry.error} />

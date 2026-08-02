@@ -8,10 +8,17 @@ interface Props {
   bookings: MyBookingSummary[] | undefined;
   isLoading: boolean;
   error: Error | null;
-  totalCount: number;
+  isFetching: boolean;
+  onRetry: () => void;
 }
 
-export function MyBookingsSection({ bookings, isLoading, error, totalCount }: Props) {
+export function MyBookingsSection({
+  bookings,
+  isLoading,
+  error,
+  isFetching,
+  onRetry,
+}: Props) {
   return (
     <section id="my-bookings" className="mb-4">
       <div className="d-flex justify-content-between align-items-center mb-2">
@@ -20,12 +27,12 @@ export function MyBookingsSection({ bookings, isLoading, error, totalCount }: Pr
           <p className="text-muted-soft small mb-0">다가오는 클래스와 예약 상태를 확인하고 상세로 이동합니다.</p>
         </div>
         <div className="d-flex align-items-center gap-3">
-          <span className="text-muted-soft small">총 {totalCount}건</span>
+          {bookings && <span className="text-muted-soft small">총 {bookings.length}건</span>}
           <Link to="/my/bookings" className="my-inline-link small">전체 보기</Link>
         </div>
       </div>
       {isLoading && <LoadingSpinner />}
-      <ErrorAlert error={error} />
+      <ErrorAlert error={error} onRetry={onRetry} retrying={isFetching} />
       {bookings && bookings.length === 0 && <EmptyState message="예약 내역이 없습니다." />}
       {bookings && bookings.length > 0 && bookings.slice(0, 5).map((b) => (
         <Card

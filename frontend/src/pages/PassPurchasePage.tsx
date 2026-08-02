@@ -38,7 +38,11 @@ export function PassPurchasePage() {
         <Card.Body>
           <h6 className="mb-3">정규 공예 8회권</h6>
           {policyQuery.isLoading && <LoadingSpinner text="판매 정책 확인 중..." />}
-          <ErrorAlert error={policyQuery.error} />
+          <ErrorAlert
+            error={policyQuery.error}
+            onRetry={() => { void policyQuery.refetch(); }}
+            retrying={policyQuery.isFetching}
+          />
           {policyQuery.data && (
             <>
               <dl className="row mb-3">
@@ -62,10 +66,16 @@ export function PassPurchasePage() {
         <Card.Body>
           <h6 className="mb-3">구매 전 확인</h6>
           <ul className="small text-muted-soft ps-3 mb-3">
-            <li className="mb-2">
-              결제일을 포함해 {policyQuery.data?.validityDays ?? 90}일 동안 사용할 수 있으며,
-              마지막 사용 가능일 다음 날 00:00부터 남은 횟수는 환불 없이 소멸합니다.
-            </li>
+            {policyQuery.data ? (
+              <li className="mb-2">
+                결제일을 포함해 {policyQuery.data.validityDays}일 동안 사용할 수 있으며,
+                마지막 사용 가능일 다음 날 00:00부터 남은 횟수는 환불 없이 소멸합니다.
+              </li>
+            ) : (
+              <li className="mb-2">
+                이용 기간은 서버 판매 정책을 확인한 뒤 표시합니다.
+              </li>
+            )}
             <li className="mb-2">
               예약 한 건마다 1회가 차감됩니다. 결석하거나 변경 가능 시각이 지난 뒤 이용하지
               않아도 1회는 소모되며 별도 보강은 제공되지 않습니다.

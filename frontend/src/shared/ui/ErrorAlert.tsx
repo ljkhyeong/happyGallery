@@ -1,12 +1,14 @@
-import { Alert } from "react-bootstrap";
+import { Alert, Button } from "react-bootstrap";
 import { ApiError, CustomerSessionChangedError } from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
 
 interface Props {
   error: unknown;
+  onRetry?: () => void;
+  retrying?: boolean;
 }
 
-export function ErrorAlert({ error }: Props) {
+export function ErrorAlert({ error, onRetry, retrying = false }: Props) {
   if (!error || error instanceof CustomerSessionChangedError) return null;
 
   let message: string;
@@ -26,7 +28,19 @@ export function ErrorAlert({ error }: Props) {
 
   return (
     <Alert variant="danger" className="mb-3" role="alert">
-      {message}
+      <div>{message}</div>
+      {onRetry && (
+        <Button
+          type="button"
+          variant="outline-danger"
+          size="sm"
+          className="mt-2"
+          disabled={retrying}
+          onClick={onRetry}
+        >
+          {retrying ? "다시 확인 중..." : "다시 시도"}
+        </Button>
+      )}
     </Alert>
   );
 }

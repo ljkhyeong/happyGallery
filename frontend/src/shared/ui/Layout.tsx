@@ -7,6 +7,7 @@ import { NotificationBell } from "@/features/notification/NotificationBell";
 import { useToast } from "./ToastContainer";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { CustomerSessionChangedError } from "@/shared/api";
+import { ErrorAlert } from "./ErrorAlert";
 
 const NAV_ITEMS = [
   { path: "/classes", label: "클래스" },
@@ -27,10 +28,24 @@ function isMainNavActive(pathname: string, itemPath: string): boolean {
 
 export function Layout() {
   const { pathname } = useLocation();
-  const { user, isAuthenticated, isLoading, logout } = useCustomerAuth();
+  const {
+    user,
+    status: authStatus,
+    error: authError,
+    isAuthenticated,
+    isLoading,
+    isRefreshing: authRefreshing,
+    refresh: refreshAuth,
+    logout,
+  } = useCustomerAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const toast = useToast();
-  const { data: workshop } = useWorkshopProfile();
+  const {
+    data: workshop,
+    error: workshopError,
+    isFetching: workshopFetching,
+    refetch: refetchWorkshop,
+  } = useWorkshopProfile();
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -73,6 +88,16 @@ export function Layout() {
           </div>
         </Container>
       </div>
+
+      {authStatus === "error" && (
+        <Container className="pt-3" style={{ maxWidth: 1100 }}>
+          <ErrorAlert
+            error={authError}
+            onRetry={() => { void refreshAuth().catch(() => undefined); }}
+            retrying={authRefreshing}
+          />
+        </Container>
+      )}
 
       <Navbar expand="md" className="app-navbar" data-bs-theme="light">
         <Container style={{ maxWidth: 1100 }}>
@@ -150,6 +175,13 @@ export function Layout() {
 
       <footer className="app-footer py-4 small">
         <Container style={{ maxWidth: 1100 }}>
+          {workshopError && !workshop && (
+            <ErrorAlert
+              error={workshopError}
+              onRetry={() => { void refetchWorkshop(); }}
+              retrying={workshopFetching}
+            />
+          )}
           <div className="app-footer-grid">
             <div>
               <div className="app-footer-brand">happyGallery</div>

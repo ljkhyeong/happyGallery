@@ -13,7 +13,7 @@ export function MyInquiriesPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
   const loginHref = buildAuthPageHref("/login", { redirectTo: "/my/inquiries" });
 
-  const { data: inquiries, isLoading, error } = useQuery({
+  const { data: inquiries, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: queryKeys.member.inquiries,
     queryFn: fetchMyInquiries,
     enabled: isAuthenticated,
@@ -43,9 +43,13 @@ export function MyInquiriesPage() {
         </LinkButton>
       </div>
 
-      <ErrorAlert error={error} />
+      <ErrorAlert
+        error={error}
+        onRetry={() => { void refetch(); }}
+        retrying={isFetching}
+      />
 
-      {(!inquiries || inquiries.length === 0) && (
+      {inquiries && inquiries.length === 0 && (
         <EmptyState message="등록된 문의가 없습니다." />
       )}
 

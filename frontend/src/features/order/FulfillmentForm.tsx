@@ -4,6 +4,7 @@ import type { FulfillmentType, ShippingAddress } from "@/features/payment";
 import { useOrderPricePolicy } from "@/features/order/useOrderPricePolicy";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { formatKRW } from "@/shared/lib";
+import { isValidPhone, normalizePhone } from "@/shared/validation/phone";
 
 export interface FulfillmentSelection {
   fulfillmentType: FulfillmentType | null;
@@ -27,7 +28,7 @@ function initialFulfillmentSelection(
     shippingAddress: {
       ...emptyAddress,
       recipientName: defaultName ?? "",
-      phone: defaultPhone ?? "",
+      phone: normalizePhone(defaultPhone),
     },
   };
 }
@@ -46,7 +47,7 @@ export function useFulfillmentSelection(
       shippingAddress: {
         ...current.shippingAddress,
         recipientName: current.shippingAddress.recipientName || defaultName || "",
-        phone: current.shippingAddress.phone || defaultPhone || "",
+        phone: current.shippingAddress.phone || normalizePhone(defaultPhone),
       },
     }));
   }, [defaultName, defaultPhone]);
@@ -60,7 +61,7 @@ export function isFulfillmentComplete(selection: FulfillmentSelection) {
   const address = selection.shippingAddress;
   return Boolean(
     address.recipientName.trim()
-      && address.phone.trim()
+      && isValidPhone(normalizePhone(address.phone))
       && /^\d{5}$/.test(address.postalCode.trim())
       && address.addressLine1.trim(),
   );
@@ -75,6 +76,7 @@ export function fulfillmentPayload(selection: FulfillmentSelection) {
     shippingAddress: selection.fulfillmentType === "SHIPPING"
       ? {
           ...selection.shippingAddress,
+          phone: normalizePhone(selection.shippingAddress.phone),
           addressLine2: selection.shippingAddress.addressLine2?.trim() || null,
         }
       : null,
@@ -157,10 +159,27 @@ export function FulfillmentForm({ value, onChange }: Props) {
             <Form.Group controlId="shipping-phone">
               <Form.Label>연락처</Form.Label>
               <Form.Control
-                inputMode="tel"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                maxLength={11}
                 value={value.shippingAddress.phone}
-                onChange={(event) => updateAddress("phone", event.target.value)}
+                isInvalid={
+                  value.shippingAddress.phone.length > 0
+                  && !isValidPhone(value.shippingAddress.phone)
+                }
+                onChange={(event) => updateAddress("phone", normalizePhone(event.target.value))}
+                onPaste={(event) => {
+                  const pastedPhone = normalizePhone(event.clipboardData.getData("text"));
+                  if (pastedPhone.length <= 11) {
+                    event.preventDefault();
+                    updateAddress("phone", pastedPhone);
+                  }
+                }}
               />
+              <Form.Control.Feedback type="invalid">
+                01로 시작하는 10~11자리 번호를 입력하세요.
+              </Form.Control.Feedback>
             </Form.Group>
           </Col>
           <Col sm={4}>

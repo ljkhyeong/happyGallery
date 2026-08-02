@@ -3,11 +3,17 @@ import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetchNotices } from "./api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { LoadingSpinner, EmptyState } from "@/shared/ui";
+import { LoadingSpinner, EmptyState, ErrorAlert } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 
 export function NoticeListWidget() {
-  const { data: notices, isLoading } = useQuery({
+  const {
+    data: notices,
+    error,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["notices"],
     queryFn: fetchNotices,
     staleTime: PUBLIC_DATA_STALE_TIME,
@@ -24,7 +30,14 @@ export function NoticeListWidget() {
         </div>
       </div>
       {isLoading && <LoadingSpinner />}
-      {!isLoading && recent.length === 0 && <EmptyState message="공지사항이 없습니다." />}
+      <ErrorAlert
+        error={error}
+        onRetry={() => void refetch()}
+        retrying={isFetching}
+      />
+      {!isLoading && notices && recent.length === 0 && (
+        <EmptyState message="공지사항이 없습니다." />
+      )}
       {recent.length > 0 && (
         <div className="list-group list-group-flush">
           {recent.map((n) => (

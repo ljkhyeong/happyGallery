@@ -25,7 +25,19 @@ import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 
 export function CartPage() {
-  const { isLoading, sessionVersion } = useCustomerAuth();
+  const {
+    status,
+    isLoading,
+    sessionVersion,
+  } = useCustomerAuth();
+  if (status === "error") {
+    return (
+      <Container className="page-container">
+        <h2 className="mb-4">장바구니</h2>
+        <LoadingSpinner text="로그인 상태 확인을 기다리고 있습니다." />
+      </Container>
+    );
+  }
   if (isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
@@ -39,6 +51,11 @@ function CartContent() {
     items,
     totalAmount,
     isLoading,
+    error: cartError,
+    isRefetching,
+    refetch,
+    itemMutationError,
+    isItemMutationPending,
     guestCartMergeIssue,
     retryGuestCartMerge,
     discardGuestCartMerge,
@@ -109,11 +126,14 @@ function CartContent() {
   const discardConfirmModal = (
     <Modal
       show={showDiscardConfirm}
+      aria-labelledby="held-cart-discard-title"
       onHide={() => setShowDiscardConfirm(false)}
       centered
     >
       <Modal.Header closeButton>
-        <Modal.Title className="fs-6">보류 장바구니 항목 폐기</Modal.Title>
+        <Modal.Title id="held-cart-discard-title" className="fs-6">
+          보류 장바구니 항목 폐기
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         이 병합 요청에 포함된 로그인 전 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
@@ -153,6 +173,21 @@ function CartContent() {
     );
   }
 
+  if (cartError) {
+    return (
+      <Container className="page-container">
+        <h2 className="mb-4">장바구니</h2>
+        {mergeRecovery}
+        {discardConfirmModal}
+        <ErrorAlert
+          error={cartError}
+          onRetry={refetch}
+          retrying={isRefetching}
+        />
+      </Container>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <Container className="page-container">
@@ -180,6 +215,12 @@ function CartContent() {
       <h2 className="mb-4">장바구니</h2>
       {mergeRecovery}
       {discardConfirmModal}
+      <ErrorAlert error={itemMutationError} />
+      {isItemMutationPending && (
+        <Alert variant="info" role="status" className="mb-3">
+          장바구니 변경을 반영하고 있습니다.
+        </Alert>
+      )}
 
       <Row className="g-4">
         <Col lg={8}>
@@ -223,8 +264,10 @@ function CartContent() {
                           <Button
                             variant="outline-secondary"
                             size="sm"
-                            disabled={item.qty <= 1}
-                            onClick={() => updateQty(item.productId, item.qty - 1)}
+                            disabled={isItemMutationPending || item.qty <= 1}
+                            onClick={() => {
+                              void updateQty(item.productId, item.qty - 1).catch(() => undefined);
+                            }}
                           >
                             -
                           </Button>
@@ -232,8 +275,10 @@ function CartContent() {
                           <Button
                             variant="outline-secondary"
                             size="sm"
-                            disabled={item.qty >= MAX_PRODUCT_QUANTITY}
-                            onClick={() => updateQty(item.productId, item.qty + 1)}
+                            disabled={isItemMutationPending || item.qty >= MAX_PRODUCT_QUANTITY}
+                            onClick={() => {
+                              void updateQty(item.productId, item.qty + 1).catch(() => undefined);
+                            }}
                           >
                             +
                           </Button>
@@ -245,7 +290,10 @@ function CartContent() {
                           variant="link"
                           size="sm"
                           className="text-danger p-0"
-                          onClick={() => removeItem(item.productId)}
+                          disabled={isItemMutationPending}
+                          onClick={() => {
+                            void removeItem(item.productId).catch(() => undefined);
+                          }}
                         >
                           삭제
                         </Button>

@@ -48,36 +48,59 @@ function MyPageContent() {
   const [loggingOut, setLoggingOut] = useState(false);
   const toast = useToast();
 
-  const { data: orders, isLoading: ordersLoading, error: ordersError } = useQuery({
+  const {
+    data: orders,
+    isLoading: ordersLoading,
+    isFetching: ordersFetching,
+    error: ordersError,
+    refetch: refetchOrders,
+  } = useQuery({
     queryKey: queryKeys.member.orders.all,
     queryFn: fetchMyOrders,
     enabled: isAuthenticated,
   });
 
-  const { data: bookings, isLoading: bookingsLoading, error: bookingsError } = useQuery({
+  const {
+    data: bookings,
+    isLoading: bookingsLoading,
+    isFetching: bookingsFetching,
+    error: bookingsError,
+    refetch: refetchBookings,
+  } = useQuery({
     queryKey: queryKeys.member.bookings.all,
     queryFn: fetchMyBookings,
     enabled: isAuthenticated,
   });
 
-  const { data: passes, isLoading: passesLoading, error: passesError } = useQuery({
+  const {
+    data: passes,
+    isLoading: passesLoading,
+    isFetching: passesFetching,
+    error: passesError,
+    refetch: refetchPasses,
+  } = useQuery({
     queryKey: queryKeys.member.passes,
     queryFn: fetchMyPasses,
     enabled: isAuthenticated,
   });
 
-  const { data: inquiries } = useQuery({
+  const {
+    data: inquiries,
+    isLoading: inquiriesLoading,
+    isFetching: inquiriesFetching,
+    error: inquiriesError,
+    refetch: refetchInquiries,
+  } = useQuery({
     queryKey: queryKeys.member.inquiries,
     queryFn: fetchMyInquiries,
     enabled: isAuthenticated,
   });
 
-  const orderCount = orders?.length ?? 0;
-  const bookingCount = bookings?.length ?? 0;
-  const passCount = passes?.length ?? 0;
-  const activePasses = passes?.filter((pass) => getPassFilterKey(pass) === "ACTIVE") ?? [];
-  const activePassCount = activePasses.length;
-  const remainingCredits = activePasses.reduce((sum, pass) => sum + pass.remainingCredits, 0);
+  const orderCount = orders?.length;
+  const bookingCount = bookings?.length;
+  const activePasses = passes?.filter((pass) => getPassFilterKey(pass) === "ACTIVE");
+  const activePassCount = activePasses?.length;
+  const remainingCredits = activePasses?.reduce((sum, pass) => sum + pass.remainingCredits, 0);
   const nextBooking = bookings
     ?.filter((booking) => booking.status === "BOOKED" && parseApiDateTime(booking.startAt) >= Date.now())
     .sort((a, b) => parseApiDateTime(a.startAt) - parseApiDateTime(b.startAt))[0];
@@ -250,14 +273,19 @@ function MyPageContent() {
         loggingOut={loggingOut}
       />
 
-      <MyStatsRow
-        orderCount={orderCount}
-        bookingCount={bookingCount}
-        remainingCredits={remainingCredits}
-        activePassCount={activePassCount}
-        latestOrder={latestOrder}
-        nextBooking={nextBooking}
-      />
+      {orderCount !== undefined
+        && bookingCount !== undefined
+        && remainingCredits !== undefined
+        && activePassCount !== undefined && (
+          <MyStatsRow
+            orderCount={orderCount}
+            bookingCount={bookingCount}
+            remainingCredits={remainingCredits}
+            activePassCount={activePassCount}
+            latestOrder={latestOrder}
+            nextBooking={nextBooking}
+          />
+        )}
 
       <MyClaimCard
         user={user!}
@@ -285,24 +313,33 @@ function MyPageContent() {
         orders={orders}
         isLoading={ordersLoading}
         error={ordersError}
-        totalCount={orderCount}
+        isFetching={ordersFetching}
+        onRetry={() => void refetchOrders()}
       />
 
       <MyBookingsSection
         bookings={bookings}
         isLoading={bookingsLoading}
         error={bookingsError}
-        totalCount={bookingCount}
+        isFetching={bookingsFetching}
+        onRetry={() => void refetchBookings()}
       />
 
       <MyPassesSection
         passes={passes}
         isLoading={passesLoading}
         error={passesError}
-        totalCount={passCount}
+        isFetching={passesFetching}
+        onRetry={() => void refetchPasses()}
       />
 
-      <MyInquiriesSection inquiries={inquiries} />
+      <MyInquiriesSection
+        inquiries={inquiries}
+        isLoading={inquiriesLoading}
+        error={inquiriesError}
+        isFetching={inquiriesFetching}
+        onRetry={() => void refetchInquiries()}
+      />
 
       {showClaimModal && user!.phone && (
         <GuestClaimModal

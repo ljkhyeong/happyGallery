@@ -27,6 +27,11 @@ interface CartContextValue {
   totalAmount: number;
   itemCount: number;
   isLoading: boolean;
+  error: unknown;
+  isRefetching: boolean;
+  refetch: () => void;
+  itemMutationError: unknown;
+  isItemMutationPending: boolean;
   guestCartMergeIssue: GuestCartMergeIssue | null;
   retryGuestCartMerge: () => void;
   discardGuestCartMerge: () => void;
@@ -93,17 +98,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
   let value: CartContextValue;
   if (userId !== null) {
     const items = memberQuery.data?.items ?? [];
+    const itemMutationError = updateMutation.error ?? removeMutation.error;
+    const isItemMutationPending = updateMutation.isPending || removeMutation.isPending;
     value = {
       items,
       totalAmount: memberQuery.data?.totalAmount ?? 0,
       itemCount: items.reduce((sum, item) => sum + item.qty, 0),
       isLoading: memberQuery.isLoading || isMerging,
+      error: memberQuery.error,
+      isRefetching: memberQuery.isFetching,
+      refetch: () => { void memberQuery.refetch(); },
+      itemMutationError,
+      isItemMutationPending,
       guestCartMergeIssue,
       retryGuestCartMerge,
       discardGuestCartMerge,
       addItem: (productId, qty) => addMutation.mutateAsync({ productId, qty }),
-      updateQty: (productId, qty) => updateMutation.mutateAsync({ productId, qty }),
-      removeItem: (productId) => removeMutation.mutateAsync(productId),
+      updateQty: (productId, qty) => {
+        removeMutation.reset();
+        return updateMutation.mutateAsync({ productId, qty });
+      },
+      removeItem: (productId) => {
+        updateMutation.reset();
+        return removeMutation.mutateAsync(productId);
+      },
     };
   } else {
     value = {
@@ -122,6 +140,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       totalAmount: 0,
       itemCount: guestItemCount,
       isLoading: false,
+      error: null,
+      isRefetching: false,
+      refetch: () => undefined,
+      itemMutationError: null,
+      isItemMutationPending: false,
       guestCartMergeIssue: null,
       retryGuestCartMerge,
       discardGuestCartMerge,

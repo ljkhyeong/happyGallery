@@ -77,8 +77,11 @@ export function CustomerStepUpPrompt({
 
   return (
     <>
+      <ErrorAlert error={passwordReauthentication.error} />
       <ErrorAlert
-        error={passwordReauthentication.error ?? linkedProviders.error}
+        error={linkedProviders.error}
+        onRetry={() => { void linkedProviders.refetch(); }}
+        retrying={linkedProviders.isFetching}
       />
       {localPasswordEnabled && (
         <Form
@@ -113,7 +116,9 @@ export function CustomerStepUpPrompt({
           </Button>
         </Form>
       )}
-      {(!localPasswordEnabled || (linkedProviders.data?.length ?? 0) > 0) && (
+      {linkedProviders.data !== undefined
+        && !linkedProviders.error
+        && (!localPasswordEnabled || linkedProviders.data.length > 0) && (
         <Button
           type="button"
           variant={localPasswordEnabled ? "outline-primary" : "primary"}

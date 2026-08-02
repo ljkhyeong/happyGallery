@@ -61,13 +61,19 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
   const valid = name.trim().length > 0 && category.trim().length > 0 && Number(price) >= 10;
 
   return (
-    <Modal show={bookingClass != null} onHide={onClose} centered size="lg">
+    <Modal
+      show={bookingClass != null}
+      aria-labelledby="admin-class-edit-title"
+      onHide={onClose}
+      centered
+      size="lg"
+    >
       <Form onSubmit={(event) => {
         event.preventDefault();
         if (valid) mutation.mutate();
       }}>
         <Modal.Header closeButton>
-          <Modal.Title>클래스 정보 수정</Modal.Title>
+          <Modal.Title id="admin-class-edit-title">클래스 정보 수정</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <ErrorAlert error={mutation.error} />

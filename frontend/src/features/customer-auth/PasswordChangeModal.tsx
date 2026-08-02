@@ -61,13 +61,14 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
   return (
     <Modal
       show={show}
+      aria-labelledby="password-change-title"
       onHide={close}
       backdrop={mutation.isPending ? "static" : true}
       keyboard={!mutation.isPending}
       centered
     >
       <Modal.Header closeButton={!mutation.isPending}>
-        <Modal.Title className="fs-6">비밀번호 변경</Modal.Title>
+        <Modal.Title id="password-change-title" className="fs-6">비밀번호 변경</Modal.Title>
       </Modal.Header>
       <Form onSubmit={submit} aria-busy={mutation.isPending}>
         <Modal.Body>

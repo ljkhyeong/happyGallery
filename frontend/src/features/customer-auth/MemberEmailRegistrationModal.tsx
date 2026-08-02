@@ -81,13 +81,16 @@ export function MemberEmailRegistrationModal({
   return (
     <Modal
       show={show}
+      aria-labelledby="member-email-registration-title"
       onHide={close}
       backdrop={busy ? "static" : true}
       keyboard={!busy}
       centered
     >
       <Modal.Header closeButton={!busy}>
-        <Modal.Title className="fs-6">로그인 이메일 등록</Modal.Title>
+        <Modal.Title id="member-email-registration-title" className="fs-6">
+          로그인 이메일 등록
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <p className="text-muted-soft small mb-3">

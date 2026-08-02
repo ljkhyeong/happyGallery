@@ -21,7 +21,7 @@ export function NotificationBell() {
 
   const unreadQuery = useUnreadCount(isAuthenticated);
   const notificationQuery = useNotificationList(0, isAuthenticated && open);
-  const unreadCount = unreadQuery.data ?? 0;
+  const unreadCount = unreadQuery.data;
   const notifications = notificationQuery.data ?? [];
   const markRead = useMarkAsRead();
   const markAllRead = useMarkAllAsRead();
@@ -60,13 +60,13 @@ export function NotificationBell() {
         ref={triggerRef}
         className="app-nav-link position-relative btn btn-link p-0 border-0"
         onClick={() => setOpen((v) => !v)}
-        aria-label="알림"
+        aria-label={unreadQuery.error ? "알림, 읽지 않은 알림 수 확인 실패" : "알림"}
         aria-expanded={open}
         aria-controls={POPOVER_ID}
         aria-haspopup="dialog"
       >
         <Bell size={20} aria-hidden="true" />
-        {unreadCount > 0 && (
+        {unreadCount !== undefined && unreadCount > 0 && (
           <Badge
             bg="danger"
             pill
@@ -74,6 +74,17 @@ export function NotificationBell() {
             style={{ fontSize: "0.65rem" }}
           >
             {unreadCount > 99 ? "99+" : unreadCount}
+          </Badge>
+        )}
+        {unreadQuery.error && unreadCount === undefined && (
+          <Badge
+            bg="warning"
+            text="dark"
+            pill
+            className="position-absolute top-0 start-100 translate-middle"
+            aria-hidden="true"
+          >
+            !
           </Badge>
         )}
       </Nav.Link>
@@ -89,7 +100,7 @@ export function NotificationBell() {
         >
           <Card.Header className="d-flex justify-content-between align-items-center py-2 px-3">
             <span className="fw-semibold small">알림</span>
-            {unreadCount > 0 && (
+            {unreadCount !== undefined && unreadCount > 0 && (
               <Button
                 variant="link"
                 size="sm"
@@ -101,6 +112,20 @@ export function NotificationBell() {
             )}
           </Card.Header>
           <Card.Body className="notification-popover-body p-0">
+            {unreadQuery.error && (
+              <div className="d-flex align-items-center justify-content-between gap-2 border-bottom px-3 py-2">
+                <span className="small text-danger">읽지 않은 알림 수를 확인하지 못했습니다.</span>
+                <Button
+                  type="button"
+                  variant="outline-danger"
+                  size="sm"
+                  disabled={unreadQuery.isFetching}
+                  onClick={() => void unreadQuery.refetch()}
+                >
+                  {unreadQuery.isFetching ? "확인 중..." : "다시 시도"}
+                </Button>
+              </div>
+            )}
             {notificationQuery.error && (
               <div className="d-flex align-items-center justify-content-between gap-2 border-bottom px-3 py-2">
                 <span className="small text-danger">

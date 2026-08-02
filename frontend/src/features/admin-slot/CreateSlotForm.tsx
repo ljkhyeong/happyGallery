@@ -18,7 +18,13 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
   const [classId, setClassId] = useState("");
   const [startAt, setStartAt] = useState("");
 
-  const { data: classes, isLoading: classesLoading } = useAdminQuery(onAuthError, {
+  const {
+    data: classes,
+    isLoading: classesLoading,
+    isFetching: classesFetching,
+    error: classesError,
+    refetch: refetchClasses,
+  } = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.classes,
     queryFn: () => fetchClasses(adminKey),
   });
@@ -42,6 +48,15 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
   const valid = hasClasses && Number(classId) > 0 && Boolean(startAt);
 
   if (classesLoading) return <LoadingSpinner text="클래스 목록 로딩 중..." />;
+  if (classes === undefined) {
+    return (
+      <ErrorAlert
+        error={classesError}
+        onRetry={() => { void refetchClasses(); }}
+        retrying={classesFetching}
+      />
+    );
+  }
 
   return (
     <Form
@@ -50,6 +65,11 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
         if (valid) mutation.mutate();
       }}
     >
+      <ErrorAlert
+        error={classesError}
+        onRetry={() => { void refetchClasses(); }}
+        retrying={classesFetching}
+      />
       <ErrorAlert error={mutation.error} />
       <Row className="g-2 align-items-end">
         <Col xs={12} md={4}>
@@ -58,16 +78,20 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
             <Form.Select
               value={classId}
               onChange={(e) => setClassId(e.target.value)}
-              disabled={!hasClasses}
+              disabled={!hasClasses || Boolean(classesError)}
             >
-              <option value="">{hasClasses ? "선택..." : "먼저 클래스를 생성하세요"}</option>
+              <option value="">
+                {classesError
+                  ? "클래스를 다시 조회해 주세요"
+                  : hasClasses ? "선택..." : "먼저 클래스를 생성하세요"}
+              </option>
               {activeClasses?.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.durationMin}분)
                 </option>
               ))}
             </Form.Select>
-            {!hasClasses && (
+            {!classesError && !hasClasses && (
               <Form.Text className="text-muted">
                 등록된 클래스가 없습니다. 위에서 클래스를 먼저 생성해 주세요.
               </Form.Text>

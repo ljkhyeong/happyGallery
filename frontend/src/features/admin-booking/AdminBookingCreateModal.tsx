@@ -53,14 +53,14 @@ export function AdminBookingCreateModal({
     enabled: show && Number.isSafeInteger(selectedClassId) && selectedClassId > 0,
   });
   const selectableSlots = useMemo(
-    () => (slotsQuery.data ?? [])
-      .filter((slot) => slot.isActive
+    () => slotsQuery.data
+      ?.filter((slot) => slot.isActive
         && parseApiDateTime(slot.startAt) > Date.now()
         && slot.bookedCount < slot.capacity)
       .sort((left, right) => left.startAt.localeCompare(right.startAt)),
     [slotsQuery.data],
   );
-  const selectedSlot = selectableSlots.find((slot) => String(slot.id) === slotId);
+  const selectedSlot = selectableSlots?.find((slot) => String(slot.id) === slotId);
   const maximumParticipants = selectedSlot
     ? Math.min(8, selectedSlot.capacity - selectedSlot.bookedCount)
     : 1;
@@ -101,22 +101,41 @@ export function AdminBookingCreateModal({
     resetForm();
     onHide();
   };
-  const formValid = selectedSlot !== undefined
+  const formValid = slotsQuery.error === null
+    && selectedSlot !== undefined
     && name.trim().length > 0
     && phone.trim().length > 0
     && participantCount >= 1
     && participantCount <= maximumParticipants;
 
   return (
-    <Modal show={show} onHide={close} size="lg" centered>
+    <Modal
+      show={show}
+      aria-labelledby="admin-booking-create-title"
+      onHide={close}
+      size="lg"
+      centered
+    >
       <Modal.Header closeButton={!createMutation.isPending}>
-        <Modal.Title className="fs-6">전화·메신저·방문 예약 등록</Modal.Title>
+        <Modal.Title id="admin-booking-create-title" className="fs-6">
+          전화·메신저·방문 예약 등록
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <ErrorAlert error={createMutation.error ?? classesQuery.error ?? slotsQuery.error} />
+        <ErrorAlert error={createMutation.error} />
+        <ErrorAlert
+          error={classesQuery.error}
+          onRetry={() => { void classesQuery.refetch(); }}
+          retrying={classesQuery.isFetching}
+        />
+        <ErrorAlert
+          error={slotsQuery.error}
+          onRetry={() => { void slotsQuery.refetch(); }}
+          retrying={slotsQuery.isFetching}
+        />
         {classesQuery.isLoading ? (
           <LoadingSpinner text="클래스를 불러오는 중..." />
-        ) : (
+        ) : classesQuery.data !== undefined ? (
           <Form>
             <Row className="g-3">
               <Col xs={12} md={6}>
@@ -143,7 +162,13 @@ export function AdminBookingCreateModal({
                   <Form.Label>예약 시간</Form.Label>
                   <Form.Select
                     value={slotId}
-                    disabled={!classId || slotsQuery.isLoading || createMutation.isPending}
+                    disabled={
+                      !classId
+                      || slotsQuery.isLoading
+                      || slotsQuery.data === undefined
+                      || Boolean(slotsQuery.error)
+                      || createMutation.isPending
+                    }
                     onChange={(event) => {
                       setSlotId(event.target.value);
                       setParticipantCount(1);
@@ -152,11 +177,15 @@ export function AdminBookingCreateModal({
                     <option value="">
                       {slotsQuery.isLoading
                         ? "슬롯 조회 중..."
-                        : selectableSlots.length === 0
+                        : slotsQuery.error
+                          ? "슬롯을 다시 조회해 주세요"
+                          : slotsQuery.data === undefined
+                          ? "슬롯을 다시 조회해 주세요"
+                          : selectableSlots?.length === 0
                           ? "예약 가능한 슬롯이 없습니다"
                           : "선택하세요"}
                     </option>
-                    {selectableSlots.map((slot) => (
+                    {selectableSlots?.map((slot) => (
                       <option key={slot.id} value={slot.id}>
                         {formatDateTime(slot.startAt)} · 잔여 {slot.capacity - slot.bookedCount}명
                       </option>
@@ -234,7 +263,7 @@ export function AdminBookingCreateModal({
               오프라인 예약금 반환 작업이 관리자 할 일에 남습니다.
             </p>
           </Form>
-        )}
+        ) : null}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="outline-secondary" disabled={createMutation.isPending} onClick={close}>

@@ -9,7 +9,7 @@ import {
 } from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
-import { useToast } from "@/shared/ui";
+import { ErrorAlert, useToast } from "@/shared/ui";
 import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 import {
   SOCIAL_PROVIDER_DETAILS,
@@ -42,7 +42,13 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
   const [startingProvider, setStartingProvider] = useState<SocialProvider | null>(null);
   const [password, setPassword] = useState("");
   const [pendingAction, setPendingAction] = useState<SensitiveAction | null>(null);
-  const { data: linkedProviders = [], isLoading } = useQuery({
+  const {
+    data: linkedProviders,
+    error: linkedProvidersError,
+    isLoading,
+    isFetching: linkedProvidersFetching,
+    refetch: refetchLinkedProviders,
+  } = useQuery({
     queryKey: ["me", "social-accounts"],
     queryFn: fetchLinkedSocialProviders,
   });
@@ -86,7 +92,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
   };
 
   const redirectForSensitiveAction = async (action: SensitiveAction) => {
-    const reauthenticationProvider = linkedProviders[0];
+    const reauthenticationProvider = linkedProviders?.[0];
     if (!reauthenticationProvider) {
       return false;
     }
@@ -171,7 +177,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     }
   };
 
-  const canUnlink = localPasswordEnabled || linkedProviders.length > 1;
+  const canUnlink = localPasswordEnabled || (linkedProviders?.length ?? 0) > 1;
   const sensitiveActionPending = startingProvider !== null;
   const closePasswordReauthentication = () => {
     if (sensitiveActionPending) {
@@ -195,48 +201,57 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
         )}
       </div>
 
-      <div className="d-grid gap-2">
-        {SOCIAL_PROVIDERS.map((provider) => {
-          const linked = linkedProviders.includes(provider);
-          const details = SOCIAL_PROVIDER_DETAILS[provider];
-          return (
-            <div key={provider} className="d-flex justify-content-between align-items-center gap-3">
-              <div className="d-flex align-items-center gap-2">
-                <span>{details.label}</span>
-                {linked && <Badge bg="success">연결됨</Badge>}
+      <ErrorAlert
+        error={linkedProvidersError}
+        onRetry={() => void refetchLinkedProviders()}
+        retrying={linkedProvidersFetching}
+      />
+
+      {linkedProviders && (
+        <div className="d-grid gap-2">
+          {SOCIAL_PROVIDERS.map((provider) => {
+            const linked = linkedProviders.includes(provider);
+            const details = SOCIAL_PROVIDER_DETAILS[provider];
+            return (
+              <div key={provider} className="d-flex justify-content-between align-items-center gap-3">
+                <div className="d-flex align-items-center gap-2">
+                  <span>{details.label}</span>
+                  {linked && <Badge bg="success">연결됨</Badge>}
+                </div>
+                {linked ? (
+                  <Button
+                    type="button"
+                    variant="outline-danger"
+                    size="sm"
+                    disabled={
+                      !canUnlink
+                      || unlinkMutation.isPending
+                      || sensitiveActionPending
+                    }
+                    onClick={() => void requestUnlink(provider)}
+                  >
+                    해제
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline-primary"
+                    size="sm"
+                    disabled={startingProvider !== null}
+                    onClick={() => void startLink(provider)}
+                  >
+                    {startingProvider === provider ? "연결 중..." : "연결"}
+                  </Button>
+                )}
               </div>
-              {linked ? (
-                <Button
-                  type="button"
-                  variant="outline-danger"
-                  size="sm"
-                  disabled={
-                    !canUnlink
-                    || unlinkMutation.isPending
-                    || sensitiveActionPending
-                  }
-                  onClick={() => void requestUnlink(provider)}
-                >
-                  해제
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline-primary"
-                  size="sm"
-                  disabled={startingProvider !== null}
-                  onClick={() => void startLink(provider)}
-                >
-                  {startingProvider === provider ? "연결 중..." : "연결"}
-                </Button>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <Modal
         show={pendingAction !== null}
+        aria-labelledby="social-account-password-confirm-title"
         onHide={closePasswordReauthentication}
         backdrop={sensitiveActionPending ? "static" : true}
         keyboard={!sensitiveActionPending}
@@ -244,7 +259,9 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
       >
         <Form onSubmit={(event) => void handlePasswordReauthentication(event)}>
           <Modal.Header closeButton={!sensitiveActionPending}>
-            <Modal.Title className="fs-6">비밀번호로 본인 확인</Modal.Title>
+            <Modal.Title id="social-account-password-confirm-title" className="fs-6">
+              비밀번호로 본인 확인
+            </Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <Form.Control
@@ -258,7 +275,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
             />
           </Modal.Body>
           <Modal.Footer>
-            {linkedProviders.length > 0 && pendingAction && (
+            {(linkedProviders?.length ?? 0) > 0 && pendingAction && (
               <Button
                 type="button"
                 variant="outline-primary"

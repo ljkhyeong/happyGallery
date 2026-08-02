@@ -32,7 +32,13 @@ export function SlotSelectionStep({
   const [date, setDate] = useState("");
   const [inquiryDate, setInquiryDate] = useState("");
 
-  const { data: classes, isLoading: classesLoading, error: classesError } = useQuery({
+  const {
+    data: classes,
+    isLoading: classesLoading,
+    isFetching: classesFetching,
+    error: classesError,
+    refetch: refetchClasses,
+  } = useQuery({
     queryKey: ["classes"],
     queryFn: fetchClasses,
     staleTime: REFERENCE_DATA_STALE_TIME,
@@ -54,7 +60,13 @@ export function SlotSelectionStep({
     onDeselect?.();
   }, [classes, initialClassId, onClassChange, onDeselect]);
 
-  const { data: upcomingSlots, isLoading: slotsLoading, error: slotsError } = useQuery({
+  const {
+    data: upcomingSlots,
+    isLoading: slotsLoading,
+    isFetching: slotsFetching,
+    error: slotsError,
+    refetch: refetchSlots,
+  } = useQuery({
     queryKey: queryKeys.slotAvailability.upcoming.byClass(
       selectedClass?.id ?? 0,
       UPCOMING_DAYS,
@@ -86,13 +98,18 @@ export function SlotSelectionStep({
     <div>
       <h6 className="mb-3">2. 클래스 / 날짜 / 시간 선택</h6>
 
-      <Row className="g-2 mb-3">
-        <Col xs={12} sm={6}>
-          <Form.Group controlId="booking-class-select">
-            <Form.Label>클래스</Form.Label>
-            {classesLoading ? (
-              <LoadingSpinner text="클래스 로딩..." />
-            ) : (
+      {classesLoading && <LoadingSpinner text="클래스 로딩..." />}
+      <ErrorAlert
+        error={classesError}
+        onRetry={() => { void refetchClasses(); }}
+        retrying={classesFetching}
+      />
+
+      {classes !== undefined && (
+        <Row className="g-2 mb-3">
+          <Col xs={12} sm={6}>
+            <Form.Group controlId="booking-class-select">
+              <Form.Label>클래스</Form.Label>
               <Form.Select value={classId} onChange={(e) => {
                 const nextId = Number(e.target.value);
                 setClassId(e.target.value);
@@ -108,40 +125,40 @@ export function SlotSelectionStep({
                   </option>
                 ))}
               </Form.Select>
-            )}
-          </Form.Group>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Form.Group controlId="booking-date-input">
-            <Form.Label>날짜</Form.Label>
-            <Form.Select
-              value={activeDate}
-              onChange={(e) => { setDate(e.target.value); onDeselect?.(); }}
-              disabled={!selectedClass || slotsLoading || availableDates.length === 0}
-            >
-              <option value="" disabled>
-                {!selectedClass
-                  ? "클래스를 먼저 선택하세요"
-                  : slotsLoading
-                    ? "예약 가능일 조회 중..."
-                    : availableDates.length > 0
-                      ? "예약 가능한 날짜를 선택하세요"
-                      : "예약 가능한 날짜가 없습니다"}
-              </option>
-              {availableDates.map((availableDate) => (
-                <option key={availableDate} value={availableDate}>
-                  {formatDate(availableDate)}
+            </Form.Group>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Form.Group controlId="booking-date-input">
+              <Form.Label>날짜</Form.Label>
+              <Form.Select
+                value={activeDate}
+                onChange={(e) => { setDate(e.target.value); onDeselect?.(); }}
+                disabled={!selectedClass || slotsLoading || availableDates.length === 0}
+              >
+                <option value="" disabled>
+                  {!selectedClass
+                    ? "클래스를 먼저 선택하세요"
+                    : slotsLoading
+                      ? "예약 가능일 조회 중..."
+                      : slotsError
+                        ? "예약 가능일을 다시 조회해 주세요"
+                        : availableDates.length > 0
+                          ? "예약 가능한 날짜를 선택하세요"
+                          : "예약 가능한 날짜가 없습니다"}
                 </option>
-              ))}
-            </Form.Select>
-            <Form.Text className="text-muted">
-              앞으로 {UPCOMING_DAYS}일 안에 예약 가능한 날짜만 표시됩니다.
-            </Form.Text>
-          </Form.Group>
-        </Col>
-      </Row>
-
-      <ErrorAlert error={classesError} />
+                {availableDates.map((availableDate) => (
+                  <option key={availableDate} value={availableDate}>
+                    {formatDate(availableDate)}
+                  </option>
+                ))}
+              </Form.Select>
+              <Form.Text className="text-muted">
+                앞으로 {UPCOMING_DAYS}일 안에 예약 가능한 날짜만 표시됩니다.
+              </Form.Text>
+            </Form.Group>
+          </Col>
+        </Row>
+      )}
 
       {selectedClass && (
         <section className="booking-class-detail mb-3">
@@ -166,11 +183,15 @@ export function SlotSelectionStep({
         </section>
       )}
 
-      <ErrorAlert error={slotsError} />
+      <ErrorAlert
+        error={slotsError}
+        onRetry={() => { void refetchSlots(); }}
+        retrying={slotsFetching}
+      />
 
       {slotsLoading && <LoadingSpinner text="슬롯 조회 중..." />}
 
-      {upcomingSlots && upcomingSlots.length === 0 && (
+      {!slotsError && upcomingSlots && upcomingSlots.length === 0 && (
         <div>
           <EmptyState message={`앞으로 ${UPCOMING_DAYS}일 안에 예약 가능한 일정이 없습니다.`} />
           <Form.Group controlId="booking-inquiry-date" className="mt-3">

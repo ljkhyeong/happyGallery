@@ -91,6 +91,7 @@ export function MyOrderDetailPage() {
       <OrderCustomerActionPanel
         status={order.status}
         pending={cancelMutation.isPending || delayMutation.isPending}
+        error={cancelMutation.error ?? delayMutation.error}
         onCancel={() => cancelMutation.mutate()}
         onDelayDecision={(decision) => delayMutation.mutate(decision)}
       />

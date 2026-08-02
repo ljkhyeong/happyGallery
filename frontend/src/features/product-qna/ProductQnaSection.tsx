@@ -19,11 +19,22 @@ export function ProductQnaSection({ productId }: Props) {
 function ProductQnaContent({ productId }: Props) {
   const { isAuthenticated } = useCustomerAuth();
 
-  const { data: qnaList, isLoading } = useQuery({
+  const {
+    data: qnaList,
+    error: qnaError,
+    isLoading,
+    isFetching: qnaFetching,
+    refetch: refetchQna,
+  } = useQuery({
     queryKey: ["product-qna", productId],
     queryFn: () => fetchProductQna(productId),
   });
-  const { data: myQnaList, error: myQnaError } = useQuery({
+  const {
+    data: myQnaList,
+    error: myQnaError,
+    isFetching: myQnaFetching,
+    refetch: refetchMyQna,
+  } = useQuery({
     queryKey: queryKeys.member.productQna.byProduct(productId),
     queryFn: ({ signal }) => fetchMyProductQna(productId, signal),
     enabled: isAuthenticated,
@@ -41,11 +52,23 @@ function ProductQnaContent({ productId }: Props) {
 
         {isLoading && <LoadingSpinner />}
 
-        {!isLoading && (!qnaList || qnaList.length === 0) && (
+        <ErrorAlert
+          error={qnaError}
+          onRetry={() => void refetchQna()}
+          retrying={qnaFetching}
+        />
+
+        {!isLoading && qnaList && qnaList.length === 0 && (
           <EmptyState message="등록된 Q&A가 없습니다." />
         )}
 
-        {isAuthenticated && <ErrorAlert error={myQnaError} />}
+        {isAuthenticated && (
+          <ErrorAlert
+            error={myQnaError}
+            onRetry={() => void refetchMyQna()}
+            retrying={myQnaFetching}
+          />
+        )}
 
         {qnaList?.map((item) => (
           <QnaItem
