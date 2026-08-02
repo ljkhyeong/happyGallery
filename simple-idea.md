@@ -28,3 +28,6 @@
 | ~~관리자 8회권 환불은 환불할 `passId`를 직접 입력해야 하고 관리자용 8회권 검색·목록 API가 없다.~~ | ~~회원명·전화번호·8회권 번호로 조회한 목록에서 잔여 횟수와 환불 예상액을 확인한 뒤 환불하도록 관리자 조회 API와 목록 기반 액션을 추가한다.~~ |
 | 운영 공개 도메인이 정해지지 않아 절대 URL이 필요한 canonical, sitemap, `og:url`을 확정할 수 없다. | DNS와 운영 origin을 확정할 때 공개 경로 sitemap을 생성하고 canonical·Open Graph URL을 같은 origin으로 설정한다. |
 | 비밀번호 해시는 롤백 호환을 위해 식별자 없는 BCrypt로 쓰고 식별자 없는 형식과 `{bcrypt}` 형식을 모두 읽는다. | 이 호환 릴리스가 운영과 롤백 기준선이 된 뒤 `{bcrypt}` 쓰기로 전환하고 기존 해시는 별도 migration으로 백필한다. |
+| ~~29개 Spring Data repository가 애플리케이션 저장 포트의 구체 `save(Entity)`와 `JpaRepository`의 제네릭 `save(S)`를 한 인터페이스에서 함께 선언해 unchecked bridge 경고를 낸다.~~ | ~~저장 포트를 구현하는 전용 persistence adapter와 Spring Data repository를 분리해 제네릭 메서드 충돌을 없애고 컴파일 경고를 실제 신규 위험 신호로 사용할 수 있게 한다.~~ |
+| ~~`BoundedExecutorFactory`의 수동 Micrometer 바인딩과 Spring Boot의 executor 자동 바인딩이 같은 meter를 등록해 기동 시 중복 경고가 발생한다.~~ | ~~executor meter 바인딩 책임을 한 곳으로 통합하고 직접 생성 테스트는 별도 binder 계약 테스트로 분리한다.~~ |
+| ~~일부 Spring 통합 테스트 종료 시 Spring Session 정리 스레드가 먼저 닫힌 `LettuceConnectionFactory`를 한 번 더 참조해 오류 로그를 남긴다.~~ | ~~테스트 컨텍스트 종료 전에 세션 정리 스케줄러를 정지시키거나 테스트 프로필에서 해당 정리 작업을 비활성화해 실제 실패 로그와 종료 노이즈를 구분한다.~~ |
