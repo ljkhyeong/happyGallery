@@ -2,7 +2,7 @@
 
 **날짜**: 2026-03-20  
 **상태**: Accepted
-**갱신**: 2026-07-24
+**갱신**: 2026-08-02
 
 ---
 
@@ -32,8 +32,12 @@
 - 테스트 전용 관리자 API key
 - rate limit 비활성화
 - 로그 레벨 조정
+- Spring Session Redis cleanup cron 비활성화(`spring.session.data.redis.cleanup-cron: "-"`)
 
 이런 공통 설정은 테스트 클래스마다 `@TestPropertySource`로 흩뿌리지 않는다.
+
+Redis cleanup cron은 인덱스 보정용 백그라운드 작업이며, 세션 TTL과 키스페이스 만료 이벤트는 이 설정과 무관하게 유지된다.
+짧게 살았다 종료되는 Testcontainers 컨텍스트에서는 cleanup scheduler가 Redis 연결 팩토리 종료와 경합해 오류 로그를 남길 수 있으므로, `test` 프로필에서만 Spring Session이 지원하는 비활성 값 `-`를 사용한다.
 
 ### 4. 필터 검증은 필요할 때만 수동으로 `MockMvc`를 조립한다
 

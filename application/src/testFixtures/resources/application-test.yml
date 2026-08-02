@@ -2,6 +2,12 @@ spring:
   config:
     activate:
       on-profile: test
+  session:
+    data:
+      redis:
+        # Testcontainers 컨텍스트 종료 중 cleanup 작업이 닫힌 Redis 연결을 참조하지 않게 한다.
+        # 세션 TTL/키스페이스 이벤트는 유지하고, 테스트 대상이 아닌 보정 스케줄러만 비활성화한다.
+        cleanup-cron: "-"
 
 app:
   admin:
