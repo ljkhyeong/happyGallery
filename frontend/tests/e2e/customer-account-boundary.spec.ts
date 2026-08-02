@@ -43,6 +43,18 @@ async function flushBrowserTasks(page: Page) {
   }));
 }
 
+async function loginInPage(page: Page, customer: Customer) {
+  await page.getByLabel("이메일").fill(customer.email);
+  await page.getByLabel("비밀번호").fill("password123!");
+  const loginResponse = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/api/v1/auth/login"
+    && response.request().method() === "POST");
+  await page.getByRole("button", { name: "로그인", exact: true }).click();
+  await loginResponse;
+  await expect(page.getByRole("link", { name: customer.name, exact: true }))
+    .toBeVisible({ timeout: 15_000 });
+}
+
 test("@identity 최초 비회원 확인이 늦게 끝나도 공개 화면 입력을 유지한다", async ({
   page,
 }) => {
@@ -748,12 +760,9 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
     await otherPage.goto(
       `/login?redirect=${encodeURIComponent("/products/42")}`,
     );
-    await otherPage.getByLabel("이메일").fill(customerB.email);
-    await otherPage.getByLabel("비밀번호").fill("password123!");
-    await otherPage.getByRole("button", { name: "로그인", exact: true }).click();
-    await expect(otherPage.getByText(customerB.name).first()).toBeVisible();
+    await loginInPage(otherPage, customerB);
 
-    await expect(page.getByText(customerB.name).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: customerB.name, exact: true })).toBeVisible();
     await page.getByRole("button", { name: "택배 배송" }).click();
     await expect(page.getByLabel("받는 분")).toHaveValue(customerB.name);
     await expect(page.getByLabel("연락처")).toHaveValue(customerB.phone);
@@ -889,12 +898,9 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
 
     otherPage = await context.newPage();
     await otherPage.goto("/login");
-    await otherPage.getByLabel("이메일").fill(customerB.email);
-    await otherPage.getByLabel("비밀번호").fill("password123!");
-    await otherPage.getByRole("button", { name: "로그인", exact: true }).click();
-    await expect(otherPage.getByText(customerB.name).first()).toBeVisible();
+    await loginInPage(otherPage, customerB);
 
-    await expect(page.getByText(customerB.name).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: customerB.name, exact: true })).toBeVisible();
     await expect(page.getByLabel("조회 코드")).toHaveValue("");
     await expect(page.getByText("주문 #701")).toHaveCount(0);
     await expect.poll(() => page.evaluate(() =>
@@ -1012,10 +1018,7 @@ test("@identity 계정 전환 뒤 이전 결제 확정 결과와 정리가 새 �
 
     otherPage = await context.newPage();
     await otherPage.goto("/login");
-    await otherPage.getByLabel("이메일").fill(customerB.email);
-    await otherPage.getByLabel("비밀번호").fill("password123!");
-    await otherPage.getByRole("button", { name: "로그인", exact: true }).click();
-    await expect(otherPage.getByText(customerB.name).first()).toBeVisible();
+    await loginInPage(otherPage, customerB);
     await expect(page.getByText("회원 계정이 변경되었습니다")).toBeVisible();
 
     await page.evaluate(() => {

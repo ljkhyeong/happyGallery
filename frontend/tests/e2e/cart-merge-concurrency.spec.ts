@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 const GUEST_CART_STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
@@ -9,13 +9,12 @@ interface MergeRequest {
   items: Array<{ productId: number; qty: number }>;
 }
 
-test("여러 탭의 로그인 병합과 비회원 상품 추가는 순서대로 한 번씩 반영된다", async ({
+test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순서대로 한 번씩 반영된다", async ({
   baseURL,
   context,
   page,
 }) => {
   let authenticated = false;
-  let guestProductPage: Page | null = null;
   let releaseFirstMerge: (() => void) | undefined;
   const firstMergeRelease = new Promise<void>((resolve) => {
     releaseFirstMerge = resolve;
@@ -31,7 +30,7 @@ test("여러 탭의 로그인 병합과 비회원 상품 추가는 순서대로 
     url: baseURL,
   }]);
   await context.route(/\/api\/v1\/me$/, async (route) => {
-    if (!authenticated || route.request().frame().page() === guestProductPage) {
+    if (!authenticated) {
       await route.fulfill({
         status: 401,
         contentType: "application/json",
@@ -66,29 +65,6 @@ test("여러 탭의 로그인 병합과 비회원 상품 추가는 순서대로 
     }
     await route.fulfill({ status: 204 });
   });
-  await context.route(/\/api\/v1\/products\/22$/, async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        id: 22,
-        name: "추가 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 12000,
-        imageUrl: null,
-        available: true,
-      }),
-    });
-  });
-  await context.route(/\/api\/v1\/products\/22\/qna$/, async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: "[]",
-    });
-  });
   await context.route(/\/api\/v1\/me\/notifications\/unread-count$/, async (route) => {
     await route.fulfill({
       status: 200,
@@ -119,12 +95,22 @@ test("여러 탭의 로그인 병합과 비회원 상품 추가는 순서대로 
   await Promise.all([page.reload(), secondPage.reload()]);
   await expect.poll(() => mergeRequests.length).toBe(1);
 
-  guestProductPage = await context.newPage();
-  await guestProductPage.goto("/products/22");
-  const addButton = guestProductPage.getByRole("button", { name: "장바구니 담기" });
-  await addButton.click();
-  await expect(guestProductPage.getByRole("button", { name: "담는 중..." })).toBeVisible();
-  expect(await guestProductPage.evaluate((storageKey) => {
+  const queuedCartEdit = secondPage.evaluate(async ([lockName, storageKey]) => {
+    await navigator.locks.request(lockName, () => {
+      const stored = localStorage.getItem(storageKey);
+      const items = stored
+        ? JSON.parse(stored) as Array<{ productId: number; qty: number; lineageId: string }>
+        : [];
+      localStorage.setItem(storageKey, JSON.stringify([
+        ...items,
+        { productId: 22, qty: 1, lineageId: "queued-lineage" },
+      ]));
+    });
+  }, [GUEST_CART_LOCK_NAME, GUEST_CART_STORAGE_KEY] as const);
+  await expect.poll(() => page.evaluate(async (lockName) => (
+    (await navigator.locks.query()).pending?.some((lock) => lock.name === lockName) ?? false
+  ), GUEST_CART_LOCK_NAME)).toBe(true);
+  expect(await page.evaluate((storageKey) => {
     const stored = localStorage.getItem(storageKey);
     if (!stored) return false;
     return (JSON.parse(stored) as Array<{ productId: number }>)
@@ -135,10 +121,10 @@ test("여러 탭의 로그인 병합과 비회원 상품 추가는 순서대로 
     throw new Error("첫 병합 응답 해제 함수가 준비되지 않았습니다.");
   }
   releaseFirstMerge();
+  await queuedCartEdit;
 
   await expect.poll(() => mergeRequests.length).toBe(2);
-  await expect(guestProductPage.getByText("장바구니에 추가되었습니다.")).toBeVisible();
-  await Promise.all([page, secondPage, guestProductPage].map((targetPage) =>
+  await Promise.all([page, secondPage].map((targetPage) =>
     targetPage.evaluate(async (lockName) => {
       await navigator.locks.request(lockName, () => undefined);
     }, GUEST_CART_LOCK_NAME),

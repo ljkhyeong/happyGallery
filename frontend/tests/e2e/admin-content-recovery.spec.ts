@@ -8,7 +8,7 @@ const EMPTY_CURSOR_PAGE = {
   hasMore: false,
 };
 
-async function openAuthenticatedAdmin(page: Page, view: "support" | "settings") {
+async function openAuthenticatedAdmin(page: Page, view: "support" | "settings" | "orders") {
   await page.addInitScript(([key, token]) => {
     sessionStorage.setItem(key, token);
   }, [ADMIN_TOKEN_KEY, ADMIN_TOKEN] as const);
@@ -241,4 +241,40 @@ test("P8-CONTENT-2 @admin 설정 충돌과 인증·로그아웃 실패를 안전
   await expect.poll(() => page.evaluate((key) => sessionStorage.getItem(key), ADMIN_TOKEN_KEY))
     .toBeNull();
   await expect(page.getByText("이 브라우저에서는 로그아웃했습니다.")).toBeVisible();
+});
+
+test("P8-CONTENT-3 @admin 주문 조회 실패는 빈 목록으로 단정하지 않고 다시 조회한다", async ({
+  page,
+}) => {
+  let orderAttempts = 0;
+
+  await page.route("**/api/v1/admin/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+
+    if (pathname === "/api/v1/admin/orders") {
+      orderAttempts += 1;
+      await json(
+        route,
+        orderAttempts <= 2
+          ? { code: "SERVICE_UNAVAILABLE", message: "잠시 후 다시 시도해 주세요." }
+          : EMPTY_CURSOR_PAGE,
+        orderAttempts <= 2 ? 503 : 200,
+      );
+      return;
+    }
+    if (pathname === "/api/v1/admin/order-claims") {
+      await json(route, EMPTY_CURSOR_PAGE);
+      return;
+    }
+
+    await json(route, []);
+  });
+
+  await openAuthenticatedAdmin(page, "orders");
+  const orderPanel = page.locator("section").filter({ hasText: "주문 목록" }).last();
+  await expect(orderPanel.getByRole("button", { name: "다시 시도" })).toBeVisible();
+  await expect(orderPanel.getByText("해당 조건의 주문이 없습니다.")).toHaveCount(0);
+
+  await orderPanel.getByRole("button", { name: "다시 시도" }).click();
+  await expect(orderPanel.getByText("해당 조건의 주문이 없습니다.")).toBeVisible();
 });

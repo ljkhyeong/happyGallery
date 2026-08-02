@@ -162,6 +162,9 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
     const orderRow = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
     await expect(orderRow).toBeVisible();
     await orderRow.getByRole("button", { name: "거절" }).click();
+    const rejectDialog = page.getByRole("dialog", { name: "주문 거절 영향 확인" });
+    await expect(rejectDialog).toBeVisible();
+    await rejectDialog.getByRole("button", { name: "거절 및 환불 요청" }).click();
 
     await waitForOrder(request, orderId, "REJECTED");
     const failedRefund = await waitForFailedRefundByOrderId(request, orderId);
@@ -172,6 +175,9 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
     const refundRow = refundCard.locator("tbody tr").filter({ hasText: failureReason }).first();
     await expect(refundRow).toBeVisible();
     await refundRow.getByRole("button", { name: "재처리" }).click();
+    const retryDialog = page.getByRole("dialog", { name: "환불 재처리 영향 확인" });
+    await expect(retryDialog).toBeVisible();
+    await retryDialog.getByRole("button", { name: "확인하고 재처리" }).click();
 
     await waitForFailedRefundGone(request, failedRefund.refundId);
     await expect(refundCard.locator("tbody tr").filter({ hasText: failureReason })).toHaveCount(0);

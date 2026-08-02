@@ -59,9 +59,18 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
 
   await loginCustomer(page, customer);
   await page.goto("/my/orders");
-  await page.getByLabel("상태").selectOption("승인 대기");
+  await page.getByLabel("상태", { exact: true }).selectOption("승인 대기");
   await page.getByLabel("주문 번호 검색").fill(String(orderId));
-  await expect(page.getByText(`주문 #${orderId}`)).toBeVisible();
+  await page.getByText(`주문 #${orderId}`).click();
+  await expect(page).toHaveURL(new RegExp(`/my/orders/${orderId}$`));
+
+  await page.getByRole("button", { name: "주문 취소" }).click();
+  const refundDialog = page.getByRole("dialog", { name: "주문 취소 및 환불 요청" });
+  await expect(refundDialog).toBeVisible();
+  await expect(refundDialog.getByText("결제사 환불 완료 시점은 별도입니다.")).toBeVisible();
+  await refundDialog.getByRole("button", { name: "취소 및 환불 요청" }).click();
+  await expect(page.locator(".badge-status").filter({ hasText: "고객 취소" }).first())
+    .toBeVisible();
 });
 
 test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에서 바로 확인할 수 있다", async ({ page, request }) => {
@@ -98,7 +107,7 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
     throw new Error("Member pass list text was empty");
   }
   const passId = extractFirstNumber(passCardText, "8회권 #");
-  await page.getByLabel("상태").selectOption("사용 가능");
+  await page.getByLabel("상태", { exact: true }).selectOption("사용 가능");
   await page.getByLabel("8회권 번호 검색").fill(String(passId));
   await expect(page.getByText(`8회권 #${passId}`)).toBeVisible();
 
@@ -141,7 +150,7 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   await expect(page.getByText("취소됨")).toBeVisible();
 
   await page.goto("/my/bookings");
-  await page.getByLabel("상태").selectOption("취소됨");
+  await page.getByLabel("상태", { exact: true }).selectOption("취소됨");
   await page.getByLabel("예약 검색").fill(String(bookingId));
   await expect(page.getByText(bookingClass.name)).toBeVisible();
 });

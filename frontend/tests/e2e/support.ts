@@ -95,6 +95,12 @@ export function makeEmail(seed: string): string {
   return `${normalized}${Date.now().toString().slice(-6)}@example.com`;
 }
 
+async function expectMyPageEmail(page: Page, email: string) {
+  await expect(
+    page.locator(".my-dashboard-hero").getByText(email, { exact: true }),
+  ).toBeVisible();
+}
+
 export function plusDays(days: number, hour: number, minute: number, durationMin: number) {
   const start = new Date();
   start.setDate(start.getDate() + days);
@@ -277,7 +283,7 @@ export async function signupCustomer(
   expect(response.ok(), "Customer signup API should succeed").toBeTruthy();
   await setCustomerSessionFromResponse(page, response.headers()["set-cookie"]);
   await page.goto("/my");
-  await expect(page.getByText(credentials.email)).toBeVisible();
+  await expectMyPageEmail(page, credentials.email);
   return credentials;
 }
 
@@ -290,7 +296,7 @@ export async function loginCustomer(page: Page, credentials: CustomerFixtureCred
   expect(response.ok(), "Customer login API should succeed").toBeTruthy();
   await setCustomerSessionFromResponse(page, response.headers()["set-cookie"]);
   await page.goto("/my");
-  await expect(page.getByText(credentials.email)).toBeVisible();
+  await expectMyPageEmail(page, credentials.email);
 }
 
 export async function logoutCustomer(page: Page) {

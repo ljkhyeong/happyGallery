@@ -116,7 +116,7 @@ test("P8-9 @identity 비회원 주문 결제 후 조회 화면에서 회원 전�
   await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
 
   await expect(page.getByRole("heading", { name: "비회원 주문 조회" })).toBeVisible();
-  await expect(page.locator(".card").filter({ hasText: /주문 #\d+/ }).last()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "주문 상품" })).toBeVisible();
   await expect(page.getByRole("main").getByRole("link", { name: "회원가입" })).toBeVisible();
   await expect(page.getByText("비회원 주문은 조회 코드로 확인하고")).toBeVisible();
 });
