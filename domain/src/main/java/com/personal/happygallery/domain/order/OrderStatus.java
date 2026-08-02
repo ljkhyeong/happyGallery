@@ -80,11 +80,19 @@ public enum OrderStatus {
 		}
 	}
 
-	/** 제작 중이거나 아직 승인하지 않은 기성품 주문인지 확인한다. */
-	public void requireDelayProposable() {
-		if (this != IN_PRODUCTION && this != PAID_APPROVAL_PENDING) {
+	/** 승인 전 기성품 주문에 지연을 제안할 수 있는지 확인한다. */
+	public void requireReadyStockDelayProposable() {
+		if (this != PAID_APPROVAL_PENDING) {
 			throw new HappyGalleryException(
-					ErrorCode.INVALID_INPUT, "승인 대기 또는 제작 중 상태에서만 지연을 제안할 수 있습니다.");
+					ErrorCode.INVALID_INPUT, "승인 대기 상태의 기성품 주문만 지연을 제안할 수 있습니다.");
+		}
+	}
+
+	/** 제작 중인 주문제작 또는 혼합 주문에 지연을 제안할 수 있는지 확인한다. */
+	public void requireProductionDelayProposable() {
+		if (this != IN_PRODUCTION) {
+			throw new HappyGalleryException(
+					ErrorCode.INVALID_INPUT, "제작 중 상태의 주문제작 주문만 지연을 제안할 수 있습니다.");
 		}
 	}
 

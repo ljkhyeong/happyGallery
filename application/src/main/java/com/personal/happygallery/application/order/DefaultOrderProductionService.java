@@ -5,6 +5,7 @@ import com.personal.happygallery.application.order.port.in.OrderProductionUseCas
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.SetExpectedShipDateCommand;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
+import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
@@ -37,6 +38,7 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
 
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
+    private final OrderItemPort orderItemPort;
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
     private final OrderRefundSupport orderRefundSupport;
@@ -44,12 +46,14 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
 
     public DefaultOrderProductionService(OrderReaderPort orderReader,
                                          OrderStorePort orderStore,
+                                         OrderItemPort orderItemPort,
                                          FulfillmentPort fulfillmentPort,
                                          OrderHistoryPort orderHistoryPort,
                                          OrderRefundSupport orderRefundSupport,
                                          OrderNotificationSupport orderNotificationSupport) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
+        this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
         this.orderRefundSupport = orderRefundSupport;
@@ -92,7 +96,12 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
     @OptimisticLockRetryable
     public ProductionResult proposeDelay(ProposeDelayCommand command) {
         Order order = OrderLookups.requireOrder(orderReader, command.orderId());
-        order.proposeDelay();
+        boolean hasMadeToOrderItem = orderItemPort.existsMadeToOrderItem(order);
+        if (hasMadeToOrderItem) {
+            order.proposeProductionDelay();
+        } else {
+            order.proposeReadyStockDelay();
+        }
 
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, command.orderId());
 

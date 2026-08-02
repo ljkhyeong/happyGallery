@@ -184,9 +184,15 @@ public class Order {
         this.status = OrderStatus.IN_PRODUCTION;
     }
 
-    /** 재고 부족 또는 제작 일정 변경으로 이행 지연을 제안하고 고객 응답을 기다린다. */
-    public void proposeDelay() {
-        this.status.requireDelayProposable();
+    /** 승인 전 기성품의 재고 부족으로 이행 지연을 제안하고 고객 응답을 기다린다. */
+    public void proposeReadyStockDelay() {
+        this.status.requireReadyStockDelayProposable();
+        this.status = OrderStatus.DELAY_CONSENT_PENDING;
+    }
+
+    /** 제작 중인 주문제작 또는 혼합 주문의 일정 지연을 제안하고 고객 응답을 기다린다. */
+    public void proposeProductionDelay() {
+        this.status.requireProductionDelayProposable();
         this.status = OrderStatus.DELAY_CONSENT_PENDING;
     }
 

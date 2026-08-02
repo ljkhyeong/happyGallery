@@ -66,6 +66,29 @@ class OrderStatusTransitionPolicyTest {
         });
     }
 
+    @DisplayName("지연 제안 검증은 기성품 승인 대기와 주문제작 제작 중 상태를 구분한다")
+    @Test
+    void requireDelayProposable_distinguishesOrderItemType() {
+        assertSoftly(softly -> {
+            softly.assertThatCode(() ->
+                            OrderStatus.PAID_APPROVAL_PENDING.requireReadyStockDelayProposable())
+                    .as("기성품은 승인 전에 지연 제안 가능")
+                    .doesNotThrowAnyException();
+            softly.assertThatThrownBy(() ->
+                            OrderStatus.IN_PRODUCTION.requireReadyStockDelayProposable())
+                    .as("기성품은 제작 중 상태로 지연 제안할 수 없음")
+                    .isInstanceOf(HappyGalleryException.class);
+            softly.assertThatCode(() ->
+                            OrderStatus.IN_PRODUCTION.requireProductionDelayProposable())
+                    .as("주문제작은 제작 중에 지연 제안 가능")
+                    .doesNotThrowAnyException();
+            softly.assertThatThrownBy(() ->
+                            OrderStatus.PAID_APPROVAL_PENDING.requireProductionDelayProposable())
+                    .as("주문제작은 승인 전에 지연 제안할 수 없음")
+                    .isInstanceOf(HappyGalleryException.class);
+        });
+    }
+
     // -----------------------------------------------------------------------
     // requireDelayRejectionCancelable() — 고객 지연 거절 취소 가드
     // -----------------------------------------------------------------------

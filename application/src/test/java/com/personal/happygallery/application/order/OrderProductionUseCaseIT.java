@@ -18,6 +18,7 @@ import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.error.ProductionRefundNotAllowedException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderDelayDecision;
@@ -25,18 +26,23 @@ import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.RefundStatus;
+import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -73,6 +79,7 @@ class OrderProductionUseCaseIT {
     @Autowired OrderShippingUseCase orderShippingService;
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired OrderService orderService;
+    @Autowired JdbcTemplate jdbcTemplate;
     OrderTestHelper orderHelper;
 
     @BeforeEach
@@ -194,6 +201,70 @@ class OrderProductionUseCaseIT {
             softly.assertThat(notificationOutboxRepository.findAll())
                     .extracting("eventType")
                     .contains(NotificationEventType.ORDER_DELAY_REQUESTED);
+        });
+    }
+
+    @DisplayName("현재 상품 유형이 바뀌어도 미승인 주문제작 스냅샷에는 지연을 제안할 수 없다")
+    @Test
+    void proposeDelay_unapprovedMadeToOrderSnapshot_rejectsWithoutMutation() {
+        OrderTestHelper.OrderFixture fixture =
+                orderHelper.createMadeToOrderPaidOrder("미승인 주문제작 상품", 180_000L);
+        Order order = fixture.order();
+        long outboxCountBefore = notificationOutboxRepository.count();
+
+        jdbcTemplate.update("""
+                UPDATE products
+                SET type = 'READY_STOCK', production_lead_days = NULL, version = version + 1
+                WHERE id = ?
+                """, fixture.product().getId());
+
+        assertThatThrownBy(() ->
+                orderProductionService.proposeDelay(new ProposeDelayCommand(order.getId(), ADMIN_ID)))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("제작 중");
+
+        assertSoftly(softly -> {
+            softly.assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
+                    .isEqualTo(OrderStatus.PAID_APPROVAL_PENDING);
+            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId())).isEmpty();
+            softly.assertThat(notificationOutboxRepository.count()).isEqualTo(outboxCountBefore);
+        });
+    }
+
+    @DisplayName("미승인 혼합 주문에는 지연을 제안할 수 없고 이력과 알림도 남지 않는다")
+    @Test
+    void proposeDelay_unapprovedMixedOrder_rejectsWithoutMutation() {
+        Product readyStock = orderHelper.createReadyStockProduct("혼합 기성품", 50_000L, 1);
+        Product madeToOrder = productStorePort.save(new Product(
+                "혼합 주문제작 상품",
+                ProductType.MADE_TO_ORDER,
+                null,
+                120_000L,
+                null,
+                null,
+                "재료: 테스트 재료\n크기: 테스트 규격\n사양: 고정 사양",
+                "직사광선을 피해 보관하세요.",
+                14));
+        inventoryStorePort.save(new Inventory(madeToOrder, 1));
+        Order order = orderService.createMemberOrder(
+                orderHelper.createMemberOwner().getId(),
+                List.of(orderItemRequest(readyStock), orderItemRequest(madeToOrder)),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                MadeToOrderConsent.current(LocalDateTime.of(2026, 1, 1, 0, 0)));
+        long outboxCountBefore = notificationOutboxRepository.count();
+
+        assertThatThrownBy(() ->
+                orderProductionService.proposeDelay(new ProposeDelayCommand(order.getId(), ADMIN_ID)))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("제작 중");
+
+        assertSoftly(softly -> {
+            softly.assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
+                    .isEqualTo(OrderStatus.PAID_APPROVAL_PENDING);
+            softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId())).isEmpty();
+            softly.assertThat(notificationOutboxRepository.count()).isEqualTo(outboxCountBefore);
         });
     }
 
@@ -531,5 +602,17 @@ class OrderProductionUseCaseIT {
 
         Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
         assertThat(fulfillment.getExpectedShipDate()).isEqualTo(shipDate);
+    }
+
+    private static OrderService.OrderItemRequest orderItemRequest(Product product) {
+        return new OrderService.OrderItemRequest(
+                product.getId(),
+                product.getName(),
+                product.getType(),
+                1,
+                product.getPrice(),
+                product.getSpecification(),
+                product.getCareInstructions(),
+                product.getProductionLeadDays());
     }
 }
