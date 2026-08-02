@@ -1,7 +1,7 @@
 # ADR-0025: 정상 종료와 실행기 정리 정책
 
 **날짜**: 2026-03-19  
-**최종 갱신**: 2026-07-29
+**최종 갱신**: 2026-08-02
 **상태**: Accepted
 
 ---
@@ -108,7 +108,8 @@ Sentry scope가 다음 실행에도 재사용되는 것을 피한다.
 - core/max pool 크기가 같은 고정 thread pool
 - 고정 크기 `ArrayBlockingQueue`
 - daemon platform thread
-- 거절 횟수 counter와 Micrometer executor monitor 등록
+- 거절 횟수 counter 등록
+- 표준 `executor.*` meter는 Spring Boot가 Spring bean 이름으로 한 번만 자동 등록
 - 큐 포화 시 호출 스레드에서 실행하지 않는 `AbortPolicy`
 
 `PaymentResilienceConfig`와 `NotificationResilienceConfig`는 pool·queue 크기, thread/metric 이름과
@@ -169,7 +170,9 @@ Redis 연결 종료 뒤 남아 shutdown을 지연하지 않게 한다.
   - 채널별 알림 executor 설정과 빈 조립
 - `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/resilience/BoundedExecutorFactory.java`
   - Boot builder 기반 timeout executor의 Spring 수명주기 구성
-  - 제한 큐·daemon thread·즉시 거절·2초 종료·큐/거절 메트릭과 추적 문맥 전파 공용화
+  - 제한 큐·daemon thread·즉시 거절·2초 종료·거절 메트릭과 추적 문맥 전파 공용화
+  - 큐·pool·completed 표준 메트릭은 Spring Boot `TaskExecutorMetricsAutoConfiguration`이 빈 이름을 `name`
+    태그로 삼아 등록하도록 소유권 분리
 
 ---
 
@@ -178,6 +181,8 @@ Redis 연결 종료 뒤 남아 shutdown을 지연하지 않게 한다.
 ### 장점
 
 - 종료 시점 동작이 설정/코드/문서 기준으로 일치한다.
+- 표준 executor meter의 등록 주체가 Spring Boot 하나로 정리되어 중복 등록 경고 없이
+  기존 `executor.completed{name=...}`와 큐 계약을 유지한다.
 - 알림 작업은 불필요한 유실을 줄이고, 보호용 executor는 빠르게 정리할 수 있다.
 - 커밋 후 신호 큐 포화가 이미 성공한 요청을 5xx로 바꾸지 않고 복구 경로와 경보로 이어진다.
 - deploy/rollback 시 종료 대기 상한이 명확하다.

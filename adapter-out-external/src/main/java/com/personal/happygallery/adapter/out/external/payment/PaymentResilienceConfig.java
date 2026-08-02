@@ -56,7 +56,6 @@ class PaymentResilienceConfig {
                 threadPool.poolSize(),
                 threadPool.queueCapacity(),
                 "payment-timeout-",
-                "paymentTimeoutExecutor",
                 "happygallery.payment.executor.rejected",
                 "PG timeout executor rejected task count");
     }

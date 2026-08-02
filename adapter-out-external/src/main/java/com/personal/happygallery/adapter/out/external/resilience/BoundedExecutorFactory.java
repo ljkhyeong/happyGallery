@@ -2,13 +2,10 @@ package com.personal.happygallery.adapter.out.external.resilience;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 import java.time.Duration;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.task.ThreadPoolTaskExecutorBuilder;
@@ -18,6 +15,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public final class BoundedExecutorFactory {
+
+    /*
+     * executor.* standard meters are intentionally owned by Spring Boot's task executor binder.
+     * This factory only owns the application-specific rejection counters.
+     */
 
     private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(2);
 
@@ -37,7 +39,6 @@ public final class BoundedExecutorFactory {
     public ThreadPoolTaskExecutor create(int poolSize,
                                          int queueCapacity,
                                          String threadNamePrefix,
-                                         String monitorName,
                                          String rejectedMetricName,
                                          String rejectedMetricDescription) {
         Counter rejectedCounter = Counter.builder(rejectedMetricName)
@@ -62,14 +63,10 @@ public final class BoundedExecutorFactory {
                     taskExecutor.setRejectedExecutionHandler(countingAbortPolicy);
                 })
                 .build(BoundedThreadPoolTaskExecutor.class);
-        executor.configureMetrics(meterRegistry, monitorName);
         return executor;
     }
 
     public static final class BoundedThreadPoolTaskExecutor extends ThreadPoolTaskExecutor {
-
-        private MeterRegistry meterRegistry;
-        private String monitorName;
 
         public BoundedThreadPoolTaskExecutor() {
         }
@@ -80,27 +77,12 @@ public final class BoundedExecutorFactory {
         }
 
         @Override
-        protected ExecutorService initializeExecutor(
-                ThreadFactory threadFactory,
-                RejectedExecutionHandler rejectedExecutionHandler
-        ) {
-            ExecutorService executor = super.initializeExecutor(threadFactory, rejectedExecutionHandler);
-            ExecutorServiceMetrics.monitor(meterRegistry, executor, monitorName);
-            return executor;
-        }
-
-        @Override
         public void shutdown() {
             super.shutdown();
             ThreadPoolExecutor executor = getThreadPoolExecutor();
             if (!executor.isTerminated()) {
                 executor.shutdownNow();
             }
-        }
-
-        private void configureMetrics(MeterRegistry meterRegistry, String monitorName) {
-            this.meterRegistry = meterRegistry;
-            this.monitorName = monitorName;
         }
     }
 }

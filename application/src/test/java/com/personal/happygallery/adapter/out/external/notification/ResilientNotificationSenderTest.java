@@ -148,10 +148,7 @@ class ResilientNotificationSenderTest {
             queued = CompletableFuture.supplyAsync(() -> resilientSender.send(
                     IDEMPOTENCY_KEY, "01022222222", "두 번째", NotificationEventType.BOOKING_CONFIRMED));
             await().atMost(1, TimeUnit.SECONDS).untilAsserted(() ->
-                    assertThat(meterRegistry.get("executor.queued")
-                            .tag("name", "alimtalkNotificationTimeoutExecutor")
-                            .gauge()
-                            .value()).isEqualTo(1));
+                    assertThat(timeoutExecutors.getFirst().getThreadPoolExecutor().getQueue()).hasSize(1));
 
             NotificationSendResult result = resilientSender.send(
                     IDEMPOTENCY_KEY, "01033333333", "세 번째", NotificationEventType.BOOKING_CONFIRMED);
@@ -171,7 +168,7 @@ class ResilientNotificationSenderTest {
         }
     }
 
-    @DisplayName("알림톡·SMS·휴대폰 및 이메일 인증은 서로 다른 제한 실행기와 지표를 사용한다")
+    @DisplayName("알림톡·SMS·휴대폰 및 이메일 인증은 서로 다른 제한 실행기와 거절 지표를 사용한다")
     @Test
     void notificationChannels_useIsolatedExecutorsAndMetrics() {
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
@@ -191,18 +188,6 @@ class ResilientNotificationSenderTest {
         assertSoftly(softly -> {
             softly.assertThat(List.of(alimtalk, sms, verification, emailVerification))
                     .doesNotHaveDuplicates();
-            softly.assertThat(meterRegistry.find("executor.queued")
-                    .tag("name", "alimtalkNotificationTimeoutExecutor")
-                    .gauge()).isNotNull();
-            softly.assertThat(meterRegistry.find("executor.queued")
-                    .tag("name", "smsNotificationTimeoutExecutor")
-                    .gauge()).isNotNull();
-            softly.assertThat(meterRegistry.find("executor.queued")
-                    .tag("name", "phoneVerificationTimeoutExecutor")
-                    .gauge()).isNotNull();
-            softly.assertThat(meterRegistry.find("executor.queued")
-                    .tag("name", "emailVerificationTimeoutExecutor")
-                    .gauge()).isNotNull();
             softly.assertThat(meterRegistry.find(
                     "happygallery.notification.alimtalk.executor.rejected").counter()).isNotNull();
             softly.assertThat(meterRegistry.find(

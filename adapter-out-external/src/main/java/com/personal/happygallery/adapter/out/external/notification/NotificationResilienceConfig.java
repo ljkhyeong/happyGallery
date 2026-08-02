@@ -91,7 +91,6 @@ class NotificationResilienceConfig {
                 properties.alimtalkThreadPool(),
                 executorFactory,
                 "alimtalk-notification-timeout-",
-                "alimtalkNotificationTimeoutExecutor",
                 "happygallery.notification.alimtalk.executor.rejected",
                 "Alimtalk notification timeout executor rejected task count");
     }
@@ -105,7 +104,6 @@ class NotificationResilienceConfig {
                 properties.smsThreadPool(),
                 executorFactory,
                 "sms-notification-timeout-",
-                "smsNotificationTimeoutExecutor",
                 "happygallery.notification.sms.executor.rejected",
                 "SMS notification timeout executor rejected task count");
     }
@@ -119,7 +117,6 @@ class NotificationResilienceConfig {
                 properties.phoneVerificationThreadPool(),
                 executorFactory,
                 "phone-verification-timeout-",
-                "phoneVerificationTimeoutExecutor",
                 "happygallery.notification.phone_verification.executor.rejected",
                 "Phone verification timeout executor rejected task count");
     }
@@ -133,7 +130,6 @@ class NotificationResilienceConfig {
                 properties.emailVerificationThreadPool(),
                 executorFactory,
                 "email-verification-timeout-",
-                "emailVerificationTimeoutExecutor",
                 "happygallery.notification.email_verification.executor.rejected",
                 "Email verification timeout executor rejected task count");
     }
@@ -275,7 +271,6 @@ class NotificationResilienceConfig {
             NotificationResilienceProperties.ThreadPool threadPool,
             BoundedExecutorFactory executorFactory,
             String threadNamePrefix,
-            String monitorName,
             String rejectionMetricName,
             String rejectionMetricDescription
     ) {
@@ -283,7 +278,6 @@ class NotificationResilienceConfig {
                 threadPool.poolSize(),
                 threadPool.queueCapacity(),
                 threadNamePrefix,
-                monitorName,
                 rejectionMetricName,
                 rejectionMetricDescription);
     }

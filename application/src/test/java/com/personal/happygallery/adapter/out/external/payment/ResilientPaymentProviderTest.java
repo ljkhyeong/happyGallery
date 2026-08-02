@@ -103,10 +103,7 @@ class ResilientPaymentProviderTest {
             queued = CompletableFuture.supplyAsync(
                     () -> provider.refund("payment-key-2", 10_000, "idempotency-key-2"));
             await().atMost(1, TimeUnit.SECONDS).untilAsserted(() ->
-                    assertThat(meterRegistry.get("executor.queued")
-                            .tag("name", "paymentTimeoutExecutor")
-                            .gauge()
-                            .value()).isEqualTo(1));
+                    assertThat(timeoutExecutor.getThreadPoolExecutor().getQueue()).hasSize(1));
 
             RefundResult rejected = provider.refund("payment-key-3", 10_000, "idempotency-key-3");
 
